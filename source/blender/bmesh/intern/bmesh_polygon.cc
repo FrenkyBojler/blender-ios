@@ -458,7 +458,8 @@ void BM_face_calc_tangent_from_edge_pair(const BMFace *f, float r_tangent[3])
   }
   else if (f->len == 4) {
     /* Use longest edge pair */
-    BM_face_calc_tangent_from_edge(f, r_tangent);
+    float r_tangent_dummy[3];
+    bm_face_calc_tangent_pair_from_quad_edge_pair(f, r_tangent, r_tangent_dummy);
   }
   else {
     /* For ngons use two longest disconnected edges */
@@ -485,7 +486,7 @@ void BM_face_calc_tangent_from_edge_pair(const BMFace *f, float r_tangent[3])
 
     /* Edges may not be opposite side of the ngon,
      * this could cause problems for ngons with multiple-aligned edges of the same length.
-     * Fallback to longest edge. */
+     * Fall back to longest edge. */
     if (UNLIKELY(normalize_v3(r_tangent) == 0.0f)) {
       normalize_v3_v3(r_tangent, vec_a);
     }

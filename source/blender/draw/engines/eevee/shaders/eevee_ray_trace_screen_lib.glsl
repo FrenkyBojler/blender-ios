@@ -150,11 +150,13 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
   time = mix(prev_time, time, saturate(prev_delta / (prev_delta - delta)));
 
   ScreenTraceHitData result;
-  result.valid = hit;
   result.ss_hit_P = ssray.origin.xyz + ssray.direction.xyz * time;
   result.v_hit_P = drw_point_screen_to_view(result.ss_hit_P);
   /* Convert to world space ray time. */
   result.time = length(result.v_hit_P - ray.origin) / length(ray.direction);
+  /* Update the validity as ss_hit_P can point to a background sample. */
+  result.valid = hit &&
+                 (textureLod(hiz_tx, result.ss_hit_P.xy * hiz_data.uv_scale, 0.0f).r != 1.0f);
 
 #ifdef METAL_AMD_RAYTRACE_WORKAROUND
   /* Check failed ray flag to discard bad hits. */
@@ -182,9 +184,8 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
   float2 inv_texture_size = 1.0f / float2(textureSize(planar_depth_tx, 0).xy);
   /* NOTE: The 2.0 factor here is because we are applying it in NDC space. */
-  /* TODO(@fclem): This uses the main view's projection matrix, not the planar's one.
-   * This works fine for reflection, but this prevent the use of any other projection capture. */
-  ScreenSpaceRay ssray = raytrace_screenspace_ray_create(ray, 2.0f * inv_texture_size);
+  ScreenSpaceRay ssray = raytrace_screenspace_ray_create(
+      ray, planar.winmat, 2.0f * inv_texture_size);
 
   float prev_delta = 0.0f, prev_time = 0.0f;
   float depth_sample = reverse_z::read(
@@ -218,11 +219,14 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
   time = mix(prev_time, time, saturate(prev_delta / (prev_delta - delta)));
 
   ScreenTraceHitData result;
-  result.valid = hit;
   result.ss_hit_P = ssray.origin.xyz + ssray.direction.xyz * time;
-  /* TODO(@fclem): This uses the main view's projection matrix, not the planar's one.
-   * This works fine for reflection, but this prevent the use of any other projection capture. */
-  result.v_hit_P = drw_point_screen_to_view(result.ss_hit_P);
+  /* Update the validity as ss_hit_P can point to a not loaded sample. */
+  result.valid =
+      hit &&
+      textureLod(planar_depth_tx, float3(result.ss_hit_P.xy, planar.layer_id), 0.0f).r != 0.0;
+
+  /* NOTE: v_hit_P is in planar reflected view space. */
+  result.v_hit_P = project_point(planar.wininv, drw_screen_to_ndc(result.ss_hit_P));
   /* Convert to world space ray time. */
   result.time = length(result.v_hit_P - ray.origin) / length(ray.direction);
   return result;

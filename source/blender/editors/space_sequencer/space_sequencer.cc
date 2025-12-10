@@ -662,12 +662,13 @@ static bool is_mouse_over_retiming_key(const Scene *scene,
 
 static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 {
+  const Scene *scene = win->scene;
+  const Editing *ed = seq::editing_get(scene);
+  const bToolRef *tref = area->runtime.tool;
+
   int wmcursor = WM_CURSOR_DEFAULT;
 
-  const bToolRef *tref = area->runtime.tool;
-  if (tref == nullptr ||
-      !(STRPREFIX(tref->idname, "builtin.select") || STREQ(tref->idname, "builtin.blade")))
-  {
+  if (tref == nullptr || scene == nullptr || ed == nullptr) {
     WM_cursor_set(win, wmcursor);
     return;
   }
@@ -696,15 +697,20 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   UI_view2d_region_to_view(
       &region->v2d, mouse_co_region[0], mouse_co_region[1], &mouse_co_view[0], &mouse_co_view[1]);
 
-  const Scene *scene = win->scene;
-  const Editing *ed = seq::editing_get(scene);
-
   if (STREQ(tref->idname, "builtin.blade")) {
     int mval[2] = {int(mouse_co_region[0]), int(mouse_co_region[1])};
     Strip *strip = strip_under_mouse_get(scene, v2d, mval);
-    ListBase *channels = seq::channels_displayed_get(ed);
     if (strip != nullptr) {
-      wmcursor = seq::transform_is_locked(channels, strip) ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
+      ListBase *channels = seq::channels_displayed_get(ed);
+      const bool locked = seq::transform_is_locked(channels, strip);
+      const int frame = round_fl_to_int(mouse_co_view[0]);
+      /* We cannot split the first and last frame, so blade cursor should not appear then. */
+      if (STREQ(tref->idname, "builtin.blade") &&
+          frame != seq::time_left_handle_frame_get(scene, strip) &&
+          frame != seq::time_right_handle_frame_get(scene, strip))
+      {
+        wmcursor = locked ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
+      }
     }
     WM_cursor_set(win, wmcursor);
     return;

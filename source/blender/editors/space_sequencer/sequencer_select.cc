@@ -318,7 +318,7 @@ void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect)
   r_rect->ymax = strip->channel + STRIP_OFSTOP;
 }
 
-Strip *find_neighboring_strip(Scene *scene, Strip *test, int lr, int sel)
+Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel)
 {
   /* sel: 0==unselected, 1==selected, -1==don't care. */
   Editing *ed = seq::editing_get(scene);
@@ -880,8 +880,9 @@ static void sequencer_select_connected_strips(const StripSelection &selection)
   }
 }
 
-static void sequencer_copy_handles_to_selected_strips(const StripSelection &selection,
-                                                      const VectorSet<Strip *> prev_selection)
+static void sequencer_copy_handles_to_selected_strips(const Scene *scene,
+                                                      const StripSelection &selection,
+                                                      VectorSet<Strip *> copy_to)
 {
   /* TODO(john): Dual handle propagation is not supported for now due to its complexity,
    * but once we simplify selection assumptions in 5.0 we can add support for it. */
@@ -890,9 +891,36 @@ static void sequencer_copy_handles_to_selected_strips(const StripSelection &sele
   }
 
   Strip *source = selection.strip1;
-  /* For left or right handle selection only, simply copy selection state. */
-  /* NOTE that this must be `ALLSEL` since `prev_selection` was deselected earlier. */
-  for (Strip *strip : prev_selection) {
+  /* Test for neighboring strips in the `copy_to` list. If any border one another, remove them,
+   * since we don't want to mess with dual handles. */
+  blender::VectorSet<Strip *> test(copy_to);
+  test.add(source);
+  for (Strip *test_strip : test) {
+    /* Don't copy left handle over to a `test_strip` that has a strip directly on its left. */
+    if ((source->flag & SEQ_LEFTSEL) &&
+        find_neighboring_strip(scene, test_strip, seq::SIDE_LEFT, -1))
+    {
+      /* If this was the source strip, do not copy handles at all and prematurely return. */
+      if (test_strip == source) {
+        return;
+      }
+      copy_to.remove(test_strip);
+    }
+
+    /* Don't copy right handle over to a `test_strip` that has a strip directly on its right. */
+    if ((source->flag & SEQ_RIGHTSEL) &&
+        find_neighboring_strip(scene, test_strip, seq::SIDE_RIGHT, -1))
+    {
+      /* If this was the source strip, do not copy handles at all and prematurely return. */
+      if (test_strip == source) {
+        return;
+      }
+      copy_to.remove(test_strip);
+    }
+  }
+
+  for (Strip *strip : copy_to) {
+    /* NOTE that this can be `ALLSEL` since `prev_selection` was deselected earlier. */
     strip->flag &= ~STRIP_ALLSEL;
     strip->flag |= source->flag & STRIP_ALLSEL;
   }
@@ -1191,15 +1219,8 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
   ARegion *region = CTX_wm_region(C);
-  ScrArea *area = CTX_wm_area(C);
 
   if (ed == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
-
-  if (STREQ(area->runtime.tool->idname, "builtin.blade")) {
-    /* Blade tool overrides select operator everywhere except the padded part of handles. We
-     * should not be able to select these with this tool active, so return. */
     return OPERATOR_CANCELLED;
   }
 
@@ -1336,7 +1357,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   if (copy_handles_to_sel) {
     copy_to = seq::query_selected_strips(seq::active_seqbase_get(scene->ed));
     copy_to.remove(selection.strip1);
-    copy_to.remove_if([](Strip *strip) { return strip->type == STRIP_TYPE_EFFECT; });
+    copy_to.remove_if([](Strip *strip) { return (strip->type & STRIP_TYPE_EFFECT); });
   }
 
   bool changed = false;
@@ -1368,11 +1389,11 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
         ed, selection.strip2, strip2_handle_clicked, extend, deselect, toggle);
   }
 
-  if (copy_handles_to_sel) {
-    sequencer_copy_handles_to_selected_strips(selection, copy_to);
-  }
-
   if (!ignore_connections) {
+    if (copy_handles_to_sel) {
+      sequencer_copy_handles_to_selected_strips(scene, selection, copy_to);
+    }
+
     sequencer_select_connected_strips(selection);
   }
 

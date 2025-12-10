@@ -1210,6 +1210,11 @@ int RNA_property_tags(PropertyRNA *prop)
   return rna_ensure_property(prop)->tags;
 }
 
+PropertyPathTemplateType RNA_property_path_template_type(PropertyRNA *prop)
+{
+  return rna_ensure_property(prop)->path_template_type;
+}
+
 bool RNA_property_builtin(PropertyRNA *prop)
 {
   return (rna_ensure_property(prop)->flag_internal & PROP_INTERN_BUILTIN) != 0;
@@ -1905,6 +1910,22 @@ bool RNA_enum_name(const EnumPropertyItem *item, const int value, const char **r
   }
   return false;
 }
+
+bool RNA_enum_name_gettexted(const EnumPropertyItem *item,
+                             int value,
+                             const char *translation_context,
+                             const char **r_name)
+{
+  bool result;
+
+  result = RNA_enum_name(item, value, r_name);
+
+  if (result) {
+    *r_name = BLT_translate_do_iface(translation_context, *r_name);
+  }
+
+  return result;
+};
 
 bool RNA_enum_description(const EnumPropertyItem *item,
                           const int value,
@@ -3928,12 +3949,13 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
                                                            PointerRNA *ptr,
                                                            PropertyRNA *prop)
 {
-  BLI_assert(prop->type == PROP_STRING);
-  StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+  BLI_assert(RNA_property_type(prop) == PROP_STRING);
+  PropertyRNA *rna_prop = rna_ensure_property(prop);
+  StringPropertyRNA *sprop = (StringPropertyRNA *)rna_prop;
   if (!sprop->path_filter) {
     return std::nullopt;
   }
-  return sprop->path_filter(C, ptr, prop);
+  return sprop->path_filter(C, ptr, rna_prop);
 }
 
 int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop)
@@ -3985,7 +4007,7 @@ void RNA_property_enum_set(PointerRNA *ptr, PropertyRNA *prop, int value)
   }
 }
 
-int RNA_property_enum_get_default(PointerRNA * /*ptr*/, PropertyRNA *prop)
+int RNA_property_enum_get_default(PointerRNA *ptr, PropertyRNA *prop)
 {
   EnumPropertyRNA *eprop = (EnumPropertyRNA *)rna_ensure_property(prop);
   BLI_assert(RNA_property_type(prop) == PROP_ENUM);
@@ -3998,6 +4020,9 @@ int RNA_property_enum_get_default(PointerRNA * /*ptr*/, PropertyRNA *prop)
           idprop->ui_data);
       return ui_data->default_value;
     }
+  }
+  if (eprop->get_default) {
+    return eprop->get_default(ptr, prop);
   }
 
   return eprop->defaultvalue;

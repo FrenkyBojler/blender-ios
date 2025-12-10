@@ -3222,6 +3222,19 @@ static void do_brush_action(const Depsgraph &depsgraph,
     push_undo_nodes(depsgraph, ob, brush, node_mask);
   }
 
+  /* There are issues with the underlying normals cache / mesh data that can cause the data to
+   * become out of date.
+   *
+   * For EEVEE and Workbench, this is partially mitigated by the fact that the Paint BVH is used
+   * to signal this update when drawing.
+   *
+   * TODO: See #141417
+   */
+  const bool external_engine = ss.rv3d && ss.rv3d->view_render != nullptr;
+  if (external_engine) {
+    bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+    bke::pbvh::update_normals(depsgraph, ob, pbvh);
+  }
   if (sculpt_brush_needs_normal(ss, brush)) {
     update_sculpt_normal(depsgraph, sd, ob, cursor_sample_result);
   }
@@ -4039,6 +4052,9 @@ static void sculpt_update_cache_invariants(
     cache->accum = true;
   }
 
+  if (BKE_brush_color_jitter_get_settings(CTX_data_scene(C), &sd.paint, brush)) {
+    cache->initial_hsv_jitter = seed_hsv_jitter();
+  }
   cache->first_time = true;
   cache->plane_brush.first_time = true;
 
@@ -4144,7 +4160,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
   float grab_location[3], imat[4][4], delta[3], loc[3];
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
-    if (brush_type == SCULPT_BRUSH_TYPE_GRAB && brush.flag & BRUSH_GRAB_ACTIVE_VERTEX) {
+    if (brush_type == SCULPT_BRUSH_TYPE_GRAB && brush.flag & BRUSH_GRAB_ACTIVE_VERTEX &&
+        !std::holds_alternative<std::monostate>(ss.active_vert()))
+    {
       if (pbvh.type() == bke::pbvh::Type::Mesh) {
         const Span<float3> positions = vert_positions_for_grab_active_get(depsgraph, ob);
         cache->orig_grab_location = positions[std::get<int>(ss.active_vert())];
@@ -5102,7 +5120,7 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
 
   ED_region_tag_redraw(&region);
 
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   if (update_type == UpdateType::Position && !ss.shapekey_active) {
     if (pbvh.type() == bke::pbvh::Type::Mesh) {
       tag_mesh_positions_changed(ob, use_pbvh_draw);
@@ -7096,7 +7114,7 @@ void calc_brush_cube_distances(const Brush &brush,
     const T local = math::abs(positions[i]);
 
     if (math::reduce_max(local) > 1.0f) {
-      r_distances[i] = std::numeric_limits<float>::max();
+      r_distances[i] = 1.0f;
       continue;
     }
     if (std::min(local.x, local.y) > hardness) {
@@ -7223,11 +7241,19 @@ void reset_translations_to_original(const MutableSpan<float3> translations,
   }
 }
 
+#ifndef NDEBUG
+static bool contains_nan(const Span<float> values)
+{
+  return std::any_of(values.begin(), values.end(), [&](const float v) { return std::isnan(v); });
+}
+#endif
+
 void apply_translations(const Span<float3> translations,
                         const Span<int> verts,
                         const MutableSpan<float3> positions)
 {
   BLI_assert(verts.size() == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
@@ -7242,6 +7268,7 @@ void apply_translations(const Span<float3> translations,
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   MutableSpan<float3> positions = subdiv_ccg.positions;
   BLI_assert(grids.size() * key.grid_area == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   for (const int i : grids.index_range()) {
     const Span<float3> grid_translations = translations.slice(bke::ccg::grid_range(key, i));
@@ -7255,6 +7282,7 @@ void apply_translations(const Span<float3> translations,
 void apply_translations(const Span<float3> translations, const Set<BMVert *, 0> &verts)
 {
   BLI_assert(verts.size() == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   int i = 0;
   for (BMVert *vert : verts) {

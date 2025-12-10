@@ -654,7 +654,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   /* If the userdef was created on a different platform, it may have an
    * unsupported GPU backend selected.  If so, pick a supported default. */
 #ifdef __APPLE__
-  if (userdef->gpu_backend == GPU_BACKEND_OPENGL) {
+  if (userdef->gpu_backend == GPU_BACKEND_OPENGL || userdef->gpu_backend == GPU_BACKEND_VULKAN) {
     userdef->gpu_backend = GPU_BACKEND_METAL;
   }
 #else
@@ -1198,9 +1198,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(302, 5)) {
-    wmKeyConfigFilterItemParams params{};
-    params.check_item = true;
-    params.check_diff_item_add = true;
+    const wmKeyConfigFilterItemParams params = WM_KEY_CONFIG_FILTER_ITEM_ALL;
     BKE_keyconfig_pref_filter_items(userdef, &params, keymap_item_update_tweak_event, nullptr);
   }
 
@@ -1462,9 +1460,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(405, 11)) {
-    wmKeyConfigFilterItemParams params{};
-    params.check_item = true;
-    params.check_diff_item_add = true;
+    const wmKeyConfigFilterItemParams params = WM_KEY_CONFIG_FILTER_ITEM_ALL;
     BKE_keyconfig_pref_filter_items(
         userdef,
         &params,
@@ -1493,6 +1489,12 @@ void blo_do_versions_userdef(UserDef *userdef)
       LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
         do_version_keyframe_jump(kmi);
       }
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 86)) {
+    if (userdef->gpu_shader_workers > 0) {
+      userdef->shader_compilation_method = USER_SHADER_COMPILE_SUBPROCESS;
     }
   }
 

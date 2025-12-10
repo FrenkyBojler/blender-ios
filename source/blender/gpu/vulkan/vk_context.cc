@@ -28,6 +28,7 @@ VKContext::VKContext(void *ghost_window, void *ghost_context)
   ghost_context_ = ghost_context;
 
   state_manager = new VKStateManager();
+  imm = new VKImmediate();
 
   back_left = new VKFrameBuffer("back_left");
   front_left = new VKFrameBuffer("front_left");
@@ -43,9 +44,12 @@ VKContext::~VKContext()
     surface_texture_ = nullptr;
   }
   free_resources();
-  VKBackend::get().device.context_unregister(*this);
-
+  delete imm;
   imm = nullptr;
+  VKDevice &device = VKBackend::get().device;
+  device.context_unregister(*this);
+
+  this->process_frame_timings();
 }
 
 void VKContext::sync_backbuffer(bool cycle_resource_pool)
@@ -56,8 +60,6 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
     VKThreadData &thread_data = thread_data_.value().get();
     if (cycle_resource_pool) {
       thread_data.resource_pool_next();
-      VKResourcePool &resource_pool = thread_data.resource_pool_get();
-      imm = &resource_pool.immediate;
     }
 
     const bool reset_framebuffer = swap_chain_format_.format !=
@@ -108,12 +110,15 @@ void VKContext::activate()
   if (!render_graph_.has_value()) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
+    /* Recreate the debug group stack for the new graph.
+     * Note: there is no associated `debug_group_end` as the graph groups
+     * are implicitly closed on submission. */
     for (const StringRef &group : debug_stack) {
-      debug_group_begin(std::string(group).c_str(), 0);
+      std::string str_group = group;
+      render_graph_.value().get().debug_group_begin(str_group.c_str(),
+                                                    debug::get_debug_group_color(str_group));
     }
   }
-
-  imm = &thread_data.resource_pool_get().immediate;
 
   is_active_ = true;
 
@@ -126,7 +131,6 @@ void VKContext::deactivate()
 {
   flush_render_graph(RenderGraphFlushFlags(0));
   immDeactivate();
-  imm = nullptr;
   thread_data_.reset();
 
   is_active_ = false;
@@ -136,8 +140,7 @@ void VKContext::begin_frame() {}
 
 void VKContext::end_frame()
 {
-  VKDevice &device = VKBackend::get().device;
-  device.orphaned_data.destroy_discarded_resources(device);
+  this->process_frame_timings();
 }
 
 void VKContext::flush()
@@ -157,9 +160,11 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
       framebuffer.rendering_end(*this);
     }
   }
-  descriptor_set_get().upload_descriptor_sets();
-  descriptor_pools_get().discard(*this);
   VKDevice &device = VKBackend::get().device;
+  descriptor_set_get().upload_descriptor_sets();
+  if (!device.extensions_get().descriptor_buffer) {
+    descriptor_pools_get().discard(*this);
+  }
   TimelineValue timeline = device.render_graph_submit(
       &render_graph_.value().get(),
       discard_pool,
@@ -173,8 +178,13 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   if (bool(flags & RenderGraphFlushFlags::RENEW_RENDER_GRAPH)) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
+    /* Recreate the debug group stack for the new graph.
+     * Note: there is no associated `debug_group_end` as the graph groups
+     * are implicitly closed on submission. */
     for (const StringRef &group : debug_stack) {
-      debug_group_begin(std::string(group).c_str(), 0);
+      std::string str_group = group;
+      render_graph_.value().get().debug_group_begin(str_group.c_str(),
+                                                    debug::get_debug_group_color(str_group));
     }
   }
   return timeline;
@@ -315,10 +325,11 @@ void VKContext::update_pipeline_data(VKShader &vk_shader,
 
   /* Update descriptor set. */
   r_pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+  r_pipeline_data.descriptor_buffer_device_address = 0;
+  r_pipeline_data.descriptor_buffer_offset = 0;
   if (vk_shader.has_descriptor_set()) {
     VKDescriptorSetTracker &descriptor_set = descriptor_set_get();
-    descriptor_set.update_descriptor_set(*this, access_info_);
-    r_pipeline_data.vk_descriptor_set = descriptor_set.vk_descriptor_set;
+    descriptor_set.update_descriptor_set(*this, access_info_, r_pipeline_data);
   }
 }
 

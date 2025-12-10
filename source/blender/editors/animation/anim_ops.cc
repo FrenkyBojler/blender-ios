@@ -154,6 +154,9 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
      * representation. Need to manually add entries to keylist. */
     op_data.keylist = ED_keylist_create();
     Scene *scene = CTX_data_scene(C);
+    if (!scene) {
+      return;
+    }
 
     ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
     LISTBASE_FOREACH (Strip *, strip, seqbase) {
@@ -163,9 +166,12 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
     return;
   }
 
+  op_data.keylist = ED_keylist_create();
+
   bAnimContext ac;
   if (!ANIM_animdata_get_context(C, &ac)) {
-    BLI_assert_unreachable();
+    /* If there is no action, getting the anim context fails in the action editor. */
+    ED_keylist_prepare_for_direct_access(op_data.keylist);
     return;
   }
 
@@ -186,8 +192,6 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
       BLI_assert_unreachable();
       break;
   }
-
-  op_data.keylist = ED_keylist_create();
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     switch (ale->datatype) {
@@ -352,12 +356,21 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
                                                         const float timeline_frame)
 {
   Scene *scene = CTX_data_scene(C);
+  if (!scene) {
+    return {};
+  }
+
   ToolSettings *tool_settings = scene->toolsettings;
+  Editing *ed = blender::seq::editing_get(scene);
+
+  if (ed == nullptr) {
+    return {};
+  }
 
   blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
-    ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+    ListBase *seqbase = blender::seq::active_seqbase_get(ed);
     append_sequencer_strip_snap_target(
         blender::seq::query_all_strips(seqbase), scene, timeline_frame, targets);
   }
@@ -473,6 +486,10 @@ static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const 
 
   blender::Vector<SnapTarget> targets;
   Scene *scene = CTX_data_scene(C);
+  if (!scene) {
+    return frame;
+  }
+
   switch (area->spacetype) {
     case SPACE_SEQ:
       targets = seq_get_snap_targets(C, op_data, frame);
@@ -608,6 +625,10 @@ static void change_frame_seq_preview_end(SpaceSeq *sseq)
 static bool use_playhead_snapping(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
+  if (!scene) {
+    return false;
+  }
+
   ScrArea *area = CTX_wm_area(C);
 
   if (area->spacetype == SPACE_GRAPH) {

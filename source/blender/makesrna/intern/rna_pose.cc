@@ -392,6 +392,7 @@ static void rna_PoseChannel_constraints_remove(
   con_ptr->invalidate();
 
   blender::ed::object::constraint_update(bmain, ob);
+  DEG_relations_tag_update(bmain);
 
   /* XXX(@ideasman42): is this really needed? */
   BKE_constraints_active_set(&pchan->constraints, nullptr);
@@ -636,6 +637,35 @@ static void rna_PoseChannel_custom_shape_transform_set(PointerRNA *ptr,
 
   pchan->custom_tx = rna_PoseChannel_ensure_own_pchan(
       ob, (Object *)value.owner_id, static_cast<bPoseChannel *>(value.data));
+}
+
+void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportList *reports)
+{
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+  Object *custom_shape = static_cast<Object *>(value.data);
+
+  if (!custom_shape) {
+    id_us_min(reinterpret_cast<ID *>(pchan->custom));
+    pchan->custom = nullptr;
+    return;
+  }
+
+  /* This should be ensured by the RNA property type. */
+  BLI_assert(GS(custom_shape->id.name) == ID_OB);
+
+  if (custom_shape->type == OB_ARMATURE) {
+    BKE_report(reports, RPT_ERROR, "Cannot use armature object as custom bone shape");
+    return;
+  }
+
+  id_us_min(reinterpret_cast<ID *>(pchan->custom));
+  pchan->custom = custom_shape;
+  id_us_plus(reinterpret_cast<ID *>(pchan->custom));
+}
+
+bool rna_Pose_custom_shape_object_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  return (reinterpret_cast<Object *>(value.owner_id))->type != OB_ARMATURE;
 }
 
 #else
@@ -1099,6 +1129,8 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Custom Object", "Object that defines custom display shape for this bone");
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, "rna_Pose_custom_shape_set", nullptr, "rna_Pose_custom_shape_object_poll");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_dependency_update");
 
   prop = RNA_def_property(srna, "custom_shape_scale_xyz", PROP_FLOAT, PROP_XYZ);

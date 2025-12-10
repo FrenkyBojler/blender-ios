@@ -16,7 +16,7 @@ from bpy.props import (
 )
 from bpy.app.translations import (
     contexts as i18n_contexts,
-    pgettext_tip as n_,
+    pgettext_n as n_,
     pgettext_rpt as rpt_,
 )
 
@@ -364,7 +364,7 @@ def update_render_engine(self, context):
 
 
 def update_world(self, context):
-    # Force a depsgraph update, because add-on properties dont.
+    # Force a depsgraph update, because add-on properties don't.
     # (at least not from the UI, see #138071)
     context.scene.world.update_tag()
 
@@ -1568,17 +1568,17 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         import _cycles
         has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
 
-        list = [('NONE', "None", "Don't use compute device", 0)]
+        list = [('NONE', "None", n_("Do not use compute device"), 0)]
         if has_cuda:
-            list.append(('CUDA', "CUDA", "Use CUDA for GPU acceleration", 1))
+            list.append(('CUDA', "CUDA", n_("Use CUDA for GPU acceleration"), 1))
         if has_optix:
-            list.append(('OPTIX', "OptiX", "Use OptiX for GPU acceleration", 3))
+            list.append(('OPTIX', "OptiX", n_("Use OptiX for GPU acceleration"), 3))
         if has_hip:
-            list.append(('HIP', "HIP", "Use HIP for GPU acceleration", 4))
+            list.append(('HIP', "HIP", n_("Use HIP for GPU acceleration"), 4))
         if has_metal:
-            list.append(('METAL', "Metal", "Use Metal for GPU acceleration", 5))
+            list.append(('METAL', "Metal", n_("Use Metal for GPU acceleration"), 5))
         if has_oneapi:
-            list.append(('ONEAPI', "oneAPI", "Use oneAPI for GPU acceleration", 6))
+            list.append(('ONEAPI', "oneAPI", n_("Use oneAPI for GPU acceleration"), 6))
 
         return list
 
@@ -1612,7 +1612,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     use_hiprt: BoolProperty(
         name="HIP RT",
         description="HIP RT enables AMD hardware ray tracing on RDNA2 and above",
-        default=True,
+        default=False,
     )
 
     use_oneapirt: BoolProperty(
@@ -1668,16 +1668,19 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 # Update name in case it changed
                 entry.name = device[0]
 
-    # Gets all devices types for a compute device type.
-    def get_devices_for_type(self, compute_device_type):
+    # Gets all devices types to display in the preferences for a compute device type.
+    # This includes the CPU device.
+    def get_devices_for_type(self, compute_device_type, device_list=None):
         # Layout of the device tuples: (Name, Type, Persistent ID)
-        device_list = self.get_device_list(compute_device_type)
+        if device_list is None:
+            device_list = self.get_device_list(compute_device_type)
 
         # Sort entries into lists
         devices = []
         cpu_devices = []
         for device in device_list:
             entry = self.find_existing_device_entry(device)
+            entry.optimized = device[7]
             if entry.type == compute_device_type:
                 devices.append(entry)
             elif entry.type == 'CPU':
@@ -1768,8 +1771,19 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         return False
 
-    def _draw_devices(self, layout, device_type, devices):
+    @staticmethod
+    def _format_device_name(name):
+        import unicodedata
+        return name.replace('(TM)', unicodedata.lookup('TRADE MARK SIGN')) \
+                   .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN')) \
+                   .replace('(R)', unicodedata.lookup('REGISTERED SIGN')) \
+                   .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN'))
+
+    def _draw_devices(self, layout, device_type, device_list):
         box = layout.box()
+
+        # Get preference devices, including CPU.
+        devices = self.get_devices_for_type(device_type, device_list)
 
         found_device = False
         for device in devices:
@@ -1787,7 +1801,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                           icon='BLANK1', translate=False)
             elif device_type == 'OPTIX':
                 compute_capability = "5.0"
-                driver_version = "470"
+                driver_version = "535"
                 col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
                           icon='BLANK1', translate=False)
                 col.label(text=rpt_("and NVIDIA driver version %s or newer") % driver_version,
@@ -1839,15 +1853,10 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             return
 
         for device in devices:
-            import unicodedata
-            box.prop(
-                device, "use", text=device.name
-                .replace('(TM)', unicodedata.lookup('TRADE MARK SIGN'))
-                .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN'))
-                .replace('(R)', unicodedata.lookup('REGISTERED SIGN'))
-                .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN')),
-                translate=False
-            )
+            name = self._format_device_name(device.name)
+            if not device.optimized:
+                name += rpt_(" (Unoptimized Performance)")
+            box.prop(device, "use", text=name, translate=False)
 
     def draw_impl(self, layout, context):
         row = layout.row()
@@ -1857,14 +1866,14 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         if compute_device_type == 'NONE':
             return
         row = layout.row()
-        devices = self.get_devices_for_type(compute_device_type)
+        devices = self.get_device_list(compute_device_type)
         self._draw_devices(row, compute_device_type, devices)
 
         import _cycles
         has_peer_memory = False
         has_enabled_hardware_rt = False
         has_disabled_hardware_rt = False
-        for device in self.get_device_list(compute_device_type):
+        for device in devices:
             if not self.find_existing_device_entry(device).use:
                 continue
             if device[1] != compute_device_type:

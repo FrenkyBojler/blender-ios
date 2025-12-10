@@ -932,6 +932,9 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   }
   else {
     item.build_row(*row);
+    if (item.is_active_) {
+      ui_layout_list_set_labels_active(row);
+    }
   }
 
   uiLayoutListItemAddPadding(row);
@@ -999,7 +1002,9 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
 
   TreeViewLayoutBuilder builder(layout);
   builder.add_box_ = add_box;
+  UI_block_flag_enable(&block, UI_BLOCK_LIST_ITEM);
   builder.build_from_tree(tree_view);
+  UI_block_flag_disable(&block, UI_BLOCK_LIST_ITEM);
 }
 
 /* ---------------------------------------------------------------------- */

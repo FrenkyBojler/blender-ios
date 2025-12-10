@@ -103,8 +103,15 @@ static void joined_armature_fix_links_constraints(Main *bmain,
       bActionConstraint *data = static_cast<bActionConstraint *>(con->data);
 
       if (data->act) {
-        BKE_action_fix_paths_rename(
-            &tarArm->id, data->act, "pose.bones[", pchan->name, curbone->name, 0, 0, false);
+        BKE_action_fix_paths_rename(&tarArm->id,
+                                    data->act,
+                                    data->action_slot_handle,
+                                    "pose.bones[",
+                                    pchan->name,
+                                    curbone->name,
+                                    0,
+                                    0,
+                                    false);
 
         DEG_id_tag_update_ex(bmain, &data->act->id, ID_RECALC_SYNC_TO_EVAL);
       }
@@ -291,6 +298,9 @@ static BoneCollection *join_armature_remap_collection(
   if (bcoll->prop) {
     new_bcoll->prop = IDP_CopyProperty_ex(bcoll->prop, 0);
   }
+  if (bcoll->system_properties) {
+    new_bcoll->system_properties = IDP_CopyProperty_ex(bcoll->system_properties, 0);
+  }
 
   bone_collection_by_name.add(bcoll->name, new_bcoll);
   return new_bcoll;
@@ -328,6 +338,30 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
   if (ok == false) {
     BKE_report(op->reports, RPT_WARNING, "Active object is not a selected armature");
     return OPERATOR_CANCELLED;
+  }
+
+  /* Check that there are no shared Armatures, as the code below assumes that
+   * each to-be-joined Armature is unique. */
+  {
+    blender::Set<const bArmature *> seen_armatures;
+    CTX_DATA_BEGIN (C, const Object *, ob_iter, selected_editable_objects) {
+      if (ob_iter->type != OB_ARMATURE) {
+        continue;
+      }
+
+      const bArmature *armature = static_cast<bArmature *>(ob_iter->data);
+      if (seen_armatures.add(armature)) {
+        /* Armature pointer was added to the set, which means it wasn't seen before. */
+        continue;
+      }
+
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Cannot join objects that share armature data: %s",
+                  armature->id.name + 2);
+      return OPERATOR_CANCELLED;
+    }
+    CTX_DATA_END;
   }
 
   /* Inverse transform for all selected armatures in this object,

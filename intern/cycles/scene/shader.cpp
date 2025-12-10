@@ -97,7 +97,8 @@ Shader::Shader() : Node(get_node_type())
   has_surface_bssrdf = false;
   has_volume = false;
   has_displacement = false;
-  has_bump = false;
+  has_bump_from_displacement = false;
+  has_bump_from_surface = false;
   has_bssrdf_bump = false;
   has_surface_spatial_varying = false;
   has_volume_spatial_varying = false;
@@ -482,12 +483,13 @@ int ShaderManager::get_shader_id(Shader *shader, bool smooth)
   return id;
 }
 
-void ShaderManager::device_update_pre(Device *device,
-                                      DeviceScene *dscene,
+void ShaderManager::device_update_pre(Device * /*device*/,
+                                      DeviceScene * /*dscene*/,
                                       Scene *scene,
-                                      Progress &progress)
+                                      Progress & /*progress*/)
 {
-  /* This runs before kernels have been loaded, so can't copy to device yet. */
+  /* This optimizes the shader graphs, but does not update anything on the device yet.
+   * After this we'll know the kernel features actually used, to load the kernels. */
   if (!need_update()) {
     return;
   }
@@ -497,21 +499,36 @@ void ShaderManager::device_update_pre(Device *device,
     shader->id = id++;
   }
 
-  /* Those shaders should always be compiled as they are used as fallback if a shader cannot be
+  /* Those shaders should always be compiled as they are used as a fallback if a shader cannot be
    * found, e.g. bad shader index for the triangle shaders on a Mesh. */
   assert(scene->default_surface->reference_count() != 0);
   assert(scene->default_light->reference_count() != 0);
   assert(scene->default_background->reference_count() != 0);
   assert(scene->default_empty->reference_count() != 0);
 
-  device_update_specific(device, dscene, scene, progress);
+  for (Shader *shader : scene->shaders) {
+    if (shader->is_modified()) {
+      ShaderNode *output = shader->graph->output();
+
+      shader->has_bump_from_displacement = (shader->get_displacement_method() != DISPLACE_TRUE) &&
+                                           output->input("Surface")->link &&
+                                           output->input("Displacement")->link;
+      shader->has_bssrdf_bump = shader->has_bump_from_displacement;
+
+      shader->graph->finalize(scene,
+                              shader->has_bump_from_displacement,
+                              shader->get_displacement_method() == DISPLACE_BOTH);
+    }
+  }
 }
 
-void ShaderManager::device_update_post(Device * /*device*/,
+void ShaderManager::device_update_post(Device *device,
                                        DeviceScene *dscene,
-                                       Scene * /*scene*/,
-                                       Progress & /*progress*/)
+                                       Scene *scene,
+                                       Progress &progress)
 {
+  device_update_specific(device, dscene, scene, progress);
+
   /* This runs after kernels have been loaded, so can copy to device. */
   dscene->shaders.copy_to_device_if_modified();
   dscene->svm_nodes.copy_to_device_if_modified();
@@ -587,8 +604,11 @@ void ShaderManager::device_update_common(Device * /*device*/,
     if (shader->get_volume_interpolation_method() == VOLUME_INTERPOLATION_CUBIC) {
       flag |= SD_VOLUME_CUBIC;
     }
-    if (shader->has_bump) {
-      flag |= SD_HAS_BUMP;
+    if (shader->has_bump_from_displacement) {
+      flag |= SD_HAS_BUMP_FROM_DISPLACEMENT;
+    }
+    if (shader->has_bump_from_surface) {
+      flag |= SD_HAS_BUMP_FROM_SURFACE;
     }
     if (shader->get_displacement_method() != DISPLACE_BUMP) {
       flag |= SD_HAS_DISPLACEMENT;

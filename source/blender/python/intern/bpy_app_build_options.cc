@@ -8,6 +8,8 @@
 
 #include <Python.h>
 
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+
 #include "BLI_utildefines.h"
 
 #include "bpy_app_build_options.hh"
@@ -60,6 +62,7 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"potrace", nullptr},
     {"pugixml", nullptr},
     {"haru", nullptr},
+    {"experimental_features", nullptr},
     /* Sentinel (this line prevents `clang-format` wrapping into columns). */
     {nullptr},
 };
@@ -333,6 +336,12 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
+#ifdef WITH_EXPERIMENTAL_FEATURES
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
 #undef SetObjIncref
 
   return builtopts_info;
@@ -350,7 +359,7 @@ PyObject *BPY_app_build_options_struct()
   BlenderAppBuildOptionsType.tp_init = nullptr;
   BlenderAppBuildOptionsType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppBuildOptionsType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppBuildOptionsType.tp_hash = (hashfunc)Py_HashPointer;
 
   return ret;
 }

@@ -242,8 +242,8 @@ typedef struct Strip {
   /** Effect strip inputs (`nullptr` if not an effect strip). */
   struct Strip *input1, *input2;
 
-  /* This strange padding is needed due to how `seqbasep` de-serialization is
-   * done right now in #scene_blend_read_data. */
+  /* This strange padding is needed for compatibility with older versions
+   * that assumed `seqbasep` is at fixed offset. */
   void *_pad7;
   int _pad8[2];
 
@@ -296,6 +296,13 @@ typedef struct Strip {
   struct Stereo3dFormat *stereo3d_format;
 
   struct IDProperty *prop;
+  /**
+   * System-defined custom properties storage.
+   *
+   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
+   * management consistency.
+   */
+  struct IDProperty *system_properties;
 
   /* modifiers */
   ListBase modifiers;
@@ -305,7 +312,6 @@ typedef struct Strip {
   float speed_factor;
 
   struct SeqRetimingKey *retiming_keys;
-  void *_pad5;
   int retiming_keys_num;
   char _pad6[4];
 

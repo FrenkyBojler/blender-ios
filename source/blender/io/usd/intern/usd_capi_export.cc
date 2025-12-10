@@ -15,9 +15,11 @@
 #include <pxr/base/tf/token.h>
 #include <pxr/pxr.h>
 #include <pxr/usd/sdf/assetPath.h>
+#include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/metrics.h>
+#include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdGeom/xformCommonAPI.h>
@@ -386,6 +388,91 @@ std::string cache_image_color(const float color[4])
   return file_path;
 }
 
+static void collect_point_instancer_prototypes_and_set_extent(
+    pxr::UsdGeomPointInstancer instancer,
+    const pxr::UsdStageRefPtr &stage,
+    const pxr::SdfPath &wrapper_path,
+    std::vector<pxr::UsdPrim> &proto_list)
+{
+  /* Compute extent of the current point instancer.*/
+  pxr::VtArray<pxr::GfVec3f> extent;
+  instancer.ComputeExtentAtTime(
+      &extent, pxr::UsdTimeCode().Default(), pxr::UsdTimeCode().Default());
+  instancer.CreateExtentAttr().Set(extent);
+
+  pxr::UsdPrim wrapper_prim = stage->GetPrimAtPath(wrapper_path);
+  if (!wrapper_prim || !wrapper_prim.IsValid()) {
+    return;
+  }
+
+  std::string real_path_str;
+
+  for (const pxr::SdfPrimSpecHandle &primSpec : wrapper_prim.GetPrimStack()) {
+    if (!primSpec || !primSpec->HasReferences()) {
+      continue;
+    }
+
+    for (const pxr::SdfReference &ref : primSpec->GetReferenceList().GetPrependedItems()) {
+      if (ref.GetAssetPath().empty() && !ref.GetPrimPath().IsEmpty()) {
+        real_path_str = ref.GetPrimPath().GetString();
+        break;
+      }
+    }
+    if (!real_path_str.empty()) {
+      break;
+    }
+  }
+
+  if (real_path_str.empty()) {
+    CLOG_WARN(&LOG, "No prototype reference found for: %s", wrapper_path.GetText());
+    return;
+  }
+
+  const pxr::SdfPath real_path(real_path_str);
+  pxr::UsdPrim proto_prim = stage->GetPrimAtPath(real_path);
+
+  if (!proto_prim || !proto_prim.IsValid()) {
+    CLOG_WARN(&LOG, "Referenced prototype not found at: %s", real_path.GetText());
+    return;
+  }
+
+  proto_list.push_back(proto_prim);
+  proto_list.push_back(wrapper_prim.GetParent());
+
+  std::string doc_message = fmt::format(
+      "This prim is used as a prototype by the PointInstancer \"{}\" so we override the def "
+      "with an \"over\" so that it isn't imaged in the scene, but is available as a prototype "
+      "that can be referenced.",
+      wrapper_prim.GetName().GetString());
+  proto_prim.SetDocumentation(doc_message);
+
+  /* Check if the proto prim itself is a PointInstancer. */
+  if (proto_prim.IsA<pxr::UsdGeomPointInstancer>()) {
+    pxr::UsdGeomPointInstancer nested_instancer(proto_prim);
+    pxr::SdfPathVector nested_targets;
+    if (nested_instancer.GetPrototypesRel().GetTargets(&nested_targets)) {
+      for (const pxr::SdfPath &nested_wrapper_path : nested_targets) {
+        collect_point_instancer_prototypes_and_set_extent(
+            nested_instancer, stage, nested_wrapper_path, proto_list);
+      }
+    }
+  }
+
+  /* Also check all children of the proto prim for nested PointInstancers. */
+  for (const pxr::UsdPrim &child : proto_prim.GetAllChildren()) {
+    if (child.IsA<pxr::UsdGeomPointInstancer>()) {
+      pxr::UsdGeomPointInstancer nested_instancer(child);
+      pxr::SdfPathVector nested_targets;
+      if (nested_instancer.GetPrototypesRel().GetTargets(&nested_targets)) {
+        for (const pxr::SdfPath &nested_wrapper_path : nested_targets) {
+          collect_point_instancer_prototypes_and_set_extent(
+              nested_instancer, stage, nested_wrapper_path, proto_list);
+        }
+      }
+    }
+  }
+}
+
 pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
                                     Depsgraph *depsgraph,
                                     const char *filepath)
@@ -566,6 +653,30 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     return;
   }
 
+  /* Traverse the point instancer to make sure the prototype referenced by nested point instancers
+   * are also marked as over. */
+  std::vector<pxr::UsdPrim> proto_list;
+  for (const pxr::UsdPrim &prim : usd_stage->Traverse()) {
+    if (!prim.IsA<pxr::UsdGeomPointInstancer>()) {
+      continue;
+    }
+    pxr::UsdGeomPointInstancer instancer(prim);
+    pxr::SdfPathVector targets;
+    if (instancer.GetPrototypesRel().GetTargets(&targets)) {
+      for (const pxr::SdfPath &wrapper_path : targets) {
+        collect_point_instancer_prototypes_and_set_extent(
+            instancer, usd_stage, wrapper_path, proto_list);
+      }
+    }
+  }
+
+  /* The standard way is to mark the point instancer's prototypes as over. Reference in OpenUSD:
+   * https://openusd.org/docs/api/class_usd_geom_point_instancer.html#:~:text=place%20them%20under%20a%20prim%20that%20is%20just%20an%20%22over%22
+   */
+  for (pxr::UsdPrim &proto : proto_list) {
+    proto.SetSpecifier(pxr::SdfSpecifierOver);
+  }
+
   usd_stage->GetRootLayer()->Save();
 
   data->export_ok = true;
@@ -687,7 +798,7 @@ bool USD_export(const bContext *C,
     Collection *collection = reinterpret_cast<Collection *>(
         BKE_libblock_find_name(job->bmain, ID_GR, job->params.collection));
     if (!collection) {
-      BKE_reportf(job->params.worker_status->reports,
+      BKE_reportf(reports,
                   RPT_ERROR,
                   "USD Export: Unable to find collection '%s'",
                   job->params.collection);

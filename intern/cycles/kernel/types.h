@@ -201,7 +201,7 @@ CCL_NAMESPACE_BEGIN
 #  endif
 #endif
 #ifndef __KERNEL_GPU__
-#  if defined(WITH_PATH_GUIDING)
+#  ifdef WITH_PATH_GUIDING
 #    define __PATH_GUIDING__
 #  endif
 #  define __VOLUME_RECORD_ALL__
@@ -876,6 +876,7 @@ enum AttributeStandard {
   ATTR_STD_GENERATED_TRANSFORM,
   ATTR_STD_POSITION_UNDEFORMED,
   ATTR_STD_POSITION_UNDISPLACED,
+  ATTR_STD_NORMAL_UNDISPLACED,
   ATTR_STD_MOTION_VERTEX_POSITION,
   ATTR_STD_MOTION_VERTEX_NORMAL,
   ATTR_STD_PARTICLE,
@@ -1027,6 +1028,8 @@ enum ShaderDataFlag {
 
   /* Shader flags. */
 
+  /* Has bump mapping from BSDF connected to surface socket. */
+  SD_HAS_BUMP_FROM_SURFACE = (1 << 14),
   /* Apply a correction term to smooth illumination on grazing angles when using bump mapping. */
   SD_USE_BUMP_MAP_CORRECTION = (1 << 15),
   /* Use front side for direct light sampling. */
@@ -1047,8 +1050,9 @@ enum ShaderDataFlag {
   SD_VOLUME_MIS = (1 << 23),
   /* Use cubic interpolation for voxels. */
   SD_VOLUME_CUBIC = (1 << 24),
-  /* Has data connected to the displacement input or uses bump map. */
-  SD_HAS_BUMP = (1 << 25),
+  /* Has bump mapping from the displacement socket. */
+  SD_HAS_BUMP_FROM_DISPLACEMENT = (1 << 25),
+  SD_HAS_BUMP = (SD_HAS_BUMP_FROM_DISPLACEMENT | SD_HAS_BUMP_FROM_SURFACE),
   /* Has true displacement. */
   SD_HAS_DISPLACEMENT = (1 << 26),
   /* Has constant emission (value stored in __shaders) */

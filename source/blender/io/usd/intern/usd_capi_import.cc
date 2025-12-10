@@ -5,7 +5,7 @@
 #include "IO_types.hh"
 #include "usd.hh"
 #include "usd_hook.hh"
-#include "usd_light_convert.hh"
+#include "usd_reader_domelight.hh"
 #include "usd_reader_geom.hh"
 #include "usd_reader_prim.hh"
 #include "usd_reader_stage.hh"
@@ -220,6 +220,9 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
       data->cache_file->is_sequence = data->params.is_sequence;
       data->cache_file->scale = scene_scale;
       STRNCPY(data->cache_file->filepath, data->filepath);
+      if (data->params.relative_path && !BLI_path_is_rel(data->cache_file->filepath)) {
+        BLI_path_rel(data->cache_file->filepath, BKE_main_blendfile_path_from_global());
+      }
     }
     return data->cache_file;
   };
@@ -236,10 +239,10 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   archive->collect_readers();
 
   if (data->params.import_lights && data->params.create_world_material &&
-      !archive->dome_lights().is_empty())
+      !archive->dome_light_readers().is_empty())
   {
-    dome_light_to_world_material(
-        data->params, data->scene, data->bmain, archive->dome_lights().first());
+    USDDomeLightReader *dome_light_reader = archive->dome_light_readers().first();
+    dome_light_reader->create_object(data->scene, data->bmain);
   }
 
   if (data->params.import_materials && data->params.import_all_materials) {

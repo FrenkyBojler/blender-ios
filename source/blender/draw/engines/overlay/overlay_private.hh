@@ -138,6 +138,8 @@ struct State {
   bool is_image_render = false;
   /** True if rendering only to query the depth. Can be for auto-depth rotation. */
   bool is_depth_only_drawing = false;
+  /** Skip drawing particle systems. Prevents self-occlusion issues in Particle Edit mode. */
+  bool skip_particles = false;
   /** When drag-dropping material onto objects to assignment. */
   bool is_material_select = false;
   /** Whether we should render the background or leave it transparent. */
@@ -892,6 +894,7 @@ struct Resources : public select::SelectMap {
     this->depth_in_front_alloc_tx.release();
     this->color_overlay_alloc_tx.release();
     this->color_render_alloc_tx.release();
+    free_movieclips_textures();
   }
 
   ThemeColorID object_wire_theme_id(const ObjectRef &ob_ref, const State &state) const
@@ -911,7 +914,7 @@ struct Resources : public select::SelectMap {
     if (((G.moving & G_TRANSFORM_OBJ) != 0) && is_selected) {
       return TH_TRANSFORM;
     }
-    /* Sets the 'theme_id' or fallback to wire */
+    /* Sets the 'theme_id' or fall back to wire */
     if ((ob_ref.object->base_flag & BASE_SELECTED) != 0) {
       return (active) ? TH_ACTIVE : TH_SELECT;
     }
@@ -999,6 +1002,7 @@ struct Resources : public select::SelectMap {
     for (MovieClip *clip : bg_movie_clips) {
       BKE_movieclip_free_gputexture(clip);
     }
+    bg_movie_clips.clear();
   }
 
   static float vertex_size_get()
@@ -1041,13 +1045,19 @@ struct FlatObjectRef {
 
     float dim[3];
     BKE_object_dimensions_get(ob, dim);
-    if (dim[0] == 0.0f) {
+
+    /* Small epsilon relative to object size to handle float errors in flat axis detection after
+     * rotation. See #139555. */
+    const float max_dim = math::reduce_max(float3(dim));
+    const float epsilon = max_dim * 1e-6f;
+
+    if (dim[0] <= epsilon) {
       return 0;
     }
-    if (dim[1] == 0.0f) {
+    if (dim[1] <= epsilon) {
       return 1;
     }
-    if (dim[2] == 0.0f) {
+    if (dim[2] <= epsilon) {
       return 2;
     }
     return -1;

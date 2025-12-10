@@ -5,7 +5,7 @@
 bl_info = {
     "name": "FBX format",
     "author": "Campbell Barton, Bastien Montagne, Jens Restemeier, @Mysteryem",
-    "version": (5, 13, 0),
+    "version": (5, 13, 1),
     "blender": (4, 5, 0),
     "location": "File > Import-Export",
     "description": "FBX IO meshes, UVs, vertex colors, materials, textures, cameras, lamps and actions",
@@ -53,6 +53,7 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
 
     directory: StringProperty(
         subtype='DIR_PATH',
+        options={'HIDDEN', 'SKIP_PRESET'},
     )
 
     filename_ext = ".fbx"
@@ -61,6 +62,7 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
     files: CollectionProperty(
         name="File Path",
         type=bpy.types.OperatorFileListElement,
+        options={'HIDDEN', 'SKIP_PRESET'},
     )
 
     ui_tab: EnumProperty(
@@ -213,9 +215,8 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
 
         if self.files:
             ret = {'CANCELLED'}
-            dirname = os.path.dirname(self.filepath)
             for file in self.files:
-                path = os.path.join(dirname, file.name)
+                path = os.path.join(self.directory, file.name)
                 if import_fbx.load(self, context, filepath=path, **keywords) == {'FINISHED'}:
                     ret = {'FINISHED'}
             return ret

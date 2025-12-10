@@ -85,6 +85,7 @@
 #include "BLI_mmap.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_threads.h"
 
 #include "BKE_idprop.hh"
@@ -1569,13 +1570,21 @@ static std::vector<MultiViewChannelName> exr_channels_in_multi_part_file(
   for (int p = 0; p < file.parts(); p++) {
     const ChannelList &c = file.header(p).channels();
 
-    std::string part_view;
+    blender::StringRef part_view;
     if (file.header(p).hasView()) {
       part_view = file.header(p).view();
     }
-    std::string part_name;
+    blender::StringRef part_name;
     if (file.header(p).hasName()) {
       part_name = file.header(p).name();
+    }
+
+    /* Strip part suffix from name. */
+    if (part_name.endswith("." + part_view)) {
+      part_name = part_name.drop_known_suffix("." + part_view);
+    }
+    else if (part_name.endswith("-" + part_view)) {
+      part_name = part_name.drop_known_suffix("-" + part_view);
     }
 
     for (ChannelList::ConstIterator i = c.begin(); i != c.end(); i++) {
@@ -1591,8 +1600,9 @@ static std::vector<MultiViewChannelName> exr_channels_in_multi_part_file(
         m.view = part_view;
       }
 
-      /* Prepend part name as potential layer or pass name. */
-      if (!part_name.empty()) {
+      /* Prepend part name as potential layer or pass name. According to OpenEXR docs
+       * this should not be needed, but Houdini writes files like this. */
+      if (!part_name.is_empty() && !blender::StringRef(m.name).startswith(part_name + ".")) {
         m.name = part_name + "." + m.name;
       }
 
@@ -2265,6 +2275,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
                                            size_t *r_width,
                                            size_t *r_height)
 {
+  ImBuf *ibuf = nullptr;
   IStream *stream = nullptr;
   Imf::RgbaInputFile *file = nullptr;
 
@@ -2287,6 +2298,8 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     file = new RgbaInputFile(*stream, 1);
 
     if (!file->isComplete()) {
+      delete file;
+      delete stream;
       return nullptr;
     }
 
@@ -2318,7 +2331,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     int dest_w = std::max(int(source_w * scale_factor), 1);
     int dest_h = std::max(int(source_h * scale_factor), 1);
 
-    ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_float_data);
+    ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_float_data);
 
     /* A single row of source pixels. */
     Imf::Array<Imf::Rgba> pixels(source_w);
@@ -2354,12 +2367,20 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
 
   catch (const std::exception &exc) {
     std::cerr << exc.what() << std::endl;
+    if (ibuf) {
+      IMB_freeImBuf(ibuf);
+    }
+
     delete file;
     delete stream;
     return nullptr;
   }
   catch (...) { /* Catch-all for edge cases or compiler bugs. */
     std::cerr << "OpenEXR-Thumbnail: UNKNOWN ERROR" << std::endl;
+    if (ibuf) {
+      IMB_freeImBuf(ibuf);
+    }
+
     delete file;
     delete stream;
     return nullptr;

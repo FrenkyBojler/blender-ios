@@ -489,7 +489,8 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       geomDescCrv.radiusBuffers = [NSArray arrayWithObjects:radius_ptrs.data()
                                                       count:radius_ptrs.size()];
 
-      geomDescCrv.controlPointCount = cpData.size();
+      /* controlPointCount should specify the *per-step* control point count. */
+      geomDescCrv.controlPointCount = cpData.size() / num_motion_steps;
       geomDescCrv.controlPointStride = sizeof(float3);
       geomDescCrv.controlPointFormat = MTLAttributeFormatFloat3;
       geomDescCrv.radiusStride = sizeof(float);
@@ -1048,10 +1049,6 @@ bool BVHMetal::build_TLAS(Progress &progress,
       }
     }
 
-    if (num_instances == 0) {
-      return false;
-    }
-
     const bool use_instance_motion = motion_blur && num_motion_instances;
     const bool use_fast_trace_bvh = (params.bvh_type == BVH_TYPE_STATIC) || !support_refit_blas();
 
@@ -1219,8 +1216,10 @@ bool BVHMetal::build_TLAS(Progress &progress,
 #  if defined(MAC_OS_VERSION_15_0)
           if (use_pcmi) {
             if (ob->get_geometry()->is_instanced()) {
+              DecomposedTransform decomp;
+              transform_motion_decompose(&decomp, &ob->get_tfm(), 1);
               decomposed_motion_transforms[motion_transform_index++] =
-                  decomposed_to_component_transform(decomp[0]);
+                  decomposed_to_component_transform(decomp);
             }
             else {
               decomposed_motion_transforms[motion_transform_index++] =

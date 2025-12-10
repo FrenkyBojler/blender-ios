@@ -710,7 +710,10 @@ static wmOperatorStatus clear_anim_v3d_exec(bContext *C, wmOperator * /*op*/)
         });
         for (FCurve *fcurve : fcurves_to_delete) {
           action_fcurve_remove(action, *fcurve);
+          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+          changed = true;
         }
+        DEG_id_tag_update(&ob->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
       }
       else {
         for (fcu = static_cast<FCurve *>(dna_action->curves.first); fcu; fcu = fcn) {
@@ -725,7 +728,7 @@ static wmOperatorStatus clear_anim_v3d_exec(bContext *C, wmOperator * /*op*/)
       }
 
       /* Delete the action itself if it is empty. */
-      if (blender::animrig::animdata_remove_empty_action(adt)) {
+      if (action.is_action_legacy() && blender::animrig::animdata_remove_empty_action(adt)) {
         changed = true;
       }
     }

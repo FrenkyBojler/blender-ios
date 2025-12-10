@@ -24,6 +24,7 @@
 #include "BKE_animsys.h"
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
+#include "BKE_grease_pencil.hh"
 #include "BKE_mesh_remap.hh"
 
 #include "RNA_define.hh"
@@ -2041,6 +2042,14 @@ static void rna_Lineart_end_level_set(PointerRNA *ptr, int value)
   lmd->level_start = std::min(value, int(lmd->level_start));
 }
 
+static void rna_Lineart_thickness_set(PointerRNA *ptr, int value)
+{
+  GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(
+      ptr->data);
+  lmd->thickness_legacy = value;
+  lmd->radius = float(value) / blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+}
+
 static const NodesModifierData *find_nodes_modifier_by_bake(const Object &object,
                                                             const NodesModifierBake &bake)
 {
@@ -2425,6 +2434,17 @@ static void rna_GreasePencilShrinkwrapModifier_face_cull_set(PointerRNA *ptr, in
   GreasePencilShrinkwrapModifierData *smd = static_cast<GreasePencilShrinkwrapModifierData *>(
       ptr->data);
   smd->shrink_opts = (smd->shrink_opts & ~MOD_SHRINKWRAP_CULL_TARGET_MASK) | value;
+}
+
+static void rna_VertexWeightProximityModifier_proximity_geometry_set(PointerRNA *ptr, int value)
+{
+  WeightVGProximityModifierData *wpmd = reinterpret_cast<WeightVGProximityModifierData *>(
+      ptr->data);
+
+  /* The geometry mode shares the `proximity_flags` variable with a few other boolean properties,
+   * setting the mode value this way ensures only relevant bits are changed. */
+  wpmd->proximity_flags = (wpmd->proximity_flags & (~MOD_WVG_PROXIMITY_GEOM_ALL)) |
+                          (value & MOD_WVG_PROXIMITY_GEOM_ALL);
 }
 
 #else
@@ -6215,6 +6235,8 @@ static void rna_def_modifier_weightvgproximity(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, proximity_geometry_items);
   RNA_def_property_flag(prop, PROP_ENUM_FLAG); /* important to run before default set */
   RNA_def_property_enum_default(prop, MOD_WVG_PROXIMITY_GEOM_FACES);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, "rna_VertexWeightProximityModifier_proximity_geometry_set", nullptr);
   RNA_def_property_ui_text(prop,
                            "Proximity Geometry",
                            "Use the shortest computed distance to target object's geometry "
@@ -8132,6 +8154,8 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_def_property_struct_type(prop, "NodesModifierWarning");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  RNA_def_property_override_clear_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
   rna_def_modifier_panel_open_prop(
       srna, "open_output_attributes_panel", NODES_MODIFIER_PANEL_OUTPUT_ATTRIBUTES);
@@ -9122,10 +9146,20 @@ static void rna_def_modifier_grease_pencil_lineart(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, 0.5f);
   RNA_def_property_update(prop, NC_SCENE, "rna_Modifier_update");
 
+  /* For 4.5 LTS only, thickness is deprecated in 5.0, but keep this RNA access for compatibility.
+   */
   prop = RNA_def_property(srna, "thickness", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Thickness", "The thickness for the generated strokes");
+  RNA_def_property_int_sdna(prop, "GreasePencilLineartModifierData", "thickness_legacy");
   RNA_def_property_ui_range(prop, 1, 100, 1, 1);
   RNA_def_property_range(prop, 1, 200);
+  RNA_def_property_int_funcs(prop, nullptr, "rna_Lineart_thickness_set", nullptr);
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "radius", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_ui_text(prop, "Radius", "The radius for the generated strokes");
+  RNA_def_property_ui_range(prop, 0.0f, 0.25f, 0.01f, 2);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "opacity", PROP_FLOAT, PROP_FACTOR);

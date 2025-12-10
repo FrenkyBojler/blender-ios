@@ -106,8 +106,9 @@ static int get_internal_link_type_priority(const bNodeSocketType *from, const bN
           return 2;
         case SOCK_BOOLEAN:
           return 1;
+        default:
+          return -1;
       }
-      return -1;
     case SOCK_VECTOR:
       switch (from->type) {
         case SOCK_VECTOR:
@@ -118,8 +119,9 @@ static int get_internal_link_type_priority(const bNodeSocketType *from, const bN
           return 2;
         case SOCK_BOOLEAN:
           return 1;
+        default:
+          return -1;
       }
-      return -1;
     case SOCK_FLOAT:
       switch (from->type) {
         case SOCK_FLOAT:
@@ -132,8 +134,9 @@ static int get_internal_link_type_priority(const bNodeSocketType *from, const bN
           return 2;
         case SOCK_VECTOR:
           return 1;
+        default:
+          return -1;
       }
-      return -1;
     case SOCK_INT:
       switch (from->type) {
         case SOCK_INT:
@@ -146,8 +149,9 @@ static int get_internal_link_type_priority(const bNodeSocketType *from, const bN
           return 2;
         case SOCK_VECTOR:
           return 1;
+        default:
+          return -1;
       }
-      return -1;
     case SOCK_BOOLEAN:
       switch (from->type) {
         case SOCK_BOOLEAN:
@@ -160,8 +164,9 @@ static int get_internal_link_type_priority(const bNodeSocketType *from, const bN
           return 2;
         case SOCK_VECTOR:
           return 1;
+        default:
+          return -1;
       }
-      return -1;
     case SOCK_ROTATION:
       switch (from->type) {
         case SOCK_ROTATION:
@@ -170,8 +175,11 @@ static int get_internal_link_type_priority(const bNodeSocketType *from, const bN
           return 2;
         case SOCK_FLOAT:
           return 1;
+        default:
+          return -1;
       }
-      return -1;
+    default:
+      break;
   }
 
   /* The rest of the socket types only allow an internal link if both the input and output socket
@@ -186,7 +194,8 @@ static int get_internal_link_type_priority(const bNodeSocketType *from, const bN
 /* Check both the tree's own tags and the interface tags. */
 static bool is_tree_changed(const bNodeTree &tree)
 {
-  return tree.runtime->changed_flag != NTREE_CHANGED_NOTHING || tree.tree_interface.is_changed();
+  return tree.runtime->changed_flag != NTREE_CHANGED_NOTHING ||
+         tree.tree_interface.requires_dependent_tree_updates();
 }
 
 using TreeNodePair = std::pair<bNodeTree *, bNode *>;
@@ -537,7 +546,7 @@ class NodeTreeMainUpdater {
       ntreeTexCheckCyclics(&ntree);
     }
 
-    if (ntree.tree_interface.is_changed()) {
+    if (ntree.tree_interface.requires_dependent_tree_updates()) {
       result.interface_changed = true;
     }
 
@@ -624,7 +633,7 @@ class NodeTreeMainUpdater {
       /* Currently we have no way to tell if a node needs to be updated when a link changed. */
       return true;
     }
-    if (ntree.tree_interface.is_changed()) {
+    if (ntree.tree_interface.requires_dependent_tree_updates()) {
       if (node.is_group_input() || node.is_group_output()) {
         return true;
       }
@@ -969,14 +978,16 @@ class NodeTreeMainUpdater {
           continue;
         }
         for (bNodeSocket *socket : node->input_sockets()) {
-          socket->display_shape = get_input_socket_shape(
-              *socket->runtime->declaration, socket->runtime->declaration->structure_type);
+          if (const SocketDeclaration *declaration = socket->runtime->declaration) {
+            socket->display_shape = get_input_socket_shape(*declaration,
+                                                           declaration->structure_type);
+          }
         }
         for (bNodeSocket *socket : node->output_sockets()) {
-          socket->display_shape = get_output_socket_shape(
-              *socket->runtime->declaration,
-              field_states[socket->index_in_tree()],
-              socket->runtime->declaration->structure_type);
+          if (const SocketDeclaration *declaration = socket->runtime->declaration) {
+            socket->display_shape = get_output_socket_shape(
+                *declaration, field_states[socket->index_in_tree()], declaration->structure_type);
+          }
         }
       }
     }
@@ -1514,6 +1525,7 @@ class NodeTreeMainUpdater {
       const uint64_t socket_ptr = uintptr_t(&socket);
       return noise::hash(socket_ptr, socket_ptr >> 32);
     };
+    const bNodeTreeZones *zones = tree.zones();
 
     while (!sockets_to_check.is_empty()) {
       const bNodeSocket &socket = *sockets_to_check.peek();
@@ -1530,6 +1542,7 @@ class NodeTreeMainUpdater {
         /* For input sockets, first compute the hashes of all linked sockets. */
         bool all_origins_computed = true;
         bool get_value_from_origin = false;
+        Vector<const bNodeSocket *, 16> origin_sockets;
         for (const bNodeLink *link : socket.directly_linked_links()) {
           if (link->is_muted()) {
             continue;
@@ -1537,11 +1550,22 @@ class NodeTreeMainUpdater {
           if (!link->is_available()) {
             continue;
           }
-          const bNodeSocket &origin_socket = *link->fromsock;
+          origin_sockets.append(link->fromsock);
+        }
+        if (zones) {
+          if (const bNodeTreeZone *zone = zones->get_zone_by_socket(socket)) {
+            if (zone->output_node_id == node.identifier) {
+              if (const bNode *input_node = zone->input_node()) {
+                origin_sockets.extend(input_node->input_sockets());
+              }
+            }
+          }
+        }
+        for (const bNodeSocket *origin_socket : origin_sockets) {
           const std::optional<uint32_t> origin_hash =
-              hash_by_socket_id[origin_socket.index_in_tree()];
+              hash_by_socket_id[origin_socket->index_in_tree()];
           if (origin_hash.has_value()) {
-            if (get_value_from_origin || socket.type != origin_socket.type) {
+            if (get_value_from_origin || socket.type != origin_socket->type) {
               socket_hash = noise::hash(socket_hash, *origin_hash);
             }
             else {
@@ -1551,7 +1575,7 @@ class NodeTreeMainUpdater {
             get_value_from_origin = true;
           }
           else {
-            sockets_to_check.push(&origin_socket);
+            sockets_to_check.push(origin_socket);
             all_origins_computed = false;
           }
         }
@@ -1850,7 +1874,7 @@ class NodeTreeMainUpdater {
       }
     }
 
-    ntree.tree_interface.reset_changed_flags();
+    ntree.tree_interface.reset_interface_changed();
   }
 
   /**

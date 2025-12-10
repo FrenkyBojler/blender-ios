@@ -725,6 +725,25 @@ static bool screen_active_editable(bContext *C)
   return false;
 }
 
+/**
+ * Begin a modal operation,
+ * the caller is responsible for calling #screen_modal_action_end when it's ended.
+ */
+static void screen_modal_action_begin()
+{
+  G.moving |= G_TRANSFORM_WM;
+}
+
+/** Call once the modal action has finished. */
+static void screen_modal_action_end()
+{
+  G.moving &= ~G_TRANSFORM_WM;
+
+  /* Full refresh after `G.moving` is cleared otherwise tool gizmos
+   * won't be refreshed with the modified flag, see: #143629. */
+  WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1066,7 +1085,7 @@ static void actionzone_exit(wmOperator *op)
   }
   op->customdata = nullptr;
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 /* send EVT_ACTIONZONE event */
@@ -1130,7 +1149,7 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   /* add modal handler */
-  G.moving |= G_TRANSFORM_WM;
+  screen_modal_action_begin();
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1753,7 +1772,7 @@ static void area_move_set_limits(wmWindow *win,
       }
     }
     else {
-      const int x1 = area->winx - (AREAMINX * UI_SCALE_FAC);
+      const int x1 = area->winx - int(AREAMINX * UI_SCALE_FAC) - 1;
       /* if left or right edge selected, test width */
       if (area->v1->editflag && area->v2->editflag) {
         *bigger = min_ii(*bigger, x1);
@@ -2036,7 +2055,8 @@ static void area_move_exit(bContext *C, wmOperator *op)
   BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
   BKE_screen_remove_double_scredges(CTX_wm_screen(C));
   ED_workspace_status_text(C, nullptr);
-  G.moving &= ~G_TRANSFORM_WM;
+
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus area_move_exec(bContext *C, wmOperator *op)
@@ -2069,7 +2089,7 @@ static wmOperatorStatus area_move_invoke(bContext *C, wmOperator *op, const wmEv
   status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
 
   /* add temp handler */
-  G.moving |= G_TRANSFORM_WM;
+  screen_modal_action_begin();
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -2396,7 +2416,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
   BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
   BKE_screen_remove_double_scredges(CTX_wm_screen(C));
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static void area_split_preview_update_cursor(bContext *C, wmOperator *op)
@@ -2532,7 +2552,7 @@ static wmOperatorStatus area_split_invoke(bContext *C, wmOperator *op, const wmE
       area_move_set_limits(win, screen, dir_axis, &sd->bigger, &sd->smaller, nullptr);
 
       /* add temp handler for edge move or cancel */
-      G.moving |= G_TRANSFORM_WM;
+      screen_modal_action_begin();
       WM_event_add_modal_handler(C, op);
 
       return OPERATOR_RUNNING_MODAL;
@@ -2768,69 +2788,6 @@ struct RegionMoveData {
   AZEdge edge;
 };
 
-static int area_max_regionsize(ScrArea *area, ARegion *scale_region, AZEdge edge)
-{
-  int dist;
-
-  /* regions in regions. */
-  if (scale_region->alignment & RGN_SPLIT_PREV) {
-    const int align = RGN_ALIGN_ENUM_FROM_MASK(scale_region->alignment);
-
-    if (ELEM(align, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
-      ARegion *region = scale_region->prev;
-      dist = region->winy + scale_region->winy - U.pixelsize;
-    }
-    else /* if (ELEM(align, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) */ {
-      ARegion *region = scale_region->prev;
-      dist = region->winx + scale_region->winx - U.pixelsize;
-    }
-  }
-  else {
-    if (ELEM(edge, AE_RIGHT_TO_TOPLEFT, AE_LEFT_TO_TOPRIGHT)) {
-      dist = BLI_rcti_size_x(&area->totrct);
-    }
-    else { /* AE_BOTTOM_TO_TOPLEFT, AE_TOP_TO_BOTTOMRIGHT */
-      dist = BLI_rcti_size_y(&area->totrct);
-    }
-
-    /* Subtract the width of regions on opposite side
-     * prevents dragging regions into other opposite regions. */
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (region == scale_region) {
-        continue;
-      }
-
-      if (scale_region->alignment == RGN_ALIGN_LEFT && region->alignment == RGN_ALIGN_RIGHT) {
-        dist -= region->winx;
-      }
-      else if (scale_region->alignment == RGN_ALIGN_RIGHT && region->alignment == RGN_ALIGN_LEFT) {
-        dist -= region->winx;
-      }
-      else if (scale_region->alignment == RGN_ALIGN_TOP &&
-               (region->alignment == RGN_ALIGN_BOTTOM || ELEM(region->regiontype,
-                                                              RGN_TYPE_HEADER,
-                                                              RGN_TYPE_TOOL_HEADER,
-                                                              RGN_TYPE_FOOTER,
-                                                              RGN_TYPE_ASSET_SHELF_HEADER)))
-      {
-        dist -= region->winy;
-      }
-      else if (scale_region->alignment == RGN_ALIGN_BOTTOM &&
-               (region->alignment == RGN_ALIGN_TOP || ELEM(region->regiontype,
-                                                           RGN_TYPE_HEADER,
-                                                           RGN_TYPE_TOOL_HEADER,
-                                                           RGN_TYPE_FOOTER,
-                                                           RGN_TYPE_ASSET_SHELF_HEADER)))
-      {
-        dist -= region->winy;
-      }
-    }
-  }
-
-  dist /= UI_SCALE_FAC;
-  return dist;
-}
-
 static bool is_split_edge(const int alignment, const AZEdge edge)
 {
   return ((alignment == RGN_ALIGN_BOTTOM) && (edge == AE_TOP_TO_BOTTOMRIGHT)) ||
@@ -2854,7 +2811,7 @@ static void region_scale_exit(wmOperator *op)
   MEM_freeN(rmd);
   op->customdata = nullptr;
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2892,7 +2849,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     rmd->area = sad->sa1;
     rmd->edge = az->edge;
     copy_v2_v2_int(rmd->orig_xy, event->xy);
-    rmd->maxsize = area_max_regionsize(rmd->area, rmd->region, rmd->edge);
+    rmd->maxsize = ED_area_max_regionsize(rmd->area, rmd->region, rmd->edge);
 
     /* if not set we do now, otherwise it uses type */
     if (rmd->region->sizex == 0) {
@@ -2928,7 +2885,7 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
     /* add temp handler */
-    G.moving |= G_TRANSFORM_WM;
+    screen_modal_action_begin();
     WM_event_add_modal_handler(C, op);
 
     return OPERATOR_RUNNING_MODAL;
@@ -3359,7 +3316,7 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
       continue;
     }
 
-    const bool use_nla_mapping = true;
+    const bool use_nla_mapping = ANIM_nla_mapping_allowed(ale);
     fcurve_to_keylist(ale->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, use_nla_mapping);
   }
 
@@ -3859,7 +3816,7 @@ static void area_join_exit(bContext *C, wmOperator *op)
 
   ED_workspace_status_text(C, nullptr);
 
-  G.moving &= ~G_TRANSFORM_WM;
+  screen_modal_action_end();
 }
 
 static wmOperatorStatus area_join_exec(bContext *C, wmOperator *op)
@@ -3978,6 +3935,10 @@ void static area_docking_apply(bContext *C, wmOperator *op)
         BLI_listbase_is_empty(&jd->win1->global_areas.areabase))
     {
       jd->close_win = true;
+      /* Clear the active region in each screen, otherwise they are pointing
+       * at incorrect regions and will cause errors in uiTemplateInputStatus. */
+      WM_window_get_active_screen(jd->win1)->active_region = nullptr;
+      WM_window_get_active_screen(jd->win2)->active_region = nullptr;
     }
     else {
       screen_area_close(C, op->reports, CTX_wm_screen(C), jd->sa1);
@@ -6090,7 +6051,7 @@ static std::string userpref_show_get_description(bContext *C,
       return fmt::format(fmt::runtime(TIP_("Show {} preferences")), section_name);
     }
   }
-  /* Fallback to default. */
+  /* Fall back to default. */
   return "";
 }
 

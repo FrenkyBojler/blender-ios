@@ -1048,6 +1048,9 @@ static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, O
   if (src_bone->prop) {
     dst_bone->prop = IDP_CopyProperty(src_bone->prop);
   }
+  if (src_bone->system_properties) {
+    dst_bone->system_properties = IDP_CopyProperty(src_bone->system_properties);
+  }
 
   /* Lets duplicate the list of constraints that the
    * current bone has.
@@ -1288,6 +1291,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const int direction = RNA_enum_get(op->ptr, "direction");
+  const bool copy_bone_colors = RNA_boolean_get(op->ptr, "copy_bone_colors");
   const int axis = 0;
 
   /* cancel if nothing selected */
@@ -1429,6 +1433,16 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
         /* Copy flags in case bone is pre-existing data. */
         ebone->flag = (ebone->flag & ~flag_copy) | (ebone_iter->flag & flag_copy);
 
+        /* Copy Viewport Display. */
+        ebone->drawtype = ebone_iter->drawtype;
+        if (copy_bone_colors) {
+          ebone->color.palette_index = ebone_iter->color.palette_index;
+          copy_v4_v4_uchar(ebone->color.custom.active, ebone_iter->color.custom.active);
+          copy_v4_v4_uchar(ebone->color.custom.select, ebone_iter->color.custom.select);
+          copy_v4_v4_uchar(ebone->color.custom.solid, ebone_iter->color.custom.solid);
+          ebone->color.custom.flag = ebone_iter->color.custom.flag;
+        }
+
         if (ebone_iter->parent == nullptr) {
           /* If this bone has no parent,
            * Set the duplicate->parent to nullptr
@@ -1551,6 +1565,8 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
                           -1,
                           "Direction",
                           "Which sides to copy from and to (when both are selected)");
+  ot->prop = RNA_def_boolean(
+      ot->srna, "copy_bone_colors", false, "Bone Colors", "Copy colors to existing bones");
 }
 
 /* ------------------------------------------ */
@@ -1909,6 +1925,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
 
       newbone->flag |= BONE_CONNECTED;
       newbone->prop = nullptr;
+      newbone->system_properties = nullptr;
 
       /* correct parent bones */
       LISTBASE_FOREACH (EditBone *, tbone, arm->edbo) {

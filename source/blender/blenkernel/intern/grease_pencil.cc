@@ -336,7 +336,7 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
 IDTypeInfo IDType_ID_GP = {
     /*id_code*/ GreasePencil::id_type,
     /*id_filter*/ FILTER_ID_GP,
-    /*dependencies_id_types*/ FILTER_ID_GP | FILTER_ID_MA,
+    /*dependencies_id_types*/ FILTER_ID_GP | FILTER_ID_MA | FILTER_ID_OB,
     /*main_listbase_index*/ INDEX_ID_GP,
     /*struct_size*/ sizeof(GreasePencil),
     /*name*/ "GreasePencil",
@@ -2299,7 +2299,10 @@ static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
    * cache. This will only copy the pointers to the layers, not the layers themselves. */
   Array<Layer *> layers = grease_pencil.layers_for_write();
 
-  for (Layer *layer : layers) {
+  for (const int layer_i : layers.index_range()) {
+    Layer *layer = layers[layer_i];
+    /* Store the original index of the layer. */
+    layer->runtime->orig_layer_index_ = layer_i;
     /* When the visibility is animated, the layer should be retained even when it is invisible.
      * Changing the visibility through the animation system does NOT create another evaluated copy,
      * and thus the layer has to be kept for this future use. */
@@ -3363,6 +3366,9 @@ void GreasePencil::move_duplicate_frames(
 const blender::bke::greasepencil::Drawing *GreasePencil::get_drawing_at(
     const blender::bke::greasepencil::Layer &layer, const int frame_number) const
 {
+  if (this->drawings().is_empty()) {
+    return nullptr;
+  }
   const int drawing_index = layer.drawing_index_at(frame_number);
   if (drawing_index == -1) {
     /* No drawing found. */
@@ -3380,6 +3386,9 @@ const blender::bke::greasepencil::Drawing *GreasePencil::get_drawing_at(
 blender::bke::greasepencil::Drawing *GreasePencil::get_drawing_at(
     const blender::bke::greasepencil::Layer &layer, const int frame_number)
 {
+  if (this->drawings().is_empty()) {
+    return nullptr;
+  }
   const int drawing_index = layer.drawing_index_at(frame_number);
   if (drawing_index == -1) {
     /* No drawing found. */
@@ -3400,7 +3409,9 @@ blender::bke::greasepencil::Drawing *GreasePencil::get_editable_drawing_at(
   if (!layer.is_editable()) {
     return nullptr;
   }
-
+  if (this->drawings().is_empty()) {
+    return nullptr;
+  }
   const int drawing_index = layer.drawing_index_at(frame_number);
   if (drawing_index == -1) {
     /* No drawing found. */
@@ -3728,6 +3739,8 @@ blender::bke::greasepencil::Layer &GreasePencil::add_layer(const blender::String
   const int numLayers = layers().size();
   CustomData_realloc(&layers_data, numLayers, numLayers + 1, CD_SET_DEFAULT);
   bke::greasepencil::Layer *new_layer = MEM_new<bke::greasepencil::Layer>(__func__, unique_name);
+  /* Enable Lights by default. */
+  new_layer->base.flag |= GP_LAYER_TREE_NODE_USE_LIGHTS;
   /* Hide masks by default. */
   new_layer->base.flag |= GP_LAYER_TREE_NODE_HIDE_MASKS;
   bke::greasepencil::Layer &layer = root_group().add_node(new_layer->as_node()).as_layer();
@@ -4319,13 +4332,15 @@ static void write_drawing_array(GreasePencil &grease_pencil,
     GreasePencilDrawingBase *drawing_base = grease_pencil.drawing_array[i];
     switch (GreasePencilDrawingType(drawing_base->type)) {
       case GP_DRAWING: {
-        GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-        bke::CurvesGeometry &curves = drawing->wrap().strokes_for_write();
+        GreasePencilDrawing &drawing_copy = scope.construct<GreasePencilDrawing>();
+        drawing_copy = *reinterpret_cast<GreasePencilDrawing *>(drawing_base);
+        bke::CurvesGeometry &curves = drawing_copy.geometry.wrap();
 
         bke::CurvesGeometry::BlendWriteData write_data(scope);
         curves.blend_write_prepare(write_data);
+        drawing_copy.runtime = nullptr;
 
-        BLO_write_struct(writer, GreasePencilDrawing, drawing);
+        BLO_write_struct_at_address(writer, GreasePencilDrawing, drawing_base, &drawing_copy);
         curves.blend_write(*writer, grease_pencil.id, write_data);
         break;
       }

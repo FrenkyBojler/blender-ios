@@ -31,13 +31,35 @@ size_t BLI_strncpy_utf8_rlen_unterminated(char *__restrict dst,
  */
 ptrdiff_t BLI_str_utf8_invalid_byte(const char *str, size_t str_len) ATTR_NONNULL(1);
 /**
- * Remove any invalid UTF8 byte (taking into account multi-bytes sequence of course).
+ * Remove any invalid UTF8 byte (taking into account multi-bytes sequences).
  *
  * \param str: a null terminated string.
  * \param str_len: the result of `strlen(str)`.
  * \return number of stripped bytes.
  */
 int BLI_str_utf8_invalid_strip(char *str, size_t str_len) ATTR_NONNULL(1);
+/**
+ * Substitute any invalid UTF8 byte with `substitute` (taking into account multi-bytes sequences).
+ * The length of the string remains unchanged.
+ *
+ * \param str: a null terminated string.
+ * \param str_len: the result of `strlen(str)`.
+ * \return number of bytes replaced.
+ */
+int BLI_str_utf8_invalid_substitute(char *str, size_t str_len, const char substitute)
+    ATTR_NONNULL(1);
+
+/**
+ * A utility for #BLI_str_utf8_invalid_substitute that returns `str` when it contains a
+ * valid UTF8 string. Otherwise it is copied into `buf` with invalid byte sequences
+ * substituted for `substitute`.
+ *
+ * \note This is intended for situations when the string is expected to be valid,
+ * where copying and substituting values is typically not needed.
+ */
+[[nodiscard]] const char *BLI_str_utf8_invalid_substitute_as_needed(
+    const char *str, size_t str_len, const char substitute, char *buf, const size_t buf_maxncpy)
+    ATTR_NONNULL(1, 4);
 
 /**
  * \return The size (in bytes) of a single UTF8 char.
@@ -221,6 +243,14 @@ size_t BLI_str_partition_ex_utf8(const char *str,
                                  const char **r_sep,
                                  const char **r_suf,
                                  bool from_right) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 3, 4, 5);
+
+/**
+ * Ensure that `str` has a null byte in the range of `[0..str_size]`, while not generating any
+ * invalid UTF-8 code. The resulting `strlen(str)` is guaranteed to be less than `str_size`.
+ *
+ * \return true when `str` was truncated.
+ */
+bool BLI_str_utf8_truncate_at_size(char *str, const size_t str_size);
 
 int BLI_str_utf8_offset_to_index(const char *str,
                                  size_t str_len,

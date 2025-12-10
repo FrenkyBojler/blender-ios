@@ -1689,6 +1689,123 @@ class USDExportTest(AbstractUSDTest):
 
         self.assertTupleEqual(expected, actual)
 
+    def test_point_instancing_export(self):
+        """Test exporting scenes that use point instancing."""
+
+        def confirm_point_instancing_stats(stage, num_meshes, num_instancers, num_instances, num_prototypes):
+            mesh_count = 0
+            instancer_count = 0
+            instance_count = 0
+            prototype_count = 0
+
+            for prim in stage.TraverseAll():
+                prim_path = prim.GetPath()
+                prim_type_name = prim.GetTypeName()
+
+                if prim_type_name == "PointInstancer":
+                    point_instancer = UsdGeom.PointInstancer(prim)
+                    if point_instancer:
+
+                        # get instance count
+                        positions_attr = point_instancer.GetPositionsAttr()
+                        if positions_attr:
+                            positions = positions_attr.Get()
+                            if positions:
+                                instance_count += len(positions)
+
+                        # get prototype count
+                        prototypes_rel = point_instancer.GetPrototypesRel()
+                        if prototypes_rel:
+                            target_prims = prototypes_rel.GetTargets()
+                            prototype_count += len(target_prims)
+
+                # show all prims and types
+                # output_string = f"  Path: {prim_path}, Type: {prim_type_name}"
+                # print(output_string)
+
+            stats = UsdUtils.ComputeUsdStageStats(stage)
+            mesh_count = stats['primary']['primCountsByType']['Mesh']
+            instancer_count = stats['primary']['primCountsByType']['PointInstancer']
+
+            return mesh_count, instancer_count, instance_count, prototype_count
+
+        point_instance_test_scenarios = [
+            # object reference treated as geometry set
+            {'input_file': str(self.testdir / "usd_point_instancer_object_ref.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_object_ref.usda",
+             'mesh_count': 3,
+             'instancer_count': 1,
+             'total_instances': 16,
+             'total_prototypes': 1,
+             'extent': {
+                 "/root/Plane/Mesh": [Gf.Vec3f(-1.0999999, -1.0999999, -0.1),
+                                      Gf.Vec3f(1.1, 1.1, 0.1)]}},
+            # collection reference from single point instancer
+            {'input_file': str(self.testdir / "usd_point_instancer_collection_ref.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_collection_ref.usda",
+             'mesh_count': 5,
+             'instancer_count': 1,
+             'total_instances': 32,
+             'total_prototypes': 2,
+             'extent': {
+                 "/root/Plane/Mesh": [Gf.Vec3f(-1.1758227, -1.1, -0.1),
+                                      Gf.Vec3f(1.1, 1.1526861, 0.14081651)]}},
+            # collection references in nested point instancer
+            {'input_file': str(self.testdir / "usd_point_instancer_nested.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_nested.usda",
+             'mesh_count': 9,
+             'instancer_count': 3,
+             'total_instances': 14,
+             'total_prototypes': 4,
+             'extent': {
+                 "/root/Triangle/Triangle": [Gf.Vec3f(-0.976631, -1.2236981, -0.7395363),
+                                             Gf.Vec3f(1.8081428, 3.371673, 1.2604637)],
+                 "/root/Plane/Plane": [Gf.Vec3f(-1.164238, -3.5953712, -0.2883494),
+                                       Gf.Vec3f(-0.68365526, -3.1147888, -0.18980181)]}},
+            # object reference coming from a collection with separate children
+            {'input_file': str(self.testdir / "../render/shader/texture_coordinate_camera.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_separate_children.usda",
+             'mesh_count': 9,
+             'instancer_count': 1,
+             'total_instances': 4,
+             'total_prototypes': 2,
+             'extent': {
+                 "/root/Rotated_and_Scaled_Instances/Cube_003": [Gf.Vec3f(-8.488519, -6.1219244, -6.964829),
+                                                                 Gf.Vec3f(3.2331002, 5.4789553, 7.095813)]}}
+        ]
+
+        for scenario in point_instance_test_scenarios:
+            bpy.ops.wm.open_mainfile(filepath=scenario['input_file'])
+
+            export_path = scenario['output_file']
+            self.export_and_validate(
+                filepath=str(export_path),
+                use_instancing=True
+            )
+
+            stage = Usd.Stage.Open(str(export_path))
+
+            mesh_count, instancer_count, instance_count, proto_count = confirm_point_instancing_stats(
+                stage, scenario['mesh_count'], scenario['instancer_count'], scenario['total_instances'], scenario['total_prototypes'])
+            self.assertEqual(scenario['mesh_count'], mesh_count, "Unexpected number of primary meshes")
+            self.assertEqual(scenario['instancer_count'], instancer_count, "Unexpected number of point instancers")
+            self.assertEqual(scenario['total_instances'], instance_count, "Unexpected number of total instances")
+            self.assertEqual(scenario['total_prototypes'], proto_count, "Unexpected number of total prototypes")
+            if 'extent' in scenario:
+                for prim_path, (expected_min, expected_max) in scenario['extent'].items():
+                    prim = stage.GetPrimAtPath(prim_path)
+                    self.assertTrue(prim.IsValid(), f"Prim {prim_path} not found on stage")
+
+                    boundable = UsdGeom.Boundable(prim)
+                    extent_attr = boundable.GetExtentAttr()
+                    self.assertTrue(extent_attr.HasAuthoredValue(), f"Prim {prim_path} has no authored extent")
+
+                    extent = extent_attr.Get()
+                    self.assertIsNotNone(extent, f"Extent on {prim_path} could not be retrieved")
+
+                    self.compareVec3d(Gf.Vec3d(extent[0]), expected_min)
+                    self.compareVec3d(Gf.Vec3d(extent[1]), expected_max)
+
 
 class USDHookBase:
     instructions = {}

@@ -19,6 +19,7 @@
 
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
+#include "gpu_profile_report.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_create_info_private.hh"
 #include "gpu_shader_dependency_private.hh"
@@ -392,6 +393,11 @@ void GPU_shader_batch_cancel(BatchHandle &handle)
   GPUBackend::get()->get_compiler()->batch_cancel(handle);
 }
 
+bool GPU_shader_batch_is_compiling()
+{
+  return GPUBackend::get()->get_compiler()->is_compiling();
+}
+
 void GPU_shader_batch_wait_for_all()
 {
   GPUBackend::get()->get_compiler()->wait_for_all();
@@ -604,7 +610,7 @@ int GPU_shader_get_sampler_binding(GPUShader *shader, const char *name)
 uint GPU_shader_get_attribute_len(const GPUShader *shader)
 {
   const ShaderInterface *interface = unwrap(shader)->interface;
-  return interface->attr_len_;
+  return interface->valid_bindings_get(interface->inputs_, interface->attr_len_);
 }
 
 uint GPU_shader_get_ssbo_input_len(const GPUShader *shader)
@@ -805,13 +811,21 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 
 Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
 {
+  using Clock = std::chrono::steady_clock;
+  using TimePoint = Clock::time_point;
+
   using namespace blender::gpu::shader;
   const_cast<ShaderCreateInfo &>(info).finalize();
+
+  TimePoint start_time;
 
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
     GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
     GPU_debug_group_begin(info.name_.c_str());
+  }
+  else if (G.profile_gpu) {
+    start_time = Clock::now();
   }
 
   const std::string error = info.check_error();
@@ -936,6 +950,16 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     GPU_debug_group_end();
     GPU_debug_group_end();
   }
+  else if (G.profile_gpu) {
+    TimePoint end_time = Clock::now();
+    /* Note: Used by the vulkan backend. Use the same time_since_epoch as process_frame_timings. */
+    ProfileReport::get().add_group_cpu(GPU_DEBUG_SHADER_COMPILATION_GROUP,
+                                       start_time.time_since_epoch().count(),
+                                       end_time.time_since_epoch().count());
+    ProfileReport::get().add_group_cpu(info.name_.c_str(),
+                                       start_time.time_since_epoch().count(),
+                                       end_time.time_since_epoch().count());
+  }
 
   return shader;
 }
@@ -948,7 +972,11 @@ ShaderCompiler::ShaderCompiler(uint32_t threads_count,
 
   if (!GPU_use_main_context_workaround()) {
     compilation_worker_ = std::make_unique<GPUWorker>(
-        threads_count, context_type, [this]() { this->run_thread(); });
+        threads_count,
+        context_type,
+        mutex_,
+        [this]() -> void * { return this->pop_work(); },
+        [this](void *work) { this->do_work(work); });
   }
 }
 
@@ -1078,60 +1106,73 @@ bool ShaderCompiler::specialization_batch_is_ready(SpecializationBatchHandle &ha
   return handle == 0;
 }
 
-void ShaderCompiler::run_thread()
+void *ShaderCompiler::pop_work()
 {
-  while (true) {
-    Batch *batch;
-    int shader_index;
-    {
-      std::lock_guard lock(mutex_);
+  /* NOTE: Already under mutex lock when GPUWorker calls this function. */
 
-      if (compilation_queue_.is_empty()) {
-        return;
-      }
-
-      ParallelWork work = compilation_queue_.pop();
-      batch = work.batch;
-      shader_index = work.shader_index;
-    }
-
-    /* Compile */
-    if (!batch->is_specialization_batch()) {
-      batch->shaders[shader_index] = compile_shader(*batch->infos[shader_index]);
-    }
-    else {
-      specialize_shader(batch->specializations[shader_index]);
-    }
-
-    {
-      std::lock_guard lock(mutex_);
-      batch->pending_compilations--;
-      if (batch->is_ready() && batch->is_cancelled) {
-        batch->free_shaders();
-        MEM_delete(batch);
-      }
-    }
-
-    compilation_finished_notification_.notify_all();
+  if (compilation_queue_.is_empty()) {
+    return nullptr;
   }
+
+  ParallelWork work = compilation_queue_.pop();
+  return MEM_new<ParallelWork>(__func__, work);
+}
+
+void ShaderCompiler::do_work(void *work_payload)
+{
+  ParallelWork *work = reinterpret_cast<ParallelWork *>(work_payload);
+  Batch *batch = work->batch;
+  int shader_index = work->shader_index;
+  MEM_delete(work);
+
+  /* Compile */
+  if (!batch->is_specialization_batch()) {
+    batch->shaders[shader_index] = compile_shader(*batch->infos[shader_index]);
+  }
+  else {
+    specialize_shader(batch->specializations[shader_index]);
+  }
+
+  {
+    std::lock_guard lock(mutex_);
+    batch->pending_compilations--;
+    if (batch->is_ready() && batch->is_cancelled) {
+      batch->free_shaders();
+      MEM_delete(batch);
+    }
+  }
+
+  compilation_finished_notification_.notify_all();
+}
+
+bool ShaderCompiler::is_compiling_impl()
+{
+  /* The mutex should be locked befor calling this function. */
+  BLI_assert(!mutex_.try_lock());
+
+  if (!compilation_queue_.is_empty()) {
+    return true;
+  }
+
+  for (Batch *batch : batches_.values()) {
+    if (!batch->is_ready()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool ShaderCompiler::is_compiling()
+{
+  std::unique_lock lock(mutex_);
+  return is_compiling_impl();
 }
 
 void ShaderCompiler::wait_for_all()
 {
   std::unique_lock lock(mutex_);
-  compilation_finished_notification_.wait(lock, [&]() {
-    if (!compilation_queue_.is_empty()) {
-      return false;
-    }
-
-    for (Batch *batch : batches_.values()) {
-      if (!batch->is_ready()) {
-        return false;
-      }
-    }
-
-    return true;
-  });
+  compilation_finished_notification_.wait(lock, [&]() { return !is_compiling_impl(); });
 }
 
 /** \} */

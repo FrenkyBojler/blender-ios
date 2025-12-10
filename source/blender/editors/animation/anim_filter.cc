@@ -38,6 +38,7 @@
 #include "DNA_lattice_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_light_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
@@ -771,6 +772,12 @@ static bAnimListElem *make_new_animlistelem(
       key_data_from_adt(*ale, volume->adt);
       break;
     }
+    case ANIMTYPE_DSLIGHTPROBE: {
+      LightProbe *probe = static_cast<LightProbe *>(data);
+      ale->flag = FILTER_LIGHTPROBE_OBJD(probe);
+      key_data_from_adt(*ale, probe->adt);
+      break;
+    }
     case ANIMTYPE_DSSKEY: {
       Key *key = static_cast<Key *>(data);
       ale->flag = FILTER_SKE_OBJD(key);
@@ -1302,7 +1309,12 @@ static size_t animfilter_fcurves(bAnimContext *ac,
        * except we need to set some stuff differently */
       ANIMCHANNEL_NEW_CHANNEL_FULL(ac->bmain, fcu, ANIMTYPE_NLACURVE, owner_id, fcurve_owner_id, {
         ale->owner = owner; /* strip */
-        ale->adt = nullptr; /* to prevent time mapping from causing problems */
+        /* Since #130440 landed, this should now in theory be something like
+         * `ale->adt = BKE_animdata_from_id(owner_id)`, rather than a nullptr.
+         * However, at the moment the nullptr doesn't hurt, and it helps us
+         * catch bugs like #147803 via the assert in `fcurve_to_keylist()`. If
+         * the nullptr does start to hurt at some point, please change it! */
+        ale->adt = nullptr;
       });
     }
     else {
@@ -3060,6 +3072,18 @@ static size_t animdata_filter_ds_obdata(bAnimContext *ac,
       expanded = FILTER_VOLUME_OBJD(volume);
       break;
     }
+    case OB_LIGHTPROBE: /* ---------- LightProbe ----------- */
+    {
+      LightProbe *probe = static_cast<LightProbe *>(ob->data);
+
+      if (ads_filterflag2 & ADS_FILTER_NOLIGHTPROBE) {
+        return 0;
+      }
+
+      type = ANIMTYPE_DSLIGHTPROBE;
+      expanded = FILTER_LIGHTPROBE_OBJD(probe);
+      break;
+    }
   }
 
   /* add object data animation channels */
@@ -3551,11 +3575,11 @@ static bool animdata_filter_base_is_ok(bAnimContext *ac,
 
   /* Special case.
    * We don't do recursive checks for pin, but we need to deal with tricky
-   * setup like animated camera lens without animated camera location.
-   * Without such special handle here we wouldn't be able to bin such
-   * camera data only animation to the editor.
+   * setup like animated camera lens without (pinned) animated camera location.
+   * Without such special handle here we wouldn't be able to pin such
+   * camera data animation to the editor.
    */
-  if (ob->adt == nullptr && ob->data != nullptr) {
+  if (ob->data != nullptr) {
     AnimData *data_adt = BKE_animdata_from_id(static_cast<ID *>(ob->data));
     if (data_adt != nullptr && (data_adt->flag & ADT_CURVES_ALWAYS_VISIBLE)) {
       return true;
@@ -3600,7 +3624,7 @@ static int ds_base_sorting_cmp(const void *base1_ptr, const void *base2_ptr)
   const Base *b1 = *((const Base **)base1_ptr);
   const Base *b2 = *((const Base **)base2_ptr);
 
-  return strcmp(b1->object->id.name + 2, b2->object->id.name + 2);
+  return BLI_strcasecmp_natural(b1->object->id.name + 2, b2->object->id.name + 2);
 }
 
 /* Get a sorted list of all the bases - for inclusion in dopesheet (when drawing channels) */
@@ -3618,7 +3642,8 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
 
   Base **sorted_bases = MEM_calloc_arrayN<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
   LISTBASE_FOREACH (Base *, base, object_bases) {
-    if (animdata_filter_base_is_ok(ac, base, OB_MODE_OBJECT, filter_mode)) {
+    const eObjectMode object_mode = eObjectMode(base->object->mode);
+    if (animdata_filter_base_is_ok(ac, base, object_mode, filter_mode)) {
       sorted_bases[num_bases++] = base;
     }
   }

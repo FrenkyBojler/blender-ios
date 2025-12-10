@@ -233,6 +233,8 @@ const EnumPropertyItem rna_enum_node_vec_math_items[] = {
     {NODE_VECTOR_MATH_NORMALIZE, "NORMALIZE", 0, "Normalize", "Normalize A"},
     RNA_ENUM_ITEM_SEPR,
     {NODE_VECTOR_MATH_ABSOLUTE, "ABSOLUTE", 0, "Absolute", "Entry-wise absolute"},
+    {NODE_VECTOR_MATH_POWER, "POWER", 0, "Power", "Entry-wise power"},
+    {NODE_VECTOR_MATH_SIGN, "SIGN", 0, "Sign", "Entry-wise sign"},
     {NODE_VECTOR_MATH_MINIMUM, "MINIMUM", 0, "Minimum", "Entry-wise minimum"},
     {NODE_VECTOR_MATH_MAXIMUM, "MAXIMUM", 0, "Maximum", "Entry-wise maximum"},
     {NODE_VECTOR_MATH_FLOOR, "FLOOR", 0, "Floor", "Entry-wise floor"},
@@ -751,8 +753,16 @@ int rna_node_socket_idname_to_enum(const char *idname)
   using namespace blender;
 
   bke::bNodeSocketType *socket_type = bke::node_socket_type_find(idname);
+
+  /* Regular socket types use the base type as their enum value.
+   * Custom sockets don't have a base type and are used directly as the enum entry. */
+  if (socket_type->type == SOCK_CUSTOM) {
+    return bke::node_socket_types_get().first_index(socket_type);
+  }
+
   bke::bNodeSocketType *base_socket_type = bke::node_socket_type_find_static(socket_type->type,
                                                                              PROP_NONE);
+  BLI_assert(base_socket_type != nullptr);
   return bke::node_socket_types_get().first_index(base_socket_type);
 }
 
@@ -1665,7 +1675,7 @@ static void rna_NodeTree_debug_zone_lazy_function_graph(
 static void rna_NodeTree_interface_update(bNodeTree *ntree, bContext *C)
 {
   Main *bmain = CTX_data_main(C);
-  ntree->tree_interface.tag_items_changed();
+  ntree->tree_interface.tag_items_changed_generic();
   BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
@@ -3124,6 +3134,7 @@ static void rna_Node_tex_image_update(Main *bmain, Scene * /*scene*/, PointerRNA
 
   BKE_ntree_update_tag_node_property(ntree, node);
   BKE_main_ensure_invariants(*bmain, ntree->id);
+  DEG_relations_tag_update(bmain);
   WM_main_add_notifier(NC_IMAGE, nullptr);
 }
 
@@ -3981,6 +3992,33 @@ static void rna_NodeCrop_size_y_set(PointerRNA *ptr, const int value)
   bNode *node = ptr->data_as<bNode>();
   bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Size");
   input->default_value_typed<bNodeSocketValueVector>()->value[1] = float(value);
+}
+
+static int rna_NodeFlip_axis_get(PointerRNA *ptr)
+{
+  bNode *node = ptr->data_as<bNode>();
+  const bNodeSocket *x_input = blender::bke::node_find_socket(*node, SOCK_IN, "Flip X");
+  const bNodeSocket *y_input = blender::bke::node_find_socket(*node, SOCK_IN, "Flip Y");
+  const bool flip_x = x_input->default_value_typed<bNodeSocketValueBoolean>()->value;
+  const bool flip_y = y_input->default_value_typed<bNodeSocketValueBoolean>()->value;
+  if (flip_x && flip_y) {
+    return 2;
+  }
+
+  if (flip_y) {
+    return 1;
+  }
+
+  return 0;
+}
+
+static void rna_NodeFlip_axis_set(PointerRNA *ptr, const int value)
+{
+  bNode *node = ptr->data_as<bNode>();
+  bNodeSocket *x_input = blender::bke::node_find_socket(*node, SOCK_IN, "Flip X");
+  bNodeSocket *y_input = blender::bke::node_find_socket(*node, SOCK_IN, "Flip Y");
+  x_input->default_value_typed<bNodeSocketValueBoolean>()->value = value != 1;
+  y_input->default_value_typed<bNodeSocketValueBoolean>()->value = value != 0;
 }
 
 /* A getter that returns the value of the input socket with the given template identifier and type.
@@ -5950,12 +5988,12 @@ static void def_sh_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_sdna(prop, nullptr, "type");
   RNA_def_property_enum_items(prop, prop_attribute_type);
   RNA_def_property_ui_text(prop, "Attribute Type", "General type of the attribute");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
 
   prop = RNA_def_property(srna, "attribute_name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "name");
   RNA_def_property_ui_text(prop, "Attribute Name", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
 }
 
 static void def_sh_tex(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -7387,10 +7425,8 @@ static void def_cmp_alpha_over(BlenderRNA * /*brna*/, StructRNA *srna)
       prop, "Convert Premultiplied", "(Deprecated: Use Straight Alpha input instead.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  RNA_def_struct_sdna_from(srna, "NodeTwoFloats", "storage");
-
   prop = RNA_def_property(srna, "premul", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "x");
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(prop, "Premultiplied", "Mix Factor. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -7578,8 +7614,6 @@ static void def_cmp_vector_blur(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
 
-  RNA_def_struct_sdna_from(srna, "NodeBlurData", "storage");
-
   prop = RNA_def_property(srna, "samples", PROP_INT, PROP_NONE);
   RNA_def_property_int_funcs(prop,
                              "rna_node_property_to_input_getter<int, node_input_samples>",
@@ -7590,7 +7624,7 @@ static void def_cmp_vector_blur(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "speed_min", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "minspeed");
+  RNA_def_property_int_sdna(prop, nullptr, "custom1");
   RNA_def_property_range(prop, 0, 1024);
   RNA_def_property_ui_text(prop,
                            "Min Speed",
@@ -7599,7 +7633,7 @@ static void def_cmp_vector_blur(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "speed_max", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "maxspeed");
+  RNA_def_property_int_sdna(prop, nullptr, "custom2");
   RNA_def_property_range(prop, 0, 1024);
   RNA_def_property_ui_text(prop, "Max Speed", "Maximum speed, or zero for none. (Deprecated.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -7616,7 +7650,7 @@ static void def_cmp_vector_blur(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "use_curved", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "curved", 1);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
   RNA_def_property_ui_text(
       prop,
       "Curved",
@@ -7827,6 +7861,7 @@ static void rna_def_cmp_output_file_slot_file(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Path", "Subpath used for this slot");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_EDITOR_FILEBROWSER);
   RNA_def_property_flag(prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_TEMPLATES);
+  RNA_def_property_path_template_type(prop, PROP_VARIABLES_RENDER_OUTPUT);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
 }
 static void rna_def_cmp_output_file_slot_layer(BlenderRNA *brna)
@@ -7905,6 +7940,7 @@ static void def_cmp_output_file(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Base Path", "Base output path for the image");
   RNA_def_property_flag(
       prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_BLEND_RELATIVE | PROP_PATH_SUPPORTS_TEMPLATES);
+  RNA_def_property_path_template_type(prop, PROP_VARIABLES_RENDER_OUTPUT);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "active_input_index", PROP_INT, PROP_NONE);
@@ -8540,9 +8576,9 @@ static void def_cmp_flip(BlenderRNA * /*brna*/, StructRNA *srna)
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_funcs(prop, "rna_NodeFlip_axis_get", "rna_NodeFlip_axis_set", nullptr);
   RNA_def_property_enum_items(prop, node_flip_items);
-  RNA_def_property_ui_text(prop, "Axis", "");
+  RNA_def_property_ui_text(prop, "Axis", "(Deprecated: Use Flip X and Flip Y inputs instead.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -8784,8 +8820,6 @@ static void def_cmp_crop(BlenderRNA * /*brna*/, StructRNA *srna)
       prop, "Relative", "Use relative values to crop image. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  RNA_def_struct_sdna_from(srna, "NodeTwoXYs", "storage");
-
   prop = RNA_def_property(srna, "min_x", PROP_INT, PROP_NONE);
   RNA_def_property_int_funcs(prop,
                              "rna_node_property_to_input_getter<int, node_input_x>",
@@ -8823,28 +8857,28 @@ static void def_cmp_crop(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_min_x", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "fac_x1");
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(
       prop, "X1", "Left edge of the cropping rectangle. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_max_x", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "fac_x2");
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(
       prop, "X2", "Right edge of the cropping rectangle. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_min_y", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "fac_y1");
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(
       prop, "Y1", "Top edge of the cropping rectangle. (Deprecated: Unused.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "rel_max_y", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, nullptr, "fac_y2");
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_ui_text(
       prop, "Y2", "Bottom edge of the cropping rectangle. (Deprecated: Unused.)");

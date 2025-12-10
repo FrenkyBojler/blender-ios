@@ -484,8 +484,9 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
       continue;
     }
     const ColumnValues *values = scope.add(std::move(values_ptr));
+    const eSpreadsheetColumnValueType column_type = values->type();
 
-    if (column->width <= 0.0f) {
+    if (column->width <= 0.0f || column_type != column->data_type) {
       column->width = values->fit_column_width_px(100) / SPREADSHEET_WIDTH_UNIT;
     }
     const int width_in_pixels = column->width * SPREADSHEET_WIDTH_UNIT;
@@ -495,7 +496,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     x += width_in_pixels;
     column->runtime->right_x = x;
 
-    spreadsheet_column_assign_runtime_data(column, values->type(), values->name());
+    spreadsheet_column_assign_runtime_data(column, column_type, values->name());
   }
 
   spreadsheet_layout.row_indices = spreadsheet_filter_rows(
@@ -791,7 +792,7 @@ void register_spacetype()
   art = MEM_callocN<ARegionType>("spacetype spreadsheet region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   art->init = spreadsheet_main_region_init;
   art->draw = spreadsheet_main_region_draw;
@@ -806,7 +807,7 @@ void register_spacetype()
   art->prefsizey = HEADERY;
   art->keymapflag = 0;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   art->init = spreadsheet_header_region_init;
   art->draw = spreadsheet_header_region_draw;
@@ -820,7 +821,7 @@ void register_spacetype()
   art->prefsizey = HEADERY;
   art->keymapflag = 0;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   art->init = spreadsheet_footer_region_init;
   art->draw = spreadsheet_footer_region_draw;
@@ -833,7 +834,7 @@ void register_spacetype()
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   art->init = spreadsheet_sidebar_init;
   art->layout = ED_region_panels_layout;
@@ -849,7 +850,7 @@ void register_spacetype()
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = 150 + V2D_SCROLL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
   art->init = ED_region_panels_init;
   art->draw = spreadsheet_dataset_region_draw;
   art->listener = spreadsheet_dataset_region_listener;

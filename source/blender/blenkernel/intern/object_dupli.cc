@@ -550,7 +550,9 @@ static void make_duplis_collection(const DupliContext *ctx)
     }
 
     if (ctx->include_objects) {
-      if (!ctx->include_objects->contains(cob)) {
+      Object *original_object = cob->id.orig_id ? reinterpret_cast<Object *>(cob->id.orig_id) :
+                                                  cob;
+      if (!ctx->include_objects->contains(original_object)) {
         continue;
       }
     }
@@ -843,8 +845,15 @@ static void make_duplis_font(const DupliContext *ctx)
 
   /* In `par` the family name is stored, use this to find the other objects. */
 
-  BKE_vfont_to_curve_ex(
-      par, (Curve *)par->data, FO_DUPLI, nullptr, &text, &text_len, &text_free, &chartransdata);
+  BKE_vfont_to_curve_ex(par,
+                        (Curve *)par->data,
+                        FO_DUPLI,
+                        nullptr,
+                        &text,
+                        &text_len,
+                        &text_free,
+                        &chartransdata,
+                        nullptr);
 
   if (text == nullptr || chartransdata == nullptr) {
     return;

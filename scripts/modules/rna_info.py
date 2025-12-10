@@ -360,7 +360,7 @@ class InfoPropertyRNA:
                 # self.default_str = repr(self.default)  # repr or set()
                 self.default_str = "{{{:s}}}".format(repr(list(sorted(self.default)))[1:-1])
             else:
-                self.default_str = "'{:s}'".format(self.default)
+                self.default_str = repr(self.default)
         elif self.array_length:
             if self.array_dimensions[1] == 0:  # single dimension array, we already took care of multi-dimensions ones.
                 # special case for floats
@@ -388,6 +388,7 @@ class InfoPropertyRNA:
             as_arg=False,
             class_fmt="{:s}",
             mathutils_fmt="{:s}",
+            literal_fmt="'{:s}'",
             collection_id="Collection",
             enum_descr_override=None,
     ):
@@ -437,9 +438,9 @@ class InfoPropertyRNA:
                 enum_descr = enum_descr_override
                 if not enum_descr:
                     if self.is_enum_flag:
-                        enum_descr = "{{{:s}}}".format(", ".join(("'{:s}'".format(s[0])) for s in self.enum_items))
+                        enum_descr = "{{{:s}}}".format(", ".join((literal_fmt.format(s[0])) for s in self.enum_items))
                     else:
-                        enum_descr = "[{:s}]".format(", ".join(("'{:s}'".format(s[0])) for s in self.enum_items))
+                        enum_descr = "[{:s}]".format(", ".join((literal_fmt.format(s[0])) for s in self.enum_items))
                 if self.is_enum_flag:
                     type_str += " set in {:s}".format(enum_descr)
                 else:
@@ -447,9 +448,27 @@ class InfoPropertyRNA:
                 del enum_descr
 
             if not (as_arg or as_ret):
-                # write default property, ignore function args for this
-                if self.type != "pointer":
-                    if self.default_str:
+                # write default property, ignore function args for this.
+                match self.type:
+                    case "pointer":
+                        pass
+                    case "enum":
+                        if self.is_enum_flag:
+                            # Can't use `self.default_str`, because need to reformat each item with `literal_fmt`.
+                            if self.default:
+                                default_str = "{{{:s}}}".format(
+                                    ", ".join(literal_fmt.format(s) for s in sorted(self.default))
+                                )
+                            else:
+                                # Needed to account for an empty `{}` being a `dict`, not a `set`.
+                                default_str = "set()"
+                            type_str += ", default {:s}".format(default_str)
+                        else:
+                            # Empty enums typically only occur for enums which are dynamically generated.
+                            # In that case showing a default isn't helpful.
+                            if self.default:
+                                type_str += ", default {:s}".format(literal_fmt.format(self.default))
+                    case _:
                         type_str += ", default {:s}".format(self.default_str)
 
         else:
@@ -685,10 +704,12 @@ def BuildRNAInfo():
     def _bpy_types_iterator():
         # Don't report when these types are ignored.
         suppress_warning = {
+            "GeometrySet",
             "bpy_func",
             "bpy_prop",
             "bpy_prop_array",
             "bpy_prop_collection",
+            "bpy_prop_collection_idprop",
             "bpy_struct",
             "bpy_struct_meta_idprop",
         }

@@ -408,7 +408,7 @@ if(DEFINED LIBDIR)
     ${SYCL_ROOT_DIR}/lib/libur_*.so
     ${SYCL_ROOT_DIR}/lib/libur_*.so.*
   )
-  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX ".*\.py")
+  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX "\\.py$")
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${_sycl_runtime_libraries})
   unset(_sycl_runtime_libraries)
 endif()
@@ -597,6 +597,9 @@ if(WITH_MANIFOLD)
   else()
     # This isn't a common system library, so disable if it's not found.
     find_package(manifold)
+    if(TARGET manifold::manifold)
+      set(MANIFOLD_FOUND TRUE)
+    endif()
     set_and_warn_library_found("MANIFOLD" MANIFOLD_FOUND WITH_MANIFOLD)
   endif()
 endif()

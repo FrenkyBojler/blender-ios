@@ -414,15 +414,15 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src)
   }
 }
 
-void BKE_spacedata_draw_locks(bool set)
+void BKE_spacedata_draw_locks(ARegionDrawLockFlags lock_flags)
 {
   for (std::unique_ptr<SpaceType> &st : get_space_types()) {
     LISTBASE_FOREACH (ARegionType *, art, &st->regiontypes) {
-      if (set) {
-        art->do_lock = art->lock;
+      if (lock_flags != 0) {
+        art->do_lock = (art->lock & lock_flags);
       }
       else {
-        art->do_lock = false;
+        art->do_lock = 0;
       }
     }
   }
@@ -862,7 +862,7 @@ ARegion *BKE_area_find_region_active_win(const ScrArea *area)
     return region;
   }
 
-  /* fallback to any */
+  /* fall back to any */
   return BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 }
 

@@ -48,66 +48,72 @@ static bool match_renderer(StringRef renderer, const Vector<std::string> &items)
   return false;
 }
 
-/**
- * Return whether an AMD driver version is in [20.11, 22],
- * preferring false negatives.
- *
- * Matches:
- *   4.6.14761 Core Profile Context 20.45.44 27.20.14544.6
- *   4.6.14760 Compatibility Profile Context 21.2.3 27.20.14535.3005
- *   4.6.14831 Core Profile Context FireGL 21.Q2.1 27.20.21026.2006
- *   4.6.14830 Core Profile Context 22.6.1 27.20.20913.2000
- *   4.6.14760 Core Profile Context 21.2.3 27.20.14535.3005
- * Rejects:
- *   4.6.0 Core Profile Context 23.10.2.231013
- *   4.6.0 Core Profile Context 24.7.1.240618
- *   4.6.0 Core Profile Context 25.3.2.250311
- * by matching
- *   " 2" digits "." "Q"? digits "." digits " "
- */
-static bool is_AMD_between_20_11_and_22(const char *version)
+static bool parse_version(const std::string &version,
+                          const std::string &format,
+                          Vector<int> &r_version)
 {
-  const char *spc_2 = strstr(version, " 2");
-  if (!spc_2) {
-    return false;
+  int f = 0;
+  std::string subversion;
+  for (int v : IndexRange(version.size())) {
+    bool match = false;
+    if (format[f] == '0') {
+      if (std::isdigit(version[v])) {
+        match = true;
+        subversion.push_back(version[v]);
+      }
+    }
+    else {
+      match = version[v] == format[f];
+      if (!subversion.empty()) {
+        r_version.append(std::stoi(subversion));
+        subversion.clear();
+      }
+    }
+
+    if (!match) {
+      f = 0;
+      subversion.clear();
+      r_version.clear();
+      continue;
+    }
+
+    f++;
+
+    if (f == format.size()) {
+      return true;
+    }
   }
 
-  char *after_first = nullptr;
-  long first = std::strtol(spc_2, &after_first, 10);
-  if (first < 20 || first > 22) {
-    return false;
-  }
-  if (*after_first != '.') {
-    return false;
-  }
-  ++after_first;
+  return false;
+}
 
-  if (*after_first == 'Q') {
-    ++after_first;
-  }
-  char *after_second = nullptr;
-  long second = std::strtol(after_first, &after_second, 10);
-  if (after_second == after_first) {
-    return false;
-  }
+/* Try to check if the driver is older than 22.6.1, preferring false positives.  */
+static bool is_bad_AMD_driver(const char *version_cstr)
+{
+  std::string version_str = version_cstr;
+  /* Allow matches when the version number is at the string end. */
+  version_str.push_back(' ');
 
-  if (*after_second != '.') {
-    return false;
-  }
-  ++after_second;
+  Vector<int> version;
 
-  char *after_third = nullptr;
-  long third = std::strtol(after_second, &after_third, 10);
-  UNUSED_VARS(third);
-  if (after_third == after_second) {
-    return false;
+  if (parse_version(version_str, " 00.00.00.00 ", version) ||
+      parse_version(version_str, " 00.00.00 ", version) ||
+      parse_version(version_str, " 00.00.0 ", version) ||
+      parse_version(version_str, " 00.0.00 ", version) ||
+      parse_version(version_str, " 00.Q0.", version))
+  {
+    return version[0] < 23;
+  }
+  /* Some drivers only expose the Windows version https://gpuopen.com/version-table/ */
+  if (parse_version(version_str, " 00.00.00000.00000 ", version) ||
+      parse_version(version_str, " 00.00.00000.0000 ", version) ||
+      parse_version(version_str, " 00.00.0000.00000 ", version))
+  {
+    return version[0] < 31 || (version[0] == 31 && version[2] < 21001);
   }
 
-  if (*after_third != ' ') {
-    return false;
-  }
-
-  return (first == 20 && second >= 11) || first == 21 || first == 22;
+  /* Unknown version, assume it's a bad one. */
+  return true;
 }
 
 void GLBackend::platform_init()
@@ -133,6 +139,15 @@ void GLBackend::platform_init()
     device = GPU_DEVICE_UNKNOWN;
     driver = GPU_DRIVER_ANY;
   }
+  else if (strstr(renderer, "Mesa DRI R") ||
+           (strstr(renderer, "Radeon") && (strstr(vendor, "X.Org") || strstr(version, "Mesa"))) ||
+           (strstr(renderer, "AMD") && (strstr(vendor, "X.Org") || strstr(version, "Mesa"))) ||
+           (strstr(renderer, "Gallium ") && strstr(renderer, " on ATI ")) ||
+           (strstr(renderer, "Gallium ") && strstr(renderer, " on AMD ")))
+  {
+    device = GPU_DEVICE_ATI;
+    driver = GPU_DRIVER_OPENSOURCE;
+  }
   else if (strstr(vendor, "ATI") || strstr(vendor, "AMD")) {
     device = GPU_DEVICE_ATI;
     driver = GPU_DRIVER_OFFICIAL;
@@ -155,15 +170,6 @@ void GLBackend::platform_init()
     {
       device |= GPU_DEVICE_INTEL_UHD;
     }
-  }
-  else if (strstr(renderer, "Mesa DRI R") ||
-           (strstr(renderer, "Radeon") && strstr(vendor, "X.Org")) ||
-           (strstr(renderer, "AMD") && strstr(vendor, "X.Org")) ||
-           (strstr(renderer, "Gallium ") && strstr(renderer, " on ATI ")) ||
-           (strstr(renderer, "Gallium ") && strstr(renderer, " on AMD ")))
-  {
-    device = GPU_DEVICE_ATI;
-    driver = GPU_DRIVER_OPENSOURCE;
   }
   else if (strstr(renderer, "Nouveau") || strstr(vendor, "nouveau")) {
     device = GPU_DEVICE_NVIDIA;
@@ -480,7 +486,7 @@ static void detect_workarounds()
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
     /* Check for AMD legacy driver. Assuming that when these drivers are used this bug is present.
      */
-    if (is_AMD_between_20_11_and_22(version)) {
+    if (is_bad_AMD_driver(version)) {
       GCaps.use_hq_normals_workaround = true;
     }
     const Vector<std::string> matches = {
@@ -495,7 +501,7 @@ static void detect_workarounds()
    * install of the driver.
    */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-    if (is_AMD_between_20_11_and_22(version)) {
+    if (is_bad_AMD_driver(version)) {
       GCaps.line_directive_workaround = true;
     }
   }
@@ -521,6 +527,12 @@ static void detect_workarounds()
   /* Somehow fixes armature display issues (see #69743). */
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY) &&
       strstr(version, "Build 20.19.15.4285"))
+  {
+    GCaps.use_main_context_workaround = true;
+  }
+  /* Needed to avoid driver hangs on legacy AMD drivers (see #139939). */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) &&
+      is_bad_AMD_driver(version))
   {
     GCaps.use_main_context_workaround = true;
   }
@@ -723,17 +735,66 @@ void GLBackend::capabilities_init()
   detect_workarounds();
 
 #if BLI_SUBPROCESS_SUPPORT
-  if (GCaps.max_parallel_compilations == -1) {
-    GCaps.max_parallel_compilations = std::min(int(U.max_shader_compilation_subprocesses),
-                                               BLI_system_thread_count());
-  }
+  GCaps.use_subprocess_shader_compilations = U.shader_compilation_method ==
+                                             USER_SHADER_COMPILE_SUBPROCESS;
+#else
+  GCaps.use_subprocess_shader_compilations = false;
+#endif
   if (G.debug & G_DEBUG_GPU_RENDERDOC) {
     /* Avoid crashes on RenderDoc sessions. */
-    GCaps.max_parallel_compilations = 0;
+    GCaps.use_subprocess_shader_compilations = false;
   }
-#else
-  GCaps.max_parallel_compilations = 0;
-#endif
+
+  int thread_count = U.gpu_shader_workers;
+
+  if (thread_count == 0) {
+    /* Good default based on measurements. */
+
+    /* Always have at least 1 worker. */
+    thread_count = 1;
+
+    if (GCaps.use_subprocess_shader_compilations) {
+      /* Use reasonable number of worker by default when there are known gains. */
+      if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) ||
+          GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) ||
+          GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY))
+      {
+        /* Subprocess is too costly in memory (>150MB per worker) to have better defaults. */
+        thread_count = std::max(1, std::min(4, BLI_system_thread_count() / 2));
+      }
+    }
+    else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+      /* Best middle ground between memory usage and speedup as Nvidia context memory footprint
+       * is quite heavy (~25MB). Moreover we have diminishing return after this because of PSO
+       * compilation blocking the main thread.
+       * Can be revisited if we find a way to delete the worker thread context after finishing
+       * compilation, and fix the scheduling bubbles (#139775). */
+      thread_count = 4;
+    }
+    else if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OPENSOURCE) ||
+             GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY))
+    {
+      /* Mesa has very good compilation time and doesn't block the main thread.
+       * The memory footprint of the worker context is rather small (<10MB).
+       * Shader compilation gets much slower as the number of threads increases. */
+      thread_count = 8;
+    }
+    else if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+      /* AMD proprietary driver's context have huge memory footprint (~45MB).
+       * There is also not much gain from parallelization. */
+      thread_count = 1;
+    }
+    else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY)) {
+      /* Intel windows driver offer almost no speedup with parallel compilation. */
+      thread_count = 1;
+    }
+  }
+
+  /* Allow thread count override option to limit the number of workers and avoid allocating more
+   * workers than needed. Also ensures that there is always 1 thread available for the UI. */
+  int max_thread_count = std::max(1, BLI_system_thread_count() - 1);
+
+  GCaps.max_parallel_compilations = std::min(thread_count, max_thread_count);
 
   /* Disable this feature entirely when not debugging. */
   if ((G.debug & G_DEBUG_GPU) == 0) {

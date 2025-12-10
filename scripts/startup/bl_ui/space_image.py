@@ -347,6 +347,7 @@ class IMAGE_MT_uvs_snap(Menu):
 
 class IMAGE_MT_uvs_mirror(Menu):
     bl_label = "Mirror"
+    bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
         layout = self.layout
@@ -1704,7 +1705,7 @@ class IMAGE_PT_overlay_uv_display(Panel):
     @classmethod
     def poll(cls, context):
         sima = context.space_data
-        return (sima and not (sima.show_uvedit or sima.show_render))
+        return (sima and sima.mode in {'UV', 'PAINT'} and not (sima.show_uvedit or sima.show_render))
 
     def draw(self, context):
         layout = self.layout

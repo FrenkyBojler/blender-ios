@@ -526,7 +526,11 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
     new_opacities[point] = ed::greasepencil::randomize_opacity(
         *ptd.settings, ptd.stroke_random_opacity_factor, lengths[point], opacity, pressure);
     if (ptd.vertex_color) {
+      std::optional<BrushColorJitterSettings> jitter_settings =
+          BKE_brush_color_jitter_get_settings(
+              ptd.vc.scene, &ptd.vc.scene->toolsettings->gp_paint->paint, ptd.brush);
       new_vertex_colors[point] = ed::greasepencil::randomize_color(*ptd.settings,
+                                                                   jitter_settings,
                                                                    ptd.stroke_random_hue_factor,
                                                                    ptd.stroke_random_sat_factor,
                                                                    ptd.stroke_random_val_factor,
@@ -577,11 +581,15 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   materials.span[target_curve_index] = ptd.material_index;
+  materials.finish();
+  curve_attributes_to_skip.add("material_index");
 
   bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
       "cyclic", bke::AttrDomain::Curve);
   const bool is_cyclic = ELEM(ptd.type, PrimitiveType::Box, PrimitiveType::Circle);
   cyclic.span[target_curve_index] = is_cyclic;
+  cyclic.finish();
+  curve_attributes_to_skip.add("cyclic");
 
   if (bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
           "softness", bke::AttrDomain::Curve))
@@ -630,9 +638,13 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
     curve_attributes_to_skip.add("fill_color");
   }
 
-  cyclic.finish();
-  materials.finish();
-  curve_attributes_to_skip.add_multiple({"material_index", "cyclic"});
+  if (bke::SpanAttributeWriter<float> u_scale = attributes.lookup_or_add_for_write_span<float>(
+          "u_scale", bke::AttrDomain::Curve))
+  {
+    u_scale.span[target_curve_index] = 1.0f;
+    u_scale.finish();
+    curve_attributes_to_skip.add("u_scale");
+  }
 
   curves.curve_types_for_write()[target_curve_index] = CURVE_TYPE_POLY;
   curves.update_curve_types();
@@ -667,7 +679,7 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
   status.item(IFACE_("Align"), ICON_EVENT_SHIFT);
   status.opmodal("", op->type, int(ModalKeyMode::IncreaseSubdivision));
   status.opmodal("", op->type, int(ModalKeyMode::DecreaseSubdivision));
-  status.item(fmt::format("{} ({})", IFACE_("subdivisions"), ptd.subdivision), ICON_NONE);
+  status.item(fmt::format("{} ({})", IFACE_("Subdivisions"), ptd.subdivision), ICON_NONE);
 
   if (ptd.segments == 1) {
     status.item(IFACE_("Center"), ICON_EVENT_ALT);
@@ -775,9 +787,9 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   BKE_curvemapping_init(ptd.settings->curve_rand_pressure);
   BKE_curvemapping_init(ptd.settings->curve_rand_strength);
   BKE_curvemapping_init(ptd.settings->curve_rand_uv);
-  BKE_curvemapping_init(ptd.settings->curve_rand_hue);
-  BKE_curvemapping_init(ptd.settings->curve_rand_saturation);
-  BKE_curvemapping_init(ptd.settings->curve_rand_value);
+  BKE_curvemapping_init(ptd.brush->curve_rand_hue);
+  BKE_curvemapping_init(ptd.brush->curve_rand_saturation);
+  BKE_curvemapping_init(ptd.brush->curve_rand_value);
 
   ToolSettings *ts = vc.scene->toolsettings;
   GP_Sculpt_Settings *gset = &ts->gp_sculpt;
@@ -847,7 +859,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
 }
 
 /* Exit and free memory. */
-static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
+static void grease_pencil_primitive_exit(bContext *C, wmOperator *op, const bool cancelled)
 {
   PrimitiveToolOperation *ptd = static_cast<PrimitiveToolOperation *>(op->customdata);
 
@@ -856,7 +868,7 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op)
                                        GP_TOOL_FLAG_AUTOMERGE_STROKE) != 0;
   const bool on_back = (scene.toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
-  if (do_automerge_endpoints) {
+  if (do_automerge_endpoints && !cancelled) {
     const Object &ob = *ptd->vc.obact;
     const GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob.data);
     const bke::greasepencil::Layer &active_layer = *grease_pencil->get_active_layer();
@@ -1199,12 +1211,12 @@ static wmOperatorStatus grease_pencil_primitive_event_modal_map(bContext *C,
   switch (event->val) {
     case int(ModalKeyMode::Cancel): {
       grease_pencil_primitive_undo_curves(ptd);
-      grease_pencil_primitive_exit(C, op);
+      grease_pencil_primitive_exit(C, op, true);
 
       return OPERATOR_CANCELLED;
     }
     case int(ModalKeyMode::Confirm): {
-      grease_pencil_primitive_exit(C, op);
+      grease_pencil_primitive_exit(C, op, false);
 
       return OPERATOR_FINISHED;
     }
@@ -1447,7 +1459,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext *C,
   /* Check for confirm before navigation. */
   if (event->type == EVT_MODAL_MAP) {
     if (event->val == int(ModalKeyMode::Confirm)) {
-      grease_pencil_primitive_exit(C, op);
+      grease_pencil_primitive_exit(C, op, false);
 
       return OPERATOR_FINISHED;
     }
@@ -1491,7 +1503,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext *C,
 
       if (ptd.mode == OperatorMode::Idle) {
         grease_pencil_primitive_undo_curves(ptd);
-        grease_pencil_primitive_exit(C, op);
+        grease_pencil_primitive_exit(C, op, true);
 
         return OPERATOR_CANCELLED;
       }
@@ -1528,7 +1540,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext *C,
 static void grease_pencil_primitive_cancel(bContext *C, wmOperator *op)
 {
   /* This is just a wrapper around exit() */
-  grease_pencil_primitive_exit(C, op);
+  grease_pencil_primitive_exit(C, op, true);
 }
 
 static void grease_pencil_primitive_common_props(wmOperatorType *ot,

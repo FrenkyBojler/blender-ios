@@ -411,7 +411,9 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
             }
           }
           else if (ob) {
-            if (sima->lock && !(sima->flag & SI_NO_DRAW_UV_GUIDE)) {
+            if (sima->lock && !(sima->flag & SI_NO_DRAW_UV_GUIDE) &&
+                ELEM(sima->mode, SI_MODE_PAINT, SI_MODE_UV))
+            {
               ED_area_tag_refresh(area);
               ED_area_tag_redraw(area);
             }
@@ -1235,6 +1237,7 @@ void ED_spacetype_image()
   art->init = image_main_region_init;
   art->draw = image_main_region_draw;
   art->listener = image_main_region_listener;
+  art->lock = REGION_DRAW_LOCK_BAKING;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons/scopes */

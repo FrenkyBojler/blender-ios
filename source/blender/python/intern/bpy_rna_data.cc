@@ -17,7 +17,7 @@
 #include <cstddef>
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BLI_string.h"
 
@@ -178,6 +178,8 @@ static PyObject *bpy_rna_data_temp_data(PyObject * /*self*/, PyObject *args, PyO
 static PyObject *bpy_rna_data_context_enter(BPy_DataContext *self)
 {
   Main *bmain_temp = BKE_main_new();
+  STRNCPY(bmain_temp->filepath, self->filepath);
+
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendData, bmain_temp);
 
   self->data_rna = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ptr);

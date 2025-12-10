@@ -32,7 +32,7 @@
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
@@ -136,7 +136,9 @@ static int foreach_libblock_id_user_map_callback(LibraryIDLinkCallbackData *cb_d
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_user_map_doc,
-    ".. method:: user_map(subset, key_types, value_types)\n"
+    /* NOTE: These documented default values (None) are here just to signal that these parameters
+     * are optional. Explicitly passing None is not valid, and will raise a TypeError. */
+    ".. method:: user_map(*, subset=None, key_types=None, value_types=None)\n"
     "\n"
     "   Returns a mapping of all ID data-blocks in current ``bpy.data`` to a set of all "
     "data-blocks using them.\n"
@@ -330,7 +332,7 @@ static bool foreach_id_file_path_map_callback(BPathForeachPathData *bpath_data,
   BLI_assert(data.id == bpath_data->owner_id);
 
   if (path_src && *path_src) {
-    PyObject *path = PyUnicode_FromString(path_src);
+    PyObject *path = PyC_UnicodeFromBytes(path_src);
     PySet_Add(id_file_path_set, path);
     Py_DECREF(path);
   }
@@ -344,7 +346,7 @@ static void foreach_id_file_path_map(BPathForeachPathData &bpath_data)
   PyObject *id_file_path_set = data.id_file_path_set;
 
   if (data.include_libraries && ID_IS_LINKED(id)) {
-    PyObject *path = PyUnicode_FromString(id->lib->filepath);
+    PyObject *path = PyC_UnicodeFromBytes(id->lib->filepath);
     PySet_Add(id_file_path_set, path);
     Py_DECREF(path);
   }

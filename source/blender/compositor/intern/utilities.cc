@@ -37,6 +37,13 @@ DSocket get_input_origin_socket(DInputSocket input)
   /* Only a single origin socket is guaranteed to exist. */
   DSocket socket;
   input.foreach_origin_socket([&](const DSocket origin) { socket = origin; });
+
+  /* The origin socket might be null if it is an output of a group node whose group has no Group
+   * Output node. The input is thus considered to be unlinked logically. */
+  if (!socket) {
+    return input;
+  }
+
   return socket;
 }
 
@@ -126,7 +133,7 @@ static ImplicitInput get_implicit_input(const nodes::SocketDeclaration *socket_d
 static int get_domain_priority(const bNodeSocket *input,
                                const nodes::SocketDeclaration *socket_declaration)
 {
-  /* Negative priority means no priority is set and we fallback to the index, that is, we
+  /* Negative priority means no priority is set and we fall back to the index, that is, we
    * prioritize inputs according to their order. */
   if (socket_declaration->compositor_domain_priority() < 0) {
     return input->index();

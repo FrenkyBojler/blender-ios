@@ -418,8 +418,8 @@ static void screen_opengl_render_write(OGLRender *oglrender)
   rr = RE_AcquireResultRead(oglrender->re);
 
   const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-  const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                      &scene->r);
+  const path_templates::VariableMap template_variables =
+      BKE_build_template_variables_for_render_path(&scene->r);
   const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
       filepath,
       scene->r.pic,
@@ -1048,8 +1048,8 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
      */
     char filepath[FILE_MAX];
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                        &scene->r);
+    const path_templates::VariableMap template_variables =
+        BKE_build_template_variables_for_render_path(&scene->r);
     const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
@@ -1149,8 +1149,8 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
 
   if (!is_movie) {
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                        &scene->r);
+    const path_templates::VariableMap template_variables =
+        BKE_build_template_variables_for_render_path(&scene->r);
     const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
@@ -1328,12 +1328,13 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
                                 "Viewport Render",
                                 WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_RENDER);
+
+    oglrender->wm_job = wm_job;
+
     WM_jobs_customdata_set(wm_job, oglrender, opengl_render_freejob);
     WM_jobs_timer(wm_job, 0.01f, NC_SCENE | ND_RENDER_RESULT, 0);
     WM_jobs_callbacks(wm_job, opengl_render_startjob, nullptr, nullptr, nullptr);
     WM_jobs_start(CTX_wm_manager(C), wm_job);
-
-    oglrender->wm_job = wm_job;
   }
 
   WM_event_add_modal_handler(C, op);

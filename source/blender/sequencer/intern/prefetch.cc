@@ -43,6 +43,7 @@
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
 
+#include "SEQ_time.hh"
 #include "cache/final_image_cache.hh"
 #include "cache/source_image_cache.hh"
 #include "prefetch.hh"
@@ -69,7 +70,6 @@ struct PrefetchJob {
   RenderData context = {};
   RenderData context_cpy = {};
   ListBase *seqbasep = nullptr;
-  ListBase *seqbasep_cpy = nullptr;
 
   /* prefetch area */
   float cfra = 0.0f;
@@ -152,8 +152,7 @@ static Strip *original_strip_get(const Strip *strip, Scene *scene)
 static RenderData *get_original_context(const RenderData *context)
 {
   PrefetchJob *pfjob = seq_prefetch_job_get(context->scene);
-
-  return &pfjob->context;
+  return pfjob ? &pfjob->context : nullptr;
 }
 
 Scene *prefetch_get_original_scene(const RenderData *context)
@@ -161,7 +160,9 @@ Scene *prefetch_get_original_scene(const RenderData *context)
   Scene *scene = context->scene;
   if (context->is_prefetch_render) {
     context = get_original_context(context);
-    scene = context->scene;
+    if (context != nullptr) {
+      scene = context->scene;
+    }
   }
   return scene;
 }
@@ -171,8 +172,10 @@ Scene *prefetch_get_original_scene_and_strip(const RenderData *context, const St
   Scene *scene = context->scene;
   if (context->is_prefetch_render) {
     context = get_original_context(context);
-    scene = context->scene;
-    strip = original_strip_get(strip, scene);
+    if (context != nullptr) {
+      scene = context->scene;
+      strip = original_strip_get(strip, scene);
+    }
   }
   return scene;
 }
@@ -381,64 +384,6 @@ void seq_prefetch_free(Scene *scene)
   MEM_delete(pfjob);
 }
 
-static bool strip_is_cached(PrefetchJob *pfjob, Strip *strip, bool can_have_final_image)
-{
-  RenderData *ctx = &pfjob->context_cpy;
-  float cfra = seq_prefetch_cfra(pfjob);
-
-  ImBuf *ibuf = source_image_cache_get(ctx, strip, cfra);
-  if (ibuf != nullptr) {
-    IMB_freeImBuf(ibuf);
-    return true;
-  }
-
-  if (can_have_final_image) {
-    ibuf = final_image_cache_get(pfjob->context.scene, cfra, pfjob->context.view_id);
-    if (ibuf != nullptr) {
-      IMB_freeImBuf(ibuf);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-static bool seq_prefetch_scene_strip_is_rendered(PrefetchJob *pfjob,
-                                                 ListBase *channels,
-                                                 ListBase *seqbase,
-                                                 blender::Span<Strip *> scene_strips,
-                                                 bool is_recursive_check)
-{
-  float cfra = seq_prefetch_cfra(pfjob);
-  blender::Vector<Strip *> strips = seq_shown_strips_get(
-      pfjob->scene_eval, channels, seqbase, cfra, 0);
-
-  /* Iterate over rendered strips. */
-  for (Strip *strip : strips) {
-    if (strip->type == STRIP_TYPE_META &&
-        seq_prefetch_scene_strip_is_rendered(
-            pfjob, &strip->channels, &strip->seqbase, scene_strips, true))
-    {
-      return true;
-    }
-
-    /* A scene strip would be rendered, if it has no cached image for it. */
-    if (strip->type == STRIP_TYPE_SCENE && (strip->flag & SEQ_SCENE_STRIPS) == 0 &&
-        !strip_is_cached(pfjob, strip, !is_recursive_check))
-    {
-      return true;
-    }
-
-    /* Check if strip is effect of scene strip or uses it as modifier. This is recursive check. */
-    for (Strip *seq_scene : scene_strips) {
-      if (relations_render_loop_check(strip, seq_scene)) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 static blender::VectorSet<Strip *> query_scene_strips(ListBase *seqbase)
 {
   blender::VectorSet<Strip *> strips;
@@ -450,12 +395,60 @@ static blender::VectorSet<Strip *> query_scene_strips(ListBase *seqbase)
   return strips;
 }
 
+static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
+                                                 ListBase *channels,
+                                                 ListBase *seqbase,
+                                                 blender::Span<Strip *> scene_strips,
+                                                 int timeline_frame)
+{
+  blender::Vector<Strip *> rendered_strips = seq_shown_strips_get(
+      scene, channels, seqbase, timeline_frame, 0);
+
+  /* Iterate over rendered strips. */
+  for (Strip *strip : rendered_strips) {
+    if (strip->type == STRIP_TYPE_META &&
+        seq_prefetch_scene_strip_is_rendered(
+            scene, &strip->channels, &strip->seqbase, scene_strips, timeline_frame))
+    {
+      return true;
+    }
+
+    if (strip->type == STRIP_TYPE_SCENE && (strip->flag & SEQ_SCENE_STRIPS) != 0 &&
+        strip->scene != nullptr)
+    {
+      const Scene *target_scene = strip->scene;
+      Editing *target_ed = editing_get(target_scene);
+      ListBase *target_seqbase = active_seqbase_get(target_ed);
+      blender::VectorSet<Strip *> target_scene_strips = query_scene_strips(target_seqbase);
+      int target_timeline_frame = give_frame_index(scene, strip, timeline_frame) +
+                                  target_scene->r.sfra;
+
+      return seq_prefetch_scene_strip_is_rendered(target_scene,
+                                                  channels_displayed_get(target_ed),
+                                                  target_seqbase,
+                                                  target_scene_strips,
+                                                  target_timeline_frame);
+    }
+
+    /* Check if strip is effect of scene strip or uses it as modifier.
+     * This also checks if `strip == seq_scene`. */
+    for (Strip *seq_scene : scene_strips) {
+      if (relations_render_loop_check(strip, seq_scene)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /* Prefetch must avoid rendering scene strips, because rendering in background locks UI and can
  * make it unresponsive for long time periods. */
 static bool seq_prefetch_must_skip_frame(PrefetchJob *pfjob, ListBase *channels, ListBase *seqbase)
 {
   blender::VectorSet<Strip *> scene_strips = query_scene_strips(seqbase);
-  if (seq_prefetch_scene_strip_is_rendered(pfjob, channels, seqbase, scene_strips, false)) {
+  if (seq_prefetch_scene_strip_is_rendered(
+          pfjob->scene_eval, channels, seqbase, scene_strips, seq_prefetch_cfra(pfjob)))
+  {
     return true;
   }
   return false;
@@ -556,6 +549,7 @@ static PrefetchJob *seq_prefetch_start_ex(const RenderData *context, float cfra)
 
     pfjob->bmain_eval = BKE_main_new();
     pfjob->scene = context->scene;
+    pfjob->seqbasep = context->scene->ed->seqbasep;
     seq_prefetch_init_depsgraph(pfjob);
   }
   pfjob->bmain = context->bmain;

@@ -38,7 +38,7 @@
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 using blender::Array;
 
@@ -545,8 +545,8 @@ static bool bpy_prop_array_is_matrix_compatible_ex(int subtype,
                                                    const BPyPropArrayLength *array_len_info)
 {
   return ((subtype == PROP_MATRIX) && (array_len_info->dims_len == 2) &&
-          ((array_len_info->dims[0] >= 2) && (array_len_info->dims[0] >= 4)) &&
-          ((array_len_info->dims[1] >= 2) && (array_len_info->dims[1] >= 4)));
+          ((array_len_info->dims[0] >= 2) && (array_len_info->dims[0] <= 4)) &&
+          ((array_len_info->dims[1] >= 2) && (array_len_info->dims[1] <= 4)));
 }
 
 static bool bpy_prop_array_is_matrix_compatible(PropertyRNA *prop,
@@ -3886,14 +3886,14 @@ PyDoc_STRVAR(
     "         Python must keep a reference to the strings returned by the callback or Blender\n"
     "         will misbehave or even crash."
     "\n"
-    "   :type items: Sequence["
+    "   :type items: Iterable["
     "tuple[str, str, str] | "
     "tuple[str, str, str, int] | "
     "tuple[str, str, str, int, int] | "
     "None] | "
     "Callable[[:class:`bpy.types.bpy_struct`, :class:`bpy.types.Context` | None], "
     /* NOTE(@ideasman42): a type alias would be useful here (same as above). */
-    "Sequence["
+    "Iterable["
     "tuple[str, str, str] | "
     "tuple[str, str, str, int] | "
     "tuple[str, str, str, int, int] | "

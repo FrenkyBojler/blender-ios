@@ -114,8 +114,34 @@ set(PTHREADS_FILE pthreads4w-code-${PTHREADS_VERSION}.zip)
 set(PTHREADS_HOMEPAGE https://github.com/fwbuilder/pthreads4w)
 set(PTHREADS_LICENSE SPDX:Apache-2.0)
 set(PTHREADS_COPYRIGHT [=[
-Copyright 1998 John E. Bossom.
-Copyright 1999-2018, Pthreads4w contributors.
+Copyright 1998 John E. Bossom
+Copyright 1999-2018, Pthreads4w contributors
+
+This product includes software developed through the colaborative
+effort of several individuals, each of whom is listed in the file
+CONTRIBUTORS included with this software.
+
+The following files are not covered under the Copyrights
+listed above:
+
+    [1] tests/rwlock7.c
+    [1] tests/rwlock7_1.c
+    [1] tests/rwlock8.c
+    [1] tests/rwlock8_1.c
+    [2] tests/threestage.c
+
+[1] The file tests/rwlock7.c and those similarly named are derived from
+code written by Dave Butenhof for his book 'Programming With POSIX(R)
+Threads'. The original code was obtained by free download from his
+website http://home.earthlink.net/~anneart/family/Threads/source.html
+
+[2] The file tests/threestage.c is taken directly from examples in the
+book "Windows System Programming, Edition 4" by Johnson (John) Hart
+Session 6, Chapter 10. ThreeStage.c
+Several required additional header and source files from the
+book examples have been included inline to simplify compilation.
+The only modification to the code has been to provide default
+values when run without arguments.
 ]=])
 
 set(DEFLATE_VERSION 1.18)
@@ -427,17 +453,18 @@ set(CYTHON_HASH_TYPE MD5)
 set(CYTHON_FILE cython-${CYTHON_VERSION}.tar.gz)
 set(CYTHON_HOMEPAGE https://cython.org/)
 set(CYTHON_LICENSE SPDX:Apache-2.0)
+set(CYTHON_COPYRIGHT "Copyright Contributors to the Cython Project")
 # Needed by: Python scripts that read `.blend` files, as files may use Z-standard compression. (Once we move to Python 3.14, this could be replaced with inbuilt Zstandard support, see https://peps.python.org/pep-0784/)
 set(ZSTANDARD_VERSION 0.23.0)
-set(ZSTANDARD_URI
 # NOTE: the release is not yet on GITHUB.
 # https://github.com/indygreg/python-zstandard/releases/download/${ZSTANDARD_VERSION}/zstandard-${ZSTANDARD_VERSION}.tar.gz)
-https://files.pythonhosted.org/packages/ed/f6/2ac0287b442160a89d726b17a9184a4c615bb5237db763791a7fd16d9df1/zstandard-0.23.0.tar.gz)
+set(ZSTANDARD_URI https://files.pythonhosted.org/packages/ed/f6/2ac0287b442160a89d726b17a9184a4c615bb5237db763791a7fd16d9df1/zstandard-0.23.0.tar.gz)
 set(ZSTANDARD_HASH b2d8c62d08e7255f68f7a740bae85b3c9b8e5466baa9cbf7f57f1cde0ac6bc09)
 set(ZSTANDARD_HASH_TYPE SHA256)
 set(ZSTANDARD_FILE zstandard-${ZSTANDARD_VERSION}.tar.gz)
 set(ZSTANDARD_HOMEPAGE https://github.com/indygreg/python-zstandard/)
 set(ZSTANDARD_LICENSE SPDX:BSD-3-Clause)
+set(ZSTANDARD_COPYRIGHT "Copyright (c) 2016, Gregory Szorc. All rights reserved.")
 # Auto-format Python source (developer tool, not used by Blender at run-time).
 set(AUTOPEP8_VERSION 2.3.1)
 # Needed by: `autopep8` (so the version doesn't change on rebuild).
@@ -1178,7 +1205,7 @@ set(IGC_LLVM_HOMEPAGE https://github.com/llvm/llvm-project/)
 set(IGC_LLVM_LICENSE SPDX:Apache-2.0 WITH LLVM-exception)
 set(IGC_LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana-Champaign. All rights reserved.")
 
-# WARNING WARNING WARNING
+# ******* WARNING *******
 #
 # IGC_OPENCL_CLANG contains patches for some of its dependencies.
 #
@@ -1186,7 +1213,7 @@ set(IGC_LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana
 # IGC_OPENCL_CLANG's patches folder and update igc.cmake to account for
 # any added or removed patches.
 #
-# WARNING WARNING WARNING
+# ******* WARNING *******
 
 set(IGC_OPENCL_CLANG_VERSION v14.0.1)
 set(IGC_OPENCL_CLANG_URI https://github.com/intel/opencl-clang/archive/${IGC_OPENCL_CLANG_VERSION}.tar.gz)
@@ -1393,6 +1420,7 @@ set(VULKAN_MEMORY_ALLOCATOR_HASH_TYPE MD5)
 set(VULKAN_MEMORY_ALLOCATOR_FILE Vulkan-Memory-Allocator-${VULKAN_MEMORY_ALLOCATOR_VERSION}.tar.gz)
 set(VULKAN_MEMORY_ALLOCATOR_HOMEPAGE https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
 set(VULKAN_MEMORY_ALLOCATOR_LICENSE SPDX:MIT)
+set(VULKAN_MEMORY_ALLOCATOR_COPYRIGHT "Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All rights reserved.")
 
 set(SPIRV_HEADERS_VERSION ${VULKAN_VERSION})
 set(SPIRV_HEADERS_URI https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/vulkan-sdk-${SPIRV_HEADERS_VERSION}.0.tar.gz)
@@ -1413,6 +1441,7 @@ set(SPIRV_REFLECT_HASH_TYPE MD5)
 set(SPIRV_REFLECT_FILE SPIRV-Reflect-${SPIRV_REFLECT_VERSION}.tar.gz)
 set(SPIRV_REFLECT_HOMEPAGE https://github.com/KhronosGroup/SPIRV-Reflect)
 set(SPIRV_REFLECT_LICENSE SPDX:Apache-2.0)
+set(SPIRV_REFLECT_COPYRIGHT "Copyright 2017-2018 Google Inc.")
 
 set(PYBIND11_VERSION 2.10.1)
 set(PYBIND11_URI https://github.com/pybind/pybind11/archive/refs/tags/v${PYBIND11_VERSION}.tar.gz)

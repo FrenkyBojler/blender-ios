@@ -482,15 +482,23 @@ bool AssetCatalogService::write_to_disk_ex(const CatalogFilePath &blend_file_pat
 {
   /* TODO(Sybren): expand to support multiple CDFs. */
 
-  /* - Already loaded a CDF from disk? -> Always write to that file. */
+  /* - Already loaded a CDF from disk? -> Only write to that file when there were actual changes.
+   * This prevents touching the file, which can cause issues when multiple Blender instances are
+   * accessing the same file (like on shared storage, Syncthing, etc.). See #111576.
+   */
   if (catalog_collection_->catalog_definition_file_) {
+    /* Always sync with what's on disk. */
     this->reload_catalogs();
+
+    if (!this->has_unsaved_changes() &&
+        catalog_collection_->catalog_definition_file_->exists_on_disk())
+    {
+      return true;
+    }
     return catalog_collection_->catalog_definition_file_->write_to_disk();
   }
 
-  if (catalog_collection_->catalogs_.is_empty() &&
-      catalog_collection_->deleted_catalogs_.is_empty())
-  {
+  if (catalog_collection_->is_empty()) {
     /* Avoid saving anything, when there is nothing to save. */
     return true; /* Writing nothing when there is nothing to write is still a success. */
   }

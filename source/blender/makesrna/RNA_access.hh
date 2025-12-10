@@ -223,6 +223,7 @@ int RNA_property_override_flag(PropertyRNA *prop);
  *       the only way to set tags. Hence, at this point we assume the tag bit-field to be valid.
  */
 int RNA_property_tags(PropertyRNA *prop);
+PropertyPathTemplateType RNA_property_path_template_type(PropertyRNA *prop);
 bool RNA_property_builtin(PropertyRNA *prop);
 void *RNA_property_py_data_get(PropertyRNA *prop);
 
@@ -273,6 +274,10 @@ int RNA_enum_bitflag_identifiers(const EnumPropertyItem *item,
                                  int value,
                                  const char **r_identifier);
 bool RNA_enum_name(const EnumPropertyItem *item, int value, const char **r_name);
+bool RNA_enum_name_gettexted(const EnumPropertyItem *item,
+                             int value,
+                             const char *translation_context,
+                             const char **r_name);
 bool RNA_enum_description(const EnumPropertyItem *item, int value, const char **r_description);
 int RNA_enum_from_value(const EnumPropertyItem *item, int value);
 int RNA_enum_from_identifier(const EnumPropertyItem *item, const char *identifier);

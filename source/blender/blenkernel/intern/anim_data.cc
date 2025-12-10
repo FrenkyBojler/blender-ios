@@ -119,71 +119,6 @@ AnimData *BKE_animdata_ensure_id(ID *id)
   return nullptr;
 }
 
-/* Action / `tmpact` Setter shared code -------------------------
- *
- * Both the action and `tmpact` setter functions have essentially
- * identical semantics, because `tmpact` is just a place to temporarily
- * store the main action during tweaking.  This function contains the
- * shared code between those two setter functions, setting the action
- * of the passed `act_slot` to `act`.
- *
- * Preconditions:
- * - `id` and `act_slot` must be non-null (but the pointer `act_slot`
- *   points to can be null).
- * - `id` must have animation data.
- * - `act_slot` must be a pointer to either the `action` or `tmpact`
- *   field of `id`'s animation data.
- */
-static bool animdata_set_action(ReportList *reports, ID *id, bAction **act_slot, bAction *act)
-{
-  /* Action must have same type as owner. */
-  if (!BKE_animdata_action_ensure_idroot(id, act)) {
-    /* Cannot set to this type. */
-    BKE_reportf(
-        reports,
-        RPT_ERROR,
-        "Could not set action '%s' onto ID '%s', as it does not have suitably rooted paths "
-        "for this purpose",
-        act->id.name + 2,
-        id->name);
-    return false;
-  }
-
-  if (*act_slot == act) {
-    /* Don't bother reducing and increasing the user count when there is nothing changing. */
-    return true;
-  }
-
-  /* Unassign current action. */
-  if (*act_slot) {
-    id_us_min((ID *)*act_slot);
-    *act_slot = nullptr;
-  }
-
-  if (act == nullptr) {
-    return true;
-  }
-
-  *act_slot = act;
-  id_us_plus((ID *)*act_slot);
-
-  return true;
-}
-
-/* Tmpact Setter --------------------------------------- */
-
-bool BKE_animdata_set_tmpact(ReportList *reports, ID *id, bAction *act)
-{
-  AnimData *adt = BKE_animdata_from_id(id);
-
-  if (adt == nullptr) {
-    BKE_report(reports, RPT_WARNING, "No AnimData to set tmpact on");
-    return false;
-  }
-
-  return animdata_set_action(reports, id, &adt->tmpact, act);
-}
-
 /* Action Setter --------------------------------------- */
 
 bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
@@ -460,6 +395,8 @@ static void animdata_copy_id_action(Main *bmain,
   if (adt) {
     if (adt->action && (do_linked_id || !ID_IS_LINKED(adt->action))) {
       bAction *cloned_action = reinterpret_cast<bAction *>(BKE_id_copy(bmain, &adt->action->id));
+
+      cloned_action->id.us = 0;
       if (set_newid) {
         ID_NEW_SET(adt->action, cloned_action);
       }
@@ -473,6 +410,8 @@ static void animdata_copy_id_action(Main *bmain,
     }
     if (adt->tmpact && (do_linked_id || !ID_IS_LINKED(adt->tmpact))) {
       bAction *cloned_action = reinterpret_cast<bAction *>(BKE_id_copy(bmain, &adt->tmpact->id));
+
+      cloned_action->id.us = 0;
       if (set_newid) {
         ID_NEW_SET(adt->tmpact, cloned_action);
       }
@@ -1015,6 +954,7 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
 
 void BKE_action_fix_paths_rename(ID *owner_id,
                                  bAction *act,
+                                 animrig::slot_handle_t slot_handle,
                                  const char *prefix,
                                  const char *oldName,
                                  const char *newName,
@@ -1056,7 +996,7 @@ void BKE_action_fix_paths_rename(ID *owner_id,
                           newName,
                           oldN,
                           newN,
-                          blender::animrig::legacy::fcurves_all(act),
+                          blender::animrig::legacy::fcurves_for_action_slot(act, slot_handle),
                           verify_paths);
 
   /* free the temp names */

@@ -371,6 +371,15 @@ static void object_remove_parent_deform_modifiers(Object *ob, const Object *par)
   }
 }
 
+static void parent_clear_data(Object *ob)
+{
+  ob->parent = nullptr;
+  /* Set parent type to default PAROBJECT and reset enum explicitly, to prevent rna enum errors
+   * later. */
+  ob->partype = PAROBJECT;
+  ob->parsubstr[0] = '\0';
+}
+
 void parent_clear(Object *ob, const int type)
 {
   if (ob->parent == nullptr) {
@@ -384,15 +393,13 @@ void parent_clear(Object *ob, const int type)
       object_remove_parent_deform_modifiers(ob, ob->parent);
 
       /* clear parenting relationship completely */
-      ob->parent = nullptr;
-      ob->partype = PAROBJECT;
-      ob->parsubstr[0] = 0;
+      parent_clear_data(ob);
       break;
     }
     case CLEAR_PARENT_KEEP_TRANSFORM: {
       /* remove parent, and apply the parented transform
        * result as object's local transforms */
-      ob->parent = nullptr;
+      parent_clear_data(ob);
       BKE_object_apply_mat4(ob, ob->object_to_world().ptr(), true, false);
       /* Don't recalculate the animation because it would change the transform
        * instead of keeping it. */
@@ -461,9 +468,7 @@ void parent_set(Object *ob, Object *par, const int type, const char *substr)
   unit_m4(ob->parentinv);
 
   if (!par || BKE_object_parent_loop_check(par, ob)) {
-    ob->parent = nullptr;
-    ob->partype = PAROBJECT;
-    ob->parsubstr[0] = 0;
+    parent_clear_data(ob);
     return;
   }
 
@@ -3056,7 +3061,7 @@ static bool check_geometry_node_group_sockets(wmOperator *op, const bNodeTree *t
       return false;
     }
     const bke::bNodeSocketType *typeinfo = first_output->socket_typeinfo();
-    const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
+    const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
     if (type != SOCK_GEOMETRY) {
       BKE_report(op->reports, RPT_ERROR, "The first output must be a geometry socket");
       return false;

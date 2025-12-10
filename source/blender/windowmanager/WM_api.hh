@@ -166,7 +166,19 @@ const char *WM_ghost_backend();
 enum eWM_CapabilitiesFlag {
   /** Ability to warp the cursor (set its location). */
   WM_CAPABILITY_CURSOR_WARP = (1 << 0),
-  /** Ability to access window positions & move them. */
+  /**
+   * Window position access, support for the following.
+   * - Getting window positions.
+   * - Setting window positions.
+   * - Setting positions for new windows.
+   *
+   * Currently there is no need to distinguish between these different cases
+   * so a single flag is used.
+   *
+   * When omitted, it isn't possible to know where windows are located in relation to each other.
+   * Operations such as applying events from one window to another or detecting the non-active
+   * window under the cursor are not supported.
+   */
   WM_CAPABILITY_WINDOW_POSITION = (1 << 1),
   /**
    * The windowing system supports a separate primary clipboard
@@ -512,6 +524,17 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion *region);
  * before relying on this functionality.
  */
 void WM_cursor_warp(wmWindow *win, int x, int y);
+
+/**
+ * The default size of a cursor without any DPI scaling.
+ */
+#define WM_CURSOR_DEFAULT_LOGICAL_SIZE 24
+
+/**
+ * \return the preferred logical size for the cursor
+ * (before DPI/Hi-DPI scaling is applied).
+ */
+uint WM_cursor_preferred_logical_size();
 
 /* Handlers. */
 
@@ -1923,8 +1946,10 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain);
 
 /**
  * Lock the interface for any communication.
+ * For #WM_set_locked_interface_with_flags, #lock_flags is #ARegionDrawLockFlags
  */
 void WM_set_locked_interface(wmWindowManager *wm, bool lock);
+void WM_set_locked_interface_with_flags(wmWindowManager *wm, short lock_flags);
 
 void WM_event_tablet_data_default_set(wmTabletData *tablet_data);
 
@@ -2011,11 +2036,18 @@ int WM_userdef_event_map(int kmitype);
 int WM_userdef_event_type_from_keymap_type(int kmitype);
 
 #ifdef WITH_INPUT_NDOF
-void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], bool use_zoom);
-void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3]);
+blender::float3 WM_event_ndof_translation_get_for_navigation(const wmNDOFMotionData &ndof);
+blender::float3 WM_event_ndof_rotation_get_for_navigation(const wmNDOFMotionData &ndof);
+float WM_event_ndof_rotation_get_axis_angle_for_navigation(const wmNDOFMotionData &ndof,
+                                                           float axis[3]);
 
-float WM_event_ndof_to_axis_angle(const wmNDOFMotionData *ndof, float axis[3]);
-void WM_event_ndof_to_quat(const wmNDOFMotionData *ndof, float q[4]);
+blender::float3 WM_event_ndof_translation_get(const wmNDOFMotionData &ndof);
+blender::float3 WM_event_ndof_rotation_get(const wmNDOFMotionData &ndof);
+float WM_event_ndof_rotation_get_axis_angle(const wmNDOFMotionData &ndof, float axis[3]);
+
+bool WM_event_ndof_translation_has_pan(const wmNDOFMotionData &ndof);
+bool WM_event_ndof_translation_has_zoom(const wmNDOFMotionData &ndof);
+
 #endif /* WITH_INPUT_NDOF */
 
 #ifdef WITH_XR_OPENXR

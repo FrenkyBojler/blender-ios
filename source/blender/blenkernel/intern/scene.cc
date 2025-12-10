@@ -137,15 +137,13 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
   return cumap;
 }
 
-void BKE_sculpt_check_cavity_curves(Sculpt *sd)
+CurveMapping *BKE_paint_default_curve()
 {
-  if (!sd->automasking_cavity_curve) {
-    sd->automasking_cavity_curve = BKE_sculpt_default_cavity_curve();
-  }
+  CurveMapping *cumap = BKE_curvemapping_add(1, 0, 0, 1, 1);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemapping_init(cumap);
 
-  if (!sd->automasking_cavity_curve_op) {
-    sd->automasking_cavity_curve_op = BKE_sculpt_default_cavity_curve();
-  }
+  return cumap;
 }
 
 static void scene_init_data(ID *id)
@@ -172,6 +170,10 @@ static void scene_init_data(ID *id)
   scene->toolsettings = DNA_struct_default_alloc(ToolSettings);
 
   scene->toolsettings->autokey_mode = uchar(U.autokey_mode);
+
+  scene->toolsettings->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  scene->toolsettings->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  scene->toolsettings->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
 
   /* Grease pencil multi-frame falloff curve. */
   scene->toolsettings->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -698,6 +700,10 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
         do_undo_restore,
         scene_foreach_paint(data, paint, do_undo_restore, reader, paint_old));
 
+    /* WARNING: Handling this object pointer is fairly intricated, to support both 'regular'
+     * foreach_id processing (in which case both sets of data, current and old, are the same), and
+     * the restore-after-undo cases. It does not have a helper, because so far it is the only case
+     * of having to deal with non-'paint' data in a sub-toolsett struct. */
     Object *gravity_object = toolsett->sculpt ? toolsett->sculpt->gravity_object : nullptr;
     Object *gravity_object_old = toolsett_old->sculpt->gravity_object;
     BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
@@ -710,7 +716,11 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
     if (toolsett->sculpt) {
       toolsett->sculpt->gravity_object = gravity_object;
     }
-    toolsett_old->sculpt->gravity_object = gravity_object_old;
+    /* Do not re-assign `gravity_object_old` object if both current and old data are the same
+     * (foreach_id case), that would nullify assignement above, making remapping cases fail. */
+    if (toolsett_old != toolsett) {
+      toolsett_old->sculpt->gravity_object = gravity_object_old;
+    }
   }
   if (toolsett_old->gp_paint) {
     paint = toolsett->gp_paint ? &toolsett->gp_paint->paint : nullptr;
@@ -813,6 +823,9 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
+  IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+    BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+  });
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
   }
@@ -871,6 +884,12 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
         IDP_foreach_property(view_layer->id_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
           BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
         }));
+    BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+        data,
+        IDP_foreach_property(
+            view_layer->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+              BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+            }));
 
     BKE_view_layer_synced_ensure(scene, view_layer);
     LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
@@ -1013,6 +1032,19 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* direct data */
   ToolSettings *tos = sce->toolsettings;
   BLO_write_struct(writer, ToolSettings, tos);
+
+  if (tos->unified_paint_settings.curve_rand_hue) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_hue);
+  }
+
+  if (tos->unified_paint_settings.curve_rand_saturation) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_saturation);
+  }
+
+  if (tos->unified_paint_settings.curve_rand_value) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_value);
+  }
+
   if (tos->vpaint) {
     BLO_write_struct(writer, VPaint, tos->vpaint);
     BKE_paint_blend_write(writer, &tos->vpaint->paint);
@@ -1209,6 +1241,33 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     zero_v3(ups->last_location);
     ups->last_hit = 0;
 
+    /* Prior to 5.0, the brush->size value is expected to be the radius, not the diameter. To
+     * ensure correct behavior, convert this when reading newer files. */
+    if (BLO_read_fileversion_get(reader) >= 500) {
+      ups->size = std::max(ups->size / 2, 1);
+      ups->unprojected_radius = std::max(ups->unprojected_radius / 2, 0.001f);
+
+      sce->toolsettings->uvsculpt.size = std::max(sce->toolsettings->uvsculpt.size / 2, 1);
+    }
+
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_hue);
+    if (ups->curve_rand_hue) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_hue);
+      BKE_curvemapping_init(ups->curve_rand_hue);
+    }
+
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_saturation);
+    if (ups->curve_rand_saturation) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_saturation);
+      BKE_curvemapping_init(ups->curve_rand_saturation);
+    }
+
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_value);
+    if (ups->curve_rand_value) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_value);
+      BKE_curvemapping_init(ups->curve_rand_value);
+    }
+
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->sculpt);
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->vpaint);
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->wpaint);
@@ -1246,7 +1305,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         BKE_curvemapping_init(sce->toolsettings->sculpt->automasking_cavity_curve_op);
       }
 
-      BKE_sculpt_check_cavity_curves(sce->toolsettings->sculpt);
+      BKE_sculpt_cavity_curves_ensure(sce->toolsettings->sculpt);
     }
 
     /* Relink grease pencil interpolation curves. */
@@ -1302,34 +1361,24 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     /* link metastack, slight abuse of structs here,
      * have to restore pointer to internal part in struct */
     {
-      void *seqbase_poin;
-      void *channels_poin;
-      /* This whole thing with seqbasep offsets is really not good
-       * and prevents changes to the Sequence struct. A more correct approach
-       * would be to calculate offset using sDNA from the file (NOT from the
-       * current Blender). Even better would be having some sort of dedicated
-       * map of seqbase pointers to avoid this offset magic. */
-      constexpr intptr_t seqbase_offset = offsetof(Strip, seqbase);
-      constexpr intptr_t channels_offset = offsetof(Strip, channels);
-#if ARCH_CPU_64_BITS
-      static_assert(seqbase_offset == 264, "Sequence seqbase member offset cannot be changed");
-      static_assert(channels_offset == 280, "Sequence channels member offset cannot be changed");
-#else
-      static_assert(seqbase_offset == 204, "Sequence seqbase member offset cannot be changed");
-      static_assert(channels_offset == 212, "Sequence channels member offset cannot be changed");
-#endif
+      const int seqbase_offset_file = BLO_read_struct_member_offset(
+          reader, "Strip", "ListBase", "seqbase");
+      const int channels_offset_file = BLO_read_struct_member_offset(
+          reader, "Strip", "ListBase", "channels");
+      const size_t seqbase_offset_mem = offsetof(Strip, seqbase);
+      const size_t channels_offset_mem = offsetof(Strip, channels);
 
       /* seqbase root pointer */
-      if (ed->seqbasep == old_seqbasep) {
+      if (ed->seqbasep == old_seqbasep || seqbase_offset_file < 0) {
         ed->seqbasep = &ed->seqbase;
       }
       else {
-        seqbase_poin = POINTER_OFFSET(ed->seqbasep, -seqbase_offset);
+        void *seqbase_poin = POINTER_OFFSET(ed->seqbasep, -seqbase_offset_file);
 
         seqbase_poin = BLO_read_get_new_data_address_no_us(reader, seqbase_poin, sizeof(Strip));
 
         if (seqbase_poin) {
-          ed->seqbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset);
+          ed->seqbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset_mem);
         }
         else {
           ed->seqbasep = &ed->seqbase;
@@ -1337,16 +1386,18 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
       }
 
       /* Active channels root pointer. */
-      if (ELEM(ed->displayed_channels, old_displayed_channels, nullptr)) {
+      if (ELEM(ed->displayed_channels, old_displayed_channels, nullptr) ||
+          channels_offset_file < 0)
+      {
         ed->displayed_channels = &ed->channels;
       }
       else {
-        channels_poin = POINTER_OFFSET(ed->displayed_channels, -channels_offset);
+        void *channels_poin = POINTER_OFFSET(ed->displayed_channels, -channels_offset_file);
         channels_poin = BLO_read_get_new_data_address_no_us(
             reader, channels_poin, sizeof(SeqTimelineChannel));
 
         if (channels_poin) {
-          ed->displayed_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset);
+          ed->displayed_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset_mem);
         }
         else {
           ed->displayed_channels = &ed->channels;
@@ -1359,30 +1410,30 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
       LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
         BLO_read_struct(reader, Strip, &ms->parent_strip);
 
-        if (ms->oldbasep == old_seqbasep) {
+        if (ms->oldbasep == old_seqbasep || seqbase_offset_file < 0) {
           ms->oldbasep = &ed->seqbase;
         }
         else {
-          seqbase_poin = POINTER_OFFSET(ms->oldbasep, -seqbase_offset);
+          void *seqbase_poin = POINTER_OFFSET(ms->oldbasep, -seqbase_offset_file);
           seqbase_poin = BLO_read_get_new_data_address_no_us(reader, seqbase_poin, sizeof(Strip));
           if (seqbase_poin) {
-            ms->oldbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset);
+            ms->oldbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset_mem);
           }
           else {
             ms->oldbasep = &ed->seqbase;
           }
         }
 
-        if (ELEM(ms->old_channels, old_displayed_channels, nullptr)) {
+        if (ELEM(ms->old_channels, old_displayed_channels, nullptr) || channels_offset_file < 0) {
           ms->old_channels = &ed->channels;
         }
         else {
-          channels_poin = POINTER_OFFSET(ms->old_channels, -channels_offset);
+          void *channels_poin = POINTER_OFFSET(ms->old_channels, -channels_offset_file);
           channels_poin = BLO_read_get_new_data_address_no_us(
               reader, channels_poin, sizeof(SeqTimelineChannel));
 
           if (channels_poin) {
-            ms->old_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset);
+            ms->old_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset_mem);
           }
           else {
             ms->old_channels = &ed->channels;
@@ -1657,6 +1708,14 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
     BKE_paint_copy(&ts->curves_sculpt->paint, &ts->curves_sculpt->paint, flag);
   }
 
+  /* Color jitter curves in unified paint settings. */
+  ts->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_rand_hue);
+  ts->unified_paint_settings.curve_rand_saturation = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_rand_saturation);
+  ts->unified_paint_settings.curve_rand_value = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_rand_value);
+
   BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag);
   ts->particle.paintcursor = nullptr;
   ts->particle.scene = nullptr;
@@ -1723,6 +1782,17 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
   }
   BKE_paint_free(&toolsettings->imapaint.paint);
 
+  /* Color jitter curves in unified paint settings. */
+  if (toolsettings->unified_paint_settings.curve_rand_hue) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_rand_hue);
+  }
+  if (toolsettings->unified_paint_settings.curve_rand_saturation) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_rand_saturation);
+  }
+  if (toolsettings->unified_paint_settings.curve_rand_value) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_rand_value);
+  }
+
   /* free Grease Pencil interpolation curve */
   if (toolsettings->gp_interpolate.custom_ipo) {
     BKE_curvemapping_free(toolsettings->gp_interpolate.custom_ipo);
@@ -1774,6 +1844,9 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
 
     if (sce->id.properties) {
       sce_copy->id.properties = IDP_CopyProperty(sce->id.properties);
+    }
+    if (sce->id.system_properties) {
+      sce_copy->id.system_properties = IDP_CopyProperty(sce->id.system_properties);
     }
 
     BKE_sound_destroy_scene(sce_copy);
@@ -1878,7 +1951,13 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
 
     if (!is_subprocess) {
       /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-      BKE_libblock_relink_to_newid(bmain, &sce_copy->id, 0);
+      /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if
+       * its obdata contains edit mode runtime data. This can be the case of all newly duplicated
+       * objects, as even though duplicate code move the object back in Object mode, they are still
+       * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
+       * and therefore not remapping their obdata to the newly duplicated one.
+       * See #139715. */
+      BKE_libblock_relink_to_newid(bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE);
 
 #ifndef NDEBUG
       /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those

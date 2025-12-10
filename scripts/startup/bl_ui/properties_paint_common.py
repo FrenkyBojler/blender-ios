@@ -1178,6 +1178,43 @@ def brush_shared_settings(layout, context, brush, popover=False):
         layout.row().prop(brush, "direction", expand=True)
 
 
+def color_jitter_panel(layout, context, brush):
+    mode = UnifiedPaintPanel.get_brush_mode(context)
+    ups = context.scene.tool_settings.unified_paint_settings
+
+    is_sculpt_paint_mode = mode == 'SCULPT' and brush.sculpt_capabilities.has_color
+    if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX'} or is_sculpt_paint_mode:
+        prop_owner = ups if ups.use_unified_color else brush
+        layout.use_property_split = False
+
+        header, panel = layout.panel("color_jitter_panel", default_closed=True)
+        header.prop(prop_owner, "use_color_jitter", text="Randomize Color")
+        if panel:
+            panel.use_property_split = True
+            panel.use_property_decorate = False
+
+            col = panel.column(align=True)
+            col.use_property_split = True
+
+            row = col.row(align=True)
+            row.enabled = prop_owner.use_color_jitter
+            row.prop(prop_owner, "hue_jitter", slider=True, text="Hue")
+            row.prop(prop_owner, "use_stroke_random_hue", text="", icon='GP_SELECT_STROKES')
+            row.prop(prop_owner, "use_random_press_hue", text="", icon='STYLUS_PRESSURE')
+
+            row = col.row(align=True)
+            row.enabled = prop_owner.use_color_jitter
+            row.prop(prop_owner, "saturation_jitter", slider=True, text="Saturation")
+            row.prop(prop_owner, "use_stroke_random_sat", text="", icon='GP_SELECT_STROKES')
+            row.prop(prop_owner, "use_random_press_sat", text="", icon='STYLUS_PRESSURE')
+
+            row = col.row(align=True)
+            row.enabled = prop_owner.use_color_jitter
+            row.prop(prop_owner, "value_jitter", slider=True, text="Value")
+            row.prop(prop_owner, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
+            row.prop(prop_owner, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
+
+
 def brush_settings_advanced(layout, context, settings, brush, popover=False):
     """Draw advanced brush settings for Sculpt, Texture/Vertex/Weight Paint modes."""
 
@@ -1357,6 +1394,9 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
     if use_frontface:
         layout.prop(brush, "use_frontface", text="Front Faces Only")
 
+    if popover:
+        color_jitter_panel(layout, context, brush)
+
     # Brush modes
     header, panel = layout.panel("modes", default_closed=True)
     header.label(text="Modes")
@@ -1400,6 +1440,9 @@ def draw_color_settings(context, layout, brush, color_type=False):
         row.separator()
         row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="", emboss=False)
         row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
+
+        color_jitter_panel(layout, context, brush)
+
     # Gradient
     elif brush.color_type == 'GRADIENT':
         layout.template_color_ramp(brush, "gradient", expand=True)
@@ -1598,6 +1641,8 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
     tool_settings = context.tool_settings
     settings = tool_settings.gpencil_paint
     gp_settings = brush.gpencil_settings
+    ups = tool_settings.unified_paint_settings
+    brush_prop_owner = ups if ups.use_unified_size else brush
     tool = context.workspace.tools.from_space_view3d_mode(context.mode, create=False)
     if gp_settings is None:
         return
@@ -1606,15 +1651,16 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
     if brush.gpencil_tool == 'ERASE':
         row = layout.row(align=True)
         row.prop(brush, "size", text="Radius")
-        row.prop(gp_settings, "use_pressure", text="", icon='STYLUS_PRESSURE')
+        row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         row.prop(gp_settings, "use_occlude_eraser", text="", icon='XRAY')
 
         row = layout.row(align=True)
         row.prop(gp_settings, "eraser_mode", expand=True)
         if gp_settings.eraser_mode == 'SOFT':
             row = layout.row(align=True)
-            row.prop(gp_settings, "pen_strength", slider=True)
-            row.prop(gp_settings, "use_strength_pressure", text="", icon='STYLUS_PRESSURE')
+            row.prop(brush_prop_owner, "strength", slider=True)
+            row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+            row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
             row = layout.row(align=True)
             row.prop(gp_settings, "eraser_strength_factor")
             row = layout.row(align=True)
@@ -1649,8 +1695,9 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
             col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True, use_negative_slope=True)
 
         row = layout.row(align=True)
-        row.prop(gp_settings, "pen_strength", slider=True)
-        row.prop(gp_settings, "use_strength_pressure", text="", icon='STYLUS_PRESSURE')
+        row.prop(brush_prop_owner, "strength", slider=True)
+        row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+        row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
         if gp_settings.use_strength_pressure and not compact:
             col = layout.column()
@@ -1848,18 +1895,21 @@ def brush_basic_gpencil_weight_settings(layout, _context, brush, *, compact=Fals
         layout.prop(brush, "direction", expand=True, text="" if compact else "Direction")
 
 
-def brush_basic_gpencil_vertex_settings(layout, _context, brush, *, compact=False):
+def brush_basic_gpencil_vertex_settings(layout, context, brush, *, compact=False):
     gp_settings = brush.gpencil_settings
+    ups = context.tool_settings.unified_paint_settings
+    brush_prop_owner = ups if ups.use_unified_size else brush
 
     # Brush details
     row = layout.row(align=True)
     row.prop(brush, "size", text="Radius")
-    row.prop(gp_settings, "use_pressure", text="", icon='STYLUS_PRESSURE')
+    row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
     if brush.gpencil_vertex_tool in {'DRAW', 'BLUR', 'SMEAR'}:
         row = layout.row(align=True)
-        row.prop(gp_settings, "pen_strength", slider=True)
-        row.prop(gp_settings, "use_strength_pressure", text="", icon='STYLUS_PRESSURE')
+        row.prop(brush_prop_owner, "strength", slider=True)
+        row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+        row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
     if brush.gpencil_vertex_tool in {'DRAW', 'REPLACE'}:
         row = layout.row(align=True)

@@ -413,8 +413,9 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c->gop_size = 10;
   rv->c->max_b_frames = 0;
 
-  if (rv->codec->pix_fmts) {
-    rv->c->pix_fmt = rv->codec->pix_fmts[0];
+  const enum AVPixelFormat *pix_fmts = ffmpeg_get_pix_fmts(rv->c, rv->codec);
+  if (pix_fmts) {
+    rv->c->pix_fmt = pix_fmts[0];
   }
   else {
     rv->c->pix_fmt = AV_PIX_FMT_YUVJ420P;
@@ -425,6 +426,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c->time_base.den = 25;
   rv->c->time_base.num = 1;
   rv->st->time_base = rv->c->time_base;
+  rv->st->avg_frame_rate = av_inv_q(rv->c->time_base);
 
   /* This range matches #eFFMpegCrf. `crf_range_min` corresponds to lowest quality,
    * `crf_range_max` to highest quality. */
@@ -455,7 +457,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     rv->c->thread_type = FF_THREAD_SLICE;
   }
 
-  if (rv->of->flags & AVFMT_GLOBALHEADER) {
+  if (rv->of->oformat->flags & AVFMT_GLOBALHEADER) {
     rv->c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
   }
 
@@ -463,10 +465,6 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->c->color_primaries = codec_ctx->color_primaries;
   rv->c->color_trc = codec_ctx->color_trc;
   rv->c->colorspace = codec_ctx->colorspace;
-
-  avcodec_parameters_from_context(rv->st->codecpar, rv->c);
-
-  ffmpeg_copy_display_matrix(st, rv->st);
 
   int ret = avio_open(&rv->of->pb, filepath, AVIO_FLAG_WRITE);
 
@@ -499,6 +497,9 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     return nullptr;
   }
 
+  avcodec_parameters_from_context(rv->st->codecpar, rv->c);
+  ffmpeg_copy_display_matrix(st, rv->st);
+
   rv->orig_height = st->codecpar->height;
 
   if (st->codecpar->width != width || st->codecpar->height != height ||
@@ -514,9 +515,13 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     rv->sws_ctx = ffmpeg_sws_get_context(st->codecpar->width,
                                          rv->orig_height,
                                          AVPixelFormat(st->codecpar->format),
+                                         codec_ctx->color_range == AVCOL_RANGE_JPEG,
+                                         -1,
                                          width,
                                          height,
                                          rv->c->pix_fmt,
+                                         codec_ctx->color_range == AVCOL_RANGE_JPEG,
+                                         -1,
                                          SWS_FAST_BILINEAR);
   }
 
@@ -627,17 +632,14 @@ static void free_proxy_output_ffmpeg(proxy_output_ctx *ctx, int rollback)
     add_to_proxy_output_ffmpeg(ctx, nullptr);
   }
 
-  avcodec_flush_buffers(ctx->c);
-
   av_write_trailer(ctx->of);
-
-  avcodec_free_context(&ctx->c);
 
   if (ctx->of->oformat) {
     if (!(ctx->of->oformat->flags & AVFMT_NOFILE)) {
       avio_close(ctx->of->pb);
     }
   }
+  avcodec_free_context(&ctx->c);
   avformat_free_context(ctx->of);
 
   if (ctx->sws_ctx) {

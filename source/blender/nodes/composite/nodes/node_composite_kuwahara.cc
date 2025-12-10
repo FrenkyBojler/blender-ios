@@ -40,6 +40,7 @@ static void cmp_node_kuwahara_declare(NodeDeclarationBuilder &b)
       .compositor_domain_priority(0);
   b.add_input<decl::Float>("Size")
       .default_value(6.0f)
+      .min(0.0f)
       .description("The size of the filter in pixels")
       .compositor_domain_priority(1);
   b.add_input<decl::Int>("Uniformity")
@@ -668,7 +669,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
         weighted_sum += color_mean * weight;
       }
 
-      /* Fallback to the original color if all sector weights are zero due to very high standard
+      /* Fall back to the original color if all sector weights are zero due to very high standard
        * deviation and sharpness. */
       if (sum_of_weights == 0.0f) {
         weighted_sum = center_color;

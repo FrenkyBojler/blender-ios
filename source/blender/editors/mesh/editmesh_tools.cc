@@ -3606,7 +3606,7 @@ static wmOperatorStatus edbm_remove_doubles_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports,
               RPT_INFO,
-              count_multi == 1 ? "Removed %d vertex" : "Removed %d vertices",
+              count_multi == 1 ? RPT_("Removed %d vertex") : RPT_("Removed %d vertices"),
               count_multi);
 
   return OPERATOR_FINISHED;
@@ -4813,21 +4813,26 @@ static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
     BLI_assert(e_dst);
 
     /* For edges, flip the selection from the edge of the hole to the edge of the island. */
-    BM_elem_flag_disable(e, BM_ELEM_SELECT);
     BM_elem_flag_enable(e_dst, BM_ELEM_SELECT);
 
-    /* For verts, flip the selection from the edge of the hole to the edge of the island.
-     * Also add it to the weld map. But check selection first. Don't try to add the same vert to
-     * the map more than once. If the selection was changed false, it's already been processed. */
-    if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
-      BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
-    }
-    if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
-      BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
+    /* When these match, the source edge has been deleted. */
+    if (e != e_dst) {
+      BM_elem_flag_disable(e, BM_ELEM_SELECT);
+
+      /* For verts, flip the selection from the edge of the hole to the edge of the island.
+       * Also add it to the weld map. But check selection first. Don't try to add the same vert to
+       * the map more than once. If the selection was changed false, it's already been processed.
+       */
+      if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
+        BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
+        BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
+        BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
+      }
+      if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
+        BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
+        BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
+        BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
+      }
     }
   }
 
@@ -5798,8 +5803,11 @@ static void edbm_dissolve_prop__use_verts(wmOperatorType *ot, bool value, int fl
 {
   PropertyRNA *prop;
 
-  prop = RNA_def_boolean(
-      ot->srna, "use_verts", value, "Dissolve Vertices", "Dissolve remaining vertices");
+  prop = RNA_def_boolean(ot->srna,
+                         "use_verts",
+                         value,
+                         "Dissolve Vertices",
+                         "Dissolve remaining vertices which connect to only two edges");
 
   if (flag) {
     RNA_def_property_flag(prop, PropertyFlag(flag));
@@ -5820,6 +5828,25 @@ static void edbm_dissolve_prop__use_boundary_tear(wmOperatorType *ot)
                   false,
                   "Tear Boundary",
                   "Split off face corners instead of merging faces");
+}
+static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot, int flag)
+{
+  PropertyRNA *prop = RNA_def_float_rotation(
+      ot->srna,
+      "angle_threshold",
+      0,
+      nullptr,
+      0.0f,
+      DEG2RADF(180.0f),
+      "Angle Threshold",
+      "Remaining vertices which separate edge pairs are preserved if their edge angle exceeds "
+      "this threshold.",
+      0.0f,
+      DEG2RADF(180.0f));
+  RNA_def_property_float_default(prop, DEG2RADF(180.0f));
+  if (flag) {
+    RNA_def_property_flag(prop, PropertyFlag(flag));
+  }
 }
 
 static wmOperatorStatus edbm_dissolve_verts_exec(bContext *C, wmOperator *op)
@@ -5891,6 +5918,7 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
 {
   const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
   const bool use_face_split = RNA_boolean_get(op->ptr, "use_face_split");
+  const float angle_threshold = RNA_float_get(op->ptr, "angle_threshold");
 
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -5905,12 +5933,14 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
 
     BM_custom_loop_normals_to_vector_layer(em->bm);
 
-    if (!EDBM_op_callf(em,
-                       op,
-                       "dissolve_edges edges=%he use_verts=%b use_face_split=%b",
-                       BM_ELEM_SELECT,
-                       use_verts,
-                       use_face_split))
+    if (!EDBM_op_callf(
+            em,
+            op,
+            "dissolve_edges edges=%he use_verts=%b use_face_split=%b angle_threshold=%f",
+            BM_ELEM_SELECT,
+            use_verts,
+            use_face_split,
+            angle_threshold))
     {
       continue;
     }
@@ -5942,6 +5972,7 @@ void MESH_OT_dissolve_edges(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   edbm_dissolve_prop__use_verts(ot, true, 0);
+  edbm_dissolve_prop__use_angle_threshold(ot, 0);
   edbm_dissolve_prop__use_face_split(ot);
 }
 
@@ -6036,6 +6067,32 @@ static wmOperatorStatus edbm_dissolve_mode_exec(bContext *C, wmOperator *op)
   return edbm_dissolve_faces_exec(C, op);
 }
 
+static bool dissolve_mode_poll_property(const bContext *C, wmOperator *op, const PropertyRNA *prop)
+{
+  UNUSED_VARS(op);
+
+  const char *prop_id = RNA_property_identifier(prop);
+
+  Object *obedit = CTX_data_edit_object(C);
+  const BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  bool is_edge_select_mode = false;
+
+  if (em->selectmode & SCE_SELECT_VERTEX) {
+    /* Pass. */
+  }
+  if (em->selectmode & SCE_SELECT_EDGE) {
+    is_edge_select_mode = true;
+  }
+
+  if (!is_edge_select_mode) {
+    /* Angle Threshold is only used in edge select mode. */
+    if (STREQ(prop_id, "angle_threshold")) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void MESH_OT_dissolve_mode(wmOperatorType *ot)
 {
   /* identifiers */
@@ -6046,11 +6103,13 @@ void MESH_OT_dissolve_mode(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = edbm_dissolve_mode_exec;
   ot->poll = ED_operator_editmesh;
+  ot->poll_property = dissolve_mode_poll_property;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   edbm_dissolve_prop__use_verts(ot, false, PROP_SKIP_SAVE);
+  edbm_dissolve_prop__use_angle_threshold(ot, PROP_SKIP_SAVE);
   edbm_dissolve_prop__use_face_split(ot);
   edbm_dissolve_prop__use_boundary_tear(ot);
 }
@@ -6295,12 +6354,14 @@ static wmOperatorStatus edbm_delete_edgeloop_exec(bContext *C, wmOperator *op)
       }
     }
 
-    if (!EDBM_op_callf(em,
-                       op,
-                       "dissolve_edges edges=%he use_verts=%b use_face_split=%b",
-                       BM_ELEM_SELECT,
-                       true,
-                       use_face_split))
+    if (!EDBM_op_callf(
+            em,
+            op,
+            "dissolve_edges edges=%he use_verts=%b use_face_split=%b angle_threshold=%f",
+            BM_ELEM_SELECT,
+            true,
+            use_face_split,
+            M_PI))
     {
       continue;
     }

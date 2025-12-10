@@ -184,7 +184,8 @@ struct bNodeSocketType {
   ExtensionRNA ext_interface = {};
 
   /* for standard socket types in C */
-  int type = 0, subtype = 0;
+  eNodeSocketDatatype type = eNodeSocketDatatype(0);
+  int subtype = 0;
 
   /* When set, bNodeSocket->limit does not have any effect anymore. */
   bool use_link_limits_of_type = false;
@@ -679,7 +680,8 @@ void node_unique_id(bNodeTree &ntree, bNode &node);
 /**
  * Delete node, associated animation data and ID user count.
  */
-void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user);
+void node_remove_node(
+    Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user, bool remove_animation = true);
 
 float2 node_dimensions_get(const bNode &node);
 void node_tag_update_id(bNode &node);
@@ -991,7 +993,7 @@ void node_internal_relink(bNodeTree &ntree, bNode &node);
 
 void node_position_relative(bNode &from_node,
                             const bNode &to_node,
-                            const bNodeSocket &from_sock,
+                            const bNodeSocket *from_sock,
                             const bNodeSocket &to_sock);
 
 void node_position_propagate(bNode &node);
@@ -1223,4 +1225,4 @@ inline bool bNodeType::is_type(const StringRef query_idname) const
 constexpr int NODE_DEFAULT_MAX_WIDTH = 700;
 constexpr int GROUP_NODE_DEFAULT_WIDTH = 140;
 constexpr int GROUP_NODE_MAX_WIDTH = NODE_DEFAULT_MAX_WIDTH;
-constexpr int GROUP_NODE_MIN_WIDTH = 40;
+constexpr int GROUP_NODE_MIN_WIDTH = 60;

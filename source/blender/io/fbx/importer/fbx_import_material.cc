@@ -21,6 +21,7 @@
 
 #include "NOD_shader.h"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "fbx_import_material.hh"
@@ -202,9 +203,13 @@ static Image *create_placeholder_image(Main *bmain, const std::string &path)
   const float color[4] = {0, 0, 0, 1};
   const char *name = BLI_path_basename(path.c_str());
   Image *image = BKE_image_add_generated(
-      bmain, 32, 32, name, 24, false, IMA_GENTYPE_BLANK, color, false, false, false);
+      bmain, 1, 1, name, 24, false, IMA_GENTYPE_BLANK, color, false, false, false);
   STRNCPY(image->filepath, path.c_str());
+
+  /* Ensure that we are not marked as a generated image and clear any buffers created so far. */
   image->source = IMA_SRC_FILE;
+  image->type = IMA_TYPE_IMAGE;
+  BKE_image_free_buffers(image);
   return image;
 }
 
@@ -212,14 +217,31 @@ static Image *load_texture_image(Main *bmain, const std::string &file_dir, const
 {
   /* Check with filename directly. */
   Image *image = BKE_image_load_exists(bmain, tex.filename.data);
+  /* Try loading as a relative path. */
   if (image == nullptr) {
-    /* Try loading as a relative path. */
     std::string path = file_dir + "/" + tex.filename.data;
     image = BKE_image_load_exists(bmain, path.c_str());
-    if (image == nullptr) {
-      /* Try loading with absolute path from FBX. */
-      image = BKE_image_load_exists(bmain, tex.absolute_filename.data);
-    }
+  }
+  /* Try loading with absolute path from FBX. */
+  if (image == nullptr) {
+    image = BKE_image_load_exists(bmain, tex.absolute_filename.data);
+  }
+
+  /* If still not found, try taking progressively longer parts of the absolute path,
+   * as relative to the file. */
+  if (image == nullptr) {
+    size_t pos = tex.absolute_filename.length;
+    do {
+      const char *parent_path = BLI_path_parent_dir_end(tex.absolute_filename.data, pos);
+      if (parent_path == nullptr) {
+        break;
+      }
+      char path[FILE_MAX];
+      BLI_path_join(path, sizeof(path), file_dir.c_str(), parent_path);
+      BLI_path_normalize(path);
+      image = BKE_image_load_exists(bmain, path);
+      pos = parent_path - tex.absolute_filename.data;
+    } while (image == nullptr);
   }
 
   /* Create dummy/placeholder image. */
@@ -299,6 +321,15 @@ static void add_image_texture(Main *bmain,
 {
   Image *image = load_texture_image(bmain, file_dir, *ftex);
   BLI_assert(image != nullptr);
+
+  /* Set "non-color" color space for all "data" textures. */
+  if (!STREQ(socket_name, "Base Color") && !STREQ(socket_name, "Specular Tint") &&
+      !STREQ(socket_name, "Sheen Tint") && !STREQ(socket_name, "Coat Tint") &&
+      !STREQ(socket_name, "Emission Color"))
+  {
+    STRNCPY(image->colorspace_settings.name,
+            IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
+  }
 
   /* Add texture node and any UV transformations if needed. */
   bNode *image_node = add_node(ntree, SH_NODE_TEX_IMAGE, node_locx_image, node_locy);

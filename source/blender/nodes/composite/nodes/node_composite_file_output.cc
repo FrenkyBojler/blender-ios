@@ -21,6 +21,8 @@
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
@@ -234,7 +236,7 @@ static void init_output_file(const bContext *C, PointerRNA *ptr)
   BKE_image_format_update_color_space_for_type(&nimf->format);
 
   /* add one socket by default */
-  ntreeCompositOutputFileAddSocket(ntree, node, "Image", format);
+  ntreeCompositOutputFileAddSocket(ntree, node, DATA_("Image"), format);
 }
 
 static void free_output_file(bNode *node)
@@ -870,8 +872,8 @@ class FileOutputOperation : public NodeOperation {
    */
   bool get_single_layer_image_base_path(const char *base_name, char *r_base_path)
   {
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(
-        BKE_main_blendfile_path_from_global(), &context().get_render_data());
+    const path_templates::VariableMap template_variables =
+        BKE_build_template_variables_for_render_path(&context().get_render_data());
 
     /* Do template expansion on the node's base path. */
     char node_base_path[FILE_MAX] = "";
@@ -953,8 +955,8 @@ class FileOutputOperation : public NodeOperation {
     const RenderData &render_data = context().get_render_data();
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
     const char *relbase = BKE_main_blendfile_path_from_global();
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(
-        relbase, &render_data);
+    const path_templates::VariableMap template_variables =
+        BKE_build_template_variables_for_render_path(&render_data);
     blender::Vector<path_templates::Error> errors = BKE_image_path_from_imtype(
         r_image_path,
         base_path,

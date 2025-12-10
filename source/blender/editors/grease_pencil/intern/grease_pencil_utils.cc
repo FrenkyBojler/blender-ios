@@ -20,6 +20,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_numbers.hh"
 #include "BLI_math_vector.hh"
@@ -342,27 +343,34 @@ float3 DrawingPlacement::try_project_depth(const float2 co) const
   }
 
   float3 proj_point;
-  /* Fallback to `View` placement. */
+  /* Fall back to `View` placement. */
   ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
   return proj_point;
 }
 
-float3 DrawingPlacement::project(const float2 co) const
+float3 DrawingPlacement::project(const float2 co, bool &r_clipped) const
 {
   float3 proj_point;
   if (depth_ == DrawingPlacementDepth::Surface) {
     /* Project using the viewport depth cache. */
     proj_point = this->try_project_depth(co);
+    r_clipped = false;
   }
   else {
     if (placement_plane_) {
-      ED_view3d_win_to_3d_on_plane(region_, *placement_plane_, co, false, proj_point);
+      r_clipped = !ED_view3d_win_to_3d_on_plane(region_, *placement_plane_, co, true, proj_point);
     }
     else {
       ED_view3d_win_to_3d(view3d_, region_, placement_loc_, co, proj_point);
+      r_clipped = false;
     }
   }
   return math::transform_point(world_space_to_layer_space_, proj_point);
+}
+float3 DrawingPlacement::project(const float2 co) const
+{
+  [[maybe_unused]] bool clipped_unused;
+  return this->project(co, clipped_unused);
 }
 
 float3 DrawingPlacement::project_with_shift(const float2 co) const
@@ -1296,6 +1304,17 @@ IndexMask retrieve_editable_and_selected_elements(Object &object,
   return {};
 }
 
+bool has_editable_layer(const GreasePencil &grease_pencil)
+{
+  using namespace blender::bke::greasepencil;
+  for (const Layer *layer : grease_pencil.layers()) {
+    if (layer->is_editable()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 Array<PointTransferData> compute_topology_change(
     const bke::CurvesGeometry &src,
     bke::CurvesGeometry &dst,
@@ -1857,20 +1876,44 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     }
   }
 
+  /* Gather the original vertex group names. */
+  Set<StringRef> orig_vgroup_names;
+  LISTBASE_FOREACH (bDeformGroup *, dg, &orig_grease_pencil.vertex_group_names) {
+    orig_vgroup_names.add(dg->name);
+  }
+
   /* Update the drawings. */
   VectorSet<Drawing *> all_updated_drawings;
+
+  Set<StringRef> new_vgroup_names;
   for (auto [layer_eval, layer_orig] : eval_to_orig_layer_map.items()) {
-    const Drawing *drawing_eval = merged_layers_grease_pencil.get_drawing_at(*layer_eval,
-                                                                             eval_frame);
+    Drawing *drawing_eval = merged_layers_grease_pencil.get_drawing_at(*layer_eval, eval_frame);
     Drawing *drawing_orig = orig_grease_pencil.get_drawing_at(*layer_orig, eval_frame);
+
     if (drawing_orig && drawing_eval) {
+      CurvesGeometry &eval_strokes = drawing_eval->strokes_for_write();
+
+      /* Check for new vertex groups in CurvesGeometry. */
+      LISTBASE_FOREACH (bDeformGroup *, dg, &eval_strokes.vertex_group_names) {
+        if (!orig_vgroup_names.contains(dg->name)) {
+          new_vgroup_names.add(dg->name);
+        }
+      }
+
       /* Write the data to the original drawing. */
-      drawing_orig->strokes_for_write() = std::move(drawing_eval->strokes());
+      drawing_orig->strokes_for_write() = std::move(eval_strokes);
       /* Anonymous attributes shouldn't be available on original geometry. */
       drawing_orig->strokes_for_write().attributes_for_write().remove_anonymous();
       drawing_orig->tag_topology_changed();
       all_updated_drawings.add_new(drawing_orig);
     }
+  }
+
+  /* Add new vertex groups to GreasePencil object. */
+  for (StringRef new_vgroup_name : new_vgroup_names) {
+    bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+    new_vgroup_name.copy_utf8_truncated(dst->name);
+    BLI_addtail(&orig_grease_pencil.vertex_group_names, dst);
   }
 
   /* Get the original material pointers from the result geometry. */
@@ -1968,6 +2011,25 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Free temporary grease pencil struct. */
   BKE_id_free(nullptr, &merged_layers_grease_pencil);
+}
+
+bool remove_fill_guides(bke::CurvesGeometry &curves)
+{
+  if (!curves.attributes().contains(".is_fill_guide")) {
+    return false;
+  }
+
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const VArray<bool> is_fill_guide = *attributes.lookup<bool>(".is_fill_guide",
+                                                              bke::AttrDomain::Curve);
+
+  IndexMaskMemory memory;
+  const IndexMask fill_guides = IndexMask::from_bools(is_fill_guide, memory);
+  curves.remove_curves(fill_guides, {});
+
+  curves.attributes_for_write().remove(".is_fill_guide");
+
+  return true;
 }
 
 }  // namespace blender::ed::greasepencil

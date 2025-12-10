@@ -1717,6 +1717,11 @@ enum {
   MOD_WVG_PROXIMITY_INVERT_VGROUP_MASK = (1 << 3),
   MOD_WVG_PROXIMITY_INVERT_FALLOFF = (1 << 4),
   MOD_WVG_PROXIMITY_WEIGHTS_NORMALIZE = (1 << 5),
+  /* Having an "all flags" name for geometry modes because these bits are accessed with RNA via a
+     different property and this makes it easier to do bit setting/testing. See
+     `rna_VertexWeightProximityModifier_proximity_geometry_set` in rna_modifier.cc */
+  MOD_WVG_PROXIMITY_GEOM_ALL = (MOD_WVG_PROXIMITY_GEOM_VERTS | MOD_WVG_PROXIMITY_GEOM_EDGES |
+                                MOD_WVG_PROXIMITY_GEOM_FACES),
 };
 
 /* Defines common to all WeightVG modifiers. */
@@ -3095,7 +3100,9 @@ typedef struct GreasePencilLineartModifierData {
   float shadow_camera_far;
 
   float opacity;
-  short thickness;
+  float radius;
+
+  short thickness_legacy; /* Deprecated, use `radius`. */
 
   unsigned char mask_switches; /* #eGreasePencilLineartMaskSwitches */
   unsigned char material_mask_bits;
@@ -3103,7 +3110,7 @@ typedef struct GreasePencilLineartModifierData {
 
   unsigned char shadow_selection;
   unsigned char silhouette_selection;
-  char _pad[1];
+  char _pad[5];
 
   /** `0..1` range for cosine angle */
   float crease_threshold;

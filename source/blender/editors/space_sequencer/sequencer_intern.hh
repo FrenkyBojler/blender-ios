@@ -235,7 +235,6 @@ void SEQUENCER_OT_swap(wmOperatorType *ot);
 void SEQUENCER_OT_swap_data(wmOperatorType *ot);
 void SEQUENCER_OT_rendersize(wmOperatorType *ot);
 
-void SEQUENCER_OT_change_effect_input(wmOperatorType *ot);
 void SEQUENCER_OT_change_effect_type(wmOperatorType *ot);
 void SEQUENCER_OT_change_path(wmOperatorType *ot);
 void SEQUENCER_OT_change_scene(wmOperatorType *ot);
@@ -259,7 +258,7 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 /* `sequencer_select.cc` */
 
 void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
-Strip *find_neighboring_strip(Scene *scene, Strip *test, int lr, int sel);
+Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel);
 void recurs_sel_strip(Strip *strip_meta);
 
 void SEQUENCER_OT_select_all(wmOperatorType *ot);
@@ -278,6 +277,16 @@ void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
 
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2]);
 void sequencer_select_do_updates(const bContext *C, Scene *scene);
+/**
+ * Returns the strip that intersects with the mouse cursor in the timeline, if applicable.
+
+ * This check is more robust than simply comparing the timeline frame and channel, since strips do
+ * not take up the full height of their channels (see #STRIP_OFSBOTTOM, #STRIP_OFSTOP).
+ * Does not consider padded handles.
+ *
+ * \param mval: Mouse cursor location in regionspace
+ * \return `Strip` that intersects with the cursor, or `nullptr` if not found
+ */
 Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mval[2]);
 
 /* `sequencer_add.cc` */

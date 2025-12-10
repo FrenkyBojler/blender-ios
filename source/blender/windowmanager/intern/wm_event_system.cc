@@ -1596,13 +1596,6 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
     return wmOperatorStatus(WM_operator_poll(C, ot));
   }
 
-  if (STREQ("WM_OT_id_linked_relocate", ot->idname)) {
-    printf("foo\n");
-  }
-  if (STREQ("OUTLINER_OT_id_linked_relocate", ot->idname)) {
-    printf("bar\n");
-  }
-
   if (WM_operator_poll(C, ot)) {
     wmWindowManager *wm = CTX_wm_manager(C);
     const intptr_t undo_id_prev = wm_operator_undo_active_id(wm);
@@ -3199,9 +3192,31 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
                                                        wmWindowManager *wm,
                                                        wmEventHandler_Gizmo *handler,
                                                        wmEvent *event,
+                                                       const bool always_pass,
                                                        ListBase *handlers,
                                                        const bool do_debug_handler)
 {
+  eHandlerActionFlag action = WM_HANDLER_CONTINUE;
+
+  /* NOTE(@ideasman42): early exit for always-pass events (typically timers)
+   * which pass through from running modal operators which may have started them.
+   * In the case of blocking modal operators, it's not expected that gizmos would
+   * be used at the same time as navigating or painting for example.
+   *
+   * In principle these could be handled, however in practice:
+   * `handle_highlight` & `handle_keymap` would be set to false for timers,
+   * making this function do practically nothing.
+   *
+   * Early exit to avoid complicating checks below.
+   * The early return can be replaced with checks that only run
+   * necessary logic if these events need to be handled in the future.
+   *
+   * Without this, gizmos can become highlighted and the cursor changed
+   * while navigating in the 3D viewport, see: #139681. */
+  if (always_pass) {
+    return action;
+  }
+
   /* Drag events use the previous click location to highlight the gizmos,
    * Get the highlight again in case the user dragged off the gizmo. */
   const bool is_event_drag = (event->val == KM_CLICK_DRAG);
@@ -3211,7 +3226,6 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
    * was initiated over a gizmo. */
   const bool restore_highlight_unless_activated = is_event_drag;
 
-  eHandlerActionFlag action = WM_HANDLER_CONTINUE;
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   wmGizmoMap *gzmap = handler->gizmo_map;
@@ -3350,7 +3364,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
     /* Don't use from now on. */
     gz = nullptr;
 
-    /* Fallback to selected gizmo (when un-handled). */
+    /* Fall back to selected gizmo (when un-handled). */
     if ((action & WM_HANDLER_BREAK) == 0) {
       if (WM_gizmomap_is_any_selected(gzmap)) {
         const ListBase *groups = WM_gizmomap_group_list(gzmap);
@@ -3532,7 +3546,8 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
       }
       else if (handler_base->type == WM_HANDLER_TYPE_GIZMO) {
         wmEventHandler_Gizmo *handler = (wmEventHandler_Gizmo *)handler_base;
-        action |= wm_handlers_do_gizmo_handler(C, wm, handler, event, handlers, do_debug_handler);
+        action |= wm_handlers_do_gizmo_handler(
+            C, wm, handler, event, always_pass, handlers, do_debug_handler);
       }
       else if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
@@ -4388,7 +4403,7 @@ static wmWindow *wm_event_find_fileselect_root_window_from_context(const bContex
     }
   }
 
-  /* Fallback to the first window. */
+  /* Fall back to the first window. */
   const wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(!ED_fileselect_handler_area_find_any_with_op(
       static_cast<const wmWindow *>(wm->windows.first)));
@@ -5595,13 +5610,6 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
   mul_v3_v3fl(data->tvec, &ghost->tx, ts);
   mul_v3_v3fl(data->rvec, &ghost->rx, rs);
 
-  if (U.ndof_flag & NDOF_PAN_YZ_SWAP_AXIS) {
-    float t;
-    t = data->tvec[1];
-    data->tvec[1] = -data->tvec[2];
-    data->tvec[2] = t;
-  }
-
   data->dt = ghost->dt;
 
   data->progress = (wmProgress)ghost->progress;
@@ -6442,7 +6450,7 @@ static bool wm_operator_check_locked_interface(bContext *C, wmOperatorType *ot)
   return true;
 }
 
-void WM_set_locked_interface(wmWindowManager *wm, bool lock)
+void WM_set_locked_interface_with_flags(wmWindowManager *wm, short lock_flags)
 {
   /* This will prevent events from being handled while interface is locked
    *
@@ -6451,16 +6459,14 @@ void WM_set_locked_interface(wmWindowManager *wm, bool lock)
    * wouldn't be useful anywhere outside of window manager, so let's not
    * pollute global context with such an information for now).
    */
-  wm->runtime->is_interface_locked = lock;
+  wm->runtime->is_interface_locked = (lock_flags != 0);
 
-  /* This will prevent drawing regions which uses non-thread-safe data.
-   * Currently it'll be just a 3D viewport.
-   *
-   * TODO(sergey): Make it different locked states, so different jobs
-   *               could lock different areas of blender and allow
-   *               interaction with others?
-   */
-  BKE_spacedata_draw_locks(lock);
+  BKE_spacedata_draw_locks(static_cast<ARegionDrawLockFlags>(lock_flags));
+}
+
+void WM_set_locked_interface(wmWindowManager *wm, bool lock)
+{
+  WM_set_locked_interface_with_flags(wm, lock ? REGION_DRAW_LOCK_ALL : 0);
 }
 
 /** \} */
@@ -6672,7 +6678,7 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
   {
     return;
   }
-  /* Fallback to window. */
+  /* Fall back to window. */
   if (ELEM(region->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS)) {
     region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
   }

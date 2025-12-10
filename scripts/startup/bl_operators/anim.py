@@ -222,7 +222,7 @@ class NLA_OT_bake(Operator):
         default=False,
     )
     clear_constraints: BoolProperty(
-        name="Clear Constraints",
+        name="Clear Local Constraints",
         description=(
             "Remove all constraints from keyed object/bones. "
             "To get a correct bake with this setting Visual Keying should be enabled"
@@ -500,7 +500,7 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
 
             # Anything else:
             case _:
-                self.report({'ERROR'}, "Cannot do anything in mode {!r}".format(context.mode))
+                self.report({'ERROR'}, rpt_("Cannot do anything in mode {!r}").format(context.mode))
                 return {'CANCELLED'}
 
         if not bone_source:

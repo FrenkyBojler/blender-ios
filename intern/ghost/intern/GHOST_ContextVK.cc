@@ -116,6 +116,42 @@ static bool contains_extension(const vector<VkExtensionProperties> &extension_li
 };
 
 /* -------------------------------------------------------------------- */
+/** \name Swap-chain resources
+ * \{ */
+
+void GHOST_SwapchainImage::destroy(VkDevice vk_device)
+{
+  vkDestroySemaphore(vk_device, present_semaphore, nullptr);
+  present_semaphore = VK_NULL_HANDLE;
+  vk_image = VK_NULL_HANDLE;
+}
+
+void GHOST_FrameDiscard::destroy(VkDevice vk_device)
+{
+  while (!swapchains.empty()) {
+    VkSwapchainKHR vk_swapchain = swapchains.back();
+    swapchains.pop_back();
+    vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
+  }
+  while (!semaphores.empty()) {
+    VkSemaphore vk_semaphore = semaphores.back();
+    semaphores.pop_back();
+    vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
+  }
+}
+
+void GHOST_Frame::destroy(VkDevice vk_device)
+{
+  vkDestroyFence(vk_device, submission_fence, nullptr);
+  submission_fence = VK_NULL_HANDLE;
+  vkDestroySemaphore(vk_device, acquire_semaphore, nullptr);
+  acquire_semaphore = VK_NULL_HANDLE;
+  discard_pile.destroy(vk_device);
+}
+
+/* \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Vulkan Device
  * \{ */
 
@@ -128,7 +164,12 @@ class GHOST_DeviceVK {
 
   uint32_t generic_queue_family = 0;
 
-  VkPhysicalDeviceProperties properties = {};
+  VkPhysicalDeviceProperties2 properties = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+  };
+  VkPhysicalDeviceVulkan12Properties properties_12 = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
+  };
   VkPhysicalDeviceFeatures2 features = {};
   VkPhysicalDeviceVulkan11Features features_11 = {};
   VkPhysicalDeviceVulkan12Features features_12 = {};
@@ -146,7 +187,8 @@ class GHOST_DeviceVK {
   GHOST_DeviceVK(VkInstance vk_instance, VkPhysicalDevice vk_physical_device)
       : instance(vk_instance), physical_device(vk_physical_device)
   {
-    vkGetPhysicalDeviceProperties(physical_device, &properties);
+    properties.pNext = &properties_12;
+    vkGetPhysicalDeviceProperties2(physical_device, &properties);
 
     features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
@@ -217,7 +259,7 @@ class GHOST_DeviceVK {
     }
 
     /* Check if the given extension name will be enabled. */
-    auto extension_requested = [=](const char *extension_name) {
+    auto extension_enabled = [=](const char *extension_name) {
       for (const char *device_extension_name : device_extensions) {
         if (strcmp(device_extension_name, extension_name) == 0) {
           return true;
@@ -270,6 +312,7 @@ class GHOST_DeviceVK {
     vulkan_12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan_12_features.shaderOutputLayer = features_12.shaderOutputLayer;
     vulkan_12_features.shaderOutputViewportIndex = features_12.shaderOutputViewportIndex;
+    vulkan_12_features.bufferDeviceAddress = features_12.bufferDeviceAddress;
     vulkan_12_features.timelineSemaphore = VK_TRUE;
     feature_struct_ptr.push_back(&vulkan_12_features);
 
@@ -284,7 +327,7 @@ class GHOST_DeviceVK {
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
     dynamic_rendering.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
     dynamic_rendering.dynamicRendering = VK_TRUE;
-    if (has_extensions({VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME})) {
+    if (extension_enabled(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&dynamic_rendering);
     }
 
@@ -293,7 +336,7 @@ class GHOST_DeviceVK {
     dynamic_rendering_unused_attachments.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_FEATURES_EXT;
     dynamic_rendering_unused_attachments.dynamicRenderingUnusedAttachments = VK_TRUE;
-    if (has_extensions({VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME})) {
+    if (extension_enabled(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&dynamic_rendering_unused_attachments);
     }
 
@@ -301,14 +344,14 @@ class GHOST_DeviceVK {
     dynamic_rendering_local_read.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR;
     dynamic_rendering_local_read.dynamicRenderingLocalRead = VK_TRUE;
-    if (has_extensions({VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME})) {
+    if (extension_enabled(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&dynamic_rendering_local_read);
     }
 
     /* VK_EXT_robustness2 */
     VkPhysicalDeviceRobustness2FeaturesEXT robustness_2_features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
-    if (has_extensions({VK_EXT_ROBUSTNESS_2_EXTENSION_NAME})) {
+    if (extension_enabled(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME)) {
       robustness_2_features.nullDescriptor = features_robustness2.nullDescriptor;
       feature_struct_ptr.push_back(&robustness_2_features);
     }
@@ -317,16 +360,28 @@ class GHOST_DeviceVK {
     VkPhysicalDeviceMaintenance4FeaturesKHR maintenance_4 = {};
     maintenance_4.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
     maintenance_4.maintenance4 = VK_TRUE;
-    if (has_extensions({VK_KHR_MAINTENANCE_4_EXTENSION_NAME})) {
+    if (extension_enabled(VK_KHR_MAINTENANCE_4_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&maintenance_4);
     }
 
     /* Swap-chain maintenance 1 is optional. */
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance_1 = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT, nullptr, VK_TRUE};
-    if (extension_requested(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
+    if (extension_enabled(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&swapchain_maintenance_1);
       use_vk_ext_swapchain_maintenance_1 = true;
+    }
+
+    /* Descriptor buffers */
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT,
+        nullptr,
+        VK_TRUE,
+        VK_FALSE,
+        VK_FALSE,
+        VK_FALSE};
+    if (extension_enabled(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&descriptor_buffer);
     }
 
     /* Query and enable Fragment Shader Barycentrics. */
@@ -334,8 +389,24 @@ class GHOST_DeviceVK {
     fragment_shader_barycentric.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
     fragment_shader_barycentric.fragmentShaderBarycentric = VK_TRUE;
-    if (has_extensions({VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME})) {
+    if (extension_enabled(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&fragment_shader_barycentric);
+    }
+
+    /* VK_EXT_memory_priority */
+    VkPhysicalDeviceMemoryPriorityFeaturesEXT memory_priority = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT, nullptr, VK_TRUE};
+    if (extension_enabled(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&memory_priority);
+    }
+
+    /* VK_EXT_pageable_device_local_memory */
+    VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT pageable_device_local_memory = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT,
+        nullptr,
+        VK_TRUE};
+    if (extension_enabled(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&pageable_device_local_memory);
     }
 
     /* Link all registered feature structs. */
@@ -439,7 +510,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
 #endif
 
     int device_score = 0;
-    switch (device_vk.properties.deviceType) {
+    switch (device_vk.properties.properties.deviceType) {
       case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
         device_score = 400;
         break;
@@ -457,8 +528,8 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
     }
     /* User has configured a preferred device. Add bonus score when vendor and device match. Driver
      * id isn't considered as drivers update more frequently and can break the device selection. */
-    if (device_vk.properties.deviceID == preferred_device.device_id &&
-        device_vk.properties.vendorID == preferred_device.vendor_id)
+    if (device_vk.properties.properties.deviceID == preferred_device.device_id &&
+        device_vk.properties.properties.vendorID == preferred_device.vendor_id)
     {
       device_score += 500;
       if (preferred_device.index == device_index) {
@@ -938,13 +1009,18 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
    * Minimized windows have an extent of 0,0. Although it fits in the specs returned by
    * #vkGetPhysicalDeviceSurfaceCapabilitiesKHR.
    *
-   * Ref #138032
+   * The fix is limited to NVIDIA. AMD drivers finds the swapchain to be sub-optimal and
+   * asks Blender to recreate the swapchain over and over again until it gets out of memory.
+   *
+   * Ref #138032, #139815
    */
-  if (m_render_extent.width == 0) {
-    m_render_extent.width = 1;
-  }
-  if (m_render_extent.height == 0) {
-    m_render_extent.height = 1;
+  if (vulkan_device->properties_12.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
+    if (m_render_extent.width == 0) {
+      m_render_extent.width = 1;
+    }
+    if (m_render_extent.height == 0) {
+      m_render_extent.height = 1;
+    }
   }
 
   /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
@@ -984,7 +1060,6 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
     create_info.pNext = &vk_swapchain_present_scaling;
-    create_info.flags = VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT;
   }
   create_info.surface = m_surface;
   create_info.minImageCount = image_count_requested;
@@ -1015,13 +1090,10 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   GHOST_FrameDiscard &discard_pile = m_frame_data[m_render_frame].discard_pile;
   for (GHOST_SwapchainImage &swapchain_image : m_swapchain_images) {
     swapchain_image.vk_image = VK_NULL_HANDLE;
-    if (!vulkan_device->use_vk_ext_swapchain_maintenance_1 &&
-        swapchain_image.present_semaphore != VK_NULL_HANDLE)
-    {
+    if (swapchain_image.present_semaphore != VK_NULL_HANDLE) {
       discard_pile.semaphores.push_back(swapchain_image.present_semaphore);
       swapchain_image.present_semaphore = VK_NULL_HANDLE;
     }
-    swapchain_image.vk_image = VK_NULL_HANDLE;
   }
   m_swapchain_images.resize(actual_image_count);
   std::vector<VkImage> swapchain_images(actual_image_count);
@@ -1046,11 +1118,9 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   /* Construct new semaphores. It can be that image_count is larger than previously. We only need
    * to fill in where the handle is `VK_NULL_HANDLE`. */
   /* Previous handles from the frame data cannot be used and should be discarded. */
-  if (!vulkan_device->use_vk_ext_swapchain_maintenance_1) {
-    for (GHOST_Frame &frame : m_frame_data) {
-      discard_pile.semaphores.push_back(frame.acquire_semaphore);
-      frame.acquire_semaphore = VK_NULL_HANDLE;
-    }
+  for (GHOST_Frame &frame : m_frame_data) {
+    discard_pile.semaphores.push_back(frame.acquire_semaphore);
+    frame.acquire_semaphore = VK_NULL_HANDLE;
   }
   if (old_swapchain) {
     discard_pile.swapchains.push_back(old_swapchain);
@@ -1184,6 +1254,10 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   optional_device_extensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {

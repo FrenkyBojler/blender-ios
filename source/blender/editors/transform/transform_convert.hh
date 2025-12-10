@@ -152,7 +152,7 @@ void transform_convert_sequencer_channel_clamp(TransInfo *t, float r_val[2]);
 
 bool transform_mode_use_local_origins(const TransInfo *t);
 /**
- * Transforming around ourselves is no use, fallback to individual origins,
+ * Transforming around ourselves is no use, fall back to individual origins,
  * useful for curve/armatures.
  */
 void transform_around_single_fallback_ex(TransInfo *t, int data_len_all);
@@ -208,6 +208,14 @@ CurvesTransformData *create_curves_transform_custom_data(TransCustomData &custom
 void copy_positions_from_curves_transform_custom_data(const TransCustomData &custom_data,
                                                       const int layer,
                                                       MutableSpan<float3> positions_dst);
+
+void update_vector_handle_types(const IndexMask &selected_handles,
+                                MutableSpan<int8_t> handle_types);
+void update_auto_handle_types(const IndexMask &selected_handles_left,
+                              const IndexMask &selected_handles_right,
+                              const IndexMask &bezier_points,
+                              MutableSpan<int8_t> handle_types_left,
+                              MutableSpan<int8_t> handle_types_right);
 
 }  // namespace curves
 

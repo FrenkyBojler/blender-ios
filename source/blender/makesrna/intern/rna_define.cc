@@ -782,12 +782,14 @@ void RNA_define_fallback_property_update(int noteflag, const char *updatefunc)
 void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *rna_ext)
 {
 #ifdef RNA_RUNTIME
-  rna_ext->free(rna_ext->data);               /* Decrefs the PyObject that the `srna` owns. */
+  rna_ext->free(rna_ext->data);
   RNA_struct_blender_type_set(srna, nullptr); /* FIXME: this gets accessed again. */
 
-  /* nullptr the srna's value so RNA_struct_free won't complain of a leak */
-  RNA_struct_py_type_set(srna, nullptr);
-
+  /* Decrease the reference and set to null so #RNA_struct_free doesn't warn of a leak. */
+  if (srna->py_type) {
+    BPY_DECREF(srna->py_type);
+    RNA_struct_py_type_set(srna, nullptr);
+  }
 #else
   (void)srna;
   (void)rna_ext;
@@ -1555,6 +1557,12 @@ void RNA_def_parameter_clear_flags(PropertyRNA *prop,
 {
   prop->flag &= ~flag_property;
   prop->flag_parameter &= ~flag_parameter;
+}
+
+void RNA_def_property_path_template_type(PropertyRNA *prop,
+                                         PropertyPathTemplateType path_template_type)
+{
+  prop->path_template_type = path_template_type;
 }
 
 void RNA_def_property_subtype(PropertyRNA *prop, PropertySubType subtype)
@@ -3779,6 +3787,34 @@ void RNA_def_property_boolean_default_func(PropertyRNA *prop, const char *get_de
     }
     default: {
       CLOG_ERROR(&LOG, "\"%s.%s\", type is not boolean.", srna->identifier, prop->identifier);
+      DefRNA.error = true;
+      break;
+    }
+  }
+}
+
+void RNA_def_property_enum_default_func(PropertyRNA *prop, const char *get_default)
+{
+  StructRNA *srna = DefRNA.laststruct;
+
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing");
+    return;
+  }
+  switch (prop->type) {
+    case PROP_ENUM: {
+      EnumPropertyRNA *eprop = reinterpret_cast<EnumPropertyRNA *>(prop);
+      if (prop->arraydimension) {
+        /* Not supported yet. */
+        BLI_assert_unreachable();
+        CLOG_ERROR(&LOG, "enums don't support arrays");
+        return;
+      }
+      eprop->get_default = (PropEnumGetFuncEx)get_default;
+      break;
+    }
+    default: {
+      CLOG_ERROR(&LOG, "\"%s.%s\", type is not enum.", srna->identifier, prop->identifier);
       DefRNA.error = true;
       break;
     }

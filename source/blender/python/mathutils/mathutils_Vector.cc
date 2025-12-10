@@ -494,16 +494,8 @@ static PyObject *Vector_resize(VectorObject *self, PyObject *value)
 {
   int vec_num;
 
-  if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize(): "
-                    "cannot resize wrapped data - only Python vectors");
-    return nullptr;
-  }
-  if (self->cb_user) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize(): "
-                    "cannot resize a vector that has an owner");
+  if (UNLIKELY(BaseMathObject_Prepare_ForResize(self, "Vector.resize()") == -1)) {
+    /* An exception has been raised. */
     return nullptr;
   }
 
@@ -582,16 +574,8 @@ PyDoc_STRVAR(
     "   Resize the vector to 2D  (x, y).\n");
 static PyObject *Vector_resize_2d(VectorObject *self)
 {
-  if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_2d(): "
-                    "cannot resize wrapped data - only Python vectors");
-    return nullptr;
-  }
-  if (self->cb_user) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_2d(): "
-                    "cannot resize a vector that has an owner");
+  if (UNLIKELY(BaseMathObject_Prepare_ForResize(self, "Vector.resize_2d()") == -1)) {
+    /* An exception has been raised. */
     return nullptr;
   }
 
@@ -615,16 +599,8 @@ PyDoc_STRVAR(
     "   Resize the vector to 3D  (x, y, z).\n");
 static PyObject *Vector_resize_3d(VectorObject *self)
 {
-  if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_3d(): "
-                    "cannot resize wrapped data - only Python vectors");
-    return nullptr;
-  }
-  if (self->cb_user) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_3d(): "
-                    "cannot resize a vector that has an owner");
+  if (UNLIKELY(BaseMathObject_Prepare_ForResize(self, "Vector.resize_3d()") == -1)) {
+    /* An exception has been raised. */
     return nullptr;
   }
 
@@ -652,16 +628,8 @@ PyDoc_STRVAR(
     "   Resize the vector to 4D (x, y, z, w).\n");
 static PyObject *Vector_resize_4d(VectorObject *self)
 {
-  if (self->flag & BASE_MATH_FLAG_IS_WRAP) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_4d(): "
-                    "cannot resize wrapped data - only Python vectors");
-    return nullptr;
-  }
-  if (self->cb_user) {
-    PyErr_SetString(PyExc_TypeError,
-                    "Vector.resize_4d(): "
-                    "cannot resize a vector that has an owner");
+  if (UNLIKELY(BaseMathObject_Prepare_ForResize(self, "Vector.resize_4d()") == -1)) {
+    /* An exception has been raised. */
     return nullptr;
   }
 
@@ -767,21 +735,17 @@ PyDoc_STRVAR(
     "   :rtype: tuple[float, ...]\n");
 static PyObject *Vector_to_tuple(VectorObject *self, PyObject *args)
 {
-  int ndigits = 0;
+  int ndigits = -1;
 
   if (!PyArg_ParseTuple(args, "|i:to_tuple", &ndigits)) {
     return nullptr;
   }
 
-  if (ndigits > 22 || ndigits < 0) {
+  if (ndigits > 22 || ndigits < -1) {
     PyErr_SetString(PyExc_ValueError,
-                    "Vector.to_tuple(ndigits): "
-                    "ndigits must be between 0 and 21");
+                    "Vector.to_tuple(precision): "
+                    "precision must be between -1 and 21");
     return nullptr;
-  }
-
-  if (PyTuple_GET_SIZE(args) == 0) {
-    ndigits = -1;
   }
 
   if (BaseMath_ReadCallback(self) == -1) {

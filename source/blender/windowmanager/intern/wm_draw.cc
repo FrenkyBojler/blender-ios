@@ -254,7 +254,9 @@ static void wm_software_cursor_draw_bitmap(const int event_xy[2],
 
   GPU_matrix_push();
 
-  const int scale = std::max(1, round_fl_to_int(UI_SCALE_FAC));
+  /* The DPI as a scale without the UI scale preference. */
+  const float system_scale = UI_SCALE_FAC / U.ui_scale;
+  const int scale = std::max(1, round_fl_to_int(system_scale));
 
   unit_m4(gl_matrix);
 
@@ -306,7 +308,13 @@ static void wm_software_cursor_draw_crosshair(const int event_xy[2])
   /* Draw a primitive cross-hair cursor.
    * NOTE: the `win->cursor` could be used for drawing although it's complicated as some cursors
    * are set by the operating-system, where the pixel information isn't easily available. */
-  const float unit = max_ff(UI_SCALE_FAC, 1.0f);
+
+  /* The DPI as a scale without the UI scale preference. */
+  const float system_scale = UI_SCALE_FAC / U.ui_scale;
+  /* The cursor scaled by the "default" size. */
+  const float cursor_scale = float(WM_cursor_preferred_logical_size()) /
+                             float(WM_CURSOR_DEFAULT_LOGICAL_SIZE);
+  const float unit = max_ff(system_scale * cursor_scale, 1.0f);
   uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -1346,7 +1354,15 @@ void WM_window_pixels_read_sample_from_frontbuffer(const wmWindowManager *wm,
     GPU_context_active_set(static_cast<GPUContext *>(win->gpuctx));
   }
 
-  GPU_frontbuffer_read_color(pos[0], pos[1], 1, 1, 3, GPU_DATA_FLOAT, r_col);
+  /* NOTE(@jbakker): Vulkan backend isn't able to read 3 channels from a 4 channel texture with
+   * data data-conversions is needed. Data conversion happens inline for all channels. This is a
+   * vulkan backend issue and should be solved. However the solution has a lot of branches that
+   * requires testing so a quick fix has been added to the place where this was used. The solution
+   * is to implement all the cases in 'VKFramebuffer::read'.
+   */
+  blender::float4 color_with_alpha;
+  GPU_frontbuffer_read_color(pos[0], pos[1], 1, 1, 4, GPU_DATA_FLOAT, color_with_alpha);
+  copy_v3_v3(r_col, color_with_alpha.xyz());
 
   if (setup_context) {
     if (wm->windrawable) {

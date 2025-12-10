@@ -162,7 +162,7 @@ static void displaceModifier_do_task(void *__restrict userdata,
   float(*tex_co)[3] = data->tex_co;
   blender::MutableSpan<blender::float3> positions = data->positions;
 
-  /* When no texture is used, we fallback to white. */
+  /* When no texture is used, we fall back to white. */
   const float delta_fixed = 1.0f - dmd->midlevel;
 
   TexResult texres;
@@ -299,7 +299,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
     data.vert_normals = mesh->vert_normals_true();
   }
   else if (direction == MOD_DISP_DIR_CLNOR) {
-    data.vert_normals = mesh->corner_normals();
+    data.vert_normals = mesh->vert_normals();
   }
   else if (ELEM(direction, MOD_DISP_DIR_X, MOD_DISP_DIR_Y, MOD_DISP_DIR_Z, MOD_DISP_DIR_RGB_XYZ) &&
            use_global_direction)

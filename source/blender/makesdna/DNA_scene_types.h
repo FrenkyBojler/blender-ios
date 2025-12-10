@@ -122,10 +122,40 @@ typedef enum eFFMpegProresProfile {
   FFM_PRORES_PROFILE_4444_XQ = 5,   /* FF_PROFILE_PRORES_XQ */
 } eFFMpegProresProfile;
 
+/* Note: These used to match `AVCodecID` enum values. Kept old values to keep file compatibility.
+ * Use `MOV_av_codec_id_get()` to get `AVCodecID` value. */
+typedef enum IMB_Ffmpeg_Codec_ID {
+  FFMPEG_CODEC_ID_NONE = 0,
+  FFMPEG_CODEC_ID_MPEG1VIDEO = 1,
+  FFMPEG_CODEC_ID_MPEG2VIDEO = 2,
+  FFMPEG_CODEC_ID_MPEG4 = 12,
+  FFMPEG_CODEC_ID_FLV1 = 21,
+  FFMPEG_CODEC_ID_DVVIDEO = 24,
+  FFMPEG_CODEC_ID_HUFFYUV = 25,
+  FFMPEG_CODEC_ID_H264 = 27,
+  FFMPEG_CODEC_ID_THEORA = 30,
+  FFMPEG_CODEC_ID_FFV1 = 33,
+  FFMPEG_CODEC_ID_QTRLE = 55,
+  FFMPEG_CODEC_ID_PNG = 61,
+  FFMPEG_CODEC_ID_DNXHD = 99,
+  FFMPEG_CODEC_ID_VP9 = 167,
+  FFMPEG_CODEC_ID_H265 = 173,
+  FFMPEG_CODEC_ID_AV1 = 226,
+  FFMPEG_CODEC_ID_PRORES = 147,
+  FFMPEG_CODEC_ID_PCM_S16LE = 65536,
+  FFMPEG_CODEC_ID_MP2 = 86016,
+  FFMPEG_CODEC_ID_MP3 = 86017,
+  FFMPEG_CODEC_ID_AAC = 86018,
+  FFMPEG_CODEC_ID_AC3 = 86019,
+  FFMPEG_CODEC_ID_VORBIS = 86021,
+  FFMPEG_CODEC_ID_FLAC = 86028,
+  FFMPEG_CODEC_ID_OPUS = 86076,
+} IMB_Ffmpeg_Codec_ID;
+
 typedef struct FFMpegCodecData {
   int type;
-  int codec;
-  int audio_codec;
+  int codec;       /* Use `codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
+  int audio_codec; /* Use `audio_codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
   int video_bitrate;
   int audio_bitrate;
   int audio_mixrate;
@@ -146,6 +176,26 @@ typedef struct FFMpegCodecData {
   int mux_packet_size;
   int mux_rate;
   char _pad0[4];
+
+#ifdef __cplusplus
+  IMB_Ffmpeg_Codec_ID codec_id_get() const
+  {
+    return IMB_Ffmpeg_Codec_ID(codec);
+  }
+  IMB_Ffmpeg_Codec_ID audio_codec_id_get() const
+  {
+    return IMB_Ffmpeg_Codec_ID(audio_codec);
+  }
+  void codec_id_set(IMB_Ffmpeg_Codec_ID codec_id)
+  {
+    codec = codec_id;
+  }
+  void audio_codec_id_set(IMB_Ffmpeg_Codec_ID codec_id)
+  {
+    audio_codec = codec_id;
+  }
+
+#endif
 } FFMpegCodecData;
 
 /** \} */
@@ -1426,6 +1476,15 @@ typedef struct UnifiedPaintSettings {
   /** Unified brush secondary color. */
   float secondary_rgb[3];
 
+  /** Unified color jitter settings */
+  int color_jitter_flag;
+  float hsv_jitter[3];
+
+  /** Color jitter pressure curves. */
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
+
   /** Unified brush stroke input samples. */
   int input_samples;
 
@@ -1496,20 +1555,6 @@ typedef struct UnifiedPaintSettings {
   /** ColorSpace cache to avoid locking up during sampling. */
   const ColorSpaceHandle *colorspace;
 } UnifiedPaintSettings;
-
-/** #UnifiedPaintSettings::flag */
-typedef enum {
-  UNIFIED_PAINT_SIZE = (1 << 0),
-  UNIFIED_PAINT_ALPHA = (1 << 1),
-  /** Only used if unified size is enabled, mirrors the brush flag #BRUSH_LOCK_SIZE. */
-  UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1 << 2),
-  UNIFIED_PAINT_FLAG_UNUSED_0 = (1 << 3),
-  UNIFIED_PAINT_FLAG_UNUSED_1 = (1 << 4),
-  UNIFIED_PAINT_WEIGHT = (1 << 5),
-  UNIFIED_PAINT_COLOR = (1 << 6),
-  UNIFIED_PAINT_INPUT_SAMPLES = (1 << 7),
-
-} eUnifiedPaintSettingsFlags;
 
 typedef struct CurvePaintSettings {
   char curve_type;

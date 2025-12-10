@@ -519,7 +519,7 @@ void transform_snap_project_individual_apply(TransInfo *t)
       }
 
       /* If both face ray-cast and face nearest methods are enabled, start with face ray-cast and
-       * fallback to face nearest ray-cast does not hit. */
+       * fall back to face nearest ray-cast does not hit. */
       bool hit = false;
       if (t->tsnap.mode & SCE_SNAP_INDIVIDUAL_PROJECT) {
         hit = applyFaceProject(t, tc, td);
@@ -870,7 +870,7 @@ void transform_snap_grid_init(const TransInfo *t, float r_snap[3], float *r_snap
 
   if (t->spacetype == SPACE_VIEW3D) {
     /* Used by incremental snap. */
-    if (t->region->regiondata) {
+    if (t->region->regiontype == RGN_TYPE_WINDOW) {
       View3D *v3d = static_cast<View3D *>(t->area->spacedata.first);
       r_snap[0] = r_snap[1] = r_snap[2] = ED_view3d_grid_view_scale(
           t->scene, v3d, t->region, nullptr);
@@ -1371,21 +1371,21 @@ void tranform_snap_target_median_calc(const TransInfo *t, float r_median[3])
   zero_v3(r_median);
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    TransData *td = tc->data;
-    int i;
     float v[3];
     zero_v3(v);
 
-    for (i = 0; i < tc->data_len && td->flag & TD_SELECTED; i++, td++) {
-      add_v3_v3(v, td->center);
-    }
+    int num_selected = 0;
+    tc->foreach_index_selected([&](const int i) {
+      add_v3_v3(v, tc->data[i].center);
+      num_selected++;
+    });
 
-    if (i == 0) {
+    if (num_selected == 0) {
       /* Is this possible? */
       continue;
     }
 
-    mul_v3_fl(v, 1.0 / i);
+    mul_v3_fl(v, 1.0 / num_selected);
 
     if (tc->use_local_mat) {
       mul_m4_v3(tc->mat, v);
@@ -1460,10 +1460,10 @@ static void snap_source_closest_fn(TransInfo *t)
 
     /* Object mode. */
     if (t->options & CTX_OBJECT) {
-      int i;
       FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-        TransData *td;
-        for (td = tc->data, i = 0; i < tc->data_len && td->flag & TD_SELECTED; i++, td++) {
+        tc->foreach_index_selected([&](const int i) {
+          TransData *td = &tc->data[i];
+
           std::optional<Bounds<float3>> bounds;
 
           if ((t->options & CTX_OBMODE_XFORM_OBDATA) == 0) {
@@ -1511,14 +1511,14 @@ static void snap_source_closest_fn(TransInfo *t)
               closest = td;
             }
           }
-        }
+        });
       }
     }
     else {
       FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-        TransData *td = tc->data;
-        int i;
-        for (i = 0; i < tc->data_len && td->flag & TD_SELECTED; i++, td++) {
+        tc->foreach_index_selected([&](const int i) {
+          TransData *td = &tc->data[i];
+
           float loc[3];
           float dist;
 
@@ -1537,7 +1537,7 @@ static void snap_source_closest_fn(TransInfo *t)
             closest = td;
             dist_closest = dist;
           }
-        }
+        });
       }
     }
   }

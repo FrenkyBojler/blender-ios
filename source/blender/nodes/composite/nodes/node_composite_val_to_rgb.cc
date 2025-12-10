@@ -96,7 +96,7 @@ static int node_gpu_material(GPUMaterial *material,
                               GPU_uniform(&color_band->data[1].r));
       case COLBAND_INTERP_B_SPLINE:
       case COLBAND_INTERP_CARDINAL:
-        /* Not optimized yet. Fallback to gradient texture. */
+        /* Not optimized yet. Fall back to gradient texture. */
         break;
     }
   }
@@ -212,7 +212,6 @@ static void register_node_type_cmp_rgbtobw()
   blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Default);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
-  ntype.gather_link_search_ops = nullptr;
 
   blender::bke::node_register_type(ntype);
 }

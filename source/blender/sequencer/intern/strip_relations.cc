@@ -53,6 +53,16 @@ void cache_cleanup(Scene *scene)
   intra_frame_cache_invalidate(scene);
 }
 
+void cache_cleanup_intra(Scene *scene)
+{
+  intra_frame_cache_invalidate(scene);
+}
+
+void cache_cleanup_final(Scene *scene)
+{
+  final_image_cache_clear(scene);
+}
+
 bool is_cache_full(const Scene *scene)
 {
   size_t cache_limit = size_t(U.memcachelimit) * 1024 * 1024;
@@ -85,10 +95,6 @@ void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 
 void relations_invalidate_cache(Scene *scene, Strip *strip)
 {
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
-    return;
-  }
-
   if (strip->effectdata && strip->type == STRIP_TYPE_SPEED) {
     strip_effect_speed_rebuild_map(scene, strip);
   }
@@ -99,6 +105,7 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
   intra_frame_cache_invalidate(scene, strip);
   invalidate_raw_cache_of_parent_meta(scene, strip);
 
+  /* Needed to update VSE sound. */
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   prefetch_stop(scene);
 }

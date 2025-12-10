@@ -201,6 +201,10 @@ static void mesh_copy_data(Main *bmain,
       MEM_dupallocN(mesh_src->active_color_attribute));
   mesh_dst->default_color_attribute = static_cast<char *>(
       MEM_dupallocN(mesh_src->default_color_attribute));
+  mesh_dst->active_uv_map_attribute = static_cast<char *>(
+      MEM_dupallocN(mesh_src->active_uv_map_attribute));
+  mesh_dst->default_uv_map_attribute = static_cast<char *>(
+      MEM_dupallocN(mesh_src->default_uv_map_attribute));
 
   CustomData_init_from(
       &mesh_src->vert_data, &mesh_dst->vert_data, mask.vmask, mesh_dst->verts_num);
@@ -248,6 +252,8 @@ static void mesh_free_data(ID *id)
   BLI_freelistN(&mesh->vertex_group_names);
   MEM_SAFE_FREE(mesh->active_color_attribute);
   MEM_SAFE_FREE(mesh->default_color_attribute);
+  MEM_SAFE_FREE(mesh->active_uv_map_attribute);
+  MEM_SAFE_FREE(mesh->default_uv_map_attribute);
   mesh->attribute_storage.wrap().~AttributeStorage();
   if (mesh->face_offset_indices) {
     blender::implicit_sharing::free_shared_data(&mesh->face_offset_indices,
@@ -380,8 +386,14 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
         mesh->face_data, AttrDomain::Face, mesh->faces_num, face_layers, attribute_data);
     CustomData_blend_write_prepare(
         mesh->corner_data, AttrDomain::Corner, mesh->corners_num, loop_layers, attribute_data);
-    mesh->attribute_storage.dna_attributes = attribute_data.attributes.data();
-    mesh->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
+    if (attribute_data.attributes.is_empty()) {
+      mesh->attribute_storage.dna_attributes = nullptr;
+      mesh->attribute_storage.dna_attributes_num = 0;
+    }
+    else {
+      mesh->attribute_storage.dna_attributes = attribute_data.attributes.data();
+      mesh->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
+    }
     if (!is_undo) {
       /* Write forward compatible format. To be removed in 5.0. */
       rename_seam_layer_to_old_name(
@@ -464,6 +476,8 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   }
   BLO_read_string(reader, &mesh->active_color_attribute);
   BLO_read_string(reader, &mesh->default_color_attribute);
+  BLO_read_string(reader, &mesh->active_uv_map_attribute);
+  BLO_read_string(reader, &mesh->default_uv_map_attribute);
 
   /* Forward compatibility. To be removed when runtime format changes. */
   blender::bke::mesh_convert_storage_to_customdata(*mesh);
@@ -1400,12 +1414,16 @@ void Mesh::bounds_set_eager(const blender::Bounds<float3> &bounds)
   this->runtime->bounds_cache.ensure([&](blender::Bounds<float3> &r_data) { r_data = bounds; });
 }
 
+static bool use_bmesh_material_indices(const Mesh &mesh)
+{
+  return mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH && mesh.runtime->edit_mesh &&
+         mesh.runtime->edit_mesh->bm;
+}
+
 std::optional<int> Mesh::material_index_max() const
 {
   this->runtime->max_material_index.ensure([&](std::optional<int> &value) {
-    if (this->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH && this->runtime->edit_mesh &&
-        this->runtime->edit_mesh->bm)
-    {
+    if (use_bmesh_material_indices(*this)) {
       BMesh *bm = this->runtime->edit_mesh->bm;
       if (bm->totface == 0) {
         value = std::nullopt;
@@ -1435,6 +1453,57 @@ std::optional<int> Mesh::material_index_max() const
   return this->runtime->max_material_index.data();
 }
 
+const blender::VectorSet<int> &Mesh::material_indices_used() const
+{
+  using namespace blender;
+  this->runtime->used_material_indices.ensure([&](VectorSet<int> &r_data) {
+    const std::optional<int> max_material_index_opt = this->material_index_max();
+    r_data.clear();
+    if (!max_material_index_opt.has_value()) {
+      return;
+    }
+    const int max_material_index = *max_material_index_opt;
+    const auto clamp_material_index = [&](const int index) {
+      return std::clamp<int>(index, 0, max_material_index);
+    };
+
+    /* Find used indices in parallel and then create the vector set in the end. */
+    Array<bool> used_indices(max_material_index + 1, false);
+    if (use_bmesh_material_indices(*this)) {
+      BMesh *bm = this->runtime->edit_mesh->bm;
+      BMFace *efa;
+      BMIter iter;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        used_indices[clamp_material_index(efa->mat_nr)] = true;
+      }
+    }
+    else if (const VArray<int> material_indices =
+                 this->attributes()
+                     .lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0)
+                     .varray)
+    {
+      if (const std::optional<int> single_material_index = material_indices.get_if_single()) {
+        used_indices[clamp_material_index(*single_material_index)] = true;
+      }
+      else {
+        VArraySpan<int> material_indices_span = material_indices;
+        threading::parallel_for(
+            material_indices_span.index_range(), 1024, [&](const IndexRange range) {
+              for (const int i : range) {
+                used_indices[clamp_material_index(material_indices_span[i])] = true;
+              }
+            });
+      }
+    }
+    for (const int i : used_indices.index_range()) {
+      if (used_indices[i]) {
+        r_data.add_new(i);
+      }
+    }
+  });
+  return this->runtime->used_material_indices.data();
+}
+
 namespace blender::bke {
 
 static void transform_positions(MutableSpan<float3> positions, const float4x4 &matrix)
@@ -1451,16 +1520,6 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   threading::parallel_for(positions.index_range(), 2048, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position += translation;
-    }
-  });
-}
-
-static void transform_normals(MutableSpan<float3> normals, const float4x4 &matrix)
-{
-  const float3x3 normal_transform = math::transpose(math::invert(float3x3(matrix)));
-  threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &normal : normals.slice(range)) {
-      normal = normal_transform * normal;
     }
   });
 }
@@ -1503,15 +1562,7 @@ void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys)
     }
   }
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(
-          "custom_normal"))
-  {
-    if (meta_data->data_type == CD_PROP_FLOAT3) {
-      bke::SpanAttributeWriter normals = attributes.lookup_for_write_span<float3>("custom_normal");
-      transform_normals(normals.span, transform);
-      normals.finish();
-    }
-  }
+  transform_custom_normal_attribute(transform, attributes);
 
   mesh.tag_positions_changed();
 }

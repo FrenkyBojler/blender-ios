@@ -16,8 +16,9 @@ from bl_ui.properties_data_grease_pencil import (
     GreasePencil_LayerAdjustmentsPanel,
     GreasePencil_LayerDisplayPanel,
 )
-from bl_ui.space_toolsystem_common import PlayheadSnappingPanel
-
+from bl_ui.utils import (
+    PlayheadSnappingPanel,
+)
 
 from rna_prop_ui import PropertyPanel
 
@@ -124,6 +125,8 @@ class DopesheetFilterPopoverBase:
             flow.prop(dopesheet, "show_pointclouds", text="Point Clouds")
         if bpy.data.volumes:
             flow.prop(dopesheet, "show_volumes", text="Volumes")
+        if bpy.data.lightprobes:
+            flow.prop(dopesheet, "show_lightprobes", text="Light Probes")
 
         # data types
         flow.prop(dopesheet, "show_worlds", text="Worlds")

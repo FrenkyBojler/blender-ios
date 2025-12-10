@@ -29,7 +29,7 @@ enum class VKImageViewFlags {
 ENUM_OPERATORS(VKImageViewFlags, VKImageViewFlags::NO_SWIZZLING)
 
 class VKTexture : public Texture {
-  friend class VKDescriptorSetTracker;
+  friend class VKDescriptorSetUpdator;
 
   /**
    * Texture format how the texture is stored on the device.
@@ -60,12 +60,6 @@ class VKTexture : public Texture {
    */
   Vector<VKImageView> image_views_;
 
-  /* Last image layout of the texture. Frame-buffer and barriers can alter/require the actual
-   * layout to be changed. During this it requires to set the current layout in order to know which
-   * conversion should happen. #current_layout_ keep track of the layout so the correct conversion
-   * can be done. */
-  VkImageLayout current_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
-
   int layer_offset_ = 0;
   bool use_stencil_ = false;
 
@@ -83,15 +77,14 @@ class VKTexture : public Texture {
 
   virtual ~VKTexture() override;
 
-  void init(VkImage vk_image, VkImageLayout layout, eGPUTextureFormat texture_format);
-
   void generate_mipmap() override;
   void copy_to(Texture *tex) override;
   void copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect);
   void clear(eGPUDataFormat format, const void *data) override;
   void clear_depth_stencil(const eGPUFrameBufferBits buffer,
                            float clear_depth,
-                           uint clear_stencil);
+                           uint clear_stencil,
+                           std::optional<int> layer);
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat format) override;

@@ -882,7 +882,7 @@ static void render_drawlock(void *rjv, bool lock)
 
   /* If interface is locked, renderer callback shall do nothing. */
   if (!rj->interface_locked) {
-    BKE_spacedata_draw_locks(lock);
+    BKE_spacedata_draw_locks(lock ? REGION_DRAW_LOCK_RENDER : REGION_DRAW_LOCK_NONE);
   }
 }
 
@@ -1062,7 +1062,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* Lock the user interface depending on render settings. */
   if (scene->r.use_lock_interface) {
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_set_locked_interface_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_RENDER);
 
     /* Set flag interface need to be unlocked.
      *
@@ -1080,10 +1080,10 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* setup job */
   if (RE_seq_render_active(scene, &scene->r)) {
-    name = "Sequence Render";
+    name = RPT_("Rendering sequence...");
   }
   else {
-    name = "Render";
+    name = RPT_("Render...");
   }
 
   wm_job = WM_jobs_get(CTX_wm_manager(C),

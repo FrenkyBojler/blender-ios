@@ -18,6 +18,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "DNA_curves_types.h"
 #include "DNA_modifier_types.h"
@@ -216,7 +217,7 @@ static bool bake_strokes(Object *ob,
       lmd->mask_switches,
       lmd->material_mask_bits,
       lmd->intersection_mask,
-      float(lmd->thickness) / 1000.0f,
+      lmd->radius,
       lmd->opacity,
       lmd->shadow_selection,
       lmd->silhouette_selection,
@@ -294,6 +295,8 @@ static void lineart_bake_startjob(void *customdata, wmJobWorkerStatus *worker_st
   bj->progress = &worker_status->progress;
 
   guard_modifiers(*bj);
+
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
 
   for (int frame = bj->frame_begin; frame <= bj->frame_end; frame += bj->frame_increment) {
 
@@ -397,7 +400,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
     WM_jobs_timer(wm_job, 0.1, NC_GPENCIL | ND_DATA | NA_EDITED, NC_GPENCIL | ND_DATA | NA_EDITED);
     WM_jobs_callbacks(wm_job, lineart_bake_startjob, nullptr, nullptr, lineart_bake_endjob);
 
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_set_locked_interface_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
     WM_jobs_start(CTX_wm_manager(C), wm_job);
 
@@ -408,6 +411,10 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
 
   wmJobWorkerStatus worker_status = {};
   lineart_bake_startjob(bj, &worker_status);
+
+  /* Need to call endjob manually to clear interface locking status when bake is not called as
+   * background task, otherwise spaes like 3d viewport can be unresponsive. */
+  lineart_bake_endjob(bj);
 
   MEM_delete(bj);
 

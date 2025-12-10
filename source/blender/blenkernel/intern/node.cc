@@ -589,7 +589,7 @@ static void construct_interface_as_legacy_sockets(bNodeTree *ntree)
       STRNCPY(iosock->description, socket.description);
     }
     node_socket_copy_default_value_data(
-        eNodeSocketDatatype(iosock->typeinfo->type), iosock->default_value, socket.socket_data);
+        iosock->typeinfo->type, iosock->default_value, socket.socket_data);
     if (socket.properties) {
       iosock->prop = IDP_CopyProperty(socket.properties);
     }
@@ -756,6 +756,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_BOKEHIMAGE) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeBokehImage>(__func__);
+      }
       NodeBokehImage *storage = static_cast<NodeBokehImage *>(node->storage);
       write_input_to_property_int("Flaps", storage->flaps);
       write_input_to_property_float("Angle", storage->angle);
@@ -770,6 +773,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_MASK) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeMask>(__func__);
+      }
       NodeMask *storage = static_cast<NodeMask *>(node->storage);
       write_input_to_property_int("Size X", storage->size_x);
       write_input_to_property_int("Size Y", storage->size_y);
@@ -843,6 +849,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_ANTIALIASING) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeAntiAliasingData>(__func__);
+      }
       NodeAntiAliasingData *storage = static_cast<NodeAntiAliasingData *>(node->storage);
       write_input_to_property_float("Threshold", storage->threshold);
       write_input_to_property_float("Corner Rounding", storage->corner_rounding);
@@ -853,6 +862,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_VECBLUR) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeBlurData>(__func__);
+      }
       NodeBlurData *storage = static_cast<NodeBlurData *>(node->storage);
       write_input_to_property_short("Samples", storage->samples);
 
@@ -868,6 +880,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_CHROMA_MATTE) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeChroma>(__func__);
+      }
       NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
       write_input_to_property_float("Minimum", storage->t2);
       write_input_to_property_float("Maximum", storage->t1);
@@ -875,6 +890,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_COLOR_MATTE) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeChroma>(__func__);
+      }
       NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
       write_input_to_property_float("Hue", storage->t1);
       write_input_to_property_float("Saturation", storage->t2);
@@ -882,6 +900,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_DIFF_MATTE) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeChroma>(__func__);
+      }
       NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
       write_input_to_property_float("Tolerance", storage->t1);
       write_input_to_property_float("Falloff", storage->t2);
@@ -894,6 +915,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_LUMA_MATTE) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeChroma>(__func__);
+      }
       NodeChroma *storage = static_cast<NodeChroma *>(node->storage);
       write_input_to_property_float("Minimum", storage->t2);
       write_input_to_property_float("Maximum", storage->t1);
@@ -945,6 +969,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_COLORCORRECTION) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeColorCorrection>(__func__);
+      }
       NodeColorCorrection *storage = static_cast<NodeColorCorrection *>(node->storage);
       write_input_to_property_float("Master Saturation", storage->master.saturation);
       write_input_to_property_float("Master Contrast", storage->master.contrast);
@@ -981,6 +1008,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_MASK_BOX) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeBoxMask>(__func__);
+      }
       NodeBoxMask *storage = static_cast<NodeBoxMask *>(node->storage);
       write_input_to_property_float_vector("Position", 0, storage->x);
       write_input_to_property_float_vector("Position", 1, storage->y);
@@ -990,6 +1020,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_MASK_ELLIPSE) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeEllipseMask>(__func__);
+      }
       NodeEllipseMask *storage = static_cast<NodeEllipseMask *>(node->storage);
       write_input_to_property_float_vector("Position", 0, storage->x);
       write_input_to_property_float_vector("Position", 1, storage->y);
@@ -999,6 +1032,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_SUNBEAMS) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeSunBeams>(__func__);
+      }
       NodeSunBeams *storage = static_cast<NodeSunBeams *>(node->storage);
       write_input_to_property_float_vector("Source", 0, storage->source[0]);
       write_input_to_property_float_vector("Source", 1, storage->source[1]);
@@ -1006,6 +1042,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_DBLUR) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeDBlurData>(__func__);
+      }
       NodeDBlurData *storage = static_cast<NodeDBlurData *>(node->storage);
       write_input_to_property_short("Samples", storage->iter);
       write_input_to_property_float_vector("Center", 0, storage->center_x);
@@ -1020,6 +1059,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_BILATERALBLUR) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeBilateralBlurData>(__func__);
+      }
       NodeBilateralBlurData *storage = static_cast<NodeBilateralBlurData *>(node->storage);
 
       /* The size input is `ceil(iterations + sigma_space)`. */
@@ -1035,6 +1077,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_ALPHAOVER) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeTwoFloats>(__func__);
+      }
       write_input_to_property_bool_short("Straight Alpha", node->custom1);
     }
 
@@ -1043,6 +1088,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_CROP) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeTwoXYs>(__func__);
+      }
       write_input_to_property_bool_int16_flag("Alpha Crop", node->custom1, (1 << 0), true);
 
       NodeTwoXYs *storage = static_cast<NodeTwoXYs *>(node->storage);
@@ -1061,6 +1109,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+      if (!node->storage) {
+        node->storage = MEM_callocN<NodeColorBalance>(__func__);
+      }
       NodeColorBalance *storage = static_cast<NodeColorBalance *>(node->storage);
 
       {
@@ -1146,7 +1197,104 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       storage->sizey = int(
           math::ceil(size_input->default_value_typed<bNodeSocketValueVector>()->value[1]));
     }
+
+    if (node->type_legacy == CMP_NODE_FLIP) {
+      const bNodeSocket *x_input = blender::bke::node_find_socket(*node, SOCK_IN, "Flip X");
+      const bNodeSocket *y_input = blender::bke::node_find_socket(*node, SOCK_IN, "Flip Y");
+      const bool flip_x = x_input->default_value_typed<bNodeSocketValueBoolean>()->value;
+      const bool flip_y = y_input->default_value_typed<bNodeSocketValueBoolean>()->value;
+      if (flip_x && flip_y) {
+        node->custom1 = 2;
+      }
+      else if (flip_y) {
+        node->custom1 = 1;
+      }
+      else {
+        node->custom1 = 0;
+      }
+    }
   }
+}
+
+/* The write_compositor_legacy_properties function might have allocated temporary storage for nodes
+ * whose storage are no longer needed and therefore have no storage name in the node type info.
+ * Such storage will not get saved due to the missing storage name, so we need to write them
+ * manually and then free the storage. */
+static void write_compositor_legacy_storage(BlendWriter *writer, bNode &node)
+{
+  if (!node.storage) {
+    return;
+  }
+
+  if (!node.typeinfo->storagename.empty()) {
+    return;
+  }
+
+  switch (node.type_legacy) {
+    case CMP_NODE_BOKEHIMAGE:
+      BLO_write_struct_by_name(writer, "NodeBokehImage", node.storage);
+      MEM_freeN(static_cast<NodeBokehImage *>(node.storage));
+      break;
+    case CMP_NODE_MASK:
+      BLO_write_struct_by_name(writer, "NodeMask", node.storage);
+      MEM_freeN(static_cast<NodeMask *>(node.storage));
+      break;
+    case CMP_NODE_ANTIALIASING:
+      BLO_write_struct_by_name(writer, "NodeAntiAliasingData", node.storage);
+      MEM_freeN(static_cast<NodeAntiAliasingData *>(node.storage));
+      break;
+    case CMP_NODE_VECBLUR:
+      BLO_write_struct_by_name(writer, "NodeBlurData", node.storage);
+      MEM_freeN(static_cast<NodeBlurData *>(node.storage));
+      break;
+    case CMP_NODE_CHROMA_MATTE:
+    case CMP_NODE_COLOR_MATTE:
+    case CMP_NODE_DIFF_MATTE:
+    case CMP_NODE_LUMA_MATTE:
+      BLO_write_struct_by_name(writer, "NodeChroma", node.storage);
+      MEM_freeN(static_cast<NodeChroma *>(node.storage));
+      break;
+    case CMP_NODE_COLORCORRECTION:
+      BLO_write_struct_by_name(writer, "NodeColorCorrection", node.storage);
+      MEM_freeN(static_cast<NodeColorCorrection *>(node.storage));
+      break;
+    case CMP_NODE_MASK_BOX:
+      BLO_write_struct_by_name(writer, "NodeBoxMask", node.storage);
+      MEM_freeN(static_cast<NodeBoxMask *>(node.storage));
+      break;
+    case CMP_NODE_MASK_ELLIPSE:
+      BLO_write_struct_by_name(writer, "NodeEllipseMask", node.storage);
+      MEM_freeN(static_cast<NodeEllipseMask *>(node.storage));
+      break;
+    case CMP_NODE_SUNBEAMS:
+      BLO_write_struct_by_name(writer, "NodeSunBeams", node.storage);
+      MEM_freeN(static_cast<NodeSunBeams *>(node.storage));
+      break;
+    case CMP_NODE_DBLUR:
+      BLO_write_struct_by_name(writer, "NodeDBlurData", node.storage);
+      MEM_freeN(static_cast<NodeDBlurData *>(node.storage));
+      break;
+    case CMP_NODE_BILATERALBLUR:
+      BLO_write_struct_by_name(writer, "NodeBilateralBlurData", node.storage);
+      MEM_freeN(static_cast<NodeBilateralBlurData *>(node.storage));
+      break;
+    case CMP_NODE_ALPHAOVER:
+      BLO_write_struct_by_name(writer, "NodeTwoFloats", node.storage);
+      MEM_freeN(static_cast<NodeTwoFloats *>(node.storage));
+      break;
+    case CMP_NODE_CROP:
+      BLO_write_struct_by_name(writer, "NodeTwoXYs", node.storage);
+      MEM_freeN(static_cast<NodeTwoXYs *>(node.storage));
+      break;
+    case CMP_NODE_COLORBALANCE:
+      BLO_write_struct_by_name(writer, "NodeColorBalance", node.storage);
+      MEM_freeN(static_cast<NodeColorBalance *>(node.storage));
+      break;
+    default:
+      return;
+  }
+
+  node.storage = nullptr;
 }
 
 }  // namespace forward_compat
@@ -1269,6 +1417,11 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
   const bNodeType *ntype = node->typeinfo;
   if (!ntype->storagename.empty()) {
     BLO_write_struct_by_name(writer, ntype->storagename.c_str(), node->storage);
+  }
+  else {
+    if (!BLO_write_is_undo(writer)) {
+      forward_compat::write_compositor_legacy_storage(writer, *node);
+    }
   }
   if (ntype->blend_write_storage_content) {
     ntype->blend_write_storage_content(*ntree, *node, *writer);
@@ -1568,6 +1721,16 @@ static void direct_link_node_socket_legacy_data_version_do(
 static void direct_link_node_socket_default_value(BlendDataReader *reader, bNodeSocket *sock)
 {
   if (sock->default_value == nullptr) {
+    return;
+  }
+
+  if (sock->type == SOCK_CUSTOM) {
+    /* There are some files around that have non-null default value for custom sockets. See e.g.
+     * #140083.
+     *
+     * It is unclear how this could happen, but for now simply systematically set this pointer to
+     * null. */
+    sock->default_value = nullptr;
     return;
   }
 
@@ -4108,7 +4271,7 @@ void node_detach_node(bNodeTree &ntree, bNode &node)
 
 void node_position_relative(bNode &from_node,
                             const bNode &to_node,
-                            const bNodeSocket &from_sock,
+                            const bNodeSocket *from_sock,
                             const bNodeSocket &to_sock)
 {
   float offset_x;
@@ -4130,12 +4293,14 @@ void node_position_relative(bNode &from_node,
   float offset_y = U.widget_unit * tot_sock_idx;
 
   /* Output socket. */
-  if (eNodeSocketInOut(from_sock.in_out) == SOCK_IN) {
-    tot_sock_idx = BLI_listbase_count(&from_node.outputs);
-    tot_sock_idx += BLI_findindex(&from_node.inputs, &from_sock);
-  }
-  else {
-    tot_sock_idx = BLI_findindex(&from_node.outputs, &from_sock);
+  if (from_sock) {
+    if (eNodeSocketInOut(from_sock->in_out) == SOCK_IN) {
+      tot_sock_idx = BLI_listbase_count(&from_node.outputs);
+      tot_sock_idx += BLI_findindex(&from_node.inputs, from_sock);
+    }
+    else {
+      tot_sock_idx = BLI_findindex(&from_node.outputs, from_sock);
+    }
   }
 
   BLI_assert(tot_sock_idx != -1);
@@ -4151,7 +4316,7 @@ void node_position_propagate(bNode &node)
   LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
     if (socket->link != nullptr) {
       bNodeLink *link = socket->link;
-      node_position_relative(*link->fromnode, *link->tonode, *link->fromsock, *link->tosock);
+      node_position_relative(*link->fromnode, *link->tonode, link->fromsock, *link->tosock);
       node_position_propagate(*link->fromnode);
     }
   }
@@ -4481,7 +4646,8 @@ void node_tree_free_local_node(bNodeTree &ntree, bNode &node)
   node_rebuild_id_vector(ntree);
 }
 
-void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_id_user)
+void node_remove_node(
+    Main *bmain, bNodeTree &ntree, bNode &node, const bool do_id_user, const bool remove_animation)
 {
   /* This function is not for localized node trees, we do not want
    * do to ID user reference-counting and removal of animation data then. */
@@ -4508,16 +4674,17 @@ void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_
     }
   }
 
-  /* Remove animation data. */
-  char propname_esc[MAX_IDPROP_NAME * 2];
-  char prefix[MAX_IDPROP_NAME * 2];
+  if (remove_animation) {
+    char propname_esc[MAX_IDPROP_NAME * 2];
+    char prefix[MAX_IDPROP_NAME * 2];
 
-  BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
-  SNPRINTF(prefix, "nodes[\"%s\"]", propname_esc);
+    BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
+    SNPRINTF(prefix, "nodes[\"%s\"]", propname_esc);
 
-  if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
-    if (bmain != nullptr) {
-      DEG_relations_tag_update(bmain);
+    if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
+      if (bmain != nullptr) {
+        DEG_relations_tag_update(bmain);
+      }
     }
   }
 

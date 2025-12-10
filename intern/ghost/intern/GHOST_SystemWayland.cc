@@ -5368,7 +5368,20 @@ static bool xkb_compose_state_feed_and_get_utf8(
         const int utf8_buf_compose_len = xkb_compose_state_get_utf8(
             compose_state, utf8_buf_compose, sizeof(utf8_buf_compose));
         if (utf8_buf_compose_len > 0) {
-          memcpy(r_utf8_buf, utf8_buf_compose, utf8_buf_compose_len);
+          if (utf8_buf_compose_len > sizeof(GHOST_TEventKeyData::utf8_buf)) {
+            /* TODO(@ideasman42): keyboard events in GHOST only support a single character.
+             *
+             * - In the case XKB compose enters multiple code-points only the first will be used.
+             *
+             * - Besides supporting multiple characters per key input,
+             *   one possible solution would be to generate an IME event.
+             *
+             * - In practice I'm not sure how common these are.
+             *   So far no bugs have been reported about this.
+             */
+            CLOG_WARN(LOG, "key (compose_size=%d) exceeds the maximum size", utf8_buf_compose_len);
+          }
+          memcpy(r_utf8_buf, utf8_buf_compose, sizeof(GHOST_TEventKeyData::utf8_buf));
           handled = true;
         }
         break;
@@ -5800,7 +5813,8 @@ static void text_input_handle_enter(void *data,
                                     zwp_text_input_v3 * /*zwp_text_input_v3*/,
                                     wl_surface *surface)
 {
-  if (!ghost_wl_surface_own(surface)) {
+  /* Can be null when closing a window, see: #141777. */
+  if (!ghost_wl_surface_own_with_null_check(surface)) {
     return;
   }
   CLOG_INFO(LOG, 2, "enter");
@@ -8341,6 +8355,15 @@ GHOST_TSuccess GHOST_SystemWayland::setCursorPosition(const int32_t x, const int
     return setCursorPositionClientRelative_impl(seat, win, x, y);
   }
   return GHOST_kFailure;
+}
+
+uint32_t GHOST_SystemWayland::getCursorPreferredLogicalSize() const
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*server_mutex};
+#endif
+  GWL_Seat *seat = gwl_display_seat_active_get(display_);
+  return seat->cursor.theme_size;
 }
 
 void GHOST_SystemWayland::getMainDisplayDimensions(uint32_t &width, uint32_t &height) const

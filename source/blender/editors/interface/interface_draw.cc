@@ -602,6 +602,10 @@ void ui_draw_but_HISTOGRAM(ARegion *region,
 
 static void waveform_draw_one(const float *waveform, int waveform_num, const float col[3])
 {
+  BLI_assert_msg(
+      !immIsShaderBound(),
+      "It is not allowed to draw a batch when immediate mode has a shader bound. It will "
+      "use the incorrect shader and is hard to discover.");
   GPUVertFormat format = {0};
   const uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
@@ -653,8 +657,8 @@ static void waveform_draw_rgb(const float *waveform,
 
   blender::gpu::Batch *batch = GPU_batch_create_ex(
       GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-
-  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_SMOOTH_COLOR);
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POINT_FLAT_COLOR);
+  GPU_batch_uniform_1f(batch, "size", 1.0f);
   GPU_batch_draw(batch);
   GPU_batch_discard(batch);
 }
@@ -836,7 +840,9 @@ void ui_draw_but_WAVEFORM(ARegion *region,
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w, h);
 
+      immUnbindProgram();
       waveform_draw_one(scopes->waveform_1, scopes->waveform_tot, col);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_matrix_pop();
 
@@ -857,11 +863,11 @@ void ui_draw_but_WAVEFORM(ARegion *region,
       GPU_matrix_push();
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w, h);
-
+      immUnbindProgram();
       waveform_draw_one(scopes->waveform_1, scopes->waveform_tot, colors_alpha[0]);
       waveform_draw_one(scopes->waveform_2, scopes->waveform_tot, colors_alpha[1]);
       waveform_draw_one(scopes->waveform_3, scopes->waveform_tot, colors_alpha[2]);
-
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       GPU_matrix_pop();
     }
     /* PARADE / YCC (3 channels) */
@@ -872,7 +878,7 @@ void ui_draw_but_WAVEFORM(ARegion *region,
                   SCOPES_WAVEFRM_YCC_JPEG))
     {
       const int rgb = (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB_PARADE);
-
+      immUnbindProgram();
       GPU_matrix_push();
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w3, h);
@@ -889,6 +895,7 @@ void ui_draw_but_WAVEFORM(ARegion *region,
           scopes->waveform_3, scopes->waveform_tot, (rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
 
       GPU_matrix_pop();
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     }
 
     /* min max */
@@ -2078,7 +2085,10 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   format = immVertexFormat();
   pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   const uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+  const uint size = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+
+  GPU_program_point_size(true);
 
   /* Calculate vertex colors based on text theme. */
   float color_vert[4], color_vert_select[4], color_sample[4];
@@ -2096,15 +2106,18 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
     swap_v3_v3(color_vert, color_vert_select);
   }
 
+  float point_size;
+
   /* Draw the control points. */
   GPU_line_smooth(false);
   if (path_len > 0) {
     GPU_blend(GPU_BLEND_NONE);
-    GPU_point_size(max_ff(3.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 5.0f, 5.0f)));
+    point_size = max_ff(3.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 5.0f, 5.0f));
     immBegin(GPU_PRIM_POINTS, path_len);
     for (int i = 0; i < path_len; i++) {
       fx = rect->xmin + zoomx * (pts[i].x - offsx);
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
+      immAttr1f(size, point_size);
       immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_vert_select : color_vert);
       immVertex2f(pos, fx, fy);
     }
@@ -2115,15 +2128,15 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   if (selected_free_points > 0) {
     GPU_line_smooth(false);
     GPU_blend(GPU_BLEND_NONE);
-    GPU_point_size(max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 4.0f)));
+    point_size = max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 4.0f));
     immBegin(GPU_PRIM_POINTS, selected_free_points * 2);
     for (int i = 0; i < path_len; i++) {
       if (point_draw_handles(&pts[i])) {
         fx = rect->xmin + zoomx * (pts[i].h1_loc[0] - offsx);
         fy = rect->ymin + zoomy * (pts[i].h1_loc[1] - offsy);
+        immAttr1f(size, point_size);
         immAttr4fv(col, (pts[i].flag & PROF_H1_SELECT) ? color_vert_select : color_vert);
         immVertex2f(pos, fx, fy);
-
         fx = rect->xmin + zoomx * (pts[i].h2_loc[0] - offsx);
         fy = rect->ymin + zoomy * (pts[i].h2_loc[1] - offsy);
         immAttr4fv(col, (pts[i].flag & PROF_H2_SELECT) ? color_vert_select : color_vert);
@@ -2137,11 +2150,12 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   pts = profile->segments;
   const int segments_len = uint(profile->segments_len);
   if (segments_len > 0 && pts) {
-    GPU_point_size(max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 3.0f, 3.0f)));
+    point_size = max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 3.0f, 3.0f));
     immBegin(GPU_PRIM_POINTS, segments_len);
     for (int i = 0; i < segments_len; i++) {
       fx = rect->xmin + zoomx * (pts[i].x - offsx);
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
+      immAttr1f(size, point_size);
       immAttr4fv(col, color_sample);
       immVertex2f(pos, fx, fy);
     }

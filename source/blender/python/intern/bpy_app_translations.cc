@@ -11,8 +11,11 @@
  */
 
 #include <Python.h>
+
 /* XXX Why bloody hell isn't that included in Python.h???? */
 #include <structmember.h>
+
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BLI_utildefines.h"
 
@@ -527,7 +530,7 @@ static PyObject *app_translations_locales_get(PyObject * /*self*/, void * /*user
   if (items) {
     for (it = items; it->identifier; it++) {
       if (it->value) {
-        PyTuple_SET_ITEM(ret, pos++, PyUnicode_FromString(it->description));
+        PyTuple_SET_ITEM(ret, pos++, PyUnicode_FromString(it->identifier));
       }
     }
   }
@@ -982,7 +985,7 @@ PyObject *BPY_app_translations_struct()
   /* prevent user from creating new instances */
   BlenderAppTranslationsType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppTranslationsType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppTranslationsType.tp_hash = (hashfunc)Py_HashPointer;
 
   return ret;
 }
