@@ -819,6 +819,28 @@ static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, int to
 }
 
 /**
+ * Copy a subset of the given shapekey `source` into `r_target`.
+ *
+ * \param range is the range of vertices to copy. Each index is considered to be a float3.
+ */
+static void copy_key_float3_range(const blender::IndexRange range,
+                                  Key *key,
+                                  KeyBlock *source,
+                                  float *r_target)
+{
+  char *free_keyblock_data;
+  float *keyblock_data = reinterpret_cast<float *>(
+      key_block_get_data(key, source, key->refkey, &free_keyblock_data));
+
+  memcpy(
+      &r_target[range.start()], &keyblock_data[range.start()], range.size() * 3 * sizeof(float));
+
+  if (free_keyblock_data) {
+    MEM_freeN(free_keyblock_data);
+  }
+}
+
+/**
  * Move the point in `r_targets` along the vector of ab by a factor of `weight`.
  *
  * \param start_index points to the x value in the flat float array. Indices of +1 and +2 from this
@@ -848,19 +870,10 @@ static void key_evaluate_relative_float3(Key *key,
                                          const int vertex_count,
                                          const blender::IndexRange range,
                                          float **per_keyblock_weights,
-                                         const int mode,
                                          float *target_data)
 {
-  /* Creates the basis values in target_data. */
-  copy_key(range.first(),
-           range.last() + 1,
-           vertex_count,
-           reinterpret_cast<char *>(target_data),
-           key,
-           active_keyblock,
-           key->refkey,
-           nullptr,
-           mode);
+  /* Creates the basis values of the reference key in target_data. */
+  copy_key_float3_range(range, key, key->refkey, target_data);
 
   int keyblock_index = 0;
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
@@ -1303,13 +1316,8 @@ static void do_mesh_key(Object *ob, Key *key, char *out, const int tot)
     WeightsArrayCache cache = {0, nullptr};
     float **per_keyblock_weights;
     per_keyblock_weights = keyblock_get_per_block_weights(ob, key, &cache);
-    key_evaluate_relative_float3(key,
-                                 actkb,
-                                 tot,
-                                 {0, tot},
-                                 per_keyblock_weights,
-                                 KEY_MODE_DUMMY,
-                                 reinterpret_cast<float *>(out));
+    key_evaluate_relative_float3(
+        key, actkb, tot, {0, tot}, per_keyblock_weights, reinterpret_cast<float *>(out));
     keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
   }
   else {
@@ -1357,13 +1365,11 @@ static void do_rel_cu_key(Curve *cu, Key *key, KeyBlock *actkb, char *out, const
   for (a = 0, nu = static_cast<Nurb *>(cu->nurb.first); nu; nu = nu->next, a += step) {
     if (nu->bp) {
       step = KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
-      key_evaluate_relative_float3(
-          key, actkb, tot, {a, step}, nullptr, KEY_MODE_BPOINT, (float *)out);
+      key_evaluate_relative_float3(key, actkb, tot, {a, step}, nullptr, (float *)out);
     }
     else if (nu->bezt) {
       step = KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
-      key_evaluate_relative_float3(
-          key, actkb, tot, {a, step}, nullptr, KEY_MODE_BEZTRIPLE, (float *)out);
+      key_evaluate_relative_float3(key, actkb, tot, {a, step}, nullptr, (float *)out);
     }
     else {
       step = 0;
@@ -1403,13 +1409,8 @@ static void do_latt_key(Object *ob, Key *key, char *out, const int tot)
   if (key->type == KEY_RELATIVE) {
     float **per_keyblock_weights;
     per_keyblock_weights = keyblock_get_per_block_weights(ob, key, nullptr);
-    key_evaluate_relative_float3(key,
-                                 actkb,
-                                 tot,
-                                 {0, tot},
-                                 per_keyblock_weights,
-                                 KEY_MODE_DUMMY,
-                                 reinterpret_cast<float *>(out));
+    key_evaluate_relative_float3(
+        key, actkb, tot, {0, tot}, per_keyblock_weights, reinterpret_cast<float *>(out));
     keyblock_free_per_block_weights(key, per_keyblock_weights, nullptr);
   }
   else {
