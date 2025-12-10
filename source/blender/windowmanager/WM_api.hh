@@ -25,6 +25,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 
 #include "WM_keymap.hh"
@@ -79,6 +80,10 @@ class IDRemapper;
 
 namespace blender::asset_system {
 class AssetRepresentation;
+}
+
+namespace blender::ui {
+enum class AlertIcon : int8_t;
 }
 
 /* General API. */
@@ -492,7 +497,8 @@ ID *WM_file_link_datablock(Main *bmain,
                            const char *filepath,
                            short id_code,
                            const char *id_name,
-                           int flag);
+                           int flag,
+                           ReportList *reports = nullptr);
 /**
  * \note `scene` (and related `view_layer` and `v3d`) pointers may be NULL,
  * in which case no instantiation of appended objects, collections etc. will be performed.
@@ -504,7 +510,8 @@ ID *WM_file_append_datablock(Main *bmain,
                              const char *filepath,
                              short id_code,
                              const char *id_name,
-                             int flag);
+                             int flag,
+                             ReportList *reports = nullptr);
 void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 /* Mouse cursors. */
@@ -716,12 +723,13 @@ void WM_event_free_ui_handler_all(bContext *C,
 /**
  * Add a modal handler to `win`, `area` and `region` may optionally be NULL.
  */
-wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindow *win,
+wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindowManager *wm,
+                                                 wmWindow *win,
                                                  ScrArea *area,
                                                  ARegion *region,
-                                                 wmOperator *op) ATTR_NONNULL(1, 4);
+                                                 wmOperator *op) ATTR_NONNULL(1, 2, 5);
 wmEventHandler_Op *WM_event_add_modal_handler(bContext *C, wmOperator *op) ATTR_NONNULL(1, 2);
-void WM_event_remove_model_handler(ListBase *handlers, const wmOperator *op, bool postpone)
+void WM_event_remove_modal_handler(ListBase *handlers, const wmOperator *op, bool postpone)
     ATTR_NONNULL(1, 2);
 
 void WM_event_remove_modal_handler_all(const wmOperator *op, bool postpone) ATTR_NONNULL(1);
@@ -896,10 +904,10 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const 
  */
 wmOperatorStatus WM_operator_confirm_ex(bContext *C,
                                         wmOperator *op,
-                                        const char *title = nullptr,
-                                        const char *message = nullptr,
-                                        const char *confirm_text = nullptr,
-                                        int icon = 0, /* ALERT_ICON_WARNING. */
+                                        const char *title,
+                                        const char *message,
+                                        const char *confirm_text,
+                                        blender::ui::AlertIcon icon,
                                         bool cancel_default = false);
 
 /**
@@ -974,11 +982,13 @@ void WM_operator_free_all_after(wmWindowManager *wm, wmOperator *op);
  */
 void WM_operator_type_set(wmOperator *op, wmOperatorType *ot);
 void WM_operator_stack_clear(wmWindowManager *wm);
+void WM_operator_stack_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 /**
  * This function is needed in the case when an addon id disabled
  * while a modal operator it defined is running.
  */
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
+void WM_operator_handlers_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
@@ -1098,8 +1108,8 @@ bool WM_operator_properties_default(PointerRNA *ptr, bool do_update);
  * Remove all props without #PROP_SKIP_SAVE or #PROP_SKIP_PRESET.
  */
 void WM_operator_properties_reset(wmOperator *op);
-void WM_operator_properties_create(PointerRNA *ptr, const char *opstring);
-void WM_operator_properties_create_ptr(PointerRNA *ptr, wmOperatorType *ot);
+PointerRNA WM_operator_properties_create(const char *opstring);
+PointerRNA WM_operator_properties_create_ptr(wmOperatorType *ot);
 void WM_operator_properties_clear(PointerRNA *ptr);
 void WM_operator_properties_free(PointerRNA *ptr);
 
@@ -1328,6 +1338,7 @@ size_t WM_operator_py_idname(char *dst, const char *src) ATTR_NONNULL(1, 2);
 bool WM_operator_py_idname_ok_or_report(ReportList *reports,
                                         const char *classname,
                                         const char *idname);
+bool WM_operator_idname_ok_or_report(ReportList *reports, const char *idname);
 /**
  * Return true when an operators name follows the `SOME_OT_op` naming convention.
  */
@@ -1442,10 +1453,11 @@ void WM_uilisttype_free();
  * The "full" list-ID is an internal name used for storing and identifying a list. It is built like
  * this:
  * `{uiListType.idname}_{list_id}`, whereby `list_id` is an optional parameter passed to
- * `UILayout.template_list()`. If it is not set, the full list-ID is just `{uiListType.idname}_`.
+ * `blender::ui::Layout.template_list()`. If it is not set, the full list-ID is just
+ * `{uiListType.idname}_`.
  *
  * Note that whenever the Python API refers to the list-ID, it's the short, "non-full" one it
- * passed to `UILayout.template_list()`. C code can query that through
+ * passed to `blender::ui::Layout.template_list()`. C code can query that through
  * #WM_uilisttype_list_id_get().
  */
 void WM_uilisttype_to_full_list_id(const uiListType *ult,
@@ -1659,6 +1671,9 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
 /* ID drag and drop. */
 
 /**
+ * \note This can return null! Importing can fail if the asset was deleted or moved since the asset
+ * library was loaded.
+ *
  * \param flag_extra: Additional linking flags (from #eFileSel_Params_Flag).
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
@@ -2029,7 +2044,7 @@ void WM_window_status_area_tag_redraw(wmWindow *win);
  * use here since the area is stored in the window manager.
  */
 ScrArea *WM_window_status_area_find(wmWindow *win, bScreen *screen);
-bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *layout);
+bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui::Layout &layout);
 
 /* `wm_event_query.cc` */
 

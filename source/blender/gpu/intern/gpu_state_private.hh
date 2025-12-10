@@ -39,7 +39,6 @@ union GPUState {
     /** Enable bits. */
     uint32_t logic_op_xor : 1;
     uint32_t invert_facing : 1;
-    uint32_t shadow_bias : 1;
     /** Clip range of 0..1 on OpenGL. */
     uint32_t clip_control : 1;
     /** Number of clip distances enabled. */
@@ -157,8 +156,6 @@ class StateManager {
   virtual void image_bind(Texture *tex, int unit) = 0;
   virtual void image_unbind(Texture *tex) = 0;
   virtual void image_unbind_all() = 0;
-
-  virtual void texture_unpack_row_length_set(uint len) = 0;
 };
 
 /**
