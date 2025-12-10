@@ -74,6 +74,16 @@ void TexturePool::offset_users_count(Texture *tex, int offset)
   acquired_.add_overwrite({tex, users_count + offset, 0});
 }
 
+bool TexturePool::is_texture_transient(Texture *tex) const
+{
+  return tex != nullptr && acquired_transient_.contains(tex);
+}
+
+bool TexturePool::is_texture_persistent(Texture *tex) const
+{
+  return tex != nullptr && acquired_persistent_.contains(tex);
+}
+
 void TexturePool::reset(bool force_free)
 {
 #ifndef NDEBUG

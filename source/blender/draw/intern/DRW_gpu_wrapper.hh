@@ -1065,8 +1065,8 @@ class Texture : NonCopyable {
   }
 };
 
-/* TODO(not_mark): check with red leader if there's a standard place for fwds. */
 /* Forward declaration. */
+/* TODO(not_mark): check with red leader if there's a standard place for fwds. */
 class PersistentTextureFromPool;
 
 class TextureFromPool : public Texture, NonMovable {
@@ -1156,16 +1156,17 @@ class PersistentTextureFromPool : public Texture, NonMovable {
     release();
   }
 
-  /* `release()` after rendering is optional. */
+  /* Acquire is only handled if the texture is not already acquired. Further, `release()` after
+   * rendering is optional.. */
   bool ensure_acquire(int2 extent,
                       blender::gpu::TextureFormat format,
                       eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
   {
-    if (this->tx_ != nullptr) {
+    if (gpu::TexturePool::get().is_texture_persistent(tx_)) {
       return false;
     }
 
-    this->tx_ = gpu::TexturePool::get().acquire_texture(
+    tx_ = gpu::TexturePool::get().acquire_texture(
         UNPACK2(extent), format, usage, TEXTURE_LIFETIME_PERSISTENT);
 
     if (G.debug & G_DEBUG_GPU) {
@@ -1175,14 +1176,13 @@ class PersistentTextureFromPool : public Texture, NonMovable {
     return true;
   }
 
-  void release() 
+  /* Allows multiple releases safely. */
+  void release()
   {
-    /* Allows multiple release. */
-    if (this->tx_ == nullptr) {
-      return;
+    if (gpu::TexturePool::get().is_texture_persistent(tx_)) {
+      gpu::TexturePool::get().release_texture(tx_);
     }
-    gpu::TexturePool::get().release_texture(this->tx_);
-    this->tx_ = nullptr;
+    tx_ = nullptr;
   }
 
   /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
@@ -1190,7 +1190,7 @@ class PersistentTextureFromPool : public Texture, NonMovable {
   {
     return this;
   }
-  
+
   /** Remove methods that are forbidden with this type of textures. */
   bool ensure_1d(int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   bool ensure_1d_array(
@@ -1211,17 +1211,19 @@ class PersistentTextureFromPool : public Texture, NonMovable {
   gpu::Texture *stencil_view() = delete;
 };
 
-void TextureFromPool::swap(TextureFromPool &a, TextureFromPool &b)
+inline void TextureFromPool::swap(TextureFromPool &a, TextureFromPool &b)
 {
   Texture::swap(a, b);
 }
-void TextureFromPool::swap(TextureFromPool &a, PersistentTextureFromPool &b)
+
+inline void TextureFromPool::swap(TextureFromPool &a, PersistentTextureFromPool &b)
 {
   Texture::swap(a, b);
   gpu::TexturePool::get().make_texture_transient(a);
   gpu::TexturePool::get().make_texture_persistent(b);
 }
-void TextureFromPool::swap(PersistentTextureFromPool &a, TextureFromPool &b)
+
+inline void TextureFromPool::swap(PersistentTextureFromPool &a, TextureFromPool &b)
 {
   swap(b, a);
 }
