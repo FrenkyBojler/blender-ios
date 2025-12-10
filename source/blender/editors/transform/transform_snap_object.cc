@@ -102,6 +102,16 @@ static bool test_projected_edge_dist(const DistProjectedAABBPrecalc *precalc,
   return test_projected_vert_dist(precalc, clip_plane, clip_plane_len, is_persp, near_co, nearest);
 }
 
+static bool test_projected_face_center_dist(const DistProjectedAABBPrecalc *precalc,
+                                            const float (*clip_plane)[4],
+                                            const int clip_plane_len,
+                                            const bool is_persp,
+                                            const float center[3],
+                                            BVHTreeNearest *nearest)
+{
+  return test_projected_vert_dist(precalc, clip_plane, clip_plane_len, is_persp, center, nearest);
+}
+
 SnapData::SnapData(SnapObjectContext *sctx, const float4x4 &obmat)
     : nearest_precalc(),
       obmat_(obmat),
@@ -846,6 +856,26 @@ void cb_snap_edge(void *userdata,
   }
 }
 
+void cb_snap_face(void *userdata,
+                  int face_index,
+                  const DistProjectedAABBPrecalc *precalc,
+                  const float (*clip_plane)[4],
+                  const int clip_plane_len,
+                  BVHTreeNearest *nearest)
+{
+  SnapData *data = static_cast<SnapData *>(userdata);
+
+  float3 center;
+  data->get_face_center(face_index, center);
+
+  if (test_projected_face_center_dist(
+          precalc, clip_plane, clip_plane_len, data->is_persp, center, nearest))
+  {
+    data->copy_face_no(face_index, nearest->no);
+    nearest->index = face_index;
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1353,7 +1383,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (use_occlusion_plane || (snap_to_flag & (SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT)) ||
+  if (use_occlusion_plane || (snap_to_flag & SCE_SNAP_TO_FACE) ||
       /* Snap to Grid requires `ray_start` and `ray_dir`. */
       (snap_to_flag & SCE_SNAP_TO_GRID))
   {
@@ -1426,7 +1456,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (use_occlusion_plane || (snap_to_flag & (SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT))) {
+  if (use_occlusion_plane || (snap_to_flag & SCE_SNAP_TO_FACE)) {
     has_hit = raycastObjects(sctx);
 
     if (has_hit) {
@@ -1434,23 +1464,17 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
         copy_v3_v3(r_face_nor, sctx->ret.no);
       }
 
-      if (snap_to_flag & SCE_SNAP_TO_FACE_MIDPOINT &&
-          snap_polygon(sctx, SCE_SNAP_TO_FACE_MIDPOINT) != SCE_SNAP_TO_NONE)
-      {
-        retval = SCE_SNAP_TO_FACE_MIDPOINT;
-      }
-      else if (snap_to_flag & SCE_SNAP_TO_FACE) {
+      if (snap_to_flag & SCE_SNAP_TO_FACE) {
         retval |= SCE_SNAP_TO_FACE;
       }
     }
   }
 
-  if (snap_to_flag & (SCE_SNAP_TO_POINT | SNAP_TO_EDGE_ELEMENTS)) {
+  if (snap_to_flag & (SCE_SNAP_TO_POINT | SNAP_TO_EDGE_ELEMENTS | SCE_SNAP_TO_FACE_MIDPOINT)) {
     eSnapMode elem_test, elem = SCE_SNAP_TO_NONE;
 
     /* Remove what has already been computed. */
-    sctx->runtime.snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT |
-                                    SCE_SNAP_INDIVIDUAL_NEAREST);
+    sctx->runtime.snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_INDIVIDUAL_NEAREST);
 
     SnapObjectContext::Output ret_bak{};
     if (!(sctx->runtime.snap_to_flag & SCE_SNAP_TO_EDGE) &&
