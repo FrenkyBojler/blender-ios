@@ -269,7 +269,6 @@ class SnapData_Mesh : public SnapData {
 
   void get_face_center(const int face_index, float3 &r_center) override
   {
-
     const int start = this->face_offsets[face_index];
     const int end = this->face_offsets[face_index + 1];
     const IndexRange face = IndexRange::from_begin_end(start, end);
