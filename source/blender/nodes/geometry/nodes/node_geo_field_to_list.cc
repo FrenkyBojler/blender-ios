@@ -60,7 +60,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
-  if (uiLayout *panel = layout.panel(C, "field_to_list_items", false, IFACE_("Items"))) {
+  if (ui::Layout *panel = layout.panel(C, "field_to_list_items", false, IFACE_("Items"))) {
     socket_items::ui::draw_items_list_with_operators<ItemsAccessor>(C, panel, tree, node);
     socket_items::ui::draw_active_item_props<ItemsAccessor>(tree, node, [&](PointerRNA *item_ptr) {
       panel->use_property_split_set(true);
