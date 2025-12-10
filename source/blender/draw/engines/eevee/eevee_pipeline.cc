@@ -307,7 +307,7 @@ void Prepass::setup_subpasses(DRWState common_state)
 
 PassMain::Sub *Prepass::add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion)
 {
-  bool double_sided = blender_mat->blend_flag & MA_BL_CULL_BACKFACE;
+  bool double_sided = !(blender_mat->blend_flag & MA_BL_CULL_BACKFACE);
   bool write_id = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
   PassMain::Sub *pass = prepass_subpasses[double_sided][has_motion][write_id];
   return &pass->sub(GPU_material_get_name(gpumat));
