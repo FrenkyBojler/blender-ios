@@ -43,58 +43,47 @@ def sanity_check_general():
     e, t = _test_vars(window := _test_window())
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.a()     # Animation
+    yield e.space().text("Animation").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Animation")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.c()     # Compositing
+    yield e.space().text("Compositing").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Compositing")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.g()     # Geometry Nodes
+    yield e.space().text("Geometry Nodes").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Geometry Nodes")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.l()     # Layout
+    yield e.space().text("Layout").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Layout")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.m()     # Modeling
+    yield e.space().text("Modeling").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Modeling")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.r()     # Rendering
+    yield e.space().text("Rendering").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Rendering")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.s()     # Scripting
+    yield e.space().text("Scripting").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Scripting")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.p()     # Sculpting
+    yield e.space().text("Sculpting").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Sculpting")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.h()     # Shading
+    yield e.space().text("Shading").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Shading")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.t()     # Texture Paint
+    yield e.space().text("Texture Paint").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Texture Paint")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.g()     # General
-    yield e.u()     # UV Editing
+    yield e.space().text("UV Editing").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "UV Editing")
 
 
@@ -102,13 +91,11 @@ def sanity_check_2d_animation():
     e, t = _test_vars(window := _test_window())
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.d()     # 2D Animation
-    yield e.d()     # 2D Animation
+    yield e.space().text("2D Animation").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "2D Animation")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.d()     # 2D Animation
-    yield e.f()     # 2D Full Canvas
+    yield e.space().text("2D Full Canvas").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "2D Full Canvas")
 
 
@@ -116,13 +103,11 @@ def sanity_check_sculpting():
     e, t = _test_vars(window := _test_window())
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.s()     # Sculpting
-    yield e.s()     # Sculpting
+    yield e.space().text("Sculpting").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Sculpting")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.s()     # Sculpting
-    yield e.h()     # Shading
+    yield e.space().text("Shading").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Shading")
 
 
@@ -130,13 +115,11 @@ def sanity_check_storyboarding():
     e, t = _test_vars(window := _test_window())
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.t()     # Storyboarding
-    yield e.v()     # Video Editing
+    yield e.space().text("Video Editing").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Video Editing")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.t()     # Storyboarding
-    yield e.s()     # Storyboarding
+    yield e.space().text("Storyboarding").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Storyboarding")
 
 
@@ -144,23 +127,19 @@ def sanity_check_vfx():
     e, t = _test_vars(window := _test_window())
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.v()     # VFX
-    yield e.c()     # Compositing
+    yield e.space().text("Compositing").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Compositing")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.v()     # VFX
-    yield e.m()     # Masking
+    yield e.space().text("Masking").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Masking")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.v()     # VFX
-    yield e.t()     # Motion Tracking
+    yield e.space().text("Motion Tracking").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Motion Tracking")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.v()     # VFX
-    yield e.r()     # Rendering
+    yield e.space().text("Rendering").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Rendering")
 
 
@@ -168,11 +147,9 @@ def sanity_check_video_editing():
     e, t = _test_vars(window := _test_window())
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.e()     # Video Editing
-    yield e.r()     # Rendering
+    yield e.space().text("Rendering").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Rendering")
 
     yield from _call_by_name(e, "Add Workspace")
-    yield e.e()     # Video Editing
-    yield e.v()     # Video Editing
+    yield e.space().text("Video Editing").ret()
     t.assertEqual(window.workspace.name_full.split(".", 1)[0], "Video Editing")
