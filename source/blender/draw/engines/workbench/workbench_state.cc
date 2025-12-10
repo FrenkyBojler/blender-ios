@@ -325,12 +325,15 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
           C, &scene_state.scene->toolsettings->paint_mode, *ob, color_type);
     }
 
-    if (color_type == V3D_SHADING_TEXTURE_COLOR &&
-        ED_image_paint_brush_type_use_canvas(C, nullptr) && has_uv())
-    {
-      show_missing_texture = true;
+    /* Override object shading to show current image texture if using experimental texture paint
+     * and the canvas selector is set to image mode. */
+    const bool is_paint_mode = is_active && USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint) &&
+                               color_type == V3D_SHADING_TEXTURE_COLOR &&
+                               ED_image_paint_brush_type_use_canvas(C, nullptr);
+    if (is_paint_mode && has_uv()) {
       const PaintModeSettings *paint_mode = &scene_state.scene->toolsettings->paint_mode;
       if (paint_mode->canvas_source == PAINT_CANVAS_SOURCE_IMAGE) {
+        show_missing_texture = true;
         if (paint_mode->canvas_image) {
           image_paint_override = MaterialTexture(paint_mode->canvas_image);
           image_paint_override.sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
