@@ -16,6 +16,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_blender.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_report.hh"
 
 #include "RNA_access.hh"
@@ -311,7 +312,7 @@ static std::optional<std::string> rna_ActionSlot_path(const PointerRNA *ptr)
 int rna_ActionSlot_target_id_type_icon_get(PointerRNA *ptr)
 {
   animrig::Slot &slot = rna_data_slot(ptr);
-  return UI_icon_from_idcode(slot.idtype);
+  return blender::ui::icon_from_idcode(slot.idtype);
 }
 
 /* Name functions that ignore the first two ID characters */
@@ -667,6 +668,36 @@ static FCurve *rna_Channelbag_fcurve_new(ActionChannelbag *dna_channelbag,
     return nullptr;
   }
   return fcurve;
+}
+
+static FCurve *rna_Channelbag_fcurve_new_from_fcurve(ID *dna_action_id,
+                                                     ActionChannelbag *dna_channelbag,
+                                                     ReportList *reports,
+                                                     FCurve *source,
+                                                     const char *data_path)
+{
+  animrig::Channelbag &self = dna_channelbag->wrap();
+
+  if (!data_path) {
+    data_path = source->rna_path;
+  }
+
+  if (self.fcurve_find({data_path, source->array_index})) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "F-Curve '%s[%d]' already exists in this channelbag",
+                data_path,
+                source->array_index);
+    return nullptr;
+  }
+  FCurve *copy = BKE_fcurve_copy(source);
+  MEM_SAFE_FREE(copy->rna_path);
+  copy->rna_path = BLI_strdupn(data_path, strlen(data_path));
+  self.fcurve_append(*copy);
+
+  DEG_id_tag_update(dna_action_id, ID_RECALC_ANIMATION_NO_FLUSH);
+
+  return copy;
 }
 
 static FCurve *rna_Channelbag_fcurve_ensure(ActionChannelbag *dna_channelbag,
@@ -1123,40 +1154,6 @@ bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
   /* Layered Actions can always be assigned. */
   BLI_assert(action.idroot == 0);
   return true;
-}
-
-/**
- * Used to check if an action (value pointer)
- * can be assigned to Action Editor given current mode.
- */
-bool rna_Action_actedit_assign_poll(PointerRNA *ptr, PointerRNA value)
-{
-  SpaceAction *saction = (SpaceAction *)ptr->data;
-  bAction *action = (bAction *)value.owner_id;
-
-  if (!saction) {
-    /* Unable to determine what this Action is going to be assigned to, so
-     * reject it for now. This is mostly to have a non-functional refactor of
-     * this code; personally I (Sybren) wouldn't mind to always return `true` in
-     * this case. */
-    return false;
-  }
-
-  switch (saction->mode) {
-    case SACTCONT_ACTION:
-      return blender::animrig::is_action_assignable_to(action, ID_OB);
-    case SACTCONT_SHAPEKEY:
-      return blender::animrig::is_action_assignable_to(action, ID_KE);
-    case SACTCONT_GPENCIL:
-    case SACTCONT_DOPESHEET:
-    case SACTCONT_MASK:
-    case SACTCONT_CACHEFILE:
-      break;
-  }
-
-  /* Same as above, I (Sybren) wouldn't mind returning `true` here to just
-   * always show all Actions in an unexpected place. */
-  return false;
 }
 
 /**
@@ -2143,6 +2140,22 @@ static void rna_def_channelbag_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
       sizeof(bActionGroup::name),
       "Group Name",
       "Name of the Group for this F-Curve, will be created if it does not exist yet");
+  parm = RNA_def_pointer(func, "fcurve", "FCurve", "", "Newly created F-Curve");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "new_from_fcurve", "rna_Channelbag_fcurve_new_from_fcurve");
+  RNA_def_function_ui_description(
+      func, "Copy an F-Curve into the channelbag. The original F-Curve is unchanged");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "source", "FCurve", "Source F-Curve", "The F-Curve to copy");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(func,
+                        "data_path",
+                        nullptr,
+                        0,
+                        "Data Path",
+                        "F-Curve data path to use. If not provided, this will use the same data "
+                        "path as the given F-Curve");
   parm = RNA_def_pointer(func, "fcurve", "FCurve", "", "Newly created F-Curve");
   RNA_def_function_return(func, parm);
 

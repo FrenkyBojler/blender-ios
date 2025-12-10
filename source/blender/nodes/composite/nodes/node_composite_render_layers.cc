@@ -156,18 +156,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   declare_extra_passes(b, scene, view_layer);
 }
 
-static void node_draw(uiLayout *layout, bContext *context, PointerRNA *node_pointer)
+static void node_draw(ui::Layout &layout, bContext *context, PointerRNA *node_pointer)
 {
-  uiTemplateID(layout, context, node_pointer, "scene", nullptr, nullptr, nullptr);
+  template_id(&layout, context, node_pointer, "scene", nullptr, nullptr, nullptr);
 
   const bNode *node = node_pointer->data_as<bNode>();
   if (!node->id) {
     return;
   }
 
-  uiLayout *column = &layout->column(false);
-  uiLayout *row = &column->row(true);
-  row->prop(node_pointer, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  ui::Layout &column = layout.column(false);
+  ui::Layout &row = column.row(true);
+  row.prop(node_pointer, "layer", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   PropertyRNA *layer_property = RNA_struct_find_property(node_pointer, "layer");
   const char *layer_name;
@@ -184,7 +184,7 @@ static void node_draw(uiLayout *layout, bContext *context, PointerRNA *node_poin
   PointerRNA scene_pointer = RNA_pointer_get(node_pointer, "scene");
   RNA_string_get(&scene_pointer, "name", scene_name);
 
-  PointerRNA render_operator = row->op(
+  PointerRNA render_operator = row.op(
       "RENDER_OT_render", "", ICON_RENDER_STILL, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_string_set(&render_operator, "layer", layer_name);
   RNA_string_set(&render_operator, "scene", scene_name);
@@ -290,11 +290,6 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
-    if (!this->context().is_valid_compositing_region()) {
-      result.allocate_invalid();
-      return;
-    }
-
     /* Vector sockets are 3D by default, so we need to overwrite the type if the pass turned out to
      * be 4D. */
     if (result.type() == ResultType::Float3 && pass.type() == ResultType::Float4) {
@@ -318,15 +313,15 @@ class RenderLayerOperation : public NodeOperation {
 
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const int2 lower_bound = this->context().get_compositing_region().min;
+    const int2 lower_bound = this->context().get_input_region().min;
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
 
     pass.bind_as_texture(shader, "input_tx");
 
-    result.allocate_texture(Domain(this->context().get_compositing_region_size()));
+    result.allocate_texture(this->context().get_compositing_domain());
     result.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, result.domain().size);
+    compute_dispatch_threads_at_least(shader, result.domain().data_size);
 
     GPU_shader_unbind();
     pass.unbind_as_texture();
@@ -369,18 +364,18 @@ class RenderLayerOperation : public NodeOperation {
   {
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const int2 lower_bound = this->context().get_compositing_region().min;
+    const int2 lower_bound = this->context().get_input_region().min;
 
-    result.allocate_texture(Domain(this->context().get_compositing_region_size()));
+    result.allocate_texture(this->context().get_compositing_domain());
 
     /* Special case for alpha output. */
     if (pass.type() == ResultType::Color && result.type() == ResultType::Float) {
-      parallel_for(result.domain().size, [&](const int2 texel) {
+      parallel_for(result.domain().data_size, [&](const int2 texel) {
         result.store_pixel(texel, pass.load_pixel<Color>(texel + lower_bound).a);
       });
     }
     else {
-      parallel_for(result.domain().size, [&](const int2 texel) {
+      parallel_for(result.domain().data_size, [&](const int2 texel) {
         result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
       });
     }

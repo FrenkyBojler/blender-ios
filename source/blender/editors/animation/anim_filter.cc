@@ -79,14 +79,13 @@
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "ED_anim_api.hh"
-#include "ED_markers.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
@@ -95,7 +94,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_armature.hh"
-#include "ANIM_bone_collections.hh"
 
 #include "anim_intern.hh"
 
@@ -349,7 +347,8 @@ static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
   /* sync settings with current view status, then return appropriate data */
   /* update scene-pointer (no need to check for pinning yet, as not implemented) */
   snla->ads->source = reinterpret_cast<ID *>(ac->scene);
-  ac->filters.flag |= ADS_FILTER_ONLYNLA;
+  ac->filters.flag = eDopeSheet_FilterFlag(snla->ads->filterflag | ADS_FILTER_ONLYNLA);
+  ac->filters.flag2 = eDopeSheet_FilterFlag2(snla->ads->filterflag2);
 
   ac->datatype = ANIMCONT_NLA;
   ac->data = snla->ads;
@@ -1098,7 +1097,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
           return true;
         }
 
-        if ((strip->flag & SELECT) == 0) {
+        if ((strip->flag & SEQ_SELECT) == 0) {
           return true;
         }
       }
@@ -3950,12 +3949,9 @@ static size_t animdata_filter_remove_invalid(ListBase *anim_data)
 /* Remove duplicate entries in animation channel list */
 static size_t animdata_filter_remove_duplis(ListBase *anim_data)
 {
-  GSet *gs;
-  size_t items = 0;
-
   /* Build new hash-table to efficiently store and retrieve which entries have been
    * encountered already while searching. */
-  gs = BLI_gset_ptr_new(__func__);
+  Set<const void *> gs;
 
   /* loop through items, removing them from the list if a similar item occurs already */
   LISTBASE_FOREACH_MUTABLE (bAnimListElem *, ale, anim_data) {
@@ -3964,21 +3960,14 @@ static size_t animdata_filter_remove_duplis(ListBase *anim_data)
      *   ale->type in combination too to capture corner cases
      *   (where same data performs differently)
      */
-    if (BLI_gset_add(gs, ale->data)) {
-      /* this entry is 'unique' and can be kept */
-      items++;
-    }
-    else {
+    if (!gs.add(ale->data)) {
       /* this entry isn't needed anymore */
       BLI_freelinkN(anim_data, ale);
     }
   }
 
-  /* free the hash... */
-  BLI_gset_free(gs, nullptr);
-
   /* return the number of items still in the list */
-  return items;
+  return gs.size();
 }
 
 /* ----------- Public API --------------- */

@@ -228,8 +228,7 @@ extern GHOST_TSuccess GHOST_DisposeWindow(GHOST_SystemHandle systemhandle,
  */
 extern bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windowhandle);
 
-/*
- **
+/**
  * Returns high dynamic range color information about this window.
  * \return HDR info.
  */
@@ -247,6 +246,9 @@ extern GHOST_WindowHDRInfo GHOST_WindowGetHDRInfo(GHOST_WindowHandle windowhandl
 extern GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemhandle,
                                                      int32_t x,
                                                      int32_t y);
+
+extern void GHOST_SetWindowCSD(GHOST_SystemHandle systemhandle, GHOST_CSD_Params *params);
+extern const GHOST_CSD_Layout *GHOST_GetWindowCSD_Layout(GHOST_SystemHandle systemhandle);
 
 /***************************************************************************************
  * Event management functionality

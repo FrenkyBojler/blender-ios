@@ -52,6 +52,8 @@ class GLBackend : public GPUBackend {
     GLBackend::platform_init();
 
     GLBackend::capabilities_init();
+    GLBackend::log_extensions();
+    GLBackend::log_workarounds();
     GLTexture::samplers_init();
   }
   ~GLBackend()
@@ -96,9 +98,9 @@ class GLBackend : public GPUBackend {
     return new GLBatch();
   };
 
-  Fence *fence_alloc(const char *name) override
+  Fence *fence_alloc() override
   {
-    return new GLFence(name);
+    return new GLFence();
   };
 
   FrameBuffer *framebuffer_alloc(const char *name) override
@@ -190,6 +192,9 @@ class GLBackend : public GPUBackend {
   static void platform_exit();
 
   static void capabilities_init();
+
+  static void log_extensions();
+  static void log_workarounds();
 };
 
 }  // namespace gpu
