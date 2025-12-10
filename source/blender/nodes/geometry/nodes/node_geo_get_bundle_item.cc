@@ -73,7 +73,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const std::string name = params.extract_input<std::string>("Name");
-  // const bool remove = params.extract_input<bool>("Remove");
+  const bool remove = params.extract_input<bool>("Remove");
 
   if (name.empty()) {
     params.set_output("Bundle", std::move(bundle));
@@ -105,10 +105,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  // if (remove) {
-  //   bundle = bundle->copy();
-  //   const_cast<Bundle &>(*bundle).remove(name);
-  // }
+  if (remove) {
+    if (!bundle->is_mutable()) {
+      bundle = bundle->copy();
+    }
+    bundle->tag_ensured_mutable();
+    const_cast<Bundle &>(*bundle).remove(name);
+  }
 
   params.set_output("Bundle", std::move(bundle));
   params.set_output("Item", std::move(output_value));
