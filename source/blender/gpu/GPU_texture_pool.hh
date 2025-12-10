@@ -15,9 +15,9 @@
 
 #include "GPU_texture.hh"
 
-/* Explicit lifetime hints for texture pool resources. Transient textures must be handed back in
- * the same cycle, while persistent textures must be handed back before a full reset. */
-enum eTextureLifetime { TEXTURE_LIFETIME_TRANSIENT, TEXTURE_LIFETIME_PERSISTENT };
+/* Texture pool resources have one of two lifetimes. Transient resources must be handed back in
+ * the same cycle. Persistent resources must not, but will be invalidated on full reset. */
+enum eGPUTextureLifetime { GPU_TEXTURE_LIFETIME_TRANSIENT, GPU_TEXTURE_LIFETIME_PERSISTENT };
 
 namespace blender::gpu {
 
@@ -36,8 +36,10 @@ class TexturePool {
 
   /* Pool of texture ready to be reused. */
   Vector<TextureHandle> pool_;
-  /* List of textures that are currently being used. Tracked to check memory leak. */
-  Vector<gpu::Texture *> acquired_;
+  /* List of in use transient textures. Tracked on each reset() to check memory leaks. */
+  Vector<Texture *> acquired_transient_;
+  /* List of in use persistent textures. Forcibly invalidated on reset(force_free=true). */
+  Vector<Texture *> acquired_persistent_;
 
  public:
   ~TexturePool();
@@ -51,7 +53,7 @@ class TexturePool {
                            int height,
                            TextureFormat format,
                            eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
-                           eTextureLifetime lifetime = TEXTURE_LIFETIME_TRANSIENT);
+                           eGPUTextureLifetime lifetime = GPU_TEXTURE_LIFETIME_TRANSIENT);
 
   /* Release the texture so that its memory can be reused at some other point. */
   void release_texture(Texture *tmp_tex);
@@ -60,7 +62,7 @@ class TexturePool {
   void make_texture_persistent(Texture *tex);
   void make_texture_transient(Texture *tex);
 
-  /* Query current lifetime of a texture. */
+  /* Query whether a texture is resident with specific lifetime. */
   bool is_texture_persistent(Texture *tex) const;
   bool is_texture_transient(Texture *tex) const;
 

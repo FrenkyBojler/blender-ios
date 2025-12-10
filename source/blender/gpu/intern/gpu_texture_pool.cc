@@ -28,8 +28,11 @@ TexturePool::~TexturePool()
   }
 }
 
-Texture *TexturePool::acquire_texture(
-    int width, int height, TextureFormat format, eGPUTextureUsage usage, eTextureLifetime lifetime)
+Texture *TexturePool::acquire_texture(int width,
+                                      int height,
+                                      TextureFormat format,
+                                      eGPUTextureUsage usage,
+                                      eGPUTextureLifetime lifetime)
 {
   int64_t match_index = -1;
 
@@ -49,10 +52,10 @@ Texture *TexturePool::acquire_texture(
     Texture *tex = pool_[match_index].texture;
     pool_.remove_and_reorder(match_index);
 
-    if (lifetime == TEXTURE_LIFETIME_TRANSIENT) {
+    if (lifetime == GPU_TEXTURE_LIFETIME_TRANSIENT) {
       acquired_transient_.append(tex);
     }
-    else { /* TEXTURE_LIFETIME_PERSISTENT */
+    else { /* GPU_TEXTURE_LIFETIME_PERSISTENT */
       acquired_persistent_.append(tex);
     }
 
@@ -68,10 +71,10 @@ Texture *TexturePool::acquire_texture(
   }
   Texture *tex = GPU_texture_create_2d(name, width, height, 1, format, usage, nullptr);
 
-  if (lifetime == TEXTURE_LIFETIME_TRANSIENT) {
+  if (lifetime == GPU_TEXTURE_LIFETIME_TRANSIENT) {
     acquired_transient_.append(tex);
   }
-  else { /* TEXTURE_LIFETIME_PERSISTENT */
+  else { /* GPU_TEXTURE_LIFETIME_PERSISTENT */
     acquired_persistent_.append(tex);
   }
 

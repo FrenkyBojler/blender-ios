@@ -1099,7 +1099,7 @@ struct TextureFromPool : public TextureFromPoolBase {
   {
     BLI_assert(!gpu::TexturePool::get().is_texture_transient(tx_));
     tx_ = gpu::TexturePool::get().acquire_texture(
-        UNPACK2(extent), format, usage, TEXTURE_LIFETIME_TRANSIENT);
+        UNPACK2(extent), format, usage, GPU_TEXTURE_LIFETIME_TRANSIENT);
 
     if (G.debug & G_DEBUG_GPU) {
       debug_clear();
@@ -1147,7 +1147,7 @@ struct TextureFromPoolPersistent : public TextureFromPoolBase {
       return false;
     }
     tx_ = gpu::TexturePool::get().acquire_texture(
-        UNPACK2(extent), format, usage, TEXTURE_LIFETIME_PERSISTENT);
+        UNPACK2(extent), format, usage, GPU_TEXTURE_LIFETIME_PERSISTENT);
 
     if (G.debug & G_DEBUG_GPU) {
       debug_clear();
