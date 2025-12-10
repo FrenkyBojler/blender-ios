@@ -404,6 +404,10 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (origin_socket.in_out != SOCK_OUT) {
     return;
   }
+  const eNodeSocketDatatype origin_socket_type = eNodeSocketDatatype(origin_socket.type);
+  if (!FileOutputItemsAccessor::supports_socket_type(origin_socket_type, NTREE_COMPOSIT)) {
+    return;
+  }
   params.add_item("File Output", [](LinkSearchOpParams &params) {
     bNode &node = params.add_node("CompositorNodeOutputFile");
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.socket.type);
