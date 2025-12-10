@@ -794,42 +794,26 @@ static void copy_key(const int start,
   }
 }
 
-static void cp_cu_key(Curve *cu,
-                      Key *key,
-                      KeyBlock *actkb,
-                      KeyBlock *kb,
-                      const int start,
-                      int end,
-                      char *out,
-                      const int tot)
+static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, int tot, char *out)
 {
   Nurb *nu;
   int a, step, a1, a2;
-
   for (a = 0, nu = static_cast<Nurb *>(cu->nurb.first); nu; nu = nu->next, a += step) {
     if (nu->bp) {
       step = KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
-
-      a1 = max_ii(a, start);
-      a2 = min_ii(a + step, end);
-
-      if (a1 < a2) {
-        copy_key(a1, a2, tot, out, key, actkb, kb, nullptr, KEY_MODE_BPOINT);
-      }
     }
     else if (nu->bezt) {
       step = KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
-
-      /* Exception because keys prefer to work with complete blocks. */
-      a1 = max_ii(a, start);
-      a2 = min_ii(a + step, end);
-
-      if (a1 < a2) {
-        copy_key(a1, a2, tot, out, key, actkb, kb, nullptr, KEY_MODE_BEZTRIPLE);
-      }
     }
     else {
       step = 0;
+      continue;
+    }
+
+    a1 = max_ii(a, 0);
+    a2 = min_ii(a + step, tot);
+    if (a1 < a2) {
+      copy_key(a1, a2, tot, out, key, actkb, kb, nullptr, KEY_MODE_BEZTRIPLE);
     }
   }
 }
@@ -1406,7 +1390,7 @@ static void do_curve_key(Object *ob, Key *key, char *out, const int tot)
       do_cu_key(cu, key, actkb, k, t, out, tot);
     }
     else {
-      cp_cu_key(cu, key, actkb, k[2], 0, tot, out, tot);
+      cp_cu_key(cu, key, actkb, k[2], tot, out);
     }
   }
 }
@@ -1525,7 +1509,7 @@ float *BKE_key_evaluate_object_ex(
       }
     }
     else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
-      cp_cu_key(static_cast<Curve *>(ob->data), key, actkb, kb, 0, tot, out, tot);
+      cp_cu_key(static_cast<Curve *>(ob->data), key, actkb, kb, tot, out);
     }
   }
   else {
