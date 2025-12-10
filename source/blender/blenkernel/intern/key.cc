@@ -1307,7 +1307,7 @@ static void do_mesh_key(Object *ob, Key *key, char *out, const int tot)
       do_key(0, tot, tot, out, key, actkb, k, t, KEY_MODE_DUMMY);
     }
     else {
-      copy_key(0, tot, tot, out, key, actkb, k[2], nullptr, KEY_MODE_DUMMY);
+      copy_key_float3_range({0, tot}, key, actkb, reinterpret_cast<float *>(out));
     }
   }
 }
@@ -1400,7 +1400,7 @@ static void do_latt_key(Object *ob, Key *key, char *out, const int tot)
       do_key(0, tot, tot, out, key, actkb, k, t, KEY_MODE_DUMMY);
     }
     else {
-      copy_key(0, tot, tot, out, key, actkb, k[2], nullptr, KEY_MODE_DUMMY);
+      copy_key_float3_range({0, tot}, key, actkb, reinterpret_cast<float *>(out));
     }
   }
 
