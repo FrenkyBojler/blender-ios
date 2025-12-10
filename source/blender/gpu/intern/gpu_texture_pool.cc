@@ -83,16 +83,20 @@ Texture *TexturePool::acquire_texture(int width,
 
 void TexturePool::release_texture(Texture *tex)
 {
-  if (int idx = acquired_transient_.first_index_of_try(tex); idx != -1) {
+  int idx;
+  idx = acquired_transient_.first_index_of_try(tex);
+  if (idx != -1) {
     acquired_transient_.remove_and_reorder(idx);
+    pool_.append({tex, 0});
+    return;
   }
-  else if (int idx = acquired_persistent_.first_index_of_try(tex); idx != -1) {
+  idx = acquired_persistent_.first_index_of_try(tex);
+  if (idx != -1) {
     acquired_persistent_.remove_and_reorder(idx);
+    pool_.append({tex, 0});
+    return;
   }
-  else {
-    BLI_assert_msg(false, "Unacquired texture release in TexturePool.release_texture().");
-  }
-  pool_.append({tex, 0});
+  BLI_assert_msg(false, "Unacquired texture release in TexturePool.release_texture().");
 }
 
 void TexturePool::make_texture_transient(Texture *tex)
