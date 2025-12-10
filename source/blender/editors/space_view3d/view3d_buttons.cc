@@ -1591,9 +1591,8 @@ static void v3d_editvertex_buts(
 }
 
 #undef TRANSFORM_MEDIAN_ARRAY_LEN
-#define B_VGRP_PNL_EDIT_SINGLE \
-  8 /* \
-or greater */
+
+#define B_VGRP_PNL_EDIT_SINGLE 8 /* or greater */
 
 static void do_view3d_vgroup_buttons(bContext *C, void * /*arg*/, int event)
 {
