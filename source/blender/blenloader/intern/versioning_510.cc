@@ -346,6 +346,7 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
   bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputLight");
   bNodeSocket &output_surface_input = version_node_add_socket(
       *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
+  new_output.flag |= NODE_DO_OUTPUT;
 
   bNode &emission = version_node_add_empty(*ntree, "ShaderNodeEmission");
   bNodeSocket &emission_color_input = version_node_add_socket(
