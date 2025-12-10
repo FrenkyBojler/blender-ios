@@ -124,6 +124,6 @@ else()
 
   # Strip all shared/static libraries in the HARVEST_TARGET location.
   function(harvest_strip_all_libraries)
-    install(CODE "execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/utils/strip_libraries.py ${HARVEST_TARGET})")
+    install(CODE "execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/utils/strip_libraries.py ${HARVEST_TARGET} ${LIBDIR}/llvm/bin)")
   endfunction()
 endif()

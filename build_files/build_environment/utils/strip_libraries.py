@@ -16,21 +16,33 @@ Usage:
 import argparse
 import subprocess
 import sys
+from itertools import chain
 from pathlib import Path
 
+def get_strip_command(args) -> str:
+    if sys.platform == "linux":
+        return "strip"
 
-def print_strip_lib(strip_lib: Path, prev_print_len: int) -> int:
-    print_str = f"Stripping: {strip_lib}"
-    if prev_print_len > 0:
-        print(f"\r{' ' * prev_print_len}\r", end="")
-    print(print_str, end="", flush=True)
-    return len(print_str)
+    llvm_dir = str(args.llvm_bin)
+    return llvm_dir + "/llvm-strip"
+
+def get_objcopy_command(args) -> str:
+    if sys.platform == "linux":
+        return "objcopy"
+
+    llvm_dir = str(args.llvm_bin)
+    return llvm_dir + "/llvm-objcopy"
 
 
-def strip_libs(strip_dir: Path) -> None:
+def strip_libs(args) -> None:
+    strip_dir = args.directory
     print(f"Stripping libraries in: {strip_dir}")
-    prev_print_len = 0
-    for shared_lib in strip_dir.rglob("*.so*"):
+
+    libs_to_strip = [strip_dir.rglob("*.so*")]
+    if sys.platform == "darwin":
+        libs_to_strip.append(strip_dir.rglob("*.dylib*"))
+
+    for shared_lib in chain(*libs_to_strip):
         if shared_lib.suffix == ".py":
             # Work around badly named `sycl` scripts.
             continue
@@ -39,15 +51,15 @@ def strip_libs(strip_dir: Path) -> None:
             # Don't strip symbolic-links as we don't want to strip the same library multiple times.
             continue
 
-        prev_print_len = print_strip_lib(shared_lib, prev_print_len)
-        subprocess.check_call(["strip", "-s", "--enable-deterministic-archives", shared_lib])
+        print(f"Stripping shared library: {shared_lib}")
+        subprocess.check_call([get_strip_command(args), "-s", "--enable-deterministic-archives", shared_lib])
     for static_lib in strip_dir.rglob("*.a"):
         if static_lib.is_symlink():
             # Don't strip symbolic-links as we don't want to strip the same library multiple times.
             continue
 
-        prev_print_len = print_strip_lib(static_lib, prev_print_len)
-        subprocess.check_call(["objcopy", "--enable-deterministic-archives", static_lib])
+        print(f"Stripping static library: {static_lib}")
+        subprocess.check_call([get_objcopy_command(args), "--enable-deterministic-archives", static_lib])
 
     print("\nDone stripping libraries!")
 
@@ -58,10 +70,14 @@ def main() -> None:
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("directory", type=Path, help="Path to the library directory to strip")
-    args = parser.parse_args()
+    parser.add_argument("llvm_bin",
+                        type=Path,
+                        help="Path to the LLVM lib directory from which to obtain the strip/objcopy binaries on macOS")
 
-    if sys.platform == "linux":
-        strip_libs(args.directory)
+    if sys.platform not in {"darwin", "linux"}:
+        return
+
+    strip_libs(parser.parse_args())
 
 
 if __name__ == "__main__":

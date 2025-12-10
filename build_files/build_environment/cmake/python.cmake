@@ -159,17 +159,14 @@ else()
     )
   endif()
 
-  # NOTE: untested on APPLE so far.
-  if(NOT APPLE)
-    set(PYTHON_CONFIGURE_EXTRA_ARGS
-      ${PYTHON_CONFIGURE_EXTRA_ARGS}
-      # We disable optimizations as this flag turns on PGO which leads to non-reproducible builds.
-      --disable-optimizations
-      # While LTO is OK when building on the same system, it's incompatible across GCC versions,
-      # making it impractical for developers to build against, so keep it disabled.
-      # `--with-lto`
-    )
-  endif()
+  set(PYTHON_CONFIGURE_EXTRA_ARGS
+    ${PYTHON_CONFIGURE_EXTRA_ARGS}
+    # We disable optimizations as this flag turns on PGO which leads to non-reproducible builds.
+    --disable-optimizations
+    # While LTO is OK when building on the same system, it's incompatible across GCC versions,
+    # making it impractical for developers to build against, so keep it disabled.
+    # `--with-lto`
+  )
 
   ExternalProject_Add(external_python
     URL file://${PACKAGE_DIR}/${PYTHON_FILE}
