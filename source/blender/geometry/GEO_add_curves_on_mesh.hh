@@ -16,7 +16,6 @@ namespace blender {
 template<int DimsNum> struct KDTree;
 }  // namespace blender
 
-
 namespace blender::geometry {
 
 struct AddCurvesOnMeshInputs {
