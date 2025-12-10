@@ -116,9 +116,7 @@ class RayTraceResultTexture {
   {
     if (history_) {
       /* Swap after last use. */
-      auto &result = *result_;
-      auto &history = *history_;
-      TextureFromPoolPersistent::swap(result, history);
+      TextureFromPoolPersistent::swap(*result_, *history_);
     }
     /* NOTE: This releases the previous history. */
     result_->release();
