@@ -415,7 +415,6 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
   SnapData_Mesh nearest2d(sctx, mesh_eval, obmat);
   nearest2d.clip_planes_enable(sctx, ob_eval);
 
-  
   BVHTreeNearest nearest{};
   nearest.index = -1;
   nearest.dist_sq = sctx->ret.dist_px_sq;
