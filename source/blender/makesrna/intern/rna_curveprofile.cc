@@ -123,16 +123,16 @@ static void rna_CurveProfile_update(CurveProfile *profile)
 static int rna_CurveProfilePoint_handle_location_1_editable(const PointerRNA *ptr,
                                                             const char ** /*r_info*/)
 {
-  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;
-  char handle_type = p->h1;
+  const CurveProfilePoint &p = *static_cast<const CurveProfilePoint *>(ptr->data);
+  char handle_type = p.h1;
   return ELEM(handle_type, HD_FREE, HD_ALIGN) ? PROP_EDITABLE : PropertyFlag(0);
 }
 
 static int rna_CurveProfilePoint_handle_location_2_editable(const PointerRNA *ptr,
                                                             const char ** /*r_info*/)
 {
-  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;
-  char handle_type = p->h2;
+  const CurveProfilePoint &p = *static_cast<const CurveProfilePoint *>(ptr->data);
+  char handle_type = p.h2;
   return ELEM(handle_type, HD_FREE, HD_ALIGN) ? PROP_EDITABLE : PropertyFlag(0);
 }
 
