@@ -1912,7 +1912,8 @@ static void rna_Node_draw_buttons_ext(blender::ui::Layout &layout, bContext *C, 
   ParameterList list;
   FunctionRNA *func;
 
-  func = &rna_Node_draw_buttons_ext_func; /* RNA_struct_find_function(&ptr, "draw_buttons_ext"); */
+  func = &rna_Node_draw_buttons_ext_func; /* RNA_struct_find_function(&ptr,
+                                                "draw_buttons_ext"); */
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
@@ -2156,6 +2157,44 @@ static bool geometry_node_asset_trait_flag_get(PointerRNA *ptr,
     return false;
   }
   return ntree->geometry_node_asset_traits->flag & flag;
+}
+
+static void rna_GeometryNodeTree_node_tool_idname_get(PointerRNA *ptr, char *value)
+{
+  bNodeTree *ntree = ptr->data_as<bNodeTree>();
+  if (!ntree->geometry_node_asset_traits) {
+    strcpy(value, "");
+    return;
+  }
+  const char *idname = ntree->geometry_node_asset_traits->node_tool_idname;
+  strcpy(value, idname ? idname : "");
+}
+
+static int rna_GeometryNodeTree_node_tool_idname_length(PointerRNA *ptr)
+{
+  bNodeTree *ntree = ptr->data_as<bNodeTree>();
+  if (!ntree->geometry_node_asset_traits) {
+    return 0;
+  }
+  const char *idname = ntree->geometry_node_asset_traits->node_tool_idname;
+  return idname ? strlen(idname) : 0;
+}
+
+static void rna_GeometryNodeTree_node_tool_idname_set(PointerRNA *ptr, const char *value)
+{
+  bNodeTree *ntree = ptr->data_as<bNodeTree>();
+  if (!ntree->geometry_node_asset_traits) {
+    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+  }
+  if (ntree->geometry_node_asset_traits->node_tool_idname) {
+    MEM_freeN(ntree->geometry_node_asset_traits->node_tool_idname);
+  }
+  if (value && value[0]) {
+    ntree->geometry_node_asset_traits->node_tool_idname = BLI_strdup(value);
+  }
+  else {
+    ntree->geometry_node_asset_traits->node_tool_idname = nullptr;
+  }
 }
 
 static void geometry_node_asset_trait_flag_set(PointerRNA *ptr,
@@ -2981,7 +3020,10 @@ static void rna_NodeInternal_update(ID *id, bNode *node, Main *bmain)
   BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
-static void rna_NodeInternal_draw_buttons(ID *id, bNode *node, bContext *C, uiLayout *layout)
+static void rna_NodeInternal_draw_buttons(ID *id,
+                                          bNode *node,
+                                          bContext *C,
+                                          blender::ui::Layout *layout)
 {
   if (node->typeinfo->draw_buttons) {
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
@@ -2989,7 +3031,10 @@ static void rna_NodeInternal_draw_buttons(ID *id, bNode *node, bContext *C, uiLa
   }
 }
 
-static void rna_NodeInternal_draw_buttons_ext(ID *id, bNode *node, bContext *C, uiLayout *layout)
+static void rna_NodeInternal_draw_buttons_ext(ID *id,
+                                              bNode *node,
+                                              bContext *C,
+                                              blender::ui::Layout *layout)
 {
   if (node->typeinfo->draw_buttons_ex) {
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
@@ -9426,6 +9471,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "Description", "Description of the node tree");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
   /* AnimData */
   rna_def_animdata_common(srna);
@@ -9641,6 +9687,16 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Tool", "The node group is used as a tool");
   RNA_def_property_boolean_funcs(
       prop, "rna_GeometryNodeTree_is_tool_get", "rna_GeometryNodeTree_is_tool_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
+
+  prop = RNA_def_property(srna, "node_tool_idname", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Node Tool Identifier", "Unique operator identifier for the node tool");
+  RNA_def_property_string_funcs(prop,
+                                "rna_GeometryNodeTree_node_tool_idname_get",
+                                "rna_GeometryNodeTree_node_tool_idname_length",
+                                "rna_GeometryNodeTree_node_tool_idname_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
   prop = RNA_def_property(srna, "is_modifier", PROP_BOOLEAN, PROP_NONE);
@@ -10096,6 +10152,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeAttributeStatistic");
   define("GeometryNode", "GeometryNodeBake", rna_def_geo_bake);
   define("GeometryNode", "GeometryNodeBlurAttribute");
+  define("GeometryNode", "GeometryNodeBoneInfo");
   define("GeometryNode", "GeometryNodeBoundBox");
   define("GeometryNode", "GeometryNodeCameraInfo");
   define("GeometryNode", "GeometryNodeCaptureAttribute", rna_def_geo_capture_attribute);
