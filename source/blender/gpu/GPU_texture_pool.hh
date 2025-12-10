@@ -46,23 +46,12 @@ class TexturePool {
    * Only valid if a context is active. */
   static TexturePool &get();
 
-  /* TODO(not_mark): impl. overloads for at least 2D, 2D array. */
-  Texture *acquire_texture_2d(int2 extent,
-                              TextureFormat format,
-                              eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
-                              eTextureLifetime lifetime = TEXTURE_LIFETIME_TRANSIENT);
-  Texture *acquire_texture_2d_array(int2 extent,
-                                    int layers,
-                                    TextureFormat format,
-                                    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
-                                    eTextureLifetime lifetime = TEXTURE_LIFETIME_TRANSIENT);
-
   /* Acquire a texture from the pool with the given characteristics. */
   Texture *acquire_texture(int width,
                            int height,
                            TextureFormat format,
-                           eGPUTextureUsage usage,
-                           eTextureLifetime lifetime);
+                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                           eTextureLifetime lifetim = TEXTURE_LIFETIME_TRANSIENT);
 
   /* Release the texture so that its memory can be reused at some other point. */
   void release_texture(Texture *tmp_tex);
@@ -70,6 +59,10 @@ class TexturePool {
   /* Switch lifetime of a texture from/to transient to/form persistent. */
   void make_texture_persistent(Texture *tex);
   void make_texture_transient(Texture *tex);
+
+  /* Query current lifetime of a texture. */
+  bool is_texture_persistent(Texture *tex) const;
+  bool is_texture_transient(Texture *tex) const;
 
   /* Ensure no texture is still acquired and release unused textures.
    * If `force_free` is true, free all the texture memory inside the pool.

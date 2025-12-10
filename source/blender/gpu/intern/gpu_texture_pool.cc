@@ -108,15 +108,29 @@ void TexturePool::make_texture_persistent(Texture *tex)
   acquired_persistent_.append(tex);
 }
 
+bool TexturePool::is_texture_transient(Texture *tex) const
+{
+  return tex != nullptr && acquired_transient_.contains(tex);
+}
+
+bool TexturePool::is_texture_persistent(Texture *tex) const
+{
+  return tex != nullptr && acquired_persistent_.contains(tex);
+}
+
 void TexturePool::reset(bool force_free)
 {
   BLI_assert_msg(acquired_transient_.is_empty(),
                  "Missing transient texture release. Either TextureFromPool.release() or "
                  "TexturePool.release_texture()");
+
+  /* Clear out persistent texture pool on `force_free`.
+   * Any use of `draw::PersistentTextureFromPool::ensure_*()` will re-acquire. */
   if (force_free) {
-    BLI_assert_msg(acquired_persistent_.is_empty(),
-                   "Missing persistent texture release. Either TextureFromPool.release() or "
-                   "TexturePool.release_texture()");
+    for (Texture *tex : acquired_persistent_) {
+      GPU_texture_free(tex);
+    }
+    acquired_persistent_.clear();
   }
 
   /* Reverse iteration to make sure we only reorder with known good handles. */
