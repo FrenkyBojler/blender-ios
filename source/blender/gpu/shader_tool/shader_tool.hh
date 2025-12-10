@@ -490,7 +490,7 @@ class Preprocessor {
       str = disabled_code_mutation(str, report_error);
     }
     else {
-      str = remove_whitespace(str, report_error);
+      str = cleanup_whitespace(str, report_error);
     }
     str = threadgroup_variables_parse_and_remove(str, report_error);
     parse_builtins(str, filename);
@@ -499,81 +499,82 @@ class Preprocessor {
         Parser parser(str, report_error);
 
         /* Preprocessor directive parsing & linting. */
-        pragma_runtime_generated_parsing(parser);
         if (language == BLENDER_GLSL) { /* TODO(fclem): Enforce in C++ header too. */
-          pragma_once_linting(parser, filename, report_error);
+          lint_pragma_once(parser, filename, report_error);
         }
-        include_parse_and_remove(parser, report_error);
-        pragmas_mutation(parser, report_error);
-
-        /* Legacy create info parsing. */
+        parse_pragma_runtime_generated(parser);
+        parse_includes(parser, report_error);
         parse_defines(parser, report_error);
-        create_info_parse_and_remove(parser, report_error);
+        parse_legacy_create_info(parser, report_error);
+        if (do_parse_function) {
+          parse_library_functions(parser, report_error);
+        }
+
+        lower_preprocessor(parser, report_error);
+
+        parser.apply_mutations();
 
         /* Lower high level parsing complexity.
          * Merge tokens that can be combined together,
          * remove the token that are unsupported or that are noop.
          * All these steps should be independent. */
         merge_attributes_mutation(parser, report_error);
-        static_strings_merging(parser, report_error);
-        /* Support for BLI swizzle syntax. */
-        swizzle_function_mutation(parser, report_error);
-        lower_class(parser, report_error);
-        lower_access_specifiers(parser, report_error);
-        inline_mutation(parser, report_error);
+        merge_static_strings(parser, report_error);
+        lower_swizzle_methods(parser, report_error);
+        lower_classes(parser, report_error);
+        lower_noop_keywords(parser, report_error);
 
         parser.apply_mutations();
 
-        attributes_linting(parser, report_error);
+        /* Linting phase. Detect valid syntax with invalid usage. */
+        lint_attributes(parser, report_error);
+        lint_global_scope_constants(parser, report_error);
+        if (do_small_type_linting) {
+          lint_small_types_in_structs(parser, report_error);
+        }
 
         /* Lint and remove SRT accessor templates before lowering template. */
-        srt_template_linter_and_mutation(parser, report_error);
-
+        lower_srt_accessor_templates(parser, report_error);
         /* Lower templates. */
-        lower_template(parser, report_error);
-
+        lower_templates(parser, report_error);
         /* Lower namespaces. */
-        using_mutation(parser, report_error);
-        namespace_mutation(parser, report_error);
-        namespace_separator_mutation(parser, report_error);
+        lower_using(parser, report_error);
+        lower_namespaces(parser, report_error);
+        lower_scope_resolution_operators(parser, report_error);
+        /* Lower enums. */
+        lower_enums(parser, language == CPP, report_error);
+        /* Lower SRT and Interfaces. */
+        lower_entry_points(parser, report_error);
+        lower_pipeline_definition(parser, filename, report_error);
+        lower_resource_table(parser, report_error);
+        lower_resource_access_functions(parser, report_error);
+        /* Lower class methods. */
+        lower_method_definitions(parser, report_error);
+        lower_method_calls(parser, report_error);
+        lower_empty_struct(parser, report_error);
+        /* Lower SRT accesses. */
+        lower_srt_member_access(parser, report_error);
+        lower_entry_points_signature(parser, report_error);
+        lower_stage_function(parser, report_error);
+        lower_srt_arguments(parser, report_error);
+        /* Lower string, assert, printf. */
+        lower_assert(parser, filename, report_error);
+        lower_strings(parser, report_error);
+        lower_printf(parser, report_error);
+        /* Lower other C++ constructs. */
+        lower_array_initializations(parser, report_error);
+        lower_function_default_arguments(parser, report_error);
+        lower_scope_resolution_operators(parser, report_error);
+        /* Lower references. */
+        lower_reference_arguments(parser, report_error);
+        lower_reference_variables(parser, report_error);
+        /* Lower control flow. */
+        lower_static_branch(parser, report_error);
+        /* Unroll last to avoid processing more tokens in other phases. */
+        lower_loop_unroll(parser, report_error);
 
-        enum_macro_injection(parser, language == CPP, report_error);
-
-        entry_point_parsing_and_mutation(parser, report_error);
-        pipeline_parse_and_remove(parser, filename, report_error);
-        resource_table_parsing(parser, report_error);
-        resource_guard_mutation(parser, report_error);
-        struct_method_mutation(parser, report_error);
-        method_call_mutation(parser, report_error);
-        srt_member_access_mutation(parser, report_error);
-        empty_entry_point_mutation(parser, report_error);
-        stage_function_mutation(parser, report_error);
-        static_branch_mutation(parser, report_error);
-        empty_struct_mutation(parser, report_error);
-        loop_unroll(parser, report_error);
-        assert_processing(parser, filename, report_error);
-        static_strings_parsing_and_mutation(parser, report_error);
-        printf_processing(parser, report_error);
-        quote_linting(parser, report_error);
-
-        if (do_parse_function) {
-          parse_library_functions(parser, report_error);
-        }
-
-        array_mutation(parser, report_error);
-        default_argument_mutation(parser, report_error);
-        global_scope_constant_linting(parser, report_error);
-        if (do_small_type_linting) {
-          small_type_linting(parser, report_error);
-        }
-        remove_quotes(parser, report_error);
-        srt_guard_mutation(parser, report_error);
-        argument_reference_mutation(parser, report_error);
-        remove_whitespace(parser, report_error);
-        variable_reference_mutation(parser, report_error);
-        namespace_separator_mutation(parser, report_error);
-        /* Do another whitespace pass to remove the one introduced by mutations. */
-        remove_whitespace(parser, report_error);
+        /* Cleanup to make output more human readable and smaller for runtime. */
+        cleanup_whitespace(parser, report_error);
         cleanup_empty_lines(parser, report_error);
         cleanup_line_directives(parser, report_error);
         str = parser.result_get();
@@ -581,9 +582,9 @@ class Preprocessor {
     }
     else if (language == MSL) {
       Parser parser(str, report_error);
-      pragma_runtime_generated_parsing(parser);
-      include_parse_and_remove(parser, report_error);
-      pragmas_mutation(parser, report_error);
+      parse_pragma_runtime_generated(parser);
+      parse_includes(parser, report_error);
+      lower_preprocessor(parser, report_error);
       str = parser.result_get();
     }
 #ifdef __APPLE__ /* Limiting to Apple hardware since GLSL compilers might have issues. */
@@ -657,7 +658,7 @@ class Preprocessor {
   }
 
   /* Remove trailing white spaces. */
-  void remove_whitespace(Parser &parser, report_callback /*report_error*/)
+  void cleanup_whitespace(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -676,7 +677,7 @@ class Preprocessor {
   }
 
   /* Safer version without Parser. */
-  std::string remove_whitespace(const std::string &str, const report_callback & /*report_error*/)
+  std::string cleanup_whitespace(const std::string &str, const report_callback & /*report_error*/)
   {
     /* Remove trailing white space as they make the subsequent regex much slower. */
     std::regex regex(R"((\ )*?\n)");
@@ -799,7 +800,7 @@ class Preprocessor {
     parser.insert_line_number(inst_end, inst_end.line_number(true));
   }
 
-  void lower_template(Parser &parser, report_callback &report_error)
+  void lower_templates(Parser &parser, report_callback &report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -949,16 +950,8 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  /* Remove remaining quotes that can be found in some unsupported C++ macros. */
-  void remove_quotes(Parser &parser, report_callback /*report_error*/)
-  {
-    using namespace std;
-    using namespace shader::parser;
-
-    parser().foreach_token(TokenType::String, [&](const Token token) { parser.erase(token); });
-    parser.apply_mutations();
-  }
-
+  /* Parse defines in order to output them with the create infos.
+   * This allow the create infos to use shared defines values. */
   void parse_defines(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
@@ -991,7 +984,8 @@ class Preprocessor {
     return placeholder;
   };
 
-  void create_info_parse_and_remove(Parser &parser, report_callback report_error)
+  /* Legacy create info parsing and removing. */
+  void parse_legacy_create_info(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1084,7 +1078,7 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void include_parse_and_remove(Parser &parser, report_callback /*report_error*/)
+  void parse_includes(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1122,22 +1116,17 @@ class Preprocessor {
       }
 
       metadata.dependencies.emplace_back(dependency_name);
-      parser.erase(tokens.front(), tokens.back());
     });
-
-    parser.apply_mutations();
   }
 
-  void pragma_runtime_generated_parsing(Parser &parser)
+  void parse_pragma_runtime_generated(Parser &parser)
   {
     if (parser.str().find("\n#pragma runtime_generated") != std::string::npos) {
       metadata.builtins.emplace_back(metadata::Builtin::runtime_generated);
     }
   }
 
-  void pragma_once_linting(Parser &parser,
-                           const std::string &filename,
-                           report_callback report_error)
+  void lint_pragma_once(Parser &parser, const std::string &filename, report_callback report_error)
   {
     if (filename.find("_lib.") == std::string::npos && filename.find(".hh") == std::string::npos) {
       return;
@@ -1147,7 +1136,7 @@ class Preprocessor {
     }
   }
 
-  void loop_unroll(Parser &parser, report_callback report_error)
+  void lower_loop_unroll(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1490,7 +1479,7 @@ class Preprocessor {
     parser.insert_directive(body.end(), "#endif");
   };
 
-  void static_branch_mutation(Parser &parser, report_callback report_error)
+  void lower_static_branch(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1503,7 +1492,7 @@ class Preprocessor {
   }
 
   /* Lower namespaces by adding namespace prefix to all the contained structs and functions. */
-  void namespace_mutation(Parser &parser, report_callback report_error)
+  void lower_namespaces(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1594,7 +1583,7 @@ class Preprocessor {
    *  }
    *  ```
    */
-  void using_mutation(Parser &parser, report_callback report_error)
+  void lower_using(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1681,7 +1670,7 @@ class Preprocessor {
     });
   }
 
-  void namespace_separator_mutation(Parser &parser, report_callback /*report_error*/)
+  void lower_scope_resolution_operators(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1750,26 +1739,30 @@ class Preprocessor {
     return parser.result_get();
   }
 
-  void pragmas_mutation(Parser &parser, report_callback /*report_error*/)
+  void lower_preprocessor(Parser &parser, report_callback /*report_error*/)
   {
     /* Remove unsupported directives. */
     using namespace std;
     using namespace shader::parser;
 
-    parser().foreach_match("#ww", [&](const std::vector<Token> &tokens) {
+    parser().foreach_match("#w", [&](const std::vector<Token> &tokens) {
       if (tokens[1].str() == "pragma") {
-        if (tokens[2].str() == "once") {
-          parser.erase(tokens.front(), tokens.back());
+        Token next = tokens[1].next();
+        if (next.str() == "once") {
+          parser.erase(tokens.front(), next);
         }
-        else if (tokens[2].str() == "runtime_generated") {
-          parser.erase(tokens.front(), tokens.back());
+        else if (next.str() == "runtime_generated") {
+          parser.erase(tokens.front(), next);
         }
       }
+      else if (tokens[1].str() == "include" && tokens[1].next() == String) {
+        parser.erase(tokens.front(), tokens[1].next());
+      }
     });
-    parser.apply_mutations();
   }
 
-  void swizzle_function_mutation(Parser &parser, report_callback /*report_error*/)
+  /* Support for BLI swizzle syntax. */
+  void lower_swizzle_methods(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1784,7 +1777,7 @@ class Preprocessor {
       {
         /* `.xyz()` -> `.xyz` */
         /* Keep character count the same. Replace parenthesis by spaces. */
-        parser.replace(tokens[2], tokens[3], "  ");
+        parser.erase(tokens[2], tokens[3]);
       }
     });
   }
@@ -1899,7 +1892,9 @@ class Preprocessor {
     }
   }
 
-  void printf_processing(Parser &parser, report_callback /*report_error*/)
+  /* Change printf calls to "recursive" call to implementation functions.
+   * This allows to emulate the variadic arguments of printf. */
+  void lower_printf(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1922,7 +1917,8 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void assert_processing(Parser &parser, const std::string &filename, report_callback report_error)
+  /* Turn assert into a printf. */
+  void lower_assert(Parser &parser, const std::string &filename, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1963,8 +1959,8 @@ class Preprocessor {
     return hash_32;
   }
 
-  /* Move all method definition outside of struct definition blocks. */
-  void resource_table_parsing(Parser &parser, report_callback report_error)
+  /* Parse SRT and interfaces, remove their attributes and create init function for SRT structs. */
+  void lower_resource_table(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2318,7 +2314,7 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void static_strings_merging(Parser &parser, report_callback /*report_error*/)
+  void merge_static_strings(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2338,7 +2334,8 @@ class Preprocessor {
     } while (parser.apply_mutations());
   }
 
-  void static_strings_parsing_and_mutation(Parser &parser, report_callback /*report_error*/)
+  /* Replace string literals by their hash and store the original string in the file metadata. */
+  void lower_strings(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2353,7 +2350,7 @@ class Preprocessor {
   }
 
   /* `class` -> `struct` */
-  void lower_class(Parser &parser, report_callback /*report_error*/)
+  void lower_classes(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2364,19 +2361,8 @@ class Preprocessor {
     });
   }
 
-  /* Access is checked by C++ compilation. Simply remove the keywords. */
-  void lower_access_specifiers(Parser &parser, report_callback /*report_error*/)
-  {
-    using namespace std;
-    using namespace shader::parser;
-
-    /* Erase `public:` and `private:` keywords. */
-    parser().foreach_match("v:", [&](const Tokens &t) { parser.erase(t.front(), t.back()); });
-    parser().foreach_match("V:", [&](const Tokens &t) { parser.erase(t.front(), t.back()); });
-  }
-
   /* Move all method definition outside of struct definition blocks. */
-  void struct_method_mutation(Parser &parser, report_callback report_error)
+  void lower_method_definitions(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2478,7 +2464,7 @@ class Preprocessor {
 
   /* Add padding member to empty structs.
    * Empty structs are useful for templating. */
-  void empty_struct_mutation(Parser &parser, report_callback /*report_error*/)
+  void lower_empty_struct(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2490,7 +2476,7 @@ class Preprocessor {
   }
 
   /* Transform `a.fn(b)` into `fn(a, b)`. */
-  void method_call_mutation(Parser &parser, report_callback report_error)
+  void lower_method_calls(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2527,7 +2513,7 @@ class Preprocessor {
             report_error(start_of_this.line_number(),
                          start_of_this.char_number(),
                          start_of_this.line_str(),
-                         "method_call_mutation parsing error");
+                         "lower_method_call parsing error");
             break;
           }
           string this_str = parser.substr_range_inclusive(start_of_this, end_of_this);
@@ -2541,7 +2527,8 @@ class Preprocessor {
     } while (parser.apply_mutations());
   }
 
-  void pipeline_parse_and_remove(Parser &parser,
+  /* Parse, convert to create infos, and erase declaration. */
+  void lower_pipeline_definition(Parser &parser,
                                  const std::string &filename,
                                  report_callback /*report_error*/)
   {
@@ -2617,7 +2604,7 @@ class Preprocessor {
     });
   }
 
-  void stage_function_mutation(Parser &parser, report_callback /*report_error*/)
+  void lower_stage_function(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2658,7 +2645,9 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void srt_guard_mutation(Parser &parser, report_callback /*report_error*/)
+  /* Add #ifdef directive around functions using SRT arguments.
+   * Need to run after `lower_entry_points_signature`. */
+  void lower_srt_arguments(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2683,7 +2672,8 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void resource_guard_mutation(Parser &parser, report_callback /*report_error*/)
+  /* Add ifdefs guards around scopes using resource accessors. */
+  void lower_resource_access_functions(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2760,7 +2750,7 @@ class Preprocessor {
     parser.insert_directive(scope.end().prev(), guard_else + guard_end);
   };
 
-  void enum_macro_injection(Parser &parser, bool is_shared_file, report_callback report_error)
+  void lower_enums(Parser &parser, bool is_shared_file, report_callback report_error)
   {
     /**
      * Transform C,C++ enum declaration into GLSL compatible defines and constants:
@@ -2869,7 +2859,7 @@ class Preprocessor {
     } while (parser.apply_mutations());
   }
 
-  void attributes_linting(Parser &parser, report_callback report_error)
+  void lint_attributes(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2989,25 +2979,39 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void inline_mutation(Parser &parser, report_callback /*report_error*/)
+  void lower_noop_keywords(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
 
-    parser().foreach_token(Word, [&](Token tok) {
-      if (tok.str() == "inline") {
-        /* inline has no equivalent in GLSL and is making parsing more complicated. */
-        parser.erase(tok);
-      }
-      else if (tok.scope().type() != ScopeType::Struct && tok.str() == "static") {
-        /* static have no meaning for the shading language when not inside a struct.
-         * Removing to make parsing easier. */
+    /* inline has no equivalent in GLSL and is making parsing more complicated. */
+    parser().foreach_token(Inline, [&](Token tok) { parser.erase(tok); });
+    /* static have no meaning for the shading language when not inside a struct.
+     * Removing to make parsing easier. */
+    parser().foreach_token(Static, [&](Token tok) {
+      ScopeType scope_type = tok.scope().type();
+      if (scope_type != ScopeType::Struct && scope_type != ScopeType::Preprocessor) {
         parser.erase(tok);
       }
     });
+
+    /* Erase `public:` and `private:` keywords. Access is checked by C++ compilation. */
+    auto process_access = [&](Token tok) {
+      if (tok.next() == ':') {
+        parser.erase(tok, tok.next());
+      }
+      else {
+        report_error(ERROR_TOK(tok), "Expecting colon ':' after access specifier");
+      }
+    };
+    parser().foreach_token(Private, process_access);
+    parser().foreach_token(Public, process_access);
   }
 
-  void array_mutation(Parser &parser, report_callback report_error)
+  /* Auto detect array length, and lower to GLSL compatible syntax.
+   * TODO(fclem): GLSL 4.3 already supports initializer list. So port the old GLSL syntax to
+   * initializer list instead. */
+  void lower_array_initializations(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3067,7 +3071,7 @@ class Preprocessor {
    * Expand functions with default arguments to function overloads.
    * Expects formatted input and that function bodies are followed by newline.
    */
-  void default_argument_mutation(Parser &parser, report_callback /*report_error*/)
+  void lower_function_default_arguments(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3216,7 +3220,7 @@ class Preprocessor {
   }
 
   /* To be run before `argument_decorator_macro_injection()`. */
-  void argument_reference_mutation(Parser &parser, report_callback /*report_error*/)
+  void lower_reference_arguments(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3248,9 +3252,9 @@ class Preprocessor {
    * This linting phase make sure that [[resource_table]] members uses it and that no incorrect
    * usage is made. We also remove this template because it has no real meaning.
    *
-   * Need to run before resource_table_parsing.
+   * Need to run before lower_resource_table.
    */
-  void srt_template_linter_and_mutation(Parser &parser, report_callback report_error)
+  void lower_srt_accessor_templates(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3294,8 +3298,9 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  /* Need to run before local reference mutations. */
-  void srt_member_access_mutation(Parser &parser, report_callback report_error)
+  /* Add `srt_access` around all member access of SRT variables.
+   * Need to run before local reference mutations. */
+  void lower_srt_member_access(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3354,7 +3359,8 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void entry_point_parsing_and_mutation(Parser &parser, report_callback report_error)
+  /* Parse entry point definitions and mutating all parameter usage to global resources. */
+  void lower_entry_points(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3772,7 +3778,7 @@ class Preprocessor {
 
   /* Removes entry point arguments to make it compatible with the legacy code.
    * Has to run after mutation related to function arguments. */
-  void empty_entry_point_mutation(Parser &parser, report_callback /*report_error*/)
+  void lower_entry_points_signature(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3799,8 +3805,8 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  /* To be run after `argument_reference_mutation()`. */
-  void variable_reference_mutation(Parser &parser, report_callback report_error)
+  /* To be run after `lower_reference_arguments()`. */
+  void lower_reference_variables(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3924,7 +3930,7 @@ class Preprocessor {
   }
 
   /* Assume formatted source with our code style. Cannot be applied to python shaders. */
-  void global_scope_constant_linting(Parser &parser, report_callback report_error)
+  void lint_global_scope_constants(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -3940,20 +3946,7 @@ class Preprocessor {
     });
   }
 
-  void quote_linting(const Parser &parser, report_callback report_error)
-  {
-    using namespace std;
-    using namespace shader::parser;
-
-    /* This only catches some invalid usage. For the rest, the CI will catch them. */
-    parser().foreach_token(TokenType::String, [&](const Token token) {
-      report_error(ERROR_TOK(token),
-                   "Unprocessed string literal. "
-                   "Strings are forbidden in GLSL.");
-    });
-  }
-
-  void small_type_linting(Parser &parser, report_callback report_error)
+  void lint_small_types_in_structs(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
