@@ -1,2 +1,3 @@
 Referenced by commit 9f78c333283001bcca6d304ce7833d95b77e46ef, Fix: Make first created UV map active/default
 Referenced by pull request #151438, Mesh: Store clone and stencil UV map status as strings
+Referenced by commit 442463239b7769fbb6f17a72b0d26fceb516db77, Mesh: Store clone and stencil UV map status as strings
