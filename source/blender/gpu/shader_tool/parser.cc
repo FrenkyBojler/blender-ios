@@ -291,6 +291,9 @@ void Parser::tokenize(const bool keep_whitespace)
         else if (word == "using") {
           c = Using;
         }
+        else if (word == "inline") {
+          c = Inline;
+        }
       }
     }
   }
@@ -362,7 +365,7 @@ void Parser::parse_scopes(report_callback &report_error)
             pos += 3;
           } while (keyword != Invalid && keyword == Colon);
 
-          if (keyword == Struct) {
+          if (keyword == Struct || keyword == Class) {
             enter_scope(ScopeType::Struct, tok_id);
           }
           else if (keyword == Enum) {

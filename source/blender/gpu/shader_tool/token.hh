@@ -80,6 +80,7 @@ enum TokenType : char {
   Using = 'u',
   Private = 'v',
   Public = 'V',
+  Inline = 'l',
 };
 
 static inline TokenType to_type(const char c)
