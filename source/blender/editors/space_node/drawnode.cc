@@ -993,12 +993,11 @@ static const float std_node_socket_colors[][4] = {
     {0.72, 0.20, 0.52, 1.0}, /* SOCK_MATRIX */
     {0.30, 0.50, 0.50, 1.0}, /* SOCK_BUNDLE */
     {0.49, 0.49, 0.23, 1.0}, /* SOCK_CLOSURE */
-    /* TODO */
-    {0, 0, 0, 1}, /* SOCK_FONT */
-    {0, 0, 0, 1}, /* SOCK_SCENE */
-    {0, 0, 0, 1}, /* SOCK_TEXT_ID */
-    {0, 0, 0, 1}, /* SOCK_MASK */
-    {0, 0, 0, 1}, /* SOCK_SOUND */
+    {0, 0, 0, 1},            /* SOCK_FONT */
+    {0, 0, 0, 1},            /* SOCK_SCENE */
+    {0, 0, 0, 1},            /* SOCK_TEXT_ID */
+    {0, 0, 0, 1},            /* SOCK_MASK */
+    {0, 0, 0, 1},            /* SOCK_SOUND */
 };
 
 void std_node_socket_colors_get(int socket_type, float *r_color)
