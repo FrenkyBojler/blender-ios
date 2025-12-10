@@ -1,1 +1,2 @@
 Referenced by issue #138603, ASAN crash with UV editor and Material Preview
+Referenced by issue #151393, Unable to keyframe CompositorNodeColorBalance using keyframe_insert from python api
