@@ -4,3 +4,4 @@ Referenced by issue #65511, Opening Blender's File Chooser from a Dialog Causes 
 Referenced by issue #61599, New file dialog allows you to start a new project without save changes prompt
 Referenced by issue #61553, Add Prompt to Save unsaved images when closing
 Referenced by issue #149195, FBX cant export more then one embeded texture if textures have been packed
+Referenced by pull request #151450, UI: Default 'Save Modified Images' checkbox to enabled
