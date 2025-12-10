@@ -100,9 +100,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_rna(StructRNA *srna)
@@ -128,6 +128,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeValueToString", FN_NODE_VALUE_TO_STRING);
   ntype.ui_name = "Value to String";
+  ntype.ui_description = "Generate a string representation of the given input value";
   ntype.enum_name_legacy = "VALUE_TO_STRING";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

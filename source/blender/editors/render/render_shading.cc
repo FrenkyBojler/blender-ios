@@ -65,6 +65,7 @@
 #include "BKE_world.h"
 
 #include "NOD_composite.hh"
+#include "NOD_defaults.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -834,7 +835,7 @@ static wmOperatorStatus new_material_exec(bContext *C, wmOperator * /*op*/)
   PropertyRNA *prop;
 
   /* hook into UI */
-  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   Object *ob = static_cast<Object *>((prop && RNA_struct_is_a(ptr.type, &RNA_Object)) ? ptr.data :
                                                                                         nullptr);
@@ -853,8 +854,7 @@ static wmOperatorStatus new_material_exec(bContext *C, wmOperator * /*op*/)
     else {
       ma = BKE_gpencil_material_add(bmain, name);
     }
-    ED_node_shader_default(C, &ma->id);
-    ma->use_nodes = true;
+    blender::nodes::node_tree_shader_default(C, bmain, &ma->id);
   }
 
   if (prop) {
@@ -921,7 +921,7 @@ static wmOperatorStatus new_texture_exec(bContext *C, wmOperator *op)
   }
 
   /* hook into UI */
-  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   bool linked_id_created = false;
   if (prop) {
@@ -983,11 +983,11 @@ static wmOperatorStatus new_world_exec(bContext *C, wmOperator * /*op*/)
   }
   else {
     wo = BKE_world_add(bmain, CTX_DATA_(BLT_I18NCONTEXT_ID_WORLD, "World"));
-    ED_node_shader_default(C, &wo->id);
+    blender::nodes::node_tree_shader_default(C, bmain, &wo->id);
   }
 
   /* hook into UI */
-  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   if (prop) {
     /* when creating new ID blocks, use is already 1, but RNA
@@ -2717,9 +2717,14 @@ static wmOperatorStatus copy_material_exec(bContext *C, wmOperator *op)
   if (ma == nullptr) {
     return OPERATOR_CANCELLED;
   }
+  if (ID_IS_PACKED(&ma->id)) {
+    /* Direct link/append of packed IDs is not supported currently, so neither is their
+     * copy/pasting. */
+    return OPERATOR_CANCELLED;
+  }
 
   Main *bmain = CTX_data_main(C);
-  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
+  PartialWriteContext copybuffer{*bmain};
 
   /* Add the material to the copybuffer (and all of its dependencies). */
   copybuffer.id_add(
@@ -2900,7 +2905,6 @@ static wmOperatorStatus paste_material_exec(bContext *C, wmOperator *op)
   SWAP_MEMBER(spec);
   SWAP_MEMBER(roughness);
   SWAP_MEMBER(metallic);
-  SWAP_MEMBER(use_nodes);
   SWAP_MEMBER(index);
   SWAP_MEMBER(nodetree);
   SWAP_MEMBER(line_col);

@@ -97,8 +97,8 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CROSS);
     WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_HOVER | WM_GIZMO_DRAW_NO_SCALE, true);
 
-    UI_GetThemeColor3fv(TH_GIZMO_A, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_A, gz->color);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
   }
 
   /* focal length
@@ -110,16 +110,16 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
     RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
 
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
     gz = cagzgroup->ortho_scale = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
     gz->flag |= WM_GIZMO_DRAW_NO_SCALE;
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
     RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
 
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
   }
 
   /* All gizmos must perform undo. */
@@ -341,7 +341,7 @@ static void gizmo_render_border_prop_matrix_get(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 void *value_p)
 {
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -358,7 +358,7 @@ static void gizmo_render_border_prop_matrix_set(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
       gz_prop->custom_func.user_data);
   rctf *border = viewgroup->state.edit_border;

@@ -20,16 +20,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value({0.5f, 0.5f, 0.5f})
       .min(-10000.0f)
       .max(10000.0f)
-      .description("Vector, point, or normal which will be used for convertion between spaces");
+      .description("Vector, point, or normal which will be used for conversion between spaces");
   b.add_output<decl::Vector>("Vector");
 }
 
-static void node_shader_buts_vect_transform(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_vect_transform(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(
-      ptr, "vector_type", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "convert_from", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout->prop(ptr, "convert_to", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr,
+              "vector_type",
+              ui::ITEM_R_SPLIT_EMPTY_NAME | ui::ITEM_R_EXPAND,
+              std::nullopt,
+              ICON_NONE);
+  layout.prop(ptr, "convert_from", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "convert_to", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_vect_transform(bNodeTree * /*ntree*/, bNode *node)

@@ -258,6 +258,56 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   return *node;
 }
 
+bNode &version_node_add_unknown(bNodeTree &ntree,
+                                blender::bke::bNodeType &ntype,
+                                const char *idname,
+                                const int16_t legacy_type,
+                                const std::string &ui_name,
+                                const std::string &ui_description,
+                                const std::string &enum_name_legacy,
+                                const short nclass,
+                                const float width,
+                                const float height,
+                                const bool no_muting)
+{
+  using namespace blender::bke;
+
+  ntype.idname = idname;
+  ntype.type_legacy = legacy_type;
+  ntype.height = height;
+  ntype.width = width;
+  node_type_size_preset(ntype, eNodeSizePreset::Default);
+  ntype.minheight = 30.0f;
+  ntype.maxheight = FLT_MAX;
+
+  ntype.ui_name = ui_name;
+  ntype.ui_description = ui_description;
+  ntype.enum_name_legacy = enum_name_legacy.c_str();
+  ntype.nclass = nclass;
+  ntype.no_muting = no_muting;
+  ntype.ui_name = ui_name;
+
+  bNode *node = MEM_callocN<bNode>(__func__);
+  node->runtime = MEM_new<bNodeRuntime>(__func__);
+  BLI_addtail(&ntree.nodes, node);
+  node_unique_id(ntree, *node);
+  node->typeinfo = &ntype;
+
+  STRNCPY(node->idname, idname);
+  DATA_(ntype.ui_name).copy_utf8_truncated(node->name);
+  node_unique_name(ntree, *node);
+
+  node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
+  node->width = ntype.width;
+  node->height = ntype.height;
+  node->color[0] = node->color[1] = node->color[2] = 0.608f;
+
+  node->type_legacy = ntype.type_legacy;
+
+  BKE_ntree_update_tag_node_new(&ntree, node);
+  return *node;
+}
+
 void version_node_remove(bNodeTree &ntree, bNode &node)
 {
   blender::bke::node_unlink_node(ntree, node);
@@ -336,6 +386,11 @@ bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
   }
   return blender::bke::node_add_static_socket(
       *ntree, *node, eNodeSocketInOut(in_out), type, subtype, identifier, name);
+}
+
+void version_node_tree_clear_interface(bNodeTree &ntree)
+{
+  ntree.tree_interface.clear_items();
 }
 
 void version_node_id(bNodeTree *ntree, const int node_type, const char *new_name)
@@ -521,19 +576,19 @@ IDProperty *version_cycles_properties_from_render_layer(SceneRenderLayer *render
 float version_cycles_property_float(IDProperty *idprop, const char *name, float default_value)
 {
   IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_FLOAT);
-  return (prop) ? IDP_Float(prop) : default_value;
+  return (prop) ? IDP_float_get(prop) : default_value;
 }
 
 int version_cycles_property_int(IDProperty *idprop, const char *name, int default_value)
 {
   IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT);
-  return (prop) ? IDP_Int(prop) : default_value;
+  return (prop) ? IDP_int_get(prop) : default_value;
 }
 
 void version_cycles_property_int_set(IDProperty *idprop, const char *name, int value)
 {
   if (IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT)) {
-    IDP_Int(prop) = value;
+    IDP_int_set(prop, value);
   }
   else {
     IDP_AddToGroup(idprop, blender::bke::idprop::create(name, value).release());

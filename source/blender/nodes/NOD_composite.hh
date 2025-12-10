@@ -34,12 +34,6 @@ void register_node_tree_type_cmp();
 void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype);
 
 void node_cmp_rlayers_outputs(bNodeTree *ntree, bNode *node);
-void node_cmp_rlayers_register_pass(bNodeTree *ntree,
-                                    bNode *node,
-                                    Scene *scene,
-                                    ViewLayer *view_layer,
-                                    const char *name,
-                                    eNodeSocketDatatype type);
 const char *node_cmp_rlayers_sock_to_pass(int sock_index);
 
 /**
@@ -65,8 +59,8 @@ void ntreeCompositClearTags(bNodeTree *ntree);
 
 void ntreeCompositCryptomatteSyncFromAdd(bNode *node);
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node);
-bNodeSocket *ntreeCompositCryptomatteAddSocket(bNodeTree *ntree, bNode *node);
-int ntreeCompositCryptomatteRemoveSocket(bNodeTree *ntree, bNode *node);
+void ntreeCompositCryptomatteAddSocket(bNode *node);
+bool ntreeCompositCryptomatteRemoveSocket(bNode *node);
 void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size_t prefix_maxncpy);
 
 /**
@@ -83,5 +77,6 @@ compositor::NodeOperation *get_group_input_compositor_operation(compositor::Cont
 compositor::NodeOperation *get_group_output_compositor_operation(compositor::Context &context,
                                                                  DNode node);
 void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfoParams &parameters);
+void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &parameters);
 
 }  // namespace blender::nodes

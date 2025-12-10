@@ -32,7 +32,6 @@ struct BlendLibReader;
 struct BlendWriter;
 struct CustomData_MeshMasks;
 struct Depsgraph;
-struct KDTree_3d;
 struct LinkNode;
 struct MCol;
 struct MFace;
@@ -134,7 +133,7 @@ typedef struct ParticleThreadContext {
   struct Material *ma;
 
   /* distribution */
-  struct KDTree_3d *tree;
+  KDTree3d *tree;
 
   struct ParticleSeam *seams;
   int totseam;
@@ -342,7 +341,7 @@ bool psys_render_simplify_params(struct ParticleSystem *psys,
                                  struct ChildParticle *cpa,
                                  float *params);
 
-void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float uvco[2]);
+void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float r_uv[2]);
 void psys_interpolate_mcol(const struct MCol *mcol, int quad, const float w[4], struct MCol *mc);
 
 void copy_particle_key(struct ParticleKey *to, struct ParticleKey *from, int time);

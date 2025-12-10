@@ -19,6 +19,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -26,9 +27,9 @@
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_screen.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -583,7 +584,7 @@ static void clip_refresh(const bContext *C, ScrArea *area)
 
 static void CLIP_GGT_navigate(wmGizmoGroupType *gzgt)
 {
-  VIEW2D_GGT_navigate_impl(gzgt, "CLIP_GGT_navigate");
+  blender::ui::VIEW2D_GGT_navigate_impl(gzgt, "CLIP_GGT_navigate");
 }
 
 static void clip_gizmos()
@@ -658,7 +659,7 @@ static void clip_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  /* NOTE: don't use `UI_view2d_region_reinit(&region->v2d, ...)`
+  /* NOTE: don't use `view2d_region_reinit(&region->v2d, ...)`
    * since the space clip manages its own v2d in #movieclip_main_area_set_view2d */
 
   /* mask polls mode */
@@ -708,7 +709,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* data... */
   movieclip_main_area_set_view2d(C, region);
@@ -719,7 +720,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   clip_draw_main(C, sc, region);
 
   /* TODO(sergey): would be nice to find a way to de-duplicate all this space conversions */
-  UI_view2d_view_to_region_fl(&region->v2d, 0.0f, 0.0f, &x, &y);
+  blender::ui::view2d_view_to_region_fl(&region->v2d, 0.0f, 0.0f, &x, &y);
   ED_space_clip_get_size(sc, &width, &height);
   ED_space_clip_get_zoom(sc, region, &zoomx, &zoomy);
   ED_space_clip_get_aspect(sc, &aspx, &aspy);
@@ -733,9 +734,10 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
       ED_mask_draw_region(CTX_data_expect_evaluated_depsgraph(C),
                           mask,
                           region,
-                          sc->mask_info.draw_flag,
-                          sc->mask_info.draw_type,
-                          eMaskOverlayMode(sc->mask_info.overlay_mode),
+                          sc->overlay.flag & SC_SHOW_OVERLAYS,
+                          MaskDrawFlag(sc->mask_info.draw_flag),
+                          MaskDrawType(sc->mask_info.draw_type),
+                          MaskOverlayMode(sc->mask_info.overlay_mode),
                           sc->mask_info.blend_factor,
                           mask_width,
                           mask_height,
@@ -751,7 +753,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   show_cursor |= sc->mode == SC_MODE_MASKEDIT;
   show_cursor |= sc->around == V3D_AROUND_CURSOR;
 
-  if (show_cursor) {
+  if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->overlay.flag & SC_SHOW_CURSOR && show_cursor) {
     GPU_matrix_push();
     GPU_matrix_translate_2f(x, y);
     GPU_matrix_scale_2f(zoomx, zoomy);
@@ -763,7 +765,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
 
   clip_draw_cache_and_notes(C, sc, region);
 
-  if (sc->flag & SC_SHOW_ANNOTATION) {
+  if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->flag & SC_SHOW_ANNOTATION) {
     /* Grease Pencil */
     clip_draw_grease_pencil((bContext *)C, true);
   }
@@ -779,9 +781,9 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   // GPU_matrix_pop_projection();
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
-  if (sc->flag & SC_SHOW_ANNOTATION) {
+  if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->flag & SC_SHOW_ANNOTATION) {
     /* draw Grease Pencil - screen space only */
     clip_draw_grease_pencil((bContext *)C, false);
   }
@@ -824,7 +826,8 @@ static void clip_preview_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(
+      &region->v2d, blender::ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
 
@@ -858,9 +861,9 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
+  blender::ui::theme::frame_buffer_clear(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* data... */
   clip_draw_graph(sc, region, scene);
@@ -872,10 +875,11 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   ANIM_draw_cfra(C, v2d, cfra_flag);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true, fps);
 
   /* current frame indicator */
   ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS, !minimized);
@@ -884,7 +888,7 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   if (!minimized) {
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
-    UI_view2d_scrollers_draw(v2d, &scroller_mask);
+    blender::ui::view2d_scrollers_draw(v2d, &scroller_mask);
   }
   else {
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
@@ -895,7 +899,7 @@ static void graph_region_draw(const bContext *C, ARegion *region)
     rcti rect;
     BLI_rcti_init(
         &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-    UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_TEXT);
+    blender::ui::view2d_draw_scale_y__values(region, v2d, &rect, TH_TEXT, 10);
   }
 }
 
@@ -913,13 +917,13 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
+  blender::ui::theme::frame_buffer_clear(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* time grid */
   if (!minimized) {
-    UI_view2d_draw_lines_x__discrete_frames_or_seconds(
+    blender::ui::view2d_draw_lines_x__discrete_frames_or_seconds(
         v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
   }
 
@@ -933,10 +937,11 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   ANIM_draw_cfra(C, v2d, cfra_flag);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true, fps);
 
   /* current frame indicator */
   ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS, !minimized);
@@ -944,7 +949,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   /* scrollers */
   if (!minimized) {
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
-    UI_view2d_scrollers_draw(v2d, nullptr);
+    blender::ui::view2d_scrollers_draw(v2d, nullptr);
   }
   else {
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
@@ -984,7 +989,7 @@ static void clip_channels_region_init(wmWindowManager *wm, ARegion *region)
   /* ensure the 2d view sync works - main region has bottom scroller */
   region->v2d.scroll = V2D_SCROLL_BOTTOM;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, blender::ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   keymap = WM_keymap_ensure(
       wm->runtime->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
@@ -1002,15 +1007,15 @@ static void clip_channels_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* data... */
   clip_draw_dopesheet_channels(C, region);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 }
 
 static void clip_channels_region_listener(const wmRegionListenerParams * /*params*/) {}
@@ -1324,7 +1329,7 @@ void ED_spacetype_clip()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: hud */
-  art = ED_area_type_hud(st->spaceid);
+  art = blender::ui::ED_area_type_hud(st->spaceid);
   BLI_addhead(&st->regiontypes, art);
 
   BKE_spacetype_register(std::move(st));

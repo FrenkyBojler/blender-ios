@@ -208,23 +208,37 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   }
 }
 
+class BindVertsImplicitSharing : public blender::ImplicitSharingInfo {
+ public:
+  SDefVert *verts;
+  int bind_verts_num;
+
+  BindVertsImplicitSharing(SDefVert *data, int bind_verts_num)
+      : verts(data), bind_verts_num(bind_verts_num)
+  {
+  }
+
+ private:
+  void delete_self_with_data() override
+  {
+    for (int i = 0; i < this->bind_verts_num; i++) {
+      if (this->verts[i].binds) {
+        for (int j = 0; j < this->verts[i].binds_num; j++) {
+          MEM_SAFE_FREE(this->verts[i].binds[j].vert_inds);
+          MEM_SAFE_FREE(this->verts[i].binds[j].vert_weights);
+        }
+        MEM_freeN(this->verts[i].binds);
+      }
+    }
+    MEM_freeN(verts);
+    MEM_delete(this);
+  }
+};
+
 static void free_data(ModifierData *md)
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
-
-  if (smd->verts) {
-    for (int i = 0; i < smd->bind_verts_num; i++) {
-      if (smd->verts[i].binds) {
-        for (int j = 0; j < smd->verts[i].binds_num; j++) {
-          MEM_SAFE_FREE(smd->verts[i].binds[j].vert_inds);
-          MEM_SAFE_FREE(smd->verts[i].binds[j].vert_weights);
-        }
-        MEM_freeN(smd->verts[i].binds);
-      }
-    }
-
-    MEM_SAFE_FREE(smd->verts);
-  }
+  blender::implicit_sharing::free_shared_data(&smd->verts, &smd->verts_sharing_info);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -234,27 +248,8 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
   BKE_modifier_copydata_generic(md, target, flag);
 
-  if (smd->verts) {
-    tsmd->verts = static_cast<SDefVert *>(MEM_dupallocN(smd->verts));
-
-    for (int i = 0; i < smd->bind_verts_num; i++) {
-      if (smd->verts[i].binds) {
-        tsmd->verts[i].binds = static_cast<SDefBind *>(MEM_dupallocN(smd->verts[i].binds));
-
-        for (int j = 0; j < smd->verts[i].binds_num; j++) {
-          if (smd->verts[i].binds[j].vert_inds) {
-            tsmd->verts[i].binds[j].vert_inds = static_cast<uint *>(
-                MEM_dupallocN(smd->verts[i].binds[j].vert_inds));
-          }
-
-          if (smd->verts[i].binds[j].vert_weights) {
-            tsmd->verts[i].binds[j].vert_weights = static_cast<float *>(
-                MEM_dupallocN(smd->verts[i].binds[j].vert_weights));
-          }
-        }
-      }
-    }
-  }
+  blender::implicit_sharing::copy_shared_pointer(
+      smd->verts, smd->verts_sharing_info, &tsmd->verts, &tsmd->verts_sharing_info);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -1147,12 +1142,26 @@ static void compactSparseBinds(SurfaceDeformModifierData *smd)
 
   for (uint i = 0; i < smd->mesh_verts_num; i++) {
     if (smd->verts[i].binds_num > 0) {
-      smd->verts[smd->bind_verts_num++] = smd->verts[i];
+      smd->bind_verts_num++;
     }
   }
 
-  smd->verts = static_cast<SDefVert *>(MEM_reallocN_id(
-      smd->verts, sizeof(*smd->verts) * smd->bind_verts_num, "SDefBindVerts (sparse)"));
+  SDefVert *new_verts = MEM_malloc_arrayN<SDefVert>(size_t(smd->bind_verts_num), __func__);
+
+  /* Move data to new_verts. */
+  BLI_assert(smd->verts_sharing_info->is_mutable());
+  int dst_index = 0;
+  for (uint i = 0; i < smd->mesh_verts_num; i++) {
+    if (smd->verts[i].binds_num > 0) {
+      new_verts[dst_index++] = smd->verts[i];
+      smd->verts[i] = {};
+    }
+  }
+
+  smd->verts_sharing_info->remove_user_and_delete_if_last();
+  smd->verts = new_verts;
+  smd->verts_sharing_info = MEM_new<BindVertsImplicitSharing>(
+      __func__, smd->verts, smd->bind_verts_num);
 }
 
 static bool surfacedeformBind(Object *ob,
@@ -1165,13 +1174,19 @@ static bool surfacedeformBind(Object *ob,
                               Mesh *target,
                               Mesh *mesh)
 {
-  const blender::Span<blender::float3> positions = target->vert_positions();
-  const blender::Span<blender::int2> edges = target->edges();
-  const blender::OffsetIndices polys = target->faces();
-  const blender::Span<int> corner_verts = target->corner_verts();
-  const blender::Span<int> corner_edges = target->corner_edges();
+  using namespace blender;
+  const Span<blender::float3> positions = target->vert_positions();
+  const Span<blender::int2> edges = target->edges();
+  const OffsetIndices polys = target->faces();
+  const Span<int> corner_verts = target->corner_verts();
+  const Span<int> corner_edges = target->corner_edges();
   uint tedges_num = target->edges_num;
   int adj_result;
+
+  if (target->faces_num == 0) {
+    BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Target has no faces");
+    return false;
+  }
 
   SDefAdjacencyArray *vert_edges = MEM_calloc_arrayN<SDefAdjacencyArray>(target_verts_num,
                                                                          "SDefVertEdgeMap");
@@ -1196,19 +1211,20 @@ static bool surfacedeformBind(Object *ob,
     return false;
   }
 
-  smd_orig->verts = MEM_malloc_arrayN<SDefVert>(size_t(verts_num), "SDefBindVerts");
+  smd_orig->verts = MEM_calloc_arrayN<SDefVert>(size_t(verts_num), "SDefBindVerts");
   if (smd_orig->verts == nullptr) {
     BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Out of memory");
     freeAdjacencyMap(vert_edges, adj_array, edge_polys);
     return false;
   }
+  smd_orig->verts_sharing_info = MEM_new<BindVertsImplicitSharing>(
+      __func__, smd_orig->verts, verts_num);
 
   blender::bke::BVHTreeFromMesh treeData = target->bvh_corner_tris();
   if (treeData.tree == nullptr) {
     BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Out of memory");
     freeAdjacencyMap(vert_edges, adj_array, edge_polys);
-    MEM_freeN(smd_orig->verts);
-    smd_orig->verts = nullptr;
+    implicit_sharing::free_shared_data(&smd_orig->verts, &smd_orig->verts_sharing_info);
     return false;
   }
 
@@ -1218,8 +1234,7 @@ static bool surfacedeformBind(Object *ob,
     BKE_modifier_set_error(
         ob, (ModifierData *)smd_eval, "Target has edges with more than two polygons");
     freeAdjacencyMap(vert_edges, adj_array, edge_polys);
-    MEM_freeN(smd_orig->verts);
-    smd_orig->verts = nullptr;
+    implicit_sharing::free_shared_data(&smd_orig->verts, &smd_orig->verts_sharing_info);
     return false;
   }
 
@@ -1360,7 +1375,7 @@ static void deformVert(void *__restrict userdata,
     }
 
     normal_poly_v3(
-        norm, reinterpret_cast<const float(*)[3]>(coords_buffer.data()), sdbind->verts_num);
+        norm, reinterpret_cast<const float (*)[3]>(coords_buffer.data()), sdbind->verts_num);
     zero_v3(temp);
 
     switch (sdbind->mode) {
@@ -1384,7 +1399,7 @@ static void deformVert(void *__restrict userdata,
       case MOD_SDEF_MODE_CENTROID: {
         float cent[3];
         mid_v3_v3_array(
-            cent, reinterpret_cast<const float(*)[3]>(coords_buffer.data()), sdbind->verts_num);
+            cent, reinterpret_cast<const float (*)[3]>(coords_buffer.data()), sdbind->verts_num);
 
         madd_v3_v3fl(temp, data->targetCos[sdbind->vert_inds[0]], sdbind->vert_weights[0]);
         madd_v3_v3fl(temp, data->targetCos[sdbind->vert_inds[1]], sdbind->vert_weights[1]);
@@ -1555,7 +1570,7 @@ static void deform_verts(ModifierData *md,
 {
   surfacedeformModifier_do(md,
                            ctx,
-                           reinterpret_cast<float(*)[3]>(positions.data()),
+                           reinterpret_cast<float (*)[3]>(positions.data()),
                            positions.size(),
                            ctx->object,
                            mesh);
@@ -1576,8 +1591,7 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -1586,25 +1600,25 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   bool is_bound = RNA_boolean_get(ptr, "is_bound");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(false);
+  blender::ui::Layout *col = &layout.column(false);
   col->active_set(!is_bound);
   col->prop(ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "falloff", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->enabled_set(!is_bound);
   col->active_set(!is_bound && RNA_string_length(ptr, "vertex_group") != 0);
   col->prop(ptr, "use_sparse_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->separator();
+  layout.separator();
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   if (is_bound) {
     col->op("OBJECT_OT_surfacedeform_bind", IFACE_("Unbind"), ICON_NONE);
   }
@@ -1633,63 +1647,75 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
        * binding data, can save a significant amount of memory. */
       smd.bind_verts_num = 0;
       smd.verts = nullptr;
+      smd.verts_sharing_info = nullptr;
     }
+  }
+
+  if (smd.verts != nullptr) {
+    BLO_write_shared(
+        writer, smd.verts, sizeof(SDefVert) * smd.bind_verts_num, smd.verts_sharing_info, [&]() {
+          SDefVert *bind_verts = smd.verts;
+          BLO_write_struct_array(writer, SDefVert, smd.bind_verts_num, bind_verts);
+
+          for (int i = 0; i < smd.bind_verts_num; i++) {
+            BLO_write_struct_array(writer, SDefBind, bind_verts[i].binds_num, bind_verts[i].binds);
+
+            if (bind_verts[i].binds) {
+              for (int j = 0; j < bind_verts[i].binds_num; j++) {
+                BLO_write_uint32_array(
+                    writer, bind_verts[i].binds[j].verts_num, bind_verts[i].binds[j].vert_inds);
+
+                if (ELEM(bind_verts[i].binds[j].mode,
+                         MOD_SDEF_MODE_CENTROID,
+                         MOD_SDEF_MODE_CORNER_TRIS))
+                {
+                  BLO_write_float3_array(writer, 1, bind_verts[i].binds[j].vert_weights);
+                }
+                else {
+                  BLO_write_float_array(writer,
+                                        bind_verts[i].binds[j].verts_num,
+                                        bind_verts[i].binds[j].vert_weights);
+                }
+              }
+            }
+          }
+        });
   }
 
   BLO_write_struct_at_address(writer, SurfaceDeformModifierData, md, &smd);
-
-  if (smd.verts != nullptr) {
-    SDefVert *bind_verts = smd.verts;
-    BLO_write_struct_array(writer, SDefVert, smd.bind_verts_num, bind_verts);
-
-    for (int i = 0; i < smd.bind_verts_num; i++) {
-      BLO_write_struct_array(writer, SDefBind, bind_verts[i].binds_num, bind_verts[i].binds);
-
-      if (bind_verts[i].binds) {
-        for (int j = 0; j < bind_verts[i].binds_num; j++) {
-          BLO_write_uint32_array(
-              writer, bind_verts[i].binds[j].verts_num, bind_verts[i].binds[j].vert_inds);
-
-          if (ELEM(bind_verts[i].binds[j].mode, MOD_SDEF_MODE_CENTROID, MOD_SDEF_MODE_CORNER_TRIS))
-          {
-            BLO_write_float3_array(writer, 1, bind_verts[i].binds[j].vert_weights);
-          }
-          else {
-            BLO_write_float_array(
-                writer, bind_verts[i].binds[j].verts_num, bind_verts[i].binds[j].vert_weights);
-          }
-        }
-      }
-    }
-  }
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
 
-  BLO_read_struct_array(reader, SDefVert, smd->bind_verts_num, &smd->verts);
-
   if (smd->verts) {
-    for (int i = 0; i < smd->bind_verts_num; i++) {
-      BLO_read_struct_array(reader, SDefBind, smd->verts[i].binds_num, &smd->verts[i].binds);
+    smd->verts_sharing_info = BLO_read_shared(reader, &smd->verts, [&]() {
+      BLO_read_struct_array(reader, SDefVert, smd->bind_verts_num, &smd->verts);
+      for (int i = 0; i < smd->bind_verts_num; i++) {
+        BLO_read_struct_array(reader, SDefBind, smd->verts[i].binds_num, &smd->verts[i].binds);
 
-      if (smd->verts[i].binds) {
-        for (int j = 0; j < smd->verts[i].binds_num; j++) {
-          BLO_read_uint32_array(
-              reader, smd->verts[i].binds[j].verts_num, &smd->verts[i].binds[j].vert_inds);
+        if (smd->verts[i].binds) {
+          for (int j = 0; j < smd->verts[i].binds_num; j++) {
+            BLO_read_uint32_array(
+                reader, smd->verts[i].binds[j].verts_num, &smd->verts[i].binds[j].vert_inds);
 
-          if (ELEM(smd->verts[i].binds[j].mode, MOD_SDEF_MODE_CENTROID, MOD_SDEF_MODE_CORNER_TRIS))
-          {
-            BLO_read_float3_array(reader, 1, &smd->verts[i].binds[j].vert_weights);
-          }
-          else {
-            BLO_read_float_array(
-                reader, smd->verts[i].binds[j].verts_num, &smd->verts[i].binds[j].vert_weights);
+            if (ELEM(smd->verts[i].binds[j].mode,
+                     MOD_SDEF_MODE_CENTROID,
+                     MOD_SDEF_MODE_CORNER_TRIS))
+            {
+              BLO_read_float3_array(reader, 1, &smd->verts[i].binds[j].vert_weights);
+            }
+            else {
+              BLO_read_float_array(
+                  reader, smd->verts[i].binds[j].verts_num, &smd->verts[i].binds[j].vert_weights);
+            }
           }
         }
       }
-    }
+      return MEM_new<BindVertsImplicitSharing>(
+          "BindVertsImplicitSharing", smd->verts, smd->bind_verts_num);
+    });
   }
 }
 

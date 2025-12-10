@@ -197,7 +197,7 @@ bool metalrt_shadow_all_hit(
     return true;
   }
 
-#  ifdef __SHADOW_RECORD_ALL__
+#  ifdef __TRANSPARENT_SHADOWS__
   float u = barycentrics.x;
   float v = barycentrics.y;
   const int prim_type = kernel_data_fetch(objects, object).primitive_type;
@@ -215,7 +215,7 @@ bool metalrt_shadow_all_hit(
       return true;
     }
 
-    if (type & PRIMITIVE_CURVE_RIBBON) {
+    if ((type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) {
       MetalKernelContext context(launch_params_metal);
       if (!context.curve_ribbon_accept(nullptr, u, t, ray, object, prim, type)) {
         /* continue search */
@@ -337,7 +337,7 @@ bool metalrt_shadow_all_hit(
 
   /* Continue tracing. */
 #    endif /* __TRANSPARENT_SHADOWS__ */
-#  endif   /* __SHADOW_RECORD_ALL__ */
+#  endif   /* __TRANSPARENT_SHADOWS__ */
 
   return true;
 }
@@ -421,7 +421,7 @@ inline TReturnType metalrt_visibility_test(
       return result;
     }
 
-    if (type & PRIMITIVE_CURVE_RIBBON) {
+    if ((type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) {
       MetalKernelContext context(launch_params_metal);
       if (!context.curve_ribbon_accept(nullptr, u, t, ray, object, prim, type)) {
         result.accept = false;
@@ -472,7 +472,7 @@ inline TReturnType metalrt_visibility_test_shadow(
       return result;
     }
 
-    if (type & PRIMITIVE_CURVE_RIBBON) {
+    if ((type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) {
       MetalKernelContext context(launch_params_metal);
       if (!context.curve_ribbon_accept(nullptr, u, t, ray, object, prim, type)) {
         result.accept = false;

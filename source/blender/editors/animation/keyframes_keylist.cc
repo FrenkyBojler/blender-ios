@@ -869,8 +869,20 @@ static void compute_keyblock_data(ActKeyBlockInfo *info,
   }
 
   /* Remember non-bezier interpolation info. */
-  if (prev->ipo != BEZT_IPO_BEZ) {
-    info->flag |= ACTKEYBLOCK_FLAG_NON_BEZIER;
+  switch (eBezTriple_Interpolation(prev->ipo)) {
+    case BEZT_IPO_BEZ:
+      break;
+    case BEZT_IPO_LIN:
+      info->flag |= ACTKEYBLOCK_FLAG_IPO_LINEAR;
+      break;
+    case BEZT_IPO_CONST:
+      info->flag |= ACTKEYBLOCK_FLAG_IPO_CONSTANT;
+      break;
+    default:
+      /* For automatic bezier interpolations, such as easings (cubic, circular, etc), and dynamic
+       * (back, bounce, elastic). */
+      info->flag |= ACTKEYBLOCK_FLAG_IPO_OTHER;
+      break;
   }
 
   info->sel = BEZT_ISSEL_ANY(prev) || BEZT_ISSEL_ANY(beztn);
@@ -1130,6 +1142,8 @@ void scene_to_keylist(bDopeSheet *ads,
   ac.ads = ads;
   ac.data = &dummy_chan;
   ac.datatype = ANIMCONT_CHANNEL;
+  ac.filters.flag = eDopeSheet_FilterFlag(ads->filterflag);
+  ac.filters.flag2 = eDopeSheet_FilterFlag2(ads->filterflag2);
 
   /* Get F-Curves to take keyframes from. */
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
@@ -1176,6 +1190,8 @@ void ob_to_keylist(bDopeSheet *ads,
   ac.ads = ads;
   ac.data = &dummy_chan;
   ac.datatype = ANIMCONT_CHANNEL;
+  ac.filters.flag = eDopeSheet_FilterFlag(ads->filterflag);
+  ac.filters.flag2 = eDopeSheet_FilterFlag2(ads->filterflag2);
 
   /* Get F-Curves to take keyframes from. */
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
@@ -1214,6 +1230,8 @@ void cachefile_to_keylist(bDopeSheet *ads,
   ac.ads = ads;
   ac.data = &dummy_chan;
   ac.datatype = ANIMCONT_CHANNEL;
+  ac.filters.flag = eDopeSheet_FilterFlag(ads->filterflag);
+  ac.filters.flag2 = eDopeSheet_FilterFlag2(ads->filterflag2);
 
   /* Get F-Curves to take keyframes from. */
   ListBase anim_data = {nullptr, nullptr};
@@ -1282,7 +1300,7 @@ void fcurve_to_keylist(AnimData *adt,
   /* The indices for which keys have been added to the key columns. Initialized as invalid bounds
    * for the case that no keyframes get added to the key-columns, which happens when the given
    * range doesn't overlap with the existing keyframes. */
-  blender::Bounds<int> index_bounds(int(fcu->totvert), 0);
+  Bounds<int> index_bounds(int(fcu->totvert), 0);
   /* The following is used to find the keys that are JUST outside the range. This is done so
    * drawing in the dope sheet can create lines that extend off-screen. */
   float left_outside_key_x = -FLT_MAX;

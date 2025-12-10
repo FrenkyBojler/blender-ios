@@ -57,7 +57,7 @@ struct ResourceIndex {
   uint32_t raw;
 
   ResourceIndex() = default;
-  ResourceIndex(uint raw_) : raw(raw_){};
+  ResourceIndex(uint raw_) : raw(raw_) {};
   ResourceIndex(uint index, bool inverted_handedness)
   {
     raw = index;
@@ -244,9 +244,10 @@ class ObjectRef {
   float random() const
   {
     if (duplis_) {
-      /* NOTE: The random property is only used by EEVEE, which currently doesn't support
-      instancing optimizations. However, ObjectInfos always call this function so the code is still
-      reachable even if its result won't be used. */
+      /* NOTE: The random property is only used by EEVEE,
+       * which currently doesn't support instancing optimizations.
+       * However, ObjectInfos always call this function so the code
+       * is still reachable even if its result won't be used. */
       // BLI_assert_unreachable();
       /* TODO: This should fill a span instead. */
       return 0.0;
@@ -446,6 +447,15 @@ class ObjectKey {
       sub_key_ = sub_key;
       hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
     }
+  }
+
+  /* Special handles that will have nullptr object.
+   * Used for inserting helper items inside the hash-maps without creating a dummy #Object. */
+  explicit ObjectKey(int key)
+  {
+    sub_key_ = key;
+    hash_value_ = get_default_hash(ob_);
+    hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
   }
 
   uint64_t hash() const

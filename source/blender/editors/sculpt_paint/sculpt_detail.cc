@@ -256,7 +256,7 @@ static void sample_detail_dyntopo(bContext *C, ViewContext *vc, const int mval[2
   Object &ob = *vc->obact;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
-  SCULPT_stroke_modifiers_check(C, ob, brush);
+  SCULPT_stroke_modifiers_check(C, ob, &brush);
 
   const float2 mval_fl = {float(mval[0]), float(mval[1])};
   float3 ray_start;
@@ -637,7 +637,11 @@ static void dyntopo_detail_size_sample_from_surface(Object &ob,
                                                     DyntopoDetailSizeEditCustomData *cd)
 {
   SculptSession &ss = *ob.sculpt;
-  BMVert *active_vertex = std::get<BMVert *>(ss.active_vert());
+  const ActiveVert active_vert = ss.active_vert();
+  if (std::holds_alternative<std::monostate>(active_vert)) {
+    return;
+  }
+  BMVert *active_vertex = std::get<BMVert *>(active_vert);
 
   float len_accum = 0;
   BMeshNeighborVerts neighbors;

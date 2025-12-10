@@ -14,6 +14,7 @@
 #include "usd_skel_convert.hh"
 #include "usd_utils.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
@@ -30,7 +31,6 @@
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
-#include "BLI_task.hh"
 #include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
@@ -50,8 +50,6 @@
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 #include <pxr/usd/usdShade/tokens.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
-
-#include <fmt/core.h>
 
 #include <algorithm>
 
@@ -99,7 +97,7 @@ static pxr::UsdShadeMaterial compute_bound_material(const pxr::UsdPrim &prim,
 
 static void assign_materials(Main *bmain,
                              Object *ob,
-                             const blender::Map<pxr::SdfPath, int> &mat_index_map,
+                             const Map<pxr::SdfPath, int> &mat_index_map,
                              const USDImportParams &params,
                              pxr::UsdStageRefPtr stage,
                              const ImportSettings &settings)
@@ -143,8 +141,7 @@ static void assign_materials(Main *bmain,
         continue;
       }
 
-      const std::string mat_name = make_safe_name(assigned_mat->id.name + 2, true);
-      settings.mat_name_to_mat.add_new(mat_name, assigned_mat);
+      settings.mat_name_to_mat.add_new(assigned_mat->id.name + 2, assigned_mat);
 
       if (params.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
         /* Record the Blender material we created for the USD material with the given path. */
@@ -294,23 +291,9 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
   }
 
   /* Check for faces with duplicate vertex indices. These will require a mesh validate to fix. */
-  const OffsetIndices<int> faces = mesh->faces();
-  const bool all_faces_ok = threading::parallel_reduce(
-      faces.index_range(),
-      1024,
-      true,
-      [&](const IndexRange part, const bool ok_so_far) {
-        bool current_faces_ok = ok_so_far;
-        if (ok_so_far) {
-          for (const int i : part) {
-            const IndexRange face_range = faces[i];
-            const Set<int, 32> used_verts(corner_verts.slice(face_range));
-            current_faces_ok = current_faces_ok && used_verts.size() == face_range.size();
-          }
-        }
-        return current_faces_ok;
-      },
-      std::logical_and<>());
+  IndexMaskMemory memory;
+  const IndexMask bad_faces = bke::mesh_find_faces_duplicate_verts(*mesh, memory);
+  const bool all_faces_ok = bad_faces.is_empty();
 
   /* If we detect bad faces it would be unsafe to continue beyond this point without first
    * performing a destructive validate. Any operation requiring mesh connectivity information can
@@ -325,7 +308,7 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
       BKE_reportf(this->reports(), RPT_WARNING, message, prim_path.c_str());
       CLOG_WARN(&LOG, message, prim_path.c_str());
     }
-    BKE_mesh_validate(mesh, false, false);
+    bke::mesh_validate(*mesh, false);
   }
 
   bke::mesh_calc_edges(*mesh, false, false);
@@ -831,18 +814,14 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
   }
 
   if (!active_uv_set_name.IsEmpty()) {
-    int layer_index = CustomData_get_named_layer_index(
-        &mesh->corner_data, CD_PROP_FLOAT2, active_uv_set_name.GetText());
-    if (layer_index > -1) {
-      CustomData_set_layer_active_index(&mesh->corner_data, CD_PROP_FLOAT2, layer_index);
-      CustomData_set_layer_render_index(&mesh->corner_data, CD_PROP_FLOAT2, layer_index);
-    }
+    mesh->uv_maps_active_set(active_uv_set_name.GetText());
+    mesh->uv_maps_default_set(active_uv_set_name.GetText());
   }
 }
 
 void USDMeshReader::assign_facesets_to_material_indices(pxr::UsdTimeCode time,
                                                         MutableSpan<int> material_indices,
-                                                        blender::Map<pxr::SdfPath, int> *r_mat_map)
+                                                        Map<pxr::SdfPath, int> *r_mat_map)
 {
   if (r_mat_map == nullptr) {
     return;
@@ -923,7 +902,7 @@ void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const pxr::UsdTi
     return;
   }
 
-  blender::Map<pxr::SdfPath, int> mat_map;
+  Map<pxr::SdfPath, int> mat_map;
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
@@ -970,7 +949,7 @@ Mesh *USDMeshReader::read_mesh(Mesh *existing_mesh,
      * the material slots that were created when the object was loaded from
      * USD are still valid now. */
     if (active_mesh->faces_num != 0 && import_params_.import_materials) {
-      blender::Map<pxr::SdfPath, int> mat_map;
+      Map<pxr::SdfPath, int> mat_map;
       bke::MutableAttributeAccessor attributes = active_mesh->attributes_for_write();
       bke::SpanAttributeWriter<int> material_indices =
           attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Face);
@@ -981,7 +960,7 @@ Mesh *USDMeshReader::read_mesh(Mesh *existing_mesh,
   }
 
   if (import_params_.validate_meshes) {
-    if (BKE_mesh_validate(active_mesh, false, false)) {
+    if (bke::mesh_validate(*active_mesh, false)) {
       BKE_reportf(reports(), RPT_INFO, "Fixed mesh for prim: %s", mesh_prim_.GetPath().GetText());
     }
   }

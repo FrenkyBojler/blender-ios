@@ -142,7 +142,7 @@ extern "C" __global__ void __anyhit__kernel_optix_local_hit()
 
 extern "C" __global__ void __anyhit__kernel_optix_shadow_all_hit()
 {
-#ifdef __SHADOW_RECORD_ALL__
+#ifdef __TRANSPARENT_SHADOWS__
   int prim = optixGetPrimitiveIndex();
   const uint object = get_object_id();
 #  ifdef __VISIBILITY_FLAG__
@@ -273,7 +273,7 @@ extern "C" __global__ void __anyhit__kernel_optix_shadow_all_hit()
   /* Continue tracing. */
   optixIgnoreIntersection();
 #  endif /* __TRANSPARENT_SHADOWS__ */
-#endif   /* __SHADOW_RECORD_ALL__ */
+#endif   /* __TRANSPARENT_SHADOWS__ */
 }
 
 extern "C" __global__ void __anyhit__kernel_optix_volume_test()
@@ -421,7 +421,7 @@ extern "C" __global__ void __intersection__curve_ribbon()
   const KernelCurveSegment segment = kernel_data_fetch(curve_segments, optixGetPrimitiveIndex());
   const int prim = segment.prim;
   const int type = segment.type;
-  if (type & PRIMITIVE_CURVE_RIBBON) {
+  if ((type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) {
     optix_intersection_curve(prim, type);
   }
 }
@@ -611,7 +611,7 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
 }
 #endif
 
-#ifdef __SHADOW_RECORD_ALL__
+#ifdef __TRANSPARENT_SHADOWS__
 ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
                                                      IntegratorShadowState state,
                                                      const ccl_private Ray *ray,

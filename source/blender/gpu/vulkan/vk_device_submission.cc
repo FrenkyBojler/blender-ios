@@ -26,7 +26,7 @@ namespace blender::gpu {
  * \{ */
 
 struct VKRenderGraphWait {
-  blender::Mutex is_submitted_mutex;
+  Mutex is_submitted_mutex;
   std::condition_variable_any is_submitted_condition;
   bool is_submitted;
 };
@@ -55,7 +55,7 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
     render_graph->reset();
     BLI_thread_queue_push(
         unused_render_graphs_, render_graph, BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL);
-    return 0;
+    return timeline_value_;
   }
 
   VKRenderGraphSubmitTask *submit_task = MEM_new<VKRenderGraphSubmitTask>(__func__);
@@ -86,7 +86,7 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   submit_task = nullptr;
 
   if (wait_for_submission) {
-    std::unique_lock<blender::Mutex> lock(wait_condition.is_submitted_mutex);
+    std::unique_lock<Mutex> lock(wait_condition.is_submitted_mutex);
     wait_condition.is_submitted_condition.wait(lock, [&] { return wait_condition.is_submitted; });
   }
 
@@ -160,7 +160,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
     }
     uint64_t current_timeline = device->submission_finished_timeline_get();
     if (assign_if_different(previous_gc_timeline, current_timeline)) {
-      device->orphaned_data.destroy_discarded_resources(*device);
+      device->orphaned_data.destroy_discarded_resources(*device, current_timeline);
     }
 
     /* End current command buffer when we need to wait for a semaphore. In this case all previous
@@ -262,8 +262,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
                       submit_task->signal_fence);
       }
       if (submit_task->wait_for_submission != nullptr) {
-        std::unique_lock<blender::Mutex> lock(
-            submit_task->wait_for_submission->is_submitted_mutex);
+        std::unique_lock<Mutex> lock(submit_task->wait_for_submission->is_submitted_mutex);
         submit_task->wait_for_submission->is_submitted = true;
         submit_task->wait_for_submission->is_submitted_condition.notify_one();
       }
@@ -284,7 +283,10 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   CLOG_TRACE(&LOG, "Submission runner is being canceled");
 
   /* Clear command buffers and pool */
-  vkDeviceWaitIdle(device->vk_device_);
+  {
+    std::scoped_lock lock(*device->queue_mutex_);
+    vkDeviceWaitIdle(device->vk_device_);
+  }
   command_buffers_in_use.remove_old(UINT64_MAX, [&](VkCommandBuffer vk_command_buffer) {
     command_buffers_unused.append(vk_command_buffer);
   });

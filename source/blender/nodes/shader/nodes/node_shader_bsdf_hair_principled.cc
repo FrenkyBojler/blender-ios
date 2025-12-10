@@ -127,10 +127,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Shader>("BSDF");
 }
 
-static void node_shader_buts_principled_hair(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_principled_hair(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "model", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout->prop(ptr, "parametrization", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "model", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "parametrization", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 /* Initialize custom properties. */
@@ -198,7 +198,7 @@ static int node_shader_gpu_hair_principled(GPUMaterial *mat,
                                            GPUNodeStack *in,
                                            GPUNodeStack *out)
 {
-  GPU_material_flag_set(mat, GPU_MATFLAG_DIFFUSE | GPU_MATFLAG_GLOSSY);
+  GPU_material_flag_set(mat, GPU_MATFLAG_DIFFUSE);
 
   return GPU_stack_link(mat, node, "node_bsdf_hair_principled", in, out);
 }

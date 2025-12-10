@@ -231,7 +231,7 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
     isect->type = segment.type;
     isect->u = intersection.curve_parameter;
 
-    if (segment.type & PRIMITIVE_CURVE_RIBBON) {
+    if ((segment.type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) {
       isect->v = curve_ribbon_v(kg,
                                 intersection.curve_parameter,
                                 intersection.distance,
@@ -476,7 +476,7 @@ ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
 }
 #endif
 
-#ifdef __SHADOW_RECORD_ALL__
+#ifdef __TRANSPARENT_SHADOWS__
 ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals kg,
                                                      IntegratorShadowState state,
                                                      const ccl_private Ray *ray,

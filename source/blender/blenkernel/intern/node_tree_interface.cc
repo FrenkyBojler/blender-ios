@@ -24,6 +24,7 @@
 #include "DNA_node_types.h"
 
 #include "NOD_node_declaration.hh"
+#include "NOD_socket_declarations.hh"
 
 using blender::StringRef;
 
@@ -424,7 +425,7 @@ static void socket_data_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfac
 
 namespace item_types {
 
-using UidGeneratorFn = blender::FunctionRef<int()>;
+using UidGeneratorFn = FunctionRef<int()>;
 
 static void item_copy(bNodeTreeInterfaceItem &dst,
                       const bNodeTreeInterfaceItem &src,
@@ -602,8 +603,8 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
 
       /* Improve forward compatibility for unknown default input types. */
       const bNodeSocketType *stype = socket.socket_typeinfo();
-      if (!nodes::socket_type_supports_default_input_type(
-              *stype, NodeDefaultInputType(socket.default_input)))
+      if (!stype || !nodes::socket_type_supports_default_input_type(
+                        *stype, NodeDefaultInputType(socket.default_input)))
       {
         socket.default_input = NODE_DEFAULT_INPUT_VALUE;
       }
@@ -620,7 +621,7 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
 
       /* Read the direct-data for each interface item if possible. The pointer becomes null if the
        * struct type is not known. */
-      for (const int i : blender::IndexRange(panel.items_num)) {
+      for (const int i : IndexRange(panel.items_num)) {
         BLO_read_struct(reader, bNodeTreeInterfaceItem, &panel.items_array[i]);
       }
       /* Forward compatibility: Discard unknown tree interface item types that may be introduced in
@@ -631,7 +632,7 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
                             [&](const bNodeTreeInterfaceItem *item) { return item == nullptr; }) -
                         panel.items_array;
       /* Now read the actual data if the known interface items. */
-      for (const int i : blender::IndexRange(panel.items_num)) {
+      for (const int i : IndexRange(panel.items_num)) {
         item_read_data(reader, *panel.items_array[i]);
       }
       break;
@@ -1156,6 +1157,12 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
       if (!decl->description.empty()) {
         description = decl->description;
       }
+      SET_FLAG_FROM_TEST(flag, decl->optional_label, NODE_INTERFACE_SOCKET_OPTIONAL_LABEL);
+      if (socket_type == "NodeSocketMenu" && from_sock.type == SOCK_MENU) {
+        if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(decl)) {
+          SET_FLAG_FROM_TEST(flag, menu_decl->is_expanded, NODE_INTERFACE_SOCKET_MENU_EXPANDED);
+        }
+      }
     }
 
     iosock = ntree.tree_interface.add_socket(name, description, socket_type, flag, nullptr);
@@ -1177,8 +1184,8 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
 }
 
 static bNodeTreeInterfacePanel *make_panel(const int uid,
-                                           const blender::StringRef name,
-                                           const blender::StringRef description,
+                                           const StringRef name,
+                                           const StringRef description,
                                            const NodeTreeInterfacePanelFlag flag)
 {
   BLI_assert(!name.is_empty());

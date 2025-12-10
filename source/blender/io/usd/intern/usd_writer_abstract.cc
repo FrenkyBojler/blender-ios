@@ -3,12 +3,14 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "usd_writer_abstract.hh"
 #include "usd_attribute_utils.hh"
+#include "usd_hierarchy_iterator.hh"
 #include "usd_utils.hh"
 #include "usd_writer_material.hh"
 
 #include <pxr/base/tf/stringUtils.h>
 #include <pxr/usd/usdGeom/bboxCache.h>
 #include <pxr/usd/usdGeom/scope.h>
+#include <pxr/usd/usdUI/accessibilityAPI.h>
 
 #include "BKE_customdata.hh"
 
@@ -26,6 +28,76 @@ namespace usdtokens {
 static const pxr::TfToken blender_ns("userProperties:blender", pxr::TfToken::Immortal);
 }  // namespace usdtokens
 
+namespace {
+struct AccessibilityPropertyName {
+  pxr::TfToken property_namespace;
+  pxr::TfToken property_base_name;
+};
+}  // anonymous namespace
+
+static std::optional<AccessibilityPropertyName> parse_accessibility_property_name(
+    IDProperty *prop, bool allow_unicode)
+{
+  std::vector<std::string> property_tokens = pxr::TfStringTokenize(prop->name, ":");
+
+  /* First check if the property name matches the UsdUIAccessibility format exactly. */
+  if (property_tokens.size() == 3) {
+    pxr::TfToken accessibility_token(property_tokens[0]);
+    pxr::TfToken basename(property_tokens[2]);
+    if (accessibility_token == pxr::UsdUITokens->accessibility &&
+        pxr::UsdUIAccessibilityAPI::IsSchemaPropertyBaseName(basename))
+    {
+      AccessibilityPropertyName property_name;
+
+      /* Sanitize the namespace since this is user-generated and might need to be conformed
+       * to the `allow_unicode` export setting. */
+      property_name.property_namespace = pxr::TfToken(
+          blender::io::usd::make_safe_name(property_tokens[1], allow_unicode));
+      property_name.property_base_name = basename;
+      return property_name;
+    }
+  }
+
+  return std::nullopt;
+}
+
+static bool is_valid_accessibility_priority(const pxr::TfToken &token)
+{
+  return token == pxr::UsdUITokens->low || token == pxr::UsdUITokens->standard ||
+         token == pxr::UsdUITokens->high;
+}
+
+/**
+ * Write the accessibility property on the given prim. Note: although the
+ * UsdUIAccessibilityAPI DOES allow time-sampled data for the `label`
+ * and `description` properties, Blender does not currently support
+ * keyframes on string custom properties so time-sample authoring will
+ * not be done here.
+ */
+static void write_accessibility_property(const pxr::UsdPrim &prim,
+                                         const AccessibilityPropertyName &property_name,
+                                         const std::string &value)
+{
+  pxr::UsdUIAccessibilityAPI accessibility_api = pxr::UsdUIAccessibilityAPI::Apply(
+      prim, property_name.property_namespace);
+  if (!accessibility_api) {
+    return;
+  }
+
+  if (property_name.property_base_name == pxr::UsdUITokens->label) {
+    accessibility_api.CreateLabelAttr().Set(value);
+  }
+  else if (property_name.property_base_name == pxr::UsdUITokens->description) {
+    accessibility_api.CreateDescriptionAttr().Set(value);
+  }
+  else if (property_name.property_base_name == pxr::UsdUITokens->priority) {
+    pxr::TfToken priority(value);
+    if (is_valid_accessibility_priority(priority)) {
+      accessibility_api.CreatePriorityAttr().Set(priority);
+    }
+  }
+}
+
 static std::string get_mesh_active_uvlayer_name(const Object *ob)
 {
   if (!ob || ob->type != OB_MESH || !ob->data) {
@@ -33,10 +105,7 @@ static std::string get_mesh_active_uvlayer_name(const Object *ob)
   }
 
   const Mesh *mesh = static_cast<Mesh *>(ob->data);
-
-  const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2);
-
-  return name ? name : "";
+  return mesh->active_uv_map_name();
 }
 
 template<typename USDT>
@@ -235,6 +304,7 @@ pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material_created(
       usd_export_context_, usd_path, material, active_uv, reports());
 
   auto prim = usd_material.GetPrim();
+  add_to_prim_map(prim.GetPath(), &material->id);
   write_id_properties(prim, material->id, get_export_time_code());
 
   return usd_material;
@@ -383,6 +453,16 @@ void USDAbstractWriter::write_user_properties(const pxr::UsdPrim &prim,
       continue;
     }
 
+    if (auto accessibility_property_name = parse_accessibility_property_name(
+            prop, usd_export_context_.export_params.allow_unicode))
+    {
+      if (prop->type == IDP_STRING && prop->data.pointer) {
+        write_accessibility_property(
+            prim, *accessibility_property_name, static_cast<char *>(prop->data.pointer));
+      }
+      continue;
+    }
+
     std::vector<std::string> path_names = pxr::TfStringTokenize(prop->name, ":");
 
     /* If the path does not already have a namespace prefix, prepend the default namespace
@@ -478,6 +558,13 @@ void USDAbstractWriter::author_extent(const pxr::UsdGeomBoundable &boundable,
 
   pxr::UsdAttribute attr_extent = boundable.CreateExtentAttr(pxr::VtValue(), true);
   set_attribute(attr_extent, extent, time, usd_value_writer_);
+}
+
+void USDAbstractWriter::add_to_prim_map(const pxr::SdfPath &usd_path, const ID *id) const
+{
+  if (usd_export_context_.hierarchy_iterator) {
+    usd_export_context_.hierarchy_iterator->add_to_prim_map(usd_path, id);
+  }
 }
 
 }  // namespace blender::io::usd

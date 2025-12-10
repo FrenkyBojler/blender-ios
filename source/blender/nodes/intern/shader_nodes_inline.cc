@@ -14,6 +14,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 
+#include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_in_compute_context.hh"
@@ -27,13 +28,16 @@ using BundleSocketValuePtr = std::shared_ptr<BundleSocketValue>;
 
 struct FallbackValue {};
 
+/** This indicates that the value should be ignored when it is linked to an input socket. */
+struct DanglingValue {};
+
 struct NodeAndSocket {
   bNode *node = nullptr;
   bNodeSocket *socket = nullptr;
 };
 
 struct PrimitiveSocketValue {
-  std::variant<int, float, bool, ColorGeometry4f, float3> value;
+  std::variant<int, float, bool, ColorGeometry4f, float3, MenuValue> value;
 
   const void *buffer() const
   {
@@ -63,6 +67,9 @@ struct PrimitiveSocketValue {
     if (type.is<float3>()) {
       return {*static_cast<const float3 *>(value.get())};
     }
+    if (type.is<MenuValue>()) {
+      return {*static_cast<const MenuValue *>(value.get())};
+    }
     BLI_assert_unreachable();
     return {};
   }
@@ -91,6 +98,7 @@ struct SocketValue {
    * constant-folded.
    */
   std::variant<FallbackValue,
+               DanglingValue,
                LinkedSocketValue,
                InputSocketValue,
                PrimitiveSocketValue,
@@ -127,6 +135,9 @@ struct SocketValue {
         case SOCK_RGBA:
           return PrimitiveSocketValue{
               ColorGeometry4f(socket.default_value_typed<bNodeSocketValueRGBA>()->value)};
+        case SOCK_MENU:
+          return PrimitiveSocketValue{
+              MenuValue(socket.default_value_typed<bNodeSocketValueMenu>()->value)};
         default:
           return std::nullopt;
       }
@@ -175,6 +186,11 @@ class ShaderNodesInliner {
   InlineShaderNodeTreeParams &params_;
   /** Simplifies building the all the compute contexts for nodes in zones and groups. */
   bke::ComputeContextCache compute_context_cache_;
+  /**
+   * Stores compute context of the direct parent of each zone. In most cases, this is just the
+   * parent compute context directly, except for closures.
+   */
+  Map<const ComputeContext *, const ComputeContext *> parent_zone_contexts_;
   /** Stores the computed value for each socket. The final value for each socket may be constant */
   Map<SocketInContext, SocketValue> value_by_socket_;
   /**
@@ -251,7 +267,8 @@ class ShaderNodesInliner {
       });
       bNodeSocket *copied_socket = static_cast<bNodeSocket *>(
           BLI_findlink(&copied_node->inputs, socket.socket->index()));
-      this->set_socket_value(*copied_node, *copied_socket, value_by_socket_.lookup(socket));
+      this->set_input_socket_value(
+          *src_node, *copied_node, *copied_socket, value_by_socket_.lookup(socket));
     }
 
     this->restore_zones_in_output_tree();
@@ -259,14 +276,24 @@ class ShaderNodesInliner {
     return true;
   }
 
-  Vector<SocketInContext> find_final_output_sockets() const
+  Vector<SocketInContext> find_final_output_sockets()
   {
-    Vector<SocketInContext> output_sockets;
+    Vector<TreeInContext> trees;
+    this->find_trees_potentially_containing_shader_outputs_recursive(nullptr, src_tree_, trees);
 
+    Vector<SocketInContext> output_sockets;
     auto add_output_type = [&](const char *output_type) {
-      for (const bNode *node : src_tree_.nodes_by_type(output_type)) {
-        for (const bNodeSocket *socket : node->input_sockets()) {
-          output_sockets.append({nullptr, socket});
+      for (const TreeInContext &tree : trees) {
+        const bke::bNodeTreeZones &zones = *tree->zones();
+        for (const bNode *node : tree->nodes_by_type(output_type)) {
+          const bke::bNodeTreeZone *zone = zones.get_zone_by_node(node->identifier);
+          if (zone) {
+            params_.r_error_messages.append({node, TIP_("Output node must not be in zone")});
+            continue;
+          }
+          for (const bNodeSocket *socket : node->input_sockets()) {
+            output_sockets.append({tree.context, socket});
+          }
         }
       }
     };
@@ -292,6 +319,39 @@ class ShaderNodesInliner {
     }
 
     return output_sockets;
+  }
+
+  void find_trees_potentially_containing_shader_outputs_recursive(const ComputeContext *context,
+                                                                  const bNodeTree &tree,
+                                                                  Vector<TreeInContext> &r_trees)
+  {
+    const bke::bNodeTreeZones *zones = src_tree_.zones();
+    if (!zones) {
+      return;
+    }
+    if (tree.has_available_link_cycle()) {
+      return;
+    }
+    r_trees.append({context, &tree});
+    for (const bNode *group_node : tree.group_nodes()) {
+      if (group_node->is_muted()) {
+        continue;
+      }
+      const bNodeTree *group = id_cast<const bNodeTree *>(group_node->id);
+      if (!group || ID_MISSING(&group->id)) {
+        continue;
+      }
+      group->ensure_topology_cache();
+      const bke::bNodeTreeZone *zone = zones->get_zone_by_node(group_node->identifier);
+      if (zone) {
+        /* Node groups in zones are ignored. */
+        continue;
+      }
+      const ComputeContext &group_context = compute_context_cache_.for_group_node(
+          context, group_node->identifier, &tree);
+      this->find_trees_potentially_containing_shader_outputs_recursive(
+          &group_context, *group, r_trees);
+    }
   }
 
   void handle_socket(const SocketInContext &socket)
@@ -325,14 +385,28 @@ class ShaderNodesInliner {
     }
     if (!used_link) {
       /* If there is no link on the input, use the value of the socket directly. */
-      this->store_socket_value(socket, {InputSocketValue{socket.socket}});
+      if (this->input_socket_may_have_dangling_value(socket)) {
+        this->store_socket_value(socket, {DanglingValue{}});
+      }
+      else {
+        this->store_socket_value(socket, {InputSocketValue{socket.socket}});
+      }
       return;
     }
 
-    /* TODO: Find the correct context for the origin socket. It should work fine without but
-     * results in a larger generated node tree. */
-    const SocketInContext origin_socket = {socket.context, used_link->fromsock};
+    const ComputeContext *from_context = this->get_link_source_context(*used_link, socket);
+    const SocketInContext origin_socket = {from_context, used_link->fromsock};
     if (const auto *value = value_by_socket_.lookup_ptr(origin_socket)) {
+      if (std::holds_alternative<DanglingValue>(value->value)) {
+        if (this->input_socket_may_have_dangling_value(socket)) {
+          this->store_socket_value(socket, {DanglingValue{}});
+        }
+        else {
+          /* If the input value is dangling, use the value of the socket itself. */
+          this->store_socket_value(socket, {InputSocketValue{socket.socket}});
+        }
+        return;
+      }
       /* If the socket linked to the input has a value already, copy that value to the current
        * socket, potentially with an implicit conversion. */
       this->store_socket_value(socket,
@@ -345,6 +419,42 @@ class ShaderNodesInliner {
     this->schedule_socket(origin_socket);
   }
 
+  /**
+   * Generally, input values of a node should never be dangling because otherwise the node can't be
+   * evaluated. However, if a node is never evaluated anyway, then its inputs can be dangling. This
+   * allows the dangling-state to be properly forwarded through the node.
+   */
+  bool input_socket_may_have_dangling_value(const SocketInContext &socket)
+  {
+    BLI_assert(socket->is_input());
+    const NodeInContext node = socket.owner_node();
+    return node->is_reroute() || node->is_muted();
+  }
+
+  const ComputeContext *get_link_source_context(const bNodeLink &link,
+                                                const SocketInContext &to_socket)
+  {
+    const bNodeTree &tree = to_socket->owner_tree();
+    const bke::bNodeTreeZones *zones = tree.zones();
+    if (!zones) {
+      return nullptr;
+    }
+    const bke::bNodeTreeZone *to_zone = zones->get_zone_by_socket(*to_socket);
+    const bke::bNodeTreeZone *from_zone = zones->get_zone_by_socket(*link.fromsock);
+    const ComputeContext *context = to_socket.context;
+    for (const bke::bNodeTreeZone *zone = to_zone; zone != from_zone; zone = zone->parent_zone) {
+      const bNode &zone_output_node = *zone->output_node();
+      if (zone_output_node.is_type("GeometryNodeRepeatOutput")) {
+        if (this->should_preserve_repeat_zone_node(zone_output_node)) {
+          /* Preserved repeat zones are embedded into their outer compute context. */
+          continue;
+        }
+      }
+      context = parent_zone_contexts_.lookup(context);
+    }
+    return context;
+  }
+
   void handle_output_socket(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
@@ -353,7 +463,10 @@ class ShaderNodesInliner {
       return;
     }
     if (node->is_muted()) {
-      this->handle_output_socket__muted(socket);
+      if (!this->handle_output_socket__internal_links(socket)) {
+        /* The output socket does not have a corresponding input, so the value is ignored. */
+        this->store_socket_value_dangling(socket);
+      }
       return;
     }
     if (node->is_group()) {
@@ -365,16 +478,20 @@ class ShaderNodesInliner {
       return;
     }
     if (node->is_type("GeometryNodeRepeatOutput")) {
-      if (!this->should_preserve_repeat_zone_node(*node)) {
-        this->handle_output_socket__repeat_output(socket);
+      if (this->should_preserve_repeat_zone_node(*node)) {
+        this->handle_output_socket__preserved_repeat_output(socket);
         return;
       }
+      this->handle_output_socket__repeat_output(socket);
+      return;
     }
     if (node->is_type("GeometryNodeRepeatInput")) {
-      if (!this->should_preserve_repeat_zone_node(*node)) {
-        this->handle_output_socket__repeat_input(socket);
+      if (this->should_preserve_repeat_zone_node(*node)) {
+        this->handle_output_socket__preserved_repeat_input(socket);
         return;
       }
+      this->handle_output_socket__repeat_input(socket);
+      return;
     }
     if (node->is_type("NodeClosureOutput")) {
       this->handle_output_socket__closure_output(socket);
@@ -396,17 +513,22 @@ class ShaderNodesInliner {
       this->handle_output_socket__separate_bundle(socket);
       return;
     }
+    if (node->is_type("GeometryNodeMenuSwitch")) {
+      this->handle_output_socket__menu_switch(socket);
+      return;
+    }
     this->handle_output_socket__eval(socket);
   }
 
   void handle_output_socket__reroute(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    const SocketInContext input_socket = {socket.context, &node->input_socket(0)};
+    const SocketInContext input_socket = node.input_socket(0);
     this->forward_value_or_schedule(socket, input_socket);
   }
 
-  void handle_output_socket__muted(const SocketInContext &socket)
+  /* Returns whether the socket was handled. */
+  [[nodiscard]] bool handle_output_socket__internal_links(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     for (const bNodeLink &internal_link : node->internal_links()) {
@@ -419,14 +541,13 @@ class ShaderNodesInliner {
               socket,
               this->handle_implicit_conversion(
                   *value, *internal_link.fromsock->typeinfo, *internal_link.tosock->typeinfo));
-          return;
+          return true;
         }
         this->schedule_socket(src_socket);
-        return;
+        return true;
       }
     }
-    /* The output socket does not have a corresponding input, so use its fallback value. */
-    this->store_socket_value_fallback(socket);
+    return false;
   }
 
   void handle_output_socket__group(const SocketInContext &socket)
@@ -487,8 +608,9 @@ class ShaderNodesInliner {
     if (!zone) {
       return false;
     }
+    const bNode *repeat_zone_input_node = zone->input_node();
     const bNode *repeat_zone_output_node = zone->output_node();
-    if (!repeat_zone_output_node) {
+    if (!repeat_zone_input_node || !repeat_zone_output_node) {
       return false;
     }
     const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(
@@ -529,13 +651,11 @@ class ShaderNodesInliner {
     const std::optional<PrimitiveSocketValue> iterations_value_opt =
         iterations_socket_value->to_primitive(*iterations_input->typeinfo);
     if (!iterations_value_opt) {
-      /* Number of iterations is not a primitive value. */
-      this->store_socket_value_fallback(socket);
-      params_.r_error_messages.append(
-          {repeat_input_node.node, TIP_("Iterations input has to be a constant value")});
-      return;
+      this->add_dynamic_repeat_zone_iterations_error(*repeat_input_node);
     }
-    const int iterations = std::get<int>(iterations_value_opt->value);
+    const int iterations = iterations_value_opt.has_value() ?
+                               std::get<int>(iterations_value_opt->value) :
+                               0;
     if (iterations <= 0) {
       /* If the number of iterations is zero, the values are copied directly from the repeat input
        * node. */
@@ -546,9 +666,55 @@ class ShaderNodesInliner {
     /* Otherwise, the value is copied from the output of the last iteration. */
     const ComputeContext &last_iteration_context = compute_context_cache_.for_repeat_zone(
         socket.context, repeat_output_node, iterations - 1);
+    parent_zone_contexts_.add(&last_iteration_context, socket.context);
     const SocketInContext origin_socket = {&last_iteration_context,
                                            &repeat_output_node.input_socket(socket->index())};
     this->forward_value_or_schedule(socket, origin_socket);
+  }
+
+  void handle_output_socket__preserved_repeat_output(const SocketInContext &socket)
+  {
+    const bNodeTree &tree = socket->owner_tree();
+    const NodeInContext repeat_output_node = socket.owner_node();
+    const bke::bNodeTreeZones &zones = *tree.zones();
+    const bke::bNodeTreeZone &zone = *zones.get_zone_by_node(repeat_output_node->identifier);
+    const bNode &repeat_input_node = *zone.input_node();
+
+    const EnsureInputsResult ensured_inputs = this->ensure_node_inputs(socket.owner_node());
+    if (ensured_inputs.has_missing_inputs) {
+      /* The node can only be evaluated if all inputs values are known. */
+      return;
+    }
+    const NodeInContext node = socket.owner_node();
+    bNode &copied_node = this->handle_output_socket__eval_copy_node(node);
+    PreservedZone &preserved_zone = copied_zone_by_zone_output_node_.lookup_or_add_default(
+        repeat_output_node);
+    preserved_zone.output_node = &copied_node;
+    /* Ensure that the repeat input node is created as well. */
+    this->schedule_socket({node.context, &repeat_input_node.output_socket(0)});
+  }
+
+  void handle_output_socket__preserved_repeat_input(const SocketInContext &socket)
+  {
+    const EnsureInputsResult ensured_inputs = this->ensure_node_inputs(socket.owner_node());
+    if (ensured_inputs.has_missing_inputs) {
+      /* The node can only be evaluated if all inputs values are known. */
+      return;
+    }
+    const bNodeTree &tree = socket->owner_tree();
+    const NodeInContext node = socket.owner_node();
+    bNode &copied_node = this->handle_output_socket__eval_copy_node(node);
+    const auto &storage = *static_cast<const NodeGeometryRepeatInput *>(node->storage);
+    const NodeInContext repeat_output_node{node.context, tree.node_by_id(storage.output_node_id)};
+    PreservedZone &preserved_zone = copied_zone_by_zone_output_node_.lookup_or_add_default(
+        repeat_output_node);
+    preserved_zone.input_node = &copied_node;
+  }
+
+  void add_dynamic_repeat_zone_iterations_error(const bNode &repeat_input_node)
+  {
+    params_.r_error_messages.append(
+        {&repeat_input_node, TIP_("Iterations input has to be a constant value")});
   }
 
   void handle_output_socket__repeat_input(const SocketInContext &socket)
@@ -583,6 +749,7 @@ class ShaderNodesInliner {
     const int previous_iteration = iteration - 1;
     const ComputeContext &previous_iteration_context = compute_context_cache_.for_repeat_zone(
         repeat_zone_context->parent(), repeat_output_node, previous_iteration);
+    parent_zone_contexts_.add(&previous_iteration_context, repeat_zone_context->parent());
     const SocketInContext origin_socket = {&previous_iteration_context,
                                            &repeat_output_node.input_socket(socket->index() - 1)};
     this->forward_value_or_schedule(socket, origin_socket);
@@ -619,7 +786,10 @@ class ShaderNodesInliner {
     const ClosureZoneValue *closure_zone_value = std::get_if<ClosureZoneValue>(
         &closure_input_value->value);
     if (!closure_zone_value) {
-      this->store_socket_value_fallback(socket);
+      /* If the closure is null, the node behaves as if it is muted. */
+      if (!this->handle_output_socket__internal_links(socket)) {
+        this->store_socket_value_fallback(socket);
+      }
       return;
     }
     const auto *evaluate_closure_storage = static_cast<const NodeEvaluateClosure *>(
@@ -634,12 +804,14 @@ class ShaderNodesInliner {
         closure_output_node.identifier,
         closure_zone_value->closure_creation_context ?
             closure_zone_value->closure_creation_context->hash() :
-            ComputeContextHash{}};
+            ComputeContextHash{},
+        closure_zone_value->closure_creation_context};
     const bke::EvaluateClosureComputeContext &closure_eval_context =
         compute_context_cache_.for_evaluate_closure(socket.context,
                                                     evaluate_closure_node->identifier,
                                                     &socket->owner_tree(),
                                                     closure_source_location);
+    parent_zone_contexts_.add(&closure_eval_context, closure_zone_value->closure_creation_context);
 
     if (closure_eval_context.is_recursive()) {
       this->store_socket_value_fallback(socket);
@@ -760,6 +932,53 @@ class ShaderNodesInliner {
     this->store_socket_value_fallback(socket);
   }
 
+  void handle_output_socket__menu_switch(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const auto &storage = *static_cast<const NodeMenuSwitch *>(node->storage);
+
+    const SocketInContext menu_input = node.input_socket(0);
+    const SocketValue *menu_socket_value = value_by_socket_.lookup_ptr(menu_input);
+    if (!menu_socket_value) {
+      /* The menu value is not known yet, so schedule it for now. */
+      this->schedule_socket(menu_input);
+      return;
+    }
+
+    const std::optional<PrimitiveSocketValue> menu_value_opt = menu_socket_value->to_primitive(
+        *menu_input->typeinfo);
+    if (!menu_value_opt) {
+      /* This limitation may be lifted in the future. Menu Switch nodes could be supported natively
+       * by render engines or we convert them to a bunch of mix nodes. */
+      this->store_socket_value_fallback(socket);
+      params_.r_error_messages.append({node.node, TIP_("Menu value has to be a constant value")});
+      return;
+    }
+    const MenuValue menu_value = std::get<MenuValue>(menu_value_opt->value);
+    /* Find the selected item index. */
+    std::optional<int> selected_index;
+    for (const int item_i : IndexRange(storage.enum_definition.items_num)) {
+      const NodeEnumItem &item = storage.enum_definition.items_array[item_i];
+      if (MenuValue(item.identifier) == menu_value) {
+        selected_index = item_i;
+        break;
+      }
+    }
+    if (!selected_index.has_value()) {
+      /* The input value does not exist in the menu. */
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    if (socket->index() == 0) {
+      /* Handle forwarding the selected value. */
+      this->forward_value_or_schedule(socket, node.input_socket(*selected_index + 1));
+      return;
+    }
+    /* Set the value of the mask output. */
+    const bool is_selected = selected_index == socket->index() - 1;
+    this->store_socket_value(socket, {PrimitiveSocketValue{is_selected}});
+  }
+
   /**
    * Evaluate a node to compute the value of the given output socket. This may also compute all the
    * other outputs of the node.
@@ -767,35 +986,47 @@ class ShaderNodesInliner {
   void handle_output_socket__eval(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    bool has_missing_inputs = false;
-    bool all_inputs_primitive = true;
-    for (const bNodeSocket *input_socket : node->input_sockets()) {
-      if (!input_socket->is_available()) {
-        continue;
-      }
-      const SocketInContext input_socket_ctx = {socket.context, input_socket};
-      const SocketValue *value = value_by_socket_.lookup_ptr(input_socket_ctx);
-      if (!value) {
-        this->schedule_socket(input_socket_ctx);
-        has_missing_inputs = true;
-        continue;
-      }
-      if (!value->to_primitive(*input_socket->typeinfo)) {
-        all_inputs_primitive = false;
-      }
-    }
-    if (has_missing_inputs) {
+    const EnsureInputsResult ensured_inputs = this->ensure_node_inputs(node);
+    if (ensured_inputs.has_missing_inputs) {
       /* The node can only be evaluated if all inputs values are known. */
       return;
     }
     const bke::bNodeType &node_type = *node->typeinfo;
-    if (node_type.build_multi_function && all_inputs_primitive) {
+    if (node_type.build_multi_function && ensured_inputs.all_inputs_primitive) {
       /* Do constant folding. */
       this->handle_output_socket__eval_multi_function(node);
       return;
     }
     /* The node can't be constant-folded. So copy it to the destination tree instead. */
     this->handle_output_socket__eval_copy_node(node);
+  }
+
+  struct EnsureInputsResult {
+    bool has_missing_inputs = false;
+    bool all_inputs_primitive = false;
+  };
+
+  EnsureInputsResult ensure_node_inputs(const NodeInContext &node)
+  {
+    EnsureInputsResult result;
+    result.has_missing_inputs = false;
+    result.all_inputs_primitive = true;
+    for (const bNodeSocket *input_socket : node->input_sockets()) {
+      if (!input_socket->is_available()) {
+        continue;
+      }
+      const SocketInContext input_socket_ctx = {node.context, input_socket};
+      const SocketValue *value = value_by_socket_.lookup_ptr(input_socket_ctx);
+      if (!value) {
+        this->schedule_socket(input_socket_ctx);
+        result.has_missing_inputs = true;
+        continue;
+      }
+      if (!value->to_primitive(*input_socket->typeinfo)) {
+        result.all_inputs_primitive = false;
+      }
+    }
+    return result;
   }
 
   void handle_output_socket__eval_multi_function(const NodeInContext &node)
@@ -846,7 +1077,7 @@ class ShaderNodesInliner {
     }
   }
 
-  void handle_output_socket__eval_copy_node(const NodeInContext &node)
+  bNode &handle_output_socket__eval_copy_node(const NodeInContext &node)
   {
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
     /* We generate our own identifier and name here to get unique values without having to scan all
@@ -873,7 +1104,7 @@ class ShaderNodesInliner {
       bNodeSocket &dst_input_socket = *socket_map.lookup(src_input_socket);
       const SocketInContext input_socket_ctx = {node.context, src_input_socket};
       const SocketValue &value = value_by_socket_.lookup(input_socket_ctx);
-      this->set_socket_value(copied_node, dst_input_socket, value);
+      this->set_input_socket_value(*node, copied_node, dst_input_socket, value);
     }
     for (const bNodeSocket *src_output_socket : node->output_sockets()) {
       if (!src_output_socket->is_available()) {
@@ -884,32 +1115,7 @@ class ShaderNodesInliner {
       this->store_socket_value(output_socket_ctx,
                                {LinkedSocketValue{&copied_node, &dst_output_socket}});
     }
-    this->remember_copied_zone_node_if_necessary(node, copied_node);
-  }
-
-  void remember_copied_zone_node_if_necessary(const NodeInContext &node, bNode &copied_node)
-  {
-    const bNodeTree &tree = node->owner_tree();
-    const bke::bNodeTreeZones *zones = tree.zones();
-    if (!zones) {
-      return;
-    }
-    const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier);
-    if (!zone) {
-      return;
-    }
-    if (!ELEM(node->identifier, zone->input_node_id, zone->output_node_id)) {
-      return;
-    }
-    const NodeInContext zone_output_node = {node.context, zone->output_node()};
-    PreservedZone &copied_zone = copied_zone_by_zone_output_node_.lookup_or_add_default(
-        zone_output_node);
-    if (node == zone_output_node) {
-      copied_zone.output_node = &copied_node;
-    }
-    else {
-      copied_zone.input_node = &copied_node;
-    }
+    return copied_node;
   }
 
   /** Converts the given socket value if necessary. */
@@ -921,6 +1127,9 @@ class ShaderNodesInliner {
       return src_value;
     }
     if (std::get_if<LinkedSocketValue>(&src_value.value)) {
+      return src_value;
+    }
+    if (std::get_if<DanglingValue>(&src_value.value)) {
       return src_value;
     }
     const std::optional<PrimitiveSocketValue> src_primitive_value = src_value.to_primitive(
@@ -956,8 +1165,12 @@ class ShaderNodesInliner {
     return SocketValue{FallbackValue{}};
   }
 
-  void set_socket_value(bNode &dst_node, bNodeSocket &dst_socket, const SocketValue &value)
+  void set_input_socket_value(const bNode &original_node,
+                              bNode &dst_node,
+                              bNodeSocket &dst_socket,
+                              const SocketValue &value)
   {
+    BLI_assert(dst_socket.is_input());
     if (dst_socket.flag & SOCK_HIDE_VALUE) {
       if (const auto *input_socket_value = std::get_if<InputSocketValue>(&value.value)) {
         if (input_socket_value->socket->flag & SOCK_HIDE_VALUE) {
@@ -986,12 +1199,27 @@ class ShaderNodesInliner {
       }
       return;
     }
+    if (!params_.allow_preserving_repeat_zones) {
+      const bool is_iterations_input = dst_node.inputs.first == &dst_socket &&
+                                       dst_node.is_type("GeometryNodeRepeatInput");
+      if (is_iterations_input) {
+        this->add_dynamic_repeat_zone_iterations_error(original_node);
+        this->set_primitive_value_on_socket(dst_socket, PrimitiveSocketValue{0});
+        return;
+      }
+    }
     if (std::get_if<InputSocketValue>(&value.value)) {
       /* Cases were the input has a primitive value are handled above. */
       return;
     }
     if (std::get_if<FallbackValue>(&value.value)) {
       /* Cases were the input has a primitive fallback value are handled above. */
+      return;
+    }
+    if (std::get_if<DanglingValue>(&value.value)) {
+      /* Input sockets should never have a dangling value, because they are replaced by the socket
+       * value in #handle_input_socket. */
+      BLI_assert_unreachable();
       return;
     }
     if (std::get_if<BundleSocketValuePtr>(&value.value)) {
@@ -1167,6 +1395,11 @@ class ShaderNodesInliner {
   void store_socket_value_fallback(const SocketInContext &socket)
   {
     value_by_socket_.add_new(socket, {FallbackValue{}});
+  }
+
+  void store_socket_value_dangling(const SocketInContext &socket)
+  {
+    value_by_socket_.add_new(socket, {DanglingValue{}});
   }
 
   void schedule_socket(const SocketInContext &socket)

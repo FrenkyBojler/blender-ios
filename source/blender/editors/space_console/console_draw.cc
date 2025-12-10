@@ -51,7 +51,7 @@ static enum eTextViewContext_LineFlag console_line_data(TextViewContext *tvc,
       break;
   }
 
-  UI_GetThemeColor4ubv(fg_id, fg);
+  blender::ui::theme::get_color_4ubv(fg_id, fg);
   return TVC_LINE_FG;
 }
 
@@ -164,7 +164,7 @@ static void console_textview_draw_cursor(TextViewContext *tvc, int cwidth, int c
 
 static void console_textview_const_colors(TextViewContext * /*tvc*/, uchar bg_sel[4])
 {
-  UI_GetThemeColor4ubv(TH_CONSOLE_SELECT, bg_sel);
+  blender::ui::theme::get_color_4ubv(TH_CONSOLE_SELECT, bg_sel);
 }
 
 static void console_textview_draw_rect_calc(const ARegion *region,
@@ -247,9 +247,9 @@ int console_textview_height(SpaceConsole *sc, const ARegion *region)
 
 int console_char_pick(SpaceConsole *sc, const ARegion *region, const int mval[2])
 {
-  int r_mval_pick_offset = 0;
+  int mval_pick_offset = 0;
   void *mval_pick_item = nullptr;
 
-  console_textview_main__internal(sc, region, false, mval, &mval_pick_item, &r_mval_pick_offset);
-  return r_mval_pick_offset;
+  console_textview_main__internal(sc, region, false, mval, &mval_pick_item, &mval_pick_offset);
+  return mval_pick_offset;
 }
