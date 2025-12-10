@@ -938,22 +938,14 @@ static PointerRNA bool_layer_ensure(PointerRNA *ptr,
   if (mesh->runtime->edit_mesh) {
     return {};
   }
-  bke::Attribute *attr = (bke::Attribute *)ptr->data;
-  const StringRef name = layername_func(attr->name(), buffer);
-  bke::Attribute *bool_attr = mesh->attribute_storage.wrap().lookup(name);
-  if (!bool_attr) {
-    bool_attr = &mesh->attribute_storage.wrap().add(
-        name,
-        bke::AttrDomain::Corner,
-        bke::AttrType::Bool,
-        bke::Attribute::ArrayData::from_default_value(CPPType::get<bool>(), mesh->corners_num));
-  }
-  if (bool_attr->domain() != bke::AttrDomain::Corner ||
-      bool_attr->data_type() != bke::AttrType::Bool)
-  {
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  const StringRef name = layername_func(rna_Attribute_name_get(*ptr), buffer);
+  if (attributes.contains(name)) {
     return {};
   }
-  return RNA_pointer_create_discrete(&mesh->id, &RNA_BoolAttribute, bool_attr);
+  attributes.add<bool>(name, bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
+  return rna_AttributeGroup_lookup_string(
+      RNA_id_pointer_create(&mesh->id), name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_BOOL);
 }
 
 /* Collection accessors for pin. */
