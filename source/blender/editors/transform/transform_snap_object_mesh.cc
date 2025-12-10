@@ -408,18 +408,20 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
                             eSnapMode snap_to_flag,
                             int face_index)
 {
+  eSnapMode elem = SCE_SNAP_TO_NONE;
+
   const Mesh *mesh_eval = reinterpret_cast<const Mesh *>(id);
 
   SnapData_Mesh nearest2d(sctx, mesh_eval, obmat);
   nearest2d.clip_planes_enable(sctx, ob_eval);
 
-  const IndexRange face = mesh_eval->faces()[face_index];
-
-  eSnapMode elem = SCE_SNAP_TO_NONE;
+  
   BVHTreeNearest nearest{};
   nearest.index = -1;
   nearest.dist_sq = sctx->ret.dist_px_sq;
 
+  const IndexRange face = mesh_eval->faces()[face_index];
+  
   if (snap_to_flag &
       (SCE_SNAP_TO_EDGE | SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR))
   {
