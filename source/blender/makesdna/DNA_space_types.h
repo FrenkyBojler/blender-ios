@@ -679,7 +679,7 @@ typedef struct SpaceImage {
 
   float uv_opacity;
   float uv_face_opacity;
-  char _pad2[4];
+  float uv_edge_opacity;
 
   float stretch_opacity;
 
@@ -1028,7 +1028,7 @@ typedef struct SpaceClip {
    */
   float stabmat[4][4], unistabmat[4][4];
 
-  /** Movie postprocessing. */
+  /** Movie postprocessing (#MovieClipPostprocFlag). */
   int postproc_flag;
 
   /* grease pencil */
