@@ -124,7 +124,7 @@ bool TexturePool::is_texture_persistent(Texture *tex) const
 void TexturePool::reset(bool force_free)
 {
   BLI_assert_msg(acquired_transient_.is_empty(),
-                 "Missing transient texture release. Either TextureFromPool.release() or "
+                 "Missing texture release. Either TextureFromPool.release() or "
                  "TexturePool.release_texture()");
 
   /* Clear out persistent texture pool on `force_free`.
