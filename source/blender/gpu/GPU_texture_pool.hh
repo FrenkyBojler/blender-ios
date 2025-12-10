@@ -16,9 +16,9 @@
 #include "BLI_vector.hh"
 #include "GPU_texture.hh"
 
-/* Explicit lifetime hints for texture pool resources. Transient textures must be handed back in
- * the same cycle, while persistent textures must be handed back before a full reset. */
-enum eTextureLifetime { TEXTURE_LIFETIME_TRANSIENT, TEXTURE_LIFETIME_PERSISTENT };
+/* Texture pool resources have one of two lifetimes. Transient resources must be handed back in
+ * the same cycle. Persistent resources must not, but will be invalidated on full reset. */
+enum eGPUTextureLifetime { GPU_TEXTURE_LIFETIME_TRANSIENT, GPU_TEXTURE_LIFETIME_PERSISTENT };
 
 namespace blender::gpu {
 
