@@ -622,7 +622,7 @@ void DepthOfField::render(View &view,
 
       /* WATCH(fclem): Swap Texture an TextureFromPool internal gpu::Texture in order to
        * reuse the one that we just consumed. */
-      TextureFromPool::swap(stabilize_output_tx_, dof_buffer.stabilize_history_tx_);
+      TextureFromPoolPersistent::swap(stabilize_output_tx_, dof_buffer.stabilize_history_tx_);
 
       /* Used by stabilize pass. */
       stabilize_output_tx_.release();

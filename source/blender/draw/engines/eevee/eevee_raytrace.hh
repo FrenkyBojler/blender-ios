@@ -37,8 +37,8 @@ struct RayTraceBuffer {
   /** Set of buffers that need to be allocated for each ray type. */
   struct DenoiseBuffer {
     /* Persistent history buffers. */
-    PersistentTextureFromPool radiance_history_tx = {"radiance_tx"};
-    PersistentTextureFromPool variance_history_tx = {"variance_tx"};
+    TextureFromPoolPersistent radiance_history_tx = {"radiance_tx"};
+    TextureFromPoolPersistent variance_history_tx = {"variance_tx"};
     /* Map of tiles that were processed inside the history buffer. */
     Texture tilemask_history_tx = {"tilemask_tx"};
     /** Perspective matrix for which the history buffers were recorded. */
@@ -93,12 +93,12 @@ class RayTraceResultTexture {
   /** Value of `result_->tx_` that can be referenced in advance. */
   gpu::Texture *tx_ = nullptr;
   /** History buffer to swap the temporary texture that does not need to be released. */
-  PersistentTextureFromPool *history_ = nullptr;
+  TextureFromPoolPersistent *history_ = nullptr;
 
  public:
   RayTraceResultTexture() = default;
   RayTraceResultTexture(TextureFromPool &result) : result_(result.ptr()), tx_(result) {};
-  RayTraceResultTexture(TextureFromPool &result, PersistentTextureFromPool &history)
+  RayTraceResultTexture(TextureFromPool &result, TextureFromPoolPersistent &history)
       : result_(result.ptr()), tx_(result), history_(history.ptr()) {};
 
   operator gpu::Texture *() const
@@ -118,7 +118,7 @@ class RayTraceResultTexture {
       /* Swap after last use. */
       auto &result = *result_;
       auto &history = *history_;
-      TextureFromPool::swap(result, history);
+      TextureFromPoolPersistent::swap(result, history);
     }
     /* NOTE: This releases the previous history. */
     result_->release();

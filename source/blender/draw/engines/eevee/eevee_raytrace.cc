@@ -702,8 +702,9 @@ RayTraceResultTexture RayTraceModule::trace(
     inst_.manager->submit(denoise_bilateral_ps_, render_view);
 
     /* Swap after last use. */
-    TextureFromPool::swap(denoise_buf->denoised_temporal_tx, denoise_buf->radiance_history_tx);
-    TextureFromPool::swap(denoise_variance_tx_, denoise_buf->variance_history_tx);
+    TextureFromPoolPersistent::swap(denoise_buf->denoised_temporal_tx,
+                                    denoise_buf->radiance_history_tx);
+    TextureFromPoolPersistent::swap(denoise_variance_tx_, denoise_buf->variance_history_tx);
 
     result = {denoise_buf->denoised_bilateral_tx};
     /* Not referenced by result anymore. */

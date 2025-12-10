@@ -125,7 +125,7 @@ void TexturePool::reset(bool force_free)
                  "TexturePool.release_texture()");
 
   /* Clear out persistent texture pool on `force_free`.
-   * Any use of `draw::PersistentTextureFromPool::ensure_*()` will re-acquire. */
+   * Any use of `draw::TextureFromPoolPersistent::ensure_*()` will re-acquire. */
   if (force_free) {
     for (Texture *tex : acquired_persistent_) {
       GPU_texture_free(tex);

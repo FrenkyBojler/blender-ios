@@ -1065,63 +1065,22 @@ class Texture : NonCopyable {
   }
 };
 
-/* Forward declaration. */
-/* TODO(not_mark): check with red leader if there's a standard place for fwds. */
-class PersistentTextureFromPool;
+/* Superclass to explicitly strip forbidden methods for TextureFromPool and derivatives. */
+class TextureFromPoolBase : public Texture, NonMovable {
+ protected:
+  /* Protected constructor acts as passthrough. */
+  TextureFromPoolBase(const char *name = "gpu::Texture") : Texture(name) {};
 
-class TextureFromPool : public Texture, NonMovable {
  public:
-  TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
-
-  /* Always use `release()` after rendering. */
-  void acquire(int2 extent,
-               gpu::TextureFormat format,
-               eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
-  {
-    BLI_assert(tx_ == nullptr);
-
-    tx_ = gpu::TexturePool::get().acquire_texture(
-        UNPACK2(extent), format, usage, TEXTURE_LIFETIME_TRANSIENT);
-
-    if (G.debug & G_DEBUG_GPU) {
-      debug_clear();
-    }
-  }
-
-  void release()
-  {
-    /* Allows multiple release. */
-    if (tx_ == nullptr) {
-      return;
-    }
-    gpu::TexturePool::get().release_texture(tx_);
-    tx_ = nullptr;
-  }
-
-  /**
-   * Swap the content of the two pool textures.
-   * Also change persistent/transient state accordingly if needed.
-   */
-  static void swap(TextureFromPool &a, TextureFromPool &b);
-  static void swap(TextureFromPool &a, PersistentTextureFromPool &b);
-  static void swap(PersistentTextureFromPool &a, TextureFromPool &b);
-
-  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
-  TextureFromPool *ptr()
-  {
-    return this;
-  }
-
-  /** Remove methods that are forbidden with this type of textures. */
   bool ensure_1d(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_1d_array(int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
-      delete;
+  bool ensure_1d_array(
+      int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   bool ensure_2d(int, int, int, gpu::TextureFormat, eGPUTextureUsage, float *) = delete;
-  bool ensure_2d_array(int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
-      delete;
-  bool ensure_3d(int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_cube(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_cube_array(int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
+  bool ensure_2d_array(
+      int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
+  bool ensure_3d(
+      int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
+  bool ensure_cube(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
       delete;
   void filter_mode(bool) = delete;
   void free() = delete;
@@ -1130,12 +1089,50 @@ class TextureFromPool : public Texture, NonMovable {
   gpu::Texture *stencil_view() = delete;
 };
 
-class PersistentTextureFromPool : public Texture, NonMovable {
- public:
-  PersistentTextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
+struct TextureFromPool : public TextureFromPoolBase {
+  TextureFromPool(const char *name = "gpu::Texture") : TextureFromPoolBase(name) {};
+
+  /* Always use `release()` after rendering. */
+  void acquire(int2 extent,
+               blender::gpu::TextureFormat format,
+               eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+  {
+    BLI_assert(!gpu::TexturePool::get().is_texture_transient(tx_));
+    tx_ = gpu::TexturePool::get().acquire_texture(
+        UNPACK2(extent), format, usage, TEXTURE_LIFETIME_TRANSIENT);
+
+    if (G.debug & G_DEBUG_GPU) {
+      debug_clear();
+    }
+  }
+
+  /* Allows for multiple releases safely. */
+  void release()
+  {
+    if (gpu::TexturePool::get().is_texture_transient(tx_)) {
+      gpu::TexturePool::get().release_texture(tx_);
+    }
+    tx_ = nullptr;
+  }
+
+  /* Swap the contents of the two textures. */
+  static void swap(TextureFromPool &a, TextureFromPool &b)
+  {
+    Texture::swap(a, b);
+  }
+
+  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
+  TextureFromPool *ptr()
+  {
+    return this;
+  }
+};
+
+struct TextureFromPoolPersistent : public TextureFromPoolBase {
+  TextureFromPoolPersistent(const char *name = "gpu::Texture") : TextureFromPoolBase(name) {};
 
   /* Texture hands back to pool on destructor.  */
-  ~PersistentTextureFromPool()
+  ~TextureFromPoolPersistent()
   {
     release();
   }
@@ -1149,7 +1146,6 @@ class PersistentTextureFromPool : public Texture, NonMovable {
     if (gpu::TexturePool::get().is_texture_persistent(tx_)) {
       return false;
     }
-
     tx_ = gpu::TexturePool::get().acquire_texture(
         UNPACK2(extent), format, usage, TEXTURE_LIFETIME_PERSISTENT);
 
@@ -1169,48 +1165,28 @@ class PersistentTextureFromPool : public Texture, NonMovable {
     tx_ = nullptr;
   }
 
+  /* Swap the contents of the two textures, and change lifetime accordingly. */
+  static void swap(TextureFromPoolPersistent &a, TextureFromPoolPersistent &b)
+  {
+    Texture::swap(a, b);
+  }
+  static void swap(TextureFromPool &a, TextureFromPoolPersistent &b)
+  {
+    Texture::swap(a, b);
+    gpu::TexturePool::get().make_texture_transient(a);
+    gpu::TexturePool::get().make_texture_persistent(b);
+  }
+  static void swap(TextureFromPoolPersistent &a, TextureFromPool &b)
+  {
+    swap(b, a);
+  }
+
   /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
-  PersistentTextureFromPool *ptr()
+  TextureFromPoolPersistent *ptr()
   {
     return this;
   }
-
-  /** Remove methods that are forbidden with this type of textures. */
-  bool ensure_1d(int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_1d_array(
-      int, int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_2d(int, int, int, blender::gpu::TextureFormat, eGPUTextureUsage, float *) = delete;
-  bool ensure_2d_array(
-      int, int, int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_3d(
-      int, int, int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_cube(int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) =
-      delete;
-  bool ensure_cube_array(
-      int, int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  void filter_mode(bool) = delete;
-  void free() = delete;
-  gpu::Texture *mip_view(int) = delete;
-  gpu::Texture *layer_view(int) = delete;
-  gpu::Texture *stencil_view() = delete;
 };
-
-inline void TextureFromPool::swap(TextureFromPool &a, TextureFromPool &b)
-{
-  Texture::swap(a, b);
-}
-
-inline void TextureFromPool::swap(TextureFromPool &a, PersistentTextureFromPool &b)
-{
-  Texture::swap(a, b);
-  gpu::TexturePool::get().make_texture_transient(a);
-  gpu::TexturePool::get().make_texture_persistent(b);
-}
-
-inline void TextureFromPool::swap(PersistentTextureFromPool &a, TextureFromPool &b)
-{
-  swap(b, a);
-}
 
 class TextureRef : public Texture {
  public:
