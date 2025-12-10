@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"POT-Creation-Date: 2025-12-08 10:32+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -9335,140 +9335,16 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Align View"
-msgstr "Justera vy"
-
-
-msgid "Apply"
-msgstr "Applicera"
-
-
-msgid "Track"
-msgstr "Spår"
-
-
-msgid "Quick Effects"
-msgstr "Snabbeffekter"
-
-
-msgid "Navigation"
-msgstr "Navigering"
-
-
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
-
-
-msgid "Asset"
-msgstr "Tillgång"
-
-
-msgid "Convert"
-msgstr "Konvertera"
-
-
-msgid "Link/Transfer Data"
-msgstr "Länka/överför data"
-
-
-msgid "Viewpoint"
-msgstr "Visningspunkt"
-
-
-msgid "Local View"
-msgstr "Lokal vy"
-
-
-msgid "Propagate"
-msgstr "Propagera"
-
-
-msgid "Names"
-msgstr "Namn"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Adjust"
-msgstr "Justera"
-
-
-msgid "Merge"
-msgstr "Sammanfoga"
-
-
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Math"
-msgstr "Matematik"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Snap"
-msgstr "Snäpp"
-
-
-msgid "Mirror"
-msgstr "Spegla"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Metaball"
-msgstr "Metaboll"
-
-
-msgid "Pivot Point"
-msgstr "Fast punkt"
-
-
-msgid "Read"
-msgstr "Läs"
-
-
-msgid "Write"
-msgstr "Skriv"
-
-
-msgid "Primitives"
-msgstr "Primitiver"
+msgid "Assign Material"
+msgstr "Tilldela material"
 
 
 msgid "Select More/Less"
 msgstr "Markera mera/mindre"
 
 
-msgid "Instances"
-msgstr "Instanser"
-
-
-msgid "Import"
-msgstr "Importera"
-
-
-msgid "Deprecated"
-msgstr "Föråldrad"
-
-
-msgid "Assign Material"
-msgstr "Tilldela material"
-
-
-msgid "UV"
-msgstr "UV"
+msgid "Metaball"
+msgstr "Metaboll"
 
 
 msgid "Light"
@@ -9489,6 +9365,130 @@ msgstr "Relationer"
 
 msgid "Rigid Body"
 msgstr "Rigid kropp"
+
+
+msgid "Apply"
+msgstr "Applicera"
+
+
+msgid "Track"
+msgstr "Spår"
+
+
+msgid "Quick Effects"
+msgstr "Snabbeffekter"
+
+
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Asset"
+msgstr "Tillgång"
+
+
+msgid "Convert"
+msgstr "Konvertera"
+
+
+msgid "Link/Transfer Data"
+msgstr "Länka/överför data"
+
+
+msgid "Adjust"
+msgstr "Justera"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Propagate"
+msgstr "Propagera"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Read"
+msgstr "Läs"
+
+
+msgid "Write"
+msgstr "Skriv"
+
+
+msgid "Primitives"
+msgstr "Primitiver"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgid "Instances"
+msgstr "Instanser"
+
+
+msgid "Import"
+msgstr "Importera"
+
+
+msgid "Deprecated"
+msgstr "Föråldrad"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "Spegla"
+
+
+msgid "Local View"
+msgstr "Lokal vy"
+
+
+msgid "Viewpoint"
+msgstr "Visningspunkt"
+
+
+msgid "Navigation"
+msgstr "Navigering"
+
+
+msgid "Align View"
+msgstr "Justera vy"
 
 
 msgid "Align View to Active"
@@ -9528,8 +9528,8 @@ msgid "Console"
 msgstr "Konsol"
 
 
-msgid "Languages..."
-msgstr "Språk..."
+msgid "Languages"
+msgstr "Språk"
 
 
 msgid "Add Attribute"
@@ -12620,10 +12620,6 @@ msgid "Boolean value socket of a node"
 msgstr "Booleskt värdeuttag av en nod"
 
 
-msgid "Default Value"
-msgstr "Standardvärde"
-
-
 msgid "Collection Node Socket"
 msgstr "Samling noduttag"
 
@@ -12782,6 +12778,10 @@ msgstr "Standardattribut"
 
 msgid "Default Input"
 msgstr "Standardinmatning"
+
+
+msgid "Default Value"
+msgstr "Standardvärde"
 
 
 msgid "Socket description"
@@ -13698,11 +13698,6 @@ msgstr "Internanvändning (redigera data_path för en egenskap)"
 
 msgid "Generate system information, saved into a text file"
 msgstr "Generera systeminformation, sparat till en textfil"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Spara systeminfo"
 
 
 msgctxt "Operator"
@@ -15691,15 +15686,6 @@ msgstr "Ställ in standardfärgattribut som används för rendering"
 
 msgid "Name of color attribute"
 msgstr "Namn på färgattribut"
-
-
-msgctxt "Operator"
-msgid "Run Node Group"
-msgstr "Kör nodgrupp"
-
-
-msgid "Execute a node group on geometry"
-msgstr "Kör en nodgrupp på geometri"
 
 
 msgid "Arrow"
@@ -23729,10 +23715,6 @@ msgid "Active Language"
 msgstr "Aktivt språk"
 
 
-msgid "Languages"
-msgstr "Språk"
-
-
 msgid "Collection Name"
 msgstr "Samlingsnamn"
 
@@ -27812,11 +27794,6 @@ msgstr "Extrapoleringsläge"
 
 
 msgctxt "Operator"
-msgid "Move..."
-msgstr "Flytta..."
-
-
-msgctxt "Operator"
 msgid "More"
 msgstr "Mer"
 
@@ -28510,16 +28487,6 @@ msgstr "Uppdatera alla"
 msgctxt "Operator"
 msgid "Path/Files"
 msgstr "Sökväg/Filer"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "Film"
-
-
-msgctxt "Operator"
-msgid "Image/Sequence"
-msgstr "Bild/sekvens"
 
 
 msgctxt "Operator"
@@ -29416,11 +29383,6 @@ msgstr "Högtalare"
 
 
 msgctxt "Operator"
-msgid "Make Local..."
-msgstr "Gör lokal..."
-
-
-msgctxt "Operator"
 msgid "Change Shape"
 msgstr "Ändra form"
 
@@ -29662,16 +29624,6 @@ msgstr "Nästa block"
 msgctxt "Operator"
 msgid "Armature"
 msgstr "Armatur"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Referens"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Bakgrund"
 
 
 msgctxt "Operator"
@@ -30543,10 +30495,6 @@ msgid "worlds"
 msgstr "världar"
 
 
-msgid "insufficient content"
-msgstr "otillräckligt innehåll"
-
-
 msgid "unknown error reading file"
 msgstr "okänt fel vid läsning av fil"
 
@@ -30569,10 +30517,6 @@ msgstr "Går inte att öppna blend <memory>"
 
 msgid "Blend file '%s' created by a Big Endian version of Blender, support for these files has been removed in Blender 5.0, use an older version of Blender to open and convert it."
 msgstr "Blend-filen '%s' skapades av en Big Endian-version av Blender, stöd för dessa filer kommer att tas bort i Blender 5.0. Använd en äldre version av Blender för att öppna och konvertera den."
-
-
-msgid "Unable to read '%s': %s"
-msgstr "Det går inte att läsa '%s': %s"
 
 
 msgid "Unable to open '%s': %s"
@@ -30792,11 +30736,6 @@ msgstr "Sök"
 
 msgid "%s: %s"
 msgstr "%s: %s"
-
-
-msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Ändra genväg"
 
 
 msgctxt "Operator"
@@ -31917,10 +31856,6 @@ msgstr "Filnamn"
 
 msgid "Asset Catalogs"
 msgstr "Tillgångskataloger"
-
-
-msgid "Listing directories..."
-msgstr "Listar kataloger..."
 
 
 msgid "Home"

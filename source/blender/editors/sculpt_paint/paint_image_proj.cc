@@ -99,6 +99,7 @@
 #include "GPU_capabilities.hh"
 #include "GPU_init_exit.hh"
 
+#include "NOD_defaults.hh"
 #include "NOD_shader.h"
 
 #include "UI_interface_layout.hh"
@@ -4144,21 +4145,18 @@ struct ProjPaintLayerClone {
 
 static void proj_paint_layer_clone_init(ProjPaintState *ps, ProjPaintLayerClone *layer_clone)
 {
+  const Mesh &mesh_orig = *static_cast<const Mesh *>(ps->ob->data);
   const float (*uv_map_clone_base)[2] = nullptr;
 
   /* use clone mtface? */
   if (ps->do_layer_clone) {
     // TODO_MESH_ATTR
-    const int layer_num = CustomData_get_clone_layer(&((Mesh *)ps->ob->data)->corner_data,
-                                                     CD_PROP_FLOAT2);
 
     ps->poly_to_loop_uv_clone = static_cast<const float (**)[2]>(
         MEM_mallocN(ps->faces_num_eval * sizeof(float (*)[2]), "proj_paint_mtfaces"));
 
-    if (layer_num != -1) {
-      uv_map_clone_base = static_cast<const float (*)[2]>(
-          CustomData_get_layer_n(&ps->mesh_eval->corner_data, CD_PROP_FLOAT2, layer_num));
-    }
+    uv_map_clone_base = static_cast<const float (*)[2]>(CustomData_get_layer_named(
+        &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, mesh_orig.clone_uv_map_attribute));
 
     if (uv_map_clone_base == nullptr) {
       /* get active instead */
@@ -4552,7 +4550,9 @@ static void project_paint_begin(const bContext *C,
     ED_view3d_clipping_local(ps->rv3d, ps->ob->object_to_world().ptr());
   }
 
-  ps->do_face_sel = ((((Mesh *)ps->ob->data)->editflag & ME_EDIT_PAINT_FACE_SEL) != 0);
+  const Mesh &mesh_orig = *static_cast<const Mesh *>(ps->ob->data);
+
+  ps->do_face_sel = ((mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL) != 0);
   ps->is_flip_object = (ps->ob->transflag & OB_NEG_SCALE) != 0;
 
   /* paint onto the derived mesh */
@@ -4566,13 +4566,8 @@ static void project_paint_begin(const bContext *C,
   proj_paint_layer_clone_init(ps, &layer_clone);
 
   if (ps->do_layer_stencil || ps->do_stencil_brush) {
-    // int layer_num = CustomData_get_stencil_layer(&ps->mesh_eval->ldata, CD_PROP_FLOAT2);
-    int layer_num = CustomData_get_stencil_layer(&((Mesh *)ps->ob->data)->corner_data,
-                                                 CD_PROP_FLOAT2);
-    if (layer_num != -1) {
-      ps->uv_map_stencil_eval = static_cast<const float (*)[2]>(
-          CustomData_get_layer_n(&ps->mesh_eval->corner_data, CD_PROP_FLOAT2, layer_num));
-    }
+    ps->uv_map_stencil_eval = static_cast<const float (*)[2]>(CustomData_get_layer_named(
+        &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, mesh_orig.stencil_uv_map_attribute));
 
     if (ps->uv_map_stencil_eval == nullptr) {
       /* get active instead */
@@ -6420,7 +6415,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
      * re-projection will reuse this */
     IDProperty *idgroup = IDP_EnsureProperties(&image->id);
 
-    blender::Vector<float, PROJ_VIEW_DATA_SIZE> array;
+    Vector<float, PROJ_VIEW_DATA_SIZE> array;
     array.extend(Span(reinterpret_cast<float *>(rv3d->winmat), 16));
     array.extend(Span(reinterpret_cast<float *>(rv3d->viewmat), 16));
     float clip_start;
@@ -6779,7 +6774,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNodeTree *ntree = ma->nodetree;
 
     if (!ntree) {
-      ED_node_shader_default(C, bmain, &ma->id);
+      blender::nodes::node_tree_shader_default(C, bmain, &ma->id);
       ntree = ma->nodetree;
     }
 
@@ -6959,7 +6954,7 @@ static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
 
   if (ob->mode == OB_MODE_SCULPT) {
     slot_type = (ePaintCanvasSource)RNA_enum_get(op->ptr, "slot_type");
-    layout.prop(op->ptr, "slot_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "slot_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
   layout.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -6976,8 +6971,8 @@ static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
       break;
     }
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
-      layout.prop(op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-      layout.prop(op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "domain", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "data_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       break;
     case PAINT_CANVAS_SOURCE_MATERIAL:
       BLI_assert_unreachable();
