@@ -385,7 +385,15 @@ void filelist_filter(FileList *filelist)
       filtered_tmp[num_filtered++] = file;
     }
   }
-
+  if (filelist->filter_data.filter_search[0] != '\0') {
+    /* Reorder by match score*/
+    std::stable_sort(filtered_tmp,
+                     filtered_tmp + num_filtered,
+                     [](const FileListInternEntry *a, const FileListInternEntry *b) {
+                       /* score from high to low */
+                       return a->search_score > b->search_score;
+                     });
+  }
   if (filelist->filelist_intern.filtered) {
     MEM_freeN(filelist->filelist_intern.filtered);
   }
