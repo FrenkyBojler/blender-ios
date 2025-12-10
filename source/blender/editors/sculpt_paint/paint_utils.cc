@@ -156,6 +156,12 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
        "Erase",
        "Switch brush to erase mode for duration of stroke"},
       {0},
+      {BRUSH_STROKE_MASK,
+       "MASK",
+       0,
+       "Mask",
+       "Switch brush to mask mode for duration of stroke"},
+      {0},
   };
 
   PropertyRNA *prop;

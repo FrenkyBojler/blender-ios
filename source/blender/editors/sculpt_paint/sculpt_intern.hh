@@ -396,6 +396,14 @@ struct StrokeCache {
    */
   bool alt_smooth = false;
 
+  /**
+   * Whether the modifier key that controls masking is active currently.
+   * Switches the active brush to the mask brush during the stroke.
+   *
+   * \see BrushStrokeMode::BRUSH_STROKE_MASK.
+   */
+  bool alt_mask = false;
+
   float plane_trim_squared = 0.0f;
 
   bool supports_gravity = false;
