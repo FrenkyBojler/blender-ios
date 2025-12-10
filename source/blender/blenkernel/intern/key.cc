@@ -651,17 +651,20 @@ static bool key_pointer_size(
 
 /**
  * Copy the shapekey of `active_keyblock` into the output array of `r_target`.
+ *
+ * \param weights is a float array of size `vertex_count`.
  */
-static void copy_key(const int start,
-                     int end,
-                     const int vertex_count,
-                     char *r_target,
-                     Key *key,
-                     KeyBlock *active_keyblock,
-                     KeyBlock *kb,
-                     float *weights,
-                     const int mode)
+static void copy_key_float3_weighted(const int vertex_count,
+                                     char *r_target,
+                                     Key *key,
+                                     KeyBlock *active_keyblock,
+                                     KeyBlock *kb,
+                                     float *weights,
+                                     const int mode)
 {
+  BLI_assert_msg(
+      weights != nullptr,
+      "This function expects per vertex weights, use copy_key_float3_range if not available");
   int ofs[32];
   /* Currently always 0, in future key_pointer_size may assign. */
   ofs[1] = 0;
@@ -671,8 +674,6 @@ static void copy_key(const int start,
   if (!key_pointer_size(key, mode, &pointer_size, &ofs[0], &step)) {
     return;
   }
-
-  end = std::min(end, vertex_count);
 
   bool flagflo = false;
   /* I (christoph) don't know what those variables do but they are only used if
@@ -693,83 +694,45 @@ static void copy_key(const int start,
   char *k1 = key_block_get_data(key, active_keyblock, kb, &free_k1);
   char *kref = key_block_get_data(key, active_keyblock, key->refkey, &free_kref);
 
-  /* This exception is needed curves with multiple splines. */
-  if (start != 0) {
-
-    r_target += pointer_size * start;
-
-    if (flagflo) {
-      ktot += start * kd;
-      const int ktot_floor = int(floor(ktot));
-      if (ktot_floor) {
-        ktot -= ktot_floor;
-        k1 += ktot_floor * key->elemsize;
-      }
-    }
-    else {
-      k1 += start * key->elemsize;
-    }
-  }
-
-  char elemstr[8];
-  if (mode == KEY_MODE_BEZTRIPLE) {
-    elemstr[0] = 1;
-    elemstr[1] = IPO_BEZTRIPLE;
-    elemstr[2] = 0;
-  }
-
   /* Just do it here, not above! */
   const int elemsize = key->elemsize * step;
 
-  for (int a = start; a < end; a += step) {
+  for (int a = 0; a < vertex_count; a += step) {
     char *cp = key->elemstr;
-    if (mode == KEY_MODE_BEZTRIPLE) {
-      cp = elemstr;
+
+    switch (cp[1]) {
+      case IPO_FLOAT:
+        if (weights) {
+          memcpy(r_target, kref, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
+          if (*weights != 0.0f) {
+            rel_flerp(
+                KEYELEM_FLOAT_LEN_COORD, (float *)r_target, (float *)kref, (float *)k1, *weights);
+          }
+          weights++;
+        }
+        else {
+          memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
+        }
+        break;
+      case IPO_BPOINT:
+        memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_BPOINT]));
+        break;
+      case IPO_BEZTRIPLE:
+        memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_BEZTRIPLE]));
+        break;
+      default:
+        BLI_assert_unreachable();
+        if (free_k1) {
+          MEM_freeN(free_k1);
+        }
+        if (free_kref) {
+          MEM_freeN(free_kref);
+        }
+        BLI_assert_msg(0, "invalid 'cp[1]'");
+        return;
     }
 
-    int *ofsp = ofs;
-
-    while (cp[0]) {
-
-      switch (cp[1]) {
-        case IPO_FLOAT:
-          if (weights) {
-            memcpy(r_target, kref, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
-            if (*weights != 0.0f) {
-              rel_flerp(KEYELEM_FLOAT_LEN_COORD,
-                        (float *)r_target,
-                        (float *)kref,
-                        (float *)k1,
-                        *weights);
-            }
-            weights++;
-          }
-          else {
-            memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
-          }
-          break;
-        case IPO_BPOINT:
-          memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_BPOINT]));
-          break;
-        case IPO_BEZTRIPLE:
-          memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_BEZTRIPLE]));
-          break;
-        default:
-          BLI_assert_unreachable();
-          if (free_k1) {
-            MEM_freeN(free_k1);
-          }
-          if (free_kref) {
-            MEM_freeN(free_kref);
-          }
-          BLI_assert_msg(0, "invalid 'cp[1]'");
-          return;
-      }
-
-      r_target += *ofsp;
-      cp += 2;
-      ofsp++;
-    }
+    r_target += *ofs;
 
     /* Are we going to be nasty? */
     if (flagflo) {
@@ -1478,8 +1441,7 @@ float *BKE_key_evaluate_object_ex(
 
     if (OB_TYPE_SUPPORT_VGROUP(ob->type)) {
       float *weights = get_weights_array(ob, kb->vgroup, nullptr);
-
-      copy_key(0, tot, tot, out, key, actkb, kb, weights, 0);
+      copy_key_float3_weighted(tot, out, key, actkb, kb, weights, KEY_MODE_DUMMY);
 
       if (weights) {
         MEM_freeN(weights);
