@@ -463,6 +463,11 @@ static bool old_id_property_type_matches_socket_convert_to_new(
     case SOCK_TEXTURE:
     case SOCK_IMAGE:
     case SOCK_MATERIAL:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND:
       if (use_name_for_ids) {
         return old_id_property_type_matches_socket_convert_to_new_string(old_property,
                                                                          new_property);
@@ -610,6 +615,31 @@ static bke::SocketValueVariant init_socket_cpp_value_from_property(
       ID *id = IDP_ID_get(&property);
       Material *material = (id && GS(id->name) == ID_MA) ? (Material *)id : nullptr;
       return bke::SocketValueVariant::From(material);
+    }
+    case SOCK_FONT: {
+      ID *id = IDP_ID_get(&property);
+      VFont *font = (id && GS(id->name) == ID_VF) ? (VFont *)id : nullptr;
+      return bke::SocketValueVariant::From(font);
+    }
+    case SOCK_SCENE: {
+      ID *id = IDP_ID_get(&property);
+      Scene *scene = (id && GS(id->name) == ID_SCE) ? (Scene *)id : nullptr;
+      return bke::SocketValueVariant::From(scene);
+    }
+    case SOCK_TEXT_ID: {
+      ID *id = IDP_ID_get(&property);
+      Text *text = (id && GS(id->name) == ID_TXT) ? (Text *)id : nullptr;
+      return bke::SocketValueVariant::From(text);
+    }
+    case SOCK_MASK: {
+      ID *id = IDP_ID_get(&property);
+      Mask *mask = (id && GS(id->name) == ID_MSK) ? (Mask *)id : nullptr;
+      return bke::SocketValueVariant::From(mask);
+    }
+    case SOCK_SOUND: {
+      ID *id = IDP_ID_get(&property);
+      bSound *sound = (id && GS(id->name) == ID_SO) ? (bSound *)id : nullptr;
+      return bke::SocketValueVariant::From(sound);
     }
     default: {
       BLI_assert_unreachable();
