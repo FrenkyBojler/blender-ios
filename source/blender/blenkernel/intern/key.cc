@@ -650,107 +650,65 @@ static bool key_pointer_size(
 }
 
 /**
- * Copy the shapekey of `active_keyblock` into the output array of `r_target`.
+ * Move the point in `r_targets` along the vector of ab by a factor of `weight`.
+ *
+ * \param start_index points to the x value in the flat float array. Indices of +1 and +2 from this
+ * are accessed.
+ */
+static void add_weighted_vector(
+    const int start_index, const float weight, const float *a, const float *b, float *r_target)
+{
+  r_target[start_index + 0] += weight * (b[start_index + 0] - a[start_index + 0]);
+  r_target[start_index + 1] += weight * (b[start_index + 1] - a[start_index + 1]);
+  r_target[start_index + 2] += weight * (b[start_index + 2] - a[start_index + 2]);
+}
+
+/**
+ * Copy the shapekey of `source` into the output array of `r_target`.
  *
  * \param weights is a float array of size `vertex_count`.
  */
 static void copy_key_float3_weighted(const int vertex_count,
-                                     char *r_target,
                                      Key *key,
                                      KeyBlock *active_keyblock,
-                                     KeyBlock *kb,
-                                     float *weights,
-                                     const int mode)
+                                     KeyBlock *source,
+                                     const float *weights,
+                                     float *r_target)
 {
   BLI_assert_msg(
       weights != nullptr,
       "This function expects per vertex weights, use copy_key_float3_range if not available");
-  int ofs[32];
-  /* Currently always 0, in future key_pointer_size may assign. */
-  ofs[1] = 0;
 
-  int pointer_size = 0;
-  int step;
-  if (!key_pointer_size(key, mode, &pointer_size, &ofs[0], &step)) {
+  if (vertex_count != source->totelem) {
+    /* There was a system in place before that worked with keys that only have partial data. I
+     * (christoph) removed that since there is no known case for that. */
+    BLI_assert_unreachable();
     return;
   }
 
-  bool flagflo = false;
-  /* I (christoph) don't know what those variables do but they are only used if
-   * `flagflo` is set to true. */
-  float ktot = 0.0, kd = 0.0;
-  if (vertex_count != kb->totelem) {
-    ktot = 0.0;
-    flagflo = true;
-    if (kb->totelem) {
-      kd = kb->totelem / float(vertex_count);
-    }
-    else {
-      return;
-    }
-  }
+  char *free_kb_data, *free_kref;
+  const float *source_data = reinterpret_cast<float *>(
+      key_block_get_data(key, active_keyblock, source, &free_kb_data));
+  const float *reference_key_data = reinterpret_cast<float *>(
+      key_block_get_data(key, active_keyblock, key->refkey, &free_kref));
 
-  char *free_k1, *free_kref;
-  char *k1 = key_block_get_data(key, active_keyblock, kb, &free_k1);
-  char *kref = key_block_get_data(key, active_keyblock, key->refkey, &free_kref);
-
-  /* Just do it here, not above! */
-  const int elemsize = key->elemsize * step;
-
-  for (int a = 0; a < vertex_count; a += step) {
-    char *cp = key->elemstr;
-
-    switch (cp[1]) {
-      case IPO_FLOAT:
-        if (weights) {
-          memcpy(r_target, kref, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
-          if (*weights != 0.0f) {
-            rel_flerp(
-                KEYELEM_FLOAT_LEN_COORD, (float *)r_target, (float *)kref, (float *)k1, *weights);
-          }
-          weights++;
-        }
-        else {
-          memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
-        }
-        break;
-      case IPO_BPOINT:
-        memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_BPOINT]));
-        break;
-      case IPO_BEZTRIPLE:
-        memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_BEZTRIPLE]));
-        break;
-      default:
-        BLI_assert_unreachable();
-        if (free_k1) {
-          MEM_freeN(free_k1);
-        }
-        if (free_kref) {
-          MEM_freeN(free_kref);
-        }
-        BLI_assert_msg(0, "invalid 'cp[1]'");
-        return;
+  for (int i = 0; i < vertex_count; i += 1) {
+    const int vector_index = i * 3;
+    if (!weights) {
+      /* The function will still work if weights is not supplied, it will just do the same as
+       * `copy_key_float3_range`. */
+      memcpy(&r_target[vector_index], &source_data[vector_index], 3 * sizeof(float));
+      continue;
     }
 
-    r_target += *ofs;
-
-    /* Are we going to be nasty? */
-    if (flagflo) {
-      ktot += kd;
-      while (ktot >= 1.0f) {
-        ktot -= 1.0f;
-        k1 += elemsize;
-        kref += elemsize;
-      }
-    }
-    else {
-      k1 += elemsize;
-      kref += elemsize;
+    memcpy(r_target, reference_key_data, 3 * sizeof(float));
+    if (weights[i] != 0.0f) {
+      add_weighted_vector(vector_index, weights[i], source_data, reference_key_data, r_target);
     }
   }
 
-  if (free_k1) {
-    MEM_freeN(free_k1);
+  if (free_kb_data) {
+    MEM_freeN(free_kb_data);
   }
   if (free_kref) {
     MEM_freeN(free_kref);
@@ -780,20 +738,6 @@ static void copy_key_float3_range(const blender::IndexRange range,
 }
 
 /**
- * Move the point in `r_targets` along the vector of ab by a factor of `weight`.
- *
- * \param start_index points to the x value in the flat float array. Indices of +1 and +2 from this
- * are accessed.
- */
-static void add_weighted_vector(
-    const int start_index, const float weight, const float *a, const float *b, float *r_target)
-{
-  r_target[start_index + 0] += weight * (b[start_index + 0] - a[start_index + 0]);
-  r_target[start_index + 1] += weight * (b[start_index + 1] - a[start_index + 1]);
-  r_target[start_index + 2] += weight * (b[start_index + 2] - a[start_index + 2]);
-}
-
-/**
  * Shapekey evaluation for data of 3 floats (Vector3).
  *
  * The caller has to supply a `range` because the curve ID can store a mix of Nurbs
@@ -812,7 +756,7 @@ static void key_evaluate_relative_float3(Key *key,
                                          float *target_data)
 {
   /* Creates the basis values of the reference key in target_data. */
-  copy_key_float3_range(range, key, key->refkey, target_data);
+  copy_key_float3_range(range, key, active_keyblock, target_data);
 
   int keyblock_index = 0;
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
@@ -1441,7 +1385,7 @@ float *BKE_key_evaluate_object_ex(
 
     if (OB_TYPE_SUPPORT_VGROUP(ob->type)) {
       float *weights = get_weights_array(ob, kb->vgroup, nullptr);
-      copy_key_float3_weighted(tot, out, key, actkb, kb, weights, KEY_MODE_DUMMY);
+      copy_key_float3_weighted(tot, key, actkb, kb, weights, reinterpret_cast<float *>(out));
 
       if (weights) {
         MEM_freeN(weights);
