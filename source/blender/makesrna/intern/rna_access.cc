@@ -88,7 +88,6 @@ extern const PointerRNA PointerRNA_NULL = {};
 void RNA_init()
 {
   BLENDER_RNA.structs_map.reserve(2048);
-  BLENDER_RNA.structs_len = 0;
 
   for (StructRNA *srna : BLENDER_RNA.structs) {
     if (!srna->cont.prop_lookup_set) {
@@ -104,7 +103,6 @@ void RNA_init()
     }
     BLI_assert(srna->flag & STRUCT_PUBLIC_NAMESPACE);
     BLENDER_RNA.structs_map.add(srna->identifier, srna);
-    BLENDER_RNA.structs_len += 1;
   }
 }
 

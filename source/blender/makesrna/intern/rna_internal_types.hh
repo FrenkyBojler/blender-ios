@@ -760,8 +760,6 @@ struct BlenderRNA {
    * These are ensured to have unique names (with #STRUCT_PUBLIC_NAMESPACE enabled).
    */
   blender::Map<blender::StringRef, StructRNA *> structs_map;
-  /** Needed because types with an empty identifier aren't included in `structs_map`. */
-  unsigned int structs_len;
 };
 
 #define CONTAINER_RNA_ID(cont) (*(const char **)(((ContainerRNA *)(cont)) + 1))

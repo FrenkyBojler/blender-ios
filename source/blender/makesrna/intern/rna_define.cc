@@ -173,7 +173,6 @@ void rna_freelistN(ListBase *listbase)
 static void rna_brna_structs_add(BlenderRNA *brna, StructRNA *srna)
 {
   brna->structs.append(srna);
-  brna->structs_len += 1;
 
   /* This exception is only needed for pre-processing.
    * otherwise we don't allow empty names. */
@@ -195,8 +194,8 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
 
   if (srna->flag & STRUCT_RUNTIME) {
     brna->structs.remove(brna->structs.first_index_of(srna));
+    MEM_delete(srna);
   }
-  brna->structs_len -= 1;
 }
 #endif
 
@@ -877,13 +876,15 @@ void RNA_free(BlenderRNA *brna)
 
       rna_freelistN(&srna->cont.properties);
       rna_freelistN(&srna->functions);
+      MEM_delete(srna);
     }
 
     MEM_delete(brna);
   }
   else {
-    for (StructRNA *srna : brna->structs) {
-      RNA_struct_free(brna, srna);
+    /* Reverse iteration to make removing from vector faster. */
+    for (auto srna = brna->structs.rbegin(); srna != brna->structs.rend(); srna++) {
+      RNA_struct_free(brna, *srna);
     }
   }
 

@@ -1351,21 +1351,25 @@ static bool rna_struct_is_publc(CollectionPropertyIterator * /*iter*/, void *dat
 static void rna_BlenderRNA_structs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   BlenderRNA *brna = static_cast<BlenderRNA *>(ptr->data);
-  rna_iterator_listbase_begin(iter, ptr, &brna->structs, rna_struct_is_publc);
+  rna_iterator_array_begin(iter,
+                           ptr,
+                           brna->structs.data(),
+                           sizeof(StructRNA *),
+                           brna->structs.size(),
+                           false,
+                           rna_struct_is_publc);
 }
 
 /* optional, for faster lookups */
 static int rna_BlenderRNA_structs_length(PointerRNA *ptr)
 {
   BlenderRNA *brna = static_cast<BlenderRNA *>(ptr->data);
-  BLI_assert(brna->structs_len == BLI_listbase_count(&brna->structs));
-  return brna->structs_len;
+  return brna->structs.size();
 }
 static bool rna_BlenderRNA_structs_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
 {
   BlenderRNA *brna = static_cast<BlenderRNA *>(ptr->data);
-  StructRNA *srna = static_cast<StructRNA *>(
-      index < brna->structs_len ? BLI_findlink(&brna->structs, index) : nullptr);
+  StructRNA *srna = index < brna->structs.size() ? brna->structs[index] : nullptr;
   if (srna != nullptr) {
     *r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, srna);
     return true;
