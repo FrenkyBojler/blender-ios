@@ -780,8 +780,7 @@ static const GHOST_TButton gwl_pointer_events_ebutton[] = {
     GHOST_kButtonMaskButton7, /* `Button6_*` / #BTN_BACK. */
 };
 
-static_assert(ARRAY_SIZE(gwl_pointer_events_ebutton) ==
-                  GHOST_kButtonNum - (int(GHOST_kButtonMaskNone) + 1),
+static_assert(ARRAY_SIZE(gwl_pointer_events_ebutton) == size_t(GHOST_kButtonNum),
               "Buttons missing");
 
 struct GWL_SeatStatePointer_Events {
