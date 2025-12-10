@@ -328,6 +328,26 @@ inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMaterial
 {
   BLO_write_struct(writer, bNodeSocketValueMaterial, &data);
 }
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueFont &data)
+{
+  BLO_write_struct(writer, bNodeSocketValueFont, &data);
+}
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueScene &data)
+{
+  BLO_write_struct(writer, bNodeSocketValueScene, &data);
+}
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueText &data)
+{
+  BLO_write_struct(writer, bNodeSocketValueText, &data);
+}
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMask &data)
+{
+  BLO_write_struct(writer, bNodeSocketValueMask, &data);
+}
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueSound &data)
+{
+  BLO_write_struct(writer, bNodeSocketValueSound, &data);
+}
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &data)
 {
   BLO_write_struct(writer, bNodeSocketValueMenu, &data);
