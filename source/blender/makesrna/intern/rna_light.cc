@@ -34,6 +34,8 @@
 
 #  include "DEG_depsgraph.hh"
 
+#  include "NOD_defaults.hh"
+
 #  include "WM_api.hh"
 #  include "WM_types.hh"
 
