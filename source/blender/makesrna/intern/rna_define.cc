@@ -876,6 +876,9 @@ void RNA_free(BlenderRNA *brna)
 
       rna_freelistN(&srna->cont.properties);
       rna_freelistN(&srna->functions);
+}
+
+    for (StructRNA *srna : brna->structs) {
       MEM_delete(srna);
     }
 
