@@ -175,6 +175,10 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   auto add_tree_ids_dependencies_cb = [&copy_buffer,
                                        copy_tree](LibraryIDLinkCallbackData *cb_data) -> int {
+    /* Embedded or null IDs usages can be ignored here. */
+    if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
+      return IDWALK_RET_NOP;
+    }
     ID *id_src = *cb_data->id_pointer;
     if (!id_src) {
       return IDWALK_RET_NOP;
@@ -190,8 +194,24 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
       return IDWALK_RET_NOP;
     }
 
+    auto partial_write_dependencies_filter_cb =
+        [&copy_tree](LibraryIDLinkCallbackData *cb_deps_data,
+                     PartialWriteContext::IDAddOptions /*options*/) {
+          ID *id_deps_src = *cb_deps_data->id_pointer;
+          const ID_Type id_type = GS((id_deps_src)->name);
+          if (ELEM(id_type, ID_NT, ID_MA, ID_CO, ID_MC) ||
+              (cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL))
+          {  // todo(habib): cover all IDs (invert cond?)
+            printf("\t Added id:\t %s\n", id_deps_src->name);
+            return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
+          }
+          printf("\t Cleared id:\t %s\n", id_deps_src->name);
+          return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
+        };
+
+    printf("copy_buffer.id_add: %s\n", id_src->name);
     id_dst = copy_buffer.id_add(
-        id_src, {PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES}, nullptr);
+        id_src, {PartialWriteContext::IDAddOperations::NOP}, partial_write_dependencies_filter_cb);
 
     *cb_data->id_pointer = id_dst;
     return IDWALK_RET_NOP;
