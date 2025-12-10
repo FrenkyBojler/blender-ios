@@ -17,7 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void gather_geometry_sets_recursive(const Bundle &bundle,
                                            Vector<GeometrySet> &r_geometry_sets)
 {
-  for (const Bundle::StoredItem &item : bundle.items()) {
+  for (const auto &item : bundle.items()) {
     if (std::optional<GeometrySet> geometry = item.value.as<GeometrySet>()) {
       r_geometry_sets.append(*geometry);
     }

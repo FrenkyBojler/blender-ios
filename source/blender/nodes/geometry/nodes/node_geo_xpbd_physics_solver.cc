@@ -1710,19 +1710,19 @@ PROFILE_FUNCTION static void gather_sphere_contacts(const SimPoints &sim_points,
 
   const float max_radius = *std::max_element(radii.begin(), radii.end());
 
-  KDTree_3d *kdtree = BLI_kdtree_3d_new(sim_points.points_num);
-  BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
+  KDTree_3d *kdtree = kdtree_3d_new(sim_points.points_num);
+  BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
 
   for (const int i : sim_points.positions.index_range()) {
-    BLI_kdtree_3d_insert(kdtree, i, sim_points.positions[i]);
+    kdtree_3d_insert(kdtree, i, sim_points.positions[i]);
   }
-  BLI_kdtree_3d_balance(kdtree);
+  kdtree_3d_balance(kdtree);
 
   for (const int i : sim_points.positions.index_range()) {
     const float3 &position = sim_points.positions[i];
     const float radius = radii[i];
     const float query_radius = radius + max_radius;
-    BLI_kdtree_3d_range_search_cb_cpp(
+    kdtree_3d_range_search_cb_cpp(
         kdtree,
         position,
         query_radius,

@@ -24,7 +24,7 @@ static void nested_bundle_foreach_recursive(
     fn(params);
     return;
   }
-  for (const Bundle::StoredItem &item : nested_bundle.items()) {
+  for (const auto &item : nested_bundle.items()) {
     const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
         &item.value.value);
     if (!socket_value) {
@@ -33,8 +33,7 @@ static void nested_bundle_foreach_recursive(
     if (socket_value->type->type != SOCK_BUNDLE) {
       continue;
     }
-    BundlePtr child_bundle =
-        static_cast<const bke::SocketValueVariant *>(&socket_value->value)->get<BundlePtr>();
+    BundlePtr child_bundle = socket_value->value.get<BundlePtr>();
     if (!child_bundle) {
       continue;
     }

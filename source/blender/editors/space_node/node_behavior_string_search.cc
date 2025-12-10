@@ -57,7 +57,7 @@ static Vector<std::string> get_type_names_from_context(const bContext &C,
 }
 
 static void behavior_type_string_search(
-    const bContext *C, void *arg, const char *str_ptr, uiSearchItems *items, const bool is_first)
+    const bContext *C, void *arg, const char *str_ptr, ui::SearchItems *items, const bool is_first)
 {
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
@@ -71,13 +71,13 @@ static void behavior_type_string_search(
   /* Any string is valid, so add the current search string along with the hints. */
   if (!str.is_empty()) {
     if (!names.contains(str)) {
-      UI_search_item_add(items, str, nullptr, ICON_NONE, 0, 0);
+      ui::search_item_add(items, str, nullptr, ICON_NONE, 0, 0);
     }
   }
 
   if (str.is_empty() && !is_first) {
     /* Allow clearing the text field when the string is empty, but not on the first pass. */
-    UI_search_item_add(items, str, nullptr, ICON_X, 0, 0);
+    ui::search_item_add(items, str, nullptr, ICON_X, 0, 0);
   }
 
   const StringRef search_string = is_first ? "" : str;
@@ -88,7 +88,7 @@ static void behavior_type_string_search(
   const Vector<const std::string *> filtered_items = search.query(search_string);
 
   for (const std::string *item : filtered_items) {
-    if (!UI_search_item_add(items, *item, nullptr, ICON_NONE, 0, 0)) {
+    if (!ui::search_item_add(items, *item, nullptr, ICON_NONE, 0, 0)) {
       break;
     }
   }
@@ -125,39 +125,39 @@ static void behavior_type_string_search_exec(bContext *C, void *data_v, void * /
 void node_behavior_add_string_search_button(const bContext & /*C*/,
                                             const bNode &node,
                                             PointerRNA &socket_ptr,
-                                            uiLayout &layout,
+                                            ui::Layout &layout,
                                             const StringRef placeholder)
 {
-  uiBlock *block = layout.block();
-  uiBut *but = uiDefIconTextButR(block,
-                                 ButType::SearchMenu,
-                                 ICON_NONE,
-                                 "",
-                                 0,
-                                 0,
-                                 10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
-                                 UI_UNIT_Y,
-                                 &socket_ptr,
-                                 "default_value",
-                                 0,
-                                 "");
-  UI_but_placeholder_set(but, placeholder);
+  ui::Block *block = layout.block();
+  ui::Button *but = uiDefIconTextButR(block,
+                                      ui::ButtonType::SearchMenu,
+                                      ICON_NONE,
+                                      "",
+                                      0,
+                                      0,
+                                      10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
+                                      UI_UNIT_Y,
+                                      &socket_ptr,
+                                      "default_value",
+                                      0,
+                                      "");
+  ui::button_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *socket_ptr.data_as<bNodeSocket>();
   BehaviorSocketSeachData *data = MEM_callocN<BehaviorSocketSeachData>(__func__);
   data->node_id = node.identifier;
   STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 
-  UI_but_func_search_set_results_are_suggestions(but, true);
-  UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
-  UI_but_func_search_set(but,
-                         nullptr,
-                         behavior_type_string_search,
-                         data,
-                         true,
-                         nullptr,
-                         behavior_type_string_search_exec,
-                         nullptr);
+  ui::button_func_search_set_results_are_suggestions(but, true);
+  ui::button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  ui::button_func_search_set(but,
+                             nullptr,
+                             behavior_type_string_search,
+                             data,
+                             true,
+                             nullptr,
+                             behavior_type_string_search_exec,
+                             nullptr);
 }
 
 }  // namespace blender::ed::space_node
