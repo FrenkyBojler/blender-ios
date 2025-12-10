@@ -379,18 +379,26 @@ void filelist_filter(FileList *filelist)
   filtered_tmp = static_cast<FileListInternEntry **>(
       MEM_mallocN(sizeof(*filtered_tmp) * size_t(num_files), __func__));
 
+  /* To detect if there exists at least one file with a relevance score to sort by it later. */
+  bool has_relevance_scores = false;
+
   /* Filter remap & count how many files are left after filter in a single loop. */
   LISTBASE_FOREACH (FileListInternEntry *, file, &filelist->filelist_intern.entries) {
+    /* Reset search score to avoid stale values from previous filtering. */
+    file->search_score = 0;
     if (filelist->filter_fn(file, filelist->filelist.root, &filelist->filter_data)) {
+      /* Detect relevance score to enable sorting later. */
+      if (file->search_score > 0) {
+        has_relevance_scores = true;
+      }
       filtered_tmp[num_filtered++] = file;
     }
   }
-  if (filelist->filter_data.filter_search[0] != '\0') {
-    /* Reorder by match score*/
+  /* If there are relevance scores, sort by it (higher is better). */
+  if (has_relevance_scores && filelist->filter_data.filter_search[0] != '\0') {
     std::stable_sort(filtered_tmp,
                      filtered_tmp + num_filtered,
                      [](const FileListInternEntry *a, const FileListInternEntry *b) {
-                       /* score from high to low */
                        return a->search_score > b->search_score;
                      });
   }
