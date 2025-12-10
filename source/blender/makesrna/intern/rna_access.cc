@@ -89,8 +89,7 @@ void RNA_init()
 {
   StructRNA *srna;
 
-  BLENDER_RNA.structs_map = MEM_new<BlenderRNA::StructsMap>(__func__);
-  BLENDER_RNA.structs_map->reserve(2048);
+  BLENDER_RNA.structs_map.reserve(2048);
   BLENDER_RNA.structs_len = 0;
 
   for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
@@ -108,7 +107,7 @@ void RNA_init()
       }
     }
     BLI_assert(srna->flag & STRUCT_PUBLIC_NAMESPACE);
-    BLENDER_RNA.structs_map->add(srna->identifier, srna);
+    BLENDER_RNA.structs_map.add(srna->identifier, srna);
     BLENDER_RNA.structs_len += 1;
   }
 }
@@ -704,7 +703,7 @@ static const char *rna_ensure_property_name(const PropertyRNA *prop)
 
 StructRNA *RNA_struct_find(const char *identifier)
 {
-  return BLENDER_RNA.structs_map->lookup_default(identifier, nullptr);
+  return BLENDER_RNA.structs_map.lookup_default(identifier, nullptr);
 }
 
 const char *RNA_struct_identifier(const StructRNA *type)

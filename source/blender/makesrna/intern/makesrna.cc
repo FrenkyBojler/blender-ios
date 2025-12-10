@@ -3754,7 +3754,7 @@ static void rna_generate_blender(BlenderRNA *brna, FILE *f)
   }
 
   fprintf(f,
-          "\t/*structs_map*/ nullptr,\n"
+          "\t/*structs_map*/ {},\n"
           "\t/*structs_len*/ 0,\n"
           "};\n\n");
 }
