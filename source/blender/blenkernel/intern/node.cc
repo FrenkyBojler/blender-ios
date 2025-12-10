@@ -2391,6 +2391,16 @@ bNodeTreeType *node_tree_type_find(const StringRef idname)
   return *value;
 }
 
+bNodeTreeType *node_tree_type_find_builtin(const int tree_type)
+{
+  for (bNodeTreeType *type : get_node_tree_type_map()) {
+    if (type->type == tree_type) {
+      return type;
+    }
+  }
+  return nullptr;
+}
+
 static void defer_free_tree_type(bNodeTreeType *tree_type)
 {
   static ResourceScope scope;
@@ -5742,6 +5752,18 @@ void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, const int layer_in
       }
     }
   }
+}
+
+bool node_tree_type_supports_socket_type_static(const int ntree_type,
+                                                const eNodeSocketDatatype socket_type)
+{
+  if (bke::bNodeTreeType *ttype = bke::node_tree_type_find_builtin(ntree_type)) {
+    bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
+    if (ttype->valid_socket_type) {
+      return ttype->valid_socket_type(ttype, stype);
+    }
+  }
+  return false;
 }
 
 }  // namespace blender::bke

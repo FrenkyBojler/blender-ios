@@ -76,24 +76,15 @@ struct GeoViewerItemsAccessor : public socket_items::SocketItemsAccessorDefaults
     socket_items::set_item_name_and_make_unique<GeoViewerItemsAccessor>(node, item, name);
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int ntree_type)
   {
-    return ELEM(socket_type,
-                SOCK_FLOAT,
-                SOCK_VECTOR,
-                SOCK_RGBA,
-                SOCK_BOOLEAN,
-                SOCK_ROTATION,
-                SOCK_MATRIX,
-                SOCK_INT,
-                SOCK_STRING,
-                SOCK_GEOMETRY,
-                SOCK_OBJECT,
-                SOCK_MATERIAL,
-                SOCK_IMAGE,
-                SOCK_COLLECTION,
-                SOCK_BUNDLE,
-                SOCK_CLOSURE);
+    if (bke::bNodeTreeType *ttype = bke::node_tree_type_find_builtin(ntree_type)) {
+      bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
+      if (ttype->valid_socket_type) {
+        return ttype->valid_socket_type(ttype, stype);
+      }
+    }
+    return false;
   }
 
   static std::string socket_identifier_for_item(const NodeGeometryViewerItem &item)

@@ -258,6 +258,36 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       ID *id = reinterpret_cast<ID *>(value->value);
       return id_name_or_value_prop(identifier, id, ID_MA, use_name_for_ids);
     }
+    case SOCK_FONT: {
+      const bNodeSocketValueFont *value = static_cast<const bNodeSocketValueFont *>(
+          socket.socket_data);
+      ID *id = reinterpret_cast<ID *>(value->value);
+      return id_name_or_value_prop(identifier, id, ID_VF, use_name_for_ids);
+    }
+    case SOCK_SCENE: {
+      const bNodeSocketValueScene *value = static_cast<const bNodeSocketValueScene *>(
+          socket.socket_data);
+      ID *id = reinterpret_cast<ID *>(value->value);
+      return id_name_or_value_prop(identifier, id, ID_SCE, use_name_for_ids);
+    }
+    case SOCK_TEXT_ID: {
+      const bNodeSocketValueText *value = static_cast<const bNodeSocketValueText *>(
+          socket.socket_data);
+      ID *id = reinterpret_cast<ID *>(value->value);
+      return id_name_or_value_prop(identifier, id, ID_TXT, use_name_for_ids);
+    }
+    case SOCK_MASK: {
+      const bNodeSocketValueMask *value = static_cast<const bNodeSocketValueMask *>(
+          socket.socket_data);
+      ID *id = reinterpret_cast<ID *>(value->value);
+      return id_name_or_value_prop(identifier, id, ID_MSK, use_name_for_ids);
+    }
+    case SOCK_SOUND: {
+      const bNodeSocketValueSound *value = static_cast<const bNodeSocketValueSound *>(
+          socket.socket_data);
+      ID *id = reinterpret_cast<ID *>(value->value);
+      return id_name_or_value_prop(identifier, id, ID_SO, use_name_for_ids);
+    }
     case SOCK_MATRIX:
     case SOCK_CUSTOM:
     case SOCK_GEOMETRY:
