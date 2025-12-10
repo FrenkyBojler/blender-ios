@@ -736,7 +736,7 @@ template<typename CommandEncoderT>
 static void bind_sampler_argument_buffer(
     CommandEncoderT enc,
     MTLSamplerArray &sampler_array,
-    blender::Map<MTLSamplerArray, gpu::MTLBuffer *> &sampler_buffers_cache,
+    Map<MTLSamplerArray, gpu::MTLBuffer *> &sampler_buffers_cache,
     MTLShaderInterface &shader_interface,
     id<MTLFunction> mtl_function,
     MTLBindingCache<CommandEncoderT> &bindings)
@@ -991,18 +991,10 @@ void MTLContext::pipeline_state_init()
   this->pipeline_state.cull_mode = GPU_CULL_NONE;
   this->pipeline_state.front_face = GPU_COUNTERCLOCKWISE;
 
-  /* DATA and IMAGE access state. */
-  this->pipeline_state.unpack_row_length = 0;
-
   /* Depth State. */
   this->pipeline_state.depth_stencil_state.depth_write_enable = false;
   this->pipeline_state.depth_stencil_state.depth_test_enabled = false;
   this->pipeline_state.depth_stencil_state.depth_function = MTLCompareFunctionAlways;
-  this->pipeline_state.depth_stencil_state.depth_bias = 0.0;
-  this->pipeline_state.depth_stencil_state.depth_slope_scale = 0.0;
-  this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_points = false;
-  this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_lines = false;
-  this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_tris = false;
 
   /* Stencil State. */
   this->pipeline_state.depth_stencil_state.stencil_test_enabled = false;
@@ -1350,7 +1342,7 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
 }
 
 /* Encode latest depth-stencil state. */
-void MTLContext::ensure_depth_stencil_state(MTLPrimitiveType prim_type)
+void MTLContext::ensure_depth_stencil_state()
 {
   /* Check if we need to update state. */
   if (!(this->pipeline_state.dirty_flags & MTL_PIPELINE_STATE_DEPTHSTENCIL_FLAG)) {
@@ -1461,23 +1453,7 @@ void MTLContext::ensure_depth_stencil_state(MTLPrimitiveType prim_type)
     }
 
     if (hasDepthTarget) {
-      bool doBias = false;
-      switch (prim_type) {
-        case MTLPrimitiveTypeTriangle:
-        case MTLPrimitiveTypeTriangleStrip:
-          doBias = this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_tris;
-          break;
-        case MTLPrimitiveTypeLine:
-        case MTLPrimitiveTypeLineStrip:
-          doBias = this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_lines;
-          break;
-        case MTLPrimitiveTypePoint:
-          doBias = this->pipeline_state.depth_stencil_state.depth_bias_enabled_for_points;
-          break;
-      }
-      [rec setDepthBias:(doBias) ? this->pipeline_state.depth_stencil_state.depth_bias : 0
-             slopeScale:(doBias) ? this->pipeline_state.depth_stencil_state.depth_slope_scale : 0
-                  clamp:0];
+      [rec setDepthBias:0 slopeScale:0 clamp:0];
     }
   }
 }

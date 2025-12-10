@@ -95,7 +95,7 @@ static void library_copy_data(Main *bmain,
     library_dst->packedfile = BKE_packedfile_duplicate(library_src->packedfile);
   }
 
-  /* Only explicitely copy a sub-set of the runtime data. */
+  /* Only explicitly copy a sub-set of the runtime data. */
   library_dst->runtime = MEM_new<LibraryRuntime>(__func__);
   BLI_strncpy(library_dst->runtime->filepath_abs,
               library_src->runtime->filepath_abs,
@@ -266,8 +266,7 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
       if (!ID_IS_LINKED(id_iter) || id_iter->lib != lib) {
         continue;
       }
-      MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-          BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+      MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
       for (MainIDRelationsEntryItem *item = entry->from_ids; item; item = item->next) {
         ID *from_id = item->id_pointer.from;
         if (!ID_IS_LINKED(from_id)) {
@@ -346,8 +345,7 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
     if (directly_used_libs.contains(id_iter->lib)) {
       continue;
     }
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
     for (MainIDRelationsEntryItem *item = entry->from_ids; item; item = item->next) {
       if (!ID_IS_LINKED(item->id_pointer.from)) {
         directly_used_libs.add(id_iter->lib);
