@@ -17,11 +17,12 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
-#include "GEO_reverse_uv_sampler.hh"
+#include "NOD_geo_physics_solver_debug.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_parse.hh"
 #include "NOD_geometry_nodes_physics_bundles.hh"
 
+#include "GEO_reverse_uv_sampler.hh"
 #include "GEO_xpbd_constraint_sets_common.hh"
 
 #include "node_geometry_util.hh"
@@ -31,6 +32,7 @@
 namespace blender::nodes::node_geo_xpbd_physics_solver_cc {
 
 using namespace physics_bundles;
+using physics_solver_debug::XPBDDebugRecorder;
 
 enum class SolverType {
   SerialGaussSeidel,
@@ -74,6 +76,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(AttachUVSurfaceConstraintBundle::get_bundle_type());
   types.append(DistanceBasedEdgeBendingConstraintBundle::get_bundle_type());
   types.append(ColliderBundle::get_bundle_type());
+  types.append(DebugStepsBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XpbdSolverWorld", std::move(types));
@@ -499,6 +502,7 @@ struct WorldBundles {
   BundleVectorSet<AttachUVSurfaceConstraintBundle> attach_uv_surface_constraints;
   BundleVectorSet<DistanceBasedEdgeBendingConstraintBundle> distance_based_bending_constraints;
   BundleVectorSet<ColliderBundle> colliders;
+  BundleVectorSet<DebugStepsBundle> debug_steps;
 };
 
 struct CurveRodStretchAndShearConstraintData {
@@ -825,6 +829,7 @@ PROFILE_FUNCTION static WorldBundles parse_world(const Bundle &world_bundle)
     parse_bundle(params, errors, world_bundles.attach_uv_surface_constraints);
     parse_bundle(params, errors, world_bundles.distance_based_bending_constraints);
     parse_bundle(params, errors, world_bundles.colliders);
+    parse_bundle(params, errors, world_bundles.debug_steps);
   });
   return world_bundles;
 }
@@ -967,6 +972,26 @@ PROFILE_FUNCTION static void apply_simulation_to_instances(const XPBDGeometryBun
       bundle, sim_points, AttrDomain::Instance, instances->attributes_for_write());
 }
 
+template<typename Fn> static void foreach_key(const XPBDGeometryBundle &bundle, Fn fn)
+{
+  if (bundle.geometry.has_mesh()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Mesh};
+    fn(key);
+  }
+  if (bundle.geometry.has_pointcloud()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::PointCloud};
+    fn(key);
+  }
+  if (bundle.geometry.has_curves()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Curve};
+    fn(key);
+  }
+  if (bundle.geometry.has_instances()) {
+    const SimPointsKey key = {bundle.self_path, bke::GeometryComponent::Type::Instance};
+    fn(key);
+  }
+}
+
 static void apply_simulation(const XPBDGeometryBundle &bundle,
                              GeometrySet &geometry,
                              const XPBDState &state)
@@ -995,6 +1020,160 @@ static void apply_simulation(const XPBDGeometryBundle &bundle,
       apply_simulation_to_instances(bundle, geometry, *sim_points);
     }
   }
+}
+
+static Array<GeometrySet> gather_world_geometries(const WorldBundles &world_bundles)
+{
+  Array<GeometrySet> world_geometries(world_bundles.geometries.size());
+  for (const int bundle_i : world_bundles.geometries.index_range()) {
+    world_geometries[bundle_i] = world_bundles.geometries[bundle_i].geometry;
+  }
+  return world_geometries;
+}
+
+static void gather_debug_keys(XPBDDebugRecorder &recorder,
+                              const WorldBundles &world_bundles,
+                              const Span<SimPointsKey> all_keys)
+{
+  /* Early exit if debugging is disabled. */
+  if (world_bundles.debug_steps.is_empty()) {
+    return;
+  }
+  /* Gather keys for actively recorded geometry and initialize instance geometry. */
+  for (const SimPointsKey &key : all_keys) {
+    for (const DebugStepsBundle &debug_bundle : world_bundles.debug_steps) {
+      if (nested_bundle_path_is_selected(debug_bundle.self_path, debug_bundle.filter, key.path)) {
+        recorder.add_geometry_path(key.path);
+        break;
+      }
+    }
+  }
+}
+
+static void add_debug_stage(XPBDDebugRecorder &recorder,
+                            const XPBDState &state,
+                            const WorldBundles &world_bundles,
+                            const VectorSet<SimPointsKey> &keys_subset,
+                            const physics_solver_debug::Stage stage)
+{
+  if (!recorder.has_paths()) {
+    return;
+  }
+  Array<bke::GeometrySet> applied_geometries = gather_world_geometries(world_bundles);
+  for (const int geometry_i : world_bundles.geometries.index_range()) {
+    const XPBDGeometryBundle &bundle = world_bundles.geometries[geometry_i];
+    foreach_key(bundle, [&](const SimPointsKey &key) {
+      if (!keys_subset.contains(key)) {
+        return;
+      }
+
+      if (stage == physics_solver_debug::Stage::Init) {
+        recorder.start_substep(key.path);
+      }
+
+      bke::GeometrySet &applied_geometry = applied_geometries[geometry_i];
+      apply_simulation(bundle, applied_geometry, state);
+      recorder.add_stage(key.path, stage, std::move(applied_geometry));
+    });
+  }
+}
+
+static void start_debug_constraint_iteration(XPBDDebugRecorder &recorder,
+                                             const VectorSet<SimPointsKey> &keys_subset)
+{
+  if (!recorder.has_paths()) {
+    return;
+  }
+  for (const SimPointsKey &key : keys_subset) {
+    recorder.start_constraint_iteration(key.path);
+  }
+}
+
+using SolverDebugFnStorage = std::function<void(const StringRef name,
+                                                const Span<int> points_ref_indices,
+                                                bke::GeometrySet &&constraint_geometry)>;
+
+static SolverDebugFnStorage get_debug_solver_function(XPBDDebugRecorder &debug_recorder,
+                                                      const XPBDState &state,
+                                                      const WorldBundles &world_bundles,
+                                                      const VectorSet<SimPointsKey> &all_keys)
+{
+  if (!debug_recorder.has_paths()) {
+    static auto noop_fn = [](const StringRef /*name*/,
+                             const Span<int> /*points_ref_indices*/,
+                             bke::GeometrySet && /*constraint_geometry*/) {};
+    return noop_fn;
+  }
+
+  struct SolverDebugParams {
+    XPBDDebugRecorder &debug_recorder;
+    const XPBDState &state;
+    const WorldBundles &world_bundles;
+    const VectorSet<SimPointsKey> &all_keys;
+
+    threading::EnumerableThreadSpecific<Array<GeometrySet>> geometries;
+
+    SolverDebugParams(XPBDDebugRecorder &debug_recorder,
+                      const XPBDState &state,
+                      const WorldBundles &world_bundles,
+                      const VectorSet<SimPointsKey> &all_keys)
+        : debug_recorder(debug_recorder),
+          state(state),
+          world_bundles(world_bundles),
+          all_keys(all_keys),
+          geometries([=]() { return gather_world_geometries(world_bundles); })
+    {
+    }
+
+    SolverDebugParams(const SolverDebugParams &other)
+        : debug_recorder(other.debug_recorder),
+          state(other.state),
+          world_bundles(other.world_bundles),
+          all_keys(other.all_keys),
+          geometries([=]() { return gather_world_geometries(world_bundles); })
+    {
+    }
+  };
+
+  return [params = SolverDebugParams(debug_recorder, state, world_bundles, all_keys)](
+             const StringRef name,
+             const Span<int> points_ref_indices,
+             bke::GeometrySet &&constraint_geometry) mutable {
+    VectorSet<SimPointsKey> affected_keys;
+    for (const int index : points_ref_indices) {
+      affected_keys.add_new(params.all_keys[index]);
+    }
+
+    bke::Instances *instances = constraint_geometry.get_instances_for_write();
+    if (!instances) {
+      instances = new bke::Instances();
+      constraint_geometry.replace_instances(instances);
+    }
+
+    MutableSpan<GeometrySet> geometries = params.geometries.local();
+    for (const int geometry_i : geometries.index_range()) {
+      const XPBDGeometryBundle &bundle = params.world_bundles.geometries[geometry_i];
+      foreach_key(bundle, [&](const SimPointsKey &key) {
+        if (affected_keys.contains(key)) {
+          apply_simulation(bundle, geometries[geometry_i], params.state);
+          const int handle = instances->add_new_reference({geometries[geometry_i]});
+          instances->add_instance(handle, float4x4::identity());
+        }
+      });
+    }
+
+    constraint_geometry.name = name;
+    if (!constraint_geometry.is_empty()) {
+      Set<StringRef> paths_subset;
+      paths_subset.reserve(affected_keys.size());
+      for (const SimPointsKey &key : affected_keys) {
+        paths_subset.add(key.path);
+      }
+      params.debug_recorder.add_constraint_stage(
+          std::move(constraint_geometry),
+          [&](const StringRef path) { return paths_subset.contains(path); });
+    }
+  };
 }
 
 static void ensure_rotation_data(SimPoints &sim_points,
@@ -1814,15 +1993,6 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
   }
 }
 
-static Array<GeometrySet> gather_world_geometries(const WorldBundles &world_bundles)
-{
-  Array<GeometrySet> world_geometries(world_bundles.geometries.size());
-  for (const int bundle_i : world_bundles.geometries.index_range()) {
-    world_geometries[bundle_i] = world_bundles.geometries[bundle_i].geometry;
-  }
-  return world_geometries;
-}
-
 PROFILE_FUNCTION static void apply_state_to_geometries(const XPBDState &state,
                                                        const WorldBundles &world_bundles,
                                                        MutableSpan<GeometrySet> applied_geometries)
@@ -1956,6 +2126,7 @@ PROFILE_FUNCTION static void store_constraint_attributes(
 
 static void store_world_bundle_overrides(const WorldBundles &world_bundles,
                                          const Span<GeometrySet> applied_geometries,
+                                         const XPBDDebugRecorder &debug_recorder,
                                          Bundle &world_bundle)
 {
   for (const int bundle_i : world_bundles.geometries.index_range()) {
@@ -1988,6 +2159,10 @@ static void store_world_bundle_overrides(const WorldBundles &world_bundles,
           bundle.self_path + "/lambda",
           bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
     }
+  }
+
+  for (const auto &item : debug_recorder.steps().items()) {
+    world_bundle.add_path(item.key + "/debug_steps", item.value.store());
   }
 }
 
@@ -3433,19 +3608,20 @@ PROFILE_FUNCTION static void remove_unused_states(XPBDState &state)
 
 PROFILE_FUNCTION static void solve_constraints(const SolverType solver_type,
                                                const Span<xpbd::GeometryRef> geometry_refs,
-                                               const Span<xpbd::ConstraintSet *> constraint_sets)
+                                               const Span<xpbd::ConstraintSet *> constraint_sets,
+                                               std::optional<xpbd::SolverDebugStageFn> debug_fn)
 {
   switch (solver_type) {
     case SolverType::SerialGaussSeidel: {
-      xpbd::solve_gauss_seidel_one_at_a_time(geometry_refs, constraint_sets);
+      xpbd::solve_gauss_seidel_one_at_a_time(geometry_refs, constraint_sets, debug_fn);
       break;
     }
     case SolverType::ParallelGaussSeidel: {
-      xpbd::solve_gauss_seidel_parallel(geometry_refs, constraint_sets);
+      xpbd::solve_gauss_seidel_parallel(geometry_refs, constraint_sets, debug_fn);
       break;
     }
     case SolverType::NonDeterministicJacobian: {
-      xpbd::solve_jacobian_non_deterministic(geometry_refs, constraint_sets);
+      xpbd::solve_jacobian_non_deterministic(geometry_refs, constraint_sets, debug_fn);
       break;
     }
   }
@@ -3820,6 +3996,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     const Span<int> key_group,
     ThreadLocalStorage &tls,
     XPBDState &state,
+    XPBDDebugRecorder &debug_recorder,
     const WorldBundles &world_bundles,
     const WorldPreprocessData &world_info,
     const VectorSet<SimPointsKey> &keys,
@@ -3851,6 +4028,20 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     }
     geometry_refs_local[key_i].prev_positions = all_prev_positions[key_in_group_i];
     geometry_refs_local[key_i].prev_rotations = all_prev_rotations[key_in_group_i];
+  }
+
+  /* Only needed for debugging, skip if unused. */
+  VectorSet<SimPointsKey> debug_key_group;
+  std::optional<SolverDebugFnStorage> constraint_solver_debug_fn;
+  if (debug_recorder.has_paths()) {
+    debug_key_group.reserve(key_group.size());
+    for (const int key_in_group_i : key_group.index_range()) {
+      const int key_i = key_group[key_in_group_i];
+      const SimPointsKey &key = keys[key_i];
+      debug_key_group.add(key);
+    }
+    constraint_solver_debug_fn = get_debug_solver_function(
+        debug_recorder, state, world_bundles, keys);
   }
 
   /* Instead of doing various stages like remembering old positions and updating velocities one
@@ -3891,7 +4082,8 @@ PROFILE_FUNCTION static void simulate_key_group_global(
 
                 /* Velocity constraint solve. */
                 {
-                  const xpbd::ConstraintSetParams params = {geometry_refs_local};
+                  const xpbd::ConstraintSetParams params = {geometry_refs_local,
+                                                            constraint_solver_debug_fn};
                   xpbd::VelocityUpdater velocity_updater{geometry_refs_local};
                   for (const xpbd::ConstraintSetCollector *constraint_sets : constraint_collectors)
                   {
@@ -3933,7 +4125,18 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     /* In all other substeps, this is done at the end of the previous step already to improve
      * parallelism and cache locality. */
     if (is_first_substep) {
+      add_debug_stage(debug_recorder,
+                      state,
+                      world_bundles,
+                      debug_key_group,
+                      physics_solver_debug::Stage::Init);
+
       run_per_point_updates({&filtered_static_constraint_sets}, substep, true, false);
+      add_debug_stage(debug_recorder,
+                      state,
+                      world_bundles,
+                      debug_key_group,
+                      physics_solver_debug::Stage::Dynamics);
     }
 
     /* Find current collisions and generate constraints to resolve them. */
@@ -3960,15 +4163,42 @@ PROFILE_FUNCTION static void simulate_key_group_global(
             scope, {&filtered_static_constraint_sets, &dynamic_constraint_sets});
     /* Actually solve the constraints. */
     for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
-      solve_constraints(solver_type, geometry_refs_local, current_constraint_sets);
+      start_debug_constraint_iteration(debug_recorder, debug_key_group);
+      solve_constraints(
+          solver_type, geometry_refs_local, current_constraint_sets, constraint_solver_debug_fn);
     }
 
-    /* Does remaining per-point updates at the end of this time step (like updating velocities) and
-     * also does the beginning of the next timestep already unless this is the last substep. */
-    run_per_point_updates({&filtered_static_constraint_sets, &dynamic_constraint_sets},
-                          substep,
-                          !is_last_substep,
-                          true);
+    if (debug_recorder.has_paths()) {
+      run_per_point_updates(
+          {&filtered_static_constraint_sets, &dynamic_constraint_sets}, substep, false, true);
+      if (!is_last_substep) {
+        add_debug_stage(debug_recorder,
+                        state,
+                        world_bundles,
+                        debug_key_group,
+                        physics_solver_debug::Stage::Init);
+      }
+      run_per_point_updates({&filtered_static_constraint_sets, &dynamic_constraint_sets},
+                            substep,
+                            !is_last_substep,
+                            false);
+      if (!is_last_substep) {
+        add_debug_stage(debug_recorder,
+                        state,
+                        world_bundles,
+                        debug_key_group,
+                        physics_solver_debug::Stage::Dynamics);
+      }
+    }
+    else {
+      /* Does remaining per-point updates at the end of this time step (like updating velocities)
+       * and also does the beginning of the next timestep already unless this is the last substep.
+       */
+      run_per_point_updates({&filtered_static_constraint_sets, &dynamic_constraint_sets},
+                            substep,
+                            !is_last_substep,
+                            true);
+    }
   }
 }
 
@@ -3989,6 +4219,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
     const int key_i,
     ThreadLocalStorage &tls,
     XPBDState &state,
+    XPBDDebugRecorder &debug_recorder,
     const WorldBundles &world_bundles,
     const WorldPreprocessData &world_info,
     const VectorSet<SimPointsKey> &keys,
@@ -4005,6 +4236,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
     const int constraint_iterations)
 {
   const SimPointsKey &key = keys[key_i];
+  const VectorSet<SimPointsKey> keys_subset = {key};
   SimPoints &sim_points = state.sim_points.lookup(key);
   const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
   const Curves &curves_id = *applied_geometries[geometry_bundle_i].get_curves();
@@ -4016,6 +4248,15 @@ PROFILE_FUNCTION static void simulate_curve_local(
   const SimPointsWorldProperties &props = sim_points_props.lookup(key);
   const PinnedPositions *pinned_positions = constraint_init.pinned_positions_map.lookup_ptr(key);
   const PinnedRotations *pinned_rotations = constraint_init.pinned_rotations_map.lookup_ptr(key);
+
+  /* Only needed for debugging, skip if unused. */
+  VectorSet<SimPointsKey> debug_key_group;
+  std::optional<SolverDebugFnStorage> constraint_solver_debug_fn;
+  if (debug_recorder.has_paths()) {
+    debug_key_group.add_new(key);
+    constraint_solver_debug_fn = get_debug_solver_function(
+        debug_recorder, state, world_bundles, keys);
+  }
   threading::parallel_for(
       curves.curves_range(),
       256,
@@ -4030,10 +4271,16 @@ PROFILE_FUNCTION static void simulate_curve_local(
         geometry_refs_local[key_i].prev_positions = prev_positions;
         geometry_refs_local[key_i].prev_rotations = prev_rotations;
 
-        xpbd::ConstraintSetParams params{geometry_refs_local};
+        xpbd::ConstraintSetParams params{geometry_refs_local, constraint_solver_debug_fn};
         for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
           const SubstepInterval substep = {float(substep_i) / substeps,
                                            float(substep_i + 1) / substeps};
+          add_debug_stage(debug_recorder,
+                          state,
+                          world_bundles,
+                          debug_key_group,
+                          physics_solver_debug::Stage::Init);
+
           pre_solve_per_point_steps(
               points_range,
               prev_positions,
@@ -4049,6 +4296,11 @@ PROFILE_FUNCTION static void simulate_curve_local(
               pinned_rotations,
               substep,
               sub_delta_time);
+          add_debug_stage(debug_recorder,
+                          state,
+                          world_bundles,
+                          debug_key_group,
+                          physics_solver_debug::Stage::Dynamics);
 
           Contacts contacts = gather_contacts_curve_local(key_i,
                                                           curves_range,
@@ -4068,6 +4320,8 @@ PROFILE_FUNCTION static void simulate_curve_local(
                                       curves_range,
                                       points_range);
           for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
+            start_debug_constraint_iteration(debug_recorder, debug_key_group);
+
             xpbd::SolveStrategy solve_strategy{
                 get_solve_strategy_type(solver_type), geometry_refs_local, key_i, points_range};
             for (xpbd::CurveLocalConstraintSet *constraint_set :
@@ -4140,6 +4394,7 @@ PROFILE_FUNCTION static void simulate_key_group(
     const Span<int> key_group,
     ThreadLocalStorage &tls,
     XPBDState &state,
+    XPBDDebugRecorder &debug_recorder,
     const WorldBundles &world_bundles,
     const WorldPreprocessData &world_info,
     const VectorSet<SimPointsKey> &keys,
@@ -4178,6 +4433,7 @@ PROFILE_FUNCTION static void simulate_key_group(
     simulate_curve_local(key_group[0],
                          tls,
                          state,
+                         debug_recorder,
                          world_bundles,
                          world_info,
                          keys,
@@ -4197,6 +4453,7 @@ PROFILE_FUNCTION static void simulate_key_group(
     simulate_key_group_global(key_group,
                               tls,
                               state,
+                              debug_recorder,
                               world_bundles,
                               world_info,
                               keys,
@@ -4215,6 +4472,7 @@ PROFILE_FUNCTION static void simulate_key_group(
 }
 
 PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
+                                                        XPBDDebugRecorder &debug_recorder,
                                                         const Span<GeometrySet> applied_geometries,
                                                         const WorldBundles &world_bundles,
                                                         const float total_delta_time,
@@ -4249,6 +4507,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       tls, state, world_info, points_keys);
   const Vector<xpbd::GeometryRef> geometry_refs = prepare_geometry_refs_for_solver(
       state, points_keys, sim_points_props);
+  gather_debug_keys(debug_recorder, world_bundles, points_keys);
 
   const xpbd::ConstraintSetCollector static_constraint_sets = gather_static_constraints(
       tls,
@@ -4285,6 +4544,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
           simulate_key_group(key_group,
                              tls,
                              state,
+                             debug_recorder,
                              world_bundles,
                              world_info,
                              points_keys,
@@ -4354,6 +4614,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   WorldBundles world_bundles = parse_world(*world_bundle_ptr);
   Array<GeometrySet> applied_geometries = gather_world_geometries(world_bundles);
+  XPBDDebugRecorder debug_recorder(substeps);
 
   XPBDState &state = xpbd_state_owner->state;
   const bool is_resimulating = update_counter < state.update_counter;
@@ -4361,6 +4622,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!is_resimulating) {
     apply_state_to_geometries(state, world_bundles, applied_geometries);
     update_and_step_xpbd_state(state,
+                               debug_recorder,
                                applied_geometries,
                                world_bundles,
                                delta_time,
@@ -4386,7 +4648,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   apply_state_to_geometries(state, world_bundles, applied_geometries);
   store_constraint_attributes(state, world_bundles, applied_geometries);
-  store_world_bundle_overrides(world_bundles, applied_geometries, world_bundle);
+  store_world_bundle_overrides(world_bundles, applied_geometries, debug_recorder, world_bundle);
 
   params.set_output("State", std::move(new_state_bundle_ptr));
   params.set_output("World", std::move(world_bundle_ptr));

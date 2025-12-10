@@ -520,4 +520,27 @@ std::optional<DistanceBasedEdgeBendingConstraintBundle> DistanceBasedEdgeBending
   return behavior;
 }
 
+const FlatBundleTypePtr &DebugStepsBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(DebugStepsBundle::name);
+    b.add<decl::String>("filter");
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
+std::optional<DebugStepsBundle> DebugStepsBundle::parse(const Bundle &bundle,
+                                                        BundleParseErrors &r_errors)
+{
+  DebugStepsBundle behavior;
+  bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  if (r_errors.has_error()) {
+    return std::nullopt;
+  }
+  return behavior;
+}
+
 }  // namespace blender::nodes::physics_bundles

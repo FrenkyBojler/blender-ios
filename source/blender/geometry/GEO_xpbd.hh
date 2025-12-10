@@ -8,12 +8,16 @@
 #include <variant>
 
 #include "BLI_array.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_mutex.hh"
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
+
+#include "BKE_geometry_set.hh"
 
 namespace blender::xpbd {
 
@@ -42,13 +46,19 @@ struct GeometryRef {
   uint64_t size() const;
 };
 
+using ConstraintGeometryFn = FunctionRef<bke::GeometrySet(int points_ref_index)>;
+using SolverDebugStageFn = FunctionRef<void(
+    StringRef name, Span<int> points_ref_indices, bke::GeometrySet &&constraint_geometry)>;
+
 /** Provides access to the input data that should be considered by a constraint. */
 class ConstraintSetParams {
  private:
   Span<GeometryRef> geometry_refs_;
+  std::optional<SolverDebugStageFn> debug_stage_fn_;
 
  public:
-  ConstraintSetParams(Span<GeometryRef> geometry_refs);
+  ConstraintSetParams(Span<GeometryRef> geometry_refs,
+                      std::optional<SolverDebugStageFn> debug_stage_fn);
 
   const float3 &position(int geo_i, int point_i) const;
   const math::Quaternion &rotation(int geo_i, int point_i) const;
@@ -72,6 +82,11 @@ class ConstraintSetParams {
 
   float3 inverse_inertia(int geo_i, int point_i) const;
   Span<float3> inverse_inertias(int geo_i) const;
+
+  bool use_debug() const;
+  void debug_stage(StringRef constraint_name,
+                   Span<int> points_ref_indices,
+                   bke::GeometrySet &&constraint_geometry) const;
 };
 
 /**
@@ -180,6 +195,7 @@ class ConstraintSet {
 
   virtual void reset_forces() = 0;
   virtual void solve_step(SolveStrategy &method, const ConstraintSetParams &params) = 0;
+  virtual StringRef debug_name() const = 0;
 
   Span<int> get_affected_geo_indices() const;
 };
@@ -189,20 +205,23 @@ class ConstraintSet {
  * any parallelism.
  */
 void solve_gauss_seidel_one_at_a_time(Span<GeometryRef> geometry_refs,
-                                      Span<ConstraintSet *> constraint_sets);
+                                      Span<ConstraintSet *> constraint_sets,
+                                      std::optional<SolverDebugStageFn> debug_fn);
 
 /**
  * Fully parallel Jacobian solver, but it is not deterministic. This is mainly for testing
  * purposes.
  */
 void solve_jacobian_non_deterministic(Span<GeometryRef> geometry_refs,
-                                      Span<ConstraintSet *> constraint_sets);
+                                      Span<ConstraintSet *> constraint_sets,
+                                      std::optional<SolverDebugStageFn> debug_fn);
 
 /**
  * A Gauss Seidel solver that attempts to parallelize the evaluation of constraints.
  */
 void solve_gauss_seidel_parallel(Span<GeometryRef> geometry_refs,
-                                 Span<ConstraintSet *> constraint_sets);
+                                 Span<ConstraintSet *> constraint_sets,
+                                 std::optional<SolverDebugStageFn> debug_fn);
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Functions
@@ -289,8 +308,9 @@ inline Span<int> ConstraintSet::get_affected_geo_indices() const
   return affected_geo_indices_;
 }
 
-inline ConstraintSetParams::ConstraintSetParams(Span<GeometryRef> geometry_refs)
-    : geometry_refs_(geometry_refs)
+inline ConstraintSetParams::ConstraintSetParams(Span<GeometryRef> geometry_refs,
+                                                std::optional<SolverDebugStageFn> debug_stage_fn)
+    : geometry_refs_(geometry_refs), debug_stage_fn_(debug_stage_fn)
 {
 }
 
@@ -385,6 +405,20 @@ inline float3 ConstraintSetParams::inverse_inertia(const int geo_i, const int po
 inline Span<float3> ConstraintSetParams::inverse_inertias(const int geo_i) const
 {
   return geometry_refs_[geo_i].inverse_inertias;
+}
+
+inline bool ConstraintSetParams::use_debug() const
+{
+  return debug_stage_fn_.has_value();
+}
+
+inline void ConstraintSetParams::debug_stage(StringRef constraint_name,
+                                             const Span<int> points_ref_indices,
+                                             bke::GeometrySet &&constraint_geometry) const
+{
+  if (debug_stage_fn_) {
+    (*debug_stage_fn_)(constraint_name, points_ref_indices, std::move(constraint_geometry));
+  }
 }
 
 /** \} */

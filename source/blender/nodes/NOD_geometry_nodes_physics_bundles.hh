@@ -247,4 +247,14 @@ class DistanceBasedEdgeBendingConstraintBundle : public NestedBundleCommon {
       const Bundle &bundle, BundleParseErrors &r_errors);
 };
 
+class DebugStepsBundle : public NestedBundleCommon {
+ public:
+  static constexpr StringRefNull name = "Blender.DebugSteps";
+
+  std::string filter;
+
+  static const FlatBundleTypePtr &get_bundle_type();
+  static std::optional<DebugStepsBundle> parse(const Bundle &bundle, BundleParseErrors &r_errors);
+};
+
 }  // namespace blender::nodes::physics_bundles

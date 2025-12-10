@@ -268,6 +268,7 @@ set(SRC
   nodes/node_geo_volume_cube.cc
   nodes/node_geo_volume_to_mesh.cc
   nodes/node_geo_warning.cc
+  nodes/node_geo_xpbd_physics_debug_extract.cc
   nodes/node_geo_xpbd_physics_solver.cc
 
   include/NOD_geo_bake.hh
@@ -278,6 +279,7 @@ set(SRC
   include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh
+  include/NOD_geo_physics_solver_debug.hh
   include/NOD_geo_repeat.hh
   include/NOD_geo_simulation.hh
   include/NOD_geo_viewer.hh

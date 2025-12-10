@@ -10317,6 +10317,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeVolumeCube");
   define("GeometryNode", "GeometryNodeVolumeToMesh");
   define("GeometryNode", "GeometryNodeWarning");
+  define("GeometryNode", "GeometryNodeXPBDDebugExtract");
   define("GeometryNode", "GeometryNodeXPBDPhysicsSolver");
 
 

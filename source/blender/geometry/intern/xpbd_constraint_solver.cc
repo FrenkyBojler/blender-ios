@@ -62,9 +62,10 @@ Vector<IndexMask> n_ary_constraints_to_independent_masks_multi(
 }
 
 void solve_gauss_seidel_one_at_a_time(const Span<GeometryRef> geometry_refs,
-                                      const Span<ConstraintSet *> constraint_sets)
+                                      const Span<ConstraintSet *> constraint_sets,
+                                      std::optional<SolverDebugStageFn> debug_fn)
 {
-  ConstraintSetParams params{geometry_refs};
+  ConstraintSetParams params{geometry_refs, debug_fn};
   SolveStrategy strategy{SolveStrategyType::GaussSeidelOneAtATime, geometry_refs};
   for (ConstraintSet *constraint_set : constraint_sets) {
     constraint_set->solve_step(strategy, params);
@@ -278,9 +279,10 @@ void SolveStrategy::apply()
 }
 
 void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
-                                      const Span<ConstraintSet *> constraint_sets)
+                                      const Span<ConstraintSet *> constraint_sets,
+                                      std::optional<SolverDebugStageFn> debug_fn)
 {
-  ConstraintSetParams params{geometry_refs};
+  ConstraintSetParams params{geometry_refs, debug_fn};
   SolveStrategy strategy{SolveStrategyType::JacobianNonDeterministic, geometry_refs};
   threading::parallel_for(
       constraint_sets.index_range(), 1, [&](const IndexRange constraint_sets_range) {
@@ -293,9 +295,10 @@ void solve_jacobian_non_deterministic(const Span<GeometryRef> geometry_refs,
 }
 
 void solve_gauss_seidel_parallel(const Span<GeometryRef> geometry_refs,
-                                 const Span<ConstraintSet *> constraint_sets)
+                                 const Span<ConstraintSet *> constraint_sets,
+                                 std::optional<SolverDebugStageFn> debug_fn)
 {
-  ConstraintSetParams params{geometry_refs};
+  ConstraintSetParams params{geometry_refs, debug_fn};
   MultiValueMap<int, ConstraintSet *> single_target_constraints_by_geo_index;
   Vector<ConstraintSet *> multi_target_constraints;
 

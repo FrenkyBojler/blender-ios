@@ -5,9 +5,11 @@
 #pragma once
 
 #include "BLI_math_base.h"
+#include "BLI_math_vector.hh"
+
 #include "GEO_xpbd_constraint_utils.hh"
 
-#include "BLI_math_vector.hh"
+#include "BKE_pointcloud.hh"
 
 namespace blender::xpbd {
 
@@ -161,6 +163,8 @@ class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPosition
   MutableSpan<float> lambdas_;
 
  public:
+  static constexpr StringRefNull debug_name = "Pinned Position";
+
   PinnedPositionConstraintSet(const int geo_i,
                               const Span<int> indices,
                               const Span<float3> pin_positions,
@@ -202,6 +206,11 @@ class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPosition
   {
     return unary_constraints_to_independent_masks(indices_, memory);
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstraintSet> {
@@ -213,6 +222,8 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
   MutableSpan<float4> lambdas_;
 
  public:
+  static constexpr StringRefNull debug_name = "Pin Rotation";
+
   PinRotationConstraintSet(const int geo_i,
                            const Span<int> indices,
                            const Span<math::Quaternion> pin_rotations,
@@ -254,6 +265,11 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
   {
     return unary_constraints_to_independent_masks(indices_, memory);
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSet> {
@@ -265,6 +281,8 @@ class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSe
   MutableSpan<float> lambdas_;
 
  public:
+  static constexpr StringRefNull debug_name = "Distance";
+
   DistanceConstraintSet(const int geo_i,
                         const Span<int2> point_pairs,
                         const Span<float> distances,
@@ -310,6 +328,11 @@ class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSe
   {
     return binary_constraints_to_independent_masks(point_pairs_, memory);
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 /* Constraint implementation for static and dynamic friction is based on
@@ -328,7 +351,21 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   MutableSpan<bool> active_states_;
   MutableSpan<float> lambdas_normal_;
 
+  enum DebugAttribute {
+    ContactPointOnPlane,
+    PointIndex,
+    SeparatingAxis,
+    Active,
+    IsStatic,
+    StaticFriction,
+    DynamicFriction,
+    ColliderMotion,
+    LambdaNormal,
+  };
+
  public:
+  static constexpr StringRefNull debug_name = "Collision Plane";
+
   CollisionPlaneConstraintSet(const int geo_i,
                               const Span<int> points,
                               const Span<float3> contact_points_on_plane,
@@ -370,8 +407,21 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     const float3 &axis = separating_axes_[constraint_i];
     const float compliance_term = compliance_terms_[constraint_i];
     const float inv_m = params.inverse_mass(geo_i_, point_i);
+    updater.write_debug_attribute(DebugAttribute::ContactPointOnPlane, constraint_i, plane_pos);
+    updater.write_debug_attribute(DebugAttribute::PointIndex, constraint_i, point_i);
+    updater.write_debug_attribute(DebugAttribute::SeparatingAxis, constraint_i, axis);
+    updater.write_debug_attribute(
+        DebugAttribute::StaticFriction, constraint_i, static_frictions_[constraint_i]);
+    updater.write_debug_attribute(
+        DebugAttribute::DynamicFriction, constraint_i, dynamic_frictions_[constraint_i]);
+    updater.write_debug_attribute(
+        DebugAttribute::ColliderMotion, constraint_i, contact_points_motion_[constraint_i]);
     if (inv_m <= 0.0f) {
       /* Points with infinite mass are pinned and don't collide dynamically. */
+      updater.write_debug_attribute(DebugAttribute::Active, constraint_i, false);
+      updater.write_debug_attribute(DebugAttribute::IsStatic, constraint_i, false);
+      updater.write_debug_attribute(
+          DebugAttribute::LambdaNormal, constraint_i, lambdas_normal_[constraint_i]);
       return;
     }
 
@@ -380,8 +430,13 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     const bool is_active = normal_distance < 0.0f;
     active_states_[constraint_i] = is_active;
     if (!is_active) {
+      updater.write_debug_attribute(DebugAttribute::Active, constraint_i, false);
+      updater.write_debug_attribute(DebugAttribute::IsStatic, constraint_i, false);
+      updater.write_debug_attribute(
+          DebugAttribute::LambdaNormal, constraint_i, lambdas_normal_[constraint_i]);
       return;
     }
+    updater.write_debug_attribute(DebugAttribute::Active, constraint_i, true);
 
     /* Positional correction for penetration. */
     float3 offset = float3(0.0f);
@@ -391,6 +446,7 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
       offset += delta_lambda_normal * inv_m * axis;
       lambda_normal += delta_lambda_normal;
     }
+    updater.write_debug_attribute(DebugAttribute::LambdaNormal, constraint_i, lambda_normal);
 
     /* Apply static friction as a direct positional update. */
     const float3 &prev_pos = params.prev_position(geo_i_, point_i);
@@ -401,6 +457,7 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
                                                          (inv_m + compliance_term));
     const bool is_static = lambda_tangent_sq <
                            math::square(static_frictions_[constraint_i] * lambda_normal);
+    updater.write_debug_attribute(DebugAttribute::IsStatic, constraint_i, is_static);
     if (is_static) {
       offset -= velocity_tangent * inv_m / (inv_m + compliance_term);
     }
@@ -411,6 +468,33 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
   {
     return unary_constraints_to_independent_masks(points_, memory);
+  }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> &r_attributes) const
+  {
+    r_attributes.resize(9);
+    PointCloud *pointcloud = BKE_pointcloud_new_nomain(points_.size());
+    bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
+    r_attributes[DebugAttribute::ContactPointOnPlane] =
+        attributes.lookup_or_add_for_write_only_span(
+            "position", bke::AttrDomain::Point, bke::AttrType::Float3);
+    r_attributes[DebugAttribute::PointIndex] = attributes.lookup_or_add_for_write_only_span(
+        "point", bke::AttrDomain::Point, bke::AttrType::Int32);
+    r_attributes[DebugAttribute::SeparatingAxis] = attributes.lookup_or_add_for_write_only_span(
+        "separating_axis", bke::AttrDomain::Point, bke::AttrType::Float3);
+    r_attributes[DebugAttribute::Active] = attributes.lookup_or_add_for_write_only_span(
+        "active", bke::AttrDomain::Point, bke::AttrType::Bool);
+    r_attributes[DebugAttribute::IsStatic] = attributes.lookup_or_add_for_write_only_span(
+        "is_static", bke::AttrDomain::Point, bke::AttrType::Bool);
+    r_attributes[DebugAttribute::StaticFriction] = attributes.lookup_or_add_for_write_only_span(
+        "static_friction", bke::AttrDomain::Point, bke::AttrType::Float);
+    r_attributes[DebugAttribute::DynamicFriction] = attributes.lookup_or_add_for_write_only_span(
+        "dynamic_friction", bke::AttrDomain::Point, bke::AttrType::Float);
+    r_attributes[DebugAttribute::ColliderMotion] = attributes.lookup_or_add_for_write_only_span(
+        "collider_motion", bke::AttrDomain::Point, bke::AttrType::Float3);
+    r_attributes[DebugAttribute::LambdaNormal] = attributes.lookup_or_add_for_write_only_span(
+        "lambda_normal", bke::AttrDomain::Point, bke::AttrType::Float);
+    return bke::GeometrySet::from_pointcloud(pointcloud);
   }
 };
 
@@ -428,6 +512,8 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
   MutableSpan<float> lambdas_;
 
  public:
+  static constexpr StringRefNull debug_name = "Friction";
+
   FrictionConstraintSet(const int geo_i,
                         const Span<int> index_mapping,
                         const Span<float3> separating_axes,
@@ -478,6 +564,11 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
     lambdas_[constraint_i] += delta_lambda;
     updater.update_velocity(geo_i_, point_i, -gradient * delta_lambda);
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistanceConstraintSet> {
@@ -489,6 +580,8 @@ class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistan
   MutableSpan<float> lambdas_;
 
  public:
+  static constexpr StringRefNull debug_name = "Minimum Distance";
+
   MinimumDistanceConstraintSet(const int geo_i,
                                const Span<int2> points,
                                const Span<float> min_distances,
@@ -545,6 +638,11 @@ class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistan
   {
     return binary_constraints_to_independent_masks(points_, memory);
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSet> {
@@ -557,6 +655,8 @@ class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSe
   float &lambda_;
 
  public:
+  static constexpr StringRefNull debug_name = "Pressure";
+
   PressureConstraintSet(const int geo_i,
                         const Span<int3> tris,
                         const Span<int> corner_verts,
@@ -659,6 +759,11 @@ class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSe
   {
     return {IndexMask(1)};
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 /**
@@ -675,6 +780,8 @@ class RodStretchAndShearCurveLocalConstraintSet
   MutableSpan<float3> lambdas_rot_;
 
  public:
+  static constexpr StringRefNull debug_name = "Rod Stretch and Shear";
+
   RodStretchAndShearCurveLocalConstraintSet(const int geo_i,
                                             const OffsetIndices<int> points_by_curve,
                                             const Span<float> rest_lengths,
@@ -727,6 +834,11 @@ class RodStretchAndShearCurveLocalConstraintSet
       updater.update_rotation(geo_i_, point_i0, result.offset_rot);
     }
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 /** Aligns rotations of two consecutive rods based on a rest rotation. */
@@ -738,6 +850,8 @@ class RodBendAndTwistCurveLocalConstraintSet
   MutableSpan<float4> lambdas_;
 
  public:
+  static constexpr StringRefNull debug_name = "Rod Bend and Twist";
+
   RodBendAndTwistCurveLocalConstraintSet(const int geo_i,
                                          const OffsetIndices<int> points_by_curve,
                                          const Span<math::Quaternion> rest_rotations,
@@ -784,6 +898,11 @@ class RodBendAndTwistCurveLocalConstraintSet
       updater.update_rotation(geo_i_, point_i1, result.offset1);
     }
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 class AlignPositionsConstraintSet : public TemplatedConstraintSet<AlignPositionsConstraintSet> {
@@ -798,6 +917,8 @@ class AlignPositionsConstraintSet : public TemplatedConstraintSet<AlignPositions
   MutableSpan<float> lambdas_;
 
  public:
+  static constexpr StringRefNull debug_name = "Align Positions";
+
   AlignPositionsConstraintSet(OffsetIndices<int> offsets,
                               Span<float> compliance_terms,
                               Span<int> geo_indices,
@@ -871,6 +992,11 @@ class AlignPositionsConstraintSet : public TemplatedConstraintSet<AlignPositions
     return n_ary_constraints_to_independent_masks_multi(
         {offsets_, geo_indices_}, {offsets_, point_indices_}, memory);
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfaceConstraintSet> {
@@ -884,6 +1010,8 @@ class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfa
   MutableSpan<float3> lambdas_;
 
  public:
+  static constexpr StringRefNull debug_name = "Attach UV Surface";
+
   AttachUVSurfaceConstraintSet(const int mesh_geo_i,
                                const int points_geo_i,
                                const Span<int> indices,
@@ -971,6 +1099,11 @@ class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfa
         indices_.size(),
         memory);
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 class LinearDampingConstraintSet
@@ -1014,6 +1147,11 @@ class LinearDampingConstraintSet
     lambdas_[point_i] += delta_lambda;
     updater.update_velocity(geo_i_, point_i, offset);
   }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
 };
 
 class AngularDampingConstraintSet
@@ -1054,6 +1192,11 @@ class AngularDampingConstraintSet
     const float3 offset = gradient * delta_lambda;
     lambdas_[point_i] += delta_lambda;
     updater.update_angular_velocity(geo_i_, point_i, offset);
+  }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
   }
 };
 

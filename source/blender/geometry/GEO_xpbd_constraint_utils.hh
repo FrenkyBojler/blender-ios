@@ -13,6 +13,50 @@
 
 namespace blender::xpbd {
 
+struct DebugAttributeMetaData {
+  StringRef name;
+  bke::AttrDomain domain;
+  bke::AttrType type;
+};
+
+/* Wrapper to extend an updater type with constraint debugging functions. */
+template<bool use_debug, typename UpdaterT> class UpdaterWrapper {
+ private:
+  UpdaterT &updater_;
+  Span<bke::GSpanAttributeWriter> debug_attribute_writers_;
+
+ public:
+  UpdaterWrapper(UpdaterVariant &updater,
+                 const Span<bke::GSpanAttributeWriter> debug_attribute_writers = {})
+      : updater_(std::get<UpdaterT>(updater)), debug_attribute_writers_(debug_attribute_writers)
+  {
+  }
+
+  void update_position(const int geo_i, const int point_i, const float3 &offset)
+  {
+    updater_.update_position(geo_i, point_i, offset);
+  }
+  void update_rotation(const int geo_i, const int point_i, const math::Quaternion &offset)
+  {
+    updater_.update_rotation(geo_i, point_i, offset);
+  }
+
+  template<typename T>
+  void write_debug_attribute(const int attr_i, const int constraint_i, const T &value)
+  {
+    if constexpr (use_debug) {
+      debug_attribute_writers_[attr_i].span.typed<T>()[constraint_i] = value;
+    }
+  }
+
+  template<typename T> void write_debug_attribute(const int attr_i, const Span<T> &values)
+  {
+    if constexpr (use_debug) {
+      debug_attribute_writers_[attr_i].span.typed<T>().copy_from(values);
+    }
+  }
+};
+
 /**
  * Utility to implement a constraint evaluator that automatically works with multiple updaters like
  * #GaussSeidelUpdater.
@@ -35,6 +79,11 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
   void reset_forces() override;
   void solve_step(SolveStrategy &strategy, const ConstraintSetParams &params) override;
 
+  StringRef debug_name() const final
+  {
+    return Child::debug_name;
+  }
+
   Span<IndexMask> get_independent_masks() const;
   virtual Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const = 0;
 
@@ -45,6 +94,10 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
   // template<typename UpdaterT>
   // void evaluate_single(
   //   UpdaterT &updater, const ConstraintSetParams &params, const int constraint_i) const;
+
+ private:
+  template<bool use_debug>
+  void solve_step_with_debug(SolveStrategy &strategy, const ConstraintSetParams &params);
 };
 
 class CurveLocalConstraintSet {
@@ -79,6 +132,17 @@ template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLo
   void solve_step(SolveStrategy &strategy,
                   const ConstraintSetParams &params,
                   IndexRange curves_range) override;
+
+  StringRef debug_name() const
+  {
+    return Child::debug_name;
+  }
+
+ private:
+  template<bool use_debug>
+  void solve_step_with_debug(SolveStrategy &strategy,
+                             const ConstraintSetParams &params,
+                             IndexRange curves_range);
 };
 
 class CurveLocalConstraintSets : public ConstraintSet {
@@ -91,6 +155,10 @@ class CurveLocalConstraintSets : public ConstraintSet {
 
   void reset_forces() override;
   void solve_step(SolveStrategy &strategy, const ConstraintSetParams &params) override;
+  StringRef debug_name() const final
+  {
+    return "CurveLocalConstraintSets";
+  }
 };
 
 class VelocityConstraintSet {
@@ -117,6 +185,17 @@ template<typename Child> class TemplatedVelocityConstraintSet : public VelocityC
   void solve_step(VelocityUpdater &updater,
                   const ConstraintSetParams &params,
                   IndexRange points_range) override;
+
+  StringRef debug_name() const
+  {
+    return Child::debug_name;
+  }
+
+ private:
+  template<bool use_debug>
+  void solve_step_with_debug(VelocityUpdater &updater,
+                             const ConstraintSetParams &params,
+                             IndexRange points_range);
 };
 
 Vector<IndexMask> unary_constraints_to_independent_masks(const Span<int> affected_points,
@@ -226,17 +305,39 @@ template<typename Child>
 inline void TemplatedConstraintSet<Child>::solve_step(SolveStrategy &strategy,
                                                       const ConstraintSetParams &params)
 {
+  if (params.use_debug()) {
+    solve_step_with_debug<true>(strategy, params);
+  }
+  else {
+    solve_step_with_debug<false>(strategy, params);
+  }
+}
+
+template<typename Child>
+template<bool use_debug>
+inline void TemplatedConstraintSet<Child>::solve_step_with_debug(SolveStrategy &strategy,
+                                                                 const ConstraintSetParams &params)
+{
   const Child &self = static_cast<const Child &>(*this);
+
+  bke::GeometrySet debug_geometry;
+  Vector<bke::GSpanAttributeWriter> debug_attribute_writers;
+  if constexpr (use_debug) {
+    debug_geometry = self.as_debug_geometry(debug_attribute_writers);
+  }
+
   switch (strategy.type) {
     case SolveStrategyType::GaussSeidelOneAtATime: {
-      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater());
+      auto updater = UpdaterWrapper<use_debug, GaussSeidelUpdater>(strategy.updater(),
+                                                                   debug_attribute_writers);
       for (const int constraint_i : IndexRange(constraints_num_)) {
         self.evaluate_single(updater, params, constraint_i);
       }
       break;
     }
     case SolveStrategyType::GaussSeidelParallel: {
-      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater());
+      auto updater = UpdaterWrapper<use_debug, GaussSeidelUpdater>(strategy.updater(),
+                                                                   debug_attribute_writers);
       const Span<IndexMask> constraint_masks = this->get_independent_masks();
       for (const int color_i : constraint_masks.index_range()) {
         const IndexMask &constraint_mask = constraint_masks[color_i];
@@ -247,7 +348,8 @@ inline void TemplatedConstraintSet<Child>::solve_step(SolveStrategy &strategy,
       break;
     }
     case SolveStrategyType::JacobianNonDeterministic: {
-      auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater());
+      auto updater = UpdaterWrapper<use_debug, NonDeterministicJacobianUpdater>(
+          strategy.updater(), debug_attribute_writers);
       threading::parallel_for(
           IndexRange(constraints_num_), grain_size_, [&](const IndexRange range) {
             for (const int constraint_i : range) {
@@ -256,6 +358,12 @@ inline void TemplatedConstraintSet<Child>::solve_step(SolveStrategy &strategy,
           });
       break;
     }
+  }
+  if constexpr (use_debug) {
+    for (bke::GSpanAttributeWriter &writer : debug_attribute_writers) {
+      writer.finish();
+    }
+    params.debug_stage(this->debug_name(), affected_geo_indices_, std::move(debug_geometry));
   }
 }
 
@@ -290,23 +398,52 @@ void TemplatedCurveLocalConstraintSet<Child>::solve_step(SolveStrategy &strategy
                                                          const ConstraintSetParams &params,
                                                          IndexRange curves_range)
 {
+  if (params.use_debug()) {
+    solve_step_with_debug<true>(strategy, params, curves_range);
+  }
+  else {
+    solve_step_with_debug<false>(strategy, params, curves_range);
+  }
+}
+
+template<typename Child>
+template<bool use_debug>
+void TemplatedCurveLocalConstraintSet<Child>::solve_step_with_debug(
+    SolveStrategy &strategy, const ConstraintSetParams &params, IndexRange curves_range)
+{
   Child &self = static_cast<Child &>(*this);
+
+  bke::GeometrySet debug_geometry;
+  Vector<bke::GSpanAttributeWriter> debug_attribute_writers;
+  if constexpr (use_debug) {
+    debug_geometry = self.as_debug_geometry(debug_attribute_writers);
+  }
+
   switch (strategy.type) {
     case SolveStrategyType::GaussSeidelOneAtATime:
     case SolveStrategyType::GaussSeidelParallel: {
-      auto &updater = std::get<GaussSeidelUpdater>(strategy.updater());
+      auto updater = UpdaterWrapper<use_debug, GaussSeidelUpdater>(strategy.updater(),
+                                                                   debug_attribute_writers);
       for (const int curve_i : curves_range) {
         self.evaluate_curve(updater, params, curve_i);
       }
       break;
     }
     case SolveStrategyType::JacobianNonDeterministic: {
-      auto &updater = std::get<NonDeterministicJacobianUpdater>(strategy.updater());
+      auto updater = UpdaterWrapper<use_debug, NonDeterministicJacobianUpdater>(
+          strategy.updater(), debug_attribute_writers);
       for (const int curve_i : curves_range) {
         self.evaluate_curve(updater, params, curve_i);
       }
       break;
     }
+  }
+
+  if constexpr (use_debug) {
+    for (bke::GSpanAttributeWriter &writer : debug_attribute_writers) {
+      writer.finish();
+    }
+    params.debug_stage(this->debug_name(), {geo_i_}, std::move(debug_geometry));
   }
 }
 
@@ -335,9 +472,36 @@ void TemplatedVelocityConstraintSet<Child>::solve_step(VelocityUpdater &updater,
                                                        const ConstraintSetParams &params,
                                                        IndexRange points_range)
 {
+  if (params.use_debug()) {
+    solve_step_with_debug<true>(updater, params, points_range);
+  }
+  else {
+    solve_step_with_debug<false>(updater, params, points_range);
+  }
+}
+
+template<typename Child>
+template<bool use_debug>
+void TemplatedVelocityConstraintSet<Child>::solve_step_with_debug(
+    VelocityUpdater &updater, const ConstraintSetParams &params, IndexRange points_range)
+{
   Child &self = static_cast<Child &>(*this);
+
+  bke::GeometrySet debug_geometry;
+  Vector<bke::GSpanAttributeWriter> debug_attribute_writers;
+  if constexpr (use_debug) {
+    debug_geometry = self.as_debug_geometry(debug_attribute_writers);
+  }
+
   for (const int point_i : points_range) {
     self.evaluate_single(updater, params, point_i);
+  }
+
+  if constexpr (use_debug) {
+    for (bke::GSpanAttributeWriter &writer : debug_attribute_writers) {
+      writer.finish();
+    }
+    params.debug_stage(this->debug_name(), {geo_i_}, std::move(debug_geometry));
   }
 }
 
