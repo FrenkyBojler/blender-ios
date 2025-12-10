@@ -30,6 +30,7 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
 #include "BLI_ghash.h"
@@ -42,9 +43,9 @@
 #include "BLI_string_utils.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #ifdef WIN32
+#  include "BKE_appdir.hh"
 #  include "BLI_winstuff.h"
 #endif
 
@@ -52,7 +53,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
@@ -245,7 +246,7 @@ static ImBuf *filelist_ensure_special_file_image(SpecialFileImages image, int ic
   if (ibuf) {
     return ibuf;
   }
-  return gSpecialFileImages[int(image)] = UI_svg_icon_bitmap(icon, 256.0f, false);
+  return gSpecialFileImages[int(image)] = blender::ui::svg_icon_bitmap(icon, 256.0f, false);
 }
 
 ImBuf *filelist_geticon_special_file_image_ex(const FileDirEntry *file)
@@ -379,7 +380,7 @@ static int filelist_geticon_file_type_ex(const FileList *filelist,
     return ICON_FILE_ARCHIVE;
   }
   if (typeflag & FILE_TYPE_BLENDERLIB) {
-    const int ret = UI_icon_from_idcode(file->blentype);
+    const int ret = blender::ui::icon_from_idcode(file->blentype);
     if (ret != ICON_NONE) {
       return ret;
     }
@@ -790,12 +791,11 @@ FileListEntryCache::FileListEntryCache() : size(FILELIST_ENTRYCACHESIZE_DEFAULT)
   block_entries = static_cast<FileDirEntry **>(
       MEM_mallocN(sizeof(*this->block_entries) * this->size, __func__));
 
-  this->misc_entries = BLI_ghash_ptr_new_ex(__func__, this->size);
+  this->misc_entries.reserve(this->size);
   this->misc_entries_indices = MEM_malloc_arrayN<int>(this->size, __func__);
   copy_vn_i(this->misc_entries_indices, this->size, -1);
 
-  this->uids = BLI_ghash_new_ex(
-      BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__, this->size * 2);
+  this->uids.reserve(this->size * 2);
 }
 
 FileListEntryCache::~FileListEntryCache()
@@ -803,11 +803,7 @@ FileListEntryCache::~FileListEntryCache()
   filelist_cache_previews_free(this);
 
   MEM_freeN(this->block_entries);
-
-  BLI_ghash_free(this->misc_entries, nullptr, nullptr);
   MEM_freeN(this->misc_entries_indices);
-
-  BLI_ghash_free(this->uids, nullptr, nullptr);
 
   LISTBASE_FOREACH_MUTABLE (FileDirEntry *, entry, &this->cached_entries) {
     filelist_entry_free(entry);
@@ -825,14 +821,16 @@ void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
         MEM_reallocN(cache->block_entries, sizeof(*cache->block_entries) * new_size));
   }
 
-  BLI_ghash_clear_ex(cache->misc_entries, nullptr, nullptr, new_size);
+  cache->misc_entries.clear();
+  cache->misc_entries.reserve(new_size);
   if (new_size != cache->size) {
     cache->misc_entries_indices = static_cast<int *>(MEM_reallocN(
         cache->misc_entries_indices, sizeof(*cache->misc_entries_indices) * new_size));
   }
   copy_vn_i(cache->misc_entries_indices, new_size, -1);
 
-  BLI_ghash_clear_ex(cache->uids, nullptr, nullptr, new_size * 2);
+  cache->uids.clear();
+  cache->uids.reserve(new_size * 2);
 
   cache->size = new_size;
 
@@ -1059,9 +1057,14 @@ static const char *fileentry_uiname(const char *root, FileListInternEntry *entry
   char *name = nullptr;
 
   if (typeflag & FILE_TYPE_FTFONT && !(typeflag & FILE_TYPE_BLENDERLIB)) {
-    char abspath[FILE_MAX_LIBEXTRA];
-    BLI_path_join(abspath, sizeof(abspath), root, relpath);
-    name = BLF_display_name_from_file(abspath);
+    if (entry->redirection_path) {
+      name = BLF_display_name_from_file(entry->redirection_path);
+    }
+    else {
+      char abspath[FILE_MAX_LIBEXTRA];
+      BLI_path_join(abspath, sizeof(abspath), root, relpath);
+      name = BLF_display_name_from_file(abspath);
+    }
     if (name) {
       /* Allocated string, so no need to #BLI_strdup. */
       return name;
@@ -1234,13 +1237,12 @@ static FileDirEntry *filelist_cache_file_lookup(FileListEntryCache *cache, const
     return cache->block_entries[idx];
   }
 
-  return static_cast<FileDirEntry *>(
-      BLI_ghash_lookup(cache->misc_entries, POINTER_FROM_INT(index)));
+  return cache->misc_entries.lookup_default(index, nullptr);
 }
 
 FileDirEntry *filelist_file_ex(FileList *filelist, const int index, const bool use_request)
 {
-  FileDirEntry *ret = nullptr, *old;
+  FileDirEntry *ret = nullptr;
   FileListEntryCache *cache = filelist->filelist_cache;
   int old_index;
 
@@ -1261,14 +1263,12 @@ FileDirEntry *filelist_file_ex(FileList *filelist, const int index, const bool u
   /* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
   ret = filelist_file_create_entry(filelist, index);
   old_index = cache->misc_entries_indices[cache->misc_cursor];
-  if ((old = static_cast<FileDirEntry *>(
-           BLI_ghash_popkey(cache->misc_entries, POINTER_FROM_INT(old_index), nullptr))))
-  {
-    BLI_ghash_remove(cache->uids, POINTER_FROM_UINT(old->uid), nullptr, nullptr);
+  if (FileDirEntry *old = cache->misc_entries.pop_default(old_index, nullptr)) {
+    cache->uids.remove(old->uid);
     filelist_file_release_entry(filelist, old);
   }
-  BLI_ghash_insert(cache->misc_entries, POINTER_FROM_INT(index), ret);
-  BLI_ghash_insert(cache->uids, POINTER_FROM_UINT(ret->uid), ret);
+  cache->misc_entries.add(index, ret);
+  cache->uids.add(ret->uid, ret);
 
   cache->misc_entries_indices[cache->misc_cursor] = index;
   cache->misc_cursor = (cache->misc_cursor + 1) % cache->size;
@@ -1405,11 +1405,9 @@ static bool filelist_file_cache_block_create(FileList *filelist,
     FileDirEntry *entry;
 
     /* That entry might have already been requested and stored in misc cache... */
-    if ((entry = static_cast<FileDirEntry *>(
-             BLI_ghash_popkey(cache->misc_entries, POINTER_FROM_INT(idx), nullptr))) == nullptr)
-    {
+    if ((entry = cache->misc_entries.pop_default(idx, nullptr)) == nullptr) {
       entry = filelist_file_create_entry(filelist, idx);
-      BLI_ghash_insert(cache->uids, POINTER_FROM_UINT(entry->uid), entry);
+      cache->uids.add(entry->uid, entry);
     }
     cache->block_entries[cursor] = entry;
   }
@@ -1429,7 +1427,7 @@ static void filelist_file_cache_block_release(FileList *filelist, const int size
            __func__,
            cursor /*, cache->block_entries[cursor], cache->block_entries[cursor]->relpath*/);
 #endif
-    BLI_ghash_remove(cache->uids, POINTER_FROM_UINT(entry->uid), nullptr, nullptr);
+    cache->uids.remove(entry->uid);
     filelist_file_release_entry(filelist, entry);
 #ifndef NDEBUG
     cache->block_entries[cursor] = nullptr;
@@ -2075,7 +2073,7 @@ struct TodoDir {
 };
 
 struct FileListReadJob {
-  blender::Mutex lock;
+  Mutex lock;
   char main_filepath[FILE_MAX] = "";
   Main *current_main = nullptr;
   FileList *filelist = nullptr;
@@ -2142,6 +2140,80 @@ static char *current_relpath_append(const FileListReadJob *job_params, const cha
   return BLI_strdup(relpath);
 }
 
+#ifdef WIN32
+static int filelist_add_userfonts_regpath(HKEY hKeyParent, LPCSTR subkeyName, ListBase *entries)
+{
+  int font_num = 0;
+  HKEY key = 0;
+  /* Try to open the requested key. */
+  if (RegOpenKeyExA(hKeyParent, subkeyName, 0, KEY_ALL_ACCESS, &key) != ERROR_SUCCESS) {
+    return 0;
+  }
+
+  DWORD index = 0;
+  /* Value name and data buffers (ANSI). */
+  TCHAR KeyName[255];
+  DWORD KeyNameLen = sizeof(KeyName);
+  TCHAR KeyValue[FILE_MAX];
+  DWORD KeyValueLen = sizeof(KeyValue);
+  DWORD valueType;
+
+  /* Enumerate values. */
+  while (RegEnumValueA(key,
+                       index,
+                       (LPSTR)&KeyName,
+                       &KeyNameLen,
+                       NULL,
+                       &valueType,
+                       (LPBYTE)&KeyValue,
+                       &KeyValueLen) == ERROR_SUCCESS)
+  {
+    /* Only consider string values (paths). */
+    if (valueType == REG_SZ || valueType == REG_EXPAND_SZ) {
+      FileListInternEntry *entry = MEM_new<FileListInternEntry>(__func__);
+      /* Find last slash to determine basename/relpath portion. */
+      const char *val_str = (const char *)KeyValue;
+      const char *lslash_str = BLI_path_slash_rfind(val_str);
+      const size_t lslash = lslash_str ? (size_t)(lslash_str - val_str) + 1 : 0;
+
+      BLI_stat(val_str, &entry->st);
+      entry->relpath = BLI_strdup(val_str + lslash);
+      entry->name = BLF_display_name_from_file(val_str);
+      entry->free_name = true;
+      entry->attributes = FILE_ATTR_READONLY & FILE_ATTR_ALIAS;
+      entry->typeflag = FILE_TYPE_FTFONT;
+      entry->redirection_path = BLI_strdup(val_str);
+      BLI_addtail(entries, entry);
+      font_num++;
+    }
+
+    KeyNameLen = sizeof(KeyName);
+    KeyValueLen = sizeof(KeyValue);
+    index++;
+  }
+
+  /* Enumerate sub-keys and recurse into them. */
+  index = 0;
+  while (RegEnumKeyExA(key, index, (LPSTR)&KeyName, &KeyNameLen, NULL, NULL, NULL, NULL) ==
+         ERROR_SUCCESS)
+  {
+    font_num += filelist_add_userfonts_regpath(key, KeyName, entries);
+    KeyNameLen = sizeof(KeyName);
+    index++;
+  }
+
+  RegCloseKey(key);
+  return font_num;
+}
+
+static int filelist_add_userfonts(ListBase *entries)
+{
+  return filelist_add_userfonts_regpath(
+      HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", entries);
+}
+
+#endif
+
 static int filelist_readjob_list_dir(FileListReadJob *job_params,
                                      const char *root,
                                      ListBase *entries,
@@ -2154,6 +2226,15 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
   int entries_num = 0;
   /* Full path of the item. */
   char full_path[FILE_MAX];
+
+#ifdef WIN32
+  char fonts_path[FILE_MAXDIR] = {0};
+  BKE_appdir_font_folder_default(fonts_path, sizeof(fonts_path));
+  BLI_path_slash_ensure(fonts_path, sizeof(fonts_path));
+  if (STREQ(root, fonts_path)) {
+    entries_num += filelist_add_userfonts(entries);
+  }
+#endif
 
   const int files_num = BLI_filelist_dir_contents(root, &files);
   if (files) {
@@ -2252,7 +2333,7 @@ enum ListLibOptions {
   /* Add given root as result. */
   LIST_LIB_ADD_PARENT = (1 << 2),
 };
-ENUM_OPERATORS(ListLibOptions, LIST_LIB_ADD_PARENT);
+ENUM_OPERATORS(ListLibOptions);
 
 static FileListInternEntry *filelist_readjob_list_lib_group_create(
     const FileListReadJob *job_params, const int idcode, const char *group_name)
@@ -2838,7 +2919,9 @@ static void filelist_readjob_recursive_dir_add_items(const bool do_lib,
 
     LISTBASE_FOREACH (FileListInternEntry *, entry, &entries) {
       entry->uid = filelist_uid_generate(filelist);
-      entry->name = fileentry_uiname(root, entry, dir);
+      if (!entry->name) {
+        entry->name = fileentry_uiname(root, entry, dir);
+      }
       entry->free_name = true;
 
       if (filelist_readjob_should_recurse_into_entry(
@@ -3327,7 +3410,8 @@ static void filelist_readjob_start_ex(FileList *filelist,
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        filelist,
-                       "Listing directories...",
+                       filelist->asset_library_ref ? "Loading Asset Library..." :
+                                                     "Listing directories...",
                        WM_JOB_PROGRESS,
                        filelist_jobtype_get(filelist));
   WM_jobs_customdata_set(wm_job, flrj, filelist_readjob_free);

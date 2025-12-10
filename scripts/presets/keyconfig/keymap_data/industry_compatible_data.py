@@ -261,9 +261,11 @@ def km_screen(params):
 
 def km_screen_editing(params):
     items = []
-    keymap = ("Screen Editing",
-              {"space_type": 'EMPTY', "region_type": 'WINDOW'},
-              {"items": items})
+    keymap = (
+        "Screen Editing",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        {"items": items},
+    )
 
     items.extend([
         # Action zones
@@ -279,10 +281,13 @@ def km_screen_editing(params):
         ("screen.area_dupli", {"type": 'ACTIONZONE_AREA', "value": 'ANY', "shift": True}, None),
         ("screen.area_swap", {"type": 'ACTIONZONE_AREA', "value": 'ANY', "ctrl": True}, None),
         ("screen.region_scale", {"type": 'ACTIONZONE_REGION', "value": 'ANY'}, None),
+        ("screen.quadview_size", {"type": 'ACTIONZONE_REGION_QUAD', "value": 'ANY'}, None),
         ("screen.screen_full_area", {"type": 'ACTIONZONE_FULLSCREEN', "value": 'ANY'},
          {"properties": [("use_hide_panels", True)]}),
         # Area move after action zones
         ("screen.area_move", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("screen.area_move", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("snap", True)]}),
         ("screen.area_options", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
         # Render
         ("render.render", {"type": 'RET', "value": 'PRESS', "ctrl": True},
@@ -1045,18 +1050,6 @@ def km_image(params):
         ("image.view_zoom", {"type": 'TRACKPADZOOM', "value": 'ANY'}, None),
         ("image.view_zoom", {"type": 'TRACKPADPAN', "value": 'ANY', "ctrl": True}, None),
         ("image.view_zoom_border", {"type": 'Z', "value": 'PRESS'}, None),
-        ("image.view_zoom_ratio", {"type": 'F4', "value": 'PRESS', "ctrl": True},
-         {"properties": [("ratio", 8.0)]}),
-        ("image.view_zoom_ratio", {"type": 'F3', "value": 'PRESS', "ctrl": True},
-         {"properties": [("ratio", 4.0)]}),
-        ("image.view_zoom_ratio", {"type": 'F2', "value": 'PRESS', "ctrl": True},
-         {"properties": [("ratio", 2.0)]}),
-        ("image.view_zoom_ratio", {"type": 'F4', "value": 'PRESS', "shift": True},
-         {"properties": [("ratio", 8.0)]}),
-        ("image.view_zoom_ratio", {"type": 'F3', "value": 'PRESS', "shift": True},
-         {"properties": [("ratio", 4.0)]}),
-        ("image.view_zoom_ratio", {"type": 'F2', "value": 'PRESS', "shift": True},
-         {"properties": [("ratio", 2.0)]}),
         ("image.view_zoom_ratio", {"type": 'F1', "value": 'PRESS'},
          {"properties": [("ratio", 1.0)]}),
         ("image.view_zoom_ratio", {"type": 'F2', "value": 'PRESS'},
@@ -1065,6 +1058,22 @@ def km_image(params):
          {"properties": [("ratio", 0.25)]}),
         ("image.view_zoom_ratio", {"type": 'F4', "value": 'PRESS'},
          {"properties": [("ratio", 0.125)]}),
+        ("image.view_zoom_ratio", {"type": 'F4', "value": 'PRESS', "ctrl": True},
+         {"properties": [("ratio", 8.0)]}),
+        ("image.view_zoom_ratio", {"type": 'F3', "value": 'PRESS', "ctrl": True},
+         {"properties": [("ratio", 4.0)]}),
+        ("image.view_zoom_ratio", {"type": 'F2', "value": 'PRESS', "ctrl": True},
+         {"properties": [("ratio", 2.0)]}),
+        ("image.view_zoom_ratio", {"type": 'F1', "value": 'PRESS', "ctrl": True},
+         {"properties": [("ratio", 1.0)]}),
+        ("image.view_zoom_ratio", {"type": 'F4', "value": 'PRESS', "shift": True},
+         {"properties": [("ratio", 8.0)]}),
+        ("image.view_zoom_ratio", {"type": 'F3', "value": 'PRESS', "shift": True},
+         {"properties": [("ratio", 4.0)]}),
+        ("image.view_zoom_ratio", {"type": 'F2', "value": 'PRESS', "shift": True},
+         {"properties": [("ratio", 2.0)]}),
+        ("image.view_zoom_ratio", {"type": 'F1', "value": 'PRESS', "shift": True},
+         {"properties": [("ratio", 1.0)]}),
         ("image.change_frame", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("image.sample", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("image.curves_point_set", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
@@ -2703,15 +2712,16 @@ def _template_paint_radial_control(
         items.extend([
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True, "alt": True},
              radial_control_properties(
-                 paint, "mask_texture_slot.angle", None, secondary_rotation=secondary_rotation, color=color)),
+                 paint, "mask_texture_slot.angle", None, secondary_rotation=secondary_rotation, color=color,
+            )),
         ])
 
     if weight:
         items.extend([
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True, "alt": True},
              radial_control_properties(
-                 paint, "mask_texture_slot.angle", None, secondary_rotation=secondary_rotation, color=color)),
-
+                 paint, "mask_texture_slot.angle", None, secondary_rotation=secondary_rotation, color=color,
+            )),
             ("wm.radial_control", {"type": 'F', "value": 'PRESS', "ctrl": True},
              radial_control_properties(
                 paint, "weight", "use_unified_weight"))
@@ -2766,8 +2776,10 @@ def km_image_paint(params):
         ("wm.context_toggle", {"type": 'L', "value": 'PRESS'},
          {"properties": [("data_path", "tool_settings.image_paint.brush.use_smooth_stroke")]}),
         # Context menu.
-        *_template_items_context_panel("VIEW3D_PT_paint_texture_context_menu",
-                                       {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
+        *_template_items_context_panel(
+            "VIEW3D_PT_paint_texture_context_menu",
+            {"type": 'RIGHTMOUSE', "value": 'PRESS'},
+        ),
         # Tools
         op_tool_cycle("builtin.select_box", {"type": 'Q', "value": 'PRESS'}),
         op_tool_cycle("builtin.annotate", {"type": 'D', "value": 'PRESS'}),

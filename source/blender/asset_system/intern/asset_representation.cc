@@ -11,7 +11,7 @@
 #include "BLI_path_utils.hh"
 
 #include "BKE_blendfile.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_preview_image.hh"
@@ -172,6 +172,16 @@ ID *AssetRepresentation::local_id() const
 bool AssetRepresentation::is_local_id() const
 {
   return std::holds_alternative<ID *>(asset_);
+}
+
+bool AssetRepresentation::is_potentially_editable_asset_blend() const
+{
+  if (this->owner_asset_library_.library_type() == ASSET_LIBRARY_ESSENTIALS) {
+    return false;
+  }
+
+  std::string lib_path = this->full_library_path();
+  return StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX);
 }
 
 AssetLibrary &AssetRepresentation::owner_asset_library() const

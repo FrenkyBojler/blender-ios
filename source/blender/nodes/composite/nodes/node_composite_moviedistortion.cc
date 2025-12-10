@@ -7,17 +7,14 @@
  */
 
 #include "BLI_math_vector_types.hh"
-#include "BLI_string_utf8.h"
 
 #include "DNA_movieclip_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "UI_interface.hh"
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -74,9 +71,9 @@ static void storage_copy(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNod
   }
 }
 
-static void node_composit_buts_moviedistortion(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_moviedistortion(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 }
 
 using namespace blender::compositor;
@@ -98,7 +95,7 @@ class MovieDistortionOperation : public NodeOperation {
     const Result &distortion_grid = context().cache_manager().distortion_grids.get(
         context(),
         get_movie_clip(),
-        domain.size,
+        domain.data_size,
         get_distortion_type(),
         context().get_frame_number());
 
@@ -126,7 +123,7 @@ class MovieDistortionOperation : public NodeOperation {
     output_image.allocate_texture(distortion_grid.domain());
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, distortion_grid.domain().size);
+    compute_dispatch_threads_at_least(shader, distortion_grid.domain().data_size);
 
     input_image.unbind_as_texture();
     distortion_grid.unbind_as_texture();
@@ -141,9 +138,9 @@ class MovieDistortionOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(distortion_grid.domain());
 
-    parallel_for(distortion_grid.domain().size, [&](const int2 texel) {
-      output.store_pixel(texel,
-                         input.sample_bilinear_zero(distortion_grid.load_pixel<float2>(texel)));
+    parallel_for(distortion_grid.domain().data_size, [&](const int2 texel) {
+      output.store_pixel(
+          texel, Color(input.sample_bilinear_zero(distortion_grid.load_pixel<float2>(texel))));
     });
   }
 

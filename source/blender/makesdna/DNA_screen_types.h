@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #include "DNA_asset_types.h"
 #include "DNA_defs.h"
@@ -25,8 +25,6 @@ struct PointerRNA;
 struct Scene;
 struct SpaceLink;
 struct SpaceType;
-struct uiBlock;
-struct uiLayout;
 struct uiList;
 struct uiListType;
 struct wmDrawBuffer;
@@ -40,9 +38,15 @@ struct FileHandlerType;
 }  // namespace blender::bke
 using ARegionRuntimeHandle = blender::bke::ARegionRuntime;
 using FileHandlerTypeHandle = blender::bke::FileHandlerType;
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
+using uiLayoutHandle = blender::ui::Layout;
 #else
 typedef struct ARegionRuntimeHandle ARegionRuntimeHandle;
 typedef struct FileHandlerTypeHandle FileHandlerTypeHandle;
+typedef struct uiLayoutHandle uiLayoutHandle;
 #endif
 
 /* TODO: Doing this is quite ugly :)
@@ -160,14 +164,13 @@ enum LayoutPanelStateFlag {
   LAYOUT_PANEL_STATE_FLAG_OPEN = (1 << 0),
 };
 
-/** The part from uiBlock that needs saved in file. */
 typedef struct Panel {
   struct Panel *next, *prev;
 
   /** Runtime. */
   struct PanelType *type;
   /** Runtime for drawing. */
-  struct uiLayout *layout;
+  uiLayoutHandle *layout;
 
   char panelname[/*BKE_ST_MAXNAME*/ 64];
   /** Panel name is identifier for restoring location. */
@@ -191,7 +194,7 @@ typedef struct Panel {
   /**
    * List of #LayoutPanelState. This stores the open-close-state of layout-panels created with
    * `layout.panel(...)` in Python. For more information on layout-panels, see
-   * `uiLayout::panel_prop`.
+   * `blender::ui::Layout::panel_prop`.
    */
   ListBase layout_panel_states;
   /**
@@ -483,6 +486,8 @@ typedef struct ScrArea {
 
   /** Non-NULL if this area is global. */
   ScrGlobalAreaData *global;
+
+  float quadview_ratio[2];
 
   /**
    * #SpaceLink.
@@ -902,7 +907,7 @@ typedef struct RegionAssetShelf {
 typedef enum AssetShelfSettings_DisplayFlag {
   ASSETSHELF_SHOW_NAMES = (1 << 0),
 } AssetShelfSettings_DisplayFlag;
-ENUM_OPERATORS(AssetShelfSettings_DisplayFlag, ASSETSHELF_SHOW_NAMES);
+ENUM_OPERATORS(AssetShelfSettings_DisplayFlag);
 
 /* #AssetShelfSettings.instance_flag */
 typedef enum AssetShelf_InstanceFlag {
@@ -913,7 +918,7 @@ typedef enum AssetShelf_InstanceFlag {
    */
   ASSETSHELF_REGION_IS_HIDDEN = (1 << 0),
 } AssetShelf_InstanceFlag;
-ENUM_OPERATORS(AssetShelf_InstanceFlag, ASSETSHELF_REGION_IS_HIDDEN);
+ENUM_OPERATORS(AssetShelf_InstanceFlag);
 
 typedef struct FileHandler {
   DNA_DEFINE_CXX_METHODS(FileHandler)

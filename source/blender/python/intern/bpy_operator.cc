@@ -18,6 +18,7 @@
 #include "RNA_types.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
@@ -26,6 +27,7 @@
 #include "BPY_extern.hh"
 #include "bpy_capi_utils.hh"
 #include "bpy_operator.hh"
+#include "bpy_operator_function.hh"
 #include "bpy_operator_wrap.hh"
 #include "bpy_rna.hh" /* for setting argument properties & type method `get_rna_type`. */
 
@@ -62,7 +64,7 @@ static wmOperatorType *ot_lookup_from_py_string(PyObject *value, const char *py_
   return ot;
 }
 
-static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   const char *opname;
@@ -128,11 +130,10 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   return Py_NewRef(ret);
 }
 
-static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   int error_val = 0;
-  PointerRNA ptr;
   wmOperatorStatus retval = OPERATOR_CANCELLED;
 
   const char *opname;
@@ -219,7 +220,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
     error_val = -1;
   }
   else {
-    WM_operator_properties_create_ptr(&ptr, ot);
+    PointerRNA ptr = WM_operator_properties_create_ptr(ot);
     WM_operator_properties_sanitize(&ptr, false);
 
     if (kw && PyDict_Size(kw)) {
@@ -305,7 +306,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   return pyrna_enum_bitfield_as_set(rna_enum_operator_return_items, int(retval));
 }
 
-static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
 
@@ -360,7 +361,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  // WM_operator_properties_create(&ptr, opname);
+  // ptr = WM_operator_properties_create(opname);
   /* Save another lookup */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, ot->srna, nullptr);
 
@@ -397,7 +398,7 @@ static PyObject *pyop_dir(PyObject * /*self*/)
   return list;
 }
 
-static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
+PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
   if ((ot = ot_lookup_from_py_string(value, "get_rna_type")) == nullptr) {
@@ -409,7 +410,7 @@ static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
   return (PyObject *)pyrna;
 }
 
-static PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
+PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
   if ((ot = ot_lookup_from_py_string(value, "get_bl_options")) == nullptr) {
@@ -429,12 +430,9 @@ static PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
 #endif
 
 static PyMethodDef bpy_ops_methods[] = {
-    {"poll", (PyCFunction)pyop_poll, METH_VARARGS, nullptr},
-    {"call", (PyCFunction)pyop_call, METH_VARARGS, nullptr},
-    {"as_string", (PyCFunction)pyop_as_string, METH_VARARGS, nullptr},
     {"dir", (PyCFunction)pyop_dir, METH_NOARGS, nullptr},
     {"get_rna_type", (PyCFunction)pyop_getrna_type, METH_O, nullptr},
-    {"get_bl_options", (PyCFunction)pyop_get_bl_options, METH_O, nullptr},
+    {"create_function", (PyCFunction)pyop_create_function, METH_VARARGS, nullptr},
     {"macro_define", (PyCFunction)PYOP_wrap_macro_define, METH_VARARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
@@ -462,6 +460,10 @@ static PyModuleDef bpy_ops_module = {
 PyObject *BPY_operator_module()
 {
   PyObject *submodule;
+
+  if (BPyOpFunction_InitTypes() < 0) {
+    return nullptr;
+  }
 
   submodule = PyModule_Create(&bpy_ops_module);
 

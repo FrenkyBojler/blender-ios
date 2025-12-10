@@ -15,6 +15,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -164,7 +165,7 @@ static WorkSpaceLayout *workspace_change_get_new_layout(Main *bmain,
 
   /* ED_workspace_duplicate may have stored a layout to activate
    * once the workspace gets activated. */
-  if (win->workspace_hook->temp_workspace_store) {
+  if (win->workspace_hook->temp_layout_store) {
     layout_new = win->workspace_hook->temp_layout_store;
   }
   else {
@@ -305,7 +306,7 @@ void ED_workspace_scene_data_sync(WorkSpaceInstanceHook *hook, Scene *scene)
 
 static WorkSpace *workspace_context_get(bContext *C)
 {
-  ID *id = UI_context_active_but_get_tab_ID(C);
+  ID *id = blender::ui::context_active_but_get_tab_ID(C);
   if (id && GS(id->name) == ID_WS) {
     return (WorkSpace *)id;
   }
@@ -510,7 +511,7 @@ static WorkspaceConfigFileData *workspace_system_file_read(const char *app_templ
                       nullptr;
 }
 
-static void workspace_append_button(uiLayout *layout,
+static void workspace_append_button(blender::ui::Layout &layout,
                                     wmOperatorType *ot_append,
                                     const WorkSpace *workspace,
                                     const Main *from_main)
@@ -525,16 +526,16 @@ static void workspace_append_button(uiLayout *layout,
   BLI_assert(STREQ(ot_append->idname, "WORKSPACE_OT_append_activate"));
 
   PointerRNA opptr;
-  opptr = layout->op(ot_append,
-                     CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, workspace->id.name + 2),
-                     ICON_NONE,
-                     blender::wm::OpCallContext::ExecDefault,
-                     UI_ITEM_NONE);
+  opptr = layout.op(ot_append,
+                    CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, workspace->id.name + 2),
+                    ICON_NONE,
+                    blender::wm::OpCallContext::ExecDefault,
+                    UI_ITEM_NONE);
   RNA_string_set(&opptr, "idname", id->name + 2);
   RNA_string_set(&opptr, "filepath", filepath);
 }
 
-static void workspace_add_menu(bContext * /*C*/, uiLayout *layout, void *template_v)
+static void workspace_add_menu(bContext * /*C*/, blender::ui::Layout *layout, void *template_v)
 {
   const char *app_template = static_cast<const char *>(template_v);
   bool has_startup_items = false;
@@ -545,7 +546,7 @@ static void workspace_add_menu(bContext * /*C*/, uiLayout *layout, void *templat
 
   if (startup_config) {
     LISTBASE_FOREACH (WorkSpace *, workspace, &startup_config->workspaces) {
-      uiLayout *row = &layout->row(false);
+      blender::ui::Layout &row = layout->row(false);
       workspace_append_button(row, ot_append, workspace, startup_config->main);
       has_startup_items = true;
     }
@@ -568,7 +569,7 @@ static void workspace_add_menu(bContext * /*C*/, uiLayout *layout, void *templat
         has_title = true;
       }
 
-      uiLayout *row = &layout->row(false);
+      blender::ui::Layout &row = layout->row(false);
       workspace_append_button(row, ot_append, workspace, builtin_config->main);
     }
   }
@@ -581,15 +582,19 @@ static void workspace_add_menu(bContext * /*C*/, uiLayout *layout, void *templat
   }
 }
 
-static wmOperatorStatus workspace_add_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static void workspace_add_menu_draw(blender::ui::Layout &layout)
 {
-  uiPopupMenu *pup = UI_popup_menu_begin(
-      C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, op->type->name), ICON_ADD);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  {
+    PointerRNA props = layout.op("WM_OT_search_single_menu",
+                                 "Search...",
+                                 ICON_VIEWZOOM,
+                                 blender::wm::OpCallContext::InvokeDefault,
+                                 UI_ITEM_NONE);
+    RNA_string_set(&props, "menu_idname", "WORKSPACE_MT_add");
+  }
+  layout.separator();
 
-  layout->menu_fn(IFACE_("General"), ICON_NONE, workspace_add_menu, nullptr);
+  layout.menu_fn(IFACE_("General"), ICON_NONE, workspace_add_menu, nullptr);
 
   ListBase templates;
   BKE_appdir_app_templates(&templates);
@@ -601,18 +606,36 @@ static wmOperatorStatus workspace_add_invoke(bContext *C,
     BLI_path_to_display_name(display_name, sizeof(display_name), IFACE_(app_template));
 
     /* Steals ownership of link data string. */
-    layout->menu_fn_argN_free(display_name, ICON_NONE, workspace_add_menu, app_template);
+    layout.menu_fn_argN_free(display_name, ICON_NONE, workspace_add_menu, app_template);
   }
 
   BLI_freelistN(&templates);
 
-  layout->separator();
-  layout->op("WORKSPACE_OT_duplicate",
-             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate Current"),
-             ICON_DUPLICATE);
+  layout.separator();
+  layout.op("WORKSPACE_OT_duplicate",
+            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate Current"),
+            ICON_DUPLICATE);
+}
 
-  UI_popup_menu_end(C, pup);
+static void workspace_add_menu_register()
+{
+  MenuType *mt = MEM_callocN<MenuType>("workspace_add_invoke");
+  STRNCPY_UTF8(mt->idname, "WORKSPACE_MT_add");
+  STRNCPY_UTF8(mt->label, N_("Add Workspace"));
+  mt->flag = MenuTypeFlag::SearchOnKeyPress;
+  mt->draw = [](const bContext * /*C*/, Menu *menu) {
+    blender::ui::Layout &layout = *menu->layout;
+    workspace_add_menu_draw(layout);
+  };
 
+  WM_menutype_add(mt);
+}
+
+static wmOperatorStatus workspace_add_invoke(bContext *C,
+                                             wmOperator * /*op*/,
+                                             const wmEvent * /*event*/)
+{
+  WM_menu_name_call(C, "WORKSPACE_MT_add", blender::wm::OpCallContext::InvokeDefault);
   return OPERATOR_INTERFACE;
 }
 
@@ -706,6 +729,8 @@ static void WORKSPACE_OT_scene_pin_toggle(wmOperatorType *ot)
 
 void ED_operatortypes_workspace()
 {
+  workspace_add_menu_register();
+
   WM_operatortype_append(WORKSPACE_OT_duplicate);
   WM_operatortype_append(WORKSPACE_OT_delete);
   WM_operatortype_append(WORKSPACE_OT_delete_all_others);
