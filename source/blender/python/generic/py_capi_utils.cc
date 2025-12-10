@@ -1331,36 +1331,39 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
 void *PyC_RNA_AsPointer(PyObject *value, const char *type_name)
 {
   PyObject *as_pointer;
-  PyObject *pointer;
 
-  if (STREQ(Py_TYPE(value)->tp_name, type_name) &&
-      (as_pointer = PyObject_GetAttrString(value, "as_pointer")) != nullptr &&
-      PyCallable_Check(as_pointer))
-  {
-    void *result = nullptr;
-
-    /* must be a 'type_name' object */
-    pointer = PyObject_CallObject(as_pointer, nullptr);
-    Py_DECREF(as_pointer);
-
-    if (!pointer) {
-      PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
-      return nullptr;
-    }
-    result = PyLong_AsVoidPtr(pointer);
-    Py_DECREF(pointer);
-    if (!result) {
-      PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
-    }
-
-    return result;
+  if (!STREQ(Py_TYPE(value)->tp_name, type_name)) {
+    PyErr_Format(PyExc_TypeError,
+                 "expected '%.200s' type found '%.200s' instead",
+                 type_name,
+                 Py_TYPE(value)->tp_name);
+    return nullptr;
   }
 
-  PyErr_Format(PyExc_TypeError,
-               "expected '%.200s' type found '%.200s' instead",
-               type_name,
-               Py_TYPE(value)->tp_name);
-  return nullptr;
+  if ((as_pointer = PyObject_GetAttrString(value, "as_pointer")) == nullptr ||
+      PyCallable_Check(as_pointer))
+  {
+    PyErr_Format(PyExc_TypeError, "Invalid pointer to %.200s", type_name);
+    return nullptr;
+  }
+
+  void *result = nullptr;
+
+  /* must be a 'type_name' object */
+  PyObject *pointer = PyObject_CallObject(as_pointer, nullptr);
+  Py_DECREF(as_pointer);
+
+  if (!pointer) {
+    PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
+    return nullptr;
+  }
+  result = PyLong_AsVoidPtr(pointer);
+  Py_DECREF(pointer);
+  if (!result) {
+    PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
+  }
+
+  return result;
 }
 
 /** \} */
