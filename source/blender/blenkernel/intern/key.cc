@@ -656,9 +656,7 @@ static void add_weighted_vector(
 }
 
 /**
- * Copy a subset of the given shapekey `source` into `r_target`.
- *
- * \param range is the range of vertices to copy. Each index is considered to be a float3.
+ * Copy the shapekey data of `source` into the output array of `r_target`.
  */
 static void copy_key_float3(
     const int vertex_count, Key *key, KeyBlock *active_keyblock, KeyBlock *source, float *r_target)
@@ -675,7 +673,7 @@ static void copy_key_float3(
 }
 
 /**
- * Copy the shapekey of `source` into the output array of `r_target`.
+ * Copy the shapekey data of `source` into the output array of `r_target`.
  *
  * \param weights is a float array of size `vertex_count`. It determines how much of `source` is
  * blended into the result. The base for it is the reference key. If this is passed as a nullptr,
@@ -724,10 +722,6 @@ static void copy_key_float3_weighted(const int vertex_count,
 
 /**
  * Shapekey evaluation for data of 3 floats (Vector3).
- *
- * The caller has to supply a `range` because the curve ID can store a mix of Nurbs
- * and Bezier curves, which need to be evaluated separately. The shapekey stores all that data in
- * a flat array though. All the data in the `range` is assumed to be of the same type.
  *
  * \param target_data is the float array into which the result of the evaluation is written.
  * \param per_keyblock_weights is a 2d array which gives a per KeyBlock per Vertex weight. Can be a
