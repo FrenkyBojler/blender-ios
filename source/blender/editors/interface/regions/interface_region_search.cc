@@ -502,9 +502,6 @@ void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool re
 
   BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
 
-  /* Store the previous active item index to restore it if needed. */
-  const int prev_active = data->active;
-
   /* reset vars */
   data->items.totitem = 0;
   data->items.more = 0;
@@ -550,36 +547,6 @@ void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool re
   /* callback */
   if (search_but->items_update_fn) {
     ui_searchbox_update_fn(C, search_but, but->editstr, &data->items);
-    /* Track cursor to prevent unwanted deselection after item updates. */
-    wmWindow *win = CTX_wm_window(C);
-    if (!win) {
-      return;
-    }
-    /* Access last processed event state (contains most recent cursor position). */
-    wmEvent *event = win->eventstate;
-    if (!event) {
-      return;
-    }
-    const int cursor_x = event->xy[0];
-    const int cursor_y = event->xy[1];
-    if (BLI_rcti_isect_pt(&region->winrct, cursor_x, cursor_y)) {
-      rcti rect;
-      for (int a = 0; a < data->items.totitem; a++) {
-        ui_searchbox_butrect(&rect, data, a);
-        if (BLI_rcti_isect_pt(
-                &rect, cursor_x - region->winrct.xmin, cursor_y - region->winrct.ymin))
-        {
-          data->active = a;
-          ui_searchbox_select(C, region, but, 0);
-          break;
-        }
-      }
-      /* If no item is hovered, revert to the previous selection. */
-      if (data->active == -1) {
-        data->active = prev_active;
-        ui_searchbox_select(C, region, but, 0);
-      }
-    }
   }
 
   /* handle case where editstr is equal to one of items */
@@ -597,6 +564,27 @@ void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool re
     }
     if (data->items.totitem == 1 && but->editstr[0]) {
       data->active = 0;
+    }
+  }
+
+  if (data->active == -1) {
+    /* Track cursor to prevent unwanted deselection after item updates. */
+    wmWindow *win = CTX_wm_window(C);
+    if (win && win->eventstate) {
+      const int cursor_x = win->eventstate->xy[0];
+      const int cursor_y = win->eventstate->xy[1];
+      if (BLI_rcti_isect_pt(&region->winrct, cursor_x, cursor_y)) {
+        rcti rect;
+        for (int a = 0; a < data->items.totitem; a++) {
+          ui_searchbox_butrect(&rect, data, a);
+          if (BLI_rcti_isect_pt(
+                  &rect, cursor_x - region->winrct.xmin, cursor_y - region->winrct.ymin))
+          {
+            data->active = a;
+            break;
+          }
+        }
+      }
     }
   }
 
