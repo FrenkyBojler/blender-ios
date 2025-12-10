@@ -15,6 +15,8 @@
 #include "DNA_armature_types.h"
 
 namespace blender::animrig {
+/* Default bone name definition */
+inline constexpr const char *bone_default_name = "Bone";
 
 /**
  * Returns true if the given Bone is visible. This includes bone collection visibility.
