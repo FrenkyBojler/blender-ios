@@ -99,6 +99,7 @@
 #include "GPU_capabilities.hh"
 #include "GPU_init_exit.hh"
 
+#include "NOD_defaults.hh"
 #include "NOD_shader.h"
 
 #include "UI_interface_layout.hh"
@@ -6419,7 +6420,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
      * re-projection will reuse this */
     IDProperty *idgroup = IDP_EnsureProperties(&image->id);
 
-    blender::Vector<float, PROJ_VIEW_DATA_SIZE> array;
+    Vector<float, PROJ_VIEW_DATA_SIZE> array;
     array.extend(Span(reinterpret_cast<float *>(rv3d->winmat), 16));
     array.extend(Span(reinterpret_cast<float *>(rv3d->viewmat), 16));
     float clip_start;
@@ -6778,7 +6779,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNodeTree *ntree = ma->nodetree;
 
     if (!ntree) {
-      ED_node_shader_default(C, bmain, &ma->id);
+      blender::nodes::node_tree_shader_default(C, bmain, &ma->id);
       ntree = ma->nodetree;
     }
 

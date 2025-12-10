@@ -210,7 +210,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   color_blend_f3_f3(active_color, main_color, 0.3f);
 
   /* `alert_color` is red, push a bit toward text color. */
-  GetThemeColor3fv(TH_REDALERT, alert_color);
+  theme::get_color_3fv(TH_REDALERT, alert_color);
   color_blend_f3_f3(alert_color, main_color, 0.3f);
 
   /* Draw text. */
@@ -326,7 +326,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
         float bgcolor[4];
-        GetThemeColor4fv(TH_BACK, bgcolor);
+        theme::get_color_4fv(TH_BACK, bgcolor);
         if (srgb_to_grayscale(bgcolor) > 0.5f) {
           border_color[0] = 0.0f;
           border_color[1] = 0.0f;
@@ -716,8 +716,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
     }
 
     if (expr_result != nullptr) {
-      PointerRNA op_props;
-      WM_operator_properties_create_ptr(&op_props, but->optype);
+      PointerRNA op_props = WM_operator_properties_create_ptr(but->optype);
       RNA_boolean_set(&op_props, "cycle", true);
 
       std::optional<std::string> shortcut;
@@ -766,7 +765,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
   /* Keymap */
 
   /* This is too handy not to expose somehow, let's be sneaky for now. */
-  if ((is_quick_tip == false) && CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
+  if ((is_quick_tip == false) && CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
     SNPRINTF_UTF8(expr,
@@ -1678,15 +1677,15 @@ ARegion *tooltip_create_from_button_or_extra_icon(
     BLI_rcti_rctf_copy_round(&init_rect, &overlap_rect_fl);
   }
   else if (but->type == ButtonType::Label && BLI_rctf_size_y(&but->rect) > UI_UNIT_Y) {
-    init_position[0] = win->eventstate->xy[0];
-    init_position[1] = win->eventstate->xy[1] - (UI_POPUP_MARGIN / 2);
+    init_position[0] = win->runtime->eventstate->xy[0];
+    init_position[1] = win->runtime->eventstate->xy[1] - (UI_POPUP_MARGIN / 2);
   }
   else {
     init_position[0] = BLI_rctf_cent_x(&but->rect);
     init_position[1] = but->rect.ymin;
     if (butregion) {
       block_to_window_fl(butregion, but->block, &init_position[0], &init_position[1]);
-      init_position[0] = win->eventstate->xy[0];
+      init_position[0] = win->runtime->eventstate->xy[0];
     }
     init_position[1] -= (UI_POPUP_MARGIN / 2);
   }
@@ -1708,7 +1707,8 @@ ARegion *tooltip_create_from_button(bContext *C,
 ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
 {
   wmWindow *win = CTX_wm_window(C);
-  float init_position[2] = {float(win->eventstate->xy[0]), float(win->eventstate->xy[1])};
+  float init_position[2] = {float(win->runtime->eventstate->xy[0]),
+                            float(win->runtime->eventstate->xy[1])};
 
   std::unique_ptr<TooltipData> data = ui_tooltip_data_from_gizmo(C, gz);
   if (data == nullptr) {
@@ -1950,7 +1950,7 @@ ARegion *tooltip_create_from_search_item_generic(bContext *C,
 
   const wmWindow *win = CTX_wm_window(C);
   float init_position[2];
-  init_position[0] = win->eventstate->xy[0];
+  init_position[0] = win->runtime->eventstate->xy[0];
   init_position[1] = item_rect->ymin + searchbox_region->winrct.ymin - (UI_POPUP_MARGIN / 2);
 
   return ui_tooltip_create_with_data(C, std::move(data), init_position, nullptr);

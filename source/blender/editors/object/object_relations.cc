@@ -552,8 +552,7 @@ static bool parent_set_with_depsgraph(ReportList *reports,
         /* get or create F-Curve */
         bAction *act = animrig::id_action_ensure(bmain, &cu->id);
         PointerRNA id_ptr = RNA_id_pointer_create(&cu->id);
-        FCurve *fcu = animrig::action_fcurve_ensure_ex(
-            bmain, act, nullptr, &id_ptr, {"eval_time", 0});
+        FCurve *fcu = animrig::action_fcurve_ensure_ex(bmain, act, &id_ptr, {"eval_time", 0});
 
         /* setup dummy 'generator' modifier here to get 1-1 correspondence still working */
         if (!fcu->bezt && !fcu->fpt && !fcu->modifiers.first) {
@@ -807,17 +806,14 @@ bool parent_set(ReportList *reports,
                                    vert_par);
 }
 
-static void parent_set_vert_find(blender::KDTree_3d *tree,
-                                 Object *child,
-                                 int vert_par[3],
-                                 bool is_tri)
+static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3], bool is_tri)
 {
   const float *co_find = child->object_to_world().location();
   if (is_tri) {
-    blender::KDTreeNearest_3d nearest[3];
+    KDTreeNearest_3d nearest[3];
     int tot;
 
-    tot = blender::kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
+    tot = kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
     BLI_assert(tot == 3);
     UNUSED_VARS(tot);
 
@@ -828,7 +824,7 @@ static void parent_set_vert_find(blender::KDTree_3d *tree,
     BLI_assert(min_iii(UNPACK3(vert_par)) >= 0);
   }
   else {
-    vert_par[0] = blender::kdtree_3d_find_nearest(tree, co_find, nullptr);
+    vert_par[0] = kdtree_3d_find_nearest(tree, co_find, nullptr);
     BLI_assert(vert_par[0] >= 0);
     vert_par[1] = 0;
     vert_par[2] = 0;
@@ -879,7 +875,7 @@ static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting
 
 static bool parent_set_vertex_parent_with_kdtree(bContext *C,
                                                  ParentingContext *parenting_context,
-                                                 blender::KDTree_3d *tree)
+                                                 KDTree_3d *tree)
 {
   int vert_par[3] = {0, 0, 0};
 
@@ -910,7 +906,7 @@ static bool parent_set_vertex_parent_with_kdtree(bContext *C,
 
 static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_context)
 {
-  blender::KDTree_3d *tree = nullptr;
+  KDTree_3d *tree = nullptr;
   int tree_tot;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -921,12 +917,12 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
 
   if (tree_tot < (parenting_context->is_vertex_tri ? 3 : 1)) {
     BKE_report(parenting_context->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
-    blender::kdtree_3d_free(tree);
+    kdtree_3d_free(tree);
     return false;
   }
 
   const bool ok = parent_set_vertex_parent_with_kdtree(C, parenting_context, tree);
-  blender::kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
   return ok;
 }
 
@@ -2464,8 +2460,8 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
   /** Currently there is no 'all editable' option from the 3DView. */
   const bool do_fully_editable = false;
 
-  std::unique_ptr<blender::Set<uint32_t>> user_overrides_objects_uids =
-      do_fully_editable ? nullptr : std::make_unique<blender::Set<uint32_t>>();
+  std::unique_ptr<Set<uint32_t>> user_overrides_objects_uids =
+      do_fully_editable ? nullptr : std::make_unique<Set<uint32_t>>();
 
   if (do_fully_editable) {
     /* Pass. */
