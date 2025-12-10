@@ -1673,6 +1673,12 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_CUSTOM:
         /* Custom node sockets where default_value is defined were using custom properties for
          * storage. */
+      case SOCK_FONT:
+      case SOCK_SCENE:
+      case SOCK_TEXT_ID:
+      case SOCK_MASK:
+      case SOCK_SOUND:
+        /* Those data-block types did not exist in the older version. */
       case SOCK_SHADER:
       case SOCK_GEOMETRY:
       case SOCK_BUNDLE:
