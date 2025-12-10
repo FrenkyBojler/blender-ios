@@ -5,6 +5,7 @@
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_memory_utils.hh"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
@@ -37,22 +38,27 @@ static void declare_single_layer(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
 }
 
+/* Declares an already existing output. */
+static BaseSocketDeclarationBuilder &declare_existing_output(NodeDeclarationBuilder &b,
+                                                             const bNodeSocket *output)
+{
+  if (output->type == SOCK_VECTOR) {
+    const int dimensions = output->default_value_typed<bNodeSocketValueVector>()->dimensions;
+    return b.add_output<decl::Vector>(output->name)
+        .dimensions(dimensions)
+        .structure_type(StructureType::Dynamic);
+  }
+  return b.add_output(eNodeSocketDatatype(output->type), output->name)
+      .structure_type(StructureType::Dynamic);
+}
+
 /* Declares the already existing outputs. This is done in cases where the passes can not be read
  * due to an invalid image to retain the links and give the user the opportunity to update the
  * image such that becomes valid again. */
 static void declare_existing(NodeDeclarationBuilder &b, const bNode *node)
 {
   LISTBASE_FOREACH (const bNodeSocket *, output, &node->outputs) {
-    if (output->type == SOCK_VECTOR) {
-      const int dimensions = output->default_value_typed<bNodeSocketValueVector>()->dimensions;
-      b.add_output<decl::Vector>(output->name)
-          .dimensions(dimensions)
-          .structure_type(StructureType::Dynamic);
-    }
-    else {
-      b.add_output(eNodeSocketDatatype(output->type), output->name)
-          .structure_type(StructureType::Dynamic);
-    }
+    declare_existing_output(b, output);
   }
 }
 
@@ -136,6 +142,31 @@ static void prepare_image(Image *image, const ImageUser *image_user)
   BKE_image_release_ibuf(image, initial_image_buffer, nullptr);
 }
 
+/* Declares outputs that are linked and existed in the previous state of the node but no longer
+ * exist in the new state. The outputs are set as unavailable, so they are not accessible to the
+ * user. This is useful to retain links if the user accidentally changed the image or the image was
+ * changed through some external factor without an explicit action from the user. */
+static void declare_old_linked_outputs(NodeDeclarationBuilder &b)
+{
+  Set<std::string> added_outputs_identifiers;
+  for (const SocketDeclaration *output_declaration : b.declaration().sockets(SOCK_OUT)) {
+    added_outputs_identifiers.add_new(output_declaration->identifier);
+  }
+
+  const bNodeTree *node_tree = b.tree_or_null();
+  const bNode *node = b.node_or_null();
+  node_tree->ensure_topology_cache();
+  for (const bNodeSocket *output : node->output_sockets()) {
+    if (added_outputs_identifiers.contains(output->identifier)) {
+      continue;
+    }
+    if (!output->is_directly_linked()) {
+      continue;
+    }
+    declare_existing_output(b, output).available(false);
+  }
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
@@ -143,6 +174,14 @@ static void node_declare(NodeDeclarationBuilder &b)
     declare_default(b);
     return;
   }
+
+  const bNodeTree *node_tree = b.tree_or_null();
+  if (!node_tree) {
+    declare_default(b);
+    return;
+  }
+
+  BLI_SCOPED_DEFER([&]() { declare_old_linked_outputs(b); });
 
   Image *image = reinterpret_cast<Image *>(node->id);
   const ImageUser *image_user = static_cast<ImageUser *>(node->storage);
