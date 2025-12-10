@@ -1485,72 +1485,6 @@ static bool has_negative_determinant(const float4x4 &transform)
   return math::determinant(float3x3(transform)) < 0.0f;
 }
 
-template<typename T>
-static void reverse_face_corners_except_first(MutableSpan<T> array,
-                                              const OffsetIndices<int> faces,
-                                              const int dst_corner_offset)
-{
-  for (const int face_i : faces.index_range()) {
-    const IndexRange loops = faces[face_i];
-    if (loops.size() <= 2) {
-      continue;
-    }
-    MutableSpan<T> face_span = array.slice(
-        IndexRange(dst_corner_offset + loops.start(), loops.size()));
-    MutableSpan<T> tail = face_span.drop_front(1);
-    for (int a = 0, b = int(tail.size()) - 1; a < b; ++a, --b) {
-      std::swap(tail[a], tail[b]);
-    }
-  }
-}
-
-template<typename T>
-static void reverse_face_corners_full(MutableSpan<T> array,
-                                      const OffsetIndices<int> faces,
-                                      const int dst_corner_offset)
-{
-  for (const int face_i : faces.index_range()) {
-    const IndexRange loops = faces[face_i];
-    if (loops.size() <= 1) {
-      continue;
-    }
-    MutableSpan<T> face_span = array.slice(
-        IndexRange(dst_corner_offset + loops.start(), loops.size()));
-    for (int a = 0, b = int(face_span.size()) - 1; a < b; ++a, --b) {
-      std::swap(face_span[a], face_span[b]);
-    }
-  }
-}
-
-static void reverse_face_corners_generic_except_first(GMutableSpan span,
-                                                      const OffsetIndices<int> faces,
-                                                      const int dst_corner_offset)
-{
-  const CPPType &type = span.type();
-  const int64_t elem_size = type.size;
-  std::unique_ptr<char[]> tmp(new char[elem_size]);
-
-  for (const int face_i : faces.index_range()) {
-    const IndexRange loops = faces[face_i];
-    if (loops.size() <= 2) {
-      continue;
-    }
-
-    GMutableSpan face_span = span.slice(
-        IndexRange(dst_corner_offset + loops.start(), loops.size()));
-    GMutableSpan tail = face_span.slice(IndexRange(1, face_span.size() - 1));
-
-    char *data = static_cast<char *>(tail.data());
-    for (int64_t a = 0, b = tail.size() - 1; a < b; ++a, --b) {
-      char *pa = data + a * elem_size;
-      char *pb = data + b * elem_size;
-      memcpy(tmp.get(), pa, elem_size);
-      memcpy(pa, pb, elem_size);
-      memcpy(pb, tmp.get(), elem_size);
-    }
-  }
-}
-
 static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                       const RealizeMeshTask &task,
                                       const OrderedAttributes &ordered_attributes,
@@ -1562,12 +1496,10 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                       MutableSpan<int> all_dst_corner_edges,
                                       MutableSpan<int> all_dst_vert_ids,
                                       MutableSpan<int> all_dst_material_indices,
-                                      MutableSpan<float3> all_dst_custom_normals_unpacked,
                                       GSpanAttributeWriter &all_dst_custom_normals)
 {
   const MeshRealizeInfo &mesh_info = *task.mesh_info;
   const Mesh &mesh = *mesh_info.mesh;
-  const bool flip_faces = has_negative_determinant(task.transform);
 
   const Span<float3> src_positions = mesh_info.positions;
   const Span<int2> src_edges = mesh_info.edges;
@@ -1579,11 +1511,6 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
   const IndexRange dst_edge_range(task.start_indices.edge, src_edges.size());
   const IndexRange dst_face_range(task.start_indices.face, src_faces.size());
   const IndexRange dst_corner_range(task.start_indices.corner, src_corner_verts.size());
-
-  if (!all_dst_custom_normals_unpacked.is_empty()) {
-    MutableSpan<float3> dst = all_dst_custom_normals_unpacked.slice(dst_corner_range);
-    math::transform_normals(mesh.corner_normals(), float3x3(task.transform), dst);
-  }
 
   MutableSpan<float3> dst_positions = all_dst_positions.slice(dst_vert_range);
   MutableSpan<int2> dst_edges = all_dst_edges.slice(dst_edge_range);
@@ -1666,15 +1593,13 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
 
   if (all_dst_custom_normals) {
     if (all_dst_custom_normals.span.type().is<short2>()) {
-      if (all_dst_custom_normals_unpacked.is_empty()) {
-        if (mesh_info.custom_normal.is_empty()) {
-          all_dst_custom_normals.span.typed<short2>().slice(dst_corner_range).fill(short2(0));
-        }
-        else {
-          all_dst_custom_normals.span.typed<short2>()
-              .slice(dst_corner_range)
-              .copy_from(mesh_info.custom_normal.typed<short2>());
-        }
+      if (mesh_info.custom_normal.is_empty()) {
+        all_dst_custom_normals.span.typed<short2>().slice(dst_corner_range).fill(short2(0));
+      }
+      else {
+        all_dst_custom_normals.span.typed<short2>()
+            .slice(dst_corner_range)
+            .copy_from(mesh_info.custom_normal.typed<short2>());
       }
     }
     else {
@@ -1690,34 +1615,6 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                     ordered_attributes,
                                     domain_to_range,
                                     dst_attribute_writers);
-
-  if (flip_faces && mesh.faces_num > 0) {
-    reverse_face_corners_except_first(all_dst_corner_verts, src_faces, task.start_indices.corner);
-    reverse_face_corners_full(all_dst_corner_edges, src_faces, task.start_indices.corner);
-
-    for (const int attribute_index : ordered_attributes.index_range()) {
-      if (ordered_attributes.kinds[attribute_index].domain != bke::AttrDomain::Corner) {
-        continue;
-      }
-      GSpanAttributeWriter &writer = dst_attribute_writers[attribute_index];
-      if (!writer) {
-        continue;
-      }
-      reverse_face_corners_generic_except_first(writer.span, src_faces, task.start_indices.corner);
-    }
-
-    if (!all_dst_custom_normals_unpacked.is_empty()) {
-      reverse_face_corners_except_first(
-          all_dst_custom_normals_unpacked, src_faces, task.start_indices.corner);
-    }
-
-    if (all_dst_custom_normals && all_dst_custom_normals.domain == bke::AttrDomain::Corner &&
-        all_dst_custom_normals.span.type().is<float3>())
-    {
-      reverse_face_corners_generic_except_first(
-          all_dst_custom_normals.span, src_faces, task.start_indices.corner);
-    }
-  }
 }
 static void copy_vertex_group_name(ListBase *dst_deform_group,
                                    const OrderedAttributes &ordered_attributes,
@@ -1770,23 +1667,14 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     return;
   }
 
-  bool any_flip_faces = false;
-  for (const RealizeMeshTask &task : tasks) {
-    if (has_negative_determinant(task.transform)) {
-      any_flip_faces = true;
-      break;
-    }
-  }
-
-  const bool reencode_corner_fan_custom_normals = any_flip_faces &&
-                                                  all_meshes_info.custom_normal_info.result_type ==
-                                                      bke::mesh::NormalJoinInfo::Output::CornerFan;
-
-  if (tasks.size() == 1 && !any_flip_faces) {
+  if (tasks.size() == 1) {
     const RealizeMeshTask &task = tasks.first();
     Mesh *new_mesh = BKE_mesh_copy_for_eval(*task.mesh_info->mesh);
     if (!skip_transform(task.transform)) {
       bke::mesh_transform(*new_mesh, task.transform, false);
+    }
+    if (has_negative_determinant(task.transform) && new_mesh->faces_num > 0) {
+      bke::mesh_flip_faces(*new_mesh, IndexMask(IndexRange(new_mesh->faces_num)));
     }
     add_instance_attributes_to_single_geometry(
         ordered_attributes, task.attribute_fallbacks, new_mesh->attributes_for_write());
@@ -1814,16 +1702,6 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   MutableSpan<int> dst_face_offsets = dst_mesh->face_offsets_for_write();
   MutableSpan<int> dst_corner_verts = dst_mesh->corner_verts_for_write();
   MutableSpan<int> dst_corner_edges = dst_mesh->corner_edges_for_write();
-
-  Array<float3> custom_normals_unpacked;
-  if (reencode_corner_fan_custom_normals) {
-    custom_normals_unpacked.reinitialize(corners_num);
-
-    for (const Mesh *mesh : all_meshes_info.order) {
-      (void)mesh->corner_normals();
-    }
-  }
-  MutableSpan<float3> custom_normals_unpacked_span = custom_normals_unpacked.as_mutable_span();
 
   /* Copy settings from the first input geometry set with a mesh. */
   const RealizeMeshTask &first_task = tasks.first();
@@ -1897,7 +1775,6 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
                                 dst_corner_edges,
                                 vert_ids.span,
                                 material_indices.span,
-                                custom_normals_unpacked_span,
                                 custom_normals);
     }
   });
@@ -1910,9 +1787,20 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   material_indices.finish();
   custom_normals.finish();
 
-  if (reencode_corner_fan_custom_normals) {
-    bke::mesh_set_custom_normals(*dst_mesh, custom_normals_unpacked_span);
+  /* Flip faces for tasks with negative scale. */
+  for (const RealizeMeshTask &task : tasks) {
+    const Mesh *src_mesh = task.mesh_info->mesh;
+    const int src_faces_num = src_mesh->faces_num;
+    if (src_faces_num == 0) {
+      continue;
+    }
+    if (!has_negative_determinant(task.transform)) {
+      continue;
+    }
+    const IndexRange face_range(task.start_indices.face, src_faces_num);
+    bke::mesh_flip_faces(*dst_mesh, IndexMask(face_range));
   }
+
   if (all_meshes_info.no_loose_edges_hint) {
     dst_mesh->tag_loose_edges_none();
   }
