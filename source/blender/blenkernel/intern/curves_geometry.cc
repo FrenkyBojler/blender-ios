@@ -786,7 +786,9 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
         const bool is_cyclic = cyclic[curve_index];
         const KnotsMode mode = KnotsMode(knots_modes[curve_index]);
 
-        if (!curves::nurbs::check_valid_num_and_order(points.size(), order, is_cyclic, mode)) {
+        if (!curves::nurbs::check_valid_eval_params(
+                points.size(), order, is_cyclic, mode, resolution))
+        {
           r_data[curve_index].invalid = true;
           continue;
         }
@@ -805,6 +807,7 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
                                              order,
                                              resolution,
                                              is_cyclic,
+                                             mode,
                                              knots,
                                              r_data[curve_index]);
       }
@@ -1289,6 +1292,32 @@ void CurvesGeometry::calculate_bezier_auto_handles()
   });
 }
 
+void CurvesGeometry::calculate_bezier_aligned_handles()
+{
+  if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    return;
+  }
+  if (!this->handle_positions_left() || !this->handle_positions_right()) {
+    return;
+  }
+  const VArraySpan<int8_t> types_left = this->handle_types_left();
+  const VArraySpan<int8_t> types_right = this->handle_types_right();
+  const Span<float3> positions = this->positions();
+  MutableSpan<float3> positions_left = this->handle_positions_left_for_write();
+  MutableSpan<float3> positions_right = this->handle_positions_right_for_write();
+
+  IndexMaskMemory memory;
+  const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+      *this, CURVE_TYPE_BEZIER, memory);
+  const IndexMask selection = IndexMask::from_predicate(
+      bezier_points, GrainSize(4096), memory, [&](const int64_t i) {
+        return types_left[i] == BEZIER_HANDLE_ALIGN && types_right[i] == BEZIER_HANDLE_ALIGN;
+      });
+
+  curves::bezier::calculate_aligned_handles(
+      selection, positions, positions_left, positions_right, positions_left, positions_right);
+}
+
 void CurvesGeometry::translate(const float3 &translation)
 {
   if (math::is_zero(translation)) {
@@ -1312,7 +1341,7 @@ void CurvesGeometry::translate(const float3 &translation)
   if (bounds) {
     bounds->min += translation;
     bounds->max += translation;
-    this->runtime->bounds_cache.ensure([&](blender::Bounds<float3> &r_data) { r_data = *bounds; });
+    this->runtime->bounds_cache.ensure([&](Bounds<float3> &r_data) { r_data = *bounds; });
   }
 }
 

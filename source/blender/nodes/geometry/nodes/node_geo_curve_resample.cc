@@ -68,9 +68,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_single_menu(GEO_NODE_CURVE_RESAMPLE_LENGTH);
 }
 
-static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "keep_last_segment", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "keep_last_segment", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -104,7 +104,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           bke::curves_copy_parameters(*src_curves_id, *dst_curves_id);
           geometry.replace_curves(dst_curves_id);
         }
-        if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+        if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
           using namespace blender::bke::greasepencil;
           for (const int layer_index : grease_pencil->layers().index_range()) {
             Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
@@ -136,7 +136,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           bke::curves_copy_parameters(*src_curves_id, *dst_curves_id);
           geometry.replace_curves(dst_curves_id);
         }
-        if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+        if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
           using namespace blender::bke::greasepencil;
           for (const int layer_index : grease_pencil->layers().index_range()) {
             Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
@@ -166,7 +166,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           bke::curves_copy_parameters(*src_curves_id, *dst_curves_id);
           geometry.replace_curves(dst_curves_id);
         }
-        if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+        if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
           using namespace blender::bke::greasepencil;
           for (const int layer_index : grease_pencil->layers().index_range()) {
             Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));

@@ -227,7 +227,7 @@ static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] =
 #  include "BKE_paint.hh"
 #  include "BKE_preferences.h"
 #  include "BKE_screen.hh"
-#  include "BKE_sound.h"
+#  include "BKE_sound.hh"
 
 #  include "DEG_depsgraph.hh"
 
@@ -298,7 +298,7 @@ static void rna_userdef_theme_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 static void rna_userdef_theme_text_style_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  const uiStyle *style = UI_style_get();
+  const uiStyle *style = blender::ui::style_get();
   BLF_default_size(style->widget.points);
 
   rna_userdef_update(bmain, scene, ptr);
@@ -350,8 +350,8 @@ static void rna_userdef_screen_update_header_default(Main *bmain, Scene *scene, 
 static void rna_userdef_font_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
   BLF_cache_clear();
-  UI_reinit_font();
-  UI_update_text_styles();
+  blender::ui::reinit_font();
+  blender::ui::update_text_styles();
 }
 
 static void rna_userdef_language_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
@@ -1044,7 +1044,7 @@ static void rna_userdef_temp_update(Main * /*bmain*/, Scene * /*scene*/, Pointer
 static void rna_userdef_text_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
   BLF_cache_clear();
-  UI_reinit_font();
+  blender::ui::reinit_font();
   WM_main_add_notifier(NC_WINDOW, nullptr);
   USERDEF_TAG_DIRTY;
 }
@@ -2785,6 +2785,12 @@ static void rna_def_userdef_theme_spaces_gpencil(StructRNA *srna)
 {
   PropertyRNA *prop;
 
+  prop = RNA_def_property(srna, "gp_wire_edit", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(
+      prop, "Grease Pencil Wire Edit", "Grease Pencil wireframe color when in edit mode");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "gp_vertex", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Grease Pencil Vertex", "");
@@ -3427,6 +3433,12 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Grid", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "node_outline", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "node_outline");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Node Outline", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "node_selected", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -6335,6 +6347,12 @@ static void rna_def_userdef_input(BlenderRNA *brna)
        "Push into the scene and the camera moves forward into the scene. "
        "You are entering the scene as if flying around in it. "
        "This also inverts pan & zoom for 2D views"},
+      {NDOF_NAVIGATION_MODE_DRONE,
+       "DRONE",
+       0,
+       "Drone",
+       "Enables a Fly Mode navigation but pushing the cap forward "
+       "while looking down will not change the altitude of the camera."},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6563,6 +6581,11 @@ static void rna_def_userdef_input(BlenderRNA *brna)
                            "restarting Blender for changes to take effect)");
   RNA_def_property_update(prop, 0, "rna_userdef_input_devices");
 
+  prop = RNA_def_property(srna, "show_tablet_debug_values", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "tablet_flag", USER_TABLET_SHOW_DEBUG_VALUES);
+  RNA_def_property_ui_text(
+      prop, "Show Tablet Debug Values", "Show pressure values when using a paint operator");
+
   prop = RNA_def_property(srna, "xr_navigation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "xr_navigation");
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -6619,6 +6642,15 @@ static void rna_def_userdef_input(BlenderRNA *brna)
       prop,
       "NDOF Lock Horizon",
       "Lock Horizon forces the horizon to be kept leveled as it currently is");
+
+  prop = RNA_def_property(srna, "ndof_fly_speed_auto", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_FLY_SPEED_AUTO);
+  RNA_def_property_ui_text(prop,
+                           "Auto Fly Speed",
+                           "Automatically adjusts fly navigation speed "
+                           "based on the distance of objects near the center of the viewport, "
+                           "making it easier to navigate complex scenes. "
+                           "Speed is recalculated each time movement starts.");
 
   prop = RNA_def_property(srna, "ndof_orbit_center_auto", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_CENTER_AUTO);
@@ -7445,11 +7477,18 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "use_recompute_usercount_on_save_debug", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop,
-                           "Recompute ID Usercount On Save",
-                           "Recompute all ID usercounts before saving to a blendfile. Allows to "
-                           "work around invalid usercount handling in code that may lead to loss "
-                           "of data due to wrongly detected unused data-blocks");
+  RNA_def_property_ui_text(
+      prop,
+      "Recompute ID User Count On Save",
+      "Recompute all ID user-counts before saving to a blend-file. "
+      "Allows to work around invalid user-count handling in code "
+      "that may lead to loss of data due to wrongly detected unused data-blocks");
+
+  prop = RNA_def_property(srna, "use_paint_debug", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_paint_debug", 1);
+  RNA_def_property_ui_text(
+      prop, "Paint Debug", "Enable paint & sculpt debugging options for developers");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)

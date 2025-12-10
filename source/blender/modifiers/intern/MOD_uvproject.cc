@@ -94,7 +94,7 @@ static blender::bke::SpanAttributeWriter<blender::float2> get_uv_attribute(
   using namespace blender;
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (md_name.is_empty()) {
-    const StringRef name = CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2);
+    const StringRef name = mesh.active_uv_map_name();
     return attributes.lookup_or_add_for_write_span<float2>(name.is_empty() ? "Float2" : name,
                                                            bke::AttrDomain::Corner);
   }
@@ -296,17 +296,16 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *sub;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
+  layout.prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
   /* Aspect and Scale are only used for camera projectors. */
   bool has_camera = false;
@@ -319,19 +318,19 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   }
   RNA_END;
 
-  sub = &layout->column(true);
+  blender::ui::Layout *sub = &layout.column(true);
   sub->active_set(has_camera);
   sub->prop(ptr, "aspect_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   sub->prop(ptr, "aspect_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
-  sub = &layout->column(true);
+  sub = &layout.column(true);
   sub->active_set(has_camera);
   sub->prop(ptr, "scale_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   sub->prop(ptr, "scale_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
-  layout->prop(ptr, "projector_count", UI_ITEM_NONE, IFACE_("Projectors"), ICON_NONE);
+  layout.prop(ptr, "projector_count", UI_ITEM_NONE, IFACE_("Projectors"), ICON_NONE);
   RNA_BEGIN (ptr, projector_ptr, "projectors") {
-    layout->prop(&projector_ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(&projector_ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   RNA_END;
 
