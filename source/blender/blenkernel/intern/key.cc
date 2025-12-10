@@ -680,10 +680,10 @@ static void copy_key_float3_range(const blender::IndexRange range,
 
 /**
  * Copy the shapekey of `source` into the output array of `r_target`.
- * The given `weights` determine
  *
- * \param weights is a float array of size `vertex_count`. If this is passed as a nullptr,
- * `copy_key_float3_range` is called instead.
+ * \param weights is a float array of size `vertex_count`. It determines how much of `source` is
+ * blended into the result. The base for it is the reference key. If this is passed as a nullptr,
+ * `source` is copied at full weight.
  */
 static void copy_key_float3_weighted(const int vertex_count,
                                      Key *key,
