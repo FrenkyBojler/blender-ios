@@ -4582,8 +4582,6 @@ void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op)
 /** \name Close File Dialog
  * \{ */
 
-static char save_images_when_file_is_closed = true;
-
 static void wm_block_file_close_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -4805,15 +4803,14 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
     if (!has_extra_checkboxes) {
       layout.separator();
     }
-    uiDefButBitC(block,
+    uiDefButC(block,
                  blender::ui::ButtonType::Checkbox,
-                 1,
                  message,
                  0,
                  0,
                  0,
                  UI_UNIT_Y,
-                 &save_images_when_file_is_closed,
+                 &wm->runtime->save_images_on_file_close,
                  0,
                  0,
                  "");
@@ -4902,6 +4899,11 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
 void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
 {
   if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
+    Main *bmain = CTX_data_main(C);
+    wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
+
+    wm->runtime->save_images_on_file_close = true;
+
     blender::ui::popup_block_invoke(
         C, block_create__close_file_dialog, post_action, free_post_file_close_action);
   }
