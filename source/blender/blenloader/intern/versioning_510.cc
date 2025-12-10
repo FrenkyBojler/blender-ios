@@ -31,8 +31,6 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
-#include "BLT_translation.hh"
-
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
@@ -372,14 +370,14 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
     emission.location[0] = old_output->location[0] + 1.5f * old_output->width;
     emission.location[1] = old_output->location[1];
   }
+  else {
+    /* Use default position, see #node_tree_shader_default() */
+    emission.location[0] = -200.0f;
+    emission.location[1] = 100.0f;
+  }
 
   new_output.location[0] = emission.location[0] + 2.0f * emission.width;
   new_output.location[1] = emission.location[1];
-
-  bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
-  STRNCPY(frame->label, RPT_("Versioning: Use Nodes was removed"));
-  emission.parent = frame;
-  new_output.parent = frame;
 }
 
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
