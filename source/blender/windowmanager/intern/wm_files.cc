@@ -4613,7 +4613,7 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 
   int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (modified_images_count > 0 && save_images_when_file_is_closed) {
+  if (modified_images_count > 0 && wm->runtime->save_images_on_file_close) {
     if (ED_image_should_save_modified(bmain)) {
       ReportList *reports = CTX_wm_reports(C);
       ED_image_save_all_modified(C, reports);
@@ -4733,6 +4733,7 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
   using namespace blender;
   wmGenericCallback *post_action = (wmGenericCallback *)arg1;
   Main *bmain = CTX_data_main(C);
+  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
 
   ui::Block *block = block_begin(C, region, close_file_dialog_name, ui::EmbossType::Emboss);
   block_flag_enable(
