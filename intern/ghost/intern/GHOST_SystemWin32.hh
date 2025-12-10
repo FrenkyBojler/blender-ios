@@ -341,9 +341,9 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param mask: The button mask of this event.
    * \return The event created.
    */
-  static GHOST_EventButton *processButtonEvent(GHOST_TEventType type,
-                                               GHOST_WindowWin32 *window,
-                                               GHOST_TButton mask);
+  static std::unique_ptr<GHOST_EventButton> processButtonEvent(GHOST_TEventType type,
+                                                               GHOST_WindowWin32 *window,
+                                                               GHOST_TButton mask);
 
   /**
    * Creates tablet events from Wintab events.

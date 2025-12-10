@@ -930,9 +930,9 @@ GHOST_TKey GHOST_SystemWin32::convertKey(short vKey, short scanCode, short exten
   return key;
 }
 
-GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
-                                                         GHOST_WindowWin32 *window,
-                                                         GHOST_TButton mask)
+std::unique_ptr<GHOST_EventButton> GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
+                                                                         GHOST_WindowWin32 *window,
+                                                                         GHOST_TButton mask)
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
 
@@ -1179,8 +1179,8 @@ void GHOST_SystemWin32::processPointerEvent(
   }
 }
 
-GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *window,
-                                                         const int32_t screen_co[2])
+std::unique_ptr<GHOST_EventCursor> GHOST_SystemWin32::processCursorEvent(
+    GHOST_WindowWin32 *window, const int32_t screen_co[2])
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
 

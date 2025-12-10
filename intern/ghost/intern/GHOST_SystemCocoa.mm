@@ -1452,10 +1452,10 @@ bool GHOST_SystemCocoa::handleOpenDocumentRequest(void *filepathStr)
     memcpy(temp_buff, [filepath cStringUsingEncoding:NSUTF8StringEncoding], filenameTextSize);
     temp_buff[filenameTextSize] = '\0';
 
-    pushEvent(new GHOST_EventString(getMilliSeconds(),
-                                    GHOST_kEventOpenMainFile,
-                                    window,
-                                    static_cast<GHOST_TEventDataPtr>(temp_buff)));
+    pushEvent(std::make_unique<GHOST_EventString>(getMilliSeconds(),
+                                                  GHOST_kEventOpenMainFile,
+                                                  window,
+                                                  static_cast<GHOST_TEventDataPtr>(temp_buff)));
   }
   return YES;
 }
