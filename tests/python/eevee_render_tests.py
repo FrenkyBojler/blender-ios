@@ -70,6 +70,12 @@ BLOCKLIST_INTEL = [
     "shadow_resolution_scale.blend"
 ]
 
+BLOCKLIST_INTEL_VULKAN = [
+    # Blocked due to difference when fast GI is on and transmittance weight < 1.
+    # Progress tracked at: https://projects.blender.org/blender/blender/issues/151445
+    "principled_bsdf_transmission.blend"
+]
+
 
 def setup():
     import bpy
@@ -233,6 +239,8 @@ def main():
     gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
     if gpu_vendor == "INTEL":
         blocklist += BLOCKLIST_INTEL
+    if gpu_vendor == "INTEL" and args.gpu_backend == "vulkan":
+        blocklist += BLOCKLIST_INTEL_VULKAN
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":

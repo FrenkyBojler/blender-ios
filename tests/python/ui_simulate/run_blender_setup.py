@@ -93,6 +93,12 @@ def main():
         if sys.platform == "win32" and gpu_device == "INTEL" and gpu_backend == "OPENGL":
             # See #149084 for the tracking issue
             BLOCKLIST = ["test_workspace"]
+        if sys.platform == "linux" and gpu_device == "INTEL" and gpu_backend == "VULKAN":
+            # See #151410 for the tracking issue
+            BLOCKLIST = ["test"]
+        if sys.platform == "win32" and gpu_device == "AMD" and gpu_backend == "VULKAN":
+            # See #151411 for the tracking issue
+            BLOCKLIST = ["test"]
 
     is_first = True
     for test_id in args.tests:
