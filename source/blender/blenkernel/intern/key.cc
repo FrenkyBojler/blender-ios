@@ -530,7 +530,7 @@ static void flerp(const int tot,
                   const float *f1,
                   const float *f2,
                   const float *f3,
-                  const float *t)
+                  const float t[4])
 {
   for (int a = 0; a < tot; a++) {
     in[a] = t[0] * f0[a] + t[1] * f1[a] + t[2] * f2[a] + t[3] * f3[a];
