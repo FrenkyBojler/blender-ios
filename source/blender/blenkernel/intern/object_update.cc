@@ -229,7 +229,7 @@ void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
   object_orig->base_flag = object->base_flag;
   object_orig->base_local_view_bits = object->base_local_view_bits;
 
-  /* Partcle edit mode draws from the original object, so sync imat from evaluated to original
+  /* Particle edit mode draws from the original object, so sync imat from evaluated to original
    * object so drawing uses the correct transform. */
   for (ParticleSystem *
            psys_eval = static_cast<ParticleSystem *>(object->particlesystem.first),
