@@ -30,8 +30,6 @@
 #include "BKE_lib_query.hh"
 #include "BKE_light.h"
 #include "BKE_node.hh"
-#include "BKE_node_legacy_types.hh"
-#include "BKE_node_tree_update.hh"
 #include "BKE_preview_image.hh"
 
 #include "BLT_translation.hh"

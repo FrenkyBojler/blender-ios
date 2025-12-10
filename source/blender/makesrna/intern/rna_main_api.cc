@@ -363,8 +363,6 @@ static Light *rna_Main_lights_new(Main *bmain, const char *name, int type)
   lamp->type = type;
   id_us_min(&lamp->id);
 
-  // ED_node_shader_default(nullptr, bmain, &lamp->id);
-
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
   return lamp;
