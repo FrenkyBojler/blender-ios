@@ -42,6 +42,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "NOD_defaults.hh"
+
 static void light_init_data(ID *id)
 {
   Light *la = (Light *)id;
@@ -205,26 +207,7 @@ Light *BKE_light_add(Main *bmain, const char *name)
 
   la = BKE_id_new<Light>(bmain, name);
 
-  // todo(habib): replace with: ED_node_shader_default(nullptr, bmain, &la->id);
-
-  bNode *shader, *output;
-  bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
-      nullptr, &la->id, "Light Nodetree", "ShaderNodeTree");
-
-  shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_EMISSION);
-  output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_LIGHT);
-  blender::bke::node_add_link(*ntree,
-                              *shader,
-                              *blender::bke::node_find_socket(*shader, SOCK_OUT, "Emission"),
-                              *output,
-                              *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
-
-  shader->location[0] = -200.0f;
-  shader->location[1] = 100.0f;
-  output->location[0] = 200.0f;
-  output->location[1] = 100.0f;
-  blender::bke::node_set_active(*ntree, *output);
-  BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
+  blender::nodes::node_tree_shader_default(nullptr, bmain, &la->id);
 
   return la;
 }
