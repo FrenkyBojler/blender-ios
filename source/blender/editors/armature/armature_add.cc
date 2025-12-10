@@ -1844,10 +1844,13 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   bone = ED_armature_ebone_add(id_cast<bArmature *>(obedit->data), name);
   ANIM_armature_bonecoll_assign_active(id_cast<bArmature *>(obedit->data), bone);
 
-  /* Scale B-Bone display width based on length */
+  /* Scale B-Bone display width and Bone Envelope based on length */
   if (length > 0.0f) {
       bone->xwidth = 0.1f * length;
       bone->zwidth = 0.1f * length;
+      bone->rad_head = 0.1f * length;
+      bone->rad_tail = 0.05f * length;
+      bone->dist = 0.25f * length;
   }
 
   bArmature *arm = id_cast<bArmature *>(obedit->data);
