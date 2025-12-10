@@ -487,6 +487,11 @@ std::optional<DropLocation> TreeViewItemDropTarget::choose_drop_location(
 
 /* ---------------------------------------------------------------------- */
 
+AbstractTreeViewItem::AbstractTreeViewItem()
+{
+  activate_for_context_menu_ = true;
+}
+
 void AbstractTreeViewItem::add_treerow_button(uiBlock &block)
 {
   /* For some reason a width > (UI_UNIT_X * 2) make the layout system use all available width. */
@@ -993,7 +998,6 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   row->emboss_set(EmbossType::Emboss);
   /* Every item gets one! Other buttons can be overlapped on top. */
   item.add_treerow_button(block_);
-  item.activate_for_context_menu_set();
   /* After adding tree-row button (would disable hover highlighting). */
   UI_block_emboss_set(&block_, EmbossType::NoneOrStatus);
 
