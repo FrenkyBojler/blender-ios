@@ -6,13 +6,11 @@
  * \ingroup gpu
  */
 
+#pragma once
+
 #include "render_graph/vk_render_graph.hh"
 #include "vk_buffer.hh"
-#include "vk_common.hh"
-
-#include "BLI_vector.hh"
-
-#pragma once
+#include "vk_vertex_input_description.hh"
 
 namespace blender::gpu {
 
@@ -30,8 +28,8 @@ using AttributeMask = uint16_t;
  * them. Building the bindings/attributes should be done inside #VKPipelinePool. */
 class VKVertexAttributeObject {
  public:
-  Vector<VkVertexInputBindingDescription> bindings;
-  Vector<VkVertexInputAttributeDescription> attributes;
+  VKVertexInputDescription vertex_input;
+
   /* Used for batches. */
   Vector<VKVertexBuffer *> vbos;
   /* Used for immediate mode. */

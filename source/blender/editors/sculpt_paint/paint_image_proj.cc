@@ -99,6 +99,7 @@
 #include "GPU_capabilities.hh"
 #include "GPU_init_exit.hh"
 
+#include "NOD_defaults.hh"
 #include "NOD_shader.h"
 
 #include "UI_interface_layout.hh"
@@ -6419,7 +6420,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
      * re-projection will reuse this */
     IDProperty *idgroup = IDP_EnsureProperties(&image->id);
 
-    blender::Vector<float, PROJ_VIEW_DATA_SIZE> array;
+    Vector<float, PROJ_VIEW_DATA_SIZE> array;
     array.extend(Span(reinterpret_cast<float *>(rv3d->winmat), 16));
     array.extend(Span(reinterpret_cast<float *>(rv3d->viewmat), 16));
     float clip_start;
@@ -6778,7 +6779,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNodeTree *ntree = ma->nodetree;
 
     if (!ntree) {
-      ED_node_shader_default(C, bmain, &ma->id);
+      blender::nodes::node_tree_shader_default(C, bmain, &ma->id);
       ntree = ma->nodetree;
     }
 
@@ -6958,7 +6959,7 @@ static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
 
   if (ob->mode == OB_MODE_SCULPT) {
     slot_type = (ePaintCanvasSource)RNA_enum_get(op->ptr, "slot_type");
-    layout.prop(op->ptr, "slot_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "slot_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
   layout.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -6975,8 +6976,8 @@ static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
       break;
     }
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
-      layout.prop(op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-      layout.prop(op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "domain", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "data_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       break;
     case PAINT_CANVAS_SOURCE_MATERIAL:
       BLI_assert_unreachable();
