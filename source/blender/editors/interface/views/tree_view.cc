@@ -998,6 +998,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   row->emboss_set(EmbossType::Emboss);
   /* Every item gets one! Other buttons can be overlapped on top. */
   item.add_treerow_button(block_);
+
   /* After adding tree-row button (would disable hover highlighting). */
   block_emboss_set(&block_, EmbossType::NoneOrStatus);
 
