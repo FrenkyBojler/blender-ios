@@ -83,7 +83,7 @@ struct Smoke {
   [[legacy_info]] const ShaderCreateInfo draw_modelmat;
 
   [[sampler(2)]] const sampler3D flame_tx;
-  [[sampler(3)]] const sampler3D flame_color_tx;
+  [[sampler(3)]] const sampler1D flame_color_tx;
 };
 
 /* Volume Objects. */
