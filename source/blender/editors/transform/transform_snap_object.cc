@@ -102,12 +102,12 @@ static bool test_projected_edge_dist(const DistProjectedAABBPrecalc *precalc,
   return test_projected_vert_dist(precalc, clip_plane, clip_plane_len, is_persp, near_co, nearest);
 }
 
-static bool test_projected_face_center_dist(const DistProjectedAABBPrecalc *precalc,
-                                            const float (*clip_plane)[4],
-                                            const int clip_plane_len,
-                                            const bool is_persp,
-                                            const float center[3],
-                                            BVHTreeNearest *nearest)
+static bool test_projected_face_midpoint_dist(const DistProjectedAABBPrecalc *precalc,
+                                              const float (*clip_plane)[4],
+                                              const int clip_plane_len,
+                                              const bool is_persp,
+                                              const float center[3],
+                                              BVHTreeNearest *nearest)
 {
   return test_projected_vert_dist(precalc, clip_plane, clip_plane_len, is_persp, center, nearest);
 }
@@ -856,19 +856,19 @@ void cb_snap_edge(void *userdata,
   }
 }
 
-void cb_snap_face(void *userdata,
-                  int face_index,
-                  const DistProjectedAABBPrecalc *precalc,
-                  const float (*clip_plane)[4],
-                  const int clip_plane_len,
-                  BVHTreeNearest *nearest)
+void cb_snap_face_midpoint(void *userdata,
+                           int face_index,
+                           const DistProjectedAABBPrecalc *precalc,
+                           const float (*clip_plane)[4],
+                           const int clip_plane_len,
+                           BVHTreeNearest *nearest)
 {
   SnapData *data = static_cast<SnapData *>(userdata);
 
   float3 center;
   data->get_face_center(face_index, center);
 
-  if (test_projected_face_center_dist(
+  if (test_projected_face_midpoint_dist(
           precalc, clip_plane, clip_plane_len, data->is_persp, center, nearest))
   {
     data->copy_face_no(face_index, nearest->no);

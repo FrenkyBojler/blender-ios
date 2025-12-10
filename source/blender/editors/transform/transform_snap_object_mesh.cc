@@ -222,7 +222,6 @@ static bool nearest_world_mesh(SnapObjectContext *sctx,
 
 class SnapData_Mesh : public SnapData {
  public:
-  const Mesh *mesh;
   const float3 *vert_positions;
   const float3 *vert_normals;
   const int2 *edges; /* Only used for #BVHTreeFromMeshEdges. */
@@ -230,9 +229,13 @@ class SnapData_Mesh : public SnapData {
   const int *corner_edges;
   const int3 *corner_tris;
   const int *corner_tri_faces;
+  const float3 *face_normals;
+  const int *face_offsets;
+  int verts_num;
+  int corners_num;
 
   SnapData_Mesh(SnapObjectContext *sctx, const Mesh *mesh_eval, const float4x4 &obmat)
-      : SnapData(sctx, obmat), mesh(mesh_eval)
+      : SnapData(sctx, obmat)
   {
     this->vert_positions = mesh_eval->vert_positions().data();
     this->vert_normals = mesh_eval->vert_normals().data();
@@ -241,6 +244,10 @@ class SnapData_Mesh : public SnapData {
     this->corner_edges = mesh_eval->corner_edges().data();
     this->corner_tris = mesh_eval->corner_tris().data();
     this->corner_tri_faces = mesh_eval->corner_tri_faces().data();
+    this->face_normals = mesh_eval->face_normals().data();
+    this->face_offsets = mesh_eval->face_offsets().data();
+    this->verts_num = mesh_eval->verts_num;
+    this->corners_num = mesh_eval->corners_num;
   };
 
   void get_vert_co(const int index, const float **r_co) override
@@ -262,16 +269,20 @@ class SnapData_Mesh : public SnapData {
 
   void get_face_center(const int face_index, float3 &r_center) override
   {
-    const IndexRange face = mesh->faces()[face_index];
-    const Span<int> face_verts = Span(corner_verts, mesh->corners_num).slice(face);
-    const Span<float3> verts(vert_positions, mesh->verts_num);
 
-    r_center = bke::mesh::face_center_calc(verts, face_verts);
+    const int start = this->face_offsets[face_index];
+    const int end = this->face_offsets[face_index + 1];
+    const IndexRange face = IndexRange::from_begin_end(start, end);
+
+    const Span<int> face_verts = Span<int>(corner_verts, corners_num).slice(face);
+    const Span<float3> positions(vert_positions, verts_num);
+
+    r_center = bke::mesh::face_center_calc(positions, face_verts);
   }
 
   void copy_face_no(const int face_index, float r_no[3]) override
   {
-    copy_v3_v3(r_no, mesh->face_normals()[face_index]);
+    copy_v3_v3(r_no, this->face_normals[face_index]);
   }
 };
 
@@ -392,7 +403,7 @@ static void cb_snap_tri_faces(void *userdata,
   }
 
   const int face_index = data->corner_tri_faces[tri_index];
-  cb_snap_face(userdata, face_index, precalc, clip_plane, clip_plane_len, nearest);
+  cb_snap_face_midpoint(userdata, face_index, precalc, clip_plane, clip_plane_len, nearest);
 }
 
 /** \} */

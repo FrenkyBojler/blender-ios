@@ -200,12 +200,12 @@ void cb_snap_edge(void *userdata,
                   const int clip_plane_len,
                   BVHTreeNearest *nearest);
 
-void cb_snap_face(void *userdata,
-                  int face_index,
-                  const DistProjectedAABBPrecalc *precalc,
-                  const float (*clip_plane)[4],
-                  int clip_plane_len,
-                  BVHTreeNearest *nearest);
+void cb_snap_face_midpoint(void *userdata,
+                           int face_index,
+                           const DistProjectedAABBPrecalc *precalc,
+                           const float (*clip_plane)[4],
+                           int clip_plane_len,
+                           BVHTreeNearest *nearest);
 
 bool nearest_world_tree(SnapObjectContext *sctx,
                         const BVHTree *tree,
