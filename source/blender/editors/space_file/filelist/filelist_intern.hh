@@ -60,6 +60,9 @@ struct FileListInternEntry {
   const char *name = nullptr;
   bool free_name = false;
 
+  /** Search relevance score. Higher is better. 0 means no match (filtered out). */
+  int search_score = 0;
+
   /**
    * This is data from the current main, represented by this file. It's crucial that this is
    * updated correctly on undo, redo and file reading (without UI). The space is responsible to

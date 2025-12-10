@@ -24,6 +24,16 @@
 
 using namespace blender;
 
+/* Larger score means better match. */
+namespace SearchScore {
+static constexpr int NONE = 0;  // No match at all
+static constexpr int FUZZY_MIN = 100;
+static constexpr int FUZZY_BASE = 200;
+static constexpr int SUBSTRING = 500;
+static constexpr int PREFIX = 700;
+static constexpr int EXACT = 1000;  // Best match
+}  // namespace SearchScore
+
 /* True if should be hidden, based on current filtering. */
 static bool is_filtered_hidden(const char *filename,
                                const FileListFilter *filter,
@@ -176,70 +186,84 @@ void prepare_filter_asset_library(const FileList *filelist, FileListFilter *filt
 }
 
 /**
- * Checks if the candidate matches the query using Substring, Fuzzy Subsequence, or Levenshtein
- * Distance.
+ * Calculates a match score using Substring, Fuzzy Subsequence, or Levenshtein Distance.
  */
-static bool is_fuzzy_match(const char *query_lower, const char *candidate)
+static int get_match_score(const char *query_lower, const char *candidate)
 {
-  if (BLI_strcasestr(candidate, query_lower)) {
-    return true;
+  /* 1. Fast Path: Check Substring/Prefix/Exact (Case Insensitive) */
+  const char *found = BLI_strcasestr(candidate, query_lower);
+  if (found) {
+    size_t query_len = strlen(query_lower);
+    size_t candidate_len = strlen(candidate);
+
+    if (query_len == candidate_len) {
+      return SearchScore::EXACT;
+    }
+
+    if (found == candidate) {
+      return SearchScore::PREFIX;
+    }
+
+    return SearchScore::SUBSTRING;
   }
 
+  /* 2. Slow Path */
   blender::StringRef query_ref(query_lower);
-
-  /* Skip fuzzy matching for short queries like "a" or "an" to avoid too many results. */
   int64_t query_len = query_ref.size();
+
+  /* Skip fuzzy matching for very short queries to reduce noise */
   if (query_len <= 2) {
-    return false;
+    return SearchScore::NONE;
   }
 
-  /* Prepare a lower-cased candidate on stack to avoid allocations. */
+  /* Prepare a lower-cased candidate on stack */
   char candidate_lower[FILE_MAX] = {};
   BLI_strncpy(candidate_lower, candidate, sizeof(candidate_lower));
   BLI_str_tolower_ascii(candidate_lower, sizeof(candidate_lower));
-
   blender::StringRef candidate_ref(candidate_lower);
 
-  if (blender::string_search::get_fuzzy_match_errors(query_ref, candidate_ref) != -1) {
-    return true;
+  /* Fuzzy Matching */
+  int errors = blender::string_search::get_fuzzy_match_errors(query_ref, candidate_ref);
+  if (errors != -1) {
+    return std::max(SearchScore::FUZZY_MIN, SearchScore::FUZZY_BASE - (errors * 10));
   }
-  int dist = blender::string_search::damerau_levenshtein_distance(query_ref, candidate_ref);
 
-  /* Allow more distance for longer queries. */
+  /* Levenshtein Distance */
+  int dist = blender::string_search::damerau_levenshtein_distance(query_ref, candidate_ref);
   int threshold = (query_len < 4) ? 1 : 2;
 
   if (dist <= threshold) {
-    return true;
+    return std::max(SearchScore::FUZZY_MIN, SearchScore::FUZZY_BASE - (dist * 20));
   }
 
-  return false;
+  return SearchScore::NONE;
 }
 
 /**
- * Return whether at least one tag matches the search filter.
- * Tags are searched as "entire words", so instead of searching for "tag" in the
- * filter string, this function searches for " tag ". Assumes the search filter
- * starts and ends with a space.
- *
- * Here the tags on the asset are written in set notation:
- *
- * `asset_tag_matches_filter(" some tags ", {"some", "blue"})` -> true
- * `asset_tag_matches_filter(" some tags ", {"som", "tag"})` -> false
- * `asset_tag_matches_filter(" some tags ", {})` -> false
+ * Return the highest score among all tags.
  */
-static bool asset_tag_matches_filter(const char *query_lower, const AssetMetaData *asset_data)
+static int get_asset_tag_match_score(const char *query_lower, const AssetMetaData *asset_data)
 {
+  int best_score = SearchScore::NONE;
+
   LISTBASE_FOREACH (const AssetTag *, asset_tag, &asset_data->tags) {
-    if (is_fuzzy_match(query_lower, asset_tag->name)) {
-      return true;
+    int score = get_match_score(query_lower, asset_tag->name);
+    if (score > best_score) {
+      best_score = score;
+      if (best_score == SearchScore::EXACT) {
+        break;
+      }
     }
   }
-  return false;
+  return best_score;
 }
 
 bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
 {
   const AssetMetaData *asset_data = filelist_file_internal_get_asset_data(file);
+
+  /* Reset score for this pass */
+  file->search_score = SearchScore::NONE;
 
   /* Not used yet for the asset view template. */
   if (filter->asset_catalog_filter &&
@@ -253,6 +277,7 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
     return true;
   }
 
+  /* Prepare Query */
   /* filter->filter_search contains "*the search text*". */
   char filter_search[sizeof(FileListFilter::filter_search)];
   const size_t string_length = STRNCPY_RLEN(filter_search, filter->filter_search);
@@ -261,15 +286,17 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
   filter_search[string_length - 1] = '\0';
   const char *raw_query = filter_search + 1;
 
-  /* Prepare a lower-cased query on stack to avoid repeated allocations. */
-  char query_lower[sizeof(FileListFilter::filter_search)];
+  /* Lowercase the query for case-insensitive matching. */
+  char query_lower[sizeof(FileListFilter::filter_search)] = {};
   BLI_strncpy(query_lower, raw_query, sizeof(query_lower));
   BLI_str_tolower_ascii(query_lower, sizeof(query_lower));
 
-  if (is_fuzzy_match(query_lower, file->name)) {
-    return true;
-  }
-  return asset_tag_matches_filter(query_lower, asset_data);
+  /* Calculate final score */
+  int name_score = get_match_score(query_lower, file->name);
+  int tag_score = get_asset_tag_match_score(query_lower, asset_data);
+  file->search_score = std::max(name_score, tag_score);
+
+  return (file->search_score > SearchScore::NONE);
 }
 
 static bool is_filtered_lib_type(FileListInternEntry *file,
