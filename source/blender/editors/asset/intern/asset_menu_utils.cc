@@ -107,7 +107,7 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
   list::storage_fetch(&library_ref, &C);
   asset_system::AssetLibrary *all_library = list::library_get_once_available(
       asset_system::all_library_reference());
-  if (!all_library) {
+  if (!all_library || !list::is_loaded(&library_ref)) {
     BKE_report(reports, RPT_WARNING, "Asset loading is unfinished");
     return nullptr;
   }
@@ -133,11 +133,8 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
 
   if (reports && !matching_asset) {
     printf("-- no matching asset\n");
-    if (list::is_loaded(&library_ref)) {
-      const std::string full_path = all_library->resolve_asset_weak_reference_to_full_path(
-          weak_ref);
-      BKE_reportf(reports, RPT_ERROR, "No asset found at path \"%s\"", full_path.c_str());
-    }
+    const std::string full_path = all_library->resolve_asset_weak_reference_to_full_path(weak_ref);
+    BKE_reportf(reports, RPT_ERROR, "No asset found at path \"%s\"", full_path.c_str());
   }
   if (matching_asset) {
     printf("-- found asset\n");
