@@ -1434,7 +1434,7 @@ std::unique_ptr<GHOST_Event> GHOST_SystemWin32::processWindowSizeEvent(GHOST_Win
 
   /* We get WM_SIZE before we fully init. Do not dispatch before we are continuously resizing. */
   if (window->in_live_resize_) {
-    system->pushEvent(sizeEvent);
+    system->pushEvent(std::move(sizeEvent));
     system->dispatchEvents();
     return nullptr;
   }
