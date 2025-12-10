@@ -58,7 +58,7 @@ struct DRWTextStore;
 struct GPUViewport;
 namespace draw {
 class TextureFromPool;
-class PersistentTextureFromPool;
+class TextureFromPoolPersistent;
 class ObjectRef;
 class Manager;
 }  // namespace draw
