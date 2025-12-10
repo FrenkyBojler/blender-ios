@@ -2759,7 +2759,7 @@ static void socket_id_user_increment(bNodeSocket *sock)
       break;
     }
     case SOCK_SCENE: {
-      bNodeSocketValueFont &default_value = *sock->default_value_typed<bNodeSocketValueFont>();
+      bNodeSocketValueScene &default_value = *sock->default_value_typed<bNodeSocketValueScene>();
       id_us_plus(id_cast<ID *>(default_value.value));
       break;
     }
