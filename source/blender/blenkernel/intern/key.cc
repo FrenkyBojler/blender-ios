@@ -704,25 +704,25 @@ static void copy_key_float3_weighted(const int vertex_count,
     return;
   }
 
-  char *free_source_data, *free_kref;
+  char *free_source_data, *free_refkey_data;
   const float *source_data = reinterpret_cast<float *>(
       key_block_get_data(key, active_keyblock, source, &free_source_data));
-  const float *reference_key_data = reinterpret_cast<float *>(
-      key_block_get_data(key, active_keyblock, key->refkey, &free_kref));
+  const float *refkey_data = reinterpret_cast<float *>(
+      key_block_get_data(key, active_keyblock, key->refkey, &free_refkey_data));
 
   for (int i = 0; i < vertex_count; i++) {
     const int vector_index = i * 3;
-    memcpy(&r_target[vector_index], &reference_key_data[vector_index], 3 * sizeof(float));
+    memcpy(&r_target[vector_index], &refkey_data[vector_index], 3 * sizeof(float));
     if (weights[i] != 0.0f) {
-      add_weighted_vector(vector_index, weights[i], reference_key_data, source_data, r_target);
+      add_weighted_vector(vector_index, weights[i], refkey_data, source_data, r_target);
     }
   }
 
   if (free_source_data) {
     MEM_freeN(free_source_data);
   }
-  if (free_kref) {
-    MEM_freeN(free_kref);
+  if (free_refkey_data) {
+    MEM_freeN(free_refkey_data);
   }
 }
 
