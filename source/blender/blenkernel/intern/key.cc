@@ -747,15 +747,15 @@ static void key_evaluate_relative_float3(Key *key,
 /**
  * Absolute interpolation between up to 4 shapekeys. The resulting data is stored in `r_target`.
  */
-static void do_key(const int start,
-                   int end,
-                   const int vertex_count,
-                   char *r_target,
-                   Key *key,
-                   KeyBlock *active_keyblock,
-                   KeyBlock *shapekeys[4],
-                   const float shapekey_pos[4],
-                   const int mode)
+static void key_evaluate_absolute(const int start,
+                                  int end,
+                                  const int vertex_count,
+                                  char *r_target,
+                                  Key *key,
+                                  KeyBlock *active_keyblock,
+                                  KeyBlock *shapekeys[4],
+                                  const float weights[4],
+                                  const int mode)
 {
   int a, ofs[32];
 
@@ -916,7 +916,7 @@ static void do_key(const int start,
                 (float *)k2,
                 (float *)k3,
                 (float *)k4,
-                shapekey_pos);
+                weights);
           break;
         case IPO_BPOINT:
           flerp(KEYELEM_FLOAT_LEN_BPOINT,
@@ -925,7 +925,7 @@ static void do_key(const int start,
                 (float *)k2,
                 (float *)k3,
                 (float *)k4,
-                shapekey_pos);
+                weights);
           break;
         case IPO_BEZTRIPLE:
           flerp(KEYELEM_FLOAT_LEN_BEZTRIPLE,
@@ -934,7 +934,7 @@ static void do_key(const int start,
                 (float *)k2,
                 (float *)k3,
                 (float *)k4,
-                shapekey_pos);
+                weights);
           break;
         default:
           BLI_assert_unreachable();
@@ -1153,12 +1153,12 @@ static void do_mesh_key(Object *ob, Key *key, char *out, const int tot)
   else {
     const float ctime_scaled = key->ctime / 100.0f;
     KeyBlock *shapekeys[4];
-    float shapekey_pos[4];
-    const bool flag = get_keys_for_absolute_eval(
-        ctime_scaled, &key->block, shapekeys, shapekey_pos);
+    float weights[4];
+    const bool simple_copy = get_keys_for_absolute_eval(
+        ctime_scaled, &key->block, shapekeys, weights);
 
-    if (flag == false) {
-      do_key(0, tot, tot, out, key, actkb, shapekeys, shapekey_pos, KEY_MODE_DUMMY);
+    if (simple_copy == false) {
+      key_evaluate_absolute(0, tot, tot, out, key, actkb, shapekeys, weights, KEY_MODE_DUMMY);
     }
     else {
       copy_key_float3(tot, key, actkb, shapekeys[2], reinterpret_cast<float *>(out));
@@ -1170,7 +1170,7 @@ static void do_cu_key(Curve *cu,
                       Key *key,
                       KeyBlock *actkb,
                       KeyBlock *shapekeys[4],
-                      float shapekey_pos[4],
+                      float weights[4],
                       char *out,
                       const int tot)
 {
@@ -1180,11 +1180,13 @@ static void do_cu_key(Curve *cu,
   for (a = 0, nu = static_cast<Nurb *>(cu->nurb.first); nu; nu = nu->next, a += step) {
     if (nu->bp) {
       step = KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
-      do_key(a, a + step, tot, out, key, actkb, shapekeys, shapekey_pos, KEY_MODE_BPOINT);
+      key_evaluate_absolute(
+          a, a + step, tot, out, key, actkb, shapekeys, weights, KEY_MODE_BPOINT);
     }
     else if (nu->bezt) {
       step = KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
-      do_key(a, a + step, tot, out, key, actkb, shapekeys, shapekey_pos, KEY_MODE_BEZTRIPLE);
+      key_evaluate_absolute(
+          a, a + step, tot, out, key, actkb, shapekeys, weights, KEY_MODE_BEZTRIPLE);
     }
     else {
       step = 0;
@@ -1203,12 +1205,12 @@ static void do_curve_key(Object *ob, Key *key, char *out, const int tot)
   else {
     const float ctime_scaled = key->ctime / 100.0f;
     KeyBlock *shapekeys[4];
-    float shapekey_pos[4];
-    const bool flag = get_keys_for_absolute_eval(
-        ctime_scaled, &key->block, shapekeys, shapekey_pos);
+    float weights[4];
+    const bool simple_copy = get_keys_for_absolute_eval(
+        ctime_scaled, &key->block, shapekeys, weights);
 
-    if (flag == false) {
-      do_cu_key(cu, key, actkb, shapekeys, shapekey_pos, out, tot);
+    if (simple_copy == false) {
+      do_cu_key(cu, key, actkb, shapekeys, weights, out, tot);
     }
     else {
       copy_key_float3(tot, key, actkb, shapekeys[2], reinterpret_cast<float *>(out));
@@ -1231,12 +1233,12 @@ static void do_latt_key(Object *ob, Key *key, char *out, const int tot)
   else {
     const float ctime_scaled = key->ctime / 100.0f;
     KeyBlock *shapekeys[4];
-    float shapekey_pos[4];
-    const bool flag = get_keys_for_absolute_eval(
-        ctime_scaled, &key->block, shapekeys, shapekey_pos);
+    float weights[4];
+    const bool simple_copy = get_keys_for_absolute_eval(
+        ctime_scaled, &key->block, shapekeys, weights);
 
-    if (flag == false) {
-      do_key(0, tot, tot, out, key, actkb, shapekeys, shapekey_pos, KEY_MODE_DUMMY);
+    if (simple_copy == false) {
+      key_evaluate_absolute(0, tot, tot, out, key, actkb, shapekeys, weights, KEY_MODE_DUMMY);
     }
     else {
       copy_key_float3(tot, key, actkb, shapekeys[2], reinterpret_cast<float *>(out));
