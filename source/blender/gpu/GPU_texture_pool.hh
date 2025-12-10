@@ -51,7 +51,7 @@ class TexturePool {
                            int height,
                            TextureFormat format,
                            eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
-                           eTextureLifetime lifetim = TEXTURE_LIFETIME_TRANSIENT);
+                           eTextureLifetime lifetime = TEXTURE_LIFETIME_TRANSIENT);
 
   /* Release the texture so that its memory can be reused at some other point. */
   void release_texture(Texture *tmp_tex);
