@@ -14,6 +14,8 @@ import sqlite3
 from pathlib import Path
 from typing import Iterator
 
+from . import types
+
 
 DB_TIMEOUT_MSEC = 5000  # SQLite busy timeout in milliseconds.
 DB_SCHEMA_VERSION = 1
@@ -102,7 +104,7 @@ class SQLiteBackend:
             self.db_conn_rw.close()
             self.db_conn_rw = None
 
-    def fetch_hash(self, filepath: Path, hash_algorithm: str) -> tuple[str, int, float] | None:
+    def fetch_hash(self, filepath: Path, hash_algorithm: str) -> types.FileHashInfo | None:
         """Return the cached hash info of a given file.
 
         Returns a tuple (hexdigest, file size in bytes, last file mtime).
@@ -120,16 +122,18 @@ class SQLiteBackend:
         if row is None:
             return None
 
-        size_in_bytes, hexdigest, file_stat_mtime = row
-        return (hexdigest, size_in_bytes, file_stat_mtime)
+        size, hex, mtime = row
+        return types.FileHashInfo(
+            hexhash=hex,
+            file_size_bytes=size,
+            file_stat_mtime=mtime,
+        )
 
     def store_hash(
             self,
             filepath: Path,
             hash_algorithm: str,
-            hexhash: str,
-            file_size_bytes: int,
-            file_stat_mtime: float) -> None:
+            hash_info: types.FileHashInfo) -> None:
         """Store a pre-computed hash for the given file path. The path has to exist."""
         now = self._now_string()
 
@@ -140,7 +144,7 @@ class SQLiteBackend:
             cursor = db.execute(
                 "INSERT INTO files (path, size_in_bytes) values (:path, :size) " +
                 "ON CONFLICT DO UPDATE SET size_in_bytes=:size RETURNING file_id",
-                {"path": str(filepath), "size": file_size_bytes},
+                {"path": str(filepath), "size": hash_info.file_size_bytes},
             )
             file_id = cursor.fetchone()[0]
             assert file_id, f'{file_id=}'
@@ -152,8 +156,8 @@ class SQLiteBackend:
                 "SET hexdigest=:hex, file_stat_mtime=:mtime, last_checked=:now", {
                     "file_id": file_id,
                     "hash_algo": hash_algorithm,
-                    "hex": hexhash,
-                    "mtime": file_stat_mtime,
+                    "hex": hash_info.hexhash,
+                    "mtime": hash_info.file_stat_mtime,
                     "now": now,
                 },
             )

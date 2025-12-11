@@ -6,13 +6,14 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Protocol
+
+from . import types
 
 
 class DiskFileHashService:
-    backend: DiskFileHashBackend
+    backend: types.DiskFileHashBackend
 
-    def __init__(self, backend: DiskFileHashBackend) -> None:
+    def __init__(self, backend: types.DiskFileHashBackend) -> None:
         self.backend = backend
 
     def _get_hasher(self, algorithm: str) -> hashlib._Hash:
@@ -25,6 +26,9 @@ class DiskFileHashService:
 
     def get_hash(self, filepath: Path, hash_algorithm: str) -> str:
         """Return the cached hash info of a given file."""
+        cached_info = self.backend.fetch_hash(filepath, hash_algorithm)
+        if cached_info:
+            pass
         raise NotImplementedError()
 
     def store_hash(self, filepath: Path, hash_algorithm: str, hexhash: str) -> None:
@@ -43,32 +47,3 @@ class DiskFileHashService:
         except FileNotFoundError:
             return False
         return stat.st_size == size_in_bytes and stat.st_mtime == file_stat_mtime
-
-
-class DiskFileHashBackend(Protocol):
-    def open(self) -> None:
-        """Prepare the back-end for use."""
-
-    def close(self) -> None:
-        """Close the back-end.
-
-        After calling this, the back-end is not expected to work any more.
-        """
-
-    def fetch_hash(self, filepath: Path, hash_algorithm: str) -> tuple[str, int, float] | None:
-        """Return the cached hash info of a given file.
-
-        Returns a tuple (hexdigest, file size in bytes, last file mtime).
-        """
-
-    def store_hash(
-            self,
-            filepath: Path,
-            hash_algorithm: str,
-            hexhash: str,
-            file_size_bytes: int,
-            file_stat_mtime: float) -> None:
-        """Store a pre-computed hash for the given file path."""
-
-    def remove_file(self, filepath: Path) -> None:
-        """Remove all information about this file."""
