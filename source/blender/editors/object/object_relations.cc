@@ -1630,15 +1630,10 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
                               ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
             break;
           case MAKE_LINKS_CONSTRAINTS:
-          constraint_link(bmain, ob_dst, &ob_dst->constraints, &ob_src->constraints); //option 1 - use existing editor level function which is already implemented
-          // BKE_object_link_constraints(ob_dst, ob_src); //option 2 - create a function similar to modifiers (would probably have to be implemented in object.cc to align with BKE_object_link_modifiers)
-
-          // option 3 - implement here directly inline:
-          // BKE_constraints_free(&ob_dst->constraints);
-          // BKE_constraints_copy(&ob_dst->constraints, &ob_src->constraints, true);
-          // DEG_id_tag_update(&ob_dst->id,
-          //                   ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
-          break;
+            BKE_constraints_free(&ob_dst->constraints);
+            BKE_constraints_copy(&ob_dst->constraints, &ob_src->constraints, true);
+            DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
+            break;
           case MAKE_LINKS_FONTS: {
             Curve *cu_src = id_cast<Curve *>(ob_src->data);
             Curve *cu_dst = id_cast<Curve *>(ob_dst->data);
@@ -1697,7 +1692,7 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(C));
-  WM_event_add_notifier(C, NC_OBJECT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
