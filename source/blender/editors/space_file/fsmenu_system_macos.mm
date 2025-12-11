@@ -57,12 +57,12 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
     fsmenu_macos_insert_entry(fsmenu, N_("Fonts"), "%s/Library/Fonts/", ICON_FILE_FONT, home);
   }
 
-  NSFileManager *fileManager = [NSFileManager defaultManager];
+  NSFileManager *file_manager = [NSFileManager defaultManager];
 
   NSArray *resource_keys =
       @[ NSURLVolumeLocalizedNameKey, NSURLVolumeIsLocalKey, NSURLVolumeIsRemovableKey ];
 
-  NSArray *mounted_volume_urls = [fileManager
+  NSArray *mounted_volume_urls = [file_manager
       mountedVolumeURLsIncludingResourceValuesForKeys:resource_keys
                                               options:NSVolumeEnumerationSkipHiddenVolumes];
 
