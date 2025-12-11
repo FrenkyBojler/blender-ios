@@ -2,7 +2,7 @@ Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #149463, Vulkan: Failing test `shader_texture_atomic` on Linux/NVIDIA
 Referenced by issue #149494, Regression: Workbench performance drop using Normal Map node and Curve Nodes
 Referenced by pull request #149501, Vulkan: Disable shader texture atomic test
-Referenced by pull request #149502, WIP: Fix #149463: Vulkan: Synchronization issues due to recent changes
+Referenced by pull request #149502, Fix #149463: Vulkan: Synchronization issues due to recent changes
 Referenced by commit 1d45bb4caeb2e592e60c741dbf8cb20823bd9b7a, Vulkan: Disable shader texture atomic test
 Referenced by issue #149481, Repeated crashing in 5.0 while saving
 Referenced by issue #149805, When hiding certain objects in the Outliner, Blender crashes after saving (Happens only when Vulkan is set in Blender 4.5.4 and 4.5.5)
