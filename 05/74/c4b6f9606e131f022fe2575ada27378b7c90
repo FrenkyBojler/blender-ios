@@ -7,3 +7,4 @@ Referenced by commit 1d45bb4caeb2e592e60c741dbf8cb20823bd9b7a, Vulkan: Disable s
 Referenced by issue #149481, Repeated crashing in 5.0 while saving
 Referenced by issue #149805, When hiding certain objects in the Outliner, Blender crashes after saving (Happens only when Vulkan is set in Blender 4.5.4 and 4.5.5)
 Referenced by issue #149964, when marking a collection as asset, blender crashes
+Referenced by commit dbe8b7fda14a1f9fdb0f180f3fc9c90104cc26c5, Fix #149463: Vulkan: Synchronization issues due to recent changes
