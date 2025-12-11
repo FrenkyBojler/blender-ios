@@ -190,8 +190,8 @@ class NodeAddOperator(NodeOperator):
     )
 
     @staticmethod
-    def store_mouse_cursor(context: bpy.types.Context, event: bpy.types.Event):
-        space: bpy.types.SpaceNodeEditor = context.space_data
+    def store_mouse_cursor(context, event):
+        space = context.space_data
         tree = space.edit_tree
 
         # Convert mouse position to the View2D for later node placement.
