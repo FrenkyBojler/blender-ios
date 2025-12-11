@@ -24,6 +24,7 @@ set(INC_GLSL
 
 set(SRC_GLSL_VERT
   workbench_effect_smaa_vert.glsl
+  workbench_fullscreen_vert.glsl
   workbench_prepass_hair_vert.glsl
   workbench_prepass_pointcloud_vert.glsl
   workbench_prepass_vert.glsl
@@ -42,10 +43,10 @@ set(SRC_GLSL_FRAG
   workbench_effect_outline_frag.glsl
   workbench_effect_smaa_frag.glsl
   workbench_effect_taa_frag.glsl
-  workbench_extract_stencil.glsl
   workbench_merge_depth_frag.glsl
   workbench_overlay_depth_frag.glsl
   workbench_prepass_frag.glsl
+  workbench_shadow_frag.glsl
   workbench_shadow_debug_frag.glsl
   workbench_transparent_accum_frag.glsl
   workbench_transparent_resolve_frag.glsl

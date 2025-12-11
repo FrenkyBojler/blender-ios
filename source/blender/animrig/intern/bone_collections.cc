@@ -26,6 +26,7 @@
 
 #include "ANIM_armature_iter.hh"
 #include "ANIM_bone_collections.hh"
+#include "WM_api.hh"
 
 #include "intern/bone_collections_internal.hh"
 
@@ -63,8 +64,6 @@ BoneCollection *ANIM_bonecoll_new(const char *name)
   STRNCPY_UTF8(bcoll->name, name);
   bcoll->flags = default_flags;
 
-  bcoll->prop = nullptr;
-
   return bcoll;
 }
 
@@ -75,6 +74,9 @@ void ANIM_bonecoll_free(BoneCollection *bcoll, const bool do_id_user_count)
                  "bone runtime data");
   if (bcoll->prop) {
     IDP_FreeProperty_ex(bcoll->prop, do_id_user_count);
+  }
+  if (bcoll->system_properties) {
+    IDP_FreeProperty_ex(bcoll->system_properties, do_id_user_count);
   }
   MEM_delete(bcoll);
 }
@@ -123,26 +125,18 @@ void ANIM_armature_runtime_free(bArmature *armature)
  */
 static void bonecoll_ensure_name_unique(bArmature *armature, BoneCollection *bcoll)
 {
-  struct DupNameCheckData {
-    bArmature *arm;
-    BoneCollection *bcoll;
-  };
-
   /* Cannot capture armature & bcoll by reference in the lambda, as that would change its signature
    * and no longer be compatible with BLI_uniquename_cb(). */
-  auto bonecoll_name_is_duplicate = [](void *arg, const char *name) -> bool {
-    DupNameCheckData *data = static_cast<DupNameCheckData *>(arg);
-    for (BoneCollection *bcoll : data->arm->collections_span()) {
-      if (bcoll != data->bcoll && STREQ(bcoll->name, name)) {
+  auto bonecoll_name_is_duplicate = [&](const blender::StringRef name) -> bool {
+    for (BoneCollection *bcoll_iter : armature->collections_span()) {
+      if (bcoll_iter != bcoll && bcoll_iter->name == name) {
         return true;
       }
     }
     return false;
   };
 
-  DupNameCheckData check_data = {armature, bcoll};
   BLI_uniquename_cb(bonecoll_name_is_duplicate,
-                    &check_data,
                     DATA_(bonecoll_default_name),
                     '.',
                     bcoll->name,
@@ -265,6 +259,10 @@ static BoneCollection *copy_and_update_ownership(const bArmature *armature_dst,
   if (bcoll->prop) {
     bcoll->prop = IDP_CopyProperty_ex(bcoll_to_copy->prop,
                                       0 /*do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT*/);
+  }
+  if (bcoll->system_properties) {
+    bcoll->system_properties = IDP_CopyProperty_ex(
+        bcoll_to_copy->system_properties, 0 /*do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT*/);
   }
 
   /* Remap the bone pointers to the given armature, as `bcoll_to_copy` is
@@ -594,7 +592,7 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
   if (name[0] == '\0') {
     /* Refuse to have nameless collections. The name of the active collection is stored in DNA, and
      * an empty string means 'no active collection'. */
-    STRNCPY(bcoll->name, DATA_(bonecoll_default_name));
+    STRNCPY_UTF8(bcoll->name, DATA_(bonecoll_default_name));
   }
   else {
     STRNCPY_UTF8(bcoll->name, name);
@@ -703,6 +701,7 @@ void ANIM_armature_bonecoll_remove_from_index(bArmature *armature, int index)
      * solo'ing should still be active on the armature. */
     ANIM_armature_refresh_solo_active(armature);
   }
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 }
 
 void ANIM_armature_bonecoll_remove(bArmature *armature, BoneCollection *bcoll)
@@ -999,8 +998,9 @@ void ANIM_armature_bonecoll_reconstruct(bArmature *armature)
 static bool any_bone_collection_visible(const bArmature *armature,
                                         const ListBase /*BoneCollectionRef*/ *collection_refs)
 {
-  /* Special case: when a bone is not in any collection, it is visible. */
-  if (BLI_listbase_is_empty(collection_refs)) {
+  /* Special case: Hide bone when solo is active and it doesn't belong to any collection, see:
+   * #137090. */
+  if (BLI_listbase_is_empty(collection_refs) && !(armature->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     return true;
   }
 
@@ -1275,7 +1275,7 @@ void bonecolls_copy_expanded_flag(Span<BoneCollection *> bcolls_dest,
     }
 
     /* Try to find by name as a last resort. This function only works with
-     * non-const pointers, hence the const_cast.  */
+     * non-const pointers, hence the const_cast. */
     const BoneCollection *bcoll = bonecolls_get_by_name(bcolls_source, name);
     return bcoll;
   };
@@ -1389,7 +1389,7 @@ int armature_bonecoll_move_to_parent(bArmature *armature,
 
 /* Utility functions for Armature edit-mode undo. */
 
-blender::Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_membership(
+Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_membership(
     BoneCollection ***bcoll_array_dst,
     int *bcoll_array_dst_num,
     BoneCollection **bcoll_array_src,
@@ -1402,7 +1402,7 @@ blender::Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_mem
   *bcoll_array_dst = MEM_malloc_arrayN<BoneCollection *>(bcoll_array_src_num, __func__);
   *bcoll_array_dst_num = bcoll_array_src_num;
 
-  blender::Map<BoneCollection *, BoneCollection *> bcoll_map{};
+  Map<BoneCollection *, BoneCollection *> bcoll_map{};
   for (int i = 0; i < bcoll_array_src_num; i++) {
     BoneCollection *bcoll_src = bcoll_array_src[i];
     BoneCollection *bcoll_dst = static_cast<BoneCollection *>(MEM_dupallocN(bcoll_src));
@@ -1413,6 +1413,10 @@ blender::Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_mem
     if (bcoll_src->prop) {
       bcoll_dst->prop = IDP_CopyProperty_ex(bcoll_src->prop,
                                             do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
+    }
+    if (bcoll_src->system_properties) {
+      bcoll_dst->system_properties = IDP_CopyProperty_ex(
+          bcoll_src->system_properties, do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
     }
 
     (*bcoll_array_dst)[i] = bcoll_dst;
@@ -1432,6 +1436,9 @@ void ANIM_bonecoll_array_free(BoneCollection ***bcoll_array,
 
     if (bcoll->prop) {
       IDP_FreeProperty_ex(bcoll->prop, do_id_user);
+    }
+    if (bcoll->system_properties) {
+      IDP_FreeProperty_ex(bcoll->system_properties, do_id_user);
     }
 
     /* This will usually already be empty, because the passed BoneCollection

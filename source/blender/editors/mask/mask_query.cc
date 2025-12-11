@@ -9,13 +9,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_mask_types.h"
@@ -61,7 +60,7 @@ bool ED_mask_find_nearest_diff_point(const bContext *C,
   float scalex, scaley;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
   ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
@@ -223,7 +222,7 @@ MaskSplinePoint *ED_mask_point_find_nearest(const bContext *C,
   int width, height;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
   ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
@@ -380,7 +379,7 @@ bool ED_mask_feather_find_nearest(const bContext *C,
   int width, height;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
   ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
@@ -402,7 +401,7 @@ bool ED_mask_feather_find_nearest(const bContext *C,
       // MaskSplinePoint *points_array = BKE_mask_spline_point_array(spline);
 
       int i, tot_feather_point;
-      float(*feather_points)[2], (*fp)[2];
+      float (*feather_points)[2], (*fp)[2];
 
       if (mask_layer_orig->visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
         continue;
@@ -495,7 +494,7 @@ void ED_mask_mouse_pos(ScrArea *area, ARegion *region, const int mval[2], float 
         break;
       }
       case SPACE_SEQ: {
-        UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_co[0], &r_co[1]);
+        blender::ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_co[0], &r_co[1]);
         break;
       }
       case SPACE_IMAGE: {
@@ -625,7 +624,7 @@ bool ED_mask_selected_minmax(const bContext *C,
   /* Use evaluated mask to take animation into account.
    * The animation of splines is not "flushed" back to original, so need to explicitly
    * use evaluated data-block here. */
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask);
 
   INIT_MINMAX2(min, max);
   LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask_eval->masklayers) {
@@ -639,7 +638,7 @@ bool ED_mask_selected_minmax(const bContext *C,
         const MaskSplinePoint *deform_point = &points_array[i];
         const BezTriple *bezt = &point->bezt;
         float handle[2];
-        if (!MASKPOINT_ISSEL_ANY(point)) {
+        if (!BKE_mask_point_selected(point)) {
           continue;
         }
         if (bezt->f2 & SELECT) {
@@ -671,6 +670,25 @@ bool ED_mask_selected_minmax(const bContext *C,
     }
   }
   return ok;
+}
+
+void ED_mask_center_from_pivot_ex(
+    const bContext *C, ScrArea *area, float r_center[2], char mode, bool *r_has_select)
+{
+  float min[2], max[2];
+  const bool mask_selected = ED_mask_selected_minmax(C, min, max, false);
+
+  switch (mode) {
+    case V3D_AROUND_CURSOR:
+      ED_mask_cursor_location_get(area, r_center);
+      break;
+    default:
+      mid_v2_v2v2(r_center, min, max);
+      break;
+  }
+  if (r_has_select != nullptr) {
+    *r_has_select = mask_selected;
+  }
 }
 
 /** \} */
@@ -783,7 +801,7 @@ void ED_mask_pixelspace_factor(ScrArea *area, ARegion *region, float *r_scalex, 
         SpaceClip *sc = static_cast<SpaceClip *>(area->spacedata.first);
         float aspx, aspy;
 
-        UI_view2d_scale_get(&region->v2d, r_scalex, r_scaley);
+        blender::ui::view2d_scale_get(&region->v2d, r_scalex, r_scaley);
         ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
         *r_scalex *= aspx;
@@ -798,7 +816,7 @@ void ED_mask_pixelspace_factor(ScrArea *area, ARegion *region, float *r_scalex, 
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
         float aspx, aspy;
 
-        UI_view2d_scale_get(&region->v2d, r_scalex, r_scaley);
+        blender::ui::view2d_scale_get(&region->v2d, r_scalex, r_scaley);
         ED_space_image_get_aspect(sima, &aspx, &aspy);
 
         *r_scalex *= aspx;

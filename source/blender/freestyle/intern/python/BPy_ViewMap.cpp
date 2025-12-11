@@ -41,8 +41,7 @@ PyDoc_STRVAR(
     "\n"
     ".. method:: __init__()\n"
     "\n"
-    "   Default constructor.");
-
+    "   Default constructor.\n");
 static int ViewMap_init(BPy_ViewMap *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -77,8 +76,7 @@ PyDoc_STRVAR(
     "   :arg y: Y coordinate of a 2D point.\n"
     "   :type y: float\n"
     "   :return: The ViewEdge nearest to the specified 2D point.\n"
-    "   :rtype: :class:`ViewEdge`");
-
+    "   :rtype: :class:`ViewEdge`\n");
 static PyObject *ViewMap_get_closest_viewedge(BPy_ViewMap *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"x", "y", nullptr};
@@ -106,8 +104,7 @@ PyDoc_STRVAR(
     "   :arg y: Y coordinate of a 2D point.\n"
     "   :type y: float\n"
     "   :return: The FEdge nearest to the specified 2D point.\n"
-    "   :rtype: :class:`FEdge`");
-
+    "   :rtype: :class:`FEdge`\n");
 static PyObject *ViewMap_get_closest_fedge(BPy_ViewMap *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"x", "y", nullptr};
@@ -125,6 +122,16 @@ static PyObject *ViewMap_get_closest_fedge(BPy_ViewMap *self, PyObject *args, Py
 
 // static ViewMap *getInstance ();
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 static PyMethodDef BPy_ViewMap_methods[] = {
     {"get_closest_viewedge",
      (PyCFunction)ViewMap_get_closest_viewedge,
@@ -137,6 +144,14 @@ static PyMethodDef BPy_ViewMap_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
+
 /*----------------------ViewMap get/setters ----------------------------*/
 
 PyDoc_STRVAR(
@@ -144,8 +159,7 @@ PyDoc_STRVAR(
     ViewMap_scene_bbox_doc,
     "The 3D bounding box of the scene.\n"
     "\n"
-    ":type: :class:`BBox`");
-
+    ":type: :class:`BBox`\n");
 static PyObject *ViewMap_scene_bbox_get(BPy_ViewMap *self, void * /*closure*/)
 {
   return BPy_BBox_from_BBox(self->vm->getScene3dBBox());

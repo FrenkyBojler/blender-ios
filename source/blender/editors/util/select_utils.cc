@@ -10,7 +10,7 @@
 #include <cmath>
 #include <cstring>
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 
 #include "BLT_translation.hh"
 
@@ -88,7 +88,7 @@ bool ED_select_similar_compare_float(const float delta,
   }
 }
 
-bool ED_select_similar_compare_float_tree(const KDTree_1d *tree,
+bool ED_select_similar_compare_float_tree(const blender::KDTree_1d *tree,
                                           const float length,
                                           const float thresh,
                                           const eSimilarCmp compare)
@@ -119,8 +119,8 @@ bool ED_select_similar_compare_float_tree(const KDTree_1d *tree,
       return false;
   }
 
-  KDTreeNearest_1d nearest;
-  if (BLI_kdtree_1d_find_nearest(tree, &nearest_edge_length, &nearest) != -1) {
+  blender::KDTreeNearest_1d nearest;
+  if (blender::kdtree_1d_find_nearest(tree, &nearest_edge_length, &nearest) != -1) {
     BLI_assert(compare == SIM_CMP_EQ || nearest.co[0] >= 0.0f); /* See precision note above. */
     float delta = length - nearest.co[0];
     return ED_select_similar_compare_float(delta, thresh, compare);
@@ -147,12 +147,13 @@ eSelectOp ED_select_op_from_operator(PointerRNA *ptr)
   return SEL_OP_SET;
 }
 
-void ED_select_pick_params_from_operator(PointerRNA *ptr, SelectPick_Params *params)
+SelectPick_Params ED_select_pick_params_from_operator(PointerRNA *ptr)
 {
-  memset(params, 0x0, sizeof(*params));
-  params->sel_op = ED_select_op_from_operator(ptr);
-  params->deselect_all = RNA_boolean_get(ptr, "deselect_all");
-  params->select_passthrough = RNA_boolean_get(ptr, "select_passthrough");
+  SelectPick_Params params = {};
+  params.sel_op = ED_select_op_from_operator(ptr);
+  params.deselect_all = RNA_boolean_get(ptr, "deselect_all");
+  params.select_passthrough = RNA_boolean_get(ptr, "select_passthrough");
+  return params;
 }
 
 /* -------------------------------------------------------------------- */
@@ -164,8 +165,7 @@ std::string ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
   PropertyRNA *prop = RNA_struct_find_property(ptr, "enumerate");
   const bool enumerate = (prop && RNA_property_boolean_get(ptr, prop));
 
-  SelectPick_Params params = {eSelectOp(0)};
-  ED_select_pick_params_from_operator(ptr, &params);
+  const SelectPick_Params params = ED_select_pick_params_from_operator(ptr);
   switch (params.sel_op) {
     case SEL_OP_ADD:
       if (enumerate) {

@@ -13,6 +13,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -40,7 +41,7 @@ static SpaceLink *console_create(const ScrArea * /*area*/, const Scene * /*scene
   ARegion *region;
   SpaceConsole *sconsole;
 
-  sconsole = static_cast<SpaceConsole *>(MEM_callocN(sizeof(SpaceConsole), "initconsole"));
+  sconsole = MEM_callocN<SpaceConsole>("initconsole");
   sconsole->spacetype = SPACE_CONSOLE;
 
   sconsole->lheight = 14;
@@ -110,7 +111,8 @@ static void console_main_region_init(wmWindowManager *wm, ARegion *region)
 
   const float prev_y_min = region->v2d.cur.ymin; /* so re-sizing keeps the cursor visible */
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(
+      &region->v2d, blender::ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* always keep the bottom part of the view aligned, less annoying */
   if (prev_y_min != region->v2d.cur.ymin) {
@@ -120,11 +122,12 @@ static void console_main_region_init(wmWindowManager *wm, ARegion *region)
   }
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Console", SPACE_CONSOLE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Console", SPACE_CONSOLE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* Include after "Console" so cursor motion keys such as "Home" isn't overridden. */
-  keymap = WM_keymap_ensure(wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   /* add drop boxes */
@@ -137,8 +140,8 @@ static void console_main_region_init(wmWindowManager *wm, ARegion *region)
 static void console_cursor(wmWindow *win, ScrArea * /*area*/, ARegion *region)
 {
   int wmcursor = WM_CURSOR_TEXT_EDIT;
-  const wmEvent *event = win->eventstate;
-  if (UI_view2d_mouse_in_scrollers(region, &region->v2d, event->xy)) {
+  const wmEvent *event = win->runtime->eventstate;
+  if (blender::ui::view2d_mouse_in_scrollers(region, &region->v2d, event->xy)) {
     wmcursor = WM_CURSOR_DEFAULT;
   }
 
@@ -213,15 +216,18 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   if (BLI_listbase_is_empty(&sc->scrollback)) {
-    WM_operator_name_call(
-        (bContext *)C, "CONSOLE_OT_banner", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call((bContext *)C,
+                          "CONSOLE_OT_banner",
+                          blender::wm::OpCallContext::ExecDefault,
+                          nullptr,
+                          nullptr);
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* Works best with no view2d matrix set. */
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* data... */
 
@@ -229,10 +235,10 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   console_textview_main(sc, region);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  blender::ui::view2d_scrollers_draw(v2d, nullptr);
 }
 
 static void console_operatortypes()
@@ -346,7 +352,7 @@ void ED_spacetype_console()
   ARegionType *art;
 
   st->spaceid = SPACE_CONSOLE;
-  STRNCPY(st->name, "Console");
+  STRNCPY_UTF8(st->name, "Console");
 
   st->create = console_create;
   st->free = console_free;
@@ -359,7 +365,7 @@ void ED_spacetype_console()
   st->blend_write = console_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype console region"));
+  art = MEM_callocN<ARegionType>("spacetype console region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
 
@@ -372,7 +378,7 @@ void ED_spacetype_console()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype console region"));
+  art = MEM_callocN<ARegionType>("spacetype console region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;

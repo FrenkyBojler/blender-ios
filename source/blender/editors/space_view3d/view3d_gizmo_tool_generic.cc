@@ -67,8 +67,8 @@ static wmGizmo *tool_generic_create_gizmo(const bContext *C, wmGizmoGroup *gzgro
   wmGizmo *gz = WM_gizmo_new("GIZMO_GT_button_2d", gzgroup, nullptr);
   gz->flag |= WM_GIZMO_OPERATOR_TOOL_INIT;
 
-  UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-  UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
   unit_m4(gz->matrix_offset);
 
@@ -107,7 +107,7 @@ static wmGizmo *tool_generic_create_gizmo(const bContext *C, wmGizmoGroup *gzgro
   }
 
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmKeyConfig *kc = wm->defaultconf;
+  wmKeyConfig *kc = wm->runtime->defaultconf;
 
   gz->keymap = WM_keymap_ensure(kc, tref->runtime->keymap, tref->space_type, RGN_TYPE_WINDOW);
   return gz;
@@ -115,8 +115,7 @@ static wmGizmo *tool_generic_create_gizmo(const bContext *C, wmGizmoGroup *gzgro
 
 static void WIDGETGROUP_tool_generic_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  wmGizmoWrapper *wwrapper = static_cast<wmGizmoWrapper *>(
-      MEM_mallocN(sizeof(wmGizmoWrapper), __func__));
+  wmGizmoWrapper *wwrapper = MEM_mallocN<wmGizmoWrapper>(__func__);
   wwrapper->gizmo = tool_generic_create_gizmo(C, gzgroup);
   gzgroup->customdata = wwrapper;
 

@@ -38,7 +38,7 @@ set(OSL_EXTRA_ARGS
   -DLINKSTATIC=OFF
   -DOSL_BUILD_PLUGINS=OFF
   -DSTOP_ON_WARNING=OFF
-  -DUSE_LLVM_BITCODE=OFF
+  -DUSE_LLVM_BITCODE=ON
   -DLLVM_ROOT=${LIBDIR}/llvm/
   -DLLVM_STATIC=ON
   -DUSE_PARTIO=OFF
@@ -55,8 +55,18 @@ set(OSL_EXTRA_ARGS
   -Dlibdeflate_DIR=${LIBDIR}/deflate/lib/cmake/libdeflate
 )
 
-if(NOT APPLE)
-  list(APPEND OSL_EXTRA_ARGS -DOSL_USE_OPTIX=ON -DCUDA_TARGET_ARCH=sm_50)
+if(NOT (APPLE OR BLENDER_PLATFORM_WINDOWS_ARM))
+  list(APPEND OSL_EXTRA_ARGS
+    -DOSL_USE_OPTIX=ON
+    -DCUDA_TARGET_ARCH=sm_50
+    -DCUDA_TOOLKIT_ROOT_DIR=${CUDAToolkit_ROOT}
+  )
+endif()
+if(WIN32)
+  # Needed to make Clang compile CUDA code with VS2019
+  list(APPEND OSL_EXTRA_ARGS
+    -DLLVM_COMPILE_FLAGS=-D__CUDACC_VER_MAJOR__=${CUDAToolkit_VERSION_MAJOR}
+  )
 endif()
 
 ExternalProject_Add(external_osl
@@ -67,9 +77,16 @@ ExternalProject_Add(external_osl
   URL_HASH ${OSL_HASH_TYPE}=${OSL_HASH}
   PREFIX ${BUILD_DIR}/osl
 
-  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
-    ${BUILD_DIR}/osl/src/external_osl <
-    ${PATCH_DIR}/osl.diff
+  PATCH_COMMAND
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/osl/src/external_osl <
+      ${PATCH_DIR}/osl.diff &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/osl/src/external_osl <
+      ${PATCH_DIR}/osl_ptx_version.diff &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/osl/src/external_osl <
+      ${PATCH_DIR}/osl_supports_isa_thread.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/osl

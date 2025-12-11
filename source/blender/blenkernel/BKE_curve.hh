@@ -17,6 +17,7 @@
 #include "BLI_span.hh"
 #include "BLI_sys_types.h"
 
+#include "DNA_curve_types.h"
 #include "DNA_listBase.h"
 
 struct BezTriple;
@@ -98,8 +99,7 @@ enum eNurbHandleTest_Mode {
 void BKE_curve_editfont_free(Curve *cu);
 void BKE_curve_init(Curve *cu, short curve_type);
 Curve *BKE_curve_add(Main *bmain, const char *name, int type);
-short BKE_curve_type_get(const Curve *cu);
-void BKE_curve_type_test(Object *ob);
+void BKE_curve_type_test(Object *ob, bool dimension_update);
 void BKE_curve_dimension_update(Curve *cu);
 
 void BKE_curve_texspace_calc(Curve *cu);
@@ -161,8 +161,8 @@ blender::Array<blender::float3> BKE_curve_nurbs_key_vert_coords_alloc(const List
                                                                       const float *key);
 void BKE_curve_nurbs_key_vert_tilts_apply(ListBase *lb, const float *key);
 
-void BKE_curve_editNurb_keyIndex_delCV(GHash *keyindex, const void *cv);
-void BKE_curve_editNurb_keyIndex_free(GHash **keyindex);
+void BKE_curve_editNurb_keyIndex_delCV(CVKeyIndexMap *keyindex, const void *cv);
+void BKE_curve_editNurb_keyIndex_free(CVKeyIndexMap **keyindex);
 void BKE_curve_editNurb_free(Curve *cu);
 /**
  * Get list of nurbs from edit-nurbs structure.
@@ -270,7 +270,7 @@ void BKE_curve_calc_coords_axis(const BezTriple *bezt_array,
                                 unsigned int axis,
                                 unsigned int stride,
                                 float *r_points);
-
+void BKE_nurb_knot_alloc_u(Nurb *nu);
 void BKE_nurb_knot_calc_u(Nurb *nu);
 void BKE_nurb_knot_calc_v(Nurb *nu);
 

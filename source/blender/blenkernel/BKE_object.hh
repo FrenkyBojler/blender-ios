@@ -13,6 +13,7 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
@@ -28,7 +29,6 @@ struct Depsgraph;
 struct HookGpencilModifierData;
 struct HookModifierData;
 struct ID;
-struct KDTree_3d;
 struct KeyBlock;
 struct Lattice;
 struct LinkNode;
@@ -45,6 +45,10 @@ struct Scene;
 struct SubsurfModifierData;
 struct View3D;
 struct ViewLayer;
+
+namespace blender {
+template<int DimsNum> struct KDTree;
+}  // namespace blender
 
 void BKE_object_workob_clear(Object *workob);
 /**
@@ -218,16 +222,23 @@ bool BKE_object_obdata_is_libdata(const Object *ob);
  *
  * \param dupflag: Controls which sub-data are also duplicated
  * (see #eDupli_ID_Flags in DNA_userdef_types.h).
+ * \param duplicate_options: Additional context information about current duplicate call (e.g. if
+ * it's part of a higher-level duplication or not, etc.). (see #eLibIDDuplicateFlags in
+ * BKE_lib_id.hh).
  *
- * \note This function does not do any remapping to new IDs, caller must do it
- * (\a #BKE_libblock_relink_to_newid()).
- * \note Caller MUST free \a newid pointers itself (#BKE_main_id_newptr_and_tag_clear()) and call
- * updates of DEG too (#DAG_relations_tag_update()).
+ * \warning By default, this functions will clear all \a bmain #ID.idnew pointers
+ * (#BKE_main_id_newptr_and_tag_clear), and take care of post-duplication updates like remapping to
+ * new IDs (#BKE_libblock_relink_to_newid).
+ * If \a #LIB_ID_DUPLICATE_IS_SUBPROCESS duplicate option is passed on (typically when duplication
+ * is called recursively from another parent duplication operation), the caller is responsible to
+ * handle all of these operations.
+ *
+ * \note Caller MUST handle updates of the depsgraph (#DAG_relations_tag_update).
  */
 Object *BKE_object_duplicate(Main *bmain,
                              Object *ob,
                              eDupli_ID_Flags dupflag,
-                             uint duplicate_options);
+                             /*eLibIDDuplicateFlags*/ uint duplicate_options);
 
 /**
  * Use with newly created objects to set their size (used to apply scene-scale).
@@ -328,14 +339,6 @@ void BKE_object_where_is_calc_time(Depsgraph *depsgraph, Scene *scene, Object *o
  */
 void BKE_object_where_is_calc_mat4(const Object *ob, float r_obmat[4][4]);
 
-/* Possibly belong in its own module? */
-
-void BKE_boundbox_init_from_minmax(BoundBox *bb, const float min[3], const float max[3]);
-void BKE_boundbox_minmax(const BoundBox &bb,
-                         const blender::float4x4 &matrix,
-                         blender::float3 &r_min,
-                         blender::float3 &r_max);
-
 /**
  * Retrieve the bounds of the object's evaluated geometry. This is important because it includes
  * all geometry component types created during evaluation rather than just #Object::data. This
@@ -398,7 +401,7 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
  * Calculate visual bounds from an empty objects draw-type.
  *
  * \note This is not part of the calculation used by #BKE_object_boundbox_get
- * as these bounds represent the extents of visual guides (use for viewport culling for e.g.)
+ * as these bounds represent the extents of visual guides (use for viewport culling for example)
  */
 bool BKE_object_minmax_empty_drawtype(const Object *ob, float r_min[3], float r_max[3]);
 
@@ -455,7 +458,7 @@ void BKE_object_eval_transform_final(Depsgraph *depsgraph, Object *ob);
 void BKE_object_eval_uber_transform(Depsgraph *depsgraph, Object *object);
 void BKE_object_eval_uber_data(Depsgraph *depsgraph, Scene *scene, Object *ob);
 
-void BKE_object_eval_shading(Depsgraph *depsgraph, Object *ob);
+void BKE_object_eval_shading(Depsgraph *depsgraph, Object *object);
 
 void BKE_object_eval_light_linking(Depsgraph *depsgraph, Object *object);
 
@@ -641,7 +644,7 @@ LinkNode *BKE_object_groups(Main *bmain, Scene *scene, Object *ob);
 void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *object);
 
 /**
- * Return a KDTree_3d from the deformed object (in world-space).
+ * Return a KDTree<3> from the deformed object (in world-space).
  *
  * \note Only mesh objects currently support deforming, others are TODO.
  *
@@ -649,19 +652,39 @@ void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *object);
  * \param r_tot:
  * \return The KD-tree or nullptr if it can't be created.
  */
-KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot);
+blender::KDTree<3> *BKE_object_as_kdtree(Object *ob, int *r_tot);
+
+/**
+ * The number of times to recurse parents for evaluation.
+ *
+ * NOTE(@ideasman42): This value was picked to avoid infinite recursion.
+ * 5 is arbitrary but changing it would change behavior in some corner cases.
+ * See code comments in #BKE_object_modifier_update_subframe_only_callback for details.
+ */
+#define OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT 5
 
 /**
  * \note this function should eventually be replaced by depsgraph functionality.
  * Avoid calling this in new code unless there is a very good reason for it!
  */
-bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
+void BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
                                          Scene *scene,
                                          Object *ob,
                                          bool update_mesh,
-                                         int parent_recursion,
+                                         int parent_recursion_limit,
                                          float frame,
-                                         int type);
+                                         int /*ModifierType*/ modifier_type);
+
+/**
+ * Call `update_or_tag_fn` on all objects which #BKE_object_modifier_update_subframe would update.
+ * Used by the depsgraph to setup relations.
+ */
+void BKE_object_modifier_update_subframe_only_callback(
+    Object *ob,
+    bool update_mesh,
+    int parent_recursion_limit,
+    int /*ModifierType*/ modifier_type,
+    blender::FunctionRef<void(Object *object, bool update_mesh)> update_or_tag_fn);
 
 bool BKE_object_empty_image_frame_is_visible_in_view3d(const Object *ob, const RegionView3D *rv3d);
 bool BKE_object_empty_image_data_is_visible_in_view3d(const Object *ob, const RegionView3D *rv3d);

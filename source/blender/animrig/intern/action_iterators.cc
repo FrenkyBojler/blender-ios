@@ -16,6 +16,7 @@
 #include "BKE_nla.hh"
 
 #include "DNA_constraint_types.h"
+#include "DNA_object_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -24,13 +25,6 @@ namespace blender::animrig {
 
 void foreach_fcurve_in_action(Action &action, FunctionRef<void(FCurve &fcurve)> callback)
 {
-  if (action.is_action_legacy()) {
-    LISTBASE_FOREACH (FCurve *, fcurve, &action.curves) {
-      callback(*fcurve);
-    }
-    return;
-  }
-
   for (Layer *layer : action.layers()) {
     for (Strip *strip : layer->strips()) {
       if (strip->type() != Strip::Type::Keyframe) {
@@ -49,25 +43,18 @@ void foreach_fcurve_in_action_slot(Action &action,
                                    slot_handle_t handle,
                                    FunctionRef<void(FCurve &fcurve)> callback)
 {
-  if (action.is_action_legacy()) {
-    LISTBASE_FOREACH (FCurve *, fcurve, &action.curves) {
-      callback(*fcurve);
-    }
-  }
-  else if (action.is_action_layered()) {
-    for (Layer *layer : action.layers()) {
-      for (Strip *strip : layer->strips()) {
-        if (strip->type() != Strip::Type::Keyframe) {
+  for (Layer *layer : action.layers()) {
+    for (Strip *strip : layer->strips()) {
+      if (strip->type() != Strip::Type::Keyframe) {
+        continue;
+      }
+      for (Channelbag *bag : strip->data<StripKeyframeData>(action).channelbags()) {
+        if (bag->slot_handle != handle) {
           continue;
         }
-        for (Channelbag *bag : strip->data<StripKeyframeData>(action).channelbags()) {
-          if (bag->slot_handle != handle) {
-            continue;
-          }
-          for (FCurve *fcu : bag->fcurves()) {
-            BLI_assert(fcu != nullptr);
-            callback(*fcu);
-          }
+        for (FCurve *fcu : bag->fcurves()) {
+          BLI_assert(fcu != nullptr);
+          callback(*fcu);
         }
       }
     }
@@ -174,8 +161,6 @@ bool foreach_action_slot_use_with_references(
   return true;
 }
 
-/* This function has to copy the logic of foreach_action_slot_use_with_references(), as it needs to
- * know where exactly those pointers came from. */
 bool foreach_action_slot_use_with_rna(ID &animated_id,
                                       FunctionRef<bool(ID &animated_id,
                                                        bAction *action,
@@ -183,6 +168,9 @@ bool foreach_action_slot_use_with_rna(ID &animated_id,
                                                        PropertyRNA &action_slot_prop,
                                                        char *last_slot_identifier)> callback)
 {
+  /* This function has to copy the logic of #foreach_action_slot_use_with_references(),
+   * as it needs to know where exactly those pointers came from. */
+
   AnimData *adt = BKE_animdata_from_id(&animated_id);
 
   if (adt) {

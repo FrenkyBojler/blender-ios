@@ -11,7 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -38,7 +38,7 @@ static SpaceLink *info_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   ARegion *region;
   SpaceInfo *sinfo;
 
-  sinfo = static_cast<SpaceInfo *>(MEM_callocN(sizeof(SpaceInfo), "initinfo"));
+  sinfo = MEM_callocN<SpaceInfo>("initinfo");
   sinfo->spacetype = SPACE_INFO;
 
   sinfo->rpt_mask = INFO_RPT_OP;
@@ -93,10 +93,11 @@ static void info_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(
+      &region->v2d, blender::ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Info", SPACE_INFO, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Info", SPACE_INFO, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -105,7 +106,7 @@ static void info_textview_update_rect(const bContext *C, ARegion *region)
   SpaceInfo *sinfo = CTX_wm_space_info(C);
   View2D *v2d = &region->v2d;
 
-  UI_view2d_totRect_set(
+  blender::ui::view2d_totRect_set(
       v2d, region->winx - 1, info_textview_height(sinfo, region, CTX_wm_reports(C)));
 }
 
@@ -116,7 +117,7 @@ static void info_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* quick way to avoid drawing if not bug enough */
   if (region->winy < 16) {
@@ -126,15 +127,15 @@ static void info_main_region_draw(const bContext *C, ARegion *region)
   info_textview_update_rect(C, region);
 
   /* Works best with no view2d matrix set. */
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   info_textview_main(sinfo, region, CTX_wm_reports(C));
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  blender::ui::view2d_scrollers_draw(v2d, nullptr);
 }
 
 static void info_operatortypes()
@@ -255,7 +256,7 @@ void ED_spacetype_info()
   ARegionType *art;
 
   st->spaceid = SPACE_INFO;
-  STRNCPY(st->name, "Info");
+  STRNCPY_UTF8(st->name, "Info");
 
   st->create = info_create;
   st->free = info_free;
@@ -266,7 +267,7 @@ void ED_spacetype_info()
   st->blend_write = info_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype info region"));
+  art = MEM_callocN<ARegionType>("spacetype info region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
 
@@ -277,7 +278,7 @@ void ED_spacetype_info()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype info region"));
+  art = MEM_callocN<ARegionType>("spacetype info region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
 

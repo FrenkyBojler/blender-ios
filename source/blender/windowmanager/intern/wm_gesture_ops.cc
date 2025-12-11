@@ -260,10 +260,11 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
       }
 #endif
 
-#if 0 /* This allows view navigation, keep disabled as it's too unpredictable. */
       default:
+#if 0 /* This allows view navigation, keep disabled as it's too unpredictable. */
         return OPERATOR_PASS_THROUGH;
 #endif
+        break;
     }
   }
 
@@ -582,7 +583,7 @@ wmOperatorStatus WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEve
         }
 
         {
-          float(*lasso)[2] = static_cast<float(*)[2]>(gesture->customdata);
+          float (*lasso)[2] = static_cast<float (*)[2]>(gesture->customdata);
           const float2 current_mouse_position = float2(gesture->mval);
           const float2 last_position(lasso[gesture->points - 1][0], lasso[gesture->points - 1][1]);
 
@@ -627,6 +628,9 @@ wmOperatorStatus WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEve
       case EVT_ESCKEY: {
         gesture_modal_end(C, op);
         return OPERATOR_CANCELLED;
+      }
+      default: {
+        break;
       }
     }
   }
@@ -752,7 +756,7 @@ static int gesture_polyline_valid_points(const wmGesture &wmGesture, const bool 
     return num_points;
   }
 
-  short(*points)[2] = static_cast<short int(*)[2]>(wmGesture.customdata);
+  short (*points)[2] = static_cast<short int (*)[2]>(wmGesture.customdata);
 
   const short prev_x = points[num_points - 1][0];
   const short prev_y = points[num_points - 1][1];
@@ -830,7 +834,7 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wm
         break;
       case GESTURE_MODAL_SELECT: {
         wm_gesture_tag_redraw(CTX_wm_window(C));
-        short(*border)[2] = static_cast<short int(*)[2]>(gesture->customdata);
+        short (*border)[2] = static_cast<short int (*)[2]>(gesture->customdata);
         const short prev_x = border[gesture->points - 1][0];
         const short prev_y = border[gesture->points - 1][1];
 
@@ -876,7 +880,7 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wm
           gesture->customdata = MEM_reallocN(gesture->customdata,
                                              sizeof(short[2]) * gesture->points_alloc);
         }
-        short(*border)[2] = static_cast<short int(*)[2]>(gesture->customdata);
+        short (*border)[2] = static_cast<short int (*)[2]>(gesture->customdata);
 
         /* move the lasso */
         if (gesture->move) {
@@ -888,6 +892,9 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wm
             border[i][1] += dy;
           }
         }
+        break;
+      }
+      default: {
         break;
       }
     }
@@ -1144,6 +1151,9 @@ wmOperatorStatus WM_gesture_straightline_modal(bContext *C, wmOperator *op, cons
 
         break;
       }
+      default: {
+        break;
+      }
     }
   }
 
@@ -1230,6 +1240,9 @@ wmOperatorStatus WM_gesture_straightline_oneshot_modal(bContext *C,
 
         wm_gesture_tag_redraw(win);
 
+        break;
+      }
+      default: {
         break;
       }
     }

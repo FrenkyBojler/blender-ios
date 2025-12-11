@@ -7,11 +7,12 @@
 
 #include "BKE_texture.h"
 
+#include "BLI_math_constants.h"
 #include "BLI_math_vector.hh"
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_gradient_cc {
@@ -19,14 +20,15 @@ namespace blender::nodes::node_shader_tex_gradient_cc {
 static void sh_node_tex_gradient_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Vector").hide_value().implicit_field(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Vector").hide_value().implicit_field(
+      NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_output<decl::Color>("Color").no_muted_links();
-  b.add_output<decl::Float>("Fac").no_muted_links();
+  b.add_output<decl::Float>("Factor", "Fac").no_muted_links();
 }
 
-static void node_shader_buts_tex_gradient(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_tex_gradient(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "gradient_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "gradient_type", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_tex_gradient(bNodeTree * /*ntree*/, bNode *node)
@@ -83,13 +85,14 @@ class GradientFunction : public mf::MultiFunction {
 
     switch (gradient_type_) {
       case SHD_BLEND_LINEAR: {
-        mask.foreach_index([&](const int64_t i) { fac[i] = vector[i].x; });
+        mask.foreach_index(
+            [&](const int64_t i) { fac[i] = math::clamp(vector[i].x, 0.0f, 1.0f); });
         break;
       }
       case SHD_BLEND_QUADRATIC: {
         mask.foreach_index([&](const int64_t i) {
           const float r = std::max(vector[i].x, 0.0f);
-          fac[i] = r * r;
+          fac[i] = math::clamp(r * r, 0.0f, 1.0f);
         });
         break;
       }
@@ -102,7 +105,10 @@ class GradientFunction : public mf::MultiFunction {
         break;
       }
       case SHD_BLEND_DIAGONAL: {
-        mask.foreach_index([&](const int64_t i) { fac[i] = (vector[i].x + vector[i].y) * 0.5f; });
+        mask.foreach_index([&](const int64_t i) {
+          fac[i] = (vector[i].x + vector[i].y) * 0.5f;
+          fac[i] = math::clamp(fac[i], 0.0f, 1.0f);
+        });
         break;
       }
       case SHD_BLEND_RADIAL: {

@@ -16,7 +16,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 
 #include "BKE_colortools.hh"
@@ -25,6 +25,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
 #include "RNA_access.hh"
@@ -75,13 +76,18 @@ static void image_scopes_tag_refresh(ScrArea *area)
 static void image_user_refresh_scene(const bContext *C, SpaceImage *sima)
 {
   /* Update scene image user for acquiring render results. */
-  sima->iuser.scene = CTX_data_scene(C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  sima->iuser.scene = (sima->iuser.flag & IMA_SHOW_SEQUENCER_SCENE) && sequencer_scene ?
+                          sequencer_scene :
+                          CTX_data_scene(C);
 
   if (sima->image && sima->image->type == IMA_TYPE_R_RESULT) {
     /* While rendering, prefer scene that is being rendered. */
     Scene *render_scene = ED_render_job_get_current_scene(C);
     if (render_scene) {
       sima->iuser.scene = render_scene;
+      SET_FLAG_FROM_TEST(
+          sima->iuser.flag, render_scene == CTX_data_sequencer_scene(C), IMA_SHOW_SEQUENCER_SCENE);
     }
   }
 
@@ -96,14 +102,17 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   ARegion *region;
   SpaceImage *simage;
 
-  simage = static_cast<SpaceImage *>(MEM_callocN(sizeof(SpaceImage), "initimage"));
+  simage = MEM_callocN<SpaceImage>("initimage");
   simage->spacetype = SPACE_IMAGE;
   simage->zoom = 1.0f;
   simage->lock = true;
   simage->flag = SI_SHOW_GPENCIL | SI_USE_ALPHA | SI_COORDFLOATS;
   simage->uv_opacity = 1.0f;
+  simage->uv_face_opacity = 1.0f;
+  simage->uv_edge_opacity = 1.0f;
   simage->stretch_opacity = 1.0f;
   simage->overlay.flag = SI_OVERLAY_SHOW_OVERLAYS | SI_OVERLAY_SHOW_GRID_BACKGROUND;
+  simage->overlay.passepartout_alpha = 0.5f;
 
   BKE_imageuser_default(&simage->iuser);
   simage->iuser.flag = IMA_SHOW_STEREO | IMA_ANIM_ALWAYS;
@@ -280,10 +289,10 @@ static void image_refresh(const bContext *C, ScrArea *area)
 
   /* Check if we have to set the image from the edit-mesh. */
   if (ima && (ima->source == IMA_SRC_VIEWER && sima->mode == SI_MODE_MASK)) {
-    if (scene->nodetree) {
+    if (scene->compositing_node_group) {
       Mask *mask = ED_space_image_get_mask(sima);
       if (mask) {
-        ED_node_composite_job(C, scene->nodetree, scene);
+        ED_node_composite_job(C, scene->compositing_node_group, scene);
       }
     }
   }
@@ -308,6 +317,10 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
         case ND_FRAME:
           image_scopes_tag_refresh(area);
           ED_area_tag_refresh(area);
+          ED_area_tag_redraw(area);
+          break;
+        case ND_OB_ACTIVE:
+        case ND_OB_SELECT:
           ED_area_tag_redraw(area);
           break;
         case ND_MODE:
@@ -397,8 +410,16 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
           /* \note With a geometry nodes modifier, the UVs on `ob` can change in response to
            * any change on `wmn->reference`. If we could track the upstream dependencies,
            * unnecessary redraws could be reduced. Until then, just redraw. See #98594. */
-          if (ob && (ob->mode & OB_MODE_EDIT)) {
-            if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
+          if (ob && (ob->mode & OB_MODE_EDIT) && sima->mode == SI_MODE_UV) {
+            if (sima->lock && ((sima->flag & SI_DRAWSHADOW) || (sima->flag & SI_DRAW_STRETCH))) {
+              ED_area_tag_refresh(area);
+              ED_area_tag_redraw(area);
+            }
+          }
+          else if (ob) {
+            if (sima->lock && !(sima->flag & SI_NO_DRAW_UV_GUIDE) &&
+                ELEM(sima->mode, SI_MODE_PAINT, SI_MODE_UV))
+            {
               ED_area_tag_refresh(area);
               ED_area_tag_redraw(area);
             }
@@ -508,7 +529,7 @@ static void IMAGE_GGT_gizmo2d_rotate(wmGizmoGroupType *gzgt)
 
 static void IMAGE_GGT_navigate(wmGizmoGroupType *gzgt)
 {
-  VIEW2D_GGT_navigate_impl(gzgt, "IMAGE_GGT_navigate");
+  blender::ui::VIEW2D_GGT_navigate_impl(gzgt, "IMAGE_GGT_navigate");
 }
 
 static void image_widgets()
@@ -586,30 +607,32 @@ static void image_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  /* NOTE: don't use `UI_view2d_region_reinit(&region->v2d, ...)`
+  /* NOTE: don't use `view2d_region_reinit(&region->v2d, ...)`
    * since the space clip manages own v2d in #image_main_region_set_view2d */
 
   /* mask polls mode */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* image paint polls for mode */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Paint Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Paint Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Image Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "UV Editor", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "UV Editor", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   /* own keymaps */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -623,7 +646,19 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
   Image *image = ED_space_image(sima);
+  /* Typically a render result or viewer image from the compositor. */
   const bool show_viewer = (image && image->source == IMA_SRC_VIEWER);
+  const bool show_compositor_viewer = show_viewer && image->type == IMA_TYPE_COMPOSITE;
+
+  /* Text info and render region are only relevant for the compositor. */
+  const bool show_text_info = show_compositor_viewer &&
+                              (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
+                               sima->overlay.flag & SI_OVERLAY_DRAW_TEXT_INFO &&
+                               ELEM(sima->mode, SI_MODE_MASK, SI_MODE_VIEW));
+  const bool show_render_region = show_compositor_viewer &&
+                                  (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
+                                   sima->overlay.flag & SI_OVERLAY_DRAW_RENDER_REGION &&
+                                   ELEM(sima->mode, SI_MODE_MASK, SI_MODE_VIEW));
 
   /* XXX not supported yet, disabling for now */
   scene->r.scemode &= ~R_COMP_CROP;
@@ -646,14 +681,36 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     BLI_thread_unlock(LOCK_DRAW_IMAGE);
   }
 
+  if (show_render_region) {
+    int render_size_x, render_size_y;
+
+    BKE_render_resolution(&scene->r, true, &render_size_x, &render_size_y);
+
+    float zoomx, zoomy;
+    ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
+    int width, height;
+    ED_space_image_get_size(sima, &width, &height);
+    int center_x = width / 2;
+    int center_y = height / 2;
+
+    int x, y;
+    rcti render_region;
+    BLI_rcti_init(
+        &render_region, center_x, render_size_x + center_x, center_y, render_size_y + center_y);
+    blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
+
+    ED_region_image_render_region_draw(
+        x, y, &render_region, zoomx, zoomy, sima->overlay.passepartout_alpha);
+  }
+
   draw_image_main_helpers(C, region);
 
   /* Draw Meta data of the image isn't added to the DrawManager as it is
    * used in other areas as well. */
   if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS && sima->flag & SI_DRAW_METADATA) {
     void *lock;
-    /* `ED_space_image_get_zoom` temporarily locks the image, so this needs to be done before
-     * the image is locked when calling `ED_space_image_acquire_buffer`. */
+    /* #ED_space_image_get_zoom temporarily locks the image, so this needs to be done before
+     * the image is locked when calling #ED_space_image_acquire_buffer. */
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
@@ -661,16 +718,33 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
       int x, y;
       rctf frame;
       BLI_rctf_init(&frame, 0.0f, ibuf->x, 0.0f, ibuf->y);
-      UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
+      blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
       ED_region_image_metadata_draw(x, y, ibuf, &frame, zoomx, zoomy);
     }
     ED_space_image_release_buffer(sima, ibuf, lock);
   }
 
+  if (show_text_info) {
+
+    int render_size_x, render_size_y;
+    BKE_render_resolution(&scene->r, true, &render_size_x, &render_size_y);
+
+    /* Use same positioning convention as in 3D View. */
+    const rcti *rect = ED_region_visible_rect(region);
+    int xoffset = rect->xmin + (0.5f * U.widget_unit);
+    int yoffset = rect->ymax - (0.1f * U.widget_unit);
+
+    int viewer_size_x, viewer_size_y;
+    ED_space_image_get_size(sima, &viewer_size_x, &viewer_size_y);
+
+    ED_region_image_overlay_info_text_draw(
+        render_size_x, render_size_y, viewer_size_x, viewer_size_y, xoffset, yoffset);
+  }
+
   /* sample line */
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
   draw_image_sample_line(sima);
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   if (mask) {
     int width, height;
@@ -693,9 +767,10 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     ED_mask_draw_region(depsgraph,
                         mask,
                         region, /* Mask overlay is drawn by image/overlay engine. */
-                        sima->mask_info.draw_flag & ~MASK_DRAWFLAG_OVERLAY,
-                        sima->mask_info.draw_type,
-                        eMaskOverlayMode(sima->mask_info.overlay_mode),
+                        sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS,
+                        MaskDrawFlag(sima->mask_info.draw_flag & ~MASK_DRAWFLAG_OVERLAY),
+                        MaskDrawType(sima->mask_info.draw_type),
+                        MaskOverlayMode(sima->mask_info.overlay_mode),
                         sima->mask_info.blend_factor,
                         width,
                         height,
@@ -739,11 +814,21 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       }
       WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
       break;
+    case NC_MASK:
+      if (wmn->action == NA_EDITED) {
+        WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+      }
+      else if (ELEM(wmn->data, ND_DATA, ND_SELECT)) {
+        WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+      }
+      break;
     case NC_MATERIAL:
       if (wmn->data == ND_SHADING_LINKS) {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
-        if (sima->iuser.scene && (sima->iuser.scene->toolsettings->uv_flag & UV_SHOW_SAME_IMAGE)) {
+        if (sima->iuser.scene &&
+            (sima->iuser.scene->toolsettings->uv_flag & UV_FLAG_SHOW_SAME_IMAGE))
+        {
           ED_region_tag_redraw(region);
         }
       }
@@ -766,7 +851,8 @@ static void image_buttons_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -796,7 +882,7 @@ static void image_buttons_region_layout(const bContext *C, ARegion *region)
   ED_region_panels_layout_ex(C,
                              region,
                              &region->runtime->type->paneltypes,
-                             WM_OP_INVOKE_REGION_WIN,
+                             blender::wm::OpCallContext::InvokeRegionWin,
                              contexts_base,
                              nullptr);
 }
@@ -809,7 +895,7 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
   /* TODO(lukas): Support tiles in scopes? */
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
   /* XXX performance regression if name of scopes category changes! */
-  PanelCategoryStack *category = UI_panel_category_active_find(region, "Scopes");
+  PanelCategoryStack *category = blender::ui::panel_category_active_find(region, "Scopes");
 
   /* only update scopes if scope category is active */
   if (category) {
@@ -885,7 +971,8 @@ static void image_tools_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -945,8 +1032,8 @@ static void image_tools_header_region_draw(const bContext *C, ARegion *region)
       C,
       region,
       (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) ?
-          uiButtonSectionsAlign::Top :
-          uiButtonSectionsAlign::Bottom);
+          blender::ui::ButtonSectionsAlign::Top :
+          blender::ui::ButtonSectionsAlign::Bottom);
 }
 
 /************************* header region **************************/
@@ -1011,7 +1098,7 @@ static void image_asset_shelf_region_init(wmWindowManager *wm, ARegion *region)
 {
   using namespace blender::ed;
   wmKeyMap *keymap = WM_keymap_ensure(
-      wm->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   asset::shelf::region_init(wm, region);
@@ -1140,7 +1227,7 @@ void ED_spacetype_image()
   ARegionType *art;
 
   st->spaceid = SPACE_IMAGE;
-  STRNCPY(st->name, "Image");
+  STRNCPY_UTF8(st->name, "Image");
 
   st->create = image_create;
   st->free = image_free;
@@ -1165,22 +1252,24 @@ void ED_spacetype_image()
   st->blend_write = image_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype image region"));
+  art = MEM_callocN<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_GIZMO | ED_KEYMAP_TOOL | ED_KEYMAP_FRAMES | ED_KEYMAP_GPENCIL;
   art->init = image_main_region_init;
   art->draw = image_main_region_draw;
   art->listener = image_main_region_listener;
+  art->lock = REGION_DRAW_LOCK_BAKING;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons/scopes */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype image region"));
+  art = MEM_callocN<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->listener = image_buttons_region_listener;
   art->message_subscribe = ED_area_do_mgs_subscribe_for_tool_ui;
   art->init = image_buttons_region_init;
+  art->snap_size = ED_region_generic_panel_region_snap_size;
   art->layout = image_buttons_region_layout;
   art->draw = image_buttons_region_draw;
   BLI_addhead(&st->regiontypes, art);
@@ -1189,7 +1278,7 @@ void ED_spacetype_image()
   image_buttons_register(art);
 
   /* regions: tool(bar) */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype image region"));
+  art = MEM_callocN<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_TOOLS;
   art->prefsizex = int(UI_TOOLBAR_WIDTH);
   art->prefsizey = 50; /* XXX */
@@ -1202,8 +1291,7 @@ void ED_spacetype_image()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: tool header */
-  art = static_cast<ARegionType *>(
-      MEM_callocN(sizeof(ARegionType), "spacetype image tool header region"));
+  art = MEM_callocN<ARegionType>("spacetype image tool header region");
   art->regionid = RGN_TYPE_TOOL_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1214,7 +1302,7 @@ void ED_spacetype_image()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype image region"));
+  art = MEM_callocN<ARegionType>("spacetype image region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -1255,7 +1343,7 @@ void ED_spacetype_image()
   asset::shelf::types_register(art, SPACE_IMAGE);
 
   /* regions: hud */
-  art = ED_area_type_hud(st->spaceid);
+  art = blender::ui::ED_area_type_hud(st->spaceid);
   BLI_addhead(&st->regiontypes, art);
 
   BKE_spacetype_register(std::move(st));

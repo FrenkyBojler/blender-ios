@@ -57,7 +57,7 @@ MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(Context &contex
 void MultiFunctionProcedureOperation::execute()
 {
   const Domain domain = compute_domain();
-  const int64_t size = int64_t(domain.size.x) * domain.size.y;
+  const int64_t size = int64_t(domain.data_size.x) * domain.data_size.y;
   const IndexMask mask = IndexMask(size);
   mf::ParamsBuilder parameter_builder{*procedure_executor_, &mask};
 
@@ -140,6 +140,9 @@ void MultiFunctionProcedureOperation::build_procedure()
       procedure_builder_.add_destruct(*variable);
     }
   }
+  for (mf::Variable *variable : implicit_input_to_variable_map_.values()) {
+    procedure_builder_.add_destruct(*variable);
+  }
 
   mf::ReturnInstruction &return_instruction = procedure_builder_.add_return();
   mf::procedure_optimization::move_destructs_up(procedure_, return_instruction);
@@ -154,15 +157,23 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
   for (int i = 0; i < node->input_sockets().size(); i++) {
     const DInputSocket input{node.context(), node->input_sockets()[i]};
 
-    if (!input->is_available()) {
+    if (!is_socket_available(input.bsocket())) {
       continue;
     }
 
-    /* The origin socket is an input, that means the input is unlinked and we generate a constant
-     * variable for it. */
+    /* The origin socket is an input, that means the input is unlinked. */
     const DSocket origin = get_input_origin_socket(input);
     if (origin->is_input()) {
-      input_variables.append(this->get_constant_input_variable(DInputSocket(origin)));
+      const InputDescriptor origin_descriptor = input_descriptor_from_input_socket(
+          origin.bsocket());
+
+      if (origin_descriptor.implicit_input == ImplicitInput::None) {
+        /* No implicit input, so get a constant variable that holds the socket value. */
+        input_variables.append(this->get_constant_input_variable(DInputSocket(origin)));
+      }
+      else {
+        input_variables.append(this->get_implicit_input_variable(input, DInputSocket(origin)));
+      }
     }
     else {
       /* Otherwise, the origin socket is an output, which means it is linked. */
@@ -178,20 +189,6 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
          * variable that represents an input to the multi-function procedure operation is used. */
         input_variables.append(this->get_multi_function_input_variable(input, output));
       }
-    }
-
-    /* We allow multi-functions to use float4 as opposed to ColorSceneLinear4f in their signature
-     * for easier development. Float4 and ColorSceneLinear4f will be implicitly converted to one
-     * another without information loss, so this flexibility is fine. However, float4 conversion to
-     * other types is different than ColorSceneLinear4f conversion to other types, and vice versa.
-     * So we need to manually convert to ColorSceneLinear4f if either the input or the origin are
-     * color sockets for proper implicit conversion later on. */
-    if (get_node_socket_result_type(origin.bsocket()) == ResultType::Color ||
-        get_node_socket_result_type(input.bsocket()) == ResultType::Color)
-    {
-      const mf::DataType expected_type = mf::DataType::ForSingle(
-          CPPType::get<ColorSceneLinear4f<eAlpha::Premultiplied>>());
-      input_variables.last() = this->convert_variable(input_variables.last(), expected_type);
     }
 
     /* Implicitly convert the variable type to the expected parameter type if needed. */
@@ -225,13 +222,43 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
       break;
     }
     case SOCK_VECTOR: {
-      const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
-      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float3>>(value);
+      switch (input->default_value_typed<bNodeSocketValueVector>()->dimensions) {
+        case 2: {
+          const float2 value = float2(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float2>>(value);
+          break;
+        }
+        case 3: {
+          const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float3>>(value);
+          break;
+        }
+        case 4: {
+          const float4 value = float4(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
       break;
     }
     case SOCK_RGBA: {
-      const float4 value = float4(input->default_value_typed<bNodeSocketValueRGBA>()->value);
+      const Color value = Color(input->default_value_typed<bNodeSocketValueRGBA>()->value);
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
+      break;
+    }
+    case SOCK_MENU: {
+      const int32_t value = input->default_value_typed<bNodeSocketValueMenu>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<nodes::MenuValue>>(
+          value);
+      break;
+    }
+    case SOCK_STRING: {
+      const std::string value = input->default_value_typed<bNodeSocketValueString>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<std::string>>(
+          value);
       break;
     }
     default:
@@ -244,11 +271,55 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
   return constant_variable;
 }
 
+mf::Variable *MultiFunctionProcedureOperation::get_implicit_input_variable(
+    const DInputSocket input, const DInputSocket origin)
+{
+  const InputDescriptor origin_descriptor = input_descriptor_from_input_socket(origin.bsocket());
+  const ImplicitInput implicit_input = origin_descriptor.implicit_input;
+
+  /* Inherit the type and implicit input of the origin input since doing implicit conversion inside
+   * the multi-function operation is much cheaper. */
+  InputDescriptor input_descriptor = input_descriptor_from_input_socket(input.bsocket());
+  input_descriptor.type = origin_descriptor.type;
+  input_descriptor.implicit_input = implicit_input;
+
+  /* An input was already declared for that implicit input, so no need to declare it again and we
+   * just return its variable. */
+  if (implicit_input_to_variable_map_.contains(implicit_input)) {
+    /* But first we update the domain priority of the input descriptor to be the higher priority of
+     * the existing descriptor and the descriptor of the new input socket. That's because the same
+     * implicit input might be used in inputs inside the multi-function procedure operation which
+     * have different priorities. */
+    InputDescriptor &existing_input_descriptor = this->get_input_descriptor(
+        implicit_inputs_to_input_identifiers_map_.lookup(implicit_input));
+    existing_input_descriptor.domain_priority = math::min(
+        existing_input_descriptor.domain_priority, input_descriptor.domain_priority);
+
+    return implicit_input_to_variable_map_.lookup(implicit_input);
+  }
+
+  const int implicit_input_index = implicit_inputs_to_input_identifiers_map_.size();
+  const std::string input_identifier = "implicit_input" + std::to_string(implicit_input_index);
+  declare_input_descriptor(input_identifier, input_descriptor);
+
+  /* Map the implicit input to the identifier of the operation input that was declared for it. */
+  implicit_inputs_to_input_identifiers_map_.add_new(implicit_input, input_identifier);
+
+  mf::Variable &variable = procedure_builder_.add_input_parameter(
+      mf::DataType::ForSingle(Result::cpp_type(input_descriptor.type)), input_identifier);
+  parameter_identifiers_.append(input_identifier);
+
+  /* Map the implicit input to the variable that was created for it. */
+  implicit_input_to_variable_map_.add(implicit_input, &variable);
+
+  return &variable;
+}
+
 mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable(
     DInputSocket input_socket, DOutputSocket output_socket)
 {
   /* An input was already declared for that same output socket, so no need to declare it again and
-   * we just return its variable.  */
+   * we just return its variable. */
   if (output_to_variable_map_.contains(output_socket)) {
     /* But first we update the domain priority of the input descriptor to be the higher priority of
      * the existing descriptor and the descriptor of the new input socket. That's because the same
@@ -305,7 +376,7 @@ void MultiFunctionProcedureOperation::assign_output_variables(DNode node,
   for (int i = 0; i < node->output_sockets().size(); i++) {
     const DOutputSocket output{node.context(), node->output_sockets()[i]};
 
-    if (!output->is_available()) {
+    if (!is_socket_available(output.bsocket())) {
       continue;
     }
 
@@ -359,6 +430,7 @@ void MultiFunctionProcedureOperation::populate_operation_result(DOutputSocket ou
 mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *variable,
                                                                 const mf::DataType expected_type)
 {
+  /* Conversion not needed. */
   const mf::DataType variable_type = variable->data_type();
   if (variable_type == expected_type) {
     return variable;
@@ -367,6 +439,16 @@ mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *va
   const bke::DataTypeConversions &conversion_table = bke::get_implicit_type_conversions();
   const mf::MultiFunction *function = conversion_table.get_conversion_multi_function(
       variable_type, expected_type);
+
+  /* Conversion is not possible, return a default variable instead. */
+  if (!function) {
+    const mf::MultiFunction &constant_function =
+        procedure_.construct_function<mf::CustomMF_GenericConstant>(
+            expected_type.single_type(), expected_type.single_type().default_value(), false);
+    mf::Variable *constant_variable = procedure_builder_.add_call<1>(constant_function)[0];
+    implicit_variables_.append(constant_variable);
+    return constant_variable;
+  }
 
   mf::Variable *converted_variable = procedure_builder_.add_call<1>(*function, {variable})[0];
   implicit_variables_.append(converted_variable);

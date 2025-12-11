@@ -15,7 +15,7 @@ namespace blender::nodes::node_geo_image_info_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Image>("Image").hide_label();
+  b.add_input<decl::Image>("Image").optional_label();
   b.add_input<decl::Int>("Frame").min(0).description(
       "Which frame to use for videos. Note that different frames in videos can "
       "have different resolutions");
@@ -32,8 +32,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Image *image = params.get_input<Image *>("Image");
-  const int frame = params.get_input<int>("Frame");
+  Image *image = params.extract_input<Image *>("Image");
+  const int frame = params.extract_input<int>("Frame");
   if (!image) {
     params.set_default_remaining_outputs();
     return;
@@ -41,7 +41,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   ImageUser image_user;
   BKE_imageuser_default(&image_user);
-  image_user.frames = INT_MAX;
+  image_user.frames = std::numeric_limits<int>::max();
   image_user.framenr = BKE_image_is_animated(image) ? frame : 0;
 
   void *lock;

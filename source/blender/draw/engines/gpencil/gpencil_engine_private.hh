@@ -8,10 +8,11 @@
 
 #pragma once
 
-#include "BLI_memblock.h"
-#include "DRW_render.hh"
-
 #include "BLI_bitmap.h"
+#include "BLI_memblock.h"
+
+#include "DNA_shader_fx_types.h"
+#include "DRW_render.hh"
 
 #include "BKE_grease_pencil.hh"
 
@@ -22,9 +23,9 @@
 
 #define GP_LIGHT
 
-#include "gpencil_defines.h"
+#include "gpencil_defines.hh"
 #include "gpencil_shader.hh"
-#include "gpencil_shader_shared.h"
+#include "gpencil_shader_shared.hh"
 
 struct GpencilBatchCache;
 struct Object;
@@ -44,14 +45,14 @@ namespace blender::draw::gpencil {
 
 struct MaterialPool {
   /* Single linked-list. */
-  struct MaterialPool *next;
+  MaterialPool *next;
   /* GPU representation of materials. */
   gpMaterial mat_data[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Matching ubo. */
-  struct GPUUniformBuf *ubo;
+  gpu::UniformBuf *ubo;
   /* Texture per material. NULL means none. */
-  struct GPUTexture *tex_fill[GPENCIL_MATERIAL_BUFFER_LEN];
-  struct GPUTexture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
+  gpu::Texture *tex_fill[GPENCIL_MATERIAL_BUFFER_LEN];
+  gpu::Texture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Number of material used in this pool. */
   int used_count;
 };
@@ -60,7 +61,7 @@ struct LightPool {
   /* GPU representation of materials. */
   gpLight light_data[GPENCIL_LIGHT_BUFFER_LEN];
   /* Matching ubo. */
-  struct GPUUniformBuf *ubo;
+  gpu::UniformBuf *ubo;
   /* Number of light in the pool. */
   int light_used;
 };
@@ -71,7 +72,7 @@ struct tVfx {
   struct tVfx *next = nullptr;
   std::unique_ptr<PassSimple> vfx_ps = std::make_unique<PassSimple>("vfx");
   /* Frame-buffer reference since it may not be allocated yet. */
-  GPUFrameBuffer **target_fb = nullptr;
+  gpu::FrameBuffer **target_fb = nullptr;
 };
 
 /* Temporary gpencil layer reflection used by the gpencil::Instance. */
@@ -123,6 +124,7 @@ struct Instance final : public DrawEngine {
   PassSimple smaa_edge_ps = {"smaa_edge"};
   PassSimple smaa_weight_ps = {"smaa_weight"};
   PassSimple smaa_resolve_ps = {"smaa_resolve"};
+  PassSimple accumulate_ps = {"aa_accumulate"};
   /* Composite the object depth to the default depth buffer to occlude overlays. */
   PassSimple merge_depth_ps = {"merge_depth_ps"};
   /* Invert mask buffer content. */
@@ -140,7 +142,7 @@ struct Instance final : public DrawEngine {
   Texture snapshot_depth_tx = {"snapshot_depth_tx"};
   Texture snapshot_color_tx = {"snapshot_color_tx"};
   Texture snapshot_reveal_tx = {"snapshot_reveal_tx"};
-  /* Textures used by Antialiasing. */
+  /* Textures used by Anti-aliasing. */
   Texture smaa_area_tx = {"smaa_area_tx"};
   Texture smaa_search_tx = {"smaa_search_tx"};
 
@@ -163,6 +165,7 @@ struct Instance final : public DrawEngine {
 
   Framebuffer render_fb = {"render_fb"};
   Framebuffer gpencil_fb = {"gpencil_fb"};
+  Framebuffer gpencil_pass_fb = {"gpencil_pass_fb"};
   Framebuffer snapshot_fb = {"snapshot_fb"};
   Framebuffer layer_fb = {"layer_fb"};
   Framebuffer object_fb = {"object_fb"};
@@ -202,11 +205,17 @@ struct Instance final : public DrawEngine {
   struct {
     tObject *first, *last;
   } tobjects, tobjects_infront;
+  /* Used to record whether the `tobjects` list is sorted. Do not sort drawings again in separate
+   * pass rendering to avoid generating infinite lists. */
+  bool is_sorted;
   /* Pointer to dtxl->depth */
-  GPUTexture *scene_depth_tx;
-  GPUFrameBuffer *scene_fb;
+  gpu::Texture *scene_depth_tx;
+  gpu::FrameBuffer *scene_fb;
+  /* Used for render accumulation antialiasing. */
+  Texture accumulation_tx = {"gp_accumulation_tx"};
+  Framebuffer accumulation_fb = {"gp_accumulation_fb"};
   /* Copy of txl->dummy_tx */
-  GPUTexture *dummy_tx;
+  gpu::Texture *dummy_tx;
   /* Copy of v3d->shading.single_color. */
   float v3d_single_color[3];
   /* Copy of v3d->shading.color_type or -1 to ignore. */
@@ -246,11 +255,12 @@ struct Instance final : public DrawEngine {
   /* Batches containing the temp stroke. */
   gpu::Batch *stroke_batch;
   gpu::Batch *fill_batch;
-  bool do_fast_drawing;
   bool snapshot_buffer_dirty;
 
   /* Display onion skinning */
   bool do_onion;
+  /* Show only the onion skins of the active object. */
+  bool do_onion_only_active_object;
   /* Playing animation */
   bool playing;
   /* simplify settings */
@@ -265,8 +275,11 @@ struct Instance final : public DrawEngine {
   bool use_layer_fb;
   bool use_object_fb;
   bool use_mask_fb;
+  /* If viewport compositor is active, we need to render grease pencil onto another additional
+   * pass. */
+  bool use_separate_pass;
   /* Some blend mode needs to add negative values.
-   * This is only supported if target texture is signed. */
+   * This is only supported if target texture is signed. Only switch for the `reveal_tex`. */
   bool use_signed_fb;
   /* Use only lines for multiedit and not active frame. */
   bool use_multiedit_lines_only;
@@ -313,8 +326,12 @@ struct Instance final : public DrawEngine {
 
   void draw(Manager &manager) final;
 
+  void antialiasing_accumulate(Manager &manager, float alpha);
+
+  static float2 antialiasing_sample_get(int sample_index, int sample_count);
+
  private:
-  tObject *object_sync_do(Object *ob, ResourceHandle res_handle);
+  tObject *object_sync_do(Object *ob, ResourceHandleRange res_handle);
 
   /* Check if the passed in layer is used by any other layer as a mask (in the viewlayer). */
   bool is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil,
@@ -330,11 +347,35 @@ struct Instance final : public DrawEngine {
   void draw_mask(View &view, tObject *ob, tLayer *layer);
   void draw_object(View &view, tObject *ob);
 
-  void fast_draw_start();
-  void fast_draw_end(View &view);
-
   void antialiasing_init();
   void antialiasing_draw(Manager &manager);
+
+  struct VfxFramebufferRef {
+    /* These may not be allocated yet, use address of future pointer. */
+    gpu::FrameBuffer **fb;
+    gpu::Texture **color_tx;
+    gpu::Texture **reveal_tx;
+  };
+
+  SwapChain<VfxFramebufferRef, 2> vfx_swapchain_;
+
+  PassSimple &vfx_pass_create(const char *name,
+                              DRWState state,
+                              gpu::Shader *sh,
+                              tObject *tgp_ob,
+                              GPUSamplerState sampler = GPUSamplerState::internal_sampler());
+
+  void vfx_blur_sync(BlurShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_colorize_sync(ColorizeShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_flip_sync(FlipShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_rim_sync(RimShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_pixelize_sync(PixelShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_shadow_sync(ShadowShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_glow_sync(GlowShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_wave_sync(WaveShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_swirl_sync(SwirlShaderFxData *fx, Object *ob, tObject *tgp_ob);
+
+  void vfx_sync(Object *ob, tObject *tgp_ob);
 
   static void material_pool_free(void *storage)
   {
@@ -384,9 +425,9 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
                                            bool is_vertex_mode);
 void gpencil_material_resources_get(MaterialPool *first_pool,
                                     int mat_id,
-                                    struct GPUTexture **r_tex_stroke,
-                                    struct GPUTexture **r_tex_fill,
-                                    struct GPUUniformBuf **r_ubo_mat);
+                                    gpu::Texture **r_tex_stroke,
+                                    gpu::Texture **r_tex_fill,
+                                    gpu::UniformBuf **r_ubo_mat);
 
 void gpencil_light_ambient_add(LightPool *lightpool, const float color[3]);
 void gpencil_light_pool_populate(LightPool *lightpool, Object *ob);
@@ -395,11 +436,5 @@ LightPool *gpencil_light_pool_add(Instance *inst);
  * Creates a single pool containing all lights assigned (light linked) for a given object.
  */
 LightPool *gpencil_light_pool_create(Instance *inst, Object *ob);
-
-/* effects */
-void gpencil_vfx_cache_populate(Instance *inst,
-                                Object *ob,
-                                tObject *tgp_ob,
-                                const bool is_edit_mode);
 
 }  // namespace blender::draw::gpencil

@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #include <fmt/format.h>
 #include <iostream>
 
@@ -585,6 +589,11 @@ IndexMask IndexMask::from_bools(Span<bool> bools, IndexMaskMemory &memory)
 IndexMask IndexMask::from_bools(const VArray<bool> &bools, IndexMaskMemory &memory)
 {
   return IndexMask::from_bools(bools.index_range(), bools, memory);
+}
+
+IndexMask IndexMask::from_bools_inverse(const Span<bool> bools, IndexMaskMemory &memory)
+{
+  return IndexMask::from_bools_inverse(bools.index_range(), bools, memory);
 }
 
 IndexMask IndexMask::from_bools_inverse(const VArray<bool> &bools, IndexMaskMemory &memory)

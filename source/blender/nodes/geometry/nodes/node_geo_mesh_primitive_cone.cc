@@ -7,7 +7,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_mesh_primitive_cylinder_cone.hh"
@@ -76,11 +76,11 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = node_storage;
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "fill_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "fill_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -131,7 +131,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   BKE_id_material_eval_ensure_default_slot(&mesh->id);
 
   /* Transform the mesh so that the base of the cone is at the origin. */
-  BKE_mesh_translate(mesh, float3(0.0f, 0.0f, depth * 0.5f), false);
+  bke::mesh_translate(*mesh, float3(0.0f, 0.0f, depth * 0.5f), false);
 
   params.set_output("Mesh", GeometrySet::from_mesh(mesh));
 }

@@ -15,8 +15,9 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 
+#include "ED_anim_api.hh"
 #include "ED_clip.hh"
 #include "ED_screen.hh"
 
@@ -36,22 +37,20 @@
 
 #include "clip_intern.hh" /* own include */
 
-static void track_channel_color(MovieTrackingTrack *track,
-                                const float default_color[3],
-                                float color[3])
+static void track_channel_color(MovieTrackingTrack *track, bool default_color, float color[3])
 {
   if (track->flag & TRACK_CUSTOMCOLOR) {
     float bg[3];
-    UI_GetThemeColor3fv(TH_HEADER, bg);
+    blender::ui::theme::get_color_3fv(TH_HEADER, bg);
 
     interp_v3_v3v3(color, track->color, bg, 0.5);
   }
   else {
     if (default_color) {
-      copy_v3_v3(color, default_color);
+      blender::ui::theme::get_color_4fv(TH_CHANNEL_SELECT, color);
     }
     else {
-      UI_GetThemeColor3fv(TH_HEADER, color);
+      blender::ui::theme::get_color_3fv(TH_CHANNEL, color);
     }
   }
 }
@@ -59,10 +58,14 @@ static void track_channel_color(MovieTrackingTrack *track,
 static void draw_keyframe_shape(
     float x, float y, bool sel, float alpha, uint pos_id, uint color_id)
 {
-  float color[4] = {0.91f, 0.91f, 0.91f, alpha};
+  float color[4];
   if (sel) {
-    UI_GetThemeColorShadeAlpha4fv(TH_STRIP_SELECT, 50, -255 * (1.0f - alpha), color);
+    blender::ui::theme::get_color_4fv(TH_KEYTYPE_KEYFRAME_SELECT, color);
   }
+  else {
+    blender::ui::theme::get_color_4fv(TH_KEYTYPE_KEYFRAME, color);
+  }
+  color[3] = alpha;
 
   immAttr4fv(color_id, color);
   immVertex2f(pos_id, x, y);
@@ -99,8 +102,10 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
 
-  /* frame range */
-  clip_draw_sfra_efra(v2d, scene);
+  /* Frame and preview range. */
+  blender::ui::view2d_view_ortho(v2d);
+  ANIM_draw_framerange(scene, v2d);
+  ANIM_draw_previewrange(scene, v2d, 0);
 
   if (clip) {
     MovieTracking *tracking = &clip->tracking;
@@ -111,7 +116,7 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
     uint keyframe_len = 0;
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     /* don't use totrect set, as the width stays the same
@@ -122,11 +127,8 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
     float y = (CHANNEL_FIRST);
 
     /* setup colors for regular and selected strips */
-    UI_GetThemeColor3fv(TH_STRIP, strip);
-    UI_GetThemeColor3fv(TH_STRIP_SELECT, selected_strip);
-
-    strip[3] = 0.5f;
-    selected_strip[3] = 1.0f;
+    blender::ui::theme::get_color_4fv(TH_LONGKEY, strip);
+    blender::ui::theme::get_color_4fv(TH_LONGKEY_SELECT, selected_strip);
 
     GPU_blend(GPU_BLEND_ALPHA);
 
@@ -147,9 +149,8 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
         /* selection background */
         if (sel) {
           float color[4] = {0.0f, 0.0f, 0.0f, 0.3f};
-          float default_color[4] = {0.8f, 0.93f, 0.8f, 0.3f};
 
-          track_channel_color(track, default_color, color);
+          track_channel_color(track, true, color);
           immUniformColor4fv(color);
 
           immRectf(pos_id,
@@ -199,12 +200,15 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
     if (keyframe_len > 0) {
       /* draw keyframe markers */
       format = immVertexFormat();
-      pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-      uint size_id = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-      uint color_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+      uint size_id = GPU_vertformat_attr_add(
+          format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+      uint color_id = GPU_vertformat_attr_add(
+          format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
       uint outline_color_id = GPU_vertformat_attr_add(
-          format, "outlineColor", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
-      uint flags_id = GPU_vertformat_attr_add(format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
+          format, "outlineColor", blender::gpu::VertAttrType::UNORM_8_8_8_8);
+      uint flags_id = GPU_vertformat_attr_add(
+          format, "flags", blender::gpu::VertAttrType::UINT_32);
 
       GPU_program_point_size(true);
       immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);
@@ -282,7 +286,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   SpaceClip *sc = CTX_wm_space_clip(C);
   View2D *v2d = &region->v2d;
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  const uiStyle *style = UI_style_get();
+  const uiStyle *style = blender::ui::style_get();
   int fontid = style->widget.uifont_id;
 
   if (!clip) {
@@ -302,7 +306,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
 
   /* need to do a view-sync here, so that the keys area doesn't jump around
    * (it must copy this) */
-  UI_view2d_sync(nullptr, area, v2d, V2D_LOCK_COPY);
+  blender::ui::view2d_sync(nullptr, area, v2d, V2D_LOCK_COPY);
 
   /* loop through channels, and set up drawing depending on their type
    * first pass: just the standard GL-drawing for backdrop + text
@@ -310,7 +314,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   float y = (CHANNEL_FIRST);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -324,7 +328,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
     {
       MovieTrackingTrack *track = channel->track;
       float color[3];
-      track_channel_color(track, nullptr, color);
+      track_channel_color(track, false, color);
       immUniformColor3fv(color);
 
       immRectf(pos,
@@ -355,7 +359,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
       MovieTrackingTrack *track = channel->track;
       bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
 
-      UI_FontThemeColor(fontid, sel ? TH_TEXT_HI : TH_TEXT);
+      blender::ui::theme::font_theme_color_set(fontid, sel ? TH_TEXT_HI : TH_TEXT);
 
       float font_height = BLF_height(fontid, channel->name, sizeof(channel->name));
       BLF_position(fontid, v2d->cur.xmin + CHANNEL_PAD, y - font_height / 2.0f, 0.0f);
@@ -367,7 +371,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   }
 
   /* third pass: widgets */
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   y = (CHANNEL_FIRST);
 
   /* get RNA properties (once) */
@@ -387,22 +391,22 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
       const int icon = (track->flag & TRACK_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
       PointerRNA ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTrackingTrack, track);
 
-      UI_block_emboss_set(block, UI_EMBOSS_NONE);
-      uiDefIconButR_prop(block,
-                         UI_BTYPE_ICON_TOGGLE,
-                         1,
-                         icon,
-                         v2d->cur.xmax - UI_UNIT_X - CHANNEL_PAD,
-                         y - UI_UNIT_Y / 2.0f,
-                         UI_UNIT_X,
-                         UI_UNIT_Y,
-                         &ptr,
-                         chan_prop_lock,
-                         0,
-                         0,
-                         0,
-                         std::nullopt);
-      UI_block_emboss_set(block, UI_EMBOSS);
+      block_emboss_set(block, blender::ui::EmbossType::None);
+      blender::ui::Button *but = uiDefIconButR_prop(block,
+                                                    blender::ui::ButtonType::IconToggle,
+                                                    icon,
+                                                    v2d->cur.xmax - UI_UNIT_X - CHANNEL_PAD,
+                                                    y - UI_UNIT_Y / 2.0f,
+                                                    UI_UNIT_X,
+                                                    UI_UNIT_Y,
+                                                    &ptr,
+                                                    chan_prop_lock,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    std::nullopt);
+      button_retval_set(but, 1);
+      block_emboss_set(block, blender::ui::EmbossType::Emboss);
     }
 
     /* adjust y-position for next one */
@@ -410,6 +414,6 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   }
   GPU_blend(GPU_BLEND_NONE);
 
-  UI_block_end(C, block);
-  UI_block_draw(C, block);
+  block_end(C, block);
+  block_draw(C, block);
 }

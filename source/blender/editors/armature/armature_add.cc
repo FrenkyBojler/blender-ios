@@ -21,6 +21,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -34,6 +35,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_object_types.hh"
+#include "BKE_report.hh"
 
 #include "ANIM_action.hh"
 
@@ -48,6 +50,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "DEG_depsgraph.hh"
@@ -60,14 +63,15 @@ using blender::Vector;
 
 EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
 {
-  EditBone *bone = static_cast<EditBone *>(MEM_callocN(sizeof(EditBone), "eBone"));
+  EditBone *bone = MEM_callocN<EditBone>("eBone");
 
-  STRNCPY(bone->name, name);
+  STRNCPY_UTF8(bone->name, name);
   ED_armature_ebone_unique_name(arm->edbo, bone->name, nullptr);
 
   BLI_addtail(arm->edbo, bone);
 
   bone->flag |= BONE_TIPSEL;
+  bone->drawtype = ARM_DRAW_TYPE_ARMATURE_DEFINED;
   bone->weight = 1.0f;
   bone->dist = 0.25f;
   bone->xwidth = 0.1f;
@@ -147,7 +151,7 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
 
   /* find the active or selected bone */
   for (ebone = static_cast<EditBone *>(arm->edbo->first); ebone; ebone = ebone->next) {
-    if (!EBONE_VISIBLE(arm, ebone)) {
+    if (!blender::animrig::bone_is_visible(arm, ebone)) {
       continue;
     }
     if (ebone->flag & BONE_TIPSEL || arm->act_edbone == ebone) {
@@ -157,7 +161,7 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
 
   if (ebone == nullptr) {
     for (ebone = static_cast<EditBone *>(arm->edbo->first); ebone; ebone = ebone->next) {
-      if (!EBONE_VISIBLE(arm, ebone)) {
+      if (!blender::animrig::bone_is_visible(arm, ebone)) {
         continue;
       }
       if (ebone->flag & BONE_ROOTSEL || arm->act_edbone == ebone) {
@@ -189,6 +193,8 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
 
     newbone = ED_armature_ebone_add(arm, ebone->name);
     arm->act_edbone = newbone;
+    newbone->xwidth = ebone->xwidth;
+    newbone->zwidth = ebone->zwidth;
 
     if (to_root) {
       copy_v3_v3(newbone->head, ebone->head);
@@ -273,7 +279,7 @@ void ARMATURE_OT_click_extrude(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_click_extrude";
   ot->description = "Create a new bone going from the last selected joint to the mouse position";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = armature_click_extrude_invoke;
   ot->exec = armature_click_extrude_exec;
   ot->poll = ED_operator_editarmature;
@@ -303,7 +309,7 @@ static void pre_edit_bone_duplicate(ListBase *editbones)
 }
 
 /**
- * Helper function for #pose_edit_bone_duplicate,
+ * Helper function for #post_edit_bone_duplicate,
  * return the destination pchan from the original.
  */
 static bPoseChannel *pchan_duplicate_map(
@@ -325,7 +331,7 @@ static bPoseChannel *pchan_duplicate_map(
   return pchan_dst;
 }
 
-static void pose_edit_bone_duplicate(ListBase *editbones, Object *ob)
+static void post_edit_bone_duplicate(ListBase *editbones, Object *ob)
 {
   if (ob->pose == nullptr) {
     return;
@@ -422,12 +428,12 @@ static void update_duplicate_subtarget(EditBone *dup_bone,
                       nullptr;
       if (oldtarget && oldtarget->temp.ebone) {
         newtarget = oldtarget->temp.ebone;
-        STRNCPY(ct->subtarget, newtarget->name);
+        STRNCPY_UTF8(ct->subtarget, newtarget->name);
       }
       else if (lookup_mirror_subtarget) {
         BLI_string_flip_side_name(name_flipped, ct->subtarget, false, sizeof(name_flipped));
         if (bPoseChannel *flipped_bone = BKE_pose_channel_find_name(ct->tar->pose, name_flipped)) {
-          STRNCPY(ct->subtarget, flipped_bone->name);
+          STRNCPY_UTF8(ct->subtarget, flipped_bone->name);
         }
       }
     }
@@ -1045,6 +1051,9 @@ static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, O
   if (src_bone->prop) {
     dst_bone->prop = IDP_CopyProperty(src_bone->prop);
   }
+  if (src_bone->system_properties) {
+    dst_bone->system_properties = IDP_CopyProperty(src_bone->system_properties);
+  }
 
   /* Lets duplicate the list of constraints that the
    * current bone has.
@@ -1075,7 +1084,7 @@ void ED_armature_ebone_copy(EditBone *dest, const EditBone *source)
 EditBone *duplicateEditBoneObjects(
     EditBone *cur_bone, const char *name, ListBase *editbones, Object *src_ob, Object *dst_ob)
 {
-  EditBone *e_bone = static_cast<EditBone *>(MEM_mallocN(sizeof(EditBone), "addup_editbone"));
+  EditBone *e_bone = MEM_mallocN<EditBone>("addup_editbone");
 
   /* Copy data from old bone to new bone */
   ED_armature_ebone_copy(e_bone, cur_bone);
@@ -1084,7 +1093,7 @@ EditBone *duplicateEditBoneObjects(
   e_bone->temp.ebone = cur_bone;
 
   if (name != nullptr) {
-    STRNCPY(e_bone->name, name);
+    STRNCPY_UTF8(e_bone->name, name);
   }
 
   ED_armature_ebone_unique_name(editbones, e_bone->name, nullptr);
@@ -1127,7 +1136,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
     /* Select mirrored bones */
     if (arm->flag & ARM_MIRROR_EDIT) {
       LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
-        if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
+        if (blender::animrig::bone_is_selected(arm, ebone_iter)) {
           EditBone *ebone;
 
           ebone = ED_armature_ebone_get_mirrored(arm->edbo, ebone_iter);
@@ -1143,10 +1152,10 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
+      if (blender::animrig::bone_is_selected(arm, ebone_iter)) {
         EditBone *ebone;
         char new_bone_name_buff[MAXBONENAME];
-        char *new_bone_name = ebone_iter->name;
+        const char *new_bone_name = ebone_iter->name;
 
         if (do_flip_names) {
           BLI_string_flip_side_name(
@@ -1172,7 +1181,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
+      if (blender::animrig::bone_is_selected(arm, ebone_iter)) {
         EditBone *ebone = ebone_iter->temp.ebone;
 
         if (!ebone_iter->parent) {
@@ -1218,12 +1227,12 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter)) {
+      if (blender::animrig::bone_is_visible(arm, ebone_iter)) {
         ebone_iter->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
       }
     }
 
-    pose_edit_bone_duplicate(arm->edbo, ob);
+    post_edit_bone_duplicate(arm->edbo, ob);
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
     DEG_id_tag_update(&ob->id, ID_RECALC_SELECT);
@@ -1241,7 +1250,7 @@ void ARMATURE_OT_duplicate(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_duplicate";
   ot->description = "Make copies of the selected bones within the same armature";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_duplicate_selected_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1279,6 +1288,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const int direction = RNA_enum_get(op->ptr, "direction");
+  const bool copy_bone_colors = RNA_boolean_get(op->ptr, "copy_bone_colors");
   const int axis = 0;
 
   /* cancel if nothing selected */
@@ -1305,7 +1315,9 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
      *
      * Storing temp pointers to mirrored unselected ebones. */
     LISTBASE_FOREACH (EditBone *, ebone_iter, arm->edbo) {
-      if (!(EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED))) {
+      if (!(blender::animrig::bone_is_visible(arm, ebone_iter) &&
+            (ebone_iter->flag & BONE_SELECTED)))
+      {
         /* Skipping invisible selected bones. */
         continue;
       }
@@ -1369,7 +1381,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter) && (ebone_iter->flag & BONE_SELECTED)) {
+      if (blender::animrig::bone_is_selected(arm, ebone_iter)) {
         if (ebone_iter->temp.ebone != nullptr) {
           /* This will be set if the mirror bone already exists (no need to make a new one)
            * but we do need to make sure that the 'pchan' settings (constraints etc)
@@ -1415,6 +1427,16 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 
         /* Copy flags in case bone is pre-existing data. */
         ebone->flag = (ebone->flag & ~flag_copy) | (ebone_iter->flag & flag_copy);
+
+        /* Copy Viewport Display. */
+        ebone->drawtype = ebone_iter->drawtype;
+        if (copy_bone_colors) {
+          ebone->color.palette_index = ebone_iter->color.palette_index;
+          copy_v4_v4_uchar(ebone->color.custom.active, ebone_iter->color.custom.active);
+          copy_v4_v4_uchar(ebone->color.custom.select, ebone_iter->color.custom.select);
+          copy_v4_v4_uchar(ebone->color.custom.solid, ebone_iter->color.custom.solid);
+          ebone->color.custom.flag = ebone_iter->color.custom.flag;
+        }
 
         if (ebone_iter->parent == nullptr) {
           /* If this bone has no parent,
@@ -1479,7 +1501,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
          ebone_iter && ebone_iter != ebone_first_dupe;
          ebone_iter = ebone_iter->next)
     {
-      if (EBONE_VISIBLE(arm, ebone_iter)) {
+      if (blender::animrig::bone_is_visible(arm, ebone_iter)) {
         ebone_iter->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
       }
     }
@@ -1500,7 +1522,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
       arm->act_edbone = arm->act_edbone->temp.ebone;
     }
 
-    pose_edit_bone_duplicate(arm->edbo, obedit);
+    post_edit_bone_duplicate(arm->edbo, obedit);
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
     DEG_id_tag_update(&obedit->id, ID_RECALC_SELECT);
@@ -1525,7 +1547,7 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_symmetrize";
   ot->description = "Enforce symmetry, make copies of the selection or use existing";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_symmetrize_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1538,6 +1560,8 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
                           -1,
                           "Direction",
                           "Which sides to copy from and to (when both are selected)");
+  ot->prop = RNA_def_boolean(
+      ot->srna, "copy_bone_colors", false, "Bone Colors", "Copy colors to existing bones");
 }
 
 /* ------------------------------------------ */
@@ -1570,7 +1594,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
 
     /* since we allow root extrude too, we have to make sure selection is OK */
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (EBONE_VISIBLE(arm, ebone)) {
+      if (blender::animrig::bone_is_visible(arm, ebone)) {
         if (ebone->flag & BONE_ROOTSEL) {
           if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
             if (ebone->parent->flag & BONE_TIPSEL) {
@@ -1585,7 +1609,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
     for (ebone = static_cast<EditBone *>(arm->edbo->first); ((ebone) && (ebone != first));
          ebone = ebone->next)
     {
-      if (!EBONE_VISIBLE(arm, ebone)) {
+      if (!blender::animrig::bone_is_visible(arm, ebone)) {
         continue;
       }
       /* We extrude per definition the tip. */
@@ -1629,7 +1653,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
           }
 
           totbone++;
-          newbone = static_cast<EditBone *>(MEM_callocN(sizeof(EditBone), "extrudebone"));
+          newbone = MEM_callocN<EditBone>("extrudebone");
 
           if (do_extrude == TIP_EXTRUDE) {
             copy_v3_v3(newbone->head, ebone->tail);
@@ -1656,6 +1680,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
           }
 
           newbone->color = ebone->color;
+          newbone->drawtype = ebone->drawtype;
 
           newbone->weight = ebone->weight;
           newbone->dist = ebone->dist;
@@ -1679,7 +1704,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
           copy_v3_v3(newbone->scale_in, ebone->scale_in);
           copy_v3_v3(newbone->scale_out, ebone->scale_out);
 
-          STRNCPY(newbone->name, ebone->name);
+          STRNCPY_UTF8(newbone->name, ebone->name);
 
           if (flipbone && forked_iter) { /* only set if mirror edit */
             if (strlen(newbone->name) < (MAXBONENAME - 2)) {
@@ -1744,7 +1769,7 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_extrude";
   ot->description = "Create new bones from the selected joints";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_extrude_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1793,14 +1818,21 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   ANIM_armature_bonecoll_assign_active(static_cast<bArmature *>(obedit->data), bone);
 
   bArmature *arm = static_cast<bArmature *>(obedit->data);
-  if (!ANIM_bonecoll_is_visible_editbone(arm, bone)) {
+  if (BLI_listbase_is_empty(&bone->bone_collections) && (arm->flag & ARM_BCOLL_SOLO_ACTIVE)) {
+    BKE_report(op->reports,
+               RPT_WARNING,
+               "Bone not added to a collection and hidden because solo bone collection(s) exist.");
+  }
+  else if (!ANIM_bonecoll_is_visible_editbone(arm, bone)) {
     const BoneCollectionReference *bcoll_ref = static_cast<const BoneCollectionReference *>(
         bone->bone_collections.first);
     BLI_assert_msg(bcoll_ref,
                    "Bone that is not visible due to its bone collections MUST be assigned to at "
                    "least one of them.");
-    WM_global_reportf(
-        RPT_WARNING, "Bone was added to a hidden collection '%s'", bcoll_ref->bcoll->name);
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "Bone was added to a hidden collection '%s'",
+                bcoll_ref->bcoll->name);
   }
 
   copy_v3_v3(bone->head, curs);
@@ -1827,7 +1859,7 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_bone_primitive_add";
   ot->description = "Add a new bone located at the 3D cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_bone_primitive_add_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1871,7 +1903,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
       float val2[3];
       float val3[3];
 
-      newbone = static_cast<EditBone *>(MEM_mallocN(sizeof(EditBone), "ebone subdiv"));
+      newbone = MEM_mallocN<EditBone>("ebone subdiv");
       *newbone = *ebone;
       BLI_addtail(arm->edbo, newbone);
 
@@ -1893,6 +1925,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
 
       newbone->flag |= BONE_CONNECTED;
       newbone->prop = nullptr;
+      newbone->system_properties = nullptr;
 
       /* correct parent bones */
       LISTBASE_FOREACH (EditBone *, tbone, arm->edbo) {
@@ -1944,7 +1977,7 @@ void ARMATURE_OT_subdivide(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_subdivide";
   ot->description = "Break selected bones into chains of smaller bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_subdivide_exec;
   ot->poll = ED_operator_editarmature;
 

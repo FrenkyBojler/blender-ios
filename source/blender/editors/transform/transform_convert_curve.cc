@@ -152,8 +152,7 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
       tc->data_len = countsel;
       data_len_pt = countsel_pt;
     }
-    tc->data = static_cast<TransData *>(
-        MEM_callocN(tc->data_len * sizeof(TransData), "TransObData(Curve EditMode)"));
+    tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransObData(Curve EditMode)");
 
     t->data_len_all += tc->data_len;
     data_len_all_pt += data_len_pt;
@@ -228,7 +227,6 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
                   td->flag = 0;
                 }
               }
-              td->ext = nullptr;
               td->val = nullptr;
 
               hdata = initTransDataCurveHandles(td, bezt);
@@ -254,7 +252,6 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
               else {
                 td->flag = 0;
               }
-              td->ext = nullptr;
 
               /* TODO: make points scale. */
               if (t->mode == TFM_CURVE_SHRINKFATTEN /* `|| t->mode == TFM_RESIZE` */) {
@@ -310,7 +307,6 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
                   td->flag = 0;
                 }
               }
-              td->ext = nullptr;
               td->val = nullptr;
 
               if (hdata == nullptr) {
@@ -346,7 +342,6 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
               else {
                 td->flag = 0;
               }
-              td->ext = nullptr;
 
               if (ELEM(t->mode, TFM_CURVE_SHRINKFATTEN, TFM_RESIZE)) {
                 td->val = &(bp->radius);
@@ -429,6 +424,22 @@ static void recalcData_curve(TransInfo *t)
     else {
       /* Apply clipping after so we never project past the clip plane #25423. */
       transform_convert_clip_mirror_modifier_apply(tc);
+
+      if (t->mode == TFM_TRACKBALL) {
+        LISTBASE_FOREACH (Nurb *, nu, nurbs) {
+          if (nu->type == CU_BEZIER) {
+            BezTriple *bezt = nu->bezt;
+            for (int i = 0; i < nu->pntsu; i++, bezt++) {
+              if ((bezt->f1 & SELECT) && ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM)) {
+                bezt->h1 = HD_ALIGN;
+              }
+              if ((bezt->f3 & SELECT) && ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM)) {
+                bezt->h2 = HD_ALIGN;
+              }
+            }
+          }
+        }
+      }
 
       /* Normal updating. */
       BKE_curve_dimension_update(cu);

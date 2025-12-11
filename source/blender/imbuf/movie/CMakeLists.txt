@@ -32,6 +32,7 @@ set(LIB
   PRIVATE bf::blenlib
   PUBLIC  bf::imbuf
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::clog
 )
 
 if(WITH_CODEC_FFMPEG)
@@ -77,6 +78,7 @@ if(WITH_GTESTS AND WITH_CODEC_FFMPEG)
   )
   set(TEST_LIB
     ${FFMPEG_LIBRARIES}
+    ${ZLIB_LIBRARIES}
   )
   if(WITH_IMAGE_OPENJPEG)
     set(TEST_LIB ${TEST_LIB} ${OPENJPEG_LIBRARIES})

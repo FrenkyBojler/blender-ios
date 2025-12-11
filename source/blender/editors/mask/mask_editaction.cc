@@ -19,7 +19,7 @@
 #include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 
 #include "ED_keyframes_edit.hh"
 #include "ED_markers.hh"
@@ -271,7 +271,7 @@ static bool snap_mask_layer_nearest(MaskLayerShape *mask_layer_shape, Scene * /*
 
 static bool snap_mask_layer_nearestsec(MaskLayerShape *mask_layer_shape, Scene *scene)
 {
-  float secf = float(FPS);
+  float secf = float(scene->frames_per_second());
   if (mask_layer_shape->flag & MASK_SHAPE_SELECT) {
     mask_layer_shape->frame = int(floorf(mask_layer_shape->frame / secf + 0.5f) * secf);
   }

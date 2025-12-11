@@ -9,6 +9,7 @@
 #include "BKE_camera.h"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
@@ -247,34 +248,32 @@ void SceneState::init(const DRWContext *context,
 
   draw_object_id = (draw_outline || draw_curvature);
 
-  /* Legacy Vulkan devices don't support gaps between color attachments. We disable outline
-   * drawing on these devices. There are situations outline drawing can just work, but we need to
-   * be sure transparency depth drawing isn't used. */
-  /* TODO(jbakker): Add support on legacy Vulkan devices by introducing specific depth shaders. */
-  if ((shading.type < OB_SOLID || xray_mode) && GPU_vulkan_render_pass_workaround()) {
-    draw_object_id = false;
-    draw_outline = false;
-  }
+  show_paint_bvh_debug = scene->toolsettings->sculpt ?
+                             scene->toolsettings->sculpt->paint.debug_flags &
+                                 PAINT_DEBUG_SHOW_BVH_NODES :
+                             false;
 };
 
-static const CustomData *get_loop_custom_data(const Mesh *mesh)
+static bool mesh_has_color_attribute(const Mesh &mesh)
 {
-  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    BLI_assert(mesh->runtime->edit_mesh != nullptr);
-    BLI_assert(mesh->runtime->edit_mesh->bm != nullptr);
-    return &mesh->runtime->edit_mesh->bm->ldata;
+  if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
+    const BMesh &bm = *mesh.runtime->edit_mesh->bm;
+    const BMDataLayerLookup attr = BM_data_layer_lookup(bm, mesh.active_color_attribute);
+    return attr && bke::mesh::is_color_attribute(bke::AttributeMetaData{attr.domain, attr.type});
   }
-  return &mesh->corner_data;
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  return bke::mesh::is_color_attribute(attributes.lookup_meta_data(mesh.active_color_attribute));
 }
 
-static const CustomData *get_vert_custom_data(const Mesh *mesh)
+static bool mesh_has_uv_map_attribute(const Mesh &mesh)
 {
-  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    BLI_assert(mesh->runtime->edit_mesh != nullptr);
-    BLI_assert(mesh->runtime->edit_mesh->bm != nullptr);
-    return &mesh->runtime->edit_mesh->bm->vdata;
+  if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
+    const BMesh &bm = *mesh.runtime->edit_mesh->bm;
+    const BMDataLayerLookup attr = BM_data_layer_lookup(bm, mesh.active_uv_map_name());
+    return attr && bke::mesh::is_uv_map(bke::AttributeMetaData{attr.domain, attr.type});
   }
-  return &mesh->vert_data;
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  return bke::mesh::is_uv_map(attributes.lookup_meta_data(mesh.active_uv_map_name()));
 }
 
 ObjectState::ObjectState(const DRWContext *draw_ctx,
@@ -291,27 +290,28 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
 
   color_type = (eV3DShadingColorType)scene_state.shading.color_type;
 
-  bool has_color = false;
-  bool has_uv = false;
-
-  if (ob->type == OB_MESH) {
+  /* Don't perform CustomData lookup unless it's really necessary, since it's quite expensive. */
+  const auto has_color = [&]() {
+    if (ob->type != OB_MESH) {
+      return false;
+    }
     const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
-    const CustomData *cd_vdata = get_vert_custom_data(&mesh);
-    const CustomData *cd_ldata = get_loop_custom_data(&mesh);
+    return mesh_has_color_attribute(mesh);
+  };
 
-    has_color = (CustomData_has_layer(cd_vdata, CD_PROP_COLOR) ||
-                 CustomData_has_layer(cd_vdata, CD_PROP_BYTE_COLOR) ||
-                 CustomData_has_layer(cd_ldata, CD_PROP_COLOR) ||
-                 CustomData_has_layer(cd_ldata, CD_PROP_BYTE_COLOR));
+  const auto has_uv = [&]() {
+    if (ob->type != OB_MESH) {
+      return false;
+    }
+    const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
+    return mesh_has_uv_map_attribute(mesh);
+  };
 
-    has_uv = CustomData_has_layer(cd_ldata, CD_PROP_FLOAT2);
-  }
-
-  if (color_type == V3D_SHADING_TEXTURE_COLOR && (!has_uv || ob->dt < OB_TEXTURE)) {
+  if (color_type == V3D_SHADING_TEXTURE_COLOR && (!has_uv() || ob->dt < OB_TEXTURE)) {
     color_type = V3D_SHADING_MATERIAL_COLOR;
   }
-  else if (color_type == V3D_SHADING_VERTEX_COLOR && !has_color) {
-    color_type = V3D_SHADING_OBJECT_COLOR;
+  else if (color_type == V3D_SHADING_VERTEX_COLOR && !has_color()) {
+    color_type = V3D_SHADING_MATERIAL_COLOR;
   }
 
   if (sculpt_pbvh) {
@@ -334,10 +334,10 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
     /* Force texture or vertex mode if object is in paint mode. */
     const bool is_vertpaint_mode = is_active && (scene_state.object_mode == CTX_MODE_PAINT_VERTEX);
     const bool is_texpaint_mode = is_active && (scene_state.object_mode == CTX_MODE_PAINT_TEXTURE);
-    if (is_vertpaint_mode && has_color) {
+    if (is_vertpaint_mode && has_color()) {
       color_type = V3D_SHADING_VERTEX_COLOR;
     }
-    else if (is_texpaint_mode && has_uv) {
+    else if (is_texpaint_mode && has_uv()) {
       color_type = V3D_SHADING_TEXTURE_COLOR;
       show_missing_texture = true;
       const ImagePaintSettings *imapaint = &scene_state.scene->toolsettings->imapaint;

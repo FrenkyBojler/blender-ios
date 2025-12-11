@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include <algorithm>
@@ -37,7 +37,6 @@
 #include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
 #include "IMB_imbuf_types.hh"
@@ -46,12 +45,11 @@
 
 #include "multiview.hh"
 #include "proxy.hh"
-#include "sequencer.hh"
 #include "utils.hh"
 
 namespace blender::seq {
 
-struct SeqUniqueInfo {
+struct StripUniqueInfo {
   Strip *strip;
   char name_src[STRIP_NAME_MAXSTR];
   char name_dest[STRIP_NAME_MAXSTR];
@@ -59,7 +57,7 @@ struct SeqUniqueInfo {
   int match;
 };
 
-static void seqbase_unique_name(ListBase *seqbasep, SeqUniqueInfo *sui)
+static void seqbase_unique_name(ListBase *seqbasep, StripUniqueInfo *sui)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbasep) {
     if ((sui->strip != strip) && STREQ(sui->name_dest, strip->name + 2)) {
@@ -74,14 +72,14 @@ static void seqbase_unique_name(ListBase *seqbasep, SeqUniqueInfo *sui)
 static bool seqbase_unique_name_recursive_fn(Strip *strip, void *arg_pt)
 {
   if (strip->seqbase.first) {
-    seqbase_unique_name(&strip->seqbase, (SeqUniqueInfo *)arg_pt);
+    seqbase_unique_name(&strip->seqbase, (StripUniqueInfo *)arg_pt);
   }
   return true;
 }
 
-void sequence_base_unique_name_recursive(Scene *scene, ListBase *seqbasep, Strip *strip)
+void strip_unique_name_set(Scene *scene, ListBase *seqbasep, Strip *strip)
 {
-  SeqUniqueInfo sui;
+  StripUniqueInfo sui;
   char *dot;
   sui.strip = strip;
   STRNCPY(sui.name_src, strip->name + 2);
@@ -103,13 +101,13 @@ void sequence_base_unique_name_recursive(Scene *scene, ListBase *seqbasep, Strip
   while (sui.match) {
     sui.match = 0;
     seqbase_unique_name(seqbasep, &sui);
-    for_each_callback(seqbasep, seqbase_unique_name_recursive_fn, &sui);
+    foreach_strip(seqbasep, seqbase_unique_name_recursive_fn, &sui);
   }
 
-  edit_sequence_name_set(scene, strip, sui.name_dest);
+  edit_strip_name_set(scene, strip, sui.name_dest);
 }
 
-static const char *give_seqname_by_type(int type)
+const char *get_default_stripname_by_type(int type)
 {
   switch (type) {
     case STRIP_TYPE_META:
@@ -124,12 +122,12 @@ static const char *give_seqname_by_type(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Clip");
     case STRIP_TYPE_MASK:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Mask");
-    case STRIP_TYPE_SOUND_RAM:
+    case STRIP_TYPE_SOUND:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Audio");
     case STRIP_TYPE_CROSS:
-      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Cross");
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Crossfade");
     case STRIP_TYPE_GAMCROSS:
-      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Gamma Cross");
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Gamma Crossfade");
     case STRIP_TYPE_ADD:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Add");
     case STRIP_TYPE_SUB:
@@ -146,8 +144,6 @@ static const char *give_seqname_by_type(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Wipe");
     case STRIP_TYPE_GLOW:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Glow");
-    case STRIP_TYPE_TRANSFORM:
-      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Transform");
     case STRIP_TYPE_COLOR:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color");
     case STRIP_TYPE_MULTICAM:
@@ -165,12 +161,12 @@ static const char *give_seqname_by_type(int type)
   }
 }
 
-const char *sequence_give_name(const Strip *strip)
+const char *strip_give_name(const Strip *strip)
 {
-  const char *name = give_seqname_by_type(strip->type);
+  const char *name = get_default_stripname_by_type(strip->type);
 
   if (!name) {
-    if (!(strip->type & STRIP_TYPE_EFFECT)) {
+    if (!strip->is_effect()) {
       return strip->data->dirpath;
     }
 
@@ -179,7 +175,7 @@ const char *sequence_give_name(const Strip *strip)
   return name;
 }
 
-ListBase *get_seqbase_from_sequence(Strip *strip, ListBase **r_channels, int *r_offset)
+ListBase *get_seqbase_from_strip(Strip *strip, ListBase **r_channels, int *r_offset)
 {
   ListBase *seqbase = nullptr;
 
@@ -187,7 +183,7 @@ ListBase *get_seqbase_from_sequence(Strip *strip, ListBase **r_channels, int *r_
     case STRIP_TYPE_META: {
       seqbase = &strip->seqbase;
       *r_channels = &strip->channels;
-      *r_offset = time_start_frame_get(strip);
+      *r_offset = strip->content_start();
       break;
     }
     case STRIP_TYPE_SCENE: {
@@ -206,21 +202,22 @@ ListBase *get_seqbase_from_sequence(Strip *strip, ListBase **r_channels, int *r_
   return seqbase;
 }
 
-static void open_anim_filepath(Strip *strip, StripAnim *sanim, const char *filepath, bool openfile)
+static MovieReader *open_anim_filepath(Strip *strip, const char *filepath, bool openfile)
 {
+  /* Sequencer takes care of colorspace conversion of the result. The input is the best to be
+   * kept unchanged for the performance reasons. */
   if (openfile) {
-    sanim->anim = openanim(filepath,
-                           IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-                           strip->streamindex,
-                           strip->data->colorspace_settings.name);
+    return openanim(filepath,
+                    IB_byte_data | ((strip->flag & SEQ_DEINTERLACE) ? IB_animdeinterlace : 0),
+                    strip->streamindex,
+                    true,
+                    strip->data->colorspace_settings.name);
   }
-  else {
-    sanim->anim = openanim_noload(filepath,
-                                  IB_byte_data |
-                                      ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-                                  strip->streamindex,
-                                  strip->data->colorspace_settings.name);
-  }
+  return openanim_noload(filepath,
+                         IB_byte_data | ((strip->flag & SEQ_DEINTERLACE) ? IB_animdeinterlace : 0),
+                         strip->streamindex,
+                         true,
+                         strip->data->colorspace_settings.name);
 }
 
 static bool use_proxy(Editing *ed, Strip *strip)
@@ -230,33 +227,33 @@ static bool use_proxy(Editing *ed, Strip *strip)
                    (ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE));
 }
 
-static void proxy_dir_get(Editing *ed, Strip *strip, size_t str_len, char *r_proxy_dirpath)
+static void proxy_dir_get(Editing *ed, Strip *strip, char r_proxy_dirpath[FILE_MAX])
 {
   if (use_proxy(ed, strip)) {
     if (ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE) {
       if (ed->proxy_dir[0] == 0) {
-        BLI_strncpy(r_proxy_dirpath, "//BL_proxy", str_len);
+        BLI_strncpy(r_proxy_dirpath, "//BL_proxy", FILE_MAX);
       }
       else {
-        BLI_strncpy(r_proxy_dirpath, ed->proxy_dir, str_len);
+        BLI_strncpy(r_proxy_dirpath, ed->proxy_dir, FILE_MAX);
       }
     }
     else {
-      BLI_strncpy(r_proxy_dirpath, strip->data->proxy->dirpath, str_len);
+      BLI_strncpy(r_proxy_dirpath, strip->data->proxy->dirpath, FILE_MAX);
     }
     BLI_path_abs(r_proxy_dirpath, BKE_main_blendfile_path_from_global());
   }
 }
 
-static void index_dir_set(Editing *ed, Strip *strip, StripAnim *sanim)
+static void index_dir_set(Editing *ed, Strip *strip, MovieReader *reader)
 {
-  if (sanim->anim == nullptr || !use_proxy(ed, strip)) {
+  if (reader == nullptr || !use_proxy(ed, strip)) {
     return;
   }
 
   char proxy_dirpath[FILE_MAX];
-  proxy_dir_get(ed, strip, sizeof(proxy_dirpath), proxy_dirpath);
-  seq_proxy_index_dir_set(sanim->anim, proxy_dirpath);
+  proxy_dir_get(ed, strip, proxy_dirpath);
+  seq_proxy_index_dir_set(reader, proxy_dirpath);
 }
 
 static bool open_anim_file_multiview(Scene *scene, Strip *strip, const char *filepath)
@@ -278,18 +275,17 @@ static bool open_anim_file_multiview(Scene *scene, Strip *strip, const char *fil
     char filepath_view[FILE_MAX];
     SNPRINTF(filepath_view, "%s%s%s", prefix, suffix, ext);
 
-    StripAnim *sanim = MEM_mallocN<StripAnim>("Strip Anim");
     /* Multiview files must be loaded, otherwise it is not possible to detect failure. */
-    open_anim_filepath(strip, sanim, filepath_view, true);
+    MovieReader *reader = open_anim_filepath(strip, filepath_view, true);
 
-    if (sanim->anim == nullptr) {
-      relations_sequence_free_anim(strip);
+    if (reader == nullptr) {
+      strip_free_movie_readers(strip);
       return false; /* Multiview render failed. */
     }
 
-    index_dir_set(ed, strip, sanim);
-    BLI_addtail(&strip->anims, sanim);
-    MOV_set_multiview_suffix(sanim->anim, suffix);
+    index_dir_set(ed, strip, reader);
+    strip->runtime->movie_readers.append(reader);
+    MOV_set_multiview_suffix(reader, suffix);
     is_multiview_loaded = true;
   }
 
@@ -298,14 +294,12 @@ static bool open_anim_file_multiview(Scene *scene, Strip *strip, const char *fil
 
 void strip_open_anim_file(Scene *scene, Strip *strip, bool openfile)
 {
-  if ((strip->anims.first != nullptr) && (((StripAnim *)strip->anims.first)->anim != nullptr) &&
-      !openfile)
-  {
+  if (!openfile && strip->runtime->movie_reader_get() != nullptr) {
     return;
   }
 
   /* Reset all the previously created anims. */
-  relations_sequence_free_anim(strip);
+  strip_free_movie_readers(strip);
 
   Editing *ed = scene->ed;
   char filepath[FILE_MAX];
@@ -321,14 +315,13 @@ void strip_open_anim_file(Scene *scene, Strip *strip, bool openfile)
   }
 
   if (!is_multiview || !multiview_is_loaded) {
-    StripAnim *sanim = MEM_mallocN<StripAnim>("Strip Anim");
-    BLI_addtail(&strip->anims, sanim);
-    open_anim_filepath(strip, sanim, filepath, openfile);
-    index_dir_set(ed, strip, sanim);
+    MovieReader *reader = open_anim_filepath(strip, filepath, openfile);
+    strip->runtime->movie_readers.append(reader);
+    index_dir_set(ed, strip, reader);
   }
 }
 
-const Strip *get_topmost_sequence(const Scene *scene, int frame)
+const Strip *strip_topmost_get(const Scene *scene, int frame)
 {
   Editing *ed = scene->ed;
 
@@ -337,11 +330,11 @@ const Strip *get_topmost_sequence(const Scene *scene, int frame)
   }
 
   ListBase *channels = channels_displayed_get(ed);
-  const Strip *best_seq = nullptr;
-  int best_machine = -1;
+  const Strip *best_strip = nullptr;
+  int best_channel = -1;
 
-  LISTBASE_FOREACH (const Strip *, strip, ed->seqbasep) {
-    if (render_is_muted(channels, strip) || !time_strip_intersects_frame(scene, strip, frame)) {
+  LISTBASE_FOREACH (const Strip *, strip, ed->current_strips()) {
+    if (render_is_muted(channels, strip) || !strip->intersects_frame(scene, frame)) {
       continue;
     }
     /* Only use strips that generate an image, not ones that combine
@@ -354,20 +347,20 @@ const Strip *get_topmost_sequence(const Scene *scene, int frame)
              STRIP_TYPE_COLOR,
              STRIP_TYPE_TEXT))
     {
-      if (strip->machine > best_machine) {
-        best_seq = strip;
-        best_machine = strip->machine;
+      if (strip->channel > best_channel) {
+        best_strip = strip;
+        best_channel = strip->channel;
       }
     }
   }
-  return best_seq;
+  return best_strip;
 }
 
-ListBase *get_seqbase_by_seq(const Scene *scene, Strip *strip)
+ListBase *get_seqbase_by_strip(const Scene *scene, Strip *strip)
 {
   Editing *ed = editing_get(scene);
   ListBase *main_seqbase = &ed->seqbase;
-  Strip *strip_meta = SEQ_lookup_meta_by_strip(ed, strip);
+  Strip *strip_meta = lookup_meta_by_strip(ed, strip);
 
   if (strip_meta != nullptr) {
     return &strip_meta->seqbase;
@@ -378,34 +371,34 @@ ListBase *get_seqbase_by_seq(const Scene *scene, Strip *strip)
   return nullptr;
 }
 
-Strip *sequence_from_strip_elem(ListBase *seqbase, StripElem *se)
+Strip *strip_from_strip_elem(ListBase *seqbase, StripElem *se)
 {
-  Strip *iseq;
+  Strip *istrip;
 
-  for (iseq = static_cast<Strip *>(seqbase->first); iseq; iseq = iseq->next) {
+  for (istrip = static_cast<Strip *>(seqbase->first); istrip; istrip = istrip->next) {
     Strip *strip_found;
-    if ((iseq->data && iseq->data->stripdata) &&
-        ARRAY_HAS_ITEM(se, iseq->data->stripdata, iseq->len))
+    if ((istrip->data && istrip->data->stripdata) &&
+        ARRAY_HAS_ITEM(se, istrip->data->stripdata, istrip->len))
     {
       break;
     }
-    if ((strip_found = sequence_from_strip_elem(&iseq->seqbase, se))) {
-      iseq = strip_found;
+    if ((strip_found = strip_from_strip_elem(&istrip->seqbase, se))) {
+      istrip = strip_found;
       break;
     }
   }
 
-  return iseq;
+  return istrip;
 }
 
-Strip *get_sequence_by_name(ListBase *seqbase, const char *name, bool recursive)
+Strip *get_strip_by_name(ListBase *seqbase, const char *name, bool recursive)
 {
-  LISTBASE_FOREACH (Strip *, iseq, seqbase) {
-    if (STREQ(name, iseq->name + 2)) {
-      return iseq;
+  LISTBASE_FOREACH (Strip *, istrip, seqbase) {
+    if (STREQ(name, istrip->name + 2)) {
+      return istrip;
     }
-    if (recursive && !BLI_listbase_is_empty(&iseq->seqbase)) {
-      Strip *rseq = get_sequence_by_name(&iseq->seqbase, name, true);
+    if (recursive && !BLI_listbase_is_empty(&istrip->seqbase)) {
+      Strip *rseq = get_strip_by_name(&istrip->seqbase, name, true);
       if (rseq != nullptr) {
         return rseq;
       }
@@ -434,7 +427,7 @@ void alpha_mode_from_file_extension(Strip *strip)
   }
 }
 
-bool sequence_has_valid_data(const Strip *strip)
+bool strip_has_valid_data(const Strip *strip)
 {
   switch (strip->type) {
     case STRIP_TYPE_MASK:
@@ -443,14 +436,14 @@ bool sequence_has_valid_data(const Strip *strip)
       return (strip->clip != nullptr);
     case STRIP_TYPE_SCENE:
       return (strip->scene != nullptr);
-    case STRIP_TYPE_SOUND_RAM:
+    case STRIP_TYPE_SOUND:
       return (strip->sound != nullptr);
   }
 
   return true;
 }
 
-bool sequencer_seq_generates_image(Strip *strip)
+bool sequencer_strip_generates_image(Strip *strip)
 {
   switch (strip->type) {
     case STRIP_TYPE_IMAGE:
@@ -501,7 +494,7 @@ void ensure_unique_name(Strip *strip, Scene *scene)
   char name[STRIP_NAME_MAXSTR];
 
   STRNCPY_UTF8(name, strip->name + 2);
-  sequence_base_unique_name_recursive(scene, &scene->ed->seqbase, strip);
+  strip_unique_name_set(scene, &scene->ed->seqbase, strip);
   BKE_animdata_fix_paths_rename(&scene->id,
                                 scene->adt,
                                 nullptr,

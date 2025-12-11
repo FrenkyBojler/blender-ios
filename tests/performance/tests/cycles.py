@@ -8,16 +8,23 @@ import api
 def _run(args):
     import bpy
 
-    device_type, suffix = (args['device_type'].split("-") + [""])[:2]
-    use_hwrt = (suffix == "RT")
-    device_index = args['device_index']
+    device_info = args['device_type'].split("-")
+    device_type = device_info[0]
 
-    if suffix not in {"", "RT"}:
-        raise SystemExit(f"Unknown device type suffix {suffix}")
+    device_suffixes = device_info[1:]
+    use_hwrt = "RT" in device_suffixes
+    use_osl = "OSL" in device_suffixes
+
+    for suffix in device_suffixes:
+        if suffix not in {"RT", "OSL"}:
+            raise SystemExit(f"Unknown device type suffix {suffix}")
+
+    device_index = args['device_index']
 
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
     scene.render.filepath = args['render_filepath']
+    scene.render.image_settings.media_type = 'IMAGE'
     scene.render.image_settings.file_format = 'PNG'
     scene.cycles.device = 'CPU' if device_type == 'CPU' else 'GPU'
 
@@ -30,6 +37,9 @@ def _run(args):
         # machine and devices.
         scene.cycles.samples = 16384
         scene.cycles.time_limit = 10.0
+
+    if use_osl:
+        scene.cycles.shading_system = True
 
     if scene.cycles.device == 'GPU':
         # Enable specified GPU in preferences.

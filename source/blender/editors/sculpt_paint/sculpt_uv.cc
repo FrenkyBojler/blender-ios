@@ -39,12 +39,13 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_enum_types.hh"
 
 #include "paint_intern.hh"
 #include "uvedit_intern.hh"
 
 #include "UI_view2d.hh"
+
+namespace {
 
 enum eBrushUVSculptTool {
   UV_SCULPT_BRUSH_TYPE_GRAB = 0,
@@ -145,6 +146,8 @@ struct UvSculptData {
   float uv_base_offset[2];
 };
 
+}  // namespace
+
 static void apply_sculpt_data_constraints(UvSculptData *sculptdata, float uv[2])
 {
   if (!sculptdata->constrain_to_bounds) {
@@ -158,10 +161,11 @@ static void apply_sculpt_data_constraints(UvSculptData *sculptdata, float uv[2])
 
 static float calc_strength(const UvSculptData *sculptdata, float p, const float len)
 {
-  float strength = BKE_brush_curve_strength(eBrushCurvePreset(sculptdata->uvsculpt->curve_preset),
-                                            sculptdata->uvsculpt->strength_curve,
-                                            p,
-                                            len);
+  float strength = BKE_brush_curve_strength(
+      eBrushCurvePreset(sculptdata->uvsculpt->curve_distance_falloff_preset),
+      sculptdata->uvsculpt->curve_distance_falloff,
+      p,
+      len);
 
   CLAMP(strength, 0.0f, 1.0f);
 
@@ -189,8 +193,8 @@ static void HC_relaxation_iteration_uv(UvSculptData *sculptdata,
   int i;
   const float radius = sqrtf(radius_sq);
 
-  Temp_UVData *tmp_uvdata = (Temp_UVData *)MEM_callocN(
-      sculptdata->totalUniqueUvs * sizeof(Temp_UVData), "Temporal data");
+  Temp_UVData *tmp_uvdata = MEM_calloc_arrayN<Temp_UVData>(sculptdata->totalUniqueUvs,
+                                                           "Temporal data");
 
   /* counting neighbors */
   for (i = 0; i < sculptdata->totalUvEdges; i++) {
@@ -247,7 +251,7 @@ static void HC_relaxation_iteration_uv(UvSculptData *sculptdata,
         if (element->separate && element != sculptdata->uv[i].element) {
           break;
         }
-        float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
+        float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
         copy_v2_v2(*luv, sculptdata->uv[i].uv);
       }
     }
@@ -274,8 +278,8 @@ static void laplacian_relaxation_iteration_uv(UvSculptData *sculptdata,
   int i;
   const float radius = sqrtf(radius_sq);
 
-  Temp_UVData *tmp_uvdata = (Temp_UVData *)MEM_callocN(
-      sculptdata->totalUniqueUvs * sizeof(Temp_UVData), "Temporal data");
+  Temp_UVData *tmp_uvdata = MEM_calloc_arrayN<Temp_UVData>(sculptdata->totalUniqueUvs,
+                                                           "Temporal data");
 
   /* counting neighbors */
   for (i = 0; i < sculptdata->totalUvEdges; i++) {
@@ -324,7 +328,7 @@ static void laplacian_relaxation_iteration_uv(UvSculptData *sculptdata,
           break;
         }
 
-        float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
+        float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
         copy_v2_v2(*luv, sculptdata->uv[i].uv);
       }
     }
@@ -396,7 +400,7 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
   UvElement **head_table = BM_uv_element_map_ensure_head_table(sculptdata->elementMap);
 
   const int total_uvs = sculptdata->elementMap->total_uvs;
-  float(*delta_buf)[3] = (float(*)[3])MEM_callocN(total_uvs * sizeof(float[3]), __func__);
+  float (*delta_buf)[3] = (float (*)[3])MEM_callocN(total_uvs * sizeof(float[3]), __func__);
 
   const UvElement *storage = sculptdata->elementMap->storage;
   for (int j = 0; j < total_uvs; j++) {
@@ -408,9 +412,9 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
     const float *v_prev_co = ele_prev->l->v->co;
     const float *v_next_co = ele_next->l->v->co;
 
-    const float(*luv_curr)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_curr->l, cd_loop_uv_offset);
-    const float(*luv_next)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_next->l, cd_loop_uv_offset);
-    const float(*luv_prev)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_prev->l, cd_loop_uv_offset);
+    const float (*luv_curr)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_curr->l, cd_loop_uv_offset);
+    const float (*luv_next)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_next->l, cd_loop_uv_offset);
+    const float (*luv_prev)[2] = BM_ELEM_CD_GET_FLOAT2_P(ele_prev->l, cd_loop_uv_offset);
 
     const UvElement *head_curr = head_table[ele_curr - sculptdata->elementMap->storage];
     const UvElement *head_next = head_table[ele_next - sculptdata->elementMap->storage];
@@ -453,7 +457,7 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
     const float *delta_sum = delta_buf[adj_el->element - storage];
 
     {
-      const float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(adj_el->element->l, cd_loop_uv_offset);
+      const float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(adj_el->element->l, cd_loop_uv_offset);
       BLI_assert(adj_el->uv == (float *)luv); /* Only true for head. */
       adj_el->uv[0] = (*luv)[0] + strength * safe_divide(delta_sum[0], delta_sum[2]);
       adj_el->uv[1] = (*luv)[1] + strength * safe_divide(delta_sum[1], delta_sum[2]);
@@ -463,7 +467,7 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
     /* Copy UV co-ordinates to all UvElements. */
     UvElement *tail = adj_el->element;
     while (tail) {
-      float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(tail->l, cd_loop_uv_offset);
+      float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(tail->l, cd_loop_uv_offset);
       copy_v2_v2(*luv, adj_el->uv);
       tail = tail->next;
       if (tail && tail->separate) {
@@ -488,7 +492,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
   float alpha = sculptdata->uvsculpt->strength;
 
   float co[2];
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
   SpaceImage *sima = CTX_wm_space_image(C);
 
@@ -498,7 +502,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
   float zoomx, zoomy;
   ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
 
-  const float radius = sculptdata->uvsculpt->size / (width * zoomx);
+  const float radius = (sculptdata->uvsculpt->size / 2.0f) / (width * zoomx);
   float aspectRatio = width / float(height);
 
   /* We will compare squares to save some computation */
@@ -534,7 +538,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
             if (element->separate && element != sculptdata->uv[i].element) {
               break;
             }
-            float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
+            float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
             copy_v2_v2(*luv, sculptdata->uv[i].uv);
           }
         }
@@ -571,7 +575,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
           if (element->separate && element != sculptdata->uv[uvindex].element) {
             break;
           }
-          float(*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
+          float (*luv)[2] = BM_ELEM_CD_GET_FLOAT2_P(element->l, cd_loop_uv_offset);
           copy_v2_v2(*luv, sculptdata->uv[uvindex].uv);
         }
       }
@@ -657,7 +661,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
   op->customdata = data;
 
-  BKE_curvemapping_init(ts->uvsculpt.strength_curve);
+  BKE_curvemapping_init(ts->uvsculpt.curve_distance_falloff);
 
   if (!data) {
     return nullptr;
@@ -666,7 +670,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   ARegion *region = CTX_wm_region(C);
   float co[2];
   BMFace *efa;
-  float(*luv)[2];
+  float (*luv)[2];
   BMLoop *l;
   BMIter iter, liter;
 
@@ -701,7 +705,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   }
 
   /* Mouse coordinates, useful for some functions like grab and sculpt all islands */
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
   /* We need to find the active island here. */
   if (do_island_optimization) {
@@ -723,8 +727,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   /* Allocate the unique uv buffers */
   data->uv = MEM_calloc_arrayN<UvAdjacencyElement>(unique_uvs, __func__);
   /* Holds, for each UvElement in elementMap, an index of its unique UV. */
-  int *uniqueUv = static_cast<int *>(
-      MEM_mallocN(sizeof(*uniqueUv) * data->elementMap->total_uvs, __func__));
+  int *uniqueUv = MEM_malloc_arrayN<int>(data->elementMap->total_uvs, __func__);
   GHash *edgeHash = BLI_ghash_new(uv_edge_hash, uv_edge_compare, "uv_brush_edge_hash");
   /* we have at most totalUVs edges */
   UvEdge *edges = MEM_calloc_arrayN<UvEdge>(data->elementMap->total_uvs, __func__);
@@ -857,7 +860,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   /* Allocate initial selection for grab tool */
   if (data->tool == UV_SCULPT_BRUSH_TYPE_GRAB) {
     float alpha = data->uvsculpt->strength;
-    float radius = data->uvsculpt->size;
+    float radius = data->uvsculpt->size / 2.0f;
     int width, height;
     ED_space_image_get_size(sima, &width, &height);
     float zoomx, zoomy;
@@ -873,8 +876,8 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     if (!data->initial_stroke) {
       uv_sculpt_stroke_exit(C, op);
     }
-    data->initial_stroke->initialSelection = static_cast<UVInitialStrokeElement *>(MEM_mallocN(
-        sizeof(*data->initial_stroke->initialSelection) * data->totalUniqueUvs, __func__));
+    data->initial_stroke->initialSelection = MEM_malloc_arrayN<UVInitialStrokeElement>(
+        data->totalUniqueUvs, __func__);
     if (!data->initial_stroke->initialSelection) {
       uv_sculpt_stroke_exit(C, op);
     }
@@ -961,7 +964,7 @@ static wmOperatorStatus uv_sculpt_stroke_modal(bContext *C, wmOperator *op, cons
 
   ED_region_tag_redraw(CTX_wm_region(C));
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-  DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+  DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -971,7 +974,7 @@ static void register_common_props(wmOperatorType *ot)
 
   prop = RNA_def_boolean(
       ot->srna, "use_invert", false, "Invert", "Invert action for the duration of the stroke");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 void SCULPT_OT_uv_sculpt_grab(wmOperatorType *ot)
@@ -1021,7 +1024,7 @@ void SCULPT_OT_uv_sculpt_relax(wmOperatorType *ot)
   RNA_def_enum(ot->srna,
                "relax_method",
                relax_method_items,
-               CURVE_PRESET_SMOOTH,
+               UV_SCULPT_BRUSH_TYPE_RELAX_LAPLACIAN,
                "Relax Method",
                "Algorithm used for UV relaxation");
 }

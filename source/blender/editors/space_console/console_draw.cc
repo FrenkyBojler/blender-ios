@@ -51,7 +51,7 @@ static enum eTextViewContext_LineFlag console_line_data(TextViewContext *tvc,
       break;
   }
 
-  UI_GetThemeColor4ubv(fg_id, fg);
+  blender::ui::theme::get_color_4ubv(fg_id, fg);
   return TVC_LINE_FG;
 }
 
@@ -64,7 +64,7 @@ void console_scrollback_prompt_begin(SpaceConsole *sc, ConsoleLine *cl_dummy)
   cl_dummy->type = CONSOLE_LINE_INPUT;
   cl_dummy->len = prompt_len + cl->len;
   cl_dummy->len_alloc = cl_dummy->len + 1;
-  cl_dummy->line = static_cast<char *>(MEM_mallocN(cl_dummy->len_alloc, "cl_dummy"));
+  cl_dummy->line = MEM_malloc_arrayN<char>(cl_dummy->len_alloc, "cl_dummy");
   memcpy(cl_dummy->line, sc->prompt, prompt_len);
   memcpy(cl_dummy->line + prompt_len, cl->line, cl->len + 1);
   BLI_addtail(&sc->scrollback, cl_dummy);
@@ -153,7 +153,7 @@ static void console_textview_draw_cursor(TextViewContext *tvc, int cwidth, int c
 
   /* cursor */
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColor(TH_CONSOLE_CURSOR);
 
@@ -164,7 +164,7 @@ static void console_textview_draw_cursor(TextViewContext *tvc, int cwidth, int c
 
 static void console_textview_const_colors(TextViewContext * /*tvc*/, uchar bg_sel[4])
 {
-  UI_GetThemeColor4ubv(TH_CONSOLE_SELECT, bg_sel);
+  blender::ui::theme::get_color_4ubv(TH_CONSOLE_SELECT, bg_sel);
 }
 
 static void console_textview_draw_rect_calc(const ARegion *region,
@@ -247,9 +247,9 @@ int console_textview_height(SpaceConsole *sc, const ARegion *region)
 
 int console_char_pick(SpaceConsole *sc, const ARegion *region, const int mval[2])
 {
-  int r_mval_pick_offset = 0;
+  int mval_pick_offset = 0;
   void *mval_pick_item = nullptr;
 
-  console_textview_main__internal(sc, region, false, mval, &mval_pick_item, &r_mval_pick_offset);
-  return r_mval_pick_offset;
+  console_textview_main__internal(sc, region, false, mval, &mval_pick_item, &mval_pick_offset);
+  return mval_pick_offset;
 }

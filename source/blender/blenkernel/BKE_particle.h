@@ -11,10 +11,10 @@
 
 #include <optional>
 
-#include "BLI_buffer.h"
 #include "BLI_compiler_attrs.h"
 #include "BLI_map.hh"
 #include "BLI_ordered_edge.hh"
+#include "BLI_vector.hh"
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
@@ -32,7 +32,6 @@ struct BlendLibReader;
 struct BlendWriter;
 struct CustomData_MeshMasks;
 struct Depsgraph;
-struct KDTree_3d;
 struct LinkNode;
 struct MCol;
 struct MFace;
@@ -55,7 +54,6 @@ struct Scene;
 #define LOOP_SHOWN_PARTICLES \
   for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++) \
     if (!(pa->flag & (PARS_UNEXIST | PARS_NO_DISP)))
-/* OpenMP: Can only advance one variable within loop definition. */
 #define LOOP_DYNAMIC_PARTICLES \
   for (p = 0; p < psys->totpart; p++) \
     if ((pa = psys->particles + p)->state.time > 0.0f)
@@ -84,7 +82,7 @@ typedef struct SPHData {
   ParticleSystem *psys[10];
   ParticleData *pa;
   float mass;
-  std::optional<blender::Map<blender::OrderedEdge, int>> eh;
+  const blender::Map<blender::OrderedEdge, int> *eh;
 
   /** The gravity as a `float[3]`, may also be null when the simulation doesn't use gravity. */
   const float *gravity;
@@ -97,7 +95,7 @@ typedef struct SPHData {
   float flow[3];
 
   /* Temporary thread-local buffer for springs created during this step. */
-  BLI_Buffer new_springs;
+  blender::Vector<ParticleSpring> new_springs;
 
   /* Integrator callbacks. This allows different SPH implementations. */
   void (*force_cb)(void *sphdata_v, ParticleKey *state, float *force, float *impulse);
@@ -135,7 +133,7 @@ typedef struct ParticleThreadContext {
   struct Material *ma;
 
   /* distribution */
-  struct KDTree_3d *tree;
+  KDTree3d *tree;
 
   struct ParticleSeam *seams;
   int totseam;
@@ -166,9 +164,9 @@ typedef struct ParticleThreadContext {
 } ParticleThreadContext;
 
 typedef struct ParticleTask {
-  ParticleThreadContext *ctx;
-  struct RNG *rng, *rng_path;
-  int begin, end;
+  ParticleThreadContext *ctx = nullptr;
+  struct RNG *rng = nullptr, *rng_path = nullptr;
+  int begin = 0, end = 0;
 } ParticleTask;
 
 typedef struct ParticleCollisionElement {
@@ -343,7 +341,7 @@ bool psys_render_simplify_params(struct ParticleSystem *psys,
                                  struct ChildParticle *cpa,
                                  float *params);
 
-void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float uvco[2]);
+void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float r_uv[2]);
 void psys_interpolate_mcol(const struct MCol *mcol, int quad, const float w[4], struct MCol *mc);
 
 void copy_particle_key(struct ParticleKey *to, struct ParticleKey *from, int time);
@@ -449,7 +447,6 @@ void psys_apply_child_modifiers(struct ParticleThreadContext *ctx,
                                 struct ParticleCacheKey *parent_keys,
                                 const float parent_orco[3]);
 
-void psys_sph_init(struct ParticleSimulationData *sim, struct SPHData *sphdata);
 void psys_sph_finalize(struct SPHData *sphdata);
 /**
  * Sample the density field at a point in space.
@@ -478,12 +475,10 @@ void psys_get_dupli_path_transform(struct ParticleSimulationData *sim,
 void psys_thread_context_init(struct ParticleThreadContext *ctx,
                               struct ParticleSimulationData *sim);
 void psys_thread_context_free(struct ParticleThreadContext *ctx);
-void psys_tasks_create(struct ParticleThreadContext *ctx,
-                       int startpart,
-                       int endpart,
-                       struct ParticleTask **r_tasks,
-                       int *r_numtasks);
-void psys_tasks_free(struct ParticleTask *tasks, int numtasks);
+blender::Vector<ParticleTask> psys_tasks_create(struct ParticleThreadContext *ctx,
+                                                int startpart,
+                                                int endpart);
+void psys_tasks_free(blender::Vector<ParticleTask> &tasks);
 
 void psys_apply_hair_lattice(struct Depsgraph *depsgraph,
                              struct Scene *scene,

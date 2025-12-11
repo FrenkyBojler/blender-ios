@@ -45,7 +45,7 @@ const StringRefNull materials_filename = "usd/usd_materials_export.blend";
 const StringRefNull output_filename = "output.usd";
 
 static const bNode *find_node_for_type_in_graph(const bNodeTree *nodetree,
-                                                const blender::StringRefNull type_idname);
+                                                const StringRefNull type_idname);
 
 class UsdExportTest : public BlendfileLoadingBaseTest {
  protected:
@@ -182,7 +182,7 @@ class UsdExportTest : public BlendfileLoadingBaseTest {
     pxr::VtVec3fArray positions;
     pxr::VtVec3fArray normals;
 
-    /* Our export doesn't use 'primvars:normals' so we're not
+    /* Our export doesn't use `primvars:normals` so we're not
      * looking for that to be written here. */
     mesh_prim.GetFaceVertexIndicesAttr().Get(&face_indices, 0.0);
     mesh_prim.GetFaceVertexCountsAttr().Get(&face_counts, 0.0);
@@ -210,7 +210,6 @@ TEST_F(UsdExportTest, usd_export_rain_mesh)
   params.export_materials = false;
   params.export_normals = true;
   params.export_uvmaps = false;
-  params.visible_objects_only = true;
 
   bool result = USD_export(context, output_filename.c_str(), &params, false, nullptr);
   ASSERT_TRUE(result) << "Writing to " << output_filename << " failed!";
@@ -237,7 +236,7 @@ TEST_F(UsdExportTest, usd_export_rain_mesh)
 }
 
 static const bNode *find_node_for_type_in_graph(const bNodeTree *nodetree,
-                                                const blender::StringRefNull type_idname)
+                                                const StringRefNull type_idname)
 {
   auto found_nodes = nodetree->nodes_by_type(type_idname);
   if (found_nodes.size() == 1) {
