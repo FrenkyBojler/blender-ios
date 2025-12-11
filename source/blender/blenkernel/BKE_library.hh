@@ -73,6 +73,13 @@ struct LibraryRuntime {
 
   /** Color-space information. */
   MainColorspace colorspace;
+
+  /**
+   * Temporary data used when reading a memfile undo step, to detect re-used regular linked IDs
+   * that are no more needed. See #read_undo_move_libmain_data, [other readfile.cc functions using
+   * this data].
+   */
+  Set<ID *> unused_ids_on_undo;
 };
 
 /**
