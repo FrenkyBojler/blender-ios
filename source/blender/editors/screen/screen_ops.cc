@@ -2279,7 +2279,6 @@ static void area_move_apply(bContext *C, wmOperator *op)
 static void area_move_exit(bContext *C, wmOperator *op)
 {
   sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-
   if (md->draw_callback) {
     WM_draw_cb_exit(CTX_wm_window(C), md->draw_callback);
   }
@@ -2440,6 +2439,53 @@ static void SCREEN_OT_area_move(wmOperatorType *ot)
   RNA_def_int(ot->srna, "delta", 0, INT_MIN, INT_MAX, "Delta", "", INT_MIN, INT_MAX);
 
   prop = RNA_def_boolean(ot->srna, "snap", false, "Snapping", "Enable snapping");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Merge Edge Operator
+ * \{ */
+
+static wmOperatorStatus area_edge_merge_exec(bContext *C, wmOperator *op)
+{
+  int cursor[2];
+  RNA_int_get_array(op->ptr, "cursor", cursor);
+
+  bScreen *screen = CTX_wm_screen(C);
+  wmWindow *win = CTX_wm_window(C);
+  ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, cursor[0], cursor[1]);
+  if (!actedge) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!screen_geom_edge_can_extend(win, actedge)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  screen_geom_edge_aligned_merge(win, actedge);
+  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_edge_merge(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  /* identifiers */
+  ot->name = "Merge Area Edge";
+  ot->description = "Merge aligned area edges";
+  ot->idname = "SCREEN_OT_edge_merge";
+  ot->exec = area_edge_merge_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_INTERNAL;
+
+  /* rna */
+  prop = RNA_def_int_vector(
+      ot->srna, "cursor", 2, nullptr, INT_MIN, INT_MAX, "Cursor", "", INT_MIN, INT_MAX);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -5133,7 +5179,8 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
                                                    const wmEvent *event)
 {
   ScrArea *sa1, *sa2;
-  if (screen_area_edge_from_cursor(C, event->xy, &sa1, &sa2) == nullptr) {
+  ScrEdge *edge = screen_area_edge_from_cursor(C, event->xy, &sa1, &sa2);
+  if (!edge) {
     return OPERATOR_CANCELLED;
   }
 
@@ -5201,6 +5248,17 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
     RNA_int_set_array(&ptr, "cursor", event->xy);
   }
 
+  const bool can_extend = screen_geom_edge_can_extend(CTX_wm_window(C), edge);
+  if (can_extend) {
+    layout.separator();
+    ptr = layout.op("SCREEN_OT_edge_merge",
+                    IFACE_("Merge Edge"),
+                    ICON_NONE,
+                    blender::wm::OpCallContext::ExecDefault,
+                    UI_ITEM_NONE);
+    RNA_int_set_array(&ptr, "cursor", event->xy);
+  }
+
   popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
@@ -5209,7 +5267,7 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
 static void SCREEN_OT_area_options(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Area Options";
+  ot->name = "Area Edge Options";
   ot->description = "Operations for splitting and merging";
   ot->idname = "SCREEN_OT_area_options";
 
@@ -7277,6 +7335,7 @@ void ED_operatortypes_screen()
 
   /* Screen tools. */
   WM_operatortype_append(SCREEN_OT_area_move);
+  WM_operatortype_append(SCREEN_OT_edge_merge);
   WM_operatortype_append(SCREEN_OT_area_split);
   WM_operatortype_append(SCREEN_OT_area_join);
   WM_operatortype_append(SCREEN_OT_area_close);

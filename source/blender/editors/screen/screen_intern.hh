@@ -67,6 +67,9 @@ enum class AreaDockTarget {
 #define AREAJOINTOLERANCEX (AREAMINX * UI_SCALE_FAC)
 #define AREAJOINTOLERANCEY (HEADERY * UI_SCALE_FAC)
 
+/* Edges must be within these to allow aligned edge merging. */
+#define EDGE_ALIGN_TOLERANCE (5 * UI_SCALE_FAC)
+
 /**
  * Expanded interaction influence of area borders.
  */
@@ -237,6 +240,11 @@ void screen_geom_select_extended_edge(const wmWindow *win, ScrEdge *edge);
  * True if the edge can be extended.
  */
 bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge);
+
+/**
+ * Merge aligned edges into a single edge.
+ */
+void screen_geom_edge_aligned_merge(const wmWindow *win, ScrEdge *edge);
 
 /* `screen_context.cc` */
 

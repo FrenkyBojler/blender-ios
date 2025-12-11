@@ -426,7 +426,8 @@ bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge)
       if (dir_axis == SCREEN_AXIS_H) {
         LISTBASE_FOREACH (ScrVert *, v, &screen->vertbase) {
           if (v->flag && v->vec.x == se->v1->vec.x &&
-              (abs(v->vec.y - se->v1->vec.y) < 5 || abs(v->vec.y - se->v2->vec.y) < 5))
+              (abs(v->vec.y - se->v1->vec.y) < EDGE_ALIGN_TOLERANCE ||
+               abs(v->vec.y - se->v2->vec.y) < EDGE_ALIGN_TOLERANCE))
           {
             se->v1->flag = se->v2->flag = 1;
             can_extend = true;
@@ -437,7 +438,8 @@ bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge)
       else if (dir_axis == SCREEN_AXIS_V) {
         LISTBASE_FOREACH (ScrVert *, v, &screen->vertbase) {
           if (v->flag && v->vec.y == se->v1->vec.y &&
-              (abs(v->vec.x - se->v1->vec.x) < 5 || abs(v->vec.x - se->v2->vec.x) < 5))
+              (abs(v->vec.x - se->v1->vec.x) < EDGE_ALIGN_TOLERANCE ||
+               abs(v->vec.x - se->v2->vec.x) < EDGE_ALIGN_TOLERANCE))
           {
             se->v1->flag = se->v2->flag = 1;
             can_extend = true;
@@ -479,14 +481,92 @@ void screen_geom_select_extended_edge(const wmWindow *win, ScrEdge *edge)
 
   LISTBASE_FOREACH (ScrVert *, v, &screen->vertbase) {
     if (dir_axis == SCREEN_AXIS_H) {
-      if (abs(v->vec.y - edge->v1->vec.y) < 5) {
+      if (abs(v->vec.y - edge->v1->vec.y) < EDGE_ALIGN_TOLERANCE) {
         v->flag = 1;
       }
     }
     else if (dir_axis == SCREEN_AXIS_V) {
-      if (abs(v->vec.x - edge->v1->vec.x) < 5) {
+      if (abs(v->vec.x - edge->v1->vec.x) < EDGE_ALIGN_TOLERANCE) {
         v->flag = 1;
       }
     }
+  }
+}
+
+void screen_geom_edge_aligned_merge(const wmWindow *win, ScrEdge *edge)
+{
+  bScreen *screen = WM_window_get_active_screen(win);
+  screen_geom_select_extended_edge(win, edge);
+  eScreenAxis dir_axis;
+  if (edge->v1->vec.x == edge->v2->vec.x) {
+    dir_axis = SCREEN_AXIS_V;
+  }
+  else {
+    dir_axis = SCREEN_AXIS_H;
+  }
+
+  /* Align the vertices if close. */
+  LISTBASE_FOREACH (ScrVert *, verg, &screen->vertbase) {
+    if (dir_axis == SCREEN_AXIS_V && abs(verg->vec.x - edge->v2->vec.x) < EDGE_ALIGN_TOLERANCE) {
+      verg->vec.x = edge->v2->vec.x;
+    }
+    else if (abs(verg->vec.y - edge->v2->vec.y) < EDGE_ALIGN_TOLERANCE) {
+      verg->vec.y = edge->v2->vec.y;
+    }
+  }
+
+  LISTBASE_FOREACH (ScrVert *, verg, &screen->vertbase) {
+    if (verg->flag == 1 && verg->newv == nullptr) { /* !!! */
+      ScrVert *v1 = verg->next;
+      while (v1) {
+        if (v1->newv == nullptr) { /* !?! */
+          if (abs(v1->vec.x - verg->vec.x) < EDGE_ALIGN_TOLERANCE &&
+              abs(v1->vec.y - verg->vec.y) < EDGE_ALIGN_TOLERANCE)
+          {
+            v1->newv = verg;
+          }
+        }
+        v1 = v1->next;
+      }
+    }
+  }
+
+  /* replace pointers in edges and faces */
+  LISTBASE_FOREACH (ScrEdge *, se, &screen->edgebase) {
+    if (se->v1->newv) {
+      se->v1 = se->v1->newv;
+    }
+    if (se->v2->newv) {
+      se->v2 = se->v2->newv;
+    }
+    /* edges changed: so.... */
+    BKE_screen_sort_scrvert(&(se->v1), &(se->v2));
+  }
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (area->v1->newv) {
+      area->v1 = area->v1->newv;
+    }
+    if (area->v2->newv) {
+      area->v2 = area->v2->newv;
+    }
+    if (area->v3->newv) {
+      area->v3 = area->v3->newv;
+    }
+    if (area->v4->newv) {
+      area->v4 = area->v4->newv;
+    }
+  }
+
+  /* remove */
+  LISTBASE_FOREACH_MUTABLE (ScrVert *, verg, &screen->vertbase) {
+    if (verg->newv) {
+      BLI_remlink(&screen->vertbase, verg);
+      MEM_freeN(verg);
+    }
+  }
+
+  ED_screen_verts_iter(win, screen, sv)
+  {
+    sv->flag = 0;
   }
 }
