@@ -536,6 +536,8 @@ typedef struct ID {
    * and #BKE_libblock_free_runtime_data).
    */
   ID_RuntimeHandle *runtime;
+  int idprop_active_index;
+  int _pad2;
 } ID;
 
 /**

@@ -2636,6 +2636,10 @@ void template_node_inputs(Layout *layout, bContext *C, PointerRNA *ptr);
 
 void template_collection_exporters(Layout *layout, bContext *C);
 
+namespace id_properties {
+void template_tree(ui::Layout *layout, bContext *C, ID *id);
+}
+
 }  // namespace blender::ui
 
 namespace blender::ed::object::shapekey {
