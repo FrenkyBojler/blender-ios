@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import Iterator
 
 
-_CREATE_SCHEMA_V1 = """
+DB_TIMEOUT_MSEC = 5000  # SQLite busy timeout in milliseconds.
+DB_SCHEMA_VERSION = 1
+CREATE_SCHEMA_V1 = """
 CREATE TABLE IF NOT EXISTS files (
     file_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     path TEXT NOT NULL,
@@ -38,9 +40,6 @@ CREATE TABLE IF NOT EXISTS hashes (
 class SQLiteBackend:
     """DiskFileHashBackend implementation using SQLite as storage engine."""
 
-    DB_SCHEMA_VERSION = 1
-    DB_TIMEOUT_MSEC = 5000  # SQLite busy timeout in milliseconds.
-
     dbfile_path: Path  # Path of the .sqlite file to use.
 
     db_conn_rw: sqlite3.Connection | None = None
@@ -49,7 +48,7 @@ class SQLiteBackend:
     def __init__(self, storage_path: Path) -> None:
         assert not storage_path.is_dir(), "SQLite back-end expects a directory + file prefix as storage path"
 
-        self.dbfile_path = storage_path.with_name("{}_v{}.sqlite".format(storage_path.stem, self.DB_SCHEMA_VERSION))
+        self.dbfile_path = storage_path.with_name("{}_v{}.sqlite".format(storage_path.stem, DB_SCHEMA_VERSION))
         self._debug_queries = True
         self.db_conn_rw = None
         self.db_conn_ro = None
@@ -67,7 +66,7 @@ class SQLiteBackend:
         # `sqlite3.connect()` actually applies, as typically SQLite only checks
         # for locked databases when a transaction is started (either implicitly
         # or explicitly).
-        self.db_conn_rw = sqlite3.connect(self.dbfile_path, timeout=self.DB_TIMEOUT_MSEC / 1000)
+        self.db_conn_rw = sqlite3.connect(self.dbfile_path, timeout=DB_TIMEOUT_MSEC / 1000)
 
         if self._debug_queries:
             def callback_rw(query: str) -> None:
@@ -79,11 +78,11 @@ class SQLiteBackend:
         # that's not the case, the DB_SCHEMA_VERSION class variable should have
         # been incremented, and we'd be accessing another database file.
         with self._transaction_rw() as db_conn:
-            db_conn.executescript(_CREATE_SCHEMA_V1)
+            db_conn.executescript(CREATE_SCHEMA_V1)
 
         # After the database is set up, open another connection that's read-only.
         uri = self.dbfile_path.as_uri() + "?mode=ro"
-        self.db_conn_ro = sqlite3.connect(uri, uri=True, timeout=self.DB_TIMEOUT_MSEC / 1000)
+        self.db_conn_ro = sqlite3.connect(uri, uri=True, timeout=DB_TIMEOUT_MSEC / 1000)
 
         if self._debug_queries:
             def callback_ro(query: str) -> None:
@@ -134,10 +133,9 @@ class SQLiteBackend:
         now = self._now_string()
 
         with self._transaction_rw() as db:
-            print(f"Inserting file {filepath}")
-            # The 'RETURNING file_id' ensures that cursor.lastrowid is returned.
-            # We can't rely on last_insert_rowid() or cursor.lastrowid, because
-            # of the ON CONFLICT DO UPDATE clause.
+            # The 'RETURNING file_id' ensures that we know which file ID was
+            # upserted. We can't rely on last_insert_rowid() or
+            # cursor.lastrowid, as that only works on INSERT and not UPDATE.
             cursor = db.execute(
                 "INSERT INTO files (path, size_in_bytes) values (:path, :size) " +
                 "ON CONFLICT DO UPDATE SET size_in_bytes=:size RETURNING file_id",
@@ -146,7 +144,6 @@ class SQLiteBackend:
             file_id = cursor.fetchone()[0]
             assert file_id, f'{file_id=}'
 
-            print(f"Inserting hash {hexhash!r}")
             db.execute(
                 "INSERT INTO hashes " +
                 "(file_id, hash_algo, hexdigest, file_stat_mtime, last_checked) " +
@@ -206,7 +203,7 @@ class SQLiteBackend:
             self.db_conn_ro.rollback()
 
     def _execute_pragmas_on_connect(self, db_conn: sqlite3.Connection) -> None:
-        db_conn.execute("PRAGMA busy_timeout = {:d}".format(self.DB_TIMEOUT_MSEC))
+        db_conn.execute("PRAGMA busy_timeout = {:d}".format(DB_TIMEOUT_MSEC))
         db_conn.execute("PRAGMA foreign_keys = 1")
         db_conn.execute("PRAGMA journal_mode = WAL")
         db_conn.execute("PRAGMA synchronous = normal")
