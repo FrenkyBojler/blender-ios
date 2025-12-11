@@ -1873,20 +1873,16 @@ static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
   screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
 }
 
-static bool area_move_reinit(bContext *C, wmOperator *op, bool extend)
+static bool area_move_reinit(bContext *C, wmOperator *op, bool extend, const int xy[2])
 {
   sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-  md->extend = extend;
+  md->extend = extend && md->can_extend;
 
   bScreen *screen = CTX_wm_screen(C);
   wmWindow *win = CTX_wm_window(C);
 
-  /* required properties */
-  int x = RNA_int_get(op->ptr, "x");
-  int y = RNA_int_get(op->ptr, "y");
-
   /* setup */
-  ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, x, y);
+  ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, xy[0], xy[1]);
 
   if (actedge == nullptr) {
     return false;
@@ -1897,7 +1893,7 @@ static bool area_move_reinit(bContext *C, wmOperator *op, bool extend)
     v1->editflag = 0;
   }
 
-  if (extend) {
+  if (md->extend) {
     screen_geom_select_extended_edge(win, actedge);
   }
   else {
@@ -2356,8 +2352,10 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
   switch (event->type) {
     case EVT_RIGHTSHIFTKEY:
     case EVT_LEFTSHIFTKEY: {
-      area_move_reinit(C, op, event->modifier & KM_SHIFT);
-      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      if (md->can_extend) {
+        area_move_reinit(C, op, event->val == KM_PRESS, event->xy);
+        WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      }
       break;
     }
     case MOUSEMOVE: {
@@ -2368,6 +2366,11 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
       RNA_int_set(op->ptr, "delta", delta);
 
       area_move_apply(C, op);
+
+      wmWindow *win = CTX_wm_window(C);
+      bScreen *screen = CTX_wm_screen(C);
+      ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, event->xy[0], event->xy[1]);
+      md->can_extend = actedge && screen_geom_edge_can_extend(md->win, actedge);
       break;
     }
     case RIGHTMOUSE: {

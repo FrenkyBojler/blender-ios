@@ -411,9 +411,6 @@ bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge)
   bScreen *screen = WM_window_get_active_screen(win);
   bool can_extend = false;
 
-  screen_geom_select_connected_edge(win, edge);
-
-  /* 'dir_axis' is the direction of EDGE */
   eScreenAxis dir_axis;
   if (edge->v1->vec.x == edge->v2->vec.x) {
     dir_axis = SCREEN_AXIS_V;
@@ -422,16 +419,35 @@ bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge)
     dir_axis = SCREEN_AXIS_H;
   }
 
-  LISTBASE_FOREACH (ScrVert *, v, &screen->vertbase) {
-    if (dir_axis == SCREEN_AXIS_H) {
-      if (abs(v->vec.y - edge->v1->vec.y) < 5 && !v->flag) {
-        can_extend = true;
+  screen_geom_select_connected_edge(win, edge);
+
+  LISTBASE_FOREACH (ScrEdge *, se, &screen->edgebase) {
+    if (se->v1->flag + se->v2->flag == 0) {
+      if (dir_axis == SCREEN_AXIS_H) {
+        LISTBASE_FOREACH (ScrVert *, v, &screen->vertbase) {
+          if (v->flag && v->vec.x == se->v1->vec.x &&
+              (abs(v->vec.y - se->v1->vec.y) < 5 || abs(v->vec.y - se->v2->vec.y) < 5))
+          {
+            se->v1->flag = se->v2->flag = 1;
+            can_extend = true;
+            break;
+          }
+        }
+      }
+      else if (dir_axis == SCREEN_AXIS_V) {
+        LISTBASE_FOREACH (ScrVert *, v, &screen->vertbase) {
+          if (v->flag && v->vec.y == se->v1->vec.y &&
+              (abs(v->vec.x - se->v1->vec.x) < 5 || abs(v->vec.x - se->v2->vec.x) < 5))
+          {
+            se->v1->flag = se->v2->flag = 1;
+            can_extend = true;
+            break;
+          }
+        }
       }
     }
-    else if (dir_axis == SCREEN_AXIS_V) {
-      if (abs(v->vec.x - edge->v1->vec.x) < 5 && !v->flag) {
-        can_extend = true;
-      }
+    if (can_extend) {
+      break;
     }
   }
 
