@@ -2670,7 +2670,7 @@ class Preprocessor {
           return;
         }
         condition += "defined(CREATE_INFO_" + tokens[7].str() + ")";
-        parser.erase(tokens[0].scope());
+        parser.replace(tokens[0].scope(), "");
       });
 
       if (!condition.empty()) {
