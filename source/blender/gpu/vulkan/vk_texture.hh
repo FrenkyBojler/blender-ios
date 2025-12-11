@@ -83,6 +83,7 @@ class VKTexture : public Texture {
    * rendergraph.
    */
   bool has_data_ = false;
+  bool allow_host_image_copy_ = false;
 
  public:
   VKTexture(const char *name) : Texture(name) {}
