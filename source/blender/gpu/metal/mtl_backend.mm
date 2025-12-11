@@ -104,7 +104,7 @@ Texture *MTLBackend::texture_alloc(const char *name)
 
 TexturePool *MTLBackend::texturepool_alloc()
 {
-  return new TexturePool();
+  return new TexturePoolImpl();
 }
 
 UniformBuf *MTLBackend::uniformbuf_alloc(size_t size, const char *name)

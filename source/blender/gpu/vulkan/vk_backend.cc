@@ -655,7 +655,7 @@ Texture *VKBackend::texture_alloc(const char *name)
 
 TexturePool *VKBackend::texturepool_alloc()
 {
-  return new TexturePool();
+  return new TexturePoolImpl();
 }
 
 UniformBuf *VKBackend::uniformbuf_alloc(size_t size, const char *name)

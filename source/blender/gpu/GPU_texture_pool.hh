@@ -18,7 +18,34 @@
 
 namespace blender::gpu {
 
-class TexturePool {
+struct TexturePool {
+  /* Return the texture pool from the active GPUContext.
+   * Only valid if a context is active. */
+  static TexturePool &get();
+
+  /* Acquire a 2D texture from the pool with the given characteristics. */
+  virtual Texture *acquire_texture(int2 extent,
+                                   TextureFormat format,
+                                   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                                   eGPUTextureLifetime lifetime = GPU_TEXTURE_LIFETIME_TRANSIENT) = 0;
+
+  /* Release the texture back into the pool so it can be reused. */
+  virtual void release_texture(Texture *tmp_tex) = 0;
+
+  /* Validate acquired texture counters and release unused textures.
+   * If `force_free` is true, free unused texture memory inside the pool. */
+  virtual void reset(bool force_free = false) = 0;
+
+  /* Modify the internal counter of an acquired texture.
+   * Used by `TextureFromPool::retain()` in `DRW_gpu_wrapper.hh`. */
+  virtual void offset_texture_counter(Texture *tex, int offset) = 0;
+};
+
+/**
+ * Old texture pool implementation, to be used while a backend-specific
+ * implementation is not yet available.
+ */
+class TexturePoolImpl : public TexturePool {
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
@@ -48,40 +75,21 @@ class TexturePool {
   /* Set of textures currently in use. */
   Set<TextureHandle> acquired_;
 
- public:
-  ~TexturePool();
-
-  /* Return the texture pool from the active GPUContext.
-   * Only valid if a context is active. */
-  static TexturePool &get();
+public:
+  ~TexturePoolImpl();
 
   /* Acquire a 2D texture from the pool with the given characteristics. */
   Texture *acquire_texture(int2 extent,
                            TextureFormat format,
-                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL);
+                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) override;
 
-  /* Release the texture back into the pool so it can be reused. */
-  void release_texture(Texture *tex);
+  void release_texture(Texture *tex) override;
 
-  /* Validate acquired texture counters and release unused textures.
-   * If `force_free` is true, free unused texture memory inside the pool. */
-  void reset(bool force_free = false);
+  void reset(bool force_free = false) override;
 
   /* Modify the internal counter of an acquired texture.
    * Used by `TextureFromPool::retain()` in `DRW_gpu_wrapper.hh`. */
   void offset_users_count(Texture *tex, int offset);
 };
-
-/**
- * \note This is only used by the active GPUContext to create a backend
- * texture pool object.
- */
-TexturePool *GPU_texturepool_create();
-
-/**
- * \note This is only used by the active GPUContext to destroy a backend
- * texture pool object.
- */
-void GPU_texturepool_free(TexturePool *);
 
 }  // namespace blender::gpu
