@@ -823,7 +823,7 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
  *
  * \note While different algorithms can be investigated,
  * these values are a kind of "intermediate" hash,
- * the the per-element hashes are accumulated into a unique value for each "chunk".
+ * the per-element hashes are accumulated into a unique value for each "chunk".
  *
  * For this reason, favor speed over high-quality hashes for each element.
  * (although the hashes are not *low* quality either).
@@ -839,11 +839,11 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
  *
  * \{ */
 
-static inline uint32_t rotl32(uint32_t n, unsigned int c)
+static inline uint32_t rotl32(uint32_t n, uint c)
 {
   /* NOTE: can be replaced with `std::rotl` with C++ 20. */
   /* NOTE: Expected to optimize to a single bit-roll on x64. */
-  constexpr unsigned int mask = (8 * sizeof(n) - 1);
+  constexpr uint mask = (8 * sizeof(n) - 1);
   c &= mask;
   return (n << c) | (n >> ((-c) & mask));
 }
