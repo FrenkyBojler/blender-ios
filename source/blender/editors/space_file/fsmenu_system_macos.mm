@@ -138,6 +138,6 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 
     [paths_array release];
     CFRelease(shared_list);
-  }
 #pragma GCC diagnostic pop
+  }
 }
