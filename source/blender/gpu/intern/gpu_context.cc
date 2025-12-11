@@ -74,7 +74,7 @@ Context::Context()
   thread_ = pthread_self();
   is_active_ = false;
   matrix_state = GPU_matrix_state_create();
-  texture_pool = new TexturePool();
+  texture_pool = GPU_texturepool_create();
 
   context_id = Context::context_counter;
   Context::context_counter++;
@@ -114,7 +114,7 @@ void Context::free_resources()
   GPU_BATCH_DISCARD_SAFE(procedural_triangle_strips_batch);
   GPU_VERTBUF_DISCARD_SAFE(dummy_vbo);
 
-  delete texture_pool;
+  GPU_texturepool_free(texture_pool);
   texture_pool = nullptr;
 }
 

@@ -148,4 +148,14 @@ TexturePool &TexturePool::get()
   return *unwrap(GPU_context_active_get())->texture_pool;
 }
 
+TexturePool *GPU_texturepool_create()
+{
+  return new TexturePool();
+}
+
+void GPU_texturepool_free(TexturePool *ptr)
+{
+  delete ptr;
+}
+
 }  // namespace blender::gpu

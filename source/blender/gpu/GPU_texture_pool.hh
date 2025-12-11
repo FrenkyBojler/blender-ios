@@ -72,4 +72,16 @@ class TexturePool {
   void offset_users_count(Texture *tex, int offset);
 };
 
+/**
+ * \note This is only used by the active GPUContext to create a backend
+ * texture pool object.
+ */
+TexturePool *GPU_texturepool_create();
+
+/**
+ * \note This is only used by the active GPUContext to destroy a backend
+ * texture pool object.
+ */
+void GPU_texturepool_free(TexturePool *);
+
 }  // namespace blender::gpu
