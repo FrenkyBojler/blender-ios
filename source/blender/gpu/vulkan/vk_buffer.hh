@@ -103,6 +103,11 @@ class VKBuffer : public NonCopyable {
     return vk_buffer_;
   }
 
+  inline VkMemoryPropertyFlags vk_memory_property_flags() const
+  {
+    return vk_memory_property_flags_;
+  }
+
   /**
    * Get the reference to the mapped memory.
    *
