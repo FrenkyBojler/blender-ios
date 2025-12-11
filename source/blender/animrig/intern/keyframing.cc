@@ -273,16 +273,16 @@ static bool assigned_action_has_keyframe_at(AnimData &adt, const float frame)
     return false;
   }
 
-  const Span<FCurve *> curves = blender::animrig::legacy::fcurves_for_assigned_action(&adt);
+  const Span<FCurve *> fcurves = blender::animrig::legacy::fcurves_for_assigned_action(&adt);
   return threading::parallel_reduce<bool>(
-      curves.index_range(),
+      fcurves.index_range(),
       512,
       false,
       [&](const IndexRange range, const bool value) {
         if (value) {
           return true;
         }
-        for (FCurve *fcu : curves.slice(range)) {
+        for (FCurve *fcu : fcurves.slice(range)) {
           if (fcurve_frame_has_keyframe(fcu, frame)) {
             return true;
           }
