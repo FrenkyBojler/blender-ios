@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"POT-Creation-Date: 2025-12-08 10:32+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8497,8 +8497,20 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Align View"
-msgstr "Поравнај поглед"
+msgid "Metaball"
+msgstr "Мета лопта"
+
+
+msgid "Light"
+msgstr "Светлост"
+
+
+msgid "Relations"
+msgstr "Односи"
+
+
+msgid "Rigid Body"
+msgstr "Круто тело"
 
 
 msgid "Apply"
@@ -8513,10 +8525,6 @@ msgid "Quick Effects"
 msgstr "Брзи ефекти"
 
 
-msgid "Navigation"
-msgstr "Навигација"
-
-
 msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
 
@@ -8525,8 +8533,12 @@ msgid "Hooks"
 msgstr "Удице"
 
 
-msgid "Local View"
-msgstr "Локални поглед"
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
+msgid "Tracking"
+msgstr "Праћење"
 
 
 msgid "Clear Transform"
@@ -8535,6 +8547,10 @@ msgstr "Очисти трансформације"
 
 msgid "In-Betweens"
 msgstr "У међувремену"
+
+
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Propagate"
@@ -8565,44 +8581,16 @@ msgid "Merge"
 msgstr "Сједини"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
-msgid "Tracking"
-msgstr "Праћење"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "UV Mapping"
-msgstr "UV Мапирање"
-
-
 msgid "Special Characters"
 msgstr "Специјални знаци"
-
-
-msgid "Snap"
-msgstr "Лепљење"
-
-
-msgid "Mirror"
-msgstr "Огледало"
-
-
-msgid "Metaball"
-msgstr "Мета лопта"
 
 
 msgid "Bone Roll"
 msgstr "Ролна костију"
 
 
-msgid "Select Linked"
-msgstr "Изабери повезано"
+msgid "Snap"
+msgstr "Лепљење"
 
 
 msgid "Import"
@@ -8613,16 +8601,28 @@ msgid "UV"
 msgstr "UV"
 
 
-msgid "Light"
-msgstr "Светлост"
+msgid "Mirror"
+msgstr "Огледало"
 
 
-msgid "Relations"
-msgstr "Односи"
+msgid "UV Mapping"
+msgstr "UV Мапирање"
 
 
-msgid "Rigid Body"
-msgstr "Круто тело"
+msgid "Local View"
+msgstr "Локални поглед"
+
+
+msgid "Navigation"
+msgstr "Навигација"
+
+
+msgid "Align View"
+msgstr "Поравнај поглед"
+
+
+msgid "Select Linked"
+msgstr "Изабери повезано"
 
 
 msgid "Basic"
@@ -8654,8 +8654,8 @@ msgid "Console"
 msgstr "Конзола"
 
 
-msgid "Languages..."
-msgstr "Језици..."
+msgid "Languages"
+msgstr "Језик"
 
 
 msgid "Cache"
@@ -11117,12 +11117,12 @@ msgid "Data type"
 msgstr "Врста податка"
 
 
-msgid "Default Value"
-msgstr "Почетна вредност"
-
-
 msgid "Shader Node Socket"
 msgstr "Утичница чвора сенчења"
+
+
+msgid "Default Value"
+msgstr "Почетна вредност"
 
 
 msgid "Maximum value"
@@ -20474,10 +20474,6 @@ msgid "Language ID"
 msgstr "ID језика"
 
 
-msgid "Languages"
-msgstr "Језик"
-
-
 msgid "POT File Path"
 msgstr "Путања до датотека"
 
@@ -21554,6 +21550,10 @@ msgid "Meta Strip"
 msgstr "Мета трака"
 
 
+msgid "Playback volume of the sound"
+msgstr "Јачина звука при репродукцији"
+
+
 msgid "Stabilize 2D Clip"
 msgstr "Стабилизуј 2Д клип"
 
@@ -21564,10 +21564,6 @@ msgstr "Клип без изобличавања"
 
 msgid "Scene Strip"
 msgstr "Трака сцене"
-
-
-msgid "Playback volume of the sound"
-msgstr "Јачина звука при репродукцији"
 
 
 msgid "Inverse Gamma"
@@ -23106,11 +23102,6 @@ msgstr "После текућег кадра"
 
 
 msgctxt "Operator"
-msgid "Move..."
-msgstr "Премести..."
-
-
-msgctxt "Operator"
 msgid "Snap"
 msgstr "Лепљење"
 
@@ -23254,11 +23245,6 @@ msgstr "Звук"
 
 
 msgctxt "Operator"
-msgid "Track Ordering..."
-msgstr "Редослед праћења..."
-
-
-msgctxt "Operator"
 msgid "Remove from Frame"
 msgstr "Уклони из свих"
 
@@ -23276,11 +23262,6 @@ msgstr "Упутство на интернету"
 msgctxt "Operator"
 msgid "Make"
 msgstr "Направи"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "Филм"
 
 
 msgctxt "Operator"
@@ -23628,11 +23609,6 @@ msgstr "Звучник"
 
 
 msgctxt "Operator"
-msgid "Make Local..."
-msgstr "Створи везе..."
-
-
-msgctxt "Operator"
 msgid "Bake Action..."
 msgstr "Испеци акцију..."
 
@@ -23728,11 +23704,6 @@ msgstr "Подешавање кости"
 msgctxt "Operator"
 msgid "Calculate"
 msgstr "Израчунај"
-
-
-msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "Поређај елементе..."
 
 
 msgctxt "Operator"
@@ -24109,11 +24080,6 @@ msgstr "Ништа није изабрано"
 
 msgid "Pin"
 msgstr "Закачи"
-
-
-msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Промени пречицу"
 
 
 msgctxt "Operator"

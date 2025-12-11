@@ -145,9 +145,11 @@ void version_system_idprops_generate(Main *bmain)
     }
   }
 }
-/* Separate callback for nodes, because they had the split implemented later. */
 void version_system_idprops_nodes_generate(Main *bmain)
 {
+  /* Separate callback for nodes,
+   * because they had the split implemented later. */
+
   FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
     LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
       idprops_process(node->prop, &node->system_properties);
@@ -155,9 +157,11 @@ void version_system_idprops_nodes_generate(Main *bmain)
   }
   FOREACH_NODETREE_END;
 }
-/* Separate callback for non-root bones, because they were missed in the initial implementation. */
 void version_system_idprops_children_bones_generate(Main *bmain)
 {
+  /* Separate callback for non-root bones,
+   * because they were missed in the initial implementation. */
+
   LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
     /* There is no way to iterate directly over all bones of an armature currently, use a recursive
      * approach instead. */
@@ -2491,6 +2495,9 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
 static bool window_has_sequence_editor_open(const wmWindow *win)
 {
   bScreen *screen = WM_window_get_active_screen(win);
+  if (!screen) {
+    return false;
+  }
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
       if (sl->spacetype == SPACE_SEQ) {
@@ -3172,7 +3179,7 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       node_remove_link(node_tree, *vector_input_link);
     }
     else {
-      /* Gradient texture's input in geometry nodes defaults to using Input Positon if it's not
+      /* Gradient texture's input in geometry nodes defaults to using Input Position if it's not
        * connected. */
       bNode &position = version_node_add_empty(*node_tree, "GeometryNodeInputPosition");
       bNodeSocket &position_output = version_node_add_socket(
