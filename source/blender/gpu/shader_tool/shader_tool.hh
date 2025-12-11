@@ -2545,19 +2545,45 @@ class Preprocessor {
     /* Copy method functions outside of struct scope. */
     parser().foreach_struct([&](Token, const Token, const Scope struct_scope) {
       const Token struct_end = struct_scope.end().next();
+
+      bool has_methods = false;
+      struct_scope.foreach_function(
+          [&](bool, Token, Token, Scope, bool, Scope) { has_methods = true; });
+      if (!has_methods) {
+        /* Avoid uneeded preprocessor directives. */
+        return;
+      }
+
+      /* First output prototypes. Not needed on metal because of wrapper class. */
+      parser.insert_after(struct_end, "#ifndef GPU_METAL\n");
+      struct_scope.foreach_function(
+          [&](bool is_static, Token fn_type, Token, Scope fn_args, bool, Scope) {
+            const Token fn_start = is_static ? fn_type.prev() : fn_type;
+
+            string proto_str = parser.substr_range_inclusive(fn_start, fn_args.end());
+            proto_str = Preprocessor::strip_whitespace(proto_str) + ";\n";
+            Parser proto(proto_str, report_error);
+
+            /* Remove [[resource_table]] and other attributes that could create issues. */
+            proto().foreach_match("[[", [&](Tokens toks) { proto.replace(toks[0].scope(), ""); });
+
+            parser.insert_after(struct_end, proto.result_get());
+          });
+      parser.insert_after(struct_end, "#endif\n");
+
       struct_scope.foreach_function(
           [&](bool is_static, Token fn_type, Token, Scope, bool, Scope fn_body) {
             const Token fn_start = is_static ? fn_type.prev() : fn_type;
 
-            string fn_str = parser.substr_range_inclusive(fn_start.line_start(),
-                                                          fn_body.end().line_end() + 1);
+            string fn_str = parser.substr_range_inclusive(fn_start, fn_body.end());
+            fn_str = string(fn_start.char_number(), ' ') + fn_str;
 
             parser.erase(fn_start, fn_body.end());
-            parser.insert_line_number(struct_end.line_end() + 1, fn_start.line_number());
-            parser.insert_after(struct_end.line_end() + 1, fn_str);
+            parser.insert_line_number(struct_end, fn_start.line_number());
+            parser.insert_after(struct_end, fn_str);
           });
 
-      parser.insert_line_number(struct_end.line_end() + 1, struct_end.line_number() + 1);
+      parser.insert_line_number(struct_end, struct_end.line_number(true));
     });
 
     parser.apply_mutations();
@@ -3205,7 +3231,7 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  std::string strip_whitespace(const std::string &str) const
+  static std::string strip_whitespace(const std::string &str)
   {
     return str.substr(0, str.find_last_not_of(" \n") + 1);
   }
