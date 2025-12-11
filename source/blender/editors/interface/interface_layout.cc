@@ -1065,6 +1065,7 @@ static void ui_keymap_but_cb(bContext * /*C*/, void *but_v, void * /*key_v*/)
  *
  * \param w_hint: For varying width layout, this becomes the label width.
  *                Otherwise it's used to fit both items into it.
+ * \param button_type: Overrides the default button type for \a prop, see #uiDefAutoButR.
  */
 static Button *ui_item_with_label(Layout *layout,
                                   Block *block,
@@ -1077,7 +1078,8 @@ static Button *ui_item_with_label(Layout *layout,
                                   const int y,
                                   const int w_hint,
                                   const int h,
-                                  const int flag)
+                                  const int flag,
+                                  std::optional<ButtonType> button_type = std::nullopt)
 {
   Layout *sub = layout;
   int prop_but_width = w_hint;
@@ -1202,7 +1204,7 @@ static Button *ui_item_with_label(Layout *layout,
     const std::optional<StringRefNull> str = (type == PROP_ENUM && !(flag & ITEM_R_ICON_ONLY)) ?
                                                  std::nullopt :
                                                  std::make_optional<StringRefNull>("");
-    but = uiDefAutoButR(block, ptr, prop, index, str, icon, x, y, prop_but_width, h);
+    but = uiDefAutoButR(block, ptr, prop, index, str, icon, x, y, prop_but_width, h, button_type);
   }
 
   /* Highlight in red on path template validity errors. */
@@ -2229,7 +2231,7 @@ void Layout::prop(PointerRNA *ptr,
         results_are_suggestions = true;
       }
     }
-    but = but_add_search(but, ptr, prop, nullptr, nullptr, nullptr, results_are_suggestions);
+    button_configure_search(but, ptr, prop, nullptr, nullptr, nullptr, results_are_suggestions);
 
     if (layout->red_alert()) {
       button_flag_enable(but, BUT_REDALERT);
@@ -2590,13 +2592,13 @@ static void ui_rna_collection_search_arg_free_fn(void *ptr)
   MEM_delete(coll_search);
 }
 
-Button *but_add_search(Button *but,
-                       PointerRNA *ptr,
-                       PropertyRNA *prop,
-                       PointerRNA *searchptr,
-                       PropertyRNA *searchprop,
-                       PropertyRNA *item_searchprop,
-                       const bool results_are_suggestions)
+void button_configure_search(Button *but,
+                             PointerRNA *ptr,
+                             PropertyRNA *prop,
+                             PointerRNA *searchptr,
+                             PropertyRNA *searchprop,
+                             PropertyRNA *item_searchprop,
+                             const bool results_are_suggestions)
 {
   /* for ID's we do automatic lookup */
   bool has_search_fn = false;
@@ -2616,10 +2618,9 @@ Button *but_add_search(Button *but,
   /* turn button into search button */
   if (has_search_fn || searchprop) {
     RNACollectionSearch *coll_search = MEM_new<RNACollectionSearch>(__func__);
-    ButtonSearch *search_but;
 
     BLI_assert(but->type == ButtonType::SearchMenu);
-    search_but = (ButtonSearch *)but;
+    ButtonSearch *search_but = (ButtonSearch *)but;
 
     if (searchptr) {
       search_but->rnasearchpoin = *searchptr;
@@ -2678,8 +2679,6 @@ Button *but_add_search(Button *but,
      * so other code might have already set but->type to search menu... */
     but->flag |= BUT_DISABLED;
   }
-
-  return but;
 }
 
 void Layout::prop_search(PointerRNA *ptr,
@@ -2739,9 +2738,10 @@ void Layout::prop_search(PointerRNA *ptr,
   int w, h;
   ui_item_rna_size(this, name, icon, ptr, prop, 0, false, false, &w, &h);
   w += UI_UNIT_X; /* X icon needs more space */
-  Button *but = ui_item_with_label(this, block, name, icon, ptr, prop, 0, 0, 0, w, h, 0);
-
-  but = but_add_search(
+  Button *but = ui_item_with_label(
+      this, block, name, icon, ptr, prop, 0, 0, 0, w, h, 0, ButtonType::SearchMenu);
+  BLI_assert(but->type = ButtonType::SearchMenu);
+  button_configure_search(
       but, ptr, prop, searchptr, searchprop, item_searchprop, results_are_suggestions);
 }
 

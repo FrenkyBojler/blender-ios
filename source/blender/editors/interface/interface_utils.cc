@@ -160,21 +160,11 @@ Button *uiDefAutoButR(Block *block,
                              std::nullopt);
       }
       else {
-        BLI_assert(
-            ELEM(type.value_or(ButtonType::NumSlider), ButtonType::NumSlider, ButtonType::Num));
-        but = uiDefButR_prop(block,
-                             type.value_or(ButtonType::Num),
-                             name,
-                             x,
-                             y,
-                             width,
-                             height,
-                             ptr,
-                             prop,
-                             index,
-                             0,
-                             0,
-                             std::nullopt);
+        const ButtonType button_type = type.value_or(ButtonType::Num);
+        BLI_assert(ELEM(button_type, ButtonType::Num, ButtonType::NumSlider));
+
+        but = uiDefButR_prop(
+            block, button_type, name, x, y, width, height, ptr, prop, index, 0, 0, std::nullopt);
       }
 
       if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
@@ -182,25 +172,16 @@ Button *uiDefAutoButR(Block *block,
       }
       break;
     }
-    case PROP_ENUM:
+    case PROP_ENUM: {
+      const ButtonType button_type = type.value_or(ButtonType::Menu);
+      BLI_assert(ELEM(button_type, ButtonType::Menu, ButtonType::SearchMenu));
       if (icon && name && name->is_empty()) {
-        but = uiDefIconButR_prop(block,
-                                 ButtonType::Menu,
-                                 icon,
-                                 x,
-                                 y,
-                                 width,
-                                 height,
-                                 ptr,
-                                 prop,
-                                 index,
-                                 0,
-                                 0,
-                                 std::nullopt);
+        but = uiDefIconButR_prop(
+            block, button_type, icon, x, y, width, height, ptr, prop, index, 0, 0, std::nullopt);
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
-                                     ButtonType::Menu,
+                                     button_type,
                                      icon,
                                      std::nullopt,
                                      x,
@@ -215,21 +196,11 @@ Button *uiDefAutoButR(Block *block,
                                      std::nullopt);
       }
       else {
-        but = uiDefButR_prop(block,
-                             ButtonType::Menu,
-                             name,
-                             x,
-                             y,
-                             width,
-                             height,
-                             ptr,
-                             prop,
-                             index,
-                             0,
-                             0,
-                             std::nullopt);
+        but = uiDefButR_prop(
+            block, button_type, name, x, y, width, height, ptr, prop, index, 0, 0, std::nullopt);
       }
       break;
+    }
     case PROP_STRING: {
       bool has_search_fn = RNA_property_string_search_flag(prop) != eStringPropertySearchFlag(0);
       if (icon && name && name->is_empty()) {
@@ -309,7 +280,7 @@ Button *uiDefAutoButR(Block *block,
                                    0,
                                    0,
                                    std::nullopt);
-      but_add_search(but, ptr, prop, nullptr, nullptr, nullptr, false);
+      button_configure_search(but, ptr, prop, nullptr, nullptr, nullptr, false);
       break;
     }
     case PROP_COLLECTION: {

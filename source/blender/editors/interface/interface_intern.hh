@@ -1419,17 +1419,19 @@ void layout_remove_but(Layout *layout, const Button *but);
  * \return true if the button was successfully replaced.
  */
 bool layout_replace_but_ptr(Layout *layout, const void *old_but_ptr, Button *new_but);
+
 /**
- * \note May reallocate \a but, so the possibly new address is returned. May also override the
- *       #BUT_DISABLED flag depending on if a search pointer-property pair was provided/found.
+ * \note \a but type must be a ButtonType::SearchMenu. If the property is a string property and
+ * does not contains the #PROP_STRING_SEARCH_SUPPORTED flag or if the search property is not
+ * provided or automatically found it will disable the button.
  */
-Button *but_add_search(Button *but,
-                       PointerRNA *ptr,
-                       PropertyRNA *prop,
-                       PointerRNA *searchptr,
-                       PropertyRNA *searchprop,
-                       PropertyRNA *item_searchprop,
-                       bool results_are_suggestions);
+void button_configure_search(Button *but,
+                             PointerRNA *ptr,
+                             PropertyRNA *prop,
+                             PointerRNA *searchptr,
+                             PropertyRNA *searchprop,
+                             PropertyRNA *item_searchprop,
+                             bool results_are_suggestions);
 /**
  * Check all buttons defined in this layout,
  * and set any button flagged as BUT_LIST_ITEM as active/selected.
