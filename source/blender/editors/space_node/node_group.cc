@@ -660,6 +660,9 @@ static wmOperatorStatus node_group_separate_exec(bContext *C, wmOperator *op)
 
   BKE_main_ensure_invariants(*CTX_data_main(C));
 
+  /* Moving drivers may require a depsgraph rebuild. */
+  DEG_relations_tag_update(bmain);
+
   return OPERATOR_FINISHED;
 }
 
