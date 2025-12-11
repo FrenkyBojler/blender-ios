@@ -707,11 +707,11 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
   r_triangles.resize(triangle_offsets.total_size());
 
+  MutableSpan<int3> r_triangles_span = r_triangles.as_mutable_span();
   threading::parallel_for(shape_mask.index_range(), 512, [&](const IndexRange range) {
     for (const int pos : range) {
       const IndexRange shape_range = triangle_offsets[pos];
-      MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(shape_range);
-      array_utils::copy(triangle_results[pos].as_span(), r_tris);
+      array_utils::copy(triangle_results[pos].as_span(), r_triangles_span.slice(shape_range));
     }
   });
 }
