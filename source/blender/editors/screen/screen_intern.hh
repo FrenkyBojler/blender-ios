@@ -228,6 +228,16 @@ short screen_geom_find_area_split_point(const ScrArea *area,
  */
 void screen_geom_select_connected_edge(const wmWindow *win, ScrEdge *edge);
 
+/**
+ * Select all edges that are aligned with \a edge.
+ */
+void screen_geom_select_extended_edge(const wmWindow *win, ScrEdge *edge);
+
+/**
+ * True if the edge can be extended.
+ */
+bool screen_geom_edge_can_extend(const wmWindow *win, ScrEdge *edge);
+
 /* `screen_context.cc` */
 
 /**

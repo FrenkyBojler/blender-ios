@@ -1753,6 +1753,8 @@ struct sAreaMoveData {
   int bigger, smaller, origval, step;
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
+  bool can_extend;
+  bool extend;
   bScreen *screen;
   ScrArea *area1, *area2;
   double start_time;
@@ -1871,9 +1873,52 @@ static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
   screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
 }
 
+static bool area_move_reinit(bContext *C, wmOperator *op, bool extend)
+{
+  sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
+  md->extend = extend;
+
+  bScreen *screen = CTX_wm_screen(C);
+  wmWindow *win = CTX_wm_window(C);
+
+  /* required properties */
+  int x = RNA_int_get(op->ptr, "x");
+  int y = RNA_int_get(op->ptr, "y");
+
+  /* setup */
+  ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, x, y);
+
+  if (actedge == nullptr) {
+    return false;
+  }
+
+  ED_screen_verts_iter(win, screen, v1)
+  {
+    v1->editflag = 0;
+  }
+
+  if (extend) {
+    screen_geom_select_extended_edge(win, actedge);
+  }
+  else {
+    screen_geom_select_connected_edge(win, actedge);
+  }
+
+  /* now all vertices with 'flag == 1' are the ones that can be moved. Move this to editflag */
+  ED_screen_verts_iter(win, screen, v1)
+  {
+    v1->editflag = v1->flag;
+  }
+
+  md->start_time = BLI_time_now_seconds();
+  md->end_time = md->start_time + AREA_MOVE_LINE_FADEIN;
+
+  return true;
+}
+
 /* validate selection inside screen, set variables OK */
 /* return false: init failed */
-static bool area_move_init(bContext *C, wmOperator *op)
+static bool area_move_init(bContext *C, wmOperator *op, bool extend)
 {
   bScreen *screen = CTX_wm_screen(C);
   wmWindow *win = CTX_wm_window(C);
@@ -1913,7 +1958,14 @@ static bool area_move_init(bContext *C, wmOperator *op)
     md->origval = actedge->v1->vec.x;
   }
 
-  screen_geom_select_connected_edge(win, actedge);
+  md->can_extend = screen_geom_edge_can_extend(win, actedge);
+  if (md->can_extend && extend) {
+    screen_geom_select_extended_edge(win, actedge);
+  }
+  else {
+    screen_geom_select_connected_edge(win, actedge);
+  }
+
   /* now all vertices with 'flag == 1' are the ones that can be moved. Move this to editflag */
   ED_screen_verts_iter(win, screen, v1)
   {
@@ -1933,6 +1985,7 @@ static bool area_move_init(bContext *C, wmOperator *op)
 
   md->win = win;
   md->screen = screen;
+  md->extend = extend;
   md->start_time = BLI_time_now_seconds();
   md->end_time = md->start_time + AREA_MOVE_LINE_FADEIN;
   md->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), area_move_draw_cb, op);
@@ -2149,6 +2202,9 @@ static void area_move_apply_do(bContext *C, int delta, sAreaMoveData *md)
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
+  if (md->can_extend) {
+    status.item_bool(IFACE_("Extend"), md->extend, ICON_EVENT_SHIFT);
+  }
 
   short final_loc = -1;
   bool doredraw = false;
@@ -2227,6 +2283,7 @@ static void area_move_apply(bContext *C, wmOperator *op)
 static void area_move_exit(bContext *C, wmOperator *op)
 {
   sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
+
   if (md->draw_callback) {
     WM_draw_cb_exit(CTX_wm_window(C), md->draw_callback);
   }
@@ -2245,7 +2302,7 @@ static void area_move_exit(bContext *C, wmOperator *op)
 
 static wmOperatorStatus area_move_exec(bContext *C, wmOperator *op)
 {
-  if (!area_move_init(C, op)) {
+  if (!area_move_init(C, op, false)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2261,7 +2318,7 @@ static wmOperatorStatus area_move_invoke(bContext *C, wmOperator *op, const wmEv
   RNA_int_set(op->ptr, "x", event->xy[0]);
   RNA_int_set(op->ptr, "y", event->xy[1]);
 
-  if (!area_move_init(C, op)) {
+  if (!area_move_init(C, op, event->modifier & KM_SHIFT)) {
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -2271,6 +2328,9 @@ static wmOperatorStatus area_move_invoke(bContext *C, wmOperator *op, const wmEv
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
+  if (md->can_extend) {
+    status.item_bool(IFACE_("Extend"), md->extend, ICON_EVENT_SHIFT);
+  }
 
   /* add temp handler */
   screen_modal_action_begin();
@@ -2294,6 +2354,12 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
 
   /* execute the events */
   switch (event->type) {
+    case EVT_RIGHTSHIFTKEY:
+    case EVT_LEFTSHIFTKEY: {
+      area_move_reinit(C, op, event->modifier & KM_SHIFT);
+      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      break;
+    }
     case MOUSEMOVE: {
       int x = RNA_int_get(op->ptr, "x");
       int y = RNA_int_get(op->ptr, "y");
@@ -2330,11 +2396,6 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
           }
           break;
       }
-      WorkspaceStatus status(C);
-      status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-      status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
-      status.item_bool(
-          IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
       break;
     }
     default: {
@@ -2342,6 +2403,13 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
     }
   }
 
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
+  if (md->can_extend) {
+    status.item_bool(IFACE_("Extend"), md->extend, ICON_EVENT_SHIFT);
+  }
   return OPERATOR_RUNNING_MODAL;
 }
 
