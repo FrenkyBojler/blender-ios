@@ -166,79 +166,12 @@ static void remap_pairing(bNodeTree &dst_tree,
   }
 }
 
-/**
- * Utility for copying or transferring animation data from one node tree to another.
- */
-class NodeTreeAnimationTransfer {
- private:
-  ListBase anim_basepaths_ = {nullptr, nullptr};
-
- public:
-  NodeTreeAnimationTransfer() = default;
-  ~NodeTreeAnimationTransfer()
-  {
-    this->clear();
-  }
-
-  static std::string get_basepath(const bNodeTree &tree, const bNode &node)
-  {
-    const PointerRNA ptr = RNA_pointer_create_discrete(
-        &const_cast<bNodeTree &>(tree).id, &RNA_Node, &const_cast<bNode &>(node));
-    return *RNA_path_from_ID_to_struct(&ptr);
-  }
-
-  void add_basepath(const StringRef src, const StringRef dst)
-  {
-    AnimationBasePathChange *basepath_change = MEM_callocN<AnimationBasePathChange>(AT);
-    basepath_change->src_basepath = BLI_strdupn(src.data(), src.size());
-    basepath_change->dst_basepath = BLI_strdupn(dst.data(), dst.size());
-    BLI_addtail(&anim_basepaths_, basepath_change);
-  }
-
-  void clear()
-  {
-    LISTBASE_FOREACH_MUTABLE (AnimationBasePathChange *, basepath_change, &anim_basepaths_) {
-      if (basepath_change->src_basepath != basepath_change->dst_basepath) {
-        MEM_freeN(basepath_change->src_basepath);
-      }
-      MEM_freeN(basepath_change->dst_basepath);
-      MEM_freeN(basepath_change);
-    }
-    BLI_listbase_clear(&anim_basepaths_);
-  }
-
-  /* Transfer animation data paths between node trees.
-   * Source tree animation is unmodified if keep_source_anim is true. */
-  void apply(Main &bmain, bNodeTree &src, bNodeTree &dst, const bool keep_source_anim)
-  {
-    if (!src.adt) {
-      return;
-    }
-
-    /* Transfer of animdata from the same action is not supported. Make a copy if the target action
-     * is the same as the source action.
-     * Also copy the action if the source action should remain unmodified, because transferring
-     * data will remove it from the source. */
-    bAction *temp_action = nullptr;
-    if (dst.adt == src.adt || keep_source_anim) {
-      temp_action = reinterpret_cast<bAction *>(BKE_id_copy(&bmain, &src.adt->action->id));
-      const bool assign_ok = animrig::assign_action(temp_action, {src.id, *src.adt});
-      BLI_assert_msg(assign_ok, "Assigning a copy of an already-assigned Action should work");
-      UNUSED_VARS_NDEBUG(assign_ok);
-    }
-
-    BKE_animdata_transfer_by_basepath(&bmain, &src.id, &dst.id, &anim_basepaths_);
-    this->clear();
-
-    /* Free temp action copy. */
-    if (temp_action) {
-      const bool unassign_ok = animrig::unassign_action({src.id, *src.adt});
-      BLI_assert_msg(unassign_ok, "Unassigning an Action that was just assigned should work");
-      UNUSED_VARS_NDEBUG(unassign_ok);
-      BKE_id_free(&bmain, temp_action);
-    }
-  }
-};
+static std::string node_basepath(const bNodeTree &tree, const bNode &node)
+{
+  const PointerRNA ptr = RNA_pointer_create_discrete(
+      &const_cast<bNodeTree &>(tree).id, &RNA_Node, &const_cast<bNode &>(node));
+  return *RNA_path_from_ID_to_struct(&ptr);
+}
 
 /** \} */
 
@@ -379,7 +312,7 @@ static void update_nested_node_refs_after_ungroup(bNodeTree &ntree,
  */
 static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
 {
-  NodeTreeAnimationTransfer anim_transfer;
+  Vector<AnimationBasePathChange> anim_basepaths;
   Vector<bNode *> nodes_delayed_free;
   const bNodeTree *ngroup = reinterpret_cast<const bNodeTree *>(gnode->id);
 
@@ -404,7 +337,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     }
 
     /* Keep track of this node's RNA "base" path (the part of the path identifying the node). */
-    const std::string old_basepath = NodeTreeAnimationTransfer::get_basepath(*wgroup, *node);
+    const std::string old_basepath = node_basepath(*wgroup, *node);
 
     /* migrate node */
     BLI_remlink(&wgroup->nodes, node);
@@ -416,8 +349,8 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
 
     BKE_ntree_update_tag_node_new(ntree, node);
 
-    const std::string new_basepath = NodeTreeAnimationTransfer::get_basepath(*ntree, *node);
-    anim_transfer.add_basepath(old_basepath, new_basepath);
+    const std::string new_basepath = node_basepath(*ntree, *node);
+    anim_basepaths.append({old_basepath, new_basepath});
 
     node->location[0] += gnode->location[0];
     node->location[1] += gnode->location[1];
@@ -437,7 +370,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
 
   bNodeLink *glinks_last = (bNodeLink *)ntree->links.last;
 
-  anim_transfer.apply(*bmain, *wgroup, *ntree, true);
+  BKE_animdata_transfer_by_basepath(*bmain, wgroup->id, ntree->id, true, anim_basepaths);
 
   remap_pairing(*ntree, new_nodes, node_identifier_map);
 
@@ -586,8 +519,7 @@ static bool node_group_separate_selected(
 {
   node_deselect_all(ntree);
 
-  NodeTreeAnimationTransfer anim_transfer;
-
+  Vector<AnimationBasePathChange> anim_basepaths;
   Map<bNode *, bNode *> node_map;
   Map<const bNodeSocket *, bNodeSocket *> socket_map;
   Map<int32_t, int32_t> node_identifier_map;
@@ -598,7 +530,7 @@ static bool node_group_separate_selected(
       [](const bNode *node) { return node->is_group_input() || node->is_group_output(); });
 
   for (bNode *node : nodes_to_move) {
-    const std::string old_basepath = NodeTreeAnimationTransfer::get_basepath(ngroup, *node);
+    const std::string old_basepath = node_basepath(ngroup, *node);
     bNode *newnode;
     if (make_copy) {
       newnode = bke::node_copy_with_mapping(
@@ -617,8 +549,8 @@ static bool node_group_separate_selected(
     node_map.add_new(node, newnode);
 
     /* Keep track of this node's RNA "base" path (the part of the path identifying the node). */
-    const std::string new_basepath = NodeTreeAnimationTransfer::get_basepath(ngroup, *newnode);
-    anim_transfer.add_basepath(old_basepath, new_basepath);
+    const std::string new_basepath = node_basepath(ngroup, *newnode);
+    anim_basepaths.append({old_basepath, new_basepath});
 
     /* ensure valid parent pointers, detach if parent stays inside the group */
     if (newnode->parent && !(newnode->parent->flag & NODE_SELECT)) {
@@ -667,7 +599,7 @@ static bool node_group_separate_selected(
 
   /* and copy across the animation,
    * note that the animation data's action can be nullptr here */
-  anim_transfer.apply(bmain, ngroup, ntree, make_copy);
+  BKE_animdata_transfer_by_basepath(bmain, ngroup.id, ntree.id, make_copy, anim_basepaths);
 
   BKE_ntree_update_tag_all(&ntree);
   if (!make_copy) {
@@ -1148,17 +1080,11 @@ static void node_group_make_insert_selected(const bContext &C,
     }
   }
 
-  /* Move animation data from the parent tree to the group. */
-  NodeTreeAnimationTransfer anim_transfer;
-  for (bNode *node : nodes_to_move) {
-    const std::string path = NodeTreeAnimationTransfer::get_basepath(ntree, *node);
-    anim_transfer.add_basepath(path, path);
-  }
-  anim_transfer.apply(*bmain, ntree, group, false);
-
   /* Move nodes into the group. */
+  Vector<AnimationBasePathChange> anim_basepaths;
   for (bNode *node : nodes_to_move) {
     const int32_t old_identifier = node->identifier;
+    const std::string old_basepath = node_basepath(ntree, *node);
 
     BLI_remlink(&ntree.nodes, node);
     BLI_addtail(&group.nodes, node);
@@ -1169,6 +1095,9 @@ static void node_group_make_insert_selected(const bContext &C,
 
     BKE_ntree_update_tag_node_removed(&ntree);
     BKE_ntree_update_tag_node_new(&group, node);
+
+    const std::string new_basepath = node_basepath(group, *node);
+    anim_basepaths.append({old_basepath, new_basepath});
   }
   bke::node_rebuild_id_vector(ntree);
 
@@ -1242,6 +1171,8 @@ static void node_group_make_insert_selected(const bContext &C,
   }
 
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
+
+  BKE_animdata_transfer_by_basepath(*bmain, ntree.id, group.id, false, anim_basepaths);
 
   /* Add new links to inputs outside of the group. */
   for (const auto item : input_links.items()) {

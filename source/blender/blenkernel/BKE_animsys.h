@@ -208,24 +208,23 @@ bool BKE_animdata_drivers_remove_for_rna_struct(struct ID &owner_id,
 
 /* -------------------------------------- */
 
-typedef struct AnimationBasePathChange {
-  struct AnimationBasePathChange *next, *prev;
-  const char *src_basepath;
-  const char *dst_basepath;
-} AnimationBasePathChange;
+struct AnimationBasePathChange {
+  std::string src_basepath;
+  std::string dst_basepath;
+};
 
 /**
- * Move animation data from source to destination if its paths are based on `basepaths`.
+ * Copy or move any animation data under the base paths.
+ * Creates new #AnimData as necessary.
  *
- * Transfer the animation data from `srcID` to `dstID` where the `srcID` animation data
- * is based off `basepath`, creating new #AnimData and associated data as necessary.
- *
- * \param basepaths: A list of #AnimationBasePathChange.
+ * \param copy_animdata: If true then animation data is copied instead of moved.
+ * \param basepaths: List of base path pairs to transfer.
  */
-void BKE_animdata_transfer_by_basepath(struct Main *bmain,
-                                       struct ID *srcID,
-                                       struct ID *dstID,
-                                       struct ListBase *basepaths);
+void BKE_animdata_transfer_by_basepath(Main &bmain,
+                                       ID &src_id,
+                                       ID &dst_id,
+                                       bool copy_animdata,
+                                       blender::Span<AnimationBasePathChange> basepaths);
 
 /* ------------ NLA Keyframing --------------- */
 
