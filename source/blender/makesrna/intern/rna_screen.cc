@@ -324,8 +324,8 @@ static int rna_Region_active_panel_category_editable_get(const PointerRNA *ptr,
 
 int rna_region_active_panel_category_get(ARegion *region)
 {
-  const char *idname = UI_panel_category_active_get(region, false);
-  return UI_panel_category_index_find(region, idname);
+  const char *idname = blender::ui::panel_category_active_get(region, false);
+  return blender::ui::panel_category_index_find(region, idname);
 }
 static int rna_Region_active_panel_category_get(PointerRNA *ptr)
 {
@@ -335,7 +335,7 @@ static int rna_Region_active_panel_category_get(PointerRNA *ptr)
 
 void rna_region_active_panel_category_set(ARegion *region, const int value)
 {
-  UI_panel_category_index_active_set(region, value);
+  blender::ui::panel_category_index_active_set(region, value);
 }
 static void rna_Region_active_panel_category_set(PointerRNA *ptr, const int value)
 {
@@ -380,16 +380,16 @@ static const EnumPropertyItem *rna_Region_active_panel_category_itemf(bContext *
 
 static void rna_View2D_region_to_view(View2D *v2d, float x, float y, float result[2])
 {
-  UI_view2d_region_to_view(v2d, x, y, &result[0], &result[1]);
+  blender::ui::view2d_region_to_view(v2d, x, y, &result[0], &result[1]);
 }
 
 static void rna_View2D_view_to_region(View2D *v2d, float x, float y, bool clip, int result[2])
 {
   if (clip) {
-    UI_view2d_view_to_region_clip(v2d, x, y, &result[0], &result[1]);
+    blender::ui::view2d_view_to_region_clip(v2d, x, y, &result[0], &result[1]);
   }
   else {
-    UI_view2d_view_to_region(v2d, x, y, &result[0], &result[1]);
+    blender::ui::view2d_view_to_region(v2d, x, y, &result[0], &result[1]);
   }
 }
 
