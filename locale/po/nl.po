@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"POT-Creation-Date: 2025-12-08 10:32+0000\n"
 "PO-Revision-Date: 2025-07-23 14:52+0000\n"
 "Last-Translator: Lisa <blendergirl@tutanota.com>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -2682,62 +2682,6 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Quick Effects"
-msgstr "Snelle Effecten"
-
-
-msgid "Navigation"
-msgstr "Navigatie"
-
-
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
-
-
-msgid "Convert"
-msgstr "Converteer"
-
-
-msgid "Hooks"
-msgstr "Haken"
-
-
-msgid "Local View"
-msgstr "Lokale Scherm"
-
-
-msgid "Clear Transform"
-msgstr "Maak Transformatie Leeg"
-
-
-msgid "Names"
-msgstr "Namen"
-
-
-msgid "Layout"
-msgstr "Indeling"
-
-
-msgid "Mirror"
-msgstr "Spiegel"
-
-
-msgid "Text"
-msgstr "Tekst"
-
-
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
-
-
-msgid "Select Linked"
-msgstr "Selecteer Aaneengesloten"
-
-
-msgid "Import"
-msgstr "Importeren"
-
-
 msgid "Light"
 msgstr "Licht"
 
@@ -2754,6 +2698,62 @@ msgid "Rigid Body"
 msgstr "Star Lichaam"
 
 
+msgid "Quick Effects"
+msgstr "Snelle Effecten"
+
+
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
+
+
+msgid "Layout"
+msgstr "Indeling"
+
+
+msgid "Convert"
+msgstr "Converteer"
+
+
+msgid "Hooks"
+msgstr "Haken"
+
+
+msgid "Clear Transform"
+msgstr "Maak Transformatie Leeg"
+
+
+msgid "Names"
+msgstr "Namen"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Import"
+msgstr "Importeren"
+
+
+msgid "Mirror"
+msgstr "Spiegel"
+
+
+msgid "Local View"
+msgstr "Lokale Scherm"
+
+
+msgid "Navigation"
+msgstr "Navigatie"
+
+
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
+
+
+msgid "Select Linked"
+msgstr "Selecteer Aaneengesloten"
+
+
 msgctxt "MovieClip"
 msgid "Clip"
 msgstr "Clip"
@@ -2761,10 +2761,6 @@ msgstr "Clip"
 
 msgid "Console"
 msgstr "Console"
-
-
-msgid "Languages..."
-msgstr "Talen..."
 
 
 msgid "Channel"
@@ -3349,11 +3345,6 @@ msgstr "Bewerk Eigenschap"
 msgctxt "Operator"
 msgid "Remove Property"
 msgstr "Verwijder Eigenschap"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Systeem Informatie Opslaan"
 
 
 msgctxt "Operator"
@@ -7478,11 +7469,6 @@ msgstr "Ontgrendel Banen"
 
 
 msgctxt "Operator"
-msgid "Move..."
-msgstr "Verplaats..."
-
-
-msgctxt "Operator"
 msgid "More"
 msgstr "Meer"
 
@@ -7672,11 +7658,6 @@ msgstr "Synchroniseer Selectie"
 msgctxt "Operator"
 msgid "Refresh All"
 msgstr "Ververs Alles"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "Film"
 
 
 msgctxt "Operator"
@@ -8028,11 +8009,6 @@ msgstr "Luidspreker"
 
 
 msgctxt "Operator"
-msgid "Make Local..."
-msgstr "Maak Lokaal..."
-
-
-msgctxt "Operator"
 msgid "Bake Action..."
 msgstr "Bak Actie..."
 
@@ -8132,11 +8108,6 @@ msgstr "Bereken"
 
 
 msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "Sorteer Elementen..."
-
-
-msgctxt "Operator"
 msgid "Weak"
 msgstr "Zwak"
 
@@ -8201,11 +8172,6 @@ msgstr "Rol Rechts"
 msgctxt "Operator"
 msgid "Armature"
 msgstr "Skelet"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Achtergrond"
 
 
 msgctxt "Operator"
@@ -8442,11 +8408,6 @@ msgstr "Niets geselecteerd"
 
 msgid "Pin"
 msgstr "Prik"
-
-
-msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Verander Sneltoets"
 
 
 msgctxt "Operator"
