@@ -19,6 +19,8 @@
 namespace blender::gpu {
 
 struct TexturePool {
+  virtual ~TexturePool() = default;
+
   /* Return the texture pool from the active GPUContext.
    * Only valid if a context is active. */
   static TexturePool &get();
