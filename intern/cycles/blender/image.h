@@ -4,15 +4,22 @@
 
 #pragma once
 
+#include "DNA_image_types.h"
+
 #include "RNA_blender_cpp.hh"
 
 #include "scene/image.h"
+#include "scene/image_vdb.h"
+
+struct Image;
+struct ImageUser;
 
 CCL_NAMESPACE_BEGIN
 
 class BlenderImageLoader : public ImageLoader {
  public:
-  BlenderImageLoader(BL::Image b_image,
+  BlenderImageLoader(::Image *b_image,
+                     ::ImageUser *b_iuser,
                      const int frame,
                      const int tile_number,
                      const bool is_preview_render);
@@ -27,26 +34,9 @@ class BlenderImageLoader : public ImageLoader {
 
   int get_tile_number() const override;
 
-  BL::Image b_image;
-  int frame;
-  int tile_number;
+  ::Image *b_image;
+  ::ImageUser b_iuser;
   bool free_cache;
-};
-
-class BlenderPointDensityLoader : public ImageLoader {
- public:
-  BlenderPointDensityLoader(BL::Depsgraph depsgraph, BL::ShaderNodeTexPointDensity b_node);
-
-  bool load_metadata(const ImageDeviceFeatures &features, ImageMetaData &metadata) override;
-  bool load_pixels(const ImageMetaData &metadata,
-                   void *pixels,
-                   const size_t pixels_size,
-                   const bool associate_alpha) override;
-  string name() const override;
-  bool equals(const ImageLoader &other) const override;
-
-  BL::Depsgraph b_depsgraph;
-  BL::ShaderNodeTexPointDensity b_node;
 };
 
 CCL_NAMESPACE_END

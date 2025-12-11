@@ -35,7 +35,7 @@ class PathTraceWorkGPU : public PathTraceWork {
   void render_samples(RenderStatistics &statistics,
                       const int start_sample,
                       const int samples_num,
-                      int sample_offset) override;
+                      const int sample_offset) override;
 
   void copy_to_display(PathTraceDisplay *display,
                        PassMode pass_mode,
@@ -48,6 +48,7 @@ class PathTraceWorkGPU : public PathTraceWork {
 
   int adaptive_sampling_converge_filter_count_active(const float threshold, bool reset) override;
   void cryptomatte_postproces() override;
+  void denoise_volume_guiding_buffers() override;
 
  protected:
   void alloc_integrator_soa();
@@ -84,7 +85,7 @@ class PathTraceWorkGPU : public PathTraceWork {
   int num_active_main_paths_paths();
 
   /* Check whether graphics interop can be used for the PathTraceDisplay update. */
-  bool should_use_graphics_interop();
+  bool should_use_graphics_interop(PathTraceDisplay *display);
 
   /* Naive implementation of the `copy_to_display()` which performs film conversion on the
    * device, then copies pixels to the host and pushes them to the `display`. */

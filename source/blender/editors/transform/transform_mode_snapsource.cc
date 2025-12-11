@@ -6,14 +6,16 @@
  * \ingroup edtransform
  */
 
+#include "DNA_space_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_windowmanager_types.h"
 
+#include "WM_types.hh"
+
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
-#include "ED_screen.hh"
 #include "ED_transform_snap_object_context.hh"
 
 #include "transform.hh"
@@ -26,7 +28,7 @@
 #define RESET_TRANSFORMATION
 #define REMOVE_GIZMO
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform Element
@@ -219,7 +221,7 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   }
 
   if (t->data_type == &TransConvertType_Mesh) {
-    ED_transform_snap_object_context_set_editmesh_callbacks(
+    blender::ed::transform::snap_object_context_set_editmesh_callbacks(
         t->tsnap.object_context, nullptr, nullptr, nullptr, nullptr);
   }
 
@@ -240,7 +242,7 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
 #ifdef REMOVE_GIZMO
   wmGizmo *gz = WM_gizmomap_get_modal(t->region->runtime->gizmo_map);
   if (gz) {
-    const wmEvent *event = CTX_wm_window(t->context)->eventstate;
+    const wmEvent *event = CTX_wm_window(t->context)->runtime->eventstate;
 #  ifdef RESET_TRANSFORMATION
     wmGizmoFnModal modal_fn = gz->custom_modal ? gz->custom_modal : gz->type->modal;
     if (modal_fn) {
@@ -270,3 +272,5 @@ TransModeInfo TransMode_snapsource = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

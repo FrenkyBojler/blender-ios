@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "scene/shader.h"
 #include "scene/shader_graph.h"
 
@@ -27,8 +29,6 @@ class SVMShaderManager : public ShaderManager {
  public:
   SVMShaderManager();
   ~SVMShaderManager() override;
-
-  void reset(Scene *scene) override;
 
   void device_update_specific(Device *device,
                               DeviceScene *dscene,
@@ -55,9 +55,6 @@ class SVMCompiler {
 
     /* Peak stack usage during shader evaluation. */
     int peak_stack_usage;
-
-    /* Time spent on surface graph finalization. */
-    double time_finalize;
 
     /* Time spent on generating SVM nodes for surface shader. */
     double time_generate_surface;
@@ -89,6 +86,8 @@ class SVMCompiler {
   bool is_linked(ShaderInput *input);
   int stack_assign_if_linked(ShaderInput *input);
   int stack_assign_if_linked(ShaderOutput *output);
+  int stack_assign_if_not_equal(ShaderInput *input, const float value);
+  int stack_assign_if_not_equal(ShaderInput *input, const float3 value);
   int stack_find_offset(const int size);
   int stack_find_offset(SocketType::Type type);
   void stack_clear_offset(SocketType::Type type, const int offset);

@@ -106,18 +106,35 @@ class RenderScheduler {
   void set_adaptive_sampling(const AdaptiveSampling &adaptive_sampling);
   bool is_adaptive_sampling_used() const;
 
-  /* Start sample for path tracing.
-   * The scheduler will schedule work using this sample as the first one. */
-  void set_start_sample(const int start_sample);
-  int get_start_sample() const;
+  /* Setup parameters defining the sampling range.
+   *
+   * It is a single function setting up multiple parameters because there are inter-dependencies
+   * between these parameters.
+   *
+   * In simple cases the subset is not used and the given num_samples samples is rendered, and the
+   * subset length and offset are ignored.
+   *
+   * It is possible to render a subset of the overall samples. This is typically used to distribute
+   * rendering of a single frame across multiple computers. This subset rendering is  enabled by
+   * setting use_sample_subset=true, and giving the desired offset and length of the subset. The
+   * subset offset is a 0-based sample index to start sampling from, and the length is the number
+   * of samples to render in this subset.
+   *
+   * When the subset rendering is enabled, num_samples is expected to be set to the overall number
+   * of samples to be rendered, and it is internally used to clamp the number of samples rendered
+   * by a subset. */
+  void set_sample_params(const int num_samples,
+                         const bool use_sample_subset,
+                         const int sample_subset_offset,
+                         const int sample_subset_length);
 
   /* Number of samples to render, starting from start sample.
    * The scheduler will schedule work in the range of
    * [start_sample, start_sample + num_samples - 1], inclusively. */
-  void set_num_samples(const int num_samples);
   int get_num_samples() const;
 
-  void set_sample_offset(const int sample_offset);
+  /* For sample subset rendering, extra offset to be added to sample index
+   * for the sampling pattern to be shifted. */
   int get_sample_offset() const;
 
   /* Time limit for the path tracing tasks, in minutes.
@@ -145,7 +162,7 @@ class RenderScheduler {
 
   /* Reset scheduler, indicating that rendering will happen from scratch.
    * Resets current rendered state, as well as scheduling information. */
-  void reset(const BufferParams &buffer_params, const int num_samples, const int sample_offset);
+  void reset(const BufferParams &buffer_params);
 
   /* Reset scheduler upon switching to a next tile.
    * Will keep the same number of samples and full-frame render parameters, but will reset progress
@@ -190,6 +207,9 @@ class RenderScheduler {
   void report_rebalance_time(const RenderWork &render_work,
                              const double time,
                              bool balance_changed);
+  void report_volume_guiding_denoise_time(const RenderWork &render_work, const double time);
+
+  bool volume_guiding_need_denoise() const;
 
   /* Generate full multi-line report of the rendering process, including rendering parameters,
    * times, and so on. */
@@ -418,6 +438,7 @@ class RenderScheduler {
   TimeWithAverage denoise_time_;
   TimeWithAverage display_update_time_;
   TimeWithAverage rebalance_time_;
+  TimeWithAverage volume_guiding_denoise_time_;
 
   /* Whether cryptomatte-related work will be scheduled. */
   bool need_schedule_cryptomatte_ = false;
@@ -429,11 +450,9 @@ class RenderScheduler {
   bool need_schedule_rebalance_works_ = false;
 
   /* Path tracing work will be scheduled for samples from within
-   * [start_sample_, start_sample_ + num_samples_ - 1] range, inclusively. */
-  int start_sample_ = 0;
-  int num_samples_ = 0;
-
+   * [sample_offset_, sample_offset_ + num_samples_ - 1] range, inclusively. */
   int sample_offset_ = 0;
+  int num_samples_ = 0;
 
   /* Limit in seconds for how long path tracing is allowed to happen.
    * Zero means no limit is applied. */

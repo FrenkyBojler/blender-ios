@@ -55,7 +55,7 @@ class ImageMetaData {
  public:
   /* Set by ImageLoader.load_metadata(). */
   int channels;
-  size_t width, height, depth;
+  size_t width, height;
   size_t byte_size;
   ImageDataType type;
 
@@ -80,7 +80,7 @@ class ImageMetaData {
 /* Information about supported features that Image loaders can use. */
 class ImageDeviceFeatures {
  public:
-  bool has_nanovdb;
+  bool has_nanovdb = true;
 };
 
 /* Image loader base class, that can be subclassed to load image data
@@ -109,7 +109,7 @@ class ImageLoader {
   virtual int get_tile_number() const;
 
   /* Free any memory used for loading metadata and pixels. */
-  virtual void cleanup(){};
+  virtual void cleanup() {};
 
   /* Compare avoid loading the same image multiple times. */
   virtual bool equals(const ImageLoader &other) const = 0;
@@ -137,18 +137,20 @@ class ImageHandle {
 
   bool empty() const;
   int num_tiles() const;
+  int num_svm_slots() const;
 
   ImageMetaData metadata();
-  int svm_slot(const int tile_index = 0) const;
+  int svm_slot(const int slot_index = 0) const;
   vector<int4> get_svm_slots() const;
-  device_texture *image_memory(const int tile_index = 0) const;
+  device_texture *image_memory() const;
 
-  VDBImageLoader *vdb_loader(const int tile_index = 0) const;
+  VDBImageLoader *vdb_loader() const;
 
   ImageManager *get_manager() const;
 
  protected:
-  vector<size_t> tile_slots;
+  vector<size_t> slots;
+  bool is_tiled = false;
   ImageManager *manager;
 
   friend class ImageManager;
@@ -193,7 +195,6 @@ class ImageManager {
     ImageMetaData metadata;
     unique_ptr<ImageLoader> loader;
 
-    float frame;
     bool need_metadata;
     bool need_load;
     bool builtin;
@@ -222,6 +223,7 @@ class ImageManager {
                         const bool builtin);
   void add_image_user(const size_t slot);
   void remove_image_user(const size_t slot);
+  Image *get_image_slot(const size_t slot);
 
   void load_image_metadata(Image *img);
 

@@ -89,7 +89,7 @@ NODE_DEFINE(PointCloud)
   return type;
 }
 
-PointCloud::PointCloud() : Geometry(node_type, Geometry::POINTCLOUD) {}
+PointCloud::PointCloud() : Geometry(get_node_type(), Geometry::POINTCLOUD) {}
 
 PointCloud::~PointCloud() = default;
 
@@ -111,6 +111,11 @@ void PointCloud::reserve(const int numpoints)
   radius.reserve(numpoints);
   shader.reserve(numpoints);
   attributes.resize(true);
+}
+
+void PointCloud::clear_non_sockets()
+{
+  Geometry::clear(true);
 }
 
 void PointCloud::clear(const bool preserve_shaders)

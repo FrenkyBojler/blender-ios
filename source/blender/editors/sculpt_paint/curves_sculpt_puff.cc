@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
@@ -42,7 +41,8 @@ class PuffOperation : public CurvesSculptStrokeOperation {
   friend struct PuffOperationExecutor;
 
  public:
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 /**
@@ -61,7 +61,7 @@ struct PuffOperationExecutor {
   IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -78,14 +78,13 @@ struct PuffOperationExecutor {
   Span<float3> corner_normals_su_;
   bke::BVHTreeFromMesh surface_bvh_;
 
-  PuffOperationExecutor(const bContext &C) : ctx_(C) {}
+  PuffOperationExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(PuffOperation &self, const bContext &C, const StrokeExtension &stroke_extension)
+  void execute(PuffOperation &self, const StrokeExtension &stroke_extension)
   {
-    UNUSED_VARS(C, stroke_extension);
     self_ = &self;
 
-    object_ = CTX_data_active_object(&C);
+    object_ = ctx_.object;
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
     if (curves_->is_empty()) {
@@ -98,9 +97,9 @@ struct PuffOperationExecutor {
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     point_factors_ = *curves_->attributes().lookup_or_default<float>(
@@ -130,12 +129,14 @@ struct PuffOperationExecutor {
                                                  brush_pos_re_,
                                                  brush_radius_base_re_);
         remember_stroke_position(
-            *ctx_.scene,
+            *curves_sculpt_,
             math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
       }
 
-      self_->constraint_solver_.initialize(
-          *curves_, curve_selection_, curves_id_->flag & CV_SCULPT_COLLISION_ENABLED);
+      self_->constraint_solver_.initialize(*curves_,
+                                           curve_selection_,
+                                           curves_id_->flag & CV_SCULPT_COLLISION_ENABLED,
+                                           curves_id_->surface_collision_distance);
     }
 
     Array<float> curve_weights(curves_->curves_num(), 0.0f);
@@ -337,10 +338,11 @@ struct PuffOperationExecutor {
   }
 };
 
-void PuffOperation::on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension)
+void PuffOperation::on_stroke_extended(const PaintStroke &stroke,
+                                       const StrokeExtension &stroke_extension)
 {
-  PuffOperationExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  PuffOperationExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_puff_operation()

@@ -9,17 +9,14 @@
 #include <cstddef>
 #include <cstdlib>
 
+#include "DNA_space_types.h"
+
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
 #include "rna_internal.hh"
 
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_workspace_types.h"
-
-#include "ED_info.hh"
-#include "ED_node.hh"
 
 const EnumPropertyItem rna_enum_region_type_items[] = {
     {RGN_TYPE_WINDOW, "WINDOW", 0, "Window", ""},
@@ -46,8 +43,6 @@ static const EnumPropertyItem rna_enum_region_panel_category_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#include "ED_screen.hh"
-
 #include "UI_interface_c.hh"
 
 #include "WM_api.hh"
@@ -62,6 +57,10 @@ static const EnumPropertyItem rna_enum_region_panel_category_items[] = {
 #  include "BKE_workspace.hh"
 
 #  include "DEG_depsgraph.hh"
+
+#  include "ED_info.hh"
+#  include "ED_node.hh"
+#  include "ED_screen.hh"
 
 #  include "UI_view2d.hh"
 
@@ -293,7 +292,8 @@ static PointerRNA rna_Region_data_get(PointerRNA *ptr)
       /* We could make this static, it won't change at run-time. */
       SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
       if (region->runtime->type == BKE_regiontype_from_id(st, region->regiontype)) {
-        PointerRNA newptr = RNA_pointer_create(&screen->id, &RNA_RegionView3D, region->regiondata);
+        PointerRNA newptr = RNA_pointer_create_discrete(
+            &screen->id, &RNA_RegionView3D, region->regiondata);
         return newptr;
       }
     }
@@ -317,8 +317,8 @@ static int rna_Region_active_panel_category_editable_get(const PointerRNA *ptr,
 static int rna_Region_active_panel_category_get(PointerRNA *ptr)
 {
   ARegion *region = static_cast<ARegion *>(ptr->data);
-  const char *idname = UI_panel_category_active_get(region, false);
-  return UI_panel_category_index_find(region, idname);
+  const char *idname = blender::ui::panel_category_active_get(region, false);
+  return blender::ui::panel_category_index_find(region, idname);
 }
 
 static void rna_Region_active_panel_category_set(PointerRNA *ptr, int value)
@@ -326,7 +326,7 @@ static void rna_Region_active_panel_category_set(PointerRNA *ptr, int value)
   BLI_assert(rna_Region_active_panel_category_editable_get(ptr, nullptr));
 
   ARegion *region = static_cast<ARegion *>(ptr->data);
-  UI_panel_category_index_active_set(region, value);
+  blender::ui::panel_category_index_active_set(region, value);
 }
 
 static const EnumPropertyItem *rna_Region_active_panel_category_itemf(bContext * /*C*/,
@@ -361,16 +361,16 @@ static const EnumPropertyItem *rna_Region_active_panel_category_itemf(bContext *
 
 static void rna_View2D_region_to_view(View2D *v2d, float x, float y, float result[2])
 {
-  UI_view2d_region_to_view(v2d, x, y, &result[0], &result[1]);
+  blender::ui::view2d_region_to_view(v2d, x, y, &result[0], &result[1]);
 }
 
 static void rna_View2D_view_to_region(View2D *v2d, float x, float y, bool clip, int result[2])
 {
   if (clip) {
-    UI_view2d_view_to_region_clip(v2d, x, y, &result[0], &result[1]);
+    blender::ui::view2d_view_to_region_clip(v2d, x, y, &result[0], &result[1]);
   }
   else {
-    UI_view2d_view_to_region(v2d, x, y, &result[0], &result[1]);
+    blender::ui::view2d_view_to_region(v2d, x, y, &result[0], &result[1]);
   }
 }
 
@@ -594,7 +594,7 @@ static void rna_def_region(BlenderRNA *brna)
        "FLOAT",
        0,
        "Float",
-       "Region floats on screen, doesn't use any fixed alignment"},
+       "Region floats on screen, does not use any fixed alignment"},
       {RGN_ALIGN_QSPLIT,
        "QUAD_SPLIT",
        0,

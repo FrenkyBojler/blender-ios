@@ -13,8 +13,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_grease_pencil.hh"
+#include "BKE_library.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
 #include "DNA_anim_types.h"
@@ -91,22 +93,26 @@ void draw_keyframe_shape(const float x,
     /* get interior colors from theme (for selected and unselected only) */
     switch (key_type) {
       case BEZT_KEYTYPE_BREAKDOWN:
-        UI_GetThemeColor3ubv(sel ? TH_KEYTYPE_BREAKDOWN_SELECT : TH_KEYTYPE_BREAKDOWN, fill_col);
+        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_BREAKDOWN_SELECT : TH_KEYTYPE_BREAKDOWN,
+                                  fill_col);
         break;
       case BEZT_KEYTYPE_EXTREME:
-        UI_GetThemeColor3ubv(sel ? TH_KEYTYPE_EXTREME_SELECT : TH_KEYTYPE_EXTREME, fill_col);
+        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_EXTREME_SELECT : TH_KEYTYPE_EXTREME, fill_col);
         break;
       case BEZT_KEYTYPE_JITTER:
-        UI_GetThemeColor3ubv(sel ? TH_KEYTYPE_JITTER_SELECT : TH_KEYTYPE_JITTER, fill_col);
+        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_JITTER_SELECT : TH_KEYTYPE_JITTER, fill_col);
         break;
       case BEZT_KEYTYPE_MOVEHOLD:
-        UI_GetThemeColor3ubv(sel ? TH_KEYTYPE_MOVEHOLD_SELECT : TH_KEYTYPE_MOVEHOLD, fill_col);
+        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_MOVEHOLD_SELECT : TH_KEYTYPE_MOVEHOLD,
+                                  fill_col);
         break;
       case BEZT_KEYTYPE_KEYFRAME:
-        UI_GetThemeColor3ubv(sel ? TH_KEYTYPE_KEYFRAME_SELECT : TH_KEYTYPE_KEYFRAME, fill_col);
+        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_KEYFRAME_SELECT : TH_KEYTYPE_KEYFRAME,
+                                  fill_col);
         break;
       case BEZT_KEYTYPE_GENERATED:
-        UI_GetThemeColor3ubv(sel ? TH_KEYTYPE_GENERATED_SELECT : TH_KEYTYPE_GENERATED, fill_col);
+        ui::theme::get_color_3ubv(sel ? TH_KEYTYPE_GENERATED_SELECT : TH_KEYTYPE_GENERATED,
+                                  fill_col);
         break;
     }
 
@@ -125,7 +131,7 @@ void draw_keyframe_shape(const float x,
 
   if (draw_outline) {
     /* exterior - black frame */
-    UI_GetThemeColor4ubv(sel ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
+    ui::theme::get_color_4ubv(sel ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
     outline_col[3] *= alpha;
 
     if (!draw_fill) {
@@ -188,7 +194,10 @@ struct DrawKeylistUIData {
   float unsel_color[4];
   float sel_mhcol[4];
   float unsel_mhcol[4];
-  float ipo_color[4];
+
+  float ipo_color_linear[4];
+  float ipo_color_constant[4];
+  float ipo_color_other[4];
   float ipo_color_mix[4];
 
   /* Show interpolation and handle type? */
@@ -210,31 +219,35 @@ static void channel_ui_data_init(DrawKeylistUIData *ctx,
   ctx->smaller_size = 0.35f * ctx->icon_size;
   ctx->ipo_size = 0.1f * ctx->icon_size;
   ctx->gpencil_size = ctx->smaller_size * 0.8f;
-  ctx->screenspace_margin = (0.35f * float(UI_UNIT_X)) / UI_view2d_scale_get_x(v2d);
+  ctx->screenspace_margin = (0.35f * float(UI_UNIT_X)) / ui::view2d_scale_get_x(v2d);
 
   ctx->show_ipo = (saction_flag & SACTION_SHOW_INTERPOLATION) != 0;
 
-  UI_GetThemeColor4fv(TH_STRIP_SELECT, ctx->sel_color);
-  UI_GetThemeColor4fv(TH_STRIP, ctx->unsel_color);
-  UI_GetThemeColor4fv(TH_DOPESHEET_IPOLINE, ctx->ipo_color);
+  ui::theme::get_color_4fv(TH_LONGKEY_SELECT, ctx->sel_color);
+  ui::theme::get_color_4fv(TH_LONGKEY, ctx->unsel_color);
+  ui::theme::get_color_4fv(TH_DOPESHEET_IPOLINE, ctx->ipo_color_linear);
+  ui::theme::get_color_4fv(TH_DOPESHEET_IPOCONST, ctx->ipo_color_constant);
+  ui::theme::get_color_4fv(TH_DOPESHEET_IPOOTHER, ctx->ipo_color_other);
+  ui::theme::get_color_4fv(TH_KEYTYPE_KEYFRAME, ctx->ipo_color_mix);
 
   ctx->sel_color[3] *= ctx->alpha;
   ctx->unsel_color[3] *= ctx->alpha;
-  ctx->ipo_color[3] *= ctx->alpha;
+  ctx->ipo_color_linear[3] *= ctx->alpha;
+  ctx->ipo_color_constant[3] *= ctx->alpha;
+  ctx->ipo_color_other[3] *= ctx->alpha;
+  ctx->ipo_color_mix[3] *= ctx->alpha * 0.5f;
 
   copy_v4_v4(ctx->sel_mhcol, ctx->sel_color);
   ctx->sel_mhcol[3] *= 0.8f;
   copy_v4_v4(ctx->unsel_mhcol, ctx->unsel_color);
   ctx->unsel_mhcol[3] *= 0.8f;
-  copy_v4_v4(ctx->ipo_color_mix, ctx->ipo_color);
-  ctx->ipo_color_mix[3] *= 0.5f;
 }
 
 static void draw_keylist_block_gpencil(const DrawKeylistUIData *ctx,
                                        const ActKeyColumn *ab,
                                        float ypos)
 {
-  UI_draw_roundbox_corner_set(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT);
+  ui::draw_roundbox_corner_set(ui::CNR_TOP_RIGHT | ui::CNR_BOTTOM_RIGHT);
   float size = 1.0f;
   switch (ab->next->key_type) {
     case BEZT_KEYTYPE_BREAKDOWN:
@@ -256,7 +269,7 @@ static void draw_keylist_block_gpencil(const DrawKeylistUIData *ctx,
   box.ymin = ypos - ctx->gpencil_size;
   box.ymax = ypos + ctx->gpencil_size;
 
-  UI_draw_roundbox_4fv(
+  ui::draw_roundbox_4fv(
       &box, true, 0.25f * float(UI_UNIT_X), (ab->block.sel) ? ctx->sel_mhcol : ctx->unsel_mhcol);
 }
 
@@ -270,7 +283,7 @@ static void draw_keylist_block_moving_hold(const DrawKeylistUIData *ctx,
   box.ymin = ypos - ctx->smaller_size;
   box.ymax = ypos + ctx->smaller_size;
 
-  UI_draw_roundbox_4fv(&box, true, 3.0f, (ab->block.sel) ? ctx->sel_mhcol : ctx->unsel_mhcol);
+  ui::draw_roundbox_4fv(&box, true, 3.0f, (ab->block.sel) ? ctx->sel_mhcol : ctx->unsel_mhcol);
 }
 
 static void draw_keylist_block_standard(const DrawKeylistUIData *ctx,
@@ -283,7 +296,7 @@ static void draw_keylist_block_standard(const DrawKeylistUIData *ctx,
   box.ymin = ypos - ctx->half_icon_size;
   box.ymax = ypos + ctx->half_icon_size;
 
-  UI_draw_roundbox_4fv(&box, true, 3.0f, (ab->block.sel) ? ctx->sel_color : ctx->unsel_color);
+  ui::draw_roundbox_4fv(&box, true, 3.0f, (ab->block.sel) ? ctx->sel_color : ctx->unsel_color);
 }
 
 static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
@@ -296,11 +309,30 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
   box.ymin = ypos - ctx->ipo_size;
   box.ymax = ypos + ctx->ipo_size;
 
-  UI_draw_roundbox_4fv(&box,
-                       true,
-                       3.0f,
-                       (ab->block.conflict & ACTKEYBLOCK_FLAG_NON_BEZIER) ? ctx->ipo_color_mix :
-                                                                            ctx->ipo_color);
+  /* Color for interpolation lines based on their type */
+  const float *color = nullptr;
+
+  constexpr short IPO_FLAGS = ACTKEYBLOCK_FLAG_IPO_OTHER | ACTKEYBLOCK_FLAG_IPO_LINEAR |
+                              ACTKEYBLOCK_FLAG_IPO_CONSTANT;
+  if (ab->block.conflict & IPO_FLAGS) {
+    /* This is a summary line that combines multiple interpolation modes. */
+    color = ctx->ipo_color_mix;
+  }
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_OTHER) {
+    color = ctx->ipo_color_other;
+  }
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_LINEAR) {
+    color = ctx->ipo_color_linear;
+  }
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_CONSTANT) {
+    color = ctx->ipo_color_constant;
+  }
+  else {
+    /* No line to draw. */
+    return;
+  }
+
+  ui::draw_roundbox_4fv(&box, true, 3.0f, color);
 }
 
 static void draw_keylist_block(const DrawKeylistUIData *ctx, const ActKeyColumn *ab, float ypos)
@@ -311,7 +343,7 @@ static void draw_keylist_block(const DrawKeylistUIData *ctx, const ActKeyColumn 
   }
   else {
     /* Draw other types. */
-    UI_draw_roundbox_corner_set(UI_CNR_NONE);
+    draw_roundbox_corner_set(ui::CNR_NONE);
 
     int valid_hold = actkeyblock_get_valid_hold(ab);
     if (valid_hold != 0) {
@@ -324,9 +356,7 @@ static void draw_keylist_block(const DrawKeylistUIData *ctx, const ActKeyColumn 
         draw_keylist_block_standard(ctx, ab, ypos);
       }
     }
-    if (ctx->show_ipo && actkeyblock_is_valid(ab) &&
-        (ab->block.flag & ACTKEYBLOCK_FLAG_NON_BEZIER))
-    {
+    if (ctx->show_ipo && actkeyblock_is_valid(ab) && (ab->block.flag)) {
       /* draw an interpolation line */
       draw_keylist_block_interpolation_line(ctx, ab, ypos);
     }
@@ -420,6 +450,7 @@ struct ChannelListElement {
   bDopeSheet *ads;
   Scene *sce;
   Object *ob;
+  ID *animated_id; /* The ID that adt (below) belongs to. */
   AnimData *adt;
   FCurve *fcu;
   bAction *act;
@@ -453,18 +484,36 @@ static void build_channel_keylist(ChannelListElement *elem, blender::float2 rang
       break;
     }
     case ChannelType::ACTION_LAYERED: {
-      action_to_keylist(elem->adt, elem->act, elem->keylist, elem->saction_flag, range);
+      /* This is only called for action summaries in the Dope-sheet, *not* the
+       * Action Editor. Therefore despite the name `ACTION_LAYERED`, this is
+       * only used to show a *single slot* of the action: the slot used by the
+       * ID the action is listed under.
+       *
+       * Thus we use the same function as the `ChannelType::ACTION_SLOT` case
+       * below because in practice the only distinction between these cases is
+       * where they get the slot from. In this case, we get it from `elem`'s
+       * ADT. */
+      BLI_assert(elem->act);
+      BLI_assert(elem->adt);
+      action_slot_summary_to_keylist(elem->ac,
+                                     elem->animated_id,
+                                     elem->act->wrap(),
+                                     elem->adt->slot_handle,
+                                     elem->keylist,
+                                     elem->saction_flag,
+                                     range);
       break;
     }
     case ChannelType::ACTION_SLOT: {
       BLI_assert(elem->act);
       BLI_assert(elem->action_slot);
-      action_slot_to_keylist(elem->adt,
-                             elem->act->wrap(),
-                             elem->action_slot->handle,
-                             elem->keylist,
-                             elem->saction_flag,
-                             range);
+      action_slot_summary_to_keylist(elem->ac,
+                                     elem->animated_id,
+                                     elem->act->wrap(),
+                                     elem->action_slot->handle,
+                                     elem->keylist,
+                                     elem->saction_flag,
+                                     range);
       break;
     }
     case ChannelType::ACTION_LEGACY: {
@@ -538,7 +587,7 @@ struct ChannelDrawList {
 
 ChannelDrawList *ED_channel_draw_list_create()
 {
-  return static_cast<ChannelDrawList *>(MEM_callocN(sizeof(ChannelDrawList), __func__));
+  return MEM_callocN<ChannelDrawList>(__func__);
 }
 
 static void channel_list_build_keylists(ChannelDrawList *channel_list, blender::float2 range)
@@ -596,13 +645,16 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d)
   GPUVertFormat *format = immVertexFormat();
   KeyframeShaderBindings sh_bindings;
 
-  sh_bindings.pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  sh_bindings.size_id = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  sh_bindings.pos_id = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  sh_bindings.size_id = GPU_vertformat_attr_add(
+      format, "size", blender::gpu::VertAttrType::SFLOAT_32);
   sh_bindings.color_id = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
   sh_bindings.outline_color_id = GPU_vertformat_attr_add(
-      format, "outlineColor", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
-  sh_bindings.flags_id = GPU_vertformat_attr_add(format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
+      format, "outlineColor", blender::gpu::VertAttrType::UNORM_8_8_8_8);
+  sh_bindings.flags_id = GPU_vertformat_attr_add(
+      format, "flags", blender::gpu::VertAttrType::UINT_32);
 
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);
@@ -648,8 +700,7 @@ static ChannelListElement *channel_list_add_element(ChannelDrawList *channel_lis
                                                     float yscale_fac,
                                                     eSAction_Flag saction_flag)
 {
-  ChannelListElement *draw_elem = static_cast<ChannelListElement *>(
-      MEM_callocN(sizeof(ChannelListElement), __func__));
+  ChannelListElement *draw_elem = MEM_callocN<ChannelListElement>(__func__);
   BLI_addtail(&channel_list->channels, draw_elem);
   draw_elem->type = elem_type;
   draw_elem->keylist = ED_keylist_create();
@@ -716,6 +767,7 @@ void ED_add_fcurve_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::FCURVE, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->fcu = fcu;
   draw_elem->channel_locked = locked;
@@ -735,12 +787,14 @@ void ED_add_action_group_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_GROUP, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->agrp = agrp;
   draw_elem->channel_locked = locked;
 }
 
 void ED_add_action_layered_channel(ChannelDrawList *channel_list,
+                                   bAnimContext *ac,
                                    bAnimListElem *ale,
                                    bAction *action,
                                    const float ypos,
@@ -755,12 +809,15 @@ void ED_add_action_layered_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_LAYERED, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->ac = ac;
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->act = action;
   draw_elem->channel_locked = locked;
 }
 
 void ED_add_action_slot_channel(ChannelDrawList *channel_list,
+                                bAnimContext *ac,
                                 bAnimListElem *ale,
                                 animrig::Action &action,
                                 animrig::Slot &slot,
@@ -773,6 +830,8 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_SLOT, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->ac = ac;
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->act = &action;
   draw_elem->action_slot = &slot;
@@ -793,6 +852,7 @@ void ED_add_action_channel(ChannelDrawList *channel_list,
 
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::ACTION_LEGACY, ypos, yscale_fac, eSAction_Flag(saction_flag));
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->act = act;
   draw_elem->channel_locked = locked;
@@ -813,6 +873,7 @@ void ED_add_grease_pencil_datablock_channel(ChannelDrawList *channel_list,
                                                            eSAction_Flag(saction_flag));
   /* GreasePencil properties can be animated via an Action, so the GP-related
    * animation data is not limited to GP drawings. */
+  draw_elem->animated_id = ale->id;
   draw_elem->adt = ale->adt;
   draw_elem->act = ale->adt ? ale->adt->action : nullptr;
   draw_elem->grease_pencil = grease_pencil;

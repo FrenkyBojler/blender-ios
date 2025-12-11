@@ -37,23 +37,34 @@
 #include "BLI_alloca.h"
 #include "BLI_ghash.h"
 #include "BLI_memarena.h"
+#include "BLI_set.hh"
 #include "BLI_string.h"
-#include "BLI_sys_types.h" /* for intptr_t support */
-#include "BLI_system.h"    /* for 'BLI_system_backtrace' stub. */
+#include "BLI_string_ref.hh"
+#include "BLI_sys_types.h" /* For `intptr_t` support. */
+#include "BLI_system.h"    /* For #BLI_system_backtrace stub. */
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "DNA_sdna_types.h"
 #include "dna_utils.h"
 
 #define SDNA_MAX_FILENAME_LENGTH 255
 
-/* The include file below is automatically generated from the `SRC_DNA_INC`
- * variable in 'source/blender/CMakeLists.txt'. */
-static const char *includefiles[] = {
+/* The include files that are needed to generate full Blender DNA.
+ *
+ * The include file below is automatically generated from the `SRC_DNA_INC`
+ * variable in `source/blender/CMakeLists.txt`. */
+static const char *blender_includefiles[] = {
 #include "dna_includes_as_strings.h"
+
     /* Empty string to indicate end of include files. */
     "",
 };
+
+/* Include files that will be used to generate makesdna output.
+ * By default, they match the blender_includefiles, but could be overridden via a command line
+ * argument for the purposes of regression testing. */
+static const char **includefiles = blender_includefiles;
 
 /* -------------------------------------------------------------------- */
 /** \name Variables
@@ -152,7 +163,7 @@ static short *add_struct(int type_index);
 
 /**
  * Remove comments from this buffer. Assumes that the buffer refers to
- * ascii-code text.
+ * ASCII-code text.
  */
 static int preprocess_include(char *maindata, const int maindata_len);
 
@@ -361,7 +372,7 @@ static int add_member(const char *member_name)
 
   additional_slen_offset = 0;
 
-  if (member_name[0] == 0 /*  || (member_name[1] == 0) */) {
+  if (member_name[0] == 0 /* `|| (member_name[1] == 0)` */) {
     return -1;
   }
 
@@ -567,7 +578,7 @@ static int preprocess_include(char *maindata, const int maindata_len)
 {
   /* NOTE: len + 1, last character is a dummy to prevent
    * comparisons using uninitialized memory */
-  char *temp = static_cast<char *>(MEM_mallocN(maindata_len + 1, "preprocess_include"));
+  char *temp = MEM_malloc_arrayN<char>(size_t(maindata_len) + 1, "preprocess_include");
   temp[maindata_len] = ' ';
 
   memcpy(temp, maindata, maindata_len);
@@ -576,13 +587,13 @@ static int preprocess_include(char *maindata, const int maindata_len)
   /* replace all enters/tabs/etc with spaces */
   char *cp = temp;
   int a = maindata_len;
-  int comment = 0;
+  bool comment = false;
   while (a--) {
     if (cp[0] == '/' && cp[1] == '/') {
-      comment = 1;
+      comment = true;
     }
     else if (*cp == '\n') {
-      comment = 0;
+      comment = false;
     }
     if (comment || *cp < 32 || *cp > 128) {
       *cp = 32;
@@ -598,23 +609,41 @@ static int preprocess_include(char *maindata, const int maindata_len)
   cp = temp;
   char *md = maindata;
   int newlen = 0;
-  comment = 0;
+  comment = false;
   a = maindata_len;
+  int square_bracket_level = 0;
   bool skip_until_closing_brace = false;
   while (a--) {
 
     if (cp[0] == '/' && cp[1] == '*') {
-      comment = 1;
+      BLI_assert(comment == false);
+      comment = true;
       cp[0] = cp[1] = 32;
     }
     if (cp[0] == '*' && cp[1] == '/') {
-      comment = 0;
+      BLI_assert(comment == true);
+      comment = false;
       cp[0] = cp[1] = 32;
+    }
+
+    if (comment == false) {
+      if (cp[0] == '[') {
+        square_bracket_level++;
+      }
+      else if (cp[0] == ']') {
+        square_bracket_level--;
+      }
     }
 
     /* do not copy when: */
     if (comment) {
       /* pass */
+    }
+    else if (cp[0] == ' ' && (square_bracket_level > 0)) {
+      /* NOTE(@ideasman42): This is done to allow `member[C_STYLE_COMMENT 1024]`,
+       * which is then read as `member[1024]`.
+       * It's important to skip the spaces here,
+       * otherwise the literal would be read as: `member[` and `1024]`. */
     }
     else if (cp[0] == ' ' && cp[1] == ' ') {
       /* pass */
@@ -657,6 +686,8 @@ static int preprocess_include(char *maindata, const int maindata_len)
     }
     cp++;
   }
+
+  BLI_assert(square_bracket_level == 0);
 
   MEM_freeN(temp);
   return newlen;
@@ -1262,10 +1293,8 @@ void print_struct_sizes()
   printf("*** End of list\n");
 }
 
-static int make_structDNA(const char *base_directory,
-                          FILE *file,
-                          FILE *file_offsets,
-                          FILE *file_verify)
+static int make_structDNA(
+    const char *base_directory, FILE *file, FILE *file_offsets, FILE *file_verify, FILE *file_ids)
 {
   if (debugSDNA > 0) {
     fflush(stdout);
@@ -1275,23 +1304,18 @@ static int make_structDNA(const char *base_directory,
   mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
 
   /* the longest known struct is 50k, so we assume 100k is sufficient! */
-  structdata = static_cast<short *>(MEM_callocN(max_data_size, "structdata"));
+  structdata = MEM_calloc_arrayN<short>(max_data_size, "structdata");
 
   /* a maximum of 5000 variables, must be sufficient? */
-  members = static_cast<char **>(MEM_callocN(sizeof(char *) * max_array_len, "names"));
-  types = static_cast<char **>(MEM_callocN(sizeof(char *) * max_array_len, "types"));
-  types_size_native = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_native"));
-  types_size_32 = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_32"));
-  types_size_64 = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_64"));
-  types_align_32 = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_32"));
-  types_align_64 = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_64"));
+  members = MEM_calloc_arrayN<char *>(max_array_len, "names");
+  types = MEM_calloc_arrayN<char *>(max_array_len, "types");
+  types_size_native = MEM_calloc_arrayN<short>(max_array_len, "types_size_native");
+  types_size_32 = MEM_calloc_arrayN<short>(max_array_len, "types_size_32");
+  types_size_64 = MEM_calloc_arrayN<short>(max_array_len, "types_size_64");
+  types_align_32 = MEM_calloc_arrayN<short>(max_array_len, "types_size_32");
+  types_align_64 = MEM_calloc_arrayN<short>(max_array_len, "types_size_64");
 
-  structs = static_cast<short **>(MEM_callocN(sizeof(short *) * max_array_len, "structs"));
+  structs = MEM_calloc_arrayN<short *>(max_array_len, "structs");
 
   /* Build versioning data */
   DNA_alias_maps(DNA_RENAME_ALIAS_FROM_STATIC,
@@ -1488,19 +1512,40 @@ static int make_structDNA(const char *base_directory,
     fprintf(file_offsets, "};\n\n");
   }
 
+  {
+    fprintf(file_ids, "\n\nnamespace blender::dna {\n\n");
+    fprintf(file_ids, "template<typename T> int sdna_struct_id_get();\n\n");
+    fprintf(file_ids, "int sdna_struct_id_get_max();\n");
+    fprintf(file_ids, "int sdna_struct_id_get_max() { return %d; }\n", structs_num - 1);
+    fprintf(file_ids, "\n}\n");
+
+    /* Starting at 1, because 0 is "raw data". */
+    for (int i = 1; i < structs_num; i++) {
+      const short *structpoin = structs[i];
+      const int struct_type_index = structpoin[0];
+      const char *name = version_struct_alias_from_static(types[struct_type_index]);
+      fprintf(file_ids, "struct %s;\n", name);
+      fprintf(file_ids,
+              "template<> int blender::dna::sdna_struct_id_get<%s>() { return %d; }\n",
+              name,
+              i);
+    }
+  }
+
   /* Check versioning errors which could cause duplicate names,
    * do last because names are stripped. */
   {
-    GSet *members_unique = BLI_gset_str_new_ex(__func__, 512);
     for (int struct_index = 0; struct_index < structs_num; struct_index++) {
       const short *sp = structs[struct_index];
       const char *type = types[sp[0]];
       const int len = sp[1];
       sp += 2;
+      blender::Set<blender::StringRef> members_unique;
+      members_unique.reserve(len);
       for (int a = 0; a < len; a++, sp += 2) {
         char *member = members[sp[1]];
         DNA_member_id_strip(member);
-        if (!BLI_gset_add(members_unique, member)) {
+        if (!members_unique.add(member)) {
           fprintf(stderr,
                   "Error: duplicate name found '%s.%s', "
                   "likely cause is 'dna_rename_defs.h'\n",
@@ -1509,9 +1554,7 @@ static int make_structDNA(const char *base_directory,
           return 1;
         }
       }
-      BLI_gset_clear(members_unique, nullptr);
     }
-    BLI_gset_free(members_unique, nullptr);
   }
 
   MEM_freeN(structdata);
@@ -1558,75 +1601,126 @@ static void make_bad_file(const char *file, int line)
 #  define BASE_HEADER "../"
 #endif
 
+static void print_usage(const char *argv0)
+{
+  printf(
+      "Usage: %s [--include-file <file>, ...] "
+      "dna.cc dna_type_offsets.h dna_verify.cc dna_struct_ids.cc"
+      "[base directory]\n",
+      argv0);
+}
+
 int main(int argc, char **argv)
 {
+  blender::Vector<const char *> cli_include_files;
+
+  /* There is a number of non-optional arguments that must be provided to the executable. */
+  if (argc < 5) {
+    print_usage(argv[0]);
+    return 1;
+  }
+
+  /* Parse optional arguments. */
+  int arg_index = 1; /* Skip the argv0. */
+  while (arg_index < argc) {
+    if (STREQ(argv[arg_index], "--include-file")) {
+      ++arg_index;
+      if (arg_index == argc) {
+        printf("Missing argument for --include-file\n");
+        print_usage(argv[0]);
+        return 1;
+      }
+      cli_include_files.append(argv[arg_index]);
+      ++arg_index;
+      continue;
+    }
+    break;
+  }
+
+  if (!cli_include_files.is_empty()) {
+    /* Append end sentinel. */
+    cli_include_files.append("");
+
+    includefiles = cli_include_files.data();
+  }
+
+  /* Check the number of non-optional positional arguments. */
+  const int num_arguments = argc - arg_index;
+  if (!ELEM(num_arguments, 4, 5)) {
+    print_usage(argv[0]);
+    return 0;
+  }
+
   int return_status = 0;
 
-  if (!ELEM(argc, 4, 5)) {
-    printf("Usage: %s dna.c dna_struct_offsets.h [base directory]\n", argv[0]);
+  FILE *file_dna = fopen(argv[arg_index], "w");
+  FILE *file_dna_offsets = fopen(argv[arg_index + 1], "w");
+  FILE *file_dna_verify = fopen(argv[arg_index + 2], "w");
+  FILE *file_dna_ids = fopen(argv[arg_index + 3], "w");
+  if (!file_dna) {
+    printf("Unable to open file: %s\n", argv[arg_index]);
+    return_status = 1;
+  }
+  else if (!file_dna_offsets) {
+    printf("Unable to open file: %s\n", argv[arg_index + 1]);
+    return_status = 1;
+  }
+  else if (!file_dna_verify) {
+    printf("Unable to open file: %s\n", argv[arg_index + 2]);
+    return_status = 1;
+  }
+  else if (!file_dna_ids) {
+    printf("Unable to open file: %s\n", argv[arg_index + 3]);
     return_status = 1;
   }
   else {
-    FILE *file_dna = fopen(argv[1], "w");
-    FILE *file_dna_offsets = fopen(argv[2], "w");
-    FILE *file_dna_verify = fopen(argv[3], "w");
-    if (!file_dna) {
-      printf("Unable to open file: %s\n", argv[1]);
-      return_status = 1;
-    }
-    else if (!file_dna_offsets) {
-      printf("Unable to open file: %s\n", argv[2]);
-      return_status = 1;
-    }
-    else if (!file_dna_verify) {
-      printf("Unable to open file: %s\n", argv[3]);
-      return_status = 1;
+    const char *base_directory;
+
+    if (num_arguments == 5) {
+      base_directory = argv[arg_index + 4];
     }
     else {
-      const char *base_directory;
+      base_directory = BASE_HEADER;
+    }
 
-      if (argc == 5) {
-        base_directory = argv[4];
-      }
-      else {
-        base_directory = BASE_HEADER;
-      }
-
-      /* NOTE: #init_structDNA() in dna_genfile.cc expects `sdna->data` is 4-bytes aligned.
-       * `DNAstr[]` buffer written by `makesdna` is used for this data, so make `DNAstr` forcefully
-       * 4-bytes aligned. */
+    /* NOTE: #init_structDNA() in dna_genfile.cc expects `sdna->data` is 4-bytes aligned.
+     * `DNAstr[]` buffer written by `makesdna` is used for this data, so make `DNAstr` forcefully
+     * 4-bytes aligned. */
 #ifdef __GNUC__
 #  define FORCE_ALIGN_4 " __attribute__((aligned(4))) "
 #else
 #  define FORCE_ALIGN_4 " "
 #endif
-      fprintf(file_dna, "extern const unsigned char DNAstr[];\n");
-      fprintf(file_dna, "const unsigned char" FORCE_ALIGN_4 "DNAstr[] = {\n");
+    fprintf(file_dna, "extern const unsigned char DNAstr[];\n");
+    fprintf(file_dna, "const unsigned char" FORCE_ALIGN_4 "DNAstr[] = {\n");
 #undef FORCE_ALIGN_4
 
-      if (make_structDNA(base_directory, file_dna, file_dna_offsets, file_dna_verify)) {
-        /* error */
-        fclose(file_dna);
-        file_dna = nullptr;
-        make_bad_file(argv[1], __LINE__);
-        return_status = 1;
-      }
-      else {
-        fprintf(file_dna, "};\n");
-        fprintf(file_dna, "extern const int DNAlen;\n");
-        fprintf(file_dna, "const int DNAlen = sizeof(DNAstr);\n");
-      }
-    }
-
-    if (file_dna) {
+    if (make_structDNA(base_directory, file_dna, file_dna_offsets, file_dna_verify, file_dna_ids))
+    {
+      /* error */
       fclose(file_dna);
+      file_dna = nullptr;
+      make_bad_file(argv[1], __LINE__);
+      return_status = 1;
     }
-    if (file_dna_offsets) {
-      fclose(file_dna_offsets);
+    else {
+      fprintf(file_dna, "};\n");
+      fprintf(file_dna, "extern const int DNAlen;\n");
+      fprintf(file_dna, "const int DNAlen = sizeof(DNAstr);\n");
     }
-    if (file_dna_verify) {
-      fclose(file_dna_verify);
-    }
+  }
+
+  if (file_dna) {
+    fclose(file_dna);
+  }
+  if (file_dna_offsets) {
+    fclose(file_dna_offsets);
+  }
+  if (file_dna_verify) {
+    fclose(file_dna_verify);
+  }
+  if (file_dna_ids) {
+    fclose(file_dna_ids);
   }
 
   return return_status;
@@ -1666,6 +1760,7 @@ static void UNUSED_FUNCTION(dna_rename_defs_ensure)()
 #define DNA_STRUCT_RENAME(old, new) (void)sizeof(new);
 #define DNA_STRUCT_RENAME_MEMBER(struct_name, old, new) (void)offsetof(struct_name, new);
 #include "dna_rename_defs.h"
+
 #undef DNA_STRUCT_RENAME
 #undef DNA_STRUCT_RENAME_MEMBER
 }

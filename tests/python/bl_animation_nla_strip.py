@@ -35,7 +35,12 @@ class AbstractNlaStripTest(unittest.TestCase):
         self.nla_tracks = self.test_object.animation_data.nla_tracks
 
         self.action = bpy.data.actions.new(name="ObjectAction")
-        x_location_fcurve = self.action.fcurves.new(data_path="location", index=0, action_group="Object Transforms")
+        slot = self.action.slots.new(self.test_object.id_type, self.test_object.name)
+        layer = self.action.layers.new("Layer")
+        strip = layer.strips.new(type="KEYFRAME")
+        channelbag = strip.channelbags.new(slot)
+
+        x_location_fcurve = channelbag.fcurves.new(data_path="location", index=0, group_name="Object Transforms")
         for frame in range(1, 5):
             x_location_fcurve.keyframe_points.insert(frame, value=frame).interpolation = "CONSTANT"
 
@@ -124,7 +129,7 @@ class NLAStripActionSlotSelectionTest(AbstractNlaStripTest):
 
         strip1 = track.strips.new("name", 1, action)
         self.assertEqual(action.slots[0], strip1.action_slot)
-        self.assertEqual('OBJECT', action.slots[0].id_root, "Slot should have been rooted to object")
+        self.assertEqual('OBJECT', action.slots[0].target_id_type, "Slot should have been rooted to object")
 
         strip2 = track.strips.new("name", 10, action)
         self.assertEqual(action.slots[0], strip2.action_slot)
@@ -144,11 +149,13 @@ class NLAStripActionSlotSelectionTest(AbstractNlaStripTest):
 
         strip = track.strips.new("name", 1, action1)
         self.assertEqual(action1.slots[0], strip.action_slot)
-        self.assertEqual('OBJECT', action1.slots[0].id_root, "Slot of Action 1 should have been rooted to object")
+        self.assertEqual('OBJECT', action1.slots[0].target_id_type,
+                         "Slot of Action 1 should have been rooted to object")
 
         strip.action = action2
         self.assertEqual(action2.slots[0], strip.action_slot)
-        self.assertEqual('OBJECT', action2.slots[0].id_root, "Slot of Action 2 should have been rooted to object")
+        self.assertEqual('OBJECT', action2.slots[0].target_id_type,
+                         "Slot of Action 2 should have been rooted to object")
 
 
 if __name__ == "__main__":

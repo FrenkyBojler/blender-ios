@@ -10,6 +10,7 @@
 /* Shrinkwrap stuff */
 #include "BKE_bvhutils.hh"
 
+#include "BKE_context.hh"
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -29,6 +30,7 @@
  * (So that you don't have to pass an enormous amount of arguments to functions)
  */
 
+struct Depsgraph;
 struct BVHTree;
 struct MDeformVert;
 struct Mesh;
@@ -51,7 +53,7 @@ class ShrinkwrapBoundaryData {
  public:
   /* Returns true if there is boundary information. If there is no boundary information, then the
    * mesh from which this data is created from has no boundaries. */
-  inline bool has_boundary() const
+  bool has_boundary() const
   {
     return !edge_is_boundary.is_empty();
   }
@@ -177,7 +179,7 @@ void BKE_shrinkwrap_remesh_target_project(Mesh *src_me, Mesh *target_me, Object 
  * - #MOD_SHRINKWRAP_CULL_TARGET_BACKFACE (back faces hits are ignored)
  *
  * \param transf: Take into consideration the space_transform, that is:
- * if `transf` was configured with `SPACE_TRANSFORM_SETUP( &transf,  ob1, ob2)`
+ * if `transf` was configured with `SPACE_TRANSFORM_SETUP(&transf, ob1, ob2)`
  * then the input (vert, dir, #BVHTreeRayHit) must be defined in ob1 coordinates space
  * and the #BVHTree must be built in ob2 coordinate space.
  * Thus it provides an easy way to cast the same ray across several trees
@@ -237,17 +239,17 @@ void BKE_shrinkwrap_snap_point_to_surface(const ShrinkwrapTreeData *tree,
  */
 #define NULL_ShrinkwrapCalcData \
   { \
-    NULL, \
+      NULL, \
   }
 #define NULL_BVHTreeFromMesh \
   { \
-    NULL, \
+      NULL, \
   }
 #define NULL_BVHTreeRayHit \
   { \
-    NULL, \
+      NULL, \
   }
 #define NULL_BVHTreeNearest \
   { \
-    0, \
+      0, \
   }

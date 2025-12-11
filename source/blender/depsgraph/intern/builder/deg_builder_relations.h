@@ -8,18 +8,13 @@
 
 #pragma once
 
-#include <cstdio>
 #include <cstring>
 
 #include "intern/depsgraph_type.hh"
 
 #include "DNA_ID.h"
 
-#include "RNA_path.hh"
-
 #include "BLI_span.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
@@ -241,7 +236,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_shapekeys(Key *key);
   virtual void build_armature(bArmature *armature);
   virtual void build_armature_bones(ListBase *bones);
-  virtual void build_armature_bone_collections(blender::Span<BoneCollection *> collections);
+  virtual void build_armature_bone_collections(Span<BoneCollection *> collections);
   virtual void build_camera(Camera *camera);
   virtual void build_light(Light *lamp);
   virtual void build_nodetree(bNodeTree *ntree);
@@ -366,4 +361,4 @@ struct DepsNodeHandle {
 
 }  // namespace blender::deg
 
-#include "intern/builder/deg_builder_relations_impl.h"
+#include "intern/builder/deg_builder_relations_impl.h"  // IWYU pragma: export

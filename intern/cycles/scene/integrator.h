@@ -41,6 +41,7 @@ class Integrator : public Node {
   NODE_SOCKET_API(float, ao_distance)
   NODE_SOCKET_API(float, ao_additive_factor)
 
+  NODE_SOCKET_API(bool, volume_ray_marching)
   NODE_SOCKET_API(int, volume_max_steps)
   NODE_SOCKET_API(float, volume_step_rate)
 
@@ -79,7 +80,10 @@ class Integrator : public Node {
   static const int MAX_SAMPLES = (1 << 24);
 
   NODE_SOCKET_API(int, aa_samples)
-  NODE_SOCKET_API(int, start_sample)
+
+  NODE_SOCKET_API(bool, use_sample_subset)
+  NODE_SOCKET_API(int, sample_subset_offset)
+  NODE_SOCKET_API(int, sample_subset_length)
 
   NODE_SOCKET_API(bool, use_light_tree)
   NODE_SOCKET_API(float, light_sampling_threshold)

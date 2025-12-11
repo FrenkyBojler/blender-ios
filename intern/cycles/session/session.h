@@ -44,9 +44,10 @@ class SessionParams {
   bool headless;
   bool background;
 
-  bool experimental;
   int samples;
-  int sample_offset;
+  bool use_sample_subset;
+  int sample_subset_offset;
+  int sample_subset_length;
   int pixel_size;
   int threads;
 
@@ -71,9 +72,10 @@ class SessionParams {
     headless = false;
     background = false;
 
-    experimental = false;
     samples = 1024;
-    sample_offset = 0;
+    use_sample_subset = false;
+    sample_subset_offset = 0;
+    sample_subset_length = 1024;
     pixel_size = 1;
     threads = 0;
     time_limit = 0.0;
@@ -93,10 +95,10 @@ class SessionParams {
     /* Modified means we have to recreate the session, any parameter changes
      * that can be handled by an existing Session are omitted. */
     return !(device == params.device && headless == params.headless &&
-             background == params.background && experimental == params.experimental &&
-             pixel_size == params.pixel_size && threads == params.threads &&
-             use_profiling == params.use_profiling && shadingsystem == params.shadingsystem &&
-             use_auto_tile == params.use_auto_tile && tile_size == params.tile_size);
+             background == params.background && pixel_size == params.pixel_size &&
+             threads == params.threads && use_profiling == params.use_profiling &&
+             shadingsystem == params.shadingsystem && use_auto_tile == params.use_auto_tile &&
+             tile_size == params.tile_size);
   }
 };
 
@@ -200,11 +202,12 @@ class Session {
 
   void run_main_render_loop();
 
-  bool update_scene(const int width, const int height);
+  bool update_scene(const bool reset_samples);
 
   void update_status_time(bool show_pause = false, bool show_done = false);
 
-  void do_delayed_reset();
+  bool delayed_reset_buffer_params();
+  void update_buffers_for_params();
 
   int2 get_effective_tile_size() const;
 

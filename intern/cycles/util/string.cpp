@@ -104,23 +104,34 @@ void string_split(vector<string> &tokens,
 bool string_startswith(const string_view s, const string_view start)
 {
   const size_t len = start.size();
-
   if (len > s.size()) {
     return false;
   }
 
-  return strncmp(s.c_str(), start.data(), len) == 0;
+  for (size_t i = 0; i < len; i++) {
+    if (s[i] != start[i]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool string_endswith(const string_view s, const string_view end)
 {
   const size_t len = end.size();
-
   if (len > s.size()) {
     return false;
   }
 
-  return strncmp(s.c_str() + s.size() - len, end.data(), len) == 0;
+  const size_t offset = s.size() - len;
+  for (size_t i = 0; i < len; i++) {
+    if (s[offset + i] != end[i]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 string string_strip(const string &s)
@@ -177,6 +188,15 @@ string string_from_bool(bool var)
   return "False";
 }
 
+string string_hex(const uint8_t *data, const size_t size)
+{
+  string result;
+  for (size_t i = 0; i < size; i++) {
+    result += string_printf("%x", data[i]);
+  }
+  return result;
+}
+
 string to_string(const char *str)
 {
   return string(str);
@@ -192,6 +212,24 @@ string string_to_lower(const string &s)
   string r = s;
   std::transform(r.begin(), r.end(), r.begin(), [](char c) { return std::tolower(c); });
   return r;
+}
+
+string string_remove_gpu_from_cpu_name(const string &s)
+{
+  if (s.find("AMD") == std::string::npos) {
+    return s;
+  }
+
+  size_t pos = s.find("w/");
+  if (pos == std::string::npos) {
+    pos = s.find("with");
+  }
+
+  if (pos != std::string::npos) {
+    return string_strip(s.substr(0, pos));
+  }
+
+  return s;
 }
 
 /* Wide char strings helpers for Windows. */

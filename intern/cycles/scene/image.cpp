@@ -48,10 +48,14 @@ const char *name_from_type(ImageDataType type)
       return "nanovdb_float";
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT3:
       return "nanovdb_float3";
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT4:
+      return "nanovdb_float4";
     case IMAGE_DATA_TYPE_NANOVDB_FPN:
       return "nanovdb_fpn";
     case IMAGE_DATA_TYPE_NANOVDB_FP16:
       return "nanovdb_fp16";
+    case IMAGE_DATA_TYPE_NANOVDB_EMPTY:
+      return "nanovdb_empty";
     case IMAGE_DATA_NUM_TYPES:
       assert(!"System enumerator type, should never be used");
       return "";
@@ -67,10 +71,10 @@ const char *name_from_type(ImageDataType type)
 ImageHandle::ImageHandle() : manager(nullptr) {}
 
 ImageHandle::ImageHandle(const ImageHandle &other)
-    : tile_slots(other.tile_slots), manager(other.manager)
+    : slots(other.slots), is_tiled(other.is_tiled), manager(other.manager)
 {
   /* Increase image user count. */
-  for (const size_t slot : tile_slots) {
+  for (const size_t slot : slots) {
     manager->add_image_user(slot);
   }
 }
@@ -79,9 +83,10 @@ ImageHandle &ImageHandle::operator=(const ImageHandle &other)
 {
   clear();
   manager = other.manager;
-  tile_slots = other.tile_slots;
+  is_tiled = other.is_tiled;
+  slots = other.slots;
 
-  for (const size_t slot : tile_slots) {
+  for (const size_t slot : slots) {
     manager->add_image_user(slot);
   }
 
@@ -95,67 +100,72 @@ ImageHandle::~ImageHandle()
 
 void ImageHandle::clear()
 {
-  for (const size_t slot : tile_slots) {
+  for (const size_t slot : slots) {
     manager->remove_image_user(slot);
   }
 
-  tile_slots.clear();
+  slots.clear();
   manager = nullptr;
 }
 
 bool ImageHandle::empty() const
 {
-  return tile_slots.empty();
+  return slots.empty();
 }
 
 int ImageHandle::num_tiles() const
 {
-  return tile_slots.size();
+  return (is_tiled) ? slots.size() : 0;
+}
+
+int ImageHandle::num_svm_slots() const
+{
+  return slots.size();
 }
 
 ImageMetaData ImageHandle::metadata()
 {
-  if (tile_slots.empty()) {
+  if (slots.empty()) {
     return ImageMetaData();
   }
 
-  ImageManager::Image *img = manager->images[tile_slots.front()].get();
+  ImageManager::Image *img = manager->get_image_slot(slots.front());
   manager->load_image_metadata(img);
   return img->metadata;
 }
 
-int ImageHandle::svm_slot(const int tile_index) const
+int ImageHandle::svm_slot(const int slot_index) const
 {
-  if (tile_index >= tile_slots.size()) {
+  if (slot_index >= slots.size()) {
     return -1;
   }
 
   if (manager->osl_texture_system) {
-    ImageManager::Image *img = manager->images[tile_slots[tile_index]].get();
+    ImageManager::Image *img = manager->get_image_slot(slots[slot_index]);
     if (!img->loader->osl_filepath().empty()) {
       return -1;
     }
   }
 
-  return tile_slots[tile_index];
+  return slots[slot_index];
 }
 
 vector<int4> ImageHandle::get_svm_slots() const
 {
-  const size_t num_nodes = divide_up(tile_slots.size(), 2);
+  const size_t num_nodes = divide_up(slots.size(), 2);
 
   vector<int4> svm_slots;
   svm_slots.reserve(num_nodes);
   for (size_t i = 0; i < num_nodes; i++) {
     int4 node;
 
-    size_t slot = tile_slots[2 * i];
-    node.x = manager->images[slot]->loader->get_tile_number();
+    size_t slot = slots[2 * i];
+    node.x = manager->get_image_slot(slot)->loader->get_tile_number();
     node.y = slot;
 
-    if ((2 * i + 1) < tile_slots.size()) {
-      slot = tile_slots[2 * i + 1];
-      node.z = manager->images[slot]->loader->get_tile_number();
+    if ((2 * i + 1) < slots.size()) {
+      slot = slots[2 * i + 1];
+      node.z = manager->get_image_slot(slot)->loader->get_tile_number();
       node.w = slot;
     }
     else {
@@ -169,23 +179,23 @@ vector<int4> ImageHandle::get_svm_slots() const
   return svm_slots;
 }
 
-device_texture *ImageHandle::image_memory(const int tile_index) const
+device_texture *ImageHandle::image_memory() const
 {
-  if (tile_index >= tile_slots.size()) {
+  if (slots.empty()) {
     return nullptr;
   }
 
-  ImageManager::Image *img = manager->images[tile_slots[tile_index]].get();
+  ImageManager::Image *img = manager->get_image_slot(slots[0]);
   return img ? img->mem.get() : nullptr;
 }
 
-VDBImageLoader *ImageHandle::vdb_loader(const int tile_index) const
+VDBImageLoader *ImageHandle::vdb_loader() const
 {
-  if (tile_index >= tile_slots.size()) {
+  if (slots.empty()) {
     return nullptr;
   }
 
-  ImageManager::Image *img = manager->images[tile_slots[tile_index]].get();
+  ImageManager::Image *img = manager->get_image_slot(slots[0]);
 
   if (img == nullptr) {
     return nullptr;
@@ -211,7 +221,7 @@ ImageManager *ImageHandle::get_manager() const
 
 bool ImageHandle::operator==(const ImageHandle &other) const
 {
-  return manager == other.manager && tile_slots == other.tile_slots;
+  return manager == other.manager && is_tiled == other.is_tiled && slots == other.slots;
 }
 
 /* Image MetaData */
@@ -220,7 +230,6 @@ ImageMetaData::ImageMetaData()
     : channels(0),
       width(0),
       height(0),
-      depth(0),
       byte_size(0),
       type(IMAGE_DATA_NUM_TYPES),
       colorspace(u_colorspace_raw),
@@ -233,7 +242,7 @@ ImageMetaData::ImageMetaData()
 bool ImageMetaData::operator==(const ImageMetaData &other) const
 {
   return channels == other.channels && width == other.width && height == other.height &&
-         depth == other.depth && use_transform_3d == other.use_transform_3d &&
+         use_transform_3d == other.use_transform_3d &&
          (!use_transform_3d || transform_3d == other.transform_3d) && type == other.type &&
          colorspace == other.colorspace && compress_as_srgb == other.compress_as_srgb;
 }
@@ -361,10 +370,7 @@ void ImageManager::load_image_metadata(Image *img)
 
   metadata.detect_colorspace();
 
-  assert(features.has_nanovdb || (metadata.type != IMAGE_DATA_TYPE_NANOVDB_FLOAT ||
-                                  metadata.type != IMAGE_DATA_TYPE_NANOVDB_FLOAT3 ||
-                                  metadata.type != IMAGE_DATA_TYPE_NANOVDB_FPN ||
-                                  metadata.type != IMAGE_DATA_TYPE_NANOVDB_FP16));
+  assert(features.has_nanovdb || !is_nanovdb_type(metadata.type));
 
   img->need_metadata = false;
 }
@@ -374,7 +380,7 @@ ImageHandle ImageManager::add_image(const string &filename, const ImageParams &p
   const size_t slot = add_image_slot(make_unique<OIIOImageLoader>(filename), params, false);
 
   ImageHandle handle;
-  handle.tile_slots.push_back(slot);
+  handle.slots.push_back(slot);
   handle.manager = this;
   return handle;
 }
@@ -385,21 +391,27 @@ ImageHandle ImageManager::add_image(const string &filename,
 {
   ImageHandle handle;
   handle.manager = this;
+  handle.is_tiled = !tiles.empty();
+
+  if (!handle.is_tiled) {
+    const size_t slot = add_image_slot(make_unique<OIIOImageLoader>(filename), params, false);
+    handle.slots.push_back(slot);
+    return handle;
+  }
 
   for (const int tile : tiles) {
     string tile_filename = filename;
 
     /* Since we don't have information about the exact tile format used in this code location,
      * just attempt all replacement patterns that Blender supports. */
-    if (tile != 0) {
-      string_replace(tile_filename, "<UDIM>", string_printf("%04d", tile));
+    string_replace(tile_filename, "<UDIM>", string_printf("%04d", tile));
 
-      const int u = ((tile - 1001) % 10);
-      const int v = ((tile - 1001) / 10);
-      string_replace(tile_filename, "<UVTILE>", string_printf("u%d_v%d", u + 1, v + 1));
-    }
+    const int u = ((tile - 1001) % 10);
+    const int v = ((tile - 1001) / 10);
+    string_replace(tile_filename, "<UVTILE>", string_printf("u%d_v%d", u + 1, v + 1));
+
     const size_t slot = add_image_slot(make_unique<OIIOImageLoader>(tile_filename), params, false);
-    handle.tile_slots.push_back(slot);
+    handle.slots.push_back(slot);
   }
 
   return handle;
@@ -412,7 +424,7 @@ ImageHandle ImageManager::add_image(unique_ptr<ImageLoader> &&loader,
   const size_t slot = add_image_slot(std::move(loader), params, builtin);
 
   ImageHandle handle;
-  handle.tile_slots.push_back(slot);
+  handle.slots.push_back(slot);
   handle.manager = this;
   return handle;
 }
@@ -421,11 +433,13 @@ ImageHandle ImageManager::add_image(vector<unique_ptr<ImageLoader>> &&loaders,
                                     const ImageParams &params)
 {
   ImageHandle handle;
+  handle.is_tiled = true;
+
   for (unique_ptr<ImageLoader> &loader : loaders) {
     unique_ptr<ImageLoader> local_loader;
     std::swap(loader, local_loader);
     const size_t slot = add_image_slot(std::move(local_loader), params, true);
-    handle.tile_slots.push_back(slot);
+    handle.slots.push_back(slot);
   }
 
   handle.manager = this;
@@ -503,6 +517,13 @@ void ImageManager::remove_image_user(const size_t slot)
   }
 }
 
+ImageManager::Image *ImageManager::get_image_slot(const size_t slot)
+{
+  /* Need mutex lock, images vector might get resized by another thread. */
+  const thread_scoped_lock device_lock(images_mutex);
+  return images[slot].get();
+}
+
 static bool image_associate_alpha(ImageManager::Image *img)
 {
   /* For typical RGBA images we let OIIO convert to associated alpha,
@@ -523,13 +544,12 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
   /* Get metadata. */
   const int width = img->metadata.width;
   const int height = img->metadata.height;
-  const int depth = img->metadata.depth;
   const int components = img->metadata.channels;
 
   /* Read pixels. */
   vector<StorageType> pixels_storage;
   StorageType *pixels;
-  const size_t max_size = max(max(width, height), depth);
+  const size_t max_size = max(width, height);
   if (max_size == 0) {
     /* Don't bother with empty images. */
     return false;
@@ -537,12 +557,12 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
 
   /* Allocate memory as needed, may be smaller to resize down. */
   if (texture_limit > 0 && max_size > texture_limit) {
-    pixels_storage.resize(((size_t)width) * height * depth * 4);
+    pixels_storage.resize(((size_t)width) * height * 4);
     pixels = &pixels_storage[0];
   }
   else {
     const thread_scoped_lock device_lock(device_mutex);
-    pixels = (StorageType *)img->mem->alloc(width, height, depth);
+    pixels = (StorageType *)img->mem->alloc(width, height);
   }
 
   if (pixels == nullptr) {
@@ -550,7 +570,7 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
     return false;
   }
 
-  const size_t num_pixels = ((size_t)width) * height * depth;
+  const size_t num_pixels = ((size_t)width) * height;
   img->loader->load_pixels(
       img->metadata, pixels, num_pixels * components, image_associate_alpha(img));
 
@@ -604,8 +624,14 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
       img->metadata.colorspace != u_colorspace_srgb)
   {
     /* Convert to scene linear. */
-    ColorSpaceManager::to_scene_linear(
-        img->metadata.colorspace, pixels, num_pixels, is_rgba, img->metadata.compress_as_srgb);
+    const bool ignore_alpha = img->params.alpha_type == IMAGE_ALPHA_IGNORE ||
+                              img->params.alpha_type == IMAGE_ALPHA_CHANNEL_PACKED;
+    ColorSpaceManager::to_scene_linear(img->metadata.colorspace,
+                                       pixels,
+                                       num_pixels,
+                                       is_rgba,
+                                       img->metadata.compress_as_srgb,
+                                       ignore_alpha);
   }
 
   /* Make sure we don't have buggy values. */
@@ -642,28 +668,25 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
     while (max_size * scale_factor > texture_limit) {
       scale_factor *= 0.5f;
     }
-    VLOG_WORK << "Scaling image " << img->loader->name() << " by a factor of " << scale_factor
+    LOG_DEBUG << "Scaling image " << img->loader->name() << " by a factor of " << scale_factor
               << ".";
     vector<StorageType> scaled_pixels;
     size_t scaled_width;
     size_t scaled_height;
-    size_t scaled_depth;
     util_image_resize_pixels(pixels_storage,
                              width,
                              height,
-                             depth,
                              is_rgba ? 4 : 1,
                              scale_factor,
                              &scaled_pixels,
                              &scaled_width,
-                             &scaled_height,
-                             &scaled_depth);
+                             &scaled_height);
 
     StorageType *texture_pixels;
 
     {
       const thread_scoped_lock device_lock(device_mutex);
-      texture_pixels = (StorageType *)img->mem->alloc(scaled_width, scaled_height, scaled_depth);
+      texture_pixels = (StorageType *)img->mem->alloc(scaled_width, scaled_height);
     }
 
     memcpy(texture_pixels, &scaled_pixels[0], scaled_pixels.size() * sizeof(StorageType));
@@ -790,9 +813,7 @@ void ImageManager::device_load_image(Device *device,
     }
   }
 #ifdef WITH_NANOVDB
-  else if (type == IMAGE_DATA_TYPE_NANOVDB_FLOAT || type == IMAGE_DATA_TYPE_NANOVDB_FLOAT3 ||
-           type == IMAGE_DATA_TYPE_NANOVDB_FPN || type == IMAGE_DATA_TYPE_NANOVDB_FP16)
-  {
+  else if (is_nanovdb_type(type)) {
     const thread_scoped_lock device_lock(device_mutex);
     void *pixels = img->mem->alloc(img->metadata.byte_size, 0);
 

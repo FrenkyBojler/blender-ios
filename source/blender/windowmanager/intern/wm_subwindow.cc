@@ -9,13 +9,13 @@
  */
 
 #include "BLI_math_geom.h"
-#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "GPU_matrix.hh"
+#include "GPU_state.hh"
 #include "GPU_viewport.hh"
 
 #include "WM_api.hh"
@@ -87,6 +87,20 @@ void wmWindowViewport_ex(const wmWindow *win, float offset)
 void wmWindowViewport(const wmWindow *win)
 {
   wmWindowViewport_ex(win, -GLA_PIXEL_OFS);
+}
+
+void wmWindowViewportTitle_ex(const rcti &rect, float offset)
+{
+  GPU_viewport(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+  GPU_scissor(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+
+  wmOrtho2_offset(rect.xmax, rect.ymax, offset);
+  GPU_matrix_identity_set();
+}
+
+void wmWindowViewportTitle(const rcti &rect)
+{
+  wmWindowViewportTitle_ex(rect, -GLA_PIXEL_OFS);
 }
 
 void wmOrtho2(float x1, float x2, float y1, float y2)

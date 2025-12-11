@@ -17,15 +17,15 @@
 
 #include "effects.hh"
 
-using namespace blender;
+namespace blender::seq {
 
-static void init_gaussian_blur_effect(Sequence *seq)
+static void init_gaussian_blur_effect(Strip *strip)
 {
-  if (seq->effectdata) {
-    MEM_freeN(seq->effectdata);
-  }
-
-  seq->effectdata = MEM_callocN(sizeof(GaussianBlurVars), "gaussianblurvars");
+  MEM_SAFE_FREE(strip->effectdata);
+  GaussianBlurVars *data = MEM_callocN<GaussianBlurVars>("gaussianblurvars");
+  strip->effectdata = data;
+  data->size_x = 9.0f;
+  data->size_y = 9.0f;
 }
 
 static int num_inputs_gaussian_blur()
@@ -33,19 +33,9 @@ static int num_inputs_gaussian_blur()
   return 1;
 }
 
-static void free_gaussian_blur_effect(Sequence *seq, const bool /*do_id_user*/)
+static StripEarlyOut early_out_gaussian_blur(const Strip *strip, float /*fac*/)
 {
-  MEM_SAFE_FREE(seq->effectdata);
-}
-
-static void copy_gaussian_blur_effect(Sequence *dst, const Sequence *src, const int /*flag*/)
-{
-  dst->effectdata = MEM_dupallocN(src->effectdata);
-}
-
-static StripEarlyOut early_out_gaussian_blur(const Sequence *seq, float /*fac*/)
-{
-  GaussianBlurVars *data = static_cast<GaussianBlurVars *>(seq->effectdata);
+  GaussianBlurVars *data = static_cast<GaussianBlurVars *>(strip->effectdata);
   if (data->size_x == 0.0f && data->size_y == 0) {
     return StripEarlyOut::UseInput1;
   }
@@ -135,8 +125,9 @@ static void gaussian_blur_y(const Span<float> gaussian,
   }
 }
 
-static ImBuf *do_gaussian_blur_effect(const SeqRenderData *context,
-                                      Sequence *seq,
+static ImBuf *do_gaussian_blur_effect(const RenderData *context,
+                                      SeqRenderState * /*state*/,
+                                      Strip *strip,
                                       float /*timeline_frame*/,
                                       float /*fac*/,
                                       ImBuf *ibuf1,
@@ -145,11 +136,16 @@ static ImBuf *do_gaussian_blur_effect(const SeqRenderData *context,
   using namespace blender;
 
   /* Create blur kernel weights. */
-  const GaussianBlurVars *data = static_cast<const GaussianBlurVars *>(seq->effectdata);
-  const int half_size_x = int(data->size_x + 0.5f);
-  const int half_size_y = int(data->size_y + 0.5f);
-  Array<float> gaussian_x = make_gaussian_blur_kernel(data->size_x, half_size_x);
-  Array<float> gaussian_y = make_gaussian_blur_kernel(data->size_y, half_size_y);
+  const GaussianBlurVars *data = static_cast<const GaussianBlurVars *>(strip->effectdata);
+
+  const float size_scale = seq::get_render_scale_factor(*context);
+  const float size_x = data->size_x * size_scale;
+  const float size_y = data->size_y * size_scale;
+
+  const int half_size_x = int(size_x + 0.5f);
+  const int half_size_y = int(size_y + 0.5f);
+  Array<float> gaussian_x = make_gaussian_blur_kernel(size_x, half_size_x);
+  Array<float> gaussian_y = make_gaussian_blur_kernel(size_y, half_size_y);
 
   const int width = context->rectx;
   const int height = context->recty;
@@ -216,12 +212,12 @@ static ImBuf *do_gaussian_blur_effect(const SeqRenderData *context,
   return out;
 }
 
-void gaussian_blur_effect_get_handle(SeqEffectHandle &rval)
+void gaussian_blur_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_gaussian_blur_effect;
   rval.num_inputs = num_inputs_gaussian_blur;
-  rval.free = free_gaussian_blur_effect;
-  rval.copy = copy_gaussian_blur_effect;
   rval.early_out = early_out_gaussian_blur;
   rval.execute = do_gaussian_blur_effect;
 }
+
+}  // namespace blender::seq

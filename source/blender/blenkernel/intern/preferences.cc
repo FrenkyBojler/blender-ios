@@ -10,8 +10,6 @@
 
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -27,7 +25,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_asset_types.h"
 #include "DNA_defaults.h"
 #include "DNA_userdef_types.h"
 
@@ -66,7 +63,9 @@ bUserAssetLibrary *BKE_preferences_asset_library_add(UserDef *userdef,
   bUserAssetLibrary *library = DNA_struct_default_alloc(bUserAssetLibrary);
 
   BLI_addtail(&userdef->asset_libraries, library);
-
+  if (userdef->experimental.no_data_block_packing) {
+    library->import_method = ASSET_IMPORT_APPEND_REUSE;
+  }
   if (name) {
     BKE_preferences_asset_library_name_set(userdef, library, name);
   }
@@ -119,7 +118,7 @@ bUserAssetLibrary *BKE_preferences_asset_library_containing_path(const UserDef *
                                                                  const char *path)
 {
   LISTBASE_FOREACH (bUserAssetLibrary *, asset_lib_pref, &userdef->asset_libraries) {
-    if (BLI_path_contains(asset_lib_pref->dirpath, path)) {
+    if (asset_lib_pref->dirpath[0] && BLI_path_contains(asset_lib_pref->dirpath, path)) {
       return asset_lib_pref;
     }
   }
@@ -216,6 +215,9 @@ bUserExtensionRepo *BKE_preferences_extension_repo_add(UserDef *userdef,
 
 void BKE_preferences_extension_repo_remove(UserDef *userdef, bUserExtensionRepo *repo)
 {
+  if (repo->access_token) {
+    MEM_freeN(repo->access_token);
+  }
   BLI_freelinkN(&userdef->extension_repos, repo);
 }
 
@@ -295,7 +297,7 @@ bool BKE_preferences_extension_repo_module_is_valid(const bUserExtensionRepo *re
   if (module_len == 0) {
     return false;
   }
-  if (module_len != BLI_strnlen(repo->module, sizeof(repo->module))) {
+  if (module_len != STRNLEN(repo->module)) {
     return false;
   }
   return true;
@@ -470,13 +472,19 @@ void BKE_preferences_extension_remote_to_name(const char *remote_url,
     /* Skip the `://`. */
     remote_url += (offset + 3);
 
-    if (is_win32) {
-      if (is_file) {
+    if (is_file) {
+      if (is_win32) {
         /* Skip the slash prefix for: `/C:/`,
          * not *required* but seems like a bug if it's not done. */
         if (remote_url[0] == '/' && isalpha(remote_url[1]) && (remote_url[2] == ':')) {
           remote_url += 1;
         }
+      }
+    }
+    else {
+      /* Skip the `www` as it's not useful information. */
+      if (BLI_str_startswith(remote_url, "www.")) {
+        remote_url += 4;
       }
     }
   }

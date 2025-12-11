@@ -29,8 +29,6 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -41,16 +39,16 @@
 namespace blender::ui {
 
 struct EyedropperColorband {
-  int event_xy_last[2];
+  int event_xy_last[2] = {};
   /* Alpha is currently fixed at 1.0, may support in future. */
-  Vector<float4> color_buffer;
-  bool sample_start;
-  ColorBand init_color_band;
-  ColorBand *color_band;
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  bool is_undo;
-  bool is_set;
+  Vector<float4> color_buffer = {};
+  bool sample_start = false;
+  ColorBand init_color_band = {};
+  ColorBand *color_band = nullptr;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  bool is_undo = false;
+  bool is_set = false;
 };
 
 /* For user-data only. */
@@ -63,7 +61,7 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
 {
   ColorBand *band = nullptr;
 
-  uiBut *but = UI_context_active_but_get(C);
+  Button *but = context_active_but_get(C);
 
   PointerRNA rna_update_ptr = PointerRNA_NULL;
   PropertyRNA *rna_update_prop = nullptr;
@@ -73,7 +71,7 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
     /* pass */
   }
   else {
-    if (but->type == UI_BTYPE_COLORBAND) {
+    if (but->type == ButtonType::ColorBand) {
       /* When invoked with a hotkey, we can find the band in 'but->poin'. */
       band = (ColorBand *)but->poin;
     }
@@ -85,7 +83,7 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
     if (band) {
       rna_update_ptr = but->rnapoin;
       rna_update_prop = but->rnaprop;
-      is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+      is_undo = button_flag_is_set(but, BUT_UNDO);
     }
   }
 
@@ -105,7 +103,7 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
     return false;
   }
 
-  EyedropperColorband *eye = MEM_new<EyedropperColorband>(__func__, EyedropperColorband{});
+  EyedropperColorband *eye = MEM_new<EyedropperColorband>(__func__);
   eye->color_band = band;
   eye->init_color_band = *eye->color_band;
   eye->ptr = rna_update_ptr;
@@ -168,10 +166,11 @@ static void eyedropper_colorband_apply(bContext *C, wmOperator *op)
   EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
   /* Always filter, avoids noise in resulting color-band. */
   const bool filter_samples = true;
-  BKE_colorband_init_from_table_rgba(eye->color_band,
-                                     reinterpret_cast<const float(*)[4]>(eye->color_buffer.data()),
-                                     eye->color_buffer.size(),
-                                     filter_samples);
+  BKE_colorband_init_from_table_rgba(
+      eye->color_band,
+      reinterpret_cast<const float (*)[4]>(eye->color_buffer.data()),
+      eye->color_buffer.size(),
+      filter_samples);
   eye->is_set = true;
   if (eye->prop) {
     RNA_property_update(C, &eye->ptr, eye->prop);
@@ -191,7 +190,9 @@ static void eyedropper_colorband_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static int eyedropper_colorband_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_colorband_modal(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
   /* handle modal keymap */
@@ -228,7 +229,9 @@ static int eyedropper_colorband_modal(bContext *C, wmOperator *op, const wmEvent
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int eyedropper_colorband_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_colorband_point_modal(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
 {
   EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
   /* handle modal keymap */
@@ -268,13 +271,15 @@ static int eyedropper_colorband_point_modal(bContext *C, wmOperator *op, const w
 }
 
 /* Modal Operator init */
-static int eyedropper_colorband_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus eyedropper_colorband_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   /* init */
   if (eyedropper_colorband_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    UI_context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -286,7 +291,7 @@ static int eyedropper_colorband_invoke(bContext *C, wmOperator *op, const wmEven
 }
 
 /* Repeat operator */
-static int eyedropper_colorband_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_colorband_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (eyedropper_colorband_init(C, op)) {
@@ -303,8 +308,8 @@ static int eyedropper_colorband_exec(bContext *C, wmOperator *op)
 
 static bool eyedropper_colorband_poll(bContext *C)
 {
-  uiBut *but = UI_context_active_but_get(C);
-  if (but && but->type == UI_BTYPE_COLORBAND) {
+  Button *but = context_active_but_get(C);
+  if (but && but->type == ButtonType::ColorBand) {
     return true;
   }
   const PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", &RNA_ColorRamp);
@@ -321,7 +326,7 @@ void UI_OT_eyedropper_colorramp(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_colorramp";
   ot->description = "Sample a color band";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = eyedropper_colorband_invoke;
   ot->modal = eyedropper_colorband_modal;
   ot->cancel = eyedropper_colorband_cancel;
@@ -341,7 +346,7 @@ void UI_OT_eyedropper_colorramp_point(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_colorramp_point";
   ot->description = "Point-sample a color band";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = eyedropper_colorband_invoke;
   ot->modal = eyedropper_colorband_point_modal;
   ot->cancel = eyedropper_colorband_cancel;

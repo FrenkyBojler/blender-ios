@@ -2,11 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_timeit.hh"
 #include "BLI_utility_mixins.hh"
+
+#include "DNA_node_types.h"
 
 struct Depsgraph;
 
@@ -28,9 +35,27 @@ class CompositorRuntime {
   ~CompositorRuntime();
 };
 
+/* Runtime data specific to the sequencer, e.g. when using scene strips. */
+class SequencerRuntime {
+ public:
+  Depsgraph *depsgraph = nullptr;
+
+  ~SequencerRuntime();
+};
+
+/* Audio runtime data. */
+struct SceneAudioRuntime {
+  void *sound_scene = nullptr;
+  void *playback_handle = nullptr;
+  void *sound_scrub_handle = nullptr;
+  Set<void *> speaker_handles;
+};
+
 class SceneRuntime : NonCopyable, NonMovable {
  public:
   CompositorRuntime compositor;
+  SequencerRuntime sequencer;
+  SceneAudioRuntime audio;
 };
 
 }  // namespace blender::bke

@@ -5,13 +5,13 @@
 
 #include "usd_writer_abstract.hh"
 
-#include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdGeom/xformable.h>
 
 namespace blender::io::usd {
 
 class USDTransformWriter : public USDAbstractWriter {
  private:
-  blender::Vector<pxr::UsdGeomXformOp> xformOps_;
+  Vector<pxr::UsdGeomXformOp> xformOps_;
 
  public:
   USDTransformWriter(const USDExporterContext &ctx);

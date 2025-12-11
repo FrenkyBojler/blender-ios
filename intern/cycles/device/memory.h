@@ -235,7 +235,6 @@ class device_memory {
   size_t device_size;
   size_t data_width;
   size_t data_height;
-  size_t data_depth;
   MemoryType type;
   const char *name;
   string name_storage;
@@ -247,6 +246,7 @@ class device_memory {
   void *shared_pointer;
   /* reference counter for shared_pointer */
   int shared_counter;
+  bool move_to_host = false;
 
   virtual ~device_memory();
 
@@ -254,6 +254,7 @@ class device_memory {
   void restore_device();
 
   bool is_resident(Device *sub_device) const;
+  bool is_shared(Device *sub_device) const;
 
   /* No copying and allowed.
    *
@@ -282,14 +283,16 @@ class device_memory {
    * allocated with these functions, for devices that support using
    * the same pointer for host and device. */
   void *host_alloc(const size_t size);
-  void host_free();
 
   /* Device memory allocation and copying. */
   void device_alloc();
-  void device_free();
   void device_copy_to();
+  void device_move_to_host();
   void device_copy_from(const size_t y, const size_t w, size_t h, const size_t elem);
   void device_zero();
+
+  /* Memory can only be freed on host and device together. */
+  void host_and_device_free();
 
   bool device_is_cpu();
 
@@ -334,7 +337,7 @@ template<typename T> class device_only_memory : public device_memory {
     }
 
     if (reallocate) {
-      device_free();
+      host_and_device_free();
       data_size = new_size;
       device_alloc();
     }
@@ -342,7 +345,7 @@ template<typename T> class device_only_memory : public device_memory {
 
   void free()
   {
-    device_free();
+    host_and_device_free();
     data_size = 0;
   }
 
@@ -382,13 +385,12 @@ template<typename T> class device_vector : public device_memory {
   }
 
   /* Host memory allocation. */
-  T *alloc(const size_t width, const size_t height = 0, const size_t depth = 0)
+  T *alloc(const size_t width, const size_t height = 0)
   {
-    size_t new_size = size(width, height, depth);
+    size_t new_size = size(width, height);
 
     if (new_size != data_size) {
-      device_free();
-      host_free();
+      host_and_device_free();
       host_pointer = host_alloc(sizeof(T) * new_size);
       modified = true;
       assert(device_pointer == 0);
@@ -397,27 +399,31 @@ template<typename T> class device_vector : public device_memory {
     data_size = new_size;
     data_width = width;
     data_height = height;
-    data_depth = depth;
 
     return data();
   }
 
   /* Host memory resize. Only use this if the original data needs to be
-   * preserved, it is faster to call alloc() if it can be discarded. */
-  T *resize(const size_t width, const size_t height = 0, const size_t depth = 0)
+   * preserved or memory needs to be initialized, it is faster to call
+   * alloc() if it can be discarded. */
+  T *resize(const size_t width, const size_t height = 0)
   {
-    size_t new_size = size(width, height, depth);
+    size_t new_size = size(width, height);
 
     if (new_size != data_size) {
       void *new_ptr = host_alloc(sizeof(T) * new_size);
 
-      if (new_size && data_size) {
-        size_t min_size = ((new_size < data_size) ? new_size : data_size);
-        memcpy((T *)new_ptr, (T *)host_pointer, sizeof(T) * min_size);
+      if (new_ptr) {
+        size_t min_size = (new_size < data_size) ? new_size : data_size;
+        for (size_t i = 0; i < min_size; i++) {
+          ((T *)new_ptr)[i] = ((T *)host_pointer)[i];
+        }
+        for (size_t i = data_size; i < new_size; i++) {
+          ((T *)new_ptr)[i] = T();
+        }
       }
 
-      device_free();
-      host_free();
+      host_and_device_free();
       host_pointer = new_ptr;
       assert(device_pointer == 0);
     }
@@ -425,7 +431,6 @@ template<typename T> class device_vector : public device_memory {
     data_size = new_size;
     data_width = width;
     data_height = height;
-    data_depth = depth;
 
     return data();
   }
@@ -433,40 +438,23 @@ template<typename T> class device_vector : public device_memory {
   /* Take over data from an existing array. */
   void steal_data(array<T> &from)
   {
-    device_free();
-    host_free();
+    host_and_device_free();
 
     data_size = from.size();
     data_width = 0;
     data_height = 0;
-    data_depth = 0;
     host_pointer = from.steal_pointer();
-    assert(device_pointer == 0);
-  }
-
-  void give_data(array<T> &to)
-  {
-    device_free();
-
-    to.set_data((T *)host_pointer, data_size);
-    data_size = 0;
-    data_width = 0;
-    data_height = 0;
-    data_depth = 0;
-    host_pointer = 0;
     assert(device_pointer == 0);
   }
 
   /* Free device and host memory. */
   void free()
   {
-    device_free();
-    host_free();
+    host_and_device_free();
 
     data_size = 0;
     data_width = 0;
     data_height = 0;
-    data_depth = 0;
     host_pointer = 0;
     modified = true;
     need_realloc_ = true;
@@ -559,18 +547,10 @@ template<typename T> class device_vector : public device_memory {
     device_zero();
   }
 
-  void move_device(Device *new_device)
-  {
-    copy_from_device();
-    device_free();
-    device = new_device;
-    copy_to_device();
-  }
-
  protected:
-  size_t size(const size_t width, const size_t height, const size_t depth)
+  size_t size(const size_t width, const size_t height)
   {
-    return width * ((height == 0) ? 1 : height) * ((depth == 0) ? 1 : depth);
+    return width * ((height == 0) ? 1 : height);
   }
 };
 
@@ -615,16 +595,16 @@ class device_texture : public device_memory {
                  ExtensionType extension);
   ~device_texture() override;
 
-  void *alloc(const size_t width, const size_t height, const size_t depth = 0);
+  void *alloc(const size_t width, const size_t height);
   void copy_to_device();
 
   uint slot = 0;
   TextureInfo info;
 
  protected:
-  size_t size(const size_t width, const size_t height, const size_t depth)
+  size_t size(const size_t width, const size_t height)
   {
-    return width * ((height == 0) ? 1 : height) * ((depth == 0) ? 1 : depth);
+    return width * ((height == 0) ? 1 : height);
   }
 };
 

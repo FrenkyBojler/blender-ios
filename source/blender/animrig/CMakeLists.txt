@@ -8,12 +8,12 @@ set(INC
 
   ../editors/include
   ../makesrna
-  ../../../extern/fmtlib/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
+  ../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -24,6 +24,7 @@ set(SRC
   intern/action_selection.cc
   intern/anim_rna.cc
   intern/animdata.cc
+  intern/armature.cc
   intern/bone_collections.cc
   intern/bonecolor.cc
   intern/driver.cc
@@ -34,12 +35,14 @@ set(SRC
   intern/keyingsets.cc
   intern/nla.cc
   intern/pose.cc
+  intern/versioning.cc
   intern/visualkey.cc
 
   ANIM_action.hh
   ANIM_action_iterators.hh
   ANIM_action_legacy.hh
   ANIM_animdata.hh
+  ANIM_armature.hh
   ANIM_armature_iter.hh
   ANIM_bone_collections.hh
   ANIM_bonecolor.hh
@@ -51,6 +54,7 @@ set(SRC
   ANIM_nla.hh
   ANIM_pose.hh
   ANIM_rna.hh
+  ANIM_versioning.hh
   ANIM_visualkey.hh
   intern/action_runtime.hh
   intern/bone_collections_internal.hh
@@ -60,6 +64,7 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   bf::blenlib
+  PRIVATE bf::blenloader
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   bf::dna
@@ -84,6 +89,7 @@ if(WITH_GTESTS)
     intern/keyframing_test.cc
     intern/nla_test.cc
     intern/pose_test.cc
+    intern/versioning_test.cc
   )
   set(TEST_LIB
     PRIVATE bf::animrig

@@ -18,6 +18,8 @@ set(SRC
   math_cdf.cpp
   md5.cpp
   murmurhash.cpp
+  nanovdb.cpp
+  openvdb.cpp
   path.cpp
   profiling.cpp
   string.cpp
@@ -27,7 +29,6 @@ set(SRC
   time.cpp
   transform.cpp
   transform_avx2.cpp
-  transform_sse42.cpp
   windows.cpp
 )
 
@@ -44,6 +45,8 @@ set(SRC_HEADERS
   atomic.h
   boundbox.h
   color.h
+  concurrent_set.h
+  concurrent_vector.h
   debug.h
   defines.h
   deque.h
@@ -72,8 +75,10 @@ set(SRC_HEADERS
   math_int3.h
   math_int4.h
   math_int8.h
+  math_dual.h
   md5.h
   murmurhash.h
+  nanovdb.h
   openimagedenoise.h
   openvdb.h
   optimization.h
@@ -110,6 +115,7 @@ set(SRC_HEADERS
   types_int4.h
   types_int8.h
   types_spectrum.h
+  types_rgbe.h
   types_uchar2.h
   types_uchar3.h
   types_uchar4.h
@@ -117,6 +123,7 @@ set(SRC_HEADERS
   types_uint3.h
   types_uint4.h
   types_ushort4.h
+  types_dual.h
   unique_ptr.h
   unique_ptr_vector.h
   vector.h
@@ -125,14 +132,22 @@ set(SRC_HEADERS
   xml.h
 )
 
-if(CXX_HAS_SSE42)
-  set_source_files_properties(transform_sse42.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE42_FLAGS}")
-endif()
 if(CXX_HAS_AVX2)
   set_source_files_properties(transform_avx2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_FLAGS}")
 endif()
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
+
+if(WITH_OPENVDB)
+  list(APPEND LIB
+    ${OPENVDB_LIBRARIES}
+  )
+
+  # This works around the issue described in #120317 and https://github.com/AcademySoftwareFoundation/openvdb/pull/1786
+  if(MSVC_CLANG)
+    set_source_files_properties(openvdb.cpp PROPERTIES COMPILE_FLAGS -fno-delayed-template-parsing)
+  endif()
+endif()
 
 cycles_add_library(cycles_util "${LIB}" ${SRC} ${SRC_HEADERS})

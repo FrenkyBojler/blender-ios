@@ -4,6 +4,8 @@
 
 #include "integrator/render_scheduler.h"
 
+#include "scene/integrator.h"
+
 #include "session/session.h"
 #include "session/tile.h"
 
@@ -53,7 +55,12 @@ bool RenderScheduler::is_denoiser_gpu_used() const
 
 void RenderScheduler::set_limit_samples_per_update(const int limit_samples)
 {
-  limit_samples_per_update_ = limit_samples;
+  if (limit_samples_per_update_) {
+    limit_samples_per_update_ = min(limit_samples_per_update_, limit_samples);
+  }
+  else {
+    limit_samples_per_update_ = limit_samples;
+  }
 }
 
 void RenderScheduler::set_adaptive_sampling(const AdaptiveSampling &adaptive_sampling)
@@ -66,29 +73,24 @@ bool RenderScheduler::is_adaptive_sampling_used() const
   return adaptive_sampling_.use;
 }
 
-void RenderScheduler::set_start_sample(const int start_sample)
+void RenderScheduler::set_sample_params(const int num_samples,
+                                        const bool use_sample_subset,
+                                        const int sample_subset_offset,
+                                        const int sample_subset_length)
 {
-  start_sample_ = start_sample;
-}
+  sample_offset_ = 0;
+  num_samples_ = min(num_samples, Integrator::MAX_SAMPLES);
 
-int RenderScheduler::get_start_sample() const
-{
-  return start_sample_;
-}
-
-void RenderScheduler::set_num_samples(const int num_samples)
-{
-  num_samples_ = num_samples;
+  if (use_sample_subset) {
+    sample_offset_ = sample_subset_offset;
+    num_samples_ = max(
+        min(sample_subset_offset + sample_subset_length, num_samples_) - sample_subset_offset, 0);
+  }
 }
 
 int RenderScheduler::get_num_samples() const
 {
   return num_samples_;
-}
-
-void RenderScheduler::set_sample_offset(const int sample_offset)
-{
-  sample_offset_ = sample_offset;
 }
 
 int RenderScheduler::get_sample_offset() const
@@ -110,7 +112,7 @@ int RenderScheduler::get_rendered_sample() const
 {
   DCHECK_GT(get_num_rendered_samples(), 0);
 
-  return start_sample_ + get_num_rendered_samples() - 1 - sample_offset_;
+  return get_num_rendered_samples() - 1;
 }
 
 int RenderScheduler::get_num_rendered_samples() const
@@ -118,17 +120,11 @@ int RenderScheduler::get_num_rendered_samples() const
   return state_.num_rendered_samples;
 }
 
-void RenderScheduler::reset(const BufferParams &buffer_params,
-                            const int num_samples,
-                            const int sample_offset)
+void RenderScheduler::reset(const BufferParams &buffer_params)
 {
   buffer_params_ = buffer_params;
 
   update_start_resolution_divider();
-
-  set_num_samples(num_samples);
-  set_start_sample(sample_offset);
-  set_sample_offset(sample_offset);
 
   /* In background mode never do lower resolution render preview, as it is not really supported
    * by the software. */
@@ -178,11 +174,12 @@ void RenderScheduler::reset(const BufferParams &buffer_params,
   adaptive_filter_time_.reset();
   display_update_time_.reset();
   rebalance_time_.reset();
+  volume_guiding_denoise_time_.reset();
 }
 
 void RenderScheduler::reset_for_next_tile()
 {
-  reset(buffer_params_, num_samples_, sample_offset_);
+  reset(buffer_params_);
 }
 
 bool RenderScheduler::render_work_reschedule_on_converge(RenderWork &render_work)
@@ -238,7 +235,7 @@ bool RenderScheduler::render_work_reschedule_on_idle(RenderWork &render_work)
 
 void RenderScheduler::render_work_reschedule_on_cancel(RenderWork &render_work)
 {
-  VLOG_WORK << "Schedule work for cancel.";
+  LOG_DEBUG << "Schedule work for cancel.";
 
   /* Un-schedule samples: they will not be rendered and should not be counted. */
   state_.num_rendered_samples -= render_work.path_trace.num_samples;
@@ -345,7 +342,7 @@ RenderWork RenderScheduler::get_render_work()
   render_work.path_trace.num_samples = get_num_samples_to_path_trace();
   render_work.path_trace.sample_offset = get_sample_offset();
 
-  render_work.init_render_buffers = (render_work.path_trace.start_sample == get_start_sample());
+  render_work.init_render_buffers = (render_work.path_trace.start_sample == get_sample_offset());
 
   /* NOTE: Rebalance scheduler requires current number of samples to not be advanced forward. */
   render_work.rebalance = work_need_rebalance();
@@ -475,7 +472,7 @@ void RenderScheduler::report_work_begin(const RenderWork &render_work)
    * because it might be wrongly 0. Check for whether path tracing is actually happening as it is
    * expected to happen in the first work. */
   if (render_work.resolution_divider == pixel_size_ && render_work.path_trace.num_samples != 0 &&
-      render_work.path_trace.start_sample == get_start_sample())
+      render_work.path_trace.start_sample == get_sample_offset())
   {
     state_.start_render_time = time_dt();
   }
@@ -504,7 +501,7 @@ void RenderScheduler::report_path_trace_time(const RenderWork &render_work,
 
   path_trace_time_.add_average(final_time_approx, render_work.path_trace.num_samples);
 
-  VLOG_WORK << "Average path tracing time: " << path_trace_time_.get_average() << " seconds.";
+  LOG_DEBUG << "Average path tracing time: " << path_trace_time_.get_average() << " seconds.";
 }
 
 void RenderScheduler::report_path_trace_occupancy(const RenderWork &render_work,
@@ -512,7 +509,7 @@ void RenderScheduler::report_path_trace_occupancy(const RenderWork &render_work,
 {
   state_.occupancy_num_samples = render_work.path_trace.num_samples;
   state_.occupancy = occupancy;
-  VLOG_WORK << "Measured path tracing occupancy: " << occupancy;
+  LOG_DEBUG << "Measured path tracing occupancy: " << occupancy;
 }
 
 void RenderScheduler::report_adaptive_filter_time(const RenderWork &render_work,
@@ -533,7 +530,7 @@ void RenderScheduler::report_adaptive_filter_time(const RenderWork &render_work,
 
   adaptive_filter_time_.add_average(final_time_approx, render_work.path_trace.num_samples);
 
-  VLOG_WORK << "Average adaptive sampling filter  time: " << adaptive_filter_time_.get_average()
+  LOG_DEBUG << "Average adaptive sampling filter  time: " << adaptive_filter_time_.get_average()
             << " seconds.";
 }
 
@@ -553,7 +550,24 @@ void RenderScheduler::report_denoise_time(const RenderWork &render_work, const d
 
   denoise_time_.add_average(final_time_approx);
 
-  VLOG_WORK << "Average denoising time: " << denoise_time_.get_average() << " seconds.";
+  LOG_DEBUG << "Average denoising time: " << denoise_time_.get_average() << " seconds.";
+}
+
+void RenderScheduler::report_volume_guiding_denoise_time(const RenderWork &render_work,
+                                                         const double time)
+{
+  volume_guiding_denoise_time_.add_wall(time);
+
+  const double final_time_approx = approximate_final_time(render_work, time);
+
+  if (work_report_reset_average(render_work)) {
+    volume_guiding_denoise_time_.reset_average();
+  }
+
+  volume_guiding_denoise_time_.add_average(final_time_approx, render_work.path_trace.num_samples);
+
+  LOG_DEBUG << "Average volume guiding denoising time: "
+            << volume_guiding_denoise_time_.get_average() << " seconds.";
 }
 
 void RenderScheduler::report_display_update_time(const RenderWork &render_work, const double time)
@@ -572,7 +586,7 @@ void RenderScheduler::report_display_update_time(const RenderWork &render_work, 
 
   display_update_time_.add_average(final_time_approx);
 
-  VLOG_WORK << "Average display update time: " << display_update_time_.get_average()
+  LOG_DEBUG << "Average display update time: " << display_update_time_.get_average()
             << " seconds.";
 
   /* Move the display update moment further in time, so that logic which checks when last update
@@ -599,7 +613,7 @@ void RenderScheduler::report_rebalance_time(const RenderWork &render_work,
 
   state_.last_rebalance_changed = balance_changed;
 
-  VLOG_WORK << "Average rebalance time: " << rebalance_time_.get_average() << " seconds.";
+  LOG_DEBUG << "Average rebalance time: " << rebalance_time_.get_average() << " seconds.";
 }
 
 string RenderScheduler::full_report() const
@@ -790,18 +804,12 @@ int RenderScheduler::calculate_num_samples_per_update() const
 
   const double update_interval_in_seconds = guess_display_update_interval_in_seconds();
 
-  int num_samples_per_update = max(int(num_samples_in_second * update_interval_in_seconds), 1);
-
-  if (limit_samples_per_update_) {
-    num_samples_per_update = min(limit_samples_per_update_, num_samples_per_update);
-  }
-
-  return num_samples_per_update;
+  return max(int(num_samples_in_second * update_interval_in_seconds), 1);
 }
 
 int RenderScheduler::get_start_sample_to_path_trace() const
 {
-  return start_sample_ + state_.num_rendered_samples;
+  return sample_offset_ + state_.num_rendered_samples;
 }
 
 /* Round number of samples to the closest power of two.
@@ -855,7 +863,7 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * more than N samples. */
   const int num_samples_pot = round_num_samples_to_power_of_2(num_samples_per_update);
 
-  const int max_num_samples_to_render = start_sample_ + num_samples_ - path_trace_start_sample;
+  const int max_num_samples_to_render = sample_offset_ + num_samples_ - path_trace_start_sample;
 
   int num_samples_to_render = min(num_samples_pot, max_num_samples_to_render);
 
@@ -865,8 +873,10 @@ int RenderScheduler::get_num_samples_to_path_trace() const
     /* Keep occupancy at about 0.5 (this is more of an empirical figure which seems to match scenes
      * with good performance without forcing occupancy to be higher). */
     int num_samples_to_occupy = state_.occupancy_num_samples;
+    float ratio_to_increase_occupancy = 1.0f;
     if (state_.occupancy > 0 && state_.occupancy < 0.5f) {
-      num_samples_to_occupy = lround(state_.occupancy_num_samples * 0.7f / state_.occupancy);
+      ratio_to_increase_occupancy = 0.7f / state_.occupancy;
+      num_samples_to_occupy = lround(state_.occupancy_num_samples * ratio_to_increase_occupancy);
     }
 
     /* Time limit for path tracing, which constraints the scheduler from "over-scheduling" work
@@ -909,10 +919,12 @@ int RenderScheduler::get_num_samples_to_path_trace() const
       }
     }
     if (path_tracing_time_limit != 0) {
-      /* Use the per-sample time from the previously rendered batch of samples so that the
-       * correction is applied much quicker. */
+      /* Use the per-sample time from the previously rendered batch of samples, so that the
+       * correction is applied much quicker. Also use the predicted increase in performance from
+       * increased occupancy. */
       const double predicted_render_time = num_samples_to_occupy *
-                                           path_trace_time_.get_last_sample_time();
+                                           path_trace_time_.get_last_sample_time() /
+                                           ratio_to_increase_occupancy;
       if (predicted_render_time > path_tracing_time_limit) {
         num_samples_to_occupy = lround(num_samples_to_occupy *
                                        (path_tracing_time_limit / predicted_render_time));
@@ -923,8 +935,12 @@ int RenderScheduler::get_num_samples_to_path_trace() const
                                 min(num_samples_to_occupy, max_num_samples_to_render));
   }
 
-  /* If adaptive sampling is not use, render as many samples per update as possible, keeping the
-   * device fully occupied, without much overhead of display updates. */
+  if (limit_samples_per_update_) {
+    num_samples_to_render = min(limit_samples_per_update_, num_samples_to_render);
+  }
+
+  /* If adaptive sampling is not use, render as many samples per update as possible, keeping
+   * the device fully occupied, without much overhead of display updates. */
   if (!adaptive_sampling_.use) {
     return num_samples_to_render;
   }
@@ -973,6 +989,20 @@ float RenderScheduler::work_adaptive_threshold() const
   }
 
   return max(state_.adaptive_sampling_threshold, adaptive_sampling_.threshold);
+}
+
+bool RenderScheduler::volume_guiding_need_denoise() const
+{
+  if (!is_power_of_two(get_num_rendered_samples())) {
+    return false;
+  }
+
+  if (done()) {
+    /* No need to denoise after the last sample. */
+    return false;
+  }
+
+  return true;
 }
 
 bool RenderScheduler::work_need_denoise(bool &delayed, bool &ready_to_display)
@@ -1126,7 +1156,7 @@ void RenderScheduler::update_start_resolution_divider()
      * that we have a somewhat good initial behavior, giving a chance to collect real numbers. */
     start_resolution_divider_ = min(default_start_resolution_divider_,
                                     max_res_divider_for_desired_size);
-    VLOG_WORK << "Initial resolution divider is " << start_resolution_divider_;
+    LOG_DEBUG << "Initial resolution divider is " << start_resolution_divider_;
     return;
   }
 
@@ -1155,7 +1185,7 @@ void RenderScheduler::update_start_resolution_divider()
    * unreadable viewport render. */
   start_resolution_divider_ = min(resolution_divider_for_update, max_res_divider_for_desired_size);
 
-  VLOG_WORK << "Calculated resolution divider is " << start_resolution_divider_;
+  LOG_DEBUG << "Calculated resolution divider is " << start_resolution_divider_;
 }
 
 double RenderScheduler::guess_viewport_navigation_update_interval_in_seconds() const
@@ -1196,7 +1226,7 @@ bool RenderScheduler::is_denoise_active_during_update() const
 bool RenderScheduler::work_is_usable_for_first_render_estimation(const RenderWork &render_work)
 {
   return render_work.resolution_divider == pixel_size_ &&
-         render_work.path_trace.start_sample == start_sample_;
+         render_work.path_trace.start_sample == sample_offset_;
 }
 
 bool RenderScheduler::work_report_reset_average(const RenderWork &render_work)

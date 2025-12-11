@@ -159,18 +159,18 @@ bool Session::ready_to_reset()
 
 void Session::run_main_render_loop()
 {
-  path_trace_->clear_display();
+  path_trace_->zero_display();
 
   while (true) {
     RenderWork render_work = run_update_for_next_iteration();
 
     if (!render_work) {
-      if (VLOG_INFO_IS_ON) {
+      if (LOG_IS_ON(LOG_LEVEL_INFO)) {
         double total_time;
         double render_time;
         progress.get_time(total_time, render_time);
-        VLOG_INFO << "Rendering in main loop is done in " << render_time << " seconds.";
-        VLOG_INFO << path_trace_->full_report();
+        LOG_INFO << "Rendering in main loop is done in " << render_time << " seconds.";
+        LOG_INFO << path_trace_->full_report();
       }
 
       if (params.background) {
@@ -305,32 +305,22 @@ RenderWork Session::run_update_for_next_iteration()
 
   thread_scoped_lock scene_lock(scene->mutex);
 
+  /* Perform delayed reset if requested. */
+  const bool reset_buffers = delayed_reset_buffer_params();
+
+  /* Update scene */
+  const bool reset_scene = update_scene(delayed_reset_.do_reset);
+
+  /* Update buffers for new parameters. After scene update which influences the passes used. */
   bool have_tiles = true;
   bool switched_to_new_tile = false;
-  bool did_reset = false;
 
-  /* Perform delayed reset if requested. */
-  {
-    const thread_scoped_lock reset_lock(delayed_reset_.mutex);
-    if (delayed_reset_.do_reset) {
-      did_reset = true;
+  if (reset_buffers) {
+    update_buffers_for_params();
 
-      const thread_scoped_lock buffers_lock(buffers_mutex_);
-      do_delayed_reset();
-
-      /* After reset make sure the tile manager is at the first big tile. */
-      have_tiles = tile_manager_.next();
-      switched_to_new_tile = true;
-    }
-  }
-
-  /* Update number of samples in the integrator.
-   * Ideally this would need to happen once in `Session::set_samples()`, but the issue there is
-   * the initial configuration when Session is created where the `set_samples()` is not used.
-   *
-   * NOTE: Unless reset was requested only allow increasing number of samples. */
-  if (did_reset || scene->integrator->get_aa_samples() < params.samples) {
-    scene->integrator->set_aa_samples(params.samples);
+    /* After reset make sure the tile manager is at the first big tile. */
+    have_tiles = tile_manager_.next();
+    switched_to_new_tile = true;
   }
 
   /* Update denoiser settings. */
@@ -348,12 +338,14 @@ RenderWork Session::run_update_for_next_iteration()
   /* Update path guiding. */
   {
     const GuidingParams guiding_params = scene->integrator->get_guiding_params(device.get());
-    const bool guiding_reset = (guiding_params.use) ? scene->need_reset(false) : false;
+    const bool guiding_reset = (guiding_params.use) ? reset_scene : false;
     path_trace_->set_guiding_params(guiding_params, guiding_reset);
   }
 
-  render_scheduler_.set_num_samples(params.samples);
-  render_scheduler_.set_start_sample(params.sample_offset);
+  render_scheduler_.set_sample_params(params.samples,
+                                      params.use_sample_subset,
+                                      params.sample_subset_offset,
+                                      params.sample_subset_length);
   render_scheduler_.set_time_limit(params.time_limit);
 
   while (have_tiles) {
@@ -394,28 +386,17 @@ RenderWork Session::run_update_for_next_iteration()
 
       tile_params.update_offset_stride();
 
-      path_trace_->reset(buffer_params_, tile_params, did_reset);
+      path_trace_->reset(buffer_params_, tile_params, reset_buffers);
     }
 
+    /* Update camera if dimensions changed for progressive render. the camera
+     * knows nothing about progressive or cropped rendering, it just gets the
+     * image dimensions passed in. */
     const int resolution = render_work.resolution_divider;
     const int width = max(1, buffer_params_.full_width / resolution);
     const int height = max(1, buffer_params_.full_height / resolution);
 
-    {
-      /* Load render kernels, before device update where we upload data to the GPU.
-       * Do it outside of the scene mutex since the heavy part of the loading (i.e. kernel
-       * compilation) does not depend on the scene and some other functionality (like display
-       * driver) might be waiting on the scene mutex to synchronize display pass.
-       *
-       * The scene will lock itself for the short period if it needs to update kernel features. */
-      scene_lock.unlock();
-      scene->load_kernels(progress);
-      scene_lock.lock();
-    }
-
-    if (update_scene(width, height)) {
-      profiler.reset(scene->shaders.size(), scene->objects.size());
-    }
+    scene->update_camera_resolution(progress, width, height);
 
     /* Unlock scene mutex before loading denoiser kernels, since that may attempt to activate
      * graphics interop, which can deadlock when the scene mutex is still being held. */
@@ -513,18 +494,24 @@ int2 Session::get_effective_tile_size() const
   return make_int2(tile_size, tile_size);
 }
 
-void Session::do_delayed_reset()
+bool Session::delayed_reset_buffer_params()
 {
+  /* Reset buffer parameters, delayed from when we got the reset call so we can complete
+   * rendering the sample. Otherwise e.g. viewport navigation might reset without ever
+   * finishing anything. */
+  const thread_scoped_lock reset_lock(delayed_reset_.mutex);
   if (!delayed_reset_.do_reset) {
-    return;
+    return false;
   }
+
+  const thread_scoped_lock buffers_lock(buffers_mutex_);
   delayed_reset_.do_reset = false;
 
   params = delayed_reset_.session_params;
   buffer_params_ = delayed_reset_.buffer_params;
 
   /* Store parameters used for buffers access outside of scene graph. */
-  buffer_params_.samples = params.samples;
+  buffer_params_.samples = min(params.samples, Integrator::MAX_SAMPLES);
   buffer_params_.exposure = scene->film->get_exposure();
   buffer_params_.use_approximate_shadow_catcher =
       scene->film->get_use_approximate_shadow_catcher();
@@ -532,14 +519,17 @@ void Session::do_delayed_reset()
 
   /* Tile and work scheduling. */
   tile_manager_.reset_scheduling(buffer_params_, get_effective_tile_size());
-  render_scheduler_.reset(buffer_params_, params.samples, params.sample_offset);
 
-  /* Passes. */
-  /* When multiple tiles are used SAMPLE_COUNT pass is used to keep track of possible partial
-   * tile results. It is safe to use generic update function here which checks for changes since
-   * changes in tile settings re-creates session, which ensures film is fully updated on tile
-   * changes. */
-  scene->film->update_passes(scene.get(), tile_manager_.has_multiple_tiles());
+  return true;
+}
+
+void Session::update_buffers_for_params()
+{
+  render_scheduler_.set_sample_params(params.samples,
+                                      params.use_sample_subset,
+                                      params.sample_subset_offset,
+                                      params.sample_subset_length);
+  render_scheduler_.reset(buffer_params_);
 
   /* Update for new state of scene and passes. */
   buffer_params_.update_passes(scene->passes);
@@ -554,7 +544,7 @@ void Session::do_delayed_reset()
   /* Progress. */
   progress.reset_sample();
   progress.set_total_pixel_samples(static_cast<uint64_t>(buffer_params_.width) *
-                                   buffer_params_.height * params.samples);
+                                   buffer_params_.height * buffer_params_.samples);
 
   if (!params.background) {
     progress.set_start_time();
@@ -573,6 +563,8 @@ void Session::reset(const SessionParams &session_params, const BufferParams &buf
     delayed_reset_.do_reset = true;
     delayed_reset_.session_params = session_params;
     delayed_reset_.buffer_params = buffer_params;
+
+    scene->scene_updated_while_loading_kernels = true;
 
     path_trace_->cancel();
   }
@@ -678,15 +670,32 @@ void Session::wait()
   }
 }
 
-bool Session::update_scene(const int width, const int height)
+bool Session::update_scene(const bool reset_samples)
 {
-  /* Update camera if dimensions changed for progressive render. the camera
-   * knows nothing about progressive or cropped rendering, it just gets the
-   * image dimensions passed in. */
-  Camera *cam = scene->camera;
-  cam->set_screen_size(width, height);
+  /* Update number of samples in the integrator.
+   * Ideally this would need to happen once in `Session::set_samples()`, but the issue there is
+   * the initial configuration when Session is created where the `set_samples()` is not used.
+   *
+   * NOTE: Unless reset was requested only allow increasing number of samples. */
+  if (reset_samples || scene->integrator->get_aa_samples() < params.samples) {
+    scene->integrator->set_aa_samples(params.samples);
+  }
 
-  return scene->update(progress);
+  scene->integrator->set_use_sample_subset(params.use_sample_subset);
+  scene->integrator->set_sample_subset_offset(params.sample_subset_offset);
+  scene->integrator->set_sample_subset_length(params.sample_subset_length);
+
+  /* When multiple tiles are used SAMPLE_COUNT pass is used to keep track of possible partial
+   * tile results. */
+  scene->film->set_use_sample_count(tile_manager_.has_multiple_tiles());
+
+  const bool reset = scene->need_reset(false);
+
+  if (scene->update(progress)) {
+    profiler.reset(scene->shaders.size(), scene->objects.size());
+  }
+
+  return reset;
 }
 
 static string status_append(const string &status, const string &suffix)

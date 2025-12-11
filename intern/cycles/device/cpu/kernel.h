@@ -30,17 +30,6 @@ class CPUKernels {
 
   IntegratorInitFunction integrator_init_from_camera;
   IntegratorInitFunction integrator_init_from_bake;
-  IntegratorShadeFunction integrator_intersect_closest;
-  IntegratorFunction integrator_intersect_shadow;
-  IntegratorFunction integrator_intersect_subsurface;
-  IntegratorFunction integrator_intersect_volume_stack;
-  IntegratorFunction integrator_intersect_dedicated_light;
-  IntegratorShadeFunction integrator_shade_background;
-  IntegratorShadeFunction integrator_shade_light;
-  IntegratorShadeFunction integrator_shade_shadow;
-  IntegratorShadeFunction integrator_shade_surface;
-  IntegratorShadeFunction integrator_shade_volume;
-  IntegratorShadeFunction integrator_shade_dedicated_light;
   IntegratorShadeFunction integrator_megakernel;
 
   /* Shader evaluation. */
@@ -51,6 +40,7 @@ class CPUKernels {
   ShaderEvalFunction shader_eval_displace;
   ShaderEvalFunction shader_eval_background;
   ShaderEvalFunction shader_eval_curve_shadow_transparency;
+  ShaderEvalFunction shader_eval_volume_density;
 
   /* Adaptive stopping. */
 
@@ -64,28 +54,38 @@ class CPUKernels {
                                  const int offset,
                                  int stride)>;
 
-  using AdaptiveSamplingFilterXFunction =
-      CPUKernelFunction<void (*)(const ThreadKernelGlobalsCPU *kg,
-                                 ccl_global float *render_buffer,
-                                 const int y,
-                                 const int start_x,
-                                 const int width,
-                                 const int offset,
-                                 int stride)>;
+  using FilterXFunction = CPUKernelFunction<void (*)(const ThreadKernelGlobalsCPU *kg,
+                                                     ccl_global float *render_buffer,
+                                                     const int y,
+                                                     const int start_x,
+                                                     const int width,
+                                                     const int offset,
+                                                     int stride)>;
 
-  using AdaptiveSamplingFilterYFunction =
-      CPUKernelFunction<void (*)(const ThreadKernelGlobalsCPU *kg,
-                                 ccl_global float *render_buffer,
-                                 const int x,
-                                 const int start_y,
-                                 const int height,
-                                 const int offset,
-                                 int stride)>;
+  using FilterYFunction = CPUKernelFunction<void (*)(const ThreadKernelGlobalsCPU *kg,
+                                                     ccl_global float *render_buffer,
+                                                     const int x,
+                                                     const int start_y,
+                                                     const int height,
+                                                     const int offset,
+                                                     int stride)>;
 
   AdaptiveSamplingConvergenceCheckFunction adaptive_sampling_convergence_check;
 
-  AdaptiveSamplingFilterXFunction adaptive_sampling_filter_x;
-  AdaptiveSamplingFilterYFunction adaptive_sampling_filter_y;
+  FilterXFunction adaptive_sampling_filter_x;
+  FilterYFunction adaptive_sampling_filter_y;
+
+  /* Volume Scattering Probability Guiding. */
+  CPUKernelFunction<void (*)(const ThreadKernelGlobalsCPU *kg,
+                             ccl_global float *render_buffer,
+                             const int y,
+                             const int center_x,
+                             const int min_x,
+                             const int max_x,
+                             const int offset,
+                             int stride)>
+      volume_guiding_filter_x;
+  FilterYFunction volume_guiding_filter_y;
 
   /* Cryptomatte. */
 
@@ -114,10 +114,12 @@ class CPUKernels {
 
   KERNEL_FILM_CONVERT_FUNCTION(depth)
   KERNEL_FILM_CONVERT_FUNCTION(mist)
+  KERNEL_FILM_CONVERT_FUNCTION(volume_majorant)
   KERNEL_FILM_CONVERT_FUNCTION(sample_count)
   KERNEL_FILM_CONVERT_FUNCTION(float)
 
   KERNEL_FILM_CONVERT_FUNCTION(light_path)
+  KERNEL_FILM_CONVERT_FUNCTION(rgbe)
   KERNEL_FILM_CONVERT_FUNCTION(float3)
 
   KERNEL_FILM_CONVERT_FUNCTION(motion)

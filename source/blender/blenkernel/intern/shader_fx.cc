@@ -10,9 +10,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -23,9 +23,9 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
-#include "FX_shader_types.h"
+#include "FX_shader_types.hh"
 
 #include "BLO_read_write.hh"
 

@@ -170,7 +170,7 @@ KeyingSet *scene_get_active_keyingset(const Scene *scene)
       BLI_findlink(&builtin_keyingsets, (-scene->active_keyingset) - 1));
 }
 
-void relative_keyingset_add_source(blender::Vector<PointerRNA> &sources,
+void relative_keyingset_add_source(Vector<PointerRNA> &sources,
                                    ID *id,
                                    StructRNA *srna,
                                    void *data)
@@ -178,10 +178,10 @@ void relative_keyingset_add_source(blender::Vector<PointerRNA> &sources,
   if (ELEM(nullptr, srna, data, id)) {
     return;
   }
-  sources.append(RNA_pointer_create(id, srna, data));
+  sources.append(RNA_pointer_create_discrete(id, srna, data));
 }
 
-void relative_keyingset_add_source(blender::Vector<PointerRNA> &sources, ID *id)
+void relative_keyingset_add_source(Vector<PointerRNA> &sources, ID *id)
 {
   if (id == nullptr) {
     return;
@@ -198,7 +198,7 @@ void relative_keyingset_add_source(blender::Vector<PointerRNA> &sources, ID *id)
 static void RKS_ITER_overrides_list(KeyingSetInfo *keyingset_info,
                                     bContext *C,
                                     KeyingSet *keyingset,
-                                    blender::Vector<PointerRNA> &sources)
+                                    Vector<PointerRNA> &sources)
 {
   for (PointerRNA ptr : sources) {
     /* Run generate callback on this data. */
@@ -206,9 +206,7 @@ static void RKS_ITER_overrides_list(KeyingSetInfo *keyingset_info,
   }
 }
 
-ModifyKeyReturn validate_keyingset(bContext *C,
-                                   blender::Vector<PointerRNA> *sources,
-                                   KeyingSet *keyingset)
+ModifyKeyReturn validate_keyingset(bContext *C, Vector<PointerRNA> *sources, KeyingSet *keyingset)
 {
   if (keyingset == nullptr) {
     return ModifyKeyReturn::SUCCESS;
@@ -356,8 +354,8 @@ static int insert_key_to_keying_set_path(bContext *C,
   CombinedKeyingResult combined_result;
   for (; array_index < array_length; array_index++) {
     if (mode == ModifyKeyMode::INSERT) {
-      const std::optional<blender::StringRefNull> group = groupname ? std::optional(groupname) :
-                                                                      std::nullopt;
+      const std::optional<StringRefNull> group = groupname ? std::optional(groupname) :
+                                                             std::nullopt;
       const std::optional<int> index = array_index >= 0 ? std::optional(array_index) :
                                                           std::nullopt;
       PointerRNA id_rna_pointer = RNA_id_pointer_create(keyingset_path->id);
@@ -388,7 +386,7 @@ static int insert_key_to_keying_set_path(bContext *C,
   switch (GS(keyingset_path->id->name)) {
     case ID_OB: /* Object (or Object-Related) Keyframes */
     {
-      Object *ob = (Object *)keyingset_path->id;
+      Object *ob = reinterpret_cast<Object *>(keyingset_path->id);
 
       /* XXX: only object transforms? */
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
@@ -405,7 +403,7 @@ static int insert_key_to_keying_set_path(bContext *C,
 }
 
 int apply_keyingset(bContext *C,
-                    blender::Vector<PointerRNA> *sources,
+                    Vector<PointerRNA> *sources,
                     KeyingSet *keyingset,
                     const ModifyKeyMode mode,
                     const float cfra)

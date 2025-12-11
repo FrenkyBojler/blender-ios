@@ -22,7 +22,7 @@ namespace blender::nodes::node_shader_color_ramp_cc {
 static void sh_node_valtorgb_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Fac")
+  b.add_input<decl::Float>("Factor", "Fac")
       .default_value(0.5f)
       .min(0.0f)
       .max(1.0f)
@@ -50,7 +50,10 @@ static int gpu_shader_valtorgb(GPUMaterial *mat,
   int size;
 
   /* Common / easy case optimization. */
-  if ((coba->tot <= 2) && (coba->color_mode == COLBAND_BLEND_RGB)) {
+  if (coba->tot == 1) {
+    return GPU_link(mat, "set_rgba", GPU_uniform(&coba->data[0].r), &out[0].link);
+  }
+  if ((coba->tot == 2) && (coba->color_mode == COLBAND_BLEND_RGB)) {
     float mul_bias[2];
     switch (coba->ipotype) {
       case COLBAND_INTERP_LINEAR:
@@ -102,10 +105,13 @@ static int gpu_shader_valtorgb(GPUMaterial *mat,
 
 class ColorBandFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the color ramp. */
+  std::shared_ptr<const bNodeTree> tree_;
   const ColorBand &color_band_;
 
  public:
-  ColorBandFunction(const ColorBand &color_band) : color_band_(color_band)
+  ColorBandFunction(const ColorBand &color_band, std::shared_ptr<const bNodeTree> tree)
+      : tree_(tree), color_band_(color_band)
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -138,7 +144,7 @@ static void sh_node_valtorgb_build_multi_function(nodes::NodeMultiFunctionBuilde
 {
   const bNode &bnode = builder.node();
   const ColorBand *color_band = (const ColorBand *)bnode.storage;
-  builder.construct_and_set_matching_fn<ColorBandFunction>(*color_band);
+  builder.construct_and_set_matching_fn<ColorBandFunction>(*color_band, builder.shared_tree());
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -159,16 +165,19 @@ void register_node_type_sh_valtorgb()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_VALTORGB, "Color Ramp", NODE_CLASS_CONVERTER);
+  common_node_type_base(&ntype, "ShaderNodeValToRGB", SH_NODE_VALTORGB);
+  ntype.ui_name = "Color Ramp";
+  ntype.ui_description = "Map values to colors with the use of a gradient";
   ntype.enum_name_legacy = "VALTORGB";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_valtorgb_declare;
   ntype.initfunc = file_ns::node_shader_init_valtorgb;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
   blender::bke::node_type_storage(
-      &ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::gpu_shader_valtorgb;
   ntype.build_multi_function = file_ns::sh_node_valtorgb_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

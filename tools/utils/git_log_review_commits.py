@@ -37,10 +37,9 @@ class _GetchUnix:
 
     def __init__(self):
         import tty
-        import sys
+        del tty
 
     def __call__(self):
-        import sys
         import tty
         import termios
         fd = sys.stdin.fileno()
