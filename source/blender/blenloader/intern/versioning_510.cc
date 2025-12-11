@@ -491,8 +491,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_R_LAYERS) {
             LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-              MEM_freeN(socket->storage);
-              socket->storage = nullptr;
               const char *new_pass_name = legacy_pass_name_to_new_name(socket->name);
               STRNCPY(socket->name, new_pass_name);
               const char *new_pass_identifier = legacy_pass_name_to_new_name(socket->identifier);
@@ -504,6 +502,25 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
+
+  /* This has no version check and always runs for all versions because there is forward
+   * compatibility code at write time that reallocates the storage, so we need to free it
+   * regardless of the version. */
+  FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+    if (node_tree->type == NTREE_COMPOSIT) {
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_R_LAYERS) {
+          LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+            if (socket->storage) {
+              MEM_freeN(socket->storage);
+              socket->storage = nullptr;
+            }
+          }
+        }
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
