@@ -1850,7 +1850,7 @@ static bool wm_keymap_test_and_clear_update(wmKeyMap *km)
     kmi->flag &= ~KMI_UPDATE;
   }
 
-  return (update != 0);
+  return update;
 }
 
 static wmKeyMap *wm_keymap_preset(wmWindowManager *wm, wmKeyConfig *keyconf, wmKeyMap *km)
