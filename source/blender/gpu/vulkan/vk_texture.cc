@@ -402,9 +402,9 @@ void VKTexture::update_sub(int mip,
   if (data) {
     staging_buffer.create(device_memory_size,
                           VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                          VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+                          VMA_MEMORY_USAGE_AUTO,
                           VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                              VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                              VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
                           0.4f);
     vk_buffer = staging_buffer.vk_handle();
     /* Rows are sequentially stored, when unpack row length is 0, or equal to the extent width. In
@@ -429,9 +429,7 @@ void VKTexture::update_sub(int mip,
         dst_ptr += dst_row_stride;
       }
     }
-    if (!bool(staging_buffer.vk_memory_property_flags() & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-      staging_buffer.flush();
-    }
+    staging_buffer.flush();
   }
   else {
     BLI_assert(pixel_buffer);
