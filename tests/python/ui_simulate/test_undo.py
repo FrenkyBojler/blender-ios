@@ -629,12 +629,12 @@ def view3d_texture_paint_complex():
     yield from _call_by_name(e, "Add Texture Paint Slot")
     yield e.ret()                       # Accept popup.
 
-    initial_data = list(bpy.data.images['Suzanne Base Color'].pixels)
+    initial_data = tuple(bpy.data.images['Suzanne Base Color'].pixels)
 
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window))
     yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window))
 
-    after_strokes = list(bpy.data.images['Suzanne Base Color'].pixels)
+    after_strokes = tuple(bpy.data.images['Suzanne Base Color'].pixels)
     t.assertTrue(any([orig != new for (orig, new) in zip(initial_data, after_strokes)]),
                  "At least one pixel should differ in color component")
 
@@ -651,7 +651,7 @@ def view3d_texture_paint_complex():
     yield e.ctrl.z(6)                   # Undo: second slot added.
     t.assertEqual(len(bpy.context.active_object.modifiers), 0, "No modifiers should exist")
 
-    after_undo = list(bpy.data.images['Suzanne Base Color'].pixels)
+    after_undo = tuple(bpy.data.images['Suzanne Base Color'].pixels)
     t.assertTrue(all([orig == new for (orig, new) in zip(initial_data, after_undo)]),
                  "All pixels should be the same as their original state")
 
