@@ -397,6 +397,22 @@ template void func(float a);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
+  {
+    string input = R"(a.template func<float, 1>(a);)";
+    string expect = R"(a.         funcTfloatT1(a);)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(this->template func<float, 1>(a);)";
+    string expect = R"(this_.funcTfloatT1(a);)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
 }
 GPU_TEST(preprocess_template);
 

@@ -538,6 +538,7 @@ class Preprocessor {
         /* Lint and remove SRT accessor templates before lowering template. */
         lower_srt_accessor_templates(parser, report_error);
         /* Lower templates. */
+        lower_template_dependent_names(parser, report_error);
         lower_templates(parser, report_error);
         /* Lower namespaces. */
         lower_using(parser, report_error);
@@ -810,6 +811,23 @@ class Preprocessor {
     parser.insert_line_number(inst_end, fn_start.line_number());
     parser.insert_after(inst_end, instance);
     parser.insert_line_number(inst_end, inst_end.line_number(true));
+  }
+
+  /**
+   * Given our codestyle, we don't need the disambiguation.
+   * Example: `x.template foo<int>()` > `x.foo<int>()`
+   */
+  void lower_template_dependent_names(Parser &parser, report_callback & /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_match("tw<..>", [&](const Tokens &toks) {
+      if (toks[0].prev() == '.' || toks[0].prev() == Deref) {
+        parser.erase(toks[0]);
+      }
+    });
+    parser.apply_mutations();
   }
 
   void lower_templates(Parser &parser, report_callback &report_error)
