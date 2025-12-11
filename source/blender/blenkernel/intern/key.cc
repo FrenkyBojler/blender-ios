@@ -776,9 +776,6 @@ static void key_evaluate_absolute(const int start,
   char *k3 = key_block_get_data(key, active_keyblock, shapekeys[2], &freek3);
   char *k4 = key_block_get_data(key, active_keyblock, shapekeys[3], &freek4);
 
-  float k1tot = 0.0, k2tot = 0.0, k3tot = 0.0, k4tot = 0.0;
-  float k1d = 0.0, k2d = 0.0, k3d = 0.0, k4d = 0.0;
-
   for (int i = 0; i < 4; i++) {
     if (vertex_count != shapekeys[i]->totelem) {
       /* Keys should always have the same amount of elements as the data they apply to. It is
