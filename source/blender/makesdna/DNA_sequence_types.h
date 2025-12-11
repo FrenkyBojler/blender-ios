@@ -518,6 +518,9 @@ typedef struct StripModifierDataRuntime {
   void *last_sound_in;
   void *last_sound_out;
 
+  struct PitchModifierDataRuntime *last_pitch_modifier;
+  struct EchoModifierDataRuntime *last_echo_modifier;
+
   int flag; /* eStripModifierFlag */
   char _pad[4];
 } StripModifierDataRuntime;
@@ -644,6 +647,16 @@ typedef struct PitchModifierData {
   int quality; /*ePitchQuality*/
 } PitchModifierData;
 
+typedef struct PitchModifierDataRuntime {
+  int mode; /*ePitchMode*/
+  int semitones;
+  int cents;
+  float ratio;
+  char preserve_formant;
+  char _pad[3];
+  int quality; /*ePitchQuality*/
+} PitchModifierDataRuntime;
+
 typedef struct EchoModifierData {
   StripModifierData modifier;
   float delay;
@@ -651,6 +664,13 @@ typedef struct EchoModifierData {
   float mix;
   char _pad[4];
 } EchoModifierData;
+
+typedef struct EchoModifierDataRuntime {
+  float delay;
+  float feedback;
+  float mix;
+  char _pad[4];
+} EchoModifierDataRuntime;
 
 /** \} */
 

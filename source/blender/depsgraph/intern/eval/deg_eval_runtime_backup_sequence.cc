@@ -26,53 +26,54 @@ void StripModifierDataBackup::reset()
   sound_in = nullptr;
   sound_out = nullptr;
   last_buf = nullptr;
+  last_pitch_modifier = nullptr;
+  last_echo_modifier = nullptr;
   flag = 0;
-  use_flags = false;
 }
 
 void StripModifierDataBackup::init_from_modifier(StripModifierData *smd)
 {
-  if (smd->type == eSeqModifierType_SoundEqualizer) {
+  if (ELEM(smd->type,
+           eSeqModifierType_SoundEqualizer,
+           eSeqModifierType_Pitch,
+           eSeqModifierType_Echo))
+  {
+    flag = smd->runtime.flag;
     sound_in = smd->runtime.last_sound_in;
     sound_out = smd->runtime.last_sound_out;
     last_buf = smd->runtime.last_buf;
+    last_pitch_modifier = smd->runtime.last_pitch_modifier;
+    last_echo_modifier = smd->runtime.last_echo_modifier;
 
     smd->runtime.last_sound_in = nullptr;
     smd->runtime.last_sound_out = nullptr;
     smd->runtime.last_buf = nullptr;
-  }
-
-  switch (smd->type) {
-    case eSeqModifierType_SoundEqualizer:
-    case eSeqModifierType_Pitch:
-    case eSeqModifierType_Echo:
-      flag = smd->runtime.flag;
-      use_flags = true;
-      break;
+    smd->runtime.last_pitch_modifier = nullptr;
+    smd->runtime.last_echo_modifier = nullptr;
   }
 }
 
 void StripModifierDataBackup::restore_to_modifier(StripModifierData *smd)
 {
-  if (smd->type == eSeqModifierType_SoundEqualizer) {
+  if (ELEM(smd->type,
+           eSeqModifierType_SoundEqualizer,
+           eSeqModifierType_Pitch,
+           eSeqModifierType_Echo))
+  {
+    smd->runtime.flag = flag;
     smd->runtime.last_sound_in = sound_in;
     smd->runtime.last_sound_out = sound_out;
     smd->runtime.last_buf = last_buf;
-  }
-
-  switch (smd->type) {
-    case eSeqModifierType_SoundEqualizer:
-    case eSeqModifierType_Pitch:
-    case eSeqModifierType_Echo:
-      smd->runtime.flag = flag;
-      break;
+    smd->runtime.last_pitch_modifier = last_pitch_modifier;
+    smd->runtime.last_echo_modifier = last_echo_modifier;
   }
   reset();
 }
 
 bool StripModifierDataBackup::isEmpty() const
 {
-  return sound_in == nullptr && sound_out == nullptr && last_buf == nullptr && use_flags == false;
+  return sound_in == nullptr && sound_out == nullptr && last_buf == nullptr &&
+         last_pitch_modifier == nullptr && last_echo_modifier == nullptr;
 }
 
 StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)

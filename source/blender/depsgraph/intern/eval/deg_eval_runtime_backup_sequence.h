@@ -16,6 +16,8 @@
 struct MovieReader;
 struct Strip;
 struct StripModifierData;
+struct PitchModifierDataRuntime;
+struct EchoModifierDataRuntime;
 
 namespace blender::deg {
 
@@ -32,12 +34,16 @@ class StripModifierDataBackup {
 
   bool isEmpty() const;
 
+  /* For all Sound Modifiers. */
   void *sound_in;
   void *sound_out;
-  float *last_buf;
-
   int flag;
-  bool use_flags;
+  /* For Equalizer Modifier. */
+  float *last_buf;
+  /* For Pitch Modifier. */
+  PitchModifierDataRuntime *last_pitch_modifier;
+  /* For Echo Modifier. */
+  EchoModifierDataRuntime *last_echo_modifier;
 };
 
 /* Backup of a single strip. */
