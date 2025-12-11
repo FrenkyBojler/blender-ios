@@ -2225,15 +2225,6 @@ void Layout::prop(PointerRNA *ptr,
           but, [bmain, id](const std::string &new_name) { ED_id_rename(*bmain, *id, new_name); });
     }
 
-    bool results_are_suggestions = false;
-    if (type == PROP_STRING) {
-      const eStringPropertySearchFlag search_flag = RNA_property_string_search_flag(prop);
-      if (search_flag & PROP_STRING_SEARCH_SUGGESTION) {
-        results_are_suggestions = true;
-      }
-    }
-    button_configure_search(but, ptr, prop, nullptr, nullptr, nullptr, results_are_suggestions);
-
     if (layout->red_alert()) {
       button_flag_enable(but, BUT_REDALERT);
     }
