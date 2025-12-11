@@ -1422,8 +1422,8 @@ bool layout_replace_but_ptr(Layout *layout, const void *old_but_ptr, Button *new
 
 /**
  * \note \a but type must be a ButtonType::SearchMenu. If the property is a string property and
- * does not contains the #PROP_STRING_SEARCH_SUPPORTED flag or if the search property is not
- * provided or automatically found it will disable the button.
+ * does not contains the #PROP_STRING_SEARCH_SUPPORTED flag or if the search pointer-property pair
+ * is not provided/found it will disable the button.
  */
 void button_configure_search(Button *but,
                              PointerRNA *ptr,
