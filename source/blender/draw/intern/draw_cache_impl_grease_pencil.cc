@@ -1400,6 +1400,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
       /* Last vertex is not drawn. */
       verts_slice.last().mat = -1;
+      /* The last vertex will have the index of the first vertex. */
+      verts_slice.last().stroke_id = verts_range.first();
     };
 
     if (!shapes) {

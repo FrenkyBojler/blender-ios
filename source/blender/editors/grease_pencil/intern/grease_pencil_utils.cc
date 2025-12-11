@@ -1803,6 +1803,7 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
 {
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
   if (at_end) {
+    const int num_old_curves = curves.curves_num();
     const int num_old_points = curves.points_num();
     curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
     curves.offsets_for_write().last(1) = num_old_points;
@@ -1816,6 +1817,14 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
     drawing.runtime->curve_texture_matrices.update([&](Vector<float4x2> &texture_matrices) {
       texture_matrices.append(float4x2::identity());
     });
+    /* Update the shape cache if it exists. */
+    drawing.runtime->shape_cache.update(
+        [&](std::optional<bke::greasepencil::ShapeCache> &shape_cache) {
+          if (shape_cache) {
+            (*shape_cache).shape_map.append(num_old_curves);
+            (*shape_cache).shape_offsets.append((*shape_cache).shape_offsets.last() + 1);
+          }
+        });
     return;
   }
 
