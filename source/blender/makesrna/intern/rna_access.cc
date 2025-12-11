@@ -87,7 +87,9 @@ extern const PointerRNA PointerRNA_NULL = {};
 
 void RNA_init()
 {
-  BLENDER_RNA.structs_map.reserve(2048);
+  BlenderRNA &brna = RNA_blender_rna_get();
+
+  brna.structs_map.reserve(2048);
 
   for (StructRNA *srna : BLENDER_RNA.structs) {
     if (!srna->cont.prop_lookup_set) {
@@ -102,14 +104,14 @@ void RNA_init()
       }
     }
     BLI_assert(srna->flag & STRUCT_PUBLIC_NAMESPACE);
-    BLENDER_RNA.structs_map.add(srna->identifier, srna);
+    brna.structs_map.add(srna->identifier, srna);
   }
 }
 
 void RNA_bpy_exit()
 {
 #ifdef WITH_PYTHON
-  for (StructRNA *srna : BLENDER_RNA.structs) {
+  for (StructRNA *srna : RNA_blender_rna_get().structs) {
     /* NOTE(@ideasman42): each call locks the Python's GIL. Only locking/unlocking once
      * is possible but gives barely measurable speedup (< ~1millisecond) so leave as-is. */
     BPY_free_srna_pytype(srna);
@@ -119,11 +121,11 @@ void RNA_bpy_exit()
 
 void RNA_exit()
 {
-  for (StructRNA *srna : BLENDER_RNA.structs) {
+  for (StructRNA *srna : RNA_blender_rna_get().structs) {
     MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
   }
 
-  RNA_free(&BLENDER_RNA);
+  RNA_free(&RNA_blender_rna_get());
 }
 
 /* Pointer */
@@ -235,7 +237,7 @@ PointerRNA RNA_blender_rna_pointer_create()
   PointerRNA ptr = {};
   ptr.owner_id = nullptr;
   ptr.type = &RNA_BlenderRNA;
-  ptr.data = &BLENDER_RNA;
+  ptr.data = &RNA_blender_rna_get();
   return ptr;
 }
 
@@ -689,7 +691,7 @@ static const char *rna_ensure_property_name(const PropertyRNA *prop)
 
 StructRNA *RNA_struct_find(const char *identifier)
 {
-  return BLENDER_RNA.structs_map.lookup_default(identifier, nullptr);
+  return RNA_blender_rna_get().structs_map.lookup_default(identifier, nullptr);
 }
 
 const char *RNA_struct_identifier(const StructRNA *type)

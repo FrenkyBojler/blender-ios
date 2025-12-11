@@ -184,7 +184,7 @@ static void rna_brna_structs_add(BlenderRNA *brna, StructRNA *srna)
 #ifdef RNA_RUNTIME
 static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
 {
-  if (srna->flag & STRUCT_PUBLIC_NAMESPACE) {
+  if ((srna->flag & STRUCT_PUBLIC_NAMESPACE)) {
     if (srna->identifier[0] != '\0') {
       brna->structs_map.remove(srna->identifier);
     }
@@ -698,9 +698,7 @@ static bool rna_range_from_int_type(const char *dnatype, int r_range[2])
 
 BlenderRNA *RNA_create()
 {
-  BlenderRNA *brna;
-
-  brna = MEM_new<BlenderRNA>(__func__);
+  BlenderRNA *brna = MEM_new<BlenderRNA>(__func__);
   const char *error_message = nullptr;
 
   BLI_listbase_clear(&DefRNA.structs);
@@ -876,7 +874,7 @@ void RNA_free(BlenderRNA *brna)
 
       rna_freelistN(&srna->cont.properties);
       rna_freelistN(&srna->functions);
-}
+    }
 
     for (StructRNA *srna : brna->structs) {
       MEM_delete(srna);

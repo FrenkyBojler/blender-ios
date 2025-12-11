@@ -3723,17 +3723,21 @@ static void rna_generate_struct_rna_prototypes(BlenderRNA *brna, FILE *f)
 static void rna_generate_blender(BlenderRNA *brna, FILE *f)
 {
   fprintf(f,
-          "BlenderRNA BLENDER_RNA = []() {\n"
-          "\tBlenderRNA dst{};\n"
-          "\tdst.structs = {\n");
+          "BlenderRNA &RNA_blender_rna_get()\n"
+          "{\n"
+          "\tstatic BlenderRNA BLENDER_RNA = []() {\n"
+          "\t\tBlenderRNA dst{};\n"
+          "\t\tdst.structs = {");
   for (StructRNA *srna : brna->structs) {
     fprintf(f, "\t\t&RNA_%s,\n", srna->identifier);
   }
-  fprintf(f, "\t};\n");
   /* structs_map is created by RNA_init(). */
-  fprintf(f, "\treturn dst;\n");
-
-  fprintf(f, "}();\n\n");
+  fprintf(f,
+          "\t};\n"
+          "\t\treturn dst;\n"
+          "\t}();\n"
+          "\treturn BLENDER_RNA;\n"
+          "}\n\n");
 }
 
 static void rna_generate_external_property_prototypes(BlenderRNA *brna, FILE *f)
