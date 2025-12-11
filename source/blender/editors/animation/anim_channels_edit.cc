@@ -1589,33 +1589,6 @@ static void rearrange_driver_channels(bAnimContext *ac,
 
 /* Action Specific Stuff ------------------------------------------------- */
 
-/* link lists of channels that groups have */
-static void join_groups_action_temp(bAction *act)
-{
-  LISTBASE_FOREACH (bActionGroup *, agrp, &act->groups) {
-    /* add list of channels to action's channels */
-    const ListBase group_channels = agrp->channels;
-    BLI_movelisttolist(&act->curves, &agrp->channels);
-    agrp->channels = group_channels;
-
-    /* clear moved flag */
-    agrp->flag &= ~AGRP_MOVED;
-
-    /* if group was temporary one:
-     * - unassign all FCurves which were temporarily added to it
-     * - remove from list (but don't free as it's on the stack!)
-     */
-    if (agrp->flag & AGRP_TEMP) {
-      LISTBASE_FOREACH (FCurve *, fcu, &agrp->channels) {
-        fcu->grp = nullptr;
-      }
-
-      BLI_remlink(&act->groups, agrp);
-      break;
-    }
-  }
-}
-
 /**
  * Move selected, visible action slots in the channel list according to `mode`.
  *
@@ -2514,7 +2487,6 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator * /*op
     if (!ale->adt || !ale->adt->action) {
       continue;
     }
-    bAction *act = ale->adt->action;
     fcu->grp->channelbag->wrap().fcurve_ungroup(*fcu);
   }
 
@@ -2621,15 +2593,12 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
 
         bActionGroup *agrp = static_cast<bActionGroup *>(ale->data);
         AnimData *adt = ale->adt;
-        FCurve *fcu, *fcn;
 
         /* Groups should always be part of an action. */
         if (adt == nullptr || adt->action == nullptr) {
           BLI_assert_unreachable();
           continue;
         }
-
-        blender::animrig::Action &action = adt->action->wrap();
 
         /* Layered actions.
          *

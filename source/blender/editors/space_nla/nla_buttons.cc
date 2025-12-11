@@ -482,7 +482,6 @@ static void nla_panel_actclip(const bContext *C, Panel *panel)
   if (strip->act) {
     BLI_assert(strip_ptr.owner_id);
 
-    animrig::Action &action = strip->act->wrap();
     ID &animated_id = *strip_ptr.owner_id;
     PointerRNA animated_id_ptr = RNA_id_pointer_create(&animated_id);
     action_col.context_ptr_set("animated_id", &animated_id_ptr);
