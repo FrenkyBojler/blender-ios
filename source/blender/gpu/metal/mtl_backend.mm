@@ -102,6 +102,11 @@ Texture *MTLBackend::texture_alloc(const char *name)
   return new gpu::MTLTexture(name);
 }
 
+TexturePool *MTLBackend::texturepool_alloc()
+{
+  return new TexturePool();
+}
+
 UniformBuf *MTLBackend::uniformbuf_alloc(size_t size, const char *name)
 {
   return new MTLUniformBuf(size, name);

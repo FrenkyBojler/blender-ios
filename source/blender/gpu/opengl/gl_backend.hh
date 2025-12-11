@@ -132,6 +132,11 @@ class GLBackend : public GPUBackend {
     return new GLTexture(name);
   };
 
+  TexturePool *texturepool_alloc() override
+  {
+    return new TexturePool();
+  }
+
   UniformBuf *uniformbuf_alloc(size_t size, const char *name) override
   {
     return new GLUniformBuf(size, name);

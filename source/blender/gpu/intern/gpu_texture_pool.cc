@@ -11,6 +11,7 @@
 
 #include "GPU_texture_pool.hh"
 
+#include "gpu_backend.hh"
 #include "gpu_context_private.hh"
 
 namespace blender::gpu {
@@ -150,12 +151,13 @@ TexturePool &TexturePool::get()
 
 TexturePool *GPU_texturepool_create()
 {
-  return new TexturePool();
+  TexturePool *pool = GPUBackend::get()->texturepool_alloc();
+  return pool;
 }
 
-void GPU_texturepool_free(TexturePool *ptr)
+void GPU_texturepool_free(TexturePool *pool)
 {
-  delete ptr;
+  delete pool;
 }
 
 }  // namespace blender::gpu

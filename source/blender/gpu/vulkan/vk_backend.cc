@@ -653,6 +653,11 @@ Texture *VKBackend::texture_alloc(const char *name)
   return new VKTexture(name);
 }
 
+TexturePool *VKBackend::texturepool_alloc()
+{
+  return new TexturePool();
+}
+
 UniformBuf *VKBackend::uniformbuf_alloc(size_t size, const char *name)
 {
   return new VKUniformBuffer(size, name);
