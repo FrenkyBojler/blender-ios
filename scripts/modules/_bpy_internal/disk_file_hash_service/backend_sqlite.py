@@ -102,34 +102,35 @@ class SQLiteBackend:
             self.db_conn_rw.close()
             self.db_conn_rw = None
 
-    def get_hash(self, filepath: Path, hash_algorithm: str) -> str:
-        """Return the hash of the given file, as hex string.
+    def fetch_hash(self, filepath: Path, hash_algorithm: str) -> tuple[str, int, float] | None:
+        """Return the cached hash info of a given file.
 
-        Raises a FileNotFoundError if the file does not exist on disk.
+        Returns a tuple (hexdigest, file size in bytes, last file mtime).
         """
 
-        row = None
         with self._transaction_ro() as db:
             cursor = db.execute(
                 "SELECT f.size_in_bytes, h.hexdigest, h.file_stat_mtime " +
-                "FROM files f LEFT JOIN hashes h USING (file_id) " +
+                "FROM files f INNER JOIN hashes h USING (file_id) " +
                 "WHERE f.path=? AND h.hash_algo=?",
                 (str(filepath), hash_algorithm))
-            # The uniqueness constraints should ensure there is at most one row.
+            # The uniqueness constraints ensure there is at most one row.
             row = cursor.fetchone()
 
-        if row:
-            # Check if the cached info is still ok.
-            size_in_bytes, hexdigest, file_stat_mtime = row
-            if hexdigest and self._file_stat_matches(filepath, size_in_bytes, file_stat_mtime):
-                # There is no reason to suspect the cached hex digest is stale, so just use it.
-                return hexdigest
+        if row is None:
+            return None
 
-        raise NotImplementedError()
+        size_in_bytes, hexdigest, file_stat_mtime = row
+        return (hexdigest, size_in_bytes, file_stat_mtime)
 
-    def store_hash(self, filepath: Path, hash_algorithm: str, hexhash: str) -> None:
+    def store_hash(
+            self,
+            filepath: Path,
+            hash_algorithm: str,
+            hexhash: str,
+            file_size_bytes: int,
+            file_stat_mtime: float) -> None:
         """Store a pre-computed hash for the given file path. The path has to exist."""
-        stat = filepath.stat()
         now = self._now_string()
 
         with self._transaction_rw() as db:
@@ -139,7 +140,7 @@ class SQLiteBackend:
             cursor = db.execute(
                 "INSERT INTO files (path, size_in_bytes) values (:path, :size) " +
                 "ON CONFLICT DO UPDATE SET size_in_bytes=:size RETURNING file_id",
-                {"path": str(filepath), "size": stat.st_size},
+                {"path": str(filepath), "size": file_size_bytes},
             )
             file_id = cursor.fetchone()[0]
             assert file_id, f'{file_id=}'
@@ -152,14 +153,15 @@ class SQLiteBackend:
                     "file_id": file_id,
                     "hash_algo": hash_algorithm,
                     "hex": hexhash,
-                    "mtime": stat.st_mtime,
+                    "mtime": file_stat_mtime,
                     "now": now,
                 },
             )
 
-    def file_matches(self, filepath: Path, hash_algorithm: str, hexhash: str, size_in_byes: int) -> bool:
-        """Check the file on disk, to see if it matches the given properties."""
-        raise NotImplementedError()
+    def remove_file(self, filepath: Path) -> None:
+        """Remove all information about this file."""
+        with self._transaction_rw() as db:
+            db.execute("DELETE FROM files WHERE path=?", (str(filepath),))
 
     def _now(self) -> datetime.datetime:
         """Current time, as UTC, in a timezone-aware object."""
@@ -207,11 +209,3 @@ class SQLiteBackend:
         db_conn.execute("PRAGMA foreign_keys = 1")
         db_conn.execute("PRAGMA journal_mode = WAL")
         db_conn.execute("PRAGMA synchronous = normal")
-
-    def _file_stat_matches(self, filepath: Path, size_in_bytes: int, file_stat_mtime: float) -> bool:
-        """Check whether the file on disk matches this size & timestamp."""
-        try:
-            stat = filepath.stat()
-        except FileNotFoundError:
-            return False
-        return stat.st_size == size_in_bytes and stat.st_mtime == file_stat_mtime
