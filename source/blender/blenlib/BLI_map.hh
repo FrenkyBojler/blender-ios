@@ -1100,7 +1100,7 @@ class Map {
   {
     /* Avoid rebuilding the hash table just to get rid of a few removed slots. In this case, also
      * increase the map size to avoid a bad edge case. */
-    min_usable_slots = std::min(min_usable_slots, this->size() * 2);
+    min_usable_slots = std::max(min_usable_slots, this->size() * 2);
 
     int64_t total_slots, usable_slots;
     max_load_factor_.compute_total_and_usable_slots(
