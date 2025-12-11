@@ -247,7 +247,16 @@ static void filelist_filter_and_sort_assets(FileList *filelist,
 {
   FileListFilter *filter = &filelist->filter_data;
   if (filter->filter_search[0] == '\0') {
-    /* No search text, so no re-filtering or sorting necessary. */
+    /* No search text, just copy over the pre-filtered list. */
+    if (filelist->filelist_intern.filtered) {
+      MEM_freeN(filelist->filelist_intern.filtered);
+    }
+    filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(
+        MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * size_t(entries_num), __func__));
+    memcpy(filelist->filelist_intern.filtered,
+           entries_to_filter,
+           sizeof(*filelist->filelist_intern.filtered) * size_t(entries_num));
+    filelist->filelist.entries_filtered_num = entries_num;
     return;
   }
 
