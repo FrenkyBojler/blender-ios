@@ -41,6 +41,7 @@
 #include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "BLO_read_write.hh"
 
@@ -551,13 +552,14 @@ static void animpath_update_basepath(FCurve *fcu,
 }
 
 /* Copy or move F-Curves in src action to dst action if their base path matches. */
-static void action_copy_fcurves_by_basepath(const animrig::Action &src_action,
+static bool action_copy_fcurves_by_basepath(const animrig::Action &src_action,
                                             const animrig::slot_handle_t src_slot_handle,
                                             animrig::Action &dst_action,
                                             const animrig::slot_handle_t dst_slot_handle,
                                             const StringRef src_basepath,
                                             const StringRef dst_basepath)
 {
+  bool result = false;
   animrig::foreach_fcurve_in_action_slot(
       const_cast<animrig::Action &>(src_action), src_slot_handle, [&](const FCurve &fcurve) {
         if (animpath_matches_basepath(fcurve.rna_path, src_basepath)) {
@@ -568,24 +570,28 @@ static void action_copy_fcurves_by_basepath(const animrig::Action &src_action,
           FCurve *new_fcurve = BKE_fcurve_copy(&fcurve);
           animpath_update_basepath(new_fcurve, src_basepath, dst_basepath);
           action_fcurve_attach(dst_action, dst_slot_handle, *new_fcurve, group_name);
+          result = true;
         }
       });
+  return result;
 }
 
 /* Copy or move F-Curves in src action to dst action if their base path matches. */
-static void action_move_fcurves_by_basepath(animrig::Action &src_action,
+static bool action_move_fcurves_by_basepath(animrig::Action &src_action,
                                             const animrig::slot_handle_t src_slot_handle,
                                             animrig::Action &dst_action,
                                             const animrig::slot_handle_t dst_slot_handle,
                                             const StringRef src_basepath,
                                             const StringRef dst_basepath)
 {
+  bool result = false;
   /* Get a list of all F-Curves to move. This is done in a separate step so we
    * don't move the curves while iterating over them at the same time. */
   Vector<FCurve *> fcurves_to_transfer;
   animrig::foreach_fcurve_in_action_slot(src_action, src_slot_handle, [&](FCurve &fcurve) {
     if (animpath_matches_basepath(fcurve.rna_path, src_basepath)) {
       fcurves_to_transfer.append(&fcurve);
+      result = true;
     }
   });
 
@@ -594,38 +600,43 @@ static void action_move_fcurves_by_basepath(animrig::Action &src_action,
     animpath_update_basepath(fcurve_to_move, src_basepath, dst_basepath);
     animrig::action_fcurve_move(dst_action, dst_slot_handle, src_action, *fcurve_to_move);
   }
+  return result;
 }
 
-static void animdata_copy_drivers_by_basepath(AnimData &src_adt,
+static bool animdata_copy_drivers_by_basepath(AnimData &src_adt,
                                               AnimData &dst_adt,
                                               const StringRef src_basepath,
                                               const StringRef dst_basepath)
 {
+  bool result = false;
   LISTBASE_FOREACH (const FCurve *, fcurve, &src_adt.drivers) {
     if (animpath_matches_basepath(fcurve->rna_path, src_basepath)) {
       FCurve *fcurve_copy = BKE_fcurve_copy(fcurve);
       animpath_update_basepath(fcurve_copy, src_basepath, dst_basepath);
       BLI_addtail(&dst_adt.drivers, fcurve_copy);
 
-      /* TODO: add depsgraph flushing calls? */
+      result = true;
     }
   }
+  return result;
 }
 
-static void animdata_move_drivers_by_basepath(AnimData &src_adt,
+static bool animdata_move_drivers_by_basepath(AnimData &src_adt,
                                               AnimData &dst_adt,
                                               const StringRef src_basepath,
                                               const StringRef dst_basepath)
 {
+  bool result = false;
   LISTBASE_FOREACH_MUTABLE (FCurve *, fcurve, &src_adt.drivers) {
     if (animpath_matches_basepath(fcurve->rna_path, src_basepath)) {
       BLI_remlink(&src_adt.drivers, fcurve);
       BLI_addtail(&dst_adt.drivers, fcurve);
       animpath_update_basepath(fcurve, src_basepath, dst_basepath);
 
-      /* TODO: add depsgraph flushing calls? */
+      result = true;
     }
   }
+  return result;
 }
 
 void BKE_animdata_copy_by_basepath(Main &bmain,
@@ -666,6 +677,8 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
       const bool unassign_ok = animrig::unassign_action(dst_owned_adt);
       BLI_assert_msg(unassign_ok, "Expected Action unassignment to work");
       UNUSED_VARS_NDEBUG(unassign_ok);
+
+      DEG_relations_tag_update(&bmain);
     }
 
     /* Copy action if necessary. */
@@ -677,24 +690,34 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
       BLI_assert_msg(assign_ok, "Expected Action assignment to work");
       UNUSED_VARS_NDEBUG(assign_ok);
       BLI_assert(dst_adt->slot_handle != animrig::Slot::unassigned);
+
+      DEG_relations_tag_update(&bmain);
     }
 
     /* Transfer fcurves for each base path. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {
-      action_copy_fcurves_by_basepath(src_adt->action->wrap(),
-                                      src_adt->slot_handle,
-                                      dst_adt->action->wrap(),
-                                      dst_adt->slot_handle,
-                                      basepath_change.src_basepath,
-                                      basepath_change.dst_basepath);
+      if (action_copy_fcurves_by_basepath(src_adt->action->wrap(),
+                                          src_adt->slot_handle,
+                                          dst_adt->action->wrap(),
+                                          dst_adt->slot_handle,
+                                          basepath_change.src_basepath,
+                                          basepath_change.dst_basepath))
+      {
+        DEG_id_tag_update(&dst_id, ID_RECALC_ANIMATION);
+        DEG_id_tag_update(&dst_adt->action->id, ID_RECALC_SYNC_TO_EVAL);
+      }
     }
   }
 
   /* Drivers */
   if (src_adt->drivers.first) {
     for (const AnimationBasePathChange &basepath_change : basepaths) {
-      animdata_copy_drivers_by_basepath(
-          *src_adt, *dst_adt, basepath_change.src_basepath, basepath_change.dst_basepath);
+      if (animdata_copy_drivers_by_basepath(
+              *src_adt, *dst_adt, basepath_change.src_basepath, basepath_change.dst_basepath))
+      {
+        DEG_id_tag_update(&dst_id, ID_RECALC_ANIMATION);
+        DEG_relations_tag_update(&bmain);
+      }
     }
   }
 }
@@ -737,6 +760,8 @@ void BKE_animdata_move_by_basepath(Main &bmain,
       const bool unassign_ok = animrig::unassign_action(dst_owned_adt);
       BLI_assert_msg(unassign_ok, "Expected Action unassignment to work");
       UNUSED_VARS_NDEBUG(unassign_ok);
+
+      DEG_relations_tag_update(&bmain);
     }
 
     /* Copy action if necessary. */
@@ -748,28 +773,39 @@ void BKE_animdata_move_by_basepath(Main &bmain,
       BLI_assert_msg(assign_ok, "Expected Action assignment to work");
       UNUSED_VARS_NDEBUG(assign_ok);
       BLI_assert(dst_adt->slot_handle != animrig::Slot::unassigned);
+
+      DEG_relations_tag_update(&bmain);
     }
 
     /* Transfer fcurves for each base path. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {
-      action_move_fcurves_by_basepath(src_adt->action->wrap(),
-                                      src_adt->slot_handle,
-                                      dst_adt->action->wrap(),
-                                      dst_adt->slot_handle,
-                                      basepath_change.src_basepath,
-                                      basepath_change.dst_basepath);
+      if (action_move_fcurves_by_basepath(src_adt->action->wrap(),
+                                          src_adt->slot_handle,
+                                          dst_adt->action->wrap(),
+                                          dst_adt->slot_handle,
+                                          basepath_change.src_basepath,
+                                          basepath_change.dst_basepath))
+      {
+        DEG_id_tag_update(&src_id, ID_RECALC_ANIMATION);
+        DEG_id_tag_update(&src_adt->action->id, ID_RECALC_SYNC_TO_EVAL);
+        DEG_id_tag_update(&dst_id, ID_RECALC_ANIMATION);
+        DEG_id_tag_update(&dst_adt->action->id, ID_RECALC_SYNC_TO_EVAL);
+      }
     }
   }
 
   /* Drivers */
   if (src_adt->drivers.first) {
     for (const AnimationBasePathChange &basepath_change : basepaths) {
-      animdata_move_drivers_by_basepath(
-          *src_adt, *dst_adt, basepath_change.src_basepath, basepath_change.dst_basepath);
+      if (animdata_move_drivers_by_basepath(
+              *src_adt, *dst_adt, basepath_change.src_basepath, basepath_change.dst_basepath))
+      {
+        DEG_id_tag_update(&src_id, ID_RECALC_ANIMATION);
+        DEG_id_tag_update(&dst_id, ID_RECALC_ANIMATION);
+        DEG_relations_tag_update(&bmain);
+      }
     }
   }
-  /* Tag source action because list of fcurves changed. */
-  DEG_id_tag_update(&src_adt->action->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 /* Path Validation -------------------------------------------- */
