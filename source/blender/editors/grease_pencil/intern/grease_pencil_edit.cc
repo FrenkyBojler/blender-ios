@@ -46,6 +46,7 @@
 #include "BKE_deform.hh"
 #include "BKE_fcurve_driver.h"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_shapes.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -1501,6 +1502,7 @@ static wmOperatorStatus grease_pencil_duplicate_exec(bContext *C, wmOperator * /
     IndexMaskMemory memory;
 
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    const int num_old_curves = curves.curves_num();
     if (selection_domain == bke::AttrDomain::Curve) {
       const IndexMask strokes = retrieve_editable_and_selected_strokes(
           *object, info.drawing, info.layer_index, memory);
@@ -1517,6 +1519,8 @@ static wmOperatorStatus grease_pencil_duplicate_exec(bContext *C, wmOperator * /
       }
       curves::duplicate_points(curves, points);
     }
+
+    bke::greasepencil::separate_shape_ids(curves, IndexRange(num_old_curves));
     info.drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
   });

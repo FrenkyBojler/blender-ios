@@ -10,6 +10,7 @@
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
+#include "BKE_curves.hh"
 #include "BKE_grease_pencil_shapes.hh"
 
 namespace blender::bke::greasepencil {
@@ -99,6 +100,43 @@ std::optional<ShapeCache> shape_cache_from_shape_ids(const int num_curves,
   shape_cache.shape_map = std::move(shape_map);
   shape_cache.shape_offsets = std::move(all_shape_sizes);
   return shape_cache;
+}
+
+void separate_shape_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep)
+{
+  IndexMaskMemory memory;
+  const IndexMask strokes_to_change = strokes_to_keep.complement(curves.curves_range(), memory);
+
+  if (strokes_to_change.is_empty() || strokes_to_keep.is_empty()) {
+    return;
+  }
+
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_for_write_span<int>("shape_id");
+
+  if (!shape_ids) {
+    return;
+  }
+
+  int max_id = 0;
+  strokes_to_keep.foreach_index(
+      [&](const int curve_i) { max_id = math::max(max_id, shape_ids.span[curve_i]); });
+
+  if (max_id == 0) {
+    return;
+  }
+
+  VectorSet<int> shape_indexing;
+  strokes_to_change.foreach_index(
+      [&](const int curve_i) { shape_indexing.add(shape_ids.span[curve_i]); });
+
+  strokes_to_change.foreach_index(GrainSize(1024), [&](const int curve_i) {
+    shape_ids.span[curve_i] = shape_indexing.index_of(shape_ids.span[curve_i]) + max_id + 1;
+  });
+
+  shape_ids.finish();
+
+  return;
 }
 
 }  // namespace blender::bke::greasepencil
