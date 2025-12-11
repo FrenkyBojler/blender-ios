@@ -458,10 +458,11 @@ void *sound_modifier_recreator(Strip *strip,
                                bool &needs_update)
 {
 
-  /* Check if the modifier is recently muted */
-  if ((smd->flag & STRIP_MODIFIER_FLAG_MUTE) == (bool)(smd->runtime.enabled)) {
-    /* Update the enabled state and flag it for update */
-    smd->runtime.enabled = !(smd->flag & STRIP_MODIFIER_FLAG_MUTE);
+  /* Check if the modifier mute flag has changed. */
+  if ((smd->flag & STRIP_MODIFIER_FLAG_MUTE) != (smd->runtime.flag & STRIP_MODIFIER_FLAG_MUTE)) {
+    /* Update the runtime mute flag and flag the sound handle for update */
+    smd->runtime.flag &= ~(STRIP_MODIFIER_FLAG_MUTE);            /* Clear the bit */
+    smd->runtime.flag |= (smd->flag & STRIP_MODIFIER_FLAG_MUTE); /* Set the bit */
     needs_update = true;
   }
 
