@@ -976,7 +976,6 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
   }
 
   ED_workspace_status_text(C, status_str);
-  ED_area_status_text(pso->area, "");
 }
 
 /**
@@ -1141,7 +1140,6 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
       if (event->val == KM_PRESS) {
         /* Return to normal cursor and header status. */
         ED_workspace_status_text(C, nullptr);
-        ED_area_status_text(pso->area, nullptr);
         WM_cursor_modal_restore(win);
 
         /* Depsgraph updates + redraws. Redraw needed to remove UI. */
@@ -1162,7 +1160,6 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
       if (event->val == KM_PRESS) {
         /* Return to normal cursor and header status. */
         ED_workspace_status_text(C, nullptr);
-        ED_area_status_text(pso->area, nullptr);
         WM_cursor_modal_restore(win);
 
         /* Reset transforms back to original state. */
