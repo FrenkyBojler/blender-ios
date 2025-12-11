@@ -61,11 +61,11 @@ static BaseSocketDeclarationBuilder &declare_existing_output(NodeDeclarationBuil
 {
   if (output->type == SOCK_VECTOR) {
     const int dimensions = output->default_value_typed<bNodeSocketValueVector>()->dimensions;
-    return b.add_output<decl::Vector>(output->name)
+    return b.add_output<decl::Vector>(output->identifier)
         .dimensions(dimensions)
         .structure_type(StructureType::Dynamic);
   }
-  return b.add_output(eNodeSocketDatatype(output->type), output->name)
+  return b.add_output(eNodeSocketDatatype(output->type), output->identifier)
       .structure_type(StructureType::Dynamic);
 }
 
