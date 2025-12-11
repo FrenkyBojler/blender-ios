@@ -535,13 +535,16 @@ void fsmenu_add_common_platform_directories(FSMenu *fsmenu)
    *
    * NOTE: of the preferences support as `//` prefix.
    * Skip them since they depend on the current loaded blend file. */
-#define FS_UDIR_PATH(dir, icon) \
-  if (dir[0] && !BLI_path_is_rel(dir)) { \
-    fsmenu_insert_entry(fsmenu, FS_CATEGORY_OTHER, dir, nullptr, icon, FS_INSERT_LAST); \
-  }
 
-  FS_UDIR_PATH(U.fontdir, ICON_FILE_FONT)
-  FS_UDIR_PATH(U.textudir, ICON_FILE_IMAGE)
+  auto add_user_dir = [fsmenu](const char *dir, int icon) {
+    if (dir[0] && !BLI_path_is_rel(dir)) {
+      fsmenu_insert_entry(fsmenu, FS_CATEGORY_OTHER, dir, nullptr, icon, FS_INSERT_LAST);
+    }
+  };
+
+  add_user_dir(U.fontdir, ICON_FILE_FONT);
+  add_user_dir(U.textudir, ICON_FILE_IMAGE);
+
   LISTBASE_FOREACH (bUserScriptDirectory *, script_dir, &U.script_directories) {
     if (UNLIKELY(script_dir->dir_path[0] == '\0')) {
       continue;
@@ -553,8 +556,7 @@ void fsmenu_add_common_platform_directories(FSMenu *fsmenu)
                         ICON_FILE_SCRIPT,
                         FS_INSERT_LAST);
   }
-  FS_UDIR_PATH(U.sounddir, ICON_FILE_SOUND)
-  FS_UDIR_PATH(U.tempdir, ICON_TEMP)
 
-#undef FS_UDIR_PATH
+  add_user_dir(U.sounddir, ICON_FILE_SOUND);
+  add_user_dir(U.tempdir, ICON_TEMP);
 }
