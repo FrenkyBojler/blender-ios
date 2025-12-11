@@ -57,7 +57,7 @@
  *   A gpu::Texture from the viewport texture pool, similar to #draw::TextureFromPool. This texture
  * is acquired for rendering using `ensure_acquire()`, and can be optionally released using
  * `release()`. This texture will only be invalidated if the underlying pool is forcibly reset.
- * 
+ *
  * `draw::Framebuffer`
  *   Simple wrapper to #GPUFramebuffer that can be moved.
  */
