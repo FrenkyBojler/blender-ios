@@ -17,6 +17,8 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
+#include "BLT_translation.hh"
+
 #include "DNA_asset_types.h"
 #include "DNA_screen_types.h"
 
@@ -369,6 +371,35 @@ void build_asset_view(ui::Layout &layout,
 
   ui::GridViewBuilder builder(*block);
   builder.build_grid_view(C, *grid_view, layout, filter_string_get(shelf));
+
+  /* Show an informative label when there are no assets visible. */
+  {
+    std::optional<StringRef> empty_list_hint;
+
+    const bool has_active_catalog = shelf.settings.active_catalog_path &&
+                                    shelf.settings.active_catalog_path[0];
+    if (grid_view->get_item_count() == 0) {
+      empty_list_hint = has_active_catalog ? RPT_("No assets in this catalog.") :
+                                             RPT_("No assets found.");
+    }
+    else if (grid_view->get_item_count_filtered() == 0) {
+      empty_list_hint = has_active_catalog ? RPT_("No search results in this catalog.") :
+                                             RPT_("No search results.");
+    }
+
+    if (empty_list_hint) {
+      ui::Layout &row = layout.row(false);
+      /* Align with first button in asset shelf header. */
+      row.separator();
+
+      ui::Layout &column = row.column(false);
+      /* Draw grayed out, to stay subtle visually. */
+      column.enabled_set(false);
+
+      column.separator();
+      column.label(*empty_list_hint, ICON_INFO);
+    }
+  }
 }
 
 /* ---------------------------------------------------------------------- */
