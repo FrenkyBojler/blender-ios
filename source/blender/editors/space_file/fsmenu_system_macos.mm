@@ -20,11 +20,8 @@
 
 struct FSMenu;
 
-void fsmenu_macos_insert_entry(FSMenu *fsmenu,
-                               const char *name,
-                               const char *default_path,
-                               const int icon,
-                               const char *home)
+void fsmenu_macos_insert_entry(
+    FSMenu *fsmenu, const char *name, const char *default_path, const int icon, const char *home)
 {
   char path[FILE_MAXDIR];
   SNPRINTF(path, default_path, home);
