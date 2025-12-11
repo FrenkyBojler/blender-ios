@@ -324,7 +324,7 @@ static int rna_Region_active_panel_category_editable_get(const PointerRNA *ptr,
 
 int rna_region_active_panel_category_get(ARegion *region)
 {
-  const char *idname = blender::ui::panel_category_active_get(region, false);
+  const char *idname = blender::ui::panel_category_active_get(region, true);
   return blender::ui::panel_category_index_find(region, idname);
 }
 static int rna_Region_active_panel_category_get(PointerRNA *ptr)
