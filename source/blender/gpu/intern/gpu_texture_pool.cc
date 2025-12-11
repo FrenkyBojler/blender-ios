@@ -13,6 +13,7 @@
 
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
+#include "gpu_texture_pool_private.hh"
 
 namespace blender::gpu {
 
