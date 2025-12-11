@@ -635,31 +635,32 @@ static void initVertSlide_ex(
   bool ok = false;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     VertSlideData *sld = createVertSlideVerts(t, tc);
+    if (sld) {
+      sld->update_active_vert(t, t->mval);
 
-    sld->update_active_vert(t, t->mval);
+      VertSlideParams *slp_local = static_cast<VertSlideParams *>(t->custom.mode.data);
 
-    VertSlideParams *slp_local = static_cast<VertSlideParams *>(t->custom.mode.data);
-
-    float3 init_dir;
-    if (slp_local->dir_3d.has_value()) {
-      init_dir = *slp_local->dir_3d;
-    }
-    else {
-      const float2 delta = float2(t->mval) - t->mouse.imval;
-      if (const std::optional<float3> dir_opt = mouse_delta_to_world_dir(t, delta)) {
-        init_dir = *dir_opt;
+      float3 init_dir;
+      if (slp_local->dir_3d.has_value()) {
+        init_dir = *slp_local->dir_3d;
       }
       else {
-        /* Fallback direction so the operator initializes before any mouse movement. */
-        init_dir = float3(1.0f, 0.0f, 0.0f);
+        const float2 delta = float2(t->mval) - t->mouse.imval;
+        if (const std::optional<float3> dir_opt = mouse_delta_to_world_dir(t, delta)) {
+          init_dir = *dir_opt;
+        }
+        else {
+          /* Fallback direction so the operator initializes before any mouse movement. */
+          init_dir = float3(1.0f, 0.0f, 0.0f);
+        }
       }
+
+      sld->update_active_edges(t, tc, init_dir);
+
+      tc->custom.mode.data = sld;
+      tc->custom.mode.free_cb = freeVertSlideVerts;
+      ok = true;
     }
-
-    sld->update_active_edges(t, tc, init_dir);
-
-    tc->custom.mode.data = sld;
-    tc->custom.mode.free_cb = freeVertSlideVerts;
-    ok = true;
   }
 
   if (ok == false) {
