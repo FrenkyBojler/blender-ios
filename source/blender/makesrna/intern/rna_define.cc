@@ -196,6 +196,9 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
     brna->structs.remove(brna->structs.first_index_of(srna));
     MEM_delete(srna);
   }
+  else {
+    srna->~StructRNA();  // TODO ??????
+  }
 }
 #endif
 
@@ -804,7 +807,6 @@ void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *rna_ext)
 void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
 {
 #ifdef RNA_RUNTIME
-  FunctionRNA *func, *nextfunc;
   PropertyRNA *prop, *nextprop;
   PropertyRNA *parm, *nextparm;
 
@@ -832,9 +834,7 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
     }
   }
 
-  for (func = static_cast<FunctionRNA *>(srna->functions.first); func; func = nextfunc) {
-    nextfunc = static_cast<FunctionRNA *>(func->cont.next);
-
+  for (FunctionRNA *func : srna->functions) {
     for (parm = static_cast<PropertyRNA *>(func->cont.properties.first); parm; parm = nextparm) {
       nextparm = parm->next;
 
@@ -848,7 +848,7 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
     RNA_def_func_free_pointers(func);
 
     if (func->flag & FUNC_RUNTIME) {
-      rna_freelinkN(&srna->functions, func);
+      MEM_delete(func);
     }
   }
 
@@ -860,20 +860,16 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
 
 void RNA_free(BlenderRNA *brna)
 {
-  FunctionRNA *func;
-
   if (DefRNA.preprocess) {
     RNA_define_free(brna);
 
     for (StructRNA *srna : brna->structs) {
-      for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
-           func = static_cast<FunctionRNA *>(func->cont.next))
-      {
+      for (FunctionRNA *func : srna->functions) {
         rna_freelistN(&func->cont.properties);
+        MEM_delete(func);
       }
 
       rna_freelistN(&srna->cont.properties);
-      rna_freelistN(&srna->functions);
     }
 
     for (StructRNA *srna : brna->structs) {
@@ -953,10 +949,10 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
   if (srnafrom) {
     /* Copy from struct to derive stuff, a bit clumsy since we can't
      * use #MEM_dupallocN, data structs may not be allocated but builtin. */
-    memcpy(srna, srnafrom, sizeof(StructRNA));
+    *srna = *srnafrom;
     srna->cont.prop_lookup_set = nullptr;
     BLI_listbase_clear(&srna->cont.properties);
-    BLI_listbase_clear(&srna->functions);
+    srna->functions = {};
     srna->py_type = nullptr;
 
     srna->base = srnafrom;
@@ -4833,7 +4829,6 @@ PropertyRNA *RNA_def_collection_runtime(StructOrFunctionRNA *cont_,
 
 static FunctionRNA *rna_def_function(StructRNA *srna, const char *identifier)
 {
-  FunctionRNA *func;
   StructDefRNA *dsrna;
   FunctionDefRNA *dfunc;
 
@@ -4845,11 +4840,11 @@ static FunctionRNA *rna_def_function(StructRNA *srna, const char *identifier)
     }
   }
 
-  func = MEM_callocN<FunctionRNA>("FunctionRNA");
+  FunctionRNA *func = MEM_new<FunctionRNA>(__func__);
   func->identifier = identifier;
   func->description = identifier;
 
-  rna_addtail(&srna->functions, func);
+  srna->functions.append(func);
 
   if (DefRNA.preprocess) {
     dsrna = rna_find_struct_def(srna);
@@ -4866,15 +4861,16 @@ static FunctionRNA *rna_def_function(StructRNA *srna, const char *identifier)
 
 FunctionRNA *RNA_def_function(StructRNA *srna, const char *identifier, const char *call)
 {
-  FunctionRNA *func;
   FunctionDefRNA *dfunc;
 
-  if (BLI_findstring_ptr(&srna->functions, identifier, offsetof(FunctionRNA, identifier))) {
-    CLOG_ERROR(&LOG, "%s.%s already defined.", srna->identifier, identifier);
-    return nullptr;
+  for (const FunctionRNA *func : srna->functions) {
+    if (STREQ(func->identifier, identifier)) {
+      CLOG_ERROR(&LOG, "%s.%s already defined.", srna->identifier, identifier);
+      return nullptr;
+    }
   }
 
-  func = rna_def_function(srna, identifier);
+  FunctionRNA *func = rna_def_function(srna, identifier);
 
   if (!DefRNA.preprocess) {
     CLOG_ERROR(&LOG, "only at preprocess time.");

@@ -8195,11 +8195,8 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
   /* Add `staticmethod` and `classmethod` functions. */
   {
     const PointerRNA func_ptr = {nullptr, srna, nullptr};
-    const ListBase *lb;
 
-    lb = RNA_struct_type_functions(srna);
-    LISTBASE_FOREACH (Link *, link, lb) {
-      FunctionRNA *func = (FunctionRNA *)link;
+    for (FunctionRNA *func : RNA_struct_type_functions(srna)) {
       const int flag = RNA_function_flag(func);
       if ((flag & FUNC_NO_SELF) &&         /* Is `staticmethod` or `classmethod`. */
           (flag & FUNC_REGISTER) == false) /* Is not for registration. */
@@ -9352,7 +9349,6 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
                                         void *py_data,
                                         bool *have_function)
 {
-  const ListBase *lb;
   const char *class_type = RNA_struct_identifier(srna);
   StructRNA *srna_base = RNA_struct_base(srna);
   PyObject *py_class = (PyObject *)py_data;
@@ -9377,10 +9373,9 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
   }
 
   /* Verify callback functions. */
-  lb = RNA_struct_type_functions(srna);
+  const blender::Span<FunctionRNA *> functions = RNA_struct_type_functions(srna);
   i = 0;
-  LISTBASE_FOREACH (Link *, link, lb) {
-    FunctionRNA *func = (FunctionRNA *)link;
+  for (FunctionRNA *func : functions) {
     const int flag = RNA_function_flag(func);
     if (!(flag & FUNC_REGISTER)) {
       continue;
@@ -9504,7 +9499,7 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
   };
 
   /* Verify properties. */
-  lb = RNA_struct_type_properties(srna);
+  const ListBase *lb = RNA_struct_type_properties(srna);
   LISTBASE_FOREACH (Link *, link, lb) {
     PropertyRNA *prop = (PropertyRNA *)link;
     const int flag = RNA_property_flag(prop);

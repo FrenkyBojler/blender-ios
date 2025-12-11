@@ -213,7 +213,7 @@ PropertyRNA *RNA_struct_type_find_property_no_base(StructRNA *srna, const char *
 PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifier);
 
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
-const ListBase *RNA_struct_type_functions(StructRNA *srna);
+blender::Span<FunctionRNA *> RNA_struct_type_functions(StructRNA *srna);
 
 [[nodiscard]] char *RNA_struct_name_get_alloc_ex(
     PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop);

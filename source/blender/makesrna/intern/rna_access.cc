@@ -1026,12 +1026,11 @@ PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifi
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier)
 {
 #if 1
-  FunctionRNA *func;
   for (; srna; srna = srna->base) {
-    func = (FunctionRNA *)BLI_findstring_ptr(
-        &srna->functions, identifier, offsetof(FunctionRNA, identifier));
-    if (func) {
-      return func;
+    for (FunctionRNA *func : srna->functions) {
+      if (STREQ(func->identifier, identifier)) {
+        return func;
+      }
     }
   }
   return nullptr;
@@ -1058,9 +1057,9 @@ FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier)
 #endif
 }
 
-const ListBase *RNA_struct_type_functions(StructRNA *srna)
+blender::Span<FunctionRNA *> RNA_struct_type_functions(StructRNA *srna)
 {
-  return &srna->functions;
+  return srna->functions;
 }
 
 StructRegisterFunc RNA_struct_register(StructRNA *type)

@@ -406,19 +406,9 @@ static bool rna_property_builtin(CollectionPropertyIterator * /*iter*/, void *da
   return (prop->flag_internal & PROP_INTERN_BUILTIN) != 0;
 }
 
-static bool rna_function_builtin(CollectionPropertyIterator * /*iter*/, void *data)
-{
-  FunctionRNA *func = (FunctionRNA *)data;
-
-  /* function to skip builtin rna functions */
-
-  return (func->flag & FUNC_BUILTIN) != 0;
-}
-
 static void rna_inheritance_next_level_restart(CollectionPropertyIterator *iter,
                                                PointerRNA *ptr,
-                                               IteratorSkipFunc skip,
-                                               int funcs)
+                                               IteratorSkipFunc skip)
 {
   /* RNA struct inheritance */
   while (!iter->valid && iter->level > 0) {
@@ -433,12 +423,7 @@ static void rna_inheritance_next_level_restart(CollectionPropertyIterator *iter,
 
     rna_iterator_listbase_end(iter);
 
-    if (funcs) {
-      rna_iterator_listbase_begin(iter, ptr, &srna->functions, skip);
-    }
-    else {
-      rna_iterator_listbase_begin(iter, ptr, &srna->cont.properties, skip);
-    }
+    rna_iterator_listbase_begin(iter, ptr, &srna->cont.properties, skip);
   }
 }
 
@@ -448,30 +433,14 @@ static void rna_inheritance_properties_listbase_begin(CollectionPropertyIterator
                                                       IteratorSkipFunc skip)
 {
   rna_iterator_listbase_begin(iter, ptr, lb, skip);
-  rna_inheritance_next_level_restart(iter, ptr, skip, 0);
+  rna_inheritance_next_level_restart(iter, ptr, skip);
 }
 
 static void rna_inheritance_properties_listbase_next(CollectionPropertyIterator *iter,
                                                      IteratorSkipFunc skip)
 {
   rna_iterator_listbase_next(iter);
-  rna_inheritance_next_level_restart(iter, &iter->parent, skip, 0);
-}
-
-static void rna_inheritance_functions_listbase_begin(CollectionPropertyIterator *iter,
-                                                     PointerRNA *ptr,
-                                                     ListBase *lb,
-                                                     IteratorSkipFunc skip)
-{
-  rna_iterator_listbase_begin(iter, ptr, lb, skip);
-  rna_inheritance_next_level_restart(iter, ptr, skip, 1);
-}
-
-static void rna_inheritance_functions_listbase_next(CollectionPropertyIterator *iter,
-                                                    IteratorSkipFunc skip)
-{
-  rna_iterator_listbase_next(iter);
-  rna_inheritance_next_level_restart(iter, &iter->parent, skip, 1);
+  rna_inheritance_next_level_restart(iter, &iter->parent, skip);
 }
 
 static void rna_Struct_properties_next(CollectionPropertyIterator *iter)
@@ -530,33 +499,35 @@ static PointerRNA rna_Struct_properties_get(CollectionPropertyIterator *iter)
   return RNA_pointer_create_discrete(nullptr, &RNA_Property, internal->link);
 }
 
-static void rna_Struct_functions_next(CollectionPropertyIterator *iter)
-{
-  rna_inheritance_functions_listbase_next(iter, rna_function_builtin);
-}
-
 static void rna_Struct_functions_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  StructRNA *srna;
-
-  /* here ptr->data should always be the same as iter->parent.type */
-  srna = (StructRNA *)ptr->data;
-
-  while (srna->base) {
-    iter->level++;
-    srna = srna->base;
+  blender::Vector<StructRNA *> types;
+  for (StructRNA *srna = ptr->data_as<StructRNA>(); srna != nullptr; srna = srna->base) {
+    types.append(srna);
   }
+  std::reverse(types.begin(), types.end());
 
-  rna_inheritance_functions_listbase_begin(iter, ptr, &srna->functions, rna_function_builtin);
+  blender::Vector<FunctionRNA *> functions;
+  for (StructRNA *srna : types) {
+    for (FunctionRNA *func : srna->functions) {
+      if ((func->flag & FUNC_BUILTIN) != 0) {
+        continue;
+      }
+      functions.append(func);
+    }
+  }
+  blender::VectorData data = functions.release();
+  rna_iterator_array_begin(iter, ptr, data.data, sizeof(FunctionRNA *), data.size, true, nullptr);
 }
 
 static PointerRNA rna_Struct_functions_get(CollectionPropertyIterator *iter)
 {
-  ListBaseIterator *internal = &iter->internal.listbase;
+  ArrayIterator *internal = &iter->internal.array;
 
   /* we return either PropertyRNA* or IDProperty*, the rna_access.cc
    * functions can handle both as PropertyRNA* with some tricks */
-  return RNA_pointer_create_discrete(nullptr, &RNA_Function, internal->link);
+  return RNA_pointer_create_discrete(
+      nullptr, &RNA_Function, *reinterpret_cast<FunctionRNA **>(internal->ptr));
 }
 
 static void rna_Struct_property_tags_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -3234,8 +3205,8 @@ static void rna_def_struct(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "Function");
   RNA_def_property_collection_funcs(prop,
                                     "rna_Struct_functions_begin",
-                                    "rna_Struct_functions_next",
-                                    "rna_iterator_listbase_end",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
                                     "rna_Struct_functions_get",
                                     nullptr,
                                     nullptr,
