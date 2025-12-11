@@ -390,10 +390,11 @@ static void cb_snap_tri_faces_midpoint(void *userdata,
   const int3 &tri = data->corner_tris[tri_index];
 
   if (data->use_backface_culling) {
-    const float3 *verts = data->vert_positions;
-    const float3 &t0 = verts[corner_verts[tri[0]]];
-    const float3 &t1 = verts[corner_verts[tri[1]]];
-    const float3 &t2 = verts[corner_verts[tri[2]]];
+    const float3 *positions = data->vert_positions;
+
+    const float3 &t0 = positions[corner_verts[tri[0]]];
+    const float3 &t1 = positions[corner_verts[tri[1]]];
+    const float3 &t2 = positions[corner_verts[tri[2]]];
 
     float dummy[3];
     if (raycast_tri_backface_culling_test(precalc->ray_direction, t0, t1, t2, dummy)) {
