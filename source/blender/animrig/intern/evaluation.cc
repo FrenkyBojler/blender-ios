@@ -254,7 +254,10 @@ EvaluationResult blend_layer_results(const EvaluationResult &last_result,
 
     if (!last_prop) {
       /* Nothing to blend with, so just take (influence * value). */
-      blend.store(prop_ident.rna_path, prop_ident.array_index, anim_prop);
+      blend.store(prop_ident.rna_path,
+                  prop_ident.array_index,
+                  anim_prop.value * current_layer.influence,
+                  anim_prop.prop_rna);
       continue;
     }
 

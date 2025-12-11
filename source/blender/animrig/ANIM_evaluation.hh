@@ -140,7 +140,7 @@ class EvaluationResult {
   void store(const StringRefNull rna_path,
              const int array_index,
              const float value,
-             const PathResolvedRNA &prop_rna)
+             const RNAEvalResult &prop_rna)
   {
     PropIdentifier key(rna_path, array_index);
     AnimatedProperty anim_prop(value, prop_rna);
