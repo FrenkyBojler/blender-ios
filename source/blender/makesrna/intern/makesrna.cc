@@ -3735,7 +3735,7 @@ static void rna_generate_blender(BlenderRNA *brna, FILE *f)
   StructRNA *srna;
 
   fprintf(f,
-          "BlenderRNA &blender_rna_get()\n"
+          "BlenderRNA &RNA_blender_rna_get()\n"
           "{\n"
           "\tstatic BlenderRNA BLENDER_RNA = []() {\n"
           "\t\tBlenderRNA dst{};\n"

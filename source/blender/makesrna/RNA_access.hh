@@ -33,7 +33,7 @@ struct Scene;
 struct bContext;
 
 /* Types */
-BlenderRNA &blender_rna_get();
+BlenderRNA &RNA_blender_rna_get();
 
 /* Pointer
  *
