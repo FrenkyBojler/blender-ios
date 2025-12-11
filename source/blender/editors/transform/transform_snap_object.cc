@@ -857,7 +857,7 @@ void cb_snap_edge(void *userdata,
 }
 
 void cb_snap_face_midpoint(void *userdata,
-                           int face_index,
+                           const int face_index,
                            const DistProjectedAABBPrecalc *precalc,
                            const float (*clip_plane)[4],
                            const int clip_plane_len,

@@ -378,11 +378,11 @@ static void cb_snap_tri_edges(void *userdata,
 }
 
 static void cb_snap_tri_faces_midpoint(void *userdata,
-                              int tri_index,
-                              const DistProjectedAABBPrecalc *precalc,
-                              const float (*clip_plane)[4],
-                              const int clip_plane_len,
-                              BVHTreeNearest *nearest)
+                                       const int tri_index,
+                                       const DistProjectedAABBPrecalc *precalc,
+                                       const float (*clip_plane)[4],
+                                       const int clip_plane_len,
+                                       BVHTreeNearest *nearest)
 {
   SnapData_Mesh *data = static_cast<SnapData_Mesh *>(userdata);
 
