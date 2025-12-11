@@ -1620,6 +1620,9 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
       const bool use_transparent = GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) |
                                    GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA);
       if (use_transparent) {
+        /* NOTE: Assuming that the forward pipeline doesn't use colored transparency. Colored
+         * transparency uses additional color attachments, but can only be determined after
+         * all the materials have been added to the forward pipeline. */
         r_info.pipeline_state()
             .primitive(prim_type)
             .state(GPU_WRITE_COLOR,
