@@ -1667,9 +1667,10 @@ enum AutoPropButsReturn {
 ENUM_OPERATORS(AutoPropButsReturn);
 
 /**
- * \param type: Overrides the default button type defined to int/float properties which can be
- * either #ButtonType::Num or #ButtonType::NumSlider or to enum properties which can be either
- * #ButtonType::Menu or #ButtonType::SearchMenu, this has no effect on other property types.
+ * \param button_type_override: Overrides the default button type defined to int/float properties
+ * which can be either #ButtonType::Num or #ButtonType::NumSlider or to enum properties which can
+ * be either #ButtonType::Menu or #ButtonType::SearchMenu, this has no effect on other property
+ * types.
  */
 Button *uiDefAutoButR(Block *block,
                       PointerRNA *ptr,
@@ -1681,7 +1682,7 @@ Button *uiDefAutoButR(Block *block,
                       int y,
                       int width,
                       int height,
-                      std::optional<ButtonType> type = std::nullopt);
+                      std::optional<ButtonType> button_type_override = std::nullopt);
 void uiDefAutoButsArrayR(Block *block,
                          PointerRNA *ptr,
                          PropertyRNA *prop,

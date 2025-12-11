@@ -730,8 +730,8 @@ static void ui_item_array(Layout *layout,
        * map these to rows/columns. */
       col = a % dim_size[1];
       row = a / dim_size[1];
-      std::optional<ButtonType> type = slider ? std::optional(ButtonType::NumSlider) :
-                                                std::nullopt;
+      std::optional<ButtonType> button_type = slider ? std::optional(ButtonType::NumSlider) :
+                                                       std::nullopt;
       uiDefAutoButR(block,
                     ptr,
                     prop,
@@ -742,7 +742,7 @@ static void ui_item_array(Layout *layout,
                     y + (dim_size[0] * UI_UNIT_Y) - (row * UI_UNIT_Y),
                     w,
                     UI_UNIT_Y,
-                    type);
+                    button_type);
     }
   }
   else if (subtype == PROP_DIRECTION && !expand) {
@@ -801,10 +801,10 @@ static void ui_item_array(Layout *layout,
         const int width_item = ((compact && type == PROP_BOOLEAN) ?
                                     min_ii(w, ui_text_icon_width(layout, str_buf, icon, false)) :
                                     w);
-        std::optional<ButtonType> type = slider ? std::optional(ButtonType::NumSlider) :
-                                                  std::nullopt;
+        std::optional<ButtonType> button_type = slider ? std::optional(ButtonType::NumSlider) :
+                                                         std::nullopt;
         Button *but = uiDefAutoButR(
-            block, ptr, prop, a, str_buf, icon, 0, 0, width_item, UI_UNIT_Y, type);
+            block, ptr, prop, a, str_buf, icon, 0, 0, width_item, UI_UNIT_Y, button_type);
         if ((toggle == 1) && but->type == ButtonType::Checkbox) {
           but->type = ButtonType::Toggle;
         }
@@ -1079,7 +1079,7 @@ static Button *ui_item_with_label(Layout *layout,
                                   const int w_hint,
                                   const int h,
                                   const int flag,
-                                  std::optional<ButtonType> button_type = std::nullopt)
+                                  std::optional<ButtonType> button_type_override = std::nullopt)
 {
   Layout *sub = layout;
   int prop_but_width = w_hint;
@@ -1204,7 +1204,8 @@ static Button *ui_item_with_label(Layout *layout,
     const std::optional<StringRefNull> str = (type == PROP_ENUM && !(flag & ITEM_R_ICON_ONLY)) ?
                                                  std::nullopt :
                                                  std::make_optional<StringRefNull>("");
-    but = uiDefAutoButR(block, ptr, prop, index, str, icon, x, y, prop_but_width, h, button_type);
+    but = uiDefAutoButR(
+        block, ptr, prop, index, str, icon, x, y, prop_but_width, h, button_type_override);
   }
 
   /* Highlight in red on path template validity errors. */
@@ -2243,8 +2244,9 @@ void Layout::prop(PointerRNA *ptr,
   }
   /* single button */
   else {
-    std::optional<ButtonType> type = slider ? std::optional(ButtonType::NumSlider) : std::nullopt;
-    but = uiDefAutoButR(block, ptr, prop, index, name, icon, 0, 0, w, h, type);
+    std::optional<ButtonType> button_type = slider ? std::optional(ButtonType::NumSlider) :
+                                                     std::nullopt;
+    but = uiDefAutoButR(block, ptr, prop, index, name, icon, 0, 0, w, h, button_type);
 
     if (flag & ITEM_R_CHECKBOX_INVERT) {
       if (ELEM(but->type,
