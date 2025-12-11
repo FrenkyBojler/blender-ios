@@ -529,6 +529,7 @@ class Preprocessor {
 
         /* Linting phase. Detect valid syntax with invalid usage. */
         lint_unbraced_statements(parser, report_error);
+        lint_reserved_tokens(parser, report_error);
         lint_attributes(parser, report_error);
         lint_global_scope_constants(parser, report_error);
         if (do_small_type_linting) {
@@ -2981,6 +2982,24 @@ class Preprocessor {
     parser().foreach_match("I", check_statement);
     parser().foreach_match("f(..)", check_statement);
     parser().foreach_match("F(..)", check_statement);
+  }
+
+  void lint_reserved_tokens(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    std::unordered_set<string> reserved_symbols = {
+        "vec2",   "vec3",   "vec4",   "mat2x2", "mat2x3", "mat2x4", "mat3x2", "mat3x3",
+        "mat3x4", "mat4x2", "mat4x3", "mat4x4", "mat2",   "mat3",   "mat4",   "ivec2",
+        "ivec3",  "ivec4",  "uvec2",  "uvec3",  "uvec4",  "bvec2",  "bvec3",  "bvec4",
+    };
+
+    parser().foreach_token(Word, [&](Token tok) {
+      if (reserved_symbols.find(tok.str()) != reserved_symbols.end()) {
+        report_error(ERROR_TOK(tok), "Reserved GLSL token");
+      }
+    });
   }
 
   void lint_attributes(Parser &parser, report_callback report_error)
