@@ -377,7 +377,7 @@ static void cb_snap_tri_edges(void *userdata,
   }
 }
 
-static void cb_snap_tri_faces(void *userdata,
+static void cb_snap_tri_faces_midpoint(void *userdata,
                               int tri_index,
                               const DistProjectedAABBPrecalc *precalc,
                               const float (*clip_plane)[4],
@@ -583,7 +583,7 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
         reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
         nearest2d.clip_planes.size(),
         &nearest,
-        cb_snap_tri_faces,
+        cb_snap_tri_faces_midpoint,
         &nearest2d);
 
     if (nearest.index != -1) {
