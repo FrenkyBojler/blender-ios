@@ -333,8 +333,8 @@ void raycast_eval(float3 position,
                                    self_only ? drw_resource_id() & 0xFFFF : 0);
   if (result >= 0.0f) {
     is_hit = true;
-    hit_position = ws_start + direction * result;
-    hit_distance = dot(direction, hit_position - position);
+    hit_distance = result;
+    hit_position = ws_start + direction * hit_distance;
   }
 #endif
 }
