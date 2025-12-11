@@ -2,6 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup spfile
+ * \brief macOS System File menu implementation.
+ */
+
 #import "Foundation/Foundation.h"
 
 #include "BLI_fileops.h"
