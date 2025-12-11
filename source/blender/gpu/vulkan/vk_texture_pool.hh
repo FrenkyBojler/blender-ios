@@ -11,6 +11,23 @@
 #include "gpu_texture_pool_private.hh"
 
 namespace blender::gpu {
-/* TODO(not_mark): implement backend specific `VKTexturePool`. */
-using VKTexturePool = TexturePoolImpl;
+
+class VKTexturePool : public TexturePool {
+  /* ... */
+
+ public:
+  VKTexturePool();
+  ~VKTexturePool();
+
+  Texture *acquire_texture(int2 extent,
+                           TextureFormat format,
+                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) final;
+
+  void release_texture(Texture *tmp_tex) final;
+
+  void reset(bool force_free = false) final;
+
+  void offset_texture_counter(Texture *tex, int offset) final;
+};
+
 }  // namespace blender::gpu
