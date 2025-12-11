@@ -2733,7 +2733,7 @@ void Layout::prop_search(PointerRNA *ptr,
   w += UI_UNIT_X; /* X icon needs more space */
   Button *but = ui_item_with_label(
       this, block, name, icon, ptr, prop, 0, 0, 0, w, h, 0, ButtonType::SearchMenu);
-  BLI_assert(but->type = ButtonType::SearchMenu);
+  BLI_assert(but->type == ButtonType::SearchMenu);
   button_configure_search(
       but, ptr, prop, searchptr, searchprop, item_searchprop, results_are_suggestions);
 }
