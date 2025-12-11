@@ -202,10 +202,10 @@ Button *uiDefAutoButR(Block *block,
       break;
     }
     case PROP_STRING: {
-      const ButtonType button_type = = RNA_property_string_search_flag(prop) !=
-                                               eStringPropertySearchFlag(0) ?
-                                           ButtonType::SearchMenu :
-                                           ButtonType::Text;
+      const ButtonType button_type = RNA_property_string_search_flag(prop) !=
+                                             eStringPropertySearchFlag(0) ?
+                                         ButtonType::SearchMenu :
+                                         ButtonType::Text;
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(
             block, button_type, icon, x, y, width, height, ptr, prop, index, 0, 0, std::nullopt);
