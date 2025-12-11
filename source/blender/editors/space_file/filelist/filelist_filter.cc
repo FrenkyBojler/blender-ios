@@ -14,12 +14,11 @@
 #include "BLI_string.h"
 #include "BLI_string_search.hh"
 #include "BLI_string_utf8.h"
+#include "BLI_vector.hh"
 
 #include "BKE_idtype.hh"
 
 #include <cctype>
-
-#include "UI_string_search.hh"
 
 #include "../file_intern.hh"
 #include "../filelist.hh"
@@ -189,36 +188,9 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
     return false;
   }
 
-  if (filter->filter_search[0] == '\0') {
-    /* If there is no filter text, everything matches. */
-    return true;
-  }
-
-  /* filter->filter_search contains "*the search text*". */
-  char filter_search_buf[sizeof(FileListFilter::filter_search)];
-  const size_t string_length = STRNCPY_RLEN(filter_search_buf, filter->filter_search);
-
-  /* When doing a name comparison, get rid of the leading/trailing asterisks. */
-  filter_search_buf[string_length - 1] = '\0';
-  const char *search_str = filter_search_buf + 1;
-
-  blender::ui::string_search::StringSearch<FileListInternEntry> search;
-
-  if (asset_data) {
-    std::string searchable_string = file->name;
-    LISTBASE_FOREACH (const AssetTag *, asset_tag, &asset_data->tags) {
-      searchable_string += " ";
-      searchable_string += asset_tag->name;
-    }
-    search.add(searchable_string, file);
-  }
-  else {
-    search.add(file->name, file);
-  }
-
-  const blender::Vector<FileListInternEntry *> results = search.query(search_str);
-
-  return !results.is_empty();
+  /* The actual string search is now handled for the whole list at once, to allow sorting of the
+   * results. */
+  return true;
 }
 
 static bool is_filtered_lib_type(FileListInternEntry *file,
@@ -269,6 +241,58 @@ bool filelist_needs_filtering(FileList *filelist)
   return (filelist->flags & FL_NEED_FILTERING);
 }
 
+static void filelist_filter_and_sort_assets(FileList *filelist,
+                                             FileListInternEntry **entries_to_filter,
+                                             int entries_num)
+{
+  FileListFilter *filter = &filelist->filter_data;
+  if (filter->filter_search[0] == '\0') {
+    /* No search text, so no re-filtering or sorting necessary. */
+    return;
+  }
+
+  /* `filter->filter_search` contains "*the search text*". */
+  char filter_search_buf[sizeof(FileListFilter::filter_search)];
+  const size_t string_length = STRNCPY_RLEN(filter_search_buf, filter->filter_search);
+
+  /* When doing a name comparison, get rid of the leading/trailing asterisks. */
+  filter_search_buf[string_length - 1] = '\0';
+  const char *search_str = filter_search_buf + 1;
+
+  string_search::StringSearch<FileListInternEntry> search(
+      nullptr, string_search::MainWordsHeuristic::All);
+
+  for (int i = 0; i < entries_num; i++) {
+    FileListInternEntry *file = entries_to_filter[i];
+    const AssetMetaData *asset_data = filelist_file_internal_get_asset_data(file);
+    if (asset_data) {
+      std::string searchable_string = file->name;
+      LISTBASE_FOREACH (const AssetTag *, asset_tag, &asset_data->tags) {
+        searchable_string += " ";
+        searchable_string += asset_tag->name;
+      }
+      search.add(searchable_string, file);
+    }
+    else {
+      search.add(file->name, file);
+    }
+  }
+
+  const Vector<FileListInternEntry *> results = search.query(search_str);
+
+  if (filelist->filelist_intern.filtered) {
+    MEM_freeN(filelist->filelist_intern.filtered);
+  }
+
+  const int num_filtered = results.size();
+  filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(MEM_mallocN(
+      sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered), __func__));
+  for (int i = 0; i < num_filtered; i++) {
+    filelist->filelist_intern.filtered[i] = results[i];
+  }
+  filelist->filelist.entries_filtered_num = num_filtered;
+}
+
 void filelist_filter(FileList *filelist)
 {
   int num_filtered = 0;
@@ -308,15 +332,23 @@ void filelist_filter(FileList *filelist)
     }
   }
 
-  if (filelist->filelist_intern.filtered) {
-    MEM_freeN(filelist->filelist_intern.filtered);
+  const bool is_asset_search = filelist->filter_fn == is_filtered_asset_library ||
+                               filelist->filter_fn == is_filtered_main_assets;
+  if (is_asset_search) {
+    filelist_filter_and_sort_assets(filelist, filtered_tmp, num_filtered);
   }
-  filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(
-      MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered), __func__));
-  memcpy(filelist->filelist_intern.filtered,
-         filtered_tmp,
-         sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered));
-  filelist->filelist.entries_filtered_num = num_filtered;
+  else {
+    if (filelist->filelist_intern.filtered) {
+      MEM_freeN(filelist->filelist_intern.filtered);
+    }
+    filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(
+        MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered), __func__));
+    memcpy(filelist->filelist_intern.filtered,
+           filtered_tmp,
+           sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered));
+    filelist->filelist.entries_filtered_num = num_filtered;
+  }
+
   //  printf("Filtered: %d over %d entries\n", num_filtered, filelist->filelist.entries_num);
 
   filelist_cache_clear(filelist->filelist_cache, filelist->filelist_cache->size);
