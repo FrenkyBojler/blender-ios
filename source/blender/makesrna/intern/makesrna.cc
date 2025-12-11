@@ -3749,7 +3749,7 @@ static void rna_generate_external_property_prototypes(BlenderRNA *brna, FILE *f)
   /* NOTE: Generate generic `PropertyRNA &` references. The actual, type-refined properties data
    * are static variables in their translation units (the `_gen.cc` files), which are assigned to
    * these public generic `PointerRNA &` references. */
-  for (const StructRNA *srna : brna->structs) {
+  for (StructRNA *srna : brna->structs) {
     LISTBASE_FOREACH (PropertyRNA *, prop, &srna->cont.properties) {
       fprintf(f, "extern PropertyRNA &rna_%s_%s;\n", srna->identifier, prop->identifier);
     }
