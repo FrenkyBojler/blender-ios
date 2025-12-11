@@ -3460,8 +3460,7 @@ static void gwl_window_csd_active_elem_button(GWL_Seat *seat,
       }
       case GHOST_kCSDTypeButtonClose: {
         if (is_press == false && (active_type == press_type)) {
-          seat->system->pushEvent_maybe_pending(
-              new GHOST_Event(event_ms, GHOST_kEventQuitRequest, win));
+          win->close();
         }
         break;
       }
@@ -10304,7 +10303,7 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
 }
 
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
-bool ghost_wl_dynload_libraries_init(void)
+bool ghost_wl_dynload_libraries_init()
 {
 #  ifdef WITH_GHOST_X11
   /* When running in WAYLAND, let the user know when a missing library is the only reason
