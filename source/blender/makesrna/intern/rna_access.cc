@@ -91,7 +91,7 @@ void RNA_init()
 
   brna.structs_map.reserve(2048);
 
-  for (StructRNA *srna : BLENDER_RNA.structs) {
+  for (StructRNA *srna : RNA_blender_rna_get().structs) {
     if (!srna->cont.prop_lookup_set) {
       srna->cont.prop_lookup_set =
           MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(
