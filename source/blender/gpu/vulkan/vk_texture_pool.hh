@@ -11,6 +11,6 @@
 #include "gpu_texture_pool_private.hh"
 
 namespace blender::gpu {
-  /* TODO(not_mark): implement backend specific `VKTexturePool`. */
-  using VKTexturePool = TexturePoolImpl;
-} // namespace blender::gpu
+/* TODO(not_mark): implement backend specific `VKTexturePool`. */
+using VKTexturePool = TexturePoolImpl;
+}  // namespace blender::gpu

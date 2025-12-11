@@ -11,7 +11,7 @@
 #include "GPU_texture_pool.hh"
 
 namespace blender::gpu {
-  
+
 /**
  * Old texture pool implementation, to be used while a backend-specific
  * implementation is not yet available.
@@ -46,7 +46,7 @@ class TexturePoolImpl : public TexturePool {
   /* Set of textures currently in use. */
   Set<TextureHandle> acquired_;
 
-public:
+ public:
   ~TexturePoolImpl();
 
   /* Acquire a 2D texture from the pool with the given characteristics. */
