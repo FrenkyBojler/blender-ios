@@ -2363,7 +2363,7 @@ static std::vector<std::string_view> gwl_clipboard_uri_ranges(const char *data_b
       end = data.size();
     }
     /* Account for 'CRLF' case. */
-    if (data[end - 1] == '\r') {
+    if ((end > 0) && (data[end - 1] == '\r')) {
       end -= 1;
     }
 
@@ -10303,7 +10303,7 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
 }
 
 #ifdef WITH_GHOST_WAYLAND_DYNLOAD
-bool ghost_wl_dynload_libraries_init(void)
+bool ghost_wl_dynload_libraries_init()
 {
 #  ifdef WITH_GHOST_X11
   /* When running in WAYLAND, let the user know when a missing library is the only reason
