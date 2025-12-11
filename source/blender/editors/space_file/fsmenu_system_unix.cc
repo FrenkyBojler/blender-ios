@@ -253,6 +253,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
             const char *label_test = label + 6;
             label = *label_test ? label_test : dirname;
           }
+          char line[FILE_MAXDIR];
           SNPRINTF(line, "%s%s", filepath, dirname);
           fsmenu_insert_entry(
               fsmenu, FS_CATEGORY_SYSTEM, line, label, ICON_NETWORK_DRIVE, FS_INSERT_SORTED);
