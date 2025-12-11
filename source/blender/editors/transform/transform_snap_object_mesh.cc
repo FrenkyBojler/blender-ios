@@ -391,7 +391,6 @@ static void cb_snap_tri_faces_midpoint(void *userdata,
 
   if (data->use_backface_culling) {
     const float3 *positions = data->vert_positions;
-
     const float3 &t0 = positions[corner_verts[tri[0]]];
     const float3 &t1 = positions[corner_verts[tri[1]]];
     const float3 &t2 = positions[corner_verts[tri[2]]];
