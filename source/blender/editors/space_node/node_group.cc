@@ -1371,6 +1371,10 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
                        *group_outputs[i]);
   }
 
+  const std::string old_basepath = node_basepath(src_tree, src_node);
+  const std::string new_basepath = node_basepath(*dst_group, inner_node);
+  BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_group->id, {{old_basepath, new_basepath}});
+
   BKE_main_ensure_invariants(bmain, dst_group->id);
   return dst_group;
 }
