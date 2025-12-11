@@ -409,8 +409,8 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
         continue;
       }
       if (lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) {
-        /* Archive library parent is always their owner regular library, will be reset/ensured at
-         * the end of this function. */
+        /* Archive library parent is always their owner regular library, has already been
+         * reset/ensured at the start of this function, so this should never be reached. */
         BLI_assert_unreachable();
         continue;
       }
@@ -456,16 +456,13 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
       BLI_assert(lib_iter->runtime->temp_index > 0);
     }
     else {
-      if (lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) {
-        BLI_assert(lib_iter->runtime->temp_index == 1);
-        lib_iter->runtime->parent = lib_iter->archive_parent_library;
-      }
-      else {
-        BLI_assert(lib_iter->runtime->temp_index == 0);
-        blender::Set<Library *> libs_in_hierarchy;
-        rebuild_hierarchy_best_parent_find(bmain, directly_used_libs, libs_in_hierarchy, lib_iter);
-        BLI_assert(libs_in_hierarchy.is_empty());
-      }
+      BLI_assert_msg((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0,
+                     "Archived libraries are always direct parent of their owner regular library, "
+                     "this should have already been ensured at the start of this function.");
+      BLI_assert(lib_iter->runtime->temp_index == 0);
+      blender::Set<Library *> libs_in_hierarchy;
+      rebuild_hierarchy_best_parent_find(bmain, directly_used_libs, libs_in_hierarchy, lib_iter);
+      BLI_assert(libs_in_hierarchy.is_empty());
     }
   }
 
