@@ -249,8 +249,7 @@ static void node_rna(StructRNA *srna)
         const bNodeTree &ntree = *id_cast<const bNodeTree *>(ptr->owner_id);
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem &item) -> bool {
-              bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(item.value);
-              return ntree.typeinfo->valid_socket_type(ntree.typeinfo, socket_type);
+              return bke::node_tree_type_supports_socket_type_static(ntree.type, eNodeSocketDatatype( item.value));
             });
       });
 }
