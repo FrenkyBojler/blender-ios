@@ -85,6 +85,10 @@ void wm_homefile_read_post(bContext *C, const wmFileReadPost_Params *params_file
 void wm_file_read_report(Main *bmain, wmWindow *win);
 
 void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action);
+void wm_save_modified_images_dialog(
+    bContext *C,
+    wmGenericCallback
+        *post_action);  // TODO: Check conventions here to see if other entries should be added.
 /**
  * \return True if the dialog was created, the calling operator should return #OPERATOR_INTERFACE
  *         then.
