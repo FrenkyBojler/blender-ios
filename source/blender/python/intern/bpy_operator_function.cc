@@ -117,6 +117,7 @@ static bool bpy_op_fn_parse_args(PyObject *args, const char **r_context_str, boo
 
 static void bpy_op_fn_dealloc(BPyOpFunction *self)
 {
+  Py_DECREF(self->handlers);
   Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -478,7 +479,24 @@ static PyGetSetDef bpy_op_fn_getsetters[] = {
 
 /** \} */
 
-/** Method definitions for BPyOpFunction. */
+static void bpy_op_handler_action_dealloc(BPyOpHandlersActions *self)
+{
+  Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+static void bpy_op_handler_dealloc(BPyOpHandlers *self)
+{
+  Py_DECREF(self->invoke_post);
+  Py_DECREF(self->invoke_pre);
+  Py_DECREF(self->modal);
+  Py_DECREF(self->modal_end);
+
+  Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+/**
+ * @brief Method definitions for BPyOpHandlersActionsType
+ */
 static PyMethodDef bpy_op_handler_action_methods[] = {
     {"append", (PyCFunction)op_handler_append, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"remove", (PyCFunction)op_handler_remove, METH_VARARGS | METH_KEYWORDS, nullptr},
@@ -527,7 +545,7 @@ PyTypeObject BPyOpHandlersActionsType = {
     /*tp_name*/ "BPyOpHandlersActions",
     /*tp_basicsize*/ sizeof(BPyOpHandlersActions),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ nullptr,
+    /*tp_dealloc*/ (destructor)bpy_op_handler_action_dealloc,
     /*tp_print*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -590,7 +608,7 @@ PyTypeObject BPyOpHandlerType = {
     /*tp_name*/ "BPyOpHandlers",
     /*tp_basicsize*/ sizeof(BPyOpHandlers),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)bpy_op_fn_dealloc,
+    /*tp_dealloc*/ (destructor)bpy_op_handler_dealloc,
     /*tp_print*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
