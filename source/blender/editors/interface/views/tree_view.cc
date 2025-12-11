@@ -446,6 +446,8 @@ int AbstractTreeView::ui_handle_event(bContext *C, const wmEvent *event, ARegion
         (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier == KM_CTRL)))
     {
       /* Handle keyboard navigation of tree items */
+      retval = WM_UI_HANDLER_BREAK;
+      AbstractTreeViewItem *first_item = nullptr;
       AbstractTreeViewItem *active_item = nullptr;
       AbstractTreeViewItem *up_item = nullptr;
       AbstractTreeViewItem *down_item = nullptr;
@@ -454,6 +456,12 @@ int AbstractTreeView::ui_handle_event(bContext *C, const wmEvent *event, ARegion
       int index = 0;
       this->foreach_item(
           [&](AbstractTreeViewItem &item) {
+            if (!item.is_interactive()) {
+              return;
+            }
+            if (!first_item) {
+              first_item = &item;
+            }
             if (!active_item && item.is_active()) {
               active_item = &item;
               active_index = index;
@@ -470,11 +478,6 @@ int AbstractTreeView::ui_handle_event(bContext *C, const wmEvent *event, ARegion
           AbstractTreeView::IterOptions::SkipCollapsed |
               AbstractTreeView::IterOptions::SkipFiltered);
 
-      /* Need an active item to navigate from */
-      if (!active_item) {
-        return retval;
-      }
-
       const bool up_arrow = (type == EVT_UPARROWKEY && event->modifier == 0);
       const bool shift_up_arrow = (type == EVT_UPARROWKEY && event->modifier == KM_SHIFT);
       const bool down_arrow = (type == EVT_DOWNARROWKEY && event->modifier == 0);
@@ -487,8 +490,14 @@ int AbstractTreeView::ui_handle_event(bContext *C, const wmEvent *event, ARegion
       const bool wheel_down = (type == WHEELDOWNMOUSE);
       const bool is_multiselect_supported = this->is_multiselect_supported();
 
-      if (active_item->is_collapsible() && ((left_arrow && !active_item->is_collapsed()) ||
-                                            (right_arrow && active_item->is_collapsed())))
+      if (!active_item && first_item) {
+        first_item->activate(*C);
+        active_index = 0;
+        redraw = true;
+      }
+      else if (active_item && active_item->is_collapsible() &&
+               ((left_arrow && !active_item->is_collapsed()) ||
+                (right_arrow && active_item->is_collapsed())))
       {
         active_item->toggle_collapsed();
         active_item->on_collapse_change(*C, active_item->is_collapsed());
@@ -530,8 +539,6 @@ int AbstractTreeView::ui_handle_event(bContext *C, const wmEvent *event, ARegion
           this->scroll_active_into_view();
         }
       }
-
-      retval = WM_UI_HANDLER_BREAK;
     }
     else if (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_SHIFT)) {
       /* Resize the view similar to a listbox */
