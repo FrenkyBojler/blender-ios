@@ -49,7 +49,12 @@ class DiskFileHashService:
     def store_hash(self, filepath: Path, hash_algorithm: str, hexhash: str) -> None:
         """Store a pre-computed hash for the given file path."""
         stat = filepath.stat()
-        raise NotImplementedError()
+        hash_info = types.FileHashInfo(
+            hexhash=hexhash,
+            file_size_bytes=stat.st_size,
+            file_stat_mtime=stat.st_mtime,
+        )
+        self.backend.store_hash(filepath, hash_algorithm, hash_info)
 
     def file_matches(self, filepath: Path, hash_algorithm: str, hexhash: str, size_in_byes: int) -> bool:
         """Check the file on disk, to see if it matches the given properties."""
