@@ -21,14 +21,13 @@
 struct FSMenu;
 
 void fsmenu_macos_insert_entry(FSMenu *fsmenu,
-                               const char *home_path,
                                const char *name,
-                               const int icon)
+                               const char *default_path,
+                               const int icon,
+                               const char *home)
 {
-  const char *home = BLI_dir_home();
-
   char path[FILE_MAXDIR];
-  SNPRINTF(path, home_path, home);
+  SNPRINTF(path, default_path, home);
 
   fsmenu_insert_entry(fsmenu, FS_CATEGORY_OTHER, path, name, icon, FS_INSERT_LAST);
 }
@@ -48,14 +47,14 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 
   const char *home = BLI_dir_home();
   if (home) {
-    fsmenu_macos_insert_entry(fsmenu, "%s/", nullptr, ICON_HOME);
-    fsmenu_macos_insert_entry(fsmenu, "%s/Desktop/", N_("Desktop"), ICON_DESKTOP);
-    fsmenu_macos_insert_entry(fsmenu, "%s/Documents/", N_("Documents"), ICON_DOCUMENTS);
-    fsmenu_macos_insert_entry(fsmenu, "%s/Downloads/", N_("Downloads"), ICON_IMPORT);
-    fsmenu_macos_insert_entry(fsmenu, "%s/Movies/", N_("Movies"), ICON_FILE_MOVIE);
-    fsmenu_macos_insert_entry(fsmenu, "%s/Music/", N_("Music"), ICON_FILE_SOUND);
-    fsmenu_macos_insert_entry(fsmenu, "%s/Pictures/", N_("Pictures"), ICON_FILE_IMAGE);
-    fsmenu_macos_insert_entry(fsmenu, "%s/Library/Fonts/", N_("Fonts"), ICON_FILE_FONT);
+    fsmenu_macos_insert_entry(fsmenu, nullptr, "%s/", ICON_HOME, home);
+    fsmenu_macos_insert_entry(fsmenu, N_("Desktop"), "%s/Desktop/", ICON_DESKTOP, home);
+    fsmenu_macos_insert_entry(fsmenu, N_("Documents"), "%s/Documents/", ICON_DOCUMENTS, home);
+    fsmenu_macos_insert_entry(fsmenu, N_("Downloads"), "%s/Downloads/", ICON_IMPORT, home);
+    fsmenu_macos_insert_entry(fsmenu, N_("Movies"), "%s/Movies/", ICON_FILE_MOVIE, home);
+    fsmenu_macos_insert_entry(fsmenu, N_("Music"), "%s/Music/", ICON_FILE_SOUND, home);
+    fsmenu_macos_insert_entry(fsmenu, N_("Pictures"), "%s/Pictures/", ICON_FILE_IMAGE, home);
+    fsmenu_macos_insert_entry(fsmenu, N_("Fonts"), "%s/Library/Fonts/", ICON_FILE_FONT, home);
   }
 
   NSFileManager *fileManager = [NSFileManager defaultManager];
