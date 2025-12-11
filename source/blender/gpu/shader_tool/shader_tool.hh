@@ -528,6 +528,7 @@ class Preprocessor {
         parser.apply_mutations();
 
         /* Linting phase. Detect valid syntax with invalid usage. */
+        lint_unbraced_statements(parser, report_error);
         lint_attributes(parser, report_error);
         lint_global_scope_constants(parser, report_error);
         if (do_small_type_linting) {
@@ -2938,6 +2939,30 @@ class Preprocessor {
         parser.erase(toks[4], toks[7]);
       });
     } while (parser.apply_mutations());
+  }
+
+  void lint_unbraced_statements(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    auto check_statement = [&](const Tokens &toks) {
+      Token end_tok = toks.back();
+      if (end_tok.next() == If || end_tok.prev() == '#') {
+        return;
+      }
+      if (end_tok.next() == '[' && end_tok.next().next() == '[') {
+        end_tok = end_tok.next().scope().end();
+      }
+      if (end_tok.next() != '{') {
+        report_error(ERROR_TOK(end_tok), "Missing curly braces after flow control statement.");
+      }
+    };
+
+    parser().foreach_match("i(..)", check_statement);
+    parser().foreach_match("I", check_statement);
+    parser().foreach_match("f(..)", check_statement);
+    parser().foreach_match("F(..)", check_statement);
   }
 
   void lint_attributes(Parser &parser, report_callback report_error)
