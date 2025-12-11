@@ -18,8 +18,6 @@
 
 #include "BKE_idtype.hh"
 
-#include <cctype>
-
 #include "../file_intern.hh"
 #include "../filelist.hh"
 #include "filelist_intern.hh"
@@ -242,8 +240,8 @@ bool filelist_needs_filtering(FileList *filelist)
 }
 
 static void filelist_filter_and_sort_assets(FileList *filelist,
-                                             FileListInternEntry **entries_to_filter,
-                                             int entries_num)
+                                            FileListInternEntry **entries_to_filter,
+                                            int entries_num)
 {
   FileListFilter *filter = &filelist->filter_data;
   if (filter->filter_search[0] == '\0') {
@@ -268,8 +266,8 @@ static void filelist_filter_and_sort_assets(FileList *filelist,
   filter_search_buf[string_length - 1] = '\0';
   const char *search_str = filter_search_buf + 1;
 
-  string_search::StringSearch<FileListInternEntry> search(
-      nullptr, string_search::MainWordsHeuristic::All);
+  string_search::StringSearch<FileListInternEntry> search(nullptr,
+                                                          string_search::MainWordsHeuristic::All);
 
   for (int i = 0; i < entries_num; i++) {
     FileListInternEntry *file = entries_to_filter[i];
@@ -294,8 +292,8 @@ static void filelist_filter_and_sort_assets(FileList *filelist,
   }
 
   const int num_filtered = results.size();
-  filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(MEM_mallocN(
-      sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered), __func__));
+  filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(
+      MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered), __func__));
   for (int i = 0; i < num_filtered; i++) {
     filelist->filelist_intern.filtered[i] = results[i];
   }
