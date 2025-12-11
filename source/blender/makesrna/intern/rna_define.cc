@@ -197,7 +197,11 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
     MEM_delete(srna);
   }
   else {
-    srna->~StructRNA();  // TODO ??????
+    /* Non-runtime StructRNA instances are global variables. Free their memory before the leak
+     * detector runs. Normally it would make sense to use the construct-on-first-use idiom, but in
+     * this case we avoid that because these structs are referenced directly from across the
+     * codebase. */
+    *srna = StructRNA();
   }
 }
 #endif
