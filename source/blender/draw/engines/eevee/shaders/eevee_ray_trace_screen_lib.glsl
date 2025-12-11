@@ -282,8 +282,8 @@ float raytrace_screen_2(float3 vs_origin,
   start.xyz = drw_point_view_to_screen(vs_origin);
   end.xyz = drw_point_view_to_screen(vs_end);
   /* W stores Z - thickness (Note that view space forward is -Z). */
-  start.w = drw_depth_view_to_screen(vs_origin.z + thickness);
-  end.w = drw_depth_view_to_screen(vs_end.z + thickness);
+  start.w = drw_depth_view_to_screen(min(vs_origin.z + thickness, -drw_view_near()));
+  end.w = drw_depth_view_to_screen(min(vs_end.z + thickness, -drw_view_near()));
 
   float2 extent = float2(uniform_buf.film.render_extent);
   float2 total_pixel_delta = abs(start.xy - end.xy) * extent;
