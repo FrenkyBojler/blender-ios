@@ -759,16 +759,6 @@ static void key_evaluate_absolute(const int start,
 {
   int a, ofs[32];
 
-  /* Those flags are written into `flagdo` and `flagflo` and define how those keys are treated. */
-  enum KeyActionFlags {
-    K1_FLAG = (1 << 0),
-    K2_FLAG = (1 << 1),
-    K3_FLAG = (1 << 2),
-    K4_FLAG = (1 << 3),
-  };
-  int flagdo = K1_FLAG | K2_FLAG | K3_FLAG | K4_FLAG;
-  int flagflo = 0;
-
   /* Currently always 0, in future key_pointer_size may assign. */
   ofs[1] = 0;
 
@@ -788,105 +778,23 @@ static void key_evaluate_absolute(const int start,
 
   float k1tot = 0.0, k2tot = 0.0, k3tot = 0.0, k4tot = 0.0;
   float k1d = 0.0, k2d = 0.0, k3d = 0.0, k4d = 0.0;
-  /* Test for more or less points (per key!) */
-  if (vertex_count != shapekeys[0]->totelem) {
-    k1tot = 0.0;
-    flagflo |= K1_FLAG;
-    if (shapekeys[0]->totelem) {
-      k1d = shapekeys[0]->totelem / float(vertex_count);
-    }
-    else {
-      flagdo &= ~K1_FLAG;
-    }
-  }
-  if (vertex_count != shapekeys[1]->totelem) {
-    k2tot = 0.0;
-    flagflo |= K2_FLAG;
-    if (shapekeys[0]->totelem) {
-      k2d = shapekeys[1]->totelem / float(vertex_count);
-    }
-    else {
-      flagdo &= ~K2_FLAG;
-    }
-  }
-  if (vertex_count != shapekeys[2]->totelem) {
-    k3tot = 0.0;
-    flagflo |= K3_FLAG;
-    if (shapekeys[0]->totelem) {
-      k3d = shapekeys[2]->totelem / float(vertex_count);
-    }
-    else {
-      flagdo &= ~K3_FLAG;
-    }
-  }
-  if (vertex_count != shapekeys[3]->totelem) {
-    k4tot = 0.0;
-    flagflo |= K4_FLAG;
-    if (shapekeys[0]->totelem) {
-      k4d = shapekeys[3]->totelem / float(vertex_count);
-    }
-    else {
-      flagdo &= ~K4_FLAG;
+
+  for (int i = 0; i < 4; i++) {
+    if (vertex_count != shapekeys[i]->totelem) {
+      /* Keys should always have the same amount of elements as the data they apply to. It is
+       * unclear how that case can be hit, but there existed code that guarded against it before.*/
+      BLI_assert_unreachable();
+      return;
     }
   }
 
   /* This exception is needed for curves with multiple splines. */
   if (start != 0) {
-
     r_target += pointer_size * start;
-
-    if (flagdo & K1_FLAG) {
-      if (flagflo & K1_FLAG) {
-        k1tot += start * k1d;
-        a = int(floor(k1tot));
-        if (a) {
-          k1tot -= a;
-          k1 += a * key->elemsize;
-        }
-      }
-      else {
-        k1 += start * key->elemsize;
-      }
-    }
-    if (flagdo & K2_FLAG) {
-      if (flagflo & K2_FLAG) {
-        k2tot += start * k2d;
-        a = int(floor(k2tot));
-        if (a) {
-          k2tot -= a;
-          k2 += a * key->elemsize;
-        }
-      }
-      else {
-        k2 += start * key->elemsize;
-      }
-    }
-    if (flagdo & K3_FLAG) {
-      if (flagflo & K3_FLAG) {
-        k3tot += start * k3d;
-        a = int(floor(k3tot));
-        if (a) {
-          k3tot -= a;
-          k3 += a * key->elemsize;
-        }
-      }
-      else {
-        k3 += start * key->elemsize;
-      }
-    }
-    if (flagdo & K4_FLAG) {
-      if (flagflo & K4_FLAG) {
-        k4tot += start * k4d;
-        a = int(floor(k4tot));
-        if (a) {
-          k4tot -= a;
-          k4 += a * key->elemsize;
-        }
-      }
-      else {
-        k4 += start * key->elemsize;
-      }
-    }
+    k1 += start * key->elemsize;
+    k2 += start * key->elemsize;
+    k3 += start * key->elemsize;
+    k4 += start * key->elemsize;
   }
 
   /* In case of bezier-triples. */
@@ -958,55 +866,11 @@ static void key_evaluate_absolute(const int start,
       cp += 2;
       ofsp++;
     }
-    /* Lets do it the difficult way: when keys have a different size. */
-    if (flagdo & K1_FLAG) {
-      if (flagflo & K1_FLAG) {
-        k1tot += k1d;
-        while (k1tot >= 1.0f) {
-          k1tot -= 1.0f;
-          k1 += elemsize;
-        }
-      }
-      else {
-        k1 += elemsize;
-      }
-    }
-    if (flagdo & K2_FLAG) {
-      if (flagflo & K2_FLAG) {
-        k2tot += k2d;
-        while (k2tot >= 1.0f) {
-          k2tot -= 1.0f;
-          k2 += elemsize;
-        }
-      }
-      else {
-        k2 += elemsize;
-      }
-    }
-    if (flagdo & K3_FLAG) {
-      if (flagflo & K3_FLAG) {
-        k3tot += k3d;
-        while (k3tot >= 1.0f) {
-          k3tot -= 1.0f;
-          k3 += elemsize;
-        }
-      }
-      else {
-        k3 += elemsize;
-      }
-    }
-    if (flagdo & K4_FLAG) {
-      if (flagflo & K4_FLAG) {
-        k4tot += k4d;
-        while (k4tot >= 1.0f) {
-          k4tot -= 1.0f;
-          k4 += elemsize;
-        }
-      }
-      else {
-        k4 += elemsize;
-      }
-    }
+
+    k1 += elemsize;
+    k2 += elemsize;
+    k3 += elemsize;
+    k4 += elemsize;
   }
 
   if (freek1) {
