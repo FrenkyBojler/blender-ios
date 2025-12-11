@@ -791,7 +791,7 @@ void panel_header_buttons_end(Panel *panel)
 
 static float panel_region_offset_x_get(const ARegion *region)
 {
-  if (UI_panel_category_tabs_is_visible(region)) {
+  if (panel_category_tabs_is_visible(region)) {
     if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT) {
       return UI_PANEL_CATEGORY_MARGIN_WIDTH;
     }
@@ -1405,7 +1405,7 @@ bool panel_should_show_background(const ARegion *region, const PanelType *panel_
 #define TABS_PADDING_BETWEEN_FACTOR 4.0f
 #define TABS_PADDING_TEXT_FACTOR 6.0f
 
-void UI_panel_category_tabs_draw_all(ARegion *region, const char *category_id_active)
+void panel_category_tabs_draw_all(ARegion *region, const char *category_id_active)
 {
   // #define USE_FLAT_INACTIVE
   const bool is_left = RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT;
@@ -2307,7 +2307,7 @@ static void ui_handle_panel_header(const bContext *C,
   BLI_assert(!(panel->type->flag & PANEL_TYPE_NO_HEADER));
 
   const bool is_subpanel = (panel->type->parent != nullptr);
-  const bool use_pin = UI_panel_category_tabs_is_visible(region) && panel_can_be_pinned(panel);
+  const bool use_pin = panel_category_tabs_is_visible(region) && panel_can_be_pinned(panel);
   const bool show_pin = use_pin && (panel->flag & PNL_PIN);
   const bool show_drag = !is_subpanel;
 
@@ -2396,7 +2396,7 @@ bool panel_category_is_visible(const ARegion *region)
          region->runtime->panels_category.first != region->runtime->panels_category.last;
 }
 
-bool UI_panel_category_tabs_is_visible(const ARegion *region)
+bool panel_category_tabs_is_visible(const ARegion *region)
 {
   return panel_category_is_visible(region) &&
          BKE_regiontype_uses_category_tabs(region->runtime->type);
@@ -2631,7 +2631,7 @@ int handler_panel_region(bContext *C,
   int retval = WM_UI_HANDLER_CONTINUE;
 
   /* Handle category tabs. */
-  if (UI_panel_category_tabs_is_visible(region)) {
+  if (panel_category_tabs_is_visible(region)) {
     if (event->type == LEFTMOUSE) {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
