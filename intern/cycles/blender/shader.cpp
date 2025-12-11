@@ -1041,7 +1041,7 @@ static ShaderNode *add_node(Scene *scene,
     sky->set_sun_size(b_sky_node.sun_size());
     sky->set_sun_intensity(b_sky_node.sun_intensity());
     sky->set_sun_elevation(b_sky_node.sun_elevation());
-    sky->set_sun_rotation(b_sky_node.sun_rotation());
+    sky->set_sun_azimuth(b_sky_node.sun_azimuth());
     sky->set_altitude(b_sky_node.altitude());
     sky->set_air_density(b_sky_node.air_density());
     sky->set_aerosol_density(b_sky_node.aerosol_density());

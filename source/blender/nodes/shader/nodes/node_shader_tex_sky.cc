@@ -55,7 +55,7 @@ static void node_shader_buts_tex_sky(ui::Layout &layout, bContext *C, PointerRNA
     {
       ui::Layout &col = layout.column(true);
       col.prop(ptr, "sun_elevation", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-      col.prop(ptr, "sun_rotation", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+      col.prop(ptr, "sun_azimuth", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     }
     layout.prop(ptr, "altitude", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
@@ -82,7 +82,7 @@ static void node_shader_init_tex_sky(bNodeTree * /*ntree*/, bNode *node)
   tex->sun_size = DEG2RADF(0.545f);
   tex->sun_intensity = 1.0f;
   tex->sun_elevation = DEG2RADF(15.0f);
-  tex->sun_rotation = 0.0f;
+  tex->sun_azimuth = 0.0f;
   tex->altitude = 100.0f;
   tex->air_density = 1.0f;
   tex->aerosol_density = 1.0f;
@@ -150,12 +150,12 @@ static void sky_precompute_old(SkyModelPreetham *sunsky, const float sun_angles[
   sunsky->radiance[2] /= sky_perez_function(sunsky->config_y, 0, theta);
 }
 
-static void sky_simplify_multiscatter_elevation_rotation(float &sun_elevation, float &sun_rotation)
+static void sky_simplify_multiscatter_elevation_rotation(float &sun_elevation, float &sun_azimuth)
 {
   /* Patch Sun position so users are able to animate the daylight cycle while keeping the shading
    * code simple. */
   float new_sun_elevation = sun_elevation;
-  float new_sun_rotation = sun_rotation;
+  float new_sun_azimuth = sun_azimuth;
 
   /* Wrap `new_sun_elevation` into [-2PI..2PI] range. */
   new_sun_elevation = fmodf(new_sun_elevation, 2.0f * M_PI);
@@ -167,19 +167,19 @@ static void sky_simplify_multiscatter_elevation_rotation(float &sun_elevation, f
    */
   if (new_sun_elevation >= M_PI / 2.0f || new_sun_elevation <= -M_PI / 2.0f) {
     new_sun_elevation = copysignf(M_PI, new_sun_elevation) - new_sun_elevation;
-    new_sun_rotation += M_PI;
+    new_sun_azimuth += M_PI;
   }
 
-  /* Wrap `new_sun_rotation` into [-2PI..2PI] range. */
-  new_sun_rotation = fmodf(new_sun_rotation, 2.0f * M_PI);
-  /* Wrap `new_sun_rotation` into [0..2PI] range. */
-  if (new_sun_rotation < 0.0f) {
-    new_sun_rotation += 2.0f * M_PI;
+  /* Wrap `new_sun_azimuth` into [-2PI..2PI] range. */
+  new_sun_azimuth = fmodf(new_sun_azimuth, 2.0f * M_PI);
+  /* Wrap `new_sun_azimuth` into [0..2PI] range. */
+  if (new_sun_azimuth < 0.0f) {
+    new_sun_azimuth += 2.0f * M_PI;
   }
-  new_sun_rotation = 2.0f * M_PI - new_sun_rotation;
+  new_sun_azimuth = 2.0f * M_PI - new_sun_azimuth;
 
   sun_elevation = new_sun_elevation;
-  sun_rotation = new_sun_rotation;
+  sun_azimuth = new_sun_azimuth;
 }
 
 static int node_shader_gpu_tex_sky(GPUMaterial *mat,
@@ -263,7 +263,7 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
   /* Nishita */
   Array<float> pixels(4 * GPU_SKY_WIDTH * GPU_SKY_HEIGHT);
 
-  float sun_rotation = tex->sun_rotation;
+  float sun_azimuth = tex->sun_azimuth;
   if (tex->sky_model == SHD_SKY_SINGLE_SCATTERING) {
     SKY_single_scattering_precompute_texture(pixels.data(),
                                              4,
@@ -277,15 +277,15 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
 
     /* The multi-scatter case takes care of rotation wrapping in the
      * sky_simplify_multiscatter_elevation_rotation(). */
-    sun_rotation = fmodf(sun_rotation, 2.0f * M_PI);
-    if (sun_rotation < 0.0f) {
-      sun_rotation += 2.0f * M_PI;
+    sun_azimuth = fmodf(sun_azimuth, 2.0f * M_PI);
+    if (sun_azimuth < 0.0f) {
+      sun_azimuth += 2.0f * M_PI;
     }
-    sun_rotation = 2.0f * M_PI - sun_rotation;
+    sun_azimuth = 2.0f * M_PI - sun_azimuth;
   }
   else {
     float sun_elevation = tex->sun_elevation;
-    sky_simplify_multiscatter_elevation_rotation(sun_elevation, sun_rotation);
+    sky_simplify_multiscatter_elevation_rotation(sun_elevation, sun_azimuth);
     SKY_multiple_scattering_precompute_texture(pixels.data(),
                                                4,
                                                GPU_SKY_WIDTH,
@@ -314,7 +314,7 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                         in,
                         out,
                         GPU_constant(&sky_type),
-                        GPU_constant(&sun_rotation),
+                        GPU_constant(&sun_azimuth),
                         GPU_uniform(xyz_to_rgb.r),
                         GPU_uniform(xyz_to_rgb.g),
                         GPU_uniform(xyz_to_rgb.b),

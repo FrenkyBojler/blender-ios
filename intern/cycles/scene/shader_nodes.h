@@ -161,7 +161,7 @@ class SkyTextureNode : public TextureNode {
   NODE_SOCKET_API(float, sun_size)
   NODE_SOCKET_API(float, sun_intensity)
   NODE_SOCKET_API(float, sun_elevation)
-  NODE_SOCKET_API(float, sun_rotation)
+  NODE_SOCKET_API(float, sun_azimuth)
   NODE_SOCKET_API(float, altitude)
   NODE_SOCKET_API(float, air_density)
   NODE_SOCKET_API(float, aerosol_density)

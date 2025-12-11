@@ -305,7 +305,7 @@ Added
 * :class:`bpy.types.ShaderNodeTexSky.sun_disc`
 * :class:`bpy.types.ShaderNodeTexSky.sun_elevation`
 * :class:`bpy.types.ShaderNodeTexSky.sun_intensity`
-* :class:`bpy.types.ShaderNodeTexSky.sun_rotation`
+* :class:`bpy.types.ShaderNodeTexSky.sun_azimuth`
 * :class:`bpy.types.ShaderNodeTexSky.sun_size`
 
 bpy.types.NodeSocketInterface

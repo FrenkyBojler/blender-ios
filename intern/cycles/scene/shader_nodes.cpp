@@ -767,7 +767,7 @@ static void sky_texture_precompute_nishita(SunSky *sunsky,
                                            const float sun_size,
                                            const float sun_intensity,
                                            const float sun_elevation,
-                                           const float sun_rotation,
+                                           const float sun_azimuth,
                                            const float altitude,
                                            const float air_density,
                                            const float aerosol_density,
@@ -802,7 +802,7 @@ static void sky_texture_precompute_nishita(SunSky *sunsky,
   sunsky->nishita_data[4] = pixel_top[1];
   sunsky->nishita_data[5] = pixel_top[2];
   sunsky->nishita_data[6] = sun_elevation;
-  sunsky->nishita_data[7] = sun_rotation;
+  sunsky->nishita_data[7] = sun_azimuth;
   sunsky->nishita_data[8] = sun_disc ? sun_size : -1.0f;
   sunsky->nishita_data[9] = sun_intensity;
   sunsky->nishita_data[10] = -earth_intersection_angle;
@@ -880,7 +880,7 @@ NODE_DEFINE(SkyTextureNode)
   SOCKET_FLOAT(sun_size, "Sun Size", 0.009512f);
   SOCKET_FLOAT(sun_intensity, "Sun Intensity", 1.0f);
   SOCKET_FLOAT(sun_elevation, "Sun Elevation", 15.0f * M_PI_F / 180.0f);
-  SOCKET_FLOAT(sun_rotation, "Sun Rotation", 0.0f);
+  SOCKET_FLOAT(sun_azimuth, "Sun Azimuth", 0.0f);
   SOCKET_FLOAT(altitude, "Altitude", 100.0f);
   SOCKET_FLOAT(air_density, "Air", 1.0f);
   SOCKET_FLOAT(aerosol_density, "Aerosol", 1.0f);
@@ -903,7 +903,7 @@ void SkyTextureNode::simplify_settings(Scene * /* scene */)
   /* Patch Sun position so users are able to animate the daylight cycle while keeping the shading
    * code simple. */
   float new_sun_elevation = sun_elevation;
-  float new_sun_rotation = sun_rotation;
+  float new_sun_azimuth = sun_azimuth;
 
   /* Wrap `new_sun_elevation` into [-2PI..2PI] range. */
   new_sun_elevation = fmodf(new_sun_elevation, M_2PI_F);
@@ -914,19 +914,19 @@ void SkyTextureNode::simplify_settings(Scene * /* scene */)
   /* Wrap `new_sun_elevation` into [-PI/2..PI/2] range while keeping the same absolute position. */
   if (new_sun_elevation >= M_PI_2_F || new_sun_elevation <= -M_PI_2_F) {
     new_sun_elevation = copysignf(M_PI_F, new_sun_elevation) - new_sun_elevation;
-    new_sun_rotation += M_PI_F;
+    new_sun_azimuth += M_PI_F;
   }
 
-  /* Wrap `new_sun_rotation` into [-2PI..2PI] range. */
-  new_sun_rotation = fmodf(new_sun_rotation, M_2PI_F);
-  /* Wrap `new_sun_rotation` into [0..2PI] range. */
-  if (new_sun_rotation < 0.0f) {
-    new_sun_rotation += M_2PI_F;
+  /* Wrap `new_sun_azimuth` into [-2PI..2PI] range. */
+  new_sun_azimuth = fmodf(new_sun_azimuth, M_2PI_F);
+  /* Wrap `new_sun_azimuth` into [0..2PI] range. */
+  if (new_sun_azimuth < 0.0f) {
+    new_sun_azimuth += M_2PI_F;
   }
-  new_sun_rotation = M_2PI_F - new_sun_rotation;
+  new_sun_azimuth = M_2PI_F - new_sun_azimuth;
 
   sun_elevation = new_sun_elevation;
-  sun_rotation = new_sun_rotation;
+  sun_azimuth = new_sun_azimuth;
 }
 
 void SkyTextureNode::compile(SVMCompiler &compiler)
@@ -948,7 +948,7 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
                                    get_sun_size(),
                                    sun_intensity,
                                    sun_elevation,
-                                   sun_rotation,
+                                   sun_azimuth,
                                    altitude,
                                    air_density,
                                    aerosol_density,
@@ -1046,7 +1046,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
                                    get_sun_size(),
                                    sun_intensity,
                                    sun_elevation,
-                                   sun_rotation,
+                                   sun_azimuth,
                                    altitude,
                                    air_density,
                                    aerosol_density,

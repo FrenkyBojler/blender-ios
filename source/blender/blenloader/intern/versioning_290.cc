@@ -900,7 +900,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
               tex->sun_disc = true;
               tex->sun_size = DEG2RADF(0.545);
               tex->sun_elevation = M_PI_2;
-              tex->sun_rotation = 0.0f;
+              tex->sun_azimuth = 0.0f;
               tex->altitude = 0.0f;
               tex->air_density = 1.0f;
               tex->aerosol_density = 1.0f;

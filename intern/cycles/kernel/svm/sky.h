@@ -143,14 +143,14 @@ ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
 {
   /* Definitions */
   const float sun_elevation = sky_data[0];
-  const float sun_rotation = sky_data[1];
+  const float sun_azimuth = sky_data[1];
   const float angular_diameter = sky_data[2];
   const float sun_intensity = sky_data[3];
   const float earth_intersection_angle = sky_data[4];
   const bool sun_disc = (angular_diameter >= 0.0f);
   float3 xyz = zero_float3();
   const float2 direction = direction_to_spherical(dir);
-  const float3 sun_dir = spherical_to_direction(sun_elevation - M_PI_2_F, sun_rotation - M_PI_2_F);
+  const float3 sun_dir = spherical_to_direction(sun_elevation - M_PI_2_F, sun_azimuth - M_PI_2_F);
   const float sun_dir_angle = precise_angle(dir, sun_dir);
   const float half_angular = angular_diameter * 0.5f;
   const float dir_elevation = M_PI_2_F - direction.x;
@@ -169,7 +169,7 @@ ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
   }
 
   /* Sky */
-  const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) * M_1_2PI_F);
+  const float x = fractf((-direction.y - M_PI_2_F + sun_azimuth) * M_1_2PI_F);
   /* Undo the non-linear transformation from the sky LUT */
   const float y = copysignf(sqrtf(fabsf(dir_elevation) * M_2_PI_F), dir_elevation) * 0.5f + 0.5f;
   xyz += make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
