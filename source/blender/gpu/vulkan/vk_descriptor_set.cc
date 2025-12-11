@@ -171,6 +171,11 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_input_attachmen
     const VKResourceBinding &resource_binding,
     render_graph::VKResourceAccessInfo &access_info)
 {
+  const VKDevice &device = VKBackend::get().device;
+  if (!device.extensions_get().dynamic_rendering_local_read) {
+    return;
+  }
+
   VKTexture *texture = static_cast<VKTexture *>(
       state_manager.images_.get(resource_binding.binding));
   BLI_assert(texture);
