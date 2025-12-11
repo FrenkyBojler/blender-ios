@@ -1274,7 +1274,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.batch_resources_.clear();
   }
 
-  material_create_info_pipelines_amend(geometry_type, pipeline_type, info);
+  material_create_info_pipelines_amend(gpumat, geometry_type, pipeline_type, info);
 }
 
 struct CallbackThunk {
@@ -1426,7 +1426,8 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
  *
  * \{ */
 
-void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geometry_type,
+void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
+                                                        eMaterialGeometry geometry_type,
                                                         eMaterialPipeline pipeline_type,
                                                         gpu::shader::ShaderCreateInfo &r_info)
 {
@@ -1616,19 +1617,38 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
       break;
     }
     case MAT_PIPE_FORWARD: {
-      r_info.pipeline_state()
-          .primitive(prim_type)
-          .state(GPU_WRITE_COLOR,
-                 GPU_BLEND_NONE,
-                 GPU_CULL_NONE,
-                 GPU_DEPTH_EQUAL,
-                 GPU_STENCIL_NONE,
-                 GPU_STENCIL_OP_NONE,
-                 GPU_VERTEX_LAST)
-          .viewports(1)
-          .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-          .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-          .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+      const bool use_transparent = GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) |
+                                   GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA);
+      if (use_transparent) {
+        r_info.pipeline_state()
+            .primitive(prim_type)
+            .state(GPU_WRITE_COLOR,
+                   GPU_BLEND_TRANSPARENCY,
+                   GPU_CULL_NONE,
+                   GPU_DEPTH_GREATER_EQUAL,
+                   GPU_STENCIL_NONE,
+                   GPU_STENCIL_OP_NONE,
+                   GPU_VERTEX_LAST)
+            .viewports(1)
+            .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+            .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+            .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+      }
+      else {
+        r_info.pipeline_state()
+            .primitive(prim_type)
+            .state(GPU_WRITE_COLOR,
+                   GPU_BLEND_NONE,
+                   GPU_CULL_NONE,
+                   GPU_DEPTH_EQUAL,
+                   GPU_STENCIL_NONE,
+                   GPU_STENCIL_OP_NONE,
+                   GPU_VERTEX_LAST)
+            .viewports(1)
+            .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+            .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+            .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+      }
       break;
     }
 
