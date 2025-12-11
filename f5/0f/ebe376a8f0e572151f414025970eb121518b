@@ -1,2 +1,3 @@
 Referenced by issue #146410, Animation FPS Progressively Slower From Blender 4.3.2 to 4.5.3 LTS (second case)
 Referenced by issue #150890, Crash when join mesh from old version
+Referenced by commit ccb4d25159d693cf58137c3d82f2c65f54d2e79d, Fix: Silence extraneous parentheses warning
