@@ -550,6 +550,7 @@ class Preprocessor {
         lower_resource_table(parser, report_error);
         lower_resource_access_functions(parser, report_error);
         /* Lower class methods. */
+        lower_implicit_member(parser, report_error);
         lower_method_definitions(parser, report_error);
         lower_method_calls(parser, report_error);
         lower_empty_struct(parser, report_error);
@@ -2371,6 +2372,74 @@ class Preprocessor {
         parser.replace(token, "struct ");
       }
     });
+  }
+
+  /* Make all members of a class to be referenced using `this->`. */
+  void lower_implicit_member(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_struct([&](Token, Token, Scope body) {
+      vector<Token> members_tokens;
+      vector<Token> methods_tokens;
+
+      auto is_class_token = [&](const vector<Token> &members, const string &token) {
+        for (const Token &member : members) {
+          if (token == member.str()) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      auto check_shadowing = [&](const Tokens &toks) {
+        if (is_class_token(members_tokens, toks[1].str())) {
+          report_error(ERROR_TOK(toks[1]), "Class member shadowing.");
+        }
+      };
+
+      body.foreach_declaration([&](Scope, Token, Token, Scope, Token name, Scope, Token) {
+        if (name.scope() == body) {
+          members_tokens.emplace_back(name);
+        }
+      });
+
+      body.foreach_function(
+          [&](bool is_static, Token, Token fn_name, Scope fn_args, bool, Scope fn_body) {
+            if (is_static) {
+              return;
+            }
+            fn_args.foreach_match("ww", check_shadowing);
+            fn_args.foreach_match("&w", check_shadowing);
+            fn_body.foreach_match("ww", check_shadowing);
+            fn_body.foreach_match("&w", check_shadowing);
+            methods_tokens.emplace_back(fn_name);
+          });
+
+      body.foreach_function([&](bool is_static, Token, Token, Scope, bool, Scope fn_body) {
+        if (is_static) {
+          return;
+        }
+        fn_body.foreach_token(Word, [&](Token tok) {
+          if (tok.prev() != Deref && tok.prev() != Dot && tok.prev() != Colon) {
+            if (tok.next() == '(') {
+              if (!is_class_token(methods_tokens, tok.str())) {
+                return;
+              }
+            }
+            else {
+              if (!is_class_token(members_tokens, tok.str())) {
+                return;
+              }
+            }
+            parser.insert_before(tok, "this->");
+          }
+        });
+      });
+    });
+
+    parser.apply_mutations();
   }
 
   /* Move all method definition outside of struct definition blocks. */

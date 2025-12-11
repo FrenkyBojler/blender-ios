@@ -1534,7 +1534,7 @@ struct S {
   S function(_ref(S ,this_), int i)
   {
     this_.member = i;
-    this_member++;
+    this_.this_member++;
     return this_;
   }
 #line 25
@@ -1562,6 +1562,55 @@ void main()
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct A {
+  int a;
+  uint b;
+  float fn1() { return a; }
+  float fn2() { int fn2; return fn1(); }
+  static float fn3() { int a; return a; }
+};
+)";
+    string expect = R"(
+struct A {
+  int a;
+  uint b;
+#line 8
+};
+#line 5
+  float fn1(_ref(A ,this_)) { return this_.a; }
+  float fn2(_ref(A ,this_)) { int fn2; return fn1(this_); }
+         float A_fn3() { int a; return a; }
+#line 9
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct A {
+  int a;
+  float fn1(int a) { return a; }
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Class member shadowing.");
+  }
+  {
+    string input = R"(
+struct A {
+  int a;
+  float fn1() { int a; return a; }
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Class member shadowing.");
   }
   {
     string input = R"(
