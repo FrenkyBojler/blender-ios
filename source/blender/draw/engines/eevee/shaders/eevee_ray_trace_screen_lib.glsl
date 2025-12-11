@@ -329,7 +329,11 @@ float raytrace_screen_2(float3 vs_origin,
     /* Ensure the allowed depth range is not lower than the step delta. */
     float min_z = forward ? min(step.w, previous_step_z) : step.w;
     float max_z = forward ? step.z : max(step.z, previous_step_z);
-    previous_step_z = step.z;
+
+    // previous_step_z = step.z;
+    /* Using step.z is more "correct", but step.w mitigates missed hits against planes
+     * with normals symmetrical to the ray direction. */
+    previous_step_z = forward ? step.w : step.z;
 
     if (max_z >= hit_max_z && min_z <= hit_min_z) {
       /* We have a hit. Compute the distance. */
