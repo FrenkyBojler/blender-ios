@@ -314,15 +314,10 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
                               FS_INSERT_LAST);
 
     /* These items are just put in path cache for thumbnail views and if bookmarked. */
-    fsmenu_add_windows_folder(fsmenu,
-                              FS_CATEGORY_OTHER,
-                              FOLDERID_UserProfiles,
-                              nullptr,
-                              ICON_COMMUNITY,
-                              FS_INSERT_LAST);
+    fsmenu_add_windows_folder(
+        fsmenu, FS_CATEGORY_OTHER, FOLDERID_UserProfiles, nullptr, ICON_COMMUNITY, FS_INSERT_LAST);
 
     /* Last add Quick Access items to avoid duplicates and use icons if available. */
     fsmenu_add_windows_quick_access(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, FS_INSERT_LAST);
   }
 }
-

@@ -53,9 +53,7 @@ void fsmenu_free();
 void fsmenu_refresh_system_category(FSMenu *fsmenu);
 
 /** Get active index based on given directory. */
-int fsmenu_get_active_indices(FSMenu *fsmenu,
-                              FSMenuCategory category,
-                              const char *dir);
+int fsmenu_get_active_indices(FSMenu *fsmenu, FSMenuCategory category, const char *dir);
 
 /** Add base file bookmark menu directories common to all platforms. */
 void fsmenu_add_common_platform_directories(FSMenu *fsmenu);

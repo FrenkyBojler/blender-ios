@@ -177,7 +177,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 
   {
     bool found = false;
-#  ifdef __linux__
+#ifdef __linux__
     /* loop over mount points */
     mntent *mnt;
     FILE *fp;
@@ -195,7 +195,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
         const int result = strncmp(a, b, b_len);
         return (result == 0 && !ELEM(a[b_len], '\0', '/')) ? 1 : result;
       };
-#    define STRPREFIX_DIR_DELIMIT(a, b) (strncmp_dir_delimit((a), (b), strlen(b)) == 0)
+#  define STRPREFIX_DIR_DELIMIT(a, b) (strncmp_dir_delimit((a), (b), strlen(b)) == 0)
 
       while ((mnt = getmntent(fp))) {
         if (STRPREFIX_DIR_DELIMIT(mnt->mnt_dir, "/boot") ||
@@ -216,16 +216,12 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
           continue;
         }
 
-        fsmenu_insert_entry(fsmenu,
-                            FS_CATEGORY_SYSTEM,
-                            mnt->mnt_dir,
-                            nullptr,
-                            ICON_DISK_DRIVE,
-                            FS_INSERT_SORTED);
+        fsmenu_insert_entry(
+            fsmenu, FS_CATEGORY_SYSTEM, mnt->mnt_dir, nullptr, ICON_DISK_DRIVE, FS_INSERT_SORTED);
 
         found = true;
       }
-#    undef STRPREFIX_DIR_DELIMIT
+#  undef STRPREFIX_DIR_DELIMIT
 
       if (endmntent(fp) == 0) {
         CLOG_WARN(&LOG, "Could not close the list of mounted file-systems");
@@ -265,7 +261,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
         BLI_filelist_free(dirs, dirs_num);
       }
     }
-#  endif /* __linux__ */
+#endif /* __linux__ */
 
     /* fallback */
     if (!found) {

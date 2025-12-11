@@ -98,8 +98,8 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
    * the user's Finder Favorites items from other applications. Ignore these deprecation warnings.
    * It is unknown when this API will be fully removed from macOS. */
   if (read_bookmarks) {
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     LSSharedFileListRef shared_list = LSSharedFileListCreate(
         nullptr, kLSSharedFileListFavoriteItems, nullptr);
 
@@ -112,7 +112,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
       CFURLRef cf_url = nullptr;
       OSErr err = LSSharedFileListItemResolve(item_ref,
                                               kLSSharedFileListNoUserInteraction |
-                                              kLSSharedFileListDoNotMountVolumes,
+                                                  kLSSharedFileListDoNotMountVolumes,
                                               &cf_url,
                                               nullptr);
       if (err != noErr || !cf_url) {
@@ -129,8 +129,12 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 
       // Exclude "all my files" and empty paths
       if (![path containsString:@"myDocuments.cannedSearch"] && [path length] > 0) {
-        fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS,
-                            [path UTF8String], nullptr, ICON_FILE_FOLDER, FS_INSERT_LAST);
+        fsmenu_insert_entry(fsmenu,
+                            FS_CATEGORY_SYSTEM_BOOKMARKS,
+                            [path UTF8String],
+                            nullptr,
+                            ICON_FILE_FOLDER,
+                            FS_INSERT_LAST);
       }
 
       CFRelease(cf_url);
@@ -139,5 +143,5 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
     [paths_array release];
     CFRelease(shared_list);
   }
-#  pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 }
