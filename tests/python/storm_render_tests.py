@@ -135,6 +135,7 @@ BLOCKLIST_VULKAN_NVIDIA = [
     # Vulkan shader; failed non-deterministically on workers when tested
     "texture_coordinate_camera.blend",
     "texture_coordinate_object.blend",
+    "texture_coordinate_generated.blend",
 ]
 
 
