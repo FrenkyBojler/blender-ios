@@ -13,7 +13,7 @@ __all__ = (
 import unittest
 from pathlib import Path
 
-from _bpy_internal.disk_file_hash_service import backend_sqlite, types
+from _bpy_internal.disk_file_hash_service import backend_sqlite, hash_service, types
 
 scratch_dir: Path
 
@@ -79,6 +79,39 @@ class SQLiteBackendTest(unittest.TestCase):
         self.assertIsNone(hash_info, "A non-existent entry should be handled gracefully")
 
 
+class DiskFileHashServiceTest(unittest.TestCase):
+    storagepath: Path
+    filepath: Path
+    backend: types.DiskFileHashBackend
+    service: hash_service.DiskFileHashService
+
+    def setUp(self) -> None:
+        self.storagepath = scratch_dir / "database"
+
+        # Create a test file to play with
+        self.filepath = scratch_dir / "file-to-hash.txt"
+        self.filepath.write_text("😺 Laksa & Quercus 😻")
+
+        self.backend = backend_sqlite.SQLiteBackend(self.storagepath)
+
+        # Delete the database between each test.
+        self.backend.dbfile_path.unlink(missing_ok=True)
+
+        self.service = hash_service.DiskFileHashService(self.backend)
+
+    def tearDown(self) -> None:
+        self.service.close()
+
+    def test_get_file_hash(self) -> None:
+        self.service.open()
+        hash = self.service.get_hash(self.filepath, "sha256")
+        self.assertEqual("43231d711ce5992cd9090ffa5cbb8779148e291bc1472353cdeebd040bef0b93", hash)
+
+        backend_info = self.backend.fetch_hash(self.filepath, "sha256")
+        assert backend_info is not None
+        self.assertEqual(hash, backend_info.hexhash)
+
+
 def main() -> None:
     global scratch_dir
 
@@ -89,12 +122,9 @@ def main() -> None:
     if '--' in sys.argv:
         argv.extend(sys.argv[sys.argv.index('--') + 1:])
 
-    # with tempfile.TemporaryDirectory() as temp_dir:
-    #     scratch_dir = Path(temp_dir)
-    #     unittest.main(argv=argv)
-    scratch_dir = Path("/tmp/blendtest")
-    scratch_dir.mkdir(parents=True, exist_ok=True)
-    unittest.main(argv=argv)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        scratch_dir = Path(temp_dir)
+        unittest.main(argv=argv)
 
 
 if __name__ == "__main__":
