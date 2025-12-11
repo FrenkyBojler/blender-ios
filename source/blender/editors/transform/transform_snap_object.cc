@@ -495,6 +495,12 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   const eSnapTargetOP snap_target_select = sctx->runtime.params.snap_target_select;
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
+  
+  // Consider 3D cursor as temporal entity
+  if (SCE_SNAP_TO_ORIGIN) {
+    float *curs = scene->cursor.location;
+
+  }
 
   DupliList duplilist;
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
@@ -939,18 +945,16 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
 
   eSnapMode retval = SCE_SNAP_TO_NONE;
 
-  if (ob_data == nullptr && (ob_eval->type == OB_MESH)) {
-    retval = snap_object_editmesh(
-        sctx, ob_eval, nullptr, obmat, sctx->runtime.snap_to_flag, use_hide);
-
-    if (retval == SCE_SNAP_TO_NONE) {
-      return snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
-    }
-
-    return retval;
-  }
-
   if (ob_data == nullptr) {
+    if (ob_eval->type == OB_MESH) {
+      retval = snap_object_editmesh(
+          sctx, ob_eval, nullptr, obmat, sctx->runtime.snap_to_flag, use_hide);
+
+      if (retval != SCE_SNAP_TO_NONE) {
+        return retval;
+      }
+    }
+    
     return snap_object_center(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
   }
 
