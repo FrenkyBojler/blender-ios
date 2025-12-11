@@ -43,14 +43,11 @@ if(WIN32)
   )
 elseif(APPLE)
   list(APPEND SRC
-#    fsmenu_system_win32.cc
-#    fsmenu_system_unix.cc
     fsmenu_system_macos.mm
   )
 else() # Generic UNIX
   list(APPEND SRC
-    fsmenu_system_win32.cc
-    fsmenu_system_macos.mm
+    fsmenu_system_unix.cc
   )
 endif()
 
