@@ -370,7 +370,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
 
   bNodeLink *glinks_last = (bNodeLink *)ntree->links.last;
 
-  BKE_animdata_transfer_by_basepath(*bmain, wgroup->id, ntree->id, true, anim_basepaths);
+  BKE_animdata_copy_by_basepath(*bmain, wgroup->id, ntree->id, anim_basepaths);
 
   remap_pairing(*ntree, new_nodes, node_identifier_map);
 
@@ -599,7 +599,12 @@ static bool node_group_separate_selected(
 
   /* and copy across the animation,
    * note that the animation data's action can be nullptr here */
-  BKE_animdata_transfer_by_basepath(bmain, ngroup.id, ntree.id, make_copy, anim_basepaths);
+  if (make_copy) {
+    BKE_animdata_copy_by_basepath(bmain, ngroup.id, ntree.id, anim_basepaths);
+  }
+  else {
+    BKE_animdata_move_by_basepath(bmain, ngroup.id, ntree.id, anim_basepaths);
+  }
 
   BKE_ntree_update_tag_all(&ntree);
   if (!make_copy) {
@@ -1175,7 +1180,7 @@ static void node_group_make_insert_selected(const bContext &C,
 
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
 
-  BKE_animdata_transfer_by_basepath(*bmain, ntree.id, group.id, false, anim_basepaths);
+  BKE_animdata_move_by_basepath(*bmain, ntree.id, group.id, anim_basepaths);
 
   /* Add new links to inputs outside of the group. */
   for (const auto item : input_links.items()) {

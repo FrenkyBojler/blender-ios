@@ -214,17 +214,26 @@ struct AnimationBasePathChange {
 };
 
 /**
- * Copy or move any animation data under the base paths.
+ * Copy any animation data under the base paths.
  * Creates new #AnimData as necessary.
  *
- * \param copy_animdata: If true then animation data is copied instead of moved.
  * \param basepaths: List of base path pairs to transfer.
  */
-void BKE_animdata_transfer_by_basepath(Main &bmain,
-                                       ID &src_id,
-                                       ID &dst_id,
-                                       bool copy_animdata,
-                                       blender::Span<AnimationBasePathChange> basepaths);
+void BKE_animdata_copy_by_basepath(Main &bmain,
+                                   const ID &src_id,
+                                   ID &dst_id,
+                                   blender::Span<AnimationBasePathChange> basepaths);
+
+/**
+ * Move any animation data under the base paths.
+ * Creates new #AnimData as necessary.
+ *
+ * \param basepaths: List of base path pairs to transfer.
+ */
+void BKE_animdata_move_by_basepath(Main &bmain,
+                                   ID &src_id,
+                                   ID &dst_id,
+                                   blender::Span<AnimationBasePathChange> basepaths);
 
 /* ------------ NLA Keyframing --------------- */
 
