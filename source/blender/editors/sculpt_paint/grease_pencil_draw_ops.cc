@@ -202,6 +202,7 @@ static void stroke_update_step(bContext *C,
     new_operation->constrain_line_ = RNA_boolean_get(op->ptr, "constrain_line");
     new_operation->on_stroke_begin(*C, sample);
     paint_stroke_set_mode_data(stroke, std::move(new_operation));
+    paint_stroke_set_constrained(stroke, true);
   }
   else {
     operation->constrain_line_ = RNA_boolean_get(op->ptr, "constrain_line");

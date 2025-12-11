@@ -1494,6 +1494,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
     stroke_done(C, op, stroke);
     return OPERATOR_CANCELLED;
   }
+
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
   bool first_dab = false;
@@ -1615,7 +1616,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
 
   /* Handles shift-key active smooth toggling during a grease pencil stroke. */
   if (mode == PaintMode::GPencil) {
-    if (event->modifier & KM_SHIFT) {
+    if (event->modifier & KM_SHIFT && stroke->constrain_line == false) {
       stroke->stroke_mode = BRUSH_STROKE_SMOOTH;
       if (!stroke->stroke_cursor) {
         stroke->stroke_cursor = WM_paint_cursor_activate(SPACE_TYPE_ANY,
@@ -1817,6 +1818,10 @@ float paint_stroke_distance_get(PaintStroke *stroke)
 void paint_stroke_set_mode_data(PaintStroke *stroke, std::unique_ptr<PaintModeData> mode_data)
 {
   stroke->mode_data = std::move(mode_data);
+}
+void paint_stroke_set_constrained(PaintStroke *stroke, const bool constrain_line)
+{
+  stroke->constrain_line = constrain_line;
 }
 
 bool paint_stroke_started(PaintStroke *stroke)

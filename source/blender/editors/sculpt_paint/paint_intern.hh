@@ -163,6 +163,7 @@ class PaintModeData {
   virtual ~PaintModeData() = default;
 };
 void paint_stroke_set_mode_data(PaintStroke *stroke, std::unique_ptr<PaintModeData> mode_data);
+void paint_stroke_set_constrained(PaintStroke *stroke, const bool constrain_line);
 
 bool paint_stroke_started(PaintStroke *stroke);
 void paint_stroke_jitter_pos(const PaintStroke &stroke,
