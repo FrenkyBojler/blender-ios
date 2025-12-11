@@ -705,7 +705,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
   const OffsetIndices<int> triangle_offsets = offset_indices::accumulate_counts_to_offsets(
       r_triangle_offsets);
 
-  r_triangles.resize(r_triangle_offsets.last());
+  r_triangles.resize(triangle_offsets.total_size());
 
   threading::parallel_for(shape_mask.index_range(), 512, [&](const IndexRange range) {
     for (const int pos : range) {
