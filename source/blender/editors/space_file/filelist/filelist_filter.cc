@@ -244,7 +244,7 @@ static void filelist_filter_and_sort_assets(FileList *filelist,
                                             int entries_num)
 {
   const FileListFilter &filter = filelist->filter_data;
-  if (filter->filter_search[0] == '\0') {
+  if (filter.filter_search[0] == '\0') {
     /* No search text, just copy over the pre-filtered list. */
     if (filelist->filelist_intern.filtered) {
       MEM_freeN(filelist->filelist_intern.filtered);
@@ -260,7 +260,7 @@ static void filelist_filter_and_sort_assets(FileList *filelist,
 
   /* `filter->filter_search` contains "*the search text*". */
   char filter_search_buf[sizeof(FileListFilter::filter_search)];
-  const size_t string_length = STRNCPY_RLEN(filter_search_buf, filter->filter_search);
+  const size_t string_length = STRNCPY_RLEN(filter_search_buf, filter.filter_search);
 
   /* When doing a name comparison, get rid of the leading/trailing asterisks. */
   filter_search_buf[string_length - 1] = '\0';
