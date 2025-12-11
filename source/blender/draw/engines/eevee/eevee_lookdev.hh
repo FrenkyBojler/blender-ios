@@ -29,6 +29,7 @@
 
 struct bNode;
 struct bNodeSocketValueFloat;
+struct bNodeSocketValueVector;
 struct View3D;
 
 namespace blender::eevee {
@@ -76,8 +77,12 @@ class LookdevWorld {
   bNode *environment_node_ = nullptr;
   bNodeSocketValueFloat *intensity_socket_ = nullptr;
   bNodeSocketValueFloat *angle_socket_ = nullptr;
+  /* Vector multiply socket for flipping Y axes when transforming to camera space. */
+  bNodeSocketValueVector *flip_y_socket_ = nullptr;
   /* Vector transform socket `convert_to`. */
   int *xform_socket_ = nullptr;
+  /* Set to M_PI/2 for rotating the HDRI horizon line in camera space mode. */
+  float *rotation_x_socket_ = nullptr;
   ::Image *image = nullptr;
   ::World *world = nullptr;
 

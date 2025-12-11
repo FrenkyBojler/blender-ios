@@ -42,53 +42,88 @@ LookdevWorld::LookdevWorld()
 
   bNodeTree &ntree = *world->nodetree;
 
-  bNode &lightpath = *node_add_static_node(nullptr, ntree, SH_NODE_LIGHT_PATH);
-  bNodeSocket &is_camera_out = *node_find_socket(lightpath, SOCK_OUT, "Is Camera Ray");
-
-  bNode &math_mul = *node_add_static_node(nullptr, ntree, SH_NODE_MATH);
-  math_mul.custom1 = NODE_MATH_MULTIPLY;
-  bNodeSocket &value_out = *node_find_socket(math_mul, SOCK_OUT, "Value");
-  bNodeSocket &value_in0 = *static_cast<bNodeSocket *>(BLI_findlink(&math_mul.inputs, 0));
-  bNodeSocket &value_in1 = *static_cast<bNodeSocket *>(BLI_findlink(&math_mul.inputs, 1));
-  angle_socket_ = static_cast<bNodeSocketValueFloat *>(value_in1.default_value);
-
   bNode &coordinate = *node_add_static_node(nullptr, ntree, SH_NODE_TEX_COORD);
-  bNodeSocket &coordinate_out = *node_find_socket(coordinate, SOCK_OUT, "Generated");
+  bNodeSocket &generated_sock = *node_find_socket(coordinate, SOCK_OUT, "Generated");
 
-  bNode &rotate = *node_add_static_node(nullptr, ntree, SH_NODE_VECTOR_ROTATE);
-  rotate.custom1 = NODE_VECTOR_ROTATE_TYPE_AXIS_Z;
-  bNodeSocket &rotate_vector_in = *node_find_socket(rotate, SOCK_IN, "Vector");
-  bNodeSocket &rotate_vector_angle = *node_find_socket(rotate, SOCK_IN, "Angle");
-  bNodeSocket &rotate_out = *node_find_socket(rotate, SOCK_OUT, "Vector");
-
-  bNode &xform = *node_add_static_node(nullptr, ntree, SH_NODE_VECT_TRANSFORM);
-  bNodeSocket &xform_in = *node_find_socket(xform, SOCK_IN, "Vector");
-  bNodeSocket &xform_out = *node_find_socket(xform, SOCK_OUT, "Vector");
-  NodeShaderVectTransform &nodeprop = *static_cast<NodeShaderVectTransform *>(xform.storage);
+  bNode &transform = *node_add_static_node(nullptr, ntree, SH_NODE_VECT_TRANSFORM);
+  bNodeSocket &transform_in = *node_find_socket(transform, SOCK_IN, "Vector");
+  bNodeSocket &transform_out = *node_find_socket(transform, SOCK_OUT, "Vector");
+  NodeShaderVectTransform &nodeprop = *static_cast<NodeShaderVectTransform *>(transform.storage);
   nodeprop.convert_from = SHD_VECT_TRANSFORM_SPACE_WORLD;
   xform_socket_ = &nodeprop.convert_to;
+
+  node_add_link(ntree, coordinate, generated_sock, transform, transform_in);
+
+  /* Flip Y axis because of compatibility axis flipping inside the vector transform node. */
+  bNode &flip_y_mul = *node_add_static_node(nullptr, ntree, SH_NODE_VECTOR_MATH);
+  flip_y_mul.custom1 = NODE_VECTOR_MATH_MULTIPLY;
+  auto &flip_y_value_out = *node_find_socket(flip_y_mul, SOCK_OUT, "Vector");
+  auto &flip_y_value_in0 = *static_cast<bNodeSocket *>(BLI_findlink(&flip_y_mul.inputs, 0));
+  auto &flip_y_value_in1 = *static_cast<bNodeSocket *>(BLI_findlink(&flip_y_mul.inputs, 1));
+  flip_y_socket_ = static_cast<bNodeSocketValueVector *>(flip_y_value_in1.default_value);
+  flip_y_socket_->value[0] = 1.0f;
+  flip_y_socket_->value[1] = 1.0f;
+  flip_y_socket_->value[2] = 1.0f;
+
+  node_add_link(ntree, transform, transform_out, flip_y_mul, flip_y_value_in0);
+
+  bNode &rotate_x = *node_add_static_node(nullptr, ntree, SH_NODE_VECTOR_ROTATE);
+  rotate_x.custom1 = NODE_VECTOR_ROTATE_TYPE_AXIS_X;
+  auto &rotate_x_vector_in = *node_find_socket(rotate_x, SOCK_IN, "Vector");
+  auto &rotate_x_vector_angle = *node_find_socket(rotate_x, SOCK_IN, "Angle");
+  auto &rotate_x_out = *node_find_socket(rotate_x, SOCK_OUT, "Vector");
+  rotation_x_socket_ =
+      &static_cast<bNodeSocketValueFloat *>(rotate_x_vector_angle.default_value)->value;
+
+  node_add_link(ntree, flip_y_mul, flip_y_value_out, rotate_x, rotate_x_vector_in);
+
+  bNode &rotate_z = *node_add_static_node(nullptr, ntree, SH_NODE_VECTOR_ROTATE);
+  rotate_z.custom1 = NODE_VECTOR_ROTATE_TYPE_AXIS_Z;
+  auto &rotate_z_vector_in = *node_find_socket(rotate_z, SOCK_IN, "Vector");
+  auto &rotate_z_vector_angle = *node_find_socket(rotate_z, SOCK_IN, "Angle");
+  auto &rotate_z_out = *node_find_socket(rotate_z, SOCK_OUT, "Vector");
+  angle_socket_ = static_cast<bNodeSocketValueFloat *>(rotate_z_vector_angle.default_value);
+
+  node_add_link(ntree, rotate_x, rotate_x_out, rotate_z, rotate_z_vector_in);
+
+  /* Discard the previous processing if we are rendering light probes. */
+
+  bNode &light_path = *node_add_static_node(nullptr, ntree, SH_NODE_LIGHT_PATH);
+  bNodeSocket &is_camera_out = *node_find_socket(light_path, SOCK_OUT, "Is Camera Ray");
+
+  bNode &path_mix = *node_add_static_node(nullptr, ntree, SH_NODE_MIX);
+  NodeShaderMix &path_mix_data = *(NodeShaderMix *)path_mix.storage;
+  path_mix_data.data_type = SOCK_VECTOR;
+  path_mix_data.factor_mode = NODE_MIX_MODE_UNIFORM;
+  path_mix_data.clamp_factor = false;
+  auto &path_mix_out = *node_find_socket(path_mix, SOCK_OUT, "Result_Vector");
+  auto &path_mix_fac = *static_cast<bNodeSocket *>(BLI_findlink(&path_mix.inputs, 0));
+  auto &path_mix_in0 = *static_cast<bNodeSocket *>(BLI_findlink(&path_mix.inputs, 4));
+  auto &path_mix_in1 = *static_cast<bNodeSocket *>(BLI_findlink(&path_mix.inputs, 5));
+
+  node_add_link(ntree, light_path, is_camera_out, path_mix, path_mix_fac);
+  node_add_link(ntree, coordinate, generated_sock, path_mix, path_mix_in0);
+  node_add_link(ntree, rotate_z, rotate_z_out, path_mix, path_mix_in1);
 
   bNode &environment = *node_add_static_node(nullptr, ntree, SH_NODE_TEX_ENVIRONMENT);
   environment_node_ = &environment;
   NodeTexImage *environment_storage = static_cast<NodeTexImage *>(environment.storage);
-  bNodeSocket &environment_vector_in = *node_find_socket(environment, SOCK_IN, "Vector");
-  bNodeSocket &environment_out = *node_find_socket(environment, SOCK_OUT, "Color");
+  auto &environment_vector_in = *node_find_socket(environment, SOCK_IN, "Vector");
+  auto &environment_out = *node_find_socket(environment, SOCK_OUT, "Color");
+
+  node_add_link(ntree, path_mix, path_mix_out, environment, environment_vector_in);
 
   bNode &background = *node_add_static_node(nullptr, ntree, SH_NODE_BACKGROUND);
-  bNodeSocket &background_out = *node_find_socket(background, SOCK_OUT, "Background");
-  bNodeSocket &background_color_in = *node_find_socket(background, SOCK_IN, "Color");
+  auto &background_out = *node_find_socket(background, SOCK_OUT, "Background");
+  auto &background_color_in = *node_find_socket(background, SOCK_IN, "Color");
   intensity_socket_ = static_cast<bNodeSocketValueFloat *>(
       node_find_socket(background, SOCK_IN, "Strength")->default_value);
 
-  bNode &output = *node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
-  bNodeSocket &output_in = *node_find_socket(output, SOCK_IN, "Surface");
-
-  node_add_link(ntree, lightpath, is_camera_out, math_mul, value_in0);
-  node_add_link(ntree, math_mul, value_out, rotate, rotate_vector_angle);
-  node_add_link(ntree, coordinate, coordinate_out, rotate, rotate_vector_in);
-  node_add_link(ntree, rotate, rotate_out, xform, xform_in);
-  node_add_link(ntree, xform, xform_out, environment, environment_vector_in);
   node_add_link(ntree, environment, environment_out, background, background_color_in);
+
+  bNode &output = *node_add_static_node(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
+  auto &output_in = *node_find_socket(output, SOCK_IN, "Surface");
+
   node_add_link(ntree, background, background_out, output, output_in);
   node_set_active(ntree, output);
 
@@ -135,8 +170,20 @@ bool LookdevWorld::sync(const LookdevParameters &new_parameters)
       }
     }
 
-    *xform_socket_ = parameters_.camera_space ? SHD_VECT_TRANSFORM_SPACE_CAMERA :
-                                                SHD_VECT_TRANSFORM_SPACE_WORLD;
+    if (parameters_.camera_space) {
+      *xform_socket_ = SHD_VECT_TRANSFORM_SPACE_CAMERA;
+      flip_y_socket_->value[0] = 1.0f;
+      flip_y_socket_->value[1] = -1.0f;
+      flip_y_socket_->value[2] = 1.0f;
+      *rotation_x_socket_ = -M_PI / 2.0f;
+    }
+    else {
+      *xform_socket_ = SHD_VECT_TRANSFORM_SPACE_WORLD;
+      flip_y_socket_->value[0] = 1.0f;
+      flip_y_socket_->value[1] = 1.0f;
+      flip_y_socket_->value[2] = 1.0f;
+      *rotation_x_socket_ = 0.0f;
+    }
   }
 
   /* This isn't part of the main update check to avoid updating the probe capture.
