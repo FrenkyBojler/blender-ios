@@ -429,7 +429,6 @@ void VKTexture::update_sub(int mip,
         dst_ptr += dst_row_stride;
       }
     }
-    staging_buffer.flush();
   }
   else {
     BLI_assert(pixel_buffer);
