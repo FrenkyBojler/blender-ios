@@ -1343,7 +1343,8 @@ static bool rna_Function_use_self_type_get(PointerRNA *ptr)
 
 static bool rna_struct_is_publc(CollectionPropertyIterator * /*iter*/, void *data)
 {
-  StructRNA *srna = static_cast<StructRNA *>(data);
+  const StructRNA **srna_ptr_ptr = static_cast<const StructRNA **>(data);
+  const StructRNA *srna = *srna_ptr_ptr;
 
   return !(srna->flag & STRUCT_PUBLIC_NAMESPACE);
 }
@@ -1354,7 +1355,7 @@ static void rna_BlenderRNA_structs_begin(CollectionPropertyIterator *iter, Point
   rna_iterator_array_begin(iter,
                            ptr,
                            brna->structs.data(),
-                           sizeof(StructRNA **),
+                           sizeof(StructRNA *),
                            brna->structs.size(),
                            false,
                            rna_struct_is_publc);
@@ -3923,7 +3924,7 @@ void RNA_def_rna(BlenderRNA *brna)
                                     "rna_BlenderRNA_structs_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
-                                    "rna_iterator_array_get",
+                                    "rna_iterator_array_dereference_get",
 /* included for speed, can be removed */
 #  if 0
                                     nullptr,
