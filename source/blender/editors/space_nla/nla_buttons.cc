@@ -487,15 +487,15 @@ static void nla_panel_actclip(const bContext *C, Panel *panel)
     PointerRNA animated_id_ptr = RNA_id_pointer_create(&animated_id);
     action_col.context_ptr_set("animated_id", &animated_id_ptr);
     action_col.context_ptr_set("nla_strip", &strip_ptr);
-    uiTemplateSearch(&action_col,
-                     C,
-                     &strip_ptr,
-                     "action_slot",
-                     &strip_ptr,
-                     "action_suitable_slots",
-                     nullptr,
-                     "anim.slot_unassign_from_nla_strip",
-                     "Slot");
+    template_search(&action_col,
+                    C,
+                    &strip_ptr,
+                    "action_slot",
+                    &strip_ptr,
+                    "action_suitable_slots",
+                    nullptr,
+                    "anim.slot_unassign_from_nla_strip",
+                    "Slot");
   }
 
   /* action extents */
