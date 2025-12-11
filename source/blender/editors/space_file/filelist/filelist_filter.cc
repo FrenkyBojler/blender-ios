@@ -243,7 +243,7 @@ static void filelist_filter_and_sort_assets(FileList *filelist,
                                             FileListInternEntry **entries_to_filter,
                                             int entries_num)
 {
-  FileListFilter *filter = &filelist->filter_data;
+  const FileListFilter &filter = filelist->filter_data;
   if (filter->filter_search[0] == '\0') {
     /* No search text, just copy over the pre-filtered list. */
     if (filelist->filelist_intern.filtered) {
