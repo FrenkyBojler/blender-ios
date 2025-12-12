@@ -474,10 +474,20 @@ void VKTexture::update_sub(int mip,
   }
 
   VKDevice &device = VKBackend::get().device;
+  const bool needs_data_conversion = needs_conversion(format, format_, device_format_);
   const bool use_host_image_copy = !has_data_ && data != nullptr && allow_host_image_copy_ &&
-                                   unpack_row_length == 0 &&
-                                   !needs_conversion(format, format_, device_format_);
+                                   (unpack_row_length == 0 || !needs_data_conversion);
   if (use_host_image_copy) {
+    Vector<uint8_t> device_compatible_data;
+
+    /* Do conversion on CPU side. Allocating a staging buffer for these cases is less effective as
+     * it has overhead of the render graph, pipeline barriers and layout transitions. */
+    if (needs_data_conversion) {
+      device_compatible_data.resize(device_memory_size);
+      convert_host_to_device(
+          device_compatible_data.data(), data, sample_len, format, format_, device_format_);
+    }
+
     VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_single_bit(
         to_vk_image_aspect_flag_bits(device_format_), false);
     VkHostImageLayoutTransitionInfoEXT image_layout_transition = {
@@ -492,28 +502,28 @@ void VKTexture::update_sub(int mip,
     device.resources.update_image_layout(vk_image_handle(),
                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    /* When the whole extent is covered additional optimizations can happen in the driver as it
-     * will become a memcpy. */
-    int3 whole_extent;
-    mip_size_get(0, whole_extent);
-    whole_extent.y = max_ii(whole_extent.y, 1);
-    whole_extent.z = max_ii(whole_extent.z, 1);
-    bool covers_whole_extent = (extent == whole_extent) && (math::is_zero(offset));
-
     VkMemoryToImageCopyEXT vk_memory_to_image_copy = {
         VK_STRUCTURE_TYPE_MEMORY_TO_IMAGE_COPY_EXT,
         nullptr,
-        data,
+        device_compatible_data.is_empty() ? data : device_compatible_data.data(),
         unpack_row_length,
         0,
         {vk_image_aspects, uint32_t(mip), uint32_t(start_layer), uint32_t(layers)},
         {offset.x, offset.y, offset.z},
         {uint32_t(extent.x), uint32_t(extent.y), uint32_t(extent.z)}};
 
+    /* When the whole extent is covered additional optimizations can happen in the driver as it
+     * will become a memcpy. */
+    int3 whole_extent;
+    mip_size_get(0, whole_extent);
+    whole_extent.y = max_ii(whole_extent.y, 1);
+    whole_extent.z = max_ii(whole_extent.z, 1);
+    bool use_mem_copy = (extent == whole_extent) && (math::is_zero(offset));
+
     VkCopyMemoryToImageInfoEXT vk_copy_memory_to_image = {
         VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO_EXT,
         nullptr,
-        covers_whole_extent ? VK_HOST_IMAGE_COPY_MEMCPY_EXT : VkHostImageCopyFlagsEXT(0),
+        use_mem_copy ? VK_HOST_IMAGE_COPY_MEMCPY_EXT : VkHostImageCopyFlagsEXT(0),
         vk_image_handle(),
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         1,
