@@ -55,6 +55,9 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
     render_graph->reset();
     BLI_thread_queue_push(
         unused_render_graphs_, render_graph, BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL);
+    if (wait_for_completion) {
+      wait_for_timeline(timeline_value_);
+    }
     return timeline_value_;
   }
 

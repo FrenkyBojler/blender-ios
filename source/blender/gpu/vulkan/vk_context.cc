@@ -195,7 +195,11 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   return timeline;
 }
 
-void VKContext::finish() {}
+void VKContext::finish()
+{
+  flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
+                     RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
+}
 
 void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 {

@@ -598,6 +598,14 @@ void BlenderDisplayDriver::update_end()
 
   GPU_flush();
 
+  /* Vulkan backend renders asynchronously, meaning that the BlenderDisplayDriver cannot rely on
+   * the commands already being send to the GPU. Waiting to finish to solve issues.
+   *
+   * Ref: #145797 */
+  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_VULKAN)) {
+    GPU_finish();
+  }
+
   gpu_context_disable();
 }
 
