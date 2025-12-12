@@ -38,6 +38,3 @@ class DiskFileHashBackend(Protocol):
 
     def store_hash(self, filepath: Path, hash_algorithm: str, hash_info: FileHashInfo) -> None:
         """Store a pre-computed hash for the given file path."""
-
-    def remove_file(self, filepath: Path) -> None:
-        """Remove all information about this file."""

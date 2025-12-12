@@ -177,11 +177,6 @@ class SQLiteBackend:
                 },
             )
 
-    def remove_file(self, filepath: Path) -> None:
-        """Remove all information about this file."""
-        with self._transaction_rw() as db:
-            db.execute("DELETE FROM files WHERE path=?", (str(filepath),))
-
     def _now(self) -> datetime.datetime:
         """Current time, as UTC, in a timezone-aware object."""
         return datetime.datetime.now(tz=datetime.timezone.utc)

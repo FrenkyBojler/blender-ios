@@ -60,21 +60,6 @@ class SQLiteBackendTest(unittest.TestCase):
         assert hash_info is not None
         self.assertEqual(new_hash_info, hash_info)
 
-    def test_remove_file(self) -> None:
-        filepath = Path("path-does-not-matter.blend")
-
-        # Create an entry.
-        self.backend.store_hash(filepath, "sha256", types.FileHashInfo("hash-does-not-matter", 100, 47.327))
-        hash_info = self.backend.fetch_hash(filepath, "sha256")
-        self.assertIsNotNone(hash_info)
-
-        # Delete the entry.
-        self.backend.remove_file(filepath)
-
-        # Check it does not exist any more.
-        hash_info = self.backend.fetch_hash(filepath, "sha256")
-        self.assertIsNone(hash_info)
-
     def test_fetch_nonexistent_file(self) -> None:
         hash_info = self.backend.fetch_hash(Path("path-does-not-matter.blend"), "sha256")
         self.assertIsNone(hash_info, "A non-existent entry should be handled gracefully")
