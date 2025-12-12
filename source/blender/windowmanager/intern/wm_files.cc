@@ -97,6 +97,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -1357,6 +1358,11 @@ void wm_homefile_read_ex(bContext *C,
 
         skip_flags |= BLO_READ_SKIP_USERDEF;
       }
+    }
+    // Make the 'Save Modified Images' preference set itself to 'Ask Every Time' when blender
+    // starts up if the user has the auto-save preference off.
+    if (!(U.flag & USER_AUTOSAVE) && U.save_modified_images != USER_SAVE_MODIFIED_IMAGES_ASK) {
+      U.save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK;
     }
   }
 
@@ -3790,9 +3796,6 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     wm_exit_schedule_delayed(C);
   }
 
-  wmGenericCallback *action = MEM_callocN<wmGenericCallback>(__func__);
-  wm_save_modified_images_dialog(C, action);
-
   return OPERATOR_FINISHED;
 }
 
@@ -3892,12 +3895,30 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
     }
   }
 
+  // TODO: Organize all image saving code to its own function here! (It's kinda duped a lot of
+  // places in this code)
+  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (blendfile_path[0] != '\0') {
     if (BKE_main_needs_overwrite_confirm(CTX_data_main(C))) {
       wm_save_file_overwrite_dialog(C, op);
       ret = OPERATOR_INTERFACE;
     }
+    else if (modified_images_count > 0 && U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ASK)
+    {
+      wm_save_modified_images_dialog(C, op);
+      ret = OPERATOR_INTERFACE;
+    }
     else {
+      if (modified_images_count > 0 &&
+          U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ALWAYS &&
+          ED_image_should_save_modified(CTX_data_main(C)))
+      {
+        ReportList *reports = CTX_wm_reports(C);
+        ED_image_save_all_modified(C, reports);
+        if (CTX_wm_manager(C) && CTX_wm_window(C)) {
+          WM_report_banner_show(CTX_wm_manager(C), CTX_wm_window(C));
+        }
+      }
       ret = wm_save_as_mainfile_exec(C, op);
     }
   }
@@ -4586,7 +4607,7 @@ void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Close File Dialog - TODO: REMOVE THIS
+/** \name Close File Dialog
  * \{ */
 
 static char save_images_when_file_is_closed = true;
@@ -4942,27 +4963,6 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
 
 static char save_modified_images_when_file_is_saved = true;
 
-// TODO: This is a duplicate enum in this local space as a workaround for now. In the future, find
-// a better solution to populating the popup's dropdown.
-static const EnumPropertyItem save_modified_images_options[] = {
-    {USER_SAVE_MODIFIED_IMAGES_ASK,
-     "ASK",
-     0,
-     "Ask Every Time",
-     "Show dialog to save modified images when saving blend file"},
-    {USER_SAVE_MODIFIED_IMAGES_ALWAYS,
-     "ALWAYS_SAVE",
-     0,
-     "Always Save",
-     "Always save modified images when saving blend file"},
-    {USER_SAVE_MODIFIED_IMAGES_NEVER,
-     "NEVER_SAVE",
-     0,
-     "Never Save",
-     "Never save modified images when saving blend file"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 static void wm_block_save_modified_images_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -4978,15 +4978,41 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 
-  if (save_modified_images_when_file_is_saved) {
-    if (ED_image_should_save_modified(bmain)) {
-      ReportList *reports = CTX_wm_reports(C);
-      ED_image_save_all_modified(C, reports);
-      WM_report_banner_show(wm, win);
-    }
+  if (save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
+    ReportList *reports = CTX_wm_reports(C);
+    ED_image_save_all_modified(C, reports);
+    WM_report_banner_show(wm, win);
   }
 
-  callback->exec(C, callback->user_data);
+  bool file_has_been_saved_before = BKE_main_blendfile_path(bmain)[0] != '\0';
+
+  if (file_has_been_saved_before) {
+    if (bmain->has_forward_compatibility_issues || bmain->colorspace.is_missing_opencolorio_config)
+    {
+      /* Need to invoke to get the file-browser and choose where to save the new file.
+       * This also makes it impossible to keep on going with current operation, which is why
+       * callback cannot be executed anymore.
+       *
+       * This is the same situation as what happens when the file has never been saved before
+       * (outer `else` statement, below). */
+      WM_operator_name_call(C,
+                            "WM_OT_save_as_mainfile",
+                            blender::wm::OpCallContext::InvokeDefault,
+                            nullptr,
+                            nullptr);
+    }
+    else {
+      const wmOperatorStatus status = WM_operator_name_call(
+          C, "WM_OT_save_mainfile", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+      if (status & OPERATOR_CANCELLED) {
+      }
+    }
+  }
+  else {
+    WM_operator_name_call(
+        C, "WM_OT_save_mainfile", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+  }
+
   WM_generic_callback_free(callback);
 }
 
@@ -5025,51 +5051,40 @@ static void wm_block_save_modified_images_save_button(blender::ui::Block *block,
   button_flag_enable(but, blender::ui::BUT_ACTIVE_DEFAULT);
 }
 
-// TODO: Figure out why tooltip is broken here!
-// TODO: Figure out why this function is onery about being called without void *
-static void wm_block_save_modified_images_preference_menu(bContext *C,
+static void wm_block_save_modified_images_preference_menu(bContext * /*C*/,
                                                           blender::ui::Layout *layout,
-                                                          void * /* pointer */)
+                                                          void * /*pointer*/)
 {
   blender::ui::Block *block = layout->block();
 
-  /* The scene isn't expected to be null, check since it's not a requirement
-   * for the value to be non-null for this function to work.
-   * It's OK if `has_active_render` is false. */
-  Scene *scene = CTX_data_scene(C);
-
-  for (const EnumPropertyItem *item = save_modified_images_options; item->identifier != nullptr;
+  for (const EnumPropertyItem *item = rna_enum_save_modified_images_items;
+       item->identifier != nullptr;
        item++)
   {
-    // Set name based on item
-    char item_name[64];
-    STRNCPY_UTF8(item_name, item->name);
-    char saving_tooltip[64];
-    STRNCPY_UTF8(saving_tooltip, item->description);
-    char behavior = item->value;
+    char option = item->value;
     blender::ui::Button *but = uiDefIconTextBut(block,
                                                 blender::ui::ButtonType::ButMenu,
                                                 0,
-                                                item_name,
+                                                item->name,
                                                 0,
                                                 0,
                                                 UI_UNIT_X * 5,
                                                 UI_UNIT_X,
                                                 nullptr,
-                                                saving_tooltip);
-    button_retval_set(but, behavior);
-    button_func_set(but, [behavior](bContext & /*C*/) { U.save_modified_images = behavior; });
+                                                item->description);
+    button_retval_set(but, option);
+    button_func_set(but, [option](bContext & /*C*/) { U.save_modified_images = option; });
   }
 }
 
 static void wm_block_save_modified_images_preference_dropdown(blender::ui::Block *block,
-                                                              wmGenericCallback *post_action)
+                                                              wmGenericCallback * /*post_action*/)
 {
   blender::ui::Button *but = uiDefMenuBut(
       block,
       wm_block_save_modified_images_preference_menu,
       nullptr,
-      save_modified_images_options[U.save_modified_images].name,
+      rna_enum_save_modified_images_items[U.save_modified_images].name,
       0,
       0,
       UI_UNIT_X,
@@ -5080,9 +5095,9 @@ static void wm_block_save_modified_images_preference_dropdown(blender::ui::Block
 
 static const char *save_modified_images_dialog_name = "save_modified_images_popup";
 
-static blender::ui::Block *block_create__save_modified_images_dialog(bContext *C,
-                                                                     ARegion *region,
-                                                                     void *arg1)
+static blender::ui::Block *block_create_save_modified_images_dialog(bContext *C,
+                                                                    ARegion *region,
+                                                                    void *arg1)
 {
   using namespace blender;
   wmGenericCallback *post_action = (wmGenericCallback *)arg1;
@@ -5198,38 +5213,17 @@ static blender::ui::Block *block_create__save_modified_images_dialog(bContext *C
   return block;
 }
 
-void wm_save_modified_images_dialog(bContext *C, wmGenericCallback *post_action)
+void wm_save_modified_images_dialog(bContext *C, wmOperator *op)
 {
   if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), save_modified_images_dialog_name)) {
+    wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
+    callback->exec = nullptr;
+    callback->user_data = IDP_CopyProperty(op->properties);
+    callback->free_user_data = wm_free_operator_properties_callback;
+
     blender::ui::popup_block_invoke(
-        // TODO: Bring back forwards compatibility code in the popup...
-        C,
-        block_create__save_modified_images_dialog,
-        post_action,
-        free_post_file_close_action);
-  }
-  else {
-    WM_generic_callback_free(post_action);
+        C, block_create_save_modified_images_dialog, callback, free_post_file_close_action);
   }
 }
-
-// TODO: See where the close window equivalent is used and
-// bool wm_operator_image_save_dialog_if_needed(bContext *C,
-//                                              wmOperator *op,
-//                                              wmGenericCallbackFn post_action_fn)
-// {
-//   if (U.uiflag & USER_SAVE_PROMPT &&
-//       wm_file_or_session_data_has_unsaved_changes(CTX_data_main(C), CTX_wm_manager(C)))
-//   {
-//     wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
-//     callback->exec = post_action_fn;
-//     callback->user_data = IDP_CopyProperty(op->properties);
-//     callback->free_user_data = wm_free_operator_properties_callback;
-//     wm_image_save_dialog(C, callback);
-//     return true;
-//   }
-
-//   return false;
-// }
 
 /** \} */

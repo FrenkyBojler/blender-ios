@@ -174,6 +174,8 @@ DEF_ENUM(rna_enum_shading_type_items)
 
 DEF_ENUM(rna_enum_navigation_mode_items)
 
+DEF_ENUM(rna_enum_save_modified_images_items)
+
 DEF_ENUM(rna_enum_node_socket_in_out_items)
 DEF_ENUM(rna_enum_node_socket_type_items)
 
