@@ -59,7 +59,7 @@ struct LibraryRuntime {
    * Helper listing all archived libraries 'versions' of this library.
    * Should only contain something if this library is a regular 'real' blendfile library.
    */
-  blender::Vector<Library *> archived_libraries = {};
+  Vector<Library *> archived_libraries = {};
 
   /** #eLibrary_Tag. */
   ushort tag = 0;
@@ -71,14 +71,14 @@ struct LibraryRuntime {
   short versionfile = 0;
   short subversionfile = 0;
 
-  /* Colorspace information. */
+  /** Color-space information. */
   MainColorspace colorspace;
 };
 
 /**
  * Search for given absolute filepath in all libraries in given #ListBase.
  */
-Library *search_filepath_abs(ListBase *libraries, blender::StringRef filepath_abs);
+Library *search_filepath_abs(ListBase *libraries, StringRef filepath_abs);
 
 /**
  * Pack given linked ID, and all the related hierarchy.
@@ -97,7 +97,7 @@ void main_cleanup_parent_archives(Main &bmain);
  * `reference_library` and `id_deep_hash` parameters.
  *
  * \note Typically, both the `reference_library` and `id_deep_hash` are the same as the `id`
- * library and deephash, but in some cases they may still differ (see e.g.
+ * library and deep-hash, but in some cases they may still differ (see e.g.
  * #PartialWriteContext::ensure_library).
  *
  * \return the archive library. `is_new` is set to `true` if a new archive library had to be

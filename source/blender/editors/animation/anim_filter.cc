@@ -79,14 +79,13 @@
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "ED_anim_api.hh"
-#include "ED_markers.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
@@ -95,7 +94,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_armature.hh"
-#include "ANIM_bone_collections.hh"
 
 #include "anim_intern.hh"
 
@@ -1099,7 +1097,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
           return true;
         }
 
-        if ((strip->flag & SELECT) == 0) {
+        if ((strip->flag & SEQ_SELECT) == 0) {
           return true;
         }
       }
@@ -3953,7 +3951,7 @@ static size_t animdata_filter_remove_duplis(ListBase *anim_data)
 {
   /* Build new hash-table to efficiently store and retrieve which entries have been
    * encountered already while searching. */
-  blender::Set<const void *> gs;
+  Set<const void *> gs;
 
   /* loop through items, removing them from the list if a similar item occurs already */
   LISTBASE_FOREACH_MUTABLE (bAnimListElem *, ale, anim_data) {
