@@ -1306,11 +1306,6 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 
   BKE_previewimg_blend_write(writer, ntree->preview);
 
-<<<<<<< HEAD
-  if (!BLO_write_is_undo(writer)) {
-    for (const auto &item : ids_to_restore.items()) {
-      *item.key = item.value;
-=======
   /* Freeing temporary allocations needs to happen at the very end, because if we free after the
    * data is no longer needed, future allocations might be given the same address by the OS, which
    * will produce a corrupt blend file because multiple data use the same identifier/address in the
@@ -1318,7 +1313,9 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   if (!BLO_write_is_undo(writer)) {
     for (bNode *node : ntree->all_nodes()) {
       forward_compat::free_legacy_socket_storage(*node);
->>>>>>> main
+    }
+    for (const auto &item : ids_to_restore.items()) {
+      *item.key = item.value;
     }
   }
 }
