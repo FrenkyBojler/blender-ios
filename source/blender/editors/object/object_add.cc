@@ -3665,20 +3665,18 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
 static void grease_penci_separate_shapes_from_materials(bke::greasepencil::Drawing *drawing)
 {
   bke::CurvesGeometry &curves = drawing->strokes_for_write();
-  bke::SpanAttributeWriter<int> materials =
-      curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
-                                                                      bke::AttrDomain::Curve);
-  bke::SpanAttributeWriter<int> shape_id =
+  const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Curve, 0);
+  bke::SpanAttributeWriter<int> shape_ids =
       curves.attributes_for_write().lookup_or_add_for_write_span<int>("shape_id",
                                                                       bke::AttrDomain::Curve);
 
   for (const int curve_i : curves.curves_range()) {
-    shape_id.span[curve_i] = materials.span[curve_i] + 1;
+    shape_ids.span[curve_i] = materials[curve_i] + 1;
   }
+  shape_ids.finish();
 
   drawing->tag_topology_changed();
-
-  return;
 }
 
 static Object *convert_curves_to_grease_pencil(Base &base,
