@@ -93,8 +93,14 @@ def main():
         if sys.platform == "win32" and gpu_device == "INTEL" and gpu_backend == "OPENGL":
             # See #149084 for the tracking issue
             BLOCKLIST = ["test_workspace"]
+        if sys.platform == "linux" and gpu_device == "SOFTWARE" and gpu_backend == "VULKAN":
+            # See #151410 for the tracking issue
+            BLOCKLIST = ["test_sculpt", "test_tools", "test_undo", "test_workspace"]
         if sys.platform == "linux" and gpu_device == "INTEL" and gpu_backend == "VULKAN":
             # See #151410 for the tracking issue
+            BLOCKLIST = ["test_sculpt", "test_tools", "test_undo", "test_workspace"]
+        if sys.platform == "win32" and gpu_device == "AMD" and gpu_backend == "VULKAN":
+            # See #151411 for the tracking issue
             BLOCKLIST = ["test_sculpt", "test_tools", "test_undo", "test_workspace"]
         if sys.platform == "win32" and gpu_device == "AMD" and gpu_backend == "VULKAN":
             # See #151411 for the tracking issue

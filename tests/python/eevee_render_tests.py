@@ -59,7 +59,10 @@ BLOCKLIST_VULKAN = [
     # Blocked due to difference in screen space tracing (to be fixed).
     "sss_reflection_clamp.blend",
     # Blocked due to difference in screen space tracing (to be investigated).
-    "image.blend"
+    "image.blend",
+    # Blocked due to difference when fast GI is on and transmittance weight < 1.
+    # Progress tracked at: https://projects.blender.org/blender/blender/issues/151445
+    "principled_bsdf_transmission.blend"
 ]
 
 BLOCKLIST_INTEL = [
@@ -68,12 +71,6 @@ BLOCKLIST_INTEL = [
     "transparency_dithered.blend",
     # Blocked due to differences in shadow edges (to be investigated).
     "shadow_resolution_scale.blend"
-]
-
-BLOCKLIST_INTEL_VULKAN = [
-    # Blocked due to difference when fast GI is on and transmittance weight < 1.
-    # Progress tracked at: https://projects.blender.org/blender/blender/issues/151445
-    "principled_bsdf_transmission.blend"
 ]
 
 
@@ -239,8 +236,6 @@ def main():
     gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
     if gpu_vendor == "INTEL":
         blocklist += BLOCKLIST_INTEL
-    if gpu_vendor == "INTEL" and args.gpu_backend == "vulkan":
-        blocklist += BLOCKLIST_INTEL_VULKAN
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
