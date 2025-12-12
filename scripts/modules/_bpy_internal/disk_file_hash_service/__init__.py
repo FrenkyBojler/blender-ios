@@ -2,6 +2,16 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+"""Service for computing hashes of files on disk.
+
+The hashes are cached using a storage back-end (currently the SQLite back-end is
+the only available one). The back-end manages concurrent access, so that
+multiple Blender instances can use the same cache without conflict.
+
+Service instances are obtained via `get_service(storage_path)`. They are cached
+until a new blend file is loaded or Blender exits.
+"""
+
 __all__ = (
     'get_service',
 )
@@ -19,6 +29,7 @@ else:
     _DiskFileHashService = object
 
 
+# Mapping from storage path to the service.
 _services: dict[_Path, _DiskFileHashService] = {}
 
 
