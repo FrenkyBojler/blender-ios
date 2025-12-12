@@ -2,3 +2,4 @@ Referenced by issue #148300, Cannot interact with viewport behind region overlap
 Referenced by pull request #148455, Fix #148300: Cannot interact with viewport behind region overlap
 Referenced by commit d27dacfc54d368202f4c2252b1cd5ac291cde5fa, Fix #148300: Cannot interact with viewport behind region overlap
 Referenced by issue #148535, Tests: ui_test_undo.compositor_make_group fails on macOS
+Referenced by issue #150980, Drag and drop colour does not work if dropped in region of transparent side bar
