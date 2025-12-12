@@ -42,11 +42,6 @@ if(WITH_TBB)
   list(INSERT LIB 0 bf_blenkernel)
 endif()
 
-if(WITH_TBB_MALLOC_PROXY)
-  list(INSERT LIB 0 ${TBB_MALLOC_LIBRARIES})
-  list(INSERT LIB 0 ${TBB_MALLOC_PROXY_LIBRARIES})
-endif()
-
 if(WIN32)
   list(APPEND INC ../../intern/utfconv)
 endif()
