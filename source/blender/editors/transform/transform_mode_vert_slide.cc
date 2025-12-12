@@ -271,15 +271,16 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
         /* Don't recalculate the best edge. */
         const bool is_clamp = !(t->flag & T_ALT_TRANSFORM);
         if (is_clamp) {
-          const TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_OK(t);
-          VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
 
           const float2 delta = float2(event->mval) - t->mouse.imval;
 
           if (const std::optional<float3> dir3_opt = mouse_delta_to_world_dir(t, delta)) {
             const float3 &dir_unit = *dir3_opt;
-            sld->update_active_edges(t, tc, dir_unit);
-
+            /* Update the slide direction for every selected object. */
+            FOREACH_TRANS_DATA_CONTAINER (t, tc) {
+              VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
+              sld->update_active_edges(t, tc, dir_unit);
+            }
             if (slp->op) {
               if (PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction")) {
                 RNA_property_float_set_array(slp->op->ptr, pdir, &dir_unit.x);
