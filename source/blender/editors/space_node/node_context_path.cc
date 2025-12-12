@@ -21,7 +21,7 @@
 #include "RNA_prototypes.hh"
 
 #include "ED_node_c.hh"
-#include "ED_render.hh"
+// #include "ED_render.hh"
 #include "ED_screen.hh"
 
 #include "SEQ_modifier.hh"
@@ -131,16 +131,15 @@ static bool node_tree_has_group_node(const bNodeTree *ntree)
   return false;
 }
 
-static void navigate_menu_draw_fn(bContext * /*C*/, ui::Layout *layout, void *arg)
+static void navigate_menu_draw_fn(bContext *C, ui::Layout *layout, void * /*arg*/)
 {
-  bNodeTree *clicked_tree = static_cast<bNodeTree *>(arg);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  bNodeTree *clicked_tree = snode->edittree;
   if (!clicked_tree) {
     return;
   }
 
   Set<bNodeTree *> added_groups;
-
-  // ! 材质里顶层点击下拉菜单会崩
   for (bNode *node : clicked_tree->all_nodes()) {
     if (!node->is_group() || !node->id) {
       continue;
@@ -179,7 +178,6 @@ static void navigate_menu_draw_fn(bContext * /*C*/, ui::Layout *layout, void *ar
           navigate_through_history_path(region, snode, history_tail_path, clicked_tree);
         }
       }
-
       if (snode->edittree == clicked_tree) {
         activate_and_push_node_tree(region, snode, group, node);
         // WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
@@ -380,6 +378,9 @@ static std::function<void(bContext &)> tree_path_navigate_history(Span<bNodeTree
 
 static void context_path_add_history_trees(SpaceNode &snode, Vector<ui::ContextPathItem> &path)
 {
+  if (snode.runtime == nullptr) {
+    return;
+  }
   Vector<bNodeTree *> active_path_trees;
   LISTBASE_FOREACH (const bNodeTreePath *, path_item, &snode.treepath) {
     if (path_item->nodetree) {
@@ -434,7 +435,7 @@ static void context_path_add_history_trees(SpaceNode &snode, Vector<ui::ContextP
 Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
-  if (snode == nullptr || snode->runtime == nullptr) {
+  if (snode == nullptr) {
     return {};
   }
 
