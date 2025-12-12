@@ -155,6 +155,7 @@ def rna_idprop_ui_create(
 
     item.property_overridable_library_set(prop_path, overridable)
 
+
 def get_property_type(item, property_name):
 
     prop_value = item[property_name]

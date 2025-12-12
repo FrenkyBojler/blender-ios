@@ -44,8 +44,11 @@ class IDPropertyItem : public AbstractTreeViewItem {
   IDProperty *property_;
   int index_;
 
-  public:
-  IDPropertyItem(ID *id, IDProperty *property, int index) : id_(id), property_(property), index_(index) {}
+ public:
+  IDPropertyItem(ID *id, IDProperty *property, int index)
+      : id_(id), property_(property), index_(index)
+  {
+  }
 
   void build_row(ui::Layout &row) override
   {
@@ -60,8 +63,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   void on_activate(bContext &C) override
   {
-    PointerRNA id_ptr = RNA_pointer_create_discrete(
-        id_, &RNA_ID, id_);
+    PointerRNA id_ptr = RNA_pointer_create_discrete(id_, &RNA_ID, id_);
     PropertyRNA *prop = RNA_struct_find_property(&id_ptr, "idprop_active_index");
     RNA_property_int_set(&id_ptr, prop, index_);
     RNA_property_update(&C, &id_ptr, prop);
@@ -83,17 +85,15 @@ void IDPropertyView::build_tree()
 
 void template_tree(ui::Layout *layout, bContext *C, ID *id)
 {
-//   Object *ob = CTX_data_active_object(C);
-//   if (ob == nullptr) {
-//     return;
-//   }
+  //   Object *ob = CTX_data_active_object(C);
+  //   if (ob == nullptr) {
+  //     return;
+  //   }
 
   Block *block = layout->block();
 
   ui::AbstractTreeView *tree_view = block_add_view(
-      *block,
-      "Shape Key Tree View",
-      std::make_unique<IDPropertyView>(id));
+      *block, "Shape Key Tree View", std::make_unique<IDPropertyView>(id));
   tree_view->set_context_menu_title("ID Property");
   tree_view->set_default_rows(4);
 
