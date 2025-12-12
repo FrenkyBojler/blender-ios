@@ -64,6 +64,32 @@ class SQLiteBackendTest(unittest.TestCase):
         hash_info = self.backend.fetch_hash(Path("path-does-not-matter.blend"), "sha256")
         self.assertIsNone(hash_info, "A non-existent entry should be handled gracefully")
 
+    def test_store_multiple_hashes_and_sizes(self) -> None:
+        """Each cached hash should store the hashed file size as well."""
+        filepath = Path("path-does-not-matter.blend")
+        hash_info_1 = types.FileHashInfo(
+            hexhash="Hash for 100 bytes file + SHA256",
+            file_size_bytes=100,
+            file_stat_mtime=47,
+        )
+        hash_info_2 = types.FileHashInfo(
+            hexhash="Hash for 42 bytes file + SHA1",
+            file_size_bytes=42,
+            file_stat_mtime=327,
+        )
+
+        self.backend.store_hash(filepath, "sha256", hash_info_1)
+        self.backend.store_hash(filepath, "sha1", hash_info_2)
+
+        cached_info_1 = self.backend.fetch_hash(filepath, "sha256")
+        cached_info_2 = self.backend.fetch_hash(filepath, "sha1")
+
+        assert cached_info_1 is not None
+        assert cached_info_2 is not None
+
+        self.assertEqual(hash_info_1, cached_info_1)
+        self.assertEqual(hash_info_2, cached_info_2)
+
 
 class DiskFileHashServiceTest(unittest.TestCase):
     storagepath: Path
