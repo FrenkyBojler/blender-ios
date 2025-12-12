@@ -1178,7 +1178,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
-  // /* Check if the drag destination is inside the dragged collections.*/
+  /* Check if the drag destination is inside the dragged collections. */
   if (outliner_is_tree_element_in_collection(te, id)) {
     return false;
   }
