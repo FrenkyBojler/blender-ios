@@ -1418,8 +1418,11 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
    * So leave the buffer scaled up because there is no *guarantee* the fractional scaling support
    * will run which could result in an incorrect buffer scale. */
   int scale_fractional_from_output;
-  const int buffer_scale_from_output = outputs_uniform_scale_or_default(
-      system_->outputs_get(), 0, &scale_fractional_from_output);
+  int buffer_scale_from_output = 1;
+  if (system_->native_pixel_) {
+    buffer_scale_from_output = outputs_uniform_scale_or_default(
+        system_->outputs_get(), 0, &scale_fractional_from_output);
+  }
 
   window_->frame.size[0] = int32_t(width);
   window_->frame.size[1] = int32_t(height);
@@ -1942,11 +1945,6 @@ void GHOST_WindowWayland::clientToScreen(const int32_t inX,
 
 uint16_t GHOST_WindowWayland::getDPIHint()
 {
-  /* Early out if use of DPI scale is disabled. */
-  if (!system_->native_pixel_) {
-    return 96;
-  }
-
   /* No need to lock `server_mutex`
    * (`outputs_changed_update_scale` never changes values in a non-main thread). */
 
@@ -2240,6 +2238,10 @@ void GHOST_WindowWayland::outputs_changed_update_scale_tag()
 
 bool GHOST_WindowWayland::outputs_changed_update_scale()
 {
+  if (!system_->native_pixel_) {
+    return false;
+  }
+
 #ifdef USE_EVENT_BACKGROUND_THREAD
   if (system_->main_thread_id != std::this_thread::get_id()) {
     gwl_window_pending_actions_tag(window_, PENDING_OUTPUT_SCALE_UPDATE);
@@ -2252,12 +2254,6 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
   int scale_next = outputs_max_scale_or_default(outputs_get(), 0, &fractional_scale_from_output);
   if (UNLIKELY(scale_next == 0)) {
     return false;
-  }
-
-  if (!system_->native_pixel_) {
-    scale_next = 1;
-    window_->frame_pending.fractional_scale = 0;
-    window_->frame_pending.fractional_scale_preferred = 0;
   }
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
