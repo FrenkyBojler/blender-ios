@@ -5550,7 +5550,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "undomemory");
   RNA_def_property_range(prop, 0, max_memory_in_megabytes_int());
   RNA_def_property_ui_text(
-      prop, "Undo Memory Size", "Maximum memory usage in megabytes (0 means unlimited)");
+      prop, "Undo Memory Limit", "Maximum memory usage in megabytes (0 means unlimited)");
 
   prop = RNA_def_property(srna, "use_global_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_GLOBALUNDO);
