@@ -2297,62 +2297,6 @@ static void rna_LightLinking_collection_update(Main *bmain, Scene * /*scene*/, P
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
 }
 
-/* -------------------------------------------------------------------- */
-/** \name Lod Items (ListBase) - RNA Runtime Helpers
- * \{ */
-
-/* Begin iteration over Object.lod_items (ListBase) */
-// static void rna_Object_lod_items_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-// {
-//   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-//   if (ob == nullptr) {
-//     iter->valid = false;
-//     return;
-//   }
-
-//   /* parent must be stored first */
-//   iter->parent = *ptr;
-
-//   /* standard listbase iterator (skip callback = nullptr is fine) */
-//   rna_iterator_listbase_begin(iter, ptr, &ob->lod_items, nullptr);
-
-//   fprintf(stderr,
-//         "[LOD-RNA] begin(): ob=%p lod_items.first=%p lod_items.last=%p iter->ptr.data=%p\n",
-//         (void *)ob, (void *)ob->lod_items.first, (void *)ob->lod_items.last, iter->ptr.data);
-// }
-
-// static void rna_Object_lod_items_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-// {
-//   Object *ob = (Object *)ptr->owner_id;
-//   if (!ob) {
-//       iter->valid = false;
-//       return;
-//   }
-
-//   iter->parent = *ptr;
-
-//   rna_iterator_listbase_begin(iter, ptr, &ob->lod_items, nullptr);
-
-//   iter->ptr.type = &RNA_Lod;
-//   iter->valid = (iter->ptr.data != nullptr);
-
-//   fprintf(stderr,
-//           "[LOD-RNA] begin(): ob=%p lod_items.first=%p lod_items.last=%p iter->ptr.data=%p\n",
-//           ob, ob->lod_items.first, ob->lod_items.last, iter->ptr.data);
-// }
-
-// static void rna_Object_lod_items_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-// {
-//   Object *ob = (Object *)ptr->data;
-
-//   iter->parent = *ptr;
-
-//   rna_iterator_listbase_begin(iter, ptr, &ob->lod_items, nullptr);
-
-//   // fprintf(stderr,
-//   //     "[LOD-RNA] begin(): ob=%p first=%p iter->ptr.data=%p\n",
-//   //     ob, ob->lod_items.first, iter->ptr.data);
-// }
 static void rna_Object_lod_items_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->data;
@@ -2368,117 +2312,6 @@ static void rna_Object_lod_items_begin(CollectionPropertyIterator *iter, Pointer
   rna_iterator_listbase_begin(iter, ptr, lb, nullptr);
 }
 
-
-
-
-// TODO: --- Delete
-
-
-// /* Advance to next Lod in listbase */
-// static void rna_Object_lod_items_next(CollectionPropertyIterator *iter)
-// {
-//   rna_iterator_listbase_next(iter);
-// }
-
-// /* Finish iteration */
-// static void rna_Object_lod_items_end(CollectionPropertyIterator *iter)
-// {
-//   rna_iterator_listbase_end(iter);
-// }
-
-// --------------------
-
-/* Return PointerRNA for current element */
-// static PointerRNA rna_Object_lod_items_get(CollectionPropertyIterator *iter)
-// {
-//   /* get current element pointer via helper */
-//   void *elem = rna_iterator_listbase_get(iter);
-//   fprintf(stderr, "[LOD-RNA] get(): iter=%p elem=%p\n", (void *)iter, elem);
-//   if (elem == nullptr) {
-//     return PointerRNA_NULL;
-//   }
-//   /* ensure RNA type is set via parent pointer creation */
-//   return RNA_pointer_create_with_parent(iter->parent, &RNA_Lod, elem);
-// }
-
-// static PointerRNA rna_Object_lod_items_get(CollectionPropertyIterator *iter)
-// {
-//   void *elem = rna_iterator_listbase_get(iter);
-//   fprintf(stderr,"[LOD-RNA] get(): elem=%p\n", elem);
-
-//   if (!elem) {
-//     return PointerRNA_NULL;
-//   }
-
-//   return RNA_pointer_create_with_parent(iter->parent, &RNA_Lod, elem);
-// }
-
-// static PointerRNA rna_Object_lod_items_get(CollectionPropertyIterator *iter)
-// {
-//   if (iter->valid == false || iter->internal.listbase.link == nullptr) {
-//     return PointerRNA_NULL;
-//   }
-
-//   Lod *lod = (Lod *)iter->internal.listbase.link;
-//   return RNA_pointer_create_with_parent(iter->parent, &RNA_Lod, lod);
-// }
-
-
-
-/* Return number of elements in the list */
-// static int rna_Object_lod_items_length(PointerRNA *ptr)
-// {
-//   // if (DEG_is_evaluated(ob)) {
-//   //   return BKE_object_material_count_eval(ob);
-//   // }
-//   // else {
-//   //   return ob->totcol;
-//   // }
-
-//   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-//   if (ob == nullptr) {
-//     fprintf(stderr, "[LOD-RNA] length(): owner_id == NULL\n");
-//     return 0;
-//   }
-//   int count = BLI_listbase_count(&ob->lod_items);
-//   fprintf(stderr, "[LOD-RNA] length(): ob=%p, lod_items.first=%p, count=%d\n",
-//           (void *)ob, (void *)ob->lod_items.first, count);
-//   return count;
-// }
-
-// static int rna_Object_lod_items_length(PointerRNA *ptr)
-// {
-//   Object *ob = (Object *)ptr->owner_id;  // FIXED
-
-//   if (!ob) {
-//     return 0;
-//   }
-
-//   int count = BLI_listbase_count(&ob->lod_items);
-
-//   // Too noisy for debugging.
-//   fprintf(stderr,
-//           "[LOD-RNA] length(): ob=%p first=%p count=%d\n",
-//           ob, ob->lod_items.first, count);
-
-//   return count;
-// }
-
-// static int rna_Object_lod_items_length(PointerRNA *ptr)
-// {
-//     Object *ob = (Object *)ptr->data;   // FIXED
-
-//     if (!ob) {
-//         return 0;
-//     }
-
-//   fprintf(stderr,
-//           "[LOD-RNA] New length(): ob=%p first=%p count=%d\n",
-//           ob, ob->lod_items.first, BLI_listbase_count(&ob->lod_items));
-
-//     return BLI_listbase_count(&ob->lod_items);
-// }
-
 static int rna_Object_lod_items_length(PointerRNA *ptr)
 {
   if (ptr->data == nullptr) {
@@ -2488,129 +2321,6 @@ static int rna_Object_lod_items_length(PointerRNA *ptr)
   Object *ob = (Object *)ptr->data;
   return BLI_listbase_count(&ob->lod_items);
 }
-
-// static bool rna_Object_lod_items_lookup_int(PointerRNA *ptr, int index, PointerRNA *ptr_)
-// {
-//     Object *ob = (Object *)ptr->data;
-//     BLI_findlink(&ob->lod_items, index);
-//     return true;
-// }
-
-
-
-
-
-
-// -- Custom Get/Set
-
-// // TODO(Tri): Replace RNA_def_property_pointer_sdna(prop, nullptr, "target"), 
-// // RNA_def_property_float_sdna(prop, nullptr, "distance") with:
-// // static void rna_Lod_target_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
-// // {
-// //   Lod *lod = (Lod *)ptr->data;
-// //   Object *new_ob = static_cast<Object *>(value.data);
-// //   fprintf(stderr,
-// //           "[LOD-RNA] target_set(): lod=%p old_target=%p new_target=%p\n",
-// //           (void *)lod, (void *)lod->target, (void *)new_ob);
-
-// //   if (new_ob == lod->target) {
-// //     fprintf(stderr, "[LOD-RNA] target_set(): same, no-op\n");
-// //     return;
-// //   }
-// //   // !!!: Manual user count; Use without `PROP_ID_REFCOUNT`
-// //   // if (lod->target) {
-// //   //   id_us_min(reinterpret_cast<ID *>(lod->target));
-// //   //   fprintf(stderr, "[LOD-RNA] target_set(): decref old target %p\n", (void *)lod->target);
-// //   // }
-// //   // if (new_ob) {
-// //   //   id_us_plus(reinterpret_cast<ID *>(new_ob));
-// //   //   fprintf(stderr, "[LOD-RNA] target_set(): incref new target %p\n", (void *)new_ob);
-// //   // }
-
-// //   lod->target = new_ob;
-
-// //   // BKE_report(reports,
-// //   //       RPT_ERROR,
-// //   //       "----------------------- "
-// //   //       "LOD Object Assignation; rna_Lod_target_set()");
-// //   fprintf(stderr,
-// //           "[LOD-RNA] target_set(): ptr->data=%p lod=%p\n",
-// //           ptr->data, lod);
-// // }
-
-// static void rna_Lod_target_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
-// {
-//   /* Silence unused param warning if you don't use reports here. */
-//   (void)reports;
-
-//   Lod *lod = static_cast<Lod *>(ptr->data);
-//   /* ptr->owner_id is an ID*; cast it to Object*. Use reinterpret_cast here. */
-//   Object *self_ob = reinterpret_cast<Object *>(ptr->owner_id);
-//   Object *new_ob = static_cast<Object *>(value.data);
-//   Object *old_ob = lod->target;
-
-//   fprintf(stderr,
-//           "[LOD-RNA] target_set(): lod=%p old_target=%p new_target=%p\n",
-//           (void *)lod, (void *)old_ob, (void *)new_ob);
-
-//   if (old_ob == new_ob) {
-//     fprintf(stderr, "[LOD-RNA] target_set(): same, returning\n");
-//     return;
-//   }
-
-//   /* Manual refcounting because this property is handled by a custom setter.
-//    * Make sure you removed PROP_ID_REFCOUNT from the property flags. */
-//   if (old_ob) {
-//     id_us_min(reinterpret_cast<ID *>(old_ob));
-//     fprintf(stderr, "[LOD-RNA] target_set(): decref old target %p\n", (void *)old_ob);
-//   }
-//   if (new_ob) {
-//     id_us_plus(reinterpret_cast<ID *>(new_ob));
-//     fprintf(stderr, "[LOD-RNA] target_set(): incref new target %p\n", (void *)new_ob);
-//   }
-
-//   lod->target = new_ob;
-
-//   /* Notify parent object (if any). */
-//   if (self_ob) {
-//     DEG_id_tag_update(&self_ob->id, ID_RECALC_GEOMETRY);
-//     WM_main_add_notifier(NC_OBJECT | ND_DRAW, self_ob);
-//   }
-
-//   fprintf(stderr, "[LOD-RNA] target_set(): done, lod=%p owner_id=%p\n",
-//           (void *)lod, (void *)ptr->owner_id);
-// }
-
-
-
-// // TODO: Add a print debug
-// static PointerRNA rna_Lod_target_get(PointerRNA *ptr)
-// {
-//   Lod *lod = static_cast<Lod *>(ptr->data);
-
-//   if (!lod->target) {
-//     fprintf(stderr, "[LOD-RNA] target_get(): lod=%p -> NULL\n", (void *)lod);
-//     return PointerRNA_NULL;
-//   }
-
-//   fprintf(stderr, "[LOD-RNA] target_get(): lod=%p -> target=%p\n", (void *)lod, (void *)lod->target);
-
-//   return RNA_pointer_create_with_parent(
-//       *ptr,                   /* parent pointer */
-//       &RNA_Object,            /* RNA type of target */
-//       lod->target             /* actual data pointer */
-//   );
-// }
-
-
-// static bool rna_Object_lod_override_apply(Main *bmain,
-//                                              RNAPropertyOverrideApplyContext &rnaapply_ctx)
-// {
-//   // fprintf(stderr"Implement me if necessary :)")
-//   return true;
-// }
-
-/** \} */
 
 #else
 
@@ -2680,7 +2390,7 @@ static void rna_def_vertex_group(BlenderRNA *brna)
   RNA_def_function_return(func, parm);
 }
 
-// TODO: Summarize
+// TODO(Tri): Summarize
 static void rna_def_lod(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2709,7 +2419,6 @@ static void rna_def_lod(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  // RNA_def_property_srna(cprop, "Lod");
   /* LOD RNA struct */ 
   StructRNA *srna_lod = RNA_def_struct(brna, "Lod", nullptr);
   RNA_def_struct_sdna(srna_lod, "Lod");
@@ -2717,23 +2426,6 @@ static void rna_def_lod(BlenderRNA *brna)
   // RNA_def_property_flag(srna_lod, PROP_EDITABLE); // !!!: candidate function not viable: no known conversion from 'StructRNA *' to 'PropertyRNA *' for 1st argument
 
   /* LOD target prop */
-/*
-  prop = RNA_def_property(srna_lod, "target", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_funcs(
-    prop,
-    nullptr,                // get
-    "rna_Lod_target_set",   // set
-    nullptr,
-    nullptr);
-  // RNA_def_property_pointer_sdna(prop, nullptr, "target");
-  RNA_def_property_struct_type(prop, "Object");
-  // RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
-  RNA_def_property_flag(prop, PROP_EDITABLE); // !!!
-  RNA_def_property_override_funcs(prop, nullptr, nullptr, "rna_Object_lod_override_apply");
-  RNA_def_property_ui_text(prop, "Target", "Object to swap to at this distance");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
-*/
-
   prop = RNA_def_property(srna_lod, "target", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "target");
   RNA_def_property_struct_type(prop, "Object"); // lod target is an object
@@ -2749,10 +2441,6 @@ static void rna_def_lod(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_text(prop, "Distance", "Camera distance to trigger swap");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
-
-  // !!!: Err | ERROR "Lod.index", type is not pointer. | rna_define.cc:3860 RNA_def_property_pointer_funcs
-  // RNA_def_property_pointer_funcs(
-  //   prop, "rna_Lod_target_get", "rna_Lod_target_set", nullptr, nullptr);
 }
 
 static void rna_def_material_slot(BlenderRNA *brna)
@@ -3363,27 +3051,13 @@ static void rna_def_object(BlenderRNA *brna)
 
   RNA_define_lib_overridable(true);
 
-  /* --- Object.lod_items collection ---------------------------------------- */
+  /* Object.lod_items collection */
   prop = RNA_def_property(srna, "lod_items", PROP_COLLECTION, PROP_NONE);
-  // !!!: Wrong!?
   RNA_def_property_collection_sdna(prop, nullptr, "lod_items", nullptr);
-
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  // RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT); // ListBase collections cannot safely support PROP_ID_REFCOUNT
-  // RNA_def_property_collection_sdna(prop, "Object", "lod_items", nullptr);
   RNA_def_property_struct_type(prop, "Lod");
   RNA_def_property_ui_text(prop, "LOD Items", "List of LOD entries");
 
-  /* Register the iterator/get/add/remove/len functions */
-  // RNA_def_property_collection_funcs(prop,
-  //                                 "rna_Object_lod_items_begin",
-  //                                 "rna_Object_lod_items_next",
-  //                                 "rna_Object_lod_items_end",
-  //                                 "rna_Object_lod_items_get",
-  //                                 "rna_Object_lod_items_length",
-  //                                 nullptr,  // lookup_int
-  //                                 nullptr,  // lookup_string
-  //                                 nullptr);
   RNA_def_property_collection_funcs(prop,
     "rna_Object_lod_items_begin", // rna_Object_lod_items_begin, rna_iterator_listbase_begin
     "rna_iterator_listbase_next",
@@ -3392,7 +3066,6 @@ static void rna_def_object(BlenderRNA *brna)
     "rna_Object_lod_items_length", // rna_Object_lod_items_length
     nullptr, // rna_Object_lod_items_lookup_int
     nullptr, nullptr);
-
 
   /* Active LOD index */
   prop = RNA_def_property(srna, "act_lod", PROP_INT, PROP_UNSIGNED);
@@ -3438,7 +3111,6 @@ static void rna_def_object(BlenderRNA *brna)
       "Bounding Box",
       "Object's bounding box in object-space coordinates, all values are -1.0 when "
       "not available");
-
 
   /* parent */
   prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
@@ -4247,7 +3919,6 @@ static void rna_def_object_light_linking(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
-// TODO(Tri): Update with `rna_def_lod`
 void RNA_def_object(BlenderRNA *brna)
 {
   rna_def_object(brna);
