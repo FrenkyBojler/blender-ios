@@ -22,12 +22,13 @@
 #include "gpu_shader_msl_string.msl"
 #include "gpu_shader_msl_types.msl"
 #include "gpu_shader_msl_types_legacy.msl"
-/* Wrapper needs to be last. */
-#include "gpu_shader_msl_wrapper.msl"
 
 /* Suppress unhelpful shader compiler warnings. */
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wcomment"
+
+/* Wrapper needs to be last. */
+#include "gpu_shader_msl_wrapper.msl"
 
 /* Array syntax compatibility. */
 /* clang-format off */
@@ -99,6 +100,9 @@
 #define _out_end )
 #define _inout_sta (&
 #define _inout_end )
+/* References (inout and out).
+ * Less verbose that the above for reading processed code. */
+#define _ref(_type, _var) thread _type(&_var)
 
 #define shared threadgroup
 #define _shared_sta (&

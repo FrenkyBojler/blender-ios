@@ -121,12 +121,6 @@ static CLG_LogRef LOG = {"ui.handler"};
  * \{ */
 
 /**
- * The buffer side used for password strings, where the password is stored internally,
- * but not displayed.
- */
-#define UI_MAX_PASSWORD_STR 128
-
-/**
  * This is a lower limit on the soft minimum of the range.
  * Usually the derived lower limit from the visible precision is higher,
  * so this number is the backup minimum.
@@ -3002,9 +2996,7 @@ static int ui_text_position_to_hidden(Button *but, int pos)
   return BLI_strnlen_utf8(butstr, pos);
 }
 
-void button_text_password_hide(char password_str[UI_MAX_PASSWORD_STR],
-                               Button *but,
-                               const bool restore)
+void button_text_password_hide(std::string &password_str, Button *but, const bool restore)
 {
   if (!(but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_PASSWORD)) {
     return;
@@ -3014,7 +3006,7 @@ void button_text_password_hide(char password_str[UI_MAX_PASSWORD_STR],
 
   if (restore) {
     /* restore original string */
-    BLI_strncpy(butstr, password_str, UI_MAX_PASSWORD_STR);
+    memcpy(butstr, password_str.data(), password_str.length() + 1);
 
     /* remap cursor positions */
     if (but->pos >= 0) {
@@ -3035,7 +3027,7 @@ void button_text_password_hide(char password_str[UI_MAX_PASSWORD_STR],
     }
 
     /* save original string */
-    BLI_strncpy(password_str, butstr, UI_MAX_PASSWORD_STR);
+    password_str = butstr;
     memset(butstr, '*', len);
     butstr[len] = '\0';
   }
@@ -3139,7 +3131,7 @@ static void ui_textedit_set_cursor_pos(Button *but, const ARegion *region, const
 
   float startx = but->rect.xmin;
   float starty_dummy = 0.0f;
-  char password_str[UI_MAX_PASSWORD_STR];
+  std::string password_str;
   /* treat 'str_last' as null terminator for str, no need to modify in-place */
   const char *str = but->editstr, *str_last;
 
@@ -9994,20 +9986,10 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
   return retval;
 }
 
-static int ui_list_get_increment(const uiList *ui_list, const int type, const int columns)
+static int ui_list_get_increment(const uiList *ui_list, const int type)
 {
-  int increment = 0;
-
-  /* Handle column offsets for grid layouts. */
-  if (ELEM(type, EVT_UPARROWKEY, EVT_DOWNARROWKEY) &&
-      ELEM(ui_list->layout_type, UILST_LAYOUT_BIG_PREVIEW_GRID))
-  {
-    increment = (type == EVT_UPARROWKEY) ? -columns : columns;
-  }
-  else {
-    /* Left or right in grid layouts or any direction in single column layouts increments by 1. */
-    increment = ELEM(type, EVT_UPARROWKEY, EVT_LEFTARROWKEY, WHEELUPMOUSE) ? -1 : 1;
-  }
+  /* Left or right in grid layouts or any direction in single column layouts increments by 1. */
+  int increment = ELEM(type, EVT_UPARROWKEY, EVT_LEFTARROWKEY, WHEELUPMOUSE) ? -1 : 1;
 
   if ((ui_list->filter_sort_flag & UILST_FLT_SORT_REVERSE) != 0) {
     increment *= -1;
@@ -10061,7 +10043,7 @@ static int ui_handle_list_event(bContext *C,
       int value, min, max;
 
       value = value_orig;
-      const int inc = ui_list_get_increment(ui_list, type, dyn_data->columns);
+      const int inc = ui_list_get_increment(ui_list, type);
 
       if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
         /* If we have a display order different from
