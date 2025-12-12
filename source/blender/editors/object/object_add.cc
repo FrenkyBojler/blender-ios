@@ -3678,8 +3678,6 @@ static void grease_penci_separate_shapes_from_materials(bke::greasepencil::Drawi
 
   shape_ids.finish();
   drawing->tag_topology_changed();
-
-  return;
 }
 
 static Object *convert_curves_to_grease_pencil(Base &base,
