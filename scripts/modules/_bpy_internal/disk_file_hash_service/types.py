@@ -38,3 +38,16 @@ class DiskFileHashBackend(Protocol):
 
     def store_hash(self, filepath: Path, hash_algorithm: str, hash_info: FileHashInfo) -> None:
         """Store a pre-computed hash for the given file path."""
+
+    def mark_hash_as_fresh(self, filepath: Path, hash_algorithm: str) -> None:
+        """Store that the hash is still considered 'fresh'.
+
+        See `remove_older_than()`.
+        """
+
+    def remove_older_than(self, *, days: int) -> None:
+        """Remove all hash entries that are older than this many days.
+
+        When this removes all known hashes for a file, the file entry itself is
+        also removed.
+        """

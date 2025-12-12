@@ -175,6 +175,41 @@ class SQLiteBackend:
                 },
             )
 
+    def mark_hash_as_fresh(self, filepath: Path, hash_algorithm: str) -> None:
+        """Store that the hash is still considered 'fresh'.
+
+        See `remove_older_than()`.
+        """
+
+        now = self._now_string()
+        with self._transaction_rw() as db:
+            db.execute(
+                "UPDATE hashes SET last_checked=? " +
+                "WHERE file_id = (SELECT file_id FROM files WHERE path=?) AND hash_algo=?",
+                (now, str(filepath), hash_algorithm))
+
+    def remove_older_than(self, *, days: int) -> None:
+        """Remove all hash entries that are older than this many days.
+
+        When this removes all known hashes for a file, the file entry itself is
+        also removed.
+        """
+        older_than = self._now() - datetime.timedelta(days=days)
+
+        with self._transaction_rw() as db:
+            # Delete all old hashes.
+            db.execute("DELETE FROM hashes WHERE last_checked<?",
+                       (older_than.isoformat(),))
+
+            # Delete file entries for which there are no hashes known.
+            db.execute(
+                "DELETE FROM files WHERE file_id IN (" +
+                "SELECT f.file_id FROM files f " +
+                "LEFT JOIN hashes h USING (file_id) " +
+                "GROUP BY f.file_id "
+                "HAVING count(h.file_id) == 0" +
+                ")")
+
     def _now(self) -> datetime.datetime:
         """Current time, as UTC, in a timezone-aware object."""
         return datetime.datetime.now(tz=datetime.timezone.utc)

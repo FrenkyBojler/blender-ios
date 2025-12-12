@@ -11,6 +11,7 @@ __all__ = (
 )
 
 import os
+import datetime
 import unittest
 from pathlib import Path
 
@@ -90,11 +91,77 @@ class SQLiteBackendTest(unittest.TestCase):
         self.assertEqual(hash_info_1, cached_info_1)
         self.assertEqual(hash_info_2, cached_info_2)
 
+    def test_mark_as_fresh(self) -> None:
+        # Monkeypatch the backend so that it thinks it's the past, so that the hash we store is back-dated.
+        orig_now = self.backend._now
+        self.backend._now = lambda: datetime.datetime(
+            year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=datetime.timezone.utc)
+
+        filepath = Path("old-file.blend")
+        fake_hash_info = types.FileHashInfo(
+            hexhash="fake hash",
+            file_size_bytes=100,
+            file_stat_mtime=47.327,
+        )
+        self.backend.store_hash(filepath, "sha256", fake_hash_info)
+
+        # Restore the 'now' function for the backend.
+        self.backend._now = orig_now
+
+        # Mark the hash as 'fresh'.
+        self.backend.mark_hash_as_fresh(filepath, "sha256")
+
+        # Remove outdated hashes, which shouldn't do anything.
+        self.backend.remove_older_than(days=5)
+
+        # The old-but-refreshed hash should still be there.
+        cached_hash_info = self.backend.fetch_hash(filepath, "sha256")
+        self.assertEqual(fake_hash_info, cached_hash_info)
+
+    def test_remove_older_than(self) -> None:
+        # Monkeypatch the backend so that it thinks it's the past, so that the hash we store is back-dated.
+        orig_now = self.backend._now
+        self.backend._now = lambda: datetime.datetime(
+            year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=datetime.timezone.utc)
+
+        filepath_old = Path("old-file.blend")
+        fake_hash_info = types.FileHashInfo(
+            hexhash="fake hash",
+            file_size_bytes=100,
+            file_stat_mtime=47.327,
+        )
+        self.backend.store_hash(filepath_old, "sha256", fake_hash_info)
+
+        # Restore the 'now' function for the backend.
+        self.backend._now = orig_now
+
+        # Store another file path, which shouldn't be outdated.
+        filepath_new = Path("new-file.blend")
+        self.backend.store_hash(filepath_new, "sha256", fake_hash_info)
+
+        # Remove outdated hashes.
+        self.backend.remove_older_than(days=5)
+
+        # The old hash should be gone.
+        cached_hash_info = self.backend.fetch_hash(filepath_old, "sha256")
+        self.assertIsNone(cached_hash_info, "The cached hash should have been removed")
+
+        # The new hash should still be there.
+        cached_hash_info = self.backend.fetch_hash(filepath_new, "sha256")
+        self.assertEqual(fake_hash_info, cached_hash_info)
+
+        # The file entry itself should also have been removed.
+        with self.backend._transaction_ro() as db:
+            cursor = db.execute("SELECT * FROM files")
+            all_files = cursor.fetchall()
+            file_id = 2  # The 2nd inserted file should still be there.
+            self.assertEqual([(file_id, str(filepath_new))], all_files)
+
 
 class DiskFileHashServiceTest(unittest.TestCase):
     storagepath: Path
     filepath: Path
-    backend: types.DiskFileHashBackend
+    backend: backend_sqlite.SQLiteBackend
     service: hash_service.DiskFileHashService
 
     def setUp(self) -> None:
@@ -172,6 +239,37 @@ class DiskFileHashServiceTest(unittest.TestCase):
         assert backend_info is not None
         self.assertEqual("43231d711ce5992cd9090ffa5cbb8779148e291bc1472353cdeebd040bef0b93", backend_info.hexhash)
 
+    def test_cleanup_on_close(self) -> None:
+        # Monkeypatch the backend so that it thinks it's the past, so that the hash we store is back-dated.
+        orig_now = self.backend._now
+        self.backend._now = lambda: datetime.datetime(
+            year=2024, month=1, day=1, hour=0, minute=0, second=0, tzinfo=datetime.timezone.utc)
+
+        filepath = Path("old-file.blend")
+        fake_hash_info = types.FileHashInfo(
+            hexhash="fake hash",
+            file_size_bytes=100,
+            file_stat_mtime=47.327,
+        )
+        self.backend.store_hash(filepath, "sha256", fake_hash_info)
+
+        # Restore the 'now' function for the backend.
+        self.backend._now = orig_now
+
+        # Close the service. This should remove outdated hashes.
+        self.service.close()
+
+        # The old hash should have been removed. We have to create a new backend
+        # to test this, because the old backend has been closed already by
+        # closing the service.
+        new_backend = backend_sqlite.SQLiteBackend(self.storagepath)
+        new_backend.open()
+        try:
+            cached_hash_info = new_backend.fetch_hash(filepath, "sha256")
+            self.assertIsNone(cached_hash_info)
+        finally:
+            new_backend.close()
+
 
 class DiskFileHashServiceNotOpeningTest(unittest.TestCase):
     """Contrary to the above test case, this one doesn't auto-open the service for each test."""
@@ -196,6 +294,12 @@ class DiskFileHashServiceNotOpeningTest(unittest.TestCase):
 
     def test_closing_unopened_service(self) -> None:
         """A service that was never opened should still be closable."""
+        self.service.close()
+
+    def test_doubly_closing(self) -> None:
+        """A service that has been opened should be closable twice."""
+        self.service.open()
+        self.service.close()
         self.service.close()
 
 
