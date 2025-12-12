@@ -1210,10 +1210,11 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   BKE_id_blend_write(writer, &ntree->id);
   BLO_write_string(writer, ntree->description);
 
-  Map<ID **, ID *> r_ids_to_restore;
+  /* Restore IDs overridden for forward compatibility. Otherwise their user count becomes wrong. */
+  Map<ID **, ID *> ids_to_restore;
   if (!BLO_write_is_undo(writer)) {
     forward_compat::update_node_location_legacy(*ntree);
-    forward_compat::write_legacy_properties(*ntree, r_ids_to_restore);
+    forward_compat::write_legacy_properties(*ntree, ids_to_restore);
   }
 
   for (bNode *node : ntree->all_nodes()) {
@@ -1272,7 +1273,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   BKE_previewimg_blend_write(writer, ntree->preview);
 
   if (!BLO_write_is_undo(writer)) {
-    for (const auto &item : r_ids_to_restore.items()) {
+    for (const auto &item : ids_to_restore.items()) {
       *item.key = item.value;
     }
   }
