@@ -565,6 +565,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
       }
     }
+    FOREACH_NODETREE_END;
   }
 
   /**
