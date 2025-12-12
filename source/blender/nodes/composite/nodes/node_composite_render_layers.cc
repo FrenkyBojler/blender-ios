@@ -441,6 +441,7 @@ static void register_node()
   ntype.draw_buttons = node_draw;
   ntype.get_compositor_operation = get_compositor_operation;
   ntype.get_extra_info = node_extra_info;
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
 
   blender::bke::node_register_type(ntype);
 }
