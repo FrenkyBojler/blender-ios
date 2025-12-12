@@ -20,6 +20,7 @@ from . import types
 DB_TIMEOUT_MSEC = 5000  # SQLite busy timeout in milliseconds.
 DB_SCHEMA_VERSION = 1
 CREATE_SCHEMA_V1 = """
+BEGIN EXCLUSIVE;
 CREATE TABLE IF NOT EXISTS files (
     file_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     path TEXT NOT NULL,
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS hashes (
     PRIMARY KEY(file_id, hash_algo)
     FOREIGN KEY(file_id) REFERENCES files(file_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+COMMIT;
 """
 
 # Set to True to print all SQL queries.
@@ -71,33 +73,38 @@ class SQLiteBackend:
 
         self.dbfile_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Connect to the database. I (Sybren) am not sure whether the timeout to
-        # `sqlite3.connect()` actually applies, as typically SQLite only checks
-        # for locked databases when a transaction is started (either implicitly
-        # or explicitly).
-        self.db_conn_rw = sqlite3.connect(self.dbfile_path, timeout=DB_TIMEOUT_MSEC / 1000)
-
+        # Open a read-write connection.
+        self.db_conn_rw = sqlite3.connect(self.dbfile_path, timeout=DB_TIMEOUT_MSEC / 1000, isolation_level=None)
+        # TODO: in Python version 3.12+, uncomment the following line instead of setting the isolation level:
+        # self.db_conn_rw.autocommit = False
         if _DEBUG_QUERIES:
             def callback_rw(query: str) -> None:
+                query = query.replace("\n", "\n    ")
                 print(f"SQL/\033[95mRW: {query}\033[0m")
             self.db_conn_rw.set_trace_callback(callback_rw)
         self._execute_pragmas_on_connect(self.db_conn_rw)
 
+        # Open a read-only connection.
+        uri = self.dbfile_path.as_uri() + "?mode=ro"
+        self.db_conn_ro = sqlite3.connect(uri, uri=True, timeout=DB_TIMEOUT_MSEC / 1000, isolation_level=None)
+        # TODO: in Python version 3.12+, uncomment the following line instead of setting the isolation level:
+        # self.db_conn_ro.autocommit = False
+        if _DEBUG_QUERIES:
+            def callback_ro(query: str) -> None:
+                query = query.replace("\n", "\n    ")
+                print(f"SQL/\033[96mRO: {query}\033[0m")
+            self.db_conn_ro.set_trace_callback(callback_ro)
+        self._execute_pragmas_on_connect(self.db_conn_ro)
+
         # Assumption: if the table exists, it should be in the right shape. If
         # that's not the case, the DB_SCHEMA_VERSION class variable should have
         # been incremented, and we'd be accessing another database file.
-        with self._transaction_rw() as db_conn:
-            db_conn.executescript(CREATE_SCHEMA_V1)
-
-        # After the database is set up, open another connection that's read-only.
-        uri = self.dbfile_path.as_uri() + "?mode=ro"
-        self.db_conn_ro = sqlite3.connect(uri, uri=True, timeout=DB_TIMEOUT_MSEC / 1000)
-
-        if _DEBUG_QUERIES:
-            def callback_ro(query: str) -> None:
-                print(f"SQL/\033[96mRO: {query}\033[0m")
-            self.db_conn_rw.set_trace_callback(callback_ro)
-        self._execute_pragmas_on_connect(self.db_conn_ro)
+        #
+        # This does not use our _transaction_rw() function, as the executescript()
+        # function expects the transaction management to be included in the script
+        # itself. It will auto-commit any already-opened transaction, before
+        # running the script.
+        self.db_conn_rw.executescript(CREATE_SCHEMA_V1)
 
     def close(self) -> None:
         """Close the database connection."""
