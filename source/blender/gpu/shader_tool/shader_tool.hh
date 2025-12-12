@@ -515,6 +515,12 @@ class Preprocessor {
 
         parser.apply_mutations();
 
+        if (parser.str().find("\n#pragma no_processing") != std::string::npos) {
+          /* Early out for certain files. */
+          r_metadata = metadata;
+          return line_directive_prefix(filename) + parser.result_get();
+        }
+
         /* Lower high level parsing complexity.
          * Merge tokens that can be combined together,
          * remove the token that are unsupported or that are noop.
@@ -553,6 +559,7 @@ class Preprocessor {
         lower_resource_table(parser, report_error);
         lower_resource_access_functions(parser, report_error);
         /* Lower class methods. */
+        lower_function_default_arguments(parser, report_error);
         lower_implicit_member(parser, report_error);
         lower_method_definitions(parser, report_error);
         lower_method_calls(parser, report_error);
@@ -568,7 +575,6 @@ class Preprocessor {
         lower_printf(parser, report_error);
         /* Lower other C++ constructs. */
         lower_array_initializations(parser, report_error);
-        lower_function_default_arguments(parser, report_error);
         lower_scope_resolution_operators(parser, report_error);
         /* Lower references. */
         lower_reference_arguments(parser, report_error);
@@ -3246,7 +3252,7 @@ class Preprocessor {
     using namespace shader::parser;
 
     parser().foreach_function(
-        [&](bool, Token fn_type, Token fn_name, Scope fn_args, bool, Scope fn_body) {
+        [&](bool, Token fn_type, Token fn_name, Scope fn_args, bool fn_const, Scope fn_body) {
           if (!fn_args.contains_token('=')) {
             return;
           }
@@ -3276,7 +3282,8 @@ class Preprocessor {
               }
               string overload;
               overload += fn_type.str() + " ";
-              overload += fn_name.str() + '(' + args_decl + ")\n";
+              overload += fn_name.str() + '(' + args_decl + ")" +
+                          string(fn_const ? " const" : "") + "\n";
               overload += "{\n";
               overload += "#line " + std::to_string(fn_type.line_number()) + "\n";
               overload += "  " + fn_call + "\n}\n";
