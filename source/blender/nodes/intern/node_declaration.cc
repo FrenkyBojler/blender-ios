@@ -354,6 +354,21 @@ static bool socket_type_to_static_decl_type(const eNodeSocketDatatype socket_typ
     case SOCK_MATERIAL:
       fn(TypeTag<decl::Material>());
       return true;
+    case SOCK_FONT:
+      fn(TypeTag<decl::Font>());
+      return true;
+    case SOCK_SCENE:
+      fn(TypeTag<decl::Scene>());
+      return true;
+    case SOCK_TEXT_ID:
+      fn(TypeTag<decl::Text>());
+      return true;
+    case SOCK_MASK:
+      fn(TypeTag<decl::Mask>());
+      return true;
+    case SOCK_SOUND:
+      fn(TypeTag<decl::Sound>());
+      return true;
     case SOCK_MENU:
       fn(TypeTag<decl::Menu>());
       return true;
@@ -434,7 +449,7 @@ void DeclarationListBuilder::add_separator()
 void DeclarationListBuilder::add_default_layout()
 {
   BLI_assert(this->node_decl_builder.typeinfo_.draw_buttons);
-  this->add_layout([](uiLayout *layout, bContext *C, PointerRNA *ptr) {
+  this->add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
     const bNode &node = *static_cast<bNode *>(ptr->data);
     node.typeinfo->draw_buttons(layout, C, ptr);
   });
@@ -442,7 +457,7 @@ void DeclarationListBuilder::add_default_layout()
 }
 
 void DeclarationListBuilder::add_layout(
-    std::function<void(uiLayout *, bContext *, PointerRNA *)> draw)
+    std::function<void(ui::Layout &, bContext *, PointerRNA *)> draw)
 {
   auto decl_ptr = std::make_unique<LayoutDeclaration>();
   LayoutDeclaration &decl = *decl_ptr;
@@ -1126,7 +1141,7 @@ bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_
   return false;
 }
 
-void CustomSocketDrawParams::draw_standard(uiLayout &layout,
+void CustomSocketDrawParams::draw_standard(ui::Layout &layout,
                                            const std::optional<StringRefNull> label_override)
 {
   this->socket.typeinfo->draw(const_cast<bContext *>(&this->C),

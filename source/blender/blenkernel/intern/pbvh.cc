@@ -698,7 +698,7 @@ struct StackItem {
 
 struct PBVHIter {
   Tree *pbvh;
-  blender::FunctionRef<bool(Node &)> scb;
+  FunctionRef<bool(Node &)> scb;
 
   Stack<StackItem, 100> stack;
 };
@@ -1622,7 +1622,7 @@ int count_grid_quads(const BitGroupVector<> &grid_hidden,
 
   int totquad = 0;
   for (const int grid : grid_indices) {
-    const blender::BoundedBitSpan gh = grid_hidden[grid];
+    const BoundedBitSpan gh = grid_hidden[grid];
     /* grid hidden are present, have to check each element */
     for (int y = 0; y < gridsize - skip; y += skip) {
       for (int x = 0; x < gridsize - skip; x += skip) {
@@ -1671,22 +1671,6 @@ Bounds<float3> bounds_get(const Tree &pbvh)
 }
 
 }  // namespace blender::bke::pbvh
-
-int BKE_pbvh_get_grid_num_verts(const Object &object)
-{
-  const SculptSession &ss = *object.sculpt;
-  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
-  return ss.subdiv_ccg->grids_num * key.grid_area;
-}
-
-int BKE_pbvh_get_grid_num_faces(const Object &object)
-{
-  const SculptSession &ss = *object.sculpt;
-  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
-  return ss.subdiv_ccg->grids_num * square_i(key.grid_size - 1);
-}
 
 /***************************** Node Access ***********************************/
 

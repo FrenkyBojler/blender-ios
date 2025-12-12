@@ -100,9 +100,6 @@ void MTLStateManager::set_state(const GPUState &state)
   if (changed.provoking_vert != 0) {
     set_provoking_vert((GPUProvokingVertex)state.provoking_vert);
   }
-  if (changed.shadow_bias != 0) {
-    set_shadow_bias(state.shadow_bias);
-  }
 
   /* TODO remove (Following GLState). */
   if (changed.polygon_smooth) {
@@ -393,32 +390,6 @@ void MTLStateManager::set_provoking_vert(const GPUProvokingVertex /*vert*/)
    * shading, to ensure consistent results with OpenGL. */
 }
 
-void MTLStateManager::set_shadow_bias(const bool enable)
-{
-  /* Check Current Context. */
-  BLI_assert(context_);
-  MTLContextGlobalShaderPipelineState &pipeline_state = context_->pipeline_state;
-  MTLContextDepthStencilState &ds_state = pipeline_state.depth_stencil_state;
-
-  /* Apply State. */
-  if (enable) {
-    ds_state.depth_bias_enabled_for_lines = true;
-    ds_state.depth_bias_enabled_for_tris = true;
-    ds_state.depth_bias = 2.0f;
-    ds_state.depth_slope_scale = 1.0f;
-  }
-  else {
-    ds_state.depth_bias_enabled_for_lines = false;
-    ds_state.depth_bias_enabled_for_tris = false;
-    ds_state.depth_bias = 0.0f;
-    ds_state.depth_slope_scale = 0.0f;
-  }
-
-  /* Mark Dirty - Ensure context updates depth-stencil state between draws. */
-  pipeline_state.dirty_flags |= MTL_PIPELINE_STATE_DEPTHSTENCIL_FLAG;
-  pipeline_state.dirty = true;
-}
-
 void MTLStateManager::set_blend(const GPUBlend value)
 {
   /**
@@ -515,6 +486,13 @@ void MTLStateManager::set_blend(const GPUBlend value)
       dst_rgb = MTLBlendFactorOneMinusSourceAlpha;
       src_alpha = MTLBlendFactorZero;
       dst_alpha = MTLBlendFactorOneMinusSourceAlpha;
+      break;
+    }
+    case GPU_BLEND_TRANSPARENCY: {
+      src_rgb = MTLBlendFactorOne;
+      dst_rgb = MTLBlendFactorSourceAlpha;
+      src_alpha = MTLBlendFactorZero;
+      dst_alpha = MTLBlendFactorSourceAlpha;
       break;
     }
   }
@@ -624,13 +602,6 @@ void MTLFence::wait()
 /* -------------------------------------------------------------------- */
 /** \name Texture State Management
  * \{ */
-
-void MTLStateManager::texture_unpack_row_length_set(uint len)
-{
-  /* Set source image row data stride when uploading image data to the GPU. */
-  MTLContext *ctx = MTLContext::get();
-  ctx->pipeline_state.unpack_row_length = len;
-}
 
 void MTLStateManager::texture_bind(Texture *tex_, GPUSamplerState sampler_type, int unit)
 {
