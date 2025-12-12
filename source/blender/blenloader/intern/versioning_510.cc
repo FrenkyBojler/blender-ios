@@ -328,6 +328,7 @@ static void version_string_to_curves_node_inputs(bNodeTree &tree, bNode &node)
   if (!blender::bke::node_find_socket(node, SOCK_IN, "Font")) {
     bNodeSocket &socket = version_node_add_socket(tree, node, SOCK_IN, "NodeSocketFont", "Font");
     socket.default_value_typed<bNodeSocketValueFont>()->value = reinterpret_cast<VFont *>(node.id);
+    node.id = nullptr;
   }
   if (!blender::bke::node_find_socket(node, SOCK_IN, "Overflow")) {
     bNodeSocket &socket = version_node_add_socket(

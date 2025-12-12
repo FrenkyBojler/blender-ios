@@ -702,6 +702,26 @@ static void write_legacy_properties(bNodeTree &ntree)
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Operation");
           node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
+        else if (node->type_legacy == GEO_NODE_STRING_TO_CURVES) {
+          auto &storage = *static_cast<NodeGeometryStringToCurves *>(node->storage);
+          storage.overflow = node_find_socket(*node, SOCK_IN, "Overflow")
+                                 ->default_value_typed<bNodeSocketValueMenu>()
+                                 ->value;
+          storage.align_x = node_find_socket(*node, SOCK_IN, "Align X")
+                                ->default_value_typed<bNodeSocketValueMenu>()
+                                ->value;
+          storage.align_y = node_find_socket(*node, SOCK_IN, "Align Y")
+                                ->default_value_typed<bNodeSocketValueMenu>()
+                                ->value;
+          storage.pivot_mode = node_find_socket(*node, SOCK_IN, "Pivot Point")
+                                   ->default_value_typed<bNodeSocketValueMenu>()
+                                   ->value;
+          /* This is reversed in #write_legacy_properties_revert. */
+          BLI_assert(node->id == nullptr);
+          node->id = id_cast<ID *>(node_find_socket(*node, SOCK_IN, "Font")
+                                       ->default_value_typed<bNodeSocketValueFont>()
+                                       ->value);
+        }
       }
       break;
     }
@@ -992,6 +1012,16 @@ static void write_legacy_properties(bNodeTree &ntree)
   }
 }
 
+static void write_legacy_properties_revert(bNodeTree &ntree)
+{
+  for (bNode *node : ntree.all_nodes()) {
+    if (node->type_legacy == GEO_NODE_STRING_TO_CURVES) {
+      /* This was just set in #write_legacy_properties. */
+      node->id = nullptr;
+    }
+  }
+}
+
 }  // namespace forward_compat
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
@@ -1250,6 +1280,10 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
       writer, bNestedNodeRef, ntree->nested_node_refs_num, ntree->nested_node_refs);
 
   BKE_previewimg_blend_write(writer, ntree->preview);
+
+  if (!BLO_write_is_undo(writer)) {
+    forward_compat::write_legacy_properties_revert(*ntree);
+  }
 }
 
 static void ntree_blend_write(BlendWriter *writer, ID *id, const void *id_address)
