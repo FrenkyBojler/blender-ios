@@ -389,7 +389,7 @@ static void print_resource(std::ostream &os,
          << " " << res.storagebuf.name << "; };";
       break;
     case ShaderCreateInfo::Resource::BindType::ACCELERATION_STRUCTURE:
-      os << "uniform accelerationStructureEXT " << res.acceleration_structure.name << ";\n";
+      os << "uniform accelerationStructureEXT " << res.acceleration_structure.name << ";";
       break;
   }
 }

@@ -1,3 +1,7 @@
+#include "infos/workbench_shadow_infos.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(workbench_shadow_raytrace)
+
 #include "draw_view_lib.glsl"
 
 void main()
