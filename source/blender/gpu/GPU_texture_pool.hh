@@ -15,10 +15,6 @@
 
 #include "GPU_texture.hh"
 
-/* Texture pool resources have one of two lifetimes. Transient resources must be handed back in
- * the same cycle. Persistent resources must not, but will be invalidated on full reset. */
-enum eGPUTextureLifetime { GPU_TEXTURE_LIFETIME_TRANSIENT, GPU_TEXTURE_LIFETIME_PERSISTENT };
-
 namespace blender::gpu {
 
 class TexturePool {
@@ -26,20 +22,25 @@ class TexturePool {
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
-
+  /* On `retain`, a texture remains acquired for enough cycles that it can survive the 
+   * multiple reset calls until the next frame. */
+  static constexpr int max_retain_cycles_ = 4; /* FIXME(not_mark): this is REALLY FLAKY AAAARGH */
+  /* Textures are stored with a counter, counting down the number of `reset` calls
+   * since last use. Depending on the context:
+   * - For `pool_` handles, the texture is deallocated once it reaches 0.
+   *   The initial value is `max_unused_cycles`.
+   * - For `acquired_` handles, the texture is released if it reaches 0.
+   * - For `acquired_` handles, an error is thrown if it reaches -1, as
+   *   a texture was not retained/released, causing a memory leak. */
   struct TextureHandle {
     Texture *texture;
-    /* Counts the number of `reset()` call since the last use.
-     * The texture memory is deallocated after a certain number of cycles. */
-    int unused_cycles;
+    int remaining_cycles;
   };
 
-  /* Pool of texture ready to be reused. */
+  /* Pool of textures ready to be reused. */
   Vector<TextureHandle> pool_;
-  /* List of in use transient textures. Tracked on each reset() to check memory leaks. */
-  Vector<Texture *> acquired_transient_;
-  /* List of in use persistent textures. Forcibly invalidated on reset(force_free=true). */
-  Vector<Texture *> acquired_persistent_;
+  /* List of textures currently in use. */
+  Vector<TextureHandle> acquired_;
 
  public:
   ~TexturePool();
@@ -52,24 +53,27 @@ class TexturePool {
   Texture *acquire_texture(int width,
                            int height,
                            TextureFormat format,
-                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
-                           eGPUTextureLifetime lifetime = GPU_TEXTURE_LIFETIME_TRANSIENT);
+                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL);
 
-  /* Release the texture so that its memory can be reused at some other point. */
-  void release_texture(Texture *tmp_tex);
+  /* Check if a pointer is associated with an acquired texture. */
+  bool is_texture_acquired(Texture *tex) const;
 
-  /* Switch lifetime of a texture from/to transient to/form persistent. */
-  void make_texture_persistent(Texture *tex);
-  void make_texture_transient(Texture *tex);
+  /* Release the texture back into the pool so it can be reused. */
+  void release_texture(Texture *tex);
 
-  /* Query whether a texture is resident with specific lifetime. */
-  bool is_texture_persistent(Texture *tex) const;
-  bool is_texture_transient(Texture *tex) const;
+  /* Indicate that the texture should survive into the next `max_retain_cycles_` cycles. */
+  void retain_texture(Texture *tex);
 
-  /* Ensure no texture is still acquired and release unused textures.
+  /* Decrease acquired texture counters and release/invalidate unused textures.
    * If `force_free` is true, free all the texture memory inside the pool.
    * Otherwise, only unused textures will be freed. */
   void reset(bool force_free = false);
+  
+  /* Swap lifetime counters of two acquired textures, enabling e.g. a single-frame
+   * texture and retained texture to exchange values. */
+  void swap_texture_counters(Texture *a, Texture *b);
+
+  void report(Texture *tex);
 };
 
 }  // namespace blender::gpu

@@ -53,11 +53,6 @@
  * texture can be acquired & released multiple time in one draw loop. The `sync()` method *MUST* be
  * called once during the cache populate (aka: Sync) phase.
  *
- * `draw::TextureFromPoolPersistent`
- *   A gpu::Texture from the viewport texture pool, similar to #draw::TextureFromPool. This texture
- * is acquired for rendering using `ensure_acquire()`, and can be optionally released using
- * `release()`. This texture will only be invalidated if the underlying pool is forcibly reset.
- *
  * `draw::Framebuffer`
  *   Simple wrapper to #GPUFramebuffer that can be moved.
  */
@@ -1070,14 +1065,65 @@ class Texture : NonCopyable {
   }
 };
 
-/* Superclass to explicitly strip forbidden methods for TextureFromPool and derivatives. */
-class TextureFromPoolBase : public Texture, NonMovable {
- protected:
-  /* Protected constructor acts as passthrough. */
-  TextureFromPoolBase(const char *name = "gpu::Texture") : Texture(name) {};
+struct TextureFromPool : public Texture, NonMovable {
+  TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
 
- public:
-  bool ensure_1d(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
+  /* Always use `release()` or `retain()` after rendering with a texture. */
+  bool acquire(int2 extent,
+              gpu::TextureFormat format,
+              eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+  {
+    if (!gpu::TexturePool::get().is_texture_acquired(tx_)) {
+      tx_ = gpu::TexturePool::get().acquire_texture(UNPACK2(extent), format, usage);
+      return true;
+    }
+    return false;
+  }
+
+  /* Invalidate the acquired `TextureFromPool` for this frame.
+   * Multiple releases can be done safely. */
+  void release()
+  {
+    /* FIXME(not_mark): this iterates through acquired textures TWICE */
+    // if (gpu::TexturePool::get().is_texture_acquired(tx_)) {
+      // gpu::TexturePool::get().release_texture(tx_);
+      // tx_ = nullptr;
+    // }
+    
+    if (tx_ != nullptr) {
+      gpu::TexturePool::get().release_texture(tx_);
+      tx_ = nullptr;
+    }
+  }
+
+  /* Allow for the `TextureFromPool` to survive into the next cycle.
+   * Multiple retains can be done safely. */
+  void retain()
+  {
+    gpu::TexturePool::get().retain_texture(tx_);
+  }
+
+  /* Swap the contents of the two textures, accounting for their
+   * pool lifetimes as well. */
+  static void swap(TextureFromPool &a, TextureFromPool &b)
+  {
+    Texture::swap(a, b);
+    gpu::TexturePool::get().swap_texture_counters(a, b);
+  }
+
+  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
+  TextureFromPool *ptr()
+  {
+    return this;
+  }
+
+  void report()
+  {
+    gpu::TexturePool::get().report(tx_);
+  }
+
+  /* Strip forbidden methods from TextureFromPool. */
+  bool ensure_1d(int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   bool ensure_1d_array(
       int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   bool ensure_2d(int, int, int, gpu::TextureFormat, eGPUTextureUsage, float *) = delete;
@@ -1092,105 +1138,6 @@ class TextureFromPoolBase : public Texture, NonMovable {
   gpu::Texture *mip_view(int) = delete;
   gpu::Texture *layer_view(int) = delete;
   gpu::Texture *stencil_view() = delete;
-};
-
-struct TextureFromPool : public TextureFromPoolBase {
-  TextureFromPool(const char *name = "gpu::Texture") : TextureFromPoolBase(name) {};
-
-  /* Always use `release()` after rendering. */
-  void acquire(int2 extent,
-               blender::gpu::TextureFormat format,
-               eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
-  {
-    BLI_assert(!gpu::TexturePool::get().is_texture_transient(tx_));
-    tx_ = gpu::TexturePool::get().acquire_texture(
-        UNPACK2(extent), format, usage, GPU_TEXTURE_LIFETIME_TRANSIENT);
-
-    if (G.debug & G_DEBUG_GPU) {
-      debug_clear();
-    }
-  }
-
-  /* Allows for multiple releases safely. */
-  void release()
-  {
-    if (gpu::TexturePool::get().is_texture_transient(tx_)) {
-      gpu::TexturePool::get().release_texture(tx_);
-    }
-    tx_ = nullptr;
-  }
-
-  /* Swap the contents of the two textures. */
-  static void swap(TextureFromPool &a, TextureFromPool &b)
-  {
-    Texture::swap(a, b);
-  }
-
-  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
-  TextureFromPool *ptr()
-  {
-    return this;
-  }
-};
-
-struct TextureFromPoolPersistent : public TextureFromPoolBase {
-  TextureFromPoolPersistent(const char *name = "gpu::Texture") : TextureFromPoolBase(name) {};
-
-  /* Texture hands back to pool on destructor.  */
-  ~TextureFromPoolPersistent()
-  {
-    release();
-  }
-
-  /* Acquire is only handled if the texture is not already acquired. Further, `release()` after
-   * rendering is optional.. */
-  bool ensure_acquire(int2 extent,
-                      blender::gpu::TextureFormat format,
-                      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
-  {
-    if (gpu::TexturePool::get().is_texture_persistent(tx_)) {
-      return false;
-    }
-    tx_ = gpu::TexturePool::get().acquire_texture(
-        UNPACK2(extent), format, usage, GPU_TEXTURE_LIFETIME_PERSISTENT);
-
-    if (G.debug & G_DEBUG_GPU) {
-      debug_clear();
-    }
-
-    return true;
-  }
-
-  /* Allows multiple releases safely. */
-  void release()
-  {
-    if (gpu::TexturePool::get().is_texture_persistent(tx_)) {
-      gpu::TexturePool::get().release_texture(tx_);
-    }
-    tx_ = nullptr;
-  }
-
-  /* Swap the contents of the two textures, and change lifetime accordingly. */
-  static void swap(TextureFromPoolPersistent &a, TextureFromPoolPersistent &b)
-  {
-    Texture::swap(a, b);
-  }
-  static void swap(TextureFromPool &a, TextureFromPoolPersistent &b)
-  {
-    Texture::swap(a, b);
-    gpu::TexturePool::get().make_texture_transient(a);
-    gpu::TexturePool::get().make_texture_persistent(b);
-  }
-  static void swap(TextureFromPoolPersistent &a, TextureFromPool &b)
-  {
-    swap(b, a);
-  }
-
-  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
-  TextureFromPoolPersistent *ptr()
-  {
-    return this;
-  }
 };
 
 class TextureRef : public Texture {
