@@ -45,7 +45,7 @@ Quaternion interpolate(Quaternion a, Quaternion b, float t)
   }
   float2 w = interpolate_dot_slerp(t, cosom);
   quat = w.x * quat + w.y * b.as_float4();
-  return Quaternion(UNPACK4(quat));
+  return Quaternion{UNPACK4(quat)};
 }
 
 /** \} */
