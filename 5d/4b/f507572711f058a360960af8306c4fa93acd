@@ -1,2 +1,3 @@
 Referenced by issue #151474, Node wrangler lazy mix gives error
 Referenced by pull request #151535, Fix #151474: Incorrect preferences access in Node Wrangler add-on
+Referenced by commit 14e3adcd7a6cf9427146a624082fb3e1809f0293, Fix #151474: Incorrect preferences access in Node Wrangler add-on
