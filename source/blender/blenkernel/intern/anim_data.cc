@@ -564,7 +564,7 @@ static bool action_copy_fcurves_by_basepath(const animrig::Action &src_action,
   animrig::foreach_fcurve_in_action_slot(
       const_cast<animrig::Action &>(src_action), src_slot_handle, [&](const FCurve &fcurve) {
         if (animpath_matches_basepath(fcurve.rna_path, src_basepath)) {
-          std::optional<std::string> group_name;
+          std::optional<StringRefNull> group_name;
           if (fcurve.grp) {
             group_name = fcurve.grp->name;
           }
