@@ -1942,6 +1942,11 @@ void GHOST_WindowWayland::clientToScreen(const int32_t inX,
 
 uint16_t GHOST_WindowWayland::getDPIHint()
 {
+  /* Early out if use of DPI scale is disabled. */
+  if (!system_->native_pixel_) {
+    return 96;
+  }
+
   /* No need to lock `server_mutex`
    * (`outputs_changed_update_scale` never changes values in a non-main thread). */
 
@@ -2245,9 +2250,14 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
   int fractional_scale_from_output = 0;
 
   int scale_next = outputs_max_scale_or_default(outputs_get(), 0, &fractional_scale_from_output);
-
   if (UNLIKELY(scale_next == 0)) {
     return false;
+  }
+
+  if (!system_->native_pixel_) {
+    scale_next = 1;
+    window_->frame_pending.fractional_scale = 0;
+    window_->frame_pending.fractional_scale_preferred = 0;
   }
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
