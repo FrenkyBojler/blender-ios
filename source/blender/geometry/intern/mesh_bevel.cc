@@ -165,12 +165,12 @@ class MeshPattern {
    * Return Interior if not an Adj kind. */
   AdjVertKind adj_vert_kind(const int v, const int anchor) const;
 
-  /** Return the anchor that owns (is nearest to) \a v (in pattern space).
-   * For faces on the mid-strip (when odd segments), assign the next lower
-   * anchor as owner.
-   * For the center polygon (when odd segments), assign 0 as the owner.
+  /** Return the anchor or anchors that own(s) (is nearest to) \a f  (in pattern space).
+   * For faces on the mid-strip (when odd segments), return both anchors on either
+   * side of the mid-strip, otherwise put -1 in the second component of the answer.
+   * For the center polygon (when odd segments), return (-1, -1)..
    */
-  int face_anchor_owner(const int f) const;
+  int2 face_anchor_owner(const int f) const;
 };
 
 /** Helper for keeping track of angle kind. */
@@ -2745,8 +2745,6 @@ struct AdjVerts {
     return verts[anchor_offset_to_outer_ring_vert(anchor, offset)];
   }
 
-  /** Given a ring, an anchor index, and an offset from that anchor, return the vertex pattern
-   * index for the corresponding vertex. */
   const int ring_anchor_offset_to_vert(const int ring, const int anchor, const int offset) const;
 
   const float3 &vert(const int ring, const int anchor, const int offset) const
@@ -3464,6 +3462,8 @@ static Array<UVGapKind, 20> bevvert_bevedge_uv_gaps(const int bv,
  * *r_over_face, and the 3D position of its projection in *r_over_pos. If there is an alternative
  * over face, use *r_alt_face and *r_alt_pos to store those. If there is no suitable face for the
  * main or alternate, return -1 in the index. Assume all pointers are non-null.
+ * TODO: fix this. projection can equally intersect edge of adjacent face.
+ * The real test should be to find which face between the posible anchors for the vert it is over.
  */
 static void find_over_faces(const float3 &pos,
                             const Span<int> mesh_faces,
@@ -3473,6 +3473,7 @@ static void find_over_faces(const float3 &pos,
                             int *r_alt_face,
                             float3 *r_alt_pos)
 {
+  fmt::println("find_over_faces pos=({},{},{}", pos[0], pos[1], pos[2]);
   const Mesh &mesh = bs.mesh_info.mesh;
   BLI_assert(r_over_face && r_alt_face && r_over_pos && r_alt_pos);
 
@@ -3481,19 +3482,20 @@ static void find_over_faces(const float3 &pos,
 
   for (const int mesh_f : mesh_faces) {
     BLI_assert(mesh_f != -1);
+    fmt::println("  try face {}", mesh_f);
 
     const float3 &face_no = mesh.face_normals()[mesh_f];
     const IndexRange face_corners_indices = mesh.faces()[mesh_f];
-    if (face_corners_indices.is_empty()) {
-      continue;
-    }
+    BLI_assert(face_corners_indices.size() >= 3);
     const int first_vert_index = mesh.corner_verts()[face_corners_indices[0]];
     const float3 face_co = mesh.vert_positions()[first_vert_index];
     float4 plane;
     plane_from_point_normal_v3(plane, face_co, face_no);
+    fmt::println("    plane=({},{},{},{}", plane[0], plane[1], plane[2], plane[3]);
 
     float3 projected_pos;
     closest_to_plane_normalized_v3(projected_pos, plane, pos);
+    fmt::println("    projected_pos=({},{},{})", projected_pos[0], projected_pos[1], projected_pos[2]);
 
     float3x3 axis_mat;
     axis_dominant_v3_to_m3(axis_mat.ptr(), face_no);
@@ -3504,13 +3506,16 @@ static void find_over_faces(const float3 &pos,
     for (int i = 0; i < face_len; i++) {
       const int v_idx = mesh.corner_verts()[face_corners_indices[i]];
       mul_v2_m3v3(poly_2d[i], axis_mat.ptr(), mesh.vert_positions()[v_idx]);
+      fmt::println("      {}: ({},{})", i, poly_2d[i][0], poly_2d[i][1]);
     }
 
     float2 p_2d;
     mul_v2_m3v3(p_2d, axis_mat.ptr(), projected_pos);
+    fmt::println("    p_2d=({},{})", p_2d[0], p_2d[1]);
 
     /* TODO: do better when the intersection is "near" the edge between two faces. */
     if (isect_point_poly_v2(p_2d, (const float (*)[2])poly_2d.data(), face_len)) {
+      fmt::println("    intersects!");
       if (*r_over_face == -1) {
         *r_over_face = mesh_f;
         *r_over_pos = projected_pos;
@@ -3762,6 +3767,9 @@ UVMapInfo::UVMapInfo(const std::string &uv_attr_name, const Mesh &mesh)
   }
 }
 
+/** Each face in 3d space maps to a face in UV space. Find ids such that if two faces have
+ * the same ID, then they are in the same UV island.
+ */
 void UVMapInfo::find_components(const MeshInfo &mesh_info)
 {
   const Mesh &mesh = mesh_info.mesh;
@@ -4175,27 +4183,46 @@ AdjVertKind MeshPattern::adj_vert_kind(const int v, const int anchor) const
   }
 }
 
-/** Return the anchor that owns (is nearest to) \a v (in pattern space).
- * For faces on the mid-strip (when odd segments), assign the next lower
- * anchor as owner.
- * For the center polygon (when odd segments), assign 0 as the owner.
+/** Return the ancho or anchorsr that owns (is nearest to) \a f  (in pattern space).
+ * For faces on the mid-strip (when odd segments), return both anchors on either
+ * side of the mid-strip, otherwise put -1 in the second component of the answer.
+ * For the center polygon (when odd segments), return (-1, -1)..
  */
-int MeshPattern::face_anchor_owner(const int f) const
+int2 MeshPattern::face_anchor_owner(const int f) const
 {
   if (kind != MeshKind::Adj) {
-    return 0;
+    return int2(-1. -1);
   }
   int3 rao = adj::f_ring_anchor_offset(f, num_anchors, num_segs);
+  const int r= rao[0];
   const int a = rao[1];
   const int offset = rao[2];
-  const int floor_n2 = num_segs / 2;
+  const int ring_side = adj::f_ringlen(r, num_anchors, num_segs) / num_anchors + 1;
+  const int floor_ring_side_2 = ring_side / 2;
   if (num_segs % 2 == 0) {
-    return offset < floor_n2 ? a : next_anchor(a);
+    return offset < floor_ring_side_2 ? int2(a, -1) : int2(next_anchor(a), -1);
   }
   if (f == 0) {
-    return 0;
+    return int2(-1, -1);
   }
-  return offset <= floor_n2 ? a : next_anchor(a);
+  if (offset == floor_ring_side_2) {
+    return int2(a, next_anchor(a));
+  }
+  return offset < floor_ring_side_2 ? int2(a, -1) : int2(next_anchor(a), 1);
+}
+
+/** Return an array of the faces that go between the first and last edges at \a anchor.
+ * If \a include_prev_and_next is true, also include the faces just before and just after the anchor. */
+static SmallIntArray faces_to_next_anchor(const int bv, const int anchor, const bool include_prev_and_next, const BevelState &bs) const
+{
+  const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
+  const int next anchor = pat.next_anchor(anchor);
+  const int prev_anchor = pat.prev_anchor(anchor);
+  const int2 edge_poses = bs.anchor_bevedge_positions(bv, anchor);
+  const int2 edge_poses_prev = bs.anchor_bevedge_positions(bv, prev_anchor);
+  const int2 edge_poses_next = bs.anchor_bevedge_positions(bv, next_anchor);
+  Vector<int, 20> faces;
+  
 }
 
 /** Return a 4-tuple with the number of vertices, edges, faces, corners needed for edge mesh. */
@@ -6228,8 +6255,8 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   state.determine_needed_attribute_data();
   state.build_vertex_meshes();
   // dump_bevel_state(state, "before build_edge_meshes");
-  state.build_edge_meshes();
   state.build_face_meshes();
+  state.build_edge_meshes();
   // dump_bevel_state(state, "before build_mesh");
   /* TODO: calculate output attributes, e.g. like create_cylinder_or_cone_mesh. */
   return build_mesh(state, attribute_filter);
