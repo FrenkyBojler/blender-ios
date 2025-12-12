@@ -3676,6 +3676,7 @@ static void grease_penci_separate_shapes_from_materials(bke::greasepencil::Drawi
     shape_ids.span[curve_i] = materials[curve_i] + 1;
   }
 
+  shape_ids.finish();
   drawing->tag_topology_changed();
 
   return;
