@@ -146,7 +146,7 @@ void main()
 
     expect = float4x4(
         float4(0, 0, -2, 0), float4(2, 0, 0, 0), float4(0, 3, 0, 0), float4(0, 0, 0, 1));
-    result = rotate(m1, AxisAngle(float3(0, 1, 0), M_PI_2));
+    result = rotate(m1, AxisAngle{float3(0, 1, 0), M_PI_2});
     EXPECT_NEAR(result, expect, epsilon);
 
     expect = float4x4(

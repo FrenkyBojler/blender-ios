@@ -103,6 +103,9 @@
 /* References (inout and out).
  * Less verbose that the above for reading processed code. */
 #define _ref(_type, _var) thread _type(&_var)
+/* Constructor / initializer. */
+#define _ctor(_type) {
+#define _rotc() }
 
 #define shared threadgroup
 #define _shared_sta (&

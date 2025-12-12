@@ -169,6 +169,9 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 /* References (inout and out).
  * Less verbose that the above for reading processed code. */
 #define _ref(_type, _var) inout _type _var
+/* Constructor / initializer. */
+#define _ctor(_type) _type(
+#define _rotc() )
 
 /* Resource accessor. */
 #define specialization_constant_get(create_info, _res) _res
