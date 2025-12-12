@@ -1220,13 +1220,8 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
     if (ELEM(node->type_legacy, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
       /* Write extra socket info. */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        if (sock->storage) {
-          BLO_write_struct(writer, NodeImageLayer, sock->storage);
-        }
+        BLO_write_struct(writer, NodeImageLayer, sock->storage);
       }
-    }
-    if (!BLO_write_is_undo(writer)) {
-      forward_compat::free_legacy_socket_storage(*node);
     }
   }
 
@@ -1245,6 +1240,16 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
       writer, bNestedNodeRef, ntree->nested_node_refs_num, ntree->nested_node_refs);
 
   BKE_previewimg_blend_write(writer, ntree->preview);
+
+  /* Freeing temporary allocations needs to happen at the very end, because if we free after the
+   * data is no longer needed, future allocations might be given the same address by the OS, which
+   * will produce a corrupt blend file because multiple data use the same identifier/address in the
+   * same ID. */
+  if (!BLO_write_is_undo(writer)) {
+    for (bNode *node : ntree->all_nodes()) {
+      forward_compat::free_legacy_socket_storage(*node);
+    }
+  }
 }
 
 static void ntree_blend_write(BlendWriter *writer, ID *id, const void *id_address)
