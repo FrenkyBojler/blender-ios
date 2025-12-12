@@ -559,6 +559,8 @@ static bool action_copy_fcurves_by_basepath(const animrig::Action &src_action,
                                             const StringRef dst_basepath)
 {
   bool result = false;
+  /* const_cast the src_action here because there is only a non-const fcurve iterator method.
+   * We only use the fcurve as a const ref, there's no risk of modifying the data. */
   animrig::foreach_fcurve_in_action_slot(
       const_cast<animrig::Action &>(src_action), src_slot_handle, [&](const FCurve &fcurve) {
         if (animpath_matches_basepath(fcurve.rna_path, src_basepath)) {
