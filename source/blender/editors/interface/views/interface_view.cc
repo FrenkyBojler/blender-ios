@@ -230,7 +230,7 @@ AbstractView *region_view_find_at(const ARegion *region,
   return nullptr;
 }
 
-void UI_region_view_scroll_at_borders(ARegion *region, const int xy[2])
+void region_view_scroll_at_borders(ARegion *region, const int xy[2])
 {
   Block *block = nullptr;
   AbstractView *view = region_view_find_at(region, xy, UI_UNIT_Y, &block);

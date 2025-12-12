@@ -3006,7 +3006,7 @@ AbstractView *region_view_find_at(const ARegion *region,
                                   const int xy[2],
                                   int pad,
                                   Block **r_block = nullptr);
-void UI_region_view_scroll_at_borders(ARegion *region, const int xy[2]);
+void region_view_scroll_at_borders(ARegion *region, const int xy[2]);
 /**
  * \param xy: Coordinate to find a view item at, in window space.
  */
