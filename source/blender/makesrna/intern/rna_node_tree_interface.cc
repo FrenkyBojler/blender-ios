@@ -716,11 +716,12 @@ static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy_to_parent(
     parent = &interface->root_panel;
   }
   const int index = parent->items().as_span().first_index_try(item);
-  if (!parent->items().index_range().contains(index)) {
-    return nullptr;
+  bNodeTreeInterfaceItem *item_copy = nullptr;
+  if (index == -1) {
+    item_copy = interface->insert_item_copy(*item, parent, parent->items_num);
+  } else if (parent->items().index_range().contains(index)) {
+    item_copy = interface->insert_item_copy(*item, parent, index + 1);
   }
-
-  bNodeTreeInterfaceItem *item_copy = interface->insert_item_copy(*item, parent, index + 1);
 
   if (item_copy == nullptr) {
     BKE_report(reports, RPT_ERROR, "Unable to copy item");
