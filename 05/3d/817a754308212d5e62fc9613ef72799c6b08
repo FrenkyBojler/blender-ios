@@ -1,4 +1,4 @@
 Referenced by issue #135949, Assert when right clicking on tool icon
 Referenced by issue #136429, Assets: crash when duplicating a texture paint brush
 Referenced by issue #148700, Cannot assign shortcut to brush asset in the Image Editor
-Referenced by pull request #151522, Revert: Fix (unreported): Assert when right clicking on image editor tools
+Referenced by pull request #151522, Revert: "Fix (unreported): Assert when right clicking on image editor tools"
