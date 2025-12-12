@@ -77,8 +77,9 @@ struct ContextPathItem {
   int icon_indicator_number;
 
   std::function<void(bContext &)> handle_func;
-  bool is_history = false;
   MenuCreateFunc draw_fn;
+  bool is_history = false;
+  /* Pointer to the item's corresponding data. */
   void *ptr;
 };
 

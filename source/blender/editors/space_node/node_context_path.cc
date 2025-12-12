@@ -131,10 +131,20 @@ static bool node_tree_has_group_node(const bNodeTree *ntree)
   return false;
 }
 
-static void navigate_menu_draw_fn(bContext *C, ui::Layout *layout, void * /*arg*/)
+static void navigate_menu_draw_fn(bContext *C, ui::Layout *layout, void *arg)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  bNodeTree *clicked_tree = snode->edittree;
+  if (arg == nullptr) {
+    return;
+  }
+  bNodeTree *clicked_tree = nullptr;
+  ID *id = static_cast<ID *>(arg);
+  if (GS(id->name) == ID_NT) {
+    clicked_tree = id_cast<bNodeTree *>(id);
+  }
+  else {
+    SpaceNode *snode = CTX_wm_space_node(C);
+    clicked_tree = snode->edittree;
+  }
   if (!clicked_tree) {
     return;
   }
@@ -170,7 +180,7 @@ static void navigate_menu_draw_fn(bContext *C, ui::Layout *layout, void * /*arg*
           }
         }
         else {
-          Vector<bNodeTree *> &history_path_trees = snode->runtime->navigate_path_history;
+          Vector<bNodeTree *> &history_path_trees = snode->runtime->navigate_history_path;
           if (history_path_trees.is_empty()) {
             return;
           }
@@ -387,7 +397,7 @@ static void context_path_add_history_trees(SpaceNode &snode, Vector<ui::ContextP
       active_path_trees.append(path_item->nodetree);
     }
   }
-  Vector<bNodeTree *> &history_path_trees = snode.runtime->navigate_path_history;
+  Vector<bNodeTree *> &history_path_trees = snode.runtime->navigate_history_path;
   if (active_path_trees.is_empty()) {
     history_path_trees.clear();
     return;

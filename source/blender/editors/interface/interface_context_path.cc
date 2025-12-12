@@ -42,10 +42,10 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
 
   if (&rna_type == &RNA_NodeTree) {
     ID *id = (ID *)ptr;
-    path.append({name, icon, ID_REAL_USERS(id), handle_func, is_history, draw_fn, ptr});
+    path.append({name, icon, ID_REAL_USERS(id), handle_func, draw_fn, is_history, ptr});
   }
   else {
-    path.append({name, icon, 1, handle_func, is_history, draw_fn, ptr});
+    path.append({name, icon, 1, handle_func, draw_fn, is_history, ptr});
   }
   if (name != name_buf) {
     MEM_freeN(name);

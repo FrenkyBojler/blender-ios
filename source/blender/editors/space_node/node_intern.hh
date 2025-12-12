@@ -127,11 +127,8 @@ struct SpaceNode_Runtime {
    */
   Map<int, bool> node_can_sync_states;
 
-  /**
-   * Stores the breadcrumb history to allow navigating "up" the hierarchy
-   * while keeping future paths visible (Ghost Items).
-   */
-  Vector<bNodeTree *> navigate_path_history;
+  /** Stores the history path to allow re-entering child trees. */
+  Vector<bNodeTree *> navigate_history_path;
 };
 
 enum NodeResizeDirection {
