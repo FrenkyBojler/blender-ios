@@ -3668,12 +3668,12 @@ static void grease_penci_separate_shapes_from_materials(bke::greasepencil::Drawi
   VArray<int> materials = *curves.attributes().lookup_or_default(
       "material_index", bke::AttrDomain::Curve, 0);
 
-  bke::SpanAttributeWriter<int> shape_id =
+  bke::SpanAttributeWriter<int> shape_ids =
       curves.attributes_for_write().lookup_or_add_for_write_span<int>("shape_id",
                                                                       bke::AttrDomain::Curve);
 
   for (const int curve_i : curves.curves_range()) {
-    shape_id.span[curve_i] = materials[curve_i] + 1;
+    shape_ids.span[curve_i] = materials[curve_i] + 1;
   }
 
   drawing->tag_topology_changed();
