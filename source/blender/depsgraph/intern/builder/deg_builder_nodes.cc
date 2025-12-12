@@ -1962,7 +1962,7 @@ void DepsgraphNodeBuilder::build_nodetree_socket(bNodeSocket *socket)
     build_id((ID *)((bNodeSocketValueMaterial *)socket->default_value)->value);
   }
   else if (socket->type == SOCK_FONT) {
-    build_id((ID *)((bNodeSocketValueFont *)socket->default_value)->value);
+    /* Font data-blocks don't use the depsgraph. */
   }
   else if (socket->type == SOCK_SCENE) {
     build_id((ID *)((bNodeSocketValueScene *)socket->default_value)->value);
@@ -2056,9 +2056,6 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
     }
     else if (id_type == ID_MC) {
       build_movieclip((MovieClip *)id);
-    }
-    else if (id_type == ID_VF) {
-      build_vfont((VFont *)id);
     }
     else if (id_type == ID_GR) {
       build_collection(nullptr, reinterpret_cast<Collection *>(id));
@@ -2300,18 +2297,6 @@ void DepsgraphNodeBuilder::build_sound(bSound *sound)
   build_idproperties(sound->id.system_properties);
   build_animdata(&sound->id);
   build_parameters(&sound->id);
-}
-
-void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
-{
-  if (built_map_.check_is_built_and_tag(vfont)) {
-    return;
-  }
-  build_parameters(&vfont->id);
-  build_idproperties(vfont->id.properties);
-  build_idproperties(vfont->id.system_properties);
-  add_operation_node(
-      &vfont->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
 }
 
 static bool strip_node_build_cb(Strip *strip, void *user_data)
