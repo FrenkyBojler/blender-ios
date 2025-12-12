@@ -92,7 +92,10 @@ static VectorSet<std::string> join_vertex_groups(const Span<const Object *> obje
       dst = src;
       dst.dw = MEM_malloc_arrayN<MDeformWeight>(src.totweight, __func__);
       for (const int weight : IndexRange(src.totweight)) {
-        dst.dw[weight].def_nr = index_map[src.dw[weight].def_nr];
+        /* Clamp "invalid" MDeformWeight def_nr, see #151488. */
+        const int def_nr = math::min(src.dw[weight].def_nr,
+                                     static_cast<unsigned int>(index_map.size() - 1));
+        dst.dw[weight].def_nr = index_map[def_nr];
         dst.dw[weight].weight = src.dw[weight].weight;
       }
     }
