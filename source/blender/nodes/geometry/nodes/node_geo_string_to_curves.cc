@@ -31,6 +31,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("String").optional_label();
   b.add_input<decl::Float>("Size").default_value(1.0f).min(0.0f).subtype(PROP_DISTANCE);
+  /* TODO: Handle default value (BKE_vfont_builtin_ensure). */
+  /* TODO: Handle versioning. */
+  b.add_input<decl::Font>("Font").optional_label();
   b.add_input<decl::Float>("Character Spacing").default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>("Word Spacing").default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>("Line Spacing").default_value(1.0f).min(0.0f);
@@ -80,7 +83,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   data->align_y = GEO_NODE_STRING_TO_CURVES_ALIGN_Y_TOP_BASELINE;
   data->pivot_mode = GEO_NODE_STRING_TO_CURVES_PIVOT_MODE_BOTTOM_LEFT;
   node->storage = data;
-  node->id = reinterpret_cast<ID *>(BKE_vfont_builtin_ensure());
 }
 
 static float3 get_pivot_point(GeoNodeExecParams &params, bke::CurvesGeometry &curves)
@@ -142,7 +144,7 @@ struct TextLayout {
 
 static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
 {
-  VFont *vfont = reinterpret_cast<VFont *>(params.node().id);
+  VFont *vfont = params.get_input<VFont *>("Font");
   if (!vfont) {
     params.error_message_add(NodeWarningType::Error, TIP_("Font not specified"));
     return std::nullopt;
@@ -264,7 +266,7 @@ static Map<int, int> create_curve_instances(GeoNodeExecParams &params,
                                             TextLayout &layout,
                                             bke::Instances &instances)
 {
-  VFont *vfont = reinterpret_cast<VFont *>(params.node().id);
+  VFont *vfont = params.get_input<VFont *>("Font");
   Map<int, int> handles;
   bool pivot_required = params.anonymous_attribute_output_is_required("Pivot Point");
 
