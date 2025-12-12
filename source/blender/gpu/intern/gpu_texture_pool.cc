@@ -34,7 +34,7 @@ Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTex
     if ((GPU_texture_format(tex) == format) && (GPU_texture_width(tex) == extent.x) &&
         (GPU_texture_height(tex) == extent.y) && (GPU_texture_usage(tex) == usage))
     {
-      match_index = i;
+      idx = i;
       break;
     }
   }
@@ -56,6 +56,16 @@ Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTex
   TextureHandle handle = {GPU_texture_create_2d(name, UNPACK2(extent), 1, format, usage, nullptr)};
   acquired_.add(handle);
   return handle.texture;
+}
+
+bool TexturePool::is_texture_acquired(Texture *tex) const
+{
+  for (const auto &handle : acquired_) {
+    if (handle.texture == tex) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void TexturePool::release_texture(Texture *tex)
@@ -107,6 +117,39 @@ void TexturePool::reset(bool force_free)
       tex.unused_cycles_count++;
     }
   }
+
+  /* Reverse iterate pool textures, to make sure we only reorder known good handles. */
+  for (int i = pool_.size() - 1; i >= 0; i--) {
+    TextureHandle &tex = pool_[i];
+    if (tex.remaining_cycles == 0 || force_free) {
+      pool_.remove_and_reorder(i);
+      GPU_texture_free(tex.texture);
+    }
+    else {
+      tex.remaining_cycles--;
+    }
+  }
+}
+
+void TexturePool::swap_texture_counters(Texture *a, Texture *b)
+{
+  /* Search for matching indices of textures. */
+  int64_t idx_a = -1;
+  int64_t idx_b = -1;
+  for (int64_t i : acquired_.index_range()) {
+    if (acquired_[i].texture == a) {
+      idx_a = i;
+    }
+    if (acquired_[i].texture == b) {
+      idx_b = i;
+    }
+  }
+
+  BLI_assert_msg(idx_a != -1, "Unacquired texture `a` in TexturePool.swap_texture_counters()");
+  BLI_assert_msg(idx_b != -1, "Unacquired texture `b` in TexturePool.swap_texture_counters()");
+
+  /* Swap internal counters only. */
+  std::swap(acquired_[idx_a].remaining_cycles, acquired_[idx_b].remaining_cycles);
 }
 
 TexturePool &TexturePool::get()

@@ -1065,12 +1065,6 @@ class Texture : NonCopyable {
   }
 };
 
-/* Superclass to explicitly strip forbidden methods for TextureFromPool and derivatives. */
-class TextureFromPoolBase : public Texture, NonMovable {
- protected:
-  /* Protected constructor acts as passthrough. */
-  TextureFromPoolBase(const char *name = "gpu::Texture") : Texture(name) {};
-
 class TextureFromPool : public Texture, NonMovable {
   /* Object may be released on a different `GPUContext`; track the owning pool. */
   gpu::TexturePool *pool_ = nullptr;
@@ -1146,105 +1140,6 @@ class TextureFromPool : public Texture, NonMovable {
   gpu::Texture *mip_view(int) = delete;
   gpu::Texture *layer_view(int) = delete;
   gpu::Texture *stencil_view() = delete;
-};
-
-struct TextureFromPool : public TextureFromPoolBase {
-  TextureFromPool(const char *name = "gpu::Texture") : TextureFromPoolBase(name) {};
-
-  /* Always use `release()` after rendering. */
-  void acquire(int2 extent,
-               blender::gpu::TextureFormat format,
-               eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
-  {
-    BLI_assert(!gpu::TexturePool::get().is_texture_transient(tx_));
-    tx_ = gpu::TexturePool::get().acquire_texture(
-        UNPACK2(extent), format, usage, GPU_TEXTURE_LIFETIME_TRANSIENT);
-
-    if (G.debug & G_DEBUG_GPU) {
-      debug_clear();
-    }
-  }
-
-  /* Allows for multiple releases safely. */
-  void release()
-  {
-    if (gpu::TexturePool::get().is_texture_transient(tx_)) {
-      gpu::TexturePool::get().release_texture(tx_);
-    }
-    tx_ = nullptr;
-  }
-
-  /* Swap the contents of the two textures. */
-  static void swap(TextureFromPool &a, TextureFromPool &b)
-  {
-    Texture::swap(a, b);
-  }
-
-  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
-  TextureFromPool *ptr()
-  {
-    return this;
-  }
-};
-
-struct TextureFromPoolPersistent : public TextureFromPoolBase {
-  TextureFromPoolPersistent(const char *name = "gpu::Texture") : TextureFromPoolBase(name) {};
-
-  /* Texture hands back to pool on destructor.  */
-  ~TextureFromPoolPersistent()
-  {
-    release();
-  }
-
-  /* Acquire is only handled if the texture is not already acquired. Further, `release()` after
-   * rendering is optional.. */
-  bool ensure_acquire(int2 extent,
-                      blender::gpu::TextureFormat format,
-                      eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
-  {
-    if (gpu::TexturePool::get().is_texture_persistent(tx_)) {
-      return false;
-    }
-    tx_ = gpu::TexturePool::get().acquire_texture(
-        UNPACK2(extent), format, usage, GPU_TEXTURE_LIFETIME_PERSISTENT);
-
-    if (G.debug & G_DEBUG_GPU) {
-      debug_clear();
-    }
-
-    return true;
-  }
-
-  /* Allows multiple releases safely. */
-  void release()
-  {
-    if (gpu::TexturePool::get().is_texture_persistent(tx_)) {
-      gpu::TexturePool::get().release_texture(tx_);
-    }
-    tx_ = nullptr;
-  }
-
-  /* Swap the contents of the two textures, and change lifetime accordingly. */
-  static void swap(TextureFromPoolPersistent &a, TextureFromPoolPersistent &b)
-  {
-    Texture::swap(a, b);
-  }
-  static void swap(TextureFromPool &a, TextureFromPoolPersistent &b)
-  {
-    Texture::swap(a, b);
-    gpu::TexturePool::get().make_texture_transient(a);
-    gpu::TexturePool::get().make_texture_persistent(b);
-  }
-  static void swap(TextureFromPoolPersistent &a, TextureFromPool &b)
-  {
-    swap(b, a);
-  }
-
-  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
-  TextureFromPoolPersistent *ptr()
-  {
-    return this;
-  }
 };
 
 class TextureRef : public Texture {
