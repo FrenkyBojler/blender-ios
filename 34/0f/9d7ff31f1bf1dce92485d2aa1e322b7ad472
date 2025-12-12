@@ -8,3 +8,4 @@ Referenced by issue #151267, Blender 5.0.0 crashed on CTR + J (join geometry)
 Referenced by pull request #151308, Fix #151267: Crash joining specific objects
 Referenced by commit 2f59968361d89b6055d760cc4e0056d36e76d77f, Fix #151267: Crash joining specific objects
 Referenced by issue #151488, Blender crashes when trying to merge object A (the troublemaker) with any other object
+Referenced by pull request #151536, Fix #151488: crash joining specific objects
