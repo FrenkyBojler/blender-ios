@@ -283,12 +283,12 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   /**
   TODO(Treata): - Describe / move to _520
   */
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 1)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      ob->lod_items = NULL;
-      ob->lod_items_num = 0;
-      // ob->cull_distance = 0.0f;
-      ob->lod_items_index = 0;
-    }
-  }
+  // if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 1)) {
+  //   LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+  //     ob->lod_items = NULL;
+  //     ob->lod_items_num = 0;
+  //     // ob->cull_distance = 0.0f;
+  //     ob->lod_items_index = 0;
+  //   }
+  // }
 }

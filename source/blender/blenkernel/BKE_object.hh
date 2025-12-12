@@ -462,12 +462,14 @@ void BKE_object_eval_shading(Depsgraph *depsgraph, Object *object);
 
 void BKE_object_eval_light_linking(Depsgraph *depsgraph, Object *object);
 
-/* Add/Remove LOD items (blenkernel API).
- * These mutate the Object in-place and update ob->lod_items_num and ob->lod_items_index.
- */
+/* Add/Remove LOD items (blenkernel API). */
 void BKE_object_lod_add(Object *ob);
 bool BKE_object_lod_remove(Object *ob, int index);
 void BKE_object_lod_clear(Object *ob);
+
+/* Utility: find Lod* by index (0-based), returns nullptr if not found. */
+Lod *BKE_object_lod_by_index(Object *ob, int index);
+int BKE_object_lod_index_of(Object *ob, Lod *lod);
 
 /**
  * Assign #Object.data after modifier stack evaluation.

@@ -174,6 +174,7 @@ struct ObjectInfos {
   eObjectInfoFlag flag;
   float shadow_terminator_normal_offset;
   float shadow_terminator_geometry_offset;
+  // TODO(Tri): Add distance?
   float _pad1;
   float _pad2;
 

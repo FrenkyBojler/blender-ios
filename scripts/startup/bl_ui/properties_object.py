@@ -129,6 +129,7 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         props.type = 'CLEAR_INVERSE'
 
 
+
 class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
     bl_label = "Relations"
     bl_options = {'DEFAULT_CLOSED'}
@@ -646,7 +647,6 @@ class OBJECT_PT_distance_lod(ObjectButtonsPanel, Panel):
         layout.use_property_split = True
 
         ob = context.object
-
         row = layout.row()
         row.template_list(
             "OBJECT_UL_lod_items",

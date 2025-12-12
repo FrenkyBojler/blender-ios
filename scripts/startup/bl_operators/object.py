@@ -1000,38 +1000,39 @@ class OBJECT_OT_assign_property_defaults(Operator):
         return {'FINISHED'}
 
 
-class OBJECT_OT_lod_item_add(Operator):
-    bl_idname = "object.lod_item_add"
-    bl_label = "Add LOD Item"
-    bl_description = "Add an LOD level"
+# TODO(Treata): Remove!
+# class OBJECT_OT_lod_item_add(Operator):
+#     bl_idname = "object.lod_item_add"
+#     bl_label = "Add LOD Item"
+#     bl_description = "Add an LOD level"
 
-    def execute(self, context):
-        ob = context.object
+#     def execute(self, context):
+#         ob = context.object
 
-        # Expand C array — use Python level utility
-        item = ob.lod_items.add()
+#         # Expand C array — use Python level utility
+#         item = ob.lod_items.add()
 
-        item.distance = (len(ob.lod_items) - 1) * 100.0
-        item.target = None
+#         item.distance = (len(ob.lod_items) - 1) * 100.0
+#         item.target = None
 
-        ob.lod_items_index = len(ob.lod_items) - 1
-        return {'FINISHED'}
+#         ob.lod_items_index = len(ob.lod_items) - 1
+#         return {'FINISHED'}
     
-class OBJECT_OT_lod_item_remove(Operator):
-    bl_idname = "object.lod_item_remove"
-    bl_label = "Remove LOD Item"
-    bl_description = "Remove selected LOD level"
+# class OBJECT_OT_lod_item_remove(Operator):
+#     bl_idname = "object.lod_item_remove"
+#     bl_label = "Remove LOD Item"
+#     bl_description = "Remove selected LOD level"
 
-    @classmethod
-    def poll(cls, context):
-        ob = context.object
-        return ob and ob.lod_items and ob.act_lod >= 0
+#     @classmethod
+#     def poll(cls, context):
+#         ob = context.object
+#         return ob and ob.lod_items and ob.act_lod >= 0
 
-    def execute(self, context):
-        ob = context.object
-        ob.lod_items.remove(ob.lod_items_index)
-        ob.lod_items_index = max(0, ob.lod_items_index - 1)
-        return {'FINISHED'}
+#     def execute(self, context):
+#         ob = context.object
+#         ob.lod_items.remove(ob.lod_items_index)
+#         ob.lod_items_index = max(0, ob.lod_items_index - 1)
+#         return {'FINISHED'}
 
 classes = (
     ClearAllRestrictRender,
@@ -1050,6 +1051,6 @@ classes = (
     TransformsToDeltasAnim,
     OBJECT_OT_assign_property_defaults,
     # New
-    OBJECT_OT_lod_item_add,
-    OBJECT_OT_lod_item_remove,
+    # OBJECT_OT_lod_item_add,
+    # OBJECT_OT_lod_item_remove,
 )
