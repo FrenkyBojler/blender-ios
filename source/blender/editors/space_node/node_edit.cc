@@ -1639,9 +1639,7 @@ wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
     ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&sce->view_layers, node->custom1);
 
     if (view_layer) {
-      PointerRNA op_ptr;
-
-      WM_operator_properties_create(&op_ptr, "RENDER_OT_render");
+      PointerRNA op_ptr = WM_operator_properties_create("RENDER_OT_render");
       RNA_string_set(&op_ptr, "layer", view_layer->name);
       RNA_string_set(&op_ptr, "scene", sce->id.name + 2);
 
@@ -2479,8 +2477,9 @@ static wmOperatorStatus node_cryptomatte_add_socket_exec(bContext *C, wmOperator
     return OPERATOR_CANCELLED;
   }
 
-  ntreeCompositCryptomatteAddSocket(ntree, node);
+  ntreeCompositCryptomatteAddSocket(node);
 
+  BKE_ntree_update_tag_node_property(ntree, node);
   BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;
@@ -2527,10 +2526,11 @@ static wmOperatorStatus node_cryptomatte_remove_socket_exec(bContext *C, wmOpera
     return OPERATOR_CANCELLED;
   }
 
-  if (!ntreeCompositCryptomatteRemoveSocket(ntree, node)) {
+  if (!ntreeCompositCryptomatteRemoveSocket(node)) {
     return OPERATOR_CANCELLED;
   }
 
+  BKE_ntree_update_tag_node_property(ntree, node);
   BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
 
   return OPERATOR_FINISHED;

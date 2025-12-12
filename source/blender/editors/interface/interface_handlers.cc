@@ -121,12 +121,6 @@ static CLG_LogRef LOG = {"ui.handler"};
  * \{ */
 
 /**
- * The buffer side used for password strings, where the password is stored internally,
- * but not displayed.
- */
-#define UI_MAX_PASSWORD_STR 128
-
-/**
  * This is a lower limit on the soft minimum of the range.
  * Usually the derived lower limit from the visible precision is higher,
  * so this number is the backup minimum.
@@ -295,8 +289,8 @@ static void ui_selectcontext_apply(bContext *C,
  * Ideally we would only respond to events which are expected to be used for multi button editing
  * (additionally checking if this is a mouse[wheel] or return-key event to avoid the ALT conflict
  * with button array pasting, see #108096, but unfortunately wheel events are not part of
- * `win->eventstate` with modifiers held down. Instead, the conflict is avoided by specifically
- * filtering out CTRL ALT V in #ui_apply_but(). */
+ * `win->runtime->eventstate` with modifiers held down. Instead, the conflict is avoided by
+ * specifically filtering out CTRL ALT V in #ui_apply_but(). */
 #  define IS_ALLSELECT_EVENT(event) (((event)->modifier & KM_ALT) != 0)
 
 /** just show a tinted color so users know its activated */
@@ -1860,7 +1854,7 @@ static int ui_handler_region_drag_toggle(bContext *C, const wmEvent *event, void
       ui_apply_but_undo(but);
     }
 
-    WM_event_remove_ui_handler(&win->modalhandlers,
+    WM_event_remove_ui_handler(&win->runtime->modalhandlers,
                                ui_handler_region_drag_toggle,
                                ui_handler_region_drag_toggle_remove,
                                drag_info,
@@ -2052,7 +2046,7 @@ static void ui_selectcontext_apply(bContext *C,
           but->func)
       {
         wmWindow *win = CTX_wm_window(C);
-        if ((win->eventstate->modifier & KM_SHIFT) == 0) {
+        if ((win->runtime->eventstate->modifier & KM_SHIFT) == 0) {
           const int len = RNA_property_array_length(&but->rnapoin, prop);
           bool *tmparray = MEM_calloc_arrayN<bool>(len, __func__);
 
@@ -2169,7 +2163,7 @@ static bool ui_but_drag_init(bContext *C,
       CTX_wm_region_set(C, data->region);
 
       WM_event_add_ui_handler(C,
-                              &data->window->modalhandlers,
+                              &data->window->runtime->modalhandlers,
                               ui_handler_region_drag_toggle,
                               ui_handler_region_drag_toggle_remove,
                               drag_info,
@@ -2328,7 +2322,7 @@ static void ui_apply_but(
         if (data->select_others.elems.is_empty())
     {
       wmWindow *win = CTX_wm_window(C);
-      const wmEvent *event = win->eventstate;
+      const wmEvent *event = win->runtime->eventstate;
       /* May have been enabled before activating, don't do for array pasting. */
       if (data->select_others.is_enabled || IS_ALLSELECT_EVENT(event)) {
         /* See comment for #IS_ALLSELECT_EVENT why this needs to be filtered here. */
@@ -3002,9 +2996,7 @@ static int ui_text_position_to_hidden(Button *but, int pos)
   return BLI_strnlen_utf8(butstr, pos);
 }
 
-void button_text_password_hide(char password_str[UI_MAX_PASSWORD_STR],
-                               Button *but,
-                               const bool restore)
+void button_text_password_hide(std::string &password_str, Button *but, const bool restore)
 {
   if (!(but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_PASSWORD)) {
     return;
@@ -3014,7 +3006,7 @@ void button_text_password_hide(char password_str[UI_MAX_PASSWORD_STR],
 
   if (restore) {
     /* restore original string */
-    BLI_strncpy(butstr, password_str, UI_MAX_PASSWORD_STR);
+    memcpy(butstr, password_str.data(), password_str.length() + 1);
 
     /* remap cursor positions */
     if (but->pos >= 0) {
@@ -3035,7 +3027,7 @@ void button_text_password_hide(char password_str[UI_MAX_PASSWORD_STR],
     }
 
     /* save original string */
-    BLI_strncpy(password_str, butstr, UI_MAX_PASSWORD_STR);
+    password_str = butstr;
     memset(butstr, '*', len);
     butstr[len] = '\0';
   }
@@ -3139,7 +3131,7 @@ static void ui_textedit_set_cursor_pos(Button *but, const ARegion *region, const
 
   float startx = but->rect.xmin;
   float starty_dummy = 0.0f;
-  char password_str[UI_MAX_PASSWORD_STR];
+  std::string password_str;
   /* treat 'str_last' as null terminator for str, no need to modify in-place */
   const char *str = but->editstr, *str_last;
 
@@ -3444,9 +3436,9 @@ static void ui_textedit_ime_begin(wmWindow *win, Button *but)
   BLI_assert(win->runtime->ime_data == nullptr);
 
   /* enable IME and position to cursor, it's a trick */
-  x = win->eventstate->xy[0];
+  x = win->runtime->eventstate->xy[0];
   /* flip y and move down a bit, prevent the IME panel cover the edit button */
-  y = win->eventstate->xy[1] - 12;
+  y = win->runtime->eventstate->xy[1] - 12;
 
   wm_window_IME_begin(win, x, y, 0, 0, true);
 }
@@ -3527,7 +3519,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 
 #ifdef USE_ALLSELECT
   if (is_num_but) {
-    if (IS_ALLSELECT_EVENT(win->eventstate)) {
+    if (IS_ALLSELECT_EVENT(win->runtime->eventstate)) {
       data->select_others.is_enabled = true;
       data->select_others.is_copy = true;
     }
@@ -4525,7 +4517,7 @@ static void block_open_begin(bContext *C, Button *but, HandleButtonData *data)
 
 #ifdef USE_ALLSELECT
   {
-    if (IS_ALLSELECT_EVENT(data->window->eventstate)) {
+    if (IS_ALLSELECT_EVENT(data->window->runtime->eventstate)) {
       data->select_others.is_enabled = true;
     }
   }
@@ -5645,8 +5637,8 @@ static void ui_numedit_set_active(Button *but)
                                       BLI_rctf_size_y(&but->rect) * 0.7f);
     /* we can click on the side arrows to increment/decrement,
      * or click inside to edit the value directly */
-    int mx = data->window->eventstate->xy[0];
-    int my = data->window->eventstate->xy[1];
+    int mx = data->window->runtime->eventstate->xy[0];
+    int my = data->window->runtime->eventstate->xy[1];
     window_to_block(data->region, but->block, &mx, &my);
 
     if (mx < (but->rect.xmin + handle_width)) {
@@ -8679,7 +8671,7 @@ static ARegion *ui_but_tooltip_init(
   if (but) {
     const wmWindow *win = CTX_wm_window(C);
     ButtonExtraOpIcon *extra_icon = ui_but_extra_operator_icon_mouse_over_get(
-        but, but->active ? but->active->region : region, win->eventstate);
+        but, but->active ? but->active->region : region, win->runtime->eventstate);
 
     return tooltip_create_from_button_or_extra_icon(C, region, but, extra_icon, is_quick_tip);
   }
@@ -8885,7 +8877,7 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
     if (button_modal_state(state)) {
       if (!button_modal_state(data->state)) {
         WM_event_add_ui_handler(C,
-                                &data->window->modalhandlers,
+                                &data->window->runtime->modalhandlers,
                                 ui_handler_region_menu,
                                 nullptr,
                                 data,
@@ -8896,7 +8888,7 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
       if (button_modal_state(data->state)) {
         /* true = postpone free */
         WM_event_remove_ui_handler(
-            &data->window->modalhandlers, ui_handler_region_menu, nullptr, data, true);
+            &data->window->runtime->modalhandlers, ui_handler_region_menu, nullptr, data, true);
       }
     }
   }
@@ -10718,8 +10710,7 @@ static int ui_handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEv
     wmOperatorType *ot = WM_operatortype_find("WM_OT_search_single_menu", false);
     after->optype = ot;
     after->opcontext = wm::OpCallContext::InvokeDefault;
-    after->opptr = MEM_new<PointerRNA>(__func__);
-    WM_operator_properties_create_ptr(after->opptr, ot);
+    after->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);
     if (event->type != EVT_SPACEKEY) {
       /* Forward all keys except space-bar to the search. */
@@ -12276,13 +12267,13 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
     }
 
     popup_block_free(C, menu);
-    popup_handlers_remove(&win->modalhandlers, menu);
+    popup_handlers_remove(&win->runtime->modalhandlers, menu);
     CTX_wm_region_popup_set(C, nullptr);
 
 #ifdef USE_DRAG_TOGGLE
     {
       WM_event_free_ui_handler_all(C,
-                                   &win->modalhandlers,
+                                   &win->runtime->modalhandlers,
                                    ui_handler_region_drag_toggle,
                                    ui_handler_region_drag_toggle_remove);
     }
