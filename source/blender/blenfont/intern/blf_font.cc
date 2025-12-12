@@ -661,35 +661,43 @@ void blf_font_draw(FontBLF *font, const char *str, const size_t str_len, ResultB
 int blf_font_draw_mono(
     FontBLF *font, const char *str, const size_t str_len, const int cwidth, const int tab_columns)
 {
-  GlyphBLF *g;
-  int columns = 0;
-  ft_pix pen_x = 0, pen_y = 0;
-  ft_pix cwidth_fpx = ft_pix_from_int(cwidth);
-
-  size_t i = 0;
-
-  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
-
-  blf_batch_draw_begin(font);
-
-  while ((i < str_len) && str[i]) {
-    g = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i, nullptr);
-
-    if (UNLIKELY(g == nullptr)) {
-      continue;
-    }
-    /* Do not return this loop if clipped, we want every character tested. */
-    blf_glyph_draw(font, gc, g, ft_pix_to_int_floor(pen_x), ft_pix_to_int_floor(pen_y));
-
-    const int col = UNLIKELY(g->c == '\t') ? (tab_columns - (columns % tab_columns)) :
-                                             BLI_wcwidth_safe(char32_t(g->c));
-    columns += col;
-    pen_x += cwidth_fpx * col;
+  if (str_len == 0) {
+    /* Early exit, don't do any immediate-mode GPU operations. */
+    return 0;
   }
 
-  blf_batch_draw_end();
+  ft_pix pen_x = 0;
+  ft_pix pen_y = 0;
+  ft_pix cwidth_fpx = ft_pix_from_int(cwidth);
+  int columns = 0;
 
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  blf_batch_draw_begin(font);
+
+  ShapingData text(str, str_len);
+  while (text.process(font, gc)) {
+    for (uint i = 0; i < text.segment.glyph_count; i++) {
+      if (text.segment.glyphs[i]) {
+        blf_glyph_draw(text.segment.font,
+                       text.segment.gc,
+                       text.segment.glyphs[i],
+                       ft_pix_to_int_floor(pen_x + text.segment.glyph_pos[i].x_offset),
+                       ft_pix_to_int_floor(pen_y + text.segment.glyph_pos[i].y_offset));
+        const int col = UNLIKELY(text.segment.glyphs[i]->c == '\t') ?
+                            (tab_columns - (columns % tab_columns)) :
+                            BLI_wcwidth_safe(char32_t(text.segment.glyphs[i]->c));
+        columns += col;
+        pen_x += cwidth_fpx * col;
+      }
+    }
+  }
+
+  if (!g_batch.active) {
+    blf_batch_draw();
+  }
+  blf_batch_draw_end();
   blf_glyph_cache_release(font);
+
   return columns;
 }
 
