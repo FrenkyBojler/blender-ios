@@ -59,7 +59,6 @@ static void context_path_add_object_data(Vector<ui::ContextPathItem> &path, Obje
 static std::function<void(bContext &)> tree_path_navigate(int path_index)
 {
   return [path_index](bContext &C) {
-    PointerRNA op_props;
     wmOperatorType *ot = WM_operatortype_find("NODE_OT_tree_path_parent", false);
     PointerRNA op_props = WM_operator_properties_create_ptr(ot);
     RNA_int_set(&op_props, "parent_tree_index", path_index);
