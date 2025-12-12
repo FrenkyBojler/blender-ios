@@ -69,6 +69,54 @@ static std::function<void(bContext &)> tree_path_handle_func(int i)
   };
 }
 
+static bNode *find_group_node_in_tree(bNodeTree *tree, bNodeTree *group_tree)
+{
+  if (!tree || !group_tree) {
+    return nullptr;
+  }
+
+  for (bNode *node : tree->all_nodes()) {
+    if (node->id == reinterpret_cast<ID *>(group_tree)) {
+      return node;
+    }
+  }
+  return nullptr;
+}
+
+static void activate_and_push_node_tree(ARegion *region,
+                                        SpaceNode *snode,
+                                        bNodeTree *group_tree,
+                                        bNode *group_node)
+{
+  bke::node_set_active(*snode->edittree, *group_node);
+  bke::node_set_selected(*group_node, true);
+  ED_node_tree_push(region, snode, group_tree, group_node);
+}
+
+static bool navigate_through_history_path(ARegion *region,
+                                          SpaceNode *snode,
+                                          Span<bNodeTree *> history_path,
+                                          bNodeTree *target_tree = nullptr)
+{
+  for (bNodeTree *history_tree : history_path) {
+    if (!snode->edittree) {
+      return false;
+    }
+
+    bNode *group_node = find_group_node_in_tree(snode->edittree, history_tree);
+    if (group_node == nullptr) {
+      return false;
+    }
+
+    activate_and_push_node_tree(region, snode, history_tree, group_node);
+
+    if (target_tree && snode->edittree == target_tree) {
+      return true;
+    }
+  }
+  return true;
+}
+
 static bool node_tree_has_group_node(const bNodeTree *ntree)
 {
   if (ntree == nullptr) {
@@ -97,19 +145,18 @@ static void navigate_menu_draw_fn(bContext * /*C*/, ui::Layout *layout, void *ar
     if (!node->is_group() || !node->id) {
       continue;
     }
-    bNodeTree *clicked_group = (bNodeTree *)node->id;
-    if (added_groups.contains(clicked_group)) {
+    bNodeTree *group = id_cast<bNodeTree *>(node->id);
+    if (added_groups.contains(group)) {
       continue;
     }
-    added_groups.add(clicked_group);
+    added_groups.add(group);
 
-    auto enter_group_func = [clicked_tree, node, clicked_group](bContext &C) {
+    auto enter_group_func = [clicked_tree, node, group](bContext &C) {
       SpaceNode *snode = CTX_wm_space_node(&C);
       ARegion *region = CTX_wm_region(&C);
 
       int index;
       if (snode->edittree != clicked_tree) {
-        // A. 尝试判断是否是父级 (需要 Pop)
         bool is_parent = false;
         LISTBASE_FOREACH_INDEX (bNodeTreePath *, path_item, &snode->treepath, index) {
           if (path_item->nodetree == clicked_tree) {
@@ -125,38 +172,18 @@ static void navigate_menu_draw_fn(bContext * /*C*/, ui::Layout *layout, void *ar
         }
         else {
           Vector<bNodeTree *> &history_path_trees = snode->runtime->navigate_path_history;
-          if (history_path_trees.is_empty()){
+          if (history_path_trees.is_empty()) {
             return;
           }
           Span<bNodeTree *> history_tail_path = history_path_trees.as_span().drop_front(index);
-          for (bNodeTree *history_tree : history_tail_path) {
-            bNode *group_node = nullptr;
-            for (bNode *node : snode->edittree->all_nodes()) {
-              if (node->id == reinterpret_cast<ID *>(history_tree)) {
-                group_node = node;
-                break;
-              }
-            }
-            if (group_node == nullptr) {
-              break;
-            }
-            bke::node_set_active(*snode->edittree, *group_node);
-            bke::node_set_selected(*group_node, true);
-
-            ED_node_tree_push(region, snode, history_tree, group_node);
-            if (snode->edittree == clicked_tree){
-              break;
-            }
-          }
+          navigate_through_history_path(region, snode, history_tail_path, clicked_tree);
         }
       }
 
       if (snode->edittree == clicked_tree) {
-        bke::node_set_active(*clicked_tree, *node);
-        bke::node_set_selected(*node, true);
-        ED_node_tree_push(region, snode, clicked_group, node);
-        WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
-        WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
+        activate_and_push_node_tree(region, snode, group, node);
+        // WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
+        // WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
       }
     };
 
@@ -171,13 +198,12 @@ static void context_path_add_top_level_shader_node_tree(const SpaceNode &snode,
 {
   const bool in_root_tree = (snode.nodetree != snode.edittree);
   const bool has_group = node_tree_has_group_node(snode.edittree);
-  ui::context_path_add_generic(
-      path,
-      rna_type,
-      ptr,
-      ICON_NONE,
-      in_root_tree ? tree_path_handle_func(0) : nullptr,
-      has_group ? navigate_menu_draw_fn : nullptr);
+  ui::context_path_add_generic(path,
+                               rna_type,
+                               ptr,
+                               ICON_NONE,
+                               in_root_tree ? tree_path_handle_func(0) : nullptr,
+                               has_group ? navigate_menu_draw_fn : nullptr);
 }
 
 static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
@@ -345,32 +371,64 @@ static std::function<void(bContext &)> tree_path_navigate_history(Span<bNodeTree
   return [history_path](bContext &C) {
     SpaceNode *snode = CTX_wm_space_node(&C);
     ARegion *region = CTX_wm_region(&C);
-
-    ED_preview_kill_jobs(CTX_wm_manager(&C), CTX_data_main(&C));
-
-    for (bNodeTree *history_tree : history_path) {
-      if (!snode->edittree) {
-        break;
-      }
-      bNode *group_node = nullptr;
-      for (bNode *node : snode->edittree->all_nodes()) {
-        if (node->id == reinterpret_cast<ID *>(history_tree)) {
-          group_node = node;
-          break;
-        }
-      }
-      if (group_node == nullptr) {
-        break;
-      }
-      bke::node_set_active(*snode->edittree, *group_node);
-      bke::node_set_selected(*group_node, true);
-
-      ED_node_tree_push(region, snode, history_tree, group_node);
-    }
-
-    WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
-    WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
+    // ED_preview_kill_jobs(CTX_wm_manager(&C), CTX_data_main(&C));
+    navigate_through_history_path(region, snode, history_path);
+    // WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
+    // WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
   };
+}
+
+static void context_path_add_history_trees(SpaceNode &snode, Vector<ui::ContextPathItem> &path)
+{
+  Vector<bNodeTree *> active_path_trees;
+  LISTBASE_FOREACH (const bNodeTreePath *, path_item, &snode.treepath) {
+    if (path_item->nodetree) {
+      active_path_trees.append(path_item->nodetree);
+    }
+  }
+  Vector<bNodeTree *> &history_path_trees = snode.runtime->navigate_path_history;
+  if (active_path_trees.is_empty()) {
+    history_path_trees.clear();
+    return;
+  }
+
+  bool valid_history = false;
+  if (active_path_trees.size() < history_path_trees.size()) {
+    valid_history = true;
+    for (const int i : active_path_trees.index_range()) {
+      if (active_path_trees[i] != history_path_trees[i]) {
+        valid_history = false;
+        history_path_trees.clear();
+        break;
+      }
+    }
+  }
+
+  if (valid_history) {
+    Span<bNodeTree *> history_tail_path = history_path_trees.as_span().drop_front(
+        active_path_trees.size());
+    bNodeTree *parent_tree = active_path_trees.last();
+    for (const int i : history_tail_path.index_range()) {
+      bNodeTree *history_tree = history_tail_path[i];
+      if (!find_group_node_in_tree(parent_tree, history_tree)) {
+        history_path_trees.resize(active_path_trees.size() + i);
+        break;
+      }
+      parent_tree = history_tree;
+
+      const bool has_group = node_tree_has_group_node(history_tree);
+      ui::context_path_add_generic(path,
+                                   RNA_NodeTree,
+                                   history_tree,
+                                   ICON_NODETREE,
+                                   tree_path_navigate_history(history_tail_path.take_front(i + 1)),
+                                   has_group ? navigate_menu_draw_fn : nullptr,
+                                   true);
+    }
+  }
+  else {
+    history_path_trees = active_path_trees;
+  }
 }
 
 Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
@@ -391,65 +449,7 @@ Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
   else if (ED_node_is_compositor(snode)) {
     get_context_path_node_compositor(C, *snode, context_path);
   }
-
-  Vector<bNodeTree *> active_path_trees;
-  LISTBASE_FOREACH (const bNodeTreePath *, path_item, &snode->treepath) {
-    if (path_item->nodetree) {
-      active_path_trees.append(path_item->nodetree);
-    }
-  }
-  Vector<bNodeTree *> &history_path_trees = snode->runtime->navigate_path_history;
-  if (active_path_trees.is_empty()) {
-    history_path_trees.clear();
-    return context_path;
-  }
-
-  bool valid_history = false;
-  if (active_path_trees.size() < history_path_trees.size()) {
-    valid_history = true;
-    for (const int i : active_path_trees.index_range()) {
-      if (active_path_trees[i] != history_path_trees[i]) {
-        valid_history = false;
-        history_path_trees.clear();
-        break;
-      }
-    }
-  }
-
-  if (valid_history) {
-    Span<bNodeTree *> history_tail_path = history_path_trees.as_span().drop_front(
-        active_path_trees.size());
-
-    bNodeTree *parent_tree = active_path_trees.last();
-    for (const int i : history_tail_path.index_range()) {
-      bNodeTree *history_tree = history_tail_path[i];
-      bool group_node_exist = false;
-      for (bNode *node : parent_tree->all_nodes()) {
-        if (node->id == reinterpret_cast<ID *>(history_tree)) {
-          group_node_exist = true;
-          break;
-        }
-      }
-
-      if (!group_node_exist) {
-        history_path_trees.resize(active_path_trees.size() + i);
-        break;
-      }
-      parent_tree = history_tree;
-
-      const bool has_group = node_tree_has_group_node(history_tree);
-      ui::context_path_add_generic(context_path,
-                                   RNA_NodeTree,
-                                   history_tree,
-                                   ICON_NODETREE,
-                                   tree_path_navigate_history(history_tail_path.take_front(i + 1)),
-                                   has_group ? navigate_menu_draw_fn : nullptr,
-                                   true);
-    }
-  }
-  else {
-    history_path_trees = active_path_trees;
-  }
+  context_path_add_history_trees(*snode, context_path);
 
   return context_path;
 }
