@@ -72,9 +72,8 @@ class SQLiteBackend:
         self.dbfile_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Open a read-write connection.
+        # Once we upgrade to Python 3.12+, pass autocommit=False instead of isolation_level=None.
         self.db_conn_rw = sqlite3.connect(self.dbfile_path, timeout=DB_TIMEOUT_MSEC / 1000, isolation_level=None)
-        # TODO: in Python version 3.12+, uncomment the following line instead of setting the isolation level:
-        # self.db_conn_rw.autocommit = False
         if _DEBUG_QUERIES:
             def callback_rw(query: str) -> None:
                 query = query.replace("\n", "\n    ")
@@ -84,9 +83,8 @@ class SQLiteBackend:
 
         # Open a read-only connection.
         uri = self.dbfile_path.as_uri() + "?mode=ro"
+        # Once we upgrade to Python 3.12+, pass autocommit=False instead of isolation_level=None.
         self.db_conn_ro = sqlite3.connect(uri, uri=True, timeout=DB_TIMEOUT_MSEC / 1000, isolation_level=None)
-        # TODO: in Python version 3.12+, uncomment the following line instead of setting the isolation level:
-        # self.db_conn_ro.autocommit = False
         if _DEBUG_QUERIES:
             def callback_ro(query: str) -> None:
                 query = query.replace("\n", "\n    ")
@@ -192,7 +190,7 @@ class SQLiteBackend:
         The transaction is rolled back when an exception is raised, and
         committed otherwise.
         """
-        assert self.db_conn_rw is not None
+        assert self.db_conn_rw is not None, "Open the back-end before trying to use it"
 
         self.db_conn_rw.execute("BEGIN EXCLUSIVE")
         try:
@@ -210,7 +208,7 @@ class SQLiteBackend:
         The transaction is always rolled back, because it shouldn't write
         anything anyway.
         """
-        assert self.db_conn_ro is not None
+        assert self.db_conn_ro is not None, "Open the back-end before trying to use it"
 
         self.db_conn_ro.execute("BEGIN IMMEDIATE")
         try:
