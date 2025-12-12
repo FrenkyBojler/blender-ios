@@ -1030,9 +1030,9 @@ static void scene_foreach_cache(ID *id,
   }
 }
 
-static void composite_node_tree_forward_compat(Scene &scene,
-                                               const bNodeTree &compositing_node_group,
-                                               BlendWriter *writer)
+static void scene_blend_write_compositor_forward_compat(Scene &scene,
+                                                        const bNodeTree &compositing_node_group,
+                                                        BlendWriter *writer)
 {
   bNodeTree *temp_nodetree_copy = blender::bke::node_tree_copy_tree_ex(
       compositing_node_group, nullptr, false);
@@ -1243,7 +1243,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   if (sce->compositing_node_group && !is_write_undo) {
-    composite_node_tree_forward_compat(*sce, *sce->compositing_node_group, writer);
+    scene_blend_write_compositor_forward_compat(*sce, *sce->compositing_node_group, writer);
   }
 
   BKE_color_managed_view_settings_blend_write(writer, &sce->view_settings);
