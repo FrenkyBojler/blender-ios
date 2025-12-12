@@ -211,7 +211,7 @@ static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, voi
   FluidModifierData *fmd = (FluidModifierData *)md;
 
   if (fmd->type == MOD_FLUID_TYPE_FLOW && fmd->flow) {
-    PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_FluidFlowSettings, fmd->flow);
+    PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_FluidFlowSettings, fmd->flow);
     PropertyRNA *prop = RNA_struct_find_property(&ptr, "noise_texture");
 
     walk(user_data, ob, md, &ptr, prop);
@@ -239,7 +239,7 @@ ModifierTypeInfo modifierType_Fluid = {
     /*name*/ N_("Fluid"),
     /*struct_name*/ "FluidModifierData",
     /*struct_size*/ sizeof(FluidModifierData),
-    /*srna*/ &RNA_FluidModifier,
+    /*srna*/ RNA_FluidModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_Single,
     /*icon*/ ICON_MOD_FLUIDSIM,

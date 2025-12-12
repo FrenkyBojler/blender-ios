@@ -466,7 +466,7 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const Lis
 
       if (substr || globalSpeed_legacy != 1.0f) {
         FCurve *fcu = id_data_find_fcurve(
-            &scene->id, strip, &RNA_Strip, "speed_factor", 0, nullptr);
+            &scene->id, strip, RNA_Strip, "speed_factor", 0, nullptr);
         if (fcu) {
           if (globalSpeed_legacy != 1.0f) {
             for (int i = 0; i < fcu->totvert; i++) {

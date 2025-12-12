@@ -453,7 +453,7 @@ ModifierTypeInfo modifierType_Bevel = {
     /*name*/ N_("Bevel"),
     /*struct_name*/ "BevelModifierData",
     /*struct_size*/ sizeof(BevelModifierData),
-    /*srna*/ &RNA_BevelModifier,
+    /*srna*/ RNA_BevelModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_AcceptsCVs,

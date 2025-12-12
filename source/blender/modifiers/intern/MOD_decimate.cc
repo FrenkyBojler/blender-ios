@@ -275,7 +275,7 @@ ModifierTypeInfo modifierType_Decimate = {
     /*name*/ N_("Decimate"),
     /*struct_name*/ "DecimateModifierData",
     /*struct_size*/ sizeof(DecimateModifierData),
-    /*srna*/ &RNA_DecimateModifier,
+    /*srna*/ RNA_DecimateModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_DECIM,

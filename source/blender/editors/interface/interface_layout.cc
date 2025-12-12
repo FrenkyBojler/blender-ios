@@ -1090,7 +1090,7 @@ static Button *ui_item_with_label(Layout *layout,
                                  !ItemInternal::use_property_decorate_no_pad(layout);
 #endif
 
-  const bool is_keymapitem_ptr = RNA_struct_is_a(ptr->type, &RNA_KeyMapItem);
+  const bool is_keymapitem_ptr = RNA_struct_is_a(ptr->type, RNA_KeyMapItem);
   if ((flag & ITEM_R_FULL_EVENT) && !is_keymapitem_ptr) {
     RNA_warning("Data is not a keymap item struct: %s. Ignoring 'full_event' option.",
                 RNA_struct_identifier(ptr->type));
@@ -4789,7 +4789,7 @@ PanelLayout Layout::panel(const bContext *C, const StringRef idname, const bool 
 
   LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
       root_panel, idname, default_closed);
-  PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
+  PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, RNA_LayoutPanelState, state);
 
   return this->panel_prop(C, &state_ptr, "is_open");
 }
@@ -5719,7 +5719,7 @@ void Layout::context_set_from_but(const Button *but)
 
   if (but->rnapoin.data && but->rnaprop) {
     /* TODO: index could be supported as well */
-    PointerRNA ptr_prop = RNA_pointer_create_discrete(nullptr, &RNA_Property, but->rnaprop);
+    PointerRNA ptr_prop = RNA_pointer_create_discrete(nullptr, RNA_Property, but->rnaprop);
     this->context_ptr_set("button_prop", &ptr_prop);
     this->context_ptr_set("button_pointer", &but->rnapoin);
   }

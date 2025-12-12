@@ -365,7 +365,7 @@ void BlenderSync::sync_volume(BObjectInfo &b_ob_info, Volume *volume)
   volume->clear(true);
 
   if (view_layer.use_volumes) {
-    if (b_ob_info.object_data.is_a(&RNA_Volume)) {
+    if (b_ob_info.object_data.is_a(RNA_Volume)) {
       /* Volume object. Create only attributes, bounding mesh will then
        * be automatically generated later. */
       sync_volume_object(b_data, b_scene, b_ob_info, scene, volume);

@@ -347,7 +347,7 @@ ModifierTypeInfo modifierType_UVProject = {
     /*name*/ N_("UVProject"),
     /*struct_name*/ "UVProjectModifierData",
     /*struct_size*/ sizeof(UVProjectModifierData),
-    /*srna*/ &RNA_UVProjectModifier,
+    /*srna*/ RNA_UVProjectModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,

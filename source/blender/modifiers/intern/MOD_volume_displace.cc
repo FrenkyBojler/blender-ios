@@ -77,7 +77,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -315,7 +315,7 @@ ModifierTypeInfo modifierType_VolumeDisplace = {
     /*name*/ N_("Volume Displace"),
     /*struct_name*/ "VolumeDisplaceModifierData",
     /*struct_size*/ sizeof(VolumeDisplaceModifierData),
-    /*srna*/ &RNA_VolumeDisplaceModifier,
+    /*srna*/ RNA_VolumeDisplaceModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ static_cast<ModifierTypeFlag>(0),
     /*icon*/ ICON_VOLUME_DATA, /* TODO: Use correct icon. */

@@ -158,7 +158,7 @@ ModifierTypeInfo modifierType_Lattice = {
     /*name*/ N_("Lattice"),
     /*struct_name*/ "LatticeModifierData",
     /*struct_size*/ sizeof(LatticeModifierData),
-    /*srna*/ &RNA_LatticeModifier,
+    /*srna*/ RNA_LatticeModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,

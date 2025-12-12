@@ -94,10 +94,10 @@ void shaderfx_panel_end(blender::ui::Layout &layout, PointerRNA *ptr)
 PointerRNA *shaderfx_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_ptr)
 {
   PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
-  BLI_assert(RNA_struct_is_a(ptr->type, &RNA_ShaderFx));
+  BLI_assert(RNA_struct_is_a(ptr->type, RNA_ShaderFx));
 
   if (r_ob_ptr != nullptr) {
-    *r_ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
+    *r_ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, RNA_Object, ptr->owner_id);
   }
 
   blender::ui::panel_context_pointer_set(panel, "shaderfx", ptr);
@@ -112,7 +112,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, blender::ui::Layout *la
   ShaderFxData *fx = (ShaderFxData *)fx_v;
 
   Object *ob = blender::ed::object::context_active_object(C);
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_ShaderFx, fx);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_ShaderFx, fx);
   layout->context_ptr_set("shaderfx", &ptr);
   layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 

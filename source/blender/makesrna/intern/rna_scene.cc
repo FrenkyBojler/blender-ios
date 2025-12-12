@@ -1162,7 +1162,7 @@ static PointerRNA rna_Scene_active_keying_set_get(PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->data;
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_KeyingSet, blender::animrig::scene_get_active_keyingset(scene));
+      *ptr, RNA_KeyingSet, blender::animrig::scene_get_active_keyingset(scene));
 }
 
 static void rna_Scene_active_keying_set_set(PointerRNA *ptr,
@@ -1737,7 +1737,7 @@ static PointerRNA rna_RenderSettings_active_view_get(PointerRNA *ptr)
   RenderData *rd = (RenderData *)ptr->data;
   SceneRenderView *srv = static_cast<SceneRenderView *>(BLI_findlink(&rd->views, rd->actview));
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SceneRenderView, srv);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SceneRenderView, srv);
 }
 
 static void rna_RenderSettings_active_view_set(PointerRNA *ptr,
@@ -1965,14 +1965,14 @@ void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr)
   Scene *scene = (Scene *)ptr->owner_id;
 
   ViewLayer *view_layer = nullptr;
-  if (ptr->type == &RNA_ViewLayer) {
+  if (ptr->type == RNA_ViewLayer) {
     view_layer = (ViewLayer *)ptr->data;
   }
-  else if (ptr->type == &RNA_AOV) {
+  else if (ptr->type == RNA_AOV) {
     ViewLayerAOV *aov = (ViewLayerAOV *)ptr->data;
     view_layer = BKE_view_layer_find_with_aov(scene, aov);
   }
-  else if (ptr->type == &RNA_Lightgroup) {
+  else if (ptr->type == RNA_Lightgroup) {
     ViewLayerLightgroup *lightgroup = (ViewLayerLightgroup *)ptr->data;
     view_layer = BKE_view_layer_find_with_lightgroup(scene, lightgroup);
   }
@@ -2617,7 +2617,7 @@ PointerRNA rna_FreestyleSettings_active_lineset_get(PointerRNA *ptr)
 {
   FreestyleConfig *config = (FreestyleConfig *)ptr->data;
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(config);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_FreestyleLineSet, lineset);
+  return RNA_pointer_create_with_parent(*ptr, RNA_FreestyleLineSet, lineset);
 }
 
 void rna_FreestyleSettings_active_lineset_index_range(
@@ -2853,7 +2853,7 @@ static PointerRNA rna_TransformOrientationSlot_get(PointerRNA *ptr)
   else {
     orientation = BKE_scene_transform_orientation_find(scene, orient_slot->index_custom);
   }
-  return RNA_pointer_create_with_parent(*ptr, &RNA_TransformOrientation, orientation);
+  return RNA_pointer_create_with_parent(*ptr, RNA_TransformOrientation, orientation);
 }
 
 static const EnumPropertyItem *rna_TransformOrientation_impl_itemf(Scene *scene,

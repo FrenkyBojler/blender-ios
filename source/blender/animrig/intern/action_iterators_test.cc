@@ -171,7 +171,7 @@ TEST_F(ActionIteratorsTest, foreach_action_slot_use_with_rna)
                                      PointerRNA &action_slot_owner_ptr,
                                      PropertyRNA &action_slot_prop,
                                      char * /*last_slot_identifier*/) -> bool {
-    PointerRNA rna_slot = RNA_pointer_create_discrete(&action->id, &RNA_ActionSlot, &another_slot);
+    PointerRNA rna_slot = RNA_pointer_create_discrete(&action->id, RNA_ActionSlot, &another_slot);
     RNA_property_pointer_set(&action_slot_owner_ptr, &action_slot_prop, rna_slot, nullptr);
     return true;
   };

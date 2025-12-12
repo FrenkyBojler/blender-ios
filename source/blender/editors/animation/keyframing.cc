@@ -242,7 +242,7 @@ static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
   eRotationModes rotation_mode;
   blender::Vector<RNAPath> paths;
 
-  if (ptr->type == &RNA_Strip || RNA_struct_is_a(ptr->type, &RNA_Strip)) {
+  if (ptr->type == RNA_Strip || RNA_struct_is_a(ptr->type, RNA_Strip)) {
     eKeyInsertChannels insert_channel_flags = eKeyInsertChannels(U.key_insert_channels);
     if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_LOCATION) {
       paths.append({"transform.offset_x"});
@@ -261,11 +261,11 @@ static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
     return paths;
   }
 
-  if (ptr->type == &RNA_PoseBone) {
+  if (ptr->type == RNA_PoseBone) {
     bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
     rotation_mode = eRotationModes(pchan->rotmode);
   }
-  else if (ptr->type == &RNA_Object) {
+  else if (ptr->type == RNA_Object) {
     Object *ob = static_cast<Object *>(ptr->data);
     rotation_mode = eRotationModes(ob->rotmode);
   }
@@ -320,7 +320,7 @@ static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
     blender::VectorSet<Strip *> strips = blender::ed::vse::selected_strips_from_context(C);
     for (Strip *strip : strips) {
       PointerRNA ptr;
-      ptr = RNA_pointer_create_discrete(&CTX_data_scene(C)->id, &RNA_Strip, strip);
+      ptr = RNA_pointer_create_discrete(&CTX_data_scene(C)->id, RNA_Strip, strip);
       r_selection->append(ptr);
     }
     return true;
@@ -851,7 +851,7 @@ static blender::Vector<std::string> get_selected_strips_rna_paths(
 {
   blender::Vector<std::string> selected_strips_rna_paths;
   for (PointerRNA &id_ptr : selection) {
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+    if (RNA_struct_is_a(id_ptr.type, RNA_Strip)) {
       std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
       selected_strips_rna_paths.append(*rna_path);
     }
@@ -862,7 +862,7 @@ static blender::Vector<std::string> get_selected_strips_rna_paths(
 static void invalidate_strip_caches(blender::Vector<PointerRNA> selection, Scene *scene)
 {
   for (PointerRNA &id_ptr : selection) {
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+    if (RNA_struct_is_a(id_ptr.type, RNA_Strip)) {
       ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
       blender::seq::relations_invalidate_cache(scene, strip);
     }
@@ -1323,7 +1323,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
   }
 
   if ((ptr.owner_id && ptr.data && prop) && RNA_property_anim_editable(&ptr, prop)) {
-    if (ptr.type == &RNA_NlaStrip) {
+    if (ptr.type == RNA_NlaStrip) {
       /* Handle special properties for NLA Strips, whose F-Curves are stored on the
        * strips themselves. These are stored separately or else the properties will
        * not have any effect.

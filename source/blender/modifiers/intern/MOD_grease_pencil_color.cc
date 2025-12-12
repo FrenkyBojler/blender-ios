@@ -255,7 +255,7 @@ ModifierTypeInfo modifierType_GreasePencilColor = {
     /*name*/ N_("Color"),
     /*struct_name*/ "GreasePencilColorModifierData",
     /*struct_size*/ sizeof(GreasePencilColorModifierData),
-    /*srna*/ &RNA_GreasePencilColorModifier,
+    /*srna*/ RNA_GreasePencilColorModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

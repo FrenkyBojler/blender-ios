@@ -92,7 +92,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -406,7 +406,7 @@ ModifierTypeInfo modifierType_Displace = {
     /*name*/ N_("Displace"),
     /*struct_name*/ "DisplaceModifierData",
     /*struct_size*/ sizeof(DisplaceModifierData),
-    /*srna*/ &RNA_DisplaceModifier,
+    /*srna*/ RNA_DisplaceModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_DISPLACE,

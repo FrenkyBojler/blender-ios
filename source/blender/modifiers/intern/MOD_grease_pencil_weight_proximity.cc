@@ -292,7 +292,7 @@ ModifierTypeInfo modifierType_GreasePencilWeightProximity = {
     /*name*/ N_("Weight Proximity"),
     /*struct_name*/ "GreasePencilWeightProximityModifierData",
     /*struct_size*/ sizeof(GreasePencilWeightProximityModifierData),
-    /*srna*/ &RNA_GreasePencilWeightProximityModifier,
+    /*srna*/ RNA_GreasePencilWeightProximityModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |

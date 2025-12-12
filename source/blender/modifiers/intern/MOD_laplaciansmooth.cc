@@ -554,7 +554,7 @@ ModifierTypeInfo modifierType_LaplacianSmooth = {
     /*name*/ N_("LaplacianSmooth"),
     /*struct_name*/ "LaplacianSmoothModifierData",
     /*struct_size*/ sizeof(LaplacianSmoothModifierData),
-    /*srna*/ &RNA_LaplacianSmoothModifier,
+    /*srna*/ RNA_LaplacianSmoothModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_SMOOTH,

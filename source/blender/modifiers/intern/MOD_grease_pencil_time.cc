@@ -579,7 +579,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     if (tmd->segments().index_range().contains(tmd->segment_active_index)) {
       PointerRNA segment_ptr = RNA_pointer_create_discrete(
           ptr->owner_id,
-          &RNA_GreasePencilTimeModifierSegment,
+          RNA_GreasePencilTimeModifierSegment,
           &tmd->segments()[tmd->segment_active_index]);
 
       sub = &layout.column(true);
@@ -668,7 +668,7 @@ ModifierTypeInfo modifierType_GreasePencilTime = {
     /*name*/ N_("TimeOffset"),
     /*struct_name*/ "GreasePencilTimeModifierData",
     /*struct_size*/ sizeof(GreasePencilTimeModifierData),
-    /*srna*/ &RNA_GreasePencilTimeModifier,
+    /*srna*/ RNA_GreasePencilTimeModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

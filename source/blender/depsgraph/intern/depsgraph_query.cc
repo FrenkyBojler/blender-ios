@@ -232,7 +232,7 @@ void DEG_get_evaluated_rna_pointer(const Depsgraph *depsgraph,
     r_ptr_eval->data = (void *)cow_id;
     r_ptr_eval->type = ptr->type;
   }
-  else if (ptr->type == &RNA_PoseBone) {
+  else if (ptr->type == RNA_PoseBone) {
     /* HACK: Since bone keyframing is quite commonly used,
      * speed things up for this case by doing a special lookup
      * for bones */

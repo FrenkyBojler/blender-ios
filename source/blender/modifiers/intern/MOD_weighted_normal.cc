@@ -602,7 +602,7 @@ ModifierTypeInfo modifierType_WeightedNormal = {
     /*name*/ N_("WeightedNormal"),
     /*struct_name*/ "WeightedNormalModifierData",
     /*struct_size*/ sizeof(WeightedNormalModifierData),
-    /*srna*/ &RNA_WeightedNormalModifier,
+    /*srna*/ RNA_WeightedNormalModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,

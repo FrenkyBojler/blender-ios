@@ -268,7 +268,7 @@ ModifierTypeInfo modifierType_GreasePencilWeightAngle = {
     /*name*/ N_("Weight Angle"),
     /*struct_name*/ "GreasePencilWeightAngleModifierData",
     /*struct_size*/ sizeof(GreasePencilWeightAngleModifierData),
-    /*srna*/ &RNA_GreasePencilWeightAngleModifier,
+    /*srna*/ RNA_GreasePencilWeightAngleModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |

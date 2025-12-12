@@ -114,18 +114,18 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph,
     BL::ID b_id(b_update.id());
 
     /* Material */
-    if (b_id.is_a(&RNA_Material)) {
+    if (b_id.is_a(RNA_Material)) {
       const BL::Material b_mat(b_id);
       shader_map.set_recalc(b_mat);
     }
     /* Light */
-    else if (b_id.is_a(&RNA_Light)) {
+    else if (b_id.is_a(RNA_Light)) {
       const BL::Light b_light(b_id);
       shader_map.set_recalc(b_light);
       geometry_map.set_recalc(b_light);
     }
     /* Object */
-    else if (b_id.is_a(&RNA_Object)) {
+    else if (b_id.is_a(RNA_Object)) {
       BL::Object b_ob(b_id);
       const bool can_have_geometry = object_can_have_geometry(b_ob);
       const bool is_light = !can_have_geometry && object_is_light(b_ob);
@@ -197,12 +197,12 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph,
       }
     }
     /* Mesh */
-    else if (b_id.is_a(&RNA_Mesh)) {
+    else if (b_id.is_a(RNA_Mesh)) {
       const BL::Mesh b_mesh(b_id);
       geometry_map.set_recalc(b_mesh);
     }
     /* World */
-    else if (b_id.is_a(&RNA_World)) {
+    else if (b_id.is_a(RNA_World)) {
       const BL::World b_world(b_id);
       if (world_map == b_world.ptr.data) {
         world_recalc = true;
@@ -210,16 +210,16 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph,
       shader_map.set_recalc(b_world);
     }
     /* World */
-    else if (b_id.is_a(&RNA_Scene)) {
+    else if (b_id.is_a(RNA_Scene)) {
       shader_map.set_recalc(b_id);
     }
     /* Volume */
-    else if (b_id.is_a(&RNA_Volume)) {
+    else if (b_id.is_a(RNA_Volume)) {
       const BL::Volume b_volume(b_id);
       geometry_map.set_recalc(b_volume);
     }
     /* Camera */
-    else if (b_id.is_a(&RNA_Camera)) {
+    else if (b_id.is_a(RNA_Camera)) {
       if (b_dicing_camera_object && b_dicing_camera_object.data() == b_id) {
         dicing_camera_updated = true;
       }

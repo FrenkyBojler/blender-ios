@@ -197,8 +197,8 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
 
   if (srna->flag & STRUCT_RUNTIME) {
     brna->structs.remove(brna->structs.first_index_of(srna));
-    MEM_delete(srna);
   }
+  MEM_delete(srna);
 }
 #endif
 
@@ -1045,7 +1045,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
       cprop->begin = rna_builtin_properties_begin;
       cprop->next = rna_builtin_properties_next;
       cprop->get = rna_builtin_properties_get;
-      cprop->item_type = &RNA_Property;
+      cprop->item_type = RNA_Property;
 #endif
     }
 
@@ -1061,7 +1061,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
 #ifdef RNA_RUNTIME
       PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
       pprop->get = rna_builtin_type_get;
-      pprop->type = &RNA_Struct;
+      pprop->type = RNA_Struct;
 #endif
     }
   }

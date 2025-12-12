@@ -109,7 +109,7 @@ static PointerRNA rna_trackingReconstruction_get(PointerRNA *ptr)
   MovieTrackingObject *tracking_camera_object = BKE_tracking_object_get_camera(&clip->tracking);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingReconstruction, &tracking_camera_object->reconstruction);
+      *ptr, RNA_MovieTrackingReconstruction, &tracking_camera_object->reconstruction);
 }
 
 static void rna_trackingObjects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -149,7 +149,7 @@ static PointerRNA rna_tracking_active_track_get(PointerRNA *ptr)
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingTrack, tracking_object->active_track);
+      *ptr, RNA_MovieTrackingTrack, tracking_object->active_track);
 }
 
 static void rna_tracking_active_track_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
@@ -177,7 +177,7 @@ static PointerRNA rna_tracking_active_plane_track_get(PointerRNA *ptr)
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingPlaneTrack, tracking_object->active_plane_track);
+      *ptr, RNA_MovieTrackingPlaneTrack, tracking_object->active_plane_track);
 }
 
 static void rna_tracking_active_plane_track_set(PointerRNA *ptr,
@@ -207,7 +207,7 @@ static PointerRNA rna_tracking_object_active_track_get(PointerRNA *ptr)
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingTrack, tracking_object->active_track);
+      *ptr, RNA_MovieTrackingTrack, tracking_object->active_track);
 }
 
 static void rna_tracking_object_active_track_set(PointerRNA *ptr,
@@ -235,7 +235,7 @@ static PointerRNA rna_tracking_object_active_plane_track_get(PointerRNA *ptr)
   MovieTrackingObject *tracking_object = (MovieTrackingObject *)ptr->data;
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingPlaneTrack, tracking_object->active_plane_track);
+      *ptr, RNA_MovieTrackingPlaneTrack, tracking_object->active_plane_track);
 }
 
 static void rna_tracking_object_active_plane_track_set(PointerRNA *ptr,
@@ -540,7 +540,7 @@ static PointerRNA rna_trackingObject_reconstruction_get(PointerRNA *ptr)
 {
   MovieTrackingObject *tracking_object = (MovieTrackingObject *)ptr->data;
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingReconstruction, &tracking_object->reconstruction);
+      *ptr, RNA_MovieTrackingReconstruction, &tracking_object->reconstruction);
 }
 
 static PointerRNA rna_tracking_active_object_get(PointerRNA *ptr)
@@ -549,7 +549,7 @@ static PointerRNA rna_tracking_active_object_get(PointerRNA *ptr)
   MovieTrackingObject *tracking_object = static_cast<MovieTrackingObject *>(
       BLI_findlink(&clip->tracking.objects, clip->tracking.objectnr));
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_MovieTrackingObject, tracking_object);
+  return RNA_pointer_create_with_parent(*ptr, RNA_MovieTrackingObject, tracking_object);
 }
 
 static void rna_tracking_active_object_set(PointerRNA *ptr,

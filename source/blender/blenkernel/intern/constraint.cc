@@ -5893,7 +5893,7 @@ static bool constraint_remove(ListBase *list, bConstraint *con)
 
 bool BKE_constraint_remove_ex(ListBase *list, Object *ob, bConstraint *con)
 {
-  BKE_animdata_drivers_remove_for_rna_struct(ob->id, RNA_Constraint, con);
+  BKE_animdata_drivers_remove_for_rna_struct(ob->id, *RNA_Constraint, con);
 
   const short type = con->type;
   if (constraint_remove(list, con)) {

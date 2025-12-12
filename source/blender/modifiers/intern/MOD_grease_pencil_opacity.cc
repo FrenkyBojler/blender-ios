@@ -296,7 +296,7 @@ ModifierTypeInfo modifierType_GreasePencilOpacity = {
     /*name*/ N_("Opacity"),
     /*struct_name*/ "GreasePencilOpacityModifierData",
     /*struct_size*/ sizeof(GreasePencilOpacityModifierData),
-    /*srna*/ &RNA_GreasePencilOpacityModifier,
+    /*srna*/ RNA_GreasePencilOpacityModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

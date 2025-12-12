@@ -67,7 +67,7 @@ bool BlenderSync::object_is_geometry(BObjectInfo &b_ob_info)
     return true;
   }
 
-  return b_ob_data.is_a(&RNA_Mesh);
+  return b_ob_data.is_a(RNA_Mesh);
 }
 
 bool BlenderSync::object_can_have_geometry(BL::Object &b_ob)
@@ -92,14 +92,14 @@ bool BlenderSync::object_is_light(BL::Object &b_ob)
 {
   BL::ID b_ob_data = object_get_data(b_ob, true);
 
-  return (b_ob_data && b_ob_data.is_a(&RNA_Light));
+  return (b_ob_data && b_ob_data.is_a(RNA_Light));
 }
 
 bool BlenderSync::object_is_camera(BL::Object &b_ob)
 {
   BL::ID b_ob_data = object_get_data(b_ob, true);
 
-  return (b_ob_data && b_ob_data.is_a(&RNA_Camera));
+  return (b_ob_data && b_ob_data.is_a(RNA_Camera));
 }
 
 void BlenderSync::sync_object_motion_init(BL::Object &b_parent, BL::Object &b_ob, Object *object)

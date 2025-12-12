@@ -125,7 +125,7 @@ ModifierTypeInfo modifierType_Triangulate = {
     /*name*/ N_("Triangulate"),
     /*struct_name*/ "TriangulateModifierData",
     /*struct_size*/ sizeof(TriangulateModifierData),
-    /*srna*/ &RNA_TriangulateModifier,
+    /*srna*/ RNA_TriangulateModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_EnableInEditmode |

@@ -201,7 +201,7 @@ ModifierTypeInfo modifierType_GreasePencilLattice = {
     /*name*/ N_("Lattice"),
     /*struct_name*/ "GreasePencilLatticeModifierData",
     /*struct_size*/ sizeof(GreasePencilLatticeModifierData),
-    /*srna*/ &RNA_GreasePencilLatticeModifier,
+    /*srna*/ RNA_GreasePencilLatticeModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

@@ -120,7 +120,7 @@ static void graph_panel_cursor_header(const bContext *C, Panel *panel)
   SpaceGraph *sipo = CTX_wm_space_graph(C);
 
   /* get RNA pointers for use when creating the UI elements */
-  PointerRNA spaceptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceGraphEditor, sipo);
+  PointerRNA spaceptr = RNA_pointer_create_discrete(&screen->id, RNA_SpaceGraphEditor, sipo);
 
   /* 2D-Cursor */
   blender::ui::Layout &col = panel->layout->column(false);
@@ -136,7 +136,7 @@ static void graph_panel_cursor(const bContext *C, Panel *panel)
 
   /* get RNA pointers for use when creating the UI elements */
   PointerRNA sceneptr = RNA_id_pointer_create(&scene->id);
-  PointerRNA spaceptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceGraphEditor, sipo);
+  PointerRNA spaceptr = RNA_pointer_create_discrete(&screen->id, RNA_SpaceGraphEditor, sipo);
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
@@ -179,7 +179,7 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
   }
 
   /* F-Curve pointer */
-  PointerRNA fcu_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_FCurve, fcu);
+  PointerRNA fcu_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, RNA_FCurve, fcu);
 
   /* user-friendly 'name' for F-Curve */
   blender::ui::Layout &name_col = layout.column(false);
@@ -373,7 +373,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
     int unit = B_UNIT_NONE;
 
     /* RNA pointer to keyframe, to allow editing */
-    PointerRNA bezt_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, &RNA_Keyframe, bezt);
+    PointerRNA bezt_ptr = RNA_pointer_create_discrete(ale->fcurve_owner_id, RNA_Keyframe, bezt);
 
     /* get property that F-Curve affects, for some unit-conversion magic */
     PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
@@ -744,7 +744,7 @@ static void graph_panel_driverVar__singleProp(blender::ui::Layout &layout, ID *i
   DriverTarget *dtar = &dvar->targets[0];
 
   /* initialize RNA pointer to the target */
-  PointerRNA dtar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverTarget, dtar);
+  PointerRNA dtar_ptr = RNA_pointer_create_discrete(id, RNA_DriverTarget, dtar);
 
   /* Target ID */
   blender::ui::Layout &row = layout.row(false);
@@ -777,7 +777,7 @@ static void graph_panel_driverVar__rotDiff(blender::ui::Layout &layout, ID *id, 
   for (int i : blender::IndexRange(2)) {
     DriverTarget *dtar = &dvar->targets[i];
     /* Initialize RNA pointer to the target */
-    PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_DriverTarget, dtar);
+    PointerRNA ptr = RNA_pointer_create_discrete(id, RNA_DriverTarget, dtar);
 
     blender::ui::Layout &col = layout.column(true);
     col.red_alert_set(dtar->flag & DTAR_FLAG_INVALID); /* XXX: per field... */
@@ -786,7 +786,7 @@ static void graph_panel_driverVar__rotDiff(blender::ui::Layout &layout, ID *id, 
 
     Object *ob = (Object *)dtar->id;
     if (dtar->id && GS(dtar->id->name) == ID_OB && ob->pose) {
-      PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, &RNA_Pose, ob->pose);
+      PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, RNA_Pose, ob->pose);
       col.prop_search(&ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
     }
   }
@@ -800,7 +800,7 @@ static void graph_panel_driverVar__locDiff(blender::ui::Layout &layout, ID *id, 
   for (int i : blender::IndexRange(2)) {
     DriverTarget *dtar = &dvar->targets[i];
     /* Initialize RNA pointer to the target */
-    PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_DriverTarget, dtar);
+    PointerRNA ptr = RNA_pointer_create_discrete(id, RNA_DriverTarget, dtar);
 
     blender::ui::Layout &col = layout.column(true);
     col.red_alert_set(dtar->flag & DTAR_FLAG_INVALID); /* XXX: per field... */
@@ -810,7 +810,7 @@ static void graph_panel_driverVar__locDiff(blender::ui::Layout &layout, ID *id, 
     Object *ob = (Object *)dtar->id;
 
     if (dtar->id && GS(dtar->id->name) == ID_OB && ob->pose) {
-      PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, &RNA_Pose, ob->pose);
+      PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, RNA_Pose, ob->pose);
       col.prop_search(&ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
     }
 
@@ -828,7 +828,7 @@ static void graph_panel_driverVar__transChan(blender::ui::Layout &layout, ID *id
   Object *ob = (Object *)dtar->id;
 
   /* initialize RNA pointer to the target */
-  PointerRNA dtar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverTarget, dtar);
+  PointerRNA dtar_ptr = RNA_pointer_create_discrete(id, RNA_DriverTarget, dtar);
 
   /* properties */
   blender::ui::Layout &col = layout.column(true);
@@ -836,7 +836,7 @@ static void graph_panel_driverVar__transChan(blender::ui::Layout &layout, ID *id
   col.prop(&dtar_ptr, "id", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
 
   if (dtar->id && GS(dtar->id->name) == ID_OB && ob->pose) {
-    PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, &RNA_Pose, ob->pose);
+    PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, RNA_Pose, ob->pose);
     col.prop_search(&dtar_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
   }
 
@@ -863,7 +863,7 @@ static void graph_panel_driverVar__contextProp(blender::ui::Layout &layout,
   DriverTarget *dtar = &dvar->targets[0];
 
   /* Initialize RNA pointer to the target. */
-  PointerRNA dtar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverTarget, dtar);
+  PointerRNA dtar_ptr = RNA_pointer_create_discrete(id, RNA_DriverTarget, dtar);
 
   /* Target Property. */
   {
@@ -895,7 +895,7 @@ static void graph_draw_driven_property_enabled_btn(blender::ui::Layout &layout,
                                                    FCurve *fcu,
                                                    const char *label)
 {
-  PointerRNA fcurve_ptr = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
+  PointerRNA fcurve_ptr = RNA_pointer_create_discrete(id, RNA_FCurve, fcu);
 
   blender::ui::Block *block = layout.block();
   uiDefButR(block,
@@ -968,7 +968,7 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
   block_func_handle_set(block, do_graph_region_driver_buttons, id);
 
   /* driver-level settings - type, expressions, and errors */
-  PointerRNA driver_ptr = RNA_pointer_create_discrete(id, &RNA_Driver, driver);
+  PointerRNA driver_ptr = RNA_pointer_create_discrete(id, RNA_Driver, driver);
 
   {
     blender::ui::Layout &col = layout.column(true);
@@ -1098,7 +1098,7 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
 
     /* 1) header panel */
     blender::ui::Layout &header_box = col.box();
-    PointerRNA dvar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverVariable, dvar);
+    PointerRNA dvar_ptr = RNA_pointer_create_discrete(id, RNA_DriverVariable, dvar);
 
     /* 1.1) variable type and name */
     blender::ui::Layout &sub = header_box.row(false).row(true);
@@ -1303,7 +1303,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
     if (fcu && fcu->driver) {
       ID *id = ptr.owner_id;
 
-      PointerRNA ptr_fcurve = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
+      PointerRNA ptr_fcurve = RNA_pointer_create_discrete(id, RNA_FCurve, fcu);
       layout.context_ptr_set("active_editable_fcurve", &ptr_fcurve);
 
       /* Driven Property Settings */

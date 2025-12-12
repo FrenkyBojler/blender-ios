@@ -260,7 +260,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *SeparateBundleItemsAccessor::item_srna = &RNA_NodeSeparateBundleItem;
+StructRNA *SeparateBundleItemsAccessor::item_srna = RNA_NodeSeparateBundleItem;
 
 void SeparateBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

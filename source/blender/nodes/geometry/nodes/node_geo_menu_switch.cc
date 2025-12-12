@@ -611,7 +611,7 @@ std::unique_ptr<LazyFunction> get_menu_switch_node_socket_usage_lazy_function(co
   return std::make_unique<LazyFunctionForMenuSwitchSocketUsage>(node);
 }
 
-StructRNA *MenuSwitchItemsAccessor::item_srna = &RNA_NodeEnumItem;
+StructRNA *MenuSwitchItemsAccessor::item_srna = RNA_NodeEnumItem;
 
 void MenuSwitchItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

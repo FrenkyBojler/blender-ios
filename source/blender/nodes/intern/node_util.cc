@@ -230,43 +230,43 @@ bool node_insert_link_default(blender::bke::NodeInsertLinkParams & /*params*/)
 
 int node_socket_get_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   return RNA_int_get(&ptr, "default_value");
 }
 
 void node_socket_set_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, int value)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   RNA_int_set(&ptr, "default_value", value);
 }
 
 bool node_socket_get_bool(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   return RNA_boolean_get(&ptr, "default_value");
 }
 
 void node_socket_set_bool(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, bool value)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   RNA_boolean_set(&ptr, "default_value", value);
 }
 
 float node_socket_get_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   return RNA_float_get(&ptr, "default_value");
 }
 
 void node_socket_set_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, float value)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   RNA_float_set(&ptr, "default_value", value);
 }
 
 void node_socket_get_color(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, float *value)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   RNA_float_get_array(&ptr, "default_value", value);
 }
 
@@ -275,13 +275,13 @@ void node_socket_set_color(bNodeTree *ntree,
                            bNodeSocket *sock,
                            const float *value)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   RNA_float_set_array(&ptr, "default_value", value);
 }
 
 void node_socket_get_vector(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, float *value)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   RNA_float_get_array(&ptr, "default_value", value);
 }
 
@@ -290,7 +290,7 @@ void node_socket_set_vector(bNodeTree *ntree,
                             bNodeSocket *sock,
                             const float *value)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, RNA_NodeSocket, sock);
   RNA_float_set_array(&ptr, "default_value", value);
 }
 

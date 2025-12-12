@@ -231,7 +231,7 @@ ModifierTypeInfo modifierType_Mirror = {
     /*name*/ N_("Mirror"),
     /*struct_name*/ "MirrorModifierData",
     /*struct_size*/ sizeof(MirrorModifierData),
-    /*srna*/ &RNA_MirrorModifier,
+    /*srna*/ RNA_MirrorModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |

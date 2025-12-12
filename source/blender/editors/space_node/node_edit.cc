@@ -2125,7 +2125,7 @@ static bool node_shader_script_update_poll(bContext *C)
   }
 
   /* See if we have a shader script node in context. */
-  bNode *node = (bNode *)CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript).data;
+  bNode *node = (bNode *)CTX_data_pointer_get_type(C, "node", RNA_ShaderNodeScript).data;
 
   if (!node && snode && snode->edittree) {
     node = bke::node_get_active(*snode->edittree);
@@ -2146,7 +2146,7 @@ static wmOperatorStatus node_shader_script_update_exec(bContext *C, wmOperator *
 {
   RenderEngineType *type = CTX_data_engine_type(C);
   SpaceNode *snode = CTX_wm_space_node(C);
-  PointerRNA nodeptr = CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript);
+  PointerRNA nodeptr = CTX_data_pointer_get_type(C, "node", RNA_ShaderNodeScript);
 
   /* setup render engine */
   RenderEngine *engine = RE_engine_create(type);

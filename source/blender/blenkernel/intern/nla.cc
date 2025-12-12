@@ -1180,7 +1180,7 @@ void BKE_nlameta_flush_transforms(NlaStrip *mstrip)
     /* only if scale changed, need to perform RNA updates */
     if (scaleChanged) {
       /* use RNA updates to compute scale properly */
-      PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_NlaStrip, strip);
+      PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_NlaStrip, strip);
 
       RNA_float_set(&ptr, "frame_start", strip->start);
       RNA_float_set(&ptr, "frame_end", strip->end);
@@ -1887,7 +1887,7 @@ bool BKE_nlastrip_has_curves_for_property(const PointerRNA *ptr, const PropertyR
   }
 
   /* 1) Must be NLA strip */
-  if (ptr->type == &RNA_NlaStrip) {
+  if (ptr->type == RNA_NlaStrip) {
     /* 2) Must be one of the predefined properties */
     static PropertyRNA *prop_influence = nullptr;
     static PropertyRNA *prop_time = nullptr;
@@ -1895,8 +1895,8 @@ bool BKE_nlastrip_has_curves_for_property(const PointerRNA *ptr, const PropertyR
 
     /* Init the properties on first use */
     if (needs_init) {
-      prop_influence = RNA_struct_type_find_property(&RNA_NlaStrip, "influence");
-      prop_time = RNA_struct_type_find_property(&RNA_NlaStrip, "strip_time");
+      prop_influence = RNA_struct_type_find_property(RNA_NlaStrip, "influence");
+      prop_time = RNA_struct_type_find_property(RNA_NlaStrip, "strip_time");
 
       needs_init = false;
     }

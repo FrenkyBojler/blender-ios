@@ -340,7 +340,7 @@ ModifierTypeInfo modifierType_GreasePencilLength = {
     /*name*/ N_("Length"),
     /*struct_name*/ "GreasePencilLengthModifierData",
     /*struct_size*/ sizeof(GreasePencilLengthModifierData),
-    /*srna*/ &RNA_GreasePencilLengthModifier,
+    /*srna*/ RNA_GreasePencilLengthModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_EnableInEditmode |

@@ -885,7 +885,7 @@ static StructRNA *rna_Modifier_refine(PointerRNA *ptr)
   if (modifier_type != nullptr) {
     return modifier_type->srna;
   }
-  return &RNA_Modifier;
+  return RNA_Modifier;
 }
 
 static void rna_Modifier_name_set(PointerRNA *ptr, const char *value)
@@ -1350,19 +1350,19 @@ static bool rna_MeshDeformModifier_is_bound_get(PointerRNA *ptr)
 static PointerRNA rna_SoftBodyModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return RNA_pointer_create_with_parent(*ptr, &RNA_SoftBodySettings, ob->soft);
+  return RNA_pointer_create_with_parent(*ptr, RNA_SoftBodySettings, ob->soft);
 }
 
 static PointerRNA rna_SoftBodyModifier_point_cache_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return RNA_pointer_create_with_parent(*ptr, &RNA_PointCache, ob->soft->shared->pointcache);
+  return RNA_pointer_create_with_parent(*ptr, RNA_PointCache, ob->soft->shared->pointcache);
 }
 
 static PointerRNA rna_CollisionModifier_settings_get(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
-  return RNA_pointer_create_with_parent(*ptr, &RNA_CollisionSettings, ob->pd);
+  return RNA_pointer_create_with_parent(*ptr, RNA_CollisionSettings, ob->pd);
 }
 
 /* Special update function for setting the number of segments of the modifier that also resamples
@@ -1851,7 +1851,7 @@ static PointerRNA rna_ParticleInstanceModifier_particle_system_get(PointerRNA *p
   }
 
   psys = static_cast<ParticleSystem *>(BLI_findlink(&psmd->ob->particlesystem, psmd->psys - 1));
-  PointerRNA rptr = RNA_pointer_create_discrete((ID *)psmd->ob, &RNA_ParticleSystem, psys);
+  PointerRNA rptr = RNA_pointer_create_discrete((ID *)psmd->ob, RNA_ParticleSystem, psys);
   return rptr;
 }
 
@@ -1952,7 +1952,7 @@ static PointerRNA rna_NodesModifier_node_warnings_iterator_get(CollectionPropert
   NodesModifierData *nmd = static_cast<NodesModifierData *>(iter->parent.data);
   blender::Span warnings = get_node_modifier_warnings(*nmd);
   return RNA_pointer_create_with_parent(
-      iter->parent, &RNA_NodesModifierWarning, (void *)&warnings[iter->internal.count.item]);
+      iter->parent, RNA_NodesModifierWarning, (void *)&warnings[iter->internal.count.item]);
 }
 
 static int rna_NodesModifier_node_warnings_length(PointerRNA *ptr)
@@ -2035,7 +2035,7 @@ static PointerRNA rna_NodesModifierBake_node_get(PointerRNA *ptr)
   }
   BLI_assert(tree != nullptr);
   return RNA_pointer_create_discrete(
-      const_cast<ID *>(&tree->id), &RNA_Node, const_cast<bNode *>(node));
+      const_cast<ID *>(&tree->id), RNA_Node, const_cast<bNode *>(node));
 }
 
 static StructRNA *rna_NodesModifierBake_data_block_typef(PointerRNA *ptr)

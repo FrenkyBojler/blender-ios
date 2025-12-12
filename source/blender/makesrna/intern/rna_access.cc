@@ -165,7 +165,7 @@ void rna_pointer_create_with_ancestors(const PointerRNA &parent,
 
 PointerRNA RNA_main_pointer_create(Main *main)
 {
-  return {nullptr, &RNA_BlendData, main};
+  return {nullptr, RNA_BlendData, main};
 }
 
 PointerRNA RNA_id_pointer_create(ID *id)
@@ -236,7 +236,7 @@ PointerRNA RNA_blender_rna_pointer_create()
 {
   PointerRNA ptr = {};
   ptr.owner_id = nullptr;
-  ptr.type = &RNA_BlenderRNA;
+  ptr.type = RNA_BlenderRNA;
   ptr.data = &RNA_blender_rna_get();
   return ptr;
 }
@@ -807,7 +807,7 @@ bool RNA_struct_is_a(const StructRNA *type, const StructRNA *srna)
 {
   const StructRNA *base;
 
-  if (srna == &RNA_AnyType) {
+  if (srna == RNA_AnyType) {
     return true;
   }
 
@@ -854,21 +854,21 @@ static const char *rna_property_type_identifier(PropertyType prop_type)
 {
   switch (prop_type) {
     case PROP_BOOLEAN:
-      return RNA_struct_identifier(&RNA_BoolProperty);
+      return RNA_struct_identifier(RNA_BoolProperty);
     case PROP_INT:
-      return RNA_struct_identifier(&RNA_IntProperty);
+      return RNA_struct_identifier(RNA_IntProperty);
     case PROP_FLOAT:
-      return RNA_struct_identifier(&RNA_FloatProperty);
+      return RNA_struct_identifier(RNA_FloatProperty);
     case PROP_STRING:
-      return RNA_struct_identifier(&RNA_StringProperty);
+      return RNA_struct_identifier(RNA_StringProperty);
     case PROP_ENUM:
-      return RNA_struct_identifier(&RNA_EnumProperty);
+      return RNA_struct_identifier(RNA_EnumProperty);
     case PROP_POINTER:
-      return RNA_struct_identifier(&RNA_PointerProperty);
+      return RNA_struct_identifier(RNA_PointerProperty);
     case PROP_COLLECTION:
-      return RNA_struct_identifier(&RNA_CollectionProperty);
+      return RNA_struct_identifier(RNA_CollectionProperty);
     default:
-      return RNA_struct_identifier(&RNA_Property);
+      return RNA_struct_identifier(RNA_Property);
   }
 }
 
@@ -1041,7 +1041,7 @@ FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier)
   PropertyRNA *iterprop;
   FunctionRNA *func;
 
-  PointerRNA tptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, srna);
+  PointerRNA tptr = RNA_pointer_create_discrete(nullptr, RNA_Struct, srna);
   iterprop = RNA_struct_find_property(&tptr, "functions");
 
   func = nullptr;
@@ -1690,7 +1690,7 @@ StructRNA *RNA_property_pointer_type(PointerRNA *ptr, PropertyRNA *prop)
   }
   /* ignore other types, rna_struct_find_nested calls with unchecked props */
 
-  return &RNA_UnknownType;
+  return RNA_UnknownType;
 }
 
 bool RNA_property_pointer_poll(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *value)
@@ -4643,7 +4643,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
   /* Assigning to an IDProperty. */
   ID *value = static_cast<ID *>(ptr_value.data);
 
-  if (ptr_value.type != nullptr && !RNA_struct_is_a(ptr_value.type, &RNA_ID)) {
+  if (ptr_value.type != nullptr && !RNA_struct_is_a(ptr_value.type, RNA_ID)) {
     BKE_reportf(
         reports, RPT_ERROR, "%s: expected ID type, not %s", __func__, ptr_value.type->identifier);
     return;
@@ -6633,7 +6633,7 @@ std::string RNA_function_as_string_keywords(bContext *C,
                                             const bool all_args,
                                             const int max_prop_length)
 {
-  PointerRNA funcptr = RNA_pointer_create_discrete(nullptr, &RNA_Function, func);
+  PointerRNA funcptr = RNA_pointer_create_discrete(nullptr, RNA_Function, func);
 
   PropertyRNA *iterprop = RNA_struct_find_property(&funcptr, "parameters");
 
@@ -7103,7 +7103,7 @@ int RNA_parameter_list_ret_count(const ParameterList *parms)
 void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter)
 {
   /* may be useful but unused now */
-  // RNA_pointer_create_discrete(nullptr, &RNA_Function, parms->func, &iter->funcptr); /* UNUSED */
+  // RNA_pointer_create_discrete(nullptr, RNA_Function, parms->func, &iter->funcptr); /* UNUSED */
 
   iter->parms = parms;
   iter->parm = static_cast<PropertyRNA *>(parms->func->cont.properties.first);

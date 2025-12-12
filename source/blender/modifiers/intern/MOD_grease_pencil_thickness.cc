@@ -218,7 +218,7 @@ ModifierTypeInfo modifierType_GreasePencilThickness = {
     /*name*/ N_("Thickness"),
     /*struct_name*/ "GreasePencilThickModifierData",
     /*struct_size*/ sizeof(GreasePencilThickModifierData),
-    /*srna*/ &RNA_GreasePencilThickModifierData,
+    /*srna*/ RNA_GreasePencilThickModifierData,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |

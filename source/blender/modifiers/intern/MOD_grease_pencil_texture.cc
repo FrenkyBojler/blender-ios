@@ -369,7 +369,7 @@ ModifierTypeInfo modifierType_GreasePencilTexture = {
     /*name*/ N_("TextureMapping"),
     /*struct_name*/ "GreasePencilTextureModifierData",
     /*struct_size*/ sizeof(GreasePencilTextureModifierData),
-    /*srna*/ &RNA_GreasePencilTextureModifier,
+    /*srna*/ RNA_GreasePencilTextureModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

@@ -797,7 +797,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *FormatStringItemsAccessor::item_srna = &RNA_NodeFunctionFormatStringItem;
+StructRNA *FormatStringItemsAccessor::item_srna = RNA_NodeFunctionFormatStringItem;
 
 void FormatStringItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

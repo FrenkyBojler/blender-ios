@@ -92,8 +92,8 @@ static bool mesh_use_corner_normals(const BObjectInfo &b_ob_info, BL::Mesh &mesh
 
 static inline BL::Mesh object_to_mesh(BObjectInfo &b_ob_info)
 {
-  BL::Mesh mesh = (b_ob_info.object_data.is_a(&RNA_Mesh)) ? BL::Mesh(b_ob_info.object_data) :
-                                                            BL::Mesh(PointerRNA_NULL);
+  BL::Mesh mesh = (b_ob_info.object_data.is_a(RNA_Mesh)) ? BL::Mesh(b_ob_info.object_data) :
+                                                           BL::Mesh(PointerRNA_NULL);
 
   bool use_corner_normals = false;
 
@@ -622,7 +622,7 @@ static inline bool object_use_deform_motion(BL::Object &b_parent, BL::Object &b_
 static inline BL::FluidDomainSettings object_fluid_gas_domain_find(BL::Object &b_ob)
 {
   for (BL::Modifier &b_mod : b_ob.modifiers) {
-    if (b_mod.is_a(&RNA_FluidModifier)) {
+    if (b_mod.is_a(RNA_FluidModifier)) {
       BL::FluidModifier b_mmd(b_mod);
 
       if (b_mmd.fluid_type() == BL::FluidModifier::fluid_type_DOMAIN &&

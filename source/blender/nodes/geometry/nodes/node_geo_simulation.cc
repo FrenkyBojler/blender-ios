@@ -964,7 +964,7 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
   }
 }
 
-StructRNA *SimulationItemsAccessor::item_srna = &RNA_SimulationStateItem;
+StructRNA *SimulationItemsAccessor::item_srna = RNA_SimulationStateItem;
 
 void SimulationItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

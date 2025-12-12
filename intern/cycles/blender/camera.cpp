@@ -167,7 +167,7 @@ static void blender_camera_from_object(BlenderCamera *bcam,
 {
   BL::ID b_ob_data = b_ob.data();
 
-  if (b_ob_data.is_a(&RNA_Camera)) {
+  if (b_ob_data.is_a(RNA_Camera)) {
     BL::Camera b_camera(b_ob_data);
 
     bcam->nearclip = b_camera.clip_start();
@@ -283,7 +283,7 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       }
     }
   }
-  else if (b_ob_data.is_a(&RNA_Light)) {
+  else if (b_ob_data.is_a(RNA_Light)) {
     /* Can also look through spot light. */
     BL::SpotLight b_light(b_ob_data);
     const float lens = 16.0f / tanf(b_light.spot_size() * 0.5f);

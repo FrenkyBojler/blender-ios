@@ -323,7 +323,7 @@ ModifierTypeInfo modifierType_GreasePencilOutline = {
     /*name*/ N_("Outline"),
     /*struct_name*/ "GreasePencilOutlineModifierData",
     /*struct_size*/ sizeof(GreasePencilOutlineModifierData),
-    /*srna*/ &RNA_GreasePencilOutlineModifier,
+    /*srna*/ RNA_GreasePencilOutlineModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

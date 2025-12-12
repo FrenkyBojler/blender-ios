@@ -281,7 +281,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -2313,7 +2313,7 @@ ModifierTypeInfo modifierType_Nodes = {
     /*name*/ N_("GeometryNodes"),
     /*struct_name*/ "NodesModifierData",
     /*struct_size*/ sizeof(NodesModifierData),
-    /*srna*/ &RNA_NodesModifier,
+    /*srna*/ RNA_NodesModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/
     (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |

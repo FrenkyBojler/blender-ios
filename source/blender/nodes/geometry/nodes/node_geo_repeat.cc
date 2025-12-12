@@ -47,7 +47,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
   }
   bNode &output_node = const_cast<bNode &>(*zone->output_node());
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(
-      current_node_ptr->owner_id, &RNA_Node, &output_node);
+      current_node_ptr->owner_id, RNA_Node, &output_node);
 
   if (ui::Layout *panel = layout.panel(C, "repeat_items", false, IFACE_("Repeat Items"))) {
     socket_items::ui::draw_items_list_with_operators<RepeatItemsAccessor>(
@@ -332,7 +332,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *RepeatItemsAccessor::item_srna = &RNA_RepeatItem;
+StructRNA *RepeatItemsAccessor::item_srna = RNA_RepeatItem;
 
 void RepeatItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

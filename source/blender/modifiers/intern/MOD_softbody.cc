@@ -83,7 +83,7 @@ ModifierTypeInfo modifierType_Softbody = {
     /*name*/ N_("Softbody"),
     /*struct_name*/ "SoftbodyModifierData",
     /*struct_size*/ sizeof(SoftbodyModifierData),
-    /*srna*/ &RNA_SoftBodyModifier,
+    /*srna*/ RNA_SoftBodyModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_RequiresOriginalData | eModifierTypeFlag_Single |

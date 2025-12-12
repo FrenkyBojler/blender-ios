@@ -122,7 +122,7 @@ static bool rna_GreasePencilDrawing_curve_offset_data_lookup_int(PointerRNA *ptr
     return false;
   }
   rna_pointer_create_with_ancestors(
-      *ptr, &RNA_IntAttributeValue, &drawing->geometry.wrap().offsets_for_write()[index], *r_ptr);
+      *ptr, RNA_IntAttributeValue, &drawing->geometry.wrap().offsets_for_write()[index], *r_ptr);
   return true;
 }
 
@@ -149,7 +149,7 @@ static PointerRNA rna_GreasePencilLayer_frames_get(CollectionPropertyIterator *i
   const GreasePencilFrame *frame = layer.frames().lookup_ptr(frame_key);
   return RNA_pointer_create_with_parent(
       iter->parent,
-      &RNA_GreasePencilFrame,
+      RNA_GreasePencilFrame,
       static_cast<void *>(const_cast<GreasePencilFrame *>(frame)));
 }
 
@@ -170,7 +170,7 @@ static bool rna_GreasePencilLayer_frames_lookup_int(PointerRNA *ptr, int index, 
   const FramesMapKeyT frame_key = layer.sorted_keys()[index];
   const GreasePencilFrame *frame = layer.frames().lookup_ptr(frame_key);
   rna_pointer_create_with_ancestors(*ptr,
-                                    &RNA_GreasePencilFrame,
+                                    RNA_GreasePencilFrame,
                                     static_cast<void *>(const_cast<GreasePencilFrame *>(frame)),
                                     *r_ptr);
   return true;
@@ -222,7 +222,7 @@ static PointerRNA rna_Frame_drawing_get(PointerRNA *ptr)
 
   const Drawing *drawing = grease_pencil.get_drawing_at(*this_layer, frame_number);
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_GreasePencilDrawing, static_cast<void *>(const_cast<Drawing *>(drawing)));
+      *ptr, RNA_GreasePencilDrawing, static_cast<void *>(const_cast<Drawing *>(drawing)));
 }
 
 static void rna_Frame_drawing_set(PointerRNA *frame_ptr,
@@ -358,9 +358,9 @@ static StructRNA *rna_GreasePencilTreeNode_refine(PointerRNA *ptr)
   GreasePencilLayerTreeNode *node = static_cast<GreasePencilLayerTreeNode *>(ptr->data);
   switch (node->type) {
     case GP_LAYER_TREE_LEAF:
-      return &RNA_GreasePencilLayer;
+      return RNA_GreasePencilLayer;
     case GP_LAYER_TREE_GROUP:
-      return &RNA_GreasePencilLayerGroup;
+      return RNA_GreasePencilLayerGroup;
     default:
       BLI_assert_unreachable();
   }
@@ -396,7 +396,7 @@ static PointerRNA rna_GreasePencilTreeNode_parent_layer_group_get(PointerRNA *pt
     return PointerRNA_NULL;
   }
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(node->parent));
+      *ptr, RNA_GreasePencilLayerGroup, static_cast<void *>(node->parent));
 }
 
 static int rna_GreasePencilTreeNode_channel_color_editable(const PointerRNA * /*ptr*/,
@@ -438,7 +438,7 @@ static PointerRNA rna_iterator_grease_pencil_layers_get(CollectionPropertyIterat
   blender::Span<Layer *> layers = grease_pencil->layers_for_write();
 
   return RNA_pointer_create_discrete(iter->parent.owner_id,
-                                     &RNA_GreasePencilLayer,
+                                     RNA_GreasePencilLayer,
                                      static_cast<void *>(layers[iter->internal.count.item]));
 }
 
@@ -621,7 +621,7 @@ static PointerRNA rna_GreasePencil_active_layer_get(PointerRNA *ptr)
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
   if (grease_pencil->has_active_layer()) {
     return RNA_pointer_create_with_parent(
-        *ptr, &RNA_GreasePencilLayer, static_cast<void *>(grease_pencil->get_active_layer()));
+        *ptr, RNA_GreasePencilLayer, static_cast<void *>(grease_pencil->get_active_layer()));
   }
   return PointerRNA_NULL;
 }
@@ -640,7 +640,7 @@ static PointerRNA rna_GreasePencil_active_group_get(PointerRNA *ptr)
   GreasePencil *grease_pencil = rna_grease_pencil(ptr);
   if (grease_pencil->has_active_group()) {
     return RNA_pointer_create_with_parent(
-        *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(grease_pencil->get_active_group()));
+        *ptr, RNA_GreasePencilLayerGroup, static_cast<void *>(grease_pencil->get_active_group()));
   }
   return PointerRNA_NULL;
 }
@@ -698,7 +698,7 @@ static PointerRNA rna_iterator_grease_pencil_layer_groups_get(CollectionProperty
   blender::Span<LayerGroup *> groups = grease_pencil->layer_groups_for_write();
 
   return RNA_pointer_create_discrete(iter->parent.owner_id,
-                                     &RNA_GreasePencilLayerGroup,
+                                     RNA_GreasePencilLayerGroup,
                                      static_cast<void *>(groups[iter->internal.count.item]));
 }
 

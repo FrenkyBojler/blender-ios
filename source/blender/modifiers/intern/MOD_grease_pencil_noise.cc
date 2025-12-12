@@ -328,7 +328,7 @@ ModifierTypeInfo modifierType_GreasePencilNoise = {
     /*name*/ N_("Noise"),
     /*struct_name*/ "GreasePencilNoiseModifierData",
     /*struct_size*/ sizeof(GreasePencilNoiseModifierData),
-    /*srna*/ &RNA_GreasePencilNoiseModifier,
+    /*srna*/ RNA_GreasePencilNoiseModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/
     (eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |

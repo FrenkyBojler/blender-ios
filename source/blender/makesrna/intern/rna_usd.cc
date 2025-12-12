@@ -25,7 +25,7 @@ using namespace blender::io::usd;
 static StructRNA *rna_USDHook_refine(PointerRNA *ptr)
 {
   USDHook *hook = (USDHook *)ptr->data;
-  return (hook->rna_ext.srna) ? hook->rna_ext.srna : &RNA_USDHook;
+  return (hook->rna_ext.srna) ? hook->rna_ext.srna : RNA_USDHook;
 }
 
 static bool rna_USDHook_unregister(Main * /*bmain*/, StructRNA *type)
@@ -60,7 +60,7 @@ static StructRNA *rna_USDHook_register(Main *bmain,
   USDHook dummy_hook{};
 
   /* setup dummy type info to store static properties in */
-  PointerRNA dummy_hook_ptr = RNA_pointer_create_discrete(nullptr, &RNA_USDHook, &dummy_hook);
+  PointerRNA dummy_hook_ptr = RNA_pointer_create_discrete(nullptr, RNA_USDHook, &dummy_hook);
 
   /* validate the python class */
   if (validate(&dummy_hook_ptr, data, nullptr) != 0) {
@@ -104,7 +104,7 @@ static StructRNA *rna_USDHook_register(Main *bmain,
   *hook = dummy_hook;
 
   /* set RNA-extensions info */
-  hook->rna_ext.srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), hook->idname, &RNA_USDHook);
+  hook->rna_ext.srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), hook->idname, RNA_USDHook);
   hook->rna_ext.data = data;
   hook->rna_ext.call = call;
   hook->rna_ext.free = free;

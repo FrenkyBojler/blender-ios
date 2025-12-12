@@ -19,19 +19,19 @@ CCL_NAMESPACE_BEGIN
 
 static Geometry::Type determine_geom_type(BObjectInfo &b_ob_info, bool use_particle_hair)
 {
-  if (b_ob_info.object_data.is_a(&RNA_Light)) {
+  if (b_ob_info.object_data.is_a(RNA_Light)) {
     return Geometry::LIGHT;
   }
 
-  if (b_ob_info.object_data.is_a(&RNA_Curves) || use_particle_hair) {
+  if (b_ob_info.object_data.is_a(RNA_Curves) || use_particle_hair) {
     return Geometry::HAIR;
   }
 
-  if (b_ob_info.object_data.is_a(&RNA_PointCloud)) {
+  if (b_ob_info.object_data.is_a(RNA_PointCloud)) {
     return Geometry::POINTCLOUD;
   }
 
-  if (b_ob_info.object_data.is_a(&RNA_Volume) ||
+  if (b_ob_info.object_data.is_a(RNA_Volume) ||
       (b_ob_info.object_data ==
            object_get_data(b_ob_info.real_object, b_ob_info.use_adaptive_subdivision) &&
        object_fluid_gas_domain_find(b_ob_info.real_object)))
@@ -255,16 +255,16 @@ void BlenderSync::sync_geometry_motion(BObjectInfo &b_ob_info,
       return;
     }
 
-    if (b_ob_info.object_data.is_a(&RNA_Curves) || use_particle_hair) {
+    if (b_ob_info.object_data.is_a(RNA_Curves) || use_particle_hair) {
       Hair *hair = static_cast<Hair *>(geom);
       sync_hair_motion(b_ob_info, hair, motion_step);
     }
-    else if (b_ob_info.object_data.is_a(&RNA_Volume) ||
+    else if (b_ob_info.object_data.is_a(RNA_Volume) ||
              object_fluid_gas_domain_find(b_ob_info.real_object))
     {
       /* No volume motion blur support yet. */
     }
-    else if (b_ob_info.object_data.is_a(&RNA_PointCloud)) {
+    else if (b_ob_info.object_data.is_a(RNA_PointCloud)) {
       PointCloud *pointcloud = static_cast<PointCloud *>(geom);
       sync_pointcloud_motion(pointcloud, b_ob_info, motion_step);
     }

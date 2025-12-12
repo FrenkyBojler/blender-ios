@@ -310,7 +310,7 @@ ModifierTypeInfo modifierType_UVWarp = {
     /*name*/ N_("UVWarp"),
     /*struct_name*/ "UVWarpModifierData",
     /*struct_size*/ sizeof(UVWarpModifierData),
-    /*srna*/ &RNA_UVWarpModifier,
+    /*srna*/ RNA_UVWarpModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode,

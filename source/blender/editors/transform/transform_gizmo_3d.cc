@@ -1221,7 +1221,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(scene,
                                                                                    orient_flag);
   PointerRNA orient_ref_ptr = RNA_pointer_create_discrete(
-      &scene->id, &RNA_TransformOrientationSlot, orient_slot);
+      &scene->id, RNA_TransformOrientationSlot, orient_slot);
   const ToolSettings *ts = scene->toolsettings;
 
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
@@ -1238,7 +1238,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   {
     /* We could be more specific here, for now subscribe to any cursor change. */
     PointerRNA cursor_ptr = RNA_pointer_create_discrete(
-        &scene->id, &RNA_View3DCursor, &scene->cursor);
+        &scene->id, RNA_View3DCursor, &scene->cursor);
     WM_msg_subscribe_rna(mbus, &cursor_ptr, nullptr, &msg_sub_value_gz_tag_refresh, __func__);
   }
 
@@ -1256,7 +1256,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   }
 
   PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
-      &scene->id, &RNA_ToolSettings, scene->toolsettings);
+      &scene->id, RNA_ToolSettings, scene->toolsettings);
 
   if (ELEM(type_fn, VIEW3D_GGT_xform_gizmo, VIEW3D_GGT_xform_shear)) {
     const PropertyRNA *props[] = {
@@ -1279,7 +1279,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   }
 
   PointerRNA view3d_ptr = RNA_pointer_create_discrete(
-      &screen->id, &RNA_SpaceView3D, area->spacedata.first);
+      &screen->id, RNA_SpaceView3D, area->spacedata.first);
 
   if (type_fn == VIEW3D_GGT_xform_gizmo) {
     GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);

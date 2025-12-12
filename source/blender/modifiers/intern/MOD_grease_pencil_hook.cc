@@ -323,7 +323,7 @@ ModifierTypeInfo modifierType_GreasePencilHook = {
     /*name*/ N_("Hook"),
     /*struct_name*/ "GreasePencilHookModifierData",
     /*struct_size*/ sizeof(GreasePencilHookModifierData),
-    /*srna*/ &RNA_GreasePencilHookModifier,
+    /*srna*/ RNA_GreasePencilHookModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |

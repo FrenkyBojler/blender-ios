@@ -377,7 +377,7 @@ ModifierTypeInfo modifierType_MeshCache = {
     /*name*/ N_("MeshCache"),
     /*struct_name*/ "MeshCacheModifierData",
     /*struct_size*/ sizeof(MeshCacheModifierData),
-    /*srna*/ &RNA_MeshCacheModifier,
+    /*srna*/ RNA_MeshCacheModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,

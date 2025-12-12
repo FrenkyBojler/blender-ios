@@ -288,7 +288,7 @@ static ShaderNode *add_node(Scene *scene,
   ShaderNode *node = nullptr;
 
   /* existing blender nodes */
-  if (b_node.is_a(&RNA_ShaderNodeRGBCurve)) {
+  if (b_node.is_a(RNA_ShaderNodeRGBCurve)) {
     BL::ShaderNodeRGBCurve b_curve_node(b_node);
     BL::CurveMapping mapping(b_curve_node.mapping());
     RGBCurvesNode *curves = graph->create_node<RGBCurvesNode>();
@@ -303,7 +303,7 @@ static ShaderNode *add_node(Scene *scene,
     curves->set_extrapolate(mapping.extend() == BL::CurveMapping::extend_EXTRAPOLATED);
     node = curves;
   }
-  if (b_node.is_a(&RNA_ShaderNodeVectorCurve)) {
+  if (b_node.is_a(RNA_ShaderNodeVectorCurve)) {
     BL::ShaderNodeVectorCurve b_curve_node(b_node);
     BL::CurveMapping mapping(b_curve_node.mapping());
     VectorCurvesNode *curves = graph->create_node<VectorCurvesNode>();
@@ -318,7 +318,7 @@ static ShaderNode *add_node(Scene *scene,
     curves->set_extrapolate(mapping.extend() == BL::CurveMapping::extend_EXTRAPOLATED);
     node = curves;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeFloatCurve)) {
+  else if (b_node.is_a(RNA_ShaderNodeFloatCurve)) {
     BL::ShaderNodeFloatCurve b_curve_node(b_node);
     BL::CurveMapping mapping(b_curve_node.mapping());
     FloatCurveNode *curve = graph->create_node<FloatCurveNode>();
@@ -333,7 +333,7 @@ static ShaderNode *add_node(Scene *scene,
     curve->set_extrapolate(mapping.extend() == BL::CurveMapping::extend_EXTRAPOLATED);
     node = curve;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeValToRGB)) {
+  else if (b_node.is_a(RNA_ShaderNodeValToRGB)) {
     RGBRampNode *ramp = graph->create_node<RGBRampNode>();
     BL::ShaderNodeValToRGB b_ramp_node(b_node);
     BL::ColorRamp b_color_ramp(b_ramp_node.color_ramp());
@@ -345,36 +345,36 @@ static ShaderNode *add_node(Scene *scene,
     ramp->set_interpolate(b_color_ramp.interpolation() != BL::ColorRamp::interpolation_CONSTANT);
     node = ramp;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeRGB)) {
+  else if (b_node.is_a(RNA_ShaderNodeRGB)) {
     ColorNode *color = graph->create_node<ColorNode>();
     color->set_value(get_node_output_rgba(b_node, "Color"));
     node = color;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeValue)) {
+  else if (b_node.is_a(RNA_ShaderNodeValue)) {
     ValueNode *value = graph->create_node<ValueNode>();
     value->set_value(get_node_output_value(b_node, "Value"));
     node = value;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeCameraData)) {
+  else if (b_node.is_a(RNA_ShaderNodeCameraData)) {
     node = graph->create_node<CameraNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeInvert)) {
+  else if (b_node.is_a(RNA_ShaderNodeInvert)) {
     node = graph->create_node<InvertNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeGamma)) {
+  else if (b_node.is_a(RNA_ShaderNodeGamma)) {
     node = graph->create_node<GammaNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBrightContrast)) {
+  else if (b_node.is_a(RNA_ShaderNodeBrightContrast)) {
     node = graph->create_node<BrightContrastNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeMixRGB)) {
+  else if (b_node.is_a(RNA_ShaderNodeMixRGB)) {
     BL::ShaderNodeMixRGB b_mix_node(b_node);
     MixNode *mix = graph->create_node<MixNode>();
     mix->set_mix_type((NodeMix)b_mix_node.blend_type());
     mix->set_use_clamp(b_mix_node.use_clamp());
     node = mix;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeMix)) {
+  else if (b_node.is_a(RNA_ShaderNodeMix)) {
     BL::ShaderNodeMix b_mix_node(b_node);
     if (b_mix_node.data_type() == BL::ShaderNodeMix::data_type_VECTOR) {
       if (b_mix_node.factor_mode() == BL::ShaderNodeMix::factor_mode_UNIFORM) {
@@ -401,31 +401,31 @@ static ShaderNode *add_node(Scene *scene,
       node = mix_node;
     }
   }
-  else if (b_node.is_a(&RNA_ShaderNodeSeparateColor)) {
+  else if (b_node.is_a(RNA_ShaderNodeSeparateColor)) {
     BL::ShaderNodeSeparateColor b_separate_node(b_node);
     SeparateColorNode *separate_node = graph->create_node<SeparateColorNode>();
     separate_node->set_color_type((NodeCombSepColorType)b_separate_node.mode());
     node = separate_node;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeCombineColor)) {
+  else if (b_node.is_a(RNA_ShaderNodeCombineColor)) {
     BL::ShaderNodeCombineColor b_combine_node(b_node);
     CombineColorNode *combine_node = graph->create_node<CombineColorNode>();
     combine_node->set_color_type((NodeCombSepColorType)b_combine_node.mode());
     node = combine_node;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeSeparateXYZ)) {
+  else if (b_node.is_a(RNA_ShaderNodeSeparateXYZ)) {
     node = graph->create_node<SeparateXYZNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeCombineXYZ)) {
+  else if (b_node.is_a(RNA_ShaderNodeCombineXYZ)) {
     node = graph->create_node<CombineXYZNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeHueSaturation)) {
+  else if (b_node.is_a(RNA_ShaderNodeHueSaturation)) {
     node = graph->create_node<HSVNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeRGBToBW)) {
+  else if (b_node.is_a(RNA_ShaderNodeRGBToBW)) {
     node = graph->create_node<RGBToBWNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeMapRange)) {
+  else if (b_node.is_a(RNA_ShaderNodeMapRange)) {
     BL::ShaderNodeMapRange b_map_range_node(b_node);
     if (b_map_range_node.data_type() == BL::ShaderNodeMapRange::data_type_FLOAT_VECTOR) {
       VectorMapRangeNode *vector_map_range_node = graph->create_node<VectorMapRangeNode>();
@@ -441,26 +441,26 @@ static ShaderNode *add_node(Scene *scene,
       node = map_range_node;
     }
   }
-  else if (b_node.is_a(&RNA_ShaderNodeClamp)) {
+  else if (b_node.is_a(RNA_ShaderNodeClamp)) {
     BL::ShaderNodeClamp b_clamp_node(b_node);
     ClampNode *clamp_node = graph->create_node<ClampNode>();
     clamp_node->set_clamp_type((NodeClampType)b_clamp_node.clamp_type());
     node = clamp_node;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeMath)) {
+  else if (b_node.is_a(RNA_ShaderNodeMath)) {
     BL::ShaderNodeMath b_math_node(b_node);
     MathNode *math_node = graph->create_node<MathNode>();
     math_node->set_math_type((NodeMathType)b_math_node.operation());
     math_node->set_use_clamp(b_math_node.use_clamp());
     node = math_node;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVectorMath)) {
+  else if (b_node.is_a(RNA_ShaderNodeVectorMath)) {
     BL::ShaderNodeVectorMath b_vector_math_node(b_node);
     VectorMathNode *vector_math_node = graph->create_node<VectorMathNode>();
     vector_math_node->set_math_type((NodeVectorMathType)b_vector_math_node.operation());
     node = vector_math_node;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVectorRotate)) {
+  else if (b_node.is_a(RNA_ShaderNodeVectorRotate)) {
     BL::ShaderNodeVectorRotate b_vector_rotate_node(b_node);
     VectorRotateNode *vector_rotate_node = graph->create_node<VectorRotateNode>();
     vector_rotate_node->set_rotate_type(
@@ -468,7 +468,7 @@ static ShaderNode *add_node(Scene *scene,
     vector_rotate_node->set_invert(b_vector_rotate_node.invert());
     node = vector_rotate_node;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVectorTransform)) {
+  else if (b_node.is_a(RNA_ShaderNodeVectorTransform)) {
     BL::ShaderNodeVectorTransform b_vector_transform_node(b_node);
     VectorTransformNode *vtransform = graph->create_node<VectorTransformNode>();
     vtransform->set_transform_type((NodeVectorTransformType)b_vector_transform_node.vector_type());
@@ -478,7 +478,7 @@ static ShaderNode *add_node(Scene *scene,
         (NodeVectorTransformConvertSpace)b_vector_transform_node.convert_to());
     node = vtransform;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeNormal)) {
+  else if (b_node.is_a(RNA_ShaderNodeNormal)) {
     BL::Node::outputs_iterator out_it;
     b_node.outputs.begin(out_it);
 
@@ -486,41 +486,41 @@ static ShaderNode *add_node(Scene *scene,
     norm->set_direction(get_node_output_vector(b_node, "Normal"));
     node = norm;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeMapping)) {
+  else if (b_node.is_a(RNA_ShaderNodeMapping)) {
     BL::ShaderNodeMapping b_mapping_node(b_node);
     MappingNode *mapping = graph->create_node<MappingNode>();
     mapping->set_mapping_type((NodeMappingType)b_mapping_node.vector_type());
     node = mapping;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeFresnel)) {
+  else if (b_node.is_a(RNA_ShaderNodeFresnel)) {
     node = graph->create_node<FresnelNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeLayerWeight)) {
+  else if (b_node.is_a(RNA_ShaderNodeLayerWeight)) {
     node = graph->create_node<LayerWeightNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeAddShader)) {
+  else if (b_node.is_a(RNA_ShaderNodeAddShader)) {
     node = graph->create_node<AddClosureNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeMixShader)) {
+  else if (b_node.is_a(RNA_ShaderNodeMixShader)) {
     node = graph->create_node<MixClosureNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeAttribute)) {
+  else if (b_node.is_a(RNA_ShaderNodeAttribute)) {
     BL::ShaderNodeAttribute b_attr_node(b_node);
     AttributeNode *attr = graph->create_node<AttributeNode>();
     attr->set_attribute(blender_attribute_name_add_type(b_attr_node.attribute_name(),
                                                         b_attr_node.attribute_type()));
     node = attr;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBackground)) {
+  else if (b_node.is_a(RNA_ShaderNodeBackground)) {
     node = graph->create_node<BackgroundNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeHoldout)) {
+  else if (b_node.is_a(RNA_ShaderNodeHoldout)) {
     node = graph->create_node<HoldoutNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfDiffuse)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfDiffuse)) {
     node = graph->create_node<DiffuseBsdfNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeSubsurfaceScattering)) {
+  else if (b_node.is_a(RNA_ShaderNodeSubsurfaceScattering)) {
     BL::ShaderNodeSubsurfaceScattering b_subsurface_node(b_node);
 
     SubsurfaceScatteringNode *subsurface = graph->create_node<SubsurfaceScatteringNode>();
@@ -539,7 +539,7 @@ static ShaderNode *add_node(Scene *scene,
 
     node = subsurface;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfMetallic)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfMetallic)) {
     BL::ShaderNodeBsdfMetallic b_metallic_node(b_node);
     MetallicBsdfNode *metal = graph->create_node<MetallicBsdfNode>();
 
@@ -565,7 +565,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = metal;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfAnisotropic)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfAnisotropic)) {
     BL::ShaderNodeBsdfAnisotropic b_glossy_node(b_node);
     GlossyBsdfNode *glossy = graph->create_node<GlossyBsdfNode>();
 
@@ -585,7 +585,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = glossy;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfGlass)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfGlass)) {
     BL::ShaderNodeBsdfGlass b_glass_node(b_node);
     GlassBsdfNode *glass = graph->create_node<GlassBsdfNode>();
     switch (b_glass_node.distribution()) {
@@ -601,7 +601,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = glass;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfRefraction)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfRefraction)) {
     BL::ShaderNodeBsdfRefraction b_refraction_node(b_node);
     RefractionBsdfNode *refraction = graph->create_node<RefractionBsdfNode>();
     switch (b_refraction_node.distribution()) {
@@ -614,7 +614,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = refraction;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfToon)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfToon)) {
     BL::ShaderNodeBsdfToon b_toon_node(b_node);
     ToonBsdfNode *toon = graph->create_node<ToonBsdfNode>();
     switch (b_toon_node.component()) {
@@ -627,7 +627,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = toon;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfHair)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfHair)) {
     BL::ShaderNodeBsdfHair b_hair_node(b_node);
     HairBsdfNode *hair = graph->create_node<HairBsdfNode>();
     switch (b_hair_node.component()) {
@@ -640,7 +640,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = hair;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfHairPrincipled)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfHairPrincipled)) {
     BL::ShaderNodeBsdfHairPrincipled b_principled_hair_node(b_node);
     PrincipledHairBsdfNode *principled_hair = graph->create_node<PrincipledHairBsdfNode>();
     principled_hair->set_model((NodePrincipledHairModel)get_enum(b_principled_hair_node.ptr,
@@ -654,7 +654,7 @@ static ShaderNode *add_node(Scene *scene,
                                                     NODE_PRINCIPLED_HAIR_REFLECTANCE));
     node = principled_hair;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfPrincipled)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfPrincipled)) {
     BL::ShaderNodeBsdfPrincipled b_principled_node(b_node);
     PrincipledBsdfNode *principled = graph->create_node<PrincipledBsdfNode>();
     switch (b_principled_node.distribution()) {
@@ -678,16 +678,16 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = principled;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfTranslucent)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfTranslucent)) {
     node = graph->create_node<TranslucentBsdfNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfTransparent)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfTransparent)) {
     node = graph->create_node<TransparentBsdfNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfRayPortal)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfRayPortal)) {
     node = graph->create_node<RayPortalBsdfNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBsdfSheen)) {
+  else if (b_node.is_a(RNA_ShaderNodeBsdfSheen)) {
     BL::ShaderNodeBsdfSheen b_sheen_node(b_node);
     SheenBsdfNode *sheen = graph->create_node<SheenBsdfNode>();
     switch (b_sheen_node.distribution()) {
@@ -700,10 +700,10 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = sheen;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeEmission)) {
+  else if (b_node.is_a(RNA_ShaderNodeEmission)) {
     node = graph->create_node<EmissionNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeAmbientOcclusion)) {
+  else if (b_node.is_a(RNA_ShaderNodeAmbientOcclusion)) {
     BL::ShaderNodeAmbientOcclusion b_ao_node(b_node);
     AmbientOcclusionNode *ao = graph->create_node<AmbientOcclusionNode>();
     ao->set_samples(b_ao_node.samples());
@@ -711,7 +711,7 @@ static ShaderNode *add_node(Scene *scene,
     ao->set_only_local(b_ao_node.only_local());
     node = ao;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVolumeScatter)) {
+  else if (b_node.is_a(RNA_ShaderNodeVolumeScatter)) {
     BL::ShaderNodeVolumeScatter b_scatter_node(b_node);
     ScatterVolumeNode *scatter = graph->create_node<ScatterVolumeNode>();
     switch (b_scatter_node.phase()) {
@@ -733,10 +733,10 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = scatter;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVolumeAbsorption)) {
+  else if (b_node.is_a(RNA_ShaderNodeVolumeAbsorption)) {
     node = graph->create_node<AbsorptionVolumeNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVolumeCoefficients)) {
+  else if (b_node.is_a(RNA_ShaderNodeVolumeCoefficients)) {
     BL::ShaderNodeVolumeCoefficients b_coeffs_node(b_node);
     VolumeCoefficientsNode *coeffs = graph->create_node<VolumeCoefficientsNode>();
     switch (b_coeffs_node.phase()) {
@@ -758,59 +758,59 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = coeffs;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVolumePrincipled)) {
+  else if (b_node.is_a(RNA_ShaderNodeVolumePrincipled)) {
     PrincipledVolumeNode *principled = graph->create_node<PrincipledVolumeNode>();
     node = principled;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeNewGeometry)) {
+  else if (b_node.is_a(RNA_ShaderNodeNewGeometry)) {
     node = graph->create_node<GeometryNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeWireframe)) {
+  else if (b_node.is_a(RNA_ShaderNodeWireframe)) {
     BL::ShaderNodeWireframe b_wireframe_node(b_node);
     WireframeNode *wire = graph->create_node<WireframeNode>();
     wire->set_use_pixel_size(b_wireframe_node.use_pixel_size());
     node = wire;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeWavelength)) {
+  else if (b_node.is_a(RNA_ShaderNodeWavelength)) {
     node = graph->create_node<WavelengthNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBlackbody)) {
+  else if (b_node.is_a(RNA_ShaderNodeBlackbody)) {
     node = graph->create_node<BlackbodyNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeLightPath)) {
+  else if (b_node.is_a(RNA_ShaderNodeLightPath)) {
     node = graph->create_node<LightPathNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeLightFalloff)) {
+  else if (b_node.is_a(RNA_ShaderNodeLightFalloff)) {
     node = graph->create_node<LightFalloffNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeObjectInfo)) {
+  else if (b_node.is_a(RNA_ShaderNodeObjectInfo)) {
     node = graph->create_node<ObjectInfoNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeParticleInfo)) {
+  else if (b_node.is_a(RNA_ShaderNodeParticleInfo)) {
     node = graph->create_node<ParticleInfoNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeHairInfo)) {
+  else if (b_node.is_a(RNA_ShaderNodeHairInfo)) {
     node = graph->create_node<HairInfoNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodePointInfo)) {
+  else if (b_node.is_a(RNA_ShaderNodePointInfo)) {
     node = graph->create_node<PointInfoNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVolumeInfo)) {
+  else if (b_node.is_a(RNA_ShaderNodeVolumeInfo)) {
     node = graph->create_node<VolumeInfoNode>();
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVertexColor)) {
+  else if (b_node.is_a(RNA_ShaderNodeVertexColor)) {
     BL::ShaderNodeVertexColor b_vertex_color_node(b_node);
     VertexColorNode *vertex_color_node = graph->create_node<VertexColorNode>();
     vertex_color_node->set_layer_name(ustring(b_vertex_color_node.layer_name()));
     node = vertex_color_node;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBump)) {
+  else if (b_node.is_a(RNA_ShaderNodeBump)) {
     BL::ShaderNodeBump b_bump_node(b_node);
     BumpNode *bump = graph->create_node<BumpNode>();
     bump->set_invert(b_bump_node.invert());
     node = bump;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeScript)) {
+  else if (b_node.is_a(RNA_ShaderNodeScript)) {
 #ifdef WITH_OSL
     if (scene->shader_manager->use_osl()) {
       /* create script node */
@@ -832,7 +832,7 @@ static ShaderNode *add_node(Scene *scene,
     (void)b_ntree;
 #endif
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexImage)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexImage)) {
     BL::ShaderNodeTexImage b_image_node(b_node);
     BL::Image b_image(b_image_node.image());
     BL::ImageUser b_image_user(b_image_node.image_user());
@@ -908,7 +908,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = image;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexEnvironment)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexEnvironment)) {
     BL::ShaderNodeTexEnvironment b_env_node(b_node);
     BL::Image b_image(b_env_node.image());
     BL::ImageUser b_image_user(b_env_node.image_user());
@@ -946,7 +946,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = env;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexGradient)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexGradient)) {
     BL::ShaderNodeTexGradient b_gradient_node(b_node);
     GradientTextureNode *gradient = graph->create_node<GradientTextureNode>();
     gradient->set_gradient_type((NodeGradientType)b_gradient_node.gradient_type());
@@ -954,7 +954,7 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(gradient, b_texture_mapping);
     node = gradient;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexVoronoi)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexVoronoi)) {
     BL::ShaderNodeTexVoronoi b_voronoi_node(b_node);
     VoronoiTextureNode *voronoi = graph->create_node<VoronoiTextureNode>();
     voronoi->set_dimensions(b_voronoi_node.voronoi_dimensions());
@@ -965,7 +965,7 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(voronoi, b_texture_mapping);
     node = voronoi;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexMagic)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexMagic)) {
     BL::ShaderNodeTexMagic b_magic_node(b_node);
     MagicTextureNode *magic = graph->create_node<MagicTextureNode>();
     magic->set_depth(b_magic_node.turbulence_depth());
@@ -973,7 +973,7 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(magic, b_texture_mapping);
     node = magic;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexWave)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexWave)) {
     BL::ShaderNodeTexWave b_wave_node(b_node);
     WaveTextureNode *wave = graph->create_node<WaveTextureNode>();
     wave->set_wave_type((NodeWaveType)b_wave_node.wave_type());
@@ -984,14 +984,14 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(wave, b_texture_mapping);
     node = wave;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexChecker)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexChecker)) {
     BL::ShaderNodeTexChecker b_checker_node(b_node);
     CheckerTextureNode *checker = graph->create_node<CheckerTextureNode>();
     BL::TexMapping b_texture_mapping(b_checker_node.texture_mapping());
     get_tex_mapping(checker, b_texture_mapping);
     node = checker;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexBrick)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexBrick)) {
     BL::ShaderNodeTexBrick b_brick_node(b_node);
     BrickTextureNode *brick = graph->create_node<BrickTextureNode>();
     brick->set_offset(b_brick_node.offset());
@@ -1002,7 +1002,7 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(brick, b_texture_mapping);
     node = brick;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexNoise)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexNoise)) {
     BL::ShaderNodeTexNoise b_noise_node(b_node);
     NoiseTextureNode *noise = graph->create_node<NoiseTextureNode>();
     noise->set_dimensions(b_noise_node.noise_dimensions());
@@ -1012,7 +1012,7 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(noise, b_texture_mapping);
     node = noise;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexGabor)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexGabor)) {
     BL::ShaderNodeTexGabor b_gabor_node(b_node);
     GaborTextureNode *gabor = graph->create_node<GaborTextureNode>();
     gabor->set_type((NodeGaborType)b_gabor_node.gabor_type());
@@ -1020,7 +1020,7 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(gabor, b_texture_mapping);
     node = gabor;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexCoord)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexCoord)) {
     BL::ShaderNodeTexCoord b_tex_coord_node(b_node);
     TextureCoordinateNode *tex_coord = graph->create_node<TextureCoordinateNode>();
     tex_coord->set_from_dupli(b_tex_coord_node.from_instancer());
@@ -1030,7 +1030,7 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = tex_coord;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexSky)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexSky)) {
     BL::ShaderNodeTexSky b_sky_node(b_node);
     SkyTextureNode *sky = graph->create_node<SkyTextureNode>();
     sky->set_sky_type((NodeSkyType)b_sky_node.sky_type());
@@ -1050,7 +1050,7 @@ static ShaderNode *add_node(Scene *scene,
     get_tex_mapping(sky, b_texture_mapping);
     node = sky;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexIES)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexIES)) {
     BL::ShaderNodeTexIES b_ies_node(b_node);
     IESLightNode *ies = graph->create_node<IESLightNode>();
     switch (b_ies_node.mode()) {
@@ -1067,26 +1067,26 @@ static ShaderNode *add_node(Scene *scene,
     }
     node = ies;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTexWhiteNoise)) {
+  else if (b_node.is_a(RNA_ShaderNodeTexWhiteNoise)) {
     BL::ShaderNodeTexWhiteNoise b_tex_white_noise_node(b_node);
     WhiteNoiseTextureNode *white_noise_node = graph->create_node<WhiteNoiseTextureNode>();
     white_noise_node->set_dimensions(b_tex_white_noise_node.noise_dimensions());
     node = white_noise_node;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeNormalMap)) {
+  else if (b_node.is_a(RNA_ShaderNodeNormalMap)) {
     BL::ShaderNodeNormalMap b_normal_map_node(b_node);
     NormalMapNode *nmap = graph->create_node<NormalMapNode>();
     nmap->set_space((NodeNormalMapSpace)b_normal_map_node.space());
     nmap->set_attribute(ustring(b_normal_map_node.uv_map()));
     node = nmap;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeRadialTiling)) {
+  else if (b_node.is_a(RNA_ShaderNodeRadialTiling)) {
     BL::ShaderNodeRadialTiling b_radial_tiling_node(b_node);
     RadialTilingNode *radial_tiling = graph->create_node<RadialTilingNode>();
     radial_tiling->set_use_normalize(b_radial_tiling_node.normalize());
     node = radial_tiling;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeTangent)) {
+  else if (b_node.is_a(RNA_ShaderNodeTangent)) {
     BL::ShaderNodeTangent b_tangent_node(b_node);
     TangentNode *tangent = graph->create_node<TangentNode>();
     tangent->set_direction_type((NodeTangentDirectionType)b_tangent_node.direction_type());
@@ -1094,33 +1094,33 @@ static ShaderNode *add_node(Scene *scene,
     tangent->set_attribute(ustring(b_tangent_node.uv_map()));
     node = tangent;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeUVMap)) {
+  else if (b_node.is_a(RNA_ShaderNodeUVMap)) {
     BL::ShaderNodeUVMap b_uvmap_node(b_node);
     UVMapNode *uvm = graph->create_node<UVMapNode>();
     uvm->set_attribute(ustring(b_uvmap_node.uv_map()));
     uvm->set_from_dupli(b_uvmap_node.from_instancer());
     node = uvm;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeBevel)) {
+  else if (b_node.is_a(RNA_ShaderNodeBevel)) {
     BL::ShaderNodeBevel b_bevel_node(b_node);
     BevelNode *bevel = graph->create_node<BevelNode>();
     bevel->set_samples(b_bevel_node.samples());
     node = bevel;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeDisplacement)) {
+  else if (b_node.is_a(RNA_ShaderNodeDisplacement)) {
     BL::ShaderNodeDisplacement b_disp_node(b_node);
     DisplacementNode *disp = graph->create_node<DisplacementNode>();
     disp->set_space((NodeNormalMapSpace)b_disp_node.space());
     node = disp;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeVectorDisplacement)) {
+  else if (b_node.is_a(RNA_ShaderNodeVectorDisplacement)) {
     BL::ShaderNodeVectorDisplacement b_disp_node(b_node);
     VectorDisplacementNode *disp = graph->create_node<VectorDisplacementNode>();
     disp->set_space((NodeNormalMapSpace)b_disp_node.space());
     disp->set_attribute(ustring(""));
     node = disp;
   }
-  else if (b_node.is_a(&RNA_ShaderNodeOutputAOV)) {
+  else if (b_node.is_a(RNA_ShaderNodeOutputAOV)) {
     BL::ShaderNodeOutputAOV b_aov_node(b_node);
     OutputAOVNode *aov = graph->create_node<OutputAOVNode>();
     aov->set_name(ustring(b_aov_node.aov_name()));
@@ -1157,7 +1157,7 @@ static ShaderInput *node_find_input_by_name(BL::Node b_node,
     }
 
     /* Map mix node internal name for shader. */
-    if (b_node.is_a(&RNA_ShaderNodeMix)) {
+    if (b_node.is_a(RNA_ShaderNodeMix)) {
       if (string_endswith(name, "Factor_Float")) {
         string_replace(name, "Factor_Float", "Factor");
       }
@@ -1227,7 +1227,7 @@ static ShaderOutput *node_find_output_by_name(BL::Node b_node,
       output = node->output(name.c_str());
     }
     /* Map internal name for shader. */
-    if (b_node.is_a(&RNA_ShaderNodeMix)) {
+    if (b_node.is_a(RNA_ShaderNodeMix)) {
       if (string_endswith(name, "Result_Float")) {
         string_replace(name, "Result_Float", "Result");
         output = node->output(name.c_str());
@@ -1274,7 +1274,7 @@ static void add_nodes_inlined(Scene *scene,
 
   /* add nodes */
   for (BL::Node &b_node : b_ntree.nodes) {
-    if (b_node.mute() || b_node.is_a(&RNA_NodeReroute)) {
+    if (b_node.mute() || b_node.is_a(RNA_NodeReroute)) {
       /* replace muted node with internal links */
       for (BL::NodeLink &b_link : b_node.internal_links) {
         BL::NodeSocket to_socket(b_link.to_socket());
@@ -1291,15 +1291,15 @@ static void add_nodes_inlined(Scene *scene,
         output_map[b_link.to_socket().ptr.data] = proxy->outputs[0];
       }
     }
-    else if (b_node.is_a(&RNA_ShaderNodeGroup) || b_node.is_a(&RNA_NodeCustomGroup) ||
-             b_node.is_a(&RNA_ShaderNodeCustomGroup))
+    else if (b_node.is_a(RNA_ShaderNodeGroup) || b_node.is_a(RNA_NodeCustomGroup) ||
+             b_node.is_a(RNA_ShaderNodeCustomGroup))
     {
 
       BL::ShaderNodeTree b_group_ntree(PointerRNA_NULL);
-      if (b_node.is_a(&RNA_ShaderNodeGroup)) {
+      if (b_node.is_a(RNA_ShaderNodeGroup)) {
         b_group_ntree = BL::ShaderNodeTree(((BL::NodeGroup)(b_node)).node_tree());
       }
-      else if (b_node.is_a(&RNA_NodeCustomGroup)) {
+      else if (b_node.is_a(RNA_NodeCustomGroup)) {
         b_group_ntree = BL::ShaderNodeTree(((BL::NodeCustomGroup)(b_node)).node_tree());
       }
       else {
@@ -1353,7 +1353,7 @@ static void add_nodes_inlined(Scene *scene,
                   group_proxy_output_map);
       }
     }
-    else if (b_node.is_a(&RNA_NodeGroupInput)) {
+    else if (b_node.is_a(RNA_NodeGroupInput)) {
       /* map each socket to a proxy node */
       for (BL::NodeSocket &b_output : b_node.outputs) {
         const ProxyMap::const_iterator proxy_it = proxy_input_map.find(b_output.identifier());
@@ -1364,7 +1364,7 @@ static void add_nodes_inlined(Scene *scene,
         }
       }
     }
-    else if (b_node.is_a(&RNA_NodeGroupOutput)) {
+    else if (b_node.is_a(RNA_NodeGroupOutput)) {
       BL::NodeGroupOutput b_output_node(b_node);
       /* only the active group output is used */
       if (b_output_node.is_active_output()) {
@@ -1586,7 +1586,7 @@ void BlenderSync::sync_materials(BL::Depsgraph &b_depsgraph, bool update_all)
   set<Shader *> updated_shaders;
 
   for (BL::ID &b_id : b_depsgraph.ids) {
-    if (!b_id.is_a(&RNA_Material)) {
+    if (!b_id.is_a(RNA_Material)) {
       continue;
     }
 
@@ -1826,7 +1826,7 @@ void BlenderSync::sync_lights(BL::Depsgraph &b_depsgraph, bool update_all)
   shader_map.set_default(scene->default_light);
 
   for (BL::ID &b_id : b_depsgraph.ids) {
-    if (!b_id.is_a(&RNA_Light)) {
+    if (!b_id.is_a(RNA_Light)) {
       continue;
     }
 

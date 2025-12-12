@@ -300,7 +300,7 @@ ModifierTypeInfo modifierType_GreasePencilMultiply = {
     /*name*/ N_("Multiple Strokes"),
     /*struct_name*/ "GreasePencilMultiModifierData",
     /*struct_size*/ sizeof(GreasePencilMultiModifierData),
-    /*srna*/ &RNA_GreasePencilMultiplyModifier,
+    /*srna*/ RNA_GreasePencilMultiplyModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

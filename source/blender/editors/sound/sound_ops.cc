@@ -201,7 +201,7 @@ static bool sound_update_animation_flags_fn(Strip *strip, void *user_data)
   Scene *scene = (Scene *)user_data;
   bool driven;
 
-  fcu = id_data_find_fcurve(&scene->id, strip, &RNA_Strip, "volume", 0, &driven);
+  fcu = id_data_find_fcurve(&scene->id, strip, RNA_Strip, "volume", 0, &driven);
   if (fcu || driven) {
     strip->flag |= SEQ_AUDIO_VOLUME_ANIMATED;
   }
@@ -209,7 +209,7 @@ static bool sound_update_animation_flags_fn(Strip *strip, void *user_data)
     strip->flag &= ~SEQ_AUDIO_VOLUME_ANIMATED;
   }
 
-  fcu = id_data_find_fcurve(&scene->id, strip, &RNA_Strip, "pitch", 0, &driven);
+  fcu = id_data_find_fcurve(&scene->id, strip, RNA_Strip, "pitch", 0, &driven);
   if (fcu || driven) {
     strip->flag |= SEQ_AUDIO_PITCH_ANIMATED;
   }
@@ -217,7 +217,7 @@ static bool sound_update_animation_flags_fn(Strip *strip, void *user_data)
     strip->flag &= ~SEQ_AUDIO_PITCH_ANIMATED;
   }
 
-  fcu = id_data_find_fcurve(&scene->id, strip, &RNA_Strip, "pan", 0, &driven);
+  fcu = id_data_find_fcurve(&scene->id, strip, RNA_Strip, "pan", 0, &driven);
   if (fcu || driven) {
     strip->flag |= SEQ_AUDIO_PAN_ANIMATED;
   }
@@ -249,7 +249,7 @@ static void sound_update_animation_flags(Scene *scene)
     blender::seq::foreach_strip(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
   }
 
-  fcu = id_data_find_fcurve(&scene->id, scene, &RNA_Scene, "audio_volume", 0, &driven);
+  fcu = id_data_find_fcurve(&scene->id, scene, RNA_Scene, "audio_volume", 0, &driven);
   if (fcu || driven) {
     scene->audio.flag |= AUDIO_VOLUME_ANIMATED;
   }
