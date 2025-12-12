@@ -121,7 +121,6 @@ struct PanelSort {
 static void panel_set_expansion_from_list_data(const bContext *C, Panel *panel);
 static int get_panel_real_size_y(const Panel *panel);
 static void panel_activate_state(const bContext *C, Panel *panel, const HandlePanelState state);
-static bool compare_panel(const PanelSort &a, const PanelSort &b);
 static bool panel_type_context_poll(ARegion *region,
                                     const PanelType *panel_type,
                                     const char *context);
@@ -398,7 +397,7 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
 
   /* Find how many instanced panels with this context string. */
   int start_index = -1;
-  Vector<PanelSort> panel_sort;
+  Vector<Panel *> panel_sort;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     if (panel->type) {
       if (panel->type->flag & PANEL_TYPE_INSTANCED) {
@@ -407,7 +406,7 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
             BLI_assert(start_index == -1); /* This panel should only appear once. */
             start_index = panel_sort.size();
           }
-          panel_sort.append({panel, 0, 0});
+          panel_sort.append(panel);
         }
       }
     }
@@ -415,12 +414,14 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
   BLI_assert(start_index != -1); /* The drag panel should definitely be in the list. */
 
   /* Sort the matching instanced panels by their display order. */
-  std::stable_sort(panel_sort.begin(), panel_sort.end(), compare_panel);
+  std::stable_sort(panel_sort.begin(), panel_sort.end(), [](const Panel *a, const Panel *b) {
+    return a->sortorder < b->sortorder;
+  });
 
   /* Find how many of those panels are above this panel. */
   int move_to_index = 0;
   for (; move_to_index < panel_sort.size(); move_to_index++) {
-    if (panel_sort[move_to_index].panel == drag_panel) {
+    if (panel_sort[move_to_index] == drag_panel) {
       break;
     }
   }
@@ -1721,7 +1722,8 @@ bool panel_is_dragging(const Panel *panel)
  */
 
 static bool find_highest_panel(const PanelSort &a, const PanelSort &b)
-{ /* Stick uppermost header-less panels to the top of the region -
+{
+  /* Stick uppermost header-less panels to the top of the region -
    * prevent them from being sorted (multiple header-less panels have to be sorted though). */
   if (a.panel->type->flag & PANEL_TYPE_NO_HEADER && b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
     /* Pass the no-header checks and check for `ofsy` and #Panel.sortorder below. */
