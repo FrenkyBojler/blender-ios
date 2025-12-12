@@ -24,7 +24,7 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
                               void *ptr,
                               const BIFIconID icon_override,
                               std::function<void(bContext &)> handle_func,
-                              uiMenuCreateFunc draw_fn,
+                              MenuCreateFunc draw_fn,
                               const bool is_history)
 {
   /* Add the null check here to make calling functions less verbose. */
@@ -87,7 +87,7 @@ void template_breadcrumbs(Layout &layout, Span<ContextPathItem> context_path)
 
     if (context_path[i].is_history) {
       // sub_row.active_set(false);
-      UI_but_flag_enable(but, UI_BUT_INACTIVE);
+      button_flag_enable(but, BUT_INACTIVE);
     }
   }
 }
