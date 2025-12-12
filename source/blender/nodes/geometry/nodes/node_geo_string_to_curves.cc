@@ -10,6 +10,8 @@
 #include "BKE_instances.hh"
 #include "BKE_vfont.hh"
 
+#include "DNA_vfont_types.h"
+
 #include "BLI_bounds.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_string_utf8.h"
@@ -31,9 +33,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("String").optional_label();
   b.add_input<decl::Float>("Size").default_value(1.0f).min(0.0f).subtype(PROP_DISTANCE);
-  /* TODO: Handle default value (BKE_vfont_builtin_ensure). */
   /* TODO: Handle versioning. */
-  b.add_input<decl::Font>("Font").optional_label();
+  b.add_input<decl::Font>("Font")
+      .default_value_fn(
+          [](const bNode & /*node*/) { return id_cast<ID *>(BKE_vfont_builtin_ensure()); })
+      .optional_label();
   b.add_input<decl::Float>("Character Spacing").default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>("Word Spacing").default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>("Line Spacing").default_value(1.0f).min(0.0f);
