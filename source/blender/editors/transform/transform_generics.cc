@@ -1539,12 +1539,13 @@ std::optional<float3> mouse_delta_to_world_dir(const TransInfo *t, const float2 
     dir = float3(delta.x, delta.y, 0.0f);
   }
 
+  dir = math::normalize(dir);
   /* Skip zero length results after transform. */
   if (math::is_zero(dir)) {
     return std::nullopt;
   }
 
-  return math::normalize(dir);
+  return dir;
 }
 
 }  // namespace blender::ed::transform
