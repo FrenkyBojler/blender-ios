@@ -32,7 +32,6 @@
 #include "DNA_material_types.h"
 
 #include "ED_curves.hh"
-#include "ED_grease_pencil.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
@@ -804,7 +803,11 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
 {
   const float3 depth_point = ptd.project(ptd.mouse_co);
 
-  ed::greasepencil::add_single_curve(curves, true);
+  /* Add single curve to the end. */
+  const int num_old_points = curves.points_num();
+  curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
+  curves.offsets_for_write().last(1) = num_old_points;
+
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
   Set<std::string> curve_attributes_to_skip;
@@ -1178,7 +1181,8 @@ wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmE
   this->move_point = RNA_boolean_get(op->ptr, "move_point");
   this->cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
   this->extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
-  this->radius = RNA_float_get(op->ptr, "radius");
+  /* Size is stored as the diameter. */
+  this->radius = RNA_float_get(op->ptr, "size") / 2.0f;
 
   this->move_entire = false;
   this->snap_angle = false;
@@ -1454,7 +1458,8 @@ void pen_tool_common_props(wmOperatorType *ot)
                   false,
                   "Cycle Handle Type",
                   "Cycle between all four handle types");
-  RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, FLT_MAX, "Radius", "", 0.0f, 10.0f);
+  RNA_def_float_distance(
+      ot->srna, "size", 0.01f, 0.0f, FLT_MAX, "Size", "Diameter of new points", 0.0f, 10.0f);
 }
 
 wmKeyMap *ensure_keymap(wmKeyConfig *keyconf)

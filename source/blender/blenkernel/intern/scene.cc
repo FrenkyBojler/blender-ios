@@ -78,6 +78,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_types.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 #include "BKE_pointcache.h"
@@ -112,6 +113,7 @@
 #include "DRW_engine.hh"
 
 #include "bmesh.hh"
+#include "versioning_common.hh"
 
 using blender::bke::CompositorRuntime;
 using blender::bke::SceneRuntime;
@@ -962,7 +964,7 @@ static bool strip_foreach_path_callback(Strip *strip, void *user_data)
     StripElem *se = strip->data->stripdata;
     BPathForeachPathData *bpath_data = (BPathForeachPathData *)user_data;
 
-    if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_SOUND_RAM) && se) {
+    if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_SOUND) && se) {
       BKE_bpath_foreach_path_dirfile_fixed_process(bpath_data,
                                                    strip->data->dirpath,
                                                    sizeof(strip->data->dirpath),
@@ -1173,15 +1175,65 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
   if (sce->compositing_node_group && !is_write_undo) {
-    BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_node_group->id, writer};
-    bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
-    temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
-    temp_nodetree->owner_id = &sce->id;
-    temp_nodetree->id.lib = sce->id.lib;
+    bNodeTree *temp_nodetree_copy = blender::bke::node_tree_copy_tree_ex(
+        *sce->compositing_node_group, nullptr, false);
+
+    temp_nodetree_copy->id.flag |= ID_FLAG_EMBEDDED_DATA;
+    temp_nodetree_copy->owner_id = &sce->id;
+    temp_nodetree_copy->id.lib = sce->id.lib;
     /* Set deprecated chunksize for forward compatibility. */
-    temp_nodetree->chunksize = 256;
+    temp_nodetree_copy->chunksize = 256;
+
+    /* The Composite node was replaced by the Group Output node in 5.0, so we add one to ensure
+     * forward compatibility. */
+    bNodeSocket *group_output_first_input = nullptr;
+    bNode *composite_node = nullptr;
+    bNodeSocket *composite_input = nullptr;
+    blender::bke::bNodeType ntype;
+    LISTBASE_FOREACH_MUTABLE (bNode *, node, &temp_nodetree_copy->nodes) {
+      if (node->is_type("NodeGroupOutput") && (node->flag & NODE_DO_OUTPUT)) {
+        composite_node = &version_node_add_unknown(*temp_nodetree_copy,
+                                                   ntype,
+                                                   "CompositorNodeComposite",
+                                                   CMP_NODE_COMPOSITE_DEPRECATED,
+                                                   "Composite",
+                                                   "Final render output",
+                                                   "COMPOSITE",
+                                                   NODE_CLASS_OUTPUT,
+                                                   false);
+        composite_input = &version_node_add_socket(
+            *temp_nodetree_copy, *composite_node, SOCK_IN, "NodeSocketColor", "Image");
+
+        composite_node->location[0] = node->location[0] - 20.0f;
+        composite_node->location[1] = node->location[1];
+        group_output_first_input = static_cast<bNodeSocket *>(node->inputs.first);
+        break;
+      }
+    }
+
+    bNodeLink *ngroup_input_link = nullptr;
+    LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &temp_nodetree_copy->links) {
+      if (link->tosock && link->tosock == group_output_first_input) {
+        ngroup_input_link = link;
+        break;
+      }
+    }
+    if (ngroup_input_link) {
+      version_node_add_link(*temp_nodetree_copy,
+                            *ngroup_input_link->fromnode,
+                            *ngroup_input_link->fromsock,
+                            *composite_node,
+                            *composite_input);
+    }
+
+    BLO_Write_IDBuffer temp_embedded_id_buffer{temp_nodetree_copy->id, writer};
+    bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
+
+    blender::bke::node_tree_free_embedded_tree(temp_nodetree_copy);
+    MEM_freeN(temp_nodetree_copy);
+    temp_nodetree_copy = nullptr;
     MEM_freeN(reinterpret_cast<void *>(sce->nodetree));
     sce->nodetree = nullptr;
   }
@@ -3308,29 +3360,14 @@ struct DepsgraphKey {
   /* TODO(sergey): Need to include window somehow (same layer might be in a
    * different states in different windows).
    */
+
+  uint64_t hash() const
+  {
+    return blender::get_default_hash(this->view_layer);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_1(DepsgraphKey, view_layer)
 };
-
-static uint depsgraph_key_hash(const void *key_v)
-{
-  const DepsgraphKey *key = static_cast<const DepsgraphKey *>(key_v);
-  uint hash = BLI_ghashutil_ptrhash(key->view_layer);
-  /* TODO(sergey): Include hash from other fields in the key. */
-  return hash;
-}
-
-static bool depsgraph_key_compare(const void *key_a_v, const void *key_b_v)
-{
-  const DepsgraphKey *key_a = static_cast<const DepsgraphKey *>(key_a_v);
-  const DepsgraphKey *key_b = static_cast<const DepsgraphKey *>(key_b_v);
-  /* TODO(sergey): Compare rest of. */
-  return !(key_a->view_layer == key_b->view_layer);
-}
-
-static void depsgraph_key_free(void *key_v)
-{
-  DepsgraphKey *key = static_cast<DepsgraphKey *>(key_v);
-  MEM_freeN(key);
-}
 
 static void depsgraph_key_value_free(void *value)
 {
@@ -3340,8 +3377,7 @@ static void depsgraph_key_value_free(void *value)
 
 void BKE_scene_allocate_depsgraph_hash(Scene *scene)
 {
-  scene->depsgraph_hash = BLI_ghash_new(
-      depsgraph_key_hash, depsgraph_key_compare, "Scene Depsgraph Hash");
+  scene->depsgraph_hash = MEM_new<SceneDepsgraphsMap>("Scene Depsgraph Hash");
 }
 
 void BKE_scene_ensure_depsgraph_hash(Scene *scene)
@@ -3356,7 +3392,10 @@ void BKE_scene_free_depsgraph_hash(Scene *scene)
   if (scene->depsgraph_hash == nullptr) {
     return;
   }
-  BLI_ghash_free(scene->depsgraph_hash, depsgraph_key_free, depsgraph_key_value_free);
+  for (Depsgraph *depsgraph : scene->depsgraph_hash->values()) {
+    DEG_graph_free(depsgraph);
+  }
+  MEM_delete(scene->depsgraph_hash);
   scene->depsgraph_hash = nullptr;
 }
 
@@ -3364,7 +3403,9 @@ void BKE_scene_free_view_layer_depsgraph(Scene *scene, ViewLayer *view_layer)
 {
   if (scene->depsgraph_hash != nullptr) {
     DepsgraphKey key = {view_layer};
-    BLI_ghash_remove(scene->depsgraph_hash, &key, depsgraph_key_free, depsgraph_key_value_free);
+    if (Depsgraph *depsgraph = scene->depsgraph_hash->pop_default(key, nullptr)) {
+      DEG_graph_free(depsgraph);
+    }
   }
 }
 
@@ -3390,25 +3431,11 @@ static Depsgraph **scene_get_depsgraph_p(Scene *scene,
   DepsgraphKey key;
   key.view_layer = view_layer;
 
-  Depsgraph **depsgraph_ptr;
   if (!allocate_ghash_entry) {
-    depsgraph_ptr = (Depsgraph **)BLI_ghash_lookup_p(scene->depsgraph_hash, &key);
-    return depsgraph_ptr;
+    return scene->depsgraph_hash->lookup_ptr(key);
   }
 
-  DepsgraphKey **key_ptr;
-  if (BLI_ghash_ensure_p_ex(
-          scene->depsgraph_hash, &key, (void ***)&key_ptr, (void ***)&depsgraph_ptr))
-  {
-    return depsgraph_ptr;
-  }
-
-  /* Depsgraph was not found in the ghash, but the key still needs allocating. */
-  *key_ptr = MEM_callocN<DepsgraphKey>(__func__);
-  **key_ptr = key;
-
-  *depsgraph_ptr = nullptr;
-  return depsgraph_ptr;
+  return &scene->depsgraph_hash->lookup_or_add(key, nullptr);
 }
 
 static Depsgraph **scene_ensure_depsgraph_p(Main *bmain, Scene *scene, ViewLayer *view_layer)
@@ -3453,7 +3480,7 @@ Depsgraph *BKE_scene_get_depsgraph(const Scene *scene, const ViewLayer *view_lay
 
   DepsgraphKey key;
   key.view_layer = view_layer;
-  return static_cast<Depsgraph *>(BLI_ghash_lookup(scene->depsgraph_hash, &key));
+  return scene->depsgraph_hash->lookup_default(key, nullptr);
 }
 
 Depsgraph *BKE_scene_ensure_depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer)
@@ -3493,7 +3520,7 @@ GHash *BKE_scene_undo_depsgraphs_extract(Main *bmain)
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
       DepsgraphKey key;
       key.view_layer = view_layer;
-      Depsgraph **depsgraph = (Depsgraph **)BLI_ghash_lookup_p(scene->depsgraph_hash, &key);
+      Depsgraph **depsgraph = scene->depsgraph_hash->lookup_ptr(key);
 
       if (depsgraph != nullptr && *depsgraph != nullptr) {
         char *key_full = scene_undo_depsgraph_gen_key(scene, view_layer, nullptr);
