@@ -21,17 +21,20 @@ class TexturePool {
  private:
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
-  static constexpr int max_unused_cycles_ = 8;
+  static constexpr int init_pool_cycles = 0;
+  static constexpr int max_pool_cycles = 8;
   /* On `retain`, a texture remains acquired for enough cycles that it can survive the 
-   * multiple reset calls until the next frame. */
-  static constexpr int max_retain_cycles_ = 4; /* FIXME(not_mark): this is REALLY FLAKY AAAARGH */
+   * multiple resets until the next frame. It is invalidated if not retained again. */
+  static constexpr int init_acquire_cycles = -1;
+  static constexpr int max_acquire_cycles = 4;
+
   /* Textures are stored with a counter, counting down the number of `reset` calls
    * since last use. Depending on the context:
-   * - For `pool_` handles, the texture is deallocated once it reaches 0.
-   *   The initial value is `max_unused_cycles`.
-   * - For `acquired_` handles, the texture is released if it reaches 0.
-   * - For `acquired_` handles, an error is thrown if it reaches -1, as
-   *   a texture was not retained/released, causing a memory leak. */
+   * - For `pool_` handles, the texture is deallocated once it reaches `max_pool_cycles`.
+   * - For `acquired_` handles, the texture is released if it reaches `max_acquire_cycles`.
+   * - For `acquired_` handles, an error is thrown if it equals -1, as
+   *   a texture was not explicitly retained/released, causing a memory leak. 
+   */
   struct TextureHandle {
     Texture *texture;
     int remaining_cycles;
@@ -61,7 +64,7 @@ class TexturePool {
   /* Release the texture back into the pool so it can be reused. */
   void release_texture(Texture *tex);
 
-  /* Indicate that the texture should survive into the next `max_retain_cycles_` cycles. */
+  /* Indicate that the texture should survive into the next `max_acquire_cycles` cycles. */
   void retain_texture(Texture *tex);
 
   /* Decrease acquired texture counters and release/invalidate unused textures.

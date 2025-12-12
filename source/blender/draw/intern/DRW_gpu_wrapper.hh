@@ -1070,11 +1070,16 @@ struct TextureFromPool : public Texture, NonMovable {
 
   /* Always use `release()` or `retain()` after rendering with a texture. */
   bool acquire(int2 extent,
-              gpu::TextureFormat format,
-              eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+               gpu::TextureFormat format,
+               eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
   {
-    if (!gpu::TexturePool::get().is_texture_acquired(tx_)) {
+    if (tx_ == nullptr || !gpu::TexturePool::get().is_texture_acquired(tx_)) {
       tx_ = gpu::TexturePool::get().acquire_texture(UNPACK2(extent), format, usage);
+
+      if (G.debug & G_DEBUG_GPU) {
+        debug_clear();
+      }
+
       return true;
     }
     return false;
@@ -1084,16 +1089,11 @@ struct TextureFromPool : public Texture, NonMovable {
    * Multiple releases can be done safely. */
   void release()
   {
-    /* FIXME(not_mark): this iterates through acquired textures TWICE */
-    // if (gpu::TexturePool::get().is_texture_acquired(tx_)) {
-      // gpu::TexturePool::get().release_texture(tx_);
-      // tx_ = nullptr;
-    // }
-    
-    if (tx_ != nullptr) {
-      gpu::TexturePool::get().release_texture(tx_);
-      tx_ = nullptr;
+    if (tx_ == nullptr) {
+      return;
     }
+    gpu::TexturePool::get().release_texture(tx_);
+    tx_ = nullptr;
   }
 
   /* Allow for the `TextureFromPool` to survive into the next cycle.
@@ -1103,12 +1103,14 @@ struct TextureFromPool : public Texture, NonMovable {
     gpu::TexturePool::get().retain_texture(tx_);
   }
 
-  /* Swap the contents of the two textures, accounting for their
-   * pool lifetimes as well. */
+  /* Swap the contents of the two textures, and account for internal
+   * texture pool data as well. */
   static void swap(TextureFromPool &a, TextureFromPool &b)
   {
     Texture::swap(a, b);
-    gpu::TexturePool::get().swap_texture_counters(a, b);
+    if (a.tx_ != nullptr && b.tx_ != nullptr) {
+      gpu::TexturePool::get().swap_texture_counters(a, b);
+    }
   }
 
   /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
