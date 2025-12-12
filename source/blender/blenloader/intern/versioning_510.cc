@@ -319,6 +319,38 @@ static void version_clear_unused_strip_flags(Main &bmain)
   }
 }
 
+static void version_string_to_curves_node_inputs(bNodeTree &tree, bNode &node)
+{
+  if (!node.storage) {
+    return;
+  }
+  auto &storage = *reinterpret_cast<NodeGeometryStringToCurves *>(node.storage);
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Font")) {
+    bNodeSocket &socket = version_node_add_socket(tree, node, SOCK_IN, "NodeSocketFont", "Font");
+    socket.default_value_typed<bNodeSocketValueFont>()->value = reinterpret_cast<VFont *>(node.id);
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Overflow")) {
+    bNodeSocket &socket = version_node_add_socket(
+        tree, node, SOCK_IN, "NodeSocketMenu", "Overflow");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.overflow;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Align X")) {
+    bNodeSocket &socket = version_node_add_socket(
+        tree, node, SOCK_IN, "NodeSocketMenu", "Align X");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.align_x;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Align Y")) {
+    bNodeSocket &socket = version_node_add_socket(
+        tree, node, SOCK_IN, "NodeSocketMenu", "Align Y");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.align_y;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Pivot Point")) {
+    bNodeSocket &socket = version_node_add_socket(
+        tree, node, SOCK_IN, "NodeSocketMenu", "Pivot Point");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.pivot_mode;
+  }
+}
+
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -414,6 +446,19 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         version_node_input_socket_name(node_tree, CMP_NODE_CRYPTOMATTE_LEGACY, "image", "Image");
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 13)) {
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      if (tree->type == NTREE_GEOMETRY) {
+        LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
+          if (node->type_legacy == GEO_NODE_STRING_TO_CURVES) {
+            version_string_to_curves_node_inputs(*tree, *node);
+          }
+        }
       }
     }
     FOREACH_NODETREE_END;
