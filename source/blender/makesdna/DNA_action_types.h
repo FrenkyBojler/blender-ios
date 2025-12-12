@@ -17,7 +17,6 @@
 #include "DNA_listBase.h"
 #include "DNA_session_uid_types.h"
 #include "DNA_userdef_types.h" /* ThemeWireColor */
-#include "DNA_vec_types.h"
 #include "DNA_view2d_types.h"
 
 #include "BLI_enum_flags.hh"
@@ -492,6 +491,17 @@ typedef enum ePchan_Flag {
    */
   POSE_TRANSFORM_AROUND_CUSTOM_TX = (1 << 5),
   POSE_SELECTED = (1 << 6),
+  /**
+   * Even though root and tip selection is not used in pose mode, we still have to store that
+   * state in order to retain selection when switching back and forth between pose and edit mode.
+   */
+  POSE_SELECTED_ROOT = (1 << 7),
+  POSE_SELECTED_TIP = (1 << 8),
+  /**
+   * When setting pose bone selection, all flags have to be set/cleared. However checking of
+   * selection state should only be against `POSE_SELECTED`.
+   */
+  POSE_SELECTED_ALL = (POSE_SELECTED | POSE_SELECTED_ROOT | POSE_SELECTED_TIP),
 
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),
