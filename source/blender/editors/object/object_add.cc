@@ -3662,6 +3662,25 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
   return newob;
 }
 
+static void grease_penci_separate_shapes_from_materials(bke::greasepencil::Drawing *drawing)
+{
+  bke::CurvesGeometry &curves = drawing->strokes_for_write();
+  bke::SpanAttributeWriter<int> materials =
+      curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
+                                                                      bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter<int> shape_id =
+      curves.attributes_for_write().lookup_or_add_for_write_span<int>("shape_id",
+                                                                      bke::AttrDomain::Curve);
+
+  for (const int curve_i : curves.curves_range()) {
+    shape_id.span[curve_i] = materials.span[curve_i] + 1;
+  }
+
+  drawing->tag_topology_changed();
+
+  return;
+}
+
 static Object *convert_curves_to_grease_pencil(Base &base,
                                                ObjectConversionInfo &info,
                                                Base **r_new_base)
@@ -3710,6 +3729,8 @@ static Object *convert_curves_to_grease_pencil(Base &base,
     drawing->strokes_for_write() = curves_eval->geometry.wrap();
     /* Default radius (1.0 unit) is too thick for converted strokes. */
     drawing->radii_for_write().fill(0.01f);
+
+    grease_penci_separate_shapes_from_materials(drawing);
 
     BKE_grease_pencil_nomain_to_grease_pencil(grease_pencil, new_grease_pencil);
     BKE_object_material_from_eval_data(info.bmain, newob, &curves_eval->id);
@@ -4002,6 +4023,8 @@ static Object *convert_font_to_grease_pencil(Base &base,
   drawing->radii_for_write().fill(0.01f);
   drawing->tag_positions_changed();
 
+  grease_penci_separate_shapes_from_materials(drawing);
+
   curve_ob->data = grease_pencil;
   curve_ob->type = OB_GREASE_PENCIL;
   curve_ob->totcol = grease_pencil->material_array_num;
@@ -4111,6 +4134,8 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
   /* Default radius (1.0 unit) is too thick for converted strokes. */
   drawing->radii_for_write().fill(0.01f);
   drawing->tag_positions_changed();
+
+  grease_penci_separate_shapes_from_materials(drawing);
 
   newob->data = grease_pencil;
   newob->type = OB_GREASE_PENCIL;
