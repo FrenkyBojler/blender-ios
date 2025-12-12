@@ -441,6 +441,7 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
 
   CTX_store_set(C, nullptr);
 }
+
 /**
  * Recursive implementation for #panel_set_expansion_from_list_data.
  *
