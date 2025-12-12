@@ -474,22 +474,19 @@ void VKTexture::update_sub(int mip,
   }
 
   VKDevice &device = VKBackend::get().device;
-  const VKExtensions &extensions = device.extensions_get();
-  // TODO also include image layout and format support, tiling, extent etc.
-  const bool use_host_image_copy = !has_data_ && data != nullptr && allow_host_image_copy_;
+  const bool use_host_image_copy = !has_data_ && data != nullptr && allow_host_image_copy_ &&
+                                   unpack_row_length == 0 &&
+                                   !needs_conversion(format, format_, device_format_);
   if (use_host_image_copy) {
-    VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
+    VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_single_bit(
+        to_vk_image_aspect_flag_bits(device_format_), false);
     VkHostImageLayoutTransitionInfoEXT image_layout_transition = {
         VK_STRUCTURE_TYPE_HOST_IMAGE_LAYOUT_TRANSITION_INFO_EXT,
         nullptr,
         vk_image_handle(),
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        {to_vk_image_aspect_single_bit(vk_image_aspects, false),
-         0,
-         VK_REMAINING_MIP_LEVELS,
-         0,
-         VK_REMAINING_ARRAY_LAYERS},
+        {vk_image_aspects, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS},
     };
     device.functions.vkTransitionImageLayout(device.vk_handle(), 1, &image_layout_transition);
     device.resources.update_image_layout(vk_image_handle(),
@@ -501,7 +498,7 @@ void VKTexture::update_sub(int mip,
     mip_size_get(0, whole_extent);
     whole_extent.y = max_ii(whole_extent.y, 1);
     whole_extent.z = max_ii(whole_extent.z, 1);
-    bool covers_whole_extent = (extent == whole_extent);
+    bool covers_whole_extent = (extent == whole_extent) && (math::is_zero(offset));
 
     VkMemoryToImageCopyEXT vk_memory_to_image_copy = {
         VK_STRUCTURE_TYPE_MEMORY_TO_IMAGE_COPY_EXT,
@@ -509,10 +506,7 @@ void VKTexture::update_sub(int mip,
         data,
         unpack_row_length,
         0,
-        {to_vk_image_aspect_single_bit(vk_image_aspects, false),
-         uint32_t(mip),
-         uint32_t(start_layer),
-         uint32_t(layers)},
+        {vk_image_aspects, uint32_t(mip), uint32_t(start_layer), uint32_t(layers)},
         {offset.x, offset.y, offset.z},
         {uint32_t(extent.x), uint32_t(extent.y), uint32_t(extent.z)}};
 
