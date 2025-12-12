@@ -55,7 +55,6 @@ class GroupInputOperation : public NodeOperation {
   {
     result.set_type(input.type());
     result.set_precision(input.precision());
-    result.set_transformation(input.domain().transformation);
 
     const Domain domain = this->context().use_compositing_domain_for_input_output() ?
                               this->context().get_compositing_domain() :
@@ -69,6 +68,7 @@ class GroupInputOperation : public NodeOperation {
     }
 
     result.allocate_texture(domain);
+    result.set_transformation(input.domain().transformation);
     if (this->context().use_gpu()) {
       this->execute_input_gpu(input, result);
     }
