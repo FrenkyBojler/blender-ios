@@ -480,6 +480,14 @@ void import_meshes(Main &bmain,
     }
     import_skin_vertex_groups(mapping, fmesh, mesh);
 
+    /* Add vertex groups to the object. */
+    VectorSet<std::string> bone_set = get_skin_bone_name_set(mapping, fmesh);
+    for (const std::string &name : bone_set) {
+      bDeformGroup *defgroup = MEM_callocN<bDeformGroup>("bDeformGroup");
+      StringRef(name).copy_utf8_truncated(defgroup->name);
+      BLI_addtail(&mesh->vertex_group_names, defgroup);
+    }
+
     /* Validate if needed. */
     if (params.validate_meshes) {
       bool verbose_validate = false;
