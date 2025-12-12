@@ -319,7 +319,6 @@ static void version_clear_unused_strip_flags(Main &bmain)
   }
 }
 
-<<<<<<< HEAD
 static void version_string_to_curves_node_inputs(bNodeTree &tree, bNode &node)
 {
   if (!node.storage) {
@@ -351,7 +350,8 @@ static void version_string_to_curves_node_inputs(bNodeTree &tree, bNode &node)
         tree, node, SOCK_IN, "NodeSocketMenu", "Pivot Point");
     socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.pivot_mode;
   }
-=======
+}
+
 static const char *legacy_pass_name_to_new_name(const char *name)
 {
   if (STREQ(name, "DiffDir")) {
@@ -416,7 +416,6 @@ static const char *legacy_pass_name_to_new_name(const char *name)
   }
 
   return name;
->>>>>>> main
 }
 
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
@@ -520,13 +519,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 13)) {
-<<<<<<< HEAD
-    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
-      if (tree->type == NTREE_GEOMETRY) {
-        LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
-          if (node->type_legacy == GEO_NODE_STRING_TO_CURVES) {
-            version_string_to_curves_node_inputs(*tree, *node);
-=======
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
@@ -537,7 +529,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
               const char *new_pass_identifier = legacy_pass_name_to_new_name(socket->identifier);
               STRNCPY(socket->identifier, new_pass_identifier);
             }
->>>>>>> main
           }
         }
       }
@@ -545,8 +536,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-<<<<<<< HEAD
-=======
   /* This has no version check and always runs for all versions because there is forward
    * compatibility code at write time that reallocates the storage, so we need to free it
    * regardless of the version. */
@@ -566,7 +555,18 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
   FOREACH_NODETREE_END;
 
->>>>>>> main
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 14)) {
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      if (tree->type == NTREE_GEOMETRY) {
+        LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
+          if (node->type_legacy == GEO_NODE_STRING_TO_CURVES) {
+            version_string_to_curves_node_inputs(*tree, *node);
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
