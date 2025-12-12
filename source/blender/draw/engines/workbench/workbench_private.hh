@@ -431,7 +431,6 @@ class ShadowPass {
 
   PassSimple raytrace_ps_ = {"Shadow.RayQuery"};
   gpu::TopLevelASPtr shadow_as_;
-  Vector<gpu::BottomLevelASPtr> geometries_as_;
 
   /* [PassType][Is Manifold][Is Cap] */
   PassMain::Sub *passes_[PassType::MAX][2][2] = {{{nullptr}}};

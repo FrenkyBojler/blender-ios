@@ -491,6 +491,12 @@ static void mesh_batch_cache_request_surface_batches(Mesh &mesh, MeshBatchCache 
   }
 }
 
+static void mesh_batch_cache_request_surface_blas(MeshBatchCache &cache)
+{
+  cache.surface_blas_requested = true;
+  DRW_blas_request(&cache.surface_blas);
+}
+
 static void mesh_batch_cache_discard_shaded_tri(MeshBatchCache &cache)
 {
   discard_buffers(cache, {VBOType::UVs, VBOType::Tangents, VBOType::Orco}, {});
@@ -679,6 +685,14 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface(Mesh &mesh)
   mesh_batch_cache_request_surface_batches(mesh, cache);
 
   return cache.batch.surface;
+}
+
+gpu::BottomLevelAS *DRW_mesh_batch_cache_get_surface_blas(Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  mesh_batch_cache_request_surface_blas(cache);
+
+  return cache.surface_blas;
 }
 
 gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_surface(Mesh &mesh)

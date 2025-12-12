@@ -9,6 +9,7 @@
 #pragma once
 
 #include "GPU_batch.hh"
+#include "GPU_ray_tracing.hh"
 
 /* Common */
 // #define DRW_DEBUG_MESH_CACHE_REQUEST
@@ -32,6 +33,14 @@ inline blender::gpu::Batch *DRW_batch_request(blender::gpu::Batch **batch)
     *batch = GPU_batch_calloc();
   }
   return *batch;
+}
+
+inline blender::gpu::BottomLevelAS *DRW_blas_request(blender::gpu::BottomLevelAS **blas)
+{
+  if (*blas == nullptr) {
+    *blas = GPU_ray_tracing_blas_alloc(__func__);
+  }
+  return *blas;
 }
 
 inline bool DRW_batch_requested(blender::gpu::Batch *batch, GPUPrimType prim_type)

@@ -17,6 +17,7 @@ struct GPUMaterial;
 namespace blender::gpu {
 class Texture;
 class Batch;
+class BottomLevelAS;
 class VertBuf;
 }  // namespace blender::gpu
 struct ModifierData;
@@ -48,6 +49,7 @@ gpu::Batch *DRW_cache_object_loose_edges_get(Object *ob);
 Span<gpu::Batch *> DRW_cache_object_surface_material_get(Object *ob,
                                                          Span<const GPUMaterial *> materials);
 gpu::Batch *DRW_cache_object_face_wireframe_get(const Scene *scene, Object *ob);
+gpu::BottomLevelAS *DRW_cache_object_surface_blas_get(Object *ob);
 
 /* Meshes */
 
@@ -57,6 +59,7 @@ gpu::Batch *DRW_cache_mesh_all_edges_get(Object *ob);
 gpu::Batch *DRW_cache_mesh_loose_edges_get(Object *ob);
 gpu::Batch *DRW_cache_mesh_edge_detection_get(Object *ob, bool *r_is_manifold);
 gpu::Batch *DRW_cache_mesh_surface_get(Object *ob);
+gpu::BottomLevelAS *DRW_cache_mesh_surface_blas_get(Object *ob);
 gpu::Batch *DRW_cache_mesh_paint_overlay_surface_get(Object *ob);
 gpu::Batch *DRW_cache_mesh_paint_overlay_edges_get(Object *ob);
 /**

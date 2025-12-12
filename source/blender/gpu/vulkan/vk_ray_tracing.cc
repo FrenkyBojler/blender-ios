@@ -70,25 +70,19 @@ std::optional<InstanceID> VKTopLevelAS::add_instance(const BottomLevelAS &blas_,
     return std::nullopt;
   }
 
-  const VKBottomLevelAS &blas = unwrap(blas_);
-
-  if (blas.vk_device_address() == 0) {
-    CLOG_ERROR(&LOG,
-               "Cannot add blas to top level acceleration structure as the blas "
-               "doesn't have a device address.");
-    return std::nullopt;
-  }
   InstanceID instance_id = {max_primitive_count_};
-  instances_.append({{{{mat.x.x, mat.y.x, mat.z.x, mat.w.x},
-                       {mat.x.y, mat.y.y, mat.z.y, mat.w.y},
-                       {mat.x.z, mat.y.z, mat.z.z, mat.w.z}}},
-                     0,    /* instanceCustomIndex */
-                     mask, /* mask */
-                     0,    /* instanceShaderBindingTableRecordOffset */
-                     0,    /* flags */
-                     blas.vk_device_address()});
+  instances_.append({
+      {{{mat.x.x, mat.y.x, mat.z.x, mat.w.x},
+        {mat.x.y, mat.y.y, mat.z.y, mat.w.y},
+        {mat.x.z, mat.y.z, mat.z.z, mat.w.z}}},
+      0,    /* instanceCustomIndex */
+      mask, /* mask */
+      0,    /* instanceShaderBindingTableRecordOffset */
+      0,    /* flags */
+      0,    /* device address */
+  });
+  blas_per_instance_.append(&blas_);
   max_primitive_count_ += 1;
-  build_acceleration_structure_info_.src_buffers.add(blas.vk_buffer());
   is_dirty_ = true;
 
   return instance_id;
@@ -129,6 +123,19 @@ bool VKTopLevelAS::build()
   const bool do_update = vk_acceleration_structure_ != VK_NULL_HANDLE;
   if (do_update && !is_dirty_) {
     return true;
+  }
+
+  for (int64_t blas_index : instances_.index_range()) {
+    VkAccelerationStructureInstanceKHR &instance = instances_[blas_index];
+    const VKBottomLevelAS &blas = unwrap(*blas_per_instance_[blas_index]);
+    if (blas.vk_device_address() == 0) {
+      CLOG_ERROR(&LOG,
+                 "Cannot add blas to top level acceleration structure as the blas "
+                 "doesn't have a device address.");
+      return false;
+    }
+    instance.accelerationStructureReference = blas.vk_device_address();
+    build_acceleration_structure_info_.src_buffers.add(blas.vk_buffer());
   }
 
   /* Create the instances buffer and upload the instance data. */

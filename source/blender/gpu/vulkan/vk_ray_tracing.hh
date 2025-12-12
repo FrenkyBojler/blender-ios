@@ -24,6 +24,7 @@ class VKTopLevelAS : public TopLevelAS {
       {};
 
   Vector<VkAccelerationStructureInstanceKHR> instances_;
+  Vector<const BottomLevelAS *> blas_per_instance_;
   VKBuffer instances_buffer_;
   bool is_dirty_ = true;
 

@@ -348,7 +348,6 @@ void ShadowPass::sync(SceneResources &resources)
     // TODO: we should keep and update previous instance, but that requires local state tracking.
     // For prototyping we recreate the shadow tlas every draw.
     shadow_as_ = gpu::TopLevelASPtr(GPU_ray_tracing_tlas_alloc("WorkbenchShadowTLAS"));
-    geometries_as_.clear();
 
     raytrace_ps_.init();
     raytrace_ps_.state_set(DRW_STATE_DEPTH_ALWAYS | DRW_STATE_STENCIL_ALWAYS |
@@ -408,16 +407,9 @@ void ShadowPass::object_sync(SceneState &scene_state,
 
   Object *ob = ob_ref.object;
   if (use_raytracing_) {
-    // TODO add object to tlas.
-    blender::gpu::Batch *geom = DRW_cache_object_surface_get(ob);
-    // Position is stored in the second vertex buffer, the first contains corner normals.
-    constexpr int position_attr = 1;
-    if (geom != nullptr && geom->elem != nullptr && geom->verts[position_attr] != nullptr) {
-      gpu::BottomLevelASPtr blas(GPU_ray_tracing_blas_alloc(ob->id.name));
-      blas->add_geometry(*geom->elem, *geom->verts[position_attr]);
-      blas->build();
-      shadow_as_->add_instance(*blas.get(), ob->runtime->object_to_world);
-      geometries_as_.append(std::move(blas));
+    blender::gpu::BottomLevelAS *blas = DRW_cache_object_surface_blas_get(ob);
+    if (blas != nullptr) {
+      shadow_as_->add_instance(*blas, ob->runtime->object_to_world);
     }
     return;
   }
@@ -476,7 +468,6 @@ void ShadowPass::draw(Manager &manager,
     fb_.ensure(GPU_ATTACHMENT_TEXTURE(&depth_stencil_tx));
     fb_.bind();
     manager.submit(raytrace_ps_, view);
-    geometries_as_.clear();
     return;
   }
 

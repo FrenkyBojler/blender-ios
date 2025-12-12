@@ -145,6 +145,16 @@ gpu::Batch *DRW_cache_object_surface_get(Object *ob)
   }
 }
 
+gpu::BottomLevelAS *DRW_cache_object_surface_blas_get(Object *ob)
+{
+  switch (ob->type) {
+    case OB_MESH:
+      return DRW_cache_mesh_surface_blas_get(ob);
+    default:
+      return nullptr;
+  }
+}
+
 Span<gpu::Batch *> DRW_cache_object_surface_material_get(Object *ob,
                                                          const Span<const GPUMaterial *> materials)
 {
@@ -197,6 +207,12 @@ gpu::Batch *DRW_cache_mesh_surface_get(Object *ob)
 {
   BLI_assert(ob->type == OB_MESH);
   return DRW_mesh_batch_cache_get_surface(DRW_object_get_data_for_drawing<Mesh>(*ob));
+}
+
+gpu::BottomLevelAS *DRW_cache_mesh_surface_blas_get(Object *ob)
+{
+  BLI_assert(ob->type == OB_MESH);
+  return DRW_mesh_batch_cache_get_surface_blas(DRW_object_get_data_for_drawing<Mesh>(*ob));
 }
 
 gpu::Batch *DRW_cache_mesh_paint_overlay_surface_get(Object *ob)
