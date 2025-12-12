@@ -136,7 +136,7 @@ static bool geometry_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /
                SOCK_IMAGE,
                SOCK_MATERIAL,
                SOCK_MENU) ||
-          ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE));
+          ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_FONT));
 }
 
 void register_node_tree_type_geo()
