@@ -2556,12 +2556,15 @@ typedef enum eSnapMode {
   SCE_SNAP_TO_VOLUME = (1 << 6),
   SCE_SNAP_TO_GRID = (1 << 7),
   SCE_SNAP_TO_INCREMENT = (1 << 8),
-  SCE_SNAP_TO_ORIGIN = (1 << 9),
 
   /** For snap individual elements. */
-  SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 10),
-  SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 11),
-  SCE_SNAP_TO_FACE_MIDPOINT = (1 << 12)
+  SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
+  SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
+
+  SCE_SNAP_TO_FACE_MIDPOINT = (1 << 11),
+
+  SCE_SNAP_TO_ORIGIN = (1 << 12)
+
 } eSnapMode;
 ENUM_OPERATORS(eSnapMode)
 
