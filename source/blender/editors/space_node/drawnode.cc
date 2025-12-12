@@ -993,7 +993,7 @@ static const float std_node_socket_colors[][4] = {
     {0.72, 0.20, 0.52, 1.0}, /* SOCK_MATRIX */
     {0.30, 0.50, 0.50, 1.0}, /* SOCK_BUNDLE */
     {0.49, 0.49, 0.23, 1.0}, /* SOCK_CLOSURE */
-    {0, 0, 0, 1},            /* SOCK_FONT */
+    {0.39, 0.34, 0.26, 1},   /* SOCK_FONT */
     {0, 0, 0, 1},            /* SOCK_SCENE */
     {0, 0, 0, 1},            /* SOCK_TEXT_ID */
     {0, 0, 0, 1},            /* SOCK_MASK */
