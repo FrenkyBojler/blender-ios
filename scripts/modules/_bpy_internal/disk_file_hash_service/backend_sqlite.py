@@ -38,11 +38,15 @@ CREATE TABLE IF NOT EXISTS hashes (
 );
 """
 
+# Set to True to print all SQL queries.
+_DEBUG_QUERIES = False
+
 
 class SQLiteBackend:
     """DiskFileHashBackend implementation using SQLite as storage engine."""
 
     dbfile_path: Path  # Path of the .sqlite file to use.
+    _storage_path: Path  # The original storage path, only for the '__repr__' function.
 
     db_conn_rw: sqlite3.Connection | None = None
     db_conn_ro: sqlite3.Connection | None = None
@@ -50,10 +54,13 @@ class SQLiteBackend:
     def __init__(self, storage_path: Path) -> None:
         assert not storage_path.is_dir(), "SQLite back-end expects a directory + file prefix as storage path"
 
+        self._storage_path = storage_path
         self.dbfile_path = storage_path.with_name("{}_v{}.sqlite".format(storage_path.stem, DB_SCHEMA_VERSION))
-        self._debug_queries = True
         self.db_conn_rw = None
         self.db_conn_ro = None
+
+    def __repr__(self) -> str:
+        return "{!s}({!r})".format(self.__class__.__qualname__, self._storage_path)
 
     def open(self) -> None:
         """Prepare the back-end for use.
@@ -70,7 +77,7 @@ class SQLiteBackend:
         # or explicitly).
         self.db_conn_rw = sqlite3.connect(self.dbfile_path, timeout=DB_TIMEOUT_MSEC / 1000)
 
-        if self._debug_queries:
+        if _DEBUG_QUERIES:
             def callback_rw(query: str) -> None:
                 print(f"SQL/\033[95mRW: {query}\033[0m")
             self.db_conn_rw.set_trace_callback(callback_rw)
@@ -86,7 +93,7 @@ class SQLiteBackend:
         uri = self.dbfile_path.as_uri() + "?mode=ro"
         self.db_conn_ro = sqlite3.connect(uri, uri=True, timeout=DB_TIMEOUT_MSEC / 1000)
 
-        if self._debug_queries:
+        if _DEBUG_QUERIES:
             def callback_ro(query: str) -> None:
                 print(f"SQL/\033[96mRO: {query}\033[0m")
             self.db_conn_rw.set_trace_callback(callback_ro)

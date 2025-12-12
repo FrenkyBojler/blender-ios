@@ -10,6 +10,7 @@ __all__ = (
     "main",
 )
 
+import os
 import unittest
 from pathlib import Path
 
@@ -98,18 +99,93 @@ class DiskFileHashServiceTest(unittest.TestCase):
         self.backend.dbfile_path.unlink(missing_ok=True)
 
         self.service = hash_service.DiskFileHashService(self.backend)
+        self.service.open()
 
     def tearDown(self) -> None:
         self.service.close()
 
     def test_get_file_hash(self) -> None:
-        self.service.open()
+        # Test the service.
         hash = self.service.get_hash(self.filepath, "sha256")
         self.assertEqual("43231d711ce5992cd9090ffa5cbb8779148e291bc1472353cdeebd040bef0b93", hash)
 
+        # Check that the back-end now has the hash stored.
         backend_info = self.backend.fetch_hash(self.filepath, "sha256")
         assert backend_info is not None
         self.assertEqual(hash, backend_info.hexhash)
+
+    def test_rehash_after_modification(self) -> None:
+        # Tell the back-end to store a fake hash, so that we get a different
+        # result (the actual file hash) when the file is re-hashed.
+        stat = self.filepath.stat()
+        self.backend.store_hash(self.filepath, "sha256", types.FileHashInfo(
+            hexhash="fake hash", file_size_bytes=stat.st_size, file_stat_mtime=stat.st_mtime))
+
+        # Get the hash from the service. Since the cached hash matches the
+        # current size & mtime, it should just return the cached hash.
+        hash = self.service.get_hash(self.filepath, "sha256")
+        self.assertEqual("fake hash", hash)
+
+        # Update the file, this should trigger a re-hashing.
+        self.filepath.touch()
+        updated_hash = self.service.get_hash(self.filepath, "sha256")
+        self.assertEqual("43231d711ce5992cd9090ffa5cbb8779148e291bc1472353cdeebd040bef0b93", updated_hash)
+
+        # Change the contents to something of a different length, but keep the
+        # mtime the same. This also should trigger a re-hashing.
+        self.filepath.write_text("New Content 😿")
+        os.utime(self.filepath, (stat.st_atime, stat.st_mtime))
+        updated_hash = self.service.get_hash(self.filepath, "sha256")
+        self.assertEqual("49a02e79cb4c68a5f1626d34a05a021b60cbd0b22f9485dcd4026ab3e9201b5a", updated_hash)
+
+    def test_file_matches(self) -> None:
+        # Tell the back-end to store a fake hash, so that we get a different
+        # result (the actual file hash) when the file is re-hashed.
+        stat = self.filepath.stat()
+        self.backend.store_hash(self.filepath, "sha256", types.FileHashInfo(
+            hexhash="fake hash", file_size_bytes=stat.st_size, file_stat_mtime=stat.st_mtime))
+        self.assertTrue(self.service.file_matches(self.filepath, "sha256", "fake hash", stat.st_size))
+        self.assertFalse(self.service.file_matches(self.filepath, "sha256", "fake hash", stat.st_size + 5))
+
+        # Touch the file to trigger a re-hash.
+        self.filepath.touch()
+        self.assertTrue(
+            self.service.file_matches(
+                self.filepath,
+                "sha256",
+                "43231d711ce5992cd9090ffa5cbb8779148e291bc1472353cdeebd040bef0b93",
+                stat.st_size))
+
+        # Check that the back-end now has the hash stored.
+        backend_info = self.backend.fetch_hash(self.filepath, "sha256")
+        assert backend_info is not None
+        self.assertEqual("43231d711ce5992cd9090ffa5cbb8779148e291bc1472353cdeebd040bef0b93", backend_info.hexhash)
+
+
+class DiskFileHashServiceNotOpeningTest(unittest.TestCase):
+    """Contrary to the above test case, this one doesn't auto-open the service for each test."""
+
+    storagepath: Path
+    filepath: Path
+    backend: types.DiskFileHashBackend
+    service: hash_service.DiskFileHashService
+
+    def setUp(self) -> None:
+        self.storagepath = scratch_dir / "database"
+
+        self.backend = backend_sqlite.SQLiteBackend(self.storagepath)
+
+        # Delete the database between each test.
+        self.backend.dbfile_path.unlink(missing_ok=True)
+
+        self.service = hash_service.DiskFileHashService(self.backend)
+
+    def tearDown(self) -> None:
+        self.service.close()
+
+    def test_closing_unopened_service(self) -> None:
+        """A service that was never opened should still be closable."""
+        self.service.close()
 
 
 def main() -> None:
