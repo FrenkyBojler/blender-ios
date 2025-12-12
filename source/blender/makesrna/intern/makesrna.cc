@@ -3721,6 +3721,7 @@ static void rna_generate_struct_rna_prototypes(BlenderRNA *brna, FILE *f)
 
 static void rna_generate_struct_register_prototypes(BlenderRNA *brna, FILE *f)
 {
+  fprintf(f, "struct BlenderRNA;\n");
   for (const StructRNA *srna : brna->structs) {
     fprintf(f, "void register_struct_%s(BlenderRNA &brna);\n", srna->identifier);
   }
@@ -3731,7 +3732,7 @@ static void rna_generate_blender(BlenderRNA *brna, FILE *f)
   fprintf(f,
           "BlenderRNA &RNA_blender_rna_get()\n"
           "{\n"
-          "\tstatic BlenderRNA BLENDER_RNA = [&]() {\n"
+          "\tstatic BlenderRNA BLENDER_RNA = []() {\n"
           "\t\tBlenderRNA brna{};\n");
   for (StructRNA *srna : brna->structs) {
     fprintf(f, "\t\tregister_struct_%s(brna);\n", srna->identifier);
@@ -4962,6 +4963,7 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
   fprintf(f, "#include \"rna_internal.hh\"\n\n");
 
   /* include the generated prototypes header */
+  fprintf(f, "#include \"RNA_prototypes.hh\"\n\n");
   fprintf(f, "#include \"rna_prototypes_gen.hh\"\n\n");
 
   if (filename) {
@@ -5730,7 +5732,6 @@ static int rna_preprocess(const char *outfile, const char *public_header_outfile
     fprintf(file,
             "/* Automatically generated function declarations for the Data API.\n"
             " * Do not edit manually, changes will be overwritten.              */\n\n");
-    rna_generate_struct_rna_prototypes(brna, file);
     rna_generate_struct_register_prototypes(brna, file);
     fclose(file);
     replace_if_different(deffile, nullptr);
