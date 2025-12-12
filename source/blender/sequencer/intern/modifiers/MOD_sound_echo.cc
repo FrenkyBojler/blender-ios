@@ -30,7 +30,7 @@ static void echomodifier_init_data(StripModifierData *smd)
   emd->mix = 0.5f;
 }
 
-void echomodifier_free(StripModifierData *smd)
+static void echomodifier_free(StripModifierData *smd)
 {
   if (smd->runtime.last_echo_modifier) {
     MEM_delete(smd->runtime.last_echo_modifier);
