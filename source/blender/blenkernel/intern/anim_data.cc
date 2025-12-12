@@ -545,10 +545,9 @@ static void animpath_update_basepath(FCurve *fcu,
     return;
   }
 
-  char *new_rna_path = BLI_sprintfN(
-      "%s%s", new_basepath.data(), fcu->rna_path + old_basepath.size());
+  std::string new_rna_path = new_basepath + StringRefNull(fcu->rna_path + old_basepath.size());
   MEM_freeN(fcu->rna_path);
-  fcu->rna_path = new_rna_path;
+  fcu->rna_path = BLI_strdup(new_rna_path.c_str());
 }
 
 /* Copy or move F-Curves in src action to dst action if their base path matches. */
