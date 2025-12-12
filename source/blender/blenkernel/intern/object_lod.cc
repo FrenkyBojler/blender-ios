@@ -1,192 +1,168 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-License-Identifier: GPL-2.0-or-later
  *
- * SPDX-License-Identifier: GPL-2.0-or-later
- *
+ * ListBase-backed LOD helpers
  */
 
 #include "MEM_guardedalloc.h"
 #include "BLI_utildefines.h"
-#include "BLI_string.h"
+#include "BLI_listbase.h"
 
 #include "BKE_object.hh"
-#include "BKE_lib_id.hh" /* id_us_plus / id_us_min */
+#include "BKE_lib_id.hh" /* id_us_min / id_us_plus */
 #include "DEG_depsgraph.hh"
 #include "DNA_object_types.h"
 
-#include <algorithm> /* std::min, std::max */
-#include <cstring>   /* memcpy */
+#include <cassert>
 
-/* Debug helper to detect common corruption cases (temporary). */
-static void debug_check_lod_items(Object *ob)
-{
-  if (ob == nullptr) return;
-#ifdef WITH_ASSERT_ABORT
-  if (ob->lod_items_num > 0 && ob->lod_items == nullptr) {
-    fprintf(stderr, "LOD: lod_items_num > 0 but lod_items == NULL\n");
-    BLI_assert(ob->lod_items != nullptr);
-  }
-#endif
-}
+/* Create a new Lod node, append to object's list, set default values.
+ * Note: operators/UI should add WM notifiers; BKE tags depsgraph. */
+// !!!(Tri): 
+// void BKE_object_lod_add(Object *ob)
+// {
+//   if (ob == nullptr) {
+//     return;
+//   }
 
-/* Grow array helper */
-static LodItem *lod_items_grow(LodItem *items, int old_num, int new_num)
-{
-  if (items == nullptr) {
-    /* allocate zeroed memory for deterministic fields */
-    return static_cast<LodItem *>(MEM_callocN(sizeof(LodItem) * new_num, "object->lod_items"));
-  }
+//   Lod *lod = (Lod *)MEM_callocN(sizeof(Lod), "Lod item");
+//   lod->target = nullptr;
+//   lod->distance = 10.0f;
 
-  /* MEM_reallocN keeps previous contents, but newly allocated area is not guaranteed zeroed.
-   * We'll use it for grow and explicitly zero the new slot(s). */
-  LodItem *new_items = static_cast<LodItem *>(MEM_reallocN(items, sizeof(LodItem) * new_num));
-  if (new_items == nullptr) {
-    /* allocation failed; keep old pointer (shouldn't happen often). */
-    return items;
-  }
+//   BLI_addtail(&ob->lod_items, lod);
 
-  /* zero newly allocated region */
-  if (new_num > old_num) {
-    size_t added_bytes = size_t(new_num - old_num) * sizeof(LodItem);
-    memset(&new_items[old_num], 0, added_bytes);
-  }
-  return new_items;
-}
+//   /* ensure active index points to the new item */
+//   ob->act_lod = BKE_object_lod_index_of(ob, lod);
 
-/* Shrink array safely: allocate new block, copy, free old block.
- * This avoids potential allocator issues with realloc shrinking on some allocators
- * and makes the code clearer / safer. */
-static LodItem *lod_items_shrink(LodItem *items, int old_num, int new_num)
-{
-  if (new_num == 0) {
-    if (items) {
-      MEM_freeN(items);
-    }
-    return nullptr;
-  }
-
-  LodItem *new_items = static_cast<LodItem *>(MEM_callocN(sizeof(LodItem) * new_num, "object->lod_items_shrink"));
-  if (new_items == nullptr) {
-    /* allocation failed: keep old pointer */
-    return items;
-  }
-
-  /* Copy the first new_num elements */
-  memcpy(new_items, items, sizeof(LodItem) * new_num);
-
-  /* free old */
-  MEM_freeN(items);
-  return new_items;
-}
+//   /* notify depsgraph of change */
+//   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+// }
 
 void BKE_object_lod_add(Object *ob)
 {
-  if (ob == nullptr) {
-    return;
-  }
+  Lod *lod = MEM_cnew<Lod>(__func__);
 
-  const int old_num = ob->lod_items_num;
-  const int new_num = old_num + 1;
+  lod->target = nullptr;
+  lod->distance = 10.0f;
 
-  ob->lod_items = lod_items_grow(ob->lod_items, old_num, new_num);
+  BLI_addtail(&ob->lod_items, lod);
 
-  /* Initialize the new element */
-  LodItem *it = &ob->lod_items[old_num];
-  it->target = nullptr;
-  it->distance = 10.0f;
-  it->_pad = 0;
-
-  ob->lod_items_num = new_num;
-
-  /* If index was -1 (empty), clamp to 0; otherwise set to new slot */
-  if (ob->lod_items_index < 0) {
-    ob->lod_items_index = 0;
-  }
-  else {
-    ob->lod_items_index = old_num;
-  }
-
-  /* mark depsgraph so viewers update */
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  ob->act_lod = BLI_listbase_count(&ob->lod_items) - 1;
 }
+
+// MARK: -  remove
+
+/* Remove Lod at index (0-based). Returns true if removed. */
+// bool BKE_object_lod_remove(Object *ob, int index)
+// {
+//   if (ob == nullptr) {
+//     return false;
+//   }
+
+//   if (index < 0) {
+//     return false;
+//   }
+
+//   /* find the node */
+//   Lod *lod = BKE_object_lod_by_index(ob, index);
+//   if (lod == nullptr) {
+//     return false;
+//   }
+
+//   /* If the node references a target, decrement its user-count.
+//    * The RNA pointer setter uses PROP_ID_REFCOUNT, so we do the symmetric step here. */
+//   if (lod->target) {
+//     id_us_min(reinterpret_cast<ID *>(lod->target));
+//     lod->target = nullptr;
+//   }
+
+//   BLI_freelinkN(&ob->lod_items, lod);
+
+//   /* Update active index: clamp */
+//   if (BLI_listbase_is_empty(&ob->lod_items)) {
+//     ob->act_lod = -1;
+//   }
+//   else {
+//     /* clamp to last */
+//     int last_index = BKE_object_lod_index_of(ob, (Lod *)ob->lod_items.last);
+//     if (ob->act_lod > last_index) {
+//       ob->act_lod = last_index;
+//     }
+//     if (ob->act_lod < 0) {
+//       ob->act_lod = 0;
+//     }
+//   }
+
+//   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+//   return true;
+// }
 
 bool BKE_object_lod_remove(Object *ob, int index)
 {
-  if (ob == nullptr) {
-    return false;
-  }
-  if (ob->lod_items == nullptr || ob->lod_items_num <= 0) {
-    return false;
-  }
-  if ((index < 0) || (index >= ob->lod_items_num)) {
+  Lod *lod = (Lod *)BLI_findlink(&ob->lod_items, index);
+  if (!lod) {
     return false;
   }
 
-  /* If the item had a target, decrement its user count.
-   * The RNA pointer setter should have incremented the ID users when target was set,
-   * so here we are symmetric and decrement. */
-  if (ob->lod_items[index].target) {
-    id_us_min(reinterpret_cast<ID *>(ob->lod_items[index].target));
-    ob->lod_items[index].target = nullptr;
+  BLI_freelinkN(&ob->lod_items, lod);
+
+  const int new_count = BLI_listbase_count(&ob->lod_items);
+
+  if (new_count == 0) {
+    ob->act_lod = -1;
+  }
+  else if (ob->act_lod >= new_count) {
+    ob->act_lod = new_count - 1;
   }
 
-  const int old_num = ob->lod_items_num;
-  const int new_num = old_num - 1;
-
-  /* Move items down in memory before shrinking. We'll copy to new block to avoid
-   * allocator shrink oddities. */
-  if (index < new_num) {
-    /* shift inline so new_items_shrink copy doesn't need to skip the removed element */
-    for (int i = index; i < old_num - 1; ++i) {
-      ob->lod_items[i] = ob->lod_items[i + 1];
-    }
-  }
-
-  ob->lod_items_num = new_num;
-
-  if (new_num == 0) {
-    /* free block */
-    MEM_freeN(ob->lod_items);
-    ob->lod_items = nullptr;
-    ob->lod_items_index = -1;
-  }
-  else {
-    ob->lod_items = lod_items_shrink(ob->lod_items, old_num, new_num);
-    /* clamp index */
-    if (ob->lod_items_index >= ob->lod_items_num) {
-      ob->lod_items_index = ob->lod_items_num - 1;
-    }
-    if (ob->lod_items_index < 0) {
-      ob->lod_items_index = 0;
-    }
-  }
-
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   return true;
 }
+
+// MARK: - Clear
 
 void BKE_object_lod_clear(Object *ob)
 {
   if (ob == nullptr) {
     return;
   }
-  if (ob->lod_items == nullptr) {
-    ob->lod_items_num = 0;
-    ob->lod_items_index = -1;
-    return;
-  }
 
-  /* Decrement ID users for targets */
-  for (int i = 0; i < ob->lod_items_num; ++i) {
-    if (ob->lod_items[i].target) {
-      id_us_min(reinterpret_cast<ID *>(ob->lod_items[i].target));
-      ob->lod_items[i].target = nullptr;
+  for (Lod *lod = (Lod *)ob->lod_items.first; lod; lod = (Lod *)lod->next) {
+    if (lod->target) {
+      id_us_min(reinterpret_cast<ID *>(lod->target));
+      lod->target = nullptr;
     }
   }
 
-  MEM_freeN(ob->lod_items);
-  ob->lod_items = nullptr;
-  ob->lod_items_num = 0;
-  ob->lod_items_index = -1;
+  BLI_freelistN(&ob->lod_items);
+  ob->act_lod = -1;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+}
+
+/* Utility helpers */
+
+Lod *BKE_object_lod_by_index(Object *ob, int index)
+{
+  if (ob == nullptr || index < 0) {
+    return nullptr;
+  }
+  int i = 0;
+  for (Lod *lod = (Lod *)ob->lod_items.first; lod; lod = (Lod *)lod->next, ++i) {
+    if (i == index) {
+      return lod;
+    }
+  }
+  return nullptr;
+}
+
+int BKE_object_lod_index_of(Object *ob, Lod *lod_target)
+{
+  if (ob == nullptr || lod_target == nullptr) {
+    return -1;
+  }
+  int i = 0;
+  for (Lod *lod = (Lod *)ob->lod_items.first; lod; lod = (Lod *)lod->next, ++i) {
+    if (lod == lod_target) {
+      return i;
+    }
+  }
+  return -1;
 }

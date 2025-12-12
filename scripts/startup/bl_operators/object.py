@@ -999,7 +999,7 @@ class OBJECT_OT_assign_property_defaults(Operator):
 
         return {'FINISHED'}
 
-# New
+
 class OBJECT_OT_lod_item_add(Operator):
     bl_idname = "object.lod_item_add"
     bl_label = "Add LOD Item"
@@ -1025,7 +1025,7 @@ class OBJECT_OT_lod_item_remove(Operator):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        return ob and ob.lod_items and ob.lod_items_index >= 0
+        return ob and ob.lod_items and ob.act_lod >= 0
 
     def execute(self, context):
         ob = context.object

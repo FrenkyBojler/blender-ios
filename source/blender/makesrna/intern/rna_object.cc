@@ -326,7 +326,7 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 
 #  include "DEG_depsgraph_query.hh"
 
-// FIXME(Treata): 
+// FIXME(Tri): 
 #  include "BKE_object.hh"
 
 static void rna_Object_internal_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -840,6 +840,7 @@ static void rna_Object_vertex_groups_update(Main * /*bmain*/, Scene * /*scene*/,
   rna_Object_internal_update_data_impl(ptr);
 }
 
+// !!!(Tri): Pay attention
 static void rna_Object_vertex_groups_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Object *ob = static_cast<Object *>(ptr->data);
@@ -1459,6 +1460,7 @@ static void rna_Object_material_slots_next(CollectionPropertyIterator *iter)
   iter->valid = iter->internal.count.item < length;
 }
 
+// !!!: Mimick
 static PointerRNA rna_Object_material_slots_get(CollectionPropertyIterator *iter)
 {
   ID *id = static_cast<ID *>(iter->internal.count.ptr);
@@ -1857,6 +1859,7 @@ static ShaderFxData *rna_Object_shaderfx_new(
       reports, CTX_data_main(C), CTX_data_scene(C), object, name, type);
 }
 
+// !!!: 
 static void rna_Object_shaderfx_remove(Object *object,
                                        bContext *C,
                                        ReportList *reports,
@@ -2290,19 +2293,54 @@ static void rna_LightLinking_collection_update(Main *bmain, Scene * /*scene*/, P
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Lod Items (ListBase) - RNA Runtime Helpers
+ * \{ */
+
+/* Begin iteration over Object.lod_items (ListBase) */
+static void rna_Object_lod_items_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  Object *ob = (Object *)ptr->data;
+
+  /* parent must be stored first */
+  iter->parent = *ptr;
+
+  /* standard listbase iterator (skip callback = nullptr is fine) */
+  rna_iterator_listbase_begin(iter, ptr, &ob->lod_items, nullptr);
+}
+
+/* Advance to next Lod in listbase */
+static void rna_Object_lod_items_next(CollectionPropertyIterator *iter)
+{
+  rna_iterator_listbase_next(iter);
+}
+
+/* Finish iteration */
+static void rna_Object_lod_items_end(CollectionPropertyIterator *iter)
+{
+  rna_iterator_listbase_end(iter);
+}
+
+/* Return PointerRNA for current element */
+static PointerRNA rna_Object_lod_items_get(CollectionPropertyIterator *iter)
+{
+  /* get current element pointer via helper */
+  void *elem = rna_iterator_listbase_get(iter);
+  if (elem == nullptr) {
+    return PointerRNA_NULL;
+  }
+  /* ensure RNA type is set via parent pointer creation */
+  return RNA_pointer_create_with_parent(iter->parent, &RNA_Lod, elem);
+}
+
+/* Return number of elements in the list */
 static int rna_Object_lod_items_length(PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->data;
-  return ob ? ob->lod_items_num : 0;
+  return BLI_listbase_count(&ob->lod_items);
 }
 
-// TODO(Tre): Remove
-// static void rna_Object_lod_items_add(ID *id, PropertyRNA * /*prop*/, ReportList * /*reports*/)
-// {
-//   Object *ob = (Object *)id;
-//   BKE_object_lod_add(ob);
-//   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
-// }
+/** \} */
 
 #else
 
@@ -2370,6 +2408,55 @@ static void rna_def_vertex_group(BlenderRNA *brna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_float(func, "weight", 0, 0.0f, 1.0f, "", "Vertex weight", 0.0f, 1.0f);
   RNA_def_function_return(func, parm);
+}
+
+static void rna_def_lod(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem up_items[] = {
+      {OB_POSX, "X", 0, "X", ""},
+      {OB_POSY, "Y", 0, "Y", ""},
+      {OB_POSZ, "Z", 0, "Z", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem drawtype_items[] = {
+      {OB_BOUNDBOX, "BOUNDS", 0, "Bounds", "Display the bounds of the object"},
+      {OB_WIRE, "WIRE", 0, "Wire", "Display the object as a wireframe"},
+      {OB_SOLID,
+       "SOLID",
+       0,
+       "Solid",
+       "Display the object as a solid (if solid drawing is enabled in the viewport)"},
+      {OB_TEXTURE,
+       "TEXTURED",
+       0,
+       "Textured",
+       "Display the object with textures (if textures are enabled in the viewport)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  // RNA_def_property_srna(cprop, "Lod");
+  /* LOD RNA struct */ 
+  StructRNA *srna_lod = RNA_def_struct(brna, "Lod", nullptr);
+  RNA_def_struct_sdna(srna_lod, "Lod");
+  RNA_def_struct_ui_text(srna_lod, "LOD", "Level of detail entry");
+  // RNA_def_property_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna_lod, "target", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "target");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_ui_text(prop, "Target", "Object to swap to at this distance");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna_lod, "distance", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "distance");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop, "Distance", "Camera distance to trigger swap");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
 }
 
 static void rna_def_material_slot(BlenderRNA *brna)
@@ -2971,24 +3058,6 @@ static void rna_def_object(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  /* LodItem RNA struct */
-  StructRNA *srna_lod = RNA_def_struct(brna, "LodItem", NULL);
-  RNA_def_struct_sdna(srna_lod, "LodItem");
-  RNA_def_struct_ui_text(srna_lod, "LOD Item", "Level of detail entry");
-
-  prop = RNA_def_property(srna_lod, "target", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "target");
-  RNA_def_property_struct_type(prop, "Object");
-  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
-  RNA_def_property_ui_text(prop, "Target", "Object to swap to at this distance");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
-
-  prop = RNA_def_property(srna_lod, "distance", PROP_FLOAT, PROP_DISTANCE);
-  RNA_def_property_float_sdna(prop, nullptr, "distance");
-  RNA_def_property_range(prop, 0.0f, FLT_MAX);
-  RNA_def_property_ui_text(prop, "Distance", "Camera distance to trigger swap");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
-
   static int boundbox_dimsize[] = {8, 3};
 
   srna = RNA_def_struct(brna, "Object", "ID");
@@ -3000,23 +3069,24 @@ static void rna_def_object(BlenderRNA *brna)
 
   /* --- Object.lod_items collection ---------------------------------------- */
   prop = RNA_def_property(srna, "lod_items", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "lod_items", "lod_items_num");
-  RNA_def_property_struct_type(prop, "LodItem");
-  RNA_def_property_ui_text(prop, "LOD Items", "List of distance-based LOD entries");
+  RNA_def_property_collection_sdna(prop, nullptr, "lod_items", nullptr);
+  RNA_def_property_struct_type(prop, "Lod");
+  RNA_def_property_ui_text(prop, "LOD Items", "List of LOD entries");
 
-  /* Only length is needed. No add/remove callbacks here. */
-  RNA_def_property_collection_funcs(
-      prop,
-      nullptr, nullptr, nullptr,  /* begin, next, end (use SDNA defaults) */
-      nullptr,                    /* get (SDNA default) */
-      "rna_Object_lod_items_length",
-      nullptr,                    /* lookup_int - leave NULL */
-      nullptr, nullptr
-  );
+  /* Register the iterator/get/add/remove/len functions */
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_Object_lod_items_begin",
+                                    "rna_Object_lod_items_next",
+                                    "rna_Object_lod_items_end",
+                                    "rna_Object_lod_items_get",
+                                    "rna_Object_lod_items_length",
+                                    nullptr,  // lookup_int
+                                    nullptr,  // lookup_string
+                                    nullptr);
 
   /* Active LOD index */
-  prop = RNA_def_property(srna, "lod_items_index", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "lod_items_index");
+  prop = RNA_def_property(srna, "act_lod", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "act_lod");
   RNA_def_property_ui_text(prop, "Active LOD Index", "Active LOD item for UI");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
 
@@ -3863,13 +3933,14 @@ static void rna_def_object_light_linking(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
-// TODO(Treata): Update?
+// TODO(Tri): Update with `rna_def_lod`
 void RNA_def_object(BlenderRNA *brna)
 {
   rna_def_object(brna);
 
   RNA_define_animate_sdna(false);
   rna_def_vertex_group(brna);
+  rna_def_lod(brna);
   rna_def_material_slot(brna);
   rna_def_object_display(brna);
   rna_def_object_lineart(brna);

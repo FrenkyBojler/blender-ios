@@ -188,11 +188,13 @@ typedef struct LightLinking {
   LightLinkingRuntime runtime;
 } LightLinking;
 
-typedef struct LodItem {
+typedef struct Lod {
+    struct Lod *next, *prev;
     struct Object *target;
     float distance;
-    int _pad;    /* explicit padding to satisfy 64-bit struct alignment */
-} LodItem;
+
+    int _pad;
+} Lod;
 
 typedef struct Object {
 #ifdef __cplusplus
@@ -323,6 +325,11 @@ typedef struct Object {
   /** Dupliface scale. */
   float instance_faces_scale;
 
+  /** Distance based lod swap */
+  ListBase lod_items;
+  int act_lod;
+  char _pad_lod[4];
+
   /** Custom index, for render-passes. */
   short index;
   /** Current deformation group, NOTE: index starts at 1. */
@@ -393,10 +400,6 @@ typedef struct Object {
 
   /** Light linking information. */
   LightLinking *light_linking;
-
-  LodItem *lod_items;  /* Dynamic array for LOD levels */
-  int lod_items_num;
-  int lod_items_index;
 
   /** Irradiance caches baked for this object (light-probes only). */
   struct LightProbeObjectCache *lightprobe_cache;
