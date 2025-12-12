@@ -107,18 +107,6 @@ static bool wm_check_region_exists(const bScreen *screen,
   return false;
 }
 
-/**
- * Helper function to configure context logging with extensible options.
- *
- * \param C: The context to configure.
- * \param enable: Whether to enable logging.
- * \param hide_missing: Whether to hide missing/None values from logging.
- */
-static void bpy_rna_context_logging_set(bContext *C, bool enable, bool hide_missing = false)
-{
-  CTX_member_logging_set(C, enable, hide_missing);
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -152,6 +140,8 @@ struct BPyContextTempOverride {
      * won't be `ctx_init.screen` (when switching the window as well as the screen), see #115937.
      */
     bScreen *screen;
+    /** Original logging flags to restore on exit. */
+    CTX_LogFlags logging_flags;
   } ctx_temp_orig;
 
   /** Bypass Python overrides set when calling an operator from Python. */
@@ -305,11 +295,6 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   bContext *C = self->context;
   Main *bmain = CTX_data_main(C);
 
-  /* Enable logging for this temporary override context if the user has requested it. */
-  if (self->ctx_temp.use_logging) {
-    bpy_rna_context_logging_set(C, true);
-  }
-
   /* It's crucial to call #CTX_py_state_pop if this function fails with an error. */
   CTX_py_state_push(C, &self->py_state, self->py_state_context_dict);
 
@@ -346,6 +331,8 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
     self->ctx_temp_orig.screen = WM_window_get_active_screen(win);
     bpy_rna_context_temp_set_screen_for_window(C, win, self->ctx_temp.screen);
   }
+
+  /* Original logging flags were already stored when temp override was created. */
 
   /* NOTE: always set these members, even when they are equal to the current values because
    * setting the window (for example) clears the area & region, setting the area clears the region.
@@ -524,8 +511,8 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
     Py_DECREF(context_dict_test);
   }
 
-  /* Restore logging state based on the user's preference stored in ctx_init.use_logging. */
-  bpy_rna_context_logging_set(C, self->ctx_init.use_logging);
+  /* Restore the original logging flags. */
+  CTX_member_logging_set(C, self->ctx_temp_orig.logging_flags);
 
   CTX_py_state_pop(C, &self->py_state);
 
@@ -541,11 +528,11 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 
   static const char *kwlist[] = {"", "hide_missing", nullptr};
 
-  /* Parse arguments: required bool, optional hide_missing bool.
-   * Format string "O&|O&": O& = bool converter, | = start of optional args. */
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
-                                   "O&|O&",
+                                   "O&"  /* `enable`. */
+                                   "|$"  /* Optional keyword only arguments. */
+                                   "O&", /* `hide_missing`. */
                                    (char **)kwlist,
                                    PyC_ParseBool,
                                    &enable,
@@ -557,7 +544,14 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 
   self->ctx_temp.use_logging = enable;
 
-  bpy_rna_context_logging_set(self->context, enable, hide_missing);
+  CTX_LogFlags flags = CTX_LogFlags(0);
+  if (enable) {
+    flags = flags | CTX_LogFlags::Access;
+  }
+  if (hide_missing) {
+    flags = flags | CTX_LogFlags::HideMissing;
+  }
+  CTX_member_logging_set(self->context, flags);
 
   Py_RETURN_NONE;
 }
@@ -824,6 +818,8 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
   memset(&ret->ctx_init, 0, sizeof(ret->ctx_init));
 
   ret->ctx_temp_orig.screen = nullptr;
+  /* Store original logging flags now, before any logging_set() calls can modify them. */
+  ret->ctx_temp_orig.logging_flags = CTX_member_logging_get_flags(C);
 
   ret->py_state_context_dict = kwds;
 

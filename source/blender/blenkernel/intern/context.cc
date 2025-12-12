@@ -102,12 +102,10 @@ struct bContext {
      * (keep this to check if the copy needs freeing).
      */
     void *py_context_orig;
-    /** True if logging is enabled for context members (can be set programmatically). */
-    bool log_access;
+    /** Logging control flags (access, hide_missing). */
+    CTX_LogFlags log_flags;
     /** Optional flag to disallow writing via RNA. */
     const bool *rna_disallow_writes;
-    /** True if missing/None values should be hidden from logging. */
-    bool log_hide_missing;
   } data;
 };
 
@@ -116,7 +114,7 @@ struct bContext {
 bContext *CTX_create()
 {
   bContext *C = MEM_callocN<bContext>(__func__);
-  C->data.log_hide_missing = false;
+  C->data.log_flags = CTX_LogFlags(0);
 
   return C;
 }
@@ -128,7 +126,7 @@ bContext *CTX_copy(const bContext *C)
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
 
-  newC->data.log_hide_missing = C->data.log_hide_missing;
+  newC->data.log_flags = C->data.log_flags;
 
   return newC;
 }
@@ -402,7 +400,7 @@ static void ctx_member_log_access(const bContext *C,
   const char *value_desc = value_repr.c_str();
 
   /* If hiding missing is enabled and the member was not found, skip logging. */
-  if (C && C->data.log_hide_missing) {
+  if (C && bool(C->data.log_flags & CTX_LogFlags::HideMissing)) {
     if (lookup_result == CTX_RESULT_MEMBER_NOT_FOUND) {
       return;
     }
@@ -1775,15 +1773,21 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
-void CTX_member_logging_set(bContext *C, bool enable, bool hide_missing)
+void CTX_member_logging_set(bContext *C, CTX_LogFlags flags)
 {
-  C->data.log_access = enable;
-  C->data.log_hide_missing = hide_missing;
+  C->data.log_flags = flags;
 }
 
 bool CTX_member_logging_get(const bContext *C)
 {
-  return C->data.log_access;
+  return bool(C->data.log_flags & CTX_LogFlags::Access);
+}
+
+/* Needed by Python bindings to get the full flags value, since bContext is only forward
+ * declared in the header file and cannot be accessed directly from Python code. */
+CTX_LogFlags CTX_member_logging_get_flags(const bContext *C)
+{
+  return C->data.log_flags;
 }
 
 bool CTX_member_rna_write_check(const bContext *C)
