@@ -224,7 +224,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
         break;
       }
       default: {
-        /* Other types (such as font data-blocks), don't need depsgraph dependencies currently. */
+        /* Other types don't need depsgraph dependencies currently. */
         break;
       }
     }
