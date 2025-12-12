@@ -9,7 +9,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_preferences.h"
 #include "BKE_report.hh"
@@ -29,6 +29,7 @@
 #include "ED_asset_shelf.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
@@ -67,7 +68,7 @@ static Vector<RNAPath> construct_pose_rna_paths(const PointerRNA &bone_pointer)
 {
   BLI_assert(bone_pointer.type == &RNA_PoseBone);
 
-  blender::Vector<RNAPath> paths;
+  Vector<RNAPath> paths;
   paths.append({"location"});
   paths.append({"scale"});
   bPoseChannel *pose_bone = static_cast<bPoseChannel *>(bone_pointer.data);
@@ -105,8 +106,7 @@ static Vector<RNAPath> construct_pose_rna_paths(const PointerRNA &bone_pointer)
   return paths;
 }
 
-static blender::animrig::Action &extract_pose(Main &bmain,
-                                              const blender::Span<Object *> pose_objects)
+static blender::animrig::Action &extract_pose(Main &bmain, const Span<Object *> pose_objects)
 {
   /* This currently only looks at the pose and not other things that could go onto different
    * slots on the same action. */
@@ -219,12 +219,12 @@ static void ensure_asset_ui_visible(bContext &C)
   ED_region_visibility_change_update(&C, CTX_wm_area(&C), shelf_region);
 }
 
-static blender::Vector<Object *> get_selected_pose_objects(bContext *C)
+static Vector<Object *> get_selected_pose_objects(bContext *C)
 {
-  blender::Vector<PointerRNA> selected_objects;
+  Vector<PointerRNA> selected_objects;
   CTX_data_selected_objects(C, &selected_objects);
 
-  blender::Vector<Object *> selected_pose_objects;
+  Vector<Object *> selected_pose_objects;
   for (const PointerRNA &ptr : selected_objects) {
     Object *object = reinterpret_cast<Object *>(ptr.owner_id);
     if (!object->pose) {
@@ -247,7 +247,7 @@ static wmOperatorStatus create_pose_asset_local(bContext *C,
                                                 const StringRefNull name,
                                                 const AssetLibraryReference lib_ref)
 {
-  blender::Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
+  Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
 
   if (selected_pose_objects.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -309,7 +309,7 @@ static wmOperatorStatus create_pose_asset_user_library(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  blender::Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
+  Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
 
   if (selected_pose_objects.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -427,6 +427,7 @@ void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
   ot->name = "Create Pose Asset...";
   ot->description = "Create a new asset from the selected bones in the scene";
   ot->idname = "POSELIB_OT_create_pose_asset";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   ot->exec = pose_asset_create_exec;
   ot->invoke = pose_asset_create_invoke;
@@ -665,6 +666,10 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
     /* Not needed for local assets. */
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
   }
+  else {
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
+    ED_undo_push_op(C, op);
+  }
 
   asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
@@ -707,7 +712,7 @@ static std::string pose_asset_modify_description(bContext * /* C */,
                                                  PointerRNA *ptr)
 {
   const int mode = RNA_enum_get(ptr, "mode");
-  return std::string(prop_asset_overwrite_modes[mode].description);
+  return TIP_(std::string(prop_asset_overwrite_modes[mode].description));
 }
 
 /* Calling it overwrite instead of save because we aren't actually saving an opened asset. */
@@ -772,6 +777,8 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
   }
   else {
     asset::clear_id(&action->id);
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
+    ED_undo_push_op(C, op);
   }
 
   asset::refresh_asset_library(C, library_ref.value());
@@ -795,7 +802,7 @@ static wmOperatorStatus pose_asset_delete_invoke(bContext *C,
           IFACE_("Permanently delete pose asset blend file? This cannot be undone.") :
           IFACE_("The asset is local to the file. Deleting it will just clear the asset status."),
       IFACE_("Delete"),
-      ALERT_ICON_WARNING,
+      ui::AlertIcon::Warning,
       false);
 }
 

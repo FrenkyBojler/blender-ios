@@ -102,7 +102,6 @@ static char global_role_aces_interchange[MAX_COLORSPACE_NAME];
 
 /* Defaults from the config that never change with working space. */
 static char global_role_scene_linear_default[MAX_COLORSPACE_NAME];
-static char global_role_default_float_default[MAX_COLORSPACE_NAME];
 
 float3x3 global_scene_linear_to_xyz_default = float3x3::zero();
 
@@ -603,7 +602,6 @@ static bool colormanage_load_config(ocio::Config &config)
 
   /* Defaults that don't change with file working space. */
   STRNCPY(global_role_scene_linear_default, global_role_scene_linear);
-  STRNCPY(global_role_default_float_default, global_role_default_float);
   global_scene_linear_to_xyz_default = blender::colorspace::scene_linear_to_xyz;
 
   return ok;
@@ -629,7 +627,8 @@ void colormanagement_init()
   if (ocio_env && ocio_env[0] != '\0') {
     g_config = ocio::Config::create_from_environment();
     if (g_config != nullptr) {
-      CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", ocio_env);
+      CLOG_INFO_NOCHECK(
+          &LOG, "Using %s=%s", (blender_ocio_env) ? "BLENDER_OCIO" : "OCIO", ocio_env);
       const bool ok = colormanage_load_config(*g_config);
 
       if (ok) {
@@ -725,7 +724,7 @@ static bool colormanage_compatible_look(const ocio::Look *look, StringRef view_f
 
   /* Skip looks only relevant to specific view transforms.
    * If the view transform has view-specific look ignore non-specific looks. */
-  return (view_filter.is_empty()) ? look->view().is_empty() : look->view() == view_filter;
+  return view_filter.is_empty() ? look->view().is_empty() : look->view() == view_filter;
 }
 
 static bool colormanage_compatible_look(const ocio::Look *look, const char *view_name)
@@ -737,7 +736,7 @@ static bool colormanage_compatible_look(const ocio::Look *look, const char *view
 static bool colormanage_use_look(const char *look_name, const char *view_name)
 {
   const ocio::Look *look = g_config->get_look_by_name(look_name);
-  return (look->is_noop == false && colormanage_compatible_look(look, view_name));
+  return (look && look->is_noop == false && colormanage_compatible_look(look, view_name));
 }
 
 void colormanage_cache_free(ImBuf *ibuf)
@@ -809,7 +808,7 @@ static std::shared_ptr<const ocio::CPUProcessor> get_display_buffer_processor(
   display_parameters.from_colorspace = from_colorspace;
   display_parameters.view = view_transform;
   display_parameters.display = display_settings.display_device;
-  display_parameters.look = (colormanage_use_look(look, view_transform)) ? look : "";
+  display_parameters.look = colormanage_use_look(look, view_transform) ? look : "";
   display_parameters.scale = (exposure == 0.0f) ? 1.0f : powf(2.0f, exposure);
   display_parameters.exponent = (gamma == 1.0f) ? 1.0f : 1.0f / max_ff(FLT_EPSILON, gamma);
   display_parameters.temperature = temperature;
@@ -1113,6 +1112,11 @@ void IMB_colormanagement_check_file_config(Main *bmain)
     ok &= colormanage_check_view_settings(
         &scene->display_settings, &scene->view_settings, "scene");
 
+    ok &= colormanage_check_display_settings(
+        &scene->r.im_format.display_settings, "scene output", default_display);
+    ok &= colormanage_check_view_settings(
+        &scene->r.im_format.display_settings, &scene->r.im_format.view_settings, "scene output");
+
     sequencer_colorspace_settings = &scene->sequencer_colorspace_settings;
 
     ok &= colormanage_check_colorspace_settings(sequencer_colorspace_settings, "sequencer");
@@ -1123,7 +1127,7 @@ void IMB_colormanagement_check_file_config(Main *bmain)
 
     /* Check sequencer strip input colorspace. */
     if (scene->ed != nullptr) {
-      blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) {
+      blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) {
         if (strip->data) {
           ok &= colormanage_check_colorspace_settings(&strip->data->colorspace_settings,
                                                       "sequencer strip");
@@ -1488,7 +1492,7 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
     return true;
   }
   if (interop_id == "g24_rec2020_display") {
-    /* There is no gamma 2.4 trc, but BT.709 is close. */
+    /* There is no gamma 2.4 TRC, but BT.709 is close. */
     cicp[0] = CICP_PRI_REC2020;
     cicp[1] = CICP_TRC_BT709;
     cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_REC2020_NCL;
@@ -1496,14 +1500,14 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
     return true;
   }
   if (interop_id == "g24_rec709_display") {
-    /* There is no gamma 2.4 trc, but BT.709 is close. */
+    /* There is no gamma 2.4 TRC, but BT.709 is close. */
     cicp[0] = CICP_PRI_REC709;
     cicp[1] = CICP_TRC_BT709;
     cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_BT709;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
-  if (interop_id == "srgb_p3d65_display" || interop_id == "srgbx_p3d65_display") {
+  if (ELEM(interop_id, "srgb_p3d65_display", "srgbe_p3d65_display")) {
     /* For video we use BT.709 to match default sRGB writing, even though it is wrong.
      * But we have been writing sRGB like this forever, and there is the so called
      * "Quicktime gamma shift bug" that complicates things. */
@@ -1557,14 +1561,14 @@ const ColorSpace *IMB_colormanagement_space_from_cicp(const int cicp[4],
       interop_id = "g24_rec709_display";
     }
   }
-  else if (cicp[0] == CICP_PRI_P3D65 && (cicp[1] == CICP_TRC_SRGB || cicp[1] == CICP_TRC_BT709)) {
+  else if (cicp[0] == CICP_PRI_P3D65 && ELEM(cicp[1], CICP_TRC_SRGB, CICP_TRC_BT709)) {
     interop_id = "srgb_p3d65_display";
   }
   else if (cicp[0] == CICP_PRI_REC709 && cicp[1] == CICP_TRC_SRGB) {
     interop_id = "srgb_rec709_display";
   }
 
-  return (interop_id.is_empty()) ? nullptr : g_config->get_color_space_by_interop_id(interop_id);
+  return interop_id.is_empty() ? nullptr : g_config->get_color_space_by_interop_id(interop_id);
 }
 
 StringRefNull IMB_colormanagement_space_get_interop_id(const ColorSpace *colorspace)
@@ -3370,14 +3374,6 @@ bool IMB_colormanagement_working_space_set_from_name(const char *name)
 
   CLOG_DEBUG(&LOG, "Setting blend file working color space to '%s'", name);
 
-  /* Change default float along with working space for convenience, if it was the same. */
-  if (STREQ(global_role_default_float_default, global_role_scene_linear_default)) {
-    STRNCPY(global_role_default_float, name);
-  }
-  else {
-    STRNCPY(global_role_default_float, global_role_default_float_default);
-  }
-
   STRNCPY(global_role_scene_linear, name);
   g_config->set_scene_linear_role(name);
 
@@ -3529,7 +3525,7 @@ void IMB_colormanagement_working_space_convert(
 {
   using namespace blender;
   /* If unknown, assume it's the OpenColorIO config scene linear space. */
-  float3x3 bmain_scene_linear_to_xyz = (math::is_zero(current_scene_linear_to_xyz)) ?
+  float3x3 bmain_scene_linear_to_xyz = math::is_zero(current_scene_linear_to_xyz) ?
                                            global_scene_linear_to_xyz_default :
                                            current_scene_linear_to_xyz;
 

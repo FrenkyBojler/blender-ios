@@ -83,10 +83,10 @@ const UserDef U_default = {
     .menuthreshold2 = 2,
     .app_template = "",
 
-    /** Initialized by #UI_theme_init_default. */
+    /** Initialized by #ui::theme::init_default. */
     .themes = {NULL},
 
-    /** Initialized by #uiStyleInit. */
+    /** Initialized by #style_init. */
     .uifonts = {NULL},
     .uistyles = {NULL},
 
@@ -206,6 +206,14 @@ const UserDef U_default = {
             .jump_height = 0.4,
             .teleport_time = 0.2,
             .flag = 0,
+        },
+
+    .xr_navigation =
+        {
+            .vignette_intensity = 60.0f,
+            .turn_amount = DEG2RAD(30),
+            .turn_speed = DEG2RAD(60),
+            .flag = USER_XR_NAV_SNAP_TURN,
         },
 
     .space_data =

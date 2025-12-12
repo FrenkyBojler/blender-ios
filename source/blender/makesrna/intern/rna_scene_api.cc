@@ -157,6 +157,7 @@ static void rna_Scene_ray_cast(Scene *scene,
 
   blender::ed::transform::SnapObjectParams snap_object_params{};
   snap_object_params.snap_target_select = SCE_SNAP_TARGET_ALL;
+  snap_object_params.ignore_editmode_filtering = true;
 
   bool ret = blender::ed::transform::snap_object_project_ray_ex(sctx,
                                                                 depsgraph,
@@ -169,7 +170,7 @@ static void rna_Scene_ray_cast(Scene *scene,
                                                                 r_normal,
                                                                 r_index,
                                                                 (const Object **)(r_ob),
-                                                                (float(*)[4])r_obmat);
+                                                                (float (*)[4])r_obmat);
 
   blender::ed::transform::snap_object_context_destroy(sctx);
 
@@ -183,7 +184,7 @@ static void rna_Scene_ray_cast(Scene *scene,
   else {
     *r_success = false;
 
-    unit_m4((float(*)[4])r_obmat);
+    unit_m4((float (*)[4])r_obmat);
     zero_v3(r_location);
     zero_v3(r_normal);
   }

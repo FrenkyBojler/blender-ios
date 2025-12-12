@@ -22,6 +22,7 @@
 #include "GPU_material.hh"
 
 #include "COM_node_operation.hh"
+#include "COM_result.hh"
 #include "COM_utilities_gpu_material.hh"
 
 #include "node_composite_util.hh"
@@ -35,7 +36,7 @@ static void cmp_node_time_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Start Frame").default_value(1);
   b.add_input<decl::Int>("End Frame").default_value(250);
 
-  b.add_output<decl::Float>("Fac");
+  b.add_output<decl::Float>("Factor", "Fac");
 }
 
 static void node_composit_init_curves_time(bNodeTree * /*ntree*/, bNode *node)
@@ -133,7 +134,7 @@ static void cmp_node_rgbcurves_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .description("Image/Color input on which RGB color transformation will be applied");
-  b.add_input<decl::Float>("Fac")
+  b.add_input<decl::Float>("Factor", "Fac")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
@@ -237,25 +238,38 @@ static int node_gpu_material(GPUMaterial *material,
                         GPU_uniform(end_slopes));
 }
 
+static float4 curves_rgba(const CurveMapping *curve_mapping,
+                          const float4 &color,
+                          const float factor,
+                          const float4 &black,
+                          const float4 &white)
+{
+  float3 black_white_scale;
+  BKE_curvemapping_set_black_white_ex(black, white, black_white_scale);
+
+  float3 result;
+  BKE_curvemapping_evaluate_premulRGBF_ex(curve_mapping, result, color, black, black_white_scale);
+  return float4(math::interpolate(color.xyz(), result, math::clamp(factor, 0.0f, 1.0f)), color.w);
+}
+
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
   CurveMapping *curve_mapping = get_curve_mapping(builder.node());
   BKE_curvemapping_init(curve_mapping);
   BKE_curvemapping_premultiply(curve_mapping, false);
 
-  builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI4_SO<float4, float, float4, float4, float4>(
+  builder.construct_and_set_matching_fn_cb([&]() {
+    return mf::build::SI4_SO<Color, float, Color, Color, Color>(
         "RGB Curves",
-        [=](const float4 &color, const float factor, const float4 &black, const float4 &white)
-            -> float4 {
-          float3 black_white_scale;
-          BKE_curvemapping_set_black_white_ex(black, white, black_white_scale);
-
-          float3 result;
-          BKE_curvemapping_evaluate_premulRGBF_ex(
-              curve_mapping, result, color, black, black_white_scale);
-          return float4(math::interpolate(color.xyz(), result, math::clamp(factor, 0.0f, 1.0f)),
-                        color.w);
+        /* Take ownership of the tree because it contains the curve mapping. */
+        [curve_mapping, tree = builder.shared_tree()](const Color &color,
+                                                      const float factor,
+                                                      const Color &black,
+                                                      const Color &white) -> Color {
+          return Color(
+              curves_rgba(curve_mapping, float4(color), factor, float4(black), float4(white)));
         },
         mf::build::exec_presets::SomeSpanOrSingle<0>());
   });

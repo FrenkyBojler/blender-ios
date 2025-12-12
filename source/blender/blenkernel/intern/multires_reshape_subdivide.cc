@@ -23,18 +23,18 @@ static void multires_subdivide_create_object_space_linear_grids(Mesh *mesh)
   using namespace blender;
   using namespace blender::bke;
   const Span<float3> positions = mesh->vert_positions();
-  const blender::OffsetIndices faces = mesh->faces();
-  const blender::Span<int> corner_verts = mesh->corner_verts();
+  const OffsetIndices faces = mesh->faces();
+  const Span<int> corner_verts = mesh->corner_verts();
 
   MDisps *mdisps = static_cast<MDisps *>(
       CustomData_get_layer_for_write(&mesh->corner_data, CD_MDISPS, mesh->corners_num));
   for (const int p : faces.index_range()) {
-    const blender::IndexRange face = faces[p];
+    const IndexRange face = faces[p];
     const float3 face_center = mesh::face_center_calc(positions, corner_verts.slice(face));
     for (int l = 0; l < face.size(); l++) {
       const int loop_index = face[l];
 
-      float(*disps)[3] = mdisps[loop_index].disps;
+      float (*disps)[3] = mdisps[loop_index].disps;
       mdisps[loop_index].totdisp = 4;
       mdisps[loop_index].level = 1;
 

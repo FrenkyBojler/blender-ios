@@ -184,7 +184,7 @@ static void v3d_cursor_plane_draw_grid(const int resolution,
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
   const size_t coords_len = resolution * resolution;
-  float(*coords)[3] = static_cast<float(*)[3]>(
+  float (*coords)[3] = static_cast<float (*)[3]>(
       MEM_mallocN(sizeof(*coords) * coords_len, __func__));
 
   const int axis_x = (plane_axis + 0) % 3;
@@ -434,7 +434,7 @@ void ED_view3d_cursor_snap_draw_util(RegionView3D *rv3d,
 
   /* The size of the symbol is larger than the vertex size.
    * This prevents overlaps. */
-  float radius = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
+  float radius = 2.5f * blender::ui::theme::get_value_f(TH_VERTEX_SIZE);
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 

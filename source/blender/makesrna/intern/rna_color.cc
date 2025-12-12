@@ -52,23 +52,17 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 #  include "BKE_image.hh"
 #  include "BKE_linestyle.h"
 #  include "BKE_main_invariants.hh"
-#  include "BKE_movieclip.h"
-#  include "BKE_node.hh"
 #  include "BKE_node_legacy_types.hh"
 #  include "BKE_node_tree_update.hh"
 
 #  include "DEG_depsgraph.hh"
 
-#  include "ED_node.hh"
-
 #  include "IMB_colormanagement.hh"
-#  include "IMB_imbuf.hh"
 
 #  include "MOV_read.hh"
 
 #  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
-#  include "SEQ_thumbnail_cache.hh"
 
 struct SeqCurveMappingUpdateData {
   Scene *scene;
@@ -97,7 +91,7 @@ static void seq_notify_curve_update(CurveMapping *curve, ID *id)
     Scene *scene = (Scene *)id;
     if (scene->ed) {
       SeqCurveMappingUpdateData data{scene, curve};
-      blender::seq::for_each_callback(&scene->ed->seqbase, seq_update_modifier_curve, &data);
+      blender::seq::foreach_strip(&scene->ed->seqbase, seq_update_modifier_curve, &data);
     }
   }
 }
@@ -811,16 +805,16 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
 
       if (&scene->sequencer_colorspace_settings == colorspace_settings) {
         /* Scene colorspace was changed. */
-        blender::seq::cache_cleanup(scene);
+        blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::All);
       }
       else {
         /* Strip colorspace was likely changed. */
-        blender::seq::for_each_callback(
+        blender::seq::foreach_strip(
             &scene->ed->seqbase, strip_find_colorspace_settings_cb, &cb_data);
         Strip *strip = cb_data.r_seq;
 
         if (strip) {
-          blender::seq::relations_strip_free_anim(strip);
+          blender::seq::strip_free_movie_readers(strip);
 
           if (strip->data->proxy && strip->data->proxy->anim) {
             MOV_close(strip->data->proxy->anim);

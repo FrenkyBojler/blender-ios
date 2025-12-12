@@ -30,6 +30,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
@@ -39,7 +40,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
@@ -165,13 +165,15 @@ enum eWS_Qual {
 #define WS_QUAL_ALT (WS_QUAL_LALT | WS_QUAL_RALT)
   WS_QUAL_LCTRL = (1 << 4),
   WS_QUAL_RCTRL = (1 << 5),
-#define WS_QUAL_CTRL (WS_QUAL_LCTRL | WS_QUAL_RCTRL)
+  WS_QUAL_LCMD = (1 << 6),
+  WS_QUAL_RCMD = (1 << 7),
+#define WS_QUAL_CTRL (WS_QUAL_LCTRL | WS_QUAL_RCTRL | WS_QUAL_LCMD | WS_QUAL_RCMD)
   WS_QUAL_LMOUSE = (1 << 16),
   WS_QUAL_MMOUSE = (1 << 17),
   WS_QUAL_RMOUSE = (1 << 18),
 #define WS_QUAL_MOUSE (WS_QUAL_LMOUSE | WS_QUAL_MMOUSE | WS_QUAL_RMOUSE)
 };
-ENUM_OPERATORS(eWS_Qual, WS_QUAL_RMOUSE)
+ENUM_OPERATORS(eWS_Qual)
 
 struct GhostData {
   GHOST_SystemHandle system;
@@ -329,6 +331,15 @@ static void playanim_event_qual_update(GhostData &ghost_data)
 
   GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyRightControl, &val);
   SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_RCTRL);
+
+/* Command, equivalent to control on macOS. */
+#ifdef __APPLE__
+  GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyLeftOS, &val);
+  SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_LCMD);
+
+  GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyRightOS, &val);
+  SET_FLAG_FROM_TEST(ghost_data.qual, val, WS_QUAL_RCMD);
+#endif
 
   /* Alt. */
   GHOST_GetModifierKeyState(ghost_data.system, GHOST_kModifierKeyLeftAlt, &val);
@@ -1523,7 +1534,8 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr p
           }
         }
 
-        playanim_change_frame_tag(ps, cx);
+        const float native_pixel_size = GHOST_GetNativePixelSize(ghost_window);
+        playanim_change_frame_tag(ps, cx * native_pixel_size);
       }
       break;
     }
@@ -1672,8 +1684,9 @@ static void playanim_window_zoom(PlayState &ps, const float zoom_offset)
   // size = playanim_window_size_get(ps.ghost_data.window);
   // ofs[0] += size[0] / 2; /* UNUSED. */
   // ofs[1] += size[1] / 2; /* UNUSED. */
-  size[0] = ps.zoom * ps.ibuf_size[0];
-  size[1] = ps.zoom * ps.ibuf_size[1];
+  const float native_pixel_size = GHOST_GetNativePixelSize(ps.ghost_data.window);
+  size[0] = ps.zoom * ps.ibuf_size[0] / native_pixel_size;
+  size[1] = ps.zoom * ps.ibuf_size[1] / native_pixel_size;
   // ofs[0] -= size[0] / 2; /* UNUSED. */
   // ofs[1] -= size[1] / 2; /* UNUSED. */
   // window_set_position(ps.ghost_data.window, size[0], size[1]);
@@ -1862,6 +1875,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
       /* Init GHOST and open window. */
       GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+      GHOST_UseWindowFrame(WM_init_window_frame_get());
 
       ps.ghost_data.system = GHOST_CreateSystem();
       if (UNLIKELY(ps.ghost_data.system == nullptr)) {

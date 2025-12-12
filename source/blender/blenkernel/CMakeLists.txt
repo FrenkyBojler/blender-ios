@@ -419,7 +419,7 @@ set(SRC
   BKE_grease_pencil.hh
   BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
-  BKE_icons.h
+  BKE_icons.hh
   BKE_id_hash.hh
   BKE_idprop.hh
   BKE_idtype.hh
@@ -447,7 +447,7 @@ set(SRC
   BKE_main_idmap.hh
   BKE_main_invariants.hh
   BKE_main_namemap.hh
-  BKE_mask.h
+  BKE_mask.hh
   BKE_material.hh
   BKE_mball.hh
   BKE_mball_tessellate.hh
@@ -467,7 +467,7 @@ set(SRC
   BKE_mesh_types.hh
   BKE_mesh_wrapper.hh
   BKE_modifier.hh
-  BKE_movieclip.h
+  BKE_movieclip.hh
   BKE_multires.hh
   BKE_nla.hh
   BKE_node.hh
@@ -503,11 +503,11 @@ set(SRC
   BKE_scene.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
-  BKE_shader_fx.h
+  BKE_shader_fx.hh
   BKE_shrinkwrap.hh
   BKE_softbody.h
-  BKE_sound.h
-  BKE_speaker.h
+  BKE_sound.hh
+  BKE_speaker.hh
   BKE_studiolight.h
   BKE_subdiv.hh
   BKE_subdiv_ccg.hh
@@ -520,7 +520,7 @@ set(SRC
   BKE_text.h
   BKE_text_suggestions.h
   BKE_texture.h
-  BKE_tracking.h
+  BKE_tracking.hh
   BKE_type_conversions.hh
   BKE_undo_system.hh
   BKE_unit.hh
@@ -534,6 +534,7 @@ set(SRC
   BKE_volume_grid_fields.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh
+  BKE_volume_grid_process.hh
   BKE_volume_grid_type_traits.hh
   BKE_volume_openvdb.hh
   BKE_volume_render.hh
@@ -544,7 +545,6 @@ set(SRC
 
   nla_private.h
   particle_private.h
-  tracking_private.h
 
   intern/attribute_access_intern.hh
   intern/attribute_storage_access.hh
@@ -559,6 +559,7 @@ set(SRC
   intern/pbvh_uv_islands.hh
   intern/subdiv_converter.hh
   intern/subdiv_inline.hh
+  intern/tracking_private.hh
 )
 
 set(LIB
@@ -627,6 +628,10 @@ if(WITH_AUDASPACE)
     )
   endif()
   add_definitions(-DWITH_AUDASPACE)
+
+  if(WITH_RUBBERBAND)
+    add_definitions(-DWITH_RUBBERBAND)
+  endif()
 endif()
 
 if(WITH_BULLET)
@@ -809,6 +814,7 @@ if(WITH_GTESTS)
     intern/main_test.cc
     intern/nla_test.cc
     intern/path_templates_test.cc
+    intern/scene_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
     intern/volume_test.cc

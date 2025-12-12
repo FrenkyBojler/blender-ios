@@ -21,9 +21,37 @@ struct IDProperty;
 
 namespace blender::nodes::socket_usage_inference {
 
-struct SocketUsageInferencer;
+class SocketUsageInferencerImpl;
 
-class InputSocketUsageParams {
+/**
+ * Can detect which sockets are used or disabled.
+ */
+class SocketUsageInferencer {
+ private:
+  SocketUsageInferencerImpl &impl_;
+
+  friend class SocketUsageParams;
+
+ public:
+  SocketUsageInferencer(const bNodeTree &tree,
+                        ResourceScope &scope,
+                        SocketValueInferencer &value_inferencer,
+                        bke::ComputeContextCache &compute_context_cache,
+                        bool ignore_top_level_node_muting = false);
+
+  bool is_socket_used(const SocketInContext &socket);
+  bool is_group_input_used(int input_i);
+
+  bool is_disabled_output(const SocketInContext &socket);
+  bool is_disabled_group_output(int output_i);
+
+  /** This can be used when detecting the usage of all input sockets in a node tree, instead of
+   * just the inputs of the group as a whole.
+   */
+  void mark_top_level_node_outputs_as_used();
+};
+
+class SocketUsageParams {
  private:
   SocketUsageInferencer &inferencer_;
   const ComputeContext *compute_context_ = nullptr;
@@ -33,11 +61,11 @@ class InputSocketUsageParams {
   const bNode &node;
   const bNodeSocket &socket;
 
-  InputSocketUsageParams(SocketUsageInferencer &inferencer,
-                         const ComputeContext *compute_context,
-                         const bNodeTree &tree,
-                         const bNode &node,
-                         const bNodeSocket &socket);
+  SocketUsageParams(SocketUsageInferencer &inferencer,
+                    const ComputeContext *compute_context,
+                    const bNodeTree &tree,
+                    const bNode &node,
+                    const bNodeSocket &socket);
 
   /**
    * Get an the statically known input value for the given socket identifier. The value may be

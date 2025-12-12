@@ -14,6 +14,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_color_spill_cc {
@@ -35,13 +37,13 @@ static const EnumPropertyItem limit_method_items[] = {
     {CMP_NODE_COLOR_SPILL_LIMIT_ALGORITHM_SINGLE,
      "SINGLE",
      0,
-     "Single",
-     "Limit by a single channel"},
+     N_("Single"),
+     N_("Limit by a single channel")},
     {CMP_NODE_COLOR_SPILL_LIMIT_ALGORITHM_AVERAGE,
      "AVERAGE",
      0,
-     "Average",
-     "Limit by the average of the other two channels"},
+     N_("Average"),
+     N_("Limit by the average of the other two channels")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -53,11 +55,16 @@ static void cmp_node_color_spill_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Image");
 
   b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Float>("Fac").default_value(1.0f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_input<decl::Float>("Factor", "Fac")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR);
   b.add_input<decl::Menu>("Spill Channel")
       .default_value(RGBChannel::G)
       .static_items(rgb_channel_items)
       .expanded()
+      .translation_context(BLT_I18NCONTEXT_COLOR)
       .optional_label();
   b.add_input<decl::Menu>("Limit Method")
       .default_value(CMP_NODE_COLOR_SPILL_LIMIT_ALGORITHM_SINGLE)
@@ -68,6 +75,7 @@ static void cmp_node_color_spill_declare(NodeDeclarationBuilder &b)
       .default_value(RGBChannel::R)
       .static_items(rgb_channel_items)
       .expanded()
+      .translation_context(BLT_I18NCONTEXT_COLOR)
       .optional_label()
       .usage_by_menu("Limit Method", CMP_NODE_COLOR_SPILL_LIMIT_ALGORITHM_SINGLE);
   b.add_input<decl::Float>("Limit Strength")
@@ -156,27 +164,29 @@ static float4 color_spill(const float4 color,
   return float4(map > 0.0f ? color.xyz() + spill_scale * map : color.xyz(), color.w);
 }
 
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::
-      SI8_SO<float4, float, MenuValue, MenuValue, MenuValue, float, bool, float4, float4>(
+  static auto function =
+      mf::build::SI8_SO<Color, float, MenuValue, MenuValue, MenuValue, float, bool, Color, Color>(
           "Color Spill",
-          [=](const float4 &color,
+          [=](const Color &color,
               const float &factor,
               const MenuValue spill_channel,
               const MenuValue limit_method,
               const MenuValue limit_channel,
               const float &limit_scale,
               const bool &use_spill_strength,
-              const float4 &spill_strength) -> float4 {
-            return color_spill(color,
-                               factor,
-                               spill_channel.value,
-                               CMPNodeColorSpillLimitAlgorithm(limit_method.value),
-                               limit_channel.value,
-                               limit_scale,
-                               use_spill_strength,
-                               spill_strength);
+              const Color &spill_strength) -> Color {
+            return Color(color_spill(float4(color),
+                                     factor,
+                                     spill_channel.value,
+                                     CMPNodeColorSpillLimitAlgorithm(limit_method.value),
+                                     limit_channel.value,
+                                     limit_scale,
+                                     use_spill_strength,
+                                     float4(spill_strength)));
           },
           mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(function);

@@ -220,7 +220,7 @@ static void rna_KeyBlock_normals_vert_calc(ID *id,
 
   *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
-  BKE_keyblock_mesh_calc_normals(data, mesh, (float(*)[3])(*normals), nullptr, nullptr);
+  BKE_keyblock_mesh_calc_normals(data, mesh, (float (*)[3])(*normals), nullptr, nullptr);
 }
 
 static int rna_KeyBlock_normals_poly_len(const PointerRNA *ptr,
@@ -250,7 +250,7 @@ static void rna_KeyBlock_normals_poly_calc(ID *id,
 
   *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
-  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, (float(*)[3])(*normals), nullptr);
+  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, (float (*)[3])(*normals), nullptr);
 }
 
 static int rna_KeyBlock_normals_loop_len(const PointerRNA *ptr,
@@ -280,7 +280,7 @@ static void rna_KeyBlock_normals_loop_calc(ID *id,
 
   *normals = MEM_malloc_arrayN<float>(size_t(*normals_num), __func__);
 
-  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, nullptr, (float(*)[3])(*normals));
+  BKE_keyblock_mesh_calc_normals(data, mesh, nullptr, nullptr, (float (*)[3])(*normals));
 }
 
 PointerRNA rna_object_shapekey_index_get(ID *id, int value)
@@ -842,6 +842,21 @@ static std::optional<std::string> rna_ShapeKeyPoint_path(const PointerRNA *ptr)
   return std::nullopt; /* XXX: there's really no way to resolve this... */
 }
 
+/* Using a custom lookup so the function does not have to create a PointerRNA on every search step
+ * which is a performance issue. */
+static bool rna_KeyBlock_lookup_string(PointerRNA *ptr, const char *name, PointerRNA *r_ptr)
+{
+  Key *key = rna_ShapeKey_find_key(ptr->owner_id);
+  LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
+    if (!STREQ(kb->name, name)) {
+      continue;
+    }
+    *r_ptr = RNA_pointer_create_with_parent(*ptr, &RNA_ShapeKey, kb);
+    return true;
+  }
+  return false;
+}
+
 #else
 
 static const float tilt_limit = DEG2RADF(21600.0f);
@@ -1111,6 +1126,15 @@ static void rna_def_key(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_struct_type(prop, "ShapeKey");
   RNA_def_property_ui_text(prop, "Key Blocks", "Shape keys");
+  RNA_def_property_collection_funcs(prop,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    "rna_KeyBlock_lookup_string",
+                                    nullptr);
 
   rna_def_animdata_common(srna);
 

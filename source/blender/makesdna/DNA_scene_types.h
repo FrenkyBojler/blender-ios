@@ -10,6 +10,8 @@
 
 #include "DNA_defs.h"
 
+#include "BLI_enum_flags.hh"
+
 /**
  * Check for cyclic set-scene.
  * Libraries can cause this case which is normally prevented, see (#42009).
@@ -25,6 +27,10 @@
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
+#ifdef __cplusplus
+#  include "BLI_map.hh"
+#endif
+
 struct AnimData;
 struct Brush;
 struct Collection;
@@ -39,6 +45,7 @@ struct Scene;
 struct World;
 struct bGPdata;
 struct bNodeTree;
+struct Depsgraph;
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
@@ -54,10 +61,12 @@ class ColorSpace;
 using PaintRuntimeHandle = blender::bke::PaintRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
 using ColorSpaceHandle = blender::ocio::ColorSpace;
+using SceneDepsgraphsMap = blender::Map<struct DepsgraphKey, Depsgraph *, 4>;
 #else   // __cplusplus
 typedef struct PaintRuntimeHandle PaintRuntimeHandle;
 typedef struct SceneRuntimeHandle SceneRuntimeHandle;
 typedef struct ColorSpaceHandle ColorSpaceHandle;
+typedef struct SceneDepsgraphsMap SceneDepsgraphsMap;
 #endif  // __cplusplus
 
 /* -------------------------------------------------------------------- */
@@ -910,11 +919,9 @@ typedef struct RenderData {
 
   /** Sequencer options. */
   char seq_prev_type;
-  /** UNUSED. */
-  char seq_rend_type;
   /** Flag use for sequence render/draw. */
   char seq_flag;
-  char _pad5[3];
+  char _pad5[4];
 
   /* Render simplify. */
   short simplify_subsurf;
@@ -971,7 +978,10 @@ typedef struct RenderData {
   int compositor_denoise_preview_quality; /* eCompositorDenoiseQaulity */
   int compositor_denoise_final_quality;   /* eCompositorDenoiseQaulity */
 
-  char _pad6[4];
+  /** Frames to jump manually. */
+  float time_jump_delta;
+  int time_jump_unit;
+  char _pad10[4];
 } RenderData;
 
 /** #RenderData::quality_flag */
@@ -1019,6 +1029,12 @@ typedef enum eCompositorDenoiseQaulity {
   SCE_COMPOSITOR_DENOISE_BALANCED = 1,
   SCE_COMPOSITOR_DENOISE_FAST = 2,
 } eCompositorDenoiseQaulity;
+
+/** #RenderData::time_jump_unit */
+enum {
+  SCE_TIME_JUMP_FRAME = 0,
+  SCE_TIME_JUMP_SECOND = 1,
+};
 
 /** \} */
 
@@ -1184,6 +1200,8 @@ typedef struct Paint {
 
   /** Enum #ePaintFlags. */
   int flags;
+  /** Enum #ePaintDebugFlags. */
+  int debug_flags;
 
   /**
    * Paint stroke can use up to #PAINT_MAX_INPUT_SAMPLES inputs to smooth the stroke.
@@ -1198,7 +1216,6 @@ typedef struct Paint {
    * See #PaintCurveVisibilityFlags
    */
   int curve_visibility_flags;
-  char _pad[4];
 
   float tile_offset[3];
   struct UnifiedPaintSettings unified_paint_settings;
@@ -1359,10 +1376,10 @@ typedef struct CurvesSculpt {
 } CurvesSculpt;
 
 typedef struct UvSculpt {
-  struct CurveMapping *strength_curve;
+  struct CurveMapping *curve_distance_falloff;
   int size;
   float strength;
-  int8_t curve_preset; /* #eBrushCurvePreset. */
+  int8_t curve_distance_falloff_preset; /* #eBrushCurvePreset. */
   char _pad[7];
 } UvSculpt;
 
@@ -1889,6 +1906,15 @@ typedef struct ToolSettings {
   /* Pixel threshold that needs to be crossed before the playhead is snapped to a point. */
   int playhead_snap_distance;
 
+  /* Animation settings, used by "Paste Global Transform" operator. */
+  struct Object *anim_mirror_object;
+  struct Object *anim_relative_object;
+  char anim_mirror_bone[64];
+
+  /* Flags for "Fix to Camera" operator. */
+  uint8_t fix_to_cam_flag; /* eFixToCam_Flags */
+  char _pad8[7];
+
 } ToolSettings;
 
 /** \} */
@@ -2154,16 +2180,11 @@ typedef struct Scene {
   /** First is the [scene, translate, rotate, scale]. */
   TransformOrientationSlot orientation_slots[4];
 
-  void *sound_scene;
-  void *playback_handle;
-  void *sound_scrub_handle;
-  void *speaker_handles;
-
   /** (runtime) info/cache used for presenting playback frame-rate info to the user. */
   void *fps_info;
 
   /** None of the dependency graph vars is mean to be saved. */
-  struct GHash *depsgraph_hash;
+  SceneDepsgraphsMap *depsgraph_hash;
   char _pad7[4];
 
   /* User-Defined KeyingSets. */
@@ -2378,8 +2399,6 @@ enum {
   R_LINE_THICKNESS_RELATIVE = 2,
 };
 
-/* Sequencer seq_prev_type seq_rend_type. */
-
 /** #RenderData::engine (scene.cc) */
 extern const char *RE_engine_id_BLENDER_EEVEE;
 extern const char *RE_engine_id_BLENDER_WORKBENCH;
@@ -2487,7 +2506,7 @@ typedef enum eSnapFlag {
   SCE_SNAP_TO_ONLY_SELECTABLE = (1 << 10),
 } eSnapFlag;
 
-ENUM_OPERATORS(eSnapFlag, SCE_SNAP_TO_ONLY_SELECTABLE)
+ENUM_OPERATORS(eSnapFlag)
 
 /** See #ToolSettings::snap_target (to be renamed `snap_source`) and #TransSnap.source_operation */
 typedef enum eSnapSourceOP {
@@ -2497,7 +2516,7 @@ typedef enum eSnapSourceOP {
   SCE_SNAP_SOURCE_ACTIVE = 3,
 } eSnapSourceOP;
 
-ENUM_OPERATORS(eSnapSourceOP, SCE_SNAP_SOURCE_ACTIVE)
+ENUM_OPERATORS(eSnapSourceOP)
 
 /**
  * #TransSnap::target_operation and #ToolSettings::snap_flag
@@ -2512,7 +2531,7 @@ typedef enum eSnapTargetOP {
   SCE_SNAP_TARGET_ONLY_SELECTABLE = (1 << 3),
   SCE_SNAP_TARGET_NOT_NONEDITED = (1 << 4),
 } eSnapTargetOP;
-ENUM_OPERATORS(eSnapTargetOP, SCE_SNAP_TARGET_NOT_NONEDITED)
+ENUM_OPERATORS(eSnapTargetOP)
 
 /** #ToolSettings::snap_mode */
 typedef enum eSnapMode {
@@ -2540,12 +2559,7 @@ typedef enum eSnapMode {
   SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
   SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
 } eSnapMode;
-
-/* Due to dependency conflicts with Cycles, header cannot directly include `BLI_utildefines.h`. */
-/* TODO: move this macro to a more general place. */
-#ifdef ENUM_OPERATORS
-ENUM_OPERATORS(eSnapMode, SCE_SNAP_INDIVIDUAL_PROJECT)
-#endif
+ENUM_OPERATORS(eSnapMode)
 
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
@@ -2685,6 +2699,11 @@ typedef enum ePaintFlags {
   PAINT_USE_CAVITY_MASK = (1 << 3),
   PAINT_SCULPT_DELAY_UPDATES = (1 << 4),
 } ePaintFlags;
+
+/** #Paint::debug_flags */
+typedef enum ePaintDebugFlags {
+  PAINT_DEBUG_SHOW_BVH_NODES = (1 << 0),
+} ePaintDebugFlags;
 
 /**
  * #Sculpt::flags

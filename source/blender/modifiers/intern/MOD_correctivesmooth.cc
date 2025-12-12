@@ -447,7 +447,7 @@ static void calc_tangent_spaces(const Mesh *mesh,
     for (; next_corner != term_corner;
          prev_corner = curr_corner, curr_corner = next_corner, next_corner++)
     {
-      float(*ts)[3] = r_tangent_spaces[curr_corner];
+      float (*ts)[3] = r_tangent_spaces[curr_corner];
 
       /* re-use the previous value */
 #if 0
@@ -511,8 +511,8 @@ static void calc_deltas(CorrectiveSmoothModifierData *csmd,
 
   uint l_index;
 
-  float(*tangent_spaces)[3][3] = MEM_malloc_arrayN<float[3][3]>(size_t(corner_verts.size()),
-                                                                __func__);
+  float (*tangent_spaces)[3][3] = MEM_malloc_arrayN<float[3][3]>(size_t(corner_verts.size()),
+                                                                 __func__);
 
   if (csmd->delta_cache.deltas_num != uint(corner_verts.size())) {
     MEM_SAFE_FREE(csmd->delta_cache.deltas);
@@ -561,7 +561,7 @@ static void correctivesmooth_modifier_do(ModifierData *md,
       ((csmd->rest_source == MOD_CORRECTIVESMOOTH_RESTSOURCE_ORCO) &&
        (((ID *)ob->data)->recalc & ID_RECALC_ALL));
 
-  blender::Span<int> corner_verts = mesh->corner_verts();
+  Span<int> corner_verts = mesh->corner_verts();
 
   bool use_only_smooth = (csmd->flag & MOD_CORRECTIVESMOOTH_ONLY_SMOOTH) != 0;
   const MDeformVert *dvert = nullptr;
@@ -645,7 +645,7 @@ static void correctivesmooth_modifier_do(ModifierData *md,
       force_delta_cache_update)
   {
     blender::Array<blender::float3> rest_coords_alloc;
-    blender::Span<blender::float3> rest_coords;
+    Span<blender::float3> rest_coords;
 
     store_cache_settings(csmd);
 
@@ -693,8 +693,8 @@ static void correctivesmooth_modifier_do(ModifierData *md,
 
     const float scale = csmd->scale;
 
-    float(*tangent_spaces)[3][3] = MEM_malloc_arrayN<float[3][3]>(size_t(corner_verts.size()),
-                                                                  __func__);
+    float (*tangent_spaces)[3][3] = MEM_malloc_arrayN<float[3][3]>(size_t(corner_verts.size()),
+                                                                   __func__);
     float *tangent_weights = MEM_malloc_arrayN<float>(size_t(corner_verts.size()), __func__);
     float *tangent_weights_per_vertex = MEM_malloc_arrayN<float>(size_t(vertexCos.size()),
                                                                  __func__);
@@ -743,28 +743,28 @@ static void deform_verts(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "factor", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
-  layout->prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "smooth_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "factor", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
+  layout.prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "smooth_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  layout->prop(ptr, "use_only_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "use_pin_boundary", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_only_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_pin_boundary", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "rest_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "rest_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_enum_get(ptr, "rest_source") == MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND) {
-    layout->op("OBJECT_OT_correctivesmooth_bind",
-               (RNA_boolean_get(ptr, "is_bind") ? IFACE_("Unbind") : IFACE_("Bind")),
-               ICON_NONE);
+    layout.op("OBJECT_OT_correctivesmooth_bind",
+              (RNA_boolean_get(ptr, "is_bind") ? IFACE_("Unbind") : IFACE_("Bind")),
+              ICON_NONE);
   }
 
   modifier_error_message_draw(layout, ptr);
@@ -792,8 +792,6 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
     }
   }
 
-  BLO_write_struct_at_address(writer, CorrectiveSmoothModifierData, md, &csmd);
-
   if (csmd.bind_coords != nullptr) {
     BLO_write_shared(writer,
                      csmd.bind_coords,
@@ -804,6 +802,8 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
                            writer, csmd.bind_coords_num, (const float *)csmd.bind_coords);
                      });
   }
+
+  BLO_write_struct_at_address(writer, CorrectiveSmoothModifierData, md, &csmd);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)

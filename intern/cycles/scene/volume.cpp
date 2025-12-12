@@ -640,6 +640,7 @@ void Volume::merge_grids(const Scene *scene)
 VolumeManager::VolumeManager()
 {
   need_rebuild_ = true;
+  need_update_step_size = true;
 }
 
 void VolumeManager::tag_update()
@@ -914,6 +915,8 @@ void VolumeManager::initialize_octree(const Scene *scene, Progress &progress)
           vdb_map_[{geom, shader}] = mesh_to_sdf_grid(mesh, shader, 1.0f);
         }
       }
+#else
+      (void)progress;
 #endif
     }
   }
@@ -1098,11 +1101,13 @@ std::string VolumeManager::visualize_octree(const char *filename) const
   return filename_full;
 }
 
-void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene) const
+void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene)
 {
   assert(scene->integrator->get_volume_ray_marching());
 
-  if (!dscene->volume_step_size.is_modified() && last_algorithm == RAY_MARCHING) {
+  if (!need_update_step_size && !dscene->volume_step_size.is_modified() &&
+      !scene->integrator->volume_step_rate_is_modified() && last_algorithm == RAY_MARCHING)
+  {
     return;
   }
 
@@ -1124,6 +1129,7 @@ void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene) co
 
   dscene->volume_step_size.copy_to_device();
   dscene->volume_step_size.clear_modified();
+  need_update_step_size = false;
 }
 
 void VolumeManager::device_update(Device *device,

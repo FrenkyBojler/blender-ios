@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_compute_context.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_node.hh"
@@ -78,7 +79,7 @@ struct bNodeLinkDrag {
   bool swap_links = false;
 
   /* Data for edge panning */
-  View2DEdgePanData pan_data;
+  ui::View2DEdgePanData pan_data;
 };
 
 struct SpaceNode_Runtime {
@@ -134,7 +135,7 @@ enum NodeResizeDirection {
   NODE_RESIZE_RIGHT = (1 << 2),
   NODE_RESIZE_LEFT = (1 << 3),
 };
-ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
+ENUM_OPERATORS(NodeResizeDirection);
 
 /* Nodes draw without DPI - the view zoom is flexible. */
 #define BASIS_RAD (0.2f * U.widget_unit)
@@ -170,11 +171,9 @@ void node_socket_color_get(const bContext &C,
                            const bNodeSocket &sock,
                            float r_color[4]);
 
-const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_label);
-
 void node_draw_space(const bContext &C, ARegion &region);
 
-void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, uiLayout &layout);
+void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui::Layout &layout);
 
 /**
  * Update node draw order nodes based on selection: unselected nodes first, then selected,
@@ -201,6 +200,7 @@ void node_keymap(wmKeyConfig *keyconf);
 
 rctf node_frame_rect_inside(const SpaceNode &snode, const bNode &node);
 bool node_or_socket_isect_event(const bContext &C, const wmEvent &event);
+bNode *node_under_mouse_get(const SpaceNode &snode, const float2 mouse);
 
 bool node_deselect_all(bNodeTree &node_tree);
 void node_socket_select(bNode *node, bNodeSocket &sock);
@@ -310,6 +310,8 @@ void NODE_OT_add_import_node(wmOperatorType *ot);
 void NODE_OT_swap_group_asset(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
 void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
+void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot);
+void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot);
 void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type);
 void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
@@ -321,6 +323,7 @@ void NODE_OT_group_insert(wmOperatorType *ot);
 void NODE_OT_group_ungroup(wmOperatorType *ot);
 void NODE_OT_group_separate(wmOperatorType *ot);
 void NODE_OT_group_edit(wmOperatorType *ot);
+void NODE_OT_group_enter_exit(wmOperatorType *ot);
 
 void NODE_OT_default_group_width_set(wmOperatorType *ot);
 
@@ -423,7 +426,7 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt);
 void node_geometry_add_attribute_search_button(const bContext &C,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
-                                               uiLayout &layout,
+                                               ui::Layout &layout,
                                                StringRef placeholder = "");
 
 /* `node_geometry_layer_search.cc` */
@@ -431,8 +434,15 @@ void node_geometry_add_attribute_search_button(const bContext &C,
 void node_geometry_add_layer_search_button(const bContext &C,
                                            const bNode &node,
                                            PointerRNA &socket_ptr,
-                                           uiLayout &layout,
+                                           ui::Layout &layout,
                                            StringRef placeholder = "");
+/* `node_geometry_volume_grid_search.cc` */
+
+void node_geometry_add_volume_grid_search_button(const bContext &C,
+                                                 const bNode &node,
+                                                 PointerRNA &socket_ptr,
+                                                 ui::Layout &layout,
+                                                 StringRef placeholder = "");
 
 /* `node_context_path.cc` */
 
@@ -459,10 +469,14 @@ void NODE_OT_sockets_sync(wmOperatorType *ot);
 
 /* node_socket_tooltip.cc */
 
-void build_socket_tooltip(uiTooltipData &tip_data,
+void build_socket_tooltip(ui::TooltipData &tip_data,
                           bContext &C,
-                          uiBut *but,
+                          ui::Button *but,
                           const bNodeTree &tree,
                           const bNodeSocket &socket);
+
+/** node_tree_interface_ui.cc */
+
+void node_tree_interface_panel_register(ARegionType *art);
 
 }  // namespace blender::ed::space_node

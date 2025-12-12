@@ -22,6 +22,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_memory_cache.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
@@ -36,7 +37,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_image.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
@@ -46,17 +47,17 @@
 #include "BKE_preview_image.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_vfont.hh"
 
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
 #include "BKE_blender_cli_command.hh"
-#include "BKE_mask.h"      /* Free mask clipboard. */
+#include "BKE_mask.hh"     /* Free mask clipboard. */
 #include "BKE_material.hh" /* #BKE_material_copybuf_clear. */
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.hh"
-#include "BKE_tracking.h" /* Free tracking clipboard. */
+#include "BKE_tracking.hh" /* Free tracking clipboard. */
 
 #include "RE_engine.h"
 #include "RE_pipeline.h" /* `RE_` free stuff. */
@@ -303,7 +304,7 @@ void WM_init(bContext *C, int argc, const char **argv)
     }
 
     GPU_context_begin_frame(GPU_context_active_get());
-    UI_init();
+    blender::ui::init();
     GPU_context_end_frame(GPU_context_active_get());
     GPU_render_end();
   }
@@ -559,6 +560,10 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   BKE_mball_cubeTable_free();
 
+  /* Clear the cache which may (indirectly) contain e.g. GPU resources which need to be freed
+   * before the GPU backend is destroyed. */
+  memory_cache::clear();
+
   /* Render code might still access databases. */
   RE_FreeAllRender();
   RE_engines_exit();
@@ -641,14 +646,14 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * is also deleted with the context active. */
   if (gpu_is_init) {
     DRW_gpu_context_enable_ex(false);
-    UI_exit();
+    blender::ui::ui_exit();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();
   }
   else {
-    UI_exit();
+    blender::ui::ui_exit();
   }
 
   BKE_blender_userdef_data_free(&U, false);
@@ -697,7 +702,7 @@ void WM_exit(bContext *C, const int exit_code)
 
 void WM_script_tag_reload()
 {
-  UI_interface_tag_script_reload();
+  blender::ui::interface_tag_script_reload();
 
   /* Any operators referenced by gizmos may now be a dangling pointer.
    *

@@ -50,7 +50,7 @@ static void gizmo_empty_image_prop_matrix_get(const wmGizmo *gz,
                                               wmGizmoProperty *gz_prop,
                                               void *value_p)
 {
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -73,7 +73,7 @@ static void gizmo_empty_image_prop_matrix_set(const wmGizmo *gz,
                                               wmGizmoProperty *gz_prop,
                                               const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -134,8 +134,8 @@ static void WIDGETGROUP_empty_image_setup(const bContext * /*C*/, wmGizmoGroup *
 
   WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_HOVER, true);
 
-  UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-  UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
   /* All gizmos must perform undo. */
   LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {

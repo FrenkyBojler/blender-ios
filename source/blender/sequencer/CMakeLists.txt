@@ -67,7 +67,6 @@ set(SRC
   intern/effects/vse_effect_solid_color.cc
   intern/effects/vse_effect_speed.cc
   intern/effects/vse_effect_text.cc
-  intern/effects/vse_effect_transform.cc
   intern/effects/vse_effect_wipe.cc
   intern/modifiers/MOD_brightness_contrast.cc
   intern/modifiers/MOD_color_balance.cc
@@ -76,7 +75,9 @@ set(SRC
   intern/modifiers/MOD_hue_correct.cc
   intern/modifiers/MOD_mask.cc
   intern/modifiers/MOD_none.cc
+  intern/modifiers/MOD_sound_echo.cc
   intern/modifiers/MOD_sound_equalizer.cc
+  intern/modifiers/MOD_sound_pitch.cc
   intern/modifiers/MOD_tonemap.cc
   intern/modifiers/MOD_white_balance.cc
   intern/modifiers/modifier.cc
@@ -144,6 +145,9 @@ if(WITH_AUDASPACE)
 
   if(WITH_FFTW3)
     add_definitions(-DWITH_CONVOLUTION)
+  endif()
+  if(WITH_RUBBERBAND)
+    add_definitions(-DWITH_RUBBERBAND)
   endif()
 endif()
 

@@ -7,7 +7,7 @@
  * Enums for space type in the user interface.
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #pragma once
 
@@ -108,6 +108,8 @@ typedef enum eSpaceButtons_Context {
   BCONTEXT_SHADERFX = 15,
   BCONTEXT_OUTPUT = 16,
   BCONTEXT_COLLECTION = 17,
+  BCONTEXT_STRIP = 18,
+  BCONTEXT_STRIP_MODIFIER = 19,
 
   /* Keep last. */
   BCONTEXT_TOT,
@@ -596,7 +598,7 @@ typedef enum eFileSel_Params_Flag {
   /** Enables filtering by asset catalog. */
   FILE_FILTER_ASSET_CATALOG = (1 << 15),
 } eFileSel_Params_Flag;
-ENUM_OPERATORS(eFileSel_Params_Flag, FILE_FILTER_ASSET_CATALOG);
+ENUM_OPERATORS(eFileSel_Params_Flag);
 
 typedef enum eFileSel_Params_AssetCatalogVisibility {
   FILE_SHOW_ASSETS_ALL_CATALOGS,
@@ -652,7 +654,7 @@ typedef enum eFileSel_File_Types {
   FILE_TYPE_DIR = (1 << 30),
   FILE_TYPE_BLENDERLIB = (1u << 31),
 } eFileSel_File_Types;
-ENUM_OPERATORS(eFileSel_File_Types, FILE_TYPE_BLENDERLIB);
+ENUM_OPERATORS(eFileSel_File_Types);
 
 /** Selection Flags #FileList::selection_state. */
 typedef enum eDirEntry_SelectFlag {
@@ -661,7 +663,7 @@ typedef enum eDirEntry_SelectFlag {
   FILE_SEL_SELECTED = (1 << 3),
   FILE_SEL_EDITING = (1 << 4),
 } eDirEntry_SelectFlag;
-ENUM_OPERATORS(eDirEntry_SelectFlag, FILE_SEL_EDITING);
+ENUM_OPERATORS(eDirEntry_SelectFlag);
 
 /* ***** Related to file browser, but never saved in DNA, only here to help with RNA. ***** */
 
@@ -1043,6 +1045,8 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
   SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM = 13,
+  SPREADSHEET_VALUE_TYPE_INT64 = 14,
+  SPREADSHEET_VALUE_TYPE_INT32_3D = 15,
 } eSpreadsheetColumnValueType;
 
 typedef enum eSpreadsheetColumnFlag {
@@ -1072,7 +1076,7 @@ typedef enum eSpreadsheetTableFlag {
  * modifies the width of text as well.
  */
 #define SPREADSHEET_WIDTH_UNIT \
-  (UI_UNIT_X * UI_style_get_dpi()->widget.points / (float)UI_DEFAULT_TEXT_POINTS)
+  (UI_UNIT_X * ui::style_get_dpi()->widget.points / (float)UI_DEFAULT_TEXT_POINTS)
 
 /** \} */
 

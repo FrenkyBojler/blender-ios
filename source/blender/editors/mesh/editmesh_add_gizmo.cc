@@ -149,7 +149,7 @@ static void gizmo_placement_prop_matrix_get(const wmGizmo *gz,
 
   if (value_p != ggd->cage->matrix_offset) {
     mul_m4_m4m4(
-        static_cast<float(*)[4]>(value_p), ggd->cage->matrix_basis, ggd->cage->matrix_offset);
+        static_cast<float (*)[4]>(value_p), ggd->cage->matrix_basis, ggd->cage->matrix_offset);
     RNA_property_float_get_array(op->ptr, ggd->data.prop_matrix, value);
   }
 }
@@ -165,7 +165,7 @@ static void gizmo_placement_prop_matrix_set(const wmGizmo *gz,
   UNUSED_VARS_NDEBUG(gz_prop);
 
   float mat[4][4];
-  mul_m4_m4m4(mat, ggd->cage->matrix_basis, static_cast<const float(*)[4]>(value));
+  mul_m4_m4m4(mat, ggd->cage->matrix_basis, static_cast<const float (*)[4]>(value));
 
   if (is_negative_m4(mat)) {
     negate_mat3_m4(mat);
@@ -242,7 +242,7 @@ static void gizmo_mesh_placement_setup(const bContext *C, wmGizmoGroup *gzgroup)
 
   ggd->cage = WM_gizmo_new_ptr(gzt_cage, gzgroup, nullptr);
 
-  UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, ggd->cage->color);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, ggd->cage->color);
 
   RNA_enum_set(ggd->cage->ptr,
                "transform",
@@ -343,6 +343,9 @@ static wmOperatorStatus add_primitive_cube_gizmo_exec(bContext *C, wmOperator *o
   }
 
   EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
+  /* TODO(@ideasman42): maintain UV sync for newly created data. */
+  EDBM_uvselect_clear(em);
+
   EDBMUpdate_Params params{};
   params.calc_looptris = true;
   params.calc_normals = false;

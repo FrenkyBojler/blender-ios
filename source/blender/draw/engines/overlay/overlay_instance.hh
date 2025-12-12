@@ -112,14 +112,14 @@ class Instance : public DrawEngine {
   AntiAliasing anti_aliasing;
   XrayFade xray_fade;
 
-  Instance() : selection_type_(select::SelectionType::DISABLED){};
-  Instance(const SelectionType selection_type) : selection_type_(selection_type){};
+  Instance() : selection_type_(select::SelectionType::DISABLED) {};
+  Instance(const SelectionType selection_type) : selection_type_(selection_type) {};
   ~Instance()
   {
     DRW_text_cache_destroy(state.dt);
   }
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "Overlay";
   }

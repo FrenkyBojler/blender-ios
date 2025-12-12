@@ -16,6 +16,8 @@
 #include "DNA_texture_types.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
+#include "BLI_enum_flags.hh"
+
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
 #  include <string>
@@ -167,7 +169,6 @@ typedef struct bNodeSocket {
 
   /** Custom dynamic defined label. */
   char label[/*MAX_NAME*/ 64];
-  char short_label[/*MAX_NAME*/ 64];
   char description[/*MAX_NAME*/ 64];
 
   /**
@@ -339,7 +340,7 @@ typedef enum eNodeSocketInOut {
   SOCK_IN = 1 << 0,
   SOCK_OUT = 1 << 1,
 } eNodeSocketInOut;
-ENUM_OPERATORS(eNodeSocketInOut, SOCK_OUT);
+ENUM_OPERATORS(eNodeSocketInOut);
 
 /** #bNodeSocket.flag, first bit is selection. */
 typedef enum eNodeSocketFlag {
@@ -1053,6 +1054,8 @@ typedef struct bNodeSocketValueMenu {
 
 typedef struct GeometryNodeAssetTraits {
   int flag;
+  char _pad[4];
+  char *node_tool_idname;
 } GeometryNodeAssetTraits;
 
 typedef enum GeometryNodeAssetTraitFlag {
@@ -1070,7 +1073,7 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_PAINT = (1 << 10),
   GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL = (1 << 11),
 } GeometryNodeAssetTraitFlag;
-ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL);
+ENUM_OPERATORS(GeometryNodeAssetTraitFlag);
 
 /* Data structs, for `node->storage`. */
 
@@ -2408,6 +2411,24 @@ typedef struct NodeIndexSwitch {
 #endif
 } NodeIndexSwitch;
 
+typedef struct GeometryNodeFieldToGridItem {
+  /** #eNodeSocketDatatype. */
+  int8_t data_type;
+  char _pad[3];
+  int identifier;
+  char *name;
+} GeometryNodeFieldToGridItem;
+
+typedef struct GeometryNodeFieldToGrid {
+  /** #eNodeSocketDatatype. */
+  int8_t data_type;
+  char _pad[3];
+  int next_identifier;
+  GeometryNodeFieldToGridItem *items;
+  int items_num;
+  int active_index;
+} GeometryNodeFieldToGrid;
+
 typedef struct NodeGeometryDistributePointsInVolume {
   /** #GeometryNodePointDistributeVolumeMode. */
   uint8_t mode;
@@ -3341,7 +3362,12 @@ typedef enum GeometryNodeMergeByDistanceMode {
 typedef enum GeometryNodeUVUnwrapMethod {
   GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED = 0,
   GEO_NODE_UV_UNWRAP_METHOD_CONFORMAL = 1,
+  GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH = 2,
 } GeometryNodeUVUnwrapMethod;
+
+typedef enum GeometryNodeRealizeInstanceFlag {
+  GEO_NODE_REALIZE_TO_POINT_DOMAIN = (1 << 0),
+} GeometryNodeRealizeInstanceFlag;
 
 typedef enum GeometryNodeMeshLineMode {
   GEO_NODE_MESH_LINE_MODE_END_POINTS = 0,

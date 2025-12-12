@@ -255,18 +255,10 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#define MEDIA_TYPE_ENUM_IMAGE \
-  { \
-    MEDIA_TYPE_IMAGE, "IMAGE", ICON_NONE, "Image", "" \
-  }
+#define MEDIA_TYPE_ENUM_IMAGE {MEDIA_TYPE_IMAGE, "IMAGE", ICON_NONE, "Image", ""}
 #define MEDIA_TYPE_ENUM_MULTI_LAYER_IMAGE \
-  { \
-    MEDIA_TYPE_MULTI_LAYER_IMAGE, "MULTI_LAYER_IMAGE", ICON_NONE, "Multi-Layer EXR", "" \
-  }
-#define MEDIA_TYPE_ENUM_VIDEO \
-  { \
-    MEDIA_TYPE_VIDEO, "VIDEO", ICON_NONE, "Video", "" \
-  }
+  {MEDIA_TYPE_MULTI_LAYER_IMAGE, "MULTI_LAYER_IMAGE", ICON_NONE, "Multi-Layer EXR", ""}
+#define MEDIA_TYPE_ENUM_VIDEO {MEDIA_TYPE_VIDEO, "VIDEO", ICON_NONE, "Video", ""}
 
 static const EnumPropertyItem rna_enum_media_type_all_items[] = {
     MEDIA_TYPE_ENUM_IMAGE,
@@ -2159,6 +2151,11 @@ static void rna_Scene_uv_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
   ED_uvedit_selectmode_clean_multi(C);
 }
 
+static void rna_Scene_uv_select_sync_update(bContext *C, PointerRNA * /*ptr*/)
+{
+  ED_uvedit_select_sync_multi(C);
+}
+
 static void rna_Scene_uv_sticky_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
 {
   /* Some changes to sticky select mode require rebuilding. */
@@ -2391,14 +2388,14 @@ static void rna_View3DCursor_rotation_axis_angle_set(PointerRNA *ptr, const floa
 static void rna_View3DCursor_matrix_get(PointerRNA *ptr, float *values)
 {
   const View3DCursor *cursor = static_cast<const View3DCursor *>(ptr->data);
-  copy_m4_m4((float(*)[4])values, cursor->matrix<blender::float4x4>().ptr());
+  copy_m4_m4((float (*)[4])values, cursor->matrix<blender::float4x4>().ptr());
 }
 
 static void rna_View3DCursor_matrix_set(PointerRNA *ptr, const float *values)
 {
   View3DCursor *cursor = static_cast<View3DCursor *>(ptr->data);
   float unit_mat[4][4];
-  normalize_m4_m4(unit_mat, (const float(*)[4])values);
+  normalize_m4_m4(unit_mat, (const float (*)[4])values);
   cursor->set_matrix(blender::float4x4(unit_mat), false);
 }
 
@@ -2547,7 +2544,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
   Scene *scene = (Scene *)ptr->owner_id;
   Object *camera = scene->camera;
 
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
 
   if (camera && (camera->type == OB_CAMERA)) {
     DEG_id_tag_update(&camera->id, ID_RECALC_GEOMETRY);
@@ -2556,7 +2553,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
 static void rna_SceneSequencer_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  blender::seq::cache_cleanup((Scene *)ptr->owner_id);
+  blender::seq::cache_cleanup((Scene *)ptr->owner_id, blender::seq::CacheCleanup::FinalAndIntra);
 }
 
 static std::optional<std::string> rna_ToolSettings_path(const PointerRNA * /*ptr*/)
@@ -4197,6 +4194,42 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, "New Keyframe Type", "Type of keyframes to create when inserting keyframes");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
 
+  /* Animation */
+  prop = RNA_def_property(srna, "anim_mirror_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop,
+                           "Mirror Object",
+                           "Object to mirror over. Leave empty and name a bone to always mirror "
+                           "over that bone of the active armature");
+
+  prop = RNA_def_property(srna, "anim_mirror_bone", PROP_STRING, PROP_NONE);
+  RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_ui_text(prop, "Mirror Bone", "Bone to use for the mirroring");
+
+  prop = RNA_def_property(srna, "anim_relative_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Relative Object", "Object to which matrices are made relative");
+
+  prop = RNA_def_property(srna, "anim_fix_to_cam_use_loc", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_LOC);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(
+      prop, "Use Location for Camera Fix", "Create location keys when fixing to the scene camera");
+
+  prop = RNA_def_property(srna, "anim_fix_to_cam_use_rot", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_ROT);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(
+      prop, "Use Rotation for Camera Fix", "Create rotation keys when fixing to the scene camera");
+
+  prop = RNA_def_property(srna, "anim_fix_to_cam_use_scale", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_SCALE);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(
+      prop, "Use Scale for Camera Fix", "Create scale keys when fixing to the scene camera");
+
   /* UV */
   prop = RNA_def_property(srna, "uv_select_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "uv_selectmode");
@@ -4222,7 +4255,8 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "UV Sync Selection", "Keep UV and edit mode mesh selection in sync");
   RNA_def_property_ui_icon(prop, ICON_UV_SYNC_SELECT, 0);
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_select_sync_update");
 
   prop = RNA_def_property(srna, "use_uv_select_island", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SELECT_ISLAND);
@@ -6769,7 +6803,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "audio_bitrate", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "audio_bitrate");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 32, 384);
+  RNA_def_property_range(prop, 32, 2048);
   RNA_def_property_ui_text(prop, "Bitrate", "Audio bitrate (kb/s)");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
@@ -8623,6 +8657,12 @@ void RNA_def_scene(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem time_jump_unit_items[] = {
+      {SCE_TIME_JUMP_FRAME, "FRAME", 0, "Frame", "Jump by frames"},
+      {SCE_TIME_JUMP_SECOND, "SECOND", 0, "Second", "Jump by seconds"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   /* Struct definition */
   srna = RNA_def_struct(brna, "Scene", "ID");
   RNA_def_struct_ui_text(srna,
@@ -8726,6 +8766,23 @@ void RNA_def_scene(BlenderRNA *brna)
       "Frame Step",
       "Number of frames to skip forward while rendering/playing back each frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
+
+  prop = RNA_def_property(srna, "time_jump_unit", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "r.time_jump_unit");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, time_jump_unit_items);
+  RNA_def_property_ui_text(
+      prop, "Time Jump Unit", "Which unit to use for time jumps in the timeline");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
+
+  prop = RNA_def_property(srna, "time_jump_delta", PROP_FLOAT, PROP_TIME);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_float_sdna(prop, nullptr, "r.time_jump_delta");
+  RNA_def_property_range(prop, 0.1f, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop, "Time Jump Delta", "Number of frames or seconds to jump forward or backward");
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
 
   prop = RNA_def_property(srna, "frame_current_final", PROP_FLOAT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);

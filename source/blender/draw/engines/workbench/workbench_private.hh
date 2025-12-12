@@ -181,6 +181,8 @@ struct SceneState {
   /* When r == -1.0 the shader uses the vertex color */
   Material material_attribute_color = Material(float3(-1.0f));
 
+  bool show_paint_bvh_debug = false;
+
   void init(const DRWContext *context, bool scene_updated, Object *camera_ob = nullptr);
 };
 
@@ -398,7 +400,7 @@ class ShadowPass {
     VisibilityBuf fail_visibility_buf_ = {};
 
    public:
-    ShadowView() : View("ShadowPass.View"){};
+    ShadowView() : View("ShadowPass.View") {};
 
     void setup(View &view, float3 light_direction, bool force_fail_method);
     bool debug_object_culling(Object *ob);

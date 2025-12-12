@@ -29,12 +29,14 @@ namespace blender::nodes::node_composite_displace_cc {
 static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.allow_any_socket_order();
 
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Vector>("Displacement")
       .dimensions(2)
       .default_value({0.0f, 0.0f})
@@ -129,7 +131,7 @@ class DisplaceOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     displacement.unbind_as_texture();
@@ -149,7 +151,7 @@ class DisplaceOperation : public NodeOperation {
     Result &output = this->get_result("Image");
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
 
     if (interpolation == Interpolation::Anisotropic) {
       this->compute_anisotropic(size, image, output, displacement);
@@ -172,7 +174,7 @@ class DisplaceOperation : public NodeOperation {
       const float2 coordinates = this->compute_coordinates(base_texel, size, displacement);
       output.store_pixel(
           base_texel,
-          image.sample(coordinates, interpolation, extension_mode_x, extension_mode_y));
+          image.sample<Color>(coordinates, interpolation, extension_mode_x, extension_mode_y));
     });
   }
 
@@ -222,7 +224,8 @@ class DisplaceOperation : public NodeOperation {
                                            const float2 &y_gradient) {
         /* Sample the input using the displaced coordinates passing in the computed gradients in
          * order to utilize the anisotropic filtering capabilities of the sampler. */
-        output.store_pixel(texel, image.sample_ewa_zero(coordinates, x_gradient, y_gradient));
+        output.store_pixel(texel,
+                           Color(image.sample_ewa_zero(coordinates, x_gradient, y_gradient)));
       };
 
       compute_anisotropic_pixel(

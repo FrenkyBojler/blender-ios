@@ -13,12 +13,12 @@
 #include <cfloat>
 #include <cstring>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
@@ -619,7 +619,7 @@ static void do_version_constraints_copy_rotation_mix_mode(ListBase *lb)
 static void do_versions_seq_alloc_transform_and_crop(ListBase *seqbase)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD) == 0) {
+    if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD) == 0) {
       if (strip->data->transform == nullptr) {
         strip->data->transform = MEM_callocN<StripTransform>("StripTransform");
       }
@@ -2488,7 +2488,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         block->data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
-        float(*newptr)[3] = static_cast<float(*)[3]>(block->data);
+        float (*newptr)[3] = static_cast<float (*)[3]>(block->data);
 
         LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
           if (nu->bezt) {
@@ -3036,7 +3036,7 @@ enum class eNTreeDoVersionErrors : int8_t {
   NTREE_DOVERSION_NEED_OUTPUT = (1 << 0),
   NTREE_DOVERSION_TRANSPARENCY_EMISSION = (1 << 1),
 };
-ENUM_OPERATORS(eNTreeDoVersionErrors, ~int8_t{});
+ENUM_OPERATORS(eNTreeDoVersionErrors);
 
 /* NOLINTNEXTLINE: readability-function-size */
 void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
@@ -3129,9 +3129,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");
@@ -3141,9 +3139,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           "nodes.\n");
     }
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");
@@ -4640,7 +4636,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       }
 
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_update_flags_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_update_flags_cb, nullptr);
       }
     }
 
@@ -4662,8 +4658,9 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      me->flag &= ~(ME_FLAG_UNUSED_0 | ME_FLAG_UNUSED_1 | ME_FLAG_UNUSED_3 | ME_FLAG_UNUSED_4 |
-                    ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 | ME_REMESH_REPROJECT_ATTRIBUTES);
+      me->flag &= ~(ME_FLAG_UNUSED_0 | ME_FLAG_UNUSED_1 | ME_FLAG_UV_SELECT_SYNC_VALID |
+                    ME_FLAG_UNUSED_4 | ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 |
+                    ME_REMESH_REPROJECT_ATTRIBUTES);
     }
 
     LISTBASE_FOREACH (Material *, mat, &bmain->materials) {

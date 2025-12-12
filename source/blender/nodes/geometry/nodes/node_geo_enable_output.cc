@@ -4,8 +4,11 @@
 
 #include "node_geometry_util.hh"
 
+#include "BKE_node_tree_reference_lifetimes.hh"
+
 #include "NOD_node_extra_info.hh"
 #include "NOD_rna_define.hh"
+#include "NOD_socket.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -30,15 +33,31 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.add_input(data_type, "Value").hide_value().structure_type(StructureType::Dynamic);
-  b.add_output(data_type, "Value").align_with_previous().structure_type(StructureType::Dynamic);
+
+  auto &input_value = b.add_input(data_type, "Value").hide_value();
+  auto &output_value = b.add_output(data_type, "Value").align_with_previous();
+
+  if (nodes::socket_type_supports_fields(data_type)) {
+    input_value.supports_field();
+  }
+
+  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
+    output_value.propagate_all();
+  }
+
+  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
+    output_value.reference_pass_all();
+  }
+
+  input_value.structure_type(StructureType::Dynamic);
+  output_value.structure_type(StructureType::Dynamic);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 class LazyFunctionForEnableOutputNode : public LazyFunction {

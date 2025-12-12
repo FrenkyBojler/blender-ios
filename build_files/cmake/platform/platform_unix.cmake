@@ -298,7 +298,7 @@ if(WITH_CODEC_FFMPEG)
     # Override FFMPEG components to also include static library dependencies
     # included with precompiled libraries, and to ensure correct link order.
     set(FFMPEG_FIND_COMPONENTS
-      avformat avcodec avdevice avutil swresample swscale
+      avformat avdevice avfilter avcodec avutil swresample swscale
       sndfile
       FLAC
       mp3lame
@@ -397,7 +397,7 @@ if(DEFINED LIBDIR)
     ${SYCL_ROOT_DIR}/lib/libur_*.so
     ${SYCL_ROOT_DIR}/lib/libur_*.so.*
   )
-  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX ".*\.py")
+  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX "\\.py$")
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${_sycl_runtime_libraries})
   unset(_sycl_runtime_libraries)
 endif()
@@ -413,8 +413,9 @@ if(WITH_NANOVDB)
   set_and_warn_library_found("NanoVDB" NANOVDB_FOUND WITH_NANOVDB)
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
-  find_package_wrapper(sse2neon)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
+  find_package_wrapper(sse2neon REQUIRED)
 endif()
 
 if(WITH_ALEMBIC)
@@ -586,6 +587,17 @@ if(WITH_MANIFOLD)
     set_and_warn_library_found("MANIFOLD" MANIFOLD_FOUND WITH_MANIFOLD)
   endif()
   mark_as_advanced(manifold_DIR)
+endif()
+
+if(WITH_RUBBERBAND)
+  if(DEFINED LIBDIR)
+    find_package_wrapper(Rubberband)
+  else()
+    # Use system libs
+    find_package(PkgConfig)
+    pkg_check_modules(RUBBERBAND rubberband)
+  endif()
+  set_and_warn_library_found("Rubberband" RUBBERBAND_FOUND WITH_RUBBERBAND)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)

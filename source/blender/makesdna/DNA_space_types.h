@@ -374,9 +374,9 @@ typedef struct MaskSpaceInfo {
   /* **** mask editing **** */
   struct Mask *mask;
   /* draw options */
-  char draw_flag;
-  char draw_type;
-  char overlay_mode;
+  char draw_flag;    /* MaskDrawFlag */
+  char draw_type;    /* MaskDrawType */
+  char overlay_mode; /* MaskOverlayMode */
   char _pad3[1];
   float blend_factor;
 } MaskSpaceInfo;
@@ -1028,7 +1028,7 @@ typedef struct SpaceClip {
    */
   float stabmat[4][4], unistabmat[4][4];
 
-  /** Movie postprocessing. */
+  /** Movie postprocessing (#MovieClipPostprocFlag). */
   int postproc_flag;
 
   /* grease pencil */
@@ -1263,10 +1263,11 @@ typedef struct SpreadsheetRowFilter {
   /* eSpaceSpreadsheet_RowFilterFlag. */
   uint8_t flag;
 
-  char _pad0[2];
+  char _pad0[6];
 
   int value_int;
   int value_int2[2];
+  int value_int3[3];
   char *value_string;
   float value_float;
   float threshold;

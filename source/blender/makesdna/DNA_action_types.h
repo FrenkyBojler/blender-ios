@@ -20,6 +20,8 @@
 #include "DNA_vec_types.h"
 #include "DNA_view2d_types.h"
 
+#include "BLI_enum_flags.hh"
+
 #ifdef __cplusplus
 #  include <type_traits>
 #endif
@@ -242,6 +244,23 @@ typedef struct bPoseChannel_BBoneSegmentBoundary {
   float depth_scale;
 } bPoseChannel_BBoneSegmentBoundary;
 
+/**
+ * Runtime flags on pose bones. Those are only used internally and are not exposed to the user.
+ */
+typedef enum bPoseChannelRuntimeFlag {
+  /**
+   * Used during transform. Not every selected bone is transformed. For example in a chain of
+   * bones, only the first selected may be transformed.
+   */
+  POSE_RUNTIME_TRANSFORM = (1 << 0),
+  /** Set to prevent hinge child bones from influencing the transform center. */
+  POSE_RUNTIME_HINGE_CHILD_TRANSFORM = (1 << 1),
+  /** Indicates that a parent is also being transformed. */
+  POSE_RUNTIME_TRANSFORM_CHILD = (1 << 2),
+  /** Set on bones during selection to tell following code that this bone should be operated on. */
+  POSE_RUNTIME_IN_SELECTION_AREA = (1 << 3),
+} bPoseChannelRuntimeFlag;
+
 typedef struct bPoseChannel_Runtime {
   SessionUID session_uid;
 
@@ -253,7 +272,9 @@ typedef struct bPoseChannel_Runtime {
 
   /* Inverse of the total length of the segment polyline. */
   float bbone_arc_length_reciprocal;
-  char _pad1[4];
+  /* bPoseChannelRuntimeFlag */
+  uint8_t flag;
+  char _pad1[3];
 
   /* Rest and posed matrices for segments. */
   struct Mat4 *bbone_rest_mats;
@@ -313,8 +334,11 @@ typedef struct bPoseChannel {
   short agrp_index;
   /** For quick detecting which constraints affect this channel. */
   char constflag;
-  /** Copy of bone flag, so you can work with library armatures, not for runtime use. */
-  char selectflag;
+  /**
+   * This used to store the selection-flag for serialization but is not longer required
+   * since that is now natively stored on the `flag` property.
+   */
+  char selectflag DNA_DEPRECATED;
   char drawflag;
   char bboneflag DNA_DEPRECATED;
   char _pad0[4];
@@ -454,19 +478,36 @@ typedef enum ePchan_Flag {
 
   /* has BBone deforms */
   POSE_BBONE_SHAPE = (1 << 3),
-  /* When set and bPoseChan.custom_tx is not a nullptr, the gizmo will be drawn at the location and
-     orientation of the custom_tx instead of this bone. */
+  /**
+   * When set and bPoseChan.custom_tx is not a nullptr,
+   * the gizmo will be drawn at the location and
+   * orientation of the custom_tx instead of this bone.
+   */
   POSE_TRANSFORM_AT_CUSTOM_TX = (1 << 4),
-  /* When set, transformations will modify the bone as if it was a child of the
-     bPoseChan.custom_tx. The flag only has an effect when `POSE_TRANSFORM_AT_CUSTOM_TX` and
-     `custom_tx` are set. This can be useful for rigs where the deformation is coming from
-     blendshapes in addition to the armature. */
+  /**
+   * When set, transformations will modify the bone as if it was a child of the
+   * #bPoseChan.custom_tx. The flag only has an effect when #POSE_TRANSFORM_AT_CUSTOM_TX and
+   * `custom_tx` are set. This can be useful for rigs where the deformation is coming from
+   * shape-keys in addition to the armature.
+   */
   POSE_TRANSFORM_AROUND_CUSTOM_TX = (1 << 5),
+  POSE_SELECTED = (1 << 6),
+  /**
+   * Even though root and tip selection is not used in pose mode, we still have to store that
+   * state in order to retain selection when switching back and forth between pose and edit mode.
+   */
+  POSE_SELECTED_ROOT = (1 << 7),
+  POSE_SELECTED_TIP = (1 << 8),
+  /**
+   * When setting pose bone selection, all flags have to be set/cleared. However checking of
+   * selection state should only be against `POSE_SELECTED`.
+   */
+  POSE_SELECTED_ALL = (POSE_SELECTED | POSE_SELECTED_ROOT | POSE_SELECTED_TIP),
+
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),
   POSE_DONE = (1 << 10),
-  /* visualization */
-  POSE_KEY = (1 << 11),
+  /* POSE_KEY = (1 << 11) */     /* UNUSED */
   /* POSE_STRIDE = (1 << 12), */ /* UNUSED */
   /* standard IK solving */
   POSE_IKTREE = (1 << 13),
@@ -488,7 +529,7 @@ typedef enum ePchan_ConstFlag {
   PCHAN_HAS_SPLINEIK = (1 << 5),     /* Has Spline IK constraint. */
   PCHAN_INFLUENCED_BY_IK = (1 << 6), /* Is part of a (non-spline) IK chain. */
 } ePchan_ConstFlag;
-ENUM_OPERATORS(ePchan_ConstFlag, PCHAN_INFLUENCED_BY_IK);
+ENUM_OPERATORS(ePchan_ConstFlag);
 
 /* PoseChannel->ikflag */
 typedef enum ePchan_IkFlag {
@@ -959,6 +1000,7 @@ typedef enum eDopeSheet_FilterFlag {
                          ADS_FILTER_NOSPK | ADS_FILTER_NOMODIFIERS),
 #endif
 } eDopeSheet_FilterFlag;
+ENUM_OPERATORS(eDopeSheet_FilterFlag);
 
 /* DopeSheet filter-flags - Overflow (filterflag2) */
 typedef enum eDopeSheet_FilterFlag2 {
@@ -973,6 +1015,7 @@ typedef enum eDopeSheet_FilterFlag2 {
 
   ADS_FILTER_NOLIGHTPROBE = (1 << 7),
 } eDopeSheet_FilterFlag2;
+ENUM_OPERATORS(eDopeSheet_FilterFlag2);
 
 /* DopeSheet general flags */
 typedef enum eDopeSheet_Flag {
@@ -994,6 +1037,17 @@ typedef struct SpaceAction_Runtime {
   char flag;
   char _pad0[7];
 } SpaceAction_Runtime;
+
+typedef enum SpaceActionOverlays_Flag {
+  ADS_OVERLAY_SHOW_OVERLAYS = (1 << 0),
+  ADS_SHOW_SCENE_STRIP_FRAME_RANGE = (1 << 1)
+} SpaceActionOverlays_Flag;
+
+typedef struct SpaceActionOverlays {
+  /** #SpaceActionOverlays_Flag */
+  int flag;
+  char _pad0[4];
+} SpaceActionOverlays;
 
 /* Action Editor Space. This is defined here instead of in DNA_space_types.h */
 typedef struct SpaceAction {
@@ -1027,6 +1081,8 @@ typedef struct SpaceAction {
   /** (eTimeline_Cache_Flag). */
   char cache_display;
   char _pad1[6];
+
+  SpaceActionOverlays overlays;
 
   SpaceAction_Runtime runtime;
 } SpaceAction;
@@ -1082,7 +1138,7 @@ typedef enum eAnimEdit_Context {
   SACTCONT_MASK = 4,
   /** Cache file */
   SACTCONT_CACHEFILE = 5,
-  /** Timeline - replacement for the standalone "timeline editor". */
+  /** Timeline. */
   SACTCONT_TIMELINE = 6,
 } eAnimEdit_Context;
 

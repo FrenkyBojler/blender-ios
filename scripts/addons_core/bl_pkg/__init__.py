@@ -55,7 +55,7 @@ def _local_module_reload():
 
 class StatusInfoUI:
     __slots__ = (
-        # The the title of the status/notification.
+        # The title of the status/notification.
         "title",
         # The result of an operation.
         "log",
@@ -693,13 +693,19 @@ cli_commands = []
 
 
 def register():
+    from bpy.app.translations import pgettext_rpt as rpt_
+
     prefs = bpy.context.preferences
 
     from bpy.types import WindowManager
     from . import (
         bl_extension_ops,
         bl_extension_ui,
+        bl_extension_utils,
     )
+
+    # Override NOP with Blender function.
+    bl_extension_utils.rpt_ = rpt_
 
     # Needed, otherwise the UI gets filtered out, see: #122754.
     from _bpy import _bl_owner_id_set as bl_owner_id_set
