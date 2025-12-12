@@ -219,9 +219,12 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
    * to improve performance a bit. */
   kintegrator->transparent_shadows = false;
   for (Shader *shader : scene->shaders) {
+    if (shader->reference_count() == 0) {
+      continue;
+    }
     /* keep this in sync with SD_HAS_TRANSPARENT_SHADOW in shader.cpp */
     if ((shader->has_surface_transparent && shader->get_use_transparent_shadow()) ||
-        (shader->has_volume && shader->reference_count()))
+        shader->has_volume)
     {
       kintegrator->transparent_shadows = true;
       break;
