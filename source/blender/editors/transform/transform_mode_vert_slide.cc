@@ -644,22 +644,18 @@ static void initVertSlide_ex(
   }
 
   bool ok = false;
-  VertSlideParams *slp_local = static_cast<VertSlideParams *>(t->custom.mode.data);
-
-  float3 init_dir;
-  if (slp_local->dir_3d.has_value()) {
-    init_dir = *slp_local->dir_3d;
-  }
-  else {
+  const float3 init_dir = [&t]() {
+    const VertSlideParams *slp = static_cast<VertSlideParams *>(t->custom.mode.data);
+    if (std::optional<float3> dir = slp->dir_3d; dir) {
+      return *dir;
+    }
     const float2 delta = float2(t->mval) - t->mouse.imval;
-    if (const std::optional<float3> dir_opt = mouse_delta_to_world_dir(t, delta)) {
-      init_dir = *dir_opt;
+    if (std::optional<float3> dir = mouse_delta_to_world_dir(t, delta); dir) {
+      return *dir;
     }
-    else {
-      /* Fallback direction so the operator initializes before any mouse movement. */
-      init_dir = float3(1.0f, 0.0f, 0.0f);
-    }
-  }
+    /* Fallback direction so the operator initializes before any mouse movement. */
+    return float3(1, 0, 0);
+  }();
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     VertSlideData *sld = createVertSlideVerts(t, tc);
