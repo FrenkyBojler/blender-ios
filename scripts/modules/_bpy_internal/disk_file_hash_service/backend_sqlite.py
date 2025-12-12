@@ -23,15 +23,13 @@ CREATE_SCHEMA_V1 = """
 BEGIN EXCLUSIVE;
 CREATE TABLE IF NOT EXISTS files (
     file_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    path TEXT NOT NULL,
-    size_in_bytes BIGINT NOT NULL
+    path TEXT UNIQUE NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS files_path ON files (path);
-
 CREATE TABLE IF NOT EXISTS hashes (
     file_id INTEGER NOT NULL,
     hash_algo VARCHAR(10) NOT NULL,
     hexdigest TEXT NOT NULL,
+    size_in_bytes BIGINT NOT NULL,
     file_stat_mtime FLOAT NOT NULL,
     last_checked DATETIME NOT NULL,
     PRIMARY KEY(file_id, hash_algo)
@@ -126,7 +124,7 @@ class SQLiteBackend:
 
         with self._transaction_ro() as db:
             cursor = db.execute(
-                "SELECT f.size_in_bytes, h.hexdigest, h.file_stat_mtime " +
+                "SELECT h.size_in_bytes, h.hexdigest, h.file_stat_mtime " +
                 "FROM files f INNER JOIN hashes h USING (file_id) " +
                 "WHERE f.path=? AND h.hash_algo=?",
                 (str(filepath), hash_algorithm))
@@ -153,24 +151,27 @@ class SQLiteBackend:
 
         with self._transaction_rw() as db:
             # The 'RETURNING file_id' ensures that we know which file ID was
-            # upserted. We can't rely on last_insert_rowid() or
-            # cursor.lastrowid, as that only works on INSERT and not UPDATE.
+            # referenced. We can't rely on last_insert_rowid() or
+            # cursor.lastrowid, as that only works on actual INSERT and not on
+            # the 'ON CONFLICT' part. The 'DO UPDATE SET file_id=file_id' is
+            # senseless, but an update is necessary to get the `RETURNING
+            # file_id` to work (it won't return with `ON CONFLICT DO NOTHING`).
             cursor = db.execute(
-                "INSERT INTO files (path, size_in_bytes) values (:path, :size) " +
-                "ON CONFLICT DO UPDATE SET size_in_bytes=:size RETURNING file_id",
-                {"path": str(filepath), "size": hash_info.file_size_bytes},
+                "INSERT INTO files (path) values (?) ON CONFLICT DO UPDATE SET file_id=file_id RETURNING file_id",
+                (str(filepath),),
             )
             file_id = cursor.fetchone()[0]
-            assert file_id, f'{file_id=}'
+            assert file_id, "file_id={!r}".format(file_id)
 
             db.execute(
                 "INSERT INTO hashes " +
-                "(file_id, hash_algo, hexdigest, file_stat_mtime, last_checked) " +
-                "VALUES (:file_id, :hash_algo, :hex, :mtime, :now) ON CONFLICT DO UPDATE " +
-                "SET hexdigest=:hex, file_stat_mtime=:mtime, last_checked=:now", {
+                "(file_id, hash_algo, hexdigest, size_in_bytes, file_stat_mtime, last_checked) " +
+                "VALUES (:file_id, :hash_algo, :hex, :size, :mtime, :now) ON CONFLICT DO UPDATE " +
+                "SET hexdigest=:hex, size_in_bytes=:size, file_stat_mtime=:mtime, last_checked=:now", {
                     "file_id": file_id,
                     "hash_algo": hash_algorithm,
                     "hex": hash_info.hexhash,
+                    "size": hash_info.file_size_bytes,
                     "mtime": hash_info.file_stat_mtime,
                     "now": now,
                 },
