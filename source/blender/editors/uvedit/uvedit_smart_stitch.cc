@@ -1888,8 +1888,8 @@ static StitchState *stitch_init(bContext *C,
     ssc->island_has_selected.resize(state->element_map->total_islands, false);
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-        if (uvedit_uv_select_test(scene, l, offsets) &&
-            uvedit_uv_select_test(scene, l->next, offsets))
+        if (uvedit_uv_select_test(scene, em->bm, l, offsets) &&
+            uvedit_uv_select_test(scene, em->bm, l->next, offsets))
         {
           UvElement *element = BM_uv_element_get(state->element_map, l);
           if (element) {
