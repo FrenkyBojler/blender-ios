@@ -156,7 +156,7 @@ struct VertSlideParams {
   wmOperator *op;
   bool use_even;
   bool flipped;
-  /* Must never be zero length, otherwise should be nullopt. */
+  /** Must never be zero length, otherwise should be nullopt. */
   std::optional<float3> dir_3d;
 };
 
