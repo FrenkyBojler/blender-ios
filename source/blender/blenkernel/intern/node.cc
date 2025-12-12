@@ -604,7 +604,7 @@ static void update_node_location_legacy(bNodeTree &ntree)
   }
 }
 
-static void write_legacy_properties(bNodeTree &ntree)
+static void write_legacy_properties(bNodeTree &ntree, Map<ID **, ID *> &r_ids_to_restore)
 {
   switch (ntree.type) {
     case NTREE_GEOMETRY: {
@@ -716,8 +716,7 @@ static void write_legacy_properties(bNodeTree &ntree)
           storage.pivot_mode = node_find_socket(*node, SOCK_IN, "Pivot Point")
                                    ->default_value_typed<bNodeSocketValueMenu>()
                                    ->value;
-          /* This is reversed in #write_legacy_properties_revert. */
-          BLI_assert(node->id == nullptr);
+          r_ids_to_restore.add(&node->id, node->id);
           node->id = id_cast<ID *>(node_find_socket(*node, SOCK_IN, "Font")
                                        ->default_value_typed<bNodeSocketValueFont>()
                                        ->value);
@@ -1012,16 +1011,6 @@ static void write_legacy_properties(bNodeTree &ntree)
   }
 }
 
-static void write_legacy_properties_revert(bNodeTree &ntree)
-{
-  for (bNode *node : ntree.all_nodes()) {
-    if (node->type_legacy == GEO_NODE_STRING_TO_CURVES) {
-      /* This was just set in #write_legacy_properties. */
-      node->id = nullptr;
-    }
-  }
-}
-
 }  // namespace forward_compat
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
@@ -1221,9 +1210,10 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   BKE_id_blend_write(writer, &ntree->id);
   BLO_write_string(writer, ntree->description);
 
+  Map<ID **, ID *> r_ids_to_restore;
   if (!BLO_write_is_undo(writer)) {
     forward_compat::update_node_location_legacy(*ntree);
-    forward_compat::write_legacy_properties(*ntree);
+    forward_compat::write_legacy_properties(*ntree, r_ids_to_restore);
   }
 
   for (bNode *node : ntree->all_nodes()) {
@@ -1282,7 +1272,9 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   BKE_previewimg_blend_write(writer, ntree->preview);
 
   if (!BLO_write_is_undo(writer)) {
-    forward_compat::write_legacy_properties_revert(*ntree);
+    for (const auto &item : r_ids_to_restore.items()) {
+      *item.key = item.value;
+    }
   }
 }
 

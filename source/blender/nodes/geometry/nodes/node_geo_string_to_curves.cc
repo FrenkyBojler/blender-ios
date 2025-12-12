@@ -128,7 +128,6 @@ static const EnumPropertyItem rna_node_geometry_string_to_curves_pivot_mode[] = 
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  /* TODO: Handle versioning. */
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
