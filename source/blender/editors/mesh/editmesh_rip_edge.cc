@@ -32,6 +32,7 @@
 #include "mesh_intern.hh" /* own include */
 
 using blender::float2;
+using blender::float3;
 using blender::Vector;
 
 /* uses total number of selected edges around a vertex to choose how to extend */
@@ -44,11 +45,11 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
-  float mval_dir[3];
+  float3 mval_dir;
   RNA_float_get_array(op->ptr, "direction", mval_dir);
   normalize_v3(mval_dir);
 
-  float cent_sco[2];
+  float2 cent_sco;
   RNA_float_get_array(op->ptr, "center", cent_sco);
 
   for (Object *obedit : objects) {
@@ -109,7 +110,7 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
           if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
             BMVert *v_other = BM_edge_other_vert(e, v);
 
-            float v_world[3], v_other_world[3], v_dir[3];
+            float3 v_world, v_other_world, v_dir;
             mul_v3_m4v3(v_world, obedit->object_to_world().ptr(), v->co);
             mul_v3_m4v3(v_other_world, obedit->object_to_world().ptr(), v_other->co);
 
@@ -168,11 +169,11 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const 
 {
   ARegion *region = CTX_wm_region(C);
 
-  const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  float cent_sco[2];
+  const float2 mval_fl = {float(event->mval[0]), float(event->mval[1])};
+  float2 cent_sco;
   int cent_tot;
 
-  float ray_start[3], ray_dir[3];
+  float3 ray_start, ray_dir;
   ED_view3d_win_to_ray(region, mval_fl, ray_start, ray_dir);
   normalize_v3(ray_dir);
 
