@@ -2312,8 +2312,6 @@ void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
   build_parameters(&vfont->id);
   build_idproperties(vfont->id.properties);
   build_idproperties(vfont->id.system_properties);
-  add_operation_node(
-      &vfont->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
 }
 
 static bool strip_node_build_cb(Strip *strip, void *user_data)
