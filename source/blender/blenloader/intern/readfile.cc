@@ -13,7 +13,8 @@
 #include <cstddef> /* for offsetof. */
 #include <cstdlib> /* for atoi. */
 #include <cstring>
-#include <ctime>   /* for gmtime. */
+#include <ctime> /* for gmtime. */
+#include <deque>
 #include <fcntl.h> /* for open flags (O_BINARY, O_RDONLY). */
 #include <queue>
 
@@ -2800,6 +2801,79 @@ static bool read_libblock_is_identical(FileData *fd, BHead *bhead)
   return true;
 }
 
+/* Mark all 'no-undo' IDs in the old Main, these (and their dependencies for linked ones) need to
+ * be unconditionally moved into the new Main. */
+static void read_undo_tag_all_noundo_ids(FileData *fd)
+{
+  Main *old_bmain = fd->old_bmain;
+  BLI_assert(old_bmain != nullptr);
+  BLI_assert(old_bmain->curlib == nullptr);
+  BLI_assert(old_bmain->split_mains);
+
+  /* First find all 'no undo' IDs themselves. */
+  std::deque<ID *> no_undo_ids;
+  for (Main *old_bmain_iter : *old_bmain->split_mains) {
+    MainListsArray lbarray = BKE_main_lists_get(*old_bmain_iter);
+    int i = lbarray.size();
+    while (i--) {
+      if (BLI_listbase_is_empty(lbarray[i])) {
+        continue;
+      }
+
+      ID *id = static_cast<ID *>(lbarray[i]->first);
+      const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
+      if ((id_type->flags & IDTYPE_FLAGS_NO_MEMFILE_UNDO) == 0) {
+        continue;
+      }
+
+      if (old_bmain_iter->curlib) {
+        BLO_readfile_id_runtime_tags_for_write(old_bmain_iter->curlib->id)
+            .undo_is_dependency_of_no_undo_id = true;
+      }
+      ID *id_iter;
+      FOREACH_MAIN_LISTBASE_ID_BEGIN (lbarray[i], id_iter) {
+        BLO_readfile_id_runtime_tags_for_write(*id_iter).undo_is_dependency_of_no_undo_id = true;
+        no_undo_ids.push_back(id_iter);
+      }
+      FOREACH_MAIN_LISTBASE_ID_END;
+    }
+  }
+
+  /* Now find all dependencies of the 'no undo' IDs. */
+  while (!no_undo_ids.empty()) {
+    ID *id_iter = no_undo_ids.front();
+    no_undo_ids.pop_front();
+    BKE_library_foreach_ID_link(
+        nullptr,
+        id_iter,
+        [&no_undo_ids](LibraryIDLinkCallbackData *cb_data) -> int {
+          ID *id_owner = cb_data->owner_id;
+          ID *id = *cb_data->id_pointer;
+
+          BLI_assert(BLO_readfile_id_runtime_tags(*id_owner).undo_is_dependency_of_no_undo_id);
+          if (!id || BLO_readfile_id_runtime_tags(*id).undo_is_dependency_of_no_undo_id) {
+            return IDWALK_RET_NOP;
+          }
+
+          if (cb_data->cb_flag &
+              (IDWALK_CB_LOOPBACK | IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING))
+          {
+            return IDWALK_RET_NOP;
+          }
+
+          BLO_readfile_id_runtime_tags_for_write(*id).undo_is_dependency_of_no_undo_id = true;
+          no_undo_ids.push_back(id);
+          if (ID_IS_LINKED(id)) {
+            BLO_readfile_id_runtime_tags_for_write(id->lib->id).undo_is_dependency_of_no_undo_id =
+                true;
+          }
+          return IDWALK_RET_NOP;
+        },
+        nullptr,
+        IDWALK_READONLY);
+  }
+}
+
 /* Re-use the whole 'noundo' local IDs by moving them from old to new main. Linked ones are handled
  * separately together with their libraries.
  *
@@ -2879,9 +2953,13 @@ static void read_undo_move_libmain_data(FileData *fd, Main *libmain, BHead *bhea
      * used in the loaded new Main will be removed from this set when their BHead is processed (see
      * #read_libblock_undo_restore_linked).
      *
-     * 'No undo' ID types are never considered unused here, by definition. */
+     * 'No undo' ID types and their dependencies are never considered unused here, by definition.
+     */
     const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id_iter);
-    if ((id_type->flags & IDTYPE_FLAGS_NO_MEMFILE_UNDO) == 0) {
+    if (id_type->flags & IDTYPE_FLAGS_NO_MEMFILE_UNDO) {
+      id_iter->tag |= ID_TAG_UNDO_OLD_ID_REUSED_NOUNDO;
+    }
+    else if (!BLO_readfile_id_runtime_tags(*id_iter).undo_is_dependency_of_no_undo_id) {
       curlib->runtime->unused_ids_on_undo.add_new(id_iter);
     }
   }
@@ -2936,6 +3014,25 @@ static bool read_libblock_undo_restore_library(FileData *fd,
   }
 
   return false;
+}
+
+/* Libraries containing 'never undo' data (e.g. Brushes) must always be kept across undo steps,
+ * even if they did not exist in the loaded undo step. */
+static void read_undo_libraries_preserve_never_undo_libraries(FileData *fd)
+{
+  Main *old_main = fd->old_bmain;
+  BLI_assert(old_main != nullptr);
+  BLI_assert(old_main->curlib == nullptr);
+  BLI_assert(old_main->split_mains);
+  /* Cannot iterate directly over `old_main->split_mains`, as this is likely going to remove some
+   * of its items. */
+  blender::Vector<Main *> old_main_split_mains = {old_main->split_mains->as_span().drop_front(1)};
+  for (Main *libmain : old_main_split_mains) {
+    BLI_assert(libmain->curlib);
+    if (BLO_readfile_id_runtime_tags(libmain->curlib->id).undo_is_dependency_of_no_undo_id) {
+      read_undo_move_libmain_data(fd, libmain, nullptr);
+    }
+  }
 }
 
 /* Once all ID BHeads have been read, remove the regular linked IDs that have been moved from the
@@ -4035,6 +4132,11 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   const bool is_undo = (fd->flags & FD_FLAGS_IS_MEMFILE) != 0;
   if (is_undo) {
     CLOG_DEBUG(&LOG_UNDO, "UNDO: read step");
+
+    /* Find all 'no undo' IDs from the old Main. These will be moved (re-used) into the new Main.
+     * Also find all of their dependencies (local ones are ignored currently, but linked ones are
+     * also forced-moved into the new Main, even if they did not exist in the loaded memfile). */
+    read_undo_tag_all_noundo_ids(fd);
   }
 
   /* Prevent any run of layer collections rebuild during readfile process, and the do_versions
@@ -4181,6 +4283,9 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   }
 
   if (is_undo) {
+    /* Move remaining libraries containing 'no undo' IDs from old to new Main. */
+    read_undo_libraries_preserve_never_undo_libraries(fd);
+    /* Remove from the new Main regular linked IDs that are unused. */
     read_undo_libraries_cleanup_unused_ids(fd);
   }
 
