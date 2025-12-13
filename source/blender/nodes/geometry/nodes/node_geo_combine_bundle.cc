@@ -89,17 +89,17 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
       params.ntree, params.node, params.node, params.link);
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *node_ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node_ptr->owner_id);
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
-  layout->prop(node_ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
+  layout.op("node.sockets_sync", IFACE_("Sync"), ICON_FILE_REFRESH);
+  layout.prop(node_ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (ui::Layout *panel = layout.panel(C, "bundle_items", false, IFACE_("Bundle Items"))) {
     socket_items::ui::draw_items_list_with_operators<CombineBundleItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<CombineBundleItemsAccessor>(
@@ -107,9 +107,9 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
           const auto &item = *item_ptr->data_as<NodeCombineBundleItem>();
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
-          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
           if (!socket_type_always_single(eNodeSocketDatatype(item.socket_type))) {
-            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
+            panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
           }
         });
   }
@@ -156,7 +156,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     {
       return;
     }
-    params.add_item("Item", [](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Item"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("NodeCombineBundle");
       const auto *item =
           socket_items::add_item_with_socket_type_and_name<CombineBundleItemsAccessor>(
@@ -168,7 +168,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     if (other_socket.type != SOCK_BUNDLE) {
       return;
     }
-    params.add_item("Bundle", [](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Bundle"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("NodeCombineBundle");
       params.connect_available_socket(node, "Bundle");
 
@@ -192,7 +192,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "NodeCombineBundle", NODE_COMBINE_BUNDLE);
+  sh_geo_node_type_base(&ntype, "NodeCombineBundle", NODE_COMBINE_BUNDLE);
   ntype.ui_name = "Combine Bundle";
   ntype.ui_description = "Combine multiple socket values into one.";
   ntype.nclass = NODE_CLASS_CONVERTER;

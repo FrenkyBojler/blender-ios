@@ -66,10 +66,9 @@ if(WITH_CYCLES_NATIVE_ONLY)
     endif()
     string(APPEND CMAKE_CXX_FLAGS " ${MSVC_NATIVE_ARCH_FLAGS}")
   endif()
-elseif(WIN32 AND MSVC AND SUPPORT_NEON_BUILD AND SSE2NEON_FOUND)
-  set(CXX_HAS_SSE42 FALSE)
-  set(CXX_HAS_AVX2 FALSE)
-elseif(NOT WITH_CPU_SIMD OR (SUPPORT_NEON_BUILD AND SSE2NEON_FOUND))
+elseif(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
+  # On ARM we use SSE2NEON to compile the cycles SSE kernels into native NEON instructions
+  # Disable the CXX_HAS_* flags so we don't add any SSE or AVX compiler flags.
   set(CXX_HAS_SSE42 FALSE)
   set(CXX_HAS_AVX2 FALSE)
 elseif(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -150,7 +149,9 @@ if(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # such as in `svm.h`.
   # This flag is supported starting with MSVC 17.7 preview 3:
   # https://learn.microsoft.com/en-us/cpp/build/reference/jump-table-rdata
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.37.32820)
+  # This is an x64 specific optimization.
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.37.32820
+     AND CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     string(APPEND CMAKE_CXX_FLAGS " /jumptablerdata")
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

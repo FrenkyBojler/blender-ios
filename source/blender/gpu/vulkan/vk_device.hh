@@ -26,6 +26,7 @@
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
+#include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
 class VKBackend;
@@ -66,11 +67,6 @@ struct VKExtensions {
   bool maintenance4 = false;
 
   /**
-   * Does the device support VK_EXT_descriptor_buffer.
-   */
-  bool descriptor_buffer = false;
-
-  /**
    * Does the device support logic ops.
    */
   bool logic_ops = false;
@@ -85,12 +81,30 @@ struct VKExtensions {
    */
   bool pageable_device_local_memory = false;
 
+  /**
+   * Does the device support VK_EXT_graphics_pipeline_library
+   */
+  bool graphics_pipeline_library = false;
+
+  /**
+   * Does the device support VK_EXT_line_rasterization
+   */
+  bool line_rasterization = false;
+
+  /**
+   * Does the device support VK_EXT_extended_dynamic_state
+   */
+  bool extended_dynamic_state = false;
+
+  /**
+   * Does the device support VK_EXT_vertex_input_dynamic_state
+   */
+  bool vertex_input_dynamic_state = false;
+
   /** Log enabled features and extensions. */
   void log() const;
 };
 
-/* TODO: Split into VKWorkarounds and VKExtensions to remove the negating when an extension isn't
- * supported. */
 struct VKWorkarounds {
   /**
    * Some devices don't support pixel formats that are aligned to 24 and 48 bits.
@@ -100,13 +114,8 @@ struct VKWorkarounds {
    */
   bool not_aligned_pixel_formats = false;
 
-  struct {
-    /**
-     * Is the workaround enabled for devices that don't support using VK_FORMAT_R8G8B8_* as vertex
-     * buffer.
-     */
-    bool r8g8b8 = false;
-  } vertex_formats;
+  /** Log enabled workarounds. */
+  void log() const;
 };
 
 /**
@@ -190,8 +199,9 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
   VkPhysicalDeviceMaintenance4Properties vk_physical_device_maintenance4_properties_ = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES};
-  VkPhysicalDeviceDescriptorBufferPropertiesEXT vk_physical_device_descriptor_buffer_properties_ =
-      {};
+  VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT
+      vk_physical_device_graphics_pipeline_library_properties_ = {
+          VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GRAPHICS_PIPELINE_LIBRARY_PROPERTIES_EXT};
   /** Features support. */
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
   VkPhysicalDeviceVulkan11Features vk_physical_device_vulkan_11_features_ = {};
@@ -219,6 +229,8 @@ class VKDevice : public NonCopyable {
   /** Discard pool for resources that could still be used during rendering. */
   VKDiscardPool orphaned_data_render;
   VKPipelinePool pipelines;
+  VKVertexInputDescriptionPool vertex_input_descriptions;
+
   /** Buffer to bind to unbound resource locations. */
   VKBuffer dummy_buffer;
 
@@ -237,6 +249,12 @@ class VKDevice : public NonCopyable {
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessenger = nullptr;
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessenger = nullptr;
 
+    /* Extension: VK_EXT_extended_dynamic_state */
+    PFN_vkCmdSetFrontFace vkCmdSetFrontFace = nullptr;
+
+    /* Extension: VK_EXT_vertex_input_dynamic_state */
+    PFN_vkCmdSetVertexInputEXT vkCmdSetVertexInput = nullptr;
+
     /* Extension: VK_KHR_external_memory_fd */
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;
 
@@ -244,13 +262,6 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_KHR_external_memory_win32 */
     PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
 #endif
-
-    /* Extension: VK_EXT_descriptor_buffer */
-    PFN_vkGetDescriptorSetLayoutSizeEXT vkGetDescriptorSetLayoutSize = nullptr;
-    PFN_vkGetDescriptorSetLayoutBindingOffsetEXT vkGetDescriptorSetLayoutBindingOffset = nullptr;
-    PFN_vkGetDescriptorEXT vkGetDescriptor = nullptr;
-    PFN_vkCmdBindDescriptorBuffersEXT vkCmdBindDescriptorBuffers = nullptr;
-    PFN_vkCmdSetDescriptorBufferOffsetsEXT vkCmdSetDescriptorBufferOffsets = nullptr;
 
   } functions;
 
@@ -282,10 +293,10 @@ class VKDevice : public NonCopyable {
     return vk_physical_device_id_properties_;
   }
 
-  inline const VkPhysicalDeviceDescriptorBufferPropertiesEXT &
-  physical_device_descriptor_buffer_properties_get() const
+  inline const VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT &
+  physical_device_graphics_pipeline_properties_get()
   {
-    return vk_physical_device_descriptor_buffer_properties_;
+    return vk_physical_device_graphics_pipeline_library_properties_;
   }
 
   const VkPhysicalDeviceFeatures &physical_device_features_get() const
@@ -426,24 +437,6 @@ class VKDevice : public NonCopyable {
    * Get or create current thread data.
    */
   VKThreadData &current_thread_data();
-
-#if 0
-  /**
-   * Get the discard pool for the current thread.
-   *
-   * When the active thread has a context a discard pool associated to the thread is returned.
-   * When there is no context the orphan discard pool is returned.
-   *
-   * A thread with a context can have multiple discard pools. One for each swap-chain image.
-   * A thread without a context is most likely a discarded resource triggered during dependency
-   * graph update. A dependency graph update from the viewport during playback or editing;
-   * or a dependency graph update when rendering.
-   * These can happen from a different thread which will don't have a context at all.
-   * \param thread_safe: Caller thread already owns the resources mutex and is safe to run this
-   * function without trying to reacquire resources mutex making a deadlock.
-   */
-  VKDiscardPool &discard_pool_for_current_thread(bool thread_safe = false);
-#endif
 
   void context_register(VKContext &context);
   void context_unregister(VKContext &context);

@@ -32,7 +32,6 @@
 #include "DNA_material_types.h"
 
 #include "ED_curves.hh"
-#include "ED_grease_pencil.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
@@ -479,7 +478,9 @@ static bool move_handles_in_curve(const PenToolOperation &ptd,
       offset = snap_8_angles(offset);
     }
 
-    if (ptd.point_added) {
+    /* Set both handles to be `Aligned` if this point is newly added or is
+     * no longer control freely. */
+    if (ptd.point_added || ptd.handle_moved) {
       handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
       handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
     }
@@ -802,7 +803,11 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
 {
   const float3 depth_point = ptd.project(ptd.mouse_co);
 
-  ed::greasepencil::add_single_curve(curves, true);
+  /* Add single curve to the end. */
+  const int num_old_points = curves.points_num();
+  curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
+  curves.offsets_for_write().last(1) = num_old_points;
+
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
   Set<std::string> curve_attributes_to_skip;
@@ -813,6 +818,8 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
   curves.handle_types_left_for_write().last() = ptd.extrude_handle;
   curves.handle_types_right_for_write().last() = ptd.extrude_handle;
   curves.update_curve_types();
+  curves.resolution_for_write().last() = 12;
+  curve_attributes_to_skip.add("resolution");
 
   const int material_index = ptd.vc.obact->actcol - 1;
   if (material_index != -1) {
@@ -1174,10 +1181,13 @@ wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmE
   this->move_point = RNA_boolean_get(op->ptr, "move_point");
   this->cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
   this->extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
-  this->radius = RNA_float_get(op->ptr, "radius");
+  /* Size is stored as the diameter. */
+  this->radius = RNA_float_get(op->ptr, "size") / 2.0f;
 
   this->move_entire = false;
   this->snap_angle = false;
+
+  this->handle_moved = false;
 
   if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
     return OPERATOR_RUNNING_MODAL;
@@ -1221,6 +1231,11 @@ wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEv
     }
     else if (event->val == int(PenModal::MoveHandle)) {
       this->move_handle = !this->move_handle;
+
+      /* Record if handle has every been moved. */
+      if (this->move_handle) {
+        this->handle_moved = true;
+      }
     }
   }
 
@@ -1443,7 +1458,8 @@ void pen_tool_common_props(wmOperatorType *ot)
                   false,
                   "Cycle Handle Type",
                   "Cycle between all four handle types");
-  RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, FLT_MAX, "Radius", "", 0.0f, 10.0f);
+  RNA_def_float_distance(
+      ot->srna, "size", 0.01f, 0.0f, FLT_MAX, "Size", "Diameter of new points", 0.0f, 10.0f);
 }
 
 wmKeyMap *ensure_keymap(wmKeyConfig *keyconf)

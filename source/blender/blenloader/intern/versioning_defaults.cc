@@ -77,9 +77,12 @@
 static bool blo_is_builtin_template(const char *app_template)
 {
   /* For all builtin templates shipped with Blender. */
-  return (
-      !app_template ||
-      STR_ELEM(app_template, N_("2D_Animation"), N_("Sculpting"), N_("VFX"), N_("Video_Editing")));
+  return (!app_template || STR_ELEM(app_template,
+                                    N_("2D_Animation"),
+                                    N_("Storyboarding"),
+                                    N_("Sculpting"),
+                                    N_("VFX"),
+                                    N_("Video_Editing")));
 }
 
 static void blo_update_defaults_screen(bScreen *screen,
@@ -135,10 +138,12 @@ static void blo_update_defaults_screen(bScreen *screen,
           sima->mode = SI_MODE_UV;
         }
         sima->uv_face_opacity = 1.0f;
+        sima->uv_edge_opacity = 1.0f;
       }
       else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
         sima->uv_face_opacity = 0.0f;
+        sima->uv_edge_opacity = 0.0f;
       }
     }
     else if (area->spacetype == SPACE_ACTION) {
@@ -409,6 +414,7 @@ static void blo_update_defaults_paint(Paint *paint)
 static void blo_update_defaults_windowmanager(wmWindowManager *wm)
 {
   wm->xr.session_settings.fly_speed = 3.0f;
+  wm->xr.session_settings.view_scale = 1.0f;
 }
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
@@ -453,6 +459,8 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   copy_v3_v3(scene->display.light_direction, blender::float3(M_SQRT1_3));
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
   copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
+
+  ts->uv_flag |= UV_FLAG_SELECT_SYNC;
 
   /* Default Rotate Increment. */
   const float default_snap_angle_increment = DEG2RADF(5.0f);
@@ -778,6 +786,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           bNodeSocket *emission_strength = blender::bke::node_find_socket(
               *node, SOCK_IN, "Emission Strength");
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
+          bNodeSocket *ior = blender::bke::node_find_socket(*node, SOCK_IN, "IOR");
+          *version_cycles_node_socket_float_value(ior) = 1.5f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;
           node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;

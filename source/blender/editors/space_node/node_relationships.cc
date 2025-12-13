@@ -6,6 +6,8 @@
  * \ingroup spnode
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_array_utils.hh"
@@ -15,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_stack.hh"
+#include "BLI_vector.hh"
 
 #include "BKE_context.hh"
 #include "BKE_main_invariants.hh"
@@ -161,7 +164,7 @@ static void pick_input_link_by_link_intersect(const bContext &C,
   }
 }
 
-static bool socket_is_available(bNodeTree *ntree, bNodeSocket *sock, const bool allow_used)
+static bool socket_is_available(const bNodeTree *ntree, bNodeSocket *sock, const bool allow_used)
 {
   ntree->ensure_topology_cache();
   if (!sock->is_visible()) {
@@ -257,36 +260,26 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
   return nullptr;
 }
 
-/* This is a bit complicated, but designed to prioritize finding
- * sockets of higher types, such as image, first. */
-static bNodeSocket *best_socket_input(bNodeTree *ntree, bNode *node, int num, int replace)
+/* Returns the list of available inputs sorted by their order of importance, where the order of
+ * importance is assumed to be the numerical value of the socket type, such that a higher value
+ * corresponds to a higher importance. If only_unlinked is true, only input sockets that are
+ * unlinked will be considered. */
+static Vector<bNodeSocket *> get_available_sorted_inputs(const bNodeTree *ntree,
+                                                         const bNode *node,
+                                                         const bool only_unlinked)
 {
-  int maxtype = 0;
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    maxtype = max_ii(sock->type, maxtype);
-  }
-
-  /* Find sockets of higher 'types' first (i.e. image). */
-  int a = 0;
-  for (int socktype = maxtype; socktype >= SOCK_CUSTOM; socktype--) {
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-      if (!socket_is_available(ntree, sock, replace)) {
-        a++;
-        continue;
-      }
-
-      if (sock->type == socktype) {
-        /* Increment to make sure we don't keep finding the same socket on every attempt running
-         * this function. */
-        a++;
-        if (a > num) {
-          return sock;
-        }
-      }
+  Vector<bNodeSocket *> inputs;
+  LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
+    if (socket_is_available(ntree, input, !only_unlinked)) {
+      inputs.append(input);
     }
   }
 
-  return nullptr;
+  std::sort(inputs.begin(), inputs.end(), [](const bNodeSocket *a, const bNodeSocket *b) {
+    return a->type > b->type;
+  });
+
+  return inputs;
 }
 
 static bool snode_autoconnect_input(bContext &C,
@@ -415,24 +408,15 @@ static void snode_autoconnect(bContext &C,
     }
 
     if (!has_selected_inputs) {
-      /* No selected inputs, connect by finding suitable match. */
-      int num_inputs = BLI_listbase_count(&node_to->inputs);
-
-      for (int i = 0; i < num_inputs; i++) {
-
-        /* Find the best guess input socket. */
-        bNodeSocket *sock_to = best_socket_input(ntree, node_to, i, replace);
-        if (!sock_to) {
-          continue;
-        }
-
+      Vector<bNodeSocket *> inputs = get_available_sorted_inputs(ntree, node_to, !replace);
+      for (bNodeSocket *input : inputs) {
         /* Check for an appropriate output socket to connect from. */
-        bNodeSocket *sock_fr = best_socket_output(ntree, node_fr, sock_to, allow_multiple);
+        bNodeSocket *sock_fr = best_socket_output(ntree, node_fr, input, allow_multiple);
         if (!sock_fr) {
           continue;
         }
 
-        if (snode_autoconnect_input(C, snode, node_fr, sock_fr, node_to, sock_to, replace)) {
+        if (snode_autoconnect_input(C, snode, node_fr, sock_fr, node_to, input, replace)) {
           // numlinks++;
           break;
         }
@@ -806,7 +790,7 @@ static void position_viewer_node(const bContext &C,
   }
 
   rctf region_bounds;
-  UI_view2d_region_to_view_rctf(&v2d, &region_rect, &region_bounds);
+  ui::view2d_region_to_view_rctf(&v2d, &region_rect, &region_bounds);
 
   viewer_node.ui_order = tree.all_nodes().size();
   tree_draw_order_update(tree);
@@ -1097,7 +1081,7 @@ static void draw_draglink_tooltip(const bContext * /*C*/, ARegion * /*region*/, 
   bNodeLinkDrag *nldrag = static_cast<bNodeLinkDrag *>(arg);
 
   uchar text_col[4];
-  UI_GetThemeColor4ubv(TH_TEXT, text_col);
+  ui::theme::get_color_4ubv(TH_TEXT, text_col);
 
   const int padding = 4 * UI_SCALE_FAC;
   const float x = nldrag->in_out == SOCK_IN ? nldrag->cursor[0] - 3.3f * padding :
@@ -1109,7 +1093,7 @@ static void draw_draglink_tooltip(const bContext * /*C*/, ARegion * /*region*/, 
 
   const int icon = !swap_links ? ICON_ADD : (new_link ? ICON_ANIM : ICON_UV_SYNC_SELECT);
 
-  UI_icon_draw_ex(
+  ui::icon_draw_ex(
       x, y, icon, UI_INV_SCALE_FAC, 1.0f, 0.0f, text_col, false, UI_NO_ICON_OVERLAY_TEXT);
 }
 
@@ -1390,7 +1374,7 @@ static void node_link_cancel(bContext *C, wmOperator *op)
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeLinkDrag *nldrag = (bNodeLinkDrag *)op->customdata;
   draw_draglink_tooltip_deactivate(*CTX_wm_region(C), *nldrag);
-  UI_view2d_edge_pan_cancel(C, &nldrag->pan_data);
+  view2d_edge_pan_cancel(C, &nldrag->pan_data);
   snode->runtime->linkdrag.reset();
   clear_picking_highlight(&snode->edittree->links);
   BKE_ntree_update_tag_link_removed(snode->edittree);
@@ -1513,10 +1497,10 @@ static wmOperatorStatus node_link_modal(bContext *C, wmOperator *op, const wmEve
   SpaceNode &snode = *CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
 
-  UI_view2d_edge_pan_apply_event(C, &nldrag.pan_data, event);
+  view2d_edge_pan_apply_event(C, &nldrag.pan_data, event);
 
   float2 cursor;
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
   nldrag.cursor[0] = event->mval[0];
   nldrag.cursor[1] = event->mval[1];
 
@@ -1678,7 +1662,7 @@ static wmOperatorStatus node_link_invoke(bContext *C, wmOperator *op, const wmEv
   WM_event_drag_start_mval(event, &region, mval);
 
   float2 cursor;
-  UI_view2d_region_to_view(&region.v2d, mval[0], mval[1], &cursor[0], &cursor[1]);
+  ui::view2d_region_to_view(&region.v2d, mval[0], mval[1], &cursor[0], &cursor[1]);
   RNA_float_set_array(op->ptr, "drag_start", cursor);
 
   ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
@@ -1688,7 +1672,7 @@ static wmOperatorStatus node_link_invoke(bContext *C, wmOperator *op, const wmEv
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  UI_view2d_edge_pan_operator_init(C, &nldrag->pan_data, op);
+  view2d_edge_pan_operator_init(C, &nldrag->pan_data, op);
 
   /* Add icons at the cursor when the link is dragged in empty space. */
   if (need_drag_link_tooltip(*snode.edittree, *nldrag)) {
@@ -1730,13 +1714,13 @@ void NODE_OT_link(wmOperatorType *ot)
                       -UI_PRECISION_FLOAT_MAX,
                       UI_PRECISION_FLOAT_MAX);
 
-  UI_view2d_edge_pan_operator_properties_ex(ot,
-                                            NODE_EDGE_PAN_INSIDE_PAD,
-                                            NODE_EDGE_PAN_OUTSIDE_PAD,
-                                            NODE_EDGE_PAN_SPEED_RAMP,
-                                            NODE_EDGE_PAN_MAX_SPEED,
-                                            NODE_EDGE_PAN_DELAY,
-                                            NODE_EDGE_PAN_ZOOM_INFLUENCE);
+  ui::view2d_edge_pan_operator_properties_ex(ot,
+                                             NODE_EDGE_PAN_INSIDE_PAD,
+                                             NODE_EDGE_PAN_OUTSIDE_PAD,
+                                             NODE_EDGE_PAN_SPEED_RAMP,
+                                             NODE_EDGE_PAN_MAX_SPEED,
+                                             NODE_EDGE_PAN_DELAY,
+                                             NODE_EDGE_PAN_ZOOM_INFLUENCE);
 }
 
 /** \} */
@@ -1802,7 +1786,7 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
     float2 loc_region;
     RNA_float_get_array(&itemptr, "loc", loc_region);
     float2 loc_view;
-    UI_view2d_region_to_view(&region.v2d, loc_region.x, loc_region.y, &loc_view.x, &loc_view.y);
+    ui::view2d_region_to_view(&region.v2d, loc_region.x, loc_region.y, &loc_view.x, &loc_view.y);
     path.append(loc_view);
     if (path.size() >= 256) {
       break;
@@ -1911,7 +1895,7 @@ static wmOperatorStatus mute_links_exec(bContext *C, wmOperator *op)
     float2 loc_region;
     RNA_float_get_array(&itemptr, "loc", loc_region);
     float2 loc_view;
-    UI_view2d_region_to_view(&region.v2d, loc_region.x, loc_region.y, &loc_view.x, &loc_view.y);
+    ui::view2d_region_to_view(&region.v2d, loc_region.x, loc_region.y, &loc_view.x, &loc_view.y);
     path.append(loc_view);
     if (path.size() >= 256) {
       break;
@@ -2213,11 +2197,11 @@ static wmOperatorStatus node_join_in_frame_invoke(bContext *C,
   SpaceNode *snode = CTX_wm_space_node(C);
 
   /* Convert mouse coordinates to v2d space. */
-  UI_view2d_region_to_view(&region->v2d,
-                           event->mval[0],
-                           event->mval[1],
-                           &snode->runtime->cursor[0],
-                           &snode->runtime->cursor[1]);
+  ui::view2d_region_to_view(&region->v2d,
+                            event->mval[0],
+                            event->mval[1],
+                            &snode->runtime->cursor[0],
+                            &snode->runtime->cursor[1]);
 
   snode->runtime->cursor[0] /= UI_SCALE_FAC;
   snode->runtime->cursor[1] /= UI_SCALE_FAC;
@@ -2359,7 +2343,7 @@ static bNode *node_find_frame_to_attach(ARegion &region, bNodeTree &ntree, const
 {
   /* convert mouse coordinates to v2d space */
   float2 cursor;
-  UI_view2d_region_to_view(&region.v2d, mouse_xy.x, mouse_xy.y, &cursor.x, &cursor.y);
+  ui::view2d_region_to_view(&region.v2d, mouse_xy.x, mouse_xy.y, &cursor.x, &cursor.y);
 
   for (bNode *frame : tree_draw_order_calc_nodes_reversed(ntree)) {
     /* skip selected, those are the nodes we want to attach */
@@ -2827,6 +2811,11 @@ static int get_main_socket_priority(const bNodeSocket *socket)
     case SOCK_COLLECTION:
     case SOCK_TEXTURE:
     case SOCK_MATERIAL:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
       return 7;
@@ -2844,13 +2833,12 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   if (node_decl != nullptr) {
     Span<nodes::SocketDeclaration *> socket_decls = (in_out == SOCK_IN) ? node_decl->inputs :
                                                                           node_decl->outputs;
-    int index;
-    LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, sockets, index) {
-      const nodes::SocketDeclaration &socket_decl = *socket_decls[index];
-      if (!socket->is_visible()) {
+    for (const nodes::SocketDeclaration *socket_decl : socket_decls) {
+      if (!socket_decl->is_default_link_socket) {
         continue;
       }
-      if (socket_decl.is_default_link_socket) {
+      bNodeSocket *socket = static_cast<bNodeSocket *>(BLI_findlink(sockets, socket_decl->index));
+      if (socket && socket->is_visible()) {
         return socket;
       }
     }
@@ -2913,7 +2901,7 @@ static bool node_link_insert_offset_chain_cb(bNode *fromnode,
   return true;
 }
 
-static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
+static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
                                           ARegion *region,
                                           const int mouse_xy[2],
                                           const bool right_alignment)
@@ -2937,6 +2925,12 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
    * so `totr_insert` is used to get the correct world-space coords. */
   rctf totr_insert;
   node_to_updated_rect(insert, totr_insert);
+
+  const float gap_left = totr_insert.xmin - prev->runtime->draw_bounds.xmax;
+  const float gap_right = next->runtime->draw_bounds.xmin - totr_insert.xmax;
+  if (gap_left >= min_margin && gap_right >= min_margin) {
+    return false;
+  }
 
   /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
    * later. */
@@ -2977,8 +2971,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
   /* *** ensure offset at the left (or right for right_alignment case) of insert_node *** */
 
-  float dist = right_alignment ? totr_insert.xmin - prev->runtime->draw_bounds.xmax :
-                                 next->runtime->draw_bounds.xmin - totr_insert.xmax;
+  float dist = right_alignment ? gap_left : gap_right;
   /* distance between insert_node and prev is smaller than min margin */
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
@@ -3023,6 +3016,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   }
 
   insert.parent = init_parent;
+  return true;
 }
 
 /**
@@ -3097,10 +3091,16 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
   BLI_assert(U.uiflag & USER_NODE_AUTO_OFFSET);
 
   iofsd->ntree = snode->edittree;
-  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
 
-  node_link_insert_offset_ntree(
+  const bool offset_applied = node_link_insert_offset_ntree(
       iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
+  if (!offset_applied) {
+    MEM_freeN(iofsd);
+    op->customdata = nullptr;
+    return OPERATOR_CANCELLED;
+  }
+
+  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
 
   /* add temp handler */
   WM_event_add_modal_handler(C, op);

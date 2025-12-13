@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"POT-Creation-Date: 2025-12-08 10:32+0000\n"
 "PO-Revision-Date: 2025-07-23 15:18+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -33,10 +33,6 @@ msgstr "Spalva"
 
 msgid "Value"
 msgstr "Reikšmė"
-
-
-msgid "Action F-Curves"
-msgstr "Veiksmo „F“-kreivės"
 
 
 msgid "Groups of F-Curves"
@@ -536,10 +532,6 @@ msgid "Video Sequencer"
 msgstr "Vaizdo montažas"
 
 
-msgid "Video editing tools"
-msgstr "Vaizdo įrašų redagavimo įrankiai"
-
-
 msgid "Motion tracking tools"
 msgstr "Judesio sekimo įrankiai"
 
@@ -789,6 +781,46 @@ msgid "Space Type"
 msgstr "Zonos tipas"
 
 
+msgid "Actions"
+msgstr "Veiksmai"
+
+
+msgid "Cameras"
+msgstr "Kameros/Fotoaparatai"
+
+
+msgid "Fonts"
+msgstr "Šriftai"
+
+
+msgid "Materials"
+msgstr "Medžiagos"
+
+
+msgid "Objects"
+msgstr "Objektai"
+
+
+msgid "Sounds"
+msgstr "Garsai"
+
+
+msgid "Speakers"
+msgstr "Garsiakalbiai"
+
+
+msgid "Texts"
+msgstr "Tekstai"
+
+
+msgid "Volumes"
+msgstr "Garsumai"
+
+
+msgid "Worlds"
+msgstr "Pasauliai"
+
+
 msgid "Display Filter"
 msgstr "Rodymo filtras"
 
@@ -985,14 +1017,6 @@ msgid "Weight"
 msgstr "Svoris"
 
 
-msgid "Actions"
-msgstr "Veiksmai"
-
-
-msgid "Cameras"
-msgstr "Kameros/Fotoaparatai"
-
-
 msgid "Color Space"
 msgstr "Spalvų erdvė"
 
@@ -1009,40 +1033,12 @@ msgid "Libraries"
 msgstr "Bibliotekos"
 
 
-msgid "Materials"
-msgstr "Medžiagos"
-
-
-msgid "Objects"
-msgstr "Objektai"
-
-
 msgid "Screens"
 msgstr "Ekranai"
 
 
-msgid "Sounds"
-msgstr "Garsai"
-
-
-msgid "Speakers"
-msgstr "Garsiakalbiai"
-
-
-msgid "Texts"
-msgstr "Tekstai"
-
-
 msgid "Version"
 msgstr "Versija"
-
-
-msgid "Volumes"
-msgstr "Garsumai"
-
-
-msgid "Worlds"
-msgstr "Pasauliai"
 
 
 msgid "ACEScg"
@@ -2091,10 +2087,6 @@ msgid "Weights"
 msgstr "Svoriai/Svarmenys"
 
 
-msgid "Fonts"
-msgstr "Šriftai"
-
-
 msgid "Save"
 msgstr "Išsaugoti"
 
@@ -2355,10 +2347,6 @@ msgid "Users"
 msgstr "Vartotojai/Naudotojai"
 
 
-msgid "Groups"
-msgstr "Grupės"
-
-
 msgid "Layers"
 msgstr "Sluoksniai"
 
@@ -2374,10 +2362,6 @@ msgstr "Dėžė"
 msgctxt "Curves"
 msgid "Add"
 msgstr "Pridėti"
-
-
-msgid "Direction"
-msgstr "Kryptis"
 
 
 msgid "Has unsaved changes"
@@ -2881,6 +2865,10 @@ msgid "Owner"
 msgstr "Savininkas/-ė"
 
 
+msgid "Direction"
+msgstr "Kryptis"
+
+
 msgid "North"
 msgstr "Šiaurė"
 
@@ -3073,6 +3061,10 @@ msgid "Paths"
 msgstr "Keliai"
 
 
+msgid "Groups"
+msgstr "Grupės"
+
+
 msgid "Modifier Name"
 msgstr "Keitiklio pavadinimas"
 
@@ -3097,10 +3089,6 @@ msgid "Dots"
 msgstr "Taškai"
 
 
-msgid "Layout"
-msgstr "Išdėstymas/Maketas"
-
-
 msgid "Apply"
 msgstr "Pritaikyti"
 
@@ -3111,6 +3099,10 @@ msgstr "Sekti"
 
 msgid "Show/Hide"
 msgstr "Rodyti/Slėpti"
+
+
+msgid "Layout"
+msgstr "Išdėstymas/Maketas"
 
 
 msgid "Text"
@@ -3125,8 +3117,8 @@ msgid "Animals"
 msgstr "Gyvūnai"
 
 
-msgid "Languages..."
-msgstr "Kalbos..."
+msgid "Languages"
+msgstr "Kalbos"
 
 
 msgid "Key"
@@ -3416,22 +3408,12 @@ msgstr "Atnaujinti „I18n Blender“ saugyklą"
 
 
 msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Išsaugoti sistemos informaciją"
-
-
-msgctxt "Operator"
 msgid "New Action"
 msgstr "Naujas veiksmas"
 
 
 msgid "File Browser Mode"
 msgstr "Failų naršyklės veiksena"
-
-
-msgctxt "Curve"
-msgid "Mode"
-msgstr "Veiksena"
 
 
 msgctxt "Operator"
@@ -3528,6 +3510,11 @@ msgstr "Įdiegti pasirinktinius medžiagos užfiksavimus („MatCap“ (dgs.))"
 msgctxt "Operator"
 msgid "Render"
 msgstr "Vaizduoti"
+
+
+msgctxt "Curve"
+msgid "Mode"
+msgstr "Veiksena"
 
 
 msgctxt "Scene"
@@ -3723,10 +3710,6 @@ msgstr "Kalbos ID"
 
 msgid "Active Language"
 msgstr "Aktyvi kalba"
-
-
-msgid "Languages"
-msgstr "Kalbos"
 
 
 msgid "Blender 2.7"

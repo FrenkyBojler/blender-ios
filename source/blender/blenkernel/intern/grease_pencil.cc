@@ -299,7 +299,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
 
   blender::ResourceScope scope;
 
-  blender::Vector<CustomDataLayer, 16> layers_data_layers;
+  Vector<CustomDataLayer, 16> layers_data_layers;
   blender::bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(grease_pencil->attribute_storage.wrap(), attribute_data);
   grease_pencil->attribute_storage.dna_attributes = attribute_data.attributes.data();
@@ -4415,6 +4415,9 @@ static void write_drawing_array(GreasePencil &grease_pencil,
         bke::CurvesGeometry::BlendWriteData write_data(scope);
         curves.blend_write_prepare(write_data);
         drawing_copy.runtime = nullptr;
+
+        BLO_write_shared_tag(writer, curves.curve_offsets);
+        BLO_write_shared_tag(writer, curves.custom_knots);
 
         BLO_write_struct_at_address(writer, GreasePencilDrawing, drawing_base, &drawing_copy);
         curves.blend_write(*writer, grease_pencil.id, write_data);

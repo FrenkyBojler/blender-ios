@@ -31,10 +31,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Alpha").no_muted_links().dependent_field().reference_pass_all();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout->prop(ptr, "extension", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "interpolation", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "extension", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -81,8 +81,9 @@ class ImageFieldsFunction : public mf::MultiFunction {
 
     if (image_buffer_->float_buffer.data == nullptr) {
       BLI_thread_lock(LOCK_IMAGE);
+      /* Isolate because we are holding a lock. */
       if (!image_buffer_->float_buffer.data) {
-        IMB_float_from_byte(image_buffer_);
+        threading::isolate_task([&]() { IMB_float_from_byte(image_buffer_); });
       }
       BLI_thread_unlock(LOCK_IMAGE);
     }
@@ -407,12 +408,21 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  Field<float3> vector_field = params.extract_input<Field<float3>>("Vector");
+  auto sample_uv = params.extract_input<bke::SocketValueVariant>("Vector");
 
-  auto image_op = FieldOperation::from(std::move(image_fn), {std::move(vector_field)});
+  std::string error_message;
+  bke::SocketValueVariant color;
+  bke::SocketValueVariant alpha;
+  if (!execute_multi_function_on_value_variant(
+          std::move(image_fn), {&sample_uv}, {&color, &alpha}, params.user_data(), error_message))
+  {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
 
-  params.set_output("Color", Field<ColorGeometry4f>(image_op, 0));
-  params.set_output("Alpha", Field<float>(image_op, 1));
+  params.set_output("Color", std::move(color));
+  params.set_output("Alpha", std::move(alpha));
 }
 
 static void node_register()

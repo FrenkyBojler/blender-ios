@@ -15,7 +15,7 @@
 #include <string>
 
 #include "BLI_assert.h"
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #include "GPU_format.hh"
 
@@ -308,7 +308,7 @@ enum GPUSamplerFiltering {
   GPU_SAMPLER_FILTERING_ANISOTROPIC = (1 << 2),
 };
 
-ENUM_OPERATORS(GPUSamplerFiltering, GPU_SAMPLER_FILTERING_ANISOTROPIC)
+ENUM_OPERATORS(GPUSamplerFiltering)
 
 /** The number of every possible filtering configuration. */
 static const int GPU_SAMPLER_FILTERING_TYPES_COUNT = (GPU_SAMPLER_FILTERING_LINEAR |
@@ -705,7 +705,7 @@ enum eGPUTextureUsage {
                                          GPU_TEXTURE_USAGE_MEMORY_EXPORT))),
 };
 
-ENUM_OPERATORS(eGPUTextureUsage, GPU_TEXTURE_USAGE_GENERAL);
+ENUM_OPERATORS(eGPUTextureUsage);
 
 /** \} */
 
@@ -879,15 +879,6 @@ blender::gpu::Texture *GPU_texture_create_view(const char *name,
  * \{ */
 
 /**
- * Makes data interpretation aware of the source layout.
- * Skipping pixels correctly when changing rows when doing partial update.
- * This affects `GPU_texture_update`, `GPU_texture_update_sub`, `GPU_texture_update_mipmap`.
- * TODO(fclem): replace this by pixel buffer updates using a custom utility to do the line shifting
- * like Cycles does.
- */
-void GPU_unpack_row_length_set(uint len);
-
-/**
  * Update the content of a texture's base mip-map level (mip 0).
  * \a data_format is the format of the \a data . It needs to be compatible with the internal
  * texture storage.
@@ -918,7 +909,8 @@ void GPU_texture_update_sub(blender::gpu::Texture *texture,
                             int offset_z,
                             int width,
                             int height,
-                            int depth);
+                            int depth,
+                            uint unpack_row_length = 0);
 
 /**
  * Update the content of a texture's specific mip-map level.
@@ -929,7 +921,8 @@ void GPU_texture_update_sub(blender::gpu::Texture *texture,
 void GPU_texture_update_mipmap(blender::gpu::Texture *texture,
                                int mip_level,
                                eGPUDataFormat data_format,
-                               const void *pixels);
+                               const void *pixels,
+                               uint unpack_row_length = 0);
 
 /**
  * Fills the whole texture with the same data for all pixels.

@@ -135,11 +135,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
      ICON_GREASEPENCIL,
      "Grease Pencil",
      "Show Grease Pencil data-blocks"},
-    {FILTER_ID_GR,
-     "filter_group",
-     ICON_OUTLINER_COLLECTION,
-     "Collections",
-     "Show Collection data-blocks"},
+    {FILTER_ID_GR, "filter_group", ICON_GROUP, "Collections", "Show Collection data-blocks"},
     {FILTER_ID_CV,
      "filter_curves",
      ICON_CURVES_DATA,
@@ -218,7 +214,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_global.hh" /* XXX, remove me */
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_idtype.hh"
 #  include "BKE_lib_override.hh"
@@ -673,7 +669,7 @@ bool rna_PropertyGroup_unregister(Main * /*bmain*/, StructRNA *type)
   BPY_free_srna_pytype(type);
 #  endif
 
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
   return true;
 }
 
@@ -706,7 +702,7 @@ StructRNA *rna_PropertyGroup_register(Main * /*bmain*/,
     return nullptr;
   }
 
-  return RNA_def_struct_ptr(&BLENDER_RNA, identifier, &RNA_PropertyGroup); /* XXX */
+  return RNA_def_struct_ptr(&RNA_blender_rna_get(), identifier, &RNA_PropertyGroup); /* XXX */
 }
 
 StructRNA *rna_PropertyGroup_refine(PointerRNA *ptr)

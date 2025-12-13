@@ -60,6 +60,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
             context, layout, "ShaderNodeCameraData",
             ["View Vector", "View Z Depth", "View Distance"],
         )
+        self.node_operator(layout, "ShaderNodeRGB")
         self.node_operator(layout, "ShaderNodeVertexColor")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeHairInfo",
@@ -117,7 +118,6 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
             context, layout, "ShaderNodePointInfo",
             ["Position", "Radius", "Random"],
         )
-        self.node_operator(layout, "ShaderNodeRGB")
         self.node_operator(layout, "ShaderNodeTangent")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeTexCoord",
@@ -370,9 +370,9 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeNormal")
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeVectorRotate")
         self.node_operator(layout, "ShaderNodeVectorTransform")
-        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -460,7 +460,7 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
 
 
 add_menus = {
-    # menu bl_idname: baseclass
+    # menu `bl_idname`: base-class.
     "NODE_MT_category_shader_input": NODE_MT_shader_node_input_base,
     "NODE_MT_category_shader_output": NODE_MT_shader_node_output_base,
     "NODE_MT_category_shader_color": NODE_MT_shader_node_color_base,
@@ -480,7 +480,7 @@ add_menus = node_add_menu.generate_menus(
 
 
 swap_menus = {
-    # menu bl_idname: baseclass
+    # menu `bl_idname`: base-class.
     "NODE_MT_shader_node_input_swap": NODE_MT_shader_node_input_base,
     "NODE_MT_shader_node_output_swap": NODE_MT_shader_node_output_base,
     "NODE_MT_shader_node_color_swap": NODE_MT_shader_node_color_base,

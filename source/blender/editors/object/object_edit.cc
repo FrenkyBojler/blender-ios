@@ -12,6 +12,8 @@
 #include <cstring>
 #include <ctime>
 
+#include "AS_asset_library.hh"
+#include "BLI_path_utils.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -455,18 +457,18 @@ static wmOperatorStatus object_hide_collection_exec(bContext *C, wmOperator *op)
 
 #define COLLECTION_INVALID_INDEX -1
 
-void collection_hide_menu_draw(const bContext *C, uiLayout *layout)
+void collection_hide_menu_draw(const bContext *C, ui::Layout &layout)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   LayerCollection *lc_scene = static_cast<LayerCollection *>(view_layer->layer_collections.first);
 
   /* Use the "invoke" operator context so the "Shift" modifier is used to extend. */
-  layout->operator_context_set(wm::OpCallContext::InvokeRegionWin);
+  layout.operator_context_set(wm::OpCallContext::InvokeRegionWin);
 
   LISTBASE_FOREACH (LayerCollection *, lc, &lc_scene->layer_collections) {
     int index = BKE_layer_collection_findindex(view_layer, lc);
-    uiLayout *row = &layout->row(false);
+    ui::Layout &row = layout.row(false);
 
     if (lc->flag & LAYER_COLLECTION_EXCLUDE) {
       continue;
@@ -483,7 +485,7 @@ void collection_hide_menu_draw(const bContext *C, uiLayout *layout)
     else if (lc->runtime_flag & LAYER_COLLECTION_HAS_OBJECTS) {
       icon = ICON_LAYER_USED;
     }
-    PointerRNA op_ptr = row->op("OBJECT_OT_hide_collection", lc->collection->id.name + 2, icon);
+    PointerRNA op_ptr = row.op("OBJECT_OT_hide_collection", lc->collection->id.name + 2, icon);
     RNA_int_set(&op_ptr, "collection_index", index);
   }
 }
@@ -506,12 +508,12 @@ static wmOperatorStatus object_hide_collection_invoke(bContext *C,
 
   /* Open popup menu. */
   const char *title = CTX_IFACE_(op->type->translation_context, op->type->name);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, title, ICON_OUTLINER_COLLECTION);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, title, ICON_OUTLINER_COLLECTION);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   collection_hide_menu_draw(C, layout);
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -553,6 +555,45 @@ void OBJECT_OT_hide_collection(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Toggle Edit-Mode Operator
  * \{ */
+
+/* When switching mode, certain data needs to be copied from the `bPoseChannel` to the `Bone`. This
+ * is not done in `BKE_pose_rebuild` because that is called in other cases other than mode
+ * switching. */
+static void flush_bone_selection_to_pose(Object &ob)
+{
+  BLI_assert(ob.pose);
+  LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob.pose->chanbase) {
+    pose_bone->flag &= ~(POSE_SELECTED | POSE_SELECTED_ROOT | POSE_SELECTED_TIP);
+    const Bone *bone = pose_bone->bone;
+    if (bone->flag & BONE_ROOTSEL) {
+      pose_bone->flag |= POSE_SELECTED_ROOT;
+    }
+    if (bone->flag & BONE_TIPSEL) {
+      pose_bone->flag |= POSE_SELECTED_TIP;
+    }
+    if (bone->flag & BONE_SELECTED) {
+      pose_bone->flag |= POSE_SELECTED;
+    }
+  }
+}
+
+static void flush_pose_selection_to_bone(Object &ob)
+{
+  BLI_assert(ob.pose);
+  LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob.pose->chanbase) {
+    pose_bone->bone->flag &= ~(BONE_ROOTSEL | BONE_TIPSEL | BONE_SELECTED);
+    Bone *bone = pose_bone->bone;
+    if (pose_bone->flag & POSE_SELECTED_ROOT) {
+      bone->flag |= BONE_ROOTSEL;
+    }
+    if (pose_bone->flag & POSE_SELECTED_TIP) {
+      bone->flag |= BONE_TIPSEL;
+    }
+    if (pose_bone->flag & POSE_SELECTED) {
+      bone->flag |= BONE_SELECTED;
+    }
+  }
+}
 
 static bool mesh_needs_keyindex(Main *bmain, const Mesh *mesh)
 {
@@ -642,6 +683,9 @@ static bool editmode_load_free_ex(Main *bmain,
         }
       }
     }
+
+    /* After regenerating the bones, sync the selection onto the pose bones. */
+    flush_bone_selection_to_pose(*obedit);
     /* TODO(sergey): Pose channels might have been changed, so need
      * to inform dependency graph about this. But is it really the
      * best place to do this?
@@ -856,6 +900,13 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_MESH, nullptr);
   }
   else if (ob->type == OB_ARMATURE) {
+    /* Syncing the selection to the `Bone` before converting to edit bones. This is not possible if
+     * the Armature was just created, because then there is no pose data yet. Which is fine, the
+     * just-created edit bones already have the expected selection state. */
+    if (ob->pose) {
+      flush_pose_selection_to_bone(*ob);
+    }
+
     bArmature *arm = static_cast<bArmature *>(ob->data);
     ok = true;
     ED_armature_to_edit(arm);
@@ -1272,7 +1323,7 @@ void motion_paths_recalc(bContext *C,
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  blender::Vector<MPathTarget *> targets;
+  Vector<MPathTarget *> targets;
   LISTBASE_FOREACH (LinkData *, link, ld_objects) {
     Object *ob = static_cast<Object *>(link->data);
 
@@ -1623,10 +1674,9 @@ static bool is_smooth_by_angle_modifier(const ModifierData &md)
   if (!library) {
     return false;
   }
-  if (!StringRef(library->filepath)
-           .endswith("datafiles/assets/nodes/geometry_nodes_essentials.blend"))
-  {
-
+  char auto_smooth_asset_path[FILE_MAX] = "datafiles/assets/nodes/geometry_nodes_essentials.blend";
+  BLI_path_slash_native(auto_smooth_asset_path);
+  if (!StringRef(library->filepath).endswith(auto_smooth_asset_path)) {
     return false;
   }
   if (!STREQ(BKE_id_name(nmd.node_group->id), "Smooth by Angle")) {
@@ -1846,6 +1896,12 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
     asset_weak_ref.relative_asset_identifier = BLI_strdup(
         "nodes/geometry_nodes_essentials.blend/NodeTree/Smooth by Angle");
 
+    if (G.background) {
+      /* For testing purposes, make sure assets are loaded (this make take too long to do
+       * automatically during user interaction). */
+      asset::list::storage_fetch_blocking(asset_system::all_library_reference(), *C);
+    }
+
     const asset_system::AssetRepresentation *asset_representation =
         asset::find_asset_from_weak_ref(*C, asset_weak_ref, op->reports);
     if (!asset_representation) {
@@ -1936,16 +1992,16 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
 
 static void shade_auto_smooth_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  layout->prop(op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiLayout *col = &layout->column(false);
-  col->active_set(RNA_boolean_get(op->ptr, "use_auto_smooth"));
-  layout->prop(op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &col = layout.column(false);
+  col.active_set(RNA_boolean_get(op->ptr, "use_auto_smooth"));
+  layout.prop(op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void OBJECT_OT_shade_auto_smooth(wmOperatorType *ot)
@@ -2353,7 +2409,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
 
 static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int icon)
 {
-  uiLayout &layout = *menu->layout;
+  ui::Layout &layout = *menu->layout;
   bool is_move = ELEM(StringRefNull(menu->type->idname),
                       "OBJECT_MT_move_to_collection",
                       "OBJECT_MT_move_to_collection_recursive");
@@ -2375,7 +2431,7 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
     collection = child->collection;
     if (BLI_listbase_is_empty(&collection->children)) {
       op_ptr = layout.op(
-          ot, BKE_collection_ui_name_get(collection), UI_icon_color_from_collection(collection));
+          ot, BKE_collection_ui_name_get(collection), ui::icon_color_from_collection(collection));
       RNA_int_set(&op_ptr, "collection_uid", collection->id.session_uid);
       continue;
     }
@@ -2384,28 +2440,30 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
     layout.menu(is_move ? "OBJECT_MT_move_to_collection_recursive" :
                           "OBJECT_MT_link_to_collection_recursive",
                 BKE_collection_ui_name_get(collection),
-                UI_icon_color_from_collection(collection));
+                ui::icon_color_from_collection(collection));
   }
 }
 
 static void move_to_collection_recursive_menu_draw(const bContext * /*C*/, Menu *menu)
 {
-  uiLayout &layout = *menu->layout;
+  ui::Layout &layout = *menu->layout;
   const PointerRNA *ptr = layout.context_ptr_get("collection", &RNA_Collection);
   Collection *collection = ptr ? ptr->data_as<Collection>() : nullptr;
   if (!collection) {
     return;
   }
-  move_to_collection_menu_draw(menu, collection, UI_icon_color_from_collection(collection));
+  move_to_collection_menu_draw(menu, collection, ui::icon_color_from_collection(collection));
 }
 
 static void move_to_collection_menu_draw(const bContext *C, Menu *menu)
 {
-  uiLayout &layout = *menu->layout;
+  ui::Layout &layout = *menu->layout;
   Scene *scene = CTX_data_scene(C);
   if (layout.operator_context() == wm::OpCallContext::ExecRegionWin) {
     layout.operator_context_set(wm::OpCallContext::InvokeRegionWin);
-    PointerRNA op_ptr = layout.op("WM_OT_search_single_menu", "Search...", ICON_VIEWZOOM);
+    PointerRNA op_ptr = layout.op("WM_OT_search_single_menu",
+                                  CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Search..."),
+                                  ICON_VIEWZOOM);
     RNA_string_set(&op_ptr, "menu_idname", menu->type->idname);
     layout.separator();
   }
