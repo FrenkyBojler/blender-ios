@@ -89,15 +89,15 @@ static Vector<GVArray> get_field_context_inputs(
     const FieldContext &context,
     const Span<std::reference_wrapper<const FieldInput>> field_inputs)
 {
-  Vector<GVArray> field_context_inputs;
-  for (const FieldInput &field_input : field_inputs) {
-    GVArray varray = context.get_varray_for_input(field_input, mask, scope);
+  Vector<GVArray> field_context_inputs(field_inputs.size());
+  threading::parallel_for_each(field_inputs.index_range(), [&](const int index) {
+    GVArray varray = context.get_varray_for_input(field_inputs[index], mask, scope);
     if (!varray) {
-      const CPPType &type = field_input.cpp_type();
+      const CPPType &type = field_inputs[index].get().cpp_type();
       varray = GVArray::from_single_default(type, mask.min_array_size());
     }
-    field_context_inputs.append(varray);
-  }
+    field_context_inputs[index] = std::move(varray);
+  });
   return field_context_inputs;
 }
 
