@@ -182,6 +182,7 @@ struct ParsedResource {
     else if (res_type == "storage") {
       ss << ".storage_buf(" << res_slot;
       ss << ", Qualifier::" << res_qualifier;
+      ss << ", \"" << var_type << "\"";
       ss << ", \"" << var_name << var_array << "\"";
       ss << ", Frequency::" << res_frequency;
       ss << res_condition_lambda << ")";
@@ -514,6 +515,12 @@ class Preprocessor {
 
         parser.apply_mutations();
 
+        if (parser.str().find("\n#pragma no_processing") != std::string::npos) {
+          /* Early out for certain files. */
+          r_metadata = metadata;
+          return line_directive_prefix(filename) + parser.result_get();
+        }
+
         /* Lower high level parsing complexity.
          * Merge tokens that can be combined together,
          * remove the token that are unsupported or that are noop.
@@ -527,6 +534,8 @@ class Preprocessor {
         parser.apply_mutations();
 
         /* Linting phase. Detect valid syntax with invalid usage. */
+        lint_unbraced_statements(parser, report_error);
+        lint_reserved_tokens(parser, report_error);
         lint_attributes(parser, report_error);
         lint_global_scope_constants(parser, report_error);
         if (do_small_type_linting) {
@@ -536,6 +545,7 @@ class Preprocessor {
         /* Lint and remove SRT accessor templates before lowering template. */
         lower_srt_accessor_templates(parser, report_error);
         /* Lower templates. */
+        lower_template_dependent_names(parser, report_error);
         lower_templates(parser, report_error);
         /* Lower namespaces. */
         lower_using(parser, report_error);
@@ -549,6 +559,8 @@ class Preprocessor {
         lower_resource_table(parser, report_error);
         lower_resource_access_functions(parser, report_error);
         /* Lower class methods. */
+        lower_function_default_arguments(parser, report_error);
+        lower_implicit_member(parser, report_error);
         lower_method_definitions(parser, report_error);
         lower_method_calls(parser, report_error);
         lower_empty_struct(parser, report_error);
@@ -563,7 +575,6 @@ class Preprocessor {
         lower_printf(parser, report_error);
         /* Lower other C++ constructs. */
         lower_array_initializations(parser, report_error);
-        lower_function_default_arguments(parser, report_error);
         lower_scope_resolution_operators(parser, report_error);
         /* Lower references. */
         lower_reference_arguments(parser, report_error);
@@ -573,14 +584,23 @@ class Preprocessor {
         /* Unroll last to avoid processing more tokens in other phases. */
         lower_loop_unroll(parser, report_error);
 
+        /* GLSL syntax compatibility.
+         * TODO(fclem): Remove. */
+        lower_argument_qualifiers(parser, report_error);
+
         /* Cleanup to make output more human readable and smaller for runtime. */
         cleanup_whitespace(parser, report_error);
         cleanup_empty_lines(parser, report_error);
         cleanup_line_directives(parser, report_error);
         str = parser.result_get();
       }
+
+      str = line_directive_prefix(filename) + str;
+      r_metadata = metadata;
+      return str;
     }
-    else if (language == MSL) {
+
+    if (language == MSL) {
       Parser parser(str, report_error);
       parse_pragma_runtime_generated(parser);
       parse_includes(parser, report_error);
@@ -798,6 +818,23 @@ class Preprocessor {
     parser.insert_line_number(inst_end, fn_start.line_number());
     parser.insert_after(inst_end, instance);
     parser.insert_line_number(inst_end, inst_end.line_number(true));
+  }
+
+  /**
+   * Given our codestyle, we don't need the disambiguation.
+   * Example: `x.template foo<int>()` > `x.foo<int>()`
+   */
+  void lower_template_dependent_names(Parser &parser, report_callback & /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_match("tw<..>", [&](const Tokens &toks) {
+      if (toks[0].prev() == '.' || toks[0].prev() == Deref) {
+        parser.erase(toks[0]);
+      }
+    });
+    parser.apply_mutations();
   }
 
   void lower_templates(Parser &parser, report_callback &report_error)
@@ -1449,7 +1486,11 @@ class Preprocessor {
     }
 
     Token before_body = body.start().prev();
-    string test = "constant_" + condition.str_exclusive();
+
+    string test = "SRT_CONSTANT_" + condition[5].str();
+    if (condition[7] != condition.end().prev()) {
+      test += parser.substr_range_inclusive(condition[7], condition.end().prev());
+    }
     string directive = (if_tok.prev() == Else ? "#elif " : "#if ");
 
     parser.insert_directive(before_body, directive + test);
@@ -2299,13 +2340,11 @@ class Preprocessor {
             access_macros += member.var_name + "\n";
           }
         }
-        parser.insert_after(end_of_srt.next().line_end() + 1, access_macros);
+        parser.insert_before(struct_tok, access_macros);
+        parser.insert_before(struct_tok, get_create_info_placeholder(srt.name));
 
-        parser.insert_after(end_of_srt.next().line_end() + 1,
-                            get_create_info_placeholder(srt.name));
-
-        parser.insert_line_number(end_of_srt.next().line_end() + 1,
-                                  end_of_srt.next().line_number() + 2);
+        parser.insert_before(struct_tok, "\n");
+        parser.insert_line_number(struct_tok.str_index_start() - 1, struct_tok.line_number());
 
         /* Insert attribute so that method mutations know that this struct is an SRT. */
         parser.insert_before(struct_tok, "[[resource_table]] ");
@@ -2359,6 +2398,74 @@ class Preprocessor {
         parser.replace(token, "struct ");
       }
     });
+  }
+
+  /* Make all members of a class to be referenced using `this->`. */
+  void lower_implicit_member(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_struct([&](Token, Token, Scope body) {
+      vector<Token> members_tokens;
+      vector<Token> methods_tokens;
+
+      auto is_class_token = [&](const vector<Token> &members, const string &token) {
+        for (const Token &member : members) {
+          if (token == member.str()) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      auto check_shadowing = [&](const Tokens &toks) {
+        if (is_class_token(members_tokens, toks[1].str())) {
+          report_error(ERROR_TOK(toks[1]), "Class member shadowing.");
+        }
+      };
+
+      body.foreach_declaration([&](Scope, Token, Token, Scope, Token name, Scope, Token) {
+        if (name.scope() == body) {
+          members_tokens.emplace_back(name);
+        }
+      });
+
+      body.foreach_function(
+          [&](bool is_static, Token, Token fn_name, Scope fn_args, bool, Scope fn_body) {
+            if (is_static) {
+              return;
+            }
+            fn_args.foreach_match("ww", check_shadowing);
+            fn_args.foreach_match("&w", check_shadowing);
+            fn_body.foreach_match("ww", check_shadowing);
+            fn_body.foreach_match("&w", check_shadowing);
+            methods_tokens.emplace_back(fn_name);
+          });
+
+      body.foreach_function([&](bool is_static, Token, Token, Scope, bool, Scope fn_body) {
+        if (is_static) {
+          return;
+        }
+        fn_body.foreach_token(Word, [&](Token tok) {
+          if (tok.prev() != Deref && tok.prev() != Dot && tok.prev() != Colon) {
+            if (tok.next() == '(') {
+              if (!is_class_token(methods_tokens, tok.str())) {
+                return;
+              }
+            }
+            else {
+              if (!is_class_token(members_tokens, tok.str())) {
+                return;
+              }
+            }
+            parser.insert_before(tok, "this->");
+          }
+        });
+      });
+    });
+
+    parser.apply_mutations();
   }
 
   /* Move all method definition outside of struct definition blocks. */
@@ -2444,19 +2551,45 @@ class Preprocessor {
     /* Copy method functions outside of struct scope. */
     parser().foreach_struct([&](Token, const Token, const Scope struct_scope) {
       const Token struct_end = struct_scope.end().next();
+
+      bool has_methods = false;
+      struct_scope.foreach_function(
+          [&](bool, Token, Token, Scope, bool, Scope) { has_methods = true; });
+      if (!has_methods) {
+        /* Avoid uneeded preprocessor directives. */
+        return;
+      }
+
+      /* First output prototypes. Not needed on metal because of wrapper class. */
+      parser.insert_after(struct_end, "#ifndef GPU_METAL\n");
+      struct_scope.foreach_function(
+          [&](bool is_static, Token fn_type, Token, Scope fn_args, bool, Scope) {
+            const Token fn_start = is_static ? fn_type.prev() : fn_type;
+
+            string proto_str = parser.substr_range_inclusive(fn_start, fn_args.end());
+            proto_str = Preprocessor::strip_whitespace(proto_str) + ";\n";
+            Parser proto(proto_str, report_error);
+
+            /* Remove [[resource_table]] and other attributes that could create issues. */
+            proto().foreach_match("[[", [&](Tokens toks) { proto.replace(toks[0].scope(), ""); });
+
+            parser.insert_after(struct_end, proto.result_get());
+          });
+      parser.insert_after(struct_end, "#endif\n");
+
       struct_scope.foreach_function(
           [&](bool is_static, Token fn_type, Token, Scope, bool, Scope fn_body) {
             const Token fn_start = is_static ? fn_type.prev() : fn_type;
 
-            string fn_str = parser.substr_range_inclusive(fn_start.line_start(),
-                                                          fn_body.end().line_end() + 1);
+            string fn_str = parser.substr_range_inclusive(fn_start, fn_body.end());
+            fn_str = string(fn_start.char_number(), ' ') + fn_str;
 
             parser.erase(fn_start, fn_body.end());
-            parser.insert_line_number(struct_end.line_end() + 1, fn_start.line_number());
-            parser.insert_after(struct_end.line_end() + 1, fn_str);
+            parser.insert_line_number(struct_end, fn_start.line_number());
+            parser.insert_after(struct_end, fn_str);
           });
 
-      parser.insert_line_number(struct_end.line_end() + 1, struct_end.line_number() + 1);
+      parser.insert_line_number(struct_end, struct_end.line_number(true));
     });
 
     parser.apply_mutations();
@@ -2660,7 +2793,7 @@ class Preprocessor {
           return;
         }
         condition += "defined(CREATE_INFO_" + tokens[7].str() + ")";
-        parser.erase(tokens[0].scope());
+        parser.replace(tokens[0].scope(), "");
       });
 
       if (!condition.empty()) {
@@ -2859,6 +2992,48 @@ class Preprocessor {
     } while (parser.apply_mutations());
   }
 
+  void lint_unbraced_statements(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    auto check_statement = [&](const Tokens &toks) {
+      Token end_tok = toks.back();
+      if (end_tok.next() == If || end_tok.prev() == '#') {
+        return;
+      }
+      if (end_tok.next() == '[' && end_tok.next().next() == '[') {
+        end_tok = end_tok.next().scope().end();
+      }
+      if (end_tok.next() != '{') {
+        report_error(ERROR_TOK(end_tok), "Missing curly braces after flow control statement.");
+      }
+    };
+
+    parser().foreach_match("i(..)", check_statement);
+    parser().foreach_match("I", check_statement);
+    parser().foreach_match("f(..)", check_statement);
+    parser().foreach_match("F(..)", check_statement);
+  }
+
+  void lint_reserved_tokens(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    std::unordered_set<string> reserved_symbols = {
+        "vec2",   "vec3",   "vec4",   "mat2x2", "mat2x3", "mat2x4", "mat3x2", "mat3x3",
+        "mat3x4", "mat4x2", "mat4x3", "mat4x4", "mat2",   "mat3",   "mat4",   "ivec2",
+        "ivec3",  "ivec4",  "uvec2",  "uvec3",  "uvec4",  "bvec2",  "bvec3",  "bvec4",
+    };
+
+    parser().foreach_token(Word, [&](Token tok) {
+      if (reserved_symbols.find(tok.str()) != reserved_symbols.end()) {
+        report_error(ERROR_TOK(tok), "Reserved GLSL token");
+      }
+    });
+  }
+
   void lint_attributes(Parser &parser, report_callback report_error)
   {
     using namespace std;
@@ -2962,7 +3137,7 @@ class Preprocessor {
 
         Token prev_tok = attributes.start().prev().prev();
         if (prev_tok == '(' || prev_tok == '{' || prev_tok == ';' || prev_tok == ',' ||
-            prev_tok == '}' || prev_tok == ')' || prev_tok.is_invalid())
+            prev_tok == '}' || prev_tok == ')' || prev_tok == '\n' || prev_tok.is_invalid())
         {
           /* Placement is maybe correct. Could refine a bit more. */
         }
@@ -3062,7 +3237,7 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  std::string strip_whitespace(const std::string &str) const
+  static std::string strip_whitespace(const std::string &str)
   {
     return str.substr(0, str.find_last_not_of(" \n") + 1);
   }
@@ -3077,7 +3252,7 @@ class Preprocessor {
     using namespace shader::parser;
 
     parser().foreach_function(
-        [&](bool, Token fn_type, Token fn_name, Scope fn_args, bool, Scope fn_body) {
+        [&](bool, Token fn_type, Token fn_name, Scope fn_args, bool fn_const, Scope fn_body) {
           if (!fn_args.contains_token('=')) {
             return;
           }
@@ -3107,7 +3282,8 @@ class Preprocessor {
               }
               string overload;
               overload += fn_type.str() + " ";
-              overload += fn_name.str() + '(' + args_decl + ")\n";
+              overload += fn_name.str() + '(' + args_decl + ")" +
+                          string(fn_const ? " const" : "") + "\n";
               overload += "{\n";
               overload += "#line " + std::to_string(fn_type.line_number()) + "\n";
               overload += "  " + fn_call + "\n}\n";
@@ -3913,6 +4089,23 @@ class Preprocessor {
       report_error(ERROR_TOK(tokens[4]),
                    "Reference is defined inside a global or unterminated scope.");
     });
+  }
+
+  void lower_argument_qualifiers(Parser &parser, report_callback /*report_error*/)
+  {
+    /* Example: `out float var[2]` > `REF(float, var)[2]` */
+    parser().foreach_match("www", [&](const Tokens &toks) {
+      if (toks[0].scope().type() == parser::ScopeType::Preprocessor) {
+        /* Don't mutate the actual implementation. */
+        return;
+      }
+      if (toks[0].str() == "inout" || toks[0].str() == "out") {
+        parser.replace(toks[0], "_ref(");
+        parser.insert_after(toks[1], ",");
+        parser.insert_after(toks[2], ")");
+      }
+    });
+    parser.apply_mutations();
   }
 
   std::string argument_decorator_macro_injection(const std::string &str)
