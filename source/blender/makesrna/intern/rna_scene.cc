@@ -144,7 +144,8 @@ const EnumPropertyItem rna_enum_mesh_select_mode_uv_items[] = {
   {SCE_SNAP_TO_FACE, "FACE", ICON_SNAP_FACE, "Face", "Snap by projecting onto faces"}, \
   {SCE_SNAP_TO_VOLUME, "VOLUME", ICON_SNAP_VOLUME, "Volume", "Snap to volume"}, \
   {SCE_SNAP_TO_EDGE_MIDPOINT, "EDGE_MIDPOINT", ICON_SNAP_MIDPOINT, "Edge Center", "Snap to the middle of edges"}, \
-  {SCE_SNAP_TO_EDGE_PERPENDICULAR, "EDGE_PERPENDICULAR", ICON_SNAP_PERPENDICULAR, "Edge Perpendicular", "Snap to the nearest point on an edge"}
+  {SCE_SNAP_TO_EDGE_PERPENDICULAR, "EDGE_PERPENDICULAR", ICON_SNAP_PERPENDICULAR, "Edge Perpendicular", "Snap to the nearest point on an edge"}, \
+  {SCE_SNAP_TO_FACE_MIDPOINT, "FACE_MIDPOINT", ICON_SNAP_FACE_CENTER,"Face Center","Snap to the middle of faces"}
 /* clang-format on */
 
 const EnumPropertyItem rna_enum_snap_element_items[] = {
@@ -1902,15 +1903,14 @@ void rna_Scene_freestyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-void rna_Scene_use_freestyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+void rna_Scene_use_freestyle_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 }
 
 void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -1989,9 +1989,8 @@ void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr)
     }
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   rna_Scene_render_update(bmain, activescene, ptr);
 }
