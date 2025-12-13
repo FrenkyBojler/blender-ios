@@ -4,9 +4,9 @@
 
 #pragma once
 
-#ifndef GPU_SHADER
-#  include "GPU_shader_shared_utils.hh"
+#include "GPU_shader_shared_utils.hh"
 
+#ifndef GPU_SHADER
 #  include "DNA_action_types.h"
 #  include "DNA_view3d_types.h"
 #endif
@@ -29,22 +29,25 @@ enum OVERLAY_UVLineStyle : uint32_t {
 };
 
 enum OVERLAY_GridBits : uint32_t {
-  SHOW_AXIS_X = (1u << 0u),
-  SHOW_AXIS_Y = (1u << 1u),
-  SHOW_AXIS_Z = (1u << 2u),
-  SHOW_GRID = (1u << 3u),
-  PLANE_XY = (1u << 4u),
-  PLANE_XZ = (1u << 5u),
-  PLANE_YZ = (1u << 6u),
-  CLIP_ZPOS = (1u << 7u),
-  CLIP_ZNEG = (1u << 8u),
-  GRID_BACK = (1u << 9u),
-  GRID_CAMERA = (1u << 10u),
-  PLANE_IMAGE = (1u << 11u),
-  CUSTOM_GRID = (1u << 12u),
+  SHOW_GRID = (1u << 0u),
+  SHOW_AXES = (1u << 1u),
+
+  /* Axis * is shown if `SHOW_AXES` is set. */
+  AXIS_X = (1u << 2u),
+  AXIS_Y = (1u << 3u),
+  AXIS_Z = (1u << 4u),
+
+  /* Grid is placed on * plane if `SHOW_GRID` is set. */
+  PLANE_XY = (1u << 5u),
+  PLANE_XZ = (1u << 6u),
+  PLANE_YZ = (1u << 7u),
+
+  GRID_SIMA = (1u << 8u),       /* Grid is in SpaceImage view. */
+  GRID_OVER_IMAGE = (1u << 9u), /* Grid is shown in front of SpaceImage, not behind. */
+  GRID_CAMERA = (1u << 10u)     /* Grid is shown in selected camera. */
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(OVERLAY_GridBits, CUSTOM_GRID)
+ENUM_OPERATORS(OVERLAY_GridBits)
 #endif
 
 enum VertexClass : uint32_t {
@@ -70,7 +73,7 @@ enum VertexClass : uint32_t {
   VCLASS_EMPTY_SIZE = 1 << 14,
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(VertexClass, VCLASS_EMPTY_SIZE)
+ENUM_OPERATORS(VertexClass)
 #endif
 
 enum StickBoneFlag : uint32_t {
@@ -83,7 +86,7 @@ enum StickBoneFlag : uint32_t {
   POS_BONE = (1u << 6u),
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(StickBoneFlag, POS_BONE)
+ENUM_OPERATORS(StickBoneFlag)
 #endif
 
 /* TODO(fclem): Convert into enum. */
@@ -116,19 +119,28 @@ static inline uint outline_id_pack(uint outline_id, uint object_id)
   return (outline_id << 14u) | ((object_id << 18u) >> 18u);
 }
 
-/* Match: #SI_GRID_STEPS_LEN */
+/** Keep in sync with `SI_GRID_STEPS_LEN` in `DNA_space_types.h`. */
 #define OVERLAY_GRID_STEPS_LEN 8
+/** Hardcoded grid steps drawn at a time. */
+#define OVERLAY_GRID_STEPS_DRAW 3
+/** Hardcoded max iterations of grid draw for alpha fade. */
+#define OVERLAY_GRID_ITER_LEN 4
 
 /* Due to the encoding clamping the passed in floats, the wire width needs to be scaled down. */
-#define WIRE_WIDTH_COMPRESSION 16.0
+#define WIRE_WIDTH_COMPRESSION 16.0f
 
 struct OVERLAY_GridData {
-  float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float arrays are padded to float4 in std130. */
-  float4 size;                          /* float3 padded to float4. */
-  float distance;
-  float line_size;
-  float zoom_factor; /* Only for UV editor */
-  float _pad0;
+  /* Per level step size, based on selected units/subdivision. */
+  float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float3 array padded to float4 (std140). */
+  /* XY/YZ/XZ camera offset of grid. */
+  float2 offset;
+  /* Clipping rectangle for UV/Image editor. */
+  float2 clip_rect;
+  /* Fractional grid-level, dependent on current camera position/distance/zoom. */
+  float level;
+  /* Per-level line count. */
+  uint num_lines;
+  uint _pad0, _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 
@@ -201,6 +213,7 @@ struct ThemeColors {
   float4 face_mode_select; /* Stands for face mode selection. */
   float4 face_retopology;
   float4 face_freestyle;
+  float4 gpencil_wire_edit;
   float4 gpencil_vertex;
   float4 gpencil_vertex_select;
   float4 normal;
@@ -234,7 +247,6 @@ struct ThemeColors {
   float4 nurb_vline;
   float4 nurb_sel_uline;
   float4 nurb_sel_vline;
-  float4 active_spline;
 
   float4 bone_pose;
   float4 bone_pose_active;
@@ -405,7 +417,7 @@ struct BoneEnvelopeData {
         tail_sphere(tail_sphere),
         bone_color_and_wire_width(bone_color, 0.0f),
         state_color(state_color, 0.0f),
-        x_axis(x_axis, 0.0f){};
+        x_axis(x_axis, 0.0f) {};
 
   /* For bone outlines. */
   BoneEnvelopeData(float4 &head_sphere,
@@ -415,11 +427,11 @@ struct BoneEnvelopeData {
       : head_sphere(head_sphere),
         tail_sphere(tail_sphere),
         bone_color_and_wire_width(color_and_wire_width),
-        x_axis(x_axis, 0.0f){};
+        x_axis(x_axis, 0.0f) {};
 
   /* For bone distance volumes. */
   BoneEnvelopeData(float4 &head_sphere, float4 &tail_sphere, float3 &x_axis)
-      : head_sphere(head_sphere), tail_sphere(tail_sphere), x_axis(x_axis, 0.0f){};
+      : head_sphere(head_sphere), tail_sphere(tail_sphere), x_axis(x_axis, 0.0f) {};
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneEnvelopeData, 16)
@@ -447,7 +459,7 @@ struct BoneStickData {
         wire_color(wire_color),
         bone_color(bone_color),
         head_color(head_color),
-        tail_color(tail_color){};
+        tail_color(tail_color) {};
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneStickData, 16)

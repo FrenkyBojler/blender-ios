@@ -398,7 +398,6 @@ UndoStep *BKE_undosys_stack_active_with_type(UndoStack *ustack, const UndoType *
 UndoStep *BKE_undosys_stack_init_or_active_with_type(UndoStack *ustack, const UndoType *ut)
 {
   UNDO_NESTED_ASSERT(false);
-  CLOG_INFO(&LOG, "Initialize type='%s'", ut->name);
   if (ustack->step_init && (ustack->step_init->type == ut)) {
     return ustack->step_init;
   }
@@ -493,6 +492,7 @@ UndoStep *BKE_undosys_step_push_init_with_type(UndoStack *ustack,
     }
     us->type = ut;
     ustack->step_init = us;
+    CLOG_INFO(&LOG, "Initialize type='%s'", ut->name);
     CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
     ut->step_encode_init(C, us);
     undosys_stack_validate(ustack, false);
@@ -986,6 +986,10 @@ static void UNUSED_FUNCTION(BKE_undosys_foreach_ID_ref(UndoStack *ustack,
 
 void BKE_undosys_print(UndoStack *ustack)
 {
+  if (!ustack) {
+    printf("No undo steps recorded yet.\n");
+    return;
+  }
   printf("Undo %d Steps (*: active, #=applied, M=memfile-active, S=skip)\n",
          BLI_listbase_count(&ustack->steps));
   int index = 0;

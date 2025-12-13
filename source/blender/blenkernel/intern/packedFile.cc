@@ -42,7 +42,7 @@
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
@@ -165,7 +165,7 @@ PackedFileCount BKE_packedfile_count_all(Main *bmain)
     LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
       if (md->type == eModifierType_Nodes) {
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-        for (const NodesModifierBake &bake : blender::Span{nmd->bakes, nmd->bakes_num}) {
+        for (const NodesModifierBake &bake : Span{nmd->bakes, nmd->bakes_num}) {
           if (bake.packed) {
             count.bakes++;
           }
@@ -206,7 +206,7 @@ PackedFile *BKE_packedfile_duplicate(const PackedFile *pf_src)
 
 PackedFile *BKE_packedfile_new_from_memory(const void *mem,
                                            int memlen,
-                                           const blender::ImplicitSharingInfo *sharing_info)
+                                           const ImplicitSharingInfo *sharing_info)
 {
   BLI_assert(mem != nullptr);
   if (!sharing_info) {
@@ -253,7 +253,7 @@ PackedFile *BKE_packedfile_new(ReportList *reports, const char *filepath_rel, co
   if (file_size == size_t(-1)) {
     BKE_reportf(reports, RPT_ERROR, "Unable to access the size of, source path '%s'", filepath);
   }
-  else if (file_size > INT_MAX) {
+  else if (file_size > PACKED_FILE_MAX_SIZE) {
     BKE_reportf(reports, RPT_ERROR, "Unable to pack files over 2gb, source path '%s'", filepath);
   }
   else {
@@ -339,7 +339,7 @@ void BKE_packedfile_pack_all(Main *bmain, ReportList *reports, bool verbose)
     LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
       if (md->type == eModifierType_Nodes) {
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-        for (NodesModifierBake &bake : blender::MutableSpan{nmd->bakes, nmd->bakes_num}) {
+        for (NodesModifierBake &bake : MutableSpan{nmd->bakes, nmd->bakes_num}) {
           blender::bke::bake::pack_geometry_nodes_bake(*bmain, reports, *object, *nmd, bake);
         }
       }
@@ -885,7 +885,7 @@ void BKE_packedfile_unpack_all(Main *bmain, ReportList *reports, enum ePF_FileSt
     LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
       if (md->type == eModifierType_Nodes) {
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-        for (NodesModifierBake &bake : blender::MutableSpan{nmd->bakes, nmd->bakes_num}) {
+        for (NodesModifierBake &bake : MutableSpan{nmd->bakes, nmd->bakes_num}) {
           blender::bke::bake::unpack_geometry_nodes_bake(
               *bmain, reports, *object, *nmd, bake, how);
         }
@@ -974,10 +974,10 @@ void BKE_packedfile_blend_write(BlendWriter *writer, const PackedFile *pf)
   if (pf == nullptr) {
     return;
   }
-  BLO_write_struct(writer, PackedFile, pf);
   BLO_write_shared(writer, pf->data, pf->size, pf->sharing_info, [&]() {
     BLO_write_raw(writer, pf->size, pf->data);
   });
+  BLO_write_struct(writer, PackedFile, pf);
 }
 
 void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p, StringRefNull filepath)

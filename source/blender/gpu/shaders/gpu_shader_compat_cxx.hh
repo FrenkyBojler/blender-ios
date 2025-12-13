@@ -26,12 +26,13 @@
 
 #pragma once
 
-#include "gpu_shader_cxx_builtin.hh"
-#include "gpu_shader_cxx_global.hh"
-#include "gpu_shader_cxx_image.hh"
-#include "gpu_shader_cxx_matrix.hh"
-#include "gpu_shader_cxx_sampler.hh"
-#include "gpu_shader_cxx_vector.hh"
+#include "gpu_shader_cxx_builtin.hh"  // IWYU pragma: export
+#include "gpu_shader_cxx_global.hh"   // IWYU pragma: export
+#include "gpu_shader_cxx_image.hh"    // IWYU pragma: export
+#include "gpu_shader_cxx_matrix.hh"   // IWYU pragma: export
+#include "gpu_shader_cxx_sampler.hh"  // IWYU pragma: export
+#include "gpu_shader_cxx_string.hh"   // IWYU pragma: export
+#include "gpu_shader_cxx_vector.hh"   // IWYU pragma: export
 
 #define assert(assertion)
 #define printf(...)
@@ -47,7 +48,7 @@
 /* Pass argument by reference but only write to it. Its initial value is undefined. */
 #define out
 /* Pass argument by copy (default). */
-#define in
+#define in DO_NOT_USE
 
 /* Decorate a variable in global scope that is common to all threads in a thread-group. */
 #define shared
@@ -198,6 +199,85 @@
 #define buffer_get(create_info, _res) create_info::_res
 #define sampler_get(create_info, _res) create_info::_res
 #define image_get(create_info, _res) create_info::_res
+#define srt_access(create_info, _res) create_info::_res
+
+/**
+ * Member hiding type.
+ * Allows to declare fake references to Shader Resource Tables.
+ * This make sure we cannot directly reference them.
+ * This is just a safety measure for our fragile SRT implementation which cannot safely directly
+ * access SRT members that are more that 1 level deep.
+ * This should only be used in SRT struct member declaration for wrapping other SRT types.
+ */
+template<typename T> struct srt_t {
+  operator const T &() const
+  {
+    return *reinterpret_cast<const T *>(this);
+  }
+
+  operator T &()
+  {
+    return *reinterpret_cast<T *>(this);
+  }
+};
+
+struct ShaderCreateInfo {};
+
+struct NoConstants {};
+
+template<typename VertFn,
+         typename FragFn,
+         typename ConstT1 = NoConstants,
+         typename ConstT2 = ConstT1,
+         typename ConstT3 = ConstT2>
+struct PipelineGraphic {
+  VertFn vertex;
+  FragFn fragment;
+  /* Constant values. */
+  ConstT1 c1;
+  ConstT2 c2;
+  ConstT3 c3;
+
+  PipelineGraphic(VertFn vertex, FragFn fragment)
+      : vertex(vertex), fragment(fragment), c1({}), c2({}), c3({})
+  {
+  }
+  PipelineGraphic(VertFn vertex, FragFn fragment, ConstT1 c1)
+      : vertex(vertex), fragment(fragment), c1(c1), c2({}), c3({})
+  {
+  }
+  PipelineGraphic(VertFn vertex, FragFn fragment, ConstT1 c1, ConstT2 c2)
+      : vertex(vertex), fragment(fragment), c1(c1), c2(c2), c3({})
+  {
+  }
+  PipelineGraphic(VertFn vertex, FragFn fragment, ConstT1 c1, ConstT2 c2, ConstT3 c3)
+      : vertex(vertex), fragment(fragment), c1(c1), c2(c2), c3(c3)
+  {
+  }
+};
+
+template<typename CompFn,
+         typename ConstT1 = NoConstants,
+         typename ConstT2 = ConstT1,
+         typename ConstT3 = ConstT2>
+struct PipelineCompute {
+  CompFn compute;
+  /* Constant values. */
+  ConstT1 c1;
+  ConstT2 c2;
+  ConstT3 c3;
+
+  PipelineCompute(CompFn compute) : compute(compute), c1({}), c2({}), c3({}) {}
+  PipelineCompute(CompFn compute, ConstT1 c1) : compute(compute), c1(c1), c2({}), c3({}) {}
+  PipelineCompute(CompFn compute, ConstT1 c1, ConstT2 c2)
+      : compute(compute), c1(c1), c2(c2), c3({})
+  {
+  }
+  PipelineCompute(CompFn compute, ConstT1 c1, ConstT2 c2, ConstT3 c3)
+      : compute(compute), c1(c1), c2(c2), c3(c3)
+  {
+  }
+};
 
 #include "GPU_shader_shared_utils.hh"
 

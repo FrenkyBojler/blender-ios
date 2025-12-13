@@ -40,7 +40,7 @@ wmGesture *WM_gesture_new(wmWindow *window, const ARegion *region, const wmEvent
 {
   wmGesture *gesture = MEM_callocN<wmGesture>("new gesture");
 
-  BLI_addtail(&window->gesture, gesture);
+  BLI_addtail(&window->runtime->gesture, gesture);
 
   gesture->type = type;
   gesture->event_type = event->type;
@@ -98,7 +98,7 @@ wmGesture *WM_gesture_new(wmWindow *window, const ARegion *region, const wmEvent
 
 void WM_gesture_end(wmWindow *win, wmGesture *gesture)
 {
-  BLI_remlink(&win->gesture, gesture);
+  BLI_remlink(&win->runtime->gesture, gesture);
   MEM_freeN(gesture->customdata);
   WM_generic_user_data_free(&gesture->user_data);
   MEM_freeN(gesture);
@@ -106,15 +106,15 @@ void WM_gesture_end(wmWindow *win, wmGesture *gesture)
 
 void WM_gestures_free_all(wmWindow *win)
 {
-  while (win->gesture.first) {
-    WM_gesture_end(win, static_cast<wmGesture *>(win->gesture.first));
+  while (win->runtime->gesture.first) {
+    WM_gesture_end(win, static_cast<wmGesture *>(win->runtime->gesture.first));
   }
 }
 
 void WM_gestures_remove(wmWindow *win)
 {
-  while (win->gesture.first) {
-    WM_gesture_end(win, static_cast<wmGesture *>(win->gesture.first));
+  while (win->runtime->gesture.first) {
+    WM_gesture_end(win, static_cast<wmGesture *>(win->runtime->gesture.first));
   }
 }
 
@@ -381,7 +381,7 @@ static void draw_filled_lasso(wmGesture *gt, const blender::int2 *lasso_pt_extra
  * tool, and this common logic. */
 static void draw_lasso_smooth_stroke_indicator(wmGesture *gt, const uint shdr_pos)
 {
-  float(*lasso)[2] = static_cast<float(*)[2]>(gt->customdata);
+  float (*lasso)[2] = static_cast<float (*)[2]>(gt->customdata);
   float last_x = lasso[gt->points - 1][0];
   float last_y = lasso[gt->points - 1][1];
 
@@ -466,7 +466,7 @@ static void draw_start_vertex_circle(const wmGesture &gt, const uint shdr_pos)
   const int numverts = gt.points;
 
   /* Draw the circle around the starting vertex. */
-  const short(*border)[2] = static_cast<short int(*)[2]>(gt.customdata);
+  const short (*border)[2] = static_cast<short int (*)[2]>(gt.customdata);
 
   const float start_pos[2] = {float(border[0][0]), float(border[0][1])};
   const float current_pos[2] = {float(gt.mval.x), float(gt.mval.y)};
@@ -579,7 +579,7 @@ static void wm_gesture_draw_cross(const wmWindow *win, const wmGesture *gt)
 
 void wm_gesture_draw(wmWindow *win)
 {
-  wmGesture *gt = (wmGesture *)win->gesture.first;
+  wmGesture *gt = (wmGesture *)win->runtime->gesture.first;
 
   GPU_line_width(1.0f);
   for (; gt; gt = gt->next) {

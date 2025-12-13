@@ -16,8 +16,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -38,26 +38,26 @@ static const EnumPropertyItem mode_items[] = {
     {CMP_NODE_TRACK_POSITION_ABSOLUTE,
      "ABSOLUTE",
      0,
-     "Absolute",
-     "Returns the position and speed of the marker at the current scene frame relative to the "
-     "zero origin of the tracking space"},
+     N_("Absolute"),
+     N_("Returns the position and speed of the marker at the current scene frame relative to the "
+        "zero origin of the tracking space")},
     {CMP_NODE_TRACK_POSITION_RELATIVE_START,
      "RELATIVE_START",
      0,
-     "Relative Start",
-     "Returns the position and speed of the marker at the current scene frame relative to the "
-     "position of the first non-disabled marker in the track"},
+     N_("Relative Start"),
+     N_("Returns the position and speed of the marker at the current scene frame relative to the "
+        "position of the first non-disabled marker in the track")},
     {CMP_NODE_TRACK_POSITION_RELATIVE_FRAME,
      "RELATIVE_FRAME",
      0,
-     "Relative Frame",
-     "Returns the position and speed of the marker at the current scene frame relative to the "
-     "position of the marker at the current scene frame plus the user given relative frame"},
+     N_("Relative Frame"),
+     N_("Returns the position and speed of the marker at the current scene frame relative to the "
+        "position of the marker at the current scene frame plus the user given relative frame")},
     {CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME,
      "ABSOLUTE_FRAME",
      0,
-     "Absolute Frame",
-     "Returns the position and speed of the marker at the given absolute frame"},
+     N_("Absolute Frame"),
+     N_("Returns the position and speed of the marker at the given absolute frame")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -65,7 +65,8 @@ static void cmp_node_trackpos_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Menu>("Mode")
       .default_value(CMP_NODE_TRACK_POSITION_ABSOLUTE)
-      .static_items(mode_items);
+      .static_items(mode_items)
+      .optional_label();
   b.add_input<decl::Int>("Frame").usage_by_menu(
       "Mode", {CMP_NODE_TRACK_POSITION_RELATIVE_FRAME, CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME});
 
@@ -98,32 +99,31 @@ static void init(const bContext *C, PointerRNA *ptr)
   }
 }
 
-static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_trackpos(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (node->id) {
     MovieClip *clip = (MovieClip *)node->id;
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object;
-    uiLayout *col;
     NodeTrackPosData *data = (NodeTrackPosData *)node->storage;
     PointerRNA tracking_ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTracking, tracking);
 
-    col = &layout->column(false);
-    col->prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+    ui::Layout &col = layout.column(false);
+    col.prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
 
     tracking_object = BKE_tracking_object_get_named(tracking, data->tracking_object);
     if (tracking_object) {
       PointerRNA object_ptr = RNA_pointer_create_discrete(
           &clip->id, &RNA_MovieTrackingObject, tracking_object);
 
-      col->prop_search(ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
+      col.prop_search(ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
     }
     else {
-      layout->prop(ptr, "track_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
+      layout.prop(ptr, "track_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
     }
   }
 }

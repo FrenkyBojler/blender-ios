@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_heap.h"
 #include "BLI_linklist.h"
 #include "BLI_math_geom.h"
@@ -32,7 +33,7 @@
 
 #define USE_SYMMETRY
 #ifdef USE_SYMMETRY
-#  include "BLI_kdtree.h"
+#  include "BLI_kdtree.hh"
 #endif
 
 /* defines for testing */
@@ -61,7 +62,7 @@ enum CD_UseFlag {
   CD_DO_EDGE = (1 << 1),
   CD_DO_LOOP = (1 << 2),
 };
-ENUM_OPERATORS(CD_UseFlag, CD_DO_LOOP)
+ENUM_OPERATORS(CD_UseFlag)
 
 /* BMesh Helper Functions
  * ********************** */
@@ -405,9 +406,9 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
   uint i;
   int *edge_symmetry_map;
   const float limit_sq = square_f(limit);
-  KDTree_3d *tree;
+  blender::KDTree_3d *tree;
 
-  tree = BLI_kdtree_3d_new(bm->totedge);
+  tree = blender::kdtree_3d_new(bm->totedge);
 
   etable = MEM_malloc_arrayN<BMEdge *>(bm->totedge, __func__);
   edge_symmetry_map = MEM_malloc_arrayN<int>(bm->totedge, __func__);
@@ -415,12 +416,12 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
   BM_ITER_MESH_INDEX (e, &iter, bm, BM_EDGES_OF_MESH, i) {
     float co[3];
     mid_v3_v3v3(co, e->v1->co, e->v2->co);
-    BLI_kdtree_3d_insert(tree, i, co);
+    blender::kdtree_3d_insert(tree, i, co);
     etable[i] = e;
     edge_symmetry_map[i] = -1;
   }
 
-  BLI_kdtree_3d_balance(tree);
+  blender::kdtree_3d_balance(tree);
 
   sym_data.etable = etable;
   sym_data.limit_sq = limit_sq;
@@ -438,7 +439,7 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
       sub_v3_v3v3(sym_data.e_dir, sym_data.e_v2_co, sym_data.e_v1_co);
       sym_data.e_found_index = -1;
 
-      BLI_kdtree_3d_range_search_cb(tree, co, limit, bm_edge_symmetry_check_cb, &sym_data);
+      blender::kdtree_3d_range_search_cb(tree, co, limit, bm_edge_symmetry_check_cb, &sym_data);
 
       if (sym_data.e_found_index != -1) {
         const int i_other = sym_data.e_found_index;
@@ -449,7 +450,7 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
   }
 
   MEM_freeN(etable);
-  BLI_kdtree_3d_free(tree);
+  blender::kdtree_3d_free(tree);
 
   return edge_symmetry_map;
 }
@@ -1053,7 +1054,7 @@ static bool bm_edge_collapse(BMesh *bm,
     }
 #endif
 
-    // BM_mesh_validate(bm);
+    // BM_mesh_is_valid(bm);
 
     return true;
   }
@@ -1109,7 +1110,7 @@ static bool bm_edge_collapse(BMesh *bm,
     }
 #endif
 
-    // BM_mesh_validate(bm);
+    // BM_mesh_is_valid(bm);
 
     return true;
   }
@@ -1523,7 +1524,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
   BLI_heap_free(eheap, nullptr);
 
   /* testing only */
-  // BM_mesh_validate(bm);
+  // BM_mesh_is_valid(bm);
 
   /* quiet release build warning */
   (void)tot_edge_orig;

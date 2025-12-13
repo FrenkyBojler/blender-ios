@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_rect.h"
+#include "BLI_string.h"
 
 #include "DNA_fluid_types.h"
 
@@ -67,10 +68,12 @@ class Instance : public DrawEngine {
   /* Used to detect any scene data update. */
   uint64_t depsgraph_last_update_ = 0;
 
+  const char *hair_buffer_overflow_error_ = nullptr;
+
  public:
   const DRWContext *draw_ctx = nullptr;
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "Workbench";
   }
@@ -117,6 +120,8 @@ class Instance : public DrawEngine {
     outline_ps_.sync(resources_);
     dof_ps_.sync(resources_, this->draw_ctx);
     anti_aliasing_ps_.sync(scene_state_, resources_);
+
+    hair_buffer_overflow_error_ = nullptr;
   }
 
   void end_sync() final
@@ -351,7 +356,7 @@ class Instance : public DrawEngine {
     if (object_state.use_per_material_batches) {
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, features)) {
         Material mat = this->get_material(ob_ref, object_state.color_type, batch.material_slot);
-        if (SCULPT_DEBUG_DRAW) {
+        if (scene_state_.show_paint_bvh_debug) {
           mat.base_color = batch.debug_color();
         }
 
@@ -367,7 +372,7 @@ class Instance : public DrawEngine {
     else {
       Material mat = this->get_material(ob_ref, object_state.color_type);
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, features)) {
-        if (SCULPT_DEBUG_DRAW) {
+        if (scene_state_.show_paint_bvh_debug) {
           mat.base_color = batch.debug_color();
         }
 
@@ -429,7 +434,12 @@ class Instance : public DrawEngine {
 
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass = mesh_pass.get_subpass(eGeometryType::CURVES).sub("Curves SubPass");
-      gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object);
+
+      const char *error = nullptr;
+      gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object, error);
+      if (error) {
+        hair_buffer_overflow_error_ = error;
+      }
       pass.draw(batch, handle, material_index);
     });
   }
@@ -478,7 +488,7 @@ class Instance : public DrawEngine {
                                id_attachment);
     resources_.clear_fb.bind();
     float4 clear_colors[2] = {scene_state_.background_color, float4(0.0f)};
-    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float(*)[4]>(clear_colors));
+    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float (*)[4]>(clear_colors));
     GPU_framebuffer_clear_depth_stencil(resources_.clear_fb, 1.0f, 0x00);
 
     opaque_ps_.draw(
@@ -503,6 +513,13 @@ class Instance : public DrawEngine {
 
     if (scene_state_.sample + 1 < scene_state_.samples_len) {
       DRW_viewport_request_redraw();
+    }
+
+    if (hair_buffer_overflow_error_) {
+      STRNCPY(info, hair_buffer_overflow_error_);
+    }
+    else {
+      STRNCPY(info, "");
     }
   }
 
@@ -535,6 +552,10 @@ class Instance : public DrawEngine {
 
     BLI_assert(scene_state_.sample == 0);
     for (auto i : IndexRange(scene_state_.samples_len)) {
+      if (hair_buffer_overflow_error_) {
+        RE_engine_set_error_message(engine, hair_buffer_overflow_error_);
+      }
+
       if (engine && RE_engine_test_break(engine)) {
         break;
       }

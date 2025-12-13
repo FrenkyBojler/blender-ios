@@ -56,7 +56,8 @@
  * - When loading old files that don't contain newly added struct members (these will be zeroed)
  *   to set their values use `versioning_{BLENDER_VERSION}.c` source files.
  * - For startup file data, to update these defaults use
- *   #BLO_update_defaults_startup_blend & #blo_do_versions_userdef.
+ *   #BLO_update_defaults_startup_blend, #blo_do_versions_userdef, and #U_default or
+ *   #U_theme_default.
  */
 
 #define DNA_DEPRECATED_ALLOW
@@ -97,6 +98,7 @@
 #include "DNA_layer_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
+#include "DNA_lineart_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
@@ -530,6 +532,7 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL_EX(UserDef_SpaceData, UserDef.space_data),
     SDNA_DEFAULT_DECL_EX(UserDef_FileSpaceData, UserDef.file_space_data),
     SDNA_DEFAULT_DECL_EX(WalkNavigation, UserDef.walk_navigation),
+    SDNA_DEFAULT_DECL_EX(XrNavigation, UserDef.xr_navigation),
     SDNA_DEFAULT_DECL(bUserAssetLibrary),
     SDNA_DEFAULT_DECL(bUserExtensionRepo),
     SDNA_DEFAULT_DECL(bUserAssetShelfSettings),

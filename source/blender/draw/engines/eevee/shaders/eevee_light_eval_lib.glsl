@@ -15,7 +15,7 @@
  * - utility_tx
  */
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_light_data)
 
@@ -34,6 +34,10 @@ SHADER_LIBRARY_CREATE_INFO(eevee_light_data)
 #  define PIXEL gl_FragCoord.xy
 #elif defined(GPU_LIBRARY_SHADER)
 #  define PIXEL float2(0)
+#endif
+
+#ifdef GLSL_CPP_STUBS
+#  define LIGHT_CLOSURE_EVAL_COUNT 3
 #endif
 
 #if !defined(LIGHT_CLOSURE_EVAL_COUNT)

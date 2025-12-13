@@ -23,7 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -31,7 +31,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_workspace.hh"
 
 #include "WM_api.hh"
@@ -662,7 +662,7 @@ static void region_cursor_set(wmWindow *win, bool swin_changed)
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
-  /* Don't touch cursor if something else is controling it, like button handling. See #51739. */
+  /* Don't touch cursor if something else is controlling it, like button handling. See #51739. */
   if (win->grabcursor) {
     return;
   }
@@ -832,7 +832,7 @@ static void screen_refresh_if_needed(bContext *C, wmWindowManager *wm, wmWindow 
     }
 
     /* Called even when creating the ghost window fails in #WM_window_open. */
-    if (win->ghostwin) {
+    if (win->runtime->ghostwin) {
       /* Header size depends on DPI, let's verify. */
       WM_window_dpi_set_userdef(win);
     }
@@ -886,8 +886,8 @@ void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
     }
 
     ED_screen_refresh(C, wm, win);
-    if (win->eventstate) {
-      ED_screen_set_active_region(nullptr, win, win->eventstate->xy);
+    if (win->runtime->eventstate) {
+      ED_screen_set_active_region(nullptr, win, win->runtime->eventstate->xy);
     }
   }
 
@@ -929,7 +929,7 @@ void ED_region_exit(bContext *C, ARegion *region)
 
   /* Stop panel animation in this region if there are any. */
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    UI_panel_stop_animation(C, panel);
+    blender::ui::panel_stop_animation(C, panel);
   }
 
   if (region->regiontype == RGN_TYPE_TEMPORARY) {
@@ -1073,6 +1073,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
     else if (az->type == AZONE_REGION_SCROLL) {
       WM_cursor_set(win, WM_CURSOR_DEFAULT);
     }
+    else if (az->type == AZONE_REGION_QUAD) {
+      WM_cursor_set(win, WM_CURSOR_NSEW_SCROLL);
+    }
     else if (az->type == AZONE_REGION) {
       if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
         WM_cursor_set(win, WM_CURSOR_X_MOVE);
@@ -1195,7 +1198,7 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
        * because it can undo setting the right button as active due
        * to delayed notifier handling. */
       if (C) {
-        UI_screen_free_active_but_highlight(C, screen);
+        blender::ui::UI_screen_free_active_but_highlight(C, screen);
       }
     }
   }
@@ -1208,7 +1211,7 @@ int ED_screen_area_active(const bContext *C)
   ScrArea *area = CTX_wm_area(C);
 
   if (win && screen && area) {
-    AZone *az = ED_area_actionzone_find_xy(area, win->eventstate->xy);
+    AZone *az = ED_area_actionzone_find_xy(area, win->runtime->eventstate->xy);
 
     if (az && az->type == AZONE_REGION) {
       return 1;
@@ -1383,11 +1386,11 @@ void screen_change_prepare(
      * On the other hand this is a rare occurrence, script developers will often show errors
      * in a console too, so it's not such a priority to relocate these to the new screen.
      * See: #144958. */
-    UI_popup_handlers_remove_all(C, &win->modalhandlers);
+    blender::ui::popup_handlers_remove_all(C, &win->runtime->modalhandlers);
 
     /* remove handlers referencing areas in old screen */
     LISTBASE_FOREACH (ScrArea *, area, &screen_old->areabase) {
-      WM_event_remove_handlers_by_area(&win->modalhandlers, area);
+      WM_event_remove_handlers_by_area(&win->runtime->modalhandlers, area);
     }
 
     /* we put timer to sleep, so screen_exit has to think there's no timer */
@@ -1453,32 +1456,40 @@ static void screen_set_3dview_camera(Scene *scene,
                                      ScrArea *area,
                                      View3D *v3d)
 {
-  /* fix any cameras that are used in the 3d view but not in the scene */
+  /* Fix any cameras that are used in the 3d view but not in the scene. */
   BKE_screen_view3d_sync(v3d, scene);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   if (!v3d->camera || !BKE_view_layer_base_find(view_layer, v3d->camera)) {
     v3d->camera = BKE_view_layer_camera_find(scene, view_layer);
-    // XXX if (screen == curscreen) handle_view3d_lock();
+  }
+  ListBase *regionbase;
+
+  /* regionbase is in different place depending if space is active. */
+  if (v3d == area->spacedata.first) {
+    regionbase = &area->regionbase;
+  }
+  else {
+    regionbase = &v3d->regionbase;
+  }
+
+  LISTBASE_FOREACH (ARegion *, region, regionbase) {
+    if (region->regiontype != RGN_TYPE_WINDOW) {
+      continue;
+    }
+    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+    /* Keep the information about RV3D_CAMOB even when no camera can be found.
+     * This prevents jumping off the camera view while scrubbing through the
+     * Sequencer with some Scene strips without scene. */
     if (!v3d->camera) {
-      ListBase *regionbase;
-
-      /* regionbase is in different place depending if space is active */
-      if (v3d == area->spacedata.first) {
-        regionbase = &area->regionbase;
+      if (rv3d->persp == RV3D_CAMOB) {
+        rv3d->persp = RV3D_PERSP;
+        rv3d->rflag |= RV3D_WAS_CAMOB;
       }
-      else {
-        regionbase = &v3d->regionbase;
-      }
-
-      LISTBASE_FOREACH (ARegion *, region, regionbase) {
-        if (region->regiontype == RGN_TYPE_WINDOW) {
-          RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-          if (rv3d->persp == RV3D_CAMOB) {
-            rv3d->persp = RV3D_PERSP;
-          }
-        }
-      }
+    }
+    else if ((rv3d->rflag & RV3D_WAS_CAMOB) != 0) {
+      rv3d->persp = RV3D_CAMOB;
+      rv3d->rflag &= ~RV3D_WAS_CAMOB;
     }
   }
 }
@@ -1664,6 +1675,8 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
   if (toggle_area) {
     ED_area_data_swap(newa, toggle_area);
     newa->flag = toggle_area->flag; /* mostly for AREA_FLAG_WASFULLSCREEN */
+    newa->quadview_ratio[0] = toggle_area->quadview_ratio[0];
+    newa->quadview_ratio[1] = toggle_area->quadview_ratio[1];
   }
 
   if (state == SCREENFULL) {
@@ -1755,7 +1768,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
      * switching screens with tooltip open because region and tooltip
      * are no longer in the same screen */
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      UI_blocklist_free(C, region);
+      blender::ui::blocklist_free(C, region);
       if (region->runtime->regiontimer) {
         WM_event_timer_remove(wm, nullptr, region->runtime->regiontimer);
         region->runtime->regiontimer = nullptr;
@@ -1847,6 +1860,8 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
     if (fullsa) {
       ED_area_data_swap(fullsa, area);
       ED_area_tag_refresh(fullsa);
+      fullsa->quadview_ratio[0] = area->quadview_ratio[0];
+      fullsa->quadview_ratio[1] = area->quadview_ratio[1];
     }
 
     /* animtimer back */

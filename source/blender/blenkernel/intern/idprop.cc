@@ -150,6 +150,21 @@ static void idp_group_children_map_ensure(IDProperty &prop)
   }
 }
 
+static int idp_resize_grow_size_calc(const int newsize)
+{
+  /* NOTE: This code comes from python, here's the corresponding comment. */
+  /* This over-allocates proportional to the list size, making room
+   * for additional growth. The over-allocation is mild, but is
+   * enough to give linear-time amortized behavior over a long
+   * sequence of appends() in the presence of a poorly-performing
+   * system realloc().
+   * The growth pattern is:  0, 4, 8, 16, 25, 35, 46, 58, 72, 88, ...
+   */
+  int64_t newsize_test = newsize;
+  newsize_test = (newsize_test >> 3) + (newsize_test < 9 ? 3 : 6) + newsize_test;
+  return int(std::min<int64_t>(newsize_test, std::numeric_limits<int>::max()));
+}
+
 void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
 {
   BLI_assert(prop->type == IDP_IDPARRAY);
@@ -158,7 +173,7 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
   if (newlen <= prop->totallen) {
     if (newlen < prop->len && prop->totallen - newlen < IDP_ARRAY_REALLOC_LIMIT) {
       for (int i = newlen; i < prop->len; i++) {
-        IDP_FreePropertyContent(GETPROP(prop, i));
+        IDP_ClearProperty(GETPROP(prop, i));
       }
 
       prop->len = newlen;
@@ -174,20 +189,11 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
   if (newlen < prop->len) {
     /* newlen is smaller */
     for (int i = newlen; i < prop->len; i++) {
-      IDP_FreePropertyContent(GETPROP(prop, i));
+      IDP_ClearProperty(GETPROP(prop, i));
     }
   }
 
-  /* NOTE: This code comes from python, here's the corresponding comment. */
-  /* This over-allocates proportional to the list size, making room
-   * for additional growth. The over-allocation is mild, but is
-   * enough to give linear-time amortized behavior over a long
-   * sequence of appends() in the presence of a poorly-performing
-   * system realloc().
-   * The growth pattern is:  0, 4, 8, 16, 25, 35, 46, 58, 72, 88, ...
-   */
-  int newsize = newlen;
-  newsize = (newsize >> 3) + (newsize < 9 ? 3 : 6) + newsize;
+  const int newsize = idp_resize_grow_size_calc(newlen);
   prop->data.pointer = MEM_recallocN(prop->data.pointer, sizeof(IDProperty) * size_t(newsize));
   prop->len = newlen;
   prop->totallen = newsize;
@@ -228,17 +234,7 @@ void IDP_ResizeArray(IDProperty *prop, int newlen)
     return;
   }
 
-  /* NOTE: This code comes from python, here's the corresponding comment. */
-  /* This over-allocates proportional to the list size, making room
-   * for additional growth.  The over-allocation is mild, but is
-   * enough to give linear-time amortized behavior over a long
-   * sequence of appends() in the presence of a poorly-performing
-   * system realloc().
-   * The growth pattern is:  0, 4, 8, 16, 25, 35, 46, 58, 72, 88, ...
-   */
-  int newsize = newlen;
-  newsize = (newsize >> 3) + (newsize < 9 ? 3 : 6) + newsize;
-
+  const int newsize = idp_resize_grow_size_calc(newlen);
   if (is_grow == false) {
     idp_resize_group_array(prop, newlen, prop->data.pointer);
   }

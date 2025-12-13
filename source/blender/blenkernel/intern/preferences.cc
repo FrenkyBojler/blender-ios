@@ -63,7 +63,9 @@ bUserAssetLibrary *BKE_preferences_asset_library_add(UserDef *userdef,
   bUserAssetLibrary *library = DNA_struct_default_alloc(bUserAssetLibrary);
 
   BLI_addtail(&userdef->asset_libraries, library);
-
+  if (userdef->experimental.no_data_block_packing) {
+    library->import_method = ASSET_IMPORT_APPEND_REUSE;
+  }
   if (name) {
     BKE_preferences_asset_library_name_set(userdef, library, name);
   }
@@ -213,6 +215,9 @@ bUserExtensionRepo *BKE_preferences_extension_repo_add(UserDef *userdef,
 
 void BKE_preferences_extension_repo_remove(UserDef *userdef, bUserExtensionRepo *repo)
 {
+  if (repo->access_token) {
+    MEM_freeN(repo->access_token);
+  }
   BLI_freelinkN(&userdef->extension_repos, repo);
 }
 

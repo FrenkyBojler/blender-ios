@@ -9,9 +9,11 @@
  * Some render-pass are written during this pass.
  */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_geom_infos.hh"
+#include "infos/eevee_nodetree_infos.hh"
+#include "infos/eevee_surf_deferred_infos.hh"
 
-FRAGMENT_SHADER_CREATE_INFO(eevee_node_tree)
+FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_deferred)
 FRAGMENT_SHADER_CREATE_INFO(eevee_render_pass_out)
@@ -19,7 +21,6 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 
 #include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "eevee_ambient_occlusion_lib.glsl"
 #include "eevee_gbuffer_write_lib.glsl"
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
@@ -113,7 +114,6 @@ void main()
         cryptomatte_object_buf[drw_resource_id()], node_tree.crypto_hash, 0.0f);
     imageStoreFast(rp_cryptomatte_img, out_texel, cryptomatte_output);
   }
-  output_renderpass_color(uniform_buf.render_pass.position_id, float4(g_data.P, 1.0f));
   output_renderpass_color(uniform_buf.render_pass.emission_id, float4(g_emission, 1.0f));
 #endif
 
@@ -138,7 +138,7 @@ void main()
   out_gbuf_normal = gbuf.normal[0];
 
   /* Output remaining closures using image store. */
-#if GBUFFER_LAYER_MAX >= 2
+#if GBUFFER_LAYER_MAX >= 2 && !defined(GBUFFER_SIMPLE_CLOSURE_LAYOUT)
   if (flag_test(gbuf.used_layers, CLOSURE_DATA_2)) {
     write_closure_data(out_texel, 2, gbuf.closure[2]);
   }

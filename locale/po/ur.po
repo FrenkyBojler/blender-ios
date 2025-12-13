@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'68bccbaeeefe')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-15 07:14+0000\n"
+"POT-Creation-Date: 2025-12-08 10:32+0000\n"
 "PO-Revision-Date: 2025-07-23 15:12+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Urdu <https://translate.blender.org/projects/blender-ui/ui/ur/>\n"
@@ -65,10 +65,6 @@ msgstr "ﮟﯿﻤﺧ-ﻑ"
 
 msgid "Slot"
 msgstr "ﭦﻼ﻿ﺳ"
-
-
-msgid "Action F-Curves"
-msgstr "ﮟﯿﻤﺧ-ﻑ ﻡﺍﺪﻗﺍ"
 
 
 msgid "Action Group"
@@ -237,14 +233,6 @@ msgstr "ﮯﮨ ﺎﯿﮔ ﺎﯾﺎﮬﮍﺑ ﻮﮐ ﮦﻭﺮﮔ ﻡﺍﺪﻗﺍ 
 
 msgid "Pin in Graph Editor"
 msgstr "ﮟﯾﺮﮐ ﻦﭘ ﮟﯿﻣ ﺮﭩﯾﮉﯾﺍ ﻑﺍﺮﮔ"
-
-
-msgid "Action Groups"
-msgstr "ﮦﻭﺮﮔ ﻡﺍﺪﻗﺍ"
-
-
-msgid "Collection of action groups"
-msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮦﻭﺮﮔ ﻡﺍﺪﻗﺍ"
 
 
 msgid "Strips"
@@ -622,10 +610,6 @@ msgid "Show only hotkeys that have this text in their name"
 msgstr "ﻮﮨ ﻦﺘﻣ ﮧﯾ ﮟﯿﻣ ﻡﺎﻧ ﮯﮐ ﻦﺟ ﮟﯿﺋﺎﮭﮐﺩ ﺰﯿﮑﭨﺎﮨ ﮦﻭ ﻑﺮﺻ"
 
 
-msgid "Hide Mix nodes"
-msgstr "ﺱﮈﻮﻧ ﺲﮑﻣ ﮟﯿﺋﺎﭙﮭﭼ"
-
-
 msgid "When merging nodes with the Ctrl+Numpad0 hotkey (and similar) specify whether to collapse them or show the full node with options expanded"
 msgstr "ﮯﮨ ﺎﻧﺎﮭﮐﺩ ﮫﺗﺎﺳ ﮯﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮦﺪﺷ ﻊﯿﺳﻮﺗ ﻮﮐ ﮈﻮﻧ ﻞﻤﮑﻣ ﺎﯾ ﮯﮨ ﺎﻨﭩﻤﺳ ﮟﯿﮩﻧﺍ ﺎﯾﺁ ﮧﮐ ﮟﯾﺮﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﺕﺎﺑ ﺱﺍ ﺖﻗﻭ ﮯﺗﺮﮐ ﻢﺿ ﮫﺗﺎﺳ ﮯﮐ (ﺡﺮﻃ ﯽﺳﺍ ﺭﻭﺍ) ﯽﮑﭨﺎﮨ Ctrl+Numpad0 ﻮﮐ ﺱﮈﻮﻧ"
 
@@ -684,14 +668,6 @@ msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﭧﺴﻟ ﯽﮑﭨﺎﮨ"
 
 msgid "Expand this box into a list of all the hotkeys for functions in this addon"
 msgstr "ﮟﯿﺋﻼ﻿ﯿﮭﭘ ﻮﮐ ﺲﮐﺎﺑ ﺱﺍ ﮟﯿﻣ ﺖﺳﺮﮩﻓ ﯽﮐ ﺰﯿﮑﭨﺎﮨ ﻡﺎﻤﺗ ﮯﯿﻟ ﮯﮐ ﺰﻨﺸﮑﻨﻓ ﮟﯿﻣ ﻥﻭﮉﯾﺍ ﺱﺍ"
-
-
-msgid "Show Principled naming tags"
-msgstr "ﺰﮕﯿﭨ ﻡﺎﻧ ﯽﻟﻮﺻﺍ ﮟﯿﺋﺎﮭﮐﺩ"
-
-
-msgid "Expand this box into a list of all naming tags for principled texture setup"
-msgstr "ﮟﯿﺋﻼ﻿ﯿﮭﭘ ﮟﯿﻣ ﺖﺳﺮﮩﻓ ﯽﮐ ﺰﮕﯿﭨ ﮯﮐ ﮞﻮﻣﺎﻧ ﻡﺎﻤﺗ ﻮﮐ ﺲﮐﺎﺑ ﺱﺍ ﮯﯿﻟ ﮯﮐ ﭖﺍ ﭧﯿﺳ ﮯﮐ ﺖﺧﺎﺳ ﯽﻟﻮﺻﺍ"
 
 
 msgid "Fribidi Library"
@@ -1418,10 +1394,6 @@ msgid "Video Sequencer"
 msgstr "ﺮﺴﻨﯾﻮﮑﯿﺳ ﻮﯾﮉﯾﻭ"
 
 
-msgid "Video editing tools"
-msgstr "ﺰﻟﻮﭨ ﺐﺗﺮﻣ  ﻮﯾﮉﯾﻭ"
-
-
 msgid "Movie Clip Editor"
 msgstr "ﺮﭩﯾﮉﯾﺍ ﭗﻠﮐ ﯼﻭﻮﻣ"
 
@@ -1608,10 +1580,6 @@ msgstr "ﻥﻮﺑ ﭧﯾﮉﯾﺍ ﻝﺎﻌﻓ"
 
 msgid "Armatures active edit bone"
 msgstr "ﯼﮉﮨ ﺮﺋﺎﻔﯾﮈﻮﻣ ﻝﺎﻌﻓ ﺮﭽﯿﻣﺭﺁ"
-
-
-msgid "Catalog Path"
-msgstr "ﮧﺘﺳﺍﺭ ﺎﮐ ﮒﻼ﻿ﭩﯿﮐ"
 
 
 msgid "User Asset Libraries"
@@ -1855,8 +1823,276 @@ msgid "Space Type"
 msgstr "ﻢﺴﻗ ﯽﺋﻼ﻿ﺧ"
 
 
-msgid "The space where the asset shelf is going to be used in"
-msgstr "ﮯﮨ ﺎﮨﺭ ﺎﺟ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﻒﻠﯿﺷ ﮧﺛﺎﺛﺍ ﮞﺎﮩﺟ ﮧﮕﺟ ﮦﻭ"
+msgid "Actions"
+msgstr "ﻝﺎﻤﻋﺍ"
+
+
+msgid "Show Action data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻡﺍﺪﻗﺍ"
+
+
+msgid "Annotations"
+msgstr "ﺕﺎﺤﯾﺮﺸﺗ"
+
+
+msgid "Armatures"
+msgstr "ﺯﺮﭽﻣﺭﺁ"
+
+
+msgid "Show Armature data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﭽﻣﺭﺁ"
+
+
+msgid "Brushes"
+msgstr "ﺵﺮﺑ"
+
+
+msgid "Show Brushes data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺵﺮﺑ"
+
+
+msgid "Cache Files"
+msgstr "ﺰﻠﺋﺎﻓ ﮯﺸﯿﮐ"
+
+
+msgid "Show Cache File data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﺋﺎﻓ ﺶﯿﮐ"
+
+
+msgid "Cameras"
+msgstr "ﮮﺮﻤﯿﮐ"
+
+
+msgid "Show Camera data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﺮﻤﯿﮐ"
+
+
+msgid "Curves"
+msgstr "ﮟﯿﻤﺧ"
+
+
+msgid "Show Curve data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻢﺧ"
+
+
+msgid "Hair Curves"
+msgstr "ﺭﺎﺗ  ﮟﯿﻤﺧ ﮯﮐ ﮞﻮﻟﺎﺑ"
+
+
+msgid "Show/hide Curves data-blocks"
+msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ  ﻢﺧ"
+
+
+msgid "Fonts"
+msgstr "ﺲﭩﻧﻮﻓ"
+
+
+msgid "Show Font data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﻧﻮﻓ"
+
+
+msgid "Grease Pencil"
+msgstr "Grease Pencil"
+
+
+msgid "Collections"
+msgstr "ﮯﻋﻮﻤﺠﻣ"
+
+
+msgid "Show Collection data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮯﻟﺍﻭ ﮯﻧﺮﮐ ﻊﻤﺟ"
+
+
+msgid "Images"
+msgstr "ﺰﺠﯿﻣﺍ"
+
+
+msgid "Show Image data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯼﺮﯾﻮﺼﺗ"
+
+
+msgid "Lattices"
+msgstr "ﮞﻮﯿﻟﺎﺟ"
+
+
+msgid "Show Lattice data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯽﻟﺎﺟ"
+
+
+msgid "Lights"
+msgstr "ﺲﭩﺋﻻ﻿"
+
+
+msgid "Show Light data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺋﻻ﻿"
+
+
+msgid "Light Probes"
+msgstr "ﺕﺎﻘﯿﻘﺤﺗ ﯽﮑﻠﮨ"
+
+
+msgid "Show Light Probe data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺏﻭﺮﭘ ﭧﺋﻻ﻿"
+
+
+msgid "Freestyle Linestyles"
+msgstr "ﻞﺋﺎﭩﺳﺍ ﻦﺋﻻ﻿ ﻞﺋﺎﭩﺳﺍ ﯼﺮﻓ"
+
+
+msgid "Show Freestyle's Line Style data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﺋﺎﭩﺳﺍ ﻦﺋﻻ﻿ ﮯﮐ ﻞﺋﺎﭩﺳﺍ ﯼﺮﻓ"
+
+
+msgid "Masks"
+msgstr "ﮏﺳﺎﻣ"
+
+
+msgid "Show Mask data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮏﺳﺎﻣ"
+
+
+msgid "Materials"
+msgstr "ﺩﺍﻮﻣ"
+
+
+msgid "Show Material data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﯾﺮﭩﯿﻣ"
+
+
+msgid "Meshes"
+msgstr "ﺲﺸﯿﻣ"
+
+
+msgid "Show Mesh data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺶﯿﻣ"
+
+
+msgid "Metaballs"
+msgstr "ﺰﻟﺎﺑ ﺎﭩﯿﻣ"
+
+
+msgid "Show Metaball data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻝﺎﺑ ﺎﭩﯿﻣ"
+
+
+msgid "Movie Clips"
+msgstr "ﺲﭙﻠﮐ ﯼﻭﻮﻣ"
+
+
+msgid "Show Movie Clip data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭗﻠﮐ ﯼﻭﻮﻣ"
+
+
+msgid "Node Trees"
+msgstr "ﺖﺧﺭﺩ ﮈﻮﻧ"
+
+
+msgid "Show Node Tree data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯼﺮﭨ ﮈﻮﻧ"
+
+
+msgid "Objects"
+msgstr "ءﺎﯿﺷﺍ"
+
+
+msgid "Show Object data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺰﯿﭼ"
+
+
+msgid "Paint Curves"
+msgstr "ﺭﺎﺗ  ﮟﯿﻤﺧ ﭧﻨﯿﭘ"
+
+
+msgid "Show Paint Curve data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﺑ ﭧﻨﯿﭘ"
+
+
+msgid "Palettes"
+msgstr "ﺲﭩﯿﻠﯿﭘ"
+
+
+msgid "Show Palette data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﯿﻠﯿﭘ"
+
+
+msgid "Particles Settings"
+msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﺕﺍﺭﺫ"
+
+
+msgid "Show Particle Settings data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺰﮕﻨﭩﯿﺳ ﻞﮑﯿﭨﺭﺎﭘ"
+
+
+msgid "Point Clouds"
+msgstr "ﺯﮈﺅﻼ﻿ﮐ ﭧﻨﺋﺍﻮﭘ"
+
+
+msgid "Show/hide Point Cloud data-blocks"
+msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮈﺅﻼ﻿ﮐ ﭧﻨﺋﺍﻮﭘ"
+
+
+msgid "Scenes"
+msgstr "ﺮﻇﺎﻨﻣ"
+
+
+msgid "Show Scene data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﻈﻨﻣ"
+
+
+msgid "Sounds"
+msgstr "ﮟﯾﺯﺍﻭﺁ"
+
+
+msgid "Show Sound data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮉﻧﺅﺎﺳ"
+
+
+msgid "Speakers"
+msgstr "ﻦﯾﺭﺮﻘﻣ"
+
+
+msgid "Show Speaker data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﮑﯿﭙﺳﺍ"
+
+
+msgid "Texts"
+msgstr "ﻦﺘﻣ"
+
+
+msgid "Show Text data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺴﮑﯿﭨ"
+
+
+msgid "Textures"
+msgstr "ﭦﻭﺎﻨﺑ"
+
+
+msgid "Show Texture data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﭽﺴﮑﯿﭨ"
+
+
+msgid "Volumes"
+msgstr "ﮟﯾﺪﻠﺟ"
+
+
+msgid "Show/hide Volume data-blocks"
+msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻢﺠﺣ"
+
+
+msgid "Workspaces"
+msgstr "ﮟﯿﮩﮕﺟ ﯽﮐ ﻡﺎﮐ"
+
+
+msgid "Show workspace data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺲﯿﭙﺳﺍ ﮎﺭﻭ"
+
+
+msgid "Worlds"
+msgstr "ﮞﺅﺎﯿﻧﺩ"
+
+
+msgid "Show World data-blocks"
+msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮉﻟﺭﻭ"
 
 
 msgid "Preview Size"
@@ -1939,6 +2175,14 @@ msgid "32-bit integer"
 msgstr "ﺮﺠﯿﭩﻧﺍ ﭧﺑ 32"
 
 
+msgid "Boolean"
+msgstr "ﻦﯿﻟﻮﺑ"
+
+
+msgid "True or false"
+msgstr "ﻂﻠﻏ ﺎﯾ ﺢﯿﺤﺻ"
+
+
 msgid "Vector"
 msgstr "ﺮﭩﮑﯾﻭ"
 
@@ -1951,12 +2195,20 @@ msgid "RGBA color with 32-bit floating-point values"
 msgstr "ﮓﻧﺭ  ﮮﺍ ﯽﺑ ﯽﺟ ﺭﺁ  ﮫﺗﺎﺳ ﮯﮐ ﺯﻮﯿﻠﯾﻭ ﭧﻨﺋﺍﻮﭘ ﮓﻨﭨﻮﻠﻓ ﭧﺑ 32"
 
 
-msgid "Byte Color"
-msgstr "ﺮﻠﮐ ﭧﺋﺎﺑ"
+msgid "Quaternion"
+msgstr "ﯼﮍﮐﻮﭼ"
 
 
-msgid "RGBA color with 8-bit positive integer values"
-msgstr "ﮓﻧﺭ  ﮮﺍ ﯽﺑ ﯽﺟ ﺭﺁ  ﮫﺗﺎﺳ ﮯﮐ ﺭﺍﺪﻗﺍ ﯼﺩﺪﻋ ﺖﺒﺜﻣ ﭧﺑ 8"
+msgid "Floating point quaternion rotation"
+msgstr "ﺵﺩﺮﮔ ﻦﺌﯿﻧﺮﭨﺍﻮﮐ ﭧﻨﺋﺍﻮﭘ ﮓﻨﭨﻮﻠﻓ"
+
+
+msgid "4x4 Matrix"
+msgstr "4x4 ﺲﮐﺮﭩﯿﻣ"
+
+
+msgid "Floating point matrix"
+msgstr "Floating ﺲﮐﺮﭩﯿﻣ ﮧﻄﻘﻧ"
 
 
 msgid "String"
@@ -1965,22 +2217,6 @@ msgstr "ﮓﻧﺮﭩﺳﺍ"
 
 msgid "Text string"
 msgstr "ﮓﻧﺮﭩﺳﺍ ﯽﮐ ﻦﺘﻣ"
-
-
-msgid "Boolean"
-msgstr "ﻦﯿﻟﻮﺑ"
-
-
-msgid "True or false"
-msgstr "ﻂﻠﻏ ﺎﯾ ﺢﯿﺤﺻ"
-
-
-msgid "2D Vector"
-msgstr "2D ﺮﭩﮑﯾﻭ"
-
-
-msgid "2D vector with floating-point values"
-msgstr "ﺮﭩﮑﯾﻭ 2D ﮫﺗﺎﺳ ﮯﮐ ﺯﻮﯿﻠﯾﻭ ﭧﻨﺋﺍﻮﭘ ﮓﻨﭨﻮﻠﻓ"
 
 
 msgid "8-Bit Integer"
@@ -1999,20 +2235,20 @@ msgid "32-bit signed integer vector"
 msgstr "ﺮﭩﮑﯾﻭ ﺮﺠﯿﭩﻧﺍ ﮦﺪﺷ ﻂﺨﺘﺳﺩ ﺮﭘ ﭧﺑ 32"
 
 
-msgid "Quaternion"
-msgstr "ﯼﮍﮐﻮﭼ"
+msgid "2D Vector"
+msgstr "2D ﺮﭩﮑﯾﻭ"
 
 
-msgid "Floating point quaternion rotation"
-msgstr "ﺵﺩﺮﮔ ﻦﺌﯿﻧﺮﭨﺍﻮﮐ ﭧﻨﺋﺍﻮﭘ ﮓﻨﭨﻮﻠﻓ"
+msgid "2D vector with floating-point values"
+msgstr "ﺮﭩﮑﯾﻭ 2D ﮫﺗﺎﺳ ﮯﮐ ﺯﻮﯿﻠﯾﻭ ﭧﻨﺋﺍﻮﭘ ﮓﻨﭨﻮﻠﻓ"
 
 
-msgid "4x4 Matrix"
-msgstr "4x4 ﺲﮐﺮﭩﯿﻣ"
+msgid "Byte Color"
+msgstr "ﺮﻠﮐ ﭧﺋﺎﺑ"
 
 
-msgid "Floating point matrix"
-msgstr "Floating ﺲﮐﺮﭩﯿﻣ ﮧﻄﻘﻧ"
+msgid "RGBA color with 8-bit positive integer values"
+msgstr "ﮓﻧﺭ  ﮮﺍ ﯽﺑ ﯽﺟ ﺭﺁ  ﮫﺗﺎﺳ ﮯﮐ ﺭﺍﺪﻗﺍ ﯼﺩﺪﻋ ﺖﺒﺜﻣ ﭧﺑ 8"
 
 
 msgid "Domain"
@@ -2555,6 +2791,10 @@ msgid "Add direct lighting contribution"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻥﻭﺎﻌﺗ ﺎﮐ ﯽﻨﺷﻭﺭ ﺖﺳﺍﺭ ﮦﺍﺮﺑ"
 
 
+msgid "Emission"
+msgstr "ﺝﺍﺮﺧﺍ"
+
+
 msgid "Add emission contribution"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺖﮐﺍﺮﺷ ﯽﮐ ﺝﺍﺮﺧﺍ"
 
@@ -2727,10 +2967,6 @@ msgid "Main data structure representing a .blend file and all its data-blocks"
 msgstr "ﮧﭽﻧﺎﮬﮈ ﺎﭩﯾﮈ ﯼﺰﮐﺮﻣ ﻻ﻿ﺍﻭ ﮯﻧﺮﮐ ﯽﮔﺪﻨﺋﺎﻤﻧ ﯽﮐ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻡﺎﻤﺗ ﮯﮐ ﺱﺍ ﺭﻭﺍ ﻞﺋﺎﻓ blend. ﮏﯾﺍ"
 
 
-msgid "Actions"
-msgstr "ﻝﺎﻤﻋﺍ"
-
-
 msgid "Action data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻡﺍﺪﻗﺍ"
 
@@ -2743,40 +2979,20 @@ msgid "Annotation data-blocks (legacy Grease Pencil)"
 msgstr "(Grease Pencil ﯽﺴﯿﮕﯿﻟ) ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯽﺤﯾﺮﺸﺗ"
 
 
-msgid "Armatures"
-msgstr "ﺯﺮﭽﻣﺭﺁ"
-
-
 msgid "Armature data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﭽﻣﺭﺁ"
-
-
-msgid "Brushes"
-msgstr "ﺵﺮﺑ"
 
 
 msgid "Brush data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺵﺮﺑ"
 
 
-msgid "Cache Files"
-msgstr "ﺰﻠﺋﺎﻓ ﮯﺸﯿﮐ"
-
-
 msgid "Cache Files data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮟﯿﻠﺋﺎﻓ ﮯﺸﯿﮐ"
 
 
-msgid "Cameras"
-msgstr "ﮮﺮﻤﯿﮐ"
-
-
 msgid "Camera data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﺮﻤﯿﮐ"
-
-
-msgid "Collections"
-msgstr "ﮯﻋﻮﻤﺠﻣ"
 
 
 msgid "Collection data-blocks"
@@ -2785,10 +3001,6 @@ msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻊﻤﺟ"
 
 msgid "Color Space"
 msgstr "ﮧﮕﺟ ﻦﯿﮕﻧﺭ"
-
-
-msgid "Curves"
-msgstr "ﮟﯿﻤﺧ"
 
 
 msgid "Curve data-blocks"
@@ -2811,24 +3023,12 @@ msgid "Vector font data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﻧﻮﻓ ﺮﭩﮑﯾﻭ"
 
 
-msgid "Grease Pencil"
-msgstr "Grease Pencil"
-
-
 msgid "Grease Pencil data-blocks"
 msgstr "Grease Pencil ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ"
 
 
-msgid "Hair Curves"
-msgstr "ﺭﺎﺗ  ﮟﯿﻤﺧ ﮯﮐ ﮞﻮﻟﺎﺑ"
-
-
 msgid "Hair curve data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ  ﻢﺧ  ﮯﮐ ﮞﻮﻟﺎﺑ"
-
-
-msgid "Images"
-msgstr "ﺰﺠﯿﻣﺍ"
 
 
 msgid "Image data-blocks"
@@ -2851,10 +3051,6 @@ msgid "Has the current session been saved to disk as a .blend file"
 msgstr "ﮯﮨ ﺎﯿﮔ ﺎﯿﮐ ﻅﻮﻔﺤﻣ ﮟﯿﻣ ﮏﺳﮈ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﻞﺋﺎﻓ blend. ﻮﮐ ﻦﺸﯿﺳ ﮦﺩﻮﺟﻮﻣ ﺎﯿﮐ"
 
 
-msgid "Lattices"
-msgstr "ﮞﻮﯿﻟﺎﺟ"
-
-
 msgid "Lattice data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯽﻠﻌﺟ"
 
@@ -2867,16 +3063,8 @@ msgid "Library data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯼﺮﯾﺮﺒﺋﻻ﻿"
 
 
-msgid "Light Probes"
-msgstr "ﺕﺎﻘﯿﻘﺤﺗ ﯽﮑﻠﮨ"
-
-
 msgid "Light Probe data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺏﻭﺮﭘ ﭧﺋﻻ﻿"
-
-
-msgid "Lights"
-msgstr "ﺲﭩﺋﻻ﻿"
 
 
 msgid "Light data-blocks"
@@ -2891,40 +3079,20 @@ msgid "Line Style data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﺋﺎﭩﺳﺍ ﻦﺋﻻ﻿"
 
 
-msgid "Masks"
-msgstr "ﮏﺳﺎﻣ"
-
-
 msgid "Masks data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮏﺳﺎﻣ"
-
-
-msgid "Materials"
-msgstr "ﺩﺍﻮﻣ"
 
 
 msgid "Material data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﯾﺮﭩﯿﻣ"
 
 
-msgid "Meshes"
-msgstr "ﺲﺸﯿﻣ"
-
-
 msgid "Mesh data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺶﯿﻣ"
 
 
-msgid "Metaballs"
-msgstr "ﺰﻟﺎﺑ ﺎﭩﯿﻣ"
-
-
 msgid "Metaball data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻝﺎﺑ ﺎﭩﯿﻣ"
-
-
-msgid "Movie Clips"
-msgstr "ﺲﭙﻠﮐ ﯼﻭﻮﻣ"
 
 
 msgid "Movie Clip data-blocks"
@@ -2939,24 +3107,12 @@ msgid "Node group data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﻭﺮﮔ ﮈﻮﻧ"
 
 
-msgid "Objects"
-msgstr "ءﺎﯿﺷﺍ"
-
-
 msgid "Object data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺰﯿﭼ"
 
 
-msgid "Paint Curves"
-msgstr "ﺭﺎﺗ  ﮟﯿﻤﺧ ﭧﻨﯿﭘ"
-
-
 msgid "Paint Curves data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺯﻭﺮﮐ ﭧﻨﯿﭘ"
-
-
-msgid "Palettes"
-msgstr "ﺲﭩﯿﻠﯿﭘ"
 
 
 msgid "Palette data-blocks"
@@ -2971,16 +3127,8 @@ msgid "Particle data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﮑﯿﭨﺭﺎﭘ"
 
 
-msgid "Point Clouds"
-msgstr "ﺯﮈﺅﻼ﻿ﮐ ﭧﻨﺋﺍﻮﭘ"
-
-
 msgid "Point cloud data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮈﺅﻼ﻿ﮐ ﭧﻨﺋﺍﻮﭘ"
-
-
-msgid "Scenes"
-msgstr "ﺮﻇﺎﻨﻣ"
 
 
 msgid "Scene data-blocks"
@@ -3003,32 +3151,16 @@ msgid "Shape Key data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯼﺪﯿﻠﮐ ﻞﮑﺷ"
 
 
-msgid "Sounds"
-msgstr "ﮟﯾﺯﺍﻭﺁ"
-
-
 msgid "Sound data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮉﻧﺅﺎﺳ"
-
-
-msgid "Speakers"
-msgstr "ﻦﯾﺭﺮﻘﻣ"
 
 
 msgid "Speaker data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﮑﯿﭙﺳﺍ"
 
 
-msgid "Texts"
-msgstr "ﻦﺘﻣ"
-
-
 msgid "Text data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺴﮑﯿﭨ"
-
-
-msgid "Textures"
-msgstr "ﭦﻭﺎﻨﺑ"
 
 
 msgid "Texture data-blocks"
@@ -3051,10 +3183,6 @@ msgid "File format version the .blend file was saved with"
 msgstr "ﺎﮭﺗ ﺎﯿﮔ ﺎﯿﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﻞﺋﺎﻓ blend. ﻥﮊﺭﻭ ﭧﯿﻣﺭﺎﻓ ﻞﺋﺎﻓ"
 
 
-msgid "Volumes"
-msgstr "ﮟﯾﺪﻠﺟ"
-
-
 msgid "Volume data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻢﺠﺣ"
 
@@ -3067,16 +3195,8 @@ msgid "Window manager data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﺠﯿﻨﯿﻣ ﻭﮉﻧﻭ"
 
 
-msgid "Workspaces"
-msgstr "ﮟﯿﮩﮕﺟ ﯽﮐ ﻡﺎﮐ"
-
-
 msgid "Workspace data-blocks"
 msgstr "ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺲﯿﭙﺳﺍ ﮎﺭﻭ"
-
-
-msgid "Worlds"
-msgstr "ﮞﺅﺎﯿﻧﺩ"
 
 
 msgid "World data-blocks"
@@ -4284,14 +4404,6 @@ msgstr "ﻦﯾﺪﻟﺍﻭ"
 
 msgid "Parent bone (in same Armature)"
 msgstr "(ﮟﯿﻣ ﺮﭽﻣﺭﺁ ﯽﮨ ﮏﯾﺍ) ﯼﮉﮨ ﯽﮐ ﻦﯾﺪﻟﺍﻭ"
-
-
-msgid "Select Head"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﮉﯿﮨ"
-
-
-msgid "Select Tail"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﻡﺩ"
 
 
 msgid "Display Wire"
@@ -6772,8 +6884,8 @@ msgid "Color management specific to display device"
 msgstr "ﻡﺎﻈﺘﻧﺍ ﺎﮐ ﮓﻧﺭ ﺹﻮﺼﺨﻣ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮯﻧﺎﮭﮐﺩ ﻮﮐ ﺲﺋﺍﻮﯾﮈ"
 
 
-msgid "Display Device"
-msgstr "ﺲﺋﺍﻮﯾﮈ ﮯﻠﭙﺳﮈ"
+msgid "Display"
+msgstr "ﮯﻠﭙﺳﮈ"
 
 
 msgid "Input color space settings"
@@ -6968,8 +7080,8 @@ msgid "Perform chromatic adaption from a different white point"
 msgstr "ﮟﯾﺩ ﻡﺎﺠﻧﺍ ﺖﻘﻓﺍﻮﻣ ﻦﯿﮕﻧﺭ ﮯﺳ ﮧﻄﻘﻧ ﺪﯿﻔﺳ ﻒﻠﺘﺨﻣ ﮏﯾﺍ"
 
 
-msgid "View Transform"
-msgstr "ﮟﯿﮭﮑﯾﺩ ﻡﺭﺎﻔﺴﻧﺍﺮﭨ"
+msgid "View"
+msgstr "ﮟﯿﮭﮑﯾﺩ"
 
 
 msgid "View used when converting image to a display space"
@@ -8422,6 +8534,18 @@ msgid "Parent to undistorted position of 2D track"
 msgstr "2D ﻦﯾﺪﻟﺍﻭ ﺮﭘ  ﻡﺎﻘﻣ  ﮦﺪﺷ ﺦﺴﻣ ﺮﯿﻏ ﯽﮐ ﮏﯾﺮﭨ"
 
 
+msgid "Attribute Name"
+msgstr "ﻡﺎﻧ ﺎﮐ ﺏﺎﺴﺘﻧﺍ"
+
+
+msgid "Domain Type"
+msgstr "ﻢﺴﻗ ﯽﮐ ﻦﯿﻣﻭﮈ"
+
+
+msgid "Sample Index"
+msgstr "ﺲﮑﯾﮉﻧﺍ ﮧﻧﻮﻤﻧ"
+
+
 msgid "Kinematic Constraint"
 msgstr "ﭦﻭﺎﮐﺭ ﮏﭩﯿﻤﯿﻨﯿﮐ"
 
@@ -9828,10 +9952,6 @@ msgstr "ﭧﻨﺠﻨﯿﭨ ﮯﺳ ﺢﻄﺳ"
 
 msgid "Draw in the surface plane"
 msgstr "ﮟﯿﭽﻨﯿﮭﮐ ﮟﯿﻣ ﻦﯿﻠﭘ ﮯﮐ ﺢﻄﺳ"
-
-
-msgid "View"
-msgstr "ﮟﯿﮭﮑﯾﺩ"
 
 
 msgid "Draw in a plane aligned to the viewport"
@@ -13330,154 +13450,6 @@ msgid "Which asset types to show/hide, when browsing an asset library"
 msgstr "ﮯﮨ ﺎﻧﺎﭙﮭﭼ/ﺎﻧﺎﮭﮐﺩ ﻮﮐ ﮞﻮﺛﺎﺛﺍ ﮯﮐ ﻢﺴﻗ ﯽﺳ ﻥﻮﮐ ﺖﻗﻭ ﮯﺗﺮﮐ ﺯﺅﺍﺮﺑ ﻮﮐ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﯽﮐ ﮧﺛﺎﺛﺍ ﯽﺴﮐ"
 
 
-msgid "Show Armature data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﭽﻣﺭﺁ"
-
-
-msgid "Show Cache File data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﺋﺎﻓ ﺶﯿﮐ"
-
-
-msgid "Show Camera data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﺮﻤﯿﮐ"
-
-
-msgid "Show Curve data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻢﺧ"
-
-
-msgid "Show/hide Curves data-blocks"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ  ﻢﺧ"
-
-
-msgid "Fonts"
-msgstr "ﺲﭩﻧﻮﻓ"
-
-
-msgid "Show Font data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﻧﻮﻓ"
-
-
-msgid "Show Image data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯼﺮﯾﻮﺼﺗ"
-
-
-msgid "Show Lattice data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯽﻟﺎﺟ"
-
-
-msgid "Show Light data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺋﻻ﻿"
-
-
-msgid "Show Light Probe data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺏﻭﺮﭘ ﭧﺋﻻ﻿"
-
-
-msgid "Freestyle Linestyles"
-msgstr "ﻞﺋﺎﭩﺳﺍ ﻦﺋﻻ﻿ ﻞﺋﺎﭩﺳﺍ ﯼﺮﻓ"
-
-
-msgid "Show Freestyle's Line Style data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﺋﺎﭩﺳﺍ ﻦﺋﻻ﻿ ﮯﮐ ﻞﺋﺎﭩﺳﺍ ﯼﺮﻓ"
-
-
-msgid "Show Mask data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮏﺳﺎﻣ"
-
-
-msgid "Show Mesh data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺶﯿﻣ"
-
-
-msgid "Show Metaball data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻝﺎﺑ ﺎﭩﯿﻣ"
-
-
-msgid "Show Movie Clip data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭗﻠﮐ ﯼﻭﻮﻣ"
-
-
-msgid "Show Paint Curve data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﺑ ﭧﻨﯿﭘ"
-
-
-msgid "Show Palette data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﯿﻠﯿﭘ"
-
-
-msgid "Particles Settings"
-msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﺕﺍﺭﺫ"
-
-
-msgid "Show Particle Settings data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺰﮕﻨﭩﯿﺳ ﻞﮑﯿﭨﺭﺎﭘ"
-
-
-msgid "Show/hide Point Cloud data-blocks"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮈﺅﻼ﻿ﮐ ﭧﻨﺋﺍﻮﭘ"
-
-
-msgid "Show Sound data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮉﻧﺅﺎﺳ"
-
-
-msgid "Show Speaker data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﮑﯿﭙﺳﺍ"
-
-
-msgid "Show Text data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺴﮑﯿﭨ"
-
-
-msgid "Show Texture data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﭽﺴﮑﯿﭨ"
-
-
-msgid "Show/hide Volume data-blocks"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻢﺠﺣ"
-
-
-msgid "Show workspace data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺲﯿﭙﺳﺍ ﮎﺭﻭ"
-
-
-msgid "Show Action data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻡﺍﺪﻗﺍ"
-
-
-msgid "Show Brushes data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺵﺮﺑ"
-
-
-msgid "Show Collection data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮯﻟﺍﻭ ﮯﻧﺮﮐ ﻊﻤﺟ"
-
-
-msgid "Show Material data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﯾﺮﭩﯿﻣ"
-
-
-msgid "Node Trees"
-msgstr "ﺖﺧﺭﺩ ﮈﻮﻧ"
-
-
-msgid "Show Node Tree data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﯼﺮﭨ ﮈﻮﻧ"
-
-
-msgid "Show Object data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺰﯿﭼ"
-
-
-msgid "Show Scene data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﺮﻈﻨﻣ"
-
-
-msgid "Show World data-blocks"
-msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮉﻟﺭﻭ"
-
-
 msgid "File Select Parameters"
 msgstr "ﺯﺮﭩﯿﻣﺍﺮﯿﭘ ﭧﮑﯿﻠﺳ ﻞﺋﺎﻓ"
 
@@ -14014,16 +13986,12 @@ msgid "Append"
 msgstr "ﺎﻧﺮﮐ ﻞﻣﺎﺷ"
 
 
-msgid "Import the assets as copied data-block, with no link to the original asset data-block"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮏﻨﻟ ﯽﺋﻮﮐ ﮯﺳ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮧﺛﺎﺛﺍ ﻞﺻﺍ ،ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﺪﺷ ﯽﭘﺎﮐ ﻮﮐ ﮞﻮﺛﺎﺛﺍ"
-
-
 msgid "Append (Reuse Data)"
 msgstr "(ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮦﺭﺎﺑﻭﺩ ﺎﭩﯾﮈ) ﮟﯾﺮﮐ ﻞﻣﺎﺷ"
 
 
-msgid "Import the assets as copied data-block while avoiding multiple copies of nested, typically heavy data. For example the textures of a material asset, or the mesh of an object asset, don't have to be copied every time this asset is imported. The instances of the asset share the data instead"
-msgstr "ﮟﯿﮨ ﯽﺗﺮﮐ ﮎﺍﺮﺘﺷﺍ ﺎﮐ ﺎﭩﯾﮈ ﮟﯿﻟﺎﺜﻣ ﯽﮐ ﮧﺛﺎﺛﺍ ﮯﺋﺎﺠﺑ ﮯﮐ ﺱﺍ ﮯﮨ ﮟﯿﮩﻧ ﺕﺭﻭﺮﺿ ﯽﮐ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﮯﺳﺍ ﻮﺗ ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﺪﻣﺁﺭﺩ ﮧﺛﺎﺛﺍ ﮧﯾ ﺐﺟ ﺭﺎﺑ ﺮﮨ ،ﻝﺎﺟ ﯽﮐ ﮧﺛﺎﺛﺍ ﮯﺷ ﯽﺴﮐ ﺎﯾ ،ﺖﺧﺎﺳ ﯽﮐ ﮯﺛﺎﺛﺍ ﯼﺩﺎﻣ ﯽﺴﮐ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﻝﺎﺜﻣ ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﺪﺷ ﯽﭘﺎﮐ ﻮﮐ ﮞﻮﺛﺎﺛﺍ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﺰﯾﺮﮔ ﮯﺳ ﮞﻮﯿﭘﺎﮐ ﺩﺪﻌﺘﻣ ﯽﮐ ﺎﭩﯾﮈ ﯼﺭﺎﮭﺑ ﺮﭘ ﺭﻮﻃ ﻡﺎﻋ ،ﮉﭩﺴﯿﻧ"
+msgid "Pack"
+msgstr "ﮏﯿﭘ"
 
 
 msgid "Float2 Attribute Value"
@@ -14316,10 +14284,6 @@ msgstr "res"
 
 msgid "Smoke Grid Resolution"
 msgstr "ﻦﺷﻮﻟﻭﺰﯾﺭ ﮈﺮﮔ ﮎﻮﻤﺳﺍ"
-
-
-msgid "Domain Type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﻦﯿﻣﻭﮈ"
 
 
 msgid "Change domain type of the simulation"
@@ -16362,6 +16326,10 @@ msgid "Use curve to define primitive stroke thickness"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻞﺑ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﯽﺋﺎﭨﻮﻣ ﮎﻭﺮﭩﺳﺍ ﯽﺋﺍﺪﺘﺑﺍ"
 
 
+msgid "Items"
+msgstr "ءﺎﯿﺷﺍ"
+
+
 msgctxt "Operator"
 msgid "Gizmo"
 msgstr "ﻮﻣﺰﯿﮔ"
@@ -17336,15 +17304,6 @@ msgid "The start frame of the manually set intended playback range"
 msgstr "ﻢﯾﺮﻓ ﺯﺎﻏﺁ ﺎﮐ ﺞﻨﯾﺭ ﮏﯿﺑ ﮯﻠﭘ ﮧﺑﻮﻠﻄﻣ ﮦﺩﺮﮐ ﭧﯿﺳ ﺮﭘ ﺭﻮﻃ ﯽﺘﺳﺩ"
 
 
-msgid "Groups"
-msgstr "ﮦﻭﺮﮔ"
-
-
-msgctxt "ID"
-msgid "ID Root Type"
-msgstr "ID ﻢﺴﻗ ﯽﮐ ﭦﻭﺭ"
-
-
 msgid "Layers"
 msgstr "ﮟﯿﮩﺗ"
 
@@ -18080,6 +18039,10 @@ msgid "Mask Texture Overlay Alpha"
 msgstr "ﺎﻔﻟﺍ ﮯﻟﺭﻭﻭﺍ  ﺖﺧﺎﺳ ﮏﺳﺎﻣ"
 
 
+msgid "Falloff Curve"
+msgstr "ﻢﺧ ﻑﺁ-ﺎﻓ"
+
+
 msgid "Editable falloff curve"
 msgstr "ﻢﺧ ﻑﺁ ﻝﺎﻓ ﻦﯾﻭﺪﺗ ﻞﺑﺎﻗ"
 
@@ -18221,10 +18184,6 @@ msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺖﺳﺭﺩ ﻮﮐ ﻝﺎﺟ ﮯﮐﺮﮐ ﺖﺳﺭ
 
 msgid "Amount of random elements that are going to be affected by the brush"
 msgstr "ﮟﯿﮨ ﮯﻟﺍﻭ ﮯﻧﻮﮨ ﺮﺛﺎﺘﻣ ﮯﺳ ﺵﺮﺑ ﻮﺟ ﺭﺍﺪﻘﻣ ﯽﮐ ﺮﺻﺎﻨﻋ ﺐﯿﺗﺮﺗ ﮯﺑ"
-
-
-msgid "Direction"
-msgstr "ﺖﻤﺳ"
 
 
 msgid "Add effect of brush"
@@ -18751,16 +18710,8 @@ msgid "Face Sets"
 msgstr "ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
 
 
-msgid "Creates a pose segment per face sets, starting from the active face set"
-msgstr "ﮯﮨ ﺎﺗﺎﻨﺑ ﭧﻨﻤﮕﯿﺳ ﺯﺍﺪﻧﺍ ﮏﯾﺍ ﭧﯿﺳ ﮦﺮﮩﭼ ﯽﻓ ،ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻉﻭﺮﺷ ﮯﺳ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﻝﺎﻌﻓ"
-
-
 msgid "Face Sets FK"
 msgstr "FK ﭧﯿﺳ ﮦﺮﮩﭼ"
-
-
-msgid "Simulates an FK deformation using the Face Set under the cursor as control"
-msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻞﻘﻧ ﯽﮐ ﯽﺗﺮﺘﺧﺍ FK ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ Set  ﻞﮑﺷ ﮯﭽﯿﻧ ﮯﮐ ﺮﺳﺮﮐ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﻝﻭﺮﭩﻨﮐ"
 
 
 msgid "Smooth Iterations"
@@ -19145,10 +19096,6 @@ msgid "Face Sets Boundary Automasking"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﭧﯿﺳ ﯼﺭﮉﻧﺅﺎﺑ ﮓﻨﮑﺳﺎﻣ ﺭﺎﮐﺩﻮﺧ ﮦﺮﮩﭼ"
 
 
-msgid "Do not affect vertices that belong to a Face Set boundary"
-msgstr "ﮟﯿﮨ ﮯﺘﮭﮐﺭ ﻖﻠﻌﺗ ﮯﺳ ﺪﺣ ﯽﮐ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﻮﺟ ﮟﯾﺮﮐ ﮧﻧ ﺮﺛﺎﺘﻣ ﻮﮐ ﮞﻮﯿﭨﻮﭼ ﻥﺍ"
-
-
 msgid "Cavity Mask"
 msgstr "ﮏﺳﺎﻣ ﯽﭩﯾﻮﯿﮐ"
 
@@ -19171,10 +19118,6 @@ msgstr "ﻢﺧ ﯽﭨﻮﯿﮐ ﺕﺭﻭﺮﺿ ﺐﺴﺣ"
 
 msgid "Use custom curve"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﻞﺑ ﺕﺭﻭﺮﺿ ﺐﺴﺣ"
-
-
-msgid "Affect only vertices that share Face Sets with the active vertex"
-msgstr "ﮟﯿﮨ ﮯﺗﺮﮐ ﮎﺍﺮﺘﺷﺍ ﺎﮐ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮫﺗﺎﺳ ﮯﮐ ﮯﻧﻮﮐ ﻝﺎﻌﻓ ﻮﺟ ﮟﯾﺮﮐ ﺮﺛﺎﺘﻣ ﻮﮐ ﮞﻮﯿﭨﻮﭼ ﻥﺍ ﻑﺮﺻ"
 
 
 msgid "Area Normal"
@@ -25180,10 +25123,6 @@ msgid "How particles are displayed in viewport"
 msgstr "ﮟﯿﮨ ﮯﺗﺎﺟ ﮯﺋﺎﮭﮐﺩ ﮯﺴﯿﮐ ﺕﺍﺭﺫ ﮟﯿﻣ ﭦﺭﻮﭘ ﻮﯾﻭ"
 
 
-msgid "Display"
-msgstr "ﮯﻠﭙﺳﮈ"
-
-
 msgid "Percentage of particles to display in 3D view"
 msgstr "3D ﺪﺼﯿﻓ ﺎﮐ ﺕﺍﺭﺫ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮯﻧﺎﮭﮐﺩ ﮟﯿﻣﻮﯾﻭ"
 
@@ -26113,58 +26052,6 @@ msgstr "ﭗﻠﮐ ﯼﻭﻮﻣ ﻝﺎﻌﻓ"
 
 msgid "Active Movie Clip that can be used by motion tracking constraints or as a camera's background image"
 msgstr "ﮯﮨ ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺞﯿﻣﺍ ﮉﻧﺅﺍﺮﮔ ﮏﯿﺑ ﯽﮐ ﮮﺮﻤﯿﮐ ﺎﯾ ﮯﻌﯾﺭﺫ ﮯﮐ ﮞﻮﭨﻭﺎﮐﺭ ﯽﮐ ﮓﻨﮑﯾﺮﭨ ﺖﮐﺮﺣ  ﮯﺴﺟ ﭗﻠﮐ ﯼﻭﻮﻣ ﻝﺎﻌﻓ"
-
-
-msgid "Fix Camera: Use Location"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﻡﺎﻘﻣ :ﮟﯾﺮﮐ ﺖﺳﺭﺩ ﮦﺮﻤﯿﮐ"
-
-
-msgid "Create Location keys when fixing to the scene camera"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﮟﯾﺪﯿﻠﮐ ﯽﮐ ﻡﺎﻘﻣ ﺖﻗﻭ ﮯﺗﺮﮐ ﮏﯿﮭﭨ ﻮﮐ ﮦﺮﻤﯿﮐ ﺮﻈﻨﻣ"
-
-
-msgid "Fix Camera: Use Rotation"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺵﺩﺮﮔ :ﮟﯾﺮﮐ ﺖﺳﺭﺩ ﮦﺮﻤﯿﮐ"
-
-
-msgid "Create Rotation keys when fixing to the scene camera"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﺰﯿﮐ ﻦﺸﯿﭨﻭﺭ ﺖﻗﻭ ﮯﺗﺮﮐ ﮏﯿﮭﭨ ﻮﮐ ﮦﺮﻤﯿﮐ ﺮﻈﻨﻣ"
-
-
-msgid "Fix Camera: Use Scale"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮧﻧﺎﻤﯿﭘ :ﮟﯾﺮﮐ ﺖﺳﺭﺩ ﮦﺮﻤﯿﮐ"
-
-
-msgid "Create Scale keys when fixing to the scene camera"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﺰﯿﮐ ﮧﻧﺎﻤﯿﭘ ﺖﻗﻭ ﮯﺗﺮﮐ ﮏﯿﮭﭨ ﻮﮐ ﮦﺮﻤﯿﮐ ﻦﯿﺳ"
-
-
-msgid "Mirror Bone"
-msgstr "ﯼﮉﮨ ﯽﮐ ﮧﻨﯿﺋﺁ"
-
-
-msgid "Bone to use for the mirroring"
-msgstr "ﯼﮉﮨ ﯽﻟﺍﻭ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﮕﻟ ﮧﻨﯿﺋﺁ"
-
-
-msgid "Mirror Object"
-msgstr "ﭧﮑﯿﺠﺑﺁ ﮧﻨﯿﺋﺁ"
-
-
-msgid "Object to mirror over. Leave empty and name a bone to always mirror over that bone of the active armature"
-msgstr "ﻮﮨ ﮧﻨﯿﺋﺁ ﺮﭘ ﯼﮉﮨ ﺱﺍ ﯽﮐ ﻭﺯﺎﺑ ﻝﺎﻌﻓ ﮧﺸﯿﻤﮨ ﮧﮐﺎﺗ ﮟﯾﺩ ﻡﺎﻧ ﺎﮐ ﯼﮉﮨ ﮏﯾﺍ ﺭﻭﺍ ﮟﯾﮌﻮﮭﭼ ﯽﻟﺎﺧ ﺽﺍﺮﺘﻋﺍ ﺮﭘ ﮯﻨﯿﺋﺁ"
-
-
-msgid "Relative Object"
-msgstr "ﺽﺍﺮﺘﻋﺍ ﺭﺍﺩ ﮧﺘﺷﺭ"
-
-
-msgid "Object to which matrices are made relative"
-msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯾﺎﻨﺑ ﺭﺍﺩ ﮧﺘﺷﺭ ﻮﮐ ﺲﮐﺮﭩﯿﻣ ﺮﭘ ﺲﺟ ﮯﺷ"
-
-
-msgid "Annotations"
-msgstr "ﺕﺎﺤﯾﺮﺸﺗ"
 
 
 msgid "Distance Model"
@@ -29113,10 +29000,6 @@ msgid "Keymap is defined by the user"
 msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﻥﺎﯿﺑ ﮧﻌﯾﺭﺫ ﮯﮐ ﻑﺭﺎﺻ ﮧﺸﻘﻧ ﯼﺪﯿﻠﮐ"
 
 
-msgid "Items"
-msgstr "ءﺎﯿﺷﺍ"
-
-
 msgid "Items in the keymap, linking an operator to an input event"
 msgstr "ﮟﯿﮨ ﮯﺗﮌﻮﺟ ﮯﺳ ﭧﻧﻮﯾﺍ ﭧﭘ ﻥﺍ ﻮﮐ ﺮﭩﯾﺮﭘﺁ ،ﺰﻤﭩﺋﺁ ﮟﯿﻣ ﮧﺸﻘﻧ ﯼﺪﯿﻠﮐ"
 
@@ -29199,6 +29082,10 @@ msgstr "1- ﮯﯿﻟ ﮯﮐ ﺖﺳﺎﯾﺭ ﯽﮭﺑ ﯽﺴﮐ ،ﯽﺌﮔ ﯽ�
 
 msgid "Control key pressed"
 msgstr "ﯽﺋﺎﺑﺩ ﺪﯿﻠﮐ ﻝﻭﺮﭩﻨﮐ"
+
+
+msgid "Direction"
+msgstr "ﺖﻤﺳ"
 
 
 msgid "The direction (only applies to drag events)"
@@ -31010,14 +30897,6 @@ msgid "Available"
 msgstr "ﮯﮨ ﺏﺎﯿﺘﺳﺩ"
 
 
-msgid "Insert a keyframe for each of the BBone shape properties"
-msgstr "BBone ﮟﯾﺮﮐ ﻞﺧﺍﺩ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ ﮯﯿﻟ ﮯﮐ ﮏﯾﺍ ﺮﮨ ﮯﺳ ﮟﯿﻣ ﺕﺎﯿﺻﻮﺼﺧ ﯽﮐ ﻞﮑﺷ"
-
-
-msgid "BBone Shape"
-msgstr "ﻞﮑﺷ ﯽﮐ ﻥﻮﺑ ﯽﺑ"
-
-
 msgid "Insert keyframes for additional location offset"
 msgstr "ﮟﯾﺮﮐ ﻞﺧﺍﺩ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ ﮯﯿﻟ ﮯﮐ ﭧﯿﺴﻓﺁ ﻡﺎﻘﻣ ﯽﻓﺎﺿﺍ"
 
@@ -31272,6 +31151,10 @@ msgstr "(ﮟﯾﺮﮐ ﮎﺮﺤﺘﻣ /ﻢﯿﻣﺮﺗ ﻮﮐ ﮧﮕﺟ ﺖﺳ�
 
 msgid "Deformed Location"
 msgstr "ﻡﺎﻘﻣ ﺖﺳﺭﺩ"
+
+
+msgid "Groups"
+msgstr "ﮦﻭﺮﮔ"
 
 
 msgid "Weights for the vertex groups this point is member of"
@@ -32773,140 +32656,16 @@ msgid "Editor menu containing buttons"
 msgstr "ﻮﻨﯿﻣ ﺮﭩﯾﮉﯾﺍ ﻞﻤﺘﺸﻣ ﺮﭘ ﮞﻮﻨﭩﺑ"
 
 
-msgid "Mesh Select Mode"
-msgstr "ﮈﻮﻣ ﭧﮑﯿﻠﺳ ﺶﯿﻣ"
-
-
-msgid "Face Data"
-msgstr "ﺎﭩﯾﮈ ﺎﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Select by Face Strength"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﮯﺳ ﻅﺎﺤﻟ ﮯﮐ ﺖﻗﺎﻃ ﯽﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Set Face Strength"
-msgstr "ﮟﯾﺮﮐ ﻦﯿﻌﺗ ﺎﮐ ﺖﻗﺎﻃ ﯽﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Clean Up"
-msgstr "ﯽﺋﺎﻔﺻ"
-
-
-msgid "Merge"
-msgstr "ﺎﻧﺮﮐ ﻢﺿ"
-
-
-msgid "Show/Hide"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
-
-
-msgid "Special Characters"
-msgstr "ﺭﺍﺩﺮﮐ ﯽﺻﻮﺼﺧ"
-
-
-msgid "Kerning"
-msgstr "ﮓﻨﻧﺮﮐ"
-
-
-msgid "Text"
-msgstr "ﻦﺘﻣ"
-
-
-msgid "Metaball"
-msgstr "ﻝﺎﺑ ﺎﭩﯿﻣ"
-
-
-msgid "Names"
-msgstr "ﻡﺎﻧ"
-
-
-msgid "Bone Roll"
-msgstr "ﻝﻭﺭ ﻥﻮﺑ"
-
-
-msgid "Pivot Point"
-msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
-
-
-msgid "Snap"
-msgstr "ﭗﯿﻨﺳ"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
-
-
-msgid "Mask Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
-
-
-msgid "Automasking"
-msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
-
-
-msgid "Face Sets Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Vertex Group Locks"
-msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
-
-
-msgid "Mirror"
-msgstr "ﮧﻨﯿﺋﺁ"
-
-
-msgid "UV Mapping"
-msgstr "ﮓﻨﭙﯿﻣ ﯼﻭﻮﯾ"
-
-
-msgid "Local View"
-msgstr "ﺮﻈﻨﻣ ﯽﻣﺎﻘﻣ"
-
-
-msgid "Viewpoint"
-msgstr "ﺮﻈﻧ ﮧﻄﻘﻧ"
-
-
-msgid "Navigation"
-msgstr "ﻦﺸﯿﮕﯾﻮﯿﻧ"
-
-
-msgid "Align View"
-msgstr "ﮟﯿﮭﮑﯾﺩ ﮟﯿﻣ ﮪﺪﯿﺳ"
-
-
-msgid "Align View to Active"
-msgstr "ﮟﯾﺮﮐ ﮪﺪﯿﺳ ﮟﯿﻣ ﻝﺎﻌﻓ ﻮﮐ ﺮﻈﻨﻣ"
-
-
-msgid "View Regions"
-msgstr "ﮟﯿﮭﮑﯾﺩ ﻮﮐ ﮞﻮﻗﻼ﻿ﻋ"
+msgid "Assign Material"
+msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺩﺍﻮﻣ"
 
 
 msgid "Select More/Less"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻢﮐ/ﮦﺩﺎﯾﺯ"
 
 
-msgid "Select Similar"
-msgstr "ﮟﯾﺮﮐ ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﺡﺮﻃ ﯽﺳﺍ"
-
-
-msgid "Select All by Trait"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﯽﮭﺒﺳ ﮯﺳ ﻅﺎﺤﻟ ﮯﮐ ﺖﯿﺻﻮﺼﺧ"
-
-
-msgid "Select Linked"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﮉﮑﻨﻟ"
-
-
-msgid "Select Loops"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺲﭘﻮﻟ"
-
-
-msgid "Assign Material"
-msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺩﺍﻮﻣ"
+msgid "Metaball"
+msgstr "ﻝﺎﺑ ﺎﭩﯿﻣ"
 
 
 msgid "Light"
@@ -32941,6 +32700,18 @@ msgid "Quick Effects"
 msgstr "ﺕﺍﺮﺛﺍ ﯼﺭﻮﻓ"
 
 
+msgid "Show/Hide"
+msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
+
+
+msgid "Clean Up"
+msgstr "ﯽﺋﺎﻔﺻ"
+
+
+msgid "Layout"
+msgstr "ﭦﺅﺁ ﮯﻟ"
+
+
 msgid "Asset"
 msgstr "ﮧﺛﺎﺛﺍ"
 
@@ -32961,8 +32732,16 @@ msgid "Hooks"
 msgstr "ﮯﭩﻧﺎﮐ"
 
 
+msgid "Vertex Group Locks"
+msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
+
+
 msgid "Trim/Add"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ/ﻡﺮﭨ"
+
+
+msgid "Adjust"
+msgstr "ﮟﯾﺮﮐ ﭧﺴﺟﮉﯾﺍ"
 
 
 msgid "Sculpt Set Pivot"
@@ -32973,8 +32752,20 @@ msgid "Face Sets Init"
 msgstr "ﭧﻧﺍ ﺲﭩﯿﺳ ﺲﯿﻓ"
 
 
+msgid "Keying"
+msgstr "ﮓﻨﯿﻠﮐ"
+
+
 msgid "Random Mask"
 msgstr "ﮏﺳﺎﻣ ﺐﯿﺗﺮﺗ ﮯﺑ"
+
+
+msgid "Tracking"
+msgstr "ﮓﻨﮑﯾﺮﭨ"
+
+
+msgid "Utilities"
+msgstr "ﺖﯾﺩﺎﻓﺍ"
 
 
 msgid "Clear Transform"
@@ -32985,12 +32776,20 @@ msgid "In-Betweens"
 msgstr "ﮟﯿﻣ ﻥﺎﯿﻣﺭﺩ"
 
 
+msgid "Math"
+msgstr "ﯽﺿﺎﯾﺭ"
+
+
 msgid "Propagate"
 msgstr "ﺎﻧﺮﮐ ﻎﯿﻠﺒﺗ"
 
 
 msgid "Bone Collections"
 msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮞﻮﯾﮉﮨ"
+
+
+msgid "Names"
+msgstr "ﻡﺎﻧ"
 
 
 msgid "Toggle Bone Options"
@@ -33003,6 +32802,150 @@ msgstr "ﮟﯾﺮﮐ ﻝﺎﻌﻓ ﻮﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﯼﮉ�
 
 msgid "Disable Bone Options"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻌﻓ ﺮﯿﻏ ﻮﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﯼﮉﮨ"
+
+
+msgid "Mesh Select Mode"
+msgstr "ﮈﻮﻣ ﭧﮑﯿﻠﺳ ﺶﯿﻣ"
+
+
+msgid "Face Data"
+msgstr "ﺎﭩﯾﮈ ﺎﮐ ﮮﺮﮩﭼ"
+
+
+msgid "Select by Face Strength"
+msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﮯﺳ ﻅﺎﺤﻟ ﮯﮐ ﺖﻗﺎﻃ ﯽﮐ ﮮﺮﮩﭼ"
+
+
+msgid "Set Face Strength"
+msgstr "ﮟﯾﺮﮐ ﻦﯿﻌﺗ ﺎﮐ ﺖﻗﺎﻃ ﯽﮐ ﮮﺮﮩﭼ"
+
+
+msgid "Merge"
+msgstr "ﺎﻧﺮﮐ ﻢﺿ"
+
+
+msgid "Special Characters"
+msgstr "ﺭﺍﺩﺮﮐ ﯽﺻﻮﺼﺧ"
+
+
+msgid "Kerning"
+msgstr "ﮓﻨﻧﺮﮐ"
+
+
+msgid "Text"
+msgstr "ﻦﺘﻣ"
+
+
+msgid "Bone Roll"
+msgstr "ﻝﻭﺭ ﻥﻮﺑ"
+
+
+msgid "Read"
+msgstr "ﮟﯿﮬﮍﭘ"
+
+
+msgid "Sample"
+msgstr "ﮧﻧﻮﻤﻧ"
+
+
+msgid "Write"
+msgstr "ﮟﯿﮭﮑﻟ"
+
+
+msgid "Primitives"
+msgstr "ﻢﯾﺪﻗ"
+
+
+msgid "Pivot Point"
+msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
+
+
+msgid "Snap"
+msgstr "ﭗﯿﻨﺳ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
+
+
+msgid "Mask Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
+
+
+msgid "Gizmo"
+msgstr "ﻮﻣﺰﯿﮔ"
+
+
+msgid "Automasking"
+msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
+
+
+msgid "Instances"
+msgstr "ﮟﯿﻟﺎﺜﻣ"
+
+
+msgid "Face Sets Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
+
+
+msgid "Import"
+msgstr "ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ"
+
+
+msgid "Deprecated"
+msgstr "ﮦﺩﻮﺳﺮﻓ"
+
+
+msgid "UV"
+msgstr "ﯼﻭﻮﯾ"
+
+
+msgid "Mirror"
+msgstr "ﮧﻨﯿﺋﺁ"
+
+
+msgid "UV Mapping"
+msgstr "ﮓﻨﭙﯿﻣ ﯼﻭﻮﯾ"
+
+
+msgid "Local View"
+msgstr "ﺮﻈﻨﻣ ﯽﻣﺎﻘﻣ"
+
+
+msgid "Viewpoint"
+msgstr "ﺮﻈﻧ ﮧﻄﻘﻧ"
+
+
+msgid "Navigation"
+msgstr "ﻦﺸﯿﮕﯾﻮﯿﻧ"
+
+
+msgid "Align View"
+msgstr "ﮟﯿﮭﮑﯾﺩ ﮟﯿﻣ ﮪﺪﯿﺳ"
+
+
+msgid "Align View to Active"
+msgstr "ﮟﯾﺮﮐ ﮪﺪﯿﺳ ﮟﯿﻣ ﻝﺎﻌﻓ ﻮﮐ ﺮﻈﻨﻣ"
+
+
+msgid "View Regions"
+msgstr "ﮟﯿﮭﮑﯾﺩ ﻮﮐ ﮞﻮﻗﻼ﻿ﻋ"
+
+
+msgid "Select Similar"
+msgstr "ﮟﯾﺮﮐ ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﺡﺮﻃ ﯽﺳﺍ"
+
+
+msgid "Select All by Trait"
+msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﯽﮭﺒﺳ ﮯﺳ ﻅﺎﺤﻟ ﮯﮐ ﺖﯿﺻﻮﺼﺧ"
+
+
+msgid "Select Linked"
+msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﮉﮑﻨﻟ"
+
+
+msgid "Select Loops"
+msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺲﭘﻮﻟ"
 
 
 msgid "Keyframe Insert Pie"
@@ -33103,8 +33046,8 @@ msgid "Console"
 msgstr "ﻝﻮﺴﻨﮐ"
 
 
-msgid "Languages..."
-msgstr "...ﮟﯿﻧﺎﺑﺯ"
+msgid "Languages"
+msgstr "ﮟﯿﻧﺎﺑﺯ"
 
 
 msgid "Add Attribute"
@@ -33176,10 +33119,6 @@ msgid "Move to Layer"
 msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﮟﯿﻣ ﺕﺮﭘ"
 
 
-msgid "UV"
-msgstr "ﯼﻭﻮﯾ"
-
-
 msgid "Align"
 msgstr "ﺎﻧﻻ﻿ ﮟﯿﻣ ﮪﺪﯿﺳ"
 
@@ -33231,65 +33170,13 @@ msgid "Track"
 msgstr "ﮏﯾﺮﭨ"
 
 
-msgid "Utilities"
-msgstr "ﺖﯾﺩﺎﻓﺍ"
-
-
-msgid "Deprecated"
-msgstr "ﮦﺩﻮﺳﺮﻓ"
-
-
-msgid "Math"
-msgstr "ﯽﺿﺎﯾﺭ"
-
-
-msgid "Primitives"
-msgstr "ﻢﯾﺪﻗ"
-
-
-msgid "Adjust"
-msgstr "ﮟﯾﺮﮐ ﭧﺴﺟﮉﯾﺍ"
-
-
-msgid "Keying"
-msgstr "ﮓﻨﯿﻠﮐ"
-
-
-msgid "Import"
-msgstr "ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ"
-
-
-msgid "Layout"
-msgstr "ﭦﺅﺁ ﮯﻟ"
-
-
 msgid "Node"
 msgstr "ﮈﻮﻧ"
-
-
-msgid "Read"
-msgstr "ﮟﯿﮬﮍﭘ"
-
-
-msgid "Sample"
-msgstr "ﮧﻧﻮﻤﻧ"
-
-
-msgid "Write"
-msgstr "ﮟﯿﮭﮑﻟ"
 
 
 msgctxt "NodeTree"
 msgid "Constant"
 msgstr "ﻞﻘﺘﺴﻣ"
-
-
-msgid "Gizmo"
-msgstr "ﻮﻣﺰﯿﮔ"
-
-
-msgid "Instances"
-msgstr "ﮟﯿﻟﺎﺜﻣ"
 
 
 msgid "Node Color Specials"
@@ -33336,10 +33223,6 @@ msgid "Use Node Name/Label"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﻞﺒﯿﻟ/ﻡﺎﻧ ﺎﮐ ﮈﻮﻧ"
 
 
-msgid "Use Outputs Names"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﻡﺎﻧ ﮯﮐ ﭧﭘ ﭦﺅﺁ"
-
-
 msgid "Merge Selected Nodes using Geometry Nodes"
 msgstr "ﮟﯾﺮﮐ ﻢﺿ ﻮﮐ ﺱﮈﻮﻧ ﺐﺨﺘﻨﻣ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺱﮈﻮﻧ ﯼﺮﭩﯿﻣﻮﯿﺟ"
 
@@ -33364,8 +33247,9 @@ msgid "Node Wrangler"
 msgstr "ﺮﻠﮕﻨﯾﺭ ﮈﻮﻧ"
 
 
-msgid "Switch Type to..."
-msgstr "...to ﻢﺴﻗ ﮟﯾﺮﮐ ﭻﺋﻮﺳ"
+msgctxt "Operator"
+msgid "Swap"
+msgstr "ﮧﻟﺩﺎﺒﺗ"
 
 
 msgid "Light Linking Specials"
@@ -33414,11 +33298,6 @@ msgstr "ﯽﺻﻮﺼﺧ ﭧﯿﺳ ﻦﺋﻻ﻿"
 
 msgid "Effect Strip"
 msgstr "ﯽﭩﭘ ﯽﮐ ﺮﺛﺍ"
-
-
-msgctxt "Operator"
-msgid "Scene"
-msgstr "ﺮﻈﻨﻣ"
 
 
 msgid "Transition"
@@ -33606,6 +33485,11 @@ msgstr "ﻦﯾﺪﻟﺍﻭ"
 msgctxt "Operator"
 msgid "Empty"
 msgstr "ﯽﻟﺎﺧ"
+
+
+msgctxt "Operator"
+msgid "Lattice"
+msgstr "ﯽﻟﺎﺟ"
 
 
 msgctxt "Constraint"
@@ -34045,14 +33929,6 @@ msgid "UV Pinned"
 msgstr "ﮯﮨ ﺍﻮﮨ ﺎﮕﻟ ﻦﭘ  ﯼﻭﻮﯾ"
 
 
-msgid "UV Select"
-msgstr "ﭧﮑﯿﻠﺳ ﯼﻭﻮﯾ"
-
-
-msgid "UV Edge Select"
-msgstr "ﭧﮑﯿﻠﺳ ﺞﯾﺍ ﯼﻭﻮﯾ"
-
-
 msgid "Set the map as active for display and editing"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﻝﺎﻌﻓ ﻮﮐ ﮯﺸﻘﻧ ﮯﯿﻟ ﮯﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺭﻭﺍ ﮯﻠﭙﺳﮈ"
 
@@ -34077,14 +33953,6 @@ msgid "Deprecated, use 'uv', 'vertex_select', 'edge_select' or 'pin' properties 
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺕﺎﯿﺻﻮﺼﺧ 'ﻦﭘ' ﺎﯾ 'ﺐﺨﺘﻨﻣ_ﺍﺭﺎﻨﮐ' ،'ﺐﺨﺘﻨﻣ_ﮯﻧﻮﮐ' ،'ﯼﻭﻮﯾ' ﮯﺋﺎﺠﺑ ﮯﮐ ﺱﺍ ،ﮦﺩﻮﺳﺮﻓ"
 
 
-msgid "UV Edge Selection"
-msgstr "ﻦﺸﮑﯿﻠﺳ ﺞﯾﺍ ﯼﻭﻮﯾ"
-
-
-msgid "Selection state of the edge in the UV editor"
-msgstr "ﺖﻟﺎﺣ ﻦﺸﮑﯿﻠﺳ ﯽﮐ ﮮﺭﺎﻨﮐ ﮟﯿﻣ ﺮﭩﯾﮉﯾﺍ  ﯼﻭﻮﯾ"
-
-
 msgid "Name of UV map"
 msgstr "ﻡﺎﻧ ﺎﮐ ﮧﺸﻘﻧ  ﯼﻭﻮﯾ"
 
@@ -34099,14 +33967,6 @@ msgstr "ﺖﻟﺎﺣ ﯽﮐ ﻦﭙﯾﻭ ﻮﯿںﯿﻣ ﺮﭩﯾﮉﯾﺍ  ﯼ�
 
 msgid "UV coordinates on face corners"
 msgstr "ﭧﯿﻨﯾﮈﺭﺁﻮﮑﯾﻭ ﻮﯾﺮﭘ ﮞﻮﻧﻮﮐ ﮯﮐ ﮮﺮﮩﭼ"
-
-
-msgid "UV Vertex Selection"
-msgstr "ﻦﺸﮑﯿﻠﺳ ﮯﻧﻮﮐ  ﯼﻭﻮﯾ"
-
-
-msgid "Selection state of the face corner the UV editor"
-msgstr "ﺖﻟﺎﺣ ﻦﺸﮑﯿﻠﺳ ﯽﮐ ﮯﻧﻮﮐ ﮯﮐ ﮮﺮﮩﭼ ﮯﮐ ﺮﭩﯾﮉﯾﺍ  ﯼﻭﻮﯾ"
 
 
 msgid "Mesh Vertex"
@@ -38279,10 +38139,6 @@ msgid "Center of the hook, used for falloff and display"
 msgstr "ﮯﮨ ﺎﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﮭﮐﺩ ﺭﻭﺍ ﻑﺁ ﻝﺎﻓ ،ﺰﮐﺮﻣ ﺎﮐ ﮏﮨ"
 
 
-msgid "Falloff Curve"
-msgstr "ﻢﺧ ﻑﺁ-ﺎﻓ"
-
-
 msgid "Custom falloff curve"
 msgstr "ﻢﺧ ﻑﺁ ﻝﺎﻓ ﺕﺭﻭﺮﺿ ﺐﺴﺣ"
 
@@ -38595,6 +38451,10 @@ msgid "Distance within which mirrored vertices are merged"
 msgstr "ﮟﯿﮨ ﮯﺗﻮﮨ ﻢﺿ ﯼﺩﻮﻤﻋ ﮯﻟﺍﻭ ﺲﮑﻋ ﺭﺪﻧﺍ ﮯﮐ ﺲﺟ ﮧﻠﺻﺎﻓ ﮦﻭ"
 
 
+msgid "Mirror Object"
+msgstr "ﭧﮑﯿﺠﺑﺁ ﮧﻨﯿﺋﺁ"
+
+
 msgid "Object to use as mirror"
 msgstr "ﺽﺍﺮﺘﻋﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﮯﻨﯿﺋﺁ"
 
@@ -38839,16 +38699,8 @@ msgid "Location on disk where the bake data is stored"
 msgstr "ﮯﮨ ﻅﻮﻔﺤﻣ ﺎﭩﯾﮈ ﮏﯿﺑ ﮞﺎﮩﺟ ﻡﺎﻘﻣ ﮦﻭ ﺮﭘ ﮏﺳﮈ"
 
 
-msgid "Bake Target"
-msgstr "ﻑﺪﮨ ﺎﻧﺎﮑﭘ"
-
-
 msgid "Where to store the baked data"
 msgstr "۔ﮟﯾﺮﮐ ﺭﻮﭩﺳﺍ ﮟﯿﻣ ﯼﺮﭩﮐﺮﺋﺍﮈ ﺮﭘ ﮏﺳﮈ ﻮﮐ ﺎﭩﯾﮈ ﮉﮑﯿﺑ"
-
-
-msgid "Packed"
-msgstr "ﮏﯿﭘ"
 
 
 msgid "Pack the baked data into the .blend file"
@@ -39877,6 +39729,14 @@ msgid "Subdivision surface modifier"
 msgstr "ﮦﺪﻨﻨﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺢﻄﺳ ﻢﯿﺴﻘﺗ ﯽﻠﯾﺫ"
 
 
+msgid "Edge Length"
+msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﮮﺭﺎﻨﮐ"
+
+
+msgid "Pixel Size"
+msgstr "ﺰﺋﺎﺳ ﻞﺴﮑﭘ"
+
+
 msgid "Number of subdivisions to perform in the 3D viewport"
 msgstr "3D ﺩﺍﺪﻌﺗ ﯽﮐ ﮞﻮﻤﯿﺴﻘﺗ ﯽﻠﯾﺫ ﮯﯿﻟ ﮯﮐ ﮯﻨﯾﺩ ﻡﺎﺠﻧﺍ ﮟﯿﻣ ﭦﺭﻮﭘ ﻮﯾﻭ"
 
@@ -39895,6 +39755,10 @@ msgstr "Catmull-Clark ﮟﯿﺋﺎﻨﺑ ﺢﻄﺳ ﮦﺪﯿﻤﺧ ﺭﺍﻮﻤ�
 
 msgid "Subdivide faces without changing shape"
 msgstr "ﮟﯾﺮﮐ ﻢﯿﺴﻘﺗ ﯽﻠﯾﺫ ﻮﮐ ﮞﻭﺮﮩﭼ ﺮﯿﻐﺑ ﮯﻟﺪﺑ ﻞﮑﺷ"
+
+
+msgid "Use Adaptive Subdivision"
+msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻢﯿﺴﻘﺗ ﯽﻠﯾﺫ ﯽﻟﻮﮑﻧﺍ"
 
 
 msgid "Use Limit Surface"
@@ -42247,10 +42111,6 @@ msgid "Type of NLA Strip"
 msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﯽﮐ ﮮﺍ ﻞﯾﺍ ﻦﯾﺍ"
 
 
-msgid "Action Clip"
-msgstr "ﭗﻠﮐ ﻡﺍﺪﻗﺍ"
-
-
 msgid "NLA Strip references some Action"
 msgstr "NLA ﮯﮨ ﯽﺘﯾﺩ ﮧﻟﺍﻮﺣ ﺎﮐ ﻡﺍﺪﻗﺍ ﮫﭽﮐ ﯽﭩﭘ ﯽﮐ"
 
@@ -42259,16 +42119,8 @@ msgid "NLA Strip 'transitions' between adjacent strips"
 msgstr "'ﺰﻨﺸﯾﺰﻧﺍﺮﭨ' ﯽﭩﭘ NLA ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﺲﭘﺮﭩﺳ ﮧﻘﺤﻠﻣ"
 
 
-msgid "Meta"
-msgstr "ﺎﭩﯿﻣ"
-
-
 msgid "NLA Strip acts as a container for adjacent strips"
 msgstr "NLA ﮯﮨ ﯽﺗﺮﮐ ﻡﺎﮐ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺮﻨﯿﭩﻨﮐ ﮯﯿﻟ ﮯﮐ ﺲﭘﺮﭩﺳ ﮧﻘﺤﻠﻣ ﯽﭩﭘ"
-
-
-msgid "Sound Clip"
-msgstr "ﭗﻠﮐ ﮉﻧﺅﺎﺳ"
 
 
 msgid "NLA Strip representing a sound event for speakers"
@@ -42552,52 +42404,6 @@ msgid "Create matte based on differences in color channels"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﻣ ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﻕﺮﻓ ﮟﯿﻣ ﺰﻠﻨﯿﭼ ﻦﯿﮕﻧﺭ"
 
 
-msgid "YUV"
-msgstr "Y ﯼﻭﻮﯾ"
-
-
-msgid "YCbCr"
-msgstr "YCbCr"
-
-
-msgctxt "Color"
-msgid "Limit Channel"
-msgstr "ﮟﯾﺮﮐ ﺩﻭﺪﺤﻣ ﻮﮐ ﻞﻨﯿﭼ"
-
-
-msgid "Limit by this channel's value"
-msgstr "ﺪﺣ ﮯﺳ ﻅﺎﺤﻟ ﮯﮐ ﺭﺪﻗ ﯽﮐ ﻞﻨﯿﭼ ﺱﺍ"
-
-
-msgid "Algorithm"
-msgstr "ﻢﮭﺗﺭﻮﮕﻟﺍ"
-
-
-msgid "Algorithm to use to limit channel"
-msgstr "ﻢﮭﺗﺭﻮﮕﻟﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺩﻭﺪﺤﻣ ﻮﮐ ﻞﻨﯿﭼ"
-
-
-msgid "Single"
-msgstr "ﻞﮕﻨﺳ"
-
-
-msgid "Limit by single channel"
-msgstr "ﺪﺣ ﮧﻌﯾﺭﺫ ﮯﮐ ﻞﻨﯿﭼ ﻞﮕﻨﺳ"
-
-
-msgid "Limit by maximum of other channels"
-msgstr "ﮟﯾﺮﮐ ﺩﻭﺪﺤﻣ ﮏﺗ ﺰﻠﻨﯿﭼ ﮮﺮﺳﻭﺩ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
-
-
-msgctxt "Color"
-msgid "Channel"
-msgstr "ﻞﻨﯿﭼ"
-
-
-msgid "Channel used to determine matte"
-msgstr "ﻞﻨﯿﭼ ﻻ﻿ﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻦﯿﻌﺗ ﺎﮐ ﻻ﻿ﺪﻨﮬﺩ"
-
-
 msgid "Chroma Key"
 msgstr "ﺪﯿﻠﮐ ﺎﻣﻭﺮﮐ"
 
@@ -42612,26 +42418,6 @@ msgstr "ﻥﺯﺍﻮﺗ ﻦﯿﮕﻧﺭ"
 
 msgid "Adjust color and values"
 msgstr "ﮟﯾﺮﮐ ﭧﺴﺟﮉﯾﺍ ﻮﮐ ﺭﺍﺪﻗﺍ ﺭﻭﺍ ﮓﻧﺭ"
-
-
-msgid "Correction Formula"
-msgstr "ﮧﻟﻮﻣﺭﺎﻓ ﯽﺣﻼ﻿ﺻﺍ"
-
-
-msgid "Lift/Gamma/Gain"
-msgstr "ﻦﯿﮔ/ﺎﻣﺎﮔ/ﭧﻔﻟ"
-
-
-msgid "Offset/Power/Slope (ASC-CDL)"
-msgstr "(ASC-CDL) ﻥﺍﻮﻠﮬﮈ/ﺭﻭﺎﭘ/ﭧﯿﺴﻓﺁ"
-
-
-msgid "ASC-CDL standard color correction"
-msgstr "ASC-CDL ﺡﻼ﻿ﺻﺍ ﯽﮐ ﮓﻧﺭ ﯼﺭﺎﯿﻌﻣ"
-
-
-msgid "Chromatic adaption from a different white point"
-msgstr "ﺖﻘﻓﺍﻮﻣ ﻦﯿﮕﻧﺭ ﮯﺳ ﮧﻄﻘﻧ ﺪﯿﻔﺳ ﻒﻠﺘﺨﻣ ﮏﯾﺍ"
 
 
 msgid "Input White Point"
@@ -42670,50 +42456,6 @@ msgid "Remove colors from a blue or green screen, by reducing one RGB channel co
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ ﮞﻮﮕﻧﺭ ﮯﺳ ﻦﯾﺮﮑﺳﺍ ﺰﺒﺳ ﺎﯾ ﮯﻠﯿﻧ ﮯﮐﺮﮐ ﻢﮐ ﻮﮐ ﻞﻨﯿﭼ ﯽﺑ ﯽﺟ ﺭﺁ ﮏﯾﺍ ﮟﯿﻣ ﮯﻠﺑﺎﻘﻣ ﮯﮐ ﮮﺮﺳﻭﺩ"
 
 
-msgid "Red spill suppression"
-msgstr "ﺎﻧﺎﺑﺩ ﻞﭙﺳ ﮉﯾﺭ"
-
-
-msgid "Green spill suppression"
-msgstr "ﺎﻧﺎﺑﺩ ﻞﭙﺳ ﻦﯾﺮﮔ"
-
-
-msgid "Blue spill suppression"
-msgstr "ﺎﻧﺎﺑﺩ ﻞﭙﺳ ﻮﯿﻠﺑ"
-
-
-msgid "Limit by red"
-msgstr "ﺪﺣ ﮯﺳ ﻑﺮﻃ ﯽﮐ ﺥﺮﺳ"
-
-
-msgid "Limit by green"
-msgstr "ﺪﺣ ﮯﺳ ﻑﺮﻃ ﯽﮐ ﺰﺒﺳ"
-
-
-msgid "Limit by blue"
-msgstr "ﺪﺣ ﯽﮐ ﮓﻧﺭ ﮯﻠﯿﻧ"
-
-
-msgid "Simple limit algorithm"
-msgstr "ﻢﮭﺗﺭﻮﮕﻟﺍ ﺪﺣ ﮦﺩﺎﺳ"
-
-
-msgid "Average limit algorithm"
-msgstr "ﻢﮭﺗﺭﻮﮕﻟﺍ ﺪﺣ ﻂﺳﻭﺍ"
-
-
-msgid "ITU 601"
-msgstr "601 ﻮﯾ ﯽﭨ ﯽﺋﺁ"
-
-
-msgid "ITU 709"
-msgstr "709 ﻮﯾ ﯽﭨ ﯽﺋﺁ"
-
-
-msgid "JPEG"
-msgstr "ﯽﺟ ﯼﺍ ﯽﭘ ﮯﺟ"
-
-
 msgid "Combine Color"
 msgstr "ﮟﯾﺮﮐ ﺎﺠﮑﯾ ﮓﻧﺭ"
 
@@ -42726,8 +42468,28 @@ msgid "Mode of color processing"
 msgstr "ﮧﻘﯾﺮﻃ ﺎﮐ ﮓﻨﺴﯿﺳﻭﺮﭘ ﮓﻧﺭ"
 
 
+msgid "YCbCr"
+msgstr "YCbCr"
+
+
+msgid "YUV"
+msgstr "Y ﯼﻭﻮﯾ"
+
+
 msgid "Color space used for YCbCrA processing"
 msgstr "YCbCrA ﮧﮕﺟ ﻦﯿﮕﻧﺭ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮓﻨﺴﯿﺳﻭﺮﭘ"
+
+
+msgid "ITU 601"
+msgstr "601 ﻮﯾ ﯽﭨ ﯽﺋﺁ"
+
+
+msgid "ITU 709"
+msgstr "709 ﻮﯾ ﯽﭨ ﯽﺋﺁ"
+
+
+msgid "JPEG"
+msgstr "ﯽﺟ ﯼﺍ ﯽﭘ ﮯﺟ"
 
 
 msgid "Convert Colorspace"
@@ -43018,56 +42780,12 @@ msgid "Create matte based on 3D distance between colors"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﻣ ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﮯﻠﺻﺎﻓ 3D ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﮞﻮﮕﻧﺭ"
 
 
-msgid "RGB color space"
-msgstr "ﮧﮕﺟ ﯽﮐ ﮓﻧﺭ ﯽﺒﯿﺟﺭﺁ"
-
-
-msgid "YCbCr suppression"
-msgstr "YCbCr ﺎﻧﺎﺑﺩ"
-
-
 msgid "Double Edge Mask"
 msgstr "ﮏﺳﺎﻣ ﺞﯾﺍ ﻞﺑﮈ"
 
 
 msgid "Create a gradient between two masks"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﻥﻼ﻿ﯿﻣ ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﮏﺳﺎﻣ ﻭﺩ"
-
-
-msgid "Buffer Edge Mode"
-msgstr "ﮈﻮﻣ ﺞﯾﺍ ﺮﻔﺑ"
-
-
-msgid "Bleed Out"
-msgstr "ﺎﻨﻟﺎﮑﻧ ﻥﻮﺧ"
-
-
-msgid "Allow mask pixels to bleed along edges"
-msgstr "ﮟﯾﺩ ﮯﻨﮩﺑ ﻥﻮﺧ ﮫﺗﺎﺳ ﮯﮐ ﮞﻭﺭﺎﻨﮐ ﻮﮐ ﺰﻠﺴﮑﭘ ﮏﺳﺎﻣ"
-
-
-msgid "Keep In"
-msgstr "ﮟﯿﮭﮐﺭ ﺭﺪﻧﺍ"
-
-
-msgid "Restrict mask pixels from touching edges"
-msgstr "ﮟﯿﮐﻭﺭ ﮯﺳ ﮯﻧﻮﮭﭼ ﻮﮐ ﮞﻭﺭﺎﻨﮐ ﻮﮐ ﺰﻠﺴﮑﭘ ﮏﺳﺎﻣ"
-
-
-msgid "Inner Edge Mode"
-msgstr "ﮈﻮﻣ ﺎﮐ ﮮﺭﺎﻨﮐ ﯽﻧﻭﺭﺪﻧﺍ"
-
-
-msgid "All pixels on inner mask edge are considered during mask calculation"
-msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﺭﻮﻏ ﺮﭘ ﺰﻠﺴﮑﭘ ﻡﺎﻤﺗ ﺩﻮﺟﻮﻣ ﺮﭘ ﮮﺭﺎﻨﮐ ﮯﮐ ﮏﺳﺎﻣ ﯽﻧﻭﺭﺪﻧﺍ ﻥﺍﺭﻭﺩ ﮯﮐ ﻦﺸﯿﻟﻮﮑﻠﯿﮐ ﮏﺳﺎﻣ"
-
-
-msgid "Adjacent Only"
-msgstr "ﮧﻘﺤﻠﻣ ﻑﺮﺻ"
-
-
-msgid "Only inner mask pixels adjacent to outer mask pixels are considered during mask calculation"
-msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﺭﻮﻏ ﺮﭘ ﺰﻠﺴﮑﭘ ﮏﺳﺎﻣ ﯽﻧﻭﺭﺪﻧﺍ ﻑﺮﺻ ﻖﺤﻠﻣ ﮯﺳ ﺰﻠﺴﮑﭘ ﮏﺳﺎﻣ ﯽﻧﻭﺮﯿﺑ ﻥﺍﺭﻭﺩ ﮯﮐ ﻦﺸﯿﻟﻮﮑﻠﯿﮐ ﮏﺳﺎﻣ"
 
 
 msgid "Ellipse Mask"
@@ -43262,26 +42980,6 @@ msgid "Convert to and from premultiplied (associated) alpha"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﮯﺳ ﺱﺍ ﺭﻭﺍ ﮟﯿﻣ ﺎﻔﻟﺍ (ﻖﻠﻌﺘﻣ) ﺖﻗﻭ ﺯﺍ ﻞﺒﻗ"
 
 
-msgid "Conversion between premultiplied alpha and key alpha"
-msgstr "ﯽﻠﯾﺪﺒﺗ ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﺎﻔﻟﺍ ﯼﺪﯿﻠﮐ ﺭﻭﺍ ﺎﻔﻟﺍ ﮯﺋﻮﮨ ﮯﮬﮍﺑ ﮯﺳ ﮯﻠﮩﭘ"
-
-
-msgid "To Premultiplied"
-msgstr "ﺮﮐ ﮪﮍﺑ ﮯﺳ ﮯﻠﮩﭘ ﮯﺳ"
-
-
-msgid "Convert straight to premultiplied"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﺮﮐ ﮪﮍﺑ ﮯﺳ ﮯﻠﮩﭘ ﺖﺳﺍﺭ ﮦﺍﺮﺑ"
-
-
-msgid "To Straight"
-msgstr "ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺎﮬﺪﯿﺳ"
-
-
-msgid "Convert premultiplied to straight"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﮯﮬﺪﯿﺳ ﺮﮐ ﮪﮍﺑ ﮯﺳ ﮯﻠﮩﭘ"
-
-
 msgid "A color picker"
 msgstr "ﻻ﻿ﺍﻭ ﮯﻨﻨﭼ ﮓﻧﺭ"
 
@@ -43340,22 +43038,6 @@ msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﺎﻔﻟﺍ"
 
 msgid "Add an alpha channel to an image"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻞﻨﯿﭼ ﺎﻔﻟﺍ ﮟﯿﻣ ﺮﯾﻮﺼﺗ"
-
-
-msgid "Apply Mask"
-msgstr "ﮟﯿﺋﺎﮕﻟ ﮏﺳﺎﻣ"
-
-
-msgid "Multiply the input image's RGBA channels by the alpha input value"
-msgstr "ﮟﯾﺩ ﺏﺮﺿ ﮯﺳ ﻮﯿﻠﯾﻭ ﭧﭘ ﻥﺍ ﺎﻔﻟﺍ ﻮﮐ ﺰﻠﻨﯿﭼ ﮮﺍ ﯽﺑ ﯽﺟ ﺭﺁ ﮯﮐ ﺞﯿﻣﺍ ﭧﭘ ﻥﺍ"
-
-
-msgid "Replace Alpha"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﺎﻔﻟﺍ"
-
-
-msgid "Replace the input image's alpha channel by the alpha input value"
-msgstr "ﮟﯾﺩ ﻝﺪﺑ ﮯﺳ ﻮﯿﻠﯾﻭ ﭧﭘ ﻥﺍ ﺎﻔﻟﺍ ﻮﮐ ﻞﻨﯿﭼ ﺎﻔﻟﺍ ﮯﮐ ﺞﯿﻣﺍ ﭧﭘ ﻥﺍ"
 
 
 msgid "Combine two images for side-by-side display. Typically used in combination with a Viewer node"
@@ -44644,8 +44326,8 @@ msgid "Get volume grid from a volume geometry with the specified name"
 msgstr "ﮟﯾﺮﮐ ﻞﺻﺎﺣ ﮈﺮﮔ ﻡﻮﯿﻟﺍﻭ ﮯﺳ ﯼﺮﭩﯿﻣﻮﯿﺟ ﻡﻮﯿﻟﺍﻭ ﮫﺗﺎﺳ ﮯﮐ ﻡﺎﻧ ﺹﻮﺼﺨﻣ"
 
 
-msgid "Type of grid data"
-msgstr "ﺎﭩﯾﮈ ﮈﺮﮔ of ﻢﺴﻗ"
+msgid "Node socket data type"
+msgstr "ﻢﺴﻗ ﯽﮐ ﺎﭩﯾﮈ ﭧﮐﺎﺳ ﮈﻮﻧ"
 
 
 msgid "Dial Gizmo"
@@ -45465,20 +45147,12 @@ msgid "Sample Grid"
 msgstr "ﮈﺮﮔ ﮧﻧﻮﻤﻧ"
 
 
-msgid "Node socket data type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﺎﭩﯾﮈ ﭧﮐﺎﺳ ﮈﻮﻧ"
-
-
 msgid "Sample Grid Index"
 msgstr "ﺲﮑﯾﮉﻧﺍ ﮈﺮﮔ ﮧﻧﻮﻤﻧ"
 
 
 msgid "Retrieve volume grid values at specific voxels"
 msgstr "ﮟﯾﺮﮐ ﺖﻓﺎﯾﺯﺎﺑ ﮟﯾﺭﺪﻗ ﯽﮐ ﮈﺮﮔ ﻡﻮﯿﻟﺍﻭ ﺮﭘ ﺰﻠﺴﮐﻭﻭ ﺹﻮﺼﺨﻣ"
-
-
-msgid "Sample Index"
-msgstr "ﺲﮑﯾﮉﻧﺍ ﮧﻧﻮﻤﻧ"
 
 
 msgid "Retrieve values from specific geometry elements"
@@ -45761,6 +45435,10 @@ msgid "Store grid data in a volume geometry with the specified name"
 msgstr "ﮟﯾﺮﮐ ﺭﻮﭩﺳﺍ ﮟﯿﻣ ﯼﺮﭩﯿﻣﻮﯿﺟ ﻡﻮﯿﻟﺍﻭ ﮫﺗﺎﺳ ﮯﮐ ﻡﺎﻧ ﺹﻮﺼﺨﻣ ﻮﮐ ﺎﭩﯾﮈ ﮈﺮﮔ"
 
 
+msgid "Type of grid data"
+msgstr "ﺎﭩﯾﮈ ﮈﺮﮔ of ﻢﺴﻗ"
+
+
 msgid "Single precision float"
 msgstr "ﭦﻮﻠﻓ ﻖﻠﻌﺘﻣ ﮯﺳ ﺖﺤﺻ ﺪﺣﺍﻭ"
 
@@ -46017,10 +45695,6 @@ msgid "Display the input data in the Spreadsheet Editor"
 msgstr "ﮟﯾﺮﮐ ﮯﻧﺎﮭﮐﺩ ﺎﭩﯾﮈ ﭧﭘ ﻥﺍ ﮟﯿﻣ ﺮﭩﯾﮉﯾﺍ ﭧﯿﺷﮉﯾﺮﭙﺳﺍ"
 
 
-msgid "Domain to evaluate the field on"
-msgstr "ﻥﺁ ﻦﯿﻣﻭﮈ ﮯﯿﻟ ﮯﮐ ﮯﻨﯿﻟ ﮦﺰﺋﺎﺟ ﺎﮐ ﮉﻠﯿﻓ"
-
-
 msgid "Viewport Transform"
 msgstr "ﯽﻠﯾﺪﺒﺗ ﭦﺭﻮﭘ ﻮﯾﻭ"
 
@@ -46150,10 +45824,6 @@ msgstr "ﺩﺍﺪﻌﺗ ﯽﮐ ﮞﻮﻋﺎﻌﺷ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ 
 
 msgid "Retrieve attributes attached to objects or geometry"
 msgstr "ﮟﯾﺮﮐ ﺖﻓﺎﯾﺯﺎﺑ ﻮﮐ ﺕﺎﻔﺻ ﮏﻠﺴﻨﻣ ﮯﺳ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺎﯾ ءﺎﯿﺷﺍ"
-
-
-msgid "Attribute Name"
-msgstr "ﻡﺎﻧ ﺎﮐ ﺏﺎﺴﺘﻧﺍ"
 
 
 msgid "Attribute Type"
@@ -46590,10 +46260,6 @@ msgstr "ﻒﯾﺍ ﯼﮈ ﺲﯾﺍ ﯽﺑ ﺮﻟﻮﮑﯿﭙﺳ"
 
 msgid "Similar to the Principled BSDF node but uses the specular workflow instead of metallic, which functions by specifying the facing (along normal) reflection color. Energy is not conserved, so the result may not be physically accurate"
 msgstr "ﮯﮨ ﺎﺘﮑﺳﻮﮨ ﮟﯿﮩﻧ ﺖﺳﺭﺩ ﺮﭘ ﺭﻮﻃ ﯽﻧﺎﻤﺴﺟ ﮧﺠﯿﺘﻧ ﺍﺬﮩﻟ ،ﮯﮨ ﮟﯿﮩﻧ ﻅﻮﻔﺤﻣ ﯽﺋﺎﻧﺍﻮﺗ ﮯﮨ ﺎﺗﺮﮐ ﻡﺎﮐ ﮯﮐﺮﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﮓﻧﺭ ﯽﺳﺎﮑﻋ (ﺮﭘ ﺭﻮﻃ ﻡﺎﻋ) ﮯﮐ ﮮﺮﮩﭼ ﻮﺟ ،ﮯﮨ ﺎﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻮﻠﻓ ﮎﺭﻭ ﺹﻮﺼﺨﻣ ﮯﺋﺎﺠﺑ ﮯﮐ ﯽﺗﺎﮬﺩ ﻦﮑﯿﻟ ﺡﺮﻃ ﯽﮐ ﮈﻮﻧ BSDF ﮉﻠﭙﺴﻧﺮﭘ"
-
-
-msgid "Emission"
-msgstr "ﺝﺍﺮﺧﺍ"
 
 
 msgid "Lambertian emission shader"
@@ -47629,14 +47295,6 @@ msgid "Air"
 msgstr "ﺍﻮﮨ"
 
 
-msgid ""
-"Density of air molecules.\n"
-"• 0 - No air.\n"
-"• 1 - Clear day atmosphere.\n"
-"• 2 - Highly polluted day"
-msgstr "ﻥﺩ ﮦﺩﻮﻟﺁ ﯽﺋﺎﮩﺘﻧﺍ - 2 •ﻝﻮﺣﺎﻤﻧﺩ ﻑﺎﺻ - 1 •ﮯﮨ ﮟﯿﮩﻧ ﺍﻮﮨ - 0 •ﺖﻓﺎﺜﮐ ﯽﮐ ﺰﻟﻮﯿﮑﯿﻟﺎﻣ ﮯﮐ ﺍﻮﮨ"
-
-
 msgid "Altitude"
 msgstr "ﯽﺋﺎﭽﻧﻭﺍ"
 
@@ -47645,29 +47303,8 @@ msgid "Height from sea level"
 msgstr "ﯽﺋﺎﭽﻧﻭﺍ ﮯﺳ ﺭﺪﻨﻤﺳ ﺢﻄﺳ"
 
 
-msgid "Dust"
-msgstr "ﻝﻮﮬﺩ"
-
-
-msgid ""
-"Density of dust molecules and water droplets.\n"
-"• 0 - No dust.\n"
-"• 1 - Clear day atmosphere.\n"
-"• 5 - City like atmosphere.\n"
-"• 10 - Hazy day"
-msgstr "ﻥﺩ ﻻ﻿ﺪﻨﮬﺩ- 10 •ﻝﻮﺣﺎﻣ ﺎﺴﯿﺟ ﺮﮩﺷ - 5 •ﻝﻮﺣﺎﻣ ﺎﮐ ﻥﺩ ﻑﺎﺻ - 1 •ﮟﯿﮩﻧ ﻝﻮﮬﺩ ﯽﺋﻮﮐ - 0 •ﺖﻓﺎﺜﮐ ﯽﮐ ﮞﻭﺪﻧﻮﺑ ﯽﮐ ﯽﻧﺎﭘ ﺭﻭﺍ ﺰﻟﻮﯿﮑﯿﻟﺎﻣ ﮯﮐ ﻝﻮﮬﺩ"
-
-
 msgid "Ozone"
 msgstr "ﻥﻭﺯﻭﺍ"
-
-
-msgid ""
-"Density of ozone layer.\n"
-"• 0 - No ozone.\n"
-"• 1 - Clear day atmosphere.\n"
-"• 2 - City like atmosphere"
-msgstr "ﻝﻮﺣﺎﻣ ﺎﺴﯿﺟ ﺮﮩﺷ - 2 •ﻝﻮﺣﺎﻤﻧﺩ ﻑﺎﺻ - 1 •ﮟﯿﮩﻧ ﻥﻭﺯﻭﺍ ﯽﺋﻮﮐ - 0 •ﺖﻓﺎﺜﮐ ﯽﮐ ﮧﮩﺗ ﯽﮐ ﻥﻭﺯﻭﺍ"
 
 
 msgid "Sky Type"
@@ -47676,14 +47313,6 @@ msgstr "ﭗﺋﺎﭨ ﯽﺋﺎﮑﺳﺍ"
 
 msgid "Which sky model should be used"
 msgstr "ﮯﺋﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﻝﮈﺎﻣ ﯽﻧﺎﻤﺳﺁ ﺎﺳ ﻥﻮﮐ"
-
-
-msgid "Nishita"
-msgstr "ﺎﺘﯿﺸﻧ"
-
-
-msgid "Nishita 1993 improved"
-msgstr "ﯽﺋﺁ ﯼﺮﺘﮩﺑ ﮟﯿﻣ 1993 ﺎﺘﯿﺸﻧ"
 
 
 msgid "Sun Disc"
@@ -47704,10 +47333,6 @@ msgstr "ﮧﯾﻭﺍﺯ ﺎﮐ ﺝﺭﻮﺳ ﮯﺳ ﻖﻓﺍ"
 
 msgid "Sun Intensity"
 msgstr "ﺕﺪﺷ ﯽﮐ ﺝﺭﻮﺳ"
-
-
-msgid "Strength of sun"
-msgstr "ﺖﻗﺎﻃ ﯽﮐ ﺝﺭﻮﺳ"
 
 
 msgid "Sun Rotation"
@@ -48283,6 +47908,10 @@ msgid "Value to Normal"
 msgstr "ﻞﻣﺭﺎﻧ ﮯﺳ ﺭﺪﻗ"
 
 
+msgid "Single"
+msgstr "ﻞﮕﻨﺳ"
+
+
 msgid "Enum Item"
 msgstr "Enum ﻢﭩﺋﺁ"
 
@@ -48483,6 +48112,10 @@ msgid "Diamond with inner dot"
 msgstr "ﺍﺮﯿﮨ ﮫﺗﺎﺳ ﮯﮐ ﭦﺍﮈ ﯽﻧﻭﺭﺪﻧﺍ"
 
 
+msgid "Volume Grid"
+msgstr "ﮈﺮﮔ ﻡﻮﯿﻟﺍﻭ"
+
+
 msgid "Enable the socket"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻌﻓ ﻮﮐ ﭧﮐﺎﺳ"
 
@@ -48535,10 +48168,6 @@ msgid "True if the socket is unavailable"
 msgstr "ﻮﮨ ﮧﻧ ﺏﺎﯿﺘﺳﺩ ﭧﮐﺎﺳ ﺮﮔﺍ ﮯﮨ ﺖﺳﺭﺩ"
 
 
-msgid "Custom dynamic defined socket label"
-msgstr "ﻞﺒﯿﻟ ﭧﮐﺎﺳ ﮉﻨﺋﺎﻔﯾﮈ ﮏﻣﺎﻨﺋﺍﮈ ﻢﭩﺴﮐ"
-
-
 msgid "Link Limit"
 msgstr "ﺪﺣ ﯽﮐ ﮏﻨﻟ"
 
@@ -48577,10 +48206,6 @@ msgstr "ﭧﮐﺎﺳ ﮈﻮﻧ ﻦﯿﻟﻮﺑ"
 
 msgid "Boolean value socket of a node"
 msgstr "ﭧﮐﺎﺳ ﻮﯿﻠﯾﻭ ﻦﯿﻟﻮﺑ ﺎﮐ ﮈﻮﻧ"
-
-
-msgid "Default Value"
-msgstr "ﺭﺪﻗ ﭧﻟﺎﻔﯾﮈ"
 
 
 msgid "Collection Node Socket"
@@ -48827,6 +48452,10 @@ msgid "Input to use when the socket is unconnected. Requires \"Hide Value\"."
 msgstr "\"ﺭﺪﻗﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ \"ﮟﯿﺋﺎﭙﮭﭼ\" ﭧﭘ ﻥﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﮯﻧﻮﮨ ﮏﻠﺴﻨﻣ ﺮﯿﻏ ﮯﮐ ﭧﮐﺎﺳ"
 
 
+msgid "Default Value"
+msgstr "ﺭﺪﻗ ﭧﻟﺎﻔﯾﮈ"
+
+
 msgid "The node socket's default value"
 msgstr "ﺭﺪﻗ ﭧﻟﺎﻔﯾﮈ ﯽﮐ ﭧﮐﺎﺳ ﮈﻮﻧ"
 
@@ -49037,10 +48666,6 @@ msgstr "ﯽﮭﺑ ﺮﮭﭘ"
 
 msgid "Bake a single frame"
 msgstr "ﻢﯾﺮﻓ ﻞﮕﻨﺳ a ﺎﻧﺎﮑﭘ"
-
-
-msgid "Inherit from Modifier"
-msgstr "ﻻ﻿ﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ ﮯﺳ ﻮﭩﮑﯾﺍ ﺖﺛﺍﺭﻭ"
 
 
 msgid "Use setting from the modifier"
@@ -50188,6 +49813,19 @@ msgid "Remove Item"
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ ﻢﭩﺋﺁ"
 
 
+msgid "Link from this output"
+msgstr "ﮏﻨﻟ ﮯﺳ ﭧﭘ ﭦﺅﺁ ﺱﺍ"
+
+
+msgctxt "Operator"
+msgid "Make Link"
+msgstr "ﮏﻨﻟ ﮟﯿﺋﺎﻨﺑ"
+
+
+msgid "Make a link from one socket to another"
+msgstr "ﮟﯿﺋﺎﻨﺑ ﮏﻨﻟ ﺎﮐ ﭧﮐﺎﺳ ﮮﺮﺳﻭﺩ ﮯﺳ ﭧﮐﺎﺳ ﮏﯾﺍ"
+
+
 msgid "Create a new geometry node group and assign it to the active modifier"
 msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﻮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﻝﺎﻌﻓ ﮯﺳﺍ ﺭﻭﺍ ﮟﯿﺋﺎﻨﺑ ﮦﻭﺮﮔ ﮈﻮﻧ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺎﯿﻧ ﮏﯾﺍ"
 
@@ -50229,12 +49867,8 @@ msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮈﻮﻧ ﺏﺎﺴﺘﻧﺍ ﮏﯾﺍ ﮫﺗ�
 
 
 msgctxt "Operator"
-msgid "Add UV map"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮧﺸﻘﻧ  ﯼﻭﻮﯾ"
-
-
-msgid "Add Reroute Nodes and link them to outputs of selected nodes"
-msgstr "۔ﮟﯾﮌﻮﺟ ﮯﺳ ﺲﭩﭘ ﭦﺅﺁ ﮯﮐ ﺱﮈﻮﻧ ﺐﺨﺘﻨﻣ ﮟﯿﮩﻧﺍ ﺭﻭﺍ ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺱﮈﻮﻧ ﭦﻭﺭ ﯼﺭ"
+msgid "Add Attribute"
+msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺏﺎﺴﺘﻧﺍ"
 
 
 msgctxt "Operator"
@@ -50261,10 +49895,6 @@ msgid "Principled Texture Setup"
 msgstr "ﭖﺍ ﭧﯿﺳ ﭦﻭﺎﻨﺑ ﯽﻟﻮﺻﺍ"
 
 
-msgid "Align the selected nodes neatly in a row/column"
-msgstr "ﮟﯾﺮﮐ ﮟﯿﻣ ﮪﺪﯿﺳ ﮫﺗﺎﺳ ﮯﮐ ﯽﺋﺎﻔﺻ ﮟﯿﻣ ﻢﻟﺎﮐ/ﺭﺎﻄﻗ ﮏﯾﺍ ﻮﮐ ﺱﮈﻮﻧ ﺐﺨﺘﻨﻣ"
-
-
 msgctxt "Operator"
 msgid "Align Nodes"
 msgstr "ﺱﮈﻮﻧ ﺎﻧﻻ﻿ ﮟﯿﻣ ﮪﺪﯿﺳ"
@@ -50284,15 +49914,6 @@ msgid "Reset Backdrop"
 msgstr "ﺮﻈﻨﻣ ﺲﭘ ﮟﯾﺩ ﺐﯿﺗﺮﺗ ﮦﺭﺎﺑﻭﺩ"
 
 
-msgid "Link from this output"
-msgstr "ﮏﻨﻟ ﮯﺳ ﭧﭘ ﭦﺅﺁ ﺱﺍ"
-
-
-msgctxt "Operator"
-msgid "Make Link"
-msgstr "ﮏﻨﻟ ﮟﯿﺋﺎﻨﺑ"
-
-
 msgctxt "Operator"
 msgid "Clear Label"
 msgstr "ﻞﺒﯿﻟ ﮟﯾﺮﮐ ﻑﺎﺻ"
@@ -50306,10 +49927,6 @@ msgstr "ﻞﺒﯿﻟ ﯽﭘﺎﮐ"
 msgctxt "Operator"
 msgid "Copy Settings"
 msgstr "ﮟﯾﺮﮐ ﯽﭘﺎﮐ ﻮﮐ ﺕﺎﺒﯿﺗﺮﺗ"
-
-
-msgid "Delete all nodes whose output is not used"
-msgstr "ﮯﮨ ﯽﺋﻮﮨ ﮟﯿﮩﻧ ﻝﺎﻤﻌﺘﺳﺍ ﭧﭘ ﭦﺅﺁ ﯽﮐ ﻦﺟ ﮟﯾﺮﮐ ﻑﺬﺣ ﻮﮐ ﺱﮈﻮﻧ ﻡﺎﻤﺗ"
 
 
 msgctxt "Operator"
@@ -50354,14 +49971,6 @@ msgid "Link Active Node to Selected"
 msgstr "ﮟﯾﺮﮐ ﮏﻨﻟ ﮯﺳ ﺐﺨﺘﻨﻣ ﻮﮐ ﮈﻮﻧ ﻮﭩﮑﯾﺍ"
 
 
-msgid "Link to Composite node or Material Output node"
-msgstr "ﮟﯾﺮﮐ ﮏﻨﻟ ﮯﺳ ﮈﻮﻧ ﭧﭘ ﭦﺅﺁ ﻞﯾﺮﭩﯿﻣ ﺎﯾ ﮈﻮﻧ ﭦﺯﻮﭙﻤﮐ"
-
-
-msgid "Make a link from one socket to another"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﮏﻨﻟ ﺎﮐ ﭧﮐﺎﺳ ﮮﺮﺳﻭﺩ ﮯﺳ ﭧﮐﺎﺳ ﮏﯾﺍ"
-
-
 msgctxt "Operator"
 msgid "Merge Nodes"
 msgstr "ﺱﮈﻮﻧ ﮟﯾﺮﮐ ﻢﺿ"
@@ -50381,10 +49990,6 @@ msgid "Reload Images"
 msgstr "ﺰﺠﯿﻣﺍ ﮟﯾﺮﮐ ﮈﻮﻟ ﮦﺭﺎﺑﻭﺩ"
 
 
-msgid "Reset Nodes in Selection"
-msgstr "ﮟﯾﺩ ﺐﯿﺗﺮﺗ ﮦﺭﺎﺑﻭﺩ ﻮﮐ ﺱﮈﻮﻧ ﮟﯿﻣ ﺏﺎﺨﺘﻧﺍ"
-
-
 msgctxt "Operator"
 msgid "Reset Nodes"
 msgstr "ﺱﮈﻮﻧ ﮟﯾﺩ ﺐﯿﺗﺮﺗ ﮦﺭﺎﺑﻭﺩ"
@@ -50392,11 +49997,6 @@ msgstr "ﺱﮈﻮﻧ ﮟﯾﺩ ﺐﯿﺗﺮﺗ ﮦﺭﺎﺑﻭﺩ"
 
 msgid "Save the current viewer node to an image file"
 msgstr "ﮟﯾﺮﮐ ﻅﻮﻔﺤﻣ ﮟﯿﻣ ﻞﺋﺎﻓ ﺞﯿﻣﺍ ﻮﮐ ﮈﻮﻧ ﺭﻮﯾﻭ ﮦﺩﻮﺟﻮﻣ"
-
-
-msgctxt "Operator"
-msgid "Save This Image"
-msgstr "ﮟﯾﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﺮﯾﻮﺼﺗ ﺱﺍ"
 
 
 msgctxt "Operator"
@@ -50724,11 +50324,6 @@ msgstr "ﮟﯾﺩ ﺎﭩﮨ ﺎﯾ ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﭧﯿﺳ ﺶﯿﭘ
 msgctxt "Operator"
 msgid "Add Hair Dynamics Preset"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﭧﯿﺳ ﺶﯿﭘ ﺎﮐ ﺲﮑﻣﺎﻨﺋﺍﮈ ﺮﺌﯿﮨ"
-
-
-msgctxt "Operator"
-msgid "Convert Legacy Pose Library"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﺯﺍﺪﻧﺍ ﯽﺴﯿﮕﯿﻟ"
 
 
 msgctxt "Operator"
@@ -51922,11 +51517,6 @@ msgid "Generate system information, saved into a text file"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﺕﺎﻣﻮﻠﻌﻣ ﯽﮐ ﻢﭩﺴﺳ ﮦﺩﺮﮐ ﻅﻮﻔﺤﻣ ﮟﯿﻣ ﻞﺋﺎﻓ ﭧﺴﮑﯿﭨ"
 
 
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "ﮟﯾﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﺕﺎﻣﻮﻠﻌﻣ ﯽﮐ ﻢﭩﺴﺳ"
-
-
 msgid "Set the tool by name (for key-maps)"
 msgstr "(ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﯼﺪﯿﻠﮐ) ﮟﯾﺮﮐ ﭧﯿﺳ ﮯﺳ ﻡﺎﻧ ﻮﮐ ﺭﺍﺯﻭﺍ"
 
@@ -52270,24 +51860,6 @@ msgstr "ﺮﯿﺒﻤﮭﮔ"
 
 msgid "Generated"
 msgstr "ﺎﯿﮐ ﺍﺪﯿﭘ"
-
-
-msgctxt "Operator"
-msgid "Next Layer"
-msgstr "ﺕﺮﭘ ﯽﻠﮔﺍ"
-
-
-msgid "Switch to editing action in animation layer above the current action in the NLA Stack"
-msgstr "ﮟﯿﺋﺎﺟ ﺮﭘ ﻡﺍﺪﻗﺍ ﺐﺗﺮﻣ  ﮟﯿﻣ  ﺕﺮﭘ  ﺕﺎﯿﮐﺮﺣ  ﺮﭘﻭﺍ ﮯﮐ ﻡﺍﺪﻗﺍ ﮦﺩﻮﺟﻮﻣ ﮟﯿﻣ ﮏﯿﭩﺳﺍ ﮮﺍ ﻞﯾﺍ ﻦﯾﺍ"
-
-
-msgctxt "Operator"
-msgid "Previous Layer"
-msgstr "ﺕﺮﭘ ﯽﻠﮭﭽﭘ"
-
-
-msgid "Switch to editing action in animation layer below the current action in the NLA Stack"
-msgstr "ﮟﯿﺋﺎﺟ ﺮﭘ ﻡﺍﺪﻗﺍ ﺐﺗﺮﻣ  ﮟﯿﻣ  ﺕﺮﭘ  ﺕﺎﯿﮐﺮﺣ  ﮯﭽﯿﻧ ﮯﮐ ﻡﺍﺪﻗﺍ ﮦﺩﻮﺟﻮﻣ ﮟﯿﻣ ﮏﯿﭩﺳﺍ ﮮﺍ ﻞﯾﺍ ﻦﯾﺍ"
 
 
 msgctxt "Operator"
@@ -52812,10 +52384,6 @@ msgstr "ﯽﮔ ﮞﻮﮨ ﯼﺮﯿﮑﻟ ﮞﺎﯿﺑﺎﭼ ﯽﺌﻧ"
 
 msgid "New keys will be constant"
 msgstr "ﯽﮔ ﮞﻮﮨ ﻞﻘﺘﺴﻣ ﮞﺎﯿﺑﺎﭼ ﯽﺌﻧ"
-
-
-msgid "The range in which to create new keys"
-msgstr "ﮟﯿﮨ ﺎﻧﺎﻨﺑ ﮟﯾﺪﯿﻠﮐ ﯽﺌﻧ ﮟﯿﻣ ﺲﺟ ﺞﻨﯾﺭ ﮦﻭ"
 
 
 msgid "Remove Outside Range"
@@ -54453,35 +54021,6 @@ msgstr "ﻡﺎﻧ ﺎﮐ ﮧﺛﺎﺛﺍ ﺵﺮﺑ ﮯﺌﻧ"
 
 
 msgctxt "Operator"
-msgid "Preset"
-msgstr "ﭧﯿﺳ ﺶﯿﭘ"
-
-
-msgid "Set brush shape"
-msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﻞﮑﺷ ﯽﮐ ﺵﺮﺑ"
-
-
-msgctxt "Curve"
-msgid "Mode"
-msgstr "ﮈﻮﻣ"
-
-
-msgctxt "Curve"
-msgid "Max"
-msgstr "ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
-
-
-msgctxt "Curve"
-msgid "Line"
-msgstr "ﻦﺋﻻ﻿"
-
-
-msgctxt "Curve"
-msgid "Round"
-msgstr "ﻝﻮﮔ"
-
-
-msgctxt "Operator"
 msgid "Scale Sculpt/Paint Brush Size"
 msgstr "ﺰﺋﺎﺳ ﺎﮐ ﺵﺮﺑ ﭧﻨﯿﭘ/ﭧﭙﻠﮑﺳﺍ ﮧﻧﺎﻤﯿﭘ"
 
@@ -54496,15 +54035,6 @@ msgstr "ﺮﻠﯿﮑﺳﺍ"
 
 msgid "Factor to scale brush size by"
 msgstr "ﺮﭩﮑﯿﻓ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮧﻧﺎﻤﯿﭘ  ﻮﮐ ﺰﺋﺎﺳ ﮯﮐ ﺵﺮﺑ"
-
-
-msgctxt "Operator"
-msgid "Curve Falloff Preset"
-msgstr "ﭧﯿﺳ ﺶﯿﭘ ﻑﺁ ﻝﺎﻓ ﻢﺧ"
-
-
-msgid "Set Curve Falloff Preset"
-msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﭧﯿﺳ ﺶﯿﭘ ﻑﺁ ﻝﺎﻓ ﻢﺧ"
 
 
 msgctxt "Operator"
@@ -57651,10 +57181,6 @@ msgid "Other"
 msgstr "ﺮﮕﯾﺩ"
 
 
-msgid "Other geometry types, like curve, metaball, etc. (converted to meshes)"
-msgstr "(ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﮞﻮﺸﯿﻣ) ﮦﺮﯿﻏﻭ ،ﻝﺎﺑ ﺎﭩﯿﻣ ،ﻢﺧ ﮯﺴﯿﺟ ،ﻡﺎﺴﻗﺍ ﺮﮕﯾﺩ ﯽﮐ ﯼﺮﭩﯿﻣﻮﯿﺟ"
-
-
 msgid "Method used to reference paths"
 msgstr "ﮧﻘﯾﺮﻃ ﻻ﻿ﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻨﯾﺩ ﮧﻟﺍﻮﺣ ﺎﮐ ﮞﻮﺘﺳﺍﺭ"
 
@@ -59536,11 +59062,6 @@ msgid "Unlink active font data-block"
 msgstr "ﮟﯾﺮﮐ ﮏﻨﻟ ﺮﯿﻏ ﻮﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﻧﻮﻓ ﻝﺎﻌﻓ"
 
 
-msgctxt "Operator"
-msgid "Add Attribute"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺏﺎﺴﺘﻧﺍ"
-
-
 msgid "Add attribute to geometry"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻒﺻﻭ ﮟﯿﻣ ﯼﺮﭩﯿﻣﻮﯿﺟ"
 
@@ -59638,51 +59159,6 @@ msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﻒﺻﻭ ﮓﻧﺭ ﭧﻟﺎﻔﯾﮈ ﯽﻟﺍ�
 
 msgid "Name of color attribute"
 msgstr "ﻡﺎﻧ ﺎﮐ ﻒﺻﻭ ﮓﻧﺭ"
-
-
-msgctxt "Operator"
-msgid "Run Node Group"
-msgstr "ﮟﯿﺋﻼ﻿ﭼ ﮦﻭﺮﮔ ﮈﻮﻧ"
-
-
-msgid "Execute a node group on geometry"
-msgstr "ﮟﯿﺋﻼ﻿ﭼ ﻮﮐ ﮦﻭﺮﮔ ﮈﻮﻧ ﺮﭘ ﯼﺮﭩﯿﻣﻮﯿﺟ"
-
-
-msgid "3D Cursor Position"
-msgstr "3D ﻡﺎﻘﻣ ﺮﺳﺮﮐ"
-
-
-msgid "3D Cursor Rotation"
-msgstr "3D ﺵﺩﺮﮔ ﺮﺳﺮﮐ"
-
-
-msgid "Mouse coordinates in region space"
-msgstr "ﻼ﻿ﺧ ﮧﻗﻼ﻿ﻋ in ﻁﺎﻘﻧ ﺱﺅﺎﻣ"
-
-
-msgid "Name of the data-block to use by the operator"
-msgstr "ﻡﺎﻧ ﺎﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﻌﯾﺭﺫ ﮯﮐ ﺮﭩﯾﺮﭘﺁ"
-
-
-msgid "Region Size"
-msgstr "ﺰﺋﺎﺳ ﮧﻗﻼ﻿ﻋ"
-
-
-msgid "Session UID of the data-block to use by the operator"
-msgstr "UID ﻦﺸﯿﺳ ﺎﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﻌﯾﺭﺫ ﮯﮐ ﺮﭩﯾﺮﭘﺁ"
-
-
-msgid "Viewport Is Perspective"
-msgstr "ﮯﮨ ﮦﺎﮕﻧ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Viewport Projection Transform"
-msgstr "ﯽﻠﯾﺪﺒﺗ ﻦﺸﮑﯿﺟﻭﺮﭘ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Viewport View Transform"
-msgstr "ﮟﯿﮭﮑﯾﺩ ﻡﺭﺎﻔﺴﻧﺍﺮﭨ ﭦﺭﻮﭘ ﻮﯾﻭ"
 
 
 msgctxt "Operator"
@@ -62975,20 +62451,12 @@ msgid "Update Scene FPS"
 msgstr "ﮟﯾﺮﮐ ﭧﯾﮈ ﭖﺍ ﻮﮐ FPS ﺮﻈﻨﻣ"
 
 
-msgid "Set the scene framerate to that of the BVH file (note that this nullifies the 'Scale FPS' option, as the scale will be 1:1)"
-msgstr "(ﺎﮔ ﻮﮨ 1:1 ﮧﻧﺎﻤﯿﭘ  ﮧﮑﻧﻮﯿﮐ ،ﮯﮨ ﺎﺘﯾﺩ ﺮﮐ ﻡﺪﻌﻟﺎﮐ ﻮﮐ ﺭﺎﯿﺘﺧﺍ 'FPS ﮧﻧﺎﻤﯿﭘ ' ﮧﯾ ﮧﮐ ﮟﯾﺮﮐ ﭦﻮﻧ) ﮟﯾﺮﮐ ﭧﯿﺳ ﻖﺑﺎﻄﻣ ﮯﮐ ﻞﺋﺎﻓ BVH ﻮﮐ ﭧﯾﺮﻤﯾﺮﻓ ﻦﯿﺳ"
-
-
 msgid "Loop the animation playback"
 msgstr "ﮟﯾﺮﮐ ﭖﻮﻟ ﻮﮐ ﮏﯿﺑ ﮯﻠﭘ ﯼﺮﯾﺬﭘ ﺖﮐﺮﺣ"
 
 
 msgid "Scale FPS"
 msgstr "ﮧﻧﺎﻤﯿﭘ ﺲﯾﺍ ﯽﭘ ﻒﯾﺍ"
-
-
-msgid "Scale the framerate from the BVH to the current scenes, otherwise each BVH frame maps directly to a Blender frame"
-msgstr "BVH ﺮﮨ ﺮﮕﯾﺩ ﺕﺭﻮﺼﺑ ،ﮟﯾﺮﮐ ﺶﺋﺎﻤﯿﭘ ﯽﮐ ﭧﯾﺮﻤﯾﺮﻓ ﮏﺗ ﺮﻇﺎﻨﻣ ﮦﺩﻮﺟﻮﻣ ﮯﺳ BVH ﮯﮨ ﺎﺗﻮﮨ ﺮﭘ ﻢﯾﺮﻓ ﺭﮉﻨﯿﻠﺑ ﺖﺳﺍﺭ ﮦﺍﺮﺑ ﮧﺸﻘﻧ ﺎﮐ ﻢﯾﺮﻓ"
 
 
 msgid "Animation Offset"
@@ -66680,10 +66148,6 @@ msgid "After baking curves, remove redundant keys"
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﮞﺎﯿﺑﺎﭼ ﻮﺘﻟﺎﻓ ،ﺪﻌﺑ ﮯﮐ  ﮟﯿﻤﺧ ﮓﻨﮑﯿﺑ"
 
 
-msgid "Clear Constraints"
-msgstr "ﮟﯾﺮﮐ ﻑﺎﺻ ﮞﺎﯾﺪﻨﺑﺎﭘ"
-
-
 msgid "Clear Parents"
 msgstr "ﻦﯾﺪﻟﺍﻭ ﻑﺎﺻ"
 
@@ -67036,6 +66500,14 @@ msgid "Add a collection info node to the current node editor"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮈﻮﻧ ﺕﺎﻣﻮﻠﻌﻣ ﮧﻋﻮﻤﺠﻣ ﮏﯾﺍ ﮟﯿﻣ ﺮﭩﯾﮉﯾﺍ ﮈﻮﻧ ﮦﺩﻮﺟﻮﻣ"
 
 
+msgid "Name of the data-block to use by the operator"
+msgstr "ﻡﺎﻧ ﺎﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﻌﯾﺭﺫ ﮯﮐ ﺮﭩﯾﺮﭘﺁ"
+
+
+msgid "Session UID of the data-block to use by the operator"
+msgstr "UID ﻦﺸﯿﺳ ﺎﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﻌﯾﺭﺫ ﮯﮐ ﺮﭩﯾﺮﭘﺁ"
+
+
 msgid "Source color"
 msgstr "ﮓﻧﺭ ﺎﮐ ﺬﺧﺎﻣ"
 
@@ -67112,6 +66584,14 @@ msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﭦﻭﺭ ﯼﺭ"
 
 msgid "Add a reroute node"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮈﻮﻧ ﭦﻭﺭ ﯼﺭ ﮏﯾﺍ"
+
+
+msgid "Input Node"
+msgstr "ﮈﻮﻧ ﭧﭘ ﻥﺍ"
+
+
+msgid "Output Node"
+msgstr "ﮈﻮﻧ ﭧﭘ ﭦﺅﺁ"
 
 
 msgctxt "Operator"
@@ -67396,10 +66876,6 @@ msgid "Collapse"
 msgstr "ﺎﻨﭩﻤﺳ"
 
 
-msgid "Add bake item"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻢﭩﺋﺁ ﮏﯿﺑ"
-
-
 msgid "Remove an item from the index switch"
 msgstr "ﮟﯾﺮﮐ ﭻﺋﻮﺳ ﺲﮑﯾﮉﻧﺍ the ﮯﺳ ﻢﭩﺋﺁ an ﮟﯾﺩ ﺎﭩﮨ"
 
@@ -67421,17 +66897,17 @@ msgid "Type of the item to create"
 msgstr "ﻢﺴﻗ ﯽﮐ ﻢﭩﺋﺁ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﻨﺑ"
 
 
-msgctxt "Operator"
-msgid "Join Nodes"
-msgstr "ﮞﻮﮨ ﻞﻣﺎﺷ ﮟﯿﻣ ﺱﮈﻮﻧ"
-
-
 msgid "Attach selected nodes to a new common frame"
 msgstr "ﮟﯾﺮﮐ ﮏﻠﺴﻨﻣ ﮯﺳ ﻢﯾﺮﻓ ﻦﻣﺎﮐ ﮯﺌﻧ ﮏﯾﺍ ﻮﮐ ﺱﮈﻮﻧ ﺐﺨﺘﻨﻣ"
 
 
 msgid "Open a predefined panel"
 msgstr "ﮟﯿﻟﻮﮭﮐ ﻞﻨﯿﭘ ﮦﺪﺷ ﮯﻃ"
+
+
+msgctxt "Operator"
+msgid "Join Nodes"
+msgstr "ﮞﻮﮨ ﻞﻣﺎﺷ ﮟﯿﻣ ﺱﮈﻮﻧ"
 
 
 msgctxt "Operator"
@@ -67591,10 +67067,6 @@ msgid "Copy color to all selected nodes"
 msgstr "ﮟﯾﺮﮐ ﯽﭘﺎﮐ ﮓﻧﺭ ﺮﭘ ﺱﮈﻮﻧ ﺐﺨﺘﻨﻣ ﻡﺎﻤﺗ"
 
 
-msgid "Add Reroutes to outputs"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮯﺘﺳﺍﺭ ﮟﯿﻣ ﺲﭩﭘ ﭦﺅﺁ"
-
-
 msgid "Option"
 msgstr "ﺭﺎﯿﺘﺧﺍ"
 
@@ -67627,20 +67099,12 @@ msgid "Set the file path relative to the blend file, when possible"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﮧﺘﺳﺍﺭ ﺎﮐ ﻞﺋﺎﻓ ﻖﻠﻌﺘﻣ ﮯﺳ ﻞﺋﺎﻓ ﮉﻨﯿﻠﺑ ،ﻮﮨ ﻦﮑﻤﻣ ﺐﺟ"
 
 
-msgid "Add texture node setup to selected shaders"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﭖﺍ ﭧﯿﺳ ﮈﻮﻧ ﺮﭽﺴﮑﯿﭨ ﮟﯿﻣ ﺯﺭﮉﯿﺷ ﺐﺨﺘﻨﻣ"
-
-
 msgid "Add Mapping Nodes"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺱﮈﻮﻧ ﮓﻨﭙﯿﻣ"
 
 
 msgid "Create coordinate and mapping nodes for the texture (ignored for selected texture nodes)"
 msgstr "(ﺯﺍﺪﻧﺍ ﺮﻈﻧ ﮯﯿﻟ ﮯﮐ ﺱﮈﻮﻧ ﺮﭽﺴﮑﯿﭨ ﺐﺨﺘﻨﻣ) ﮟﯿﺋﺎﻨﺑ ﺱﮈﻮﻧ ﮓﻨﭙﯿﻣ ﺭﻭﺍ ﭧﯿﻨﯾﮈﺭﺁﻮﮐ ﮯﯿﻟ ﮯﮐ ﺖﺧﺎﺳ"
-
-
-msgid "Add texture node setup for Principled BSDF"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﭖﺍ ﭧﯿﺳ ﮈﻮﻧ ﺮﭽﺴﮑﯿﭨ ﮯﯿﻟ ﮯﮐ BSDF ﯽﻟﻮﺻﺍ"
 
 
 msgid "Folder to search in for image files"
@@ -67931,10 +67395,6 @@ msgid "Delete Muted"
 msgstr "ﺵﻮﻣﺎﺧ ﮟﯾﺮﮐ ﻑﺬﺣ"
 
 
-msgid "Delete (but reconnect, like Ctrl-X) all muted nodes"
-msgstr "(Ctrl-X ﮯﺴﯿﺟ ،ﮟﯾﮍﺟ ﮦﺭﺎﺑﻭﺩ ﻦﮑﯿﻟ) ﮟﯾﺮﮐ ﻑﺬﺣ ﻮﮐ ﺱﮈﻮﻧ ﺵﻮﻣﺎﺧ ﻡﺎﻤﺗ"
-
-
 msgid "Change factors of Mix nodes and Mix Shader nodes"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﻞﻣﺍﻮﻋ ﮯﮐ ﺱﮈﻮﻧ ﺭﮉﯿﺷ ﺲﮑﻣ ﺭﻭﺍ ﺱﮈﻮﻧ ﺲﮑﻣ"
 
@@ -67955,10 +67415,6 @@ msgid "Automatic output type detection"
 msgstr "ﺎﻧﺎﮕﻟ ﮧﺘﭘ ﺎﮐ ﻢﺴﻗ ﭧﭘ ﭦﺅﺁ ﺭﺎﮐﺩﻮﺧ"
 
 
-msgid "Merge using ADD or MIX Shader"
-msgstr "ﮟﯾﺮﮐ ﺲﮑﻣ ﻮﮑﺘﮕﻧﺭ using ADD or ﺎﻧﺮﮐ ﻢﺿ"
-
-
 msgid "Merge using Mesh Boolean or Join Geometry nodes"
 msgstr "ﮞﻮﮨ ﻞﻣﺎﺷ ﮟﯿﻣ ﺱﮈﻮﻧ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺎﯾ ﮟﯾﺮﮐ ﻢﺿ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻦﯿﻟﻮﺑ ﺶﯿﻣ"
 
@@ -67977,14 +67433,6 @@ msgstr "ﮈﻮﻧ ﯽﺿﺎﯾﺭ"
 
 msgid "Merge using Math nodes"
 msgstr "ﮟﯾﺮﮐ ﻢﺿ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺱﮈﻮﻧ ﯽﺿﺎﯾﺭ"
-
-
-msgid "Z-Combine Node"
-msgstr "Z-ﮈﻮﻧ ﻦﺋﺎﺒﻤﮐ"
-
-
-msgid "Merge using Z-Combine nodes"
-msgstr "Z-combine ﮟﯾﺮﮐ ﻢﺿ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺱﮈﻮﻧ"
 
 
 msgid "Alpha Over Node"
@@ -68071,16 +67519,8 @@ msgid "TIFF"
 msgstr "ﺍﮍﮕﮭﺟ"
 
 
-msgid "Select Parent Frame"
-msgstr "ﻢﯾﺮﻓ ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﻦﯾﺪﻟﺍﻭ"
-
-
 msgid "Select Children"
 msgstr "ﮯﭽﺑ ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ"
-
-
-msgid "Select members of selected frame"
-msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﻦﯿﮐﺍﺭﺍ ﮯﮐ ﻢﯾﺮﻓ ﺐﺨﺘﻨﻣ"
 
 
 msgctxt "Operator"
@@ -68889,6 +68329,18 @@ msgid "Generate new keys to fix the selected object/bone to the camera on unkeye
 msgstr "ﺮﭘ ﮞﻮﻤﯾﺮﻓ ﮯﺋﻮﮨ ﮯﻟﻮﮭﮑںﯿﺋﺎﻨﺑ ﮟﯾﺪﯿﻠﮐ ﯽﺌﻧ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﯿﮭﭨ ﻮﮐ ﯼﮉﮨ/ ﮯﺷ ﺐﺨﺘﻨﻣ ﮟﯿﻣ ﮦﺮﻤﯿﮐ"
 
 
+msgid "Create Location keys when fixing to the scene camera"
+msgstr "ﮟﯿﺋﺎﻨﺑ ﮟﯾﺪﯿﻠﮐ ﯽﮐ ﻡﺎﻘﻣ ﺖﻗﻭ ﮯﺗﺮﮐ ﮏﯿﮭﭨ ﻮﮐ ﮦﺮﻤﯿﮐ ﺮﻈﻨﻣ"
+
+
+msgid "Create Rotation keys when fixing to the scene camera"
+msgstr "ﮟﯿﺋﺎﻨﺑ ﺰﯿﮐ ﻦﺸﯿﭨﻭﺭ ﺖﻗﻭ ﮯﺗﺮﮐ ﮏﯿﮭﭨ ﻮﮐ ﮦﺮﻤﯿﮐ ﺮﻈﻨﻣ"
+
+
+msgid "Create Scale keys when fixing to the scene camera"
+msgstr "ﮟﯿﺋﺎﻨﺑ ﺰﯿﮐ ﮧﻧﺎﻤﯿﭘ ﺖﻗﻭ ﮯﺗﺮﮐ ﮏﯿﮭﭨ ﻮﮐ ﮦﺮﻤﯿﮐ ﻦﯿﺳ"
+
+
 msgctxt "Operator"
 msgid "Toggle Force Field"
 msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﮉﻠﯿﻓ ﺱﺭﻮﻓ"
@@ -68956,15 +68408,6 @@ msgstr "(ﮟﯿﺋﺎﻨﺑ ﺮﭘ ﮯﻧﮍﭘ ﺕﺭﻭﺮﺿ) ﮟﯾﺮﮐ �
 
 msgid "Write bake to original location (overwrite existing file)"
 msgstr "(ﻞﺋﺎﻓ ﮟﯾﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ ﮦﺩﻮﺟﻮﻣ) ﻡﺎﻘﻣ ﻞﺻﺍ to ﺎﻧﺎﮑﭘ ﮟﯿﮭﮑﻟ"
-
-
-msgctxt "Operator"
-msgid "Copy Geometry Node Group"
-msgstr "ﮟﯾﺮﮐ ﯽﭘﺎﮐ ﻮﮐ ﮦﻭﺮﮔ ﮈﻮﻧ ﯼﺮﭩﯿﻣﻮﯿﺟ"
-
-
-msgid "Copy the active geometry node group and assign it to the active modifier"
-msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﻮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﻝﺎﻌﻓ ﮯﺳﺍ ﺭﻭﺍ ﮟﯾﺮﮐ ﯽﭘﺎﮐ ﻮﮐ ﮦﻭﺮﮔ ﮈﻮﻧ ﯼﺮﭩﯿﻣﻮﯿﺟ ﻝﺎﻌﻓ"
 
 
 msgctxt "Operator"
@@ -70297,10 +69740,6 @@ msgstr "ﮟﯾﺮﮐ ﮯﺴﯿﮐ ﻦﯿﻌﺗ ﺎﮐ ﺭﺍﺪﻘﻣ ﯽﮐ ﻞ
 
 msgid "Specify target number of faces relative to the current mesh"
 msgstr "ﮟﯾﺮﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﺩﺍﺪﻌﺗ ﻑﺪﮨ ﯽﮐ ﮞﻭﺮﮩﭼ ﮟﯿﻣ ﮧﻠﺑﺎﻘﻣ ﮯﮐ ﻝﺎﺟ ﮦﺩﻮﺟﻮﻣ"
-
-
-msgid "Edge Length"
-msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﮮﺭﺎﻨﮐ"
 
 
 msgid "Input target edge length in the new mesh"
@@ -73659,14 +73098,6 @@ msgid "Blend the given Pose Action to the rig"
 msgstr "ﮟﯾﺮﮐ ﮉﻨﯿﻠﺑ ﮟﯿﻣ ﮒﺭ ﻮﮐ ﻡﺍﺪﻗﺍ ﺯﺍﺪﻧﺍ ﯽﺌﮔ ﯼﺩ"
 
 
-msgid "Create a pose asset for each pose marker in this legacy pose library data-block"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﮧﺛﺎﺛﺍ ﺯﺍﺪﻧﺍ ﮏﯾﺍ ﮯﯿﻟ ﮯﮐ ﺮﮐﺭﺎﻣ ﺯﺍﺪﻧﺍ ﺮﮨ ﮟﯿﻣ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﺯﺍﺪﻧﺍ ﯽﮕﯿﻟ ﺱﺍ"
-
-
-msgid "Create a pose asset for each pose marker in the current action"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﮧﺛﺎﺛﺍ ﺯﺍﺪﻧﺍ ﮏﯾﺍ ﮯﯿﻟ ﮯﮐ ﺮﮐﺭﺎﻣ ﺯﺍﺪﻧﺍ ﺮﮨ ﮟﯿﻣ ﻡﺍﺪﻗﺍ ﮦﺩﻮﺟﻮﻣ"
-
-
 msgid "Create a new pose asset on the clipboard, to be pasted into an Asset Browser"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﮧﺛﺎﺛﺍ ﺯﺍﺪﻧﺍ ﺎﯿﻧ ﮏﯾﺍ ﺮﭘ ﮈﺭﻮﺑ ﭗﻠﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮞﺎﭙﺴﭼ ﮟﯿﻣ ﺭﺯﺅﺍﺮﺑ ﮧﺛﺎﺛﺍ"
 
@@ -73864,10 +73295,6 @@ msgstr "ﮟﯾﺮﮐ ﮓﯿﭨ ﻮﮐ ﮞﻮﯾﮉﮨ ﺐﺨﺘﻨﻣ ﮯﯿﻟ 
 msgctxt "Operator"
 msgid "Add IK to Bone"
 msgstr "IK ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮟﯿﻣ ﯼﮉﮨ ﻮﮐ"
-
-
-msgid "Add IK Constraint to the active Bone"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ IK Constraint ﮟﯿﻣ ﯼﮉﮨ ﻝﺎﻌﻓ"
 
 
 msgid "With Targets"
@@ -74601,14 +74028,6 @@ msgid "Render files from the animation range of this scene"
 msgstr "ﮟﯾﺮﮐ ﺭﮉﻨﯾﺭ ﮟﯿﻠﺋﺎﻓ ﮯﺳ ﺞﻨﯾﺭ ﺕﺎﯿﮐﺮﺣ  ﯽﮐﻮﯾﻭ ﺱﺍ"
 
 
-msgid "Render Keyframes Only"
-msgstr "ﮟﯾﺮﮐ ﺭﮉﻨﯾﺭ ﺰﻤﯾﺮﻓ ﯽﮐ ﻑﺮﺻ"
-
-
-msgid "Render only those frames where selected objects have a key in their animation data. Only used when rendering animation"
-msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺖﻗﻭ ﮯﺗﺮﮐ ﺶﯿﭘ ﺕﺎﯿﮐﺮﺣ  ﻑﺮﺻ ﻮﮨ ﺩﻮﺟﻮﻣ ﺪﯿﻠﮐ ﮟﯿﻣ ﺎﭩﯾﮈ ﺕﺎﯿﮐﺮﺣ  ﮯﮐ ءﺎﯿﺷﺍ ﺐﺨﺘﻨﻣ ﮞﺎﮩﺟ ﮟﯾﺮﮐ ﺭﮉﻨﯾﺭ ﻮﮐ ﮞﻮﻤﯾﺮﻓ ﻥﺍ ﻑﺮﺻ"
-
-
 msgid "Render using the sequencer's OpenGL display"
 msgstr "ﮟﯾﺮﮐ ﺭﮉﻨﯾﺭ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﮯﻧﺎﮭﮐﺩ ﻞﯾﺍ ﯽﺟ ﻦﭘﻭﺍ ﮯﮐ ﺮﺴﻨﯾﻮﮑﯿﺳ"
 
@@ -74632,10 +74051,6 @@ msgstr "(ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﮯﻧﻮﮨ
 msgctxt "Operator"
 msgid "Render"
 msgstr "ﺭﮉﻨﯾﺭ"
-
-
-msgid "Render active scene"
-msgstr "ﮟﯾﺮﮐ ﺶﯿﭘﻮﯾﻭ ﻝﺎﻌﻓ"
 
 
 msgid "Render Layer"
@@ -74665,6 +74080,26 @@ msgstr "ﭧﯿﺳ ﺶﯿﭘ ﻞﺑ ﺮﭩﺷ"
 
 msgid "Set shutter curve"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﻞﺑ ﺮﭩﺷ"
+
+
+msgctxt "Curve"
+msgid "Mode"
+msgstr "ﮈﻮﻣ"
+
+
+msgctxt "Curve"
+msgid "Max"
+msgstr "ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
+
+
+msgctxt "Curve"
+msgid "Line"
+msgstr "ﻦﺋﻻ﻿"
+
+
+msgctxt "Curve"
+msgid "Round"
+msgstr "ﻝﻮﮔ"
 
 
 msgctxt "Operator"
@@ -75423,6 +74858,10 @@ msgid "Move selected area edges"
 msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﻮﮐ ﮞﻭﺭﺎﻨﮐ ﮯﮐ ﮯﻗﻼ﻿ﻋ ﺐﺨﺘﻨﻣ"
 
 
+msgid "Snapping"
+msgstr "ﮓﻨﭙﯿﻨﺳ"
+
+
 msgctxt "Operator"
 msgid "Area Options"
 msgstr "ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﺎﯾﺮﯾﺍ"
@@ -75974,10 +75413,6 @@ msgid "Use Face Sets"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﭧﯿﺳ ﺲﯿﻓ"
 
 
-msgid "Apply the filter only to the Face Set under the cursor"
-msgstr "ﮟﯿﺋﺎﮕﻟ ﺮﭘ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﭽﯿﻧ ﮯﮐ ﺮﺳﺮﮐ ﻑﺮﺻ ﻮﮐ ﺮﭩﻠﻓ"
-
-
 msgctxt "Operator"
 msgid "Filter Color"
 msgstr "ﮓﻧﺭ ﺎﮐ ﺮﭩﻠﻓ"
@@ -76151,10 +75586,6 @@ msgid "Modify Active"
 msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﻝﺎﻌﻓ"
 
 
-msgid "Modify the active Face Set instead of creating a new one"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﺲﯿﻓ ﻝﺎﻌﻓ ﮯﺋﺎﺠﺑ ﮯﮐ ﮯﻧﺎﻨﺑ ﺎﯿﻧ ﮏﯾﺍ"
-
-
 msgid "Reposition Pivot"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﺭﻮﺤﻣ"
 
@@ -76177,24 +75608,12 @@ msgid "Face Sets Visibility"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﭧﯿﺳ ﺖﯿﺋﺮﻣ ﮦﺮﮩﭼ"
 
 
-msgid "Change the visibility of the Face Sets of the sculpt"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﺖﯿﺋﺮﻣ ﯽﮐ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﮐ ﮯﻤﺴﺠﻣ"
-
-
 msgid "Toggle Visibility"
 msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﺖﯿﺋﺮﻣ"
 
 
-msgid "Hide all Face Sets except for the active one"
-msgstr "ﮯﮐ ﻝﺎﻌﻓ ﮯﺋﺍﻮﺳ ﮟﯿﺋﺎﭙﮭﭼ ﭧﯿﺳ ﮯﮐ ﮞﻭﺮﮩﭼ ﻡﺎﻤﺗ"
-
-
 msgid "Show Active Face Set"
 msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﭧﯿﺳ ﺲﯿﻓ ﻝﺎﻌﻓ"
-
-
-msgid "Hide Active Face Sets"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ ﭧﯿﺳ ﺲﯿﻓ ﻝﺎﻌﻓ"
 
 
 msgctxt "Operator"
@@ -76202,44 +75621,20 @@ msgid "Edit Face Set"
 msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
 
 
-msgid "Edits the current active Face Set"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﺲﯿﻓ ﻝﺎﻌﻓ ﮦﺩﻮﺟﻮﻣ"
-
-
 msgid "Grow Face Set"
 msgstr "ﭧﯿﺳ ﮦﺮﮩﭼ ﻮﮬﮍﺑ"
-
-
-msgid "Grows the Face Sets boundary by one face based on mesh topology"
-msgstr "ﮯﮨ ﺎﺗﺎﮬﮍﺑ ﮯﺳ ﮮﺮﮩﭼ ﮏﯾﺍ ﻮﮐ ﺪﺣ ﯽﮐ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﯽﺟﻮﻟﻮﭘﻮﭨ ﺶﯿﻣ"
 
 
 msgid "Shrink Face Set"
 msgstr "ﮟﯾﮍﮑﺳ ﭧﯿﺳ ﮦﺮﮩﭼ"
 
 
-msgid "Shrinks the Face Sets boundary by one face based on mesh topology"
-msgstr "ﮯﮨ ﺎﺗﮍﮑﺳ ﮯﺳ ﮮﺮﮩﭼ ﮏﯾﺍ ﻮﮐ ﺪﺣ ﯽﮐ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﯽﺟﻮﻟﻮﭘﻮﭨ ﺶﯿﻣ"
-
-
-msgid "Deletes the faces that are assigned to the Face Set"
-msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻑﺬﺣ ﻮﮐ ﮞﻭﺮﮩﭼ ﮦﺩﺮﮐ ﺾﯾﻮﻔﺗ ﻮﮐ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
-
-
 msgid "Fair Positions"
 msgstr "ﺕﺎﻣﺎﻘﻣ ﮧﻧﺎﻔﺼﻨﻣ"
 
 
-msgid "Creates a smooth as possible geometry patch from the Face Set minimizing changes in vertex positions"
-msgstr "ﮯﮨ ﺎﺗﺎﻨﺑ ﭻﯿﭘ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺭﺍﻮﻤﮨ ﮏﺗ ﺪﺣ ﮧﻨﮑﻤﻣ ﮯﺳ ﭧﯿﺳ ﺲﯿﻓ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻢﮐ ﻮﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﮟﯿﻣ ﺕﺎﻣﺎﻘﻣ ﯼﺩﻮﻤﻋ"
-
-
 msgid "Fair Tangency"
 msgstr "ﯽﺴﻨﺠﻨﯿﭨ ﺮﺌﯿﻓ"
-
-
-msgid "Creates a smooth as possible geometry patch from the Face Set minimizing changes in vertex tangents"
-msgstr "ﮯﮨ ﺎﺗﺎﻨﺑ ﭻﯿﭘ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺭﺍﻮﻤﮨ ﮏﺗ ﺪﺣ ﮧﻨﮑﻤﻣ ﮯﺳ ﭧﯿﺳ ﺲﯿﻓ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻢﮐ ﻮﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﮟﯿﻣ ﭧﻨﺠﻨﯿﭨ ﯼﺩﻮﻤﻋ"
 
 
 msgid "Modify Hidden"
@@ -76253,10 +75648,6 @@ msgstr "ﯼﺮﭩﯿﻣﻮﯿﺟ ﮦﺪﯿﺷﻮﭘ to ﻦﺸﯾﺮﭘﺁ ﮟﯾ
 msgctxt "Operator"
 msgid "Face Set Extract"
 msgstr "ﭧﮑﯾﺮﭩﺴﮑﯾﺍ ﭧﯿﺳ ﺲﯿﻓ"
-
-
-msgid "Create a new mesh object from the selected Face Set"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﮯﺷ ﻝﺎﺟ ﺎﯿﻧ ﮏﯾﺍ ﮯﺳ ﭧﯿﺳ ﺲﯿﻓ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ"
 
 
 msgid "Add Boundary Loop"
@@ -76310,40 +75701,20 @@ msgid "Create Face Set"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮦﺮﮩﭼ"
 
 
-msgid "Create a new Face Set"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮦﺮﮩﭼ ﺎﯿﻧ ﮏﯾﺍ"
-
-
 msgid "Face Set from Masked"
 msgstr "ﭧﯿﺳ ﮦﺮﮩﭼ ﮯﺳ ﺵﻮﭘ ﺏﺎﻘﻧ"
-
-
-msgid "Create a new Face Set from the masked faces"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮦﺮﮩﭼ ﺎﯿﻧ ﮏﯾﺍ ﮯﺳ ﮞﻭﺮﮩﭼ ﺵﻮﭘ ﺏﺎﻘﻧ"
 
 
 msgid "Face Set from Visible"
 msgstr "ﭧﯿﺳ ﮦﺮﮩﭼ ﮯﺳ ﯽﺋﺮﻣ"
 
 
-msgid "Create a new Face Set from the visible vertices"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮦﺮﮩﭼ ﺎﯿﻧ ﮏﯾﺍ ﮯﺳ ﮞﻮﺼﺣ ﯼﺩﻮﻤﻋ ﮯﻟﺍﻭ ﮯﻧﺁ ﺮﻈﻧ"
-
-
 msgid "Face Set Full Mesh"
 msgstr "ﻝﺎﺟ ﻞﻤﮑﻣ ﭧﯿﺳ ﮦﺮﮩﭼ"
 
 
-msgid "Create an unique Face Set with all faces in the sculpt"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮦﺮﮩﭼ ﺩﺮﻔﻨﻣ ﮏﯾﺍ ﮫﺗﺎﺳ ﮯﮐ ﮞﻭﺮﮩﭼ ﻡﺎﻤﺗ ﮟﯿﻣ ﮧﻤﺴﺠﻣ"
-
-
 msgid "Face Set from Edit Mode Selection"
 msgstr "ﭧﯿﺳ ﮦﺮﮩﭼ ﮯﺳ ﻦﺸﮑﯿﻠﺳ ﮈﻮﻣ ﭧﯾﮉﯾﺍ"
-
-
-msgid "Create an Face Set corresponding to the Edit Mode face selection"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮦﺮﮩﭼ ﮏﯾﺍ ﻖﺑﺎﻄﻣ ﮯﮐ ﺏﺎﺨﺘﻧﺍ ﮯﮐ ﮮﺮﮩﭼ ﮯﮐ ﮈﻮﻣ ﭧﯾﮉﯾﺍ"
 
 
 msgctxt "Operator"
@@ -76351,85 +75722,41 @@ msgid "Init Face Sets"
 msgstr "ﺲﭩﯿﺳ ﻞﮑﺷ ﭧﻧﺍ"
 
 
-msgid "Initializes all Face Sets in the mesh"
-msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻉﻭﺮﺷ ﻮﮐ ﮞﻮﭩﯿﺳ ﮯﮐ ﮞﻭﺮﮩﭼ ﻡﺎﻤﺗ ﮟﯿﻣ ﺶﯿﻣ"
-
-
 msgid "Face Sets from Loose Parts"
 msgstr "ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﺳ ﮞﻮﺼﺣ ﮯﻠﯿﮬﮈ"
-
-
-msgid "Create a Face Set per loose part in the mesh"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮦﺮﮩﭼ ﮏﯾﺍ ﮧﺼﺣ ﻼ﻿ﯿﮬﮈ ﯽﻓ ﮟﯿﻣ ﺶﯿﻣ"
 
 
 msgid "Face Sets from Material Slots"
 msgstr "ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﺳ ﺲﭨﻼ﻿ﺳ ﻞﯾﺮﭩﯿﻣ"
 
 
-msgid "Create a Face Set per Material Slot"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﺲﯿﻓ ﮏﯾﺍ ﮯﯿﻟ ﮯﮐ ﭦﻼ﻿ﺳ ﻞﯾﺮﭩﯿﻣ ﯽﻓ"
-
-
 msgid "Face Sets from Mesh Normals"
 msgstr "ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﺳ ﺰﻠﻣﺭﺎﻧ ﺶﯿﻣ"
-
-
-msgid "Create Face Sets for Faces that have similar normal"
-msgstr "ﮞﻮﮨ ﻞﻣﺭﺎﻧ ﮯﺴﯿﺟ ﮏﯾﺍ ﻮﺟ ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﯿﻟ ﮯﮐ ﮞﻭﺮﮩﭼ ﮯﺴﯾﺍ"
 
 
 msgid "Face Sets from UV Seams"
 msgstr "ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﺳ ﯽﺋﻼ﻿ﺳ  ﯼﻭﻮﯾ"
 
 
-msgid "Create Face Sets using UV Seams as boundaries"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﺲﯿﻓ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﯼﺭﮉﻧﺅﺎﺑ ﻮﮐ ﯽﺋﻼ﻿ﺳ ﯼﻭﻮﯾ"
-
-
 msgid "Face Sets from Edge Creases"
 msgstr "ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﺳ ﺰﯾﺮﮐ ﺞﯾﺍ"
-
-
-msgid "Create Face Sets using Edge Creases as boundaries"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﺲﯿﻓ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﯼﺭﮉﻧﺅﺎﺑ ﻮﮐ ﺰﯾﺮﮐ ﺞﯾﺍ"
 
 
 msgid "Face Sets from Bevel Weight"
 msgstr "ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﺳ ﻥﺯﻭ ﻝﻮﯿﺑ"
 
 
-msgid "Create Face Sets using Bevel Weights as boundaries"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﯼﺭﮉﻧﺅﺎﺑ ﻮﮐ ﻥﺯﻭ ﻝﻮﯿﺑ"
-
-
 msgid "Face Sets from Sharp Edges"
 msgstr "ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮯﺳ ﮞﻭﺭﺎﻨﮐ ﺰﯿﺗ"
-
-
-msgid "Create Face Sets using Sharp Edges as boundaries"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﺲﯿﻓ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﯼﺭﮉﻧﺅﺎﺑ ﻮﮐ ﺰﺠﯾﺍ ﭖﺭﺎﺷ"
 
 
 msgid "Face Sets from Face Set Boundaries"
 msgstr "ﭧﯿﺳ ﮦﺮﮩﭼ ﮯﺳ ﺰﯾﺭﮉﻧﺅﺎﺑ ﭧﯿﺳ ﺲﯿﻓ"
 
 
-msgid "Create a Face Set per isolated Face Set"
-msgstr "ﮟﯿﺋﺎﻨﺑ ﭧﯿﺳ ﺲﯿﻓ ﮏﯾﺍ ﮯﯿﻟ ﮯﮐ ﭧﯿﺳ ﺲﯿﻓ ﮓﻠﮭﺗ ﮓﻟﺍ ﯽﻓ"
-
-
-msgid "Minimum value to consider a certain attribute a boundary when creating the Face Sets"
-msgstr "ﺭﺪﻗ ﻢﮐ ﺯﺍ ﻢﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺭﻮﻏ ﺮﭘ ﯼﺭﮉﻧﺅﺎﺑ ﻮﮐ ﻒﺻﻭ ﺹﺎﺧ ﯽﺴﮐ ﺖﻗﻭ ﮯﺗﺎﻨﺑ ﭧﯿﺳ ﺲﯿﻓ"
-
-
 msgctxt "Operator"
 msgid "Randomize Face Sets Colors"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﺐﯿﺗﺮﺗ ﮯﺑ ﻮﮐ ﮞﻮﮕﻧﺭ ﮯﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Generates a new set of random colors to render the Face Sets in the viewport"
-msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺭﺎﯿﺗ ﭧﯿﺳ ﺎﯿﻧ ﮏﯾﺍ ﺎﮐ ﮞﻮﮕﻧﺭ ﺐﯿﺗﺮﺗ ﮯﺑ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺭﮉﻨﯾﺭ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ ﮟﯿﻣ ﭦﺭﻮﭘ ﻮﯾﻭ"
 
 
 msgctxt "Operator"
@@ -76667,10 +75994,6 @@ msgstr "ﮟﯾﺮﮐ ﻡﺍﺭﺁ ﺶﯿﻣ"
 msgctxt "Operator"
 msgid "Relax Face Sets"
 msgstr "ﮟﯾﺮﮐ ﻡﺍﺭﺁ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Smooth the edges of all the Face Sets"
-msgstr "ﮟﯾﺮﮐ ﺭﺍﻮﻤﮨ ﻮﮐ ﮞﻭﺭﺎﻨﮐ ﮯﮐ ﭧﯿﺳ ﺲﯿﻓ ﻡﺎﻤﺗ"
 
 
 msgctxt "Operator"
@@ -77084,11 +76407,6 @@ msgstr "ﺎﻧﺮﮐ ﺢﺴﻣ"
 msgctxt "Sequence"
 msgid "Glow"
 msgstr "ﮏﻤﭼ"
-
-
-msgctxt "Sequence"
-msgid "Transform"
-msgstr "ﯽﻠﯾﺪﺒﺗ"
 
 
 msgctxt "Sequence"
@@ -77639,17 +76957,9 @@ msgid "Add Scene Strip"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﯽﭩﭘ ﯽﮐ ﺮﻈﻨﻣ"
 
 
-msgid "Add a strip to the sequencer using a Blender scene as a source"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﯽﭩﭘ ﮏﯾﺍ ﮟﯿﻣ ﺮﺴﻨﯾﻮﮑﯿﺳ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐﻮﯾﻭ ﺭﮉﻨﯿﻠﺑ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺬﺧﺎﻣ ﮏﯾﺍ"
-
-
 msgctxt "Operator"
 msgid "Add Strip with a new Scene"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﯽﭩﭘ ﮫﺗﺎﺳ ﮯﮐﻮﯾﻭ ﮯﺌﻧ ﮏﯾﺍ"
-
-
-msgid "Create a new Strip and assign a new Scene as source"
-msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺬﺧﺎﻣ ﺭﻮﻄﺑﻮﯾﻭ ﺎﯿﻧ ﮏﯾﺍ ﺭﻭﺍ ﮟﯿﺋﺎﻨﺑ ﯽﭩﭘ ﯽﺌﻧ ﮏﯾﺍ"
 
 
 msgid "Add new Strip with a new empty Scene with default settings"
@@ -81920,14 +81230,6 @@ msgid "Export color attributes"
 msgstr "ﮟﯾﺮﮐ ﺪﻣﺁﺮﺑ ﺕﺎﯿﺻﻮﺼﺧ ﯽﮐ ﮓﻧﺭ"
 
 
-msgid "Visible Objects Only"
-msgstr "ءﺎﯿﺷﺍ ﯽﻟﺍﻭ ﮯﻧﺁ ﺮﻈﻧ ﻑﺮﺻ"
-
-
-msgid "Export only objects that are visible"
-msgstr "ﮟﯾﺮﮐ ﺪﻣﺁﺮﺑ ﻮﮐ ءﺎﯿﺷﺍ ﯽﻟﺍﻭ ﮯﻧﺁ ﺮﻈﻧ ﻑﺮﺻ"
-
-
 msgid "Transform Samples"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﮯﻧﻮﻤﻧ"
 
@@ -83800,14 +83102,6 @@ msgid "Export instanced objects as references in USD rather than real objects"
 msgstr "ﮟﯾﺮﮐ ﺪﻣﺁﺮﺑ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺕﺎﺟ ﮧﻟﺍﻮﺣ ﮟﯿﻣ USD ﮯﺋﺎﺠﺑ ﮯﮐ ءﺎﯿﺷﺍ ﯽﻠﺻﺍ ﻮﮐ ءﺎﯿﺷﺍ ﯽﻟﺎﺜﻣ"
 
 
-msgid "Visible Only"
-msgstr "ﯽﺋﺮﻣ ﻑﺮﺻ"
-
-
-msgid "Only export visible objects. Invisible parents of exported objects are exported as empty transforms"
-msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﺪﻣﺁﺮﺑ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﯽﻟﺎﺧ ﻮﮐ ﻦﯾﺪﻟﺍﻭ ﯽﺋﺮﻣ ﺮﯿﻏ ﮯﮐ ءﺎﯿﺷﺍ ﮦﺪﺷ ﺪﻣﺁﺮﺑ ﮟﯾﺮﮐ ﺪﻣﺁﺮﺑ ﻮﮐ ءﺎﯿﺷﺍ ﯽﻟﺍﻭ ﮯﻧﺁ ﺮﻈﻧ ﻑﺮﺻ"
-
-
 msgid "Xform Ops"
 msgstr "Xform Ops"
 
@@ -83915,6 +83209,10 @@ msgstr "USDZ ﺅﺎﺗﺮﺑ ﺖﻗﻭ ﮯﺗﺮﮐ ﺪﻣﺁﺭﺩ  ﺖﺧﺎ�
 
 msgid "Don't import textures"
 msgstr "ﮟﯾﺮﮐ ﮧﻧ ﺪﻣﺁﺭﺩ ﺖﺧﺎﺳ"
+
+
+msgid "Packed"
+msgstr "ﮏﯿﭘ"
 
 
 msgid "Import textures as packed data"
@@ -84082,26 +83380,6 @@ msgid "Move/turn relative to the VR viewer or controller"
 msgstr "ﮟﯾﮍﻣ/ﻞﻘﺘﻨﻣ ﺖﺒﺴﻧ ﯽﮐ ﺮﻟﻭﺮﭩﻨﮐ ﺎﯾ ﺭﻮﯾﻭ ﺭﺁ ﯼﻭ"
 
 
-msgid "Lock Direction"
-msgstr "ﻦﺸﮑﯾﺮﺋﺍﮈ ﮎﻻ﻿"
-
-
-msgid "Limit movement to viewer's initial direction"
-msgstr "ﮟﯿﮭﮐﺭ ﺩﻭﺪﺤﻣ ﮏﺗ ﺖﻤﺳ ﯽﺋﺍﺪﺘﺑﺍ ﯽﮐ ﻦﯾﺮﻇﺎﻧ ﻮﮐ ﮏﯾﺮﺤﺗ"
-
-
-msgid "Lock Elevation"
-msgstr "ﻦﺸﯾﻮﯿﻠﯾﺍ ﮎﻻ﻿"
-
-
-msgid "Prevent changes to viewer elevation"
-msgstr "ﮟﯿﮐﻭﺭ ﻮﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﮟﯿﻣ ﯼﺪﻨﻠﺑ ﯽﮐ ﻦﯾﺮﻇﺎﻧ"
-
-
-msgid "Fly mode"
-msgstr "ﮈﻮﻣ ﯽﺋﻼ﻿ﻓ"
-
-
 msgid "Move along navigation forward axis"
 msgstr "ﮟﯿﮬﮍﺑ ﮯﮔﺁ ﮫﺗﺎﺳ ﮯﮐ ﺭﻮﺤﻣ ﮈﺭﻭﺭﺎﻓ ﻦﺸﯿﮕﯾﻮﯿﻧ"
 
@@ -84154,6 +83432,26 @@ msgid "Move along controller's forward axis"
 msgstr "ﮟﯿﮬﮍﺑ ﮯﮔﺁ ﮫﺗﺎﺳ ﮯﮐ ﺭﻮﺤﻣ ﮯﮐ ﮯﮔﺁ ﮯﮐ ﺮﻟﻭﺮﭩﻨﮐ"
 
 
+msgid "Lock Direction"
+msgstr "ﻦﺸﮑﯾﺮﺋﺍﮈ ﮎﻻ﻿"
+
+
+msgid "Limit movement to viewer's initial direction"
+msgstr "ﮟﯿﮭﮐﺭ ﺩﻭﺪﺤﻣ ﮏﺗ ﺖﻤﺳ ﯽﺋﺍﺪﺘﺑﺍ ﯽﮐ ﻦﯾﺮﻇﺎﻧ ﻮﮐ ﮏﯾﺮﺤﺗ"
+
+
+msgid "Lock Elevation"
+msgstr "ﻦﺸﯾﻮﯿﻠﯾﺍ ﮎﻻ﻿"
+
+
+msgid "Prevent changes to viewer elevation"
+msgstr "ﮟﯿﮐﻭﺭ ﻮﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﮟﯿﻣ ﯼﺪﻨﻠﺑ ﯽﮐ ﻦﯾﺮﻇﺎﻧ"
+
+
+msgid "Fly mode"
+msgstr "ﮈﻮﻣ ﯽﺋﻼ﻿ﻓ"
+
+
 msgid "Frame Based Speed"
 msgstr "ﺭﺎﺘﻓﺭ ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﻢﯾﺮﻓ"
 
@@ -84176,22 +83474,6 @@ msgstr "1 ﻦﺸﯿﻟﻮﭘﺮﭩﻧﺍ ﮉﯿﭙﺳ"
 
 msgid "Second cubic spline control point between min/max speeds"
 msgstr "ﭧﻨﺋﺍﻮﭘ ﻝﻭﺮﭩﻨﮐ ﻦﺋﻼ﻿ﭙﺳﺍ ﮏﺑﻮﯿﮐ ﺍﺮﺳﻭﺩ ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﺭﺎﺘﻓﺭ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ/ﻢﮐ ﮯﺳ ﻢﮐ"
-
-
-msgid "Maximum Speed"
-msgstr "ﺭﺎﺘﻓﺭ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
-
-
-msgid "Maximum move (turn) speed in meters (radians) per second or frame"
-msgstr "ﺭﺎﺘﻓﺭ ﯽﮐ (ﻥﺮﭨ) ﺖﮐﺮﺣ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ ﮟﯿﻣ ﻢﯾﺮﻓ ﺎﯾ ﮉﻨﮑﯿﺳ ﯽﻓ (ﻦﯾﮉﯾﺭ) ﺮﭩﯿﻣ"
-
-
-msgid "Minimum Speed"
-msgstr "ﺭﺎﺘﻓﺭ ﻢﮐ ﮯﺳ ﻢﮐ"
-
-
-msgid "Minimum move (turn) speed in meters (radians) per second or frame"
-msgstr "ﺭﺎﺘﻓﺭ ﯽﮐ (ﻥﺮﭨ) ﺖﮐﺮﺣ ﻢﮐ ﮯﺳ ﻢﮐ ﮟﯿﻣ ﻢﯾﺮﻓ ﺎﯾ ﮉﻨﮑﯿﺳ ﯽﻓ (ﻦﯾﮉﯾﺭ) ﺮﭩﯿﻣ"
 
 
 msgctxt "Operator"
@@ -84257,10 +83539,6 @@ msgid "Raycast axis in controller/viewer space"
 msgstr "ﺭﻮﺤﻣ ﭧﺳﺎﮐ ﮮﺭ ﮟﯿﻣ ﮧﮕﺟ ﯽﮐ ﺮﻇﺎﻧ /ﺮﻟﻭﺮﭩﻨﮐ"
 
 
-msgid "Raycast color"
-msgstr "ﮓﻧﺭ ﭧﺳﺎﮐ ﮮﺭ"
-
-
 msgid "Maximum raycast distance"
 msgstr "ﮧﻠﺻﺎﻓ ﭧﺳﺎﮑﯾﺭ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
 
@@ -84279,6 +83557,10 @@ msgstr "ﺮﭩﮑﯿﻓ ﻦﺸﯿﻟﻮﭘﺮﭩﻧﺍ ﻥﺎﯿﻣﺭﺩ ﮯﮐ
 
 msgid "Offset along hit normal to subtract from final location"
 msgstr "ﭧﯿﺴﻓﺁ ﮫﺗﺎﺳ ﮯﮐ ﭧﮨ ﻡﺎﻋ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺎﮩﻨﻣ ﮯﺳ ﻡﺎﻘﻣ ﯽﻤﺘﺣ"
+
+
+msgid "Sample Count"
+msgstr "ﺭﺎﻤﺷ ﮧﻧﻮﻤﻧ"
 
 
 msgid "Selectable Only"
@@ -84902,6 +84184,50 @@ msgid "Panel containing UI elements"
 msgstr "UI ﻞﻨﯿﭘ ﻞﻤﺘﺸﻣ ﺮﭘ ﺮﺻﺎﻨﻋ"
 
 
+msgid "Quad View"
+msgstr "ﻮﯾﻭﺍﮍﮐﻮﭼ"
+
+
+msgid "Onion Skin"
+msgstr "ﺪﻠﺟ ﯽﮐ ﺯﺎﯿﭘ"
+
+
+msgid "Stereoscopy"
+msgstr "ﯽﭘﻮﮑﺳﻮﯾﺮﯿﭩﺳ"
+
+
+msgid "Multi Frame"
+msgstr "ﻢﯾﺮﻓ ﯽﭩﻠﻣ"
+
+
+msgid "Auto-Masking"
+msgstr "ﮓﻨﮑﺳﺎﻣ ﻮﭨﺁ"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺕﺍﺭﺎﯿﺘﺧﺍ ﻢﺴﺠﻣ ﮯﮐ ﻢﺴﺠﻣ ﮟﯿﻤﺧ"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "ﻑﺁ ﻝﺎﻓ ﺮﭩﯿﻣﺍﺮﯿﭘ ﻢﺴﺠﻣ  ﮟﯿﻤﺧ"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "ﺎﻧﮍﮑﺳ/ﺎﻨﮬﮍﺑ  ﮟﯿﻤﺧ"
+
+
+msgid "Viewport Debug"
+msgstr "ﮓﺒﯾﮈ ﭦﺭﻮﭘ ﻮﯾﻭ"
+
+
+msgid "VR"
+msgstr "ﺭﺁ ﯼﻭ"
+
+
+msgid "VR Info"
+msgstr "VR ﺕﺎﻣﻮﻠﻌﻣ"
+
+
 msgid "glTF Material Variants"
 msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
 
@@ -84970,10 +84296,6 @@ msgid "Curve Edit Mode"
 msgstr "ﮈﻮﻣ ﺎﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﻢﺧ"
 
 
-msgid "Snapping"
-msgstr "ﮓﻨﭙﯿﻨﺳ"
-
-
 msgid "Transform Orientations"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﺖﯿﻔﻗﺍﻭ"
 
@@ -84984,50 +84306,6 @@ msgstr "ﭧﻨﻤﺴﯿﻠﭘ ﮎﻭﺮﭩﺳﺍ"
 
 msgid "Drawing Plane"
 msgstr "ﻦﯿﻠﭘ ﮓﻨﺋﺍﺭﮈ"
-
-
-msgid "Quad View"
-msgstr "ﻮﯾﻭﺍﮍﮐﻮﭼ"
-
-
-msgid "Onion Skin"
-msgstr "ﺪﻠﺟ ﯽﮐ ﺯﺎﯿﭘ"
-
-
-msgid "Stereoscopy"
-msgstr "ﯽﭘﻮﮑﺳﻮﯾﺮﯿﭩﺳ"
-
-
-msgid "Multi Frame"
-msgstr "ﻢﯾﺮﻓ ﯽﭩﻠﻣ"
-
-
-msgid "Auto-Masking"
-msgstr "ﮓﻨﮑﺳﺎﻣ ﻮﭨﺁ"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﺕﺍﺭﺎﯿﺘﺧﺍ ﻢﺴﺠﻣ ﮯﮐ ﻢﺴﺠﻣ ﮟﯿﻤﺧ"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "ﻑﺁ ﻝﺎﻓ ﺮﭩﯿﻣﺍﺮﯿﭘ ﻢﺴﺠﻣ  ﮟﯿﻤﺧ"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "ﺎﻧﮍﮑﺳ/ﺎﻨﮬﮍﺑ  ﮟﯿﻤﺧ"
-
-
-msgid "Viewport Debug"
-msgstr "ﮓﺒﯾﮈ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "VR"
-msgstr "ﺭﺁ ﯼﻭ"
-
-
-msgid "VR Info"
-msgstr "VR ﺕﺎﻣﻮﻠﻌﻣ"
 
 
 msgid "Chain Scaling"
@@ -85082,12 +84360,12 @@ msgid "Footage Settings"
 msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﺞﯿﭨﻮﻓ"
 
 
-msgid "Marker Display"
-msgstr "ﮯﻠﭙﺳﮈ ﺮﮐﺭﺎﻣ"
-
-
 msgid "Mask Settings"
 msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﮏﺳﺎﻣ"
+
+
+msgid "Marker Display"
+msgstr "ﮯﻠﭙﺳﮈ ﺮﮐﺭﺎﻣ"
 
 
 msgid "Mask Display"
@@ -85551,10 +84829,6 @@ msgid "Predefined node color"
 msgstr "ﮓﻧﺭ ﺎﮐ ﮈﻮﻧ ﮦﺪﺷ ﮯﻃ"
 
 
-msgid "Group Sockets"
-msgstr "ﭧﮐﺎﺴﮨﻭﺮﮔ"
-
-
 msgctxt "Operator"
 msgid "Links Cut"
 msgstr "ﭧﮐ ﺲﮑﻨﻟ"
@@ -85871,11 +85145,6 @@ msgid "Cache Settings"
 msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﮯﺸﯿﮐ"
 
 
-msgctxt "Sequence"
-msgid "Box"
-msgstr "ﮧﺑﮈ"
-
-
 msgid "Frame Overlay"
 msgstr "ﮯﻟﺭﻭﻭﺍ ﻢﯾﺮﻓ"
 
@@ -85919,6 +85188,11 @@ msgstr "ﮉﯿﻠﺑ"
 
 msgid "Physical light sources"
 msgstr "ﻊﺋﺍﺭﺫ ﮯﮐ ﯽﻨﺷﻭﺭ ﯽﻧﺎﻤﺴﺟ"
+
+
+msgctxt "Sequence"
+msgid "Box"
+msgstr "ﮧﺑﮈ"
 
 
 msgid "Feature Weights"
@@ -86231,10 +85505,6 @@ msgstr "ﻡﺭﺎﻔﺴﻧﺍﺮﭨ ﻞﺑﻮﻠﮔ"
 
 msgid "Fix to Camera"
 msgstr "Fix to ﮦﺮﻤﯿﮐ"
-
-
-msgid "Mirror Options"
-msgstr "ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﮧﻨﯿﺋﺁ"
 
 
 msgid "Brush Presets"
@@ -88421,22 +87691,6 @@ msgid "Enable additional features for the new curves data block"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻌﻓ ﻮﮐ ﺕﺎﯿﺻﻮﺼﺧ ﯽﻓﺎﺿﺍ ﮯﯿﻟ ﮯﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ  ﻢﺧ  ﮯﺌﻧ"
 
 
-msgid "New Volume Nodes"
-msgstr "ﺱﮈﻮﻧ ﻡﻮﯿﻟﺍﻭ ﮯﺌﻧ"
-
-
-msgid "Enables visibility of the new Volume nodes in the UI"
-msgstr "UI ﮯﮨ ﺎﺗﺮﮐ ﻝﺎﻌﻓ ﻮﮐ ﺖﯿﺋﺮﻣ ﯽﮐ ﺱﮈﻮﻧ ﻡﻮﯿﻟﺍﻭ ﮯﺌﻧ ﮟﯿﻣ"
-
-
-msgid "Recompute ID Usercount On Save"
-msgstr "ﮟﯾﺮﮐ ﯽﺘﻨﮔ ﮦﺭﺎﺑﻭﺩ ﯽﮐ ﻑﺭﺎﺻ ID ﺮﭘ ﮯﻧﺮﮐ ﻅﻮﻔﺤﻣ"
-
-
-msgid "Recompute all ID usercounts before saving to a blendfile. Allows to work around invalid usercount handling in code that may lead to loss of data due to wrongly detected unused data-blocks"
-msgstr "ﮯﮨ ﺎﺘﮑﺳ ﻦﺑ ﺚﻋﺎﺑ ﺎﮐ ﻥﺎﺼﻘﻧ ﮯﮐ ﺎﭩﯾﮈ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﮯﻧﺎﮕﻟ ﮧﺘﭘ ﺎﮐ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﺪﺷ ﻝﺎﻤﻌﺘﺳﺍ ﺮﯿﻏ ﮯﺳ ﮯﻘﯾﺮﻃ ﻂﻠﻏ ﻮﺟ ﮯﮨ ﺎﺘﯾﺩ ﺕﺯﺎﺟﺍ ﯽﮐ ﮯﻧﺮﮐ ﻡﺎﮐ ﺩﺮﮔ ﺩﺭﺍ ﮯﮐ ﮓﻨﻟﮉﻨﯿﮨ ﭧﻧﺅﺎﮐ ﺭﺯﻮﯾ ﻂﻠﻏ ﮟﯿﻣ ﮈﻮﮐ ﮟﯾﺮﮐ ﯽﺘﻨﮔ ﮦﺭﺎﺑﻭﺩ ﺎﮐ ﯽﺘﻨﮔ ﻑﺭﺎﺻ ID ﻡﺎﻤﺗ ﮯﻠﮩﭘ ﮯﺳ ﮯﻧﺮﮐ ﻅﻮﻔﺤﻣ ﮟﯿﻣ ﻞﺋﺎﻓ ﮉﻨﯿﻠﺑ"
-
-
 msgid "Sculpt Texture Paint"
 msgstr "ﭧﻨﯿﭘ ﺖﺧﺎﺳ  ﮧﻤﺴﺠﻣ"
 
@@ -89816,10 +89070,6 @@ msgid "Language used for translation"
 msgstr "ﻥﺎﺑﺯ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮧﻤﺟﺮﺗ"
 
 
-msgid "Automatic (Automatic)"
-msgstr "(ﺭﺎﮐﺩﻮﺧ) ﺭﺎﮐﺩﻮﺧ"
-
-
 msgid "Mini Axes Brightness"
 msgstr "ﮏﻤﭼ ﯽﮐ ﺭﻮﺤﻣ ﮯﭨﻮﮭﭼ"
 
@@ -90050,10 +89300,6 @@ msgstr "GPU ﮟﯿﺋﺎﮭﮐﺩ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﯼﺭﻮﻤﯿ�
 
 msgid "Tooltips"
 msgstr "ﺲﭙﭨ ﺭﺍﺯﻭﺍ"
-
-
-msgid "Display tooltips (when disabled, hold Alt to force display)"
-msgstr "(ﮟﯿﮭﮐﺭ ﮯﺋﺎﺑﺩ ﻮﮐ Alt ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮯﻧﺎﮭﮐﺩ ﯽﺘﺳﺩﺮﺑﺯ ،ﺮﭘ ﮯﻧﻮﮨ ﻝﺎﻌﻓ ﺮﯿﻏ) ﺲﭙﭨِ ﺭﺍﺯﻭﺍ  ﮯﻠﭙﺳﮈ"
 
 
 msgid "Python Tooltips"
@@ -90596,10 +89842,6 @@ msgid "Trigger A"
 msgstr "ﮮﺍ ﺮﮔﺮﭨ"
 
 
-msgid "Action whose activation will trigger the corrective action"
-msgstr "ﺎﮔ ﮮﺮﮐ ﮎﺮﺤﺘﻣ ﻮﮐ ﻞﻤﻋ ﯽﺣﻼ﻿ﺻﺍ ﻦﺸﯾﻮﯿﭩﮑﯾﺍ ﺎﮐ ﺲﺟ ﻦﺸﮑﯾﺍ"
-
-
 msgid "Trigger B"
 msgstr "ﯽﺑ ﺮﮔﺮﭨ"
 
@@ -90854,14 +90096,6 @@ msgid "AO distance used for approximate global illumination (0 means use world s
 msgstr "(ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺐﯿﺗﺮﺗ ﯽﻤﻟﺎﻋ ﮯﮨ ﺐﻠﻄﻣ ﺎﮐ 0) ﮧﻠﺻﺎﻓ AO ﻻ﻿ﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﯽﻨﺷﻭﺭ ﯽﻤﻟﺎﻋ ﺎًﺒﯾﺮﻘﺗ"
 
 
-msgid "Dicing Scale"
-msgstr "ﻞﯿﮑﺳﺍ  ﮓﻨﺴﺋﺍﮈ"
-
-
-msgid "Multiplier for scene dicing rate (located in the Subdivision panel)"
-msgstr "(ﻊﻗﺍﻭ ﮟﯿﻣ ﻞﻨﯿﭘ ﻥﮋﯾﻭﮈ ﺐﺳ) ﺏﺮﺿ ﮯﯿﻟ ﮯﮐ ﭧﯾﺭ ﮓﻨﺴﺋﺍﮈ ﻦﯿﺳ"
-
-
 msgid "Cast Shadow Caustics"
 msgstr "ﺲﮑﭩﺳﺎﮐ ﻭﮉﯿﺷ ﭧﺳﺎﮐ"
 
@@ -90884,14 +90118,6 @@ msgstr "ﻞﺣﺍﺮﻣ ﮯﮐ ﺖﮐﺮﺣ"
 
 msgid "Control accuracy of motion blur, more steps gives more memory usage (actual number of steps is 2^(steps - 1))"
 msgstr "((1 - ﮯﻣﺪﻗ)^2 ﺩﺍﺪﻌﺗ ﻞﺻﺍ ﯽﮐ ﮞﻮﻣﺪﻗ) ﮟﯿﮨ ﮯﺗﺮﮐ ﻢﮨﺍﺮﻓ ﻝﺎﻤﻌﺘﺳﺍ ﮦﺩﺎﯾﺯ ﺎﮐ ﯼﺭﻮﻤﯿﻣ ﺕﺎﻣﺍﺪﻗﺍ ﺪﯾﺰﻣ ،ﮟﯾﺮﮐ ﻝﻭﺮﭩﻨﮐ ﻮﮐ ﯽﮕﺘﺳﺭﺩ ﯽﮐ ﺮﻠﺑ ﺖﮐﺮﺣ"
-
-
-msgid "Use Adaptive Subdivision"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻢﯿﺴﻘﺗ ﯽﻠﯾﺫ ﯽﻟﻮﮑﻧﺍ"
-
-
-msgid "Use adaptive render time subdivision"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻢﯿﺴﻘﺗ ﯽﻠﯾﺫ ﻢﺋﺎﭨ ﺭﮉﻨﯾﺭ ﯽﻟﻮﮑﻧﺍ"
 
 
 msgid "Use Camera Cull"
@@ -90940,6 +90166,10 @@ msgstr "ﺭﺎﻤﺷ ﮧﻧﻮﻤﻧ ﮓﺒﯾﮈ"
 
 msgid "Number of samples per pixel taken, divided by the maximum number of samples. To analyze adaptive sampling"
 msgstr "ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮧﯾﺰﺠﺗ ﺎﮐ ﮯﻨﯿﻟ ﮯﻧﻮﻤﻧ ﯽﻟﻮﮑﻧﺍ ﻢﯿﺴﻘﺗ ﮯﺳ ﺩﺍﺪﻌﺗ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ ﯽﮐ ﮞﻮﻧﻮﻤﻧ ،ﺩﺍﺪﻌﺗ ﯽﮐ ﮞﻮﻧﻮﻤﻧ ﻞﺴﮑﭘ ﯽﻓ"
+
+
+msgid "Render Time"
+msgstr "ﻢﺋﺎﭨ ﺭﮉﻨﯾﺭ"
 
 
 msgid "Use Denoising"
@@ -91246,10 +90476,6 @@ msgid "Dicing Rate"
 msgstr "ﭧﯾﺭ ﮓﻨﺴﺋﺍﮈ"
 
 
-msgid "Size of a micropolygon in pixels"
-msgstr "ﮟﯿﻣ ﺰﻠﺴﮑﭘ ﺰﺋﺎﺳ ﺎﮐ ﻥﻮﮕﯿﻟﻮﭘﻭﺮﮑﺋﺎﻣ"
-
-
 msgid "Diffuse Bounces"
 msgstr "ﺲﻧﺅﺎﺑ ﺯﻮﯿﻓﮈ"
 
@@ -91312,22 +90538,6 @@ msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﮫﺗﺎﺳ ﮯﮐ ﭦﻭﺎﮐﺭ ﯽﻄ�
 
 msgid "Add ambient occlusion to diffuse surfaces"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﭦﻭﺎﮐﺭ ﯽﻄﯿﺤﻣ ﺮﭘ ﮞﻮﺤﻄﺳ ﯽﺋﻮﮨ ﯽﻠﯿﮭﭘ"
-
-
-msgid "Feature set to use for rendering"
-msgstr "ﭧﯿﺳ ﺮﭽﯿﻓ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮓﻧﺭﮉﻨﯾﺭ"
-
-
-msgid "Supported"
-msgstr "ﯽﮐ ﺖﯾﺎﻤﺣ"
-
-
-msgid "Only use finished and supported features"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺕﺎﯿﺻﻮﺼﺧ ﻥﻭﺎﻌﻣ ﺭﻭﺍ ﮦﺪﺷ ﺭﺎﯿﺗ ﻑﺮﺻ"
-
-
-msgid "Use experimental and incomplete features that might be broken or change in the future"
-msgstr "ﮟﯿﮨ ﯽﺘﮑﺳ ﻮﮨ ﻞﯾﺪﺒﺗ ﺎﯾ ﮟﯿﮨ ﯽﺘﮑﺳ ﭦﻮﭨ ﮟﯿﻣ ﻞﺒﻘﺘﺴﻣ ﻮﺟ ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺕﺎﯿﺻﻮﺼﺧ ﻞﻤﮑﻣﺎﻧ ﺭﻭﺍ ﯽﺗﺎﺑﺮﺠﺗ"
 
 
 msgid "Image brightness scale"
@@ -91458,10 +90668,6 @@ msgid "Max Subdivisions"
 msgstr "ﻢﯿﺴﻘﺗ ﯽﻠﯾﺫ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
 
 
-msgid "Stop subdividing when this level is reached even if the dice rate would produce finer tessellation"
-msgstr "ﮮﺮﮐ ﺍﺪﯿﭘ ﻦﺸﯿﻠﺴﯿﭨ ﺮﺘﮩﺑ ﺡﺮﺷ ﯽﮐ ﺩﺮﻧ ﮯﮨﺎﭼ ﮟﯾﺩ ﺮﮐ ﺪﻨﺑ ﺎﻧﺮﮐ ﻢﯿﺴﻘﺗ ﯽﻠﯾﺫ ﻮﺗ ﮯﺋﺎﺟ ﭻﻨﮩﭘ ﮏﺗ ﺢﻄﺳ ﺱﺍ ﺐﺟ"
-
-
 msgid "Min Light Bounces"
 msgstr "ﺲﻧﺅﺎﺑ ﭧﺋﻻ﻿ ﻢﮐ ﮯﺳ ﻢﮐ"
 
@@ -91548,10 +90754,6 @@ msgstr "on GPU ﻮﯾﻮﯾﺮﭘ ﺰﺋﻮﻨﯾﮈ"
 
 msgid "Viewport Dicing Rate"
 msgstr "ﭧﯾﺭ ﮓﻨﺴﺋﺍﮈ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Size of a micropolygon in pixels during preview render"
-msgstr "ﺰﺋﺎﺳ ﺎﮐ ﻥﻮﮕﯿﻟﻮﭘ ﻭﺮﮑﺋﺎﻣ ﮟﯿﻣ ﺰﻠﺴﮑﭘ ﻥﺍﺭﻭﺩ ﮯﮐ ﺭﮉﻨﯾﺭ ﻮﯾﻮﯾﺮﭘ"
 
 
 msgid "Pause Preview"
@@ -91990,10 +91192,6 @@ msgid "Normal pass used by denoiser"
 msgstr "ﺱﺎﭘ ﻡﺎﻋ ﻻ﻿ﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮧﻌﯾﺭﺫ ﮯﮐ ﺭﺰﺋﺍﻮﻨﯾﮈ"
 
 
-msgid "Sample Count"
-msgstr "ﺭﺎﻤﺷ ﮧﻧﻮﻤﻧ"
-
-
 msgid "Per-pixel number of samples"
 msgstr "ﺩﺍﺪﻌﺗ ﻞﺴﮑﭘ ﯽﻓ ﯽﮐ ﮞﻮﻧﻮﻤﻧ"
 
@@ -92106,10 +91304,6 @@ msgid "Whether these settings have already been auto-set or not"
 msgstr "ﮟﯿﮩﻧ ﺎﯾ ﮟﯿﮨ ﯽﮑﭼ ﻮﮨ ﭧﯿﺳ ﺩﻮﺧ ﺯﺍ ﯽﮨ ﮯﻠﮩﭘ ﺰﮕﻨﭩﯿﺳ ﮧﯾ ﺎﯾﺁ"
 
 
-msgid "Languages"
-msgstr "ﮟﯿﻧﺎﺑﺯ"
-
-
 msgid "Languages to update in work repository"
 msgstr "ﮟﯿﻧﺎﺑﺯ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﭧﯾﮈ ﭖﺍ ﮟﯿﻣ ﮮﺮﯿﺧﺫ ﮯﮐ ﻡﺎﮐ"
 
@@ -92122,56 +91316,8 @@ msgid "Path to the pot template file"
 msgstr "ﮧﺘﺳﺍﺭ ﺎﮐ ﻞﺋﺎﻓ ﭧﯿﻠﭙﻤﯿﭨ ﻦﺗﺮﺑ"
 
 
-msgid "Naming Components for alpha maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﺎﻔﻟﺍ"
-
-
-msgid "Naming Components for AO maps"
-msgstr "AO ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ"
-
-
-msgid "Naming Components for Base Color maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﮯﮐ ﮓﻧﺭ ﯼﺩﺎﯿﻨﺑ"
-
-
-msgid "Naming Components for bump maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﮯﮐ ﮯﻧﺍﺮﮑﭨ"
-
-
-msgid "Naming Components for displacement maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﮯﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ"
-
-
-msgid "Naming Components for emission maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﮯﮐ ﺝﺍﺮﺧﺍ"
-
-
 msgid "Gloss"
 msgstr "ﮏﻤﭼ"
-
-
-msgid "Naming Components for glossy maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﺭﺍﺪﮑﻤﭼ"
-
-
-msgid "Naming Components for metallness maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﮯﮐ ﻦﭘ ﯽﺗﺎﮬﺩ"
-
-
-msgid "Naming Components for Normal maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﻡﺎﻋ"
-
-
-msgid "Naming Components for roughness maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﯼﺭﺩﺮﮭﮐ"
-
-
-msgid "Naming Components for Specular maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﺮﻟﻮﮑﯿﭙﺳ"
-
-
-msgid "Naming Components for transmission maps"
-msgstr "ﺎﻨﯾﺩ ﻡﺎﻧ ﺎﮐ ءﺍﺰﺟﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﺸﻘﻧ ﻦﺸﯿﻤﺴﻧﺍﺮﭨ"
 
 
 msgid "Python expression to be evaluated as the initial node setting"
@@ -93860,10 +93006,6 @@ msgstr "Y ﭧﮑﭙﺴﯾﺍ ﻞﺴﮑﭘ"
 
 msgid "Vertical aspect ratio - for anamorphic or non-square pixel output"
 msgstr "ﮯﯿﻟ ﮯﮐ ﭧﭘ ﭦﺅﺁ ﻞﺴﮑﭘ ﻊﺑﺮﻣ ﺮﯿﻏ ﺎﯾ ﮏﻓﺭﺎﻣﺎﻨﯾﺍ - ﺐﺳﺎﻨﺗ ﻮﻠﮩﭘ ﯼﺩﻮﻤﻋ"
-
-
-msgid "Pixel Size"
-msgstr "ﺰﺋﺎﺳ ﻞﺴﮑﭘ"
 
 
 msgid "Pixel size for viewport rendering"
@@ -96983,6 +96125,10 @@ msgid "Editing context being displayed"
 msgstr "ﮯﮨ ﺎﮨﺭ ﺎﺟ ﺎﯾﺎﮭﮐﺩ ﻕﺎﺒﺳ ﻭ ﻕﺎﯿﺳ ﯽﻤﯿﻣﺮﺗ"
 
 
+msgid "Overlay Settings"
+msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﮯﻟﺭﻭﻭﺍ"
+
+
 msgid "Path Length"
 msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﮯﺘﺳﺍﺭ"
 
@@ -97306,10 +96452,6 @@ msgid "Edit all keyframes in scene"
 msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮞﻮﻤﯾﺮﻓ ﯼﺪﯿﻠﮐ ﻡﺎﻤﺗ ﮟﯿﻣ ﺮﻈﻨﻣ"
 
 
-msgid "Timeline and playback controls"
-msgstr "ﺰﻟﻭﺮﭩﻨﮐ ﮏﯿﺑ ﮯﻠﭘ ﺭﻭﺍ ﻦﺋﻻ﻿ ﻢﺋﺎﭨ"
-
-
 msgid "Action Editor"
 msgstr "ﺮﭩﯾﮉﯾﺍ ﻡﺍﺪﻗﺍ"
 
@@ -97336,6 +96478,10 @@ msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﺕﺎﻗﻭﺍ ﮯﮐ �
 
 msgid "Edit timings for Cache File data-blocks"
 msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﺕﺎﻗﻭﺍ ﮯﮐ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ ﻞﺋﺎﻓ ﺶﯿﮐ"
+
+
+msgid "Settings for display of overlays"
+msgstr "ﺰﮕﻨﭩﯿﺳ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﮭﮐﺩ ﮯﮐ ﺰﯿﻟﺭﻭﻭﺍ"
 
 
 msgid "Show the status of cached frames in the timeline"
@@ -97530,10 +96676,6 @@ msgid "Edit animation/keyframes displayed as 2D curves"
 msgstr "2D ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﺰﻤﯾﺮﻓ ﯽﮐ/ﻦﺸﯿﻤﯿﻨﯾﺍ ﮯﻟﺍﻭ ﮯﻧﺎﺟ ﮯﺋﺎﮭﮐﺩ ﺮﭘ ﺭﻮﻃ ﮯﮐ  ﮟﯿﻤﺧ"
 
 
-msgid "Edit drivers"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮞﻭﺭﻮﯿﺋﺍﺭﮈ"
-
-
 msgid "Individual Centers"
 msgstr "ﺰﮐﺍﺮﻣ ﯼﺩﺍﺮﻔﻧﺍ"
 
@@ -97630,28 +96772,8 @@ msgid "Display Z-buffer associated with image (mapped from camera clip start to 
 msgstr "(ﺎﯿﮔ ﺎﯾﺎﻨﺑ ﮧﺸﻘﻧ ﮏﺗ ﺮﺧﺁ ﮯﺳ ﻉﻭﺮﺷ ﭗﻠﮐ ﮦﺮﻤﯿﮐ) ﮟﯾﺮﮐ ﮯﻧﺎﮭﮐﺩ ﺮﻔﺑ ﮉﯾﺯ ﮏﻠﺴﻨﻣ ﮫﺗﺎﺳ ﮯﮐ ﺮﯾﻮﺼﺗ"
 
 
-msgid "View the image"
-msgstr "ﮟﯿﮭﮑﯾﺩ ﺮﯾﻮﺼﺗ"
-
-
 msgid "UV Editor"
 msgstr "ﺮﭩﯾﮉﯾﺍ ﯼﻭﻮﯾ"
-
-
-msgid "UV edit in mesh editmode"
-msgstr "ﻢﯿﻣﺮﺗ ﯼﻭﻮﯾ ﮟﯿﻣ ﺭﻮﻃ ﭧﯾﮉﯾﺍ ﺶﯿﻣ"
-
-
-msgid "2D image painting mode"
-msgstr "2D ﮈﻮﻣ ﮓﻨﭩﻨﯿﭘ ﺞﯿﻣﺍ"
-
-
-msgid "Mask editing"
-msgstr "ﮓﻨﭩﯾﮉﯾﺍ ﮏﺳﺎﻣ"
-
-
-msgid "Overlay Settings"
-msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﮯﻟﺭﻭﻭﺍ"
 
 
 msgid "Settings for display of overlays in the UV/Image editor"
@@ -97892,24 +97014,6 @@ msgstr "ﻦﺸﮑﯾﺮﺋﺍﮈ ﭧﯿﺴﻓﺁ ﻮﭨﺁ"
 
 msgid "Direction to offset nodes on insertion"
 msgstr "ﺖﻤﺳ ﯽﮐ ﮯﻧﺮﮐ ﭧﯿﺴﻓﺁ ﻮﮐ ﺱﮈﻮﻧ ﺮﭘ ﮯﻧﺮﮐ ﻞﺧﺍﺩ"
-
-
-msgctxt "ID"
-msgid "Modifier"
-msgstr "ﻻ﻿ﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ"
-
-
-msgid "Edit node group from active object's active modifier"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮦﻭﺮﮔ ﮈﻮﻧ ﮯﺳ ﺮﺋﺎﻔﯾﮈﻮﻣ ﻝﺎﻌﻓ ﮯﮐ ﮯﺷ ﻝﺎﻌﻓ"
-
-
-msgctxt "ID"
-msgid "Tool"
-msgstr "ﻝﻮﭨ"
-
-
-msgid "Edit any geometry node group for use as an operator"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮦﻭﺮﮔ ﮈﻮﻧ ﯼﺮﭩﯿﻣﻮﯿﺟ ﯽﮭﺑ ﯽﺴﮐ ﮯﯿﻟ ﮯﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﺮﭩﯾﺮﭘﺁ"
 
 
 msgid "Settings for display of overlays in the Node Editor"
@@ -98291,6 +97395,11 @@ msgid "Properties space data"
 msgstr "ﺎﭩﯾﮈ ﺲﯿﭙﺳﺍ ﺰﯿﭨﺮﭘﺍﺮﭘ"
 
 
+msgctxt "ID"
+msgid "Tool"
+msgstr "ﻝﻮﭨ"
+
+
 msgid "Active Tool and Workspace settings"
 msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﺲﯿﭙﺳﺍ ﮎﺭﻭ ﺭﻭﺍ ﺭﺍﺯﻭﺍ  ﻝﺎﻌﻓ"
 
@@ -98434,6 +97543,10 @@ msgid "Change tabs only when this editor shares a border with an outliner"
 msgstr "ﮮﺮﮐ ﮎﺍﺮﺘﺷﺍ ﺎﮐ ﺭﮈﺭﺎﺑ ﮫﺗﺎﺳ ﮯﮐ ﺮﻨﺋﻻ﻿ ﭦﺅﺁ ﺮﭩﯾﮉﯾﺍ ﮧﯾ ﺐﺟ ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﯽﮨ ﺐﺗ ﻮﮐ ﺰﺒﯿﭨ"
 
 
+msgid "Strip Modifiers"
+msgstr "ﺮﺋﺎﻔﯾﮈﻮﻣ ﯽﭩﭘ"
+
+
 msgid "Tab Search Results"
 msgstr "ﺞﺋﺎﺘﻧ ﮯﮐ ﺵﻼ﻿ﺗ ﺐﯿﭨ"
 
@@ -98456,10 +97569,6 @@ msgstr "ﺮﭩﯾﮉﯾﺍ ﺐﯿﺗﺮﺗ ﯽﺋﻼ﻿ﺧ"
 
 msgid "Sequence editor space data"
 msgstr "ﺎﭩﯾﮈ ﯽﺋﻼ﻿ﺧ ﺮﭩﯾﮉﯾﺍ ﺐﯿﺗﺮﺗ"
-
-
-msgid "Settings for display of overlays"
-msgstr "ﺰﮕﻨﭩﯿﺳ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﮭﮐﺩ ﮯﮐ ﺰﯿﻟﺭﻭﻭﺍ"
 
 
 msgid "Display Channel"
@@ -99032,6 +98141,10 @@ msgstr "ﮟﯾﺩ ﺕﺯﺎﺟﺍ ﯽﮐ ﺏﺎﺨﺘﻧﺍ ﮯﮐ ﺕﺎﻘﯿ�
 
 msgid "Allow selection of mesh objects"
 msgstr "ﮟﯾﺩ ﺕﺯﺎﺟﺍ ﯽﮐ ﺏﺎﺨﺘﻧﺍ ﮯﮐ ءﺎﯿﺷﺍ ﺶﯿﻣ"
+
+
+msgid "Meta"
+msgstr "ﺎﭩﯿﻣ"
 
 
 msgid "Allow selection of metaballs"
@@ -99756,16 +98869,9 @@ msgid "Method for controlling how the strip combines with other strips"
 msgstr "ﮯﮨ ﯽﺘﻠﻣ ﮯﺴﯿﮐ ﮫﺗﺎﺳ ﮯﮐ ﺲﭘﺮﭩﺳ ﮮﺮﺳﻭﺩ ﯽﭩﭘ ﮧﮐ ﮧﻘﯾﺮﻃ ﺎﮐ ﮯﻧﺮﮐ ﻝﻭﺮﭩﻨﮐ ﮧﯾ"
 
 
-msgid "Cross"
-msgstr "ﺱﺍﺮﮐ"
-
-
-msgid "Alpha Under"
-msgstr "ﺭﮉﻧﺍ ﺎﻔﻟﺍ"
-
-
-msgid "Gamma Cross"
-msgstr "ﺱﺍﺮﮐ ﺎﻣﺎﮔ"
+msgctxt "Color"
+msgid "Value"
+msgstr "ﺭﺪﻗ"
 
 
 msgid "Y position of the sequence strip"
@@ -99999,11 +99105,6 @@ msgid "Animation start offset (trim start)"
 msgstr "(ﭦﺭﺎﭩﺳﺍ ﻡﺮﭨ) ﭧﯿﺳ ﻑﺁ ﭦﺭﺎﭩﺳﺍ ﺕﺎﯿﮐﺮﺣ"
 
 
-msgctxt "Color"
-msgid "Value"
-msgstr "ﺭﺪﻗ"
-
-
 msgid "Color Strip"
 msgstr "ﯽﭩﭘ ﯽﮐ ﮓﻧﺭ"
 
@@ -100216,62 +99317,6 @@ msgid "Word wrap width as factor, zero disables"
 msgstr "ﻝﺎﻌﻓ ﺮﯿﻏ ﺮﻔﺻ ،ﺮﺼﻨﻋ ﺭﻮﻄﺑ ﯽﺋﺍﮌﻮﭼ ﭧﯿﭙﻟ ﮈﺭﻭ"
 
 
-msgid "Sequence strip applying affine transformations to other strips"
-msgstr "ﮯﮨ ﯽﺗﺮﮐ ﻮﮔﻻ﻿ ﻮﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﻦﺋﺎﻓﺍ ﺮﭘ ﺲﭘﺮﭩﺳ ﯼﺮﺳﻭﺩ ﯽﭩﭘ ﯽﮐ ﺐﯿﺗﺮﺗ"
-
-
-msgid "Method to determine how missing pixels are created"
-msgstr "ﮧﻘﯾﺮﻃ ﺎﮐ ﮯﻧﺮﮐ ﻦﯿﻌﺗ ﺎﮐ ﺱﺍ ﮟﯿﮨ ﮯﺗﺎﺟ ﮯﺋﺎﻨﺑ ﮯﺴﯿﮐ ﺰﻠﺴﮑﭘ ﮧﺘﭘﻻ﻿"
-
-
-msgid "Bilinear interpolation"
-msgstr "ﻦﺸﯿﻟﻮﭘﺮﭩﻧﺍ ﺮﺌﻨﯿﻠﺑ"
-
-
-msgid "Bicubic interpolation"
-msgstr "ﻦﺸﯿﻟﻮﭘﺮﭩﻧﺍ ﮏﺑﻮﯿﮑﯿﺋﺎﺑ"
-
-
-msgid "Degrees to rotate the input"
-msgstr "ﯼﺮﮔﮈ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﻤﮭﮔ ﻮﮐ ﭧﭘ ﻥﺍ"
-
-
-msgid "Amount to scale the input in the X axis"
-msgstr "ﻢﻗﺭ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮧﻧﺎﻤﯿﭘ ﻮﮐ ﭧﭘ ﻥﺍ ﮟﯿﻣ ﺭﻮﺤﻣ ﺲﮑﯾﺍ"
-
-
-msgid "Amount to scale the input in the Y axis"
-msgstr "Y ﻢﻗﺭ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮧﻧﺎﻤﯿﭘ ﻮﮐ ﭧﭘ ﻥﺍ ﮟﯿﻣ ﺭﻮﺤﻣ"
-
-
-msgid "Translate X"
-msgstr "ﺲﮑﯾﺍ ﮧﻤﺟﺮﺗ"
-
-
-msgid "Amount to move the input on the X axis"
-msgstr "ﻢﻗﺭ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﻘﺘﻨﻣ ﻮﮐ ﭧﭘ ﻥﺍ ﺮﭘ ﺭﻮﺤﻣ ﺲﮑﯾﺍ"
-
-
-msgid "Translate Y"
-msgstr "Y ﮟﯾﺮﮐ ﮧﻤﺟﺮﺗ ﺎﮐ"
-
-
-msgid "Amount to move the input on the Y axis"
-msgstr "ﻢﻗﺭ ﯽﮐ ﮯﻧﺮﮐ ﻞﻘﺘﻨﻣ ﺮﭘ ﺭﻮﺤﻣ Y ﻮﮐ ﭧﭘ ﻥﺍ"
-
-
-msgid "Translation Unit"
-msgstr "ﭧﻧﻮﯾ ﮧﻤﺟﺮﺗ"
-
-
-msgid "Unit of measure to translate the input"
-msgstr "ﯽﺋﺎﮐﺍ ﯽﮐ ﺶﺋﺎﻤﯿﭘ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮧﻤﺟﺮﺗ ﺎﮐ ﭧﭘ ﻥﺍ"
-
-
-msgid "Scale uniformly, preserving aspect ratio"
-msgstr "ﺮﭘ ﮯﻧﺎﻤﯿﭘ ﮞﺎﺴﮑﯾ ﮯﺋﻮﮨ ﮯﺘﮭﮐﺭ ﻅﻮﻔﺤﻣ ﻮﮐ ﺐﺳﺎﻨﺗ ﮯﮐ ﻮﻠﮩﭘ"
-
-
 msgid "Sequence strip creating a wipe transition"
 msgstr "ﮯﮨ ﯽﺗﺎﻨﺑ ﻦﺸﯾﺰﻧﺍﺮﭨ ﭗﺋﺍﻭ ﮏﯾﺍ ﯽﭩﭘ ﯽﮐ ﺐﯿﺗﺮﺗ"
 
@@ -100356,6 +99401,10 @@ msgid "Sequence strip to group other strips as a single sequence strip"
 msgstr "ﯽﭩﭘ ﯽﻟﺍﻭ ﺐﯿﺗﺮﺗ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮦﻭﺮﮔ ﻮﮐ ﺲﭘﺮﭩﺳ ﯼﺮﺳﻭﺩ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﯽﭩﭘ ﯽﻟﺍﻭ ﺐﯿﺗﺮﺗ ﮏﯾﺍ"
 
 
+msgid "Playback volume of the sound"
+msgstr "ﻡﻮﯿﻟﺍﻭ ﮏﯿﺑ ﮯﻠﭘ ﺎﮐ ﺯﺍﻭﺁ"
+
+
 msgid "Sequence strip to load a video from the clip editor"
 msgstr "ﯽﭩﭘ ﯽﮐ ﻞﺴﻠﺴﺗ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮈﻮﻟ ﻮﯾﮉﯾﻭ ﮯﺳ ﺮﭩﯾﮉﯾﺍ ﭗﻠﮐ"
 
@@ -100432,10 +99481,6 @@ msgid "Show Annotations in OpenGL previews"
 msgstr "OpenGL  ﮟﯿﺋﺎﮭﮐﺩ ﺕﺎﺤﯾﺮﺸﺗ ﮟﯿﻣ ﻮﯾﻮﯾﺮﭘ"
 
 
-msgid "Playback volume of the sound"
-msgstr "ﻡﻮﯿﻟﺍﻭ ﮏﯿﺑ ﮯﻠﭘ ﺎﮐ ﺯﺍﻭﺁ"
-
-
 msgid "Sequence strip defining a sound to be played over a period of time"
 msgstr "ﮯﮨ ﺎﻧﺎﺟ ﺎﯾﻼ﻿ﭼ ﮫﺗﺎﺳ ﮯﮐ ﺖﻗﻭ ﮯﺴﺟ ﮯﮨ ﯽﺗﺮﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﺯﺍﻭﺁ ﮏﯾﺍ ﻮﺟ ﯽﭩﭘ ﯽﮐ ﻞﺴﻠﺴﺗ"
 
@@ -100472,6 +99517,18 @@ msgstr "ﺯﺮﭩﯿﻣﺍﺮﯿﭘ ﮯﮐ ﻥﺯﺍﻮﺗ ﻦﯿﮕﻧﺭ ﮯ�
 
 msgid "Correction Method"
 msgstr "ﮧﻘﯾﺮﻃ ﺎﮐ ﺢﯿﺤﺼﺗ"
+
+
+msgid "Lift/Gamma/Gain"
+msgstr "ﻦﯿﮔ/ﺎﻣﺎﮔ/ﭧﻔﻟ"
+
+
+msgid "Offset/Power/Slope (ASC-CDL)"
+msgstr "(ASC-CDL) ﻥﺍﻮﻠﮬﮈ/ﺭﻭﺎﭘ/ﭧﯿﺴﻓﺁ"
+
+
+msgid "ASC-CDL standard color correction"
+msgstr "ASC-CDL ﺡﻼ﻿ﺻﺍ ﯽﮐ ﮓﻧﺭ ﯼﺭﺎﯿﻌﻣ"
 
 
 msgid "Color balance gain (highlights)"
@@ -100766,10 +99823,6 @@ msgid "This color defines white in the strip"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﺪﯿﻔﺳ ﮟﯿﻣ ﯽﭩﭘ ﮓﻧﺭ ﮧﯾ"
 
 
-msgid "Strip Modifiers"
-msgstr "ﺮﺋﺎﻔﯾﮈﻮﻣ ﯽﭩﭘ"
-
-
 msgid "Collection of strip modifiers"
 msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﺯﺮﺋﺎﻔﯾﮈﻮﻣ ﯽﭩﭘ"
 
@@ -100862,8 +99915,16 @@ msgid "Averages source image samples that fall under destination pixel"
 msgstr "ﮟﯿﮨ ﮯﺗﺁ ﮯﭽﯿﻧ ﮯﮐ ﻞﺴﮑﭘ ﮯﮐ ﻝﺰﻨﻣ ﻮﺟ ﮯﻧﻮﻤﻧ ﮯﮐ ﺮﯾﻮﺼﺗ ﺬﺧﺎﻣ ﺎﻄﺳﻭﺍ"
 
 
+msgid "Translate X"
+msgstr "ﺲﮑﯾﺍ ﮧﻤﺟﺮﺗ"
+
+
 msgid "Move along X axis"
 msgstr "ﮟﯿﮬﮍﺑ ﮯﮔﺁ ﮫﺗﺎﺳ ﮯﮐ ﺭﻮﺤﻣ ﺲﮑﯾﺍ"
+
+
+msgid "Translate Y"
+msgstr "Y ﮟﯾﺮﮐ ﮧﻤﺟﺮﺗ ﺎﮐ"
 
 
 msgid "Move along Y axis"
@@ -101077,10 +100138,6 @@ msgstr "ﻡﺎﻧ ﺎﮐ ﭦﻼ﻿ﺳ ﯽﮐ ﺖﺧﺎﺳ"
 
 msgid "Fine tune of the texture mapping X, Y and Z locations"
 msgstr "ﻦﮬﺩ ﮦﺪﻤﻋ ﯽﮐ ﺕﺎﻣﺎﻘﻣ Z ﺭﻭﺍ X، Y ﮓﻨﭙﯿﻣ ﺮﭽﺴﮑﯿﭨ"
-
-
-msgid "Output Node"
-msgstr "ﮈﻮﻧ ﭧﭘ ﭦﺅﺁ"
 
 
 msgid "Which output node to use, for node-based textures"
@@ -101741,14 +100798,6 @@ msgid "Theme settings for the Dope Sheet"
 msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﻢﯿﮭﺗ ﮯﯿﻟ ﮯﮐ ﭧﯿﺷ ﭖﻭﮈ"
 
 
-msgid "Interpolation Line"
-msgstr "ﻦﺋﻻ﻿ ﻦﺸﯿﻟﻮﭘﺮﭩﻧﺍ"
-
-
-msgid "Color of lines showing non-Bézier interpolation modes"
-msgstr "ﮯﮨ ﺎﮨﺭ ﺎﮭﮐﺩ ﺯﮈﻮﻣ ﻦﺸﯿﻟﻮﭘﺮﭩﻧﺍ ﺮﺌﯾﺰﯿﺑ ﺮﯿﻏ ﮓﻧﺭ ﺎﮐ ﮞﻭﺮﯿﮑﻟ"
-
-
 msgid "Keyframe Border"
 msgstr "ﺭﮈﺭﺎﺑ ﻢﯾﺮﻓ ﯽﮐ"
 
@@ -101941,10 +100990,6 @@ msgid "Active Vertex/Edge/Face"
 msgstr "ﮦﺮﮩﭼ/ﺞﯾﺍ/ﺲﮑﯿﭨﺭﻭ ﻝﺎﻌﻓ"
 
 
-msgid "Face Dot Selected"
-msgstr "ﺎﯿﮔ ﺎﯿﮐ ﺐﺨﺘﻨﻣ ﭦﺍﮈ ﮦﺮﮩﭼ"
-
-
 msgid "Face Mode Selection"
 msgstr "ﺏﺎﺨﺘﻧﺍ ﮈﻮﻣ ﮦﺮﮩﭼ"
 
@@ -101955,14 +101000,6 @@ msgstr "ﺏﺎﺨﺘﻧﺍ ﮦﺮﮩﭼ"
 
 msgid "Face Dot Size"
 msgstr "ﺰﺋﺎﺳ ﭦﺍﮈ ﺎﮐ ﮮﺮﮩﭼ"
-
-
-msgid "Paint Curve Handle"
-msgstr "ﻝﮉﻨﯿﮨ ﻞﺑ ﭧﻨﯿﭘ"
-
-
-msgid "Paint Curve Pivot"
-msgstr "ﭦﻮﯿﭘ ﻮﯾﺮﮐ ﭧﻨﯿﭘ"
 
 
 msgid "Stitch Preview Active Island"
@@ -102243,10 +101280,6 @@ msgstr "ﮈﻮﻧ ﮦﻭﺮﮔ"
 
 msgid "Group Socket Node"
 msgstr "ﮈﻮﻧ ﭧﮐﺎﺳ ﮦﻭﺮﮔ"
-
-
-msgid "Input Node"
-msgstr "ﮈﻮﻧ ﭧﭘ ﻥﺍ"
 
 
 msgid "Matte Node"
@@ -102761,29 +101794,12 @@ msgid "Clipping Border"
 msgstr "ﺭﮈﺭﺎﺑ ﺎﻨﺷﺍﺮﺗ"
 
 
-msgid "Edge Bevel"
-msgstr "ﻝﻮﯿﺑ ﺞﯾﺍ"
-
-
-msgctxt "WindowManager"
-msgid "Edge Crease"
-msgstr "ﺰﯾﺮﮐ ﺞﯾﺍ"
-
-
 msgid "Edge Mode Selection"
 msgstr "ﺏﺎﺨﺘﻧﺍ ﮈﻮﻣ ﮦﺭﺎﻨﮐ"
 
 
-msgid "Edge Seam"
-msgstr "ﻥﻮﯿﺳ ﮮﺭﺎﻨﮐ"
-
-
 msgid "Edge Selection"
 msgstr "ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﮮﺭﺎﻨﮐ"
-
-
-msgid "Edge Sharp"
-msgstr "ﺰﯿﺗ ﮮﺭﺎﻨﮐ"
 
 
 msgid "Edge Angle Text"
@@ -102812,14 +101828,6 @@ msgstr "ﭧﻧﺮﻓ ﻦﺸﯿﭩﻨﯾﺭﻭﺍ ﮦﺮﮩﭼ"
 
 msgid "Face Retopology"
 msgstr "ﯽﺟﻮﻟﻮﭘﻮﭩﯾﺭ ﺲﯿﻓ"
-
-
-msgid "Freestyle Edge Mark"
-msgstr "ﮎﺭﺎﻣ ﺞﯾﺍ ﻞﺋﺎﭩﺳﺍ ﯼﺮﻓ"
-
-
-msgid "Freestyle Face Mark"
-msgstr "ﻥﺎﺸﻧ ﺎﮐ ﮮﺮﮩﭼ ﻞﺋﺎﭩﺳﺍ ﯼﺮﻓ"
 
 
 msgid "Grease Pencil Vertex"
@@ -102876,10 +101884,6 @@ msgstr "ﻢﯾﺮﻓ ﯽﮐ ﻞﺴﻨﭘ ﺲﯾﺮﮔ"
 
 msgid "Color for indicating Grease Pencil keyframes"
 msgstr "Grease Pencil ﮓﻧﺭ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﯽﮨﺪﻧﺎﺸﻧ ﯽﮐ ﮞﻮﻤﯾﺮﻓ ﯽﮐ"
-
-
-msgid "Vertex Bevel"
-msgstr "ﻝﻮﯿﺑ ﺲﮑﯿﭨﺭﻭ"
 
 
 msgid "Vertex Group Unreferenced"
@@ -103000,6 +102004,26 @@ msgstr "ﺯﮉﻨﮑﯿﺳ ﮯﺳ ﺪﻌﺑ ﮯﮐ ﮯﻧﻮﮨ ﻉﻭﺮﺷ ﺮ
 
 msgid "Time Step"
 msgstr "ﮧﻠﺣﺮﻣ ﺎﮐ ﺖﻗﻭ"
+
+
+msgid "Mirror Bone"
+msgstr "ﯼﮉﮨ ﯽﮐ ﮧﻨﯿﺋﺁ"
+
+
+msgid "Bone to use for the mirroring"
+msgstr "ﯼﮉﮨ ﯽﻟﺍﻭ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﮕﻟ ﮧﻨﯿﺋﺁ"
+
+
+msgid "Object to mirror over. Leave empty and name a bone to always mirror over that bone of the active armature"
+msgstr "ﻮﮨ ﮧﻨﯿﺋﺁ ﺮﭘ ﯼﮉﮨ ﺱﺍ ﯽﮐ ﻭﺯﺎﺑ ﻝﺎﻌﻓ ﮧﺸﯿﻤﮨ ﮧﮐﺎﺗ ﮟﯾﺩ ﻡﺎﻧ ﺎﮐ ﯼﮉﮨ ﮏﯾﺍ ﺭﻭﺍ ﮟﯾﮌﻮﮭﭼ ﯽﻟﺎﺧ ﺽﺍﺮﺘﻋﺍ ﺮﭘ ﮯﻨﯿﺋﺁ"
+
+
+msgid "Relative Object"
+msgstr "ﺽﺍﺮﺘﻋﺍ ﺭﺍﺩ ﮧﺘﺷﺭ"
+
+
+msgid "Object to which matrices are made relative"
+msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯾﺎﻨﺑ ﺭﺍﺩ ﮧﺘﺷﺭ ﻮﮐ ﺲﮐﺮﭩﯿﻣ ﺮﭘ ﺲﺟ ﮯﺷ"
 
 
 msgid "Stroke Placement (2D View)"
@@ -103904,14 +102928,6 @@ msgid "Use the compact, single-row layout"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺐﯿﺗﺮﺗ ﺭﺎﻄﻗ ﺪﺣﺍﻭ ،ﭧﮑﯿﭙﻤﮐ"
 
 
-msgid "Grid Layout"
-msgstr "ﭦﺅﺁ ﮯﻟ ﮈﺮﮔ"
-
-
-msgid "Use the grid-based layout"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺐﯿﺗﺮﺗ ﯽﻨﺒﻣ ﺮﭘ ﮈﺮﮔ"
-
-
 msgid "List Name"
 msgstr "ﻡﺎﻧ ﺎﮐ ﺖﺳﺮﮩﻓ"
 
@@ -104124,6 +103140,10 @@ msgid "Determine how the asset will be imported, unless overridden by the Asset 
 msgstr "ﮯﺋﺎﺟ ﺎﯿﮐ ﮧﻧ ﮉﯿﺋﺍﺭ ﺭﻭﻭﺍ ﮯﻌﯾﺭﺫ ﮯﮐ ﺭﺯﺅﺍﺮﺑ ﮧﺛﺎﺛﺍ ﮧﮐ ﮏﺗ ﺐﺟ ،ﺎﮔ ﮯﺋﺎﺟ ﺎﯿﮐ ﺪﻣﺁﺭﺩ ﺡﺮﻃ ﺲﮐ ﮧﺛﺎﺛﺍ ﮧﮐ ﮟﯾﺮﮐ ﻦﯿﻌﺗ ﺎﮐ ﺕﺎﺑ ﺱﺍ"
 
 
+msgid "Import the assets as copied data-block, with no link to the original asset data-block"
+msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮏﻨﻟ ﯽﺋﻮﮐ ﮯﺳ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮧﺛﺎﺛﺍ ﻞﺻﺍ ،ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﺪﺷ ﯽﭘﺎﮐ ﻮﮐ ﮞﻮﺛﺎﺛﺍ"
+
+
 msgid "Import the assets as copied data-block while avoiding multiple copies of nested, typically heavy data. For example the textures of a material asset, or the mesh of an object asset, don't have to be copied every time this asset is imported. The instances of the asset share the data instead."
 msgstr "ﮟﯿﮨ ﯽﺗﺮﮐ ﮎﺍﺮﺘﺷﺍ ﺎﮐ ﺎﭩﯾﮈ ﮟﯿﻟﺎﺜﻣ ﯽﮐ ﮧﺛﺎﺛﺍ ﮯﺋﺎﺠﺑ ﮯﮐ ﺱﺍ ﮯﮨ ﮟﯿﮩﻧ ﺕﺭﻭﺮﺿ ﯽﮐ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﮯﺳﺍ ﻮﺗ ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﺪﻣﺁﺭﺩ ﮧﺛﺎﺛﺍ ﮧﯾ ﺐﺟ ﺭﺎﺑ ﺮﮨ ،ﺶﯿﻣ ﯽﮐ ﮧﺛﺎﺛﺍ ﭧﮑﯿﺠﺑﺁ ﯽﺴﮐ ﺎﯾ ،ﺖﺧﺎﺳ ﯽﮐ ﮯﺛﺎﺛﺍ ﯼﺩﺎﻣ ﯽﺴﮐ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﻝﺎﺜﻣ ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﮦﺪﺷ ﯽﭘﺎﮐ ﻮﮐ ﮞﻮﺛﺎﺛﺍ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﺰﯾﺮﮔ ﮯﺳ ﮞﻮﯿﭘﺎﮐ ﺩﺪﻌﺘﻣ ﯽﮐ ﺎﭩﯾﮈ ﯼﺭﺎﮭﺑ ﺮﭘ ﺭﻮﻃ ﻡﺎﻋ ،ﮉﭩﺴﯿﻧ"
 
@@ -104237,10 +103257,6 @@ msgstr "ﮟﯾﺮﮐ ﻝﺎﻌﻓ ﮟﯿﻣ ﺭﻮﻃ ﺖﮕﻧﺭ  ﺱﻮﮭﭨ
 
 msgid "UV Sculpting"
 msgstr "ﯼﺯﺎﺳ ﮧﻤﺴﺠﻣ  ﯼﻭﻮﯾ"
-
-
-msgid "Strength Curve"
-msgstr "ﺮﮐﻭ ﺖﻗﺎﻃ"
 
 
 msgid "Group of vertices, used for armature deform and other purposes"
@@ -105489,10 +104505,6 @@ msgid "Display points for nodes in the volume tree"
 msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺲﭩﻨﺋﺍﻮﭘ ﮯﯿﻟ ﮯﮐ ﺱﮈﻮﻧ ﮟﯿﻣ ﺖﺧﺭﺩ ﮯﮐ ﻢﺠﺣ"
 
 
-msgid "Volume Grid"
-msgstr "ﮈﺮﮔ ﻡﻮﯿﻟﺍﻭ"
-
-
 msgid "3D volume grid"
 msgstr "3D ﮈﺮﮔ ﻡﻮﯿﻟﺍﻭ"
 
@@ -105538,11 +104550,6 @@ msgstr "ﭧﺑ 64 ﺮﺠﯿﭩﻧﺍ"
 msgctxt "Volume"
 msgid "Mask"
 msgstr "ﮏﺳﺎﻣ"
-
-
-msgctxt "Volume"
-msgid "Float Vector"
-msgstr "ﺮﭩﮑﯾﻭ ﭦﻮﻠﻓ"
 
 
 msgctxt "Volume"
@@ -109582,73 +108589,6 @@ msgid "Downloading \"{:s}\""
 msgstr "\"{s:}\" ﮯﮨ ﺎﮨﺭ ﻮﮨ ﮈﻮﻟ ﻥﺅﺍﮈ"
 
 
-msgid "No selected keys, pasting over scene range"
-msgstr "ﺎﻧﺮﮐ ﮞﺎﭙﺴﭼ ﺮﭘ ﺪﺣ ﯽﮐﻮﯾﻭ ،ﮟﯿﮩﻧ ﺪﯿﻠﮐ ﺐﺨﺘﻨﻣ ﯽﺋﻮﮐ"
-
-
-msgctxt "Operator"
-msgid "Mirrored"
-msgstr "ﺭﺍﺩ ﮧﻨﯿﺋﺁ"
-
-
-msgid "Work Relative to some Object"
-msgstr "ﻡﺎﮐ ﻖﻠﻌﺘﻣ ﮯﺳ ﭧﮑﯿﺠﺑﺁ ﯽﺴﮐ"
-
-
-msgid "Select an object or pose bone"
-msgstr "ﮟﯾﺮﮐ ﺯﻮﭘ ﻮﮐ ﯼﮉﮨ ﺎﯾ ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺰﯿﭼ ﯽﺴﮐ"
-
-
-msgid "Clipboard does not contain a valid matrix"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺲﮐﺮﭩﯿﻣ ﺖﺳﺭﺩ ﮟﯿﻣ ﮈﺭﻮﺑ ﭗﻠﮐ"
-
-
-msgid "This mode requires auto-keying to work properly"
-msgstr "ﮯﮨ ﯽﺗﻮﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮓﻨﯿﮐ ﻮﭨﺁ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻡﺎﮐ ﮯﺳ ﮯﻘﯾﺮﻃ ﺐﺳﺎﻨﻣ ﻮﮐ ﮈﻮﻣ ﺱﺍ"
-
-
-msgid "No selected frames found"
-msgstr "ﻼ﻿ﻣ ﮟﯿﮩﻧ ﻢﯾﺮﻓ ﺐﺨﺘﻨﻣ ﯽﺋﻮﮐ"
-
-
-msgid "No selected keys, pasting over preview range"
-msgstr "ﺎﻧﺮﮐ ﮞﺎﭙﺴﭼ ﺮﭘ ﺪﺣ ﯽﮐﻮﯾﻭ ﺶﯿﭘ ،ﮟﯿﮩﻧ ﺪﯿﻠﮐ ﺐﺨﺘﻨﻣ ﯽﺋﻮﮐ"
-
-
-msgid "Switch to Pose or Object mode"
-msgstr "ﮟﯾﺮﮐ ﭻﺋﻮﺳ ﺮﭘ ﮈﻮﻣ ﭧﮑﯿﺠﺑﺁ ﺎﯾ ﺯﻮﭘ"
-
-
-msgid "The Scene needs a camera"
-msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮮﺮﻤﯿﮐ ﻮﮐ ﺮﻈﻨﻣ"
-
-
-msgid "These require auto-key:"
-msgstr ":ﮯﮨ ﯽﺗﻮﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﺪﯿﻠﮐ ﻮﭨﺁ ﻮﮐ ﻥﺍ"
-
-
-msgctxt "Operator"
-msgid "Paste to Selected Keys"
-msgstr "ﮟﯾﺮﮐ ﮞﺎﭙﺴﭼ ﺮﭘ ﺰﯿﮐ ﺐﺨﺘﻨﻣ"
-
-
-msgctxt "Operator"
-msgid "Paste and Bake"
-msgstr "ﮟﯾﺮﮐ ﮏﯿﺑ ﺭﻭﺍ ﭧﺴﯿﭘ"
-
-
-msgid "Using Active Scene Camera"
-msgstr "ﺎﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮦﺮﻤﯿﮐ ﻦﯿﺳ ﻮﭩﮑﯾﺍ"
-
-
-msgid "Unable to mirror, no mirror object/bone configured"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺮﮕﯿﻔﻨﮐ ﯼﮉﮨ/ﭧﮑﯿﺠﺑﺁ ﮧﻨﯿﺋﺁ ﯽﺋﻮﮐ ،ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﮧﻨﯿﺋﺁ"
-
-
-msgid "Unsupported mode: %r"
-msgstr "r% :ﮈﻮﻣ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﺮﯿﻏ"
-
-
 msgid "OSL support disabled in this build"
 msgstr "ﮯﮨ ﻝﺎﻌﻓ ﺮﯿﻏ ﭦﺭﻮﭙﺳ OSL ﮟﯿﻣ ﺮﯿﻤﻌﺗ ﺱﺍ"
 
@@ -109681,10 +108621,6 @@ msgid "External shader script must have .osl or .oso extension, or be a module n
 msgstr "ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﻡﺎﻧ ﺎﮐ ﮧﻧﻮﻤﻧ ﺎﯾ ،ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﻦﺸﻨﯿﭩﺴﮑﯾﺍ oso. ﺎﯾ osl. ﮟﯿﻣ ﭧﭘﺮﮑﺳﺎﺘﮕﻧﺭ ﯽﻧﻭﺮﯿﺑ"
 
 
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr " ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻨﮭﮑﻟ ﻞﺋﺎﻓ oso. ﮯﮔﺁ ﮯﮐ ﻞﺋﺎﻓ osl. ﯽﻧﻭﺮﯿﺑ ﺮﭘ"
-
-
 msgid "Use Intel OpenImageDenoise AI denoiser"
 msgstr "Intel OpenImageDenoise AI denoiser ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ"
 
@@ -109715,10 +108651,6 @@ msgstr "ﺮﺗ ﺪﯾﺪﺟ ﺎﯾ %s‬‪ ﻥﮊﺭﻭ ﺭﻮﯿﺋﺍﺭﮈ N
 
 msgid "Requires Intel GPU with Xe-HPG architecture"
 msgstr "Xe-HPG ﮫﺗﺎﺳ ﮯﮐ ﺮﯿﻤﻌﺗ ﻦﻓ Intel GPU ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ"
-
-
-msgid "and AMD driver version %s or newer"
-msgstr "ﺮﺗ ﺪﯾﺪﺟ ﺎﯾ %s‬‪ ﻥﮊﺭﻭ ﺭﻮﯿﺋﺍﺭﮈ AMD ﺭﻭﺍ"
 
 
 msgid "and Windows driver version %s or newer"
@@ -110213,14 +109145,6 @@ msgid "Add Principled Setup"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﭖﺍ ﭧﯿﺳ ﯽﻟﻮﺻﺍ"
 
 
-msgid "(Quick access: Shift+W)"
-msgstr "(Shift+W :ﯽﺋﺎﺳﺭ ﯼﺭﻮﻓ)"
-
-
-msgid "To Socket"
-msgstr "ﻮﮐ ﭧﮐﺎﺳ"
-
-
 msgctxt "Operator"
 msgid "Settings from Active"
 msgstr "ﻝﺎﻌﻓ ﮯﺳ ﺕﺎﺒﯿﺗﺮﺗ"
@@ -110234,24 +109158,6 @@ msgstr "Do Not ﺲﮑﻨﻟ ﮟﯾﺩ ﻝﺪﺑ"
 msgctxt "Operator"
 msgid "Replace Links"
 msgstr "ﺲﮑﻨﻟ ﮟﯾﺩ ﻝﺪﺑ"
-
-
-msgid "This operator is removed due to the changes of node menus."
-msgstr "ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﺎﭩﮨ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﯽﮐ ﻮﯿﻨﯿﻣ ﮈﻮﻧ ﻮﮐ ﺮﭩﯾﺮﭘﺁ ﺱﺍ"
-
-
-msgid "A native implementation of the function is expected in the future."
-msgstr "ﮯﮨ ﻊﻗﻮﺘﻣ ﺫﺎﻔﻧ ﯽﻣﺎﻘﻣ ﺎﮐ ﻦﺸﮑﻨﻓ ﮟﯿﻣ ﻞﺒﻘﺘﺴﻣ"
-
-
-msgctxt "Operator"
-msgid "Select frame's members (children)"
-msgstr "(ﮯﭽﺑ) frame's members ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ"
-
-
-msgctxt "Operator"
-msgid "Select parent frame"
-msgstr "ﻢﯾﺮﻓ ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﻦﯾﺪﻟﺍﻭ"
 
 
 msgctxt "Operator"
@@ -110278,11 +109184,6 @@ msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺱﮈﻮﻧ ﮯﮐ ﯽﺿﺎﯾﺭ"
 
 msgid "Use Mix Nodes"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺱﮈﻮﻧ ﺲﮑﻣ"
-
-
-msgctxt "Operator"
-msgid "Use Z-Combine Nodes"
-msgstr "Z-combine Nodes ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ"
 
 
 msgctxt "Operator"
@@ -110336,20 +109237,12 @@ msgid "Nothing to delete"
 msgstr "ﮟﯿﮩﻧ ﮫﭽﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻑﺬﺣ"
 
 
-msgid "Reloaded images"
-msgstr "ﺮﯾﻭﺎﺼﺗ ﯽﺌﮔ ﯽﮐ ﮈﻮﻟ ﮦﺭﺎﺑﻭﺩ"
-
-
 msgid "No images found to reload in this node tree"
 msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ ﺮﯾﻮﺼﺗ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮈﻮﻟ ﮦﺭﺎﺑﻭﺩ ﮟﯿﻣ ﯼﺮﭨ ﮈﻮﻧ ﺱﺍ"
 
 
 msgid "Selected nodes are not of the same type as {}"
 msgstr "{} ﮯﺴﯿﺟ ﮟﯿﮨ ﮟﯿﮩﻧ ﮯﮐ ﻢﺴﻗ ﯽﮨ ﮏﯾﺍ ﺱﮈﻮﻧ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ"
-
-
-msgid "Ignored {} (not of the same type as {}), "
-msgstr " "
 
 
 msgid "No folder selected"
@@ -110424,6 +109317,10 @@ msgid "This node has no inputs to swap"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﭧﭘ ﻥﺍ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﮈﻮﻧ ﺱﺍ"
 
 
+msgid "Ignored {} (not of the same type as {})"
+msgstr "({} ﮧﮐ ﺎﺴﯿﺟ ﮟﯿﮩﻧ ﺎﮐ ﻢﺴﻗ ﯽﺳﺍ) {} ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
+
+
 msgid "Ignored {}"
 msgstr "{} ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
 
@@ -110432,20 +109329,31 @@ msgid "This node has no input connections to swap"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻦﺸﮑﻨﮐ ﭧﭘ ﻥﺍ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮧﻟﺩﺎﺒﺗ ﮟﯿﻣ ﮈﻮﻧ ﺱﺍ"
 
 
-msgid "Ignored {} (not of the same type as {})"
-msgstr "({} ﮧﮐ ﺎﺴﯿﺟ ﮟﯿﮩﻧ ﺎﮐ ﻢﺴﻗ ﯽﺳﺍ) {} ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
-
-
 msgid "Some connections have been lost due to differing numbers of output sockets"
 msgstr "ﮟﯿﮨ ﮯﺌﮔ ﻮﮨ ﻊﻄﻘﻨﻣ ﻦﺸﮑﻨﮐ ﮫﭽﮐ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺩﺍﺪﻌﺗ ﻒﻠﺘﺨﻣ ﯽﮐ ﭧﮐﺎﺳ ﭧﭘ ﭦﺅﺁ"
+
+
+msgid "To Socket"
+msgstr "ﻮﮐ ﭧﮐﺎﺳ"
 
 
 msgid "Edit tags for auto texture detection in Principled BSDF setup"
 msgstr "ﮟﯾﺮﮐ ﻢﯿﻣﺮﺗ ﮟﯿﻣ ﺰﮕﯿﭨ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﮕﻟ ﮧﺘﭘ ﺎﮐ ﺮﭽﺴﮑﯿﭨ ﻮﭨﺁ ﮟﯿﻣ ﭖﺍ ﭧﯿﺳ BSDF ﯽﻟﻮﺻﺍ"
 
 
-msgid "Viewer image not found."
-msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ ﺮﯾﻮﺼﺗ ﯽﮐ ﺮﻇﺎﻧ"
+msgctxt "UI_Events_KeyMaps"
+msgid "Shift"
+msgstr "ﭧﻔﺷ"
+
+
+msgctxt "UI_Events_KeyMaps"
+msgid "Alt"
+msgstr "Alt"
+
+
+msgctxt "UI_Events_KeyMaps"
+msgid "Ctrl"
+msgstr "Ctrl"
 
 
 msgid "Current editor is not a node editor."
@@ -110470,6 +109378,10 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮈﻮﻧ ﻝﺎﻌﻓ ﯽﺋﻮﮐ"
 
 msgid "Current node has no visible outputs."
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﭧﭘ ﭦﺅﺁ ﯽﺋﺮﻣ ﯽﺋﻮﮐ ﮟﯿﻣ ﮈﻮﻧ ﮦﺩﻮﺟﻮﻣ"
+
+
+msgid "Viewer image not found."
+msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ ﺮﯾﻮﺼﺗ ﯽﮐ ﺮﻇﺎﻧ"
 
 
 msgid "At least one node must be selected."
@@ -110531,10 +109443,6 @@ msgid "Deselect those bones that are used in this pose"
 msgstr "ﮟﯿﮨ ﯽﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮟﯿﻣ ﺯﻮﭘ ﺱﺍ ﻮﺟ ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﺮﯿﻏ ﻮﮐ ﮞﻮﯾﮉﮨ ﻥﺍ"
 
 
-msgid "Converted %d poses to pose assets"
-msgstr "‪%d‬ ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﮞﻮﺛﺎﺛﺍ ﺯﺍﺪﻧﺍ ﻮﮐ ﺯﺍﺪﻧﺍ"
-
-
 msgid "No animation data found to create asset from"
 msgstr "ﻼ﻿ﻣ ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﺕﺎﯿﮐﺮﺣ  ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﻨﺑ ﮧﺛﺎﺛﺍ ﮯﺳ"
 
@@ -110569,22 +109477,6 @@ msgstr "ﺎﮑﺳ ﻮﮨ ﮟﯿﮩﻧ ﻊﻗﺍﻭ ﺭﺪﻧﺍ ﮯﮐ ﯼﺮﯾ
 
 msgid "Selected asset %s is not an Action"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﯽﺋﺍﻭﺭﺭﺎﮐ ﮏﯾﺍ %s‬‪ ﮧﺛﺎﺛﺍ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ"
-
-
-msgid "Active object has no Action"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻞﻤﻋ ﯽﺋﻮﮐ ﺎﮐ ﮯﺷ ﻝﺎﻌﻓ"
-
-
-msgid "Action %r is not a legacy pose library"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﺯﺍﺪﻧﺍ ﯽﺛﺍﺮﯿﻣ r% ﻡﺍﺪﻗﺍ"
-
-
-msgid "Unable to convert to pose assets"
-msgstr "ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﮞﻮﺛﺎﺛﺍ ﺯﻮﭘ"
-
-
-msgid "Active object has no pose library Action"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻡﺍﺪﻗﺍ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﺯﻮﭘ ﯽﺋﻮﮐ ﮟﯿﻣ ﮯﺷ ﻝﺎﻌﻓ"
 
 
 msgid "Selected bones from %s"
@@ -111227,10 +110119,6 @@ msgid "Invert Selection"
 msgstr "ﮟﯾﺩ ﭧﻟﺍ ﻮﮐ ﺏﺎﺨﺘﻧﺍ"
 
 
-msgid "Tracking"
-msgstr "ﮓﻨﮑﯾﺮﭨ"
-
-
 msgid "Positional"
 msgstr "ﯼ ﻡﺎﻘﻣ"
 
@@ -111408,6 +110296,10 @@ msgid "This data-block has no Action slot assigned"
 msgstr "۔ﮯﮨ ﺎﯿﮔ ﺎﯿﮐ ﮟﯿﮩﻧ ﺾﯾﻮﻔﺗ ﭦﻼ﻿ﺳ ﻦﺸﮑﯾﺍ ﯽﺋﻮﮐ ﮟﯿﻣ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﺱﺍ"
 
 
+msgid "No objects selected"
+msgstr "ﮟﯿﺌﮔ ﯽﮐ ﮟﯿﮩﻧ ﺐﺨﺘﻨﻣ ءﺎﯿﺷﺍ ﯽﺋﻮﮐ"
+
+
 msgid "Go to pose mode to copy pose bone colors"
 msgstr "ﮟﯿﺋﺎﺟ ﺮﭘ ﮈﻮﻣ ﺯﻮﭘ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﻮﮐ ﮞﻮﮕﻧﺭ ﮯﮐ ﯼﮉﮨ ﺯﻮﭘ"
 
@@ -111496,6 +110388,38 @@ msgid "(Viewer)"
 msgstr "(ﻻ﻿ﺍﻭ ﮯﻨﮭﮑﯾﺩ)"
 
 
+msgid "No selected keys, pasting over scene range"
+msgstr "ﺎﻧﺮﮐ ﮞﺎﭙﺴﭼ ﺮﭘ ﺪﺣ ﯽﮐﻮﯾﻭ ،ﮟﯿﮩﻧ ﺪﯿﻠﮐ ﺐﺨﺘﻨﻣ ﯽﺋﻮﮐ"
+
+
+msgid "Select an object or pose bone"
+msgstr "ﮟﯾﺮﮐ ﺯﻮﭘ ﻮﮐ ﯼﮉﮨ ﺎﯾ ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺰﯿﭼ ﯽﺴﮐ"
+
+
+msgid "This mode requires auto-keying to work properly"
+msgstr "ﮯﮨ ﯽﺗﻮﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮓﻨﯿﮐ ﻮﭨﺁ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻡﺎﮐ ﮯﺳ ﮯﻘﯾﺮﻃ ﺐﺳﺎﻨﻣ ﻮﮐ ﮈﻮﻣ ﺱﺍ"
+
+
+msgid "No selected frames found"
+msgstr "ﻼ﻿ﻣ ﮟﯿﮩﻧ ﻢﯾﺮﻓ ﺐﺨﺘﻨﻣ ﯽﺋﻮﮐ"
+
+
+msgid "No selected keys, pasting over preview range"
+msgstr "ﺎﻧﺮﮐ ﮞﺎﭙﺴﭼ ﺮﭘ ﺪﺣ ﯽﮐﻮﯾﻭ ﺶﯿﭘ ،ﮟﯿﮩﻧ ﺪﯿﻠﮐ ﺐﺨﺘﻨﻣ ﯽﺋﻮﮐ"
+
+
+msgid "Switch to Pose or Object mode"
+msgstr "ﮟﯾﺮﮐ ﭻﺋﻮﺳ ﺮﭘ ﮈﻮﻣ ﭧﮑﯿﺠﺑﺁ ﺎﯾ ﺯﻮﭘ"
+
+
+msgid "The Scene needs a camera"
+msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮮﺮﻤﯿﮐ ﻮﮐ ﺮﻈﻨﻣ"
+
+
+msgid "Unable to mirror, no mirror object/bone configured"
+msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺮﮕﯿﻔﻨﮐ ﯼﮉﮨ/ﭧﮑﯿﺠﺑﺁ ﮧﻨﯿﺋﺁ ﯽﺋﻮﮐ ،ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﮧﻨﯿﺋﺁ"
+
+
 msgid "Some strings were fixed, don't forget to save the .blend file to keep those changes"
 msgstr "ﮟﯿﻟﻮﮭﺑ ﮧﻧ ﺎﻧﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﻞﺋﺎﻓ blend. ﮯﯿﻟ ﮯﮐ ﮯﻨﮭﮐﺭ ﺭﺍﺮﻗﺮﺑ ﻮﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﻥﺍ ،ﮟﯿﮭﺗ ﯽﺌﮔ ﯽﮐ ﮯﻃ ﺰﮕﻧﺮﭩﺳ ﮫﭽﮐ"
 
@@ -111510,10 +110434,6 @@ msgstr "!ﺎﯿﮔﻮﮨ ﻡﺎﮐﺎﻧ ﻞﻤﻋ ﻑﺎﺻ ﮦﺭﺎﻈﻧ ﺶ
 
 msgid "No active camera in the scene"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮦﺮﻤﯿﮐ ﻝﺎﻌﻓ ﯽﺋﻮﮐ ﮟﯿﻣ ﺮﻈﻨﻣ"
-
-
-msgid "Unexpected modifier type: "
-msgstr " :ﻢﺴﻗ ﯽﮐ ﮦﺪﻨﻨﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﻊﻗﻮﺘﻣ ﺮﯿﻏ"
 
 
 msgid "Target object not specified"
@@ -111608,8 +110528,8 @@ msgid "No camera found"
 msgstr "ﻼ﻿ﻣ ﮟﯿﮩﻧ ﮦﺮﻤﯿﮐ ﯽﺋﻮﮐ"
 
 
-msgid "Other object is not a mesh"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻝﺎﺟ ﮯﺷ ﯼﺮﺳﻭﺩ"
+msgid "Expected one other selected mesh object to copy from"
+msgstr "ﮯﮨ ﻊﻗﻮﺗ ﯽﮐ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﮯﺳ ﭧﮑﯿﺠﺑﺁ ﺶﯿﻣ ﺐﺨﺘﻨﻣ ﺭﻭﺍ ﮏﯾﺍ"
 
 
 msgid "Other object has no shape key"
@@ -111632,20 +110552,12 @@ msgid "Skipping '{:s}', vertex count differs"
 msgstr "{:s}' ﮯﮨ ﯽﺗﻮﮨ ﻒﻠﺘﺨﻣ ﯽﺘﻨﮔ ﯽﮐ ﺲﮑﯿﭨﺭﻭ ،ﺎﻧﮌﻮﮭﭼ ﻮﮐ"
 
 
-msgid "Expected one other selected mesh object to copy from"
-msgstr "ﮯﮨ ﻊﻗﻮﺗ ﯽﮐ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﮯﺳ ﭧﮑﯿﺠﺑﺁ ﺶﯿﻣ ﺐﺨﺘﻨﻣ ﺭﻭﺍ ﮏﯾﺍ"
-
-
 msgid "No animation data to convert on object: {!r}"
 msgstr "{r!} :ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﺕﺎﯿﮐﺮﺣ  ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﯾﺪﺒﺗ ﺮﭘ ﭧﮑﯿﺠﺑﺁ"
 
 
 msgid "Object: {:s}, Mesh: '{:s}' has {:d} loops (for {:d} faces), expected {:d}"
 msgstr "{d:} ﻊﻗﻮﺘﻣ ،(ﮯﯿﻟ ﮯﮐ ﮞﻭﺮﮩﭼ {d:}) ﮟﯿﮨ ﺲﭘﻮﻟ {d:} ﮟﯿﻣ '{s:}' :ﺶﯿﻣ ،{s:} :ﭧﮑﯿﺠﺑﺁ"
-
-
-msgid "Modifiers cannot be added to object: "
-msgstr " :ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮟﯿﻣ ﺽﺍﺮﺘﻋﺍ ﻮﮐ ﮞﻮﻟﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ"
 
 
 msgid "Object {!r} already has {!r} F-Curve(s). Remove these before trying again"
@@ -111742,10 +110654,6 @@ msgstr "{s:} :ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ 
 
 msgid "Unable to remove preset: {!r}"
 msgstr "{r!} :ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺎﭩﮨ ﻮﮐ ﭧﯿﺳ ﺶﯿﭘ"
-
-
-msgid "Failed to execute the preset: "
-msgstr " :ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻧﺮﮐ ﻞﻤﻋ ﺮﭘ ﭧﯿﺳ ﺶﯿﭘ"
 
 
 msgid "No other objects selected"
@@ -111917,10 +110825,6 @@ msgid "File '{:s}' not found"
 msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ '{s:}' ﻞﺋﺎﻓ"
 
 
-msgid "No reference available {!r}, Update info in 'rna_manual_reference.py' or callback to bpy.utils.manual_map()"
-msgstr "ﮟﯾﺮﮐ ﮏﯿﺑ ﻝﺎﮐ ﺮﭘ ()bpy.utils.manual_map ﺎﯾ ﮟﯾﺮﮐ ﭧﯾﮈ ﭖﺍ ﻮﮐ ﺕﺎﻣﻮﻠﻌﻣ ﮟﯿﻣ 'r}، 'rna_manual_reference.py!} ﮟﯿﮩﻧ ﺏﺎﯿﺘﺳﺩ ﮧﻟﺍﻮﺣ ﯽﺋﻮﮐ"
-
-
 msgid "Direct execution not supported"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﺪﻣﺁﺭﺩ ﻞﻤﻋ ﺖﺳﺍﺭ ﮦﺍﺮﺑ"
 
@@ -111976,17 +110880,17 @@ msgstr "ﺎﻧﺮﮐ ﻉﻭﺮﺷ"
 
 
 msgctxt "Operator"
-msgid "Donate"
-msgstr "ﮟﯾﺮﮐ ﮧﯿﻄﻋ"
-
-
-msgctxt "Operator"
 msgid "What's New"
 msgstr "ﮯﮨ ﺎﯿﮐ ﺎﯿﻧ"
 
 
 msgid "Running in Offline Mode"
 msgstr "ﮯﮨ ﺎﮨﺭ ﻞﭼ ﮟﯿﻣ ﮈﻮﻣ ﻦﺋﻻ﻿ ﻑﺁ"
+
+
+msgctxt "Operator"
+msgid "Donate"
+msgstr "ﮟﯾﺮﮐ ﮧﯿﻄﻋ"
 
 
 msgctxt "Operator"
@@ -112141,11 +111045,6 @@ msgstr "ﯽﺘﺳﺩ"
 
 
 msgctxt "Operator"
-msgid "Tutorials"
-msgstr "ﻖﺒﺳ"
-
-
-msgctxt "Operator"
 msgid "Support"
 msgstr "ﺖﯾﺎﻤﺣ"
 
@@ -112161,10 +111060,6 @@ msgstr "{s}[ ].{:s:} :ﯽﻠﻣ ﮟﯿﮩﻧ ﺭﺪﻗ ﻦﯿﻟﻮﺑ ﺮﯿﻏ
 
 msgid "Python evaluation failed: "
 msgstr "Pythonﯽﺌﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﺺﯿﺨﺸﺗ ﯽﮐ: "
-
-
-msgid "Failed to assign value: "
-msgstr " :ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻧﺮﮐ ﺾﯾﻮﻔﺗ ﺭﺪﻗ"
 
 
 msgid "Strip(s)"
@@ -112199,10 +111094,6 @@ msgid "Rename {:d} {:s}"
 msgstr "{d} {:s:} ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻡﺎﻧ"
 
 
-msgid "Invalid regular expression (find): "
-msgstr " :(ﮟﯾﺮﮐ ﺵﻼ﻿ﺗ) ﻦﺸﯾﺮﭙﺴﮑﯾﺍ ﺮﻟﻮﮕﯾﺭ ﻂﻠﻏ"
-
-
 msgid "Version: {:s}"
 msgstr "{s:} :ﻥﮊﺭﻭ"
 
@@ -112225,10 +111116,6 @@ msgstr "ﯽﺘﮑﺳ ﻞﻣ ﮟﯿﮩﻧ \"{s:}\" ﻢﺴﻗ"
 
 msgid "Material(s)"
 msgstr "ﺩﺍﻮﻣ"
-
-
-msgid "Invalid regular expression (replace): "
-msgstr " :(ﮟﯿﻟﺪﺑ) ﻦﺸﯾﺮﭙﺴﮑﯾﺍ ﺮﻟﻮﮕﯾﺭ ﻂﻠﻏ"
 
 
 msgctxt "Operator"
@@ -112273,14 +111160,6 @@ msgstr "ﮯﮨ ﺏﺎﯿﺘﺳﺩ"
 msgctxt "Operator"
 msgid "Rotation"
 msgstr "ﺵﺩﺮﮔ"
-
-
-msgid "Switch Stereo View"
-msgstr "ﮟﯾﺮﮐ ﭻﺋﻮﺳ ﻮﮐ ﻮﯾﻭ ﻮﯾﺮﯿﭩﺳ"
-
-
-msgid "Mix Vector"
-msgstr "ﺮﭩﮑﯾﻭ ﺲﮑﻣ"
 
 
 msgid "Calculation Range"
@@ -113174,10 +112053,6 @@ msgstr "ﺎﯿﻧ"
 
 msgid "Date"
 msgstr "ﺦﯾﺭﺎﺗ"
-
-
-msgid "Render Time"
-msgstr "ﻢﺋﺎﭨ ﺭﮉﻨﯾﺭ"
 
 
 msgid "Hostname"
@@ -114112,6 +112987,75 @@ msgid "Export to File"
 msgstr "ﮟﯾﺮﮐ ﺪﻣﺁﺮﺑ ﮟﯿﻣ ﻞﺋﺎﻓ"
 
 
+msgctxt "Sound"
+msgid "Strip Volume"
+msgstr "ﻢﺠﺣ ﯽﭩﭘ"
+
+
+msgid "Position X"
+msgstr "X  ﻡﺎﻘﻣ"
+
+
+msgid "Convert to Float"
+msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﭦﻮﻠﻓ"
+
+
+msgid "Default Fade"
+msgstr "ﻻ﻿ﺪﻨﮬﺩ ﮦﺪﺷ ﮯﻃ"
+
+
+msgid "2D Stabilized Clip"
+msgstr "2D ﭗﻠﮐ ﻢﮑﺤﺘﺴﻣ"
+
+
+msgid "Undistorted Clip"
+msgstr "ﭗﻠﮐ ﮦﺪﺷ ﺦﺴﻣ ﺮﯿﻏ"
+
+
+msgid "Strip Offset Start"
+msgstr "ﻉﻭﺮﺷ ﭧﯿﺴﻓﺁ ﯽﭩﭘ"
+
+
+msgid "Hold Offset Start"
+msgstr "ﮟﯾﺮﮐ ﮉﻟﻮﮨ ﻮﮐ ﭦﺭﺎﭩﺳﺍ ﭧﯿﺴﻓﺁ"
+
+
+msgid "Effect Fader"
+msgstr "ﺭﺩﺎﻓ ﭧﮑﯿﻔﯾﺍ"
+
+
+msgid "Original Frame Range"
+msgstr "ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﻞﺻﺍ"
+
+
+msgid "Pan Angle"
+msgstr "ﻞﮕﻨﯾﺍ ﻦﯿﭘ"
+
+
+msgid "Unpack"
+msgstr "ﮟﯿﻟﻮﮭﮐ ﮏﯿﭘ"
+
+
+msgid "Source Channel"
+msgstr "ﻞﻨﯿﭼ ﺬﺧﺎﻣ"
+
+
+msgid "Original frame range: {:d}-{:d} ({:d})"
+msgstr "({d}-{:d} ({:d:} :ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﻞﺻﺍ"
+
+
+msgid "Cut To"
+msgstr "ﻮﭨ ﭧﮐ"
+
+
+msgid "Two or more channels are needed below this strip"
+msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﺰﻠﻨﯿﭼ ﮦﺩﺎﯾﺯ ﺎﯾ ﻭﺩ ﮯﭽﯿﻧ ﮯﮐ ﯽﭩﭘ ﺱﺍ"
+
+
+msgid "Linear Modifiers"
+msgstr "ﮯﻟﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ ﯼﺮﯿﮑﻟ"
+
+
 msgid "Second Basis"
 msgstr "ﺩﺎﯿﻨﺑ ﯼﺮﺳﻭﺩ"
 
@@ -114187,10 +113131,6 @@ msgstr "ﮦﺮﻣﺯ"
 
 msgid "name"
 msgstr "ﻡﺎﻧ"
-
-
-msgid "Display Thin"
-msgstr "ﮟﯾﺮﮐ ﮯﻧﺎﮭﮐﺩ ﻼ﻿ﺘﭘ"
 
 
 msgid "B/W"
@@ -114358,16 +113298,20 @@ msgid "Set Floor"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﺵﺮﻓ"
 
 
+msgid "Display Thin"
+msgstr "ﮟﯾﺮﮐ ﮯﻧﺎﮭﮐﺩ ﻼ﻿ﺘﭘ"
+
+
+msgid "Viewport Overlays"
+msgstr "ﺰﯿﻟﺭﻭﻭﺍ ﭦﺭﻮﭘ ﻮﯾﻭ"
+
+
 msgid "Viewport Gizmos"
 msgstr "ﺱﻮﻣﺰﯿﮔ ﭦﺭﻮﭘ ﻮﯾﻭ"
 
 
-msgid "3D Markers"
-msgstr "3D ﺮﮐﺭﺎﻣ"
-
-
-msgid "Display Aspect Ratio"
-msgstr "ﺐﺳﺎﻨﺗ ﻮﻠﮩﭘ ﺎﮐ ﮯﻠﭙﺳﮈ"
+msgid "Aspect Ratio"
+msgstr "ﺐﺳﺎﻨﺗ ﺎﮐ ﻮﻠﮩﭘ"
 
 
 msgctxt "Operator"
@@ -114464,6 +113408,10 @@ msgstr "Keyframe A ﮟﯾﺮﮐ ﭧﯿﺳ"
 msgctxt "Operator"
 msgid "Set Keyframe B"
 msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ B ﻢﯾﺮﻓ ﯽﮐ"
+
+
+msgid "3D Markers"
+msgstr "3D ﺮﮐﺭﺎﻣ"
 
 
 msgid "Tracks for Rotation/Scale"
@@ -114573,11 +113521,6 @@ msgstr "ﺪﻌﺑ ﮯﮐ ﻢﯾﺮﻓ ﮦﺩﻮﺟﻮﻣ"
 msgctxt "Operator"
 msgid "Extrapolation Mode"
 msgstr "ﮈﻮﻣ ﻦﺸﯿﻟﻮﭘ ﺍﺮﭩﺴﮑﯾﺍ"
-
-
-msgctxt "Operator"
-msgid "Move..."
-msgstr "...ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 
 
 msgctxt "Operator"
@@ -115166,14 +114109,6 @@ msgid "Zoom 1:1"
 msgstr "1:1 ﻡﻭﺯ"
 
 
-msgid "Image*"
-msgstr "*ﺮﯾﻮﺼﺗ"
-
-
-msgid "Aspect Ratio"
-msgstr "ﺐﺳﺎﻨﺗ ﺎﮐ ﻮﻠﮩﭘ"
-
-
 msgid "Repeat Image"
 msgstr "ﮟﯿﺋﺍﺮﮨﺩ ﻮﮐ ﺮﯾﻮﺼﺗ"
 
@@ -115277,11 +114212,6 @@ msgstr "ﺎﭩﯿﻣ ﮟﯾﺩ ﺎﭩﮨ"
 
 
 msgctxt "Operator"
-msgid "Swap"
-msgstr "ﮧﻟﺩﺎﺒﺗ"
-
-
-msgctxt "Operator"
 msgid "Move Up"
 msgstr "Up ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 
@@ -115294,11 +114224,6 @@ msgstr "ﮯﭽﯿﻧ ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 msgctxt "Operator"
 msgid "Rename..."
 msgstr "...ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻡﺎﻧ"
-
-
-msgctxt "Operator"
-msgid "Track Ordering..."
-msgstr "...ﮓﻧﺭﮈﺭﺁ ﮏﯾﺮﭨ"
 
 
 msgctxt "Operator"
@@ -115497,10 +114422,6 @@ msgid "Exit Group"
 msgstr "ﮟﯿﻠﮑﻧ ﺮﮨﺎﺑ ﮯﺳ ﮦﻭﺮﮔ"
 
 
-msgid "Closed by Default"
-msgstr "ﺪﻨﺑ ﮯﺳ ﻑﺮﻃ ﯽﮐ ﭧﻟﺎﻔﯾﮈ"
-
-
 msgid "Slot {:d}"
 msgstr "{d:} ﭦﻼ﻿ﺳ"
 
@@ -115685,11 +114606,6 @@ msgstr "ﮟﯾﺮﮐ ﺶﯾﺮﻔﯾﺭ ﻮﮐ ﺐﺳ"
 
 
 msgctxt "Operator"
-msgid "Sequence Render Animation"
-msgstr "ﻦﺸﯿﻤﯿﻨﯾﺍ ﺭﮉﻨﯾﺭ ﺐﯿﺗﺮﺗ"
-
-
-msgctxt "Operator"
 msgid "Toggle Sequencer/Preview"
 msgstr "ﻮﯾﻮﯾﺮﭘ /ﺮﺴﻨﯾﻮﮑﯿﺳ ﻞﮔﻮﭨ"
 
@@ -115717,16 +114633,6 @@ msgstr "(ﺰﮐﺮﻣ) ﮟﯿﺋﺎﺟ ﺮﭘ ﯽﭩﭘ ﯽﻠﮭﭽﭘ"
 msgctxt "Operator"
 msgid "Jump to Next Strip (Center)"
 msgstr "(ﺰﮐﺮﻣ) ﮟﯿﺋﺎﺟ ﺮﭘ ﯽﭩﭘ ﯽﻠﮔﺍ"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "ﻢﻠﻓ"
-
-
-msgctxt "Operator"
-msgid "Image/Sequence"
-msgstr "ﺐﯿﺗﺮﺗ/ﺮﯾﻮﺼﺗ"
 
 
 msgctxt "Operator"
@@ -115783,19 +114689,6 @@ msgid "Slip Strip Contents"
 msgstr "ﺩﺍﻮﻣ ﯽﭩﭘ ﯽﭼﺮﭘ"
 
 
-msgctxt "Sound"
-msgid "Strip Volume"
-msgstr "ﻢﺠﺣ ﯽﭩﭘ"
-
-
-msgid "Position X"
-msgstr "X  ﻡﺎﻘﻣ"
-
-
-msgid "Convert to Float"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﭦﻮﻠﻓ"
-
-
 msgid "Raw"
 msgstr "ﻡﺎﺧ"
 
@@ -115829,11 +114722,6 @@ msgstr "ﮟﯾﺮﮐ ﭧﻓ ﻮﯾﻮﯾﺮﭘ  ﮟﯿﻣ ﻭﮉﻧﻭ"
 
 msgid "Auto Zoom"
 msgstr "ﻡﻭﺯ ﻮﭨﺁ"
-
-
-msgctxt "Operator"
-msgid "Sequence Render Image"
-msgstr "ﺞﯿﻣﺍ ﺭﮉﻨﯾﺭ ﺐﯿﺗﺮﺗ"
 
 
 msgctxt "Operator"
@@ -115871,11 +114759,6 @@ msgid "Both Sides"
 msgstr "ﻑﺮﻃ ﮞﻮﻧﻭﺩ"
 
 
-msgctxt "Operator"
-msgid "Side of Frame..."
-msgstr "...ﻑﺮﻃ ﯽﮐ ﻢﯾﺮﻓ"
-
-
 msgid "Handle"
 msgstr "ﺎﻨﻟﺎﮭﺒﻨﺳ"
 
@@ -115906,11 +114789,6 @@ msgstr "ﺕﺮﭘ ﭧﻨﻤﭩﺴﺟﮉﯾﺍ"
 
 
 msgctxt "Operator"
-msgid "Scene..."
-msgstr "...ﺮﻈﻨﻣ"
-
-
-msgctxt "Operator"
 msgid "Wipe"
 msgstr "ﺎﻧﺮﮐ ﺢﺴﻣ"
 
@@ -115933,11 +114811,6 @@ msgstr "ﮏﻤﭼ"
 msgctxt "Operator"
 msgid "Gaussian Blur"
 msgstr "ﺮﻠﺑ ﯽﺳﻭﺎﮔ"
-
-
-msgctxt "Operator"
-msgid "Insert Keyframe with Keying Set"
-msgstr "ﭧﯿﺳ ﮓﻨﯿﮐ with ﮟﯾﺮﮐ ﻞﺧﺍﺩ ﻢﯾﺮﻓ ﯽﮐ"
 
 
 msgctxt "Operator"
@@ -115975,32 +114848,8 @@ msgid "Stretch To Fill"
 msgstr "ﺎﻨﭽﻨﯿﮭﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮭﺑ"
 
 
-msgid "Default Fade"
-msgstr "ﻻ﻿ﺪﻨﮬﺩ ﮦﺪﺷ ﮯﻃ"
-
-
-msgid "2D Stabilized Clip"
-msgstr "2D ﭗﻠﮐ ﻢﮑﺤﺘﺴﻣ"
-
-
-msgid "Undistorted Clip"
-msgstr "ﭗﻠﮐ ﮦﺪﺷ ﺦﺴﻣ ﺮﯿﻏ"
-
-
-msgid "Strip Offset Start"
-msgstr "ﻉﻭﺮﺷ ﭧﯿﺴﻓﺁ ﯽﭩﭘ"
-
-
-msgid "Hold Offset Start"
-msgstr "ﮟﯾﺮﮐ ﮉﻟﻮﮨ ﻮﮐ ﭦﺭﺎﭩﺳﺍ ﭧﯿﺴﻓﺁ"
-
-
 msgid "Resolutions"
 msgstr "ﮟﯾﺩﺍﺩﺭﺍﺮﻗ"
-
-
-msgid "Linear Modifiers"
-msgstr "ﮯﻟﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ ﯼﺮﯿﮑﻟ"
 
 
 msgid "Preview Zoom"
@@ -116037,48 +114886,12 @@ msgid "Toggle Meta"
 msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﺎﭩﯿﻣ"
 
 
-msgid "Effect Fader"
-msgstr "ﺭﺩﺎﻓ ﭧﮑﯿﻔﯾﺍ"
-
-
-msgid "Original Frame Range"
-msgstr "ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﻞﺻﺍ"
-
-
-msgid "Pan Angle"
-msgstr "ﻞﮕﻨﯾﺍ ﻦﯿﭘ"
-
-
 msgid "Custom Proxy"
 msgstr "ﯽﺴﮐﺍﺮﭘ ﺕﺭﻭﺮﺿ ﺐﺴﺣ"
 
 
 msgid "Add Transition"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﯽﻠﻘﺘﻨﻣ"
-
-
-msgid "Unpack"
-msgstr "ﮟﯿﻟﻮﮭﮐ ﮏﯿﭘ"
-
-
-msgid "Pack"
-msgstr "ﮏﯿﭘ"
-
-
-msgid "Original frame range: {:d}-{:d} ({:d})"
-msgstr "({d}-{:d} ({:d:} :ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﻞﺻﺍ"
-
-
-msgid "Source Channel"
-msgstr "ﻞﻨﯿﭼ ﺬﺧﺎﻣ"
-
-
-msgid "Cut To"
-msgstr "ﻮﭨ ﭧﮐ"
-
-
-msgid "Two or more channels are needed below this strip"
-msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﺰﻠﻨﯿﭼ ﮦﺩﺎﯾﺯ ﺎﯾ ﻭﺩ ﮯﭽﯿﻧ ﮯﮐ ﯽﭩﭘ ﺱﺍ"
 
 
 msgid "All Data-Blocks"
@@ -116446,6 +115259,10 @@ msgstr "ﮟﯾﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﻞﭩﻨﻤﯾﺮﮑﻧﺍ"
 msgctxt "Operator"
 msgid "General"
 msgstr "ﻝﺮﻨﺟ"
+
+
+msgid "More..."
+msgstr "...ﺪﯾﺰﻣ"
 
 
 msgctxt "Operator"
@@ -117022,16 +115839,6 @@ msgstr "ﺖﺳﺍﺭ / ﮦﺎﮕﻧ"
 
 
 msgctxt "Operator"
-msgid "Viewport Render Image"
-msgstr "ﺞﯿﻣﺍ ﺭﮉﻨﯾﺭ ﭦﺭﻮﭘﻮﯾﻭ"
-
-
-msgctxt "Operator"
-msgid "Viewport Render Keyframes"
-msgstr "ﺰﻤﯾﺮﻓ ﯽﮐ ﺭﮉﻨﯾﺭ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgctxt "Operator"
 msgid "Toggle Local View"
 msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐﻮﯾﻭ ﯽﻣﺎﻘﻣ"
 
@@ -117347,16 +116154,6 @@ msgstr "ﮈﺅﻼ﻿ﮐ ﭧﻨﺋﺍﻮﭘ"
 msgctxt "Operator"
 msgid "Speaker"
 msgstr "ﺮﮑﯿﭙﺳ"
-
-
-msgctxt "Operator"
-msgid "Mesh Plane"
-msgstr "ﮦﺭﺎﯿﻃ ﻝﺎﺟ"
-
-
-msgctxt "Operator"
-msgid "Make Local..."
-msgstr "...ﮟﯿﺋﺎﻨﺑ ﯽﻣﺎﻘﻣ"
 
 
 msgctxt "Operator"
@@ -117859,11 +116656,6 @@ msgstr "ﮟﯾﺮﮐ ﭧﯾﮈ ﭖﺍ ﻮﮐ ﺰﮭﺗﺎﭘ ﺖﮐﺮﺣ  ﻡ�
 
 
 msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "...ﮟﯾﺩ ﺐﯿﺗﺮﺗ ﻮﮐ ﺮﺻﺎﻨﻋ"
-
-
-msgctxt "Operator"
 msgid "Extrude Vertices"
 msgstr "ﺎﻨﻟﺎﮑﻧ ﺮﮨﺎﺑ ﯼﺩﻮﻤﻋ"
 
@@ -118051,10 +116843,6 @@ msgid "Look At"
 msgstr "ﻮﮭﮑﯾﺩ"
 
 
-msgid "Viewport Overlays"
-msgstr "ﺰﯿﻟﺭﻭﻭﺍ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
 msgctxt "View3D"
 msgid "Floor"
 msgstr "ﺵﺮﻓ"
@@ -118178,11 +116966,6 @@ msgstr "(ﺪﺣ) ﭧﮑﯿﺟﻭﺮﭘ ﮯﺳ ﺮﻈﻨﻣ"
 
 
 msgctxt "Operator"
-msgid "Viewport Render Animation"
-msgstr "ﻦﺸﯿﻤﯿﻨﯾﺍ ﺭﮉﻨﯾﺭ ﭦﺭﻮﭘﻮﯾﻭ"
-
-
-msgctxt "Operator"
 msgid "Roll Left"
 msgstr "ﮟﯾﺮﮐ ﻝﻭﺭ ﮟﯿﺋﺎﺑ"
 
@@ -118223,11 +117006,6 @@ msgstr "ﺮﭽﻣﺭﺁ"
 
 
 msgctxt "Operator"
-msgid "Lattice"
-msgstr "ﯽﻟﺎﺟ"
-
-
-msgctxt "Operator"
 msgid "Collection Instance..."
 msgstr "...ﻝﺎﺜﻣ ﯽﮐ ﮯﻧﺮﮐ ﻊﻤﺟ"
 
@@ -118240,16 +117018,6 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮧﻋﻮﻤﺠﻣ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﻝ
 msgctxt "Operator"
 msgid "Collection Instance"
 msgstr "ﻝﺎﺜﻣ ﯽﮐ ﮯﻧﺮﮐ ﻊﻤﺟ"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "ﮧﻟﺍﻮﺣ"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "ﺮﻈﻨﻣ ﺲﭘ"
 
 
 msgctxt "Operator"
@@ -119082,6 +117850,29 @@ msgstr "ﻢﮐ ﮯﺳ ﻢﮐ ﮧﻠﺻﺎﻓ"
 
 
 msgctxt "Operator"
+msgid "Mirrored"
+msgstr "ﺭﺍﺩ ﮧﻨﯿﺋﺁ"
+
+
+msgid "These require auto-key:"
+msgstr ":ﮯﮨ ﯽﺗﻮﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﺪﯿﻠﮐ ﻮﭨﺁ ﻮﮐ ﻥﺍ"
+
+
+msgctxt "Operator"
+msgid "Paste to Selected Keys"
+msgstr "ﮟﯾﺮﮐ ﮞﺎﭙﺴﭼ ﺮﭘ ﺰﯿﮐ ﺐﺨﺘﻨﻣ"
+
+
+msgctxt "Operator"
+msgid "Paste and Bake"
+msgstr "ﮟﯾﺮﮐ ﮏﯿﺑ ﺭﻭﺍ ﭧﺴﯿﭘ"
+
+
+msgid "Using Active Scene Camera"
+msgstr "ﺎﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮦﺮﻤﯿﮐ ﻦﯿﺳ ﻮﭩﮑﯾﺍ"
+
+
+msgctxt "Operator"
 msgid "Edit Metadata..."
 msgstr "...ﺎﭩﯾﮈ ﺎﭩﯿﻣ ﮟﯾﺮﮐ ﻢﯿﻣﺮﺗ"
 
@@ -119310,10 +118101,6 @@ msgstr "(%s‬‪ = ﮧﺘﺳﺍﺭ ،ID = ‪%s‬) ﮯﮨ ﻂﻠﻏ ﮯﯿﻟ 
 
 msgid "No action to delete keyframes from for ID = %s"
 msgstr "ID = ‪%s‬ ﮯﮨ ﮟﯿﮩﻧ ﯽﺋﺍﻭﺭﺭﺎﮐ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻑﺬﺣ ﻮﮐ ﮞﻮﻤﯾﺮﻓ ﯼﺪﯿﻠﮐ ﮯﯿﻟ ﮯﮐ"
-
-
-msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
-msgstr "‪%s‬ '‪%s‬' ﻢﺧ-ﻒﯾﺍﺪﻨﺑ ﮯﯿﻟ ﮯﮐ  '‪%s‬' ﮯﮨ ﺎﮨﺭ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻑﺬﺣ ﻮﮐ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ ﮯﯿﻟ ﮯﮐ"
 
 
 msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
@@ -119734,10 +118521,6 @@ msgid "GP_Layer"
 msgstr "GP_Layer"
 
 
-msgid "grease_pencils_v3"
-msgstr "grease_pencils_v3"
-
-
 msgid "Socket_2"
 msgstr "2_ﭧﮐﺎﺳ"
 
@@ -119920,10 +118703,6 @@ msgstr "ﮦﻭﺮﮔ_ﮈﻮﻧ"
 
 msgid "Use node groups to reuse the same menu multiple times"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺲﭘﻭﺮﮔ ﮈﻮﻧ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮦﺭﺎﺑﻭﺩ ﺭﺎﺑ ﯽﺌﮐ ﻮﮐ ﻮﻨﯿﻣ ﯽﮨ ﮏﯾﺍ"
-
-
-msgid "The node input does not support fields"
-msgstr "ﮯﮨ ﺎﺗﺮﮐ ﮟﯿﮩﻧ ﭦﺭﻮﭙﺳ ﻮﮐ ﺯﮉﻠﯿﻓ ﭧﭘ ﻥﺍ ﮈﻮﻧ"
 
 
 msgid "The links form a cycle which is not supported"
@@ -120511,10 +119290,6 @@ msgid "ID %s uses shapekey %s, but its 'from' pointer is invalid (%p), fixing...
 msgstr "ID ‪%s‬ ﯽﮐ ﭗﯿﺷ ‪%s‬ ﺎﮐ ﺱﺍ ﻦﮑﯿﻟ ،ﮯﮨ ﯽﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ 'from' ﮯﮨ ﻂﻠﻏ ﺮﭩﻨﺋﺍﻮﭘ (%p)، ﮓﻨﺴﮑﻓ..."
 
 
-msgid "insufficient content"
-msgstr "ﺩﺍﻮﻣ ﯽﻓﺎﮐﺎﻧ"
-
-
 msgid "unknown error reading file"
 msgstr "ﯽﻄﻠﻏ ﻡﻮﻠﻌﻣﺎﻧ ﮟﯿﻣ ﮯﻨﮬﮍﭘ ﻞﺋﺎﻓ"
 
@@ -120565,10 +119340,6 @@ msgstr "ﮟﯿﻟﻮﮭﮐ ﮫﺗﺎﺳ ﮯﮐ ﺪﻌﺑ ﺎﯾ %s‬‪ ﺭﮉ�
 
 msgid "Failed to read blend file '%s': %s"
 msgstr "‬%s‪ :ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻨﮬﮍﭘ '%s‬‪' ﻞﺋﺎﻓ ﮉﻨﯿﻠﺑ"
-
-
-msgid "Unable to read '%s': %s"
-msgstr "'‪%s‬' ﮟﯿﮩﻧ ﻞﺑﺎﻗ ﮯﮐ ﮯﻨﮬﮍﭘ: ‪%s‬"
 
 
 msgid "Unrecognized file format '%s'"
@@ -121916,16 +120687,6 @@ msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺕﺎﺤﯿﺟﺮﺗ ﯽﮐ ﻑﺭ�
 
 
 msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﭧﮐ ﭦﺭﺎﺷ"
-
-
-msgctxt "Operator"
-msgid "Assign Shortcut"
-msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﭧﮐ ﭦﺭﺎﺷ"
-
-
-msgctxt "Operator"
 msgid "Open File Externally"
 msgstr "ﮟﯿﻟﻮﮭﮐ ﺮﭘ ﺭﻮﻃ ﯽﻧﻭﺮﯿﺑ ﻮﮐ ﻞﺋﺎﻓ"
 
@@ -122360,10 +121121,6 @@ msgid "Move to Last"
 msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﮟﯿﻣ ﯼﺮﺧﺁ"
 
 
-msgid "Use Clipping"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﮓﻨﭙﻠﮐ"
-
-
 msgid "Min X:"
 msgstr ":X ﻢﮐ ﺯﺍ ﻢﮐ"
 
@@ -122440,16 +121197,8 @@ msgid "Zoom out"
 msgstr "ﮟﯾﺮﮐ ﭦﺅﺁ ﻡﻭﺯ"
 
 
-msgid "Clipping Options"
-msgstr "ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﮯﻨﺷﺍﺮﺗ"
-
-
 msgid "Delete points"
 msgstr "ﮟﯾﺮﮐ ﻑﺬﺣ ﻮﮐ ﺲﭩﻨﺋﺍﻮﭘ"
-
-
-msgid "Reset Black/White point and curves"
-msgstr "ﮟﯾﺩ ﺐﯿﺗﺮﺗ ﮦﺭﺎﺑﻭﺩ ﻮﮐ  ﮟﯿﻤﺧ ﺭﻭﺍ ﭧﻨﺋﺍﻮﭘ ﺪﯿﻔﺳ/ﮦﺎﯿﺳ"
 
 
 msgctxt "Color"
@@ -122854,10 +121603,6 @@ msgid "No Properties"
 msgstr "ﮟﯿﮩﻧ ﺰﯿﭨﺮﭘﺍﺮﭘ ﯽﺋﻮﮐ"
 
 
-msgid "More..."
-msgstr "...ﺪﯾﺰﻣ"
-
-
 msgid "Reset operator defaults"
 msgstr "ﮟﯾﺩ ﺐﯿﺗﺮﺗ ﮦﺭﺎﺑﻭﺩ ﻮﮐ ﺲﭩﻟﺎﻔﯾﮈ ﺮﭩﯾﺮﭘﺁ"
 
@@ -123129,10 +121874,6 @@ msgstr "ﺎﮔﻮﮨ ﺎﻧﺮﮐ ﺐﺨﺘﻨﻣ ﯽﮭﺑ ﮓﻧﺮﭩﺳ ﮏ�
 
 msgid "Thickness: %s, Depth: %s"
 msgstr "‬%s‪ :ﯽﺋﺍﺮﮩﮔ ,%s‬‪ :ﯽﺋﺎﭨﻮﻣ"
-
-
-msgid "Compiled without GMP, using fast solver"
-msgstr "GMP ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺭﻮﻟﻮﺳ ﭧﺳﺎﻓ ،ﺎﯿﮔ ﺎﯿﮐ ﺐﺗﺮﻣ ﺮﯿﻐﺑ ﮯﮐ"
 
 
 msgid "No intersections found"
@@ -123415,12 +122156,12 @@ msgid "No mesh data to join"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﻝﺎﺟ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﮨ ﻞﻣﺎﺷ"
 
 
-msgid "No additional selected meshes with equal vertex count to join"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻝﺎﺟ ﺐﺨﺘﻨﻣ ﯽﻓﺎﺿﺍ ﯽﺋﻮﮐ ﮫﺗﺎﺳ ﮯﮐ ﯽﺘﻨﮔ ﯽﮐ ﯽﭨﻮﭼ ﯼﻭﺎﺴﻣ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﮨ ﻞﻣﺎﺷ"
-
-
 msgid "Joining results in %d vertices, limit is %ld"
 msgstr "‪%d‬ ﺪﺣ ،ﺞﺋﺎﺘﻧ ﮯﮐ ﮯﻧﻮﮨ ﻞﻣﺎﺷ ﮟﯿﻣ ﯼﺩﻮﻤﻋ ‪%l‬d ﮯﮨ"
+
+
+msgid "No additional selected meshes with equal vertex count to join"
+msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻝﺎﺟ ﺐﺨﺘﻨﻣ ﯽﻓﺎﺿﺍ ﯽﺋﻮﮐ ﮫﺗﺎﺳ ﮯﮐ ﯽﺘﻨﮔ ﯽﮐ ﯽﭨﻮﭼ ﯼﻭﺎﺴﻣ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﮨ ﻞﻣﺎﺷ"
 
 
 msgid "Delete selected metaball elements?"
@@ -123640,10 +122381,6 @@ msgid "No objects found to bake from"
 msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ ﮯﺷ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﮑﭘ"
 
 
-msgid "Combined bake pass requires Emit, or a light pass with Direct or Indirect contributions enabled"
-msgstr "ﮞﻮﮨ ﻝﺎﻌﻓ ﮟﯿﺘﮐﺍﺮﺷ ﮧﻄﺳﺍﻮﻟﺎﺑ ﺎﯾ ﺖﺳﺍﺭ ﮦﺍﺮﺑ ﮟﯿﻣ ﺲﺟ ﮯﮨ ﯽﺗﻮﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﺱﺎﭘ ﭧﺋﻻ﻿ ﮏﯾﺍ ﺎﯾ ،Emit ﮯﯿﻟ ﮯﮐ ﺱﺎﭘ ﮏﯿﺑ ﮧﮐﺮﺘﺸﻣ"
-
-
 msgid "Bake pass requires Direct, Indirect, or Color contributions to be enabled"
 msgstr "ﮯﮨ ﯽﺗﻮﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮯﻧﺮﮐ ﻝﺎﻌﻓ ﻮﮐ ﻥﻭﺎﻌﺗ ﻦﯿﮕﻧﺭ ﺎﯾ ،ﮧﻄﺳﺍﻮﻟﺎﺑ ،ﺖﺳﺍﺭ ﮦﺍﺮﺑ ﮯﯿﻟ ﮯﮐ ﺱﺎﭘ ﮏﯿﺑ"
 
@@ -123832,22 +122569,6 @@ msgid "Add IK"
 msgstr "IK ﮟﯾﺮﮐ ﻞﻣﺎﺷ"
 
 
-msgid "To Active Bone"
-msgstr "ﻮﮐ ﯼﮉﮨ ﻝﺎﻌﻓ"
-
-
-msgid "To Active Object"
-msgstr "ﮯﯿﻟ ﮯﮐ ﮯﺷ ﻝﺎﻌﻓ"
-
-
-msgid "To New Empty Object"
-msgstr "ﺮﭘ ﮯﺷ ﯽﻟﺎﺧ ﮯﺌﻧ"
-
-
-msgid "Without Targets"
-msgstr "ﺮﯿﻐﺑ ﮯﮐ ﻑﺍﺪﮨﺍ"
-
-
 msgid "Could not find constraint data for Child-Of Set Inverse"
 msgstr "ﺎﮑﺳ ﻞﻣ ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﺎﮐ ﭦﻭﺎﮐﺭ ﮯﯿﻟ ﮯﮐ ﺱﺭﻮﻧﺍ ﭧﯿﺳ ﻑﺁ  ﮧﭽﺑ"
 
@@ -123970,10 +122691,6 @@ msgstr "ﻼ﻿ﻣ ﮟﯿﮩﻧ ﮧﻋﻮﻤﺠﻣ ،ﯽﺑﺍﺮﺧ ﻊﻗﻮﺘ
 
 msgid "Cannot add objects to a library override or linked collection"
 msgstr "ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﻮﮐ ءﺎﯿﺷﺍ ﮟﯿﻣ ﮧﻋﻮﻤﺠﻣ ﮏﻠﺴﻨﻣ ﺎﯾ ﮉﺋﺍﺭ ﺭﻭﻭﺍ ﯼﺮﯾﺮﺒﺋﻻ﻿"
-
-
-msgid "No objects selected"
-msgstr "ﮟﯿﺌﮔ ﯽﮐ ﮟﯿﮩﻧ ﺐﺨﺘﻨﻣ ءﺎﯿﺷﺍ ﯽﺋﻮﮐ"
 
 
 msgid "%s already in %s"
@@ -124904,6 +123621,10 @@ msgid "Rigid Body World has no associated physics data to export"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﺲﮐﺰﻓ ﮧﻘﻠﻌﺘﻣ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﭦﺭﻮﭙﺴﮑﯾﺍ ﺱﺎﭘ ﮯﮐ ﮉﻟﺭﻭ ﯼﮈﺎﺑ ﮉﮔﺭ"
 
 
+msgid "Render active scene"
+msgstr "ﮟﯾﺮﮐ ﺶﯿﭘﻮﯾﻭ ﻝﺎﻌﻓ"
+
+
 msgid "3D Local View "
 msgstr "3D ﻮﯾﻭ ﻞﮐﻮﻟ "
 
@@ -124922,10 +123643,6 @@ msgstr ":ﺖﻗﻭ"
 
 msgid "Cannot write a single file with an animation format selected"
 msgstr "ﺎﺘﮑﺳ ﮫﮑﻟ ﮟﯿﮩﻧ ﻞﺋﺎﻓ ﮏﯾﺍ ﮫﺗﺎﺳ ﮯﮐ ﭧﯿﻣﺭﺎﻓ ﺕﺎﯿﮐﺮﺣ  ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ"
-
-
-msgid "Render the viewport for the animation range of this scene, but only render keyframes of selected objects"
-msgstr "ﮟﯾﺮﮐ ﺶﯿﭘ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ ﮯﮐ ءﺎﯿﺷﺍ ﺐﺨﺘﻨﻣ ﻑﺮﺻ ﻦﮑﯿﻟ ،ﮟﯾﺮﮐ ﺭﮉﻨﯾﺭ ﭦﺭﻮﭘ ﻮﯾﻭ ﮯﯿﻟ ﮯﮐ ﺞﻨﯾﺭ ﺕﺎﯿﮐﺮﺣ  ﯽﮐﻮﯾﻭ ﺱﺍ"
 
 
 msgid "Render the viewport for the animation range of this scene"
@@ -125540,18 +124257,6 @@ msgid "multi-res modifier"
 msgstr "ﺮﺋﺎﻔﯾﮈﻮﻣ ﺰﯾﺭ ﯽﭩﻠﻣ"
 
 
-msgid "vertex data"
-msgstr "ﺎﭩﯾﮈ ﺲﮑﯿﭨﺭﻭ"
-
-
-msgid "edge data"
-msgstr "ﺎﭩﯾﮈ ﮮﺭﺎﻨﮐ"
-
-
-msgid "face data"
-msgstr "ﺎﭩﯾﮈ ﺎﮐ ﮮﺮﮩﭼ"
-
-
 msgid "constructive modifier"
 msgstr "ﮦﺪﻨﻨﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﯼﺮﯿﻤﻌﺗ"
 
@@ -125590,14 +124295,6 @@ msgstr "ﻢﺧ-ﻒﯾﻻ﻿ﺎﻌﻓ"
 
 msgid "Active Keyframe"
 msgstr "ﻢﯾﺮﻓ ﯽﮐ ﻝﺎﻌﻓ"
-
-
-msgid "Could not find current NLA Track"
-msgstr "ﺎﮑﺳ ﻞﻣ ﮟﯿﮩﻧ ﮏﯾﺮﭨ NLA ﮦﺩﻮﺟﻮﻣ"
-
-
-msgid "Internal Error: Could not find Animation Data/NLA Stack to use"
-msgstr "ﺎﮑﺳ ﻞﻣ ﮟﯿﮩﻧ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮏﯿﭩﺳﺍ NLA/ﺎﭩﯾﮈ ﺕﺎﯿﮐﺮﺣ  :ﯽﺑﺍﺮﺧ ﯽﻧﻭﺭﺪﻧﺍ"
 
 
 msgid "Action '%s' will not be saved, create Fake User or Stash in NLA Stack to retain"
@@ -126625,6 +125322,10 @@ msgid "Active Strip Name"
 msgstr "ﻡﺎﻧ ﺎﮐ ﯽﭩﭘ ﻝﺎﻌﻓ"
 
 
+msgid "Action Clip"
+msgstr "ﭗﻠﮐ ﻡﺍﺪﻗﺍ"
+
+
 msgid "Temp-Meta"
 msgstr "Temp-Meta"
 
@@ -126873,6 +125574,10 @@ msgid " Named Attributes"
 msgstr "ﻑﺎﺻﻭﺍ ﺩﺰﻣﺎﻧ "
 
 
+msgid "Render size too large for GPU, use CPU compositor instead"
+msgstr "GPU ﮯﺋﺎﺠﺑ ﮯﮐ ﺱﺍ ،ﮯﮨ ﺍﮍﺑ ﺖﮩﺑ ﺰﺋﺎﺳ ﺭﮉﻨﯾﺭ ﮯﯿﻟ ﮯﮐ CPU ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭩﯾﺯﻮﭙﻤﮐ"
+
+
 msgid "Not inside node group"
 msgstr "ﮟﯿﮩﻧ ﺭﺪﻧﺍ ﮯﮐ ﮦﻭﺮﮔ ﮈﻮﻧ"
 
@@ -126953,8 +125658,12 @@ msgid "Dependency Loop"
 msgstr "ﭖﻮﻟ ﺭﺎﺼﺤﻧﺍ"
 
 
-msgid "Unsupported Menu Socket"
-msgstr "ﭧﮐﺎﺳ ﻮﻨﯿﻣ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﺮﯿﻏ"
+msgid "Closed by Default"
+msgstr "ﺪﻨﺑ ﮯﺳ ﻑﺮﻃ ﯽﮐ ﭧﻟﺎﻔﯾﮈ"
+
+
+msgid "Group Sockets"
+msgstr "ﭧﮐﺎﺴﮨﻭﺮﮔ"
 
 
 msgid "More than one collection is selected"
@@ -127549,16 +126258,16 @@ msgid "Columns:"
 msgstr ":ﻢﻟﺎﮐ"
 
 
-msgid "Class"
-msgstr "ﺱﻼ﻿ﮐ"
-
-
 msgid "Fog Volume"
 msgstr "ﻢﺠﺣ ﺎﮐ ﺪﻨﮬﺩ"
 
 
 msgid "Level Set"
 msgstr "ﭧﯿﺳ ﻝﻮﯿﻟ"
+
+
+msgid "Class"
+msgstr "ﺱﻼ﻿ﮐ"
 
 
 msgid ""
@@ -127647,10 +126356,6 @@ msgstr "ﮯﮨ ﻝﺎﻌﻓ ﺮﯿﻏPython ﮟﯿﻣ ﺮﯿﻤﻌﺗ ﺱﺍ"
 
 msgid "File path property not set"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﭧﯿﺳ ﯽﭨﺮﭘﺍﺮﭘ ﮧﺘﺳﺍﺭ ﻞﺋﺎﻓ"
-
-
-msgid "Text not used by any node, no update done"
-msgstr "ﺍﻮﮨ ﮟﯿﮩﻧ ﭧﯾﮈ ﭖﺍ ﯽﺋﻮﮐ ،ﺎﯿﮔ ﺎﯿﮐ ﮟﯿﮩﻧ ﻝﺎﻤﻌﺘﺳﺍ ﮧﻌﯾﺭﺫ ﮯﮐ ﮈﻮﻧ ﯽﺴﮐ ﻦﺘﻣ"
 
 
 msgid "No file path for \"%s\""
@@ -128381,10 +127086,6 @@ msgid "Shear: %s %s"
 msgstr "‬%s‬ ‪%s‪ :ﮟﯾﺮﮐ ﺮﺌﯿﺷ"
 
 
-msgid "Shear: %.3f %s"
-msgstr "‬%.3f‬ ‪%s‪ :ﯽﭽﻨﯿﻗ"
-
-
 msgid "Shear Axis"
 msgstr "ﺭﻮﺤﻣ ﯽﭽﻨﯿﻗ"
 
@@ -128614,10 +127315,6 @@ msgstr "‪%d‬ ﮯﺳ ﮟﯿﻣ ﮞﻭﺮﯾﺰﺟ ‪%d‬ ﯽﮭﺗ ﮦﺪ�
 
 msgid "Rip failed"
 msgstr "ﯽﺌﮔﻮﮨ ﻡﺎﮐﺎﻧ ﺮﯿﭼ"
-
-
-msgid "Cannot split selection when sync selection is enabled"
-msgstr "ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻢﯿﺴﻘﺗ ﻮﮐ ﺏﺎﺨﺘﻧﺍ ﺮﭘ ﮯﻧﻮﮨ ﻝﺎﻌﻓ ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﯼﺮﯾﺬﭘ ﺖﻘﺑﺎﻄﻣ"
 
 
 msgid "Pinned vertices can be selected in Vertex Mode only"
@@ -129246,22 +127943,6 @@ msgstr "ﮯﮨ ﺩﻮﺟﻮﻣ ﮯﺳ ﮯﻠﮩﭘ '[F-Curve '‪%s‬[‪%d‬ 
 
 msgid "F-Curve not found"
 msgstr "F-Curve ﻼ﻿ﻣ ﮟﯿﮩﻧ"
-
-
-msgid "Action group '%s' not found in action '%s'"
-msgstr "ﻼ﻿ﻣ ﮟﯿﮩﻧ ﮟﯿﻣ '%s‬‪' ﯽﺋﺍﻭﺭﺭﺎﮐ '%s‬‪' ﮦﻭﺮﮔ ﻡﺍﺪﻗﺍ"
-
-
-msgid "F-Curve '%s[%d]' already exists in action '%s'"
-msgstr "'%s‬‪' ﮯﮨ ﺩﻮﺟﻮﻣ ﮟﯿﻣ ﻡﺍﺪﻗﺍ ﯽﮨ ﮯﺳ ﮯﻠﮩﭘ '[%s‬[‪%d‬‪' ﻢﺧ-ﻒﯾﺍ"
-
-
-msgid "F-Curve not found in action '%s'"
-msgstr "‪%s‬' ﻼ﻿ﻣ ﮟﯿﮩﻧ ﻞﺑ ﻒﯾﺍ ﮟﯿﻣ ﻡﺍﺪﻗﺍ"
-
-
-msgid "F-Curve's action group '%s' not found in action '%s'"
-msgstr "ﻼ﻿ﻣ ﮟﯿﮩﻧ ﮟﯿﻣ '%s‬‪' ﻡﺍﺪﻗﺍ '%s‬‪' ﮦﻭﺮﮔ ﻡﺍﺪﻗﺍ ﺎﮐ ﻢﺧ-ﻒﯾﺍ"
 
 
 msgid "Timeline marker '%s' not found in action '%s'"
@@ -129901,6 +128582,10 @@ msgstr "ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺎﻨﺑ ﻞﻨﯿﭘ"
 
 msgid "Unable to copy item"
 msgstr "ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﻢﭩﺋﺁ"
+
+
+msgid "Anisotropic"
+msgstr "ﮏﭘﻭﺮﭨﻮﺴﯿﻧﺍ"
 
 
 msgctxt "NodeTree"
@@ -130558,21 +129243,6 @@ msgstr "12 ﻦﭩﺑ"
 msgctxt "UI_Events_KeyMaps"
 msgid "Enter"
 msgstr "Enter"
-
-
-msgctxt "UI_Events_KeyMaps"
-msgid "Alt"
-msgstr "Alt"
-
-
-msgctxt "UI_Events_KeyMaps"
-msgid "Shift"
-msgstr "ﭧﻔﺷ"
-
-
-msgctxt "UI_Events_KeyMaps"
-msgid "Ctrl"
-msgstr "Ctrl"
 
 
 msgid "No active window in context!"
@@ -131502,10 +130172,6 @@ msgid "Not a compositor node tree"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﯼﺮﭨ ﮈﻮﻧ ﺮﭩﯾﺯﻮﭙﻤﮐ"
 
 
-msgid "Fac"
-msgstr "Fac"
-
-
 msgid "Contrast Limit"
 msgstr "ﺪﺣ ﯽﮐ ﭧﺳﺍﺮﭩﻨﮐ"
 
@@ -131526,36 +130192,12 @@ msgid "Bokeh"
 msgstr "ﮯﮐﻮﺑ"
 
 
-msgid "Bounding box"
-msgstr "ﺲﮐﺎﺑ ﮓﻧﮉﻧﺅﺎﺑ"
-
-
 msgid "Flaps"
 msgstr "ﺲﭙﯿﻠﻓ"
 
 
-msgid "Bright"
-msgstr "ﻦﺷﻭﺭ"
-
-
-msgid "Color Space:"
-msgstr ":ﮧﮕﺟ ﯽﮐ ﮓﻧﺭ"
-
-
-msgid "Key Channel:"
-msgstr ":ﻞﻨﯿﭼ ﯼﺪﯿﻠﮐ"
-
-
-msgid "Limiting Channel:"
-msgstr ":ﺎﻧﺮﮐ ﺩﻭﺪﺤﻣ ﻮﮐ ﻞﻨﯿﭼ"
-
-
 msgid "Key Color"
 msgstr "ﮓﻧﺭ ﯼﺪﯿﻠﮐ"
-
-
-msgid "Despill Channel:"
-msgstr ":ﻞﻨﯿﭼ ﻞﭙﺴﯾﮈ"
 
 
 msgid "Correction for shadows"
@@ -131622,12 +130264,12 @@ msgid "Pick"
 msgstr "ﻮﻨﭼ"
 
 
-msgid "Amount of influence the node exerts on the image"
-msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﺥﻮﺳﺭ ﻭ ﺮﺛﺍ ﮯﮐ ﮈﻮﻧ ﺮﭘ ﺮﯾﻮﺼﺗ"
-
-
 msgid "Image/Color input on which RGB color transformation will be applied"
 msgstr "ﺎﮔ ﮯﺋﺎﺟ ﺎﯿﮐ ﻮﮔﻻ﻿ ﻦﺸﯿﻣﺭﺎﻔﺴﻧﺍﺮﭨ ﺮﻠﮐ ﯽﺑ ﯽﺟ ﺭﺁ ﺮﭘ ﺲﺟ ﭧﭘ ﻥﺍ ﮓﻧﺭ/ﺮﯾﻮﺼﺗ"
+
+
+msgid "Amount of influence the node exerts on the image"
+msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﺥﻮﺳﺭ ﻭ ﺮﺛﺍ ﮯﮐ ﮈﻮﻧ ﺮﭘ ﺮﯾﻮﺼﺗ"
 
 
 msgid "Input color that should be mapped to black"
@@ -131654,20 +130296,12 @@ msgid "Image 2"
 msgstr "2 ﺮﯾﻮﺼﺗ"
 
 
-msgid "Inner Edge:"
-msgstr ":ﮮﺭﺎﻨﮐ ﯽﻧﻭﺭﺪﻧﺍ"
-
-
-msgid "Buffer Edge:"
-msgstr ":ﺞﯾﺍ ﺮﻔﺑ"
+msgid "Outer Mask"
+msgstr "ﮏﺳﺎﻣ ﯽﻧﻭﺮﯿﺑ"
 
 
 msgid "Inner Mask"
 msgstr "ﮏﺳﺎﻣ ﯽﻧﻭﺭﺪﻧﺍ"
-
-
-msgid "Outer Mask"
-msgstr "ﮏﺳﺎﻣ ﯽﻧﻭﺮﯿﺑ"
 
 
 msgid "Soften"
@@ -131720,6 +130354,10 @@ msgstr "ﻦﺸﯿﻟﻮﯾﮈﺎﻣ ﻦﯿﮕﻧﺭ"
 
 msgid "Streak fade-out factor"
 msgstr "ﺮﭩﮑﯿﻓ ﭦﺅﺁ ﮉﯿﻓ ﮏﯾﺮﭩﺳﺍ"
+
+
+msgid "Fac"
+msgstr "Fac"
 
 
 msgid "ID value"
@@ -132475,10 +131113,6 @@ msgid "Values used to sort the curve's points. Uses indices by default"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺖﺳﺮﮩﻓ ﭧﻟﺎﻔﯾﮈ ﺭﻮﻄﺑ ﮟﯾﺭﺪﻗ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻨﯾﺩ ﺐﯿﺗﺮﺗ ﻮﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮯﮐ ﻢﺧ"
 
 
-msgid "Which of the sorted points to output"
-msgstr "ﺎﺳ ﻥﻮﮐ ﮯﺳ ﮟﯿﻣ ﺲﭩﻨﺋﺍﻮﭘ ﮦﺪﺷ ﺐﯿﺗﺮﺗ ﮯﺌﻟ ﮯﮐ ﭧﭘ ﭦﺅﺁ"
-
-
 msgid "A point of the curve, chosen by the sort index"
 msgstr "ﮯﮨ ﺎﯿﮔ ﺎﯿﮐ ﺐﺨﺘﻨﻣ ﮯﻌﯾﺭﺫ ﮯﮐ ﺖﺳﺮﮩﻓ ﺐﯿﺗﺮﺗ ، ﺭﺍﺩ ﻢﺧ"
 
@@ -132672,6 +131306,10 @@ msgid "Create a separate curve instance for every layer"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﻝﺎﺜﻣ ﻢﺧ ﮦﺪﺤﯿﻠﻋ ﮯﯿﻟ ﮯﮐ ﺕﺮﭘ ﺮﮨ"
 
 
+msgid "Revert"
+msgstr "ﺎﻨﭨﻮﻟ ﺲﭘﺍﻭ"
+
+
 msgid "Values larger than the threshold are inside the generated mesh"
 msgstr "ﮟﯿﮨ ﺭﺪﻧﺍ ﮯﮐ ﻝﺎﺟ ﮦﺩﺮﮐ ﺭﺎﯿﺗ ﮟﯾﺭﺪﻗ ﯼﮍﺑ ﮯﺳ ﺪﺣ"
 
@@ -132837,6 +131475,10 @@ msgid "Face Area Field"
 msgstr "ﮧﻗﻼ﻿ﻋ ﺎﮐ ﮮﺮﮩﭼ"
 
 
+msgid "Planar"
+msgstr "ﺮﻧﻼ﻿ﭘ"
+
+
 msgctxt "NodeTree"
 msgid "Planar"
 msgstr "ﺮﻧﻼ﻿ﭘ"
@@ -132844,10 +131486,6 @@ msgstr "ﺮﻧﻼ﻿ﭘ"
 
 msgid "The distance a point can be from the surface before the face is no longer considered planar"
 msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﮭﺠﻤﺳ ﮟﯿﮩﻧ ﺮﻧﻼ﻿ﭘ ﺏﺍ ﻮﮐ ﮮﺮﮩﭼ ﮧﮐ ﮯﻠﮩﭘ ﮯﺳ ﺱﺍ ﮧﻠﺻﺎﻓ ﺎﮐ ﮧﻄﻘﻧ ﮏﯾﺍ ﮯﺳ ﺢﻄﺳ"
-
-
-msgid "Planar"
-msgstr "ﺮﻧﻼ﻿ﭘ"
 
 
 msgid "Vertex Count"
@@ -133187,12 +131825,12 @@ msgid "Number of subdivisions on top of the basic icosahedron"
 msgstr "ﺩﺍﺪﻌﺗ ﯽﮐ ﮞﻮﻤﯿﺴﻘﺗ ﯽﻠﯾﺫ ﺮﭘﻭﺍ ﮯﮐ icosahedron ﯼﺩﺎﯿﻨﺑ"
 
 
-msgid "Start Location"
-msgstr "ﮟﯾﺮﮐ ﻉﻭﺮﺷ ﻡﺎﻘﻣ"
-
-
 msgid "End Location"
 msgstr "ﻡﺎﻘﻣ ﯽﻣﺎﺘﺘﺧﺍ"
+
+
+msgid "Start Location"
+msgstr "ﮟﯾﺮﮐ ﻉﻭﺮﺷ ﻡﺎﻘﻣ"
 
 
 msgid "Number of vertices on the line"
@@ -133261,10 +131899,6 @@ msgstr "ﮦﺪﺷ ﮯﻃ  ﺮﭘ ﮮﺭﺎﻨﮐ ﮯﺳ ﻕﺎﺒﺳ ﻭ ﻕﺎ�
 
 msgid "Values that sort the corners attached to the edge"
 msgstr "ﮟﯿﮨ ﯽﺘﯾﺩ ﺐﯿﺗﺮﺗ ﻮﮐ ﮞﻮﻧﻮﮐ ﮏﻠﺴﻨﻣ ﮯﺳ ﮮﺭﺎﻨﮐ ﻮﺟ ﮟﯾﺭﺪﻗ"
-
-
-msgid "Which of the sorted corners to output"
-msgstr "ﺎﺳ ﻥﻮﮐ ﮯﺳ ﮟﯿﻣ ﮞﻮﻧﻮﮐ ﮦﺪﺷ ﺐﯿﺗﺮﺗ ﮯﯿﻟ ﮯﮐ ﭧﭘ ﭦﺅﺁ"
 
 
 msgid "A corner of the input edge in its face's winding order, chosen by the sort index"
@@ -133361,10 +131995,6 @@ msgstr "ﮦﺭﺎﻨﮐ ﻼ﻿ﮭﭽﭘ ﺎﮐ ﮯﻧﻮﮐ"
 
 msgid "Values used to sort the edges connected to the vertex. Uses indices by default"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺖﺳﺮﮩﻓ ﭧﻟﺎﻔﯾﮈ ﺭﻮﻄﺑ ﮯﯿﻟ ﮯﮐ ﮯﻨﯾﺩ ﺐﯿﺗﺮﺗ ﻮﮐ ﮞﻭﺭﺎﻨﮐ ﮏﻠﺴﻨﻣ ﮯﺳ ﺮﺳ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﮞﻭﺭﺪﻗ"
-
-
-msgid "Which of the sorted edges to output"
-msgstr "ﺎﺳ ﻥﻮﮐ ﮯﺳ ﮟﯿﻣ ﮞﻭﺭﺎﻨﮐ ﮦﺩﺮﮐ ﺐﯿﺗﺮﺗ ﮯﯿﻟ ﮯﮐ ﭧﭘ ﭦﺅﺁ"
 
 
 msgid "An edge connected to the face, chosen by the sort index"
@@ -134115,10 +132745,6 @@ msgid "Subsurface Anisotropy"
 msgstr "ﯽﭘﻭﺮﭨﻮﺴﯿﻧﺍ ﺢﻄﺳ ﯽﻠﯾﺫ"
 
 
-msgid "Anisotropic"
-msgstr "ﮏﭘﻭﺮﭨﻮﺴﯿﻧﺍ"
-
-
 msgid "Anisotropic Rotation"
 msgstr "ﺵﺩﺮﮔ ﮏﭘﻭﺮﭨﻮﺴﯿﻧﺍ"
 
@@ -134851,10 +133477,6 @@ msgid "Cannot render, no camera"
 msgstr "ﮟﯿﮩﻧ ﮦﺮﻤﯿﮐ ﯽﺋﻮﮐ ،ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﺭﮉﻨﯾﺭ"
 
 
-msgid "Render size too large for GPU, use CPU compositor instead"
-msgstr "GPU ﮯﺋﺎﺠﺑ ﮯﮐ ﺱﺍ ،ﮯﮨ ﺍﮍﺑ ﺖﮩﺑ ﺰﺋﺎﺳ ﺭﮉﻨﯾﺭ ﮯﯿﻟ ﮯﮐ CPU ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭩﯾﺯﻮﭙﻤﮐ"
-
-
 msgid "No border area selected"
 msgstr "ﺎﯿﮔ ﺎﯿﮐ ﮟﯿﮩﻧ ﺐﺨﺘﻨﻣ ﮧﻗﻼ﻿ﻋ ﯼﺪﺣﺮﺳ ﯽﺋﻮﮐ"
 
@@ -135099,10 +133721,6 @@ msgstr "ﮟﯿﮨ (ﮟﯾﺮﯾﻭﺎﺼﺗ) ﺮﯾﻮﺼﺗ ﯽﻧﻭﺮﯿﺑ 
 
 msgid "Revert to the Saved File"
 msgstr "ﮟﯿﺋﺎﺟ ﺲﭘﺍﻭ ﺮﭘ ﻞﺋﺎﻓ ﮦﺪﺷ ﻅﻮﻔﺤﻣ"
-
-
-msgid "Revert"
-msgstr "ﺎﻨﭨﻮﻟ ﺲﭘﺍﻭ"
 
 
 msgid "Clear Recent Files List"
@@ -135356,18 +133974,6 @@ msgstr "ﮯﮨ ﯼﺭﻭﺮﺿ ﺎﻧﻮﮨ ﭦﻮﻠﻓ ﺎﯾ ﺩﺪﻋ ﮏﯾ
 
 msgid "Property must be a none, distance, factor, percentage, angle, or pixel"
 msgstr "ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﻞﺴﮑﭘ ﺎﯾ ،ﮧﯾﻭﺍﺯ ،ﺪﺼﯿﻓ ،ﺮﺼﻨﻋ ،ﮧﻠﺻﺎﻓ ،ﮟﯿﮩﻧ ﯽﺋﻮﮐ ﯽﭨﺮﭘﺍﺮﭘ"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', at position %d"
-msgstr "ﺮﭘ %d‬‪  ﻡﺎﻘﻣ  ،'bl_idname '‪%s‬ ﻂﻠﻏ ،'%s‬‪' :ﺱﻼ﻿ﮐ ﺮﭩﯾﺮﭘﺁ ﻦﺸﯾﺮﭩﺴﺟﺭ"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', is too long, maximum length is %d"
-msgstr "ﮯﮨ %d‬‪ ﯽﺋﺎﺒﻤﻟ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ ،ﮯﮨ ﺎﺒﻤﻟ ﺖﮩﺑ ،'bl_idname '‪%s‬ ﻂﻠﻏ ،'%s‬‪' :ﺝﺍﺭﺪﻧﺍ ﺎﮐ ﺱﻼ﻿ﮐ ﺮﭩﯾﺮﭘﺁ"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', must contain 1 '.' character"
-msgstr "ﺭﺍﺩﺮﮐ 'ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﻞﻣﺎﺷ' bl_idname '‪%s‬'، 1 ﻂﻠﻏ ،'%s‬‪' :ﺱﻼ﻿ﮐ ﺮﭩﯾﺮﭘﺁ ﻦﺸﯾﺮﭩﺴﺟﺭ"
 
 
 msgid "Cannot read %s '%s': %s"
@@ -136007,14 +134613,6 @@ msgid "Extension repository support for remote repositories"
 msgstr "ﭦﺭﻮﭙﺳ ﯼﺮﭨﺯﻮﭙﯾﺭ ﻦﺸﻨﯿﭩﺴﮑﯾﺍ ﮯﯿﻟ ﮯﮐ ﺰﯾﺮﭨﺯﻮﭙﯾﺭ ﭦﻮﻤﯾﺭ"
 
 
-msgid "Copy Global Transform"
-msgstr "ﮟﯾﺮﮐ ﯽﭘﺎﮐ ﻡﺭﺎﻔﺴﻧﺍﺮﭨ ﻞﺑﻮﻠﮔ"
-
-
-msgid "Copy and paste object and bone transforms with ease"
-msgstr "ﮟﯾﺮﮐ ﭧﺴﯿﭘ ﺭﻭﺍ ﯽﭘﺎﮐ ﻮﮐ ﯽﻠﯾﺪﺒﺗ ﯽﮐ ﯼﮉﮨ ﺭﻭﺍ ﮯﺷ ﮯﺳ ﯽﻧﺎﺳﺁ"
-
-
 msgid "Cycles Render Engine"
 msgstr "ﻦﺠﻧﺍ ﺭﮉﻨﯾﺭ ﻞﮑﯿﺋﺎﺳ"
 
@@ -136350,64 +134948,28 @@ msgid "Utility"
 msgstr "ﺖﯾﺩﺎﻓﺍ"
 
 
+msgid "Offset Vector"
+msgstr "ﺮﭩﮑﯾﻭ ﭧﯿﺴﻓﺁ"
+
+
+msgid "Smooth by Angle"
+msgstr "ﺭﺍﻮﻤﮨ ﮯﺳ ﻑﺮﻃ ﯽﮐ ﮧﯾﻭﺍﺯ"
+
+
+msgid "Maximum face angle for smooth edges"
+msgstr "ﮧﯾﻭﺍﺯ ﺎﮐ ﮮﺮﮩﭼ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ ﮯﯿﻟ ﮯﮐ ﮞﻭﺭﺎﻨﮐ ﺭﺍﻮﻤﮨ"
+
+
+msgid "Ignore Sharpness"
+msgstr "ﺖﺳﺎﻔﻧ ﺎﻧﺮﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
+
+
 msgid "Attach Hair Curves to Surface"
 msgstr "ﮟﯾﮌﻮﺟ ﺮﭘ ﺢﻄﺳ ﻮﮐ  ﮟﯿﻤﺧ ﮯﮐ ﮞﻮﻟﺎﺑ"
 
 
 msgid "Attaches hair curves to a surface mesh"
 msgstr "ﮯﮨ ﺎﺗﮌﻮﺟ ﮯﺳ ﯽﻟﺎﺟ ﯽﺤﻄﺳ ﻮﮐ  ﮟﯿﻤﺧ ﮯﮐ ﮞﻮﻟﺎﺑ"
-
-
-msgid "Surface UV Coordinate"
-msgstr "ﭧﯿﻨﯾﮈﺭﺁﻮﮐ UV ﺢﻄﺳ"
-
-
-msgid "Surface UV coordinates at the attachment point"
-msgstr "ﭧﯿﻨﯾﮈﺭﺁﻮﮐ UV ﺢﻄﺳ ﺮﭘ ﭧﻨﺋﺍﻮﭘ ﭧﻨﻤﭽﯿﭨﺍ"
-
-
-msgid "Surface Normal"
-msgstr "ﻞﻣﺭﺎﻧ ﺢﻄﺳ"
-
-
-msgid "Surface normal at the attachment point"
-msgstr "ﻞﻣﺭﺎﻧ ﺢﻄﺳ ﺮﭘ ﭧﻨﺋﺍﻮﭘ ﭧﻨﻤﭽﯿﭨﺍ"
-
-
-msgid "Surface geometry to attach hair curves to"
-msgstr "ﯼﺮﭩﯿﻣﻮﯿﺟ ﯽﮐ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﻠﺴﻨﻣ ﮯﺳ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
-
-
-msgid "Surface Object to attach to (needs to have matching transforms)"
-msgstr "(ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﻞﺛﺎﻤﻣ) ﭧﮑﯿﺠﺑﺁ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﻠﺴﻨﻣ"
-
-
-msgid "Surface UV map used for attachment"
-msgstr "ﮧﺸﻘﻧ UV ﺎﮐ ﺢﻄﺳ ﮦﺪﺷ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﭧﻨﻤﭽﯿﭨﺍ"
-
-
-msgid "Surface Rest Position"
-msgstr "ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﻡﺍﺭﺁ ﯽﺤﻄﺳ"
-
-
-msgid "Set the surface mesh into its rest position before attachment"
-msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﮟﯿﻣ ﻦﺸﯾﺯﻮﭘ ﯽﻗﺎﺑ ﯽﮐ ﺱﺍ ﻮﮐ ﺶﯿﻣ ﯽﮐ ﺢﻄﺳ ﮯﻠﮩﭘ ﮯﺳ ﮯﻧﺮﮐ ﮏﻠﺴﻨﻣ"
-
-
-msgid "Sample Attachment UV"
-msgstr "UV ﭧﻨﻤﭽﯿﭨﺍ ﮧﻧﻮﻤﻧ"
-
-
-msgid "Sample the surface UV map at the attachment point"
-msgstr "ﮟﯿﻟ ﮧﻧﻮﻤﻧ ﺎﮐ ﮯﺸﻘﻧ UV ﮯﮐ ﺢﻄﺳ ﺮﭘ ﭧﻨﺋﺍﻮﭘ ﭧﻨﻤﭽﯿﭨﺍ"
-
-
-msgid "Snap to Surface"
-msgstr "ﺢﻄﺳ ﮟﯾﺮﮐ ﭗﯿﻨﺳ ﺮﭘ"
-
-
-msgid "Snap the root of each curve to the closest surface point"
-msgstr "ﮟﯿﺋﺎﺟ ﮯﻟ ﮏﺗ ﮧﻄﻘﻧ ﮯﮐ ﺢﻄﺳ ﻦﯾﺮﺗ ﺐﯾﺮﻗ ﻮﮐ ﮍﺟ ﯽﮐ  ﻢﺧ  ﺮﮨ"
 
 
 msgid "Align to Surface Normal"
@@ -136426,6 +134988,58 @@ msgid "Blend deformation along each curve from the root"
 msgstr "ﮟﯾﺩ ﻼ﻿ﻣ ﻮﮐ ﯽﺗﺮﺘﺧﺍ ﮫﺗﺎﺳ ﮯﮐ  ﺭﺍﺩ ﻢﺧ   ﮏﯾﺍ ﺮﮨ ﮯﺳ ﮍﺟ"
 
 
+msgid "Sample Attachment UV"
+msgstr "UV ﭧﻨﻤﭽﯿﭨﺍ ﮧﻧﻮﻤﻧ"
+
+
+msgid "Sample the surface UV map at the attachment point"
+msgstr "ﮟﯿﻟ ﮧﻧﻮﻤﻧ ﺎﮐ ﮯﺸﻘﻧ UV ﮯﮐ ﺢﻄﺳ ﺮﭘ ﭧﻨﺋﺍﻮﭘ ﭧﻨﻤﭽﯿﭨﺍ"
+
+
+msgid "Snap to Surface"
+msgstr "ﺢﻄﺳ ﮟﯾﺮﮐ ﭗﯿﻨﺳ ﺮﭘ"
+
+
+msgid "Snap the root of each curve to the closest surface point"
+msgstr "ﮟﯿﺋﺎﺟ ﮯﻟ ﮏﺗ ﮧﻄﻘﻧ ﮯﮐ ﺢﻄﺳ ﻦﯾﺮﺗ ﺐﯾﺮﻗ ﻮﮐ ﮍﺟ ﯽﮐ  ﻢﺧ  ﺮﮨ"
+
+
+msgid "Surface Object to attach to (needs to have matching transforms)"
+msgstr "(ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﻞﺛﺎﻤﻣ) ﭧﮑﯿﺠﺑﺁ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﻠﺴﻨﻣ"
+
+
+msgid "Surface geometry to attach hair curves to"
+msgstr "ﯼﺮﭩﯿﻣﻮﯿﺟ ﯽﮐ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﻠﺴﻨﻣ ﮯﺳ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
+
+
+msgid "Surface Normal"
+msgstr "ﻞﻣﺭﺎﻧ ﺢﻄﺳ"
+
+
+msgid "Surface normal at the attachment point"
+msgstr "ﻞﻣﺭﺎﻧ ﺢﻄﺳ ﺮﭘ ﭧﻨﺋﺍﻮﭘ ﭧﻨﻤﭽﯿﭨﺍ"
+
+
+msgid "Surface Rest Position"
+msgstr "ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﻡﺍﺭﺁ ﯽﺤﻄﺳ"
+
+
+msgid "Set the surface mesh into its rest position before attachment"
+msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﮟﯿﻣ ﻦﺸﯾﺯﻮﭘ ﯽﻗﺎﺑ ﯽﮐ ﺱﺍ ﻮﮐ ﺶﯿﻣ ﯽﮐ ﺢﻄﺳ ﮯﻠﮩﭘ ﮯﺳ ﮯﻧﺮﮐ ﮏﻠﺴﻨﻣ"
+
+
+msgid "Surface UV Coordinate"
+msgstr "ﭧﯿﻨﯾﮈﺭﺁﻮﮐ UV ﺢﻄﺳ"
+
+
+msgid "Surface UV coordinates at the attachment point"
+msgstr "ﭧﯿﻨﯾﮈﺭﺁﻮﮐ UV ﺢﻄﺳ ﺮﭘ ﭧﻨﺋﺍﻮﭘ ﭧﻨﻤﭽﯿﭨﺍ"
+
+
+msgid "Surface UV map used for attachment"
+msgstr "ﮧﺸﻘﻧ UV ﺎﮐ ﺢﻄﺳ ﮦﺪﺷ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﭧﻨﻤﭽﯿﭨﺍ"
+
+
 msgid "Blend Hair Curves"
 msgstr "ﮟﯾﺩ ﻼ﻿ﻣ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
 
@@ -136434,8 +135048,12 @@ msgid "Blends shape between multiple hair curves in a certain radius"
 msgstr "ﮯﮨ ﺎﺘﯾﺩ ﻼ﻿ﻣ ﻮﮐ ﻞﮑﺷ ﻥﺎﯿﻣﺭﺩ ﮯﮐ  ﺭﺍﺩ ﻢﺧ   ﺩﺪﻌﺘﻣ ﮯﮐ ﮞﻮﻟﺎﺑ ﮟﯿﻣ ﺱﺍﺩﺭ ﺹﻮﺼﺨﻣ ﮏﯾﺍ"
 
 
-msgid "Factor to blend overall effect"
-msgstr "ﺮﺼﻨﻋ ﺎﮐ ﮯﻧﻼ﻿ﻣ ﻮﮐ ﺮﺛﺍ ﯽﻋﻮﻤﺠﻣ"
+msgid "Blend Neighbors"
+msgstr "ﮟﯾﺩ ﻼ﻿ﻣ ﻮﮐ ﮞﻮﯿﺳﻭﮍﭘ"
+
+
+msgid "Amount of neighbors used for blending"
+msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﮞﻮﯿﺳﻭﮍﭘ ﮯﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﭦﻭﻼ﻿ﻣ"
 
 
 msgid "Blend Radius"
@@ -136446,12 +135064,8 @@ msgid "Radius to select neighbors for blending"
 msgstr "ﺱﺍﺩﺭ ﺎﮐ ﮯﻧﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﮞﻮﯿﺳﻭﮍﭘ ﮯﯿﻟ ﮯﮐ ﭦﻭﻼ﻿ﻣ"
 
 
-msgid "Blend Neighbors"
-msgstr "ﮟﯾﺩ ﻼ﻿ﻣ ﻮﮐ ﮞﻮﯿﺳﻭﮍﭘ"
-
-
-msgid "Amount of neighbors used for blending"
-msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﮞﻮﯿﺳﻭﮍﭘ ﮯﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﭦﻭﻼ﻿ﻣ"
+msgid "Factor to blend overall effect"
+msgstr "ﺮﺼﻨﻋ ﺎﮐ ﮯﻧﻼ﻿ﻣ ﻮﮐ ﺮﺛﺍ ﯽﻋﻮﻤﺠﻣ"
 
 
 msgid "Preserve Length"
@@ -136470,48 +135084,12 @@ msgid "Deforms existing hair curves into braids using guide curves"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﮞﻮﯿﭨﻮﭼ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮦﺩﻮﺟﻮﻣ ﮯﮐ ﮞﻮﻟﺎﺑ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ  ﺭﺍﺩ ﻢﺧ   ﮉﯿﺋﺎﮔ"
 
 
-msgid "Guide Index"
-msgstr "ﺲﮑﯾﮉﻧﺍ ﮉﯿﺋﺎﮔ"
+msgid "Braid Start"
+msgstr "ﻉﻭﺮﺷ ﯽﭨﻮﭼ"
 
 
-msgid "Guide index map that was used for the operation"
-msgstr "ﺎﮭﺗ ﺎﯿﮔ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﻦﺸﯾﺮﭘﺁ ﻮﺟ ﮧﺸﻘﻧ ﺎﮐ ﺲﮑﯾﮉﻧﺍ ﮉﯿﺋﺎﮔ"
-
-
-msgid "Flare Parameter"
-msgstr "ﺮﭩﯿﻣﺍﺮﯿﭘ ﺎﻨﮭﭨﺍ ﮎﮍﮭﺑ"
-
-
-msgid "Parameter from 0 to 1 along the flare"
-msgstr "ﺮﭩﯿﻣﺍﺮﯿﭘ ﮏﺗ 1 ﮯﺳ 0 ﮫﺗﺎﺳ ﮯﮐ ﮯﻨﮭﭨﺍ ﮎﮍﮭﺑ"
-
-
-msgid "Strand Index"
-msgstr "ﺲﮑﯾﮉﻧﺍ ﮉﻨﯾﺮﭩﺳﺍ"
-
-
-msgid "Index of the strand within a braid that each curve belongs to"
-msgstr "ﮯﮨ ﺎﺘﮭﮐﺭ ﻖﻠﻌﺗ  ﻢﺧ  ﮏﯾﺍ ﺮﮨ ﮯﺳ ﺲﺟ ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﮉﻨﯾﺮﭩﺳﺍ ﺭﺪﻧﺍ ﮯﮐ ﯽﭨﻮﭼ ﮏﯾﺍ"
-
-
-msgid "Guide index map to be used. This input has priority"
-msgstr "ﮯﮨ ﻞﺻﺎﺣ ﺢﯿﺟﺮﺗ ﻮﮐ ﭧﭘ ﻥﺍ ﺱﺍ ﮯﺋﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮧﺸﻘﻧ ﺎﮐ ﺲﮑﯾﮉﻧﺍ ﮉﯿﺋﺎﮔ"
-
-
-msgid "Guide Distance"
-msgstr "ﮧﻠﺻﺎﻓ ﮉﯿﺋﺎﮔ"
-
-
-msgid "Minimum distance between two guides for new guide map"
-msgstr "ﮧﻠﺻﺎﻓ ﻢﮐ ﺯﺍ ﻢﮐ ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﺯﮉﯿﺋﺎﮔ ﻭﺩ ﮯﯿﻟ ﮯﮐ ﭗﯿﻣ ﮉﯿﺋﺎﮔ ﮯﺌﻧ"
-
-
-msgid "Guide Mask"
-msgstr "ﮏﺳﺎﻣ ﮉﯿﺋﺎﮔ"
-
-
-msgid "Mask for which curves are eligible to be selected as guides"
-msgstr "ﮟﯿﮨ ﻞﮨﺍ ﮯﮐ ﮯﻧﺎﺟ ﮯﯿﮐ ﺐﺨﺘﻨﻣ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﮉﯿﺋﺎﮔ  ﺭﺍﺩ ﻢﺧ   ﮯﯿﻟ ﮯﮐ ﺲﺟ ﮏﺳﺎﻣ"
+msgid "Percentage along each curve to blend deformation from the root"
+msgstr "ﺪﺼﯿﻓ ﮫﺗﺎﺳ ﮯﮐ ﻢﺧ ﺮﮨ ﮯﯿﻟ ﮯﮐ ﮯﻧﻼ﻿ﻣ ﻮﮐ ﯽﺗﺮﺘﺧﺍ ﮯﺳ ﮍﺟ"
 
 
 msgid "Existing Guide Map"
@@ -136522,34 +135100,6 @@ msgid "Use the existing guide map attribute if available"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﻒﺻﻭ ﭗﯿﻣ ﮉﯿﺋﺎﮔ ﮦﺩﻮﺟﻮﻣ ﻮﺗ ﻮﮨ ﺏﺎﯿﺘﺳﺩ ﺮﮔﺍ"
 
 
-msgid "Subdivision level applied before deformation"
-msgstr "ﮯﮨ ﺎﺗﻮﮨ ﻮﮔﻻ﻿ ﮯﻠﮩﭘ ﮯﺳ ﯽﺗﺮﺘﺧﺍ ﻝﻮﯿﻟ ﻥﮋﯾﻭﮈ ﺐﺳ"
-
-
-msgid "Braid Start"
-msgstr "ﻉﻭﺮﺷ ﯽﭨﻮﭼ"
-
-
-msgid "Percentage along each curve to blend deformation from the root"
-msgstr "ﺪﺼﯿﻓ ﮫﺗﺎﺳ ﮯﮐ ﻢﺧ ﺮﮨ ﮯﯿﻟ ﮯﮐ ﮯﻧﻼ﻿ﻣ ﻮﮐ ﯽﺗﺮﺘﺧﺍ ﮯﺳ ﮍﺟ"
-
-
-msgid "Overall radius of the braids"
-msgstr "ﺱﺍﺩﺭ ﯽﻋﻮﻤﺠﻣ ﺎﮐ ﮞﻮﯿﭨﻮﭼ"
-
-
-msgid "Shape of the braid radius along each curve"
-msgstr "ﻞﮑﺷ ﯽﮐ ﺱﺍﺩﺭ ﮯﮐ ﯽﭨﻮﭼ ﮫﺗﺎﺳ ﮯﮐ ﻂﺧ  ﻢﺧ  ﺮﮨ"
-
-
-msgid "Factor Min"
-msgstr "ﭧﻨﻣ ﺮﭩﮑﯿﻓ"
-
-
-msgid "Factor of the minimum radius of the braids"
-msgstr "ﺮﭩﮑﯿﻓ ﺎﮐ ﺱﺍﺩﺭ ﻢﮐ ﺯﺍ ﻢﮐ ﮯﮐ ﮞﻮﯿﭨﻮﭼ"
-
-
 msgid "Factor Max"
 msgstr "ﺲﮑﯿﻣ ﺮﭩﮑﯿﻓ"
 
@@ -136558,28 +135108,12 @@ msgid "Factor of the maximum radius of the braids"
 msgstr "ﺮﭩﮑﯿﻓ ﺎﮐ ﺱﺍﺩﺭ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ ﮯﮐ ﮞﻮﯿﭨﻮﭼ"
 
 
-msgid "Frequency factor of the braids"
-msgstr "ﺮﺼﻨﻋ ﺎﮐ ﺩﺪﻌﺗ ﯽﮐ ﮞﻮﯿﭨﻮﭼ"
+msgid "Factor Min"
+msgstr "ﭧﻨﻣ ﺮﭩﮑﯿﻓ"
 
 
-msgid "Thickness of each strand of hair"
-msgstr "ﯽﺋﺎﭨﻮﻣ ﯽﮐ ﮉﻨﯾﺮﭩﺳﺍ ﺮﮨ ﮯﮐ ﮞﻮﻟﺎﺑ"
-
-
-msgid "Thickness Shape"
-msgstr "ﻞﮑﺷ ﯽﮐ ﯽﺋﺎﭨﻮﻣ"
-
-
-msgid "Shape adjustment of the strand thickness for the braids"
-msgstr "ﭧﻨﻤﭩﺴﺟﮉﯾﺍ ﮟﯿﻣ ﻞﮑﺷ ﯽﮐ ﯽﺋﺎﭨﻮﻣ ﮉﻨﯾﺮﭩﺳﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﯿﭨﻮﭼ"
-
-
-msgid "Shape Asymmetry"
-msgstr "ﺖﻘﺑﺎﻄﻣ ﯽﮐ ﻞﮑﺷ"
-
-
-msgid "Asymmetry of the shape adjustment of the strand thickness"
-msgstr "ﺐﺳﺎﻨﺘﻣ ﺮﯿﻏ ﯽﮐ ﭧﻨﻤﭩﺴﺟﮉﯾﺍ ﯽﮐ ﻞﮑﺷ ﯽﮐ ﯽﺋﺎﭨﻮﻣ ﮉﻨﯾﺮﭩﺳﺍ"
+msgid "Factor of the minimum radius of the braids"
+msgstr "ﺮﭩﮑﯿﻓ ﺎﮐ ﺱﺍﺩﺭ ﻢﮐ ﺯﺍ ﻢﮐ ﮯﮐ ﮞﻮﯿﭨﻮﭼ"
 
 
 msgid "Flare Length"
@@ -136596,6 +135130,46 @@ msgstr "ﺎﻨﮭﭨﺍ ﮎﮍﮭﺑ"
 
 msgid "Opening radius of the flare at the tip of the braid"
 msgstr "ﺱﺍﺩﺭ ﺎﮐ ﮯﻨﮭﭨﺍ ﮎﮍﮭﺑ ﺮﭘ ﮮﺮﺳ ﮯﮐ ﯽﭨﻮﭼ"
+
+
+msgid "Flare Parameter"
+msgstr "ﺮﭩﯿﻣﺍﺮﯿﭘ ﺎﻨﮭﭨﺍ ﮎﮍﮭﺑ"
+
+
+msgid "Parameter from 0 to 1 along the flare"
+msgstr "ﺮﭩﯿﻣﺍﺮﯿﭘ ﮏﺗ 1 ﮯﺳ 0 ﮫﺗﺎﺳ ﮯﮐ ﮯﻨﮭﭨﺍ ﮎﮍﮭﺑ"
+
+
+msgid "Frequency factor of the braids"
+msgstr "ﺮﺼﻨﻋ ﺎﮐ ﺩﺪﻌﺗ ﯽﮐ ﮞﻮﯿﭨﻮﭼ"
+
+
+msgid "Guide Distance"
+msgstr "ﮧﻠﺻﺎﻓ ﮉﯿﺋﺎﮔ"
+
+
+msgid "Minimum distance between two guides for new guide map"
+msgstr "ﮧﻠﺻﺎﻓ ﻢﮐ ﺯﺍ ﻢﮐ ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﺯﮉﯿﺋﺎﮔ ﻭﺩ ﮯﯿﻟ ﮯﮐ ﭗﯿﻣ ﮉﯿﺋﺎﮔ ﮯﺌﻧ"
+
+
+msgid "Guide Index"
+msgstr "ﺲﮑﯾﮉﻧﺍ ﮉﯿﺋﺎﮔ"
+
+
+msgid "Guide index map that was used for the operation"
+msgstr "ﺎﮭﺗ ﺎﯿﮔ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﻦﺸﯾﺮﭘﺁ ﻮﺟ ﮧﺸﻘﻧ ﺎﮐ ﺲﮑﯾﮉﻧﺍ ﮉﯿﺋﺎﮔ"
+
+
+msgid "Guide index map to be used. This input has priority"
+msgstr "ﮯﮨ ﻞﺻﺎﺣ ﺢﯿﺟﺮﺗ ﻮﮐ ﭧﭘ ﻥﺍ ﺱﺍ ﮯﺋﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮧﺸﻘﻧ ﺎﮐ ﺲﮑﯾﮉﻧﺍ ﮉﯿﺋﺎﮔ"
+
+
+msgid "Guide Mask"
+msgstr "ﮏﺳﺎﻣ ﮉﯿﺋﺎﮔ"
+
+
+msgid "Mask for which curves are eligible to be selected as guides"
+msgstr "ﮟﯿﮨ ﻞﮨﺍ ﮯﮐ ﮯﻧﺎﺟ ﮯﯿﮐ ﺐﺨﺘﻨﻣ ﺮﭘ ﺭﻮﻃ ﮯﮐ ﮉﯿﺋﺎﮔ  ﺭﺍﺩ ﻢﺧ   ﮯﯿﻟ ﮯﮐ ﺲﺟ ﮏﺳﺎﻣ"
 
 
 msgid "Hair Tie"
@@ -136618,24 +135192,52 @@ msgid "Scale of the hair tie instance"
 msgstr "ﮧﻧﺎﻤﯿﭘ ﺎﮐ ﻝﺎﺜﻣ ﯽﺋﺎﭨ ﻝﺎﺑ"
 
 
+msgid "Overall radius of the braids"
+msgstr "ﺱﺍﺩﺭ ﯽﻋﻮﻤﺠﻣ ﺎﮐ ﮞﻮﯿﭨﻮﭼ"
+
+
+msgid "Shape of the braid radius along each curve"
+msgstr "ﻞﮑﺷ ﯽﮐ ﺱﺍﺩﺭ ﮯﮐ ﯽﭨﻮﭼ ﮫﺗﺎﺳ ﮯﮐ ﻂﺧ  ﻢﺧ  ﺮﮨ"
+
+
+msgid "Shape Asymmetry"
+msgstr "ﺖﻘﺑﺎﻄﻣ ﯽﮐ ﻞﮑﺷ"
+
+
+msgid "Asymmetry of the shape adjustment of the strand thickness"
+msgstr "ﺐﺳﺎﻨﺘﻣ ﺮﯿﻏ ﯽﮐ ﭧﻨﻤﭩﺴﺟﮉﯾﺍ ﯽﮐ ﻞﮑﺷ ﯽﮐ ﯽﺋﺎﭨﻮﻣ ﮉﻨﯾﺮﭩﺳﺍ"
+
+
+msgid "Strand Index"
+msgstr "ﺲﮑﯾﮉﻧﺍ ﮉﻨﯾﺮﭩﺳﺍ"
+
+
+msgid "Index of the strand within a braid that each curve belongs to"
+msgstr "ﮯﮨ ﺎﺘﮭﮐﺭ ﻖﻠﻌﺗ  ﻢﺧ  ﮏﯾﺍ ﺮﮨ ﮯﺳ ﺲﺟ ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﮉﻨﯾﺮﭩﺳﺍ ﺭﺪﻧﺍ ﮯﮐ ﯽﭨﻮﭼ ﮏﯾﺍ"
+
+
+msgid "Subdivision level applied before deformation"
+msgstr "ﮯﮨ ﺎﺗﻮﮨ ﻮﮔﻻ﻿ ﮯﻠﮩﭘ ﮯﺳ ﯽﺗﺮﺘﺧﺍ ﻝﻮﯿﻟ ﻥﮋﯾﻭﮈ ﺐﺳ"
+
+
+msgid "Thickness of each strand of hair"
+msgstr "ﯽﺋﺎﭨﻮﻣ ﯽﮐ ﮉﻨﯾﺮﭩﺳﺍ ﺮﮨ ﮯﮐ ﮞﻮﻟﺎﺑ"
+
+
+msgid "Thickness Shape"
+msgstr "ﻞﮑﺷ ﯽﮐ ﯽﺋﺎﭨﻮﻣ"
+
+
+msgid "Shape adjustment of the strand thickness for the braids"
+msgstr "ﭧﻨﻤﭩﺴﺟﮉﯾﺍ ﮟﯿﻣ ﻞﮑﺷ ﯽﮐ ﯽﺋﺎﭨﻮﻣ ﮉﻨﯾﺮﭩﺳﺍ ﮯﯿﻟ ﮯﮐ ﮞﻮﯿﭨﻮﭼ"
+
+
 msgid "Clump Hair Curves"
 msgstr "ﺯﻭﺮﮐ ﺮﺌﯿﮨ ﭗﻤﻠﮐ"
 
 
 msgid "Clumps together existing hair curves using guide curves"
 msgstr "ﮯﮨ ﺎﺗﮌﻮﺟ ﮫﺗﺎﺳ ﮏﯾﺍ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ ﮦﺩﻮﺟﻮﻣ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ  ﺭﺍﺩ ﻢﺧ   ﮉﯿﺋﺎﮔ"
-
-
-msgid "Shape of the influence along curves (0=constant, 0.5=linear)"
-msgstr "(ﯼﺮﯿﮑﻟ = 0.5 ،ﻞﻘﺘﺴﻣ = 0) ﻞﮑﺷ ﯽﮐ ﺥﻮﺳﺭ ﻭ ﺮﺛﺍ ﮫﺗﺎﺳ ﮯﮐ  ﺭﺍﺩ ﻢﺧ"
-
-
-msgid "Tip Spread"
-msgstr "ﮉﯾﺮﭙﺳﺍ ﭗﭨ"
-
-
-msgid "Distance of random spread at the curve tips"
-msgstr "ﮧﻠﺻﺎﻓ ﺎﮐ ﺅﻼ﻿ﯿﮭﭘ ﺐﯿﺗﺮﺗ ﮯﺑ ﺮﭘ  ﺭﺍﺩ ﻢﺧ"
 
 
 msgid "Clump Offset"
@@ -136666,6 +135268,18 @@ msgid "Random seed for the operation"
 msgstr "ﺞﯿﺑ ﺐﯿﺗﺮﺗ ﮯﺑ ﮯﯿﻟ ﮯﮐ ﻦﺸﯾﺮﭘﺁ"
 
 
+msgid "Shape of the influence along curves (0=constant, 0.5=linear)"
+msgstr "(ﯼﺮﯿﮑﻟ = 0.5 ،ﻞﻘﺘﺴﻣ = 0) ﻞﮑﺷ ﯽﮐ ﺥﻮﺳﺭ ﻭ ﺮﺛﺍ ﮫﺗﺎﺳ ﮯﮐ  ﺭﺍﺩ ﻢﺧ"
+
+
+msgid "Tip Spread"
+msgstr "ﮉﯾﺮﭙﺳﺍ ﭗﭨ"
+
+
+msgid "Distance of random spread at the curve tips"
+msgstr "ﮧﻠﺻﺎﻓ ﺎﮐ ﺅﻼ﻿ﯿﮭﭘ ﺐﯿﺗﺮﺗ ﮯﺑ ﺮﭘ  ﺭﺍﺩ ﻢﺧ"
+
+
 msgid "Create Guide Index Map"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﮧﺸﻘﻧ ﺎﮐ ﺲﮑﯾﮉﻧﺍ ﮉﯿﺋﺎﮔ"
 
@@ -136674,20 +135288,20 @@ msgid "Creates an attribute that maps each curve to its nearest guide via index"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺶﻘﻧ ﺮﭘ ﮉﯿﺋﺎﮔ ﻦﯾﺮﺗ ﺐﯾﺮﻗ ﮯﮐ ﺱﺍ ﮯﻌﯾﺭﺫ ﮯﮐ ﺲﮑﯾﮉﻧﺍ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﺮﮨ ﻮﺟ ﮯﮨ ﺎﺗﺮﮐ ﻖﯿﻠﺨﺗ ﺏﺎﺴﺘﻧﺍ ﮏﯾﺍ"
 
 
-msgid "Guide Selection"
-msgstr "ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﮉﯿﺋﺎﮔ"
-
-
-msgid "Guide curves or points used for the selection of guide curves"
-msgstr "ﮟﯿﮨ ﮯﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﺏﺎﺨﺘﻧﺍ ﮯﮐ  ﺭﺍﺩ ﻢﺧ   ﮉﯿﺋﺎﮔ ﺎﯾ  ﺭﺍﺩ ﻢﺧ   ﮉﯿﺋﺎﮔ"
+msgid "ID to group curves together for guide map creation"
+msgstr "ID ﮯﯿﻟ ﮯﮐ  ﺭﺍﺩ ﻢﺧ  ﮦﻭﺮﮔ ﮫﺗﺎﺳ ﮏﯾﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﻨﺑ ﭗﯿﻣ ﮉﯿﺋﺎﮔ"
 
 
 msgid "Minimum distance between two guides"
 msgstr "ﮧﻠﺻﺎﻓ ﻢﮐ ﺯﺍ ﻢﮐ ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﺯﮉﯿﺋﺎﮔ ﻭﺩ"
 
 
-msgid "ID to group curves together for guide map creation"
-msgstr "ID ﮯﯿﻟ ﮯﮐ  ﺭﺍﺩ ﻢﺧ  ﮦﻭﺮﮔ ﮫﺗﺎﺳ ﮏﯾﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﻨﺑ ﭗﯿﻣ ﮉﯿﺋﺎﮔ"
+msgid "Guide Selection"
+msgstr "ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﮉﯿﺋﺎﮔ"
+
+
+msgid "Guide curves or points used for the selection of guide curves"
+msgstr "ﮟﯿﮨ ﮯﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﺏﺎﺨﺘﻧﺍ ﮯﮐ  ﺭﺍﺩ ﻢﺧ   ﮉﯿﺋﺎﮔ ﺎﯾ  ﺭﺍﺩ ﻢﺧ   ﮉﯿﺋﺎﮔ"
 
 
 msgid "Curl Hair Curves"
@@ -136702,14 +135316,6 @@ msgid "Curl Start"
 msgstr "ﭦﺭﺎﭩﺳﺍ ﻝﺮﮐ"
 
 
-msgid "Overall radius of the curls"
-msgstr "curls ﺱﺍﺩﺭ ﯽﻋﻮﻤﺠﻣ ﺎﮐ"
-
-
-msgid "Factor for the radius at the curl start"
-msgstr "ﺮﭩﮑﯿﻓ ﮯﯿﻟ ﮯﮐ ﺱﺍﺩﺭ ﺮﭘ ﺯﺎﻏﺁ ﮯﮐ ﻝﺮﮐ"
-
-
 msgid "Factor End"
 msgstr "ﮉﻨﯾﺍ ﺮﭩﮑﯿﻓ"
 
@@ -136718,8 +135324,16 @@ msgid "Factor for the radius at the curl end"
 msgstr "ﺮﭩﮑﯿﻓ ﮯﯿﻟ ﮯﮐ ﺱﺍﺩﺭ ﮟﯿﻣ ﺮﺧﺁ ﮯﮐ ﻝﺮﮐ"
 
 
+msgid "Factor for the radius at the curl start"
+msgstr "ﺮﭩﮑﯿﻓ ﮯﯿﻟ ﮯﮐ ﺱﺍﺩﺭ ﺮﭘ ﺯﺎﻏﺁ ﮯﮐ ﻝﺮﮐ"
+
+
 msgid "Frequency factor of the curls"
 msgstr "curls ﺮﺼﻨﻋ ﺎﮐ ﺩﺪﻌﺗ ﯽﮐ"
+
+
+msgid "Overall radius of the curls"
+msgstr "curls ﺱﺍﺩﺭ ﯽﻋﻮﻤﺠﻣ ﺎﮐ"
 
 
 msgid "Amount of random offset per curve"
@@ -136738,10 +135352,6 @@ msgid "Reads information about each curve"
 msgstr "ﮯﮨ ﺎﺘﮬﮍﭘ ﺕﺎﻣﻮﻠﻌﻣ ﮟﯿﻣ ﮮﺭﺎﺑ ﮯﮐ ﻢﺧ ﺮﮨ"
 
 
-msgid "Index of each Curve"
-msgstr "ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﻢﺧ ﺮﮨ"
-
-
 msgid "Curve ID"
 msgstr "ID ﺮﮐﻭ"
 
@@ -136750,12 +135360,16 @@ msgid "ID of each curve"
 msgstr "ID ﯽﮐ ﻢﺧ ﺮﮨ"
 
 
-msgid "Length of each curve"
-msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﻢﺧ ﺮﮨ"
+msgid "Index of each Curve"
+msgstr "ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﻢﺧ ﺮﮨ"
 
 
 msgid "Direction from root to tip of each curve"
 msgstr "ﺖﻤﺳ ﮏﺗ ﮮﺮﺳ ﮯﺳ ﮍﺟ ﯽﮐ  ﺭﺍﺩ ﻢﺧ   ﺮﮨ"
+
+
+msgid "Length of each curve"
+msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﻢﺧ ﺮﮨ"
 
 
 msgid "Random vector for each curve"
@@ -136778,22 +135392,6 @@ msgid "Reads information about each curve's root point"
 msgstr "ﮯﮨ ﺎﺘﮬﮍﭘ ﺕﺎﻣﻮﻠﻌﻣ ﮟﯿﻣ ﮮﺭﺎﺑ ﮯﮐ ﮧﻄﻘﻧ ﮯﮐ ﮍﺟ ﮯﮐ ﻢﺧ ﺮﮨ"
 
 
-msgid "Root Selection"
-msgstr "ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﮍﺟ"
-
-
-msgid "Boolean selection of curve root points"
-msgstr "ﺏﺎﺨﺘﻧﺍ ﻦﯿﻟﻮﺑ ﺎﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮍﺟ  ﻢﺧ"
-
-
-msgid "Root Position"
-msgstr "ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﮍﺟ"
-
-
-msgid "Position of the root point of a curve"
-msgstr "ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﮧﻄﻘﻧ ﮯﮐ ﮍﺟ ﮯﮐ ﺮﮐﻭ"
-
-
 msgid "Root Direction"
 msgstr "ﺖﻤﺳ ﯽﮐ ﮍﺟ"
 
@@ -136810,28 +135408,28 @@ msgid "Index of the root point of a curve"
 msgstr "ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﮍﺟ ﯽﮐ  ﺭﺍﺩ ﻢﺧ"
 
 
+msgid "Root Position"
+msgstr "ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﮍﺟ"
+
+
+msgid "Position of the root point of a curve"
+msgstr "ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﮧﻄﻘﻧ ﮯﮐ ﮍﺟ ﮯﮐ ﺮﮐﻭ"
+
+
+msgid "Root Selection"
+msgstr "ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﮍﺟ"
+
+
+msgid "Boolean selection of curve root points"
+msgstr "ﺏﺎﺨﺘﻧﺍ ﻦﯿﻟﻮﺑ ﺎﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮍﺟ  ﻢﺧ"
+
+
 msgid "Curve Segment"
 msgstr "ﭧﻨﻤﮕﯿﺳ  ﻢﺧ"
 
 
 msgid "Reads information each point's previous curve segment"
 msgstr "ﮯﮨ ﺎﺘﮬﮍﭘ ﻮﮐ ﺕﺎﻣﻮﻠﻌﻣ ﯽﮐ ﮯﺼﺣ  ﻢﺧ  ﮯﻠﮭﭽﭘ ﮯﮐ ﮧﻄﻘﻧ ﺮﮨ"
-
-
-msgid "Segment Length"
-msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﭧﻨﻤﮕﯿﺳ"
-
-
-msgid "Distance to previous point on curve"
-msgstr "ﮧﻠﺻﺎﻓ ﺎﮐ ﮧﻄﻘﻧ ﮯﻠﮭﭽﭘ ﺮﭘ ﺮﮐﻭ"
-
-
-msgid "Segment Direction"
-msgstr "ﺖﻤﺳ ﯽﮐ ﭧﻨﻤﮕﯿﺳ"
-
-
-msgid "Direction from previous neighboring point on segment"
-msgstr "ﺖﻤﺳ ﮯﺳ ﮧﻄﻘﻧ ﯽﺳﻭﮍﭘ ﮯﻠﮭﭽﭘ ﺮﭘ ﭧﻨﻤﮕﯿﺳ"
 
 
 msgid "Neighbor Index"
@@ -136842,28 +135440,28 @@ msgid "Index of previous neighboring point on segment"
 msgstr "ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﭧﻨﺋﺍﻮﭘ ﯽﺳﻭﮍﭘ ﮯﻠﮭﭽﭘ ﺮﭘ ﭧﻨﻤﮕﯿﺳ"
 
 
+msgid "Segment Direction"
+msgstr "ﺖﻤﺳ ﯽﮐ ﭧﻨﻤﮕﯿﺳ"
+
+
+msgid "Direction from previous neighboring point on segment"
+msgstr "ﺖﻤﺳ ﮯﺳ ﮧﻄﻘﻧ ﯽﺳﻭﮍﭘ ﮯﻠﮭﭽﭘ ﺮﭘ ﭧﻨﻤﮕﯿﺳ"
+
+
+msgid "Segment Length"
+msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﭧﻨﻤﮕﯿﺳ"
+
+
+msgid "Distance to previous point on curve"
+msgstr "ﮧﻠﺻﺎﻓ ﺎﮐ ﮧﻄﻘﻧ ﮯﻠﮭﭽﭘ ﺮﭘ ﺮﮐﻭ"
+
+
 msgid "Curve Tip"
 msgstr "ﭗﭨ ﺮﮐﻭ"
 
 
 msgid "Reads information about each curve's tip point"
 msgstr "ﮯﮨ ﺎﺘﮬﮍﭘ ﺕﺎﻣﻮﻠﻌﻣ ﮟﯿﻣ ﮮﺭﺎﺑ ﮯﮐ ﭧﻨﺋﺍﻮﭘ ﭗﭨ ﮯﮐ ﻢﺧ ﺮﮨ"
-
-
-msgid "Tip Selection"
-msgstr "ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﭗﭨ"
-
-
-msgid "Boolean selection of curve tip points"
-msgstr "ﺏﺎﺨﺘﻧﺍ ﻦﯿﻟﻮﺑ ﺎﮐ ﺲﭩﻨﺋﺍﻮﭘ ﭗﭨ ﺮﮐﻭ"
-
-
-msgid "Tip Position"
-msgstr "ﻦﺸﯾﺯﻮﭘ ﭗﭨ"
-
-
-msgid "Position of the tip point of a curve"
-msgstr "ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﭧﻨﺋﺍﻮﭘ ﭗﭨ ﮯﮐ ﺮﮐﻭ"
 
 
 msgid "Tip Direction"
@@ -136882,20 +135480,28 @@ msgid "Index of the tip point of a curve"
 msgstr "ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﭧﻨﺋﺍﻮﭘ ﭗﭨ ﮯﮐ ﺮﮐﻭ"
 
 
+msgid "Tip Position"
+msgstr "ﻦﺸﯾﺯﻮﭘ ﭗﭨ"
+
+
+msgid "Position of the tip point of a curve"
+msgstr "ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﭧﻨﺋﺍﻮﭘ ﭗﭨ ﮯﮐ ﺮﮐﻭ"
+
+
+msgid "Tip Selection"
+msgstr "ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﭗﭨ"
+
+
+msgid "Boolean selection of curve tip points"
+msgstr "ﺏﺎﺨﺘﻧﺍ ﻦﯿﻟﻮﺑ ﺎﮐ ﺲﭩﻨﺋﺍﻮﭘ ﭗﭨ ﺮﮐﻭ"
+
+
 msgid "Displace Hair Curves"
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
 
 
 msgid "Displaces hair curves by a vector based on various options"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺮﮭﮔ ﮯﺑ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ ﮧﻌﯾﺭﺫ ﮯﮐ ﺮﭩﮑﯾﻭ ﯽﻨﺒﻣ ﺮﭘ ﺕﺍﺭﺎﯿﺘﺧﺍ ﻒﻠﺘﺨﻣ"
-
-
-msgid "Factor to scale overall displacement"
-msgstr "ﺮﺼﻨﻋ ﺎﮐ ﮯﻧﺮﮐ ﺶﺋﺎﻤﯿﭘ ﯽﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ ﯽﻋﻮﻤﺠﻣ"
-
-
-msgid "Object used to define the displacement space"
-msgstr "ﭧﮑﯿﺠﺑﺁ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﮧﮕﺟ ﯽﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ"
 
 
 msgid "Displace Vector"
@@ -136906,6 +135512,14 @@ msgid "Vector for displacement"
 msgstr "ﺮﭩﮑﯾﻭ ﮯﯿﻟ ﮯﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ"
 
 
+msgid "Factor to scale overall displacement"
+msgstr "ﺮﺼﻨﻋ ﺎﮐ ﮯﻧﺮﮐ ﺶﺋﺎﻤﯿﭘ ﯽﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ ﯽﻋﻮﻤﺠﻣ"
+
+
+msgid "Object used to define the displacement space"
+msgstr "ﭧﮑﯿﺠﺑﺁ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﮧﮕﺟ ﯽﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ"
+
+
 msgid "Surface geometry used to sample the normal for displacement"
 msgstr "ﮯﮨ ﯽﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﻤﻧ ﻞﻣﺭﺎﻧ ﮯﯿﻟ ﮯﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ ﯼﺮﭩﯿﻣﻮﯿﺟ ﯽﮐ ﺢﻄﺳ"
 
@@ -136914,16 +135528,12 @@ msgid "Surface object used to sample the normal for displacement"
 msgstr "ﮯﮨ ﺎﺗﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﻤﻧ ﮯﮐ ﻝﻮﻤﻌﻣ ﮯﯿﻟ ﮯﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ ﻮﮐ ﭧﮑﯿﺠﺑﺁ ﺢﻄﺳ"
 
 
-msgid "Surface UV map used to sample the normal for displacement"
-msgstr "ﮯﮨ ﺎﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﻤﻧ ﻞﻣﺭﺎﻧ ﮯﯿﻟ ﮯﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ ﮧﺸﻘﻧ UV ﺎﮐ ﺢﻄﺳ"
-
-
-msgid "Surface Normal Displacement"
-msgstr "ﯽﻧﺎﮑﻣ ﻞﻘﻧ ﻞﻣﺭﺎﻧ ﺢﻄﺳ"
-
-
 msgid "Amount of displacemement along the surface normal"
 msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ ﮫﺗﺎﺳ ﮯﮐ ﻡﺎﻋ ﺢﻄﺳ"
+
+
+msgid "Surface UV map used to sample the normal for displacement"
+msgstr "ﮯﮨ ﺎﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﻮﻤﻧ ﻞﻣﺭﺎﻧ ﮯﯿﻟ ﮯﮐ ﯽﻧﺎﮑﻣ ﻞﻘﻧ ﮧﺸﻘﻧ UV ﺎﮐ ﺢﻄﺳ"
 
 
 msgid "Duplicate Hair Curves"
@@ -136938,18 +135548,6 @@ msgid "Amount of duplicates per curve"
 msgstr "ﻢﺧ ﯽﻓ ﺭﺍﺪﻘﻣ ﯽﮐ ﺲﭩﯿﮑﯿﻠﭘﮈ"
 
 
-msgid "Viewport Amount"
-msgstr "ﻢﻗﺭ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Percentage of amount used for the viewport"
-msgstr "ﺪﺼﯿﻓ ﺎﮐ ﻢﻗﺭ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Radius in which the duplicate curves are offset from the guides"
-msgstr "ﮟﯿﮨ ﮯﺗﻮﮨ ﭧﯿﺴﻓﺁ ﮯﺳ ﺯﮉﯿﺋﺎﮔ  ﺭﺍﺩ ﻢﺧ   ﭧﯿﮑﯿﻠﭘﮈ ﮟﯿﻣ ﺲﺟ ﺱﺍﺩﺭ"
-
-
 msgid "Distribution Shape"
 msgstr "ﻞﮑﺷ ﯽﮐ ﻢﯿﺴﻘﺗ"
 
@@ -136958,24 +135556,28 @@ msgid "Shape of distribution from center to the edge around the guide"
 msgstr "ﻞﮑﺷ ﯽﮐ ﻢﯿﺴﻘﺗ ﮏﺗ ﮮﺭﺎﻨﮐ ﮯﺳ ﺰﮐﺮﻣ ﺩﺮﮔ ﺩﺭﺍ ﮯﮐ ﮉﯿﺋﺎﮔ"
 
 
-msgid "Offset of the curves to round the tip"
-msgstr "ﭧﯿﺳ ﻑﺁ ﺎﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﻮﮔ ﻮﮐ ﮮﺮﺳ"
-
-
 msgid "Keep an even thickness of the distribution of duplicates"
 msgstr "ﮟﯿﮭﮐﺭ ﯽﺋﺎﭨﻮﻣ ﮞﺎﺴﮑﯾ ﯽﮐ ﻢﯿﺴﻘﺗ ﯽﮐ ﺲﭩﯿﮑﯿﻠﭘﮈ"
 
 
+msgid "Radius in which the duplicate curves are offset from the guides"
+msgstr "ﮟﯿﮨ ﮯﺗﻮﮨ ﭧﯿﺴﻓﺁ ﮯﺳ ﺯﮉﯿﺋﺎﮔ  ﺭﺍﺩ ﻢﺧ   ﭧﯿﮑﯿﻠﭘﮈ ﮟﯿﻣ ﺲﺟ ﺱﺍﺩﺭ"
+
+
+msgid "Offset of the curves to round the tip"
+msgstr "ﭧﯿﺳ ﻑﺁ ﺎﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﻮﮔ ﻮﮐ ﮮﺮﺳ"
+
+
+msgid "Viewport Amount"
+msgstr "ﻢﻗﺭ ﭦﺭﻮﭘ ﻮﯾﻭ"
+
+
+msgid "Percentage of amount used for the viewport"
+msgstr "ﺪﺼﯿﻓ ﺎﮐ ﻢﻗﺭ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﭦﺭﻮﭘ ﻮﯾﻭ"
+
+
 msgid "Deforms hair curves using a random vector per point to frizz them"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺖﺳﺭﺩ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﭧﻨﺋﺍﻮﭘ ﯽﻓ ﺮﭩﮑﯾﻭ ﺐﯿﺗﺮﺗ ﮯﺑ ﮏﯾﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﮌﺎﮕﺑ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
-
-
-msgid "Offset Vector"
-msgstr "ﺮﭩﮑﯾﻭ ﭧﯿﺴﻓﺁ"
-
-
-msgid "Vector by which each point was offset during deformation"
-msgstr "ﺎﮭﺗ ﺎﯿﮔ ﺎﯿﮐ ﭧﯿﺴﻓﺁ ﻮﮐ ﮧﻄﻘﻧ ﺮﮨ ﻥﺍﺭﻭﺩ ﮯﮐ ﯽﺗﺮﺘﺧﺍ ﮧﻌﯾﺭﺫ ﮯﮐ ﺲﺟ ﺮﭩﮑﯾﻭ"
 
 
 msgid "Cumulative Offset"
@@ -136990,6 +135592,10 @@ msgid "Overall distance factor for the deformation"
 msgstr "ﺮﺼﻨﻋ ﺎﮐ ﮯﻠﺻﺎﻓ ﯽﻋﻮﻤﺠﻣ ﮯﺌﻟ ﮯﮐ ﯽﺗﺮﺘﺧﺍ"
 
 
+msgid "Vector by which each point was offset during deformation"
+msgstr "ﺎﮭﺗ ﺎﯿﮔ ﺎﯿﮐ ﭧﯿﺴﻓﺁ ﻮﮐ ﮧﻄﻘﻧ ﺮﮨ ﻥﺍﺭﻭﺩ ﮯﮐ ﯽﺗﺮﺘﺧﺍ ﮧﻌﯾﺭﺫ ﮯﮐ ﺲﺟ ﺮﭩﮑﯾﻭ"
+
+
 msgid "Generate Hair Curves"
 msgstr "ﮟﯾﺮﮐ ﺭﺎﯿﺗ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
 
@@ -136998,40 +135604,8 @@ msgid "Generates new hair curves on a surface mesh"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﺍﺪﯿﭘ  ﺭﺍﺩ ﻢﺧ   ﮯﺌﻧ ﮯﮐ ﮞﻮﻟﺎﺑ ﺮﭘ ﺶﯿﻣ ﯽﺤﻄﺳ"
 
 
-msgid "Normal direction of the surface mesh at the attachment point"
-msgstr "ﺖﻤﺳ ﻡﺎﻋ ﯽﮐ ﺶﯿﻣ ﺢﻄﺳ ﺮﭘ ﭧﻨﺋﺍﻮﭘ ﭧﻨﻤﭽﯿﭨﺍ"
-
-
-msgid "Surface geometry for generation"
-msgstr "ﯼﺮﭩﯿﻣﻮﯿﺟ ﯽﮐ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﻞﺴﻧ"
-
-
-msgid "Surface object for generation (needs matching transforms)"
-msgstr "(ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﻞﺛﺎﻤﻣ) ﭧﮑﯿﺠﺑﺁ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﻞﺴﻧ"
-
-
-msgid "Length of the generated hair curves"
-msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ ﮯﻟﺍﻭ ﮯﻧﻮﮨ ﺍﺪﯿﭘ"
-
-
-msgid "Hair Material"
-msgstr "ﺩﺍﻮﻣ ﺎﮐ ﮞﻮﻟﺎﺑ"
-
-
-msgid "Material of the generated hair curves"
-msgstr "ﺩﺍﻮﻣ ﺎﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ ﮯﻟﺍﻭ ﮯﻧﻮﮨ ﺍﺪﯿﭘ"
-
-
 msgid "Amount of control points of the generated hair curves"
 msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﺲﭩﻨﺋﺍﻮﭘ ﻝﻭﺮﭩﻨﮐ ﮯﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ ﮯﻟﺍﻭ ﮯﻧﻮﮨ ﺍﺪﯿﭘ"
-
-
-msgid "Poisson Disk Distribution"
-msgstr "ﻢﯿﺴﻘﺗ ﯽﮐ ﮏﺳﮈ ﻦﺳﻮﭘ"
-
-
-msgid "Use Poisson disk distribution method to keep a minimum distance"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮧﻘﯾﺮﻃ ﺎﮐ ﻢﯿﺴﻘﺗ ﯽﮐ ﮏﺳﮈ ﻦﺳﻮﭘ ﮯﯿﻟ ﮯﮐ ﮯﻨﮭﮐﺭ ﮧﻠﺻﺎﻓ ﻢﮐ ﺯﺍ ﻢﮐ"
 
 
 msgid "Surface density of generated hair curves"
@@ -137046,8 +135620,36 @@ msgid "Factor applied on the density for curve distribution"
 msgstr "ﺮﭩﮑﯿﻓ ﻮﮔﻻ﻿ ﺮﭘ ﺖﻓﺎﺜﮐ ﮯﯿﻟ ﮯﮐ ﻢﯿﺴﻘﺗ ﯽﮐ ﺮﮐﻭ"
 
 
+msgid "Use Poisson disk distribution method to keep a minimum distance"
+msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮧﻘﯾﺮﻃ ﺎﮐ ﻢﯿﺴﻘﺗ ﯽﮐ ﮏﺳﮈ ﻦﺳﻮﭘ ﮯﯿﻟ ﮯﮐ ﮯﻨﮭﮐﺭ ﮧﻠﺻﺎﻓ ﻢﮐ ﺯﺍ ﻢﮐ"
+
+
+msgid "Length of the generated hair curves"
+msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ ﮯﻟﺍﻭ ﮯﻧﻮﮨ ﺍﺪﯿﭘ"
+
+
+msgid "Hair Material"
+msgstr "ﺩﺍﻮﻣ ﺎﮐ ﮞﻮﻟﺎﺑ"
+
+
+msgid "Material of the generated hair curves"
+msgstr "ﺩﺍﻮﻣ ﺎﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ ﮯﻟﺍﻭ ﮯﻧﻮﮨ ﺍﺪﯿﭘ"
+
+
 msgid "Discard points based on a mask texture after distribution"
 msgstr "ﮟﯾﺮﮐ ﻊﺋﺎﺿ ﻮﮐ ﺲﭩﻨﺋﺍﻮﭘ ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﺖﺧﺎﺳ ﯽﮐ ﮏﺳﺎﻣ ﺪﻌﺑ ﮯﮐ ﻢﯿﺴﻘﺗ"
+
+
+msgid "Surface geometry for generation"
+msgstr "ﯼﺮﭩﯿﻣﻮﯿﺟ ﯽﮐ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﻞﺴﻧ"
+
+
+msgid "Surface object for generation (needs matching transforms)"
+msgstr "(ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﻞﺛﺎﻤﻣ) ﭧﮑﯿﺠﺑﺁ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﻞﺴﻧ"
+
+
+msgid "Normal direction of the surface mesh at the attachment point"
+msgstr "ﺖﻤﺳ ﻡﺎﻋ ﯽﮐ ﺶﯿﻣ ﺢﻄﺳ ﺮﭘ ﭧﻨﺋﺍﻮﭘ ﭧﻨﻤﭽﯿﭨﺍ"
 
 
 msgid "Factor applied on the density for the viewport"
@@ -137094,8 +135696,16 @@ msgid "Overall factor for the deformation"
 msgstr "ﺮﺼﻨﻋ ﯽﻋﻮﻤﺠﻣ ﺎﮐ ﯽﺗﺮﺘﺧﺍ"
 
 
-msgid "Shape of amount along each curve (0=constant, 0.5=linear)"
-msgstr "(ﯼﺮﯿﮑﻟ = 0.5 ،ﻞﻘﺘﺴﻣ = 0) ﻞﮑﺷ ﯽﮐ ﻢﻗﺭ ﮫﺗﺎﺳ ﮯﮐ ﻢﺧ ﺮﮨ"
+msgid "Offset per Curve"
+msgstr "ﺮﮐﻭ ﯽﻓ ﭧﯿﺳ ﻑﺁ"
+
+
+msgid "Random offset of noise texture for each curve"
+msgstr "ﭧﯿﺴﻓﺁ ﺐﯿﺗﺮﺗ ﮯﺑ ﺎﮐ ﺖﺧﺎﺳ ﯽﮐ ﺭﻮﺷ ﮯﯿﻟ ﮯﮐ ﻢﺧ ﺮﮨ"
+
+
+msgid "Preserve the length of the curves on a segment basis"
+msgstr "ﮟﯾﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﯽﺋﺎﺒﻤﻟ ﯽﮐ  ﺭﺍﺩ ﻢﺧ   ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﮧﻘﺒﻃ ﮏﯾﺍ"
 
 
 msgid "Scale of the noise texture by root position"
@@ -137110,28 +135720,24 @@ msgid "Scale of noise texture along each curve"
 msgstr "ﮧﻧﺎﻤﯿﭘ ﺎﮐ ﺖﺧﺎﺳ ﯽﮐ ﺭﻮﺷ ﮫﺗﺎﺳ ﮯﮐ ﻢﺧ ﺮﮨ"
 
 
-msgid "Offset per Curve"
-msgstr "ﺮﮐﻭ ﯽﻓ ﭧﯿﺳ ﻑﺁ"
-
-
-msgid "Random offset of noise texture for each curve"
-msgstr "ﭧﯿﺴﻓﺁ ﺐﯿﺗﺮﺗ ﮯﺑ ﺎﮐ ﺖﺧﺎﺳ ﯽﮐ ﺭﻮﺷ ﮯﯿﻟ ﮯﮐ ﻢﺧ ﺮﮨ"
-
-
 msgid "Seed value for randomization"
 msgstr "ﺖﻤﯿﻗ ﯽﮐ ﺞﯿﺑ ﮯﯿﻟ ﮯﮐ ﻦﺸﯾﺰﺋﺎﻣﮉﻨﯾﺭ"
 
 
-msgid "Preserve the length of the curves on a segment basis"
-msgstr "ﮟﯾﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﯽﺋﺎﺒﻤﻟ ﯽﮐ  ﺭﺍﺩ ﻢﺧ   ﺮﭘ ﺩﺎﯿﻨﺑ ﯽﮐ ﮧﻘﺒﻃ ﮏﯾﺍ"
+msgid "Shape of amount along each curve (0=constant, 0.5=linear)"
+msgstr "(ﯼﺮﯿﮑﻟ = 0.5 ،ﻞﻘﺘﺴﻣ = 0) ﻞﮑﺷ ﯽﮐ ﻢﻗﺭ ﮫﺗﺎﺳ ﮯﮐ ﻢﺧ ﺮﮨ"
 
 
 msgid "Interpolates existing guide curves on a surface mesh"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﭧﯿﻟﻮﭘﺮﭩﻧﺍ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮉﯿﺋﺎﮔ ﮦﺩﻮﺟﻮﻣ ﺮﭘ ﺶﯿﻣ ﯽﺤﻄﺳ"
 
 
-msgid "Index of the main guide curve per curve"
-msgstr "ﺮﮐﻭ ﯽﻓ ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﻢﺧ ﮉﯿﺋﺎﮔ ﯼﺰﮐﺮﻣ"
+msgid "Distance to Guides"
+msgstr "ﮧﻠﺻﺎﻓ ﺎﮐ ﺯﮉﯿﺋﺎﮔ"
+
+
+msgid "Distance around each guide to spawn interpolated curves"
+msgstr "ﮧﻠﺻﺎﻓ ﺩﺮﮔ ﺩﺭﺍ ﮯﮐ ﮉﯿﺋﺎﮔ ﺮﮨ ﮯﺌﻟ ﮯﮐ ﮯﻧﺮﮐ ﺍﺪﯿﭘ  ﺭﺍﺩ ﻢﺧ   ﮉﭩﯿﻟﻮﭘﺮﭩﻧﺍ"
 
 
 msgid "Follow Surface Normal"
@@ -137142,12 +135748,8 @@ msgid "Align the interpolated curves to the surface normal"
 msgstr "ﮟﯾﺮﮐ ﮪﺪﯿﺳ ﺮﭘ ﺢﻄﺳ ﻡﺎﻋ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮉﭩﯿﻟﻮﭘﺮﭩﻧﺍ"
 
 
-msgid "Part by Mesh Islands"
-msgstr "ﺮﺋﺍﺰﺟ ﺶﯿﻣ ﮧﻌﯾﺭﺬﺑ ﮧﺼﺣ"
-
-
-msgid "Use mesh islands of the surface geometry for parting"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﮞﻭﺮﯾﺰﺟ ﺶﯿﻣ ﮯﮐ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﯽﺋﺍﺪﺟ"
+msgid "Index of the main guide curve per curve"
+msgstr "ﺮﮐﻭ ﯽﻓ ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﻢﺧ ﮉﯿﺋﺎﮔ ﯼﺰﮐﺮﻣ"
 
 
 msgid "Interpolation Guides"
@@ -137158,12 +135760,12 @@ msgid "Amount of guides to be used for interpolation per curve"
 msgstr "ﯽﮔ ﮯﺋﺎﺟ ﯽﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﻦﺸﯿﻟﻮﭘﺮﭩﻧﺍ ﻢﺧ ﯽﻓ ﻮﺟ ﺭﺍﺪﻘﻣ ﯽﮐ ﺯﮉﯿﺋﺎﮔ"
 
 
-msgid "Distance to Guides"
-msgstr "ﮧﻠﺻﺎﻓ ﺎﮐ ﺯﮉﯿﺋﺎﮔ"
+msgid "Part by Mesh Islands"
+msgstr "ﺮﺋﺍﺰﺟ ﺶﯿﻣ ﮧﻌﯾﺭﺬﺑ ﮧﺼﺣ"
 
 
-msgid "Distance around each guide to spawn interpolated curves"
-msgstr "ﮧﻠﺻﺎﻓ ﺩﺮﮔ ﺩﺭﺍ ﮯﮐ ﮉﯿﺋﺎﮔ ﺮﮨ ﮯﺌﻟ ﮯﮐ ﮯﻧﺮﮐ ﺍﺪﯿﭘ  ﺭﺍﺩ ﻢﺧ   ﮉﭩﯿﻟﻮﭘﺮﭩﻧﺍ"
+msgid "Use mesh islands of the surface geometry for parting"
+msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﮞﻭﺮﯾﺰﺟ ﺶﯿﻣ ﮯﮐ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺢﻄﺳ ﮯﯿﻟ ﮯﮐ ﯽﺋﺍﺪﺟ"
 
 
 msgid "Redistribute Curve Points"
@@ -137190,8 +135792,12 @@ msgid "Restores the length of each curve segment using a previous state after de
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻝﺎﺤﺑ ﻮﮐ ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﮯﺼﺣ  ﻢﺧ  ﺮﮨ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺖﻟﺎﺣ ﯽﻠﮭﭽﭘ ﺪﻌﺑ ﮯﮐ ﯽﺗﺮﺘﺧﺍ"
 
 
-msgid "Only affect selected elements"
-msgstr "ﺮﺻﺎﻨﻋ ﺐﺨﺘﻨﻣ ﺎﻧﺮﮐ ﺮﺛﺎﺘﻣ ﻑﺮﺻ"
+msgid "Pin at Parameter"
+msgstr "ﮟﯾﺮﮐ ﻦﭘ ﺮﭘ ﺮﭩﯿﻣﺍﺮﯿﭘ"
+
+
+msgid "Pin each curve at a certain point for the operation"
+msgstr "ﮟﯾﺮﮐ ﻦﭘ ﺮﭘ ﮧﻄﻘﻧ ﺹﺎﺧ ﮏﯾﺍ ﻮﮐ ﻢﺧ ﺮﮨ ﮯﯿﻟ ﮯﮐ ﻦﺸﯾﺮﭘﺁ"
 
 
 msgid "Reference Position"
@@ -137202,12 +135808,8 @@ msgid "Reference position before deformation"
 msgstr "ﯽﺗﺮﺘﺧﺍ ﮯﻠﮩﭘ ﮯﺳ ﺱﺍ  ﻡﺎﻘﻣ  ﮧﻟﺍﻮﺣ"
 
 
-msgid "Pin at Parameter"
-msgstr "ﮟﯾﺮﮐ ﻦﭘ ﺮﭘ ﺮﭩﯿﻣﺍﺮﯿﭘ"
-
-
-msgid "Pin each curve at a certain point for the operation"
-msgstr "ﮟﯾﺮﮐ ﻦﭘ ﺮﭘ ﮧﻄﻘﻧ ﺹﺎﺧ ﮏﯾﺍ ﻮﮐ ﻢﺧ ﺮﮨ ﮯﯿﻟ ﮯﮐ ﻦﺸﯾﺮﭘﺁ"
+msgid "Only affect selected elements"
+msgstr "ﺮﺻﺎﻨﻋ ﺐﺨﺘﻨﻣ ﺎﻧﺮﮐ ﺮﺛﺎﺘﻣ ﻑﺮﺻ"
 
 
 msgid "Roll Hair Curves"
@@ -137218,12 +135820,32 @@ msgid "Rolls up hair curves starting from their tips"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻉﻭﺮﺷ ﮯﺳ ﮞﻭﺮﺳ ﮯﮐ ﻥﺍ ﻮﮐ  ﮟﯿﻤﺧ ﮯﮐ ﮞﻮﻟﺎﺑ"
 
 
-msgid "Variation Level"
-msgstr "ﺢﻄﺳ ﯽﮐ ﺮﯿﻐﺗ"
+msgid "Amount of randomization of the direction of the roll"
+msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﮯﻧﻮﮨ ﺐﯿﺗﺮﺗ ﮯﺑ ﮯﮐ ﺖﻤﺳ ﯽﮐ ﻝﻭﺭ"
 
 
-msgid "Level of smoothing on the roll path to include shape variation"
-msgstr "ﺢﻄﺳ ﯽﮐ ﮯﻧﺮﮐ ﺭﺍﻮﻤﮨ ﺮﭙﮩﺘﺳﺍﺮﻟﻭﺭ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﻣﺎﺷ ﻮﮐ ﯽﻠﯾﺪﺒﺗ ﯽﮐ ﻞﮑﺷ"
+msgid "Retain Overall Shape"
+msgstr "ﮟﯿﮭﮐﺭ ﺭﺍﺮﻗﺮﺑ ﻮﮐ ﻞﮑﺷ ﯽﻋﻮﻤﺠﻣ"
+
+
+msgid "Offset the roll along the original curve to retain shape"
+msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﻑﺁ ﮫﺗﺎﺳ ﮯﮐ ﻢﺧ ﻞﺻﺍ ﻮﮐ ﻝﻭﺭ ﮯﯿﻟ ﮯﮐ ﮯﻨﮭﮐﺭ ﺭﺍﺮﻗﺮﺑ ﻮﮐ ﻞﮑﺷ"
+
+
+msgid "Roll Depth"
+msgstr "ﯽﺋﺍﺮﮩﮔ ﯽﮐ ﻝﻭﺭ"
+
+
+msgid "Depth offset of the roll"
+msgstr "ﭧﯿﺴﻓﺁ ﯽﺋﺍﺮﮩﮔ ﯽﮐ ﻝﻭﺭ"
+
+
+msgid "Roll Direction"
+msgstr "ﺖﻤﺳ ﯽﮐ ﻝﻭﺭ"
+
+
+msgid "Axis around which each curve is rolled"
+msgstr "ﮯﮨ ﺍﻮﮨ ﺎﻤﮭﮔ  ﻢﺧ  ﮏﯾﺍ ﺮﮨ ﺩﺮﮔ ﮯﮐ ﺲﺟ ﺭﻮﺤﻣ"
 
 
 msgid "Roll Length"
@@ -137242,14 +135864,6 @@ msgid "Radius of the rolls"
 msgstr "ﺱﺍﺩﺭ ﺎﮐ ﺰﻟﻭﺭ"
 
 
-msgid "Roll Depth"
-msgstr "ﯽﺋﺍﺮﮩﮔ ﯽﮐ ﻝﻭﺭ"
-
-
-msgid "Depth offset of the roll"
-msgstr "ﭧﯿﺴﻓﺁ ﯽﺋﺍﺮﮩﮔ ﯽﮐ ﻝﻭﺭ"
-
-
 msgid "Roll Taper"
 msgstr "ﺮﭙﯿﭨ ﻝﻭﺭ"
 
@@ -137258,24 +135872,12 @@ msgid "Taper of the roll"
 msgstr "ﺮﭙﯿﭨ ﺎﮐ ﻝﻭﺭ"
 
 
-msgid "Retain Overall Shape"
-msgstr "ﮟﯿﮭﮐﺭ ﺭﺍﺮﻗﺮﺑ ﻮﮐ ﻞﮑﺷ ﯽﻋﻮﻤﺠﻣ"
+msgid "Variation Level"
+msgstr "ﺢﻄﺳ ﯽﮐ ﺮﯿﻐﺗ"
 
 
-msgid "Offset the roll along the original curve to retain shape"
-msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﻑﺁ ﮫﺗﺎﺳ ﮯﮐ ﻢﺧ ﻞﺻﺍ ﻮﮐ ﻝﻭﺭ ﮯﯿﻟ ﮯﮐ ﮯﻨﮭﮐﺭ ﺭﺍﺮﻗﺮﺑ ﻮﮐ ﻞﮑﺷ"
-
-
-msgid "Roll Direction"
-msgstr "ﺖﻤﺳ ﯽﮐ ﻝﻭﺭ"
-
-
-msgid "Axis around which each curve is rolled"
-msgstr "ﮯﮨ ﺍﻮﮨ ﺎﻤﮭﮔ  ﻢﺧ  ﮏﯾﺍ ﺮﮨ ﺩﺮﮔ ﮯﮐ ﺲﺟ ﺭﻮﺤﻣ"
-
-
-msgid "Amount of randomization of the direction of the roll"
-msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﮯﻧﻮﮨ ﺐﯿﺗﺮﺗ ﮯﺑ ﮯﮐ ﺖﻤﺳ ﯽﮐ ﻝﻭﺭ"
+msgid "Level of smoothing on the roll path to include shape variation"
+msgstr "ﺢﻄﺳ ﯽﮐ ﮯﻧﺮﮐ ﺭﺍﻮﻤﮨ ﺮﭙﮩﺘﺳﺍﺮﻟﻭﺭ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﻣﺎﺷ ﻮﮐ ﯽﻠﯾﺪﺒﺗ ﯽﮐ ﻞﮑﺷ"
 
 
 msgid "Rotate Hair Curves"
@@ -137286,16 +135888,12 @@ msgid "Rotates each hair curve around an axis"
 msgstr "ﮯﮨ ﺎﺗﺎﻤﮭﮔ ﺩﺮﮔ ﮯﮐ ﺭﻮﺤﻣ ﮏﯾﺍ ﻮﮐ ﻢﺧ ﺮﮨ ﮯﮐ ﮞﻮﻟﺎﺑ"
 
 
-msgid "Factor to influence the rotation angle"
-msgstr "ﺮﺼﻨﻋ ﻻ﻿ﺍﻭ ﮯﻧﺮﮐ ﺮﺛﺎﺘﻣ ﻮﮐ ﮧﯾﻭﺍﺯ ﺵﺩﺮﮔ"
-
-
 msgid "Rotation axis (default: tangent at root)"
 msgstr "(ﭧﻨﺠﻨﯿﭨ ﮟﯿﻣ ﮍﺟ :ﮦﺪﺷ ﮯﻃ ﮯﺳ ﮯﻠﮩﭘ) ﺭﻮﺤﻣ ﺵﺩﺮﮔ"
 
 
-msgid "Random offset to the rotation angle per curve"
-msgstr "ﭧﯿﺳ ﻑﺁ ﺐﯿﺗﺮﺗ ﮯﺑ ﺮﭘ  ﻢﺧ  ﯽﻓ ﮧﯾﻭﺍﺯ ﺅﺎﻤﮭﮔ"
+msgid "Factor to influence the rotation angle"
+msgstr "ﺮﺼﻨﻋ ﻻ﻿ﺍﻭ ﮯﻧﺮﮐ ﺮﺛﺎﺘﻣ ﻮﮐ ﮧﯾﻭﺍﺯ ﺵﺩﺮﮔ"
 
 
 msgid "Lock Ends"
@@ -137306,8 +135904,24 @@ msgid "Lock rotation to the axis between the curve ends"
 msgstr "ﮟﯾﺮﮐ ﻞﻔﻘﻣ ﻮﮐ ﺵﺩﺮﮔ ﯽﮐ ﺭﻮﺤﻣ ﻥﺎﯿﻣﺭﺩ ﮯﮐ ﮞﻭﺮﺳ ﮯﮐ ﺮﮐﻭ"
 
 
+msgid "Random offset to the rotation angle per curve"
+msgstr "ﭧﯿﺳ ﻑﺁ ﺐﯿﺗﺮﺗ ﮯﺑ ﺮﭘ  ﻢﺧ  ﯽﻓ ﮧﯾﻭﺍﺯ ﺅﺎﻤﮭﮔ"
+
+
 msgid "Sets the radius attribute of hair curves according to a profile shape"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﭧﯿﺳ ﺖﯿﺻﻮﺼﺧ ﯽﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ ﻖﺑﺎﻄﻣ ﮯﮐ ﻞﮑﺷ ﯽﮐ ﻞﺋﺎﻓﻭﺮﭘ"
+
+
+msgid "Factor of the radius at the maximum"
+msgstr "ﺮﭩﮑﯿﻓ ﺎﮐ ﺱﺍﺩﺭ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
+
+
+msgid "Factor of the radius at the minimum"
+msgstr "ﺮﭩﮑﯿﻓ ﺎﮐ ﺱﺍﺩﺭ ﻢﮐ ﺯﺍ ﻢﮐ"
+
+
+msgid "Base radius to be set if 'Replace Radius' is enabled"
+msgstr "ﺎﮔ ﮯﺋﺎﺟ ﺎﯿﮐ ﭧﯿﺳ ﺱﺍﺩﺭ ﺎﮐ ﺩﺎﯿﻨﺑ ﻮﺗ ﻮﮨ ﻝﺎﻌﻓ 'ﺲﺌﯾﮉﯾﺭ ﺲﯿﻠﭙﯾﺭ' ﺮﮔﺍ"
 
 
 msgid "Replace Radius"
@@ -137318,20 +135932,8 @@ msgid "Replace the original radius"
 msgstr "ﮟﯾﺩ ﻝﺪﺑ ﺱﺍﺩﺭ ﻞﺻﺍ"
 
 
-msgid "Base radius to be set if 'Replace Radius' is enabled"
-msgstr "ﺎﮔ ﮯﺋﺎﺟ ﺎﯿﮐ ﭧﯿﺳ ﺱﺍﺩﺭ ﺎﮐ ﺩﺎﯿﻨﺑ ﻮﺗ ﻮﮨ ﻝﺎﻌﻓ 'ﺲﺌﯾﮉﯾﺭ ﺲﯿﻠﭙﯾﺭ' ﺮﮔﺍ"
-
-
 msgid "Shape of the radius along the curve"
 msgstr "ﻞﮑﺷ ﯽﮐ ﺱﺍﺩﺭ ﮫﺗﺎﺳ ﮯﮐ ﺮﮐﻭ"
-
-
-msgid "Factor of the radius at the minimum"
-msgstr "ﺮﭩﮑﯿﻓ ﺎﮐ ﺱﺍﺩﺭ ﻢﮐ ﺯﺍ ﻢﮐ"
-
-
-msgid "Factor of the radius at the maximum"
-msgstr "ﺮﭩﮑﯿﻓ ﺎﮐ ﺱﺍﺩﺭ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
 
 
 msgid "Shrinkwrap Hair Curves"
@@ -137342,20 +135944,20 @@ msgid "Shrinkwraps hair curves to a mesh surface from below and optionally from 
 msgstr "ﮯﮨ ﺎﺘﭩﯿﻤﺳ ﺮﭘ ﺢﻄﺳ ﺶﯿﻣ ﮏﯾﺍ ﮯﺳ ﺮﭘﻭﺍ ﺮﭘ ﺭﻮﻃ ﯼﺭﺎﯿﺘﺧﺍ ﺭﻭﺍ ﮯﺳ ﮯﭽﯿﻧ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
 
 
-msgid "Surface geometry used for shrinkwrap"
-msgstr "ﮯﮨ ﯽﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﮍﮑﺳ ﻮﺟ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺲﯿﻓﺮﺳ"
+msgid "Blend shrinkwrap for points above the surface"
+msgstr "ﮟﯾﺮﮐ ﮉﻨﯿﻠﺑ ﻮﮐ ﭧﯿﭙﻟ ﯽﻟﺍﻭ ﮯﻧﮍﮑﺳ ﮯﯿﻟ ﮯﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮯﻟﺍﻭ ﺮﭘﻭﺍ ﮯﮐ ﺢﻄﺳ"
 
 
-msgid "Surface object used for shrinkwrap"
-msgstr "ﮯﮨ ﺎﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﮍﮑﺳ ﭧﮑﯿﺠﺑﺁ ﺢﻄﺳ"
+msgid "Lock Roots"
+msgstr "ﮟﯾﮍﺟ ﻻ﻿ﺎﺗ"
+
+
+msgid "Lock the position of root points"
+msgstr "ﮟﯾﺮﮐ ﻞﻔﻘﻣ ﻮﮐ ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮍﺟ"
 
 
 msgid "Distance from the surface used for shrinkwrap"
 msgstr "ﮧﻠﺻﺎﻓ ﮯﺳ ﺢﻄﺳ ﯽﻟﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﮍﮑﺳ"
-
-
-msgid "Blend shrinkwrap for points above the surface"
-msgstr "ﮟﯾﺮﮐ ﮉﻨﯿﻠﺑ ﻮﮐ ﭧﯿﭙﻟ ﯽﻟﺍﻭ ﮯﻧﮍﮑﺳ ﮯﯿﻟ ﮯﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮯﻟﺍﻭ ﺮﭘﻭﺍ ﮯﮐ ﺢﻄﺳ"
 
 
 msgid "Smoothing Steps"
@@ -137366,12 +135968,12 @@ msgid "Amount of steps of smoothing applied after shrinkwrap"
 msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﺕﺎﻣﺍﺪﻗﺍ ﮯﮐ ﮯﻧﺮﮐ ﺭﺍﻮﻤﮨ ﻮﮔﻻ﻿ ﺪﻌﺑ ﮯﮐ ﮯﻧﮍﮑﺳ"
 
 
-msgid "Lock Roots"
-msgstr "ﮟﯾﮍﺟ ﻻ﻿ﺎﺗ"
+msgid "Surface geometry used for shrinkwrap"
+msgstr "ﮯﮨ ﯽﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﮍﮑﺳ ﻮﺟ ﯼﺮﭩﯿﻣﻮﯿﺟ ﺲﯿﻓﺮﺳ"
 
 
-msgid "Lock the position of root points"
-msgstr "ﮟﯾﺮﮐ ﻞﻔﻘﻣ ﻮﮐ ﻦﺸﯾﺯﻮﭘ ﯽﮐ ﺲﭩﻨﺋﺍﻮﭘ ﮍﺟ"
+msgid "Surface object used for shrinkwrap"
+msgstr "ﮯﮨ ﺎﺗﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﮍﮑﺳ ﭧﮑﯿﺠﺑﺁ ﺢﻄﺳ"
 
 
 msgid "Smooth Hair Curves"
@@ -137390,16 +135992,16 @@ msgid "Amount of smoothing steps"
 msgstr "ﺭﺍﺪﻘﻣ ﯽﮐ ﮞﻮﻣﺪﻗ ﺭﺍﻮﻤﮨ"
 
 
-msgid "Weight used for smoothing"
-msgstr "ﻥﺯﻭ ﻻ﻿ﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺭﺍﻮﻤﮨ"
-
-
 msgid "Lock Tips"
 msgstr "ﺲﭙﭨ ﮎﻻ﻿"
 
 
 msgid "Lock tip position when smoothing"
 msgstr "ﮟﯾﺮﮐ ﮎﻻ﻿ ﻮﮐ ﻦﺸﯾﺯﻮﭘ ﭗﭨ ﺖﻗﻭ ﮯﺗﺮﮐ ﺭﺍﻮﻤﮨ"
+
+
+msgid "Weight used for smoothing"
+msgstr "ﻥﺯﻭ ﻻ﻿ﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺭﺍﻮﻤﮨ"
 
 
 msgid "Straighten Hair Curves"
@@ -137422,24 +136024,12 @@ msgid "Trims or scales hair curves to a certain length"
 msgstr "ﻭﺯﺍﺮﺗ ﺎﯾ ﻭﺯﺍﺮﺗ ﮏﺗ ﯽﺋﺎﺒﻤﻟ ﺹﺎﺧ ﮏﯾﺍ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
 
 
-msgid "Scale each curve uniformly to reach the target length"
-msgstr "ﮟﯾﺮﮐ ﮧﻧﺎﻤﯿﭘ ﺮﭘ ﺭﻮﻃ ﮞﺎﺴﮑﯾ ﻮﮐ ﻢﺧ ﺮﮨ ﮯﯿﻟ ﮯﮐ ﮯﻨﭽﻨﮩﭘ ﮏﺗ ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﻑﺪﮨ"
+msgid "Target length for the operation"
+msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﻑﺪﮨ ﮯﯿﻟ ﮯﮐ ﻦﺸﯾﺮﭘﺁ"
 
 
 msgid "Multiply the original length by a factor"
 msgstr "ﮟﯾﺩ ﺏﺮﺿ ﮯﺳ ﺮﭩﮑﯿﻓ ﻮﮐ ﯽﺋﺎﺒﻤﻟ ﻞﺻﺍ"
-
-
-msgid "Replace Length"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﯽﺋﺎﺒﻤﻟ"
-
-
-msgid "Use the length input to fully replace the original length"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﭧﭘ ﻥﺍ ﺎﮐ ﯽﺋﺎﺒﻤﻟ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﯾﺪﺒﺗ ﺮﭘ ﺭﻮﻃ ﻞﻤﮑﻣ ﻮﮐ ﯽﺋﺎﺒﻤﻟ ﻞﺻﺍ"
-
-
-msgid "Target length for the operation"
-msgstr "ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﻑﺪﮨ ﮯﯿﻟ ﮯﮐ ﻦﺸﯾﺮﭘﺁ"
 
 
 msgid "Mask to blend overall effect"
@@ -137450,14 +136040,14 @@ msgid "Trim hair curves randomly up to a certain amount"
 msgstr "ﮟﯿﺷﺍﺮﺗ ﮏﺗ ﺭﺍﺪﻘﻣ ﺹﺎﺧ ﮏﯾﺍ ﺮﭘ ﺭﻮﻃ ﯽﻓﺩﺎﺼﺗ ﻮﮐ  ﺭﺍﺩ ﻢﺧ   ﮯﮐ ﮞﻮﻟﺎﺑ"
 
 
-msgid "Smooth by Angle"
-msgstr "ﺭﺍﻮﻤﮨ ﮯﺳ ﻑﺮﻃ ﯽﮐ ﮧﯾﻭﺍﺯ"
+msgid "Replace Length"
+msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﯽﺋﺎﺒﻤﻟ"
 
 
-msgid "Maximum face angle for smooth edges"
-msgstr "ﮧﯾﻭﺍﺯ ﺎﮐ ﮮﺮﮩﭼ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ ﮯﯿﻟ ﮯﮐ ﮞﻭﺭﺎﻨﮐ ﺭﺍﻮﻤﮨ"
+msgid "Use the length input to fully replace the original length"
+msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﭧﭘ ﻥﺍ ﺎﮐ ﯽﺋﺎﺒﻤﻟ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﯾﺪﺒﺗ ﺮﭘ ﺭﻮﻃ ﻞﻤﮑﻣ ﻮﮐ ﯽﺋﺎﺒﻤﻟ ﻞﺻﺍ"
 
 
-msgid "Ignore Sharpness"
-msgstr "ﺖﺳﺎﻔﻧ ﺎﻧﺮﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
+msgid "Scale each curve uniformly to reach the target length"
+msgstr "ﮟﯾﺮﮐ ﮧﻧﺎﻤﯿﭘ ﺮﭘ ﺭﻮﻃ ﮞﺎﺴﮑﯾ ﻮﮐ ﻢﺧ ﺮﮨ ﮯﯿﻟ ﮯﮐ ﮯﻨﭽﻨﮩﭘ ﮏﺗ ﯽﺋﺎﺒﻤﻟ ﯽﮐ ﻑﺪﮨ"
 

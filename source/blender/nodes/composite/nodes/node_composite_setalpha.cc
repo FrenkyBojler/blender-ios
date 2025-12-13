@@ -14,6 +14,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_setalpha_cc {
@@ -22,31 +24,29 @@ static const EnumPropertyItem type_items[] = {
     {CMP_NODE_SETALPHA_MODE_APPLY,
      "APPLY",
      0,
-     "Apply Mask",
-     "Multiply the input image's RGBA channels by the alpha input value"},
+     N_("Apply Mask"),
+     N_("Multiply the input image's RGBA channels by the alpha input value")},
     {CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA,
      "REPLACE_ALPHA",
      0,
-     "Replace Alpha",
-     "Replace the input image's alpha channel by the alpha input value"},
+     N_("Replace Alpha"),
+     N_("Replace the input image's alpha channel by the alpha input value")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 static void cmp_node_setalpha_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.is_function_node();
-  b.add_input<decl::Color>("Image")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_input<decl::Float>("Alpha")
-      .default_value(1.0f)
-      .min(0.0f)
-      .max(1.0f)
-      .compositor_domain_priority(1);
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
+
+  b.add_input<decl::Float>("Alpha").default_value(1.0f).min(0.0f).max(1.0f);
   b.add_input<decl::Menu>("Type")
       .default_value(CMP_NODE_SETALPHA_MODE_APPLY)
-      .static_items(type_items);
-  b.add_output<decl::Color>("Image");
+      .static_items(type_items)
+      .optional_label();
 }
 
 static void node_composit_init_setalpha(bNodeTree * /*ntree*/, bNode *node)
@@ -67,18 +67,25 @@ static int node_gpu_material(GPUMaterial *material,
   return GPU_stack_link(material, node, "node_composite_set_alpha", inputs, outputs);
 }
 
+static float4 set_alpha(const float4 &color, const float alpha, const MenuValue &type)
+{
+  switch (CMPNodeSetAlphaMode(type.value)) {
+    case CMP_NODE_SETALPHA_MODE_APPLY:
+      return color * alpha;
+    case CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA:
+      return float4(color.xyz(), alpha);
+  }
+  return color;
+}
+
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::SI3_SO<float4, float, MenuValue, float4>(
+  static auto function = mf::build::SI3_SO<Color, float, MenuValue, Color>(
       "Set Alpha",
-      [](const float4 &color, const float alpha, const MenuValue type) -> float4 {
-        switch (CMPNodeSetAlphaMode(type.value)) {
-          case CMP_NODE_SETALPHA_MODE_APPLY:
-            return color * alpha;
-          case CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA:
-            return float4(color.xyz(), alpha);
-        }
-        return color;
+      [](const Color &color, const float alpha, const MenuValue &type) -> Color {
+        return Color(set_alpha(float4(color), alpha, type));
       },
       mf::build::exec_presets::AllSpanOrSingle());
 
