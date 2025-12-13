@@ -22,6 +22,15 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
+struct Material;
+struct Object;
+struct Collection;
+struct Image;
+struct Scene;
+struct VFont;
+struct Text;
+struct bSound;
+
 namespace blender::nodes::node_fn_compare_cc {
 
 NODE_STORAGE_FUNCS(NodeFunctionCompare)
@@ -50,6 +59,30 @@ static void node_declare(NodeDeclarationBuilder &b)
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
       .optional_label();
 
+  b.add_input<decl::Material>("A", "A_MAT").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Material>("B", "B_MAT").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
+  b.add_input<decl::Object>("A", "A_OBJ").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Object>("B", "B_OBJ").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
+  b.add_input<decl::Collection>("A", "A_COL").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Collection>("B", "B_COL").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
+  b.add_input<decl::Image>("A", "A_IMG").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Image>("B", "B_IMG").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
+  b.add_input<decl::Scene>("A", "A_SCE").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Scene>("B", "B_SCE").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
+  b.add_input<decl::Font>("A", "A_FONT").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Font>("B", "B_FONT").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
+  b.add_input<decl::Text>("A", "A_TEXT").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Text>("B", "B_TEXT").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
+  b.add_input<decl::Sound>("A", "A_SOU").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Sound>("B", "B_SOU").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
   b.add_input<decl::Float>("C").default_value(0.9f);
   b.add_input<decl::Float>("Angle").default_value(0.0872665f).subtype(PROP_ANGLE);
   b.add_input<decl::Float>("Epsilon").default_value(0.001).min(-10000.0f).max(10000.0f);
@@ -71,9 +104,9 @@ static void node_update(bNodeTree *ntree, bNode *node)
 {
   NodeFunctionCompare *data = (NodeFunctionCompare *)node->storage;
 
-  bNodeSocket *sock_comp = (bNodeSocket *)BLI_findlink(&node->inputs, 10);
-  bNodeSocket *sock_angle = (bNodeSocket *)BLI_findlink(&node->inputs, 11);
-  bNodeSocket *sock_epsilon = (bNodeSocket *)BLI_findlink(&node->inputs, 12);
+  bNodeSocket *sock_comp = (bNodeSocket *)BLI_findlink(&node->inputs, 26);
+  bNodeSocket *sock_angle = (bNodeSocket *)BLI_findlink(&node->inputs, 27);
+  bNodeSocket *sock_epsilon = (bNodeSocket *)BLI_findlink(&node->inputs, 28);
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
     bke::node_set_socket_availability(
@@ -83,8 +116,17 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bke::node_set_socket_availability(
       *ntree,
       *sock_epsilon,
-      ELEM(data->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL) &&
-          !ELEM(data->data_type, SOCK_INT, SOCK_STRING));
+      ELEM(data->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL) && !ELEM(data->data_type,
+                                                                                 SOCK_INT,
+                                                                                 SOCK_STRING,
+                                                                                 SOCK_MATERIAL,
+                                                                                 SOCK_OBJECT,
+                                                                                 SOCK_COLLECTION,
+                                                                                 SOCK_IMAGE,
+                                                                                 SOCK_SCENE,
+                                                                                 SOCK_FONT,
+                                                                                 SOCK_TEXT_ID,
+                                                                                 SOCK_SOUND));
 
   bke::node_set_socket_availability(*ntree,
                                     *sock_comp,
@@ -149,6 +191,14 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
       }
       return type;
     case SOCK_STRING:
+    case SOCK_MATERIAL:
+    case SOCK_OBJECT:
+    case SOCK_COLLECTION:
+    case SOCK_IMAGE:
+    case SOCK_SCENE:
+    case SOCK_FONT:
+    case SOCK_TEXT_ID:
+    case SOCK_SOUND:
       if (!ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
         return std::nullopt;
       }
@@ -162,7 +212,22 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
-  if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING)) {
+  if (!ELEM(type,
+            SOCK_INT,
+            SOCK_BOOLEAN,
+            SOCK_FLOAT,
+            SOCK_VECTOR,
+            SOCK_RGBA,
+            SOCK_STRING,
+            SOCK_MATERIAL,
+            SOCK_OBJECT,
+            SOCK_COLLECTION,
+            SOCK_IMAGE,
+            SOCK_SCENE,
+            SOCK_FONT,
+            SOCK_TEXT_ID,
+            SOCK_SOUND))
+  {
     return;
   }
   const StringRef socket_name = params.in_out() == SOCK_IN ? "A" : "Result";
@@ -180,7 +245,17 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     }
   }
 
-  if (params.in_out() != SOCK_IN && type != SOCK_STRING) {
+  if (params.in_out() != SOCK_IN && !ELEM(type,
+                                          SOCK_STRING,
+                                          SOCK_MATERIAL,
+                                          SOCK_OBJECT,
+                                          SOCK_COLLECTION,
+                                          SOCK_IMAGE,
+                                          SOCK_SCENE,
+                                          SOCK_FONT,
+                                          SOCK_TEXT_ID,
+                                          SOCK_SOUND))
+  {
     params.add_item(
         IFACE_("Angle"),
         SocketSearchOp{
@@ -602,6 +677,115 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
         }
       }
       break;
+    case SOCK_MATERIAL:
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Material *, Material *, bool>(
+              "Equal", [](Material *a, Material *b) { return a == b; });
+          return &fn;
+        }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Material *, Material *, bool>(
+              "Not Equal", [](Material *a, Material *b) { return a != b; });
+          return &fn;
+        }
+      }
+    case SOCK_OBJECT:
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Object *, Object *, bool>(
+              "Equal", [](Object *a, Object *b) { return a == b; });
+          return &fn;
+        }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Object *, Object *, bool>(
+              "Not Equal", [](Object *a, Object *b) { return a != b; });
+          return &fn;
+        }
+      }
+    case SOCK_COLLECTION:
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Collection *, Collection *, bool>(
+              "Equal", [](Collection *a, Collection *b) { return a == b; });
+          return &fn;
+        }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Collection *, Collection *, bool>(
+              "Not Equal", [](Collection *a, Collection *b) { return a != b; });
+          return &fn;
+        }
+      }
+    case SOCK_IMAGE:
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Image *, Image *, bool>(
+              "Equal", [](Image *a, Image *b) { return a == b; });
+          return &fn;
+        }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Image *, Image *, bool>(
+              "Not Equal", [](Image *a, Image *b) { return a != b; });
+          return &fn;
+        }
+      }
+      break;
+    case SOCK_SCENE:
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Scene *, Scene *, bool>(
+              "Equal", [](Scene *a, Scene *b) { return a == b; });
+          return &fn;
+        }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Scene *, Scene *, bool>(
+              "Not Equal", [](Scene *a, Scene *b) { return a != b; });
+          return &fn;
+        }
+      }
+      break;
+    case SOCK_TEXT_ID:
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Text *, Text *, bool>(
+              "Equal", [](Text *a, Text *b) { return a == b; });
+          return &fn;
+        }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<Text *, Text *, bool>(
+              "Not Equal", [](Text *a, Text *b) { return a != b; });
+          return &fn;
+        }
+      }
+      break;
+    case SOCK_FONT:
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<VFont *, VFont *, bool>(
+              "Equal", [](VFont *a, VFont *b) { return a == b; });
+          return &fn;
+        }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<VFont *, VFont *, bool>(
+              "Not Equal", [](VFont *a, VFont *b) { return a != b; });
+          return &fn;
+        }
+      }
+      break;
+    case SOCK_SOUND:
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<bSound *, bSound *, bool>(
+              "Equal", [](bSound *a, bSound *b) { return a == b; });
+          return &fn;
+        }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<bSound *, bSound *, bool>(
+              "Not Equal", [](bSound *a, bSound *b) { return a != b; });
+          return &fn;
+        }
+      }
+      break;
   }
   return nullptr;
 }
@@ -625,7 +809,16 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
-  else if (node_storage->data_type == SOCK_STRING &&
+  else if (ELEM(node_storage->data_type,
+                SOCK_STRING,
+                SOCK_MATERIAL,
+                SOCK_OBJECT,
+                SOCK_COLLECTION,
+                SOCK_IMAGE,
+                SOCK_SCENE,
+                SOCK_FONT,
+                SOCK_TEXT_ID,
+                SOCK_SOUND) &&
            !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
@@ -687,7 +880,17 @@ static void node_rna(StructRNA *srna)
                 return !ELEM(item.value, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER);
               });
         }
-        if (data->data_type == SOCK_STRING) {
+        if (ELEM(data->data_type,
+                 SOCK_STRING,
+                 SOCK_MATERIAL,
+                 SOCK_OBJECT,
+                 SOCK_COLLECTION,
+                 SOCK_IMAGE,
+                 SOCK_SCENE,
+                 SOCK_FONT,
+                 SOCK_TEXT_ID,
+                 SOCK_SOUND))
+        {
           return enum_items_filter(
               rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
                 return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
@@ -717,10 +920,23 @@ static void node_rna(StructRNA *srna)
       std::nullopt,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) {
-              return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA);
-            });
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) {
+                                   return ELEM(item.value,
+                                               SOCK_FLOAT,
+                                               SOCK_INT,
+                                               SOCK_VECTOR,
+                                               SOCK_STRING,
+                                               SOCK_RGBA,
+                                               SOCK_MATERIAL,
+                                               SOCK_OBJECT,
+                                               SOCK_COLLECTION,
+                                               SOCK_IMAGE,
+                                               SOCK_SCENE,
+                                               SOCK_FONT,
+                                               SOCK_TEXT_ID,
+                                               SOCK_SOUND);
+                                 });
       });
   RNA_def_property_update_runtime(prop, data_type_update);
 
@@ -738,7 +954,9 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
   ntype.ui_name = "Compare";
-  ntype.ui_description = "Perform a comparison operation on the two given inputs";
+  ntype.ui_description =
+      "Perform a comparison operation on the two given inputs. If input is a Data Block then no "
+      "internal value is compared";
   ntype.enum_name_legacy = "COMPARE";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
