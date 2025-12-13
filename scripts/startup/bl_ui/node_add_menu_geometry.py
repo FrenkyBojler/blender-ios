@@ -329,6 +329,7 @@ class NODE_MT_gn_input_constant_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeInputObject")
         self.node_operator(layout, "FunctionNodeInputRotation")
         self.node_operator(layout, "FunctionNodeInputString")
+        self.node_operator(layout, "GeometryNodeInputTextBlock")
         self.node_operator(layout, "ShaderNodeValue")
         self.node_operator(layout, "FunctionNodeInputVector")
 

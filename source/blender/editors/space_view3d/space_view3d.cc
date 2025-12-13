@@ -866,6 +866,12 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
       }
       break;
     }
+    case NC_TEXT: {
+      if (wmn->action == NA_EDITED) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+    }
   }
 }
 

@@ -55,6 +55,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "DEG_depsgraph.hh"
+
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
 #  include "BPY_extern_run.hh"
@@ -563,6 +565,7 @@ static wmOperatorStatus text_reload_exec(bContext *C, wmOperator *op)
   space_text_screen_clamp(st, region);
   /* Return cursor. */
   txt_move_to(text, orig_curl, orig_curc, false);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
 
   return OPERATOR_FINISHED;
 }
@@ -997,6 +1000,7 @@ static wmOperatorStatus text_paste_exec(bContext *C, wmOperator *op)
 
   space_text_update_cursor_moved(C);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
 
   /* Run the script while editing, evil but useful. */
   if (st->live_edit) {
@@ -1045,6 +1049,7 @@ static wmOperatorStatus text_duplicate_line_exec(bContext *C, wmOperator * /*op*
   txt_duplicate_line(text);
 
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
 
   /* Run the script while editing, evil but useful. */
   if (CTX_wm_space_text(C)->live_edit) {
@@ -1132,6 +1137,7 @@ static wmOperatorStatus text_cut_exec(bContext *C, wmOperator * /*op*/)
 
   space_text_update_cursor_moved(C);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
 
   /* Run the script while editing, evil but useful. */
   if (st->live_edit) {
@@ -1219,6 +1225,7 @@ static wmOperatorStatus text_indent_exec(bContext *C, wmOperator * /*op*/)
   text_update_edited(text);
 
   space_text_update_cursor_moved(C);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
 
   return OPERATOR_FINISHED;
@@ -1260,6 +1267,7 @@ static wmOperatorStatus text_unindent_exec(bContext *C, wmOperator * /*op*/)
   text_update_edited(text);
 
   space_text_update_cursor_moved(C);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
 
   return OPERATOR_FINISHED;
@@ -1317,6 +1325,7 @@ static wmOperatorStatus text_line_break_exec(bContext *C, wmOperator * /*op*/)
   }
 
   space_text_update_cursor_moved(C);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
 
   return OPERATOR_FINISHED;
@@ -1375,6 +1384,7 @@ static wmOperatorStatus text_comment_exec(bContext *C, wmOperator *op)
   text_update_edited(text);
 
   space_text_update_cursor_moved(C);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
 
   return OPERATOR_FINISHED;
@@ -1548,6 +1558,7 @@ static wmOperatorStatus text_convert_whitespace_exec(bContext *C, wmOperator *op
   text_update_edited(text);
   space_text_update_cursor_moved(C);
   space_text_drawcache_tag_update(st, true);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
 
   return OPERATOR_FINISHED;
@@ -2356,6 +2367,7 @@ static wmOperatorStatus text_move_cursor(bContext *C, int type, bool select)
     text_select_update_primary_clipboard(st->text);
   }
 
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
   WM_event_add_notifier(C, NC_TEXT | ND_CURSOR, text);
 
   return OPERATOR_FINISHED;
@@ -2563,6 +2575,7 @@ static wmOperatorStatus text_delete_exec(bContext *C, wmOperator *op)
   text_update_line_edited(text->curl);
 
   space_text_update_cursor_moved(C);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
 
   /* Run the script while editing, evil but useful. */
@@ -3595,6 +3608,7 @@ static wmOperatorStatus text_insert_exec(bContext *C, wmOperator *op)
 
   space_text_update_cursor_moved(C);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
+  DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
 
   return OPERATOR_FINISHED;
 }
@@ -3817,6 +3831,7 @@ static wmOperatorStatus text_find_and_replace(bContext *C, wmOperator *op, short
     }
     txt_move_toline(text, 0, false);
     space_text_update_cursor_moved(C);
+    DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
     WM_event_add_notifier(C, NC_TEXT | ND_CURSOR, text);
   }
   else {
@@ -3881,6 +3896,7 @@ static wmOperatorStatus text_replace_all(bContext *C)
       found = txt_find_string(text, st->findstr, 0, flags & ST_MATCH_CASE);
     } while (found);
 
+    DEG_id_tag_update(&text->id, ID_RECALC_PARAMETERS);
     WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
     space_text_drawcache_tag_update(st, true);
   }
