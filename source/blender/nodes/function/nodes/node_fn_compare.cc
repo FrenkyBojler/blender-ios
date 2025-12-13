@@ -65,8 +65,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Object>("A", "A_OBJ").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
   b.add_input<decl::Object>("B", "B_OBJ").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 
-  b.add_input<decl::Collection>("A", "A_COL").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-  b.add_input<decl::Collection>("B", "B_COL").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Collection>("A", "A_COLLECTION")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+  b.add_input<decl::Collection>("B", "B_COLLECTION")
+      .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 
   b.add_input<decl::Image>("A", "A_IMG").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
   b.add_input<decl::Image>("B", "B_IMG").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
@@ -216,8 +218,8 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
-  if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING) ||
-      is_data_block_socket(type))
+  if (!(ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING) ||
+        is_data_block_socket(type)))
   {
     return;
   }
