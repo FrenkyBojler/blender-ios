@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
-"PO-Revision-Date: 2025-10-28 00:59+0000\n"
-"Last-Translator: Cedric Steiert <cedricsteiert@gmail.com>\n"
+"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"PO-Revision-Date: 2025-12-02 20:06+0000\n"
+"Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.12.1"
+"X-Generator: Weblate 5.14.3"
 
 
 msgid "Shader AOV"
@@ -61,6 +61,10 @@ msgstr "Sammlung von AOVs"
 
 msgid "F-Curves"
 msgstr "F-Kurven"
+
+
+msgid "The individual F-Curves that animate the slot"
+msgstr "Die einzelnen F-Kurven, die den Slot animieren"
 
 
 msgid "Slot"
@@ -18706,8 +18710,36 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "Align View"
-msgstr "Ansicht ausrichten"
+msgid "Assign Material"
+msgstr "Material zuweisen"
+
+
+msgid "Select More/Less"
+msgstr "Mehr/weniger anzeigen"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Light"
+msgstr "Licht"
+
+
+msgid "Light Probe"
+msgstr "Lichtsonde"
+
+
+msgid "Add Image"
+msgstr "Bild hinzufügen"
+
+
+msgid "Relations"
+msgstr "Beziehungen"
+
+
+msgid "Rigid Body"
+msgstr "Rigid Body"
 
 
 msgid "Apply"
@@ -18722,16 +18754,16 @@ msgid "Quick Effects"
 msgstr "Schnelle Effekte"
 
 
-msgid "Navigation"
-msgstr "Navigation"
-
-
 msgid "Show/Hide"
 msgstr "Zeigen/Verbergen"
 
 
 msgid "Clean Up"
 msgstr "Aufräumen"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Asset"
@@ -18754,16 +18786,16 @@ msgid "Vertex Group Locks"
 msgstr "Punktgruppen sperren"
 
 
-msgid "Viewpoint"
-msgstr "Ansicht"
-
-
-msgid "Local View"
-msgstr "Lokale Ansicht"
+msgid "Keying"
+msgstr "Schlüsselbilder"
 
 
 msgid "Random Mask"
 msgstr "Zufällige Maske"
+
+
+msgid "Tracking"
+msgstr "Verfolgen"
 
 
 msgid "Clear Transform"
@@ -18772,6 +18804,10 @@ msgstr "Transformation löschen"
 
 msgid "In-Betweens"
 msgstr "Dazwischen"
+
+
+msgid "Math"
+msgstr "Mathematisch"
 
 
 msgid "Names"
@@ -18790,10 +18826,6 @@ msgid "Disable Bone Options"
 msgstr "Knochen-Optionen ausschalten"
 
 
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Mesh Select Mode"
 msgstr "Maschenauswahlmodus"
 
@@ -18806,18 +18838,6 @@ msgid "Merge"
 msgstr "Zusammenführen"
 
 
-msgid "Keying"
-msgstr "Schlüsselbilder"
-
-
-msgid "Tracking"
-msgstr "Verfolgen"
-
-
-msgid "Math"
-msgstr "Mathematisch"
-
-
 msgid "Special Characters"
 msgstr "Sonderzeichen"
 
@@ -18826,32 +18846,8 @@ msgid "Kerning"
 msgstr "Kerning"
 
 
-msgid "Snap"
-msgstr "Einrasten"
-
-
-msgid "Mirror"
-msgstr "Spiegeln"
-
-
 msgid "Text"
 msgstr "Text"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Pivot Point"
-msgstr "Drehpunkt"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proportionaler Bearbeitungsabfall"
-
-
-msgid "Mask Edit"
-msgstr "Maskenbearbeitung"
 
 
 msgid "Read"
@@ -18870,12 +18866,60 @@ msgid "Primitives"
 msgstr "Grundkörper"
 
 
-msgid "Select More/Less"
-msgstr "Mehr/weniger anzeigen"
+msgid "Pivot Point"
+msgstr "Drehpunkt"
+
+
+msgid "Snap"
+msgstr "Einrasten"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proportionaler Bearbeitungsabfall"
+
+
+msgid "Mask Edit"
+msgstr "Maskenbearbeitung"
 
 
 msgid "Instances"
 msgstr "Instanzen"
+
+
+msgid "Import"
+msgstr "Importieren"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "Spiegeln"
+
+
+msgid "Local View"
+msgstr "Lokale Ansicht"
+
+
+msgid "Viewpoint"
+msgstr "Ansicht"
+
+
+msgid "Navigation"
+msgstr "Navigation"
+
+
+msgid "Align View"
+msgstr "Ansicht ausrichten"
+
+
+msgid "Align View to Active"
+msgstr "Ansicht auf Aktiv ausrichten"
+
+
+msgid "View Regions"
+msgstr "Vierfenster Ansicht"
 
 
 msgid "Select Similar"
@@ -18892,46 +18936,6 @@ msgstr "Verknüpfte auswählen"
 
 msgid "Select Loops"
 msgstr "Schleifen auswählen"
-
-
-msgid "Import"
-msgstr "Importieren"
-
-
-msgid "Assign Material"
-msgstr "Material zuweisen"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Light"
-msgstr "Licht"
-
-
-msgid "Light Probe"
-msgstr "Lichtsonde"
-
-
-msgid "View Regions"
-msgstr "Vierfenster Ansicht"
-
-
-msgid "Add Image"
-msgstr "Bild hinzufügen"
-
-
-msgid "Relations"
-msgstr "Beziehungen"
-
-
-msgid "Rigid Body"
-msgstr "Rigid Body"
-
-
-msgid "Align View to Active"
-msgstr "Ansicht auf Aktiv ausrichten"
 
 
 msgid "Assets"
@@ -18987,8 +18991,8 @@ msgid "Console"
 msgstr "Konsole"
 
 
-msgid "Languages..."
-msgstr "Sprachen..."
+msgid "Languages"
+msgstr "Sprache"
 
 
 msgid "Add Attribute"
@@ -24502,10 +24506,6 @@ msgid "Data type"
 msgstr "Datentyp"
 
 
-msgid "Default Value"
-msgstr "Vorgabewert"
-
-
 msgid "Collection Node Socket"
 msgstr "Sammlungsknotenbuchse"
 
@@ -24556,6 +24556,10 @@ msgstr "Vektor-Knotenbuchse"
 
 msgid "Default Attribute"
 msgstr "Standardattribut"
+
+
+msgid "Default Value"
+msgstr "Vorgabewert"
 
 
 msgid "Layer Selection"
@@ -25446,11 +25450,6 @@ msgstr "Interner Gebrauch (einen Eigenschafts-Datenpfad bearbeiten)"
 msgctxt "Operator"
 msgid "Remove Property"
 msgstr "Eigenschaft entfernen"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Systeminformationen speichern"
 
 
 msgctxt "Operator"
@@ -38908,6 +38907,22 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
+msgid "Quad View"
+msgstr "Vierfenster-Ansicht"
+
+
+msgid "Onion Skin"
+msgstr "Zwiebelhaut"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoskopie"
+
+
+msgid "Auto-Masking"
+msgstr "Automatisches Maskieren"
+
+
 msgid "VR"
 msgstr "VR"
 
@@ -38970,22 +38985,6 @@ msgstr "Transformationsausrichtung"
 
 msgid "Drawing Plane"
 msgstr "Malfläche"
-
-
-msgid "Quad View"
-msgstr "Vierfenster-Ansicht"
-
-
-msgid "Onion Skin"
-msgstr "Zwiebelhaut"
-
-
-msgid "Stereoscopy"
-msgstr "Stereoskopie"
-
-
-msgid "Auto-Masking"
-msgstr "Automatisches Maskieren"
 
 
 msgid "Chain Scaling"
@@ -42579,10 +42578,6 @@ msgstr "Index der aktiven Sprache in der Sprachen-Sammlung"
 
 msgid "Whether these settings have already been auto-set or not"
 msgstr "Ob diese Einstellungen bereits automatisch eingestellt wurden oder nicht"
-
-
-msgid "Languages"
-msgstr "Sprache"
 
 
 msgid "POT File Path"
@@ -50744,11 +50739,6 @@ msgstr "Extrapolationsmodus"
 
 
 msgctxt "Operator"
-msgid "Move..."
-msgstr "Verschieben..."
-
-
-msgctxt "Operator"
 msgid "Snap"
 msgstr "Einrasten"
 
@@ -51247,11 +51237,6 @@ msgstr "Umbenennen..."
 
 
 msgctxt "Operator"
-msgid "Track Ordering..."
-msgstr "Spurenreihenfolge..."
-
-
-msgctxt "Operator"
 msgid "Join in New Frame"
 msgstr "In neuem Einzelbild anfügen"
 
@@ -51461,16 +51446,6 @@ msgstr "Springe zum vorherigen Streifen (Zentrum)"
 msgctxt "Operator"
 msgid "Jump to Next Strip (Center)"
 msgstr "Springe zum nächsten Streifen (Zentrum)"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "Film"
-
-
-msgctxt "Operator"
-msgid "Image/Sequence"
-msgstr "Bild/Sequenz"
 
 
 msgctxt "Operator"
@@ -52494,11 +52469,6 @@ msgstr "Lautsprecher"
 
 
 msgctxt "Operator"
-msgid "Make Local..."
-msgstr "Lokal machen..."
-
-
-msgctxt "Operator"
 msgid "Bake Action..."
 msgstr "Aktion backen..."
 
@@ -52816,11 +52786,6 @@ msgstr "Alle Bewegungspfade aktualisieren"
 
 
 msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "Elemente sortieren..."
-
-
-msgctxt "Operator"
 msgid "Extrude Vertices"
 msgstr "Punkte extrudieren"
 
@@ -53063,16 +53028,6 @@ msgstr "Keine Sammlung zur Instanz"
 msgctxt "Operator"
 msgid "Collection Instance"
 msgstr "Sammlungsinstanz"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Referenz"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Hintergrund"
 
 
 msgctxt "Operator"
@@ -53875,10 +53830,6 @@ msgid "Failed to read blend file '%s': %s"
 msgstr "Blend-Datei '%s' kann nicht gelesen werden: %s"
 
 
-msgid "Unable to read '%s': %s"
-msgstr "Kann nicht gelesen werden '%s': %s"
-
-
 msgid "Unrecognized file format '%s'"
 msgstr "Unbekanntes Dateiformat '%s'"
 
@@ -54299,16 +54250,6 @@ msgstr "Anheften"
 
 msgid "Shift Left Mouse"
 msgstr "Umschalt Linke Maustaste"
-
-
-msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Tastenkürzel ändern"
-
-
-msgctxt "Operator"
-msgid "Assign Shortcut"
-msgstr "Tastenkürzel zuweisen"
 
 
 msgctxt "Operator"
@@ -55036,10 +54977,6 @@ msgstr "Nähte"
 
 msgid "Intersection Type"
 msgstr "Schnittflächentyp"
-
-
-msgid "Compiled without GMP, using fast solver"
-msgstr "Kompiliert ohne GMP, mit schnellem Löser"
 
 
 msgid "Close"
