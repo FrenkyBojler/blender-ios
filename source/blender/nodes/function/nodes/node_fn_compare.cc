@@ -19,17 +19,19 @@
 
 #include "node_function_util.hh"
 
+#include "DEG_depsgraph_query.hh"
+
+#include "DNA_collection_types.h"
+#include "DNA_image_types.h"
+#include "DNA_material_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_text_types.h"
+#include "DNA_vfont_types.h"
+
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
-
-struct Material;
-struct Object;
-struct Collection;
-struct Image;
-struct Scene;
-struct VFont;
-struct Text;
-struct bSound;
 
 namespace blender::nodes::node_fn_compare_cc {
 
@@ -263,6 +265,22 @@ static void node_label(const bNodeTree * /*tree*/,
 static float component_average(float3 a)
 {
   return (a.x + a.y + a.z) / 3.0f;
+}
+
+/* It is possible that in there will be IDs from different dependency graphs in the same node tree,
+ * mainly in case of Node Tools. */
+template<typename T> static bool same_original_id_pointer(const T *a, const T *b)
+{
+  if (ELEM(nullptr, a, b)) {
+    return a == b;
+  }
+
+  return DEG_get_original(a) == DEG_get_original(a);
+}
+
+template<typename T> static bool not_same_original_id_pointer(const T *a, const T *b)
+{
+  return !same_original_id_pointer(a, b);
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &node)
@@ -668,15 +686,13 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Material *, Material *, bool>(
-              "Equal",
-              [](Material *a, Material *b) { return a == b; },
-              mf::build::exec_presets::Simple());
+              "Equal", same_original_id_pointer<Material>, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Material *, Material *, bool>(
               "Not Equal",
-              [](Material *a, Material *b) { return a != b; },
+              not_same_original_id_pointer<Material>,
               mf::build::exec_presets::Simple());
           return &fn;
         }
@@ -685,15 +701,13 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Object *, Object *, bool>(
-              "Equal",
-              [](Object *a, Object *b) { return a == b; },
-              mf::build::exec_presets::Simple());
+              "Equal", same_original_id_pointer<Object>, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Object *, Object *, bool>(
               "Not Equal",
-              [](Object *a, Object *b) { return a != b; },
+              not_same_original_id_pointer<Object>,
               mf::build::exec_presets::Simple());
           return &fn;
         }
@@ -702,15 +716,13 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Collection *, Collection *, bool>(
-              "Equal",
-              [](Collection *a, Collection *b) { return a == b; },
-              mf::build::exec_presets::Simple());
+              "Equal", same_original_id_pointer<Collection>, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Collection *, Collection *, bool>(
               "Not Equal",
-              [](Collection *a, Collection *b) { return a != b; },
+              not_same_original_id_pointer<Collection>,
               mf::build::exec_presets::Simple());
           return &fn;
         }
@@ -719,16 +731,12 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Image *, Image *, bool>(
-              "Equal",
-              [](Image *a, Image *b) { return a == b; },
-              mf::build::exec_presets::Simple());
+              "Equal", same_original_id_pointer<Image>, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Image *, Image *, bool>(
-              "Not Equal",
-              [](Image *a, Image *b) { return a != b; },
-              mf::build::exec_presets::Simple());
+              "Not Equal", not_same_original_id_pointer<Image>, mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -737,16 +745,12 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Scene *, Scene *, bool>(
-              "Equal",
-              [](Scene *a, Scene *b) { return a == b; },
-              mf::build::exec_presets::Simple());
+              "Equal", same_original_id_pointer<Scene>, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Scene *, Scene *, bool>(
-              "Not Equal",
-              [](Scene *a, Scene *b) { return a != b; },
-              mf::build::exec_presets::Simple());
+              "Not Equal", not_same_original_id_pointer<Scene>, mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -755,14 +759,12 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Text *, Text *, bool>(
-              "Equal", [](Text *a, Text *b) { return a == b; }, mf::build::exec_presets::Simple());
+              "Equal", same_original_id_pointer<Text>, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Text *, Text *, bool>(
-              "Not Equal",
-              [](Text *a, Text *b) { return a != b; },
-              mf::build::exec_presets::Simple());
+              "Not Equal", not_same_original_id_pointer<Text>, mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -771,16 +773,12 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<VFont *, VFont *, bool>(
-              "Equal",
-              [](VFont *a, VFont *b) { return a == b; },
-              mf::build::exec_presets::Simple());
+              "Equal", same_original_id_pointer<VFont>, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<VFont *, VFont *, bool>(
-              "Not Equal",
-              [](VFont *a, VFont *b) { return a != b; },
-              mf::build::exec_presets::Simple());
+              "Not Equal", not_same_original_id_pointer<VFont>, mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -789,15 +787,13 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<bSound *, bSound *, bool>(
-              "Equal",
-              [](bSound *a, bSound *b) { return a == b; },
-              mf::build::exec_presets::Simple());
+              "Equal", same_original_id_pointer<bSound>, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<bSound *, bSound *, bool>(
               "Not Equal",
-              [](bSound *a, bSound *b) { return a != b; },
+              not_same_original_id_pointer<bSound>,
               mf::build::exec_presets::Simple());
           return &fn;
         }
