@@ -78,7 +78,7 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
         BMEdge *e_best = nullptr;
 
 #ifdef USE_TRICKY_EXTEND
-        /* first check if we can select the edge to split based on selection-only. */
+        /* first check if we can select the edge to split based on selection-only */
         int tot_sel = 0;
         BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
           if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
