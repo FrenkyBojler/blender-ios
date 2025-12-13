@@ -283,6 +283,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_scene_audio(Scene *scene);
   virtual void build_scene_speakers(Scene *scene, ViewLayer *view_layer);
   virtual void build_vfont(VFont *vfont);
+  virtual void build_text(Text *text);
 
   /* Per-ID information about what was already in the dependency graph.
    * Allows to re-use certain values, to speed up following evaluation. */

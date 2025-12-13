@@ -45,6 +45,7 @@
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_speaker_types.h"
+#include "DNA_text_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
@@ -642,7 +643,7 @@ void DepsgraphNodeBuilder::build_id(ID *id, const bool force_be_visible)
       build_sound((bSound *)id);
       break;
     case ID_TXT:
-      /* Not a part of dependency graph. */
+      build_text((Text *)id);
       break;
     case ID_CF:
       build_cachefile((CacheFile *)id);
@@ -1968,7 +1969,7 @@ void DepsgraphNodeBuilder::build_nodetree_socket(bNodeSocket *socket)
     build_id((ID *)((bNodeSocketValueScene *)socket->default_value)->value);
   }
   else if (socket->type == SOCK_TEXT_ID) {
-    /* Text data-blocks don't use the depsgraph. */
+    build_id((ID *)((bNodeSocketValueText *)socket->default_value)->value);
   }
   else if (socket->type == SOCK_MASK) {
     build_id((ID *)((bNodeSocketValueMask *)socket->default_value)->value);
@@ -2312,6 +2313,16 @@ void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
   build_idproperties(vfont->id.system_properties);
   add_operation_node(
       &vfont->id, NodeType::GENERIC_DATABLOCK, OperationCode::GENERIC_DATABLOCK_UPDATE);
+}
+
+void DepsgraphNodeBuilder::build_text(Text *text)
+{
+  if (built_map_.check_is_built_and_tag(text)) {
+    return;
+  }
+  build_parameters(&text->id);
+  build_idproperties(text->id.properties);
+  build_idproperties(text->id.system_properties);
 }
 
 static bool strip_node_build_cb(Strip *strip, void *user_data)
