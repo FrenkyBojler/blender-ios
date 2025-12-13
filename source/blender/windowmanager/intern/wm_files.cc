@@ -3894,8 +3894,6 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
     }
   }
 
-  // TODO: Organize all image saving code to its own function here! (It's kinda duped a lot of
-  // places in this code)
   int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (blendfile_path[0] != '\0') {
     if (BKE_main_needs_overwrite_confirm(CTX_data_main(C))) {
@@ -5147,20 +5145,17 @@ static blender::ui::Block *block_create_save_modified_images_dialog(bContext *C,
   /* Modified Images Checkbox. */
   char message[64];
   SNPRINTF(message, RPT_("Save %u modified image(s)"), modified_images_count);
-  // TODO: View any changes on other PRs with close_file dialog's checkbox to see if the type
-  // should change!
-  uiDefButBitC(block,
-               blender::ui::ButtonType::Checkbox,
-               1,
-               message,
-               0,
-               0,
-               0,
-               UI_UNIT_Y,
-               &save_modified_images_when_file_is_saved,
-               0,
-               0,
-               "");
+  uiDefButC(block,
+            blender::ui::ButtonType::Checkbox,
+            message,
+            0,
+            0,
+            0,
+            UI_UNIT_Y,
+            &save_modified_images_when_file_is_saved,
+            0,
+            0,
+            "");
 
   BKE_reports_free(&reports);
 
