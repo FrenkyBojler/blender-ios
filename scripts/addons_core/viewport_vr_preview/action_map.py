@@ -14,6 +14,8 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 import importlib.util
 import os.path
 
+from .configs.old import test_actionconfig
+
 
 def vr_actionset_active_update(context):
     session_state = context.window_manager.xr_session_state
@@ -111,6 +113,7 @@ def vr_load_actionmaps(session_state, filepath):
     spec.loader.exec_module(file)
 
     action_map_io.actionconfig_init_from_data(session_state, file.actionconfig_data, file.actionconfig_version)
+    test_actionconfig(file.actionconfig_data)
 
     return True
 
