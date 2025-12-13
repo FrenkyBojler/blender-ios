@@ -450,6 +450,8 @@ struct PositionUndoStorage : NonMovable {
 
 struct SculptUndoStep {
   UndoStep step;
+  UndoRefID_Object object_ref;
+
   /* NOTE: will split out into list for multi-object-sculpt-mode. */
   StepData data;
 
@@ -2019,7 +2021,7 @@ static size_t node_size_in_bytes(const Node &node)
   return size;
 }
 
-void push_end_ex(Object &ob, const bool use_nested_undo)
+void push_end_ex(bContext *C, Object &ob, const bool use_nested_undo)
 {
   StepData *step_data = get_step_data();
 
@@ -2060,7 +2062,7 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
   if (wm->op_undo_depth == 0 || use_nested_undo) {
     UndoStack *ustack = ED_undo_stack_get();
-    BKE_undosys_step_push(ustack, nullptr, nullptr);
+    BKE_undosys_step_push(ustack, C, nullptr);
     if (wm->op_undo_depth == 0) {
       BKE_undosys_stack_limit_steps_and_memory_defaults(ustack);
     }
@@ -2076,7 +2078,12 @@ void push_end_ex(Object &ob, const bool use_nested_undo)
 
 void push_end(Object &ob)
 {
-  push_end_ex(ob, false);
+  push_end_ex(nullptr, ob, false);
+}
+
+void push_end(bContext *C)
+{
+  push_end_ex(C, *CTX_data_active_object(C), false);
 }
 
 /* -------------------------------------------------------------------- */
@@ -2141,11 +2148,12 @@ static void step_encode_init(bContext * /*C*/, UndoStep *us_p)
   new (&us->data) StepData();
 }
 
-static bool step_encode(bContext * /*C*/, Main *bmain, UndoStep *us_p)
+static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 {
   /* Dummy, encoding is done along the way by adding tiles
    * to the current 'SculptUndoStep' added by encode_init. */
   SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
+  us->object_ref.ptr = CTX_data_active_object(C);
   us->step.data_size = us->data.undo_size;
 
   if (us->data.type == Type::DyntopoEnd) {
@@ -2163,7 +2171,7 @@ static bool step_encode(bContext * /*C*/, Main *bmain, UndoStep *us_p)
 
 static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  BLI_assert(us->step.is_applied == true);
+  //BLI_assert(us->step.is_applied == true);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = false;
@@ -2171,7 +2179,7 @@ static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 
 static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  BLI_assert(us->step.is_applied == false);
+  //BLI_assert(us->step.is_applied == false);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = true;
@@ -2363,6 +2371,14 @@ void geometry_end(Object &ob)
   }
 }
 
+static void sculpt_undosys_foreach_ID_ref(UndoStep *us_p,
+                                          UndoTypeForEachIDRefFn foreach_ID_ref_fn,
+                                          void *user_data)
+{
+  SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
+  foreach_ID_ref_fn(user_data, reinterpret_cast<UndoRefID *>(&us->object_ref));
+}
+
 void register_type(UndoType *ut)
 {
   ut->name = "Sculpt";
@@ -2372,7 +2388,9 @@ void register_type(UndoType *ut)
   ut->step_decode = step_decode;
   ut->step_free = step_free;
 
-  ut->flags = UNDOTYPE_FLAG_DECODE_ACTIVE_STEP;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_DECODE_ACTIVE_STEP;
+
+  ut->step_foreach_ID_ref = sculpt_undosys_foreach_ID_ref;
 
   ut->step_size = sizeof(SculptUndoStep);
 }

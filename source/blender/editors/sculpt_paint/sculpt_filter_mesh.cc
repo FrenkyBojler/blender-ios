@@ -2290,13 +2290,13 @@ static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, co
     switch (event->val) {
       case FILTER_MESH_MODAL_CANCEL:
         sculpt_mesh_filter_cancel(C, op);
-        undo::push_end_ex(ob, true);
+        undo::push_end_ex(C, ob, true);
         ret = OPERATOR_CANCELLED;
         break;
 
       case FILTER_MESH_MODAL_CONFIRM:
         ret = sculpt_mesh_filter_confirm(ss, op, filter_type);
-        undo::push_end_ex(ob, false);
+        undo::push_end_ex(C, ob, false);
         break;
     }
 

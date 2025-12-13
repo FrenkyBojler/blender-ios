@@ -5545,7 +5545,7 @@ static void stroke_undo_end(const bContext *C, Brush *brush)
     ED_image_undo_push_end();
   }
   else {
-    undo::push_end(ob);
+    undo::push_end(const_cast<bContext *>(C));
   }
 }
 

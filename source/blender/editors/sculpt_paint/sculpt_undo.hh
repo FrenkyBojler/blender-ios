@@ -14,6 +14,7 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
+struct bContext;
 struct Depsgraph;
 struct Mesh;
 struct Object;
@@ -75,7 +76,8 @@ void push_enter_sculpt_mode(const Scene &scene, Object &ob, const wmOperator *op
  */
 void push_begin_ex(const Scene &scene, Object &ob, const char *name);
 void push_end(Object &ob);
-void push_end_ex(Object &ob, bool use_nested_undo);
+void push_end(bContext *C);
+void push_end_ex(bContext *C, Object &ob, bool use_nested_undo);
 
 void restore_from_bmesh_enter_geometry(const StepData &step_data, Mesh &mesh);
 bool has_bmesh_log_entry();
