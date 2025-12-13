@@ -42,7 +42,8 @@ def vr_defaults_action_add(am,
                            haptic_duration,
                            haptic_frequency,
                            haptic_amplitude,
-                           haptic_mode):
+                           haptic_mode,
+                           op_properties=None):
 
     ami = am.actionmap_items.new(name, True)
     if ami:
@@ -58,6 +59,16 @@ def vr_defaults_action_add(am,
         ami.haptic_frequency = haptic_frequency
         ami.haptic_amplitude = haptic_amplitude
         ami.haptic_mode = haptic_mode
+
+        if op_properties:
+            ami_props = ami.op_properties
+            for attr, value in op_properties:
+                try:
+                    setattr(ami_props, attr, value)
+                except AttributeError:
+                    print(f"Warning: property '{attr}' not found in action map item '{ami_name}'")
+                except Exception as ex:
+                    print(f"Warning: {ex!r}")
 
     return ami
 
@@ -248,7 +259,8 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                 [("lock_rotation", True)])
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.NAV_GRAB.value,
@@ -265,7 +277,9 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                 [("mode", 'VIEWER_FORWARD'),
+                                  ("lock_location_z", True)])
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.FLY_FORWARD.value,
@@ -282,7 +296,10 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                [("mode", 'VIEWER_BACK'),
+                                  ("lock_location_z", True)])
+
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.FLY_BACK.value,
@@ -299,7 +316,10 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                [("mode", 'VIEWER_LEFT'),
+                                  ("lock_location_z", True)])
+
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.FLY_LEFT.value,
@@ -316,7 +336,10 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                [("mode", 'VIEWER_RIGHT'),
+                                  ("lock_location_z", True)])
+
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.FLY_RIGHT.value,
@@ -333,7 +356,9 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                [("mode", 'UP')])
+
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.FLY_UP.value,
@@ -350,7 +375,8 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                [("mode", 'DOWN')])
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.FLY_DOWN.value,
@@ -367,7 +393,8 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                [("mode", 'TURNLEFT')])
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.FLY_TURNLEFT.value,
@@ -384,7 +411,8 @@ def vr_defaults_create_default(session_state):
                                  0.0,
                                  0.0,
                                  0.0,
-                                 'PRESS')
+                                 'PRESS',
+                                [("mode", 'TURNRIGHT')])
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.FLY_TURNRIGHT.value,
@@ -402,7 +430,10 @@ def vr_defaults_create_default(session_state):
                                  0.3,
                                  3000.0,
                                  0.5,
-                                 'PRESS')
+                                 'PRESS',
+                                 [("location", False),
+                                  ("rotation", False),
+                                  ("scale", True)])
     if ami:
         vr_defaults_actionbindings_add(ami,
                                       VRDefaultActions.NAV_RESET.value,
