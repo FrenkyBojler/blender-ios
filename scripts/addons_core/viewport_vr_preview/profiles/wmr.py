@@ -1,9 +1,8 @@
-from ..action_profile import VRActionProfile
-from ..defaults import VRDefaultActions, VRDefaultActionprofiles
+from ..action_profile import VRActionProfile, VRDefaultActions, VRDefaultActionprofiles, VRDefaultActionbindings
 
 class VRActionProfileWMR(VRActionProfile):
     def __init__(self):
-        super().__init__("Windows MR")
+        super().__init__(VRDefaultActionbindings.WMR.value)
         self.profile = VRDefaultActionprofiles.WMR.value
 
         self.action_map[VRDefaultActions.NAV_GRAB.value].update({

@@ -2,24 +2,63 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if "bpy" in locals():
-    import importlib
-    importlib.reload(action_map)
-else:
-    from . import action_map
-
-import bpy
-from bpy.app.handlers import persistent
 from enum import Enum
-import math
-import os.path
-from .defaults import VRDefaultActions
 
-class VRActionBinding():
-    def __init__(self, action, path, threshold=None):
-        self.action = action
-        self.path = path
-        self.threshold = threshold
+# Default action maps.
+class VRDefaultActionmaps(Enum):
+    DEFAULT = "blender_default"
+    GAMEPAD = "blender_default_gamepad"
+
+
+# Default actions.
+class VRDefaultActions(Enum):
+    CONTROLLER_GRIP = "controller_grip"
+    CONTROLLER_AIM = "controller_aim"
+    TELEPORT = "teleport"
+    NAV_GRAB = "nav_grab"
+    FLY = "fly"
+    FLY_FORWARD = "fly_forward"
+    FLY_BACK = "fly_back"
+    FLY_LEFT = "fly_left"
+    FLY_RIGHT = "fly_right"
+    FLY_UP = "fly_up"
+    FLY_DOWN = "fly_down"
+    FLY_TURNLEFT = "fly_turnleft"
+    FLY_TURNRIGHT = "fly_turnright"
+    NAV_RESET = "nav_reset"
+    SWAP_HANDS = "swap_hands"
+    HAPTIC = "haptic"
+    HAPTIC_LEFT = "haptic_left"
+    HAPTIC_RIGHT = "haptic_right"
+    HAPTIC_LEFTTRIGGER = "haptic_lefttrigger"
+    HAPTIC_RIGHTTRIGGER = "haptic_righttrigger"
+
+
+# Default action bindings.
+class VRDefaultActionbindings(Enum):
+    GAMEPAD = "gamepad"
+    HUAWEI = "huawei"
+    INDEX = "index"
+    OCULUS = "oculus"
+    REVERB_G2 = "reverb_g2"
+    SIMPLE = "simple"
+    VIVE = "vive"
+    VIVE_COSMOS = "vive_cosmos"
+    VIVE_FOCUS = "vive_focus"
+    WMR = "wmr"
+
+
+class VRDefaultActionprofiles(Enum):
+    GAMEPAD = "/interaction_profiles/microsoft/xbox_controller"
+    HUAWEI = "/interaction_profiles/huawei/controller"
+    INDEX = "/interaction_profiles/valve/index_controller"
+    OCULUS = "/interaction_profiles/oculus/touch_controller"
+    REVERB_G2 = "/interaction_profiles/hp/mixed_reality_controller"
+    SIMPLE = "/interaction_profiles/khr/simple_controller"
+    VIVE = "/interaction_profiles/htc/vive_controller"
+    VIVE_COSMOS = "/interaction_profiles/htc/vive_cosmos_controller"
+    VIVE_FOCUS = "/interaction_profiles/htc/vive_focus3_controller"
+    WMR = "/interaction_profiles/microsoft/motion_controller"
 
 class VRActionProfile():
     def __init__(self, name):

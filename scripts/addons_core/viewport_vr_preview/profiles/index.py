@@ -1,7 +1,6 @@
 
 
-from ..action_profile import VRActionProfile
-from ..defaults import VRDefaultActions, VRDefaultActionprofiles
+from ..action_profile import VRActionProfile, VRDefaultActions, VRDefaultActionprofiles, VRDefaultActionbindings
 
 class VRActionProfileIndex(VRActionProfile):
     def __init__(self):
