@@ -4213,10 +4213,10 @@ int2 MeshPattern::face_anchor_owner(const int f) const
 
 /** Return an array of the faces that go between the first and last edges at \a anchor.
  * If \a include_prev_and_next is true, also include the faces just before and just after the anchor. */
-static SmallIntArray faces_to_next_anchor(const int bv, const int anchor, const bool include_prev_and_next, const BevelState &bs) const
+static SmallIntArray faces_to_next_anchor(const int bv, const int anchor, const bool include_prev_and_next, const BevelState &bs)
 {
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
-  const int next anchor = pat.next_anchor(anchor);
+  const int next_anchor = pat.next_anchor(anchor);
   const int prev_anchor = pat.prev_anchor(anchor);
   const int2 edge_poses = bs.anchor_bevedge_positions(bv, anchor);
   const int2 edge_poses_prev = bs.anchor_bevedge_positions(bv, prev_anchor);
