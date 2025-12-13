@@ -719,7 +719,8 @@ static bNodeTreeInterfaceItem *rna_NodeTreeInterfaceItems_copy_to_parent(
   bNodeTreeInterfaceItem *item_copy = nullptr;
   if (index == -1) {
     item_copy = interface->insert_item_copy(*item, parent, parent->items_num);
-  } else if (parent->items().index_range().contains(index)) {
+  }
+  else if (parent->items().index_range().contains(index)) {
     item_copy = interface->insert_item_copy(*item, parent, index + 1);
   }
 
