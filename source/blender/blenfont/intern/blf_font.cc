@@ -539,18 +539,33 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   }
   hb_font_set_scale(this->segment.font->hb_font, int(font->size * 64.0f), int(font->size * 64.0f));
   std::vector<hb_feature_t> features;
-  /* Enable for all fonts when not monospacing. */
-  blf_ot_feature(features, HB_TAG('k', 'e', 'r', 'n'), U.text_render & USER_TEXT_KERNING);
-  /* Should be per-font. */
-  blf_ot_feature(features, HB_TAG('z', 'e', 'r', 'o'), U.text_render & USER_TEXT_SLASHED_ZERO);
-  blf_ot_feature(
-      features, HB_TAG('c', 'a', 'l', 't'), U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES);
-  blf_ot_feature(
-      features, HB_TAG('d', 'l', 'i', 'g'), U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES);
-  blf_ot_feature(features, HB_TAG('t', 'n', 'u', 'm'), U.text_render & USER_TEXT_TABULAR_NUMBERS);
-  /* Specifically for Inter. */
-  blf_ot_feature(features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS);
-  blf_ot_feature(features, HB_TAG('s', 's', '0', '4'), U.text_render & USER_TEXT_DISAMBIGUATION);
+
+  if (!(font->flags & BLF_MONOSPACED)) {
+    blf_ot_feature(features, HB_TAG('k', 'e', 'r', 'n'), U.text_render & USER_TEXT_KERNING);
+    blf_ot_feature(
+        features, HB_TAG('t', 'n', 'u', 'm'), U.text_render & USER_TEXT_TABULAR_NUMBERS_UI);
+    blf_ot_feature(features,
+                   HB_TAG('d', 'l', 'i', 'g'),
+                   U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI);
+  }
+
+  blf_ot_feature(features,
+                 HB_TAG('z', 'e', 'r', 'o'),
+                 (font->flags & BLF_MONOSPACED) ? U.text_render & USER_TEXT_SLASHED_ZERO_MONO :
+                                                  U.text_render & USER_TEXT_SLASHED_ZERO_UI);
+  blf_ot_feature(features,
+                 HB_TAG('c', 'a', 'l', 't'),
+                 (font->flags & BLF_MONOSPACED) ?
+                     U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_MONO :
+                     U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI);
+
+  if (STRPREFIX(font->face->family_name, "Inter")) {
+    blf_ot_feature(
+        features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS_INTER);
+    blf_ot_feature(
+        features, HB_TAG('s', 's', '0', '4'), U.text_render & USER_TEXT_DISAMBIGUATION_INTER);
+  }
+
   hb_shape_full(
       this->segment.font->hb_font, this->hb_buf, features.data(), uint(features.size()), nullptr);
   this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
@@ -697,7 +712,6 @@ int blf_font_draw_mono(
   }
   blf_batch_draw_end();
   blf_glyph_cache_release(font);
-
   return columns;
 }
 
