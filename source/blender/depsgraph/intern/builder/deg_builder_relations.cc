@@ -586,10 +586,12 @@ void DepsgraphRelationBuilder::build_id(ID *id)
     case ID_PA:
       build_particle_settings((ParticleSettings *)id);
       break;
+    case ID_VF:
+      build_vfont((VFont *)id);
+      break;
 
     case ID_LI:
     case ID_SCR:
-    case ID_VF:
     case ID_BR:
     case ID_WM:
     case ID_PAL:
@@ -2989,7 +2991,10 @@ void DepsgraphRelationBuilder::build_nodetree_socket(bNodeSocket *socket)
     }
   }
   else if (socket->type == SOCK_FONT) {
-    /* Font data-blocks don't use the depsgraph. */
+    VFont *font = ((bNodeSocketValueFont *)socket->default_value)->value;
+    if (font != nullptr) {
+      build_vfont(font);
+    }
   }
   else if (socket->type == SOCK_SCENE) {
     Scene *scene = ((bNodeSocketValueScene *)socket->default_value)->value;
@@ -3110,6 +3115,11 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       build_movieclip((MovieClip *)id);
       OperationKey clip_key(id, NodeType::PARAMETERS, OperationCode::MOVIECLIP_EVAL);
       add_relation(clip_key, ntree_output_key, "Clip -> Node");
+    }
+    else if (id_type == ID_VF) {
+      build_vfont((VFont *)id);
+      ComponentKey vfont_key(id, NodeType::GENERIC_DATABLOCK);
+      add_relation(vfont_key, ntree_output_key, "VFont -> Node");
     }
     else if (id_type == ID_GR) {
       /* Build relations in the collection itself, but don't hook it up to the tree.
@@ -3525,6 +3535,19 @@ void DepsgraphRelationBuilder::build_scene_speakers(Scene *scene, ViewLayer *vie
     }
     build_object(base->object);
   }
+}
+
+void DepsgraphRelationBuilder::build_vfont(VFont *vfont)
+{
+  if (built_map_.check_is_built_and_tag(vfont)) {
+    return;
+  }
+
+  const BuilderStack::ScopedEntry stack_entry = stack_.trace(vfont->id);
+
+  build_parameters(&vfont->id);
+  build_idproperties(vfont->id.properties);
+  build_idproperties(vfont->id.system_properties);
 }
 
 void DepsgraphRelationBuilder::build_copy_on_write_relations()
