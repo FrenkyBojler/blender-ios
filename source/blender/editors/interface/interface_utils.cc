@@ -203,8 +203,9 @@ Button *uiDefAutoButR(Block *block,
     }
     case PROP_STRING: {
       const eStringPropertySearchFlag search_flag = RNA_property_string_search_flag(prop);
-      const ButtonType button_type = button_type_override.value_or(
-          bool(search_flag) ? ButtonType::SearchMenu : ButtonType::Text);
+      const ButtonType button_type = bool(search_flag) ?
+                                         ButtonType::SearchMenu :
+                                         button_type_override.value_or(ButtonType::Text);
       BLI_assert(ELEM(button_type, ButtonType::SearchMenu, ButtonType::Text));
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(
