@@ -44,7 +44,6 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
-  /* world-space ray direction from the viewport (used for angle tests). */
   float mval_dir[3];
   RNA_float_get_array(op->ptr, "direction", mval_dir);
   normalize_v3(mval_dir);
