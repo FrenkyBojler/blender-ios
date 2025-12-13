@@ -521,6 +521,4 @@ gpu::VertBufPtr extract_edit_face_set_subdiv(const MeshRenderData &mr,
   return vbo;
 }
 
-/** \} */
-
 }  // namespace blender::draw

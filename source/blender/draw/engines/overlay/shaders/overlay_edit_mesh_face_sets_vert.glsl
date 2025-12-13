@@ -8,7 +8,6 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_face_sets)
 
 #include "draw_model_lib.glsl"
 #include "draw_view_clipping_lib.glsl"
-#include "draw_view_lib.glsl"
 #include "overlay_common_lib.glsl"
 
 /* Hash helpers reused from paint overlay color generation. */
@@ -93,25 +92,24 @@ void main()
 
   /* Compute face set color from id. Default is transparent unless retopology is enabled,
    * where we reuse the retopology theme color to keep parity with sculpt retopo view. */
-  float3 rgb;
-  float alpha;
-  if (face_set_id == face_set_default) {
-    if (retopology_enabled) {
-      rgb = theme.colors.face_retopology.rgb;
-      alpha = face_sets_opacity;
-    }
-    else {
-      rgb = float3(0.0);
-      alpha = 0.0;
-    }
-  }
-  else {
-    rgb = face_set_color_from_id(face_set_id, face_set_seed);
-    alpha = face_sets_opacity;
-  }
+  bool is_default = (face_set_id == face_set_default);
+  float3 rgb = is_default ?
+                   (retopology_enabled ? theme.colors.face_retopology.rgb : float3(0.0)) :
+                   face_set_color_from_id(face_set_id, face_set_seed);
+  float alpha = is_default ? (retopology_enabled ? face_sets_opacity : 0.0) : face_sets_opacity;
 
-  /* Premultiplied color for alpha blend. */
-  face_set_color = float4(rgb * alpha, alpha);
+  /* When retopology is enabled, we use BLEND_ALPHA instead of BLEND_MUL because the base mesh
+   * is hidden, so render_fb contains black/background. With BLEND_ALPHA, we output the color
+   * directly with alpha (controlled by face_sets_opacity), so it blends properly on top of the
+   * black background.
+   *
+   * In normal mode (BLEND_MUL), we mix from white (1.0) to face set color, like Sculpt Mode.
+   * This gives the correct multiplicative blending result: dst.rgb = src.rgb * dst.rgb */
+  face_set_color = retopology_enabled ?
+                       /* For BLEND_ALPHA, output color directly with alpha. */
+                       float4(rgb, alpha) :
+                       /* For BLEND_MUL, mix from white to color, like Sculpt Mode. */
+                       float4(mix(float3(1.0f), rgb, alpha), 1.0f);
 
   color_fac = 1.0f;
   view_clipping_distances(world_pos);

@@ -117,7 +117,7 @@ class Meshes : Overlay {
                         select_face_;
 
     show_retopology_ = (edit_flag & V3D_OVERLAY_EDIT_RETOPOLOGY) && !state.xray_enabled;
-    show_face_sets_ = (edit_flag & V3D_OVERLAY_EDIT_FACE_SETS);
+    show_face_sets_ = (edit_flag & V3D_OVERLAY_EDIT_FACE_SETS) && !state.xray_enabled;
     show_mesh_analysis_ = (edit_flag & V3D_OVERLAY_EDIT_STATVIS);
     show_face_overlay_ = (edit_flag & V3D_OVERLAY_EDIT_FACES);
     show_weight_ = (edit_flag & V3D_OVERLAY_EDIT_WEIGHT);
@@ -138,10 +138,6 @@ class Meshes : Overlay {
     /* In retopology mode make face sets more transparent for better visibility of base mesh. */
     if (show_retopology_ && show_face_sets_) {
       face_sets_opacity *= 0.5f;
-    }
-    /* Respect X-Ray opacity so overlays do not ignore viewport transparency. */
-    if (state.xray_enabled) {
-      face_sets_opacity *= state.xray_opacity;
     }
     /* Cull back-faces for retopology face pass. This makes it so back-faces are not drawn.
      * Doing so lets us distinguish back-faces from front-faces. */
@@ -164,8 +160,13 @@ class Meshes : Overlay {
     if (show_face_sets_) {
       auto &pass = edit_mesh_face_sets_ps_;
       pass.init();
-      pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL |
-                         DRW_STATE_BLEND_ALPHA_PREMUL | face_culling,
+      /* For retopology, use BLEND_ALPHA instead of BLEND_MUL because the base mesh is hidden,
+       * so render_fb contains black/background. With BLEND_MUL, multiplying by black gives black.
+       * With BLEND_ALPHA, we can draw colors directly on top of the black background. */
+      DRWState blend_mode = (show_retopology_ && show_face_sets_) ? DRW_STATE_BLEND_ALPHA :
+                                                                    DRW_STATE_BLEND_MUL;
+      pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | blend_mode |
+                         face_culling,
                      state.clipping_plane_count);
       pass.shader_set(res.shaders->mesh_edit_face_sets.get());
       pass.bind_texture("color_render_tx", &res.color_render_tx);
@@ -173,6 +174,7 @@ class Meshes : Overlay {
       pass.push_constant("retopology_offset", retopology_offset);
       pass.push_constant("retopology_enabled", show_retopology_);
       pass.push_constant("face_sets_opacity", face_sets_opacity);
+
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     }
@@ -352,6 +354,7 @@ class Meshes : Overlay {
     }
     if (show_face_sets_) {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edit_triangles(mesh);
+
       edit_mesh_face_sets_ps_.push_constant("face_set_seed", mesh.face_sets_color_seed);
       edit_mesh_face_sets_ps_.push_constant("face_set_default", mesh.face_sets_color_default);
       edit_mesh_face_sets_ps_.draw(geom, res_handle);
@@ -437,9 +440,7 @@ class Meshes : Overlay {
         manager.submit(edit_mesh_cages_ps_, view);
       }
     }
-    if (show_face_sets_) {
-      manager.submit(edit_mesh_face_sets_ps_, view);
-    }
+    /* Face Sets are now drawn on render framebuffer via draw_on_render(), not here. */
 
     if (xray_flag_enabled_) {
       GPU_debug_group_end();
@@ -470,9 +471,7 @@ class Meshes : Overlay {
         manager.submit(edit_mesh_faces_ps_, view);
         manager.submit(edit_mesh_cages_ps_, view);
       }
-      if (show_face_sets_) {
-        manager.submit(edit_mesh_face_sets_ps_, view);
-      }
+      /* Face Sets are now drawn on render framebuffer via draw_on_render(), not here. */
     }
 
     if (!xray_flag_enabled_) {
@@ -488,6 +487,23 @@ class Meshes : Overlay {
     manager.submit(edit_mesh_skin_roots_ps_, view);
     manager.submit(edit_mesh_facedots_ps_, view);
 
+    GPU_debug_group_end();
+  }
+
+  void draw_on_render(gpu::FrameBuffer *framebuffer, Manager &manager, View &view) final
+  {
+    if (!enabled_ || !show_face_sets_) {
+      return;
+    }
+
+    /* Check if framebuffer is valid. It can be null during selection or depth-only drawing. */
+    if (framebuffer == nullptr) {
+      return;
+    }
+
+    GPU_debug_group_begin("Edit Mesh Face Sets on Render");
+    GPU_framebuffer_bind(framebuffer);
+    manager.submit(edit_mesh_face_sets_ps_, view);
     GPU_debug_group_end();
   }
 
