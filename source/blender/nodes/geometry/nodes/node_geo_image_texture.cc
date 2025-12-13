@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_geometry_util.hh"
+#include "shader/node_shader_util.hh"
 
 #include "BKE_image.hh"
 
@@ -429,7 +430,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImageTexture", GEO_NODE_IMAGE_TEXTURE);
+  sh_geo_node_type_base(&ntype, "GeometryNodeImageTexture", GEO_NODE_IMAGE_TEXTURE);
   ntype.ui_name = "Image Texture";
   ntype.ui_description = "Sample values from an image texture";
   ntype.enum_name_legacy = "IMAGE_TEXTURE";

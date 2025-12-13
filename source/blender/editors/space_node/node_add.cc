@@ -924,7 +924,7 @@ static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
   int type = 0;
   switch (snode.nodetree->type) {
     case NTREE_SHADER:
-      type = SH_NODE_TEX_IMAGE;
+      type = GEO_NODE_IMAGE_TEXTURE;
       break;
     case NTREE_TEXTURE:
       type = TEX_NODE_IMAGE;

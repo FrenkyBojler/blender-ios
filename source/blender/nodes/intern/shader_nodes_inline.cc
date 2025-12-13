@@ -37,7 +37,7 @@ struct NodeAndSocket {
 };
 
 struct PrimitiveSocketValue {
-  std::variant<int, float, bool, ColorGeometry4f, float3, MenuValue> value;
+  std::variant<int, float, bool, ColorGeometry4f, float3, MenuValue, Image *> value;
 
   const void *buffer() const
   {
@@ -69,6 +69,9 @@ struct PrimitiveSocketValue {
     }
     if (type.is<MenuValue>()) {
       return {*static_cast<const MenuValue *>(value.get())};
+    }
+    if (type.is<Image *>()) {
+      return {*static_cast<Image *const *>(value.get())};
     }
     BLI_assert_unreachable();
     return {};
@@ -138,6 +141,8 @@ struct SocketValue {
         case SOCK_MENU:
           return PrimitiveSocketValue{
               MenuValue(socket.default_value_typed<bNodeSocketValueMenu>()->value)};
+        case SOCK_IMAGE:
+          return PrimitiveSocketValue{socket.default_value_typed<bNodeSocketValueImage>()->value};
         default:
           return std::nullopt;
       }
@@ -149,6 +154,7 @@ struct SocketValue {
         case SOCK_VECTOR:
         case SOCK_RGBA:
         case SOCK_FLOAT:
+        case SOCK_IMAGE:
           return PrimitiveSocketValue::from_value(
               {type.base_cpp_type, type.base_cpp_type->default_value()});
         default:
@@ -515,6 +521,10 @@ class ShaderNodesInliner {
     }
     if (node->is_type("GeometryNodeMenuSwitch")) {
       this->handle_output_socket__menu_switch(socket);
+      return;
+    }
+    if (node->is_type("GeometryNodeImageTexture")) {
+      this->handle_output_socket__image_texture(socket);
       return;
     }
     this->handle_output_socket__eval(socket);
@@ -979,6 +989,58 @@ class ShaderNodesInliner {
     this->store_socket_value(socket, {PrimitiveSocketValue{is_selected}});
   }
 
+  void handle_output_socket__image_texture(const SocketInContext &src_socket)
+  {
+    const NodeInContext src_node = src_socket.owner_node();
+    const EnsureInputsResult ensured_inputs = this->ensure_node_inputs(src_node);
+    if (ensured_inputs.has_missing_inputs) {
+      /* Wait until all inputs are available. */
+      return;
+    }
+    const SocketInContext src_image_socket = src_node.input_socket(0);
+    const SocketInContext src_vector_socket = src_node.input_socket(1);
+    const SocketInContext src_frame_socket = src_node.input_socket(2);
+
+    const std::optional<PrimitiveSocketValue> image_opt =
+        value_by_socket_.lookup(src_image_socket).to_primitive(*src_image_socket->typeinfo);
+    if (!image_opt) {
+      this->store_socket_value_fallback(src_socket);
+      params_.r_error_messages.append({&*src_node, TIP_("Image input must be a single value")});
+      return;
+    }
+    const std::optional<PrimitiveSocketValue> frame_opt =
+        value_by_socket_.lookup(src_frame_socket).to_primitive(*src_frame_socket->typeinfo);
+    if (!frame_opt) {
+      this->store_socket_value_fallback(src_socket);
+      params_.r_error_messages.append({&*src_node, TIP_("Frame input must be a single value")});
+      return;
+    }
+    Image *image = std::get<Image *>(image_opt->value);
+    const int frame = std::get<int>(frame_opt->value);
+
+    bNode *new_node = this->add_node("ShaderNodeTexImage");
+    new_node->id = id_cast<ID *>(image);
+    if (this->use_refcounting()) {
+      id_us_plus(new_node->id);
+    }
+
+    bNodeSocket *new_vector_input = static_cast<bNodeSocket *>(new_node->inputs.first);
+
+    this->set_input_socket_value(
+        *src_node, *new_node, *new_vector_input, value_by_socket_.lookup(src_vector_socket));
+
+    NodeTexImage *storage = static_cast<NodeTexImage *>(new_node->storage);
+    storage->iuser.frames = 1;
+    storage->iuser.offset = frame;
+
+    bNodeSocket *color_output = static_cast<bNodeSocket *>(new_node->outputs.first);
+    bNodeSocket *alpha_output = color_output->next;
+    this->store_socket_value(src_node.output_socket(0),
+                             {LinkedSocketValue{new_node, color_output}});
+    this->store_socket_value(src_node.output_socket(1),
+                             {LinkedSocketValue{new_node, alpha_output}});
+  }
+
   /**
    * Evaluate a node to compute the value of the given output socket. This may also compute all the
    * other outputs of the node.
@@ -1409,8 +1471,12 @@ class ShaderNodesInliner {
 
   int node_copy_flag() const
   {
-    const bool use_refcounting = !(dst_tree_.id.tag & ID_TAG_NO_MAIN);
-    return use_refcounting ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT;
+    return this->use_refcounting() ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT;
+  }
+
+  bool use_refcounting() const
+  {
+    return !(dst_tree_.id.tag & ID_TAG_NO_MAIN);
   }
 };
 

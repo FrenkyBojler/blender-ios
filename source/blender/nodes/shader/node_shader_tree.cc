@@ -179,7 +179,8 @@ static bool shader_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*n
                                                                         SOCK_SHADER,
                                                                         SOCK_BUNDLE,
                                                                         SOCK_CLOSURE,
-                                                                        SOCK_MENU);
+                                                                        SOCK_MENU,
+                                                                        SOCK_IMAGE);
 }
 
 blender::bke::bNodeTreeType *ntreeType_Shader;

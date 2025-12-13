@@ -1364,7 +1364,7 @@ static void std_node_socket_draw(
     }
     case SOCK_IMAGE: {
       const bNodeTree *node_tree = (const bNodeTree *)node_ptr->owner_id;
-      if (node_tree->type == NTREE_GEOMETRY) {
+      if (ELEM(node_tree->type, NTREE_GEOMETRY, NTREE_SHADER)) {
         if (optional_label) {
           template_id(layout, C, ptr, "default_value", "image.new", "image.open", nullptr);
         }
