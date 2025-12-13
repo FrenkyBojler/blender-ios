@@ -251,11 +251,26 @@ static std::optional<float3> sample_texture_paint_color(
   return rgba_f.xyz();
 }
 
+struct SampleColorData {
+  bool show_cursor;
+  short launch_event;
+  float3 initial_color;
+  bool sample_palette;
+  float3 accum_color;
+  int num_samples;
+};
+
 static void apply_sampled_color(Main &bMain,
                                 Paint &paint,
+                                SampleColorData &data,
                                 const float3 &sampled_color,
                                 const bool use_palette)
 {
+  data.accum_color += sampled_color;
+  data.num_samples++;
+
+  const float3 average_color = data.accum_color / float(data.num_samples);
+
   if (use_palette) {
     Palette *palette = BKE_paint_palette(&paint);
     if (!palette) {
@@ -265,11 +280,11 @@ static void apply_sampled_color(Main &bMain,
 
     PaletteColor *color = BKE_palette_color_add(palette);
     palette->active_color = BLI_listbase_count(&palette->colors) - 1;
-    BKE_palette_color_set(color, sampled_color);
+    BKE_palette_color_set(color, average_color);
   }
   else {
     Brush *br = BKE_paint_brush(&paint);
-    BKE_brush_color_set(&paint, br, sampled_color);
+    BKE_brush_color_set(&paint, br, average_color);
   }
 }
 
@@ -326,13 +341,6 @@ static float3 paint_sample_color(bContext *C,
   return sampled_color.value_or(float3(0.0f));
 }
 
-struct SampleColorData {
-  bool show_cursor;
-  short launch_event;
-  float3 initial_color;
-  bool sample_palette;
-};
-
 static void sample_color_update_header(SampleColorData *data, bContext *C)
 {
   char msg[UI_MAX_DRAW_STR];
@@ -371,7 +379,7 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
   const bool use_palette = RNA_boolean_get(op->ptr, "palette");
 
   const float3 sampled_color = paint_sample_color(C, region, location, use_merged_texture);
-  apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, use_palette);
+  apply_sampled_color(*CTX_data_main(C), *paint, *data, sampled_color, use_palette);
 
   if (show_cursor) {
     paint->flags |= PAINT_SHOW_BRUSH;
@@ -397,7 +405,7 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   op->customdata = data;
   paint->flags &= ~PAINT_SHOW_BRUSH;
 
-  data->accum_color = blender::float3(0.0f);
+  data->accum_color = float3(0.0f);
   data->num_samples = 0;
 
   sample_color_update_header(data, C);
@@ -415,7 +423,7 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   const float3 sampled_color = paint_sample_color(
       C, region, int2(event->mval[0], event->mval[1]), use_merged_texture);
   /* On initial invoke, we never sample to the palette. */
-  apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, false);
+  apply_sampled_color(*CTX_data_main(C), *paint, *data, sampled_color, false);
 
   WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
@@ -456,7 +464,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
       RNA_int_set_array(op->ptr, "location", event->mval);
       const float3 sampled_color = paint_sample_color(
           C, region, int2(event->mval[0], event->mval[1]), use_merged_texture);
-      apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, false);
+      apply_sampled_color(*CTX_data_main(C), *paint, *data, sampled_color, false);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       break;
     }
@@ -467,7 +475,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
         RNA_int_set_array(op->ptr, "location", event->mval);
         const float3 sampled_color = paint_sample_color(
             C, region, int2(event->mval[0], event->mval[1]), use_merged_texture);
-        apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, true);
+        apply_sampled_color(*CTX_data_main(C), *paint, *data, sampled_color, true);
         if (!data->sample_palette) {
           data->sample_palette = true;
           sample_color_update_header(data, C);
