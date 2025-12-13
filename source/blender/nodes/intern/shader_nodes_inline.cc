@@ -992,6 +992,7 @@ class ShaderNodesInliner {
   void handle_output_socket__image_texture(const SocketInContext &src_socket)
   {
     const NodeInContext src_node = src_socket.owner_node();
+    const auto &src_storage = *static_cast<const NodeGeometryImageTexture *>(src_node->storage);
     const EnsureInputsResult ensured_inputs = this->ensure_node_inputs(src_node);
     if (ensured_inputs.has_missing_inputs) {
       /* Wait until all inputs are available. */
@@ -1032,6 +1033,8 @@ class ShaderNodesInliner {
     NodeTexImage *storage = static_cast<NodeTexImage *>(new_node->storage);
     storage->iuser.frames = 1;
     storage->iuser.offset = frame;
+    storage->interpolation = src_storage.interpolation;
+    storage->extension = src_storage.extension;
 
     bNodeSocket *color_output = static_cast<bNodeSocket *>(new_node->outputs.first);
     bNodeSocket *alpha_output = color_output->next;
