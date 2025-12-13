@@ -255,6 +255,17 @@ actionconfig_data = \
         ],
        },
       ),
+       ("blender_default_tracker",
+        {"items":
+         [("controller_grip", {"type": 'POSE', "user_paths": ['/user/vive_tracker_htcx/role/left_foot', '/user/vive_tracker_htcx/role/right_foot', '/user/vive_tracker_htcx/role/left_shoulder', '/user/vive_tracker_htcx/role/right_shoulder', '/user/vive_tracker_htcx/role/left_elbow', '/user/vive_tracker_htcx/role/right_elbow', '/user/vive_tracker_htcx/role/left_knee', '/user/vive_tracker_htcx/role/right_knee', '/user/vive_tracker_htcx/role/waist', '/user/vive_tracker_htcx/role/chest'], "pose_is_controller_grip": 'True', "pose_is_controller_aim": 'True'}, None,
+           {"bindings":
+            [("vive_tracker", {"profile": '/interaction_profiles/htc/vive_tracker_htcx', "component_paths": ['/input/grip/pose', '/input/grip/pose', '/input/grip/pose', '/input/grip/pose', '/input/grip/pose', '/input/grip/pose', '/input/grip/pose', '/input/grip/pose', '/input/grip/pose', '/input/grip/pose'], "pose_location": '(0.0, 0.0, 0.0)', "pose_rotation": '(0.0, 0.0, 0.0)'}),
+             ],
+            },
+           ),
+          ],
+         },
+        ),
         ("blender_default_gamepad",
          {"items":
           [("teleport", {"type": 'FLOAT', "user_paths": ['/user/gamepad'], "op": 'wm.xr_navigation_teleport', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},

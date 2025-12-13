@@ -424,7 +424,8 @@ class VIEW3D_GGT_vr_controller_poses(GizmoGroup):
         return transmat @ rotmat @ scalemat
 
     def setup(self, context):
-        for idx in range(2):
+        # 2 controllers + 10 Vive Trackers.
+        for idx in range(2 + 10):
             self.gizmos.new(VIEW3D_GT_vr_controller_grip.bl_idname)
             self.gizmos.new(VIEW3D_GT_vr_controller_aim.bl_idname)
 
@@ -438,7 +439,15 @@ class VIEW3D_GGT_vr_controller_poses(GizmoGroup):
         aim_idx = 0
         idx = 0
         scale = 1.0
-        for gizmo in self.gizmos:
+        for i, gizmo in enumerate(self.gizmos):
+            # The tracker is after the first 4 gizmos
+            # (which are the grip and aim for each hand controller).
+            is_tracker = i > 3
+
+            # Hide Vive trackers if they are disabled.
+            if is_tracker and not context.scene.vr_actions_enable_vive_tracker:
+                gizmo.hide = True
+
             is_grip = (gizmo.bl_idname == VIEW3D_GT_vr_controller_grip.bl_idname)
             if (is_grip):
                 idx = grip_idx
@@ -478,7 +487,7 @@ class VIEW3D_GGT_vr_landmarks(GizmoGroup):
 
         for lm in landmarks:
             if ((lm.type == 'SCENE_CAMERA' and not scene.camera) or
-                    (lm.type == 'OBJECT' and not lm.base_pose_object)):
+                (lm.type == 'OBJECT' and not lm.base_pose_object)):
                 continue
 
             gizmo = self.gizmos.new(VIEW3D_GT_vr_camera_cone.bl_idname)

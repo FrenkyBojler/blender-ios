@@ -25,6 +25,9 @@ def vr_actionset_active_update(context):
     if scene.vr_actions_use_gamepad and session_state.actionmaps.find(
             session_state, defaults.VRDefaultActionmaps.GAMEPAD.value):
         session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.GAMEPAD.value)
+    elif scene.vr_actions_enable_vive_tracker and session_state.actionmaps.find(
+            session_state, defaults.VRDefaultActionmaps.TRACKER.value):
+        session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.TRACKER.value)
     else:
         # Use first action map.
         session_state.active_action_set_set(context, session_state.actionmaps[0].name)
@@ -88,6 +91,9 @@ def vr_create_actions(context: bpy.context):
                         continue
                 elif amb.name == defaults.VRDefaultActionbindings.HUAWEI.value:
                     if not scene.vr_actions_enable_huawei:
+                        continue
+                elif amb.name == defaults.VRDefaultActionbindings.VIVE_TRACKER.value:
+                    if not scene.vr_actions_enable_vive_tracker:
                         continue
 
                 ok = session_state.action_binding_create(context, am, ami, amb)
@@ -162,6 +168,13 @@ def register():
         ),
         default=False,
     )
+    bpy.types.Scene.vr_actions_enable_vive_tracker = bpy.props.BoolProperty(
+        description=(
+            "Enable bindings for the HTC Vive Trackers. "
+            "Note that this may not be supported by all OpenXR runtimes"
+        ),
+        default=False,
+    )
 
     bpy.app.handlers.xr_session_start_pre.append(vr_create_actions)
 
@@ -173,5 +186,6 @@ def unregister():
     del bpy.types.Scene.vr_actions_enable_reverb_g2
     del bpy.types.Scene.vr_actions_enable_vive_cosmos
     del bpy.types.Scene.vr_actions_enable_vive_focus
+    del bpy.types.Scene.vr_actions_enable_vive_tracker
 
     bpy.app.handlers.xr_session_start_pre.remove(vr_create_actions)
