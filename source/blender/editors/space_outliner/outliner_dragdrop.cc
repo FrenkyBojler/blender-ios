@@ -206,11 +206,8 @@ static bool outliner_is_tree_element_in_collection(TreeElement *te, ID *id)
 
   TreeElement *collection_te = outliner_data_from_tree_element_and_parents(is_collection_element,
                                                                            te);
-  if (!collection_te) {
-    return false;
-  }
 
-  while (collection_te->parent != nullptr) {
+  while (collection_te && collection_te->parent != nullptr) {
     Collection *parent_collection = outliner_collection_from_tree_element(collection_te->parent);
     if (&parent_collection->id == id) {
       return true;
