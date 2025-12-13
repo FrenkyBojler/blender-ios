@@ -62,11 +62,23 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   saction = MEM_callocN<SpaceAction>("initaction");
   saction->spacetype = SPACE_ACTION;
 
+  const eAnimEdit_Context desired_mode = area ? eAnimEdit_Context(area->butspacetype_subtype) :
+                                                SACTCONT_DOPESHEET;
+  const bool is_timeline = (desired_mode == SACTCONT_TIMELINE);
+
+  /* This should always set to SACTCONT_DOPESHEET, regardless of what the desired_mode is set to.
+   * Not for fundamental reasons, but to make it safe to call this function with an invalid value
+   * in desired_mode. I (Sybren) have no idea if that's ever going to happen, but in this case I'm
+   * sticking as close as possible to what Blender 4.5 was already doing. Once this function
+   * returns, ED_area_newspace() will call action_space_subtype_set() to set the sub-type. */
   saction->mode = SACTCONT_DOPESHEET;
   saction->mode_prev = SACTCONT_DOPESHEET;
   saction->flag = SACTION_SHOW_INTERPOLATION | SACTION_SHOW_MARKERS;
 
   saction->ads.filterflag |= ADS_FILTER_SUMMARY;
+  if (is_timeline) {
+    saction->ads.filterflag |= ADS_FLAG_SUMMARY_COLLAPSED;
+  }
 
   saction->cache_display = TIME_CACHE_DISPLAY | TIME_CACHE_SOFTBODY | TIME_CACHE_PARTICLES |
                            TIME_CACHE_CLOTH | TIME_CACHE_SMOKE | TIME_CACHE_DYNAMICPAINT |
@@ -93,6 +105,8 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   BLI_addtail(&saction->regionbase, region);
   region->regiontype = RGN_TYPE_CHANNELS;
   region->alignment = RGN_ALIGN_LEFT;
+  /* Channel list is hidden by default in timeline mode, and visible in other modes. */
+  region->flag |= is_timeline ? RGN_FLAG_HIDDEN : 0;
 
   /* Only need to set scroll settings, as this will use `listview` v2d configuration. */
   region->v2d.scroll = V2D_SCROLL_BOTTOM;
@@ -165,7 +179,8 @@ static void action_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(
+      &region->v2d, blender::ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Dopesheet", SPACE_ACTION, RGN_TYPE_WINDOW);
@@ -184,7 +199,7 @@ static void set_v2d_height(View2D *v2d, const size_t item_count, const bool add_
   /* Add padding for the collapsed redo panel. */
   pad_bottom += HEADERY;
   v2d->tot.ymin = -(height + pad_bottom);
-  UI_view2d_curRect_clamp_y(v2d);
+  blender::ui::view2d_curRect_clamp_y(v2d);
 }
 
 static void action_main_region_draw(const bContext *C, ARegion *region)
@@ -214,21 +229,21 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
                                       ANIMFILTER_LIST_CHANNELS);
     const size_t items = ANIM_animdata_filter(
         &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
-    /* The View2D's height needs to be set before calling UI_view2d_view_ortho because the latter
+    /* The View2D's height needs to be set before calling view2d_view_ortho because the latter
      * uses the View2D's `cur` rect which might be modified when setting the height. */
     set_v2d_height(v2d, items, !BLI_listbase_is_empty(ac.markers));
   }
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* time grid */
   if (region->winy > min_height) {
-    UI_view2d_draw_lines_x__discrete_frames_or_seconds(
+    blender::ui::view2d_draw_lines_x__discrete_frames_or_seconds(
         v2d, scene, saction->flag & SACTION_DRAWTIME, true);
   }
 
@@ -251,27 +266,27 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* markers */
-  UI_view2d_view_orthoSpecial(region, v2d, true);
+  blender::ui::view2d_view_orthoSpecial(region, v2d, true);
 
   marker_flag = ((ac.markers && (ac.markers != &ac.scene->markers)) ? DRAW_MARKERS_LOCAL : 0) |
                 DRAW_MARKERS_MARGIN;
 
-  if (saction->flag & SACTION_SHOW_MARKERS && region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
+  if (ED_markers_region_visible(CTX_wm_area(C), region)) {
     ED_markers_draw(C, marker_flag);
   }
 
   /* preview range */
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
   ANIM_draw_previewrange(scene, v2d, 0);
 
   ANIM_draw_scene_strip_range(C, v2d);
 
   /* callback */
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_VIEW);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* gizmos */
   WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
@@ -291,7 +306,7 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
 
   /* caches */
   GPU_matrix_push_projection();
-  UI_view2d_view_orthoSpecial(region, v2d, true);
+  blender::ui::view2d_view_orthoSpecial(region, v2d, true);
   timeline_draw_cache(saction, obact, scene);
   GPU_matrix_pop_projection();
 
@@ -301,7 +316,7 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
 
   /* scrollers */
   const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
-  UI_view2d_scrollers_draw(v2d, &scroller_mask);
+  blender::ui::view2d_scrollers_draw(v2d, &scroller_mask);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -312,7 +327,7 @@ static void action_channel_region_init(wmWindowManager *wm, ARegion *region)
   /* ensure the 2d view sync works - main region has bottom scroller */
   region->v2d.scroll = V2D_SCROLL_BOTTOM;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, blender::ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
   keymap = WM_keymap_ensure(
@@ -331,7 +346,7 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
   const bool has_valid_animcontext = ANIM_animdata_get_context(C, &ac);
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   if (!has_valid_animcontext) {
     return;
@@ -345,18 +360,18 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
                                     ANIMFILTER_LIST_CHANNELS);
   const size_t item_count = ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
-  /* The View2D's height needs to be set before calling UI_view2d_view_ortho because the latter
+  /* The View2D's height needs to be set before calling view2d_view_ortho because the latter
    * uses the View2D's `cur` rect which might be modified when setting the height. */
   set_v2d_height(v2d, item_count, !BLI_listbase_is_empty(ac.markers));
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
   draw_channel_names((bContext *)C, &ac, region, anim_data);
 
   /* channel filter next to scrubbing area */
   ED_time_scrub_channel_search_draw(C, region, ac.ads);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* no scrollers here */
   ANIM_animdata_freelist(&anim_data);
@@ -411,7 +426,7 @@ static void action_channel_region_listener(const wmRegionListenerParams *params)
       }
       break;
     case NC_GPENCIL:
-      if (ELEM(wmn->action, NA_RENAME, NA_SELECTED)) {
+      if (ELEM(wmn->action, NA_RENAME, NA_SELECTED, NA_EDITED)) {
         ED_region_tag_redraw(region);
       }
       break;
@@ -765,6 +780,13 @@ static void action_footer_region_listener(const wmRegionListenerParams *params)
   }
 }
 
+static bool action_region_poll_hide_in_timeline(const RegionPollParams *params)
+{
+  BLI_assert(params->area->spacetype == SPACE_ACTION);
+  const SpaceAction *saction = static_cast<const SpaceAction *>(params->area->spacedata.first);
+  return saction->mode != SACTCONT_TIMELINE;
+}
+
 /* add handlers, stuff you only do once or on area/region changes */
 static void action_buttons_area_init(wmWindowManager *wm, ARegion *region)
 {
@@ -873,6 +895,54 @@ static void action_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
   }
 }
 
+static int action_space_subtype_get(ScrArea *area)
+{
+  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
+  return sact->mode == SACTCONT_TIMELINE ? SACTCONT_TIMELINE : SACTCONT_DOPESHEET;
+}
+
+static void action_space_subtype_set(ScrArea *area, int value)
+{
+  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
+  if (value == SACTCONT_TIMELINE) {
+    /* Switching to the timeline. Remember what the current mode of the dope sheet is. */
+    if (sact->mode != SACTCONT_TIMELINE) {
+      sact->mode_prev = sact->mode;
+    }
+    sact->mode = SACTCONT_TIMELINE;
+  }
+  else {
+    /* Switching to the 'Dope Sheet' editor, so switch to the last-used mode. Unless that was
+     * Timeline, don't use the 'subtype' switch to go back to that; if the user wanted that, we'd
+     * be in the `if` case above.  */
+    sact->mode = (sact->mode_prev == SACTCONT_TIMELINE) ? SACTCONT_DOPESHEET :
+                                                          eAnimEdit_Context(sact->mode_prev);
+  }
+}
+
+static void action_space_subtype_item_extend(bContext * /*C*/,
+                                             EnumPropertyItem **item,
+                                             int *totitem)
+{
+  RNA_enum_items_add(item, totitem, rna_enum_space_action_mode_items);
+}
+
+static blender::StringRefNull action_space_name_get(const ScrArea *area)
+{
+  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
+  const int index = max_ii(0, RNA_enum_from_value(rna_enum_space_action_mode_items, sact->mode));
+  const EnumPropertyItem item = rna_enum_space_action_mode_items[index];
+  return item.name;
+}
+
+static int action_space_icon_get(const ScrArea *area)
+{
+  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
+  const int index = max_ii(0, RNA_enum_from_value(rna_enum_space_action_mode_items, sact->mode));
+  const EnumPropertyItem item = rna_enum_space_action_mode_items[index];
+  return item.icon;
+}
+
 static void action_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
 {
   SpaceAction *saction = (SpaceAction *)sl;
@@ -902,6 +972,11 @@ void ED_spacetype_action()
   st->refresh = action_refresh;
   st->id_remap = action_id_remap;
   st->foreach_id = action_foreach_id;
+  st->space_subtype_item_extend = action_space_subtype_item_extend;
+  st->space_subtype_get = action_space_subtype_get;
+  st->space_subtype_set = action_space_subtype_set;
+  st->space_name_get = action_space_name_get;
+  st->space_icon_get = action_space_icon_get;
   st->blend_read_data = action_space_blend_read_data;
   st->blend_read_after_liblink = nullptr;
   st->blend_write = action_space_blend_write;
@@ -936,6 +1011,7 @@ void ED_spacetype_action()
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER | ED_KEYMAP_FRAMES;
   art->init = action_header_region_init;
+  art->poll = action_region_poll_hide_in_timeline;
   art->draw = action_header_region_draw;
   art->listener = action_footer_region_listener;
 
@@ -962,12 +1038,13 @@ void ED_spacetype_action()
   art->listener = action_region_listener;
   art->init = action_buttons_area_init;
   art->draw = action_buttons_area_draw;
+  art->poll = action_region_poll_hide_in_timeline;
 
   BLI_addhead(&st->regiontypes, art);
 
   action_buttons_register(art);
 
-  art = ED_area_type_hud(st->spaceid);
+  art = blender::ui::ED_area_type_hud(st->spaceid);
   BLI_addhead(&st->regiontypes, art);
 
   BKE_spacetype_register(std::move(st));

@@ -27,7 +27,7 @@
 #include "BKE_curve.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_nla.hh"
 
 #include "ED_anim_api.hh"
@@ -45,6 +45,8 @@
 #include "GPU_state.hh"
 
 #include "SEQ_time.hh"
+
+#include <utility>
 
 /* *************************************************** */
 /* CURRENT FRAME DRAWING */
@@ -143,14 +145,18 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d)
   /* ..._handle are frames in "sequencer logic", meaning that on the right_handle point in time,
    * the strip is not visible any more. The last visible frame of the strip is actually on
    * (right_handle-1), hence the -1 when computing the end_frame. */
-  const float left_handle = seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
-  const float right_handle = seq::time_right_handle_frame_get(sequencer_scene, scene_strip);
-  const float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
-                            scene_strip->scene->r.sfra;
-  const float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle - 1) +
-                          scene_strip->scene->r.sfra;
+  const float left_handle = scene_strip->left_handle();
+  const float right_handle = scene_strip->right_handle(sequencer_scene);
+  float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
+                      scene_strip->scene->r.sfra;
+  float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle - 1) +
+                    scene_strip->scene->r.sfra;
 
-  BLI_assert(start_frame < end_frame);
+  /* This can happen when the strip time is reversed. */
+  if (start_frame > end_frame) {
+    std::swap(start_frame, end_frame);
+  }
+
   immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, start_frame, v2d->cur.ymax);
   immRectf(pos, end_frame, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 
@@ -225,7 +231,7 @@ void ANIM_draw_action_framerange(
   immBindBuiltinProgram(GPU_SHADER_2D_DIAG_STRIPES);
 
   float color[4];
-  UI_GetThemeColorShadeAlpha4fv(TH_BACK, -40, -50, color);
+  blender::ui::theme::get_color_shade_alpha_4fv(TH_BACK, -40, -50, color);
 
   immUniform4f("color1", color[0], color[1], color[2], color[3]);
   immUniform4f("color2", 0.0f, 0.0f, 0.0f, 0.0f);
@@ -602,7 +608,7 @@ static float normalization_factor_get(Scene *scene, FCurve *fcu, short flag, flo
   else {
     /* Skip normalization. */
     factor = 1.0f;
-    offset = -min_coord;
+    offset = 0.0f;
   }
 
   BLI_assert(factor != 0.0f);
@@ -761,8 +767,13 @@ static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra
 
 void ANIM_center_frame(bContext *C, int smooth_viewtx)
 {
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return;
+  }
+
   ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
   float w = BLI_rctf_size_x(&region->v2d.cur);
   rctf newrct;
   int nextfra, prevfra;
@@ -798,7 +809,7 @@ void ANIM_center_frame(bContext *C, int smooth_viewtx)
       break;
   }
 
-  UI_view2d_smooth_view(C, region, &newrct, smooth_viewtx);
+  blender::ui::view2d_smooth_view(C, region, &newrct, smooth_viewtx);
 }
 /* *************************************************** */
 
@@ -808,12 +819,12 @@ rctf ANIM_frame_range_view2d_add_xmargin(const View2D &view_2d, const rctf view_
   const float keyframe_size = 10 * UI_SCALE_FAC;
   const float margin_in_px = 4 * keyframe_size;
 
-  /* This cannot use UI_view2d_scale_get_x(view_2d) because that would use the
+  /* This cannot use view2d_scale_get_x(view_2d) because that would use the
    * current scale of the view, and not the one we'd get once `view_rect` is
    * applied. And this function should not assume that view_2d.cur == view_rect.
    *
    * As an added bonus, the division is inverted (compared to
-   * UI_view2d_scale_get_x()) so that we can multiply with the result instead of
+   * view2d_scale_get_x()) so that we can multiply with the result instead of
    * doing yet another division. */
   const float target_scale = BLI_rctf_size_x(&view_rect) / BLI_rcti_size_x(&view_2d.mask);
   const float margin_in_frames = margin_in_px * target_scale;

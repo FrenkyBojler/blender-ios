@@ -44,6 +44,7 @@
 
 #define _DNA_DEFAULT_FFMpegCodecData \
   { \
+    .custom_constant_rate_factor = 23, \
     .audio_mixrate = 48000, \
     .audio_volume = 1.0f, \
     .audio_bitrate = 192, \
@@ -109,7 +110,6 @@
     .bg_stamp = {0.0f, 0.0f, 0.0f, 0.25f}, \
  \
     .seq_prev_type = OB_SOLID, \
-    .seq_rend_type = OB_SOLID, \
     .seq_flag = 0, \
  \
     .threads = 1, \

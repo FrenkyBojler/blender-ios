@@ -2,8 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <pxr/base/gf/vec2f.h>
-#include <pxr/base/tf/staticTokens.h>
+#include <pxr/base/tf/token.h>
 #include <pxr/imaging/hd/tokens.h>
 
 #include "BLI_array_utils.hh"
@@ -11,7 +10,6 @@
 #include "BLI_vector_set.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_customdata.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 
@@ -375,7 +373,7 @@ void MeshData::write_submeshes(const Mesh *mesh)
   const Span<int> tri_faces = mesh->corner_tri_faces();
   const std::pair<bke::MeshNormalDomain, Span<float3>> normals = get_mesh_normals(*mesh);
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const StringRef active_uv = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2);
+  const StringRef active_uv = mesh->active_uv_map_name();
   const VArraySpan uv_map = *attributes.lookup<float2>(active_uv, bke::AttrDomain::Corner);
   const VArraySpan material_indices = *attributes.lookup<int>("material_index",
                                                               bke::AttrDomain::Face);
