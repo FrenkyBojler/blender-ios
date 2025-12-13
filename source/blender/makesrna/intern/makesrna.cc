@@ -3730,18 +3730,24 @@ static void rna_generate_struct_register_prototypes(BlenderRNA *brna, FILE *f)
 static void rna_generate_blender(BlenderRNA *brna, FILE *f)
 {
   fprintf(f,
+          "static BlenderRNA blender_rna_create()\n"
+          "{\n"
+          "\tBlenderRNA brna{};\n");
+  for (StructRNA *srna : brna->structs) {
+    fprintf(f, "\tRNA_%s = MEM_new<StructRNA>(__func__);\n", srna->identifier);
+  }
+  for (StructRNA *srna : brna->structs) {
+    fprintf(f, "\tregister_struct_%s(brna);\n", srna->identifier);
+  }
+  fprintf(f,
+          "\treturn brna;\n"
+          "}\n");
+  fprintf(f,
           "BlenderRNA &RNA_blender_rna_get()\n"
           "{\n"
-          "\tstatic BlenderRNA BLENDER_RNA = []() {\n"
-          "\t\tBlenderRNA brna{};\n");
-  for (StructRNA *srna : brna->structs) {
-    fprintf(f, "\t\tregister_struct_%s(brna);\n", srna->identifier);
-  }
-
+          "\tstatic BlenderRNA BLENDER_RNA = blender_rna_create();\n");
   /* structs_map is created by RNA_init(). */
   fprintf(f,
-          "\t\treturn brna;\n"
-          "\t}();\n"
           "\treturn BLENDER_RNA;\n"
           "}\n\n");
 }
@@ -4726,7 +4732,8 @@ static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *
           srna->identifier);
   fprintf(f,
           "{\n"
-          "\tStructRNA *srna = MEM_new<StructRNA>(__func__);\n");
+          "\tStructRNA *srna = RNA_%s;\n",
+          srna->identifier);
 
   prop = static_cast<PropertyRNA *>(srna->cont.properties.first);
   if (prop) {
@@ -4789,14 +4796,28 @@ static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *
     fprintf(f, "\tsrna->nested = RNA_%s;\n", srna->nested->identifier);
   }
 
-  fprintf(f, "\tsrna->refine = %s;\n", rna_function_string(srna->refine));
-  fprintf(f, "\tsrna->path = %s;\n", rna_function_string(srna->path));
-  fprintf(f, "\tsrna->reg = %s;\n", rna_function_string(srna->reg));
-  fprintf(f, "\tsrna->unreg = %s;\n", rna_function_string(srna->unreg));
-  fprintf(f, "\tsrna->instance = %s;\n", rna_function_string(srna->instance));
-  fprintf(f, "\tsrna->idproperties = %s;\n", rna_function_string(srna->idproperties));
-  fprintf(
-      f, "\tsrna->system_idproperties = %s;\n", rna_function_string(srna->system_idproperties));
+  if (srna->refine) {
+    fprintf(f, "\tsrna->refine = %s;\n", rna_function_string(srna->refine));
+  }
+  if (srna->path) {
+    fprintf(f, "\tsrna->path = %s;\n", rna_function_string(srna->path));
+  }
+  if (srna->reg) {
+    fprintf(f, "\tsrna->reg = %s;\n", rna_function_string(srna->reg));
+  }
+  if (srna->unreg) {
+    fprintf(f, "\tsrna->unreg = %s;\n", rna_function_string(srna->unreg));
+  }
+  if (srna->instance) {
+    fprintf(f, "\tsrna->instance = %s;\n", rna_function_string(srna->instance));
+  }
+  if (srna->idproperties) {
+    fprintf(f, "\tsrna->idproperties = %s;\n", rna_function_string(srna->idproperties));
+  }
+  if (srna->system_idproperties) {
+    fprintf(
+        f, "\tsrna->system_idproperties = %s;\n", rna_function_string(srna->system_idproperties));
+  }
 
   if (srna->reg && !srna->refine) {
     CLOG_ERROR(
@@ -4804,30 +4825,19 @@ static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *
     DefRNA.error = true;
   }
 
-  func = static_cast<FunctionRNA *>(srna->functions.first);
-  if (func) {
+  if (!BLI_listbase_is_empty(&srna->functions)) {
+    func = static_cast<FunctionRNA *>(srna->functions.first);
     fprintf(f,
             "\tsrna->functions = {(FunctionRNA *)&rna_%s_%s_func, ",
             srna->identifier,
             func->identifier);
-  }
-  else {
-    fprintf(f, "\tsrna->functions = {nullptr, ");
-  }
-
-  func = static_cast<FunctionRNA *>(srna->functions.last);
-  if (func) {
+    func = static_cast<FunctionRNA *>(srna->functions.last);
     fprintf(f, "(FunctionRNA *)&rna_%s_%s_func};\n", srna->identifier, func->identifier);
-  }
-  else {
-    fprintf(f, "nullptr};\n");
   }
 
   fprintf(f,
           "\tbrna.structs.append(srna);\n"
-          "\tRNA_%s = srna;\n"
-          "};\n",
-          srna->identifier);
+          "};\n");
 
   fprintf(f, "\n");
 }
