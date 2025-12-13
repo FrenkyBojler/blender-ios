@@ -8,7 +8,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
-from pxr import Ar, Gf, Sdf, Usd, UsdGeom, UsdShade, UsdUI
+from pxr import Ar, Sdf, Usd, UsdGeom, UsdShade, UsdUI
 
 import bpy
 
