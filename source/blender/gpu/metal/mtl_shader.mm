@@ -253,25 +253,7 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
 
   std::string concat_source = fmt::to_string(fmt::join(sources, "")) + wrapper.second;
 
-  if (this->name_get() == G.gpu_debug_shader_source_name) {
-    NSFileManager *sharedFM = [NSFileManager defaultManager];
-    NSURL *app_bundle_url = [[NSBundle mainBundle] bundleURL];
-    NSURL *shader_dir = [[app_bundle_url URLByDeletingLastPathComponent]
-        URLByAppendingPathComponent:@"Shaders/"
-                        isDirectory:YES];
-
-    [sharedFM createDirectoryAtURL:shader_dir
-        withIntermediateDirectories:YES
-                         attributes:nil
-                              error:nil];
-
-    const char *path_cstr = [shader_dir fileSystemRepresentation];
-
-    std::ofstream output_source_file(std::string(path_cstr) + "/" +
-                                     this->entry_point_name_get(stage) + ".msl");
-    output_source_file << concat_source;
-    output_source_file.close();
-  }
+  dump_source_to_disk(this->name_get(), this->entry_point_name_get(stage), ".msl", concat_source);
 
   {
     ::MTLCompileOptions *options = get_compile_options(
@@ -479,8 +461,8 @@ void MTLShader::warm_cache(int limit)
     MTLShader *parent_mtl = static_cast<MTLShader *>(parent_shader_);
 
     /* Extract PSO descriptors from parent shader. */
-    blender::Vector<MTLRenderPipelineStateDescriptor> descriptors;
-    blender::Vector<MTLPrimitiveTopologyClass> prim_classes;
+    Vector<MTLRenderPipelineStateDescriptor> descriptors;
+    Vector<MTLPrimitiveTopologyClass> prim_classes;
 
     parent_mtl->pso_cache_lock_.lock();
     for (const auto &pso_entry : parent_mtl->pso_cache_.items()) {
