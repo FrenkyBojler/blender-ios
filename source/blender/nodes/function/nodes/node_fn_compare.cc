@@ -275,7 +275,7 @@ template<typename T> static bool same_original_id_pointer(const T *a, const T *b
     return a == b;
   }
 
-  return DEG_get_original(a) == DEG_get_original(a);
+  return DEG_get_original(a) == DEG_get_original(b);
 }
 
 template<typename T> static bool not_same_original_id_pointer(const T *a, const T *b)
