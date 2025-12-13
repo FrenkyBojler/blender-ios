@@ -90,6 +90,19 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Result");
 }
 
+static bool is_data_block_socket(const eNodeSocketDatatype value)
+{
+  return ELEM(value,
+              SOCK_MATERIAL,
+              SOCK_OBJECT,
+              SOCK_COLLECTION,
+              SOCK_IMAGE,
+              SOCK_SCENE,
+              SOCK_FONT,
+              SOCK_TEXT_ID,
+              SOCK_SOUND);
+}
+
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   const NodeFunctionCompare &data = node_storage(*static_cast<const bNode *>(ptr->data));
@@ -103,40 +116,31 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_update(bNodeTree *ntree, bNode *node)
 {
   NodeFunctionCompare *data = (NodeFunctionCompare *)node->storage;
+  const auto data_type = eNodeSocketDatatype(data->data_type);
 
   bNodeSocket *sock_comp = (bNodeSocket *)BLI_findlink(&node->inputs, 26);
   bNodeSocket *sock_angle = (bNodeSocket *)BLI_findlink(&node->inputs, 27);
   bNodeSocket *sock_epsilon = (bNodeSocket *)BLI_findlink(&node->inputs, 28);
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
-    bke::node_set_socket_availability(
-        *ntree, *socket, socket->type == eNodeSocketDatatype(data->data_type));
+    bke::node_set_socket_availability(*ntree, *socket, socket->type == data_type);
   }
 
   bke::node_set_socket_availability(
       *ntree,
       *sock_epsilon,
-      ELEM(data->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL) && !ELEM(data->data_type,
-                                                                                 SOCK_INT,
-                                                                                 SOCK_STRING,
-                                                                                 SOCK_MATERIAL,
-                                                                                 SOCK_OBJECT,
-                                                                                 SOCK_COLLECTION,
-                                                                                 SOCK_IMAGE,
-                                                                                 SOCK_SCENE,
-                                                                                 SOCK_FONT,
-                                                                                 SOCK_TEXT_ID,
-                                                                                 SOCK_SOUND));
+      ELEM(data->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL) &&
+          !(ELEM(data_type, SOCK_INT, SOCK_STRING) || is_data_block_socket(data_type)));
 
   bke::node_set_socket_availability(*ntree,
                                     *sock_comp,
                                     ELEM(data->mode, NODE_COMPARE_MODE_DOT_PRODUCT) &&
-                                        data->data_type == SOCK_VECTOR);
+                                        data_type == SOCK_VECTOR);
 
   bke::node_set_socket_availability(*ntree,
                                     *sock_angle,
                                     ELEM(data->mode, NODE_COMPARE_MODE_DIRECTION) &&
-                                        data->data_type == SOCK_VECTOR);
+                                        data_type == SOCK_VECTOR);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -212,21 +216,8 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
-  if (!ELEM(type,
-            SOCK_INT,
-            SOCK_BOOLEAN,
-            SOCK_FLOAT,
-            SOCK_VECTOR,
-            SOCK_RGBA,
-            SOCK_STRING,
-            SOCK_MATERIAL,
-            SOCK_OBJECT,
-            SOCK_COLLECTION,
-            SOCK_IMAGE,
-            SOCK_SCENE,
-            SOCK_FONT,
-            SOCK_TEXT_ID,
-            SOCK_SOUND))
+  if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING) ||
+      is_data_block_socket(type))
   {
     return;
   }
@@ -245,17 +236,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     }
   }
 
-  if (params.in_out() != SOCK_IN && !ELEM(type,
-                                          SOCK_STRING,
-                                          SOCK_MATERIAL,
-                                          SOCK_OBJECT,
-                                          SOCK_COLLECTION,
-                                          SOCK_IMAGE,
-                                          SOCK_SCENE,
-                                          SOCK_FONT,
-                                          SOCK_TEXT_ID,
-                                          SOCK_SOUND))
-  {
+  if (params.in_out() != SOCK_IN && !(type == SOCK_STRING || is_data_block_socket(type))) {
     params.add_item(
         IFACE_("Angle"),
         SocketSearchOp{
@@ -667,12 +648,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
-              "Equal", [](std::string a, std::string b) { return a == b; });
+              "Equal",
+              [](std::string a, std::string b) { return a == b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<std::string, std::string, bool>(
-              "Not Equal", [](std::string a, std::string b) { return a != b; });
+              "Not Equal",
+              [](std::string a, std::string b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -681,12 +666,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Material *, Material *, bool>(
-              "Equal", [](Material *a, Material *b) { return a == b; });
+              "Equal",
+              [](Material *a, Material *b) { return a == b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Material *, Material *, bool>(
-              "Not Equal", [](Material *a, Material *b) { return a != b; });
+              "Not Equal",
+              [](Material *a, Material *b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -694,12 +683,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Object *, Object *, bool>(
-              "Equal", [](Object *a, Object *b) { return a == b; });
+              "Equal",
+              [](Object *a, Object *b) { return a == b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Object *, Object *, bool>(
-              "Not Equal", [](Object *a, Object *b) { return a != b; });
+              "Not Equal",
+              [](Object *a, Object *b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -707,12 +700,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Collection *, Collection *, bool>(
-              "Equal", [](Collection *a, Collection *b) { return a == b; });
+              "Equal",
+              [](Collection *a, Collection *b) { return a == b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Collection *, Collection *, bool>(
-              "Not Equal", [](Collection *a, Collection *b) { return a != b; });
+              "Not Equal",
+              [](Collection *a, Collection *b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -720,12 +717,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Image *, Image *, bool>(
-              "Equal", [](Image *a, Image *b) { return a == b; });
+              "Equal",
+              [](Image *a, Image *b) { return a == b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Image *, Image *, bool>(
-              "Not Equal", [](Image *a, Image *b) { return a != b; });
+              "Not Equal",
+              [](Image *a, Image *b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -734,12 +735,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Scene *, Scene *, bool>(
-              "Equal", [](Scene *a, Scene *b) { return a == b; });
+              "Equal",
+              [](Scene *a, Scene *b) { return a == b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Scene *, Scene *, bool>(
-              "Not Equal", [](Scene *a, Scene *b) { return a != b; });
+              "Not Equal",
+              [](Scene *a, Scene *b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -748,12 +753,14 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<Text *, Text *, bool>(
-              "Equal", [](Text *a, Text *b) { return a == b; });
+              "Equal", [](Text *a, Text *b) { return a == b; }, mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<Text *, Text *, bool>(
-              "Not Equal", [](Text *a, Text *b) { return a != b; });
+              "Not Equal",
+              [](Text *a, Text *b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -762,12 +769,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<VFont *, VFont *, bool>(
-              "Equal", [](VFont *a, VFont *b) { return a == b; });
+              "Equal",
+              [](VFont *a, VFont *b) { return a == b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<VFont *, VFont *, bool>(
-              "Not Equal", [](VFont *a, VFont *b) { return a != b; });
+              "Not Equal",
+              [](VFont *a, VFont *b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -776,12 +787,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       switch (data->operation) {
         case NODE_COMPARE_EQUAL: {
           static auto fn = mf::build::SI2_SO<bSound *, bSound *, bool>(
-              "Equal", [](bSound *a, bSound *b) { return a == b; });
+              "Equal",
+              [](bSound *a, bSound *b) { return a == b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
         case NODE_COMPARE_NOT_EQUAL: {
           static auto fn = mf::build::SI2_SO<bSound *, bSound *, bool>(
-              "Not Equal", [](bSound *a, bSound *b) { return a != b; });
+              "Not Equal",
+              [](bSound *a, bSound *b) { return a != b; },
+              mf::build::exec_presets::Simple());
           return &fn;
         }
       }
@@ -800,30 +815,22 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
   NodeFunctionCompare *node_storage = static_cast<NodeFunctionCompare *>(node->storage);
+  const auto data_type = eNodeSocketDatatype(node_storage->data_type);
 
-  if (node_storage->data_type == SOCK_RGBA && !ELEM(node_storage->operation,
-                                                    NODE_COMPARE_EQUAL,
-                                                    NODE_COMPARE_NOT_EQUAL,
-                                                    NODE_COMPARE_COLOR_BRIGHTER,
-                                                    NODE_COMPARE_COLOR_DARKER))
+  if (data_type == SOCK_RGBA && !ELEM(node_storage->operation,
+                                      NODE_COMPARE_EQUAL,
+                                      NODE_COMPARE_NOT_EQUAL,
+                                      NODE_COMPARE_COLOR_BRIGHTER,
+                                      NODE_COMPARE_COLOR_DARKER))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
-  else if (ELEM(node_storage->data_type,
-                SOCK_STRING,
-                SOCK_MATERIAL,
-                SOCK_OBJECT,
-                SOCK_COLLECTION,
-                SOCK_IMAGE,
-                SOCK_SCENE,
-                SOCK_FONT,
-                SOCK_TEXT_ID,
-                SOCK_SOUND) &&
+  else if ((data_type == SOCK_STRING || is_data_block_socket(data_type)) &&
            !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
-  else if (node_storage->data_type != SOCK_RGBA &&
+  else if (data_type != SOCK_RGBA &&
            ELEM(node_storage->operation, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
@@ -873,30 +880,21 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         bNode *node = static_cast<bNode *>(ptr->data);
         NodeFunctionCompare *data = static_cast<NodeFunctionCompare *>(node->storage);
+        const auto data_type = eNodeSocketDatatype(data->data_type);
 
-        if (ELEM(data->data_type, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR)) {
+        if (ELEM(data_type, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR)) {
           return enum_items_filter(
               rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
                 return !ELEM(item.value, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER);
               });
         }
-        if (ELEM(data->data_type,
-                 SOCK_STRING,
-                 SOCK_MATERIAL,
-                 SOCK_OBJECT,
-                 SOCK_COLLECTION,
-                 SOCK_IMAGE,
-                 SOCK_SCENE,
-                 SOCK_FONT,
-                 SOCK_TEXT_ID,
-                 SOCK_SOUND))
-        {
+        if (data_type == SOCK_STRING || is_data_block_socket(data_type)) {
           return enum_items_filter(
               rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
                 return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
               });
         }
-        if (data->data_type == SOCK_RGBA) {
+        if (data_type == SOCK_RGBA) {
           return enum_items_filter(rna_enum_node_compare_operation_items,
                                    [](const EnumPropertyItem &item) {
                                      return ELEM(item.value,
@@ -920,23 +918,11 @@ static void node_rna(StructRNA *srna)
       std::nullopt,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(rna_enum_node_socket_data_type_items,
-                                 [](const EnumPropertyItem &item) {
-                                   return ELEM(item.value,
-                                               SOCK_FLOAT,
-                                               SOCK_INT,
-                                               SOCK_VECTOR,
-                                               SOCK_STRING,
-                                               SOCK_RGBA,
-                                               SOCK_MATERIAL,
-                                               SOCK_OBJECT,
-                                               SOCK_COLLECTION,
-                                               SOCK_IMAGE,
-                                               SOCK_SCENE,
-                                               SOCK_FONT,
-                                               SOCK_TEXT_ID,
-                                               SOCK_SOUND);
-                                 });
+        return enum_items_filter(
+            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) {
+              return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA) ||
+                     is_data_block_socket(eNodeSocketDatatype(item.value));
+            });
       });
   RNA_def_property_update_runtime(prop, data_type_update);
 
