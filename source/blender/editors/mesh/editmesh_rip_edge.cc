@@ -39,7 +39,6 @@ using blender::Vector;
 
 static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
