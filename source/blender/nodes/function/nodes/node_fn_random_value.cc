@@ -41,7 +41,8 @@ static void node_declare(NodeDeclarationBuilder &b)
             .min(0.0f)
             .max(1.0f)
             .default_value(0.5f)
-            .subtype(PROP_FACTOR);
+            .subtype(PROP_FACTOR)
+            .make_available([](bNode &node) { node_storage(node).data_type = CD_PROP_BOOL; });
         break;
       default:
         BLI_assert_unreachable();

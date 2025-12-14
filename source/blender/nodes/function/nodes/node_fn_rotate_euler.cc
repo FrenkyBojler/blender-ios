@@ -25,12 +25,21 @@ static void node_declare(NodeDeclarationBuilder &b)
     const auto type = FunctionNodeRotateEulerType(node->custom1);
     switch (type) {
       case FN_NODE_ROTATE_EULER_TYPE_EULER:
-        b.add_input<decl::Vector>("Rotate By").subtype(PROP_EULER);
+        b.add_input<decl::Vector>("Rotate By").subtype(PROP_EULER).make_available([](bNode &node) {
+          node.custom1 = FN_NODE_ROTATE_EULER_TYPE_EULER;
+        });
         break;
-      case FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE:
-        b.add_input<decl::Vector>("Axis").default_value({0.0, 0.0, 1.0}).subtype(PROP_XYZ);
-        b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE);
+      case FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE: {
+        const auto enable_axis_angle = [](bNode &node) {
+          node.custom1 = FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE;
+        };
+        b.add_input<decl::Vector>("Axis")
+            .default_value({0.0, 0.0, 1.0})
+            .subtype(PROP_XYZ)
+            .make_available(enable_axis_angle);
+        b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE).make_available(enable_axis_angle);
         break;
+      }
       default:
         BLI_assert_unreachable();
         break;
@@ -129,7 +138,6 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
-  ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
   ntype.deprecation_notice = N_("Use the \"Rotate Rotation\" node instead");
   blender::bke::node_register_type(ntype);
