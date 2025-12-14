@@ -149,41 +149,48 @@ static float median_of_sorted_span(const Span<float> data)
   return median;
 }
 
-static void node_geo_exec(GeoNodeExecParams params)
+template<typename T> Vector<T> gather_selected_values(const bNode &node, GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const bNode &node = params.node();
-  const eCustomDataType data_type = eCustomDataType(node.custom1);
-  const AttrDomain domain = AttrDomain(node.custom2);
   Vector<const GeometryComponent *> components = geometry_set.get_components();
 
+  const AttrDomain domain = AttrDomain(node.custom2);
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  const Field<T> input_field = params.extract_input<Field<T>>("Attribute");
+
+  Vector<T> data;
+  for (const GeometryComponent *component : components) {
+    const std::optional<AttributeAccessor> attributes = component->attributes();
+    if (!attributes.has_value()) {
+      continue;
+    }
+    if (attributes->domain_supported(domain)) {
+      const bke::GeometryFieldContext field_context{*component, domain};
+      fn::FieldEvaluator data_evaluator{field_context, attributes->domain_size(domain)};
+      data_evaluator.add(input_field);
+      data_evaluator.set_selection(selection_field);
+      data_evaluator.evaluate();
+      const VArray<T> component_data = data_evaluator.get_evaluated<T>(0);
+      const IndexMask selection = data_evaluator.get_evaluated_selection_as_mask();
+
+      const int next_data_index = data.size();
+      data.resize(next_data_index + selection.size());
+      MutableSpan<T> selected_data = data.as_mutable_span().slice(next_data_index,
+                                                                  selection.size());
+      array_utils::gather(component_data, selection, selected_data);
+    }
+  }
+  return data;
+}
+
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  const bNode &node = params.node();
+  const eCustomDataType data_type = eCustomDataType(node.custom1);
 
   switch (data_type) {
     case CD_PROP_FLOAT: {
-      const Field<float> input_field = params.extract_input<Field<float>>("Attribute");
-      Vector<float> data;
-      for (const GeometryComponent *component : components) {
-        const std::optional<AttributeAccessor> attributes = component->attributes();
-        if (!attributes.has_value()) {
-          continue;
-        }
-        if (attributes->domain_supported(domain)) {
-          const bke::GeometryFieldContext field_context{*component, domain};
-          fn::FieldEvaluator data_evaluator{field_context, attributes->domain_size(domain)};
-          data_evaluator.add(input_field);
-          data_evaluator.set_selection(selection_field);
-          data_evaluator.evaluate();
-          const VArray<float> component_data = data_evaluator.get_evaluated<float>(0);
-          const IndexMask selection = data_evaluator.get_evaluated_selection_as_mask();
-
-          const int next_data_index = data.size();
-          data.resize(next_data_index + selection.size());
-          MutableSpan<float> selected_data = data.as_mutable_span().slice(next_data_index,
-                                                                          selection.size());
-          array_utils::gather(component_data, selection, selected_data);
-        }
-      }
+      Vector<float> data = gather_selected_values<float>(node, params);
 
       float mean = 0.0f;
       float median = 0.0f;
@@ -239,29 +246,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       break;
     }
     case CD_PROP_FLOAT3: {
-      const Field<float3> input_field = params.extract_input<Field<float3>>("Attribute");
-      Vector<float3> data;
-      for (const GeometryComponent *component : components) {
-        const std::optional<AttributeAccessor> attributes = component->attributes();
-        if (!attributes.has_value()) {
-          continue;
-        }
-        if (attributes->domain_supported(domain)) {
-          const bke::GeometryFieldContext field_context{*component, domain};
-          fn::FieldEvaluator data_evaluator{field_context, attributes->domain_size(domain)};
-          data_evaluator.add(input_field);
-          data_evaluator.set_selection(selection_field);
-          data_evaluator.evaluate();
-          const VArray<float3> component_data = data_evaluator.get_evaluated<float3>(0);
-          const IndexMask selection = data_evaluator.get_evaluated_selection_as_mask();
-
-          const int next_data_index = data.size();
-          data.resize(data.size() + selection.size());
-          MutableSpan<float3> selected_data = data.as_mutable_span().slice(next_data_index,
-                                                                           selection.size());
-          array_utils::gather(component_data, selection, selected_data);
-        }
-      }
+      Vector<float3> data = gather_selected_values<float3>(node, params);
 
       float3 median{0};
       float3 min{0};
@@ -341,29 +326,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       break;
     }
     case CD_PROP_BOOL: {
-      const Field<bool> input_field = params.extract_input<Field<bool>>("Attribute");
-      Vector<bool> data;
-      for (const GeometryComponent *component : components) {
-        const std::optional<AttributeAccessor> attributes = component->attributes();
-        if (!attributes.has_value()) {
-          continue;
-        }
-        if (attributes->domain_supported(domain)) {
-          const bke::GeometryFieldContext field_context{*component, domain};
-          fn::FieldEvaluator data_evaluator{field_context, attributes->domain_size(domain)};
-          data_evaluator.add(input_field);
-          data_evaluator.set_selection(selection_field);
-          data_evaluator.evaluate();
-          const VArray<bool> component_data = data_evaluator.get_evaluated<bool>(0);
-          const IndexMask selection = data_evaluator.get_evaluated_selection_as_mask();
-
-          const int next_data_index = data.size();
-          data.resize(next_data_index + selection.size());
-          MutableSpan<bool> selected_data = data.as_mutable_span().slice(next_data_index,
-                                                                         selection.size());
-          array_utils::gather(component_data, selection, selected_data);
-        }
-      }
+      Vector<bool> data = gather_selected_values<bool>(node, params);
 
       bool any = false;
       bool all = true;
