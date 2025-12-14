@@ -265,6 +265,30 @@ std::optional<ParsedSdnaBuffer> parse_sdna_buffer(const void *buffer, const int6
   return parser.parse();
 }
 
+struct PrimitiveTypeInfo {
+  PrimitiveType type;
+  int expected_size;
+};
+
+static const Map<StringRef, PrimitiveTypeInfo> &get_primitive_type_map()
+{
+  static Map<StringRef, PrimitiveTypeInfo> map = []() {
+    Map<StringRef, PrimitiveTypeInfo> map;
+    map.add("char", {PrimitiveType::Char, 1});
+    map.add("uchar", {PrimitiveType::UChar, 1});
+    map.add("short", {PrimitiveType::Short, 2});
+    map.add("ushort", {PrimitiveType::UShort, 2});
+    map.add("int", {PrimitiveType::Int, 4});
+    map.add("float", {PrimitiveType::Float, 4});
+    map.add("double", {PrimitiveType::Double, 8});
+    map.add("int64_t", {PrimitiveType::Int64, 8});
+    map.add("uint64_t", {PrimitiveType::UInt64, 8});
+    map.add("int8_t", {PrimitiveType::Int8, 1});
+    return map;
+  }();
+  return map;
+}
+
 std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const int64_t buffer_size)
 {
   std::optional<ParsedSdnaBuffer> parsed = parse_sdna_buffer(buffer, buffer_size);
@@ -282,6 +306,8 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna(const SDNA &raw_sdna)
 {
   auto rich_sdna = std::make_unique<RichSDNA>();
 
+  const Map<StringRef, PrimitiveTypeInfo> &primitive_type_map = get_primitive_type_map();
+
   LinearAllocator<> &allocator = rich_sdna->scope_.allocator();
   for (const int type_i : IndexRange(raw_sdna.types_num)) {
     const StringRefNull type_name = allocator.copy_string(raw_sdna.types[type_i]);
@@ -290,47 +316,13 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna(const SDNA &raw_sdna)
     sdna_type.name = type_name;
     sdna_type.size_in_bytes = raw_sdna.types_size[type_i];
     sdna_type.index = type_i;
-    if (type_name == "char") {
-      sdna_type.opt_primitive_type = PrimitiveType::Char;
-      BLI_assert(sdna_type.size_in_bytes == 1);
-    }
-    else if (type_name == "uchar") {
-      sdna_type.opt_primitive_type = PrimitiveType::UChar;
-      BLI_assert(sdna_type.size_in_bytes == 1);
-    }
-    else if (type_name == "short") {
-      sdna_type.opt_primitive_type = PrimitiveType::Short;
-      BLI_assert(sdna_type.size_in_bytes == 2);
-    }
-    else if (type_name == "ushort") {
-      sdna_type.opt_primitive_type = PrimitiveType::UShort;
-      BLI_assert(sdna_type.size_in_bytes == 2);
-    }
-    else if (type_name == "int") {
-      sdna_type.opt_primitive_type = PrimitiveType::Int;
-      BLI_assert(sdna_type.size_in_bytes == 4);
-    }
-    else if (type_name == "float") {
-      sdna_type.opt_primitive_type = PrimitiveType::Float;
-      BLI_assert(sdna_type.size_in_bytes == 4);
-    }
-    else if (type_name == "double") {
-      sdna_type.opt_primitive_type = PrimitiveType::Double;
-      BLI_assert(sdna_type.size_in_bytes == 8);
-    }
-    else if (type_name == "int64_t") {
-      sdna_type.opt_primitive_type = PrimitiveType::Int64;
-      BLI_assert(sdna_type.size_in_bytes == 8);
-    }
-    else if (type_name == "uint64_t") {
-      sdna_type.opt_primitive_type = PrimitiveType::UInt64;
-      BLI_assert(sdna_type.size_in_bytes == 8);
-    }
-    else if (type_name == "int8_t") {
-      sdna_type.opt_primitive_type = PrimitiveType::Int8;
-      BLI_assert(sdna_type.size_in_bytes == 1);
-    }
 
+    if (const PrimitiveTypeInfo *primitive_type_info = primitive_type_map.lookup_ptr(type_name)) {
+      if (sdna_type.size_in_bytes != primitive_type_info->expected_size) {
+        return nullptr;
+      }
+      sdna_type.opt_primitive_type = primitive_type_info->type;
+    }
     rich_sdna->types.add(&sdna_type);
   }
   for (const int struct_i : IndexRange(raw_sdna.structs_num)) {
