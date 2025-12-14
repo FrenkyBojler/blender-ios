@@ -7,7 +7,6 @@
  */
 
 #include "DNA_meshdata_types.h"
-#include "DNA_space_types.h"
 
 #include "extract_mesh.hh"
 
@@ -16,8 +15,7 @@
 #include "draw_subdivision.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_mesh.hh"
-#include "BKE_paint.hh"
+#include "BKE_customdata.hh"
 
 #include "UI_resources.hh"
 
@@ -449,9 +447,8 @@ gpu::VertBufPtr extract_edit_face_set(const MeshRenderData &mr)
       threading::parallel_for(faces.index_range(), 2048, [&](const IndexRange range) {
         for (const int face : range) {
           const int face_set_id = face_sets[face];
-          const int value = face_set_id;
           for (const int corner : faces[face]) {
-            data[corner] = value;
+            data[corner] = face_set_id;
           }
         }
       });

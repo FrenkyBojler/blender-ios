@@ -4383,7 +4383,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
           LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
             if (sl->spacetype == SPACE_VIEW3D) {
               View3D *v3d = (View3D *)sl;
-              v3d->overlay.face_sets_opacity = 0.4f;
+              v3d->overlay.face_sets_opacity = 1.0f;
             }
           }
         }

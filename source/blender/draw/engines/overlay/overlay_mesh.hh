@@ -440,7 +440,6 @@ class Meshes : Overlay {
         manager.submit(edit_mesh_cages_ps_, view);
       }
     }
-    /* Face Sets are now drawn on render framebuffer via draw_on_render(), not here. */
 
     if (xray_flag_enabled_) {
       GPU_debug_group_end();
@@ -471,7 +470,6 @@ class Meshes : Overlay {
         manager.submit(edit_mesh_faces_ps_, view);
         manager.submit(edit_mesh_cages_ps_, view);
       }
-      /* Face Sets are now drawn on render framebuffer via draw_on_render(), not here. */
     }
 
     if (!xray_flag_enabled_) {
@@ -496,7 +494,8 @@ class Meshes : Overlay {
       return;
     }
 
-    /* Check if framebuffer is valid. It can be null during selection or depth-only drawing. */
+    /* Face sets require render framebuffer for multiplicative blending.
+     * Skip rendering during selection or depth-only drawing when framebuffer is unavailable. */
     if (framebuffer == nullptr) {
       return;
     }

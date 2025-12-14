@@ -93,9 +93,8 @@ void main()
   /* Compute face set color from id. Default is transparent unless retopology is enabled,
    * where we reuse the retopology theme color to keep parity with sculpt retopo view. */
   bool is_default = (face_set_id == face_set_default);
-  float3 rgb = is_default ?
-                   (retopology_enabled ? theme.colors.face_retopology.rgb : float3(0.0)) :
-                   face_set_color_from_id(face_set_id, face_set_seed);
+  float3 rgb = is_default ? (retopology_enabled ? theme.colors.face_retopology.rgb : float3(0.0)) :
+                            face_set_color_from_id(face_set_id, face_set_seed);
   float alpha = is_default ? (retopology_enabled ? face_sets_opacity : 0.0) : face_sets_opacity;
 
   /* When retopology is enabled, we use BLEND_ALPHA instead of BLEND_MUL because the base mesh

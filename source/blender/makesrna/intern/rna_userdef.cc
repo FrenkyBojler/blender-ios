@@ -233,7 +233,6 @@ static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] =
 #  include "BKE_idprop.hh"
 #  include "BKE_image.hh"
 #  include "BKE_main.hh"
-#  include "BKE_mesh.hh"
 #  include "BKE_mesh_runtime.hh"
 #  include "BKE_object.hh"
 #  include "BKE_paint.hh"
