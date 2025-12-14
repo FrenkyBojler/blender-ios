@@ -12,6 +12,7 @@ class VRDefaultActionmaps(Enum):
 
 # Default actions.
 class VRDefaultActions(Enum):
+    EMPTY = "empty"
     CONTROLLER_GRIP = "controller_grip"
     CONTROLLER_AIM = "controller_aim"
     TELEPORT = "teleport"
@@ -32,7 +33,6 @@ class VRDefaultActions(Enum):
     HAPTIC_RIGHT = "haptic_right"
     HAPTIC_LEFTTRIGGER = "haptic_lefttrigger"
     HAPTIC_RIGHTTRIGGER = "haptic_righttrigger"
-
 
 # Default action bindings.
 class VRDefaultActionbindings(Enum):
@@ -59,6 +59,7 @@ class VRDefaultActionprofiles(Enum):
     VIVE_COSMOS = "/interaction_profiles/htc/vive_cosmos_controller"
     VIVE_FOCUS = "/interaction_profiles/htc/vive_focus3_controller"
     WMR = "/interaction_profiles/microsoft/motion_controller"
+
 
 class VRActionProfile():
     def __init__(self, name):

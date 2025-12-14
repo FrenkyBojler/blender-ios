@@ -14,6 +14,7 @@ import math
 import os.path
 
 from .action_profile import VRDefaultActions, VRDefaultActionprofiles, VRDefaultActionbindings, VRDefaultActionmaps
+
 from .profiles.huawei import VRActionProfileHuawei
 from .profiles.index import VRActionProfileIndex
 from .profiles.oculus import VRActionProfileOculus
@@ -23,6 +24,11 @@ from .profiles.vive import VRActionProfileVive
 from .profiles.vive_cosmos import VRActionProfileViveCosmos
 from .profiles.vive_focus import VRActionProfileViveFocus
 from .profiles.wmr import VRActionProfileWMR
+
+from .actions.action_fly import VRActionFlyForward, VRActionFlyBack, VRActionFlyLeft, VRActionFlyRight, VRActionFlyUp, VRActionFlyDown, VRActionFlyTurnLeft, VRActionFlyTurnRight
+from .actions.action_nav_reset import VRActionNavReset
+from .actions.action_teleport import VRActionTeleport
+from .actions.action_nav_grab import VRActionNavGrab
 
 
 def vr_defaults_actionmap_add(session_state, name):
@@ -197,15 +203,31 @@ def vr_defaults_create_default(session_state):
     if not am:
         return
 
-    action_profiles = [VRActionProfileHuawei(),
-                VRActionProfileIndex(),
-                VRActionProfileOculus(),
-                VRActionProfileReverbG2(),
-                VRActionProfileVive(),
-                VRActionProfileViveCosmos(),
-                VRActionProfileViveFocus(),
-                VRActionProfileWMR(),
-                VRActionProfileSimple()]
+    action_profiles = [
+        VRActionProfileHuawei(),
+        VRActionProfileIndex(),
+        VRActionProfileOculus(),
+        VRActionProfileReverbG2(),
+        VRActionProfileSimple(),
+        VRActionProfileVive(),
+        VRActionProfileViveCosmos(),
+        VRActionProfileViveFocus(),
+        VRActionProfileWMR(),
+    ]
+    
+    actions = {
+        VRDefaultActions.TELEPORT.value: VRActionTeleport(),
+        VRDefaultActions.NAV_GRAB.value: VRActionNavGrab(),
+        VRDefaultActions.FLY_FORWARD.value: VRActionFlyForward(),
+        VRDefaultActions.FLY_BACK.value: VRActionFlyBack(),
+        VRDefaultActions.FLY_LEFT.value: VRActionFlyLeft(),
+        VRDefaultActions.FLY_RIGHT.value: VRActionFlyRight(),
+        VRDefaultActions.FLY_UP.value: VRActionFlyUp(),
+        VRDefaultActions.FLY_DOWN.value: VRActionFlyDown(),
+        VRDefaultActions.FLY_TURNLEFT.value: VRActionFlyTurnLeft(),
+        VRDefaultActions.FLY_TURNRIGHT.value: VRActionFlyTurnRight(),
+        VRDefaultActions.NAV_RESET.value: VRActionNavReset(),
+    }
 
     ami = vr_defaults_pose_action_add(am,
                                       VRDefaultActions.CONTROLLER_GRIP.value,
@@ -229,215 +251,12 @@ def vr_defaults_create_default(session_state):
                                            VRDefaultActions.CONTROLLER_AIM.value,
                                            action_profiles)
 
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.TELEPORT.value,
-                                 ["/user/hand/left",
-                                  "/user/hand/right"],
-                                 "wm.xr_navigation_teleport",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS')
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                       VRDefaultActions.TELEPORT.value,
-                                       action_profiles)
+    for action_name, action in actions.items():
+        ami = action.vr_action_map_add(am)
+        if not ami:
+            continue
+        vr_defaults_actionbindings_add(ami, action_name, action_profiles)
 
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.NAV_GRAB.value,
-                                 ["/user/hand/left",
-                                  "/user/hand/right"],
-                                 "wm.xr_navigation_grab",
-                                 'MODAL',
-                                 True,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                 [("lock_rotation", True)])
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.NAV_GRAB.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.FLY_FORWARD.value,
-                                 ["/user/hand/left"],
-                                 "wm.xr_navigation_fly",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                 [("mode", 'VIEWER_FORWARD'),
-                                  ("lock_location_z", True)])
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.FLY_FORWARD.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.FLY_BACK.value,
-                                 ["/user/hand/left"],
-                                 "wm.xr_navigation_fly",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                [("mode", 'VIEWER_BACK'),
-                                  ("lock_location_z", True)])
-
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.FLY_BACK.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.FLY_LEFT.value,
-                                 ["/user/hand/left"],
-                                 "wm.xr_navigation_fly",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                [("mode", 'VIEWER_LEFT'),
-                                  ("lock_location_z", True)])
-
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.FLY_LEFT.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.FLY_RIGHT.value,
-                                 ["/user/hand/left"],
-                                 "wm.xr_navigation_fly",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                [("mode", 'VIEWER_RIGHT'),
-                                  ("lock_location_z", True)])
-
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.FLY_RIGHT.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.FLY_UP.value,
-                                 ["/user/hand/right"],
-                                 "wm.xr_navigation_fly",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                [("mode", 'UP')])
-
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.FLY_UP.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.FLY_DOWN.value,
-                                 ["/user/hand/right"],
-                                 "wm.xr_navigation_fly",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                [("mode", 'DOWN')])
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.FLY_DOWN.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.FLY_TURNLEFT.value,
-                                 ["/user/hand/right"],
-                                 "wm.xr_navigation_fly",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                [("mode", 'TURNLEFT')])
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.FLY_TURNLEFT.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.FLY_TURNRIGHT.value,
-                                 ["/user/hand/right"],
-                                 "wm.xr_navigation_fly",
-                                 'MODAL',
-                                 False,
-                                 "",
-                                 False,
-                                 0.0,
-                                 0.0,
-                                 0.0,
-                                 'PRESS',
-                                [("mode", 'TURNRIGHT')])
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.FLY_TURNRIGHT.value,
-                                      action_profiles)
-
-    ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.NAV_RESET.value,
-                                 ["/user/hand/left",
-                                  "/user/hand/right"],
-                                 "wm.xr_navigation_reset",
-                                 'PRESS',
-                                 False,
-                                 "haptic",
-                                 True,
-                                 0.3,
-                                 3000.0,
-                                 0.5,
-                                 'PRESS',
-                                 [("location", False),
-                                  ("rotation", False),
-                                  ("scale", True)])
-    if ami:
-        vr_defaults_actionbindings_add(ami,
-                                      VRDefaultActions.NAV_RESET.value,
-                                      action_profiles)
 
     ami = vr_defaults_haptic_action_add(am,
                                         VRDefaultActions.HAPTIC.value,

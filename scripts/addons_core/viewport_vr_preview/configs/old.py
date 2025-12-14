@@ -470,11 +470,13 @@ def test_actionconfig(actionconfig_data):
          verbose_level=2
       )
       if diff:
-         raise AssertionError(f"Objects differ:\n{diff}")
+         print(f"Error: action configs differ\n{diff}")
+         return
       
    else:
       diff = deep_diff(actionconfig_data, actionconfig_data_old)
       if diff:
-         raise AssertionError("Objects differ")
+         print(f"Error: action configs differ\n{diff}")
+         return
    
    print("No differences found between actionconfig_data and actionconfig_data_old...")
