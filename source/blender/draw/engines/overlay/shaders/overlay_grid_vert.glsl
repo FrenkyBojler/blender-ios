@@ -155,12 +155,15 @@ void main()
   }
 
   /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
-   * inside the rectangle to avoid precision problems with large lines. */
-  bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
-  if (line_outside_rect) {
-    return; /* Discard line. */
+   * inside the rectangle to avoid precision problems with large lines. 
+   * Z-axis line ignores this step. */
+  if (line.axis != 2) {
+    bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
+    if (line_outside_rect) {
+      return; /* Discard line. */
+    }
+    line.P = clamp(line.P, clip_min, clip_max);
   }
-  line.P = clamp(line.P, clip_min, clip_max);
 
   /* Output world-space position. */
   vertex_out.pos = float3(0.0f);
