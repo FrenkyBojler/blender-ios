@@ -3662,7 +3662,7 @@ static Object *convert_curves_to_mesh(Base &base, ObjectConversionInfo &info, Ba
   return newob;
 }
 
-static void grease_penci_separate_shapes_from_materials(bke::greasepencil::Drawing *drawing)
+static void grease_pencil_separate_shapes_from_materials(bke::greasepencil::Drawing *drawing)
 {
   bke::CurvesGeometry &curves = drawing->strokes_for_write();
   VArray<int> materials = *curves.attributes().lookup_or_default(
@@ -3729,7 +3729,7 @@ static Object *convert_curves_to_grease_pencil(Base &base,
     /* Default radius (1.0 unit) is too thick for converted strokes. */
     drawing->radii_for_write().fill(0.01f);
 
-    grease_penci_separate_shapes_from_materials(drawing);
+    grease_pencil_separate_shapes_from_materials(drawing);
 
     BKE_grease_pencil_nomain_to_grease_pencil(grease_pencil, new_grease_pencil);
     BKE_object_material_from_eval_data(info.bmain, newob, &curves_eval->id);
@@ -4022,7 +4022,7 @@ static Object *convert_font_to_grease_pencil(Base &base,
   drawing->radii_for_write().fill(0.01f);
   drawing->tag_positions_changed();
 
-  grease_penci_separate_shapes_from_materials(drawing);
+  grease_pencil_separate_shapes_from_materials(drawing);
 
   curve_ob->data = grease_pencil;
   curve_ob->type = OB_GREASE_PENCIL;
@@ -4134,7 +4134,7 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
   drawing->radii_for_write().fill(0.01f);
   drawing->tag_positions_changed();
 
-  grease_penci_separate_shapes_from_materials(drawing);
+  grease_pencil_separate_shapes_from_materials(drawing);
 
   newob->data = grease_pencil;
   newob->type = OB_GREASE_PENCIL;
