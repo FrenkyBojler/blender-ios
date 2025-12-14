@@ -4,6 +4,10 @@
 
 #include "DNA_rich_sdna.hh"
 
+#include "BLI_timeit.hh"
+
+// #include "BLI_strict_flags.h"
+
 namespace blender::rich_sdna {
 
 static bool name_is_pointer(const StringRefNull name)
@@ -22,8 +26,248 @@ static std::string strip_name(const StringRefNull identifier)
   return result;
 }
 
+struct ParsedSdnaBuffer {
+  Vector<StringRefNull> member_names;
+  Vector<StringRefNull> type_names;
+  Vector<int> type_sizes;
+
+  struct MemberItem {
+    int type_i;
+    int name_i;
+  };
+
+  struct StructItem {
+    int type_i;
+    Vector<MemberItem> members;
+  };
+
+  Vector<StructItem> structs;
+};
+
+class SdnaParser {
+ private:
+  Span<char> buffer_;
+  int64_t i_ = 0;
+
+ public:
+  SdnaParser(Span<char> buffer) : buffer_(buffer) {}
+
+  std::optional<ParsedSdnaBuffer> parse()
+  {
+    ParsedSdnaBuffer result;
+    if (!this->consume_magic("SDNA")) {
+      return std::nullopt;
+    }
+    if (!this->parse_member_names(result)) {
+      return std::nullopt;
+    }
+    if (!this->parse_type_names(result)) {
+      return std::nullopt;
+    }
+    if (!this->parse_type_sizes(result)) {
+      return std::nullopt;
+    }
+    if (!this->parse_structs(result)) {
+      return std::nullopt;
+    }
+    if (i_ != buffer_.size()) {
+      return std::nullopt;
+    }
+    return result;
+  }
+
+  [[nodiscard]] bool parse_member_names(ParsedSdnaBuffer &result)
+  {
+    if (!this->consume_magic("NAME")) {
+      return false;
+    }
+    std::optional<Vector<StringRefNull>> names = this->consume_name_list();
+    if (!names) {
+      return false;
+    }
+    result.member_names = std::move(*names);
+    return true;
+  }
+
+  [[nodiscard]] bool parse_type_names(ParsedSdnaBuffer &result)
+  {
+    if (!this->consume_padding_to_4_bytes()) {
+      return false;
+    }
+    if (!this->consume_magic("TYPE")) {
+      return false;
+    }
+    std::optional<Vector<StringRefNull>> names = this->consume_name_list();
+    if (!names) {
+      return false;
+    }
+    result.type_names = std::move(*names);
+    return true;
+  }
+
+  [[nodiscard]] bool parse_type_sizes(ParsedSdnaBuffer &result)
+  {
+    if (!this->consume_padding_to_4_bytes()) {
+      return false;
+    }
+    if (!this->consume_magic("TLEN")) {
+      return false;
+    }
+    result.type_sizes.resize(result.type_names.size());
+    for (const int64_t i : result.type_names.index_range()) {
+      const std::optional<int16_t> type_size = this->consume_int16();
+      if (!type_size) {
+        return false;
+      }
+      if (*type_size < 0) {
+        return false;
+      }
+      result.type_sizes[i] = *type_size;
+    }
+    return true;
+  }
+
+  [[nodiscard]] bool parse_structs(ParsedSdnaBuffer &result)
+  {
+    if (!this->consume_padding_to_4_bytes()) {
+      return false;
+    }
+    if (!this->consume_magic("STRC")) {
+      return false;
+    }
+    const std::optional<int> structs_num = this->consume_int32();
+    if (!structs_num) {
+      return false;
+    }
+    result.structs.resize(*structs_num);
+    for (const int64_t struct_i : IndexRange(*structs_num)) {
+      const std::optional<int16_t> struct_type_i = this->consume_int16();
+      if (!struct_type_i) {
+        return false;
+      }
+      const std::optional<int16_t> members_num = this->consume_int16();
+      if (!members_num) {
+        return false;
+      }
+      if (*members_num < 0) {
+        return false;
+      }
+      result.structs[struct_i].type_i = *struct_type_i;
+      result.structs[struct_i].members.resize(*members_num);
+      for (const int64_t member_i : IndexRange(*members_num)) {
+        const std::optional<int16_t> member_type_i = this->consume_int16();
+        if (!member_type_i) {
+          return false;
+        }
+        const std::optional<int16_t> member_name_i = this->consume_int16();
+        if (!member_name_i) {
+          return false;
+        }
+        result.structs[struct_i].members[member_i].type_i = *member_type_i;
+        result.structs[struct_i].members[member_i].name_i = *member_name_i;
+      }
+    }
+    return true;
+  }
+
+  [[nodiscard]] std::optional<Vector<StringRefNull>> consume_name_list()
+  {
+    Vector<StringRefNull> names;
+    const std::optional<int> names_num = this->consume_int32();
+    if (!names_num) {
+      return std::nullopt;
+    }
+    if (*names_num < 0) {
+      return std::nullopt;
+    }
+    names.resize(*names_num);
+    for (const int64_t i : IndexRange(*names_num)) {
+      const std::optional<StringRefNull> name = this->consume_c_string();
+      if (!name) {
+        return std::nullopt;
+      }
+      names[i] = *name;
+    }
+    return names;
+  }
+
+  [[nodiscard]] bool consume_magic(const StringRef magic)
+  {
+    return this->consume_magic(Span<char>(magic.data(), magic.size()));
+  }
+
+  [[nodiscard]] bool consume_magic(const Span<char> magic)
+  {
+    const Span<char> slice = buffer_.slice_safe(i_, magic.size());
+    if (slice != magic) {
+      return false;
+    }
+    i_ += magic.size();
+    return true;
+  }
+
+  [[nodiscard]] bool consume_padding_to_4_bytes()
+  {
+    if (i_ % 4 == 0) {
+      return true;
+    }
+    const int64_t padding = 4 - (i_ % 4);
+    if (buffer_.size() - i_ < padding) {
+      return false;
+    }
+    i_ += padding;
+    return true;
+  }
+
+  [[nodiscard]] std::optional<int> consume_int32()
+  {
+    if (buffer_.size() - i_ < int64_t(sizeof(int))) {
+      return std::nullopt;
+    }
+    const int value = *reinterpret_cast<const int *>(buffer_.data() + i_);
+    i_ += int64_t(sizeof(int));
+    return value;
+  }
+
+  [[nodiscard]] std::optional<int16_t> consume_int16()
+  {
+    if (buffer_.size() - i_ < int64_t(sizeof(int16_t))) {
+      return std::nullopt;
+    }
+    const int16_t value = *reinterpret_cast<const int16_t *>(buffer_.data() + i_);
+    i_ += int64_t(sizeof(int16_t));
+    return value;
+  }
+
+  [[nodiscard]] std::optional<StringRefNull> consume_c_string()
+  {
+    const int64_t start = i_;
+    while (true) {
+      if (i_ >= buffer_.size()) {
+        return std::nullopt;
+      }
+      const char c = buffer_[i_];
+      if (c == '\0') {
+        const StringRefNull str = StringRefNull(buffer_.data() + start, i_ - start);
+        i_++;
+        return str;
+      }
+      i_++;
+    }
+  }
+};
+
+std::optional<ParsedSdnaBuffer> parse_sdna_buffer(const void *buffer, const int64_t buffer_size)
+{
+  SCOPED_TIMER(__func__);
+  SdnaParser parser{Span<char>(static_cast<const char *>(buffer), buffer_size)};
+  return parser.parse();
+}
+
 std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const int64_t buffer_size)
 {
+  std::optional<ParsedSdnaBuffer> parsed = parse_sdna_buffer(buffer, buffer_size);
+
   SDNA *raw_sdna = DNA_sdna_from_data(buffer, buffer_size, false, true, nullptr);
   if (!raw_sdna) {
     return nullptr;
