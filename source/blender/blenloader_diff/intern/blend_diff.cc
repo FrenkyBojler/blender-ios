@@ -558,7 +558,7 @@ class IdDiffer {
   const DiffOptions &options_;
 
   struct PerBlendData {
-    const IdAddressMap &id_addresses;
+    const BlendQuery &blend;
     const BlendId &id_data;
     const RichSDNA &sdna;
     AddressMap addresses;
@@ -595,16 +595,16 @@ class IdDiffer {
  public:
   IdDiffer(DiffLines &diff,
            const DiffOptions &options,
+           const BlendQuery &old_blend,
+           const BlendQuery &new_blend,
            const BlendId &old_id_data,
            const BlendId &new_id_data,
-           const IdAddressMap &old_ids,
-           const IdAddressMap &new_ids,
            const RichSDNA &old_sdna,
            const RichSDNA &new_sdna)
       : diff_(diff),
         options_(options),
-        old_{old_ids, old_id_data, old_sdna},
-        new_{new_ids, new_id_data, new_sdna}
+        old_{old_blend, old_id_data, old_sdna},
+        new_{new_blend, new_id_data, new_sdna}
   {
   }
 
@@ -1553,7 +1553,7 @@ class IdDiffer {
     if (const BlendBlock *block = blend_data.addresses.map.lookup_default(address, nullptr)) {
       return *block;
     }
-    if (const BlendId *id_data = blend_data.id_addresses.map.lookup_default_as(address, nullptr)) {
+    if (const BlendId *id_data = blend_data.blend.lookup_id(address)) {
       return *id_data;
     }
     return {};
@@ -1866,18 +1866,13 @@ static AllIdDiffLines write_diff_ids(const DiffOptions &options,
   Map<IdKey, const BlendId *> old_id_names;
   Map<IdKey, const BlendId *> new_id_names;
 
-  IdAddressMap id_address_map_old;
-  IdAddressMap id_address_map_new;
-
   AllIdDiffLines all_diffs;
 
   for (const BlendId &id_data : old_blend.ids()) {
     old_id_names.add(id_data, &id_data);
-    id_address_map_old.map.add(uint64_t(id_data.id_block->bhead.old), &id_data);
   }
   for (const BlendId &id_data : new_blend.ids()) {
     new_id_names.add(id_data, &id_data);
-    id_address_map_new.map.add(uint64_t(id_data.id_block->bhead.old), &id_data);
   }
   Vector<std::pair<const BlendId *, const BlendId *>> id_pairs;
   for (const BlendId &old_id_data : old_blend.ids()) {
@@ -1907,10 +1902,10 @@ static AllIdDiffLines write_diff_ids(const DiffOptions &options,
       DiffLines id_diff;
       IdDiffer id_differ(id_diff,
                          options,
+                         old_blend,
+                         new_blend,
                          old_id_data,
                          new_id_data,
-                         id_address_map_old,
-                         id_address_map_new,
                          *old_blend.sdna().sdna,
                          *new_blend.sdna().sdna);
       id_differ.run();

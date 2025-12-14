@@ -226,6 +226,12 @@ std::unique_ptr<BlendQuery> BlendQuery::from_reader(FileReader &reader)
       blend->ids_.append(std::move(id));
     }
   }
+  for (BlendId &id : blend->ids_) {
+    for (const BlendBlock &block : id.internal_blocks) {
+      id.internal_block_by_address.add(uint64_t(block.bhead.old), &block);
+    }
+    blend->id_by_address.add(uint64_t(id.id_block->bhead.old), &id);
+  }
   return blend;
 }
 
