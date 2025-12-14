@@ -770,10 +770,39 @@ static wmOperatorStatus grease_pencil_stroke_material_set_exec(bContext *C, wmOp
     }
 
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    bke::SpanAttributeWriter<int> materials =
-        curves.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
-                                                                        bke::AttrDomain::Curve);
-    index_mask::masked_fill(materials.span, material_index, strokes);
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
+        "material_index", bke::AttrDomain::Curve);
+
+    const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
+
+    if (!shape_ids) {
+      index_mask::masked_fill(materials.span, material_index, strokes);
+      materials.finish();
+      return;
+    }
+
+    VectorSet<int> selected_shape_ids;
+    strokes.foreach_index([&](const int64_t curve_i) {
+      const int shape_id = shape_ids[curve_i];
+      if (shape_id != 0) {
+        selected_shape_ids.add(shape_id);
+      }
+    });
+
+    Array<bool> selected_curves(curves.curves_num());
+    strokes.to_bools(selected_curves);
+
+    const IndexMask shape_strokes = IndexMask::from_predicate(
+        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
+          const int shape_id = shape_ids[curve_i];
+          if (shape_id == 0) {
+            return selected_curves[curve_i];
+          }
+          return selected_shape_ids.contains(shape_id);
+        });
+
+    index_mask::masked_fill(materials.span, material_index, shape_strokes);
     materials.finish();
   });
 
