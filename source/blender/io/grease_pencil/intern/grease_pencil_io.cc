@@ -366,10 +366,10 @@ Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects(
   return objects;
 }
 
-void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
-                                                   const bke::greasepencil::Layer &layer,
-                                                   const bke::greasepencil::Drawing &drawing,
-                                                   WriteStrokeFn stroke_fn)
+void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
+                                                  const bke::greasepencil::Layer &layer,
+                                                  const bke::greasepencil::Drawing &drawing,
+                                                  WriteShapeFn shape_fn)
 {
   using bke::greasepencil::Drawing;
 
@@ -401,14 +401,8 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
   Array<float3> world_positions(positions.size());
   math::transform_points(positions, layer_to_world, world_positions);
 
-  for (const int i_curve : curves.curves_range()) {
-    const IndexRange points = points_by_curve[i_curve];
-    const int8_t type = types[i_curve];
-    if (points.size() < 2) {
-      continue;
-    }
-
-    const bool is_cyclic = cyclic[i_curve];
+  auto add_shape = [&](Span<int> shape) {
+    const int i_curve = shape.first();
     const int material_index = material_indices[i_curve];
     const Material *material = [&]() {
       const Material *material = BKE_object_material_get(const_cast<Object *>(&object),
@@ -422,7 +416,7 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
 
     BLI_assert(material->gp_style != nullptr);
     if (material->gp_style->flag & GP_MATERIAL_HIDE) {
-      continue;
+      return;
     }
     const bool is_stroke_material = (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW);
     const bool is_fill_material = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW);
@@ -432,20 +426,26 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
       const ColorGeometry4f material_fill_color = ColorGeometry4f(material->gp_style->fill_rgba);
       const ColorGeometry4f fill_color = math::interpolate(
           material_fill_color, fill_colors[i_curve], fill_colors[i_curve].a);
-      stroke_fn(positions.slice(points),
-                positions_left.slice_safe(points),
-                positions_right.slice_safe(points),
-                is_cyclic,
-                type,
-                fill_color,
-                layer.opacity,
-                std::nullopt,
-                false,
-                false);
+      shape_fn(positions,
+               positions_left,
+               positions_right,
+               points_by_curve,
+               shape,
+               cyclic,
+               types,
+               fill_color,
+               layer.opacity,
+               std::nullopt,
+               false,
+               false);
     }
 
     /* Stroke. */
     if (is_stroke_material && params_.export_stroke_materials) {
+
+      /* TODO. */
+      const IndexRange points = points_by_curve[i_curve];
+
       const ColorGeometry4f stroke_color = compute_average_stroke_color(
           *material, vertex_colors.slice(points));
       const float stroke_opacity = compute_average_stroke_opacity(opacities.slice(points)) *
@@ -462,18 +462,21 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
         const bool round_cap = start_cap == GP_STROKE_CAP_TYPE_ROUND ||
                                end_cap == GP_STROKE_CAP_TYPE_ROUND;
 
-        stroke_fn(positions.slice(points),
-                  positions_left.slice_safe(points),
-                  positions_right.slice_safe(points),
-                  is_cyclic,
-                  type,
-                  stroke_color,
-                  stroke_opacity,
-                  uniform_width,
-                  round_cap,
-                  false);
+        shape_fn(positions,
+                 positions_left,
+                 positions_right,
+                 points_by_curve,
+                 shape,
+                 cyclic,
+                 types,
+                 stroke_color,
+                 stroke_opacity,
+                 uniform_width,
+                 round_cap,
+                 false);
       }
       else {
+        /* TODO. */
         const IndexMask single_curve_mask = IndexRange::from_single(i_curve);
 
         constexpr int corner_subdivisions = 3;
@@ -496,25 +499,41 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
         }
 
         const OffsetIndices outline_points_by_curve = outline.points_by_curve();
+        const VArray<bool> outline_cyclic = outline.cyclic();
         const Span<float3> outline_positions = outline.positions();
-        const Span<float3> outline_positions_left = *curves.handle_positions_left();
-        const Span<float3> outline_positions_right = *curves.handle_positions_right();
+        const Span<float3> outline_positions_left = *outline.handle_positions_left();
+        const Span<float3> outline_positions_right = *outline.handle_positions_right();
+        const VArray<int8_t> outline_types = outline.curve_types();
+        /* TODO. */
+        const Span<int> outline_shape = {0};
 
-        for (const int i_outline_curve : outline.curves_range()) {
-          const IndexRange outline_points = outline_points_by_curve[i_outline_curve];
-          /* Use stroke color to fill the outline. */
-          stroke_fn(outline_positions.slice(outline_points),
-                    outline_positions_left.slice_safe(outline_points),
-                    outline_positions_right.slice_safe(outline_points),
-                    true,
-                    type,
-                    stroke_color,
-                    stroke_opacity,
-                    std::nullopt,
-                    false,
-                    true);
-        }
+        /* Use stroke color to fill the outline. */
+        shape_fn(outline_positions,
+                 outline_positions_left,
+                 outline_positions_right,
+                 outline_points_by_curve,
+                 outline_shape,
+                 outline_cyclic,
+                 outline_types,
+                 stroke_color,
+                 stroke_opacity,
+                 std::nullopt,
+                 false,
+                 true);
       }
+    }
+  };
+
+  const std::optional<GroupedSpan<int>> shapes = drawing.shapes();
+
+  if (shapes) {
+    for (const int shape_i : shapes->index_range()) {
+      add_shape((*shapes)[shape_i]);
+    }
+  }
+  else {
+    for (const int curve_i : curves.curves_range()) {
+      add_shape({curve_i});
     }
   }
 }
