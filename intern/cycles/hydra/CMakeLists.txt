@@ -20,7 +20,6 @@ set(LIB
   cycles_session
   cycles_graph
   ${Epoxy_LIBRARIES}
-  ${BOOST_PYTHON_LIBRARIES}
 )
 cycles_external_libraries_append(LIB)
 

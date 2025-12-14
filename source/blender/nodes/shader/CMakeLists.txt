@@ -161,7 +161,6 @@ if(WITH_MATERIALX)
     add_definitions(-DWITH_USD)
     list(APPEND INC_SYS
       ${USD_INCLUDE_DIRS}
-      ${BOOST_INCLUDE_DIR}
     )
   endif()
 endif()

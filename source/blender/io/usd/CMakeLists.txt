@@ -10,9 +10,8 @@ if(UNIX AND NOT APPLE)
   add_definitions(-D_GLIBCXX_PERMIT_BACKWARD_HASH)
 endif()
 if(WIN32)
-  add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN -DBOOST_DEBUG_PYTHON)
+  add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
 endif()
-add_definitions(-DBOOST_ALL_NO_LIB)
 
 # Pre-compiled Linux libraries are made with GCC, and USD uses some extensions
 # which lead to an incompatible ABI for Clang. Using those extensions with
@@ -54,7 +53,6 @@ set(INC
 
 set(INC_SYS
   ${USD_INCLUDE_DIRS}
-  ${BOOST_INCLUDE_DIR}
   ${TBB_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIR}
 
@@ -216,7 +214,6 @@ set(LIB
 )
 
 list(APPEND LIB
-  ${BOOST_PYTHON_LIBRARIES}
   ${PYTHON_LIBRARIES}
   ${USD_LIBRARIES}
   ${TBB_LIBRARIES}
