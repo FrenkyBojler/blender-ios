@@ -339,24 +339,6 @@ static std::optional<int> try_read_inline_int_member(const void *struct_data,
   return value;
 }
 
-static std::optional<char> try_read_inline_char_member(const void *struct_data,
-                                                       const Struct &sdna_struct,
-                                                       const StringRef member_name)
-{
-  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
-  if (!member) {
-    return std::nullopt;
-  }
-  if (member->category != StructMember::Category::Primitive) {
-    return std::nullopt;
-  }
-  if (member->type->opt_primitive_type != PrimitiveType::Char) {
-    return std::nullopt;
-  }
-  const char value = *(static_cast<const char *>(struct_data) + member->offset_in_struct);
-  return value;
-}
-
 static std::string primitive_value_to_string(const PrimitiveValue &value)
 {
   return std::visit([](const auto &v) { return std::to_string(v); }, value);
@@ -1180,9 +1162,9 @@ class IdDiffer {
     if (!old_val || !old_val2 || !new_val || !new_val2) {
       return;
     }
-    const PrimitiveValue old_value = this->decode_id_property_value(
+    const PrimitiveValue old_value = blend_query::decode_primitive_id_property_value(
         eIDPropertyType(*old_type), *old_val, *old_val2);
-    const PrimitiveValue new_value = this->decode_id_property_value(
+    const PrimitiveValue new_value = blend_query::decode_primitive_id_property_value(
         eIDPropertyType(*new_type), *new_val, *new_val2);
     if (old_value == new_value) {
       return;
@@ -1190,37 +1172,6 @@ class IdDiffer {
     diff_.change(
         fmt::format("{}.decoded_value = {}", context, primitive_value_to_string(old_value)),
         fmt::format("{}.decoded_value = {}", context, primitive_value_to_string(new_value)));
-  }
-
-  PrimitiveValue decode_id_property_value(const eIDPropertyType type,
-                                          const int val,
-                                          const int val2)
-  {
-    union {
-      struct {
-        int val;
-        int val2;
-      } encoded;
-      int int_value;
-      float float_value;
-      double double_value;
-    } encoded;
-    encoded.encoded.val = val;
-    encoded.encoded.val2 = val2;
-    switch (type) {
-      case IDP_INT:
-        return encoded.int_value;
-      case IDP_FLOAT:
-        return encoded.float_value;
-      case IDP_DOUBLE:
-        return encoded.double_value;
-      case IDP_BOOLEAN:
-        return encoded.int_value != 0;
-      default: {
-        BLI_assert_unreachable();
-        return {};
-      }
-    }
   }
 
   Vector<Pointee> gather_linked_list_pointees(const uint64_t first_address,

@@ -8,6 +8,7 @@
 
 #include "BLO_core_blend_header.hh"
 
+#include "DNA_ID_enums.h"
 #include "DNA_rich_sdna.hh"
 
 namespace blender::blend_query {
@@ -102,6 +103,9 @@ struct BlendValue {
 
 uint64_t read_address(const void *data);
 PrimitiveValue read_primitive_value(const PrimitiveType type, const void *data);
+PrimitiveValue decode_primitive_id_property_value(const eIDPropertyType type,
+                                                  const int val,
+                                                  const int val2);
 
 class BlendQuery {
  private:

@@ -528,6 +528,37 @@ PrimitiveValue read_primitive_value(const PrimitiveType type, const void *data)
   return 0;
 }
 
+PrimitiveValue decode_primitive_id_property_value(const eIDPropertyType type,
+                                                  const int val,
+                                                  const int val2)
+{
+  union {
+    struct {
+      int val;
+      int val2;
+    } encoded;
+    int int_value;
+    float float_value;
+    double double_value;
+  } encoded;
+  encoded.encoded.val = val;
+  encoded.encoded.val2 = val2;
+  switch (type) {
+    case IDP_INT:
+      return encoded.int_value;
+    case IDP_FLOAT:
+      return encoded.float_value;
+    case IDP_DOUBLE:
+      return encoded.double_value;
+    case IDP_BOOLEAN:
+      return encoded.int_value != 0;
+    default: {
+      BLI_assert_unreachable();
+      return {};
+    }
+  }
+}
+
 template<typename T> std::optional<T> BlendValue::as_primitive() const
 {
   if (this->is_none()) {
