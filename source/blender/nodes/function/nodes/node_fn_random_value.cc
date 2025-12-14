@@ -49,7 +49,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
 
-  b.add_input<decl::Int>("ID").implicit_field(implicit_field_inputs::id_or_index);
+  b.add_input<decl::Int>("ID").implicit_field(NODE_DEFAULT_INPUT_ID_INDEX_FIELD);
   b.add_input<decl::Int>("Seed");
 
   if (node != nullptr) {

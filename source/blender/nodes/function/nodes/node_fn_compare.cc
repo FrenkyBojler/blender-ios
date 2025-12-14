@@ -40,10 +40,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     const bool type_is_floating = !ELEM(data_type, SOCK_INT, SOCK_STRING);
     const bool is_vector = data_type == SOCK_VECTOR;
 
-    const auto &a_input =
-        b.add_output(data_type, "A").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-    const auto &b_input =
-        b.add_output(data_type, "B").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+    auto &a_input = b.add_output(data_type, "A").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+    auto &b_input = b.add_output(data_type, "B").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
 
     if (data_type == SOCK_STRING) {
       a_input.optional_label();
