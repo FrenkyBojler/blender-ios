@@ -40,6 +40,7 @@ using rich_sdna::Type;
 using blend_query::BlendBlock;
 using blend_query::BlendId;
 using blend_query::BlendQuery;
+using blend_query::RawBufferType;
 
 struct DiffOptions {
   ResourceScope scope_;
@@ -370,44 +371,6 @@ static std::optional<int> try_read_inline_int_member(const void *struct_data,
   return value;
 }
 
-static std::optional<int8_t> try_read_inline_int8_member(const void *struct_data,
-                                                         const Struct &sdna_struct,
-                                                         const StringRef member_name)
-{
-  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
-  if (!member) {
-    return std::nullopt;
-  }
-  if (member->category != StructMember::Category::Primitive) {
-    return std::nullopt;
-  }
-  if (member->type->opt_primitive_type != PrimitiveType::Int8) {
-    return std::nullopt;
-  }
-  const int8_t value = *reinterpret_cast<const int8_t *>(static_cast<const char *>(struct_data) +
-                                                         member->offset_in_struct);
-  return value;
-}
-
-static std::optional<int16_t> try_read_inline_int16_member(const void *struct_data,
-                                                           const Struct &sdna_struct,
-                                                           const StringRef member_name)
-{
-  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
-  if (!member) {
-    return std::nullopt;
-  }
-  if (member->category != StructMember::Category::Primitive) {
-    return std::nullopt;
-  }
-  if (member->type->opt_primitive_type != PrimitiveType::Short) {
-    return std::nullopt;
-  }
-  const int16_t value = *reinterpret_cast<const int16_t *>(static_cast<const char *>(struct_data) +
-                                                           member->offset_in_struct);
-  return value;
-}
-
 static std::optional<char> try_read_inline_char_member(const void *struct_data,
                                                        const Struct &sdna_struct,
                                                        const StringRef member_name)
@@ -424,22 +387,6 @@ static std::optional<char> try_read_inline_char_member(const void *struct_data,
   }
   const char value = *(static_cast<const char *>(struct_data) + member->offset_in_struct);
   return value;
-}
-
-static std::optional<uint64_t> try_read_inline_pointer_member(const void *struct_data,
-                                                              const Struct &sdna_struct,
-                                                              const StringRef member_name)
-{
-  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
-  if (!member) {
-    return std::nullopt;
-  }
-  if (member->category != StructMember::Category::Pointer) {
-    return std::nullopt;
-  }
-  const uint64_t address = read_address_at_address(static_cast<const char *>(struct_data) +
-                                                   member->offset_in_struct);
-  return address;
 }
 
 static std::string primitive_value_to_string(const PrimitiveValue &value)
@@ -526,14 +473,6 @@ static std::pair<std::string, std::string> format_string_elements_char_align(
   return {result_a, result_b};
 }
 
-struct RawBufferType {
-  const Type *sdna_base_type = nullptr;
-  const CPPType *cpp_base_type = nullptr;
-  int pointer_level = 0;
-
-  BLI_STRUCT_EQUALITY_OPERATORS_3(RawBufferType, sdna_base_type, cpp_base_type, pointer_level)
-};
-
 class IdDiffer {
  private:
   DiffLines &diff_;
@@ -542,7 +481,6 @@ class IdDiffer {
   struct PerBlendData {
     const BlendQuery &blend;
     const BlendId &id_data;
-    Map<const BlendBlock *, RawBufferType> raw_buffer_types;
   };
 
   PerBlendData old_;
@@ -589,9 +527,6 @@ class IdDiffer {
         "{}[\"{}\"]", new_.id_data.sdna_struct->type->name, new_.id_data.name.c_str());
     matches_to_process_.push({old_.id_data.id_block, new_.id_data.id_block, root_context});
 
-    this->gather_raw_buffer_types__blend(old_);
-    this->gather_raw_buffer_types__blend(new_);
-
     while (!matches_to_process_.is_empty()) {
       const BlockMatch match = matches_to_process_.pop();
 
@@ -624,154 +559,6 @@ class IdDiffer {
                                 match.new_block->bhead.nr,
                                 match.context);
       }
-    }
-  }
-
-  void gather_raw_buffer_types__blend(PerBlendData &blend_data)
-  {
-    const Struct &id_struct = *blend_data.id_data.sdna_struct;
-    this->gather_raw_buffer_types__struct(blend_data, *blend_data.id_data.id_block, 0, id_struct);
-    for (const BlendBlock &block : blend_data.id_data.internal_blocks) {
-      const Struct *sdna_struct = blend_data.blend.sdna().sdna->try_find_struct(
-          block.bhead.SDNAnr);
-      if (!sdna_struct) {
-        continue;
-      }
-      for (const int64_t i : IndexRange(block.bhead.nr)) {
-        this->gather_raw_buffer_types__struct(
-            blend_data, block, i * sdna_struct->type->size_in_bytes, *sdna_struct);
-      }
-    }
-  }
-
-  void gather_raw_buffer_types__struct(PerBlendData &blend_data,
-                                       const BlendBlock &block,
-                                       const int64_t struct_offset,
-                                       const Struct &sdna_struct)
-  {
-    if (sdna_struct.type->name == "Attribute") {
-      this->gather_raw_buffer_types__attribute(blend_data, block, struct_offset, sdna_struct);
-    }
-    for (const StructMember *member : sdna_struct.members) {
-      this->gather_raw_buffer_types__struct_member(
-          blend_data, block, struct_offset + member->offset_in_struct, *member);
-    }
-  }
-
-  void gather_raw_buffer_types__struct_member(PerBlendData &blend_data,
-                                              const BlendBlock &block,
-                                              const int64_t member_offset,
-                                              const StructMember &sdna_member)
-  {
-    switch (sdna_member.category) {
-      case rich_sdna::StructMember::Category::Struct: {
-        for (const int64_t i : IndexRange(sdna_member.elem_num)) {
-          const int64_t struct_offset = member_offset + i * sdna_member.elem_size;
-          this->gather_raw_buffer_types__struct(
-              blend_data, block, struct_offset, *sdna_member.type->opt_struct);
-        }
-        break;
-      }
-      case rich_sdna::StructMember::Category::Primitive: {
-        /* Nothing to do because primitive types don't contain pointers. */
-        break;
-      }
-      case rich_sdna::StructMember::Category::Pointer: {
-        const int pointer_level = this->pointer_level_from_name(sdna_member.raw_name);
-        BLI_assert(pointer_level >= 1);
-        for (const int64_t i : IndexRange(sdna_member.elem_num)) {
-          const int64_t offset = member_offset + i * sdna_member.elem_size;
-          const uint64_t address = read_address_at_address(block.data + offset);
-          if (const BlendBlock *other_block = blend_data.id_data.lookup_internal_block(address)) {
-            if (other_block->bhead.SDNAnr != SDNA_RAW_DATA_STRUCT_INDEX) {
-              continue;
-            }
-            RawBufferType raw_buffer_type;
-            raw_buffer_type.sdna_base_type = sdna_member.type;
-            raw_buffer_type.pointer_level = pointer_level - 1;
-            blend_data.raw_buffer_types.add(other_block, raw_buffer_type);
-          }
-        }
-        break;
-      }
-    }
-  }
-
-  void gather_raw_buffer_types__attribute(PerBlendData &blend_data,
-                                          const BlendBlock &block,
-                                          const int64_t struct_offset,
-                                          const Struct &sdna_Attribute)
-  {
-    const std::optional<int16_t> data_type = try_read_inline_int16_member(
-        block.data + struct_offset, sdna_Attribute, "data_type");
-    const std::optional<int8_t> storage_type = try_read_inline_int8_member(
-        block.data + struct_offset, sdna_Attribute, "storage_type");
-    const std::optional<uint64_t> storage_address = try_read_inline_pointer_member(
-        block.data + struct_offset, sdna_Attribute, "data");
-    if (!data_type || !storage_type || !storage_address) {
-      return;
-    }
-    const BlendBlock *storage_block = blend_data.id_data.lookup_internal_block(*storage_address);
-    if (!storage_block) {
-      return;
-    }
-    /* Only support array storage for now. */
-    if (storage_type != int(bke::AttrStorageType::Array)) {
-      return;
-    }
-    const Struct *sdna_AttributeArray = blend_data.blend.sdna().sdna->try_find_struct(
-        storage_block->bhead.SDNAnr);
-    if (!sdna_AttributeArray || sdna_AttributeArray->type->name != "AttributeArray") {
-      return;
-    }
-    const std::optional<uint64_t> array_address = try_read_inline_pointer_member(
-        storage_block->data, *sdna_AttributeArray, "data");
-    if (!array_address) {
-      return;
-    }
-    const BlendBlock *array_block = blend_data.id_data.lookup_internal_block(*array_address);
-    if (!array_block) {
-      return;
-    }
-    if (array_block->bhead.SDNAnr != SDNA_RAW_DATA_STRUCT_INDEX) {
-      return;
-    }
-    const CPPType *cpp_type = this->cpp_type_from_attribute_type(*data_type);
-    RawBufferType raw_buffer_type;
-    raw_buffer_type.pointer_level = 0;
-    raw_buffer_type.cpp_base_type = cpp_type;
-    blend_data.raw_buffer_types.add(array_block, raw_buffer_type);
-  }
-
-  const CPPType *cpp_type_from_attribute_type(const int data_type)
-  {
-    switch (data_type) {
-      case int(bke::AttrType::Bool):
-        return &CPPType::get<bool>();
-      case int(bke::AttrType::Int8):
-        return &CPPType::get<int8_t>();
-      case int(bke::AttrType::Int16_2D):
-        return &CPPType::get<short2>();
-      case int(bke::AttrType::Int32):
-        return &CPPType::get<int>();
-      case int(bke::AttrType::Int32_2D):
-        return &CPPType::get<int2>();
-      case int(bke::AttrType::Float):
-        return &CPPType::get<float>();
-      case int(bke::AttrType::Float2):
-        return &CPPType::get<float2>();
-      case int(bke::AttrType::Float3):
-        return &CPPType::get<float3>();
-      case int(bke::AttrType::Float4x4):
-        return &CPPType::get<float4x4>();
-      case int(bke::AttrType::ColorByte):
-        return &CPPType::get<blender::ColorGeometry4b>();
-      case int(bke::AttrType::ColorFloat):
-        return &CPPType::get<blender::ColorGeometry4f>();
-      case int(bke::AttrType::Quaternion):
-        return &CPPType::get<math::Quaternion>();
-      default:
-        return nullptr;
     }
   }
 
@@ -818,8 +605,8 @@ class IdDiffer {
                        const BlendBlock &new_block,
                        const StringRef context)
   {
-    const RawBufferType *old_raw_type = old_.raw_buffer_types.lookup_ptr(&old_block);
-    const RawBufferType *new_raw_type = new_.raw_buffer_types.lookup_ptr(&new_block);
+    const RawBufferType *old_raw_type = old_.blend.lookup_raw_buffer_type(old_block);
+    const RawBufferType *new_raw_type = new_.blend.lookup_raw_buffer_type(new_block);
     if (!old_raw_type || !new_raw_type) {
       return;
     }
@@ -1572,7 +1359,7 @@ class IdDiffer {
     const BlendBlock &block = *pointee.block;
     if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
       const Span<char> bytes{block.data, block.bhead.len};
-      if (const RawBufferType *buffer_type = blend_data.raw_buffer_types.lookup_ptr(&block)) {
+      if (const RawBufferType *buffer_type = blend_data.blend.lookup_raw_buffer_type(block)) {
         if (buffer_type->sdna_base_type) {
           if (buffer_type->pointer_level == 0 && buffer_type->sdna_base_type->name == "char" &&
               bytes.size() <= 128)

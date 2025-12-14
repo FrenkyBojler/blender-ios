@@ -300,8 +300,8 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const i
   if (parsed->type_names.size() != parsed->type_sizes.size()) {
     return nullptr;
   }
-  const int64_t pointer_size = int64_t(sizeof(void *));
   auto rich_sdna = std::make_unique<RichSDNA>();
+  rich_sdna->pointer_size = int64_t(sizeof(void *));
   const Map<StringRef, PrimitiveTypeInfo> &primitive_type_map = get_primitive_type_map();
   ResourceScope &scope = rich_sdna->scope_;
   LinearAllocator<> &allocator = scope.allocator();
@@ -378,7 +378,7 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const i
       sdna_member.offset_in_struct = offset;
       if (name_is_pointer(sdna_member.raw_name)) {
         sdna_member.category = StructMember::Category::Pointer;
-        sdna_member.elem_size = pointer_size;
+        sdna_member.elem_size = rich_sdna->pointer_size;
       }
       else if (sdna_member.type->opt_struct) {
         sdna_member.category = StructMember::Category::Struct;

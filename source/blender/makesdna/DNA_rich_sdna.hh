@@ -114,8 +114,8 @@ class RichSDNA {
   ResourceScope scope_;
   CustomIDVectorSet<const Struct *, StructNameGetter> structs;
   CustomIDVectorSet<const Type *, TypeNameGetter> types;
+  int64_t pointer_size;
 
-  static std::unique_ptr<RichSDNA> from_sdna(const SDNA &raw_sdna);
   static std::unique_ptr<RichSDNA> from_sdna_buffer(const void *buffer, const int64_t buffer_size);
 
   void print(std::ostream &stream, const bool verbose = false) const;
