@@ -230,7 +230,7 @@ std::unique_ptr<BlendQuery> BlendQuery::from_reader(FileReader &reader)
     for (const BlendBlock &block : id.internal_blocks) {
       id.internal_block_by_address.add(uint64_t(block.bhead.old), &block);
     }
-    blend->id_by_address.add(uint64_t(id.id_block->bhead.old), &id);
+    blend->id_by_address_.add(uint64_t(id.id_block->bhead.old), &id);
   }
   return blend;
 }

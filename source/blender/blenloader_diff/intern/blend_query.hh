@@ -34,6 +34,8 @@ struct BlendId {
   const BlendBlock *id_block = nullptr;
   Span<BlendBlock> internal_blocks;
   Map<uint64_t, const BlendBlock *> internal_block_by_address;
+
+  const BlendBlock *lookup_internal_block(const uint64_t address) const;
 };
 
 struct BlendSDNA {
@@ -52,7 +54,7 @@ class BlendQuery {
   BlenderHeader header_;
   Vector<BlendBlock> blocks_;
   Vector<BlendId> ids_;
-  Map<uint64_t, const BlendId *> id_by_address;
+  Map<uint64_t, const BlendId *> id_by_address_;
 
  public:
   static std::unique_ptr<BlendQuery> from_file(StringRef path);
@@ -76,7 +78,12 @@ inline Span<BlendId> BlendQuery::ids() const
 
 inline const BlendId *BlendQuery::lookup_id(const uint64_t address) const
 {
-  return id_by_address.lookup_default(address, nullptr);
+  return id_by_address_.lookup_default(address, nullptr);
+}
+
+inline const BlendBlock *BlendId::lookup_internal_block(const uint64_t address) const
+{
+  return this->internal_block_by_address.lookup_default(address, nullptr);
 }
 
 }  // namespace blender::blend_query

@@ -293,29 +293,11 @@ struct DataWithStruct {
   const Struct *sdna_struct = nullptr;
 };
 
-struct AddressMap {
-  Map<uint64_t, const BlendBlock *> map;
-};
-
-struct IdAddressMap {
-  Map<uint64_t, const BlendId *> map;
-};
-
 struct BlockMatch {
   const BlendBlock *old_block = nullptr;
   const BlendBlock *new_block = nullptr;
   std::string context;
 };
-
-static AddressMap build_address_map(const BlendId &id_data)
-{
-  AddressMap address_map;
-  address_map.map.add(uint64_t(id_data.id_block->bhead.old), id_data.id_block);
-  for (const BlendBlock &block : id_data.internal_blocks) {
-    address_map.map.add(uint64_t(block.bhead.old), &block);
-  }
-  return address_map;
-}
 
 static PrimitiveValue read_primitive_value_at_address(const PrimitiveType type, const void *data)
 {
@@ -561,7 +543,6 @@ class IdDiffer {
     const BlendQuery &blend;
     const BlendId &id_data;
     const RichSDNA &sdna;
-    AddressMap addresses;
     Map<const BlendBlock *, RawBufferType> raw_buffer_types;
   };
 
@@ -610,9 +591,6 @@ class IdDiffer {
 
   void run()
   {
-    old_.addresses = build_address_map(old_.id_data);
-    new_.addresses = build_address_map(new_.id_data);
-
     const std::string root_context = fmt::format(
         "{}[\"{}\"]", new_.id_data.sdna_struct->type->name, new_.id_data.name.c_str());
     matches_to_process_.push({old_.id_data.id_block, new_.id_data.id_block, root_context});
@@ -707,9 +685,7 @@ class IdDiffer {
         for (const int64_t i : IndexRange(sdna_member.elem_num)) {
           const int64_t offset = member_offset + i * sdna_member.elem_size;
           const uint64_t address = read_address_at_address(block.data + offset);
-          if (const BlendBlock *other_block = blend_data.addresses.map.lookup_default(address,
-                                                                                      nullptr))
-          {
+          if (const BlendBlock *other_block = blend_data.id_data.lookup_internal_block(address)) {
             if (other_block->bhead.SDNAnr != SDNA_RAW_DATA_STRUCT_INDEX) {
               continue;
             }
@@ -738,8 +714,7 @@ class IdDiffer {
     if (!data_type || !storage_type || !storage_address) {
       return;
     }
-    const BlendBlock *storage_block = blend_data.addresses.map.lookup_default(*storage_address,
-                                                                              nullptr);
+    const BlendBlock *storage_block = blend_data.id_data.lookup_internal_block(*storage_address);
     if (!storage_block) {
       return;
     }
@@ -757,8 +732,7 @@ class IdDiffer {
     if (!array_address) {
       return;
     }
-    const BlendBlock *array_block = blend_data.addresses.map.lookup_default(*array_address,
-                                                                            nullptr);
+    const BlendBlock *array_block = blend_data.id_data.lookup_internal_block(*array_address);
     if (!array_block) {
       return;
     }
@@ -1550,7 +1524,7 @@ class IdDiffer {
 
   Pointee lookup_pointee(const PerBlendData &blend_data, const uint64_t address) const
   {
-    if (const BlendBlock *block = blend_data.addresses.map.lookup_default(address, nullptr)) {
+    if (const BlendBlock *block = blend_data.id_data.lookup_internal_block(address)) {
       return *block;
     }
     if (const BlendId *id_data = blend_data.blend.lookup_id(address)) {
@@ -1577,7 +1551,7 @@ class IdDiffer {
     }
     const uint64_t address = read_address_at_address(
         POINTER_OFFSET(data, member->offset_in_struct));
-    return blend_data.addresses.map.lookup_default(address, nullptr);
+    return blend_data.id_data.lookup_internal_block(address);
   }
 
   struct PointeeToStringOptions {
