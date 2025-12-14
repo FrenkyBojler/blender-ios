@@ -1024,8 +1024,13 @@ struct ViewerDataPath {
   Vector<StringRef> bundles;
   SpreadsheetClosureInputOutput closure_input_output = SPREADSHEET_CLOSURE_NONE;
   SpreadsheetVolumeGridData volume_grid_data = SPREADSHEET_VOLUME_SUMMARY;
-  BLI_STRUCT_EQUALITY_OPERATORS_4(
-      ViewerDataPath, viewer_item, bundles, closure_input_output, volume_grid_data);
+  int volume_grid_index = 0;
+  BLI_STRUCT_EQUALITY_OPERATORS_5(ViewerDataPath,
+                                  viewer_item,
+                                  bundles,
+                                  closure_input_output,
+                                  volume_grid_data,
+                                  volume_grid_index);
 
   ViewerDataPath() = default;
   explicit ViewerDataPath(const SpreadsheetTableIDGeometry &table_id)
@@ -1036,6 +1041,7 @@ struct ViewerDataPath {
     }
     this->closure_input_output = SpreadsheetClosureInputOutput(table_id.closure_input_output);
     this->volume_grid_data = SpreadsheetVolumeGridData(table_id.volume_grid_data);
+    this->volume_grid_index = table_id.volume_grid_index;
   }
 
   explicit ViewerDataPath(const Span<const ViewerDataTreeItem *> tree_items);
@@ -1058,6 +1064,7 @@ struct ViewerDataPath {
     }
     table_id.closure_input_output = int8_t(this->closure_input_output);
     table_id.volume_grid_data = this->volume_grid_data;
+    table_id.volume_grid_index = this->volume_grid_index;
   }
 };
 
@@ -1115,12 +1122,16 @@ class ClosureInputOutputItem : public ViewerDataTreeItem {
 /* Tree item representing voxel data of a grid. */
 class VolumeGridDataItem : public ViewerDataTreeItem {
  private:
+  int grid_index_;
+
   friend ViewerDataPath;
 
  public:
-  VolumeGridDataItem()
+  VolumeGridDataItem(const std::optional<StringRef> grid_name = std::nullopt,
+                     const int grid_index = 0)
+      : grid_index_(grid_index)
   {
-    label_ = IFACE_("Voxel Data");
+    label_ = grid_name ? *grid_name : IFACE_("Voxel Data");
   }
 
   void build_row(ui::Layout &row) override
@@ -1141,8 +1152,9 @@ ViewerDataPath::ViewerDataPath(const Span<const ViewerDataTreeItem *> tree_items
     else if (const auto *bundle_item = dynamic_cast<const ClosureInputOutputItem *>(item)) {
       this->closure_input_output = bundle_item->in_out_;
     }
-    else if (/*const auto *volume_grid_item =*/dynamic_cast<const VolumeGridDataItem *>(item)) {
+    else if (const auto *volume_grid_item = dynamic_cast<const VolumeGridDataItem *>(item)) {
       this->volume_grid_data = SPREADSHEET_VOLUME_VOXEL_DATA;
+      this->volume_grid_index = volume_grid_item->grid_index_;
     }
   }
 }
@@ -1178,6 +1190,13 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
       return;
     }
     const GPointer single_value = value.get_single_ptr();
+    if (single_value.is_type<bke::GeometrySet>()) {
+      const bke::GeometrySet &geometry_set = *single_value.get<bke::GeometrySet>();
+      if (geometry_set.has_volume()) {
+        const Volume *volume = geometry_set.get_volume();
+        this->build_volume_children(parent, *volume);
+      }
+    }
     if (single_value.is_type<nodes::BundlePtr>()) {
       const nodes::BundlePtr &bundle_ptr = *single_value.get<nodes::BundlePtr>();
       if (bundle_ptr) {
@@ -1212,6 +1231,16 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
     }
     if (!signature.outputs.is_empty()) {
       parent.add_tree_item<ClosureInputOutputItem>(SPREADSHEET_CLOSURE_OUTPUT);
+    }
+  }
+
+  void build_volume_children(ui::AbstractTreeViewItem &parent, const Volume &volume)
+  {
+    for (const int i : IndexRange(BKE_volume_num_grids(&volume))) {
+      const bke::VolumeGridData *grid = BKE_volume_grid_get(&volume, i);
+      if (grid) {
+        parent.add_tree_item<VolumeGridDataItem>(grid->name(), i);
+      }
     }
   }
 

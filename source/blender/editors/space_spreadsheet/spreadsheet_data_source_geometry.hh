@@ -78,11 +78,20 @@ class GeometryDataSource : public DataSource {
 class VolumeDataSource : public DataSource {
   const bke::GeometrySet geometry_set_;
   const bke::VolumeComponent *component_;
+  SpreadsheetVolumeGridData volume_grid_data_;
+  bke::volume_grid::GridValueOnOff grid_value_filter_;
+  int grid_index_;
 
  public:
-  VolumeDataSource(bke::GeometrySet geometry_set)
+  VolumeDataSource(bke::GeometrySet geometry_set,
+                   const SpreadsheetVolumeGridData volume_grid_data,
+                   const bke::volume_grid::GridValueOnOff grid_value_filter,
+                   const int grid_index)
       : geometry_set_(std::move(geometry_set)),
-        component_(geometry_set_.get_component<bke::VolumeComponent>())
+        component_(geometry_set_.get_component<bke::VolumeComponent>()),
+        volume_grid_data_(volume_grid_data),
+        grid_value_filter_(grid_value_filter),
+        grid_index_(grid_index)
   {
   }
 

@@ -1182,8 +1182,8 @@ typedef struct SpreadsheetTableIDGeometry {
   int8_t closure_input_output;
   /** #SpreadsheetVolumeGridData. */
   int8_t volume_grid_data;
-
-  char _pad3[6];
+  char _pad3[2];
+  int32_t volume_grid_index;
 
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested
