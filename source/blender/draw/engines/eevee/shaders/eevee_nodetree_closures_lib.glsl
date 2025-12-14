@@ -5,6 +5,7 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
@@ -23,6 +24,10 @@ packed_float3 g_volume_absorption;
 /* The Closure type is never used. Use float as dummy type. */
 #define Closure float
 #define CLOSURE_DEFAULT 0.0f
+
+#ifdef GLSL_CPP_STUBS
+#  define CLOSURE_BIN_COUNT 3
+#endif
 
 /* Maximum number of picked closure. */
 #ifndef CLOSURE_BIN_COUNT

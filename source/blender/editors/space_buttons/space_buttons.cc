@@ -28,7 +28,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
 #include "BLT_translation.hh"
 
@@ -65,6 +65,11 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
   SpaceProperties *sbuts;
 
   sbuts = MEM_callocN<SpaceProperties>("initbuts");
+
+  sbuts->runtime = MEM_new<SpaceProperties_Runtime>(__func__);
+  sbuts->runtime->search_string[0] = '\0';
+  sbuts->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT, __func__);
+
   sbuts->spacetype = SPACE_PROPERTIES;
   sbuts->mainb = sbuts->mainbuser = BCONTEXT_OBJECT;
   sbuts->visible_tabs = uint(-1); /* 0xFFFFFFFF - All tabs visible by default. */
@@ -118,23 +123,12 @@ static void buttons_free(SpaceLink *sl)
     MEM_freeN(ct);
   }
 
-  if (sbuts->runtime != nullptr) {
-    MEM_SAFE_FREE(sbuts->runtime->tab_search_results);
-    MEM_freeN(sbuts->runtime);
-  }
+  MEM_SAFE_FREE(sbuts->runtime->tab_search_results);
+  MEM_delete(sbuts->runtime);
 }
 
 /* spacetype; init callback */
-static void buttons_init(wmWindowManager * /*wm*/, ScrArea *area)
-{
-  SpaceProperties *sbuts = (SpaceProperties *)area->spacedata.first;
-
-  if (sbuts->runtime == nullptr) {
-    sbuts->runtime = MEM_mallocN<SpaceProperties_Runtime>(__func__);
-    sbuts->runtime->search_string[0] = '\0';
-    sbuts->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT * 2, __func__);
-  }
-}
+static void buttons_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *buttons_duplicate(SpaceLink *sl)
 {
@@ -144,11 +138,9 @@ static SpaceLink *buttons_duplicate(SpaceLink *sl)
   /* clear or remove stuff from old */
   sbutsn->path = nullptr;
   sbutsn->texuser = nullptr;
-  if (sfile_old->runtime != nullptr) {
-    sbutsn->runtime = static_cast<SpaceProperties_Runtime *>(MEM_dupallocN(sfile_old->runtime));
-    sbutsn->runtime->search_string[0] = '\0';
-    sbutsn->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT, __func__);
-  }
+  sbutsn->runtime = MEM_new<SpaceProperties_Runtime>(__func__, *sfile_old->runtime);
+  sbutsn->runtime->search_string[0] = '\0';
+  sbutsn->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT, __func__);
 
   return (SpaceLink *)sbutsn;
 }
@@ -173,7 +165,7 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 /** \name Property Editor Layout
  * \{ */
 
-void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_buttons_visible_tabs_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   PointerRNA ptr = RNA_pointer_create_discrete(
       reinterpret_cast<ID *>(CTX_wm_screen(C)), &RNA_SpaceProperties, CTX_wm_space_properties(C));
@@ -193,11 +185,11 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
   };
 
   for (blender::StringRefNull item : filter_items) {
-    layout->prop(&ptr, item, UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+    layout->prop(&ptr, item, blender::ui::ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   }
 }
 
-void ED_buttons_navbar_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_buttons_navbar_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   ED_screens_region_flip_menu_create(C, layout, nullptr);
   layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
@@ -345,16 +337,11 @@ int ED_buttons_search_string_length(SpaceProperties *sbuts)
 
 void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)
 {
-  if (sbuts->runtime) {
-    STRNCPY_UTF8(sbuts->runtime->search_string, value);
-  }
+  STRNCPY_UTF8(sbuts->runtime->search_string, value);
 }
 
 bool ED_buttons_tab_has_search_result(SpaceProperties *sbuts, const int index)
 {
-  if (!sbuts->runtime) {
-    return false;
-  }
   return BLI_BITMAP_TEST(sbuts->runtime->tab_search_results, index);
 }
 
@@ -429,7 +416,7 @@ static void property_search_all_tabs(const bContext *C,
   SpaceProperties sbuts_copy = blender::dna::shallow_copy(*sbuts);
   sbuts_copy.path = nullptr;
   sbuts_copy.texuser = nullptr;
-  sbuts_copy.runtime = static_cast<SpaceProperties_Runtime *>(MEM_dupallocN(sbuts->runtime));
+  sbuts_copy.runtime = MEM_new<SpaceProperties_Runtime>(__func__, *sbuts->runtime);
   sbuts_copy.runtime->tab_search_results = nullptr;
   BLI_listbase_clear(&area_copy.spacedata);
   BLI_addtail(&area_copy.spacedata, &sbuts_copy);
@@ -453,7 +440,7 @@ static void property_search_all_tabs(const bContext *C,
                    i,
                    property_search_for_context(C, region_copy, &sbuts_copy));
 
-    UI_blocklist_free(C, region_copy);
+    blender::ui::blocklist_free(C, region_copy);
   }
 
   BKE_area_region_free(area_copy.type, region_copy);
@@ -480,7 +467,7 @@ static void buttons_main_region_property_search(const bContext *C,
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    if (UI_panel_is_active(panel) && UI_panel_matches_search_filter(panel)) {
+    if (blender::ui::panel_is_active(panel) && blender::ui::panel_matches_search_filter(panel)) {
       current_tab_has_search_match = true;
     }
   }
@@ -573,7 +560,7 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
   buttons_context_compute(C, sbuts);
 
   if (ED_buttons_tabs_list(sbuts).is_empty()) {
-    View2D *v2d = UI_view2d_fromcontext(C);
+    View2D *v2d = blender::ui::view2d_fromcontext(C);
     v2d->scroll &= ~V2D_SCROLL_VERTICAL;
     return;
   }
@@ -1055,12 +1042,14 @@ static void buttons_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data
 static void buttons_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
 {
   SpaceProperties *sbuts = (SpaceProperties *)sl;
+  sbuts->runtime = MEM_new<SpaceProperties_Runtime>(__func__);
+  sbuts->runtime->search_string[0] = '\0';
+  sbuts->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT * 2, __func__);
 
   sbuts->path = nullptr;
   sbuts->texuser = nullptr;
   sbuts->mainbo = sbuts->mainb;
   sbuts->mainbuser = sbuts->mainb;
-  sbuts->runtime = nullptr;
 }
 
 static void buttons_space_blend_read_after_liblink(BlendLibReader * /*reader*/,

@@ -26,7 +26,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  /* The fillet method was only introduced in OpenVDB 12. Since we don't presently require 12,
+   * disable this node when building against older versions. */
 #ifdef WITH_OPENVDB
+#  if OPENVDB_ABI_VERSION_NUMBER >= 12
   auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid");
   if (!grid) {
     params.set_default_remaining_outputs();
@@ -48,12 +51,15 @@ static void node_geo_exec(GeoNodeExecParams params)
       filter.fillet();
     }
   }
-  catch (const openvdb::RuntimeError &e) {
+  catch (const openvdb::RuntimeError & /*e*/) {
     node_geo_sdf_grid_error_not_levelset(params);
     return;
   }
 
   params.set_output("Grid", std::move(grid));
+#  else
+  node_geo_exec_with_too_old_openvdb(params);
+#  endif
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif

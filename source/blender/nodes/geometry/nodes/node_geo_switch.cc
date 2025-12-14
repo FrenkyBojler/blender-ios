@@ -4,6 +4,8 @@
 
 #include "node_geometry_util.hh"
 
+#include "BKE_node_tree_reference_lifetimes.hh"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -39,8 +41,11 @@ static void node_declare(NodeDeclarationBuilder &b)
     true_decl.supports_field();
     output_decl.dependent_field().reference_pass_all();
   }
-  if (socket_type == SOCK_GEOMETRY) {
+  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(socket_type)) {
     output_decl.propagate_all();
+  }
+  if (bke::node_tree_reference_lifetimes::can_contain_reference(socket_type)) {
+    output_decl.reference_pass_all();
   }
 
   const StructureType structure_type = socket_type_always_single(socket_type) ?
@@ -53,15 +58,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   output_decl.structure_type(structure_type);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeSwitch *data = MEM_callocN<NodeSwitch>(__func__);
-  data->input_type = SOCK_GEOMETRY;
+  data->input_type = SOCK_FLOAT;
   node->storage = data;
 }
 
@@ -231,37 +236,23 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 
 static void node_rna(StructRNA *srna)
 {
-  RNA_def_node_enum(
-      srna,
-      "input_type",
-      "Input Type",
-      "",
-      rna_enum_node_socket_data_type_items,
-      NOD_storage_enum_accessors(input_type),
-      SOCK_GEOMETRY,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
-        *r_free = true;
-        return enum_items_filter(rna_enum_node_socket_data_type_items,
-                                 [](const EnumPropertyItem &item) -> bool {
-                                   return ELEM(item.value,
-                                               SOCK_FLOAT,
-                                               SOCK_INT,
-                                               SOCK_BOOLEAN,
-                                               SOCK_ROTATION,
-                                               SOCK_MATRIX,
-                                               SOCK_VECTOR,
-                                               SOCK_STRING,
-                                               SOCK_RGBA,
-                                               SOCK_GEOMETRY,
-                                               SOCK_OBJECT,
-                                               SOCK_COLLECTION,
-                                               SOCK_MATERIAL,
-                                               SOCK_IMAGE,
-                                               SOCK_MENU,
-                                               SOCK_BUNDLE,
-                                               SOCK_CLOSURE);
-                                 });
-      });
+  RNA_def_node_enum(srna,
+                    "input_type",
+                    "Input Type",
+                    "",
+                    rna_enum_node_socket_data_type_items,
+                    NOD_storage_enum_accessors(input_type),
+                    SOCK_GEOMETRY,
+                    [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
+                      *r_free = true;
+                      const bNodeTree &ntree = *id_cast<const bNodeTree *>(ptr->owner_id);
+                      return enum_items_filter(
+                          rna_enum_node_socket_data_type_items,
+                          [&](const EnumPropertyItem &item) -> bool {
+                            return bke::node_tree_type_supports_socket_type_static(
+                                ntree.type, eNodeSocketDatatype(item.value));
+                          });
+                    });
 }
 
 static void register_node()

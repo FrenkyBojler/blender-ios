@@ -29,7 +29,7 @@
 namespace blender::nodes::node_geo_repeat_cc {
 
 /** Shared between repeat zone input and output node. */
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_node_ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_node_ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(current_node_ptr->owner_id);
   bNode *current_node = static_cast<bNode *>(current_node_ptr->data);
@@ -49,7 +49,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
 
-  if (uiLayout *panel = layout->panel(C, "repeat_items", false, IFACE_("Repeat Items"))) {
+  if (ui::Layout *panel = layout.panel(C, "repeat_items", false, IFACE_("Repeat Items"))) {
     socket_items::ui::draw_items_list_with_operators<RepeatItemsAccessor>(
         C, panel, ntree, output_node);
     socket_items::ui::draw_active_item_props<RepeatItemsAccessor>(
@@ -60,7 +60,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
         });
   }
 
-  layout->prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace repeat_input_node {
@@ -145,7 +145,7 @@ static int node_shader_fn(GPUMaterial *mat,
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  common_node_type_base(&ntype, "GeometryNodeRepeatInput", GEO_NODE_REPEAT_INPUT);
+  sh_geo_node_type_base(&ntype, "GeometryNodeRepeatInput", GEO_NODE_REPEAT_INPUT);
   ntype.ui_name = "Repeat Input";
   ntype.enum_name_legacy = "REPEAT_INPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
@@ -305,7 +305,7 @@ static int node_shader_fn(GPUMaterial *mat,
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  common_node_type_base(&ntype, "GeometryNodeRepeatOutput", GEO_NODE_REPEAT_OUTPUT);
+  sh_geo_node_type_base(&ntype, "GeometryNodeRepeatOutput", GEO_NODE_REPEAT_OUTPUT);
   ntype.ui_name = "Repeat Output";
   ntype.enum_name_legacy = "REPEAT_OUTPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
