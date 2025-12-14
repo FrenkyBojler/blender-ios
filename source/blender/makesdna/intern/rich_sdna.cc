@@ -2,12 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_genfile.h"
 #include "DNA_rich_sdna.hh"
 
-#include "BLI_timeit.hh"
+#include "dna_utils.h"
 
-// #include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender::rich_sdna {
 
@@ -276,18 +275,18 @@ struct PrimitiveTypeInfo {
 static const Map<StringRef, PrimitiveTypeInfo> &get_primitive_type_map()
 {
   static Map<StringRef, PrimitiveTypeInfo> map = []() {
-    Map<StringRef, PrimitiveTypeInfo> map;
-    map.add("char", {PrimitiveType::Char, 1});
-    map.add("uchar", {PrimitiveType::UChar, 1});
-    map.add("short", {PrimitiveType::Short, 2});
-    map.add("ushort", {PrimitiveType::UShort, 2});
-    map.add("int", {PrimitiveType::Int, 4});
-    map.add("float", {PrimitiveType::Float, 4});
-    map.add("double", {PrimitiveType::Double, 8});
-    map.add("int64_t", {PrimitiveType::Int64, 8});
-    map.add("uint64_t", {PrimitiveType::UInt64, 8});
-    map.add("int8_t", {PrimitiveType::Int8, 1});
-    return map;
+    Map<StringRef, PrimitiveTypeInfo> m;
+    m.add("char", {PrimitiveType::Char, 1});
+    m.add("uchar", {PrimitiveType::UChar, 1});
+    m.add("short", {PrimitiveType::Short, 2});
+    m.add("ushort", {PrimitiveType::UShort, 2});
+    m.add("int", {PrimitiveType::Int, 4});
+    m.add("float", {PrimitiveType::Float, 4});
+    m.add("double", {PrimitiveType::Double, 8});
+    m.add("int64_t", {PrimitiveType::Int64, 8});
+    m.add("uint64_t", {PrimitiveType::UInt64, 8});
+    m.add("int8_t", {PrimitiveType::Int8, 1});
+    return m;
   }();
   return map;
 }
@@ -393,7 +392,7 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const i
 
 void RichSDNA::print(std::ostream &stream, const bool verbose) const
 {
-  for (const int type_i : this->types.index_range()) {
+  for (const int64_t type_i : this->types.index_range()) {
     const Type &type = *this->types[type_i];
     type.print(stream, verbose);
   }
@@ -425,7 +424,7 @@ void Type::print(std::ostream &stream, const bool verbose) const
   fmt::format_to(dst, "  Size in bytes: {}\n", this->size_in_bytes);
   if (this->opt_struct) {
     fmt::format_to(dst, "  Members:\n");
-    for (const int member_i : this->opt_struct->members.index_range()) {
+    for (const int64_t member_i : this->opt_struct->members.index_range()) {
       const StructMember &member = *this->opt_struct->members[member_i];
       if (verbose) {
         fmt::format_to(dst, "    {}\n", member.name);
