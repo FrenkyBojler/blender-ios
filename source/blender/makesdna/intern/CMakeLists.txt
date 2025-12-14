@@ -122,6 +122,7 @@ set(SRC
   dna_defaults.c
   dna_genfile.cc
   dna_utils.cc
+  rich_sdna.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
