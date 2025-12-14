@@ -316,9 +316,9 @@ class Grid : Overlay {
       grid_ubo_.clip_rect = float2(clip_dist);
     }
     else {
-      /* WATCH(not_mark): This appears to function in ortho/VR as well?! */
+      /* WATCH(not_mark): This appears to function in ortho/VR, but I'm not convinced. */
       bool use_clip_end = rv3d->is_persp ||
-                          (v3d->flag & V3D_XR_SESSION_SURFACE | V3D_XR_SESSION_MIRROR) != 0;
+                          ((v3d->flag & (V3D_XR_SESSION_SURFACE | V3D_XR_SESSION_MIRROR)) != 0);
       float clip_dist = use_clip_end ? v3d->clip_end :
                                        (4.0f / max(rv3d->winmat[0][0], rv3d->winmat[1][1]));
       grid_ubo_.clip_rect = float2(clip_dist);

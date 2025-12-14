@@ -122,7 +122,7 @@ void main()
   float step_size = grid_buf.steps[level][line.axis];
   float2 step_offs = flag_test(grid_flag, SHOW_GRID) ?
                          round(grid_buf.offset / step_size) * step_size :
-                         float2(drw_view_position()[line.axis], 0.0f);
+                         float2(drw_view_position()[line.axis], 0.0f); /* Store value on X-axis. */
 
   /* Output vertex position in [-1,1], which we use to fade level boundaries. */
   vertex_out.coord = line.P / max(float(grid_buf.num_lines >> 1), 1.0f);
@@ -150,13 +150,15 @@ void main()
     clip_max = grid_buf.offset + grid_buf.clip_rect;
   }
   else { /* SHOW_AXES */
-    clip_min = float2(grid_buf.offset[line.axis] - grid_buf.clip_rect[line.axis], 0.0f);
-    clip_max = float2(grid_buf.offset[line.axis] + grid_buf.clip_rect[line.axis], 0.0f);
+    /* Apply clipping on X-axis; this value is moved to the correct axis below. */
+    uint offset_idx = drw_view_is_perspective() ? line.axis : 0;
+    clip_min = float2(grid_buf.offset[offset_idx] - grid_buf.clip_rect[line.axis], 0.0f);
+    clip_max = float2(grid_buf.offset[offset_idx] + grid_buf.clip_rect[line.axis], 0.0f);
   }
 
   /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
-   * inside the rectangle to avoid precision problems with large lines.
-   * Z-axis line ignores this step. */
+   * inside the rectangle to avoid precision problems with large lines. Z-axis ignores this step.
+   */
   if (line.axis != 2) {
     bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
     if (line_outside_rect) {
