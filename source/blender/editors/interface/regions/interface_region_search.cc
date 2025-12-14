@@ -97,6 +97,8 @@ struct uiSearchboxData {
   /* Owned by ButtonSearch */
   void *search_arg;
   ButtonSearchListenFn search_listener;
+  bool mmb_panning;
+  int mmb_panning_last_y;
 };
 
 #define SEARCH_ITEMS 10
@@ -410,6 +412,19 @@ bool searchbox_event(
 
   if (type == MOUSEPAN) {
     pan_to_scroll(event, &type, &val);
+  }
+  else if (type == MIDDLEMOUSE) {
+    data->mmb_panning = val == KM_PRESS;
+    data->mmb_panning_last_y = event->xy[1];
+    return true;
+  }
+  else if (data->mmb_panning && type == MOUSEMOVE) {
+    int delta = (data->mmb_panning_last_y - event->xy[1]) / 16;
+    if (delta) {
+      searchbox_select(C, region, but, delta);
+      data->mmb_panning_last_y = event->xy[1];
+    }
+    return true;
   }
 
   switch (type) {
@@ -990,6 +1005,7 @@ static ARegion *searchbox_create_generic_ex(bContext *C,
   data->size_set = false;
   data->search_listener = but->listen_fn;
   data->zoom = 1.0f / aspect;
+  data->mmb_panning = false;
 
   /* Set font, get the bounding-box. */
   data->fstyle = style->widget; /* copy struct */
