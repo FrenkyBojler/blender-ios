@@ -22,6 +22,17 @@ static std::string strip_name(const StringRefNull identifier)
   return result;
 }
 
+std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const int64_t buffer_size)
+{
+  SDNA *raw_sdna = DNA_sdna_from_data(buffer, buffer_size, false, true, nullptr);
+  if (!raw_sdna) {
+    return nullptr;
+  }
+  std::unique_ptr<RichSDNA> rich_sdna = RichSDNA::from_sdna(*raw_sdna);
+  DNA_sdna_free(raw_sdna);
+  return rich_sdna;
+}
+
 std::unique_ptr<RichSDNA> RichSDNA::from_sdna(const SDNA &raw_sdna)
 {
   auto rich_sdna = std::make_unique<RichSDNA>();

@@ -2072,10 +2072,10 @@ static std::optional<Vector<BlendIdData>> find_blend_id_blocks(const BlendData &
   return result;
 }
 
-static SDNA *parse_raw_sdna(const BlendBlock &block)
+static std::unique_ptr<RichSDNA> parse_sdna(const BlendBlock &block)
 {
   BLI_assert(block.bhead.code == BLO_CODE_DNA1);
-  return DNA_sdna_from_data(block.data, block.bhead.len, false, true, nullptr);
+  return RichSDNA::from_sdna_buffer(block.data, block.bhead.len);
 }
 
 static std::optional<BlendData> read_blend_file_data(FileReader &file)
@@ -2182,21 +2182,10 @@ static int main_do(const int argc, char *argv[])
     return 1;
   }
 
-  SDNA *raw_sdna_old = parse_raw_sdna(blend_data_old->blocks[blend_data_old->sdna_block_index]);
-  SDNA *raw_sdna_new = parse_raw_sdna(blend_data_new->blocks[blend_data_new->sdna_block_index]);
-  if (!raw_sdna_old) {
-    fmt::println(stderr, "Unable to parse SDNA: {}", file_old);
-    return 1;
-  }
-  if (!raw_sdna_new) {
-    fmt::println(stderr, "Unable to parse SDNA: {}", file_new);
-    return 1;
-  }
-  BLI_SCOPED_DEFER([&]() { DNA_sdna_free(raw_sdna_old); });
-  BLI_SCOPED_DEFER([&]() { DNA_sdna_free(raw_sdna_new); });
-
-  const std::unique_ptr<RichSDNA> sdna_old = RichSDNA::from_sdna(*raw_sdna_old);
-  const std::unique_ptr<RichSDNA> sdna_new = RichSDNA::from_sdna(*raw_sdna_new);
+  const std::unique_ptr<RichSDNA> sdna_old = parse_sdna(
+      blend_data_old->blocks[blend_data_old->sdna_block_index]);
+  const std::unique_ptr<RichSDNA> sdna_new = parse_sdna(
+      blend_data_new->blocks[blend_data_new->sdna_block_index]);
   if (!sdna_old) {
     fmt::println(stderr, "Unable to parse SDNA: {}", file_old);
     return 1;

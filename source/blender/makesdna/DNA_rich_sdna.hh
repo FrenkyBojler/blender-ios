@@ -103,6 +103,7 @@ class RichSDNA {
   CustomIDVectorSet<const Type *, TypeNameGetter> types;
 
   static std::unique_ptr<RichSDNA> from_sdna(const SDNA &raw_sdna);
+  static std::unique_ptr<RichSDNA> from_sdna_buffer(const void *buffer, const int64_t buffer_size);
 
   void print(std::ostream &stream, const bool verbose = false) const;
   const Struct *try_find_struct(const int struct_nr) const;
