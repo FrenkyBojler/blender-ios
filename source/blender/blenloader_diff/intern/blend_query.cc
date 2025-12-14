@@ -25,7 +25,7 @@ using rich_sdna::Struct;
 using rich_sdna::StructMember;
 using rich_sdna::Type;
 
-static uint64_t read_address(const void *data)
+uint64_t read_address(const void *data)
 {
   return *reinterpret_cast<const uint64_t *>(data);
 }
@@ -495,7 +495,7 @@ BlendValue BlendQuery::lookup(const BlendValue &in, const LookupPathElem &path_e
   return BlendValue::none();
 }
 
-static PrimitiveValue read_primitive_value(const PrimitiveType type, const void *data)
+PrimitiveValue read_primitive_value(const PrimitiveType type, const void *data)
 {
   switch (type) {
     case PrimitiveType::Char:

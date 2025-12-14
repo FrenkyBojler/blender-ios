@@ -100,6 +100,9 @@ struct BlendValue {
   std::optional<uint64_t> as_address() const;
 };
 
+uint64_t read_address(const void *data);
+PrimitiveValue read_primitive_value(const PrimitiveType type, const void *data);
+
 class BlendQuery {
  private:
   ResourceScope scope_;

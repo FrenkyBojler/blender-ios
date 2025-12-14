@@ -300,39 +300,6 @@ struct BlockMatch {
   std::string context;
 };
 
-static PrimitiveValue read_primitive_value_at_address(const PrimitiveType type, const void *data)
-{
-  switch (type) {
-    case PrimitiveType::Char:
-      return *reinterpret_cast<const char *>(data);
-    case PrimitiveType::UChar:
-      return *reinterpret_cast<const uchar *>(data);
-    case PrimitiveType::Short:
-      return *reinterpret_cast<const short *>(data);
-    case PrimitiveType::UShort:
-      return *reinterpret_cast<const ushort *>(data);
-    case PrimitiveType::Int:
-      return *reinterpret_cast<const int *>(data);
-    case PrimitiveType::Float:
-      return *reinterpret_cast<const float *>(data);
-    case PrimitiveType::Double:
-      return *reinterpret_cast<const double *>(data);
-    case PrimitiveType::Int64:
-      return *reinterpret_cast<const int64_t *>(data);
-    case PrimitiveType::UInt64:
-      return *reinterpret_cast<const uint64_t *>(data);
-    case PrimitiveType::Int8:
-      return *reinterpret_cast<const int8_t *>(data);
-  }
-  BLI_assert_unreachable();
-  return 0;
-}
-
-static uint64_t read_address_at_address(const void *data)
-{
-  return *reinterpret_cast<const uint64_t *>(data);
-}
-
 static std::optional<std::string> try_read_inline_string_member(const void *struct_data,
                                                                 const Struct &sdna_struct,
                                                                 const StringRef member_name)
@@ -679,11 +646,11 @@ class IdDiffer {
       Vector<Pointee> old_pointees;
       Vector<Pointee> new_pointees;
       for (const int64_t i : IndexRange(old_num)) {
-        const uint64_t address = read_address_at_address(old_block.data + i * pointer_size);
+        const uint64_t address = blend_query::read_address(old_block.data + i * pointer_size);
         old_pointees.append(this->lookup_pointee(old_, address));
       }
       for (const int64_t i : IndexRange(new_num)) {
-        const uint64_t address = read_address_at_address(new_block.data + i * pointer_size);
+        const uint64_t address = blend_query::read_address(new_block.data + i * pointer_size);
         new_pointees.append(this->lookup_pointee(new_, address));
       }
       this->diff_block_list(old_pointees, new_pointees, context);
@@ -813,9 +780,9 @@ class IdDiffer {
           }
         }
         for (const int i : IndexRange(elem_num)) {
-          const PrimitiveValue old_value = read_primitive_value_at_address(
+          const PrimitiveValue old_value = blend_query::read_primitive_value(
               primitive_type, old_block.data + old_member_offset + i * old_member.elem_size);
-          const PrimitiveValue new_value = read_primitive_value_at_address(
+          const PrimitiveValue new_value = blend_query::read_primitive_value(
               primitive_type, new_block.data + new_member_offset + i * new_member.elem_size);
 
           const uint64_t ignored_flags = options_.lookup_ignored_flags(new_member);
@@ -840,10 +807,10 @@ class IdDiffer {
       }
       case rich_sdna::StructMember::Category::Pointer: {
         for (const int i : IndexRange(elem_num)) {
-          const uint64_t old_address = read_address_at_address(old_block.data + old_member_offset +
-                                                               i * old_member.elem_size);
-          const uint64_t new_address = read_address_at_address(new_block.data + new_member_offset +
-                                                               i * new_member.elem_size);
+          const uint64_t old_address = blend_query::read_address(
+              old_block.data + old_member_offset + i * old_member.elem_size);
+          const uint64_t new_address = blend_query::read_address(
+              new_block.data + new_member_offset + i * new_member.elem_size);
           const Pointee old_pointee = this->lookup_pointee(old_, old_address);
           const Pointee new_pointee = this->lookup_pointee(new_, new_address);
           if (!old_pointee && !new_pointee) {
@@ -1337,7 +1304,7 @@ class IdDiffer {
     if (member->type->name != expected_type) {
       return nullptr;
     }
-    const uint64_t address = read_address_at_address(
+    const uint64_t address = blend_query::read_address(
         POINTER_OFFSET(data, member->offset_in_struct));
     return blend_data.id_data.lookup_internal_block(address);
   }
