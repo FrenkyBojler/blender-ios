@@ -49,8 +49,6 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
   RNA_float_get_array(op->ptr, "direction", mval_dir);
   normalize_v3(mval_dir);
 
-  float2 cent_sco;
-  RNA_float_get_array(op->ptr, "center", cent_sco);
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -200,8 +198,6 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const 
   ARegion *region = CTX_wm_region(C);
 
   const float2 mval_fl = {float(event->mval[0]), float(event->mval[1])};
-  float2 cent_sco;
-  int cent_tot;
 
   float3 ray_start, ray_dir;
   ED_view3d_win_to_ray(region, mval_fl, ray_start, ray_dir);
@@ -209,42 +205,6 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const 
 
   RNA_float_set_array(op->ptr, "direction", ray_dir);
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
-
-  for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    BMesh *bm = em->bm;
-
-    BMIter viter;
-    BMVert *v;
-
-    if (bm->totvertsel == 0) {
-      continue;
-    }
-
-    const blender::float4x4 projectMat = ED_view3d_ob_project_mat_get(CTX_wm_region_view3d(C),
-                                                                      obedit);
-
-    zero_v2(cent_sco);
-    cent_tot = 0;
-
-    BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-      if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-        const float2 v_sco = ED_view3d_project_float_v2_m4(region, v->co, projectMat);
-        add_v2_v2(cent_sco, v_sco);
-        cent_tot += 1;
-      }
-    }
-
-    if (cent_tot > 0) {
-      mul_v2_fl(cent_sco, 1.0f / float(cent_tot));
-    }
-  }
-
-  RNA_float_set_array(op->ptr, "center", cent_sco);
 
   return edbm_rip_edge_exec(C, op);
 }
@@ -277,15 +237,4 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
                               1.0f);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
-  prop = RNA_def_float_vector(ot->srna,
-                              "center",
-                              2,
-                              nullptr,
-                              -FLT_MAX,
-                              FLT_MAX,
-                              "Center",
-                              "Screen-space center of selection",
-                              -10000.0f,
-                              10000.0f);
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
