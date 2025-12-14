@@ -2195,32 +2195,39 @@ static int main_do(const int argc, char *argv[])
   BLI_SCOPED_DEFER([&]() { DNA_sdna_free(raw_sdna_old); });
   BLI_SCOPED_DEFER([&]() { DNA_sdna_free(raw_sdna_new); });
 
-  using namespace rich_sdna;
-  const RichSDNA sdna_old{*raw_sdna_old};
-  const RichSDNA sdna_new{*raw_sdna_new};
-
-  if (!sdna_fullfills_core_assumptions(sdna_old)) {
-    fmt::println(stderr, "SDNA does not fullfill core assumptions");
+  const std::unique_ptr<RichSDNA> sdna_old = RichSDNA::from_sdna(*raw_sdna_old);
+  const std::unique_ptr<RichSDNA> sdna_new = RichSDNA::from_sdna(*raw_sdna_new);
+  if (!sdna_old) {
+    fmt::println(stderr, "Unable to parse SDNA: {}", file_old);
     return 1;
   }
-  if (!sdna_fullfills_core_assumptions(sdna_new)) {
-    fmt::println(stderr, "SDNA does not fullfill core assumptions");
+  if (!sdna_new) {
+    fmt::println(stderr, "Unable to parse SDNA: {}", file_new);
     return 1;
   }
 
-  if (!block_sizes_match_sdna(*blend_data_old, sdna_old)) {
+  if (!sdna_fullfills_core_assumptions(*sdna_old)) {
+    fmt::println(stderr, "SDNA does not fullfill core assumptions");
+    return 1;
+  }
+  if (!sdna_fullfills_core_assumptions(*sdna_new)) {
+    fmt::println(stderr, "SDNA does not fullfill core assumptions");
+    return 1;
+  }
+
+  if (!block_sizes_match_sdna(*blend_data_old, *sdna_old)) {
     fmt::println(stderr, "Block sizes do not match SDNA");
     return 1;
   }
-  if (!block_sizes_match_sdna(*blend_data_new, sdna_new)) {
+  if (!block_sizes_match_sdna(*blend_data_new, *sdna_new)) {
     fmt::println(stderr, "Block sizes do not match SDNA");
     return 1;
   }
 
   const std::optional<Vector<BlendIdData>> id_blocks_old = find_blend_id_blocks(*blend_data_old,
-                                                                                sdna_old);
+                                                                                *sdna_old);
   const std::optional<Vector<BlendIdData>> id_blocks_new = find_blend_id_blocks(*blend_data_new,
-                                                                                sdna_new);
+                                                                                *sdna_new);
 
   if (!id_blocks_old) {
     fmt::println(stderr, "Unable to find ID blocks in old SDNA");
@@ -2269,9 +2276,9 @@ static int main_do(const int argc, char *argv[])
   /* These have special handling. */
   options.add_members_to_ignore("IDPropertyData", {"val", "val2"});
 
-  const DiffLines sdna_diff = write_diff_sdna(options, sdna_old, sdna_new);
+  const DiffLines sdna_diff = write_diff_sdna(options, *sdna_old, *sdna_new);
   const AllIdDiffLines id_diffs = write_diff_ids(
-      options, *id_blocks_old, *id_blocks_new, sdna_old, sdna_new);
+      options, *id_blocks_old, *id_blocks_new, *sdna_old, *sdna_new);
 
   auto write_output = [&](const DiffLines &diff) { std::cout << diff.to_string(); };
 

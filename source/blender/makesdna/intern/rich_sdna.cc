@@ -22,13 +22,15 @@ static std::string strip_name(const StringRefNull identifier)
   return result;
 }
 
-RichSDNA::RichSDNA(const SDNA &raw_sdna)
+std::unique_ptr<RichSDNA> RichSDNA::from_sdna(const SDNA &raw_sdna)
 {
-  LinearAllocator<> &allocator = scope_.allocator();
+  auto rich_sdna = std::make_unique<RichSDNA>();
+
+  LinearAllocator<> &allocator = rich_sdna->scope_.allocator();
   for (const int type_i : IndexRange(raw_sdna.types_num)) {
     const StringRefNull type_name = allocator.copy_string(raw_sdna.types[type_i]);
-    Type &sdna_type = scope_.construct<Type>();
-    sdna_type.owner = this;
+    Type &sdna_type = rich_sdna->scope_.construct<Type>();
+    sdna_type.owner = &*rich_sdna;
     sdna_type.name = type_name;
     sdna_type.size_in_bytes = raw_sdna.types_size[type_i];
     sdna_type.index = type_i;
@@ -73,19 +75,19 @@ RichSDNA::RichSDNA(const SDNA &raw_sdna)
       BLI_assert(sdna_type.size_in_bytes == 1);
     }
 
-    this->types.add(&sdna_type);
+    rich_sdna->types.add(&sdna_type);
   }
   for (const int struct_i : IndexRange(raw_sdna.structs_num)) {
     const SDNA_Struct &raw_struct = *raw_sdna.structs[struct_i];
-    Struct &sdna_struct = scope_.construct<Struct>();
-    sdna_struct.type = this->types[raw_struct.type_index];
+    Struct &sdna_struct = rich_sdna->scope_.construct<Struct>();
+    sdna_struct.type = rich_sdna->types[raw_struct.type_index];
     const_cast<Type *>(sdna_struct.type)->opt_struct = &sdna_struct;
 
     for (const int member_i : IndexRange(raw_struct.members_num)) {
       const SDNA_StructMember &raw_member = raw_struct.members[member_i];
-      StructMember &sdna_member = scope_.construct<StructMember>();
+      StructMember &sdna_member = rich_sdna->scope_.construct<StructMember>();
       sdna_member.elem_num = raw_sdna.members_array_num[raw_member.member_index];
-      sdna_member.type = this->types[raw_member.type_index];
+      sdna_member.type = rich_sdna->types[raw_member.type_index];
       sdna_member.name_with_array = allocator.copy_string(
           raw_sdna.members[raw_member.member_index]);
       const int array_start = sdna_member.name_with_array.find_first_of('[');
@@ -100,9 +102,9 @@ RichSDNA::RichSDNA(const SDNA &raw_sdna)
       sdna_member.parent = &sdna_struct;
       sdna_struct.members.add(&sdna_member);
     }
-    this->structs.add(&sdna_struct);
+    rich_sdna->structs.add(&sdna_struct);
   }
-  for (const Struct *sdna_struct_const : this->structs) {
+  for (const Struct *sdna_struct_const : rich_sdna->structs) {
     Struct &sdna_struct = const_cast<Struct &>(*sdna_struct_const);
     int64_t offset = 0;
     for (const StructMember *sdna_member_const : sdna_struct.members) {
@@ -124,6 +126,8 @@ RichSDNA::RichSDNA(const SDNA &raw_sdna)
       offset += sdna_member.size_in_bytes;
     }
   }
+
+  return rich_sdna;
 }
 
 void RichSDNA::print(std::ostream &stream, const bool verbose) const
