@@ -49,7 +49,6 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
   RNA_float_get_array(op->ptr, "direction", mval_dir);
   normalize_v3(mval_dir);
 
-
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
@@ -67,7 +66,7 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
       BM_elem_flag_disable(v, BM_ELEM_TAG);
     }
 
-    /* operate on selected verts. */
+    /* operate on selected verts */
     BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
       BMIter eiter;
       BMEdge *e;
@@ -79,6 +78,7 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
 #ifdef USE_TRICKY_EXTEND
         /* first check if we can select the edge to split based on selection-only */
         int tot_sel = 0;
+
         BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
           if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
             if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
@@ -87,18 +87,19 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
             }
           }
         }
+
         if (tot_sel != 1) {
           e_best = nullptr;
         }
-        /* only one edge selected, operate on that. */
+        /* only one edge selected, operate on that */
         if (e_best) {
           goto found_edge;
         }
-        /* none selected, fall through and find one. */
+        /* none selected, fall through and find one */
         else if (tot_sel == 0) {
           /* pass */
         }
-        /* selection not 0 or 1, do nothing. */
+        /* selection not 0 or 1, do nothing */
         else {
           goto found_edge;
         }
@@ -141,7 +142,7 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
           if (e_select) {
             BM_edge_select_set(bm, e_best, true);
           }
-          BM_elem_flag_enable(v_new, BM_ELEM_TAG); /* prevent further splitting. */
+          BM_elem_flag_enable(v_new, BM_ELEM_TAG); /* prevent further splitting */
 
           /* When UV sync select is enabled, the wrong UV's will be selected
            * because the existing loops will have the selection and the new ones won't.
@@ -180,6 +181,7 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       BM_select_history_clear(bm);
+
       BM_mesh_select_mode_flush(bm);
 
       EDBMUpdate_Params params{};
