@@ -159,6 +159,8 @@ int blf_font_descender(FontBLF *font);
 int blf_font_ascender(FontBLF *font);
 bool blf_font_bounds_max(FontBLF *font, rctf *r_bounds);
 
+void blf_font_feature(FontBLF *font, const char tag[4], int value);
+
 char *blf_display_name(FontBLF *font);
 
 void blf_font_boundbox_foreach_glyph(

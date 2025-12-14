@@ -488,16 +488,6 @@ bool ShapingData::next_segment()
   return true;
 }
 
-static void blf_ot_feature(std::vector<hb_feature_t> &features, hb_tag_t feature, bool enable)
-{
-  hb_feature_t f = {0};
-  f.tag = feature;
-  f.value = enable ? 1 : 0;
-  f.start = HB_FEATURE_GLOBAL_START;
-  f.end = HB_FEATURE_GLOBAL_END;
-  features.push_back(f);
-}
-
 bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
 {
   if (!this->next_segment()) {
@@ -538,36 +528,12 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
     hb_ot_font_set_funcs(this->segment.font->hb_font);
   }
   hb_font_set_scale(this->segment.font->hb_font, int(font->size * 64.0f), int(font->size * 64.0f));
-  std::vector<hb_feature_t> features;
 
-  if (!(font->flags & BLF_MONOSPACED)) {
-    blf_ot_feature(features, HB_TAG('k', 'e', 'r', 'n'), U.text_render & USER_TEXT_KERNING);
-    blf_ot_feature(
-        features, HB_TAG('t', 'n', 'u', 'm'), U.text_render & USER_TEXT_TABULAR_NUMBERS_UI);
-    blf_ot_feature(features,
-                   HB_TAG('d', 'l', 'i', 'g'),
-                   U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI);
-  }
-
-  blf_ot_feature(features,
-                 HB_TAG('z', 'e', 'r', 'o'),
-                 (font->flags & BLF_MONOSPACED) ? U.text_render & USER_TEXT_SLASHED_ZERO_MONO :
-                                                  U.text_render & USER_TEXT_SLASHED_ZERO_UI);
-  blf_ot_feature(features,
-                 HB_TAG('c', 'a', 'l', 't'),
-                 (font->flags & BLF_MONOSPACED) ?
-                     U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_MONO :
-                     U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI);
-
-  if (STRPREFIX(font->face->family_name, "Inter")) {
-    blf_ot_feature(
-        features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS_INTER);
-    blf_ot_feature(
-        features, HB_TAG('s', 's', '0', '4'), U.text_render & USER_TEXT_DISAMBIGUATION_INTER);
-  }
-
-  hb_shape_full(
-      this->segment.font->hb_font, this->hb_buf, features.data(), uint(features.size()), nullptr);
+  hb_shape_full(this->segment.font->hb_font,
+                this->hb_buf,
+                font->features.data(),
+                uint(font->features.size()),
+                nullptr);
   this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
                                                           &this->segment.glyph_count);
   this->segment.glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, nullptr);
@@ -624,6 +590,31 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   }
   /* Is there more data still to process after this run? */
   return (this->char_count > (this->segment.char_offset + this->segment.char_count));
+}
+
+void blf_font_feature(FontBLF *font, const char tag[4], int value)
+{
+  if (font) {
+    hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
+    int index = -1;
+    for (int64_t i = 0; i < font->features.size(); i++) {
+      if (font->features[i].tag == tag_value) {
+        index = int(i);
+        break;
+      }
+    }
+    if (index != -1) {
+      font->features[index].value = value;
+    }
+    else {
+      hb_feature_t f = {0};
+      f.tag = tag_value;
+      f.value = hb_tag_t(value);
+      f.start = HB_FEATURE_GLOBAL_START;
+      f.end = HB_FEATURE_GLOBAL_END;
+      font->features.append(f);
+    }
+  }
 }
 
 static void blf_font_draw_ex(FontBLF *font,
@@ -2209,6 +2200,16 @@ static FontBLF *blf_font_new_impl(const char *filepath,
 
   font->ft_lib = ft_library ? (FT_Library)ft_library : ft_lib;
 
+  blf_font_feature(font, "kern", 1); /* Kerning. */
+  blf_font_feature(font, "locl", 1); /* Localized Forms. */
+  blf_font_feature(font, "case", 1); /* Case Sensitive Forms. */
+  blf_font_feature(font, "tnum", 1); /* Tabular Numbers. */
+  blf_font_feature(font, "dlig", 0); /* Discretionary Ligatures. */
+  blf_font_feature(font, "zero", 0); /* Slashed Zero. */
+  blf_font_feature(font, "calt", 0); /* Contextual Alternates. */
+  blf_font_feature(font, "salt", 0); /* Stylistic Alternates. */
+  blf_font_feature(font, "ss00", 0); /* Stylistic Sets... */
+
   /* If we have static details about this font file, we don't have to load the Face yet. */
   bool face_needed = true;
 
@@ -2222,6 +2223,10 @@ static FontBLF *blf_font_new_impl(const char *filepath,
         font->unicode_ranges[2] = static_details->coverage3;
         font->unicode_ranges[3] = static_details->coverage4;
         face_needed = false;
+        if (STRPREFIX(filename, "Inter")) {
+          blf_font_feature(font, "ss01", 1); /* Open Digits. */
+          blf_font_feature(font, "ss04", 1); /* Disambiguation w/o zero. */
+        }
         break;
       }
     }

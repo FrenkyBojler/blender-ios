@@ -571,11 +571,23 @@ void style_init()
       if (font->blf_id != -1) {
         BLF_disable(font->blf_id, flag_disable);
         BLF_enable(font->blf_id, flag_enable);
+        BLF_feature(font->blf_id, "kern", U.text_render & USER_TEXT_KERNING ? 1 : 0);
+        BLF_feature(font->blf_id, "tnum", U.text_render & USER_TEXT_TABULAR_NUMBERS_UI ? 1 : 0);
+        BLF_feature(
+            font->blf_id, "dlig", U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
+        BLF_feature(font->blf_id, "zero", U.text_render & USER_TEXT_SLASHED_ZERO_UI ? 1 : 0);
+        BLF_feature(
+            font->blf_id, "calt", U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI ? 1 : 0);
+        BLF_feature(font->blf_id, "ss01", U.text_render & USER_TEXT_OPEN_DIGITS_INTER ? 1 : 0);
+        BLF_feature(font->blf_id, "ss04", U.text_render & USER_TEXT_DISAMBIGUATION_INTER ? 1 : 0);
       }
     }
     if (blf_mono_font != -1) {
       BLF_disable(blf_mono_font, flag_disable);
       BLF_enable(blf_mono_font, flag_enable);
+      BLF_feature(blf_mono_font, "zero", U.text_render & USER_TEXT_SLASHED_ZERO_MONO ? 1 : 0);
+      BLF_feature(
+          blf_mono_font, "calt", U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_MONO ? 1 : 0);
     }
   }
 

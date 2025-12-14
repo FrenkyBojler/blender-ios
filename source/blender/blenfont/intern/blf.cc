@@ -335,6 +335,14 @@ void BLF_disable(int fontid, FontFlags flag)
   }
 }
 
+void BLF_feature(int fontid, const char tag[4], int value)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    blf_font_feature(font, tag, value);
+  }
+}
+
 bool BLF_is_builtin(int fontid)
 {
   FontBLF *font = blf_get(fontid);

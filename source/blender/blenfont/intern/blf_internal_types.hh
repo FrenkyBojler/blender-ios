@@ -377,6 +377,9 @@ struct FontBLF {
   /** Font options. */
   FontFlags flags;
 
+  /** OpenType typographic features. */
+  blender::Vector<hb_feature_t> features;
+
   /**
    * List of glyph caches (#GlyphCacheBLF) for this font for size, DPI, bold, italic.
    * Use `blf_glyph_cache_acquire(font)` and `blf_glyph_cache_release(font)` to access cache!
