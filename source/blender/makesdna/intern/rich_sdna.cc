@@ -16,7 +16,7 @@ static bool name_is_pointer(const StringRefNull name)
   return name[0] == '*' || (name[0] == '(' && name[1] == '*');
 }
 
-static std::string strip_name(const StringRefNull identifier)
+static std::string strip_name(const StringRef identifier)
 {
   std::string result;
   for (const char c : identifier) {
@@ -352,7 +352,11 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const i
       const StringRefNull raw_member_name = allocator.copy_string(
           parsed->member_names[raw_member.name_i]);
       StructMember &sdna_member = scope.construct<StructMember>();
-      sdna_member.elem_num = DNA_member_array_num(raw_member_name.c_str());
+      const int elem_num = DNA_member_array_num(raw_member_name.c_str());
+      if (elem_num <= 0 || elem_num > 64 * 1024) {
+        return nullptr;
+      }
+      sdna_member.elem_num = elem_num;
       sdna_member.type = rich_sdna->types[raw_member.type_i];
       sdna_member.raw_name = raw_member_name;
       sdna_member.name = allocator.copy_string(strip_name(raw_member_name.c_str()));
