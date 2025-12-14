@@ -592,10 +592,50 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   return (this->char_count > (this->segment.char_offset + this->segment.char_count));
 }
 
+/* Only needed if we want to list per-font user features. */
+static bool blf_font_feature_supported(FontBLF *font, const char tag[4])
+{
+  if (!font) {
+    return false;
+  }
+
+  hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
+  unsigned int feature_index;
+  blf_ensure_face(font);
+  hb_face_t *hb_face = hb_ft_face_create_cached(font->face);
+
+  if (hb_ot_layout_language_find_feature(hb_face,
+                                         HB_OT_TAG_GSUB,
+                                         0,
+                                         HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX,
+                                         tag_value,
+                                         &feature_index))
+  {
+    return true;
+  }
+
+  if (hb_ot_layout_language_find_feature(hb_face,
+                                         HB_OT_TAG_GPOS,
+                                         0,
+                                         HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX,
+                                         tag_value,
+                                         &feature_index))
+  {
+    return true;
+  }
+
+  return false;
+}
+
 void blf_font_feature(FontBLF *font, const char tag[4], int value)
 {
+  if (!blf_font_feature_supported(font, tag)) {
+    return;
+  }
+
   if (font) {
     hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
+
     int index = -1;
     for (int64_t i = 0; i < font->features.size(); i++) {
       if (font->features[i].tag == tag_value) {
@@ -2202,13 +2242,14 @@ static FontBLF *blf_font_new_impl(const char *filepath,
 
   blf_font_feature(font, "kern", 1); /* Kerning. */
   blf_font_feature(font, "locl", 1); /* Localized Forms. */
+  blf_font_feature(font, "liga", 1); /* Standard Ligatures. */
   blf_font_feature(font, "case", 1); /* Case Sensitive Forms. */
+  blf_font_feature(font, "calt", 1); /* Contextual Alternates. */
   blf_font_feature(font, "tnum", 1); /* Tabular Numbers. */
   blf_font_feature(font, "dlig", 0); /* Discretionary Ligatures. */
+  blf_font_feature(font, "hlig", 0); /* Historical Ligatures. */
   blf_font_feature(font, "zero", 0); /* Slashed Zero. */
-  blf_font_feature(font, "calt", 0); /* Contextual Alternates. */
   blf_font_feature(font, "salt", 0); /* Stylistic Alternates. */
-  blf_font_feature(font, "ss00", 0); /* Stylistic Sets... */
 
   /* If we have static details about this font file, we don't have to load the Face yet. */
   bool face_needed = true;

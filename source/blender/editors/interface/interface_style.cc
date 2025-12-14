@@ -585,7 +585,6 @@ void style_init()
     if (blf_mono_font != -1) {
       BLF_disable(blf_mono_font, flag_disable);
       BLF_enable(blf_mono_font, flag_enable);
-      BLF_feature(blf_mono_font, "zero", U.text_render & USER_TEXT_SLASHED_ZERO_MONO ? 1 : 0);
       BLF_feature(
           blf_mono_font, "calt", U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_MONO ? 1 : 0);
     }

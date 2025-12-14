@@ -5362,11 +5362,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Slashed Zero", "Zero character with slash");
   RNA_def_property_update(prop, 0, "rna_userdef_text_update");
 
-  prop = RNA_def_property(srna, "use_text_slashed_zero_mono", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_SLASHED_ZERO_MONO);
-  RNA_def_property_ui_text(prop, "Slashed Zero", "Zero character with slash");
-  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
-
   prop = RNA_def_property(srna, "use_text_discretionary_ligatures", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "text_render", USER_TEXT_DISCRETIONARY_LIGATURES_UI);
