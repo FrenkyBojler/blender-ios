@@ -475,6 +475,13 @@ BlendValue BlendQuery::lookup(const BlendValue &in, const LookupPathElem &path_e
                     other_block->bhead.nr,
                     other_block->data};
           }
+          if (const RawBufferType *raw_buffer_type = this->lookup_raw_buffer_type(*other_block)) {
+            if (other_block->bhead.len % raw_buffer_type->elem_size != 0) {
+              return BlendValue::none();
+            }
+            const int64_t elem_num = other_block->bhead.len / raw_buffer_type->elem_size;
+            return {in.id, *raw_buffer_type, elem_num, other_block->data};
+          }
         }
         if (in.type.pointer_level >= 2) {
           RawBufferType raw_buffer_type = in.type;
@@ -590,6 +597,26 @@ std::optional<uint64_t> BlendValue::as_address() const
     return std::nullopt;
   }
   return read_address(this->data);
+}
+
+std::optional<StringRefNull> BlendValue::as_string() const
+{
+  if (this->is_none()) {
+    return std::nullopt;
+  }
+  if (this->type.pointer_level != 0) {
+    return std::nullopt;
+  }
+  if (this->size <= 1) {
+    return std::nullopt;
+  }
+
+  if (this->type.sdna_base_type &&
+      this->type.sdna_base_type->opt_primitive_type == PrimitiveType::Char)
+  {
+    return get_c_string_in_buffer({this->data, this->size});
+  }
+  return std::nullopt;
 }
 
 }  // namespace blender::blend_query

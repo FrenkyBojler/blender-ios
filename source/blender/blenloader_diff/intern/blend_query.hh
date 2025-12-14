@@ -99,6 +99,7 @@ struct BlendValue {
 
   template<typename T> std::optional<T> as_primitive() const;
   std::optional<uint64_t> as_address() const;
+  std::optional<StringRefNull> as_string() const;
 };
 
 uint64_t read_address(const void *data);

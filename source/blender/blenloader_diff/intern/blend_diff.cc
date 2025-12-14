@@ -301,44 +301,6 @@ struct BlockMatch {
   std::string context;
 };
 
-static std::optional<std::string> try_read_inline_string_member(const void *struct_data,
-                                                                const Struct &sdna_struct,
-                                                                const StringRef member_name)
-{
-  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
-  if (!member) {
-    return std::nullopt;
-  }
-  if (member->category != StructMember::Category::Primitive) {
-    return std::nullopt;
-  }
-  if (member->type->opt_primitive_type != PrimitiveType::Char) {
-    return std::nullopt;
-  }
-  const char *str_data = reinterpret_cast<const char *>(struct_data) + member->offset_in_struct;
-  const int64_t len = BLI_strnlen(str_data, member->elem_num);
-  return std::string(str_data, len);
-}
-
-static std::optional<int> try_read_inline_int_member(const void *struct_data,
-                                                     const Struct &sdna_struct,
-                                                     const StringRef member_name)
-{
-  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
-  if (!member) {
-    return std::nullopt;
-  }
-  if (member->category != StructMember::Category::Primitive) {
-    return std::nullopt;
-  }
-  if (member->type->opt_primitive_type != PrimitiveType::Int) {
-    return std::nullopt;
-  }
-  const int value = *reinterpret_cast<const int *>(static_cast<const char *>(struct_data) +
-                                                   member->offset_in_struct);
-  return value;
-}
-
 static std::string primitive_value_to_string(const PrimitiveValue &value)
 {
   return std::visit([](const auto &v) { return std::to_string(v); }, value);
@@ -1379,35 +1341,35 @@ class IdDiffer {
                                                    const Struct &sdna_struct,
                                                    const bool ui_identifier = false) const
   {
+    const BlendValue bstruct{&blend_data.id_data,
+                             RawBufferType::from_sdna_type(*sdna_struct.type),
+                             1,
+                             static_cast<const char *>(data)};
     if (is_specific_id_struct(sdna_struct)) {
-      const Struct &id_sdna_struct = *sdna_struct.type->owner->try_find_struct("ID");
-      return try_read_inline_string_member(data, id_sdna_struct, "name");
+      return blend_data.blend.lookup(bstruct, "name").as_string();
     }
     if (!sdna_struct.members.is_empty()) {
       const StructMember &first_member = *sdna_struct.members[0];
       if (first_member.category == StructMember::Category::Struct) {
         if (first_member.type->name == "ModifierData") {
           if (ui_identifier) {
-            if (std::optional<std::string> name = try_read_inline_string_member(
-                    data, *first_member.type->opt_struct, "name"))
-            {
-              return name;
-            }
+            return blend_data.blend.lookup(bstruct, {"modifier", "name"}).as_string();
           }
-          else {
-            if (const std::optional<int> identifier = try_read_inline_int_member(
-                    data, *first_member.type->opt_struct, "persistent_uid"))
-            {
-              return fmt::format("id:{}", *identifier);
-            }
+          if (const std::optional<int> identifier = blend_data.blend
+                                                        .lookup(bstruct,
+                                                                {"modifier", "persistent_uid"})
+                                                        .as_primitive<int>())
+          {
+            return fmt::format("id:{}", *identifier);
           }
         }
       }
     }
+
     if (sdna_struct.type->name == "bNode") {
       if (!ui_identifier) {
-        if (const std::optional<int> identifier = try_read_inline_int_member(
-                data, sdna_struct, "identifier"))
+        if (const std::optional<int> identifier =
+                blend_data.blend.lookup(bstruct, "identifier").as_primitive<int>())
         {
           return fmt::format("id:{}", *identifier);
         }
@@ -1415,19 +1377,19 @@ class IdDiffer {
     }
     if (sdna_struct.type->name == "bNodeSocket") {
       if (!ui_identifier) {
-        return try_read_inline_string_member(data, sdna_struct, "identifier");
+        return blend_data.blend.lookup(bstruct, "identifier").as_string();
       }
     }
     if (sdna_struct.type->name == "bNodeLink") {
       return this->get_bNodeLink_identifier(blend_data, data, sdna_struct, ui_identifier);
     }
     if (sdna_struct.type->name == "Attribute") {
-      return this->try_read_alloced_string_member(blend_data, data, sdna_struct, "name");
+      return blend_data.blend.lookup(bstruct, {"name", blend_query::Deref()}).as_string();
     }
     if (sdna_struct.type->name == "bNodeTreeInterfacePanel") {
       if (!ui_identifier) {
-        if (const std::optional<int> identifier = try_read_inline_int_member(
-                data, sdna_struct, "identifier"))
+        if (const std::optional<int> identifier =
+                blend_data.blend.lookup(bstruct, "identifier").as_primitive<int>())
         {
           return fmt::format("id:{}", *identifier);
         }
@@ -1435,36 +1397,21 @@ class IdDiffer {
     }
     if (sdna_struct.type->name == "bNodeTreeInterfaceSocket") {
       if (!ui_identifier) {
-        return this->try_read_alloced_string_member(blend_data, data, sdna_struct, "identifier");
+        return blend_data.blend.lookup(bstruct, {"identifier", blend_query::Deref()}).as_string();
       }
     }
     if (ui_identifier) {
-      if (std::optional<std::string> name = try_read_inline_string_member(
-              data, sdna_struct, "name"))
+      if (std::optional<StringRefNull> name = blend_data.blend.lookup(bstruct, "name").as_string())
       {
         return name;
       }
-      if (std::optional<std::string> name = this->try_read_alloced_string_member(
-              blend_data, data, sdna_struct, "name"))
+      if (std::optional<StringRefNull> name =
+              blend_data.blend.lookup(bstruct, {"name", blend_query::Deref()}).as_string())
       {
         return name;
       }
     }
     return std::nullopt;
-  }
-
-  std::optional<std::string> try_read_alloced_string_member(const PerBlendData &blend_data,
-                                                            const void *data,
-                                                            const Struct &sdna_struct,
-                                                            const StringRef member_name) const
-  {
-    const BlendBlock *name_block = this->lookup_local_data(
-        blend_data, data, sdna_struct, member_name, "char");
-    if (!name_block) {
-      return std::nullopt;
-    }
-    const Span<char> name_bytes{name_block->data, name_block->bhead.len};
-    return try_convert_char_array_to_readable_string(name_bytes);
   }
 
   std::optional<std::string> get_bNodeLink_identifier(const PerBlendData &blend_data,
