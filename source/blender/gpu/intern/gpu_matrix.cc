@@ -7,11 +7,11 @@
  */
 
 #include "gpu_context_private.hh"
-#include "gpu_matrix_private.h"
+#include "gpu_matrix_private.hh"
 
 #define SUPPRESS_GENERIC_MATRIX_API
 #define USE_GPU_PY_MATRIX_API /* only so values are declared */
-#include "GPU_matrix.h"
+#include "GPU_matrix.hh"
 #undef USE_GPU_PY_MATRIX_API
 
 #include "BLI_math_matrix.h"
@@ -22,7 +22,7 @@
 
 using namespace blender::gpu;
 
-#define MATRIX_STACK_DEPTH 32
+constexpr static int MATRIX_STACK_DEPTH = 32;
 
 using Mat4 = float[4][4];
 using Mat3 = float[3][3];
@@ -57,9 +57,7 @@ GPUMatrixState *GPU_matrix_state_create()
 #define MATRIX_4X4_IDENTITY \
   { \
     {1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, \
-    { \
-      0.0f, 0.0f, 0.0f, 1.0f \
-    } \
+        {0.0f, 0.0f, 0.0f, 1.0f} \
   }
 
   GPUMatrixState *state = (GPUMatrixState *)MEM_mallocN(sizeof(*state), __func__);
@@ -463,7 +461,7 @@ void GPU_matrix_project_3fv(const float world[3],
                             const float model[4][4],
                             const float proj[4][4],
                             const int view[4],
-                            float win[3])
+                            float r_win[3])
 {
   float v[4];
 
@@ -474,16 +472,16 @@ void GPU_matrix_project_3fv(const float world[3],
     mul_v3_fl(v, 1.0f / v[3]);
   }
 
-  win[0] = view[0] + (view[2] * (v[0] + 1)) * 0.5f;
-  win[1] = view[1] + (view[3] * (v[1] + 1)) * 0.5f;
-  win[2] = (v[2] + 1) * 0.5f;
+  r_win[0] = view[0] + (view[2] * (v[0] + 1)) * 0.5f;
+  r_win[1] = view[1] + (view[3] * (v[1] + 1)) * 0.5f;
+  r_win[2] = (v[2] + 1) * 0.5f;
 }
 
 void GPU_matrix_project_2fv(const float world[3],
                             const float model[4][4],
                             const float proj[4][4],
                             const int view[4],
-                            float win[2])
+                            float r_win[2])
 {
   float v[4];
 
@@ -494,8 +492,8 @@ void GPU_matrix_project_2fv(const float world[3],
     mul_v2_fl(v, 1.0f / v[3]);
   }
 
-  win[0] = view[0] + (view[2] * (v[0] + 1)) * 0.5f;
-  win[1] = view[1] + (view[3] * (v[1] + 1)) * 0.5f;
+  r_win[0] = view[0] + (view[2] * (v[0] + 1)) * 0.5f;
+  r_win[1] = view[1] + (view[3] * (v[1] + 1)) * 0.5f;
 }
 
 bool GPU_matrix_unproject_3fv(const float win[3],
@@ -505,7 +503,7 @@ bool GPU_matrix_unproject_3fv(const float win[3],
                               float r_world[3])
 {
   zero_v3(r_world);
-  float in[3] = {
+  const float in[3] = {
       2 * ((win[0] - view[0]) / view[2]) - 1.0f,
       2 * ((win[1] - view[1]) / view[3]) - 1.0f,
       2 * win[2] - 1.0f,
@@ -588,7 +586,7 @@ const float (*GPU_matrix_normal_get(float m[3][3]))[3]
     m = temp3;
   }
 
-  copy_m3_m4(m, (const float(*)[4])GPU_matrix_model_view_get(nullptr));
+  copy_m3_m4(m, GPU_matrix_model_view_get(nullptr));
 
   invert_m3(m);
   transpose_m3(m);
@@ -609,7 +607,7 @@ const float (*GPU_matrix_normal_inverse_get(float m[3][3]))[3]
   return m;
 }
 
-void GPU_matrix_bind(GPUShader *shader)
+void GPU_matrix_bind(blender::gpu::Shader *shader)
 {
   /* set uniform values to matrix stack values
    * call this before a draw call if desired matrices are dirty

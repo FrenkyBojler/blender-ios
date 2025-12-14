@@ -10,11 +10,7 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#include "../../../../python/generic/py_capi_utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "../../../../python/generic/py_capi_utils.hh"
 
 using namespace Freestyle;
 
@@ -22,7 +18,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char BlenderTextureShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    BlenderTextureShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`BlenderTextureShader`\n"
     "\n"
     "[Texture shader]\n"
@@ -31,10 +29,10 @@ static char BlenderTextureShader___doc__[] =
     "\n"
     "   Builds a BlenderTextureShader object.\n"
     "\n"
-    "   :arg texture: A line style texture slot or a shader node tree to define\n"
-    "       a set of textures.\n"
-    "   :type texture: :class:`bpy.types.LineStyleTextureSlot` or\n"
-    "       :class:`bpy.types.ShaderNodeTree`\n"
+    "   :arg texture: A line style texture slot or a shader node tree to define "
+    "a set of textures.\n"
+    "   :type texture: :class:`bpy.types.LineStyleTextureSlot` | "
+    ":class:`bpy.types.ShaderNodeTree`\n"
     "\n"
     ".. method:: shade(stroke)\n"
     "\n"
@@ -42,8 +40,7 @@ static char BlenderTextureShader___doc__[] =
     "   simulate marks.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int BlenderTextureShader___init__(BPy_BlenderTextureShader *self,
                                          PyObject *args,
                                          PyObject *kwds)
@@ -118,7 +115,3 @@ PyTypeObject BlenderTextureShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

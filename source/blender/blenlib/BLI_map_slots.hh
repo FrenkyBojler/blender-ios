@@ -22,6 +22,7 @@
  * - Implement slot type that stores the hash.
  */
 
+#include "BLI_hash_tables.hh"
 #include "BLI_memory_utils.hh"
 
 namespace blender {
@@ -96,8 +97,8 @@ template<typename Key, typename Value> class SimpleMapSlot {
    * from the other have to moved as well. The other slot stays in the state it was in before. Its
    * optionally stored key and value remain in a moved-from state.
    */
-  SimpleMapSlot(SimpleMapSlot &&other) noexcept(
-      std::is_nothrow_move_constructible_v<Key> &&std::is_nothrow_move_constructible_v<Value>)
+  SimpleMapSlot(SimpleMapSlot &&other) noexcept(std::is_nothrow_move_constructible_v<Key> &&
+                                                std::is_nothrow_move_constructible_v<Value>)
   {
     state_ = other.state_;
     if (other.state_ == Occupied) {
@@ -300,7 +301,15 @@ template<typename Key, typename Value, typename KeyInfo> class IntrusiveMapSlot 
   bool contains(const ForwardKey &key, const IsEqual &is_equal, uint64_t /*hash*/) const
   {
     BLI_assert(KeyInfo::is_not_empty_or_removed(key));
-    return is_equal(key, key_);
+    if constexpr (std::is_same_v<std::decay_t<IsEqual>, DefaultEquality<Key>>) {
+      return is_equal(key, key_);
+    }
+    else {
+      if (KeyInfo::is_not_empty_or_removed(key_)) {
+        return is_equal(key, key_);
+      }
+      return false;
+    }
   }
 
   template<typename ForwardKey, typename... ForwardValue>

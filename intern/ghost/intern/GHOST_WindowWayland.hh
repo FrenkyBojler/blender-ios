@@ -51,6 +51,9 @@
  *
  * - Lock #GWL_Window.frame_pending_mutex before changing window size & frame settings,
  *   this is flushed in #GHOST_WindowWayland::pending_actions_handle.
+ *
+ * \note Keep this define as it can be useful to disable threading when troubleshooting
+ * issues with events.
  */
 #define USE_EVENT_BACKGROUND_THREAD
 
@@ -59,9 +62,34 @@ class GHOST_SystemWayland;
 struct GWL_Output;
 struct GWL_Window;
 
+struct GHOST_CSD_EventState_ButtonAction {
+  GHOST_TCSD_Type type = GHOST_kCSDTypeBody;
+  int32_t xy[2] = {0, 0};
+  uint32_t serial = 0;
+  uint64_t ms = 0;
+  bool is_press = false;
+};
+
+struct GHOST_CSD_EventState_Button {
+  GHOST_CSD_EventState_ButtonAction action_history[3];
+  int action_history_num = 0;
+};
+
+struct GHOST_CSD_EventState {
+  int32_t event_xy[2] = {0, 0};
+  /**
+   * Pointing device button, indexed with #GHOST_TButton.
+   *
+   * Only track the left-button for now since there is no need
+   * to track double-click or press-drag for other buttons.
+   * Extend as needed.
+   */
+  GHOST_CSD_EventState_Button buttons[/*GHOST_kButtonMaskLeft + 1*/ 1];
+};
+
 class GHOST_WindowWayland : public GHOST_Window {
  public:
-  GHOST_TSuccess hasCursorShape(GHOST_TStandardCursor cursorShape) override;
+  GHOST_TSuccess hasCursorShape(GHOST_TStandardCursor cursor_shape) override;
 
   GHOST_WindowWayland(GHOST_SystemWayland *system,
                       const char *title,
@@ -70,19 +98,19 @@ class GHOST_WindowWayland : public GHOST_Window {
                       uint32_t width,
                       uint32_t height,
                       GHOST_TWindowState state,
-                      const GHOST_IWindow *parentWindow,
+                      const GHOST_IWindow *parent_window,
                       GHOST_TDrawingContextType type,
                       const bool is_dialog,
-                      const bool stereoVisual,
+                      const GHOST_ContextParams &context_params,
                       const bool exclusive,
-                      const bool is_debug);
+                      const GHOST_GPUDevice &preferred_device);
 
   ~GHOST_WindowWayland() override;
 
   /* Ghost API */
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
-  GHOST_TSuccess swapBuffers() override; /* Only for assertion. */
+  GHOST_TSuccess swapBufferRelease() override; /* Only for assertion. */
 #endif
 
   uint16_t getDPIHint() override;
@@ -91,16 +119,18 @@ class GHOST_WindowWayland : public GHOST_Window {
 
   GHOST_TSuccess setWindowCursorShape(GHOST_TStandardCursor shape) override;
 
-  GHOST_TSuccess setWindowCustomCursorShape(uint8_t *bitmap,
-                                            uint8_t *mask,
-                                            int sizex,
-                                            int sizey,
-                                            int hotX,
-                                            int hotY,
-                                            bool canInvertColor) override;
+  GHOST_TSuccess setWindowCustomCursorGenerator(GHOST_CursorGenerator *cursor_generator) override;
+
+  GHOST_TSuccess setWindowCustomCursorShape(const uint8_t *bitmap,
+                                            const uint8_t *mask,
+                                            const int size[2],
+                                            const int hot_spot[2],
+                                            bool can_invert_color) override;
   bool getCursorGrabUseSoftwareDisplay() override;
 
   GHOST_TSuccess getCursorBitmap(GHOST_CursorBitmapRef *bitmap) override;
+
+  bool getValid() const override;
 
   void setTitle(const char *title) override;
 
@@ -129,10 +159,6 @@ class GHOST_WindowWayland : public GHOST_Window {
   GHOST_TSuccess invalidate() override;
 
   GHOST_TSuccess setOrder(GHOST_TWindowOrder order) override;
-
-  GHOST_TSuccess beginFullScreen() const override;
-
-  GHOST_TSuccess endFullScreen() const override;
 
   bool isDialog() const override;
 
@@ -175,6 +201,15 @@ class GHOST_WindowWayland : public GHOST_Window {
 
   /* WAYLAND utility functions. */
 
+  /**
+   * Refresh the cursor using the cursor assigned to this window.
+   *
+   * \note This is needed because in GHOST the cursor is per window,
+   * where as in WAYLAND the cursor is set per-seat (and per input device).
+   * When an input device enters a window, this function must run.
+   */
+  GHOST_TSuccess cursor_shape_refresh();
+
   bool outputs_enter(GWL_Output *output);
   bool outputs_leave(GWL_Output *output);
 
@@ -188,10 +223,21 @@ class GHOST_WindowWayland : public GHOST_Window {
   void pending_actions_handle();
 #endif
 
+#ifdef WITH_GHOST_CSD
+  struct xdg_toplevel *xdg_toplevel_get();
+  GHOST_TWindowState xdg_toplevel_state_get();
+
+  const GHOST_CSD_Elem *csd_layout(int *r_num);
+  GHOST_CSD_EventState &csd_eventstate_get();
+
+  GHOST_TCSD_Type csd_elem_active_type_get() const;
+  void csd_elem_active_type_set(GHOST_TCSD_Type type);
+#endif
+
  private:
   GHOST_SystemWayland *system_;
   struct GWL_Window *window_;
-  bool is_debug_context_;
+  GHOST_GPUDevice preferred_device_;
 
   /**
    * \param type: The type of rendering context create.

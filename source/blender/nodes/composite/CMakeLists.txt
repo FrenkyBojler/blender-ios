@@ -5,22 +5,18 @@
 set(INC
   .
   ..
+  include
   ../intern
   ../../editors/include
-  ../../blenkernel
-  ../../blentranslation
-  ../../depsgraph
-  ../../functions
-  ../../gpu
-  ../../imbuf
+  ../../compositor
   ../../makesrna
-  ../../render
-  ../../windowmanager
-  ../../compositor/realtime_compositor
-  ../../compositor/realtime_compositor/algorithms
-  ../../compositor/realtime_compositor/cached_resources
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/derived_resources
+  ../../compositor/utilities
+  ../../sequencer
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -43,14 +39,16 @@ set(SRC
   nodes/node_composite_colorbalance.cc
   nodes/node_composite_colorcorrection.cc
   nodes/node_composite_common.cc
-  nodes/node_composite_composite.cc
   nodes/node_composite_convert_color_space.cc
+  nodes/node_composite_convert_to_display.cc
+  nodes/node_composite_convolve.cc
   nodes/node_composite_cornerpin.cc
   nodes/node_composite_crop.cc
   nodes/node_composite_cryptomatte.cc
   nodes/node_composite_curves.cc
   nodes/node_composite_defocus.cc
   nodes/node_composite_denoise.cc
+  nodes/node_composite_depth_combine.cc
   nodes/node_composite_despeckle.cc
   nodes/node_composite_diff_matte.cc
   nodes/node_composite_dilate.cc
@@ -60,14 +58,18 @@ set(SRC
   nodes/node_composite_double_edge_mask.cc
   nodes/node_composite_ellipsemask.cc
   nodes/node_composite_exposure.cc
+  nodes/node_composite_file_output.cc
   nodes/node_composite_filter.cc
   nodes/node_composite_flip.cc
-  nodes/node_composite_gamma.cc
   nodes/node_composite_glare.cc
+  nodes/node_composite_group_input.cc
+  nodes/node_composite_group_output.cc
   nodes/node_composite_hue_sat_val.cc
   nodes/node_composite_huecorrect.cc
   nodes/node_composite_id_mask.cc
   nodes/node_composite_image.cc
+  nodes/node_composite_image_coordinates.cc
+  nodes/node_composite_image_info.cc
   nodes/node_composite_inpaint.cc
   nodes/node_composite_invert.cc
   nodes/node_composite_keying.cc
@@ -76,72 +78,76 @@ set(SRC
   nodes/node_composite_lensdist.cc
   nodes/node_composite_levels.cc
   nodes/node_composite_luma_matte.cc
-  nodes/node_composite_map_range.cc
   nodes/node_composite_map_uv.cc
-  nodes/node_composite_map_value.cc
   nodes/node_composite_mask.cc
-  nodes/node_composite_math.cc
-  nodes/node_composite_mixrgb.cc
   nodes/node_composite_movieclip.cc
   nodes/node_composite_moviedistortion.cc
   nodes/node_composite_normal.cc
   nodes/node_composite_normalize.cc
-  nodes/node_composite_output_file.cc
   nodes/node_composite_pixelate.cc
   nodes/node_composite_planetrackdeform.cc
   nodes/node_composite_posterize.cc
   nodes/node_composite_premulkey.cc
+  nodes/node_composite_relative_to_pixel.cc
+  nodes/node_composite_render_layers.cc
   nodes/node_composite_rgb.cc
   nodes/node_composite_rotate.cc
   nodes/node_composite_scale.cc
   nodes/node_composite_scene_time.cc
   nodes/node_composite_sepcomb_color.cc
-  nodes/node_composite_sepcomb_hsva.cc
-  nodes/node_composite_sepcomb_rgba.cc
-  nodes/node_composite_sepcomb_xyz.cc
-  nodes/node_composite_sepcomb_ycca.cc
-  nodes/node_composite_sepcomb_yuva.cc
   nodes/node_composite_setalpha.cc
-  nodes/node_composite_split_viewer.cc
+  nodes/node_composite_split.cc
   nodes/node_composite_stabilize2d.cc
-  nodes/node_composite_sunbeams.cc
+  nodes/node_composite_strip_info.cc
   nodes/node_composite_switch.cc
   nodes/node_composite_switchview.cc
-  nodes/node_composite_texture.cc
   nodes/node_composite_tonemap.cc
   nodes/node_composite_trackpos.cc
   nodes/node_composite_transform.cc
   nodes/node_composite_translate.cc
   nodes/node_composite_val_to_rgb.cc
-  nodes/node_composite_value.cc
   nodes/node_composite_vec_blur.cc
   nodes/node_composite_viewer.cc
-  nodes/node_composite_zcombine.cc
 
-  node_composite_register.cc
   node_composite_tree.cc
   node_composite_util.cc
 
-  node_composite_register.hh
+  include/NOD_compositor_file_output.hh
   node_composite_util.hh
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::blenloader
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
-  bf_realtime_compositor
+  PRIVATE bf::extern::fmtlib
+  bf_compositor
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::sequencer
+)
+
+add_node_discovery(
+  bf_nodes_compositor_generated
+  "${SRC}"
+  ${CMAKE_CURRENT_BINARY_DIR}/register_compositor_nodes.cc
+  register_compositor_nodes
+)
+
+list(APPEND LIB
+  bf_nodes_compositor_generated
 )
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
-endif()
-
-if(WITH_COMPOSITOR_CPU)
-  list(APPEND INC
-    ../../compositor
-  )
-  add_definitions(-DWITH_COMPOSITOR_CPU)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)
@@ -157,12 +163,21 @@ if(WITH_OPENIMAGEDENOISE)
   )
 endif()
 
-blender_add_lib(bf_nodes_composite "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-if(WITH_UNITY_BUILD)
-  set_target_properties(bf_nodes_composite PROPERTIES UNITY_BUILD ON)
-  set_target_properties(bf_nodes_composite PROPERTIES UNITY_BUILD_BATCH_SIZE 10)
+if(WITH_FFTW3)
+  list(APPEND INC_SYS
+    ${FFTW3_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${FFTW3_LIBRARIES}
+  )
+  add_definitions(-DWITH_FFTW3)
 endif()
 
-# RNA_prototypes.h
+blender_add_lib(bf_nodes_composite "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+target_link_libraries(bf_nodes_compositor_generated bf_nodes_composite)
+
+blender_set_target_unity_build(bf_nodes_composite 10)
+
+# RNA_prototypes.hh
 add_dependencies(bf_nodes_composite bf_rna)

@@ -7,27 +7,21 @@
  */
 
 #include "DNA_layer_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_view3d_types.h"
-
-#include "BLT_translation.h"
 
 #include "ED_object.hh"
 #include "ED_render.hh"
-
-#include "RE_engine.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #ifdef RNA_RUNTIME
 
 #  ifdef WITH_PYTHON
-#    include "BPY_extern.h"
+#    include "BPY_extern.hh"
 #  endif
 
 #  include "DNA_collection_types.h"
@@ -35,11 +29,12 @@
 
 #  include "RNA_access.hh"
 
-#  include "BKE_idprop.h"
-#  include "BKE_layer.h"
+#  include "BKE_idprop.hh"
+#  include "BKE_layer.hh"
 #  include "BKE_mesh.hh"
-#  include "BKE_node.h"
-#  include "BKE_scene.h"
+#  include "BKE_node.hh"
+#  include "BKE_node_tree_update.hh"
+#  include "BKE_scene.hh"
 
 #  include "NOD_composite.hh"
 
@@ -47,6 +42,8 @@
 
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
+
+#  include "RE_engine.h"
 
 /***********************************/
 
@@ -56,7 +53,7 @@ static PointerRNA rna_ViewLayer_active_layer_collection_get(PointerRNA *ptr)
   ViewLayer *view_layer = (ViewLayer *)ptr->data;
   BKE_view_layer_synced_ensure(scene, view_layer);
   LayerCollection *lc = BKE_view_layer_active_collection_get(view_layer);
-  return rna_pointer_inherit_refine(ptr, &RNA_LayerCollection, lc);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_LayerCollection, lc);
 }
 
 static void rna_ViewLayer_active_layer_collection_set(PointerRNA *ptr,
@@ -78,8 +75,8 @@ static PointerRNA rna_LayerObjects_active_object_get(PointerRNA *ptr)
   const Scene *scene = (Scene *)ptr->owner_id;
   ViewLayer *view_layer = (ViewLayer *)ptr->data;
   BKE_view_layer_synced_ensure(scene, view_layer);
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_Object, BKE_view_layer_active_object_get(view_layer));
+  return RNA_id_pointer_create(
+      reinterpret_cast<ID *>(BKE_view_layer_active_object_get(view_layer)));
 }
 
 static void rna_LayerObjects_active_object_set(PointerRNA *ptr,
@@ -118,20 +115,24 @@ size_t rna_ViewLayer_path_buffer_get(const ViewLayer *view_layer,
   return BLI_snprintf_rlen(r_rna_path, rna_path_buffer_size, "view_layers[\"%s\"]", name_esc);
 }
 
-static char *rna_ViewLayer_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_ViewLayer_path(const PointerRNA *ptr)
 {
   const ViewLayer *view_layer = (ViewLayer *)ptr->data;
   char rna_path[sizeof(view_layer->name) * 3];
-
   rna_ViewLayer_path_buffer_get(view_layer, rna_path, sizeof(rna_path));
-
-  return BLI_strdup(rna_path);
+  return rna_path;
 }
 
 static IDProperty **rna_ViewLayer_idprops(PointerRNA *ptr)
 {
   ViewLayer *view_layer = (ViewLayer *)ptr->data;
   return &view_layer->id_properties;
+}
+
+static IDProperty **rna_ViewLayer_system_idprops(PointerRNA *ptr)
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+  return &view_layer->system_properties;
 }
 
 static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, bContext *C)
@@ -142,19 +143,18 @@ static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, b
     return (layer_collection->runtime_flag & LAYER_COLLECTION_VISIBLE_VIEW_LAYER) != 0;
   }
 
-  if (v3d->local_collections_uuid & layer_collection->local_collections_bits) {
+  if (v3d->local_collections_uid & layer_collection->local_collections_bits) {
     return (layer_collection->runtime_flag & LAYER_COLLECTION_HIDE_VIEWPORT) == 0;
   }
 
   return false;
 }
 
-static void rna_ViewLayer_update_render_passes(ID *id)
+static void rna_ViewLayer_update_render_passes(ID *id, Main *bmain)
 {
   Scene *scene = (Scene *)id;
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
   if (engine_type->update_render_passes) {
@@ -175,19 +175,19 @@ static PointerRNA rna_ViewLayer_objects_get(CollectionPropertyIterator *iter)
 
   /* we are actually iterating a ObjectBase list */
   Base *base = (Base *)internal->link;
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_Object, base->object);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(base->object));
 }
 
-static int rna_ViewLayer_objects_selected_skip(CollectionPropertyIterator *iter, void * /*data*/)
+static bool rna_ViewLayer_objects_selected_skip(CollectionPropertyIterator *iter, void * /*data*/)
 {
   ListBaseIterator *internal = &iter->internal.listbase;
   Base *base = (Base *)internal->link;
 
   if ((base->flag & BASE_SELECTED) != 0) {
-    return 0;
+    return false;
   }
 
-  return 1;
+  return true;
 };
 
 static PointerRNA rna_ViewLayer_depsgraph_get(PointerRNA *ptr)
@@ -197,7 +197,7 @@ static PointerRNA rna_ViewLayer_depsgraph_get(PointerRNA *ptr)
     Scene *scene = (Scene *)id;
     ViewLayer *view_layer = (ViewLayer *)ptr->data;
     Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
-    return rna_pointer_inherit_refine(ptr, &RNA_Depsgraph, depsgraph);
+    return RNA_pointer_create_with_parent(*ptr, &RNA_Depsgraph, depsgraph);
   }
   return PointerRNA_NULL;
 }
@@ -215,7 +215,7 @@ static void rna_LayerObjects_selected_begin(CollectionPropertyIterator *iter, Po
 {
   ViewLayer *view_layer = (ViewLayer *)ptr->data;
   rna_iterator_listbase_begin(
-      iter, BKE_view_layer_object_bases_get(view_layer), rna_ViewLayer_objects_selected_skip);
+      iter, ptr, BKE_view_layer_object_bases_get(view_layer), rna_ViewLayer_objects_selected_skip);
 }
 
 static void rna_ViewLayer_update_tagged(ID *id_ptr,
@@ -253,8 +253,9 @@ static void rna_ViewLayer_update_tagged(ID *id_ptr,
 static void rna_ObjectBase_select_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   Base *base = (Base *)ptr->data;
-  short mode = (base->flag & BASE_SELECTED) ? BA_SELECT : BA_DESELECT;
-  ED_object_base_select(base, eObjectSelect_Mode(mode));
+  short mode = (base->flag & BASE_SELECTED) ? blender::ed::object::BA_SELECT :
+                                              blender::ed::object::BA_DESELECT;
+  blender::ed::object::base_select(base, blender::ed::object::eObjectSelect_Mode(mode));
 }
 
 static void rna_ObjectBase_hide_viewport_update(bContext *C, PointerRNA * /*ptr*/)
@@ -340,7 +341,7 @@ static void rna_LayerCollection_exclude_update(Main *bmain, Scene * /*scene*/, P
   DEG_relations_tag_update(bmain);
   WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
   if (exclude) {
-    ED_object_base_active_refresh(bmain, scene, view_layer);
+    blender::ed::object::base_active_refresh(bmain, scene, view_layer);
   }
 }
 
@@ -384,13 +385,14 @@ void rna_LayerCollection_children_begin(CollectionPropertyIterator *iter, Pointe
   ViewLayer *view_layer = BKE_view_layer_find_from_collection(scene, lc);
   BKE_view_layer_synced_ensure(scene, view_layer);
 
-  rna_iterator_listbase_begin(iter, &lc->layer_collections, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &lc->layer_collections, nullptr);
 }
 
 static bool rna_LayerCollection_children_lookupint(PointerRNA *ptr, int key, PointerRNA *r_ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   LayerCollection *lc = (LayerCollection *)ptr->data;
+  /* TODO: replace by using RNA ancestors. */
   ViewLayer *view_layer = BKE_view_layer_find_from_collection(scene, lc);
   BKE_view_layer_synced_ensure(scene, view_layer);
 
@@ -399,7 +401,7 @@ static bool rna_LayerCollection_children_lookupint(PointerRNA *ptr, int key, Poi
   if (!child) {
     return false;
   }
-  *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_LayerCollection, child);
+  rna_pointer_create_with_ancestors(*ptr, &RNA_LayerCollection, child, *r_ptr);
   return true;
 }
 
@@ -409,12 +411,13 @@ static bool rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
 {
   Scene *scene = (Scene *)ptr->owner_id;
   LayerCollection *lc = (LayerCollection *)ptr->data;
+  /* TODO: replace by using RNA ancestors. */
   ViewLayer *view_layer = BKE_view_layer_find_from_collection(scene, lc);
   BKE_view_layer_synced_ensure(scene, view_layer);
 
   LISTBASE_FOREACH (LayerCollection *, child, &lc->layer_collections) {
     if (STREQ(child->collection->id.name + 2, key)) {
-      *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_LayerCollection, child);
+      rna_pointer_create_with_ancestors(*ptr, &RNA_LayerCollection, child, *r_ptr);
       return true;
     }
   }
@@ -549,7 +552,7 @@ static void rna_def_layer_objects(BlenderRNA *brna, PropertyRNA *cprop)
                                  nullptr);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
   RNA_def_property_ui_text(prop, "Active Object", "Active object for this layer");
-  /* Could call: `ED_object_base_activate(C, view_layer->basact);`
+  /* Could call: `blender::ed::object::base_activate(C, view_layer->basact);`
    * but would be a bad level call and it seems the notifier is enough */
   RNA_def_property_update(prop, NC_SCENE | ND_OB_ACTIVE, nullptr);
 
@@ -575,7 +578,10 @@ static void rna_def_object_base(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "ObjectBase", nullptr);
   RNA_def_struct_sdna(srna, "Base");
-  RNA_def_struct_ui_text(srna, "Object Base", "An object instance in a render layer");
+  RNA_def_struct_ui_text(
+      srna,
+      "Object Base",
+      "An object instance in a View Layer (currently never exposed in Python API)");
   RNA_def_struct_ui_icon(srna, ICON_OBJECT_DATA);
 
   prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
@@ -590,6 +596,7 @@ static void rna_def_object_base(BlenderRNA *brna)
   prop = RNA_def_property(srna, "hide_viewport", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BASE_HIDDEN);
   RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE); /* The update callback does tagging. */
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_icon(prop, ICON_HIDE_OFF, -1);
   RNA_def_property_ui_text(prop, "Hide in Viewport", "Temporarily hide in viewport");
@@ -608,13 +615,14 @@ void RNA_def_view_layer(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_RENDER_RESULT);
   RNA_def_struct_path_func(srna, "rna_ViewLayer_path");
   RNA_def_struct_idprops_func(srna, "rna_ViewLayer_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_ViewLayer_system_idprops");
 
   rna_def_view_layer_common(brna, srna, true);
 
   func = RNA_def_function(srna, "update_render_passes", "rna_ViewLayer_update_render_passes");
   RNA_def_function_ui_description(func,
                                   "Requery the enabled render passes from the render engine");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_NO_SELF);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_NO_SELF);
 
   prop = RNA_def_property(srna, "layer_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "LayerCollection");
@@ -659,6 +667,14 @@ void RNA_def_view_layer(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Enabled", "Enable or disable rendering of this View Layer");
   RNA_def_property_update(prop, NC_SCENE | ND_LAYER, nullptr);
 
+  /* Cached flag indicating if any Collection in this ViewLayer has an Exporter set. */
+  prop = RNA_def_property(srna, "has_export_collections", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", VIEW_LAYER_HAS_EXPORT_COLLECTIONS);
+  RNA_def_property_ui_text(prop,
+                           "Has export collections",
+                           "At least one Collection in this View Layer has an exporter");
+
   prop = RNA_def_property(srna, "use_freestyle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", VIEW_LAYER_FREESTYLE);
   RNA_def_property_ui_text(prop, "Freestyle", "Render stylized strokes in this Layer");
@@ -673,6 +689,14 @@ void RNA_def_view_layer(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "FreestyleSettings");
   RNA_def_property_ui_text(prop, "Freestyle Settings", "");
 
+  /* Grease Pencil */
+  prop = RNA_def_property(srna, "use_pass_grease_pencil", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "grease_pencil_flags", GREASE_PENCIL_AS_SEPARATE_PASS);
+  RNA_def_property_ui_text(
+      prop, "Grease Pencil", "Deliver Grease Pencil render result in a separate pass");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+
   /* debug update routine */
   func = RNA_def_function(srna, "update", "rna_ViewLayer_update_tagged");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
@@ -682,6 +706,7 @@ void RNA_def_view_layer(BlenderRNA *brna)
   /* Dependency Graph */
   prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Depsgraph");
+  RNA_def_property_flag_hide_from_ui_workaround(prop);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
   RNA_def_property_pointer_funcs(prop, "rna_ViewLayer_depsgraph_get", nullptr, nullptr, nullptr);

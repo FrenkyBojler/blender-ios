@@ -14,19 +14,18 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 
-#include "BKE_colortools.h"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
+#include "BKE_global.hh"
+#include "BKE_image.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_paint.hh"
+#include "BKE_scene.hh"
 
-#include "IMB_imbuf_types.h"
-
-#include "DEG_depsgraph.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "ED_image.hh" /* own include */
 #include "ED_mesh.hh"
@@ -38,9 +37,9 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-/* NOTE: image_panel_properties() uses pointer to sima->image directly. */
 Image *ED_space_image(const SpaceImage *sima)
 {
+  /* NOTE: image_panel_properties() uses pointer to `sima->image` directly. */
   return sima->image;
 }
 
@@ -331,7 +330,7 @@ void ED_image_mouse_pos(SpaceImage *sima, const ARegion *region, const int mval[
   ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
   ED_space_image_get_size(sima, &width, &height);
 
-  UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
 
   co[0] = ((mval[0] - sx) / zoomx) / width;
   co[1] = ((mval[1] - sy) / zoomy) / height;
@@ -358,7 +357,7 @@ void ED_image_point_pos(
   ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
   ED_space_image_get_size(sima, &width, &height);
 
-  UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
 
   *r_x = ((x - sx) / zoomx) / width;
   *r_y = ((y - sy) / zoomy) / height;
@@ -373,7 +372,7 @@ void ED_image_point_pos__reverse(SpaceImage *sima,
   int width, height;
   int sx, sy;
 
-  UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
   ED_space_image_get_size(sima, &width, &height);
   ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
 
@@ -459,6 +458,11 @@ bool ED_space_image_show_paint(const SpaceImage *sima)
   return (sima->mode == SI_MODE_PAINT);
 }
 
+bool ED_space_image_show_mask(const SpaceImage *sima)
+{
+  return (sima->mode == SI_MODE_MASK);
+}
+
 bool ED_space_image_show_uvedit(const SpaceImage *sima, Object *obedit)
 {
   if (sima) {
@@ -522,7 +526,7 @@ bool ED_space_image_paint_curve(const bContext *C)
   SpaceImage *sima = CTX_wm_space_image(C);
 
   if (sima && sima->mode == SI_MODE_PAINT) {
-    Brush *br = CTX_data_tool_settings(C)->imapaint.paint.brush;
+    Brush *br = BKE_paint_brush(&CTX_data_tool_settings(C)->imapaint.paint);
 
     if (br && (br->flag & BRUSH_CURVE)) {
       return true;

@@ -10,35 +10,28 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_bvhutils.hh"
-#include "BKE_context.hh"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
-#include "MOD_util.hh"
-
-#include "BLO_read_write.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -57,7 +50,7 @@ static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const in
 
   BKE_modifier_copydata_generic(md_src, md_dst, flag);
 
-  memset(&surmd_dst->runtime, 0, sizeof(surmd_dst->runtime));
+  surmd_dst->runtime = SurfaceModifierData_Runtime{};
 }
 
 static void free_data(ModifierData *md)
@@ -65,10 +58,7 @@ static void free_data(ModifierData *md)
   SurfaceModifierData *surmd = (SurfaceModifierData *)md;
 
   if (surmd) {
-    if (surmd->runtime.bvhtree) {
-      free_bvhtree_from_mesh(surmd->runtime.bvhtree);
-      MEM_SAFE_FREE(surmd->runtime.bvhtree);
-    }
+    MEM_SAFE_DELETE(surmd->runtime.bvhtree);
 
     if (surmd->runtime.mesh) {
       BKE_id_free(nullptr, surmd->runtime.mesh);
@@ -95,18 +85,14 @@ static void deform_verts(ModifierData *md,
   const int cfra = int(DEG_get_ctime(ctx->depsgraph));
 
   /* Free mesh and BVH cache. */
-  if (surmd->runtime.bvhtree) {
-    free_bvhtree_from_mesh(surmd->runtime.bvhtree);
-    MEM_SAFE_FREE(surmd->runtime.bvhtree);
-  }
-
+  MEM_SAFE_DELETE(surmd->runtime.bvhtree);
   if (surmd->runtime.mesh) {
     BKE_id_free(nullptr, surmd->runtime.mesh);
     surmd->runtime.mesh = nullptr;
   }
 
   if (mesh) {
-    surmd->runtime.mesh = BKE_mesh_copy_for_eval(mesh);
+    surmd->runtime.mesh = BKE_mesh_copy_for_eval(*mesh);
   }
 
   if (!ctx->object->pd) {
@@ -118,10 +104,10 @@ static void deform_verts(ModifierData *md,
     uint mesh_verts_num = 0, i = 0;
     int init = 0;
 
-    BKE_mesh_vert_coords_apply(surmd->runtime.mesh,
-                               reinterpret_cast<const float(*)[3]>(positions.data()));
+    surmd->runtime.mesh->vert_positions_for_write().copy_from(positions);
+    surmd->runtime.mesh->tag_positions_changed();
 
-    mesh_verts_num = surmd->runtime.mesh->totvert;
+    mesh_verts_num = surmd->runtime.mesh->verts_num;
 
     if ((mesh_verts_num != surmd->runtime.verts_num) ||
         (surmd->runtime.vert_positions_prev == nullptr) ||
@@ -131,10 +117,8 @@ static void deform_verts(ModifierData *md,
       MEM_SAFE_FREE(surmd->runtime.vert_positions_prev);
       MEM_SAFE_FREE(surmd->runtime.vert_velocities);
 
-      surmd->runtime.vert_positions_prev = static_cast<float(*)[3]>(
-          MEM_calloc_arrayN(mesh_verts_num, sizeof(float[3]), __func__));
-      surmd->runtime.vert_velocities = static_cast<float(*)[3]>(
-          MEM_calloc_arrayN(mesh_verts_num, sizeof(float[3]), __func__));
+      surmd->runtime.vert_positions_prev = MEM_calloc_arrayN<float[3]>(mesh_verts_num, __func__);
+      surmd->runtime.vert_velocities = MEM_calloc_arrayN<float[3]>(mesh_verts_num, __func__);
 
       surmd->runtime.verts_num = mesh_verts_num;
 
@@ -146,7 +130,7 @@ static void deform_verts(ModifierData *md,
         surmd->runtime.mesh->vert_positions_for_write();
     for (i = 0; i < mesh_verts_num; i++) {
       float *vec = positions[i];
-      mul_m4_v3(ctx->object->object_to_world, vec);
+      mul_m4_v3(ctx->object->object_to_world().ptr(), vec);
 
       if (init) {
         zero_v3(surmd->runtime.vert_velocities[i]);
@@ -161,32 +145,27 @@ static void deform_verts(ModifierData *md,
     surmd->runtime.cfra_prev = cfra;
 
     const bool has_face = surmd->runtime.mesh->faces_num > 0;
-    const bool has_edge = surmd->runtime.mesh->totedge > 0;
-    if (has_face || has_edge) {
-      surmd->runtime.bvhtree = static_cast<BVHTreeFromMesh *>(
-          MEM_callocN(sizeof(BVHTreeFromMesh), __func__));
-
-      if (has_face) {
-        BKE_bvhtree_from_mesh_get(
-            surmd->runtime.bvhtree, surmd->runtime.mesh, BVHTREE_FROM_LOOPTRI, 2);
-      }
-      else if (has_edge) {
-        BKE_bvhtree_from_mesh_get(
-            surmd->runtime.bvhtree, surmd->runtime.mesh, BVHTREE_FROM_EDGES, 2);
-      }
+    const bool has_edge = surmd->runtime.mesh->edges_num > 0;
+    if (has_face) {
+      surmd->runtime.bvhtree = MEM_new<blender::bke::BVHTreeFromMesh>(
+          __func__, surmd->runtime.mesh->bvh_corner_tris());
+    }
+    else if (has_edge) {
+      surmd->runtime.bvhtree = MEM_new<blender::bke::BVHTreeFromMesh>(
+          __func__, surmd->runtime.mesh->bvh_edges());
     }
   }
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, TIP_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -198,7 +177,7 @@ static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
 {
   SurfaceModifierData *surmd = (SurfaceModifierData *)md;
 
-  memset(&surmd->runtime, 0, sizeof(surmd->runtime));
+  surmd->runtime = SurfaceModifierData_Runtime{};
 }
 
 ModifierTypeInfo modifierType_Surface = {
@@ -234,4 +213,6 @@ ModifierTypeInfo modifierType_Surface = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

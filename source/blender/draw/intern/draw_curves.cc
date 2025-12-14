@@ -8,281 +8,289 @@
  * \brief Contains procedural GPU hair drawing methods.
  */
 
-#include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
-
+#include "BLT_translation.hh"
 #include "DNA_curves_types.h"
 
+#include "BLI_math_base.h"
+
+#include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 
-#include "GPU_batch.h"
-#include "GPU_capabilities.h"
-#include "GPU_compute.h"
-#include "GPU_material.h"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
-#include "GPU_vertex_buffer.h"
+#include "GPU_batch.hh"
+#include "GPU_capabilities.hh"
+#include "GPU_material.hh"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
+#include "GPU_vertex_buffer.hh"
 
 #include "DRW_gpu_wrapper.hh"
-#include "DRW_render.h"
+#include "DRW_render.hh"
 
 #include "draw_cache_impl.hh"
+#include "draw_common.hh"
+#include "draw_context_private.hh"
+#include "draw_curves_defines.hh"
 #include "draw_curves_private.hh"
-#include "draw_hair_private.h"
-#include "draw_manager.h"
-#include "draw_shader.h"
+#include "draw_hair_private.hh"
+#include "draw_shader.hh"
 
-BLI_INLINE eParticleRefineShaderType drw_curves_shader_type_get()
+namespace blender::draw {
+
+using CurvesInfosBuf = UniformBuffer<CurvesInfos>;
+
+CurvesInfosBuf &CurvesUniformBufPool::alloc()
 {
-  /* NOTE: Curve refine is faster using transform feedback via vertex processing pipeline with
-   * Metal and Apple Silicon GPUs. This is also because vertex work can more easily be executed in
-   * parallel with fragment work, whereas compute inserts an explicit dependency,
-   * due to switching of command encoder types. */
-  if (GPU_compute_shader_support() && (GPU_backend_get_type() != GPU_BACKEND_METAL)) {
-    return PART_REFINE_SHADER_COMPUTE;
+  CurvesInfosBuf *ptr;
+  if (used >= ubos.size()) {
+    ubos.append(std::make_unique<CurvesInfosBuf>());
+    ptr = ubos.last().get();
   }
-  if (GPU_transform_feedback_support()) {
-    return PART_REFINE_SHADER_TRANSFORM_FEEDBACK;
+  else {
+    ptr = ubos[used++].get();
   }
-  return PART_REFINE_SHADER_TRANSFORM_FEEDBACK_WORKAROUND;
+
+  memset(ptr->data(), 0, sizeof(CurvesInfos));
+  return *ptr;
 }
 
-struct CurvesEvalCall {
-  CurvesEvalCall *next;
-  GPUVertBuf *vbo;
-  DRWShadingGroup *shgrp;
-  uint vert_len;
-};
-
-static CurvesEvalCall *g_tf_calls = nullptr;
-static int g_tf_id_offset;
-static int g_tf_target_width;
-static int g_tf_target_height;
-
-static GPUVertBuf *g_dummy_vbo = nullptr;
-static DRWPass *g_tf_pass; /* XXX can be a problem with multiple DRWManager in the future */
-
-using CurvesInfosBuf = blender::draw::UniformBuffer<CurvesInfos>;
-
-struct CurvesUniformBufPool {
-  blender::Vector<std::unique_ptr<CurvesInfosBuf>> ubos;
-  int used = 0;
-
-  void reset()
-  {
-    used = 0;
-  }
-
-  CurvesInfosBuf &alloc()
-  {
-    if (used >= ubos.size()) {
-      ubos.append(std::make_unique<CurvesInfosBuf>());
-      return *ubos.last();
-    }
-    return *ubos[used++];
-  }
-};
-
-static GPUShader *curves_eval_shader_get(CurvesEvalShader type)
+gpu::VertBuf *CurvesModule::drw_curves_ensure_dummy_vbo()
 {
-  return DRW_shader_curves_refine_get(type, drw_curves_shader_type_get());
-}
-
-static void drw_curves_ensure_dummy_vbo()
-{
-  if (g_dummy_vbo != nullptr) {
-    return;
-  }
-  /* initialize vertex format */
   GPUVertFormat format = {0};
-  uint dummy_id = GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  uint dummy_id = GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
-  g_dummy_vbo = GPU_vertbuf_create_with_format_ex(
-      &format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(
+      format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
 
   const float vert[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  GPU_vertbuf_data_alloc(g_dummy_vbo, 1);
-  GPU_vertbuf_attr_fill(g_dummy_vbo, dummy_id, vert);
+  GPU_vertbuf_data_alloc(*vbo, 1);
+  GPU_vertbuf_attr_fill(vbo, dummy_id, vert);
   /* Create vbo immediately to bind to texture buffer. */
-  GPU_vertbuf_use(g_dummy_vbo);
+  GPU_vertbuf_use(vbo);
+  return vbo;
 }
 
 void DRW_curves_init(DRWData *drw_data)
 {
-  /* Initialize legacy hair too, to avoid verbosity in callers. */
-  DRW_hair_init();
-
-  if (drw_data->curves_ubos == nullptr) {
-    drw_data->curves_ubos = MEM_new<CurvesUniformBufPool>("CurvesUniformBufPool");
+  if (drw_data == nullptr) {
+    drw_data = drw_get().data;
   }
-  CurvesUniformBufPool *pool = drw_data->curves_ubos;
-  pool->reset();
-
-  if (GPU_transform_feedback_support() || GPU_compute_shader_support()) {
-    g_tf_pass = DRW_pass_create("Update Curves Pass", (DRWState)0);
+  if (drw_data->curves_module == nullptr) {
+    drw_data->curves_module = MEM_new<CurvesModule>("CurvesModule");
   }
-  else {
-    g_tf_pass = DRW_pass_create("Update Curves Pass", DRW_STATE_WRITE_COLOR);
-  }
-
-  drw_curves_ensure_dummy_vbo();
 }
 
-void DRW_curves_ubos_pool_free(CurvesUniformBufPool *pool)
+void DRW_curves_begin_sync(DRWData *drw_data)
 {
-  MEM_delete(pool);
+  drw_data->curves_module->init();
 }
 
-static void drw_curves_cache_shgrp_attach_resources(DRWShadingGroup *shgrp,
-                                                    CurvesEvalCache *cache,
-                                                    GPUVertBuf *point_buf,
-                                                    const int subdiv)
+void DRW_curves_module_free(CurvesModule *curves_module)
 {
-  DRW_shgroup_buffer_texture(shgrp, "hairPointBuffer", point_buf);
-  DRW_shgroup_buffer_texture(shgrp, "hairStrandBuffer", cache->proc_strand_buf);
-  DRW_shgroup_buffer_texture(shgrp, "hairStrandSegBuffer", cache->proc_strand_seg_buf);
-  DRW_shgroup_uniform_int(shgrp, "hairStrandsRes", &cache->final[subdiv].strands_res, 1);
+  MEM_delete(curves_module);
 }
 
-static void drw_curves_cache_update_compute(CurvesEvalCache *cache,
-                                            const int subdiv,
-                                            const int strands_len,
-                                            GPUVertBuf *output_buf,
-                                            GPUVertBuf *input_buf)
+void CurvesModule::dispatch(const int curve_count, PassSimple::Sub &pass)
 {
-  GPUShader *shader = curves_eval_shader_get(CURVES_EVAL_CATMULL_ROM);
-  DRWShadingGroup *shgrp = DRW_shgroup_create(shader, g_tf_pass);
-  drw_curves_cache_shgrp_attach_resources(shgrp, cache, input_buf, subdiv);
-  DRW_shgroup_vertex_buffer(shgrp, "posTime", output_buf);
-
-  const int max_strands_per_call = GPU_max_work_group_count(0);
+  /* Note that the GPU_max_work_group_count can be INT_MAX.
+   * Promote to 64bit int to avoid overflow. */
+  const int64_t max_strands_per_call = int64_t(GPU_max_work_group_count(0)) *
+                                       CURVES_PER_THREADGROUP;
   int strands_start = 0;
-  while (strands_start < strands_len) {
-    int batch_strands_len = std::min(strands_len - strands_start, max_strands_per_call);
-    DRWShadingGroup *subgroup = DRW_shgroup_create_sub(shgrp);
-    DRW_shgroup_uniform_int_copy(subgroup, "hairStrandOffset", strands_start);
-    DRW_shgroup_call_compute(subgroup, batch_strands_len, cache->final[subdiv].strands_res, 1);
+  while (strands_start < curve_count) {
+    int batch_strands_len = std::min(int64_t(curve_count - strands_start), max_strands_per_call);
+    pass.push_constant("curves_start", strands_start);
+    pass.push_constant("curves_count", batch_strands_len);
+    pass.dispatch(divide_ceil_u(batch_strands_len, CURVES_PER_THREADGROUP));
     strands_start += batch_strands_len;
   }
 }
 
-static void drw_curves_cache_update_compute(CurvesEvalCache *cache, const int subdiv)
+gpu::VertBufPtr CurvesModule::evaluate_topology_indirection(const int curve_count,
+                                                            const int point_count,
+                                                            CurvesEvalCache &cache,
+                                                            bool is_ribbon,
+                                                            bool has_cyclic)
 {
-  const int strands_len = cache->strands_len;
-  const int final_points_len = cache->final[subdiv].strands_res * strands_len;
-  if (final_points_len == 0) {
-    return;
+  int element_count = is_ribbon ? (point_count + curve_count) : (point_count - curve_count);
+  if (has_cyclic) {
+    element_count += curve_count;
   }
+  gpu::VertBufPtr indirection_buf = gpu::VertBuf::device_only<int>(element_count);
 
-  drw_curves_cache_update_compute(
-      cache, subdiv, strands_len, cache->final[subdiv].proc_buf, cache->proc_point_buf);
+  PassSimple::Sub &pass = refine.sub("Topology");
+  pass.shader_set(DRW_shader_curves_topology_get());
+  pass.bind_ssbo("evaluated_offsets_buf", cache.evaluated_points_by_curve_buf);
+  pass.bind_ssbo("curves_cyclic_buf", cache.curves_cyclic_buf);
+  pass.bind_ssbo("indirection_buf", indirection_buf);
+  pass.push_constant("is_ribbon_topology", is_ribbon);
+  pass.push_constant("use_cyclic", has_cyclic);
+  dispatch(curve_count, pass);
 
-  const DRW_Attributes &attrs = cache->final[subdiv].attr_used;
-  for (int i = 0; i < attrs.num_requests; i++) {
-    /* Only refine point attributes. */
-    if (attrs.requests[i].domain == ATTR_DOMAIN_CURVE) {
-      continue;
-    }
-
-    drw_curves_cache_update_compute(cache,
-                                    subdiv,
-                                    strands_len,
-                                    cache->final[subdiv].attributes_buf[i],
-                                    cache->proc_attributes_buf[i]);
-  }
+  return indirection_buf;
 }
 
-static void drw_curves_cache_update_transform_feedback(CurvesEvalCache *cache,
-                                                       GPUVertBuf *output_buf,
-                                                       GPUVertBuf *input_buf,
-                                                       const int subdiv,
-                                                       const int final_points_len)
+void CurvesModule::evaluate_curve_attribute(const bool has_catmull,
+                                            const bool has_bezier,
+                                            const bool has_poly,
+                                            const bool has_nurbs,
+                                            const bool has_cyclic,
+                                            const int curve_count,
+                                            CurvesEvalCache &cache,
+                                            CurvesEvalShader shader_type,
+                                            gpu::VertBufPtr input_buf,
+                                            gpu::VertBufPtr &output_buf,
+                                            gpu::VertBuf *input2_buf /* = nullptr */,
+                                            float4x4 transform /* = float4x4::identity() */)
 {
-  GPUShader *tf_shader = curves_eval_shader_get(CURVES_EVAL_CATMULL_ROM);
+  BLI_assert(input_buf != nullptr);
+  BLI_assert(output_buf != nullptr);
 
-  DRWShadingGroup *tf_shgrp = nullptr;
-  if (GPU_transform_feedback_support()) {
-    tf_shgrp = DRW_shgroup_transform_feedback_create(tf_shader, g_tf_pass, output_buf);
+  gpu::Shader *shader = DRW_shader_curves_refine_get(shader_type);
+
+  const char *pass_name = nullptr;
+
+  switch (shader_type) {
+    case CURVES_EVAL_POSITION:
+      pass_name = "Position";
+      break;
+    case CURVES_EVAL_FLOAT:
+      pass_name = "Float Attribute";
+      break;
+    case CURVES_EVAL_FLOAT2:
+      pass_name = "Float2 Attribute";
+      break;
+    case CURVES_EVAL_FLOAT3:
+      pass_name = "Float3 Attribute";
+      break;
+    case CURVES_EVAL_FLOAT4:
+      pass_name = "Float4 Attribute";
+      break;
+    case CURVES_EVAL_LENGTH_INTERCEPT:
+      pass_name = "Length-Intercept Attributes";
+      break;
   }
-  else {
-    tf_shgrp = DRW_shgroup_create(tf_shader, g_tf_pass);
 
-    CurvesEvalCall *pr_call = MEM_new<CurvesEvalCall>(__func__);
-    pr_call->next = g_tf_calls;
-    pr_call->vbo = output_buf;
-    pr_call->shgrp = tf_shgrp;
-    pr_call->vert_len = final_points_len;
-    g_tf_calls = pr_call;
-    DRW_shgroup_uniform_int(tf_shgrp, "targetHeight", &g_tf_target_height, 1);
-    DRW_shgroup_uniform_int(tf_shgrp, "targetWidth", &g_tf_target_width, 1);
-    DRW_shgroup_uniform_int(tf_shgrp, "idOffset", &g_tf_id_offset, 1);
+  PassSimple::Sub &pass = refine.sub(pass_name);
+  pass.bind_ssbo(POINTS_BY_CURVES_SLOT, cache.points_by_curve_buf);
+  pass.bind_ssbo(CURVE_TYPE_SLOT, cache.curves_type_buf);
+  pass.bind_ssbo(CURVE_CYCLIC_SLOT, cache.curves_cyclic_buf);
+  pass.bind_ssbo(CURVE_RESOLUTION_SLOT, cache.curves_resolution_buf);
+  pass.bind_ssbo(EVALUATED_POINT_SLOT, cache.evaluated_points_by_curve_buf);
+
+  switch (shader_type) {
+    case CURVES_EVAL_POSITION:
+      pass.bind_ssbo(POINT_POSITIONS_SLOT, input_buf);
+      pass.bind_ssbo(POINT_RADII_SLOT, input2_buf);
+      pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, cache.evaluated_pos_rad_buf);
+      /* Move ownership of the radius input vbo to the module. */
+      this->transient_buffers.append(gpu::VertBufPtr(input2_buf));
+      break;
+    case CURVES_EVAL_FLOAT:
+    case CURVES_EVAL_FLOAT2:
+    case CURVES_EVAL_FLOAT3:
+    case CURVES_EVAL_FLOAT4:
+      pass.bind_ssbo(POINT_ATTR_SLOT, input_buf);
+      pass.bind_ssbo(EVALUATED_ATTR_SLOT, output_buf);
+      break;
+    case CURVES_EVAL_LENGTH_INTERCEPT:
+      pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, cache.evaluated_pos_rad_buf);
+      pass.bind_ssbo(EVALUATED_TIME_SLOT, cache.evaluated_time_buf);
+      pass.bind_ssbo(CURVES_LENGTH_SLOT, cache.curves_length_buf);
+      /* Synchronize positions reads. */
+      pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+      break;
   }
-  BLI_assert(tf_shgrp != nullptr);
 
-  drw_curves_cache_shgrp_attach_resources(tf_shgrp, cache, input_buf, subdiv);
-  DRW_shgroup_call_procedural_points(tf_shgrp, nullptr, final_points_len);
+  if (has_catmull) {
+    PassSimple::Sub &sub = pass.sub("Catmull-Rom");
+    sub.specialize_constant(shader, "evaluated_type", int(CURVE_TYPE_CATMULL_ROM));
+    sub.shader_set(shader);
+    /* Dummy, not used for Catmull-Rom. */
+    sub.bind_ssbo("handles_positions_left_buf", this->dummy_vbo);
+    sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
+    sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
+    /* Bake object transform for legacy hair particle. */
+    sub.push_constant("transform", transform);
+    sub.push_constant("use_cyclic", has_cyclic);
+    dispatch(curve_count, sub);
+  }
+
+  if (has_bezier) {
+    PassSimple::Sub &sub = pass.sub("Bezier");
+    sub.specialize_constant(shader, "evaluated_type", int(CURVE_TYPE_BEZIER));
+    sub.shader_set(shader);
+    sub.bind_ssbo("handles_positions_left_buf", cache.handles_positions_left_buf);
+    sub.bind_ssbo("handles_positions_right_buf", cache.handles_positions_right_buf);
+    sub.bind_ssbo("bezier_offsets_buf", cache.bezier_offsets_buf);
+    /* Bake object transform for legacy hair particle. */
+    sub.push_constant("transform", transform);
+    sub.push_constant("use_cyclic", has_cyclic);
+    dispatch(curve_count, sub);
+  }
+
+  if (has_nurbs) {
+    PassSimple::Sub &sub = pass.sub("Nurbs");
+    sub.specialize_constant(shader, "evaluated_type", int(CURVE_TYPE_NURBS));
+    sub.shader_set(shader);
+    sub.bind_ssbo("curves_resolution_buf", cache.curves_order_buf);
+    sub.bind_ssbo("handles_positions_left_buf", cache.basis_cache_buf);
+    sub.bind_ssbo("handles_positions_right_buf",
+                  cache.control_weights_buf.get() ? cache.control_weights_buf :
+                                                    cache.basis_cache_buf);
+    sub.bind_ssbo("bezier_offsets_buf", cache.basis_cache_offset_buf);
+    sub.push_constant("use_point_weight", cache.control_weights_buf.get() != nullptr);
+    /* Bake object transform for legacy hair particle. */
+    sub.push_constant("transform", transform);
+    sub.push_constant("use_cyclic", has_cyclic);
+    dispatch(curve_count, sub);
+  }
+
+  if (has_poly) {
+    PassSimple::Sub &sub = pass.sub("Poly");
+    sub.specialize_constant(shader, "evaluated_type", int(CURVE_TYPE_POLY));
+    sub.shader_set(shader);
+    /* Dummy, not used for Poly. */
+    sub.bind_ssbo("curves_resolution_buf", this->dummy_vbo);
+    sub.bind_ssbo("handles_positions_left_buf", this->dummy_vbo);
+    sub.bind_ssbo("handles_positions_right_buf", this->dummy_vbo);
+    sub.bind_ssbo("bezier_offsets_buf", this->dummy_vbo);
+    /* Bake object transform for legacy hair particle. */
+    sub.push_constant("transform", transform);
+    sub.push_constant("use_cyclic", has_cyclic);
+    dispatch(curve_count, sub);
+  }
+
+  /* Move ownership of the input vbo to the module. */
+  this->transient_buffers.append(std::move(input_buf));
 }
 
-static void drw_curves_cache_update_transform_feedback(CurvesEvalCache *cache, const int subdiv)
+void CurvesModule::evaluate_curve_length_intercept(const bool has_cyclic,
+                                                   const int curve_count,
+                                                   CurvesEvalCache &cache)
 {
-  const int final_points_len = cache->final[subdiv].strands_res * cache->strands_len;
-  if (final_points_len == 0) {
-    return;
-  }
+  gpu::Shader *shader = DRW_shader_curves_refine_get(CURVES_EVAL_LENGTH_INTERCEPT);
 
-  drw_curves_cache_update_transform_feedback(
-      cache, cache->final[subdiv].proc_buf, cache->proc_point_buf, subdiv, final_points_len);
+  PassSimple::Sub &pass = refine.sub("Length-Intercept Attributes");
+  pass.shader_set(shader);
+  pass.bind_ssbo(POINTS_BY_CURVES_SLOT, cache.points_by_curve_buf);
+  pass.bind_ssbo(CURVE_TYPE_SLOT, cache.curves_type_buf);
+  pass.bind_ssbo(CURVE_CYCLIC_SLOT, cache.curves_cyclic_buf);
+  pass.bind_ssbo(CURVE_RESOLUTION_SLOT, cache.curves_resolution_buf);
+  pass.bind_ssbo(EVALUATED_POINT_SLOT, cache.evaluated_points_by_curve_buf);
 
-  const DRW_Attributes &attrs = cache->final[subdiv].attr_used;
-  for (int i = 0; i < attrs.num_requests; i++) {
-    /* Only refine point attributes. */
-    if (attrs.requests[i].domain == ATTR_DOMAIN_CURVE) {
-      continue;
-    }
-
-    drw_curves_cache_update_transform_feedback(cache,
-                                               cache->final[subdiv].attributes_buf[i],
-                                               cache->proc_attributes_buf[i],
-                                               subdiv,
-                                               final_points_len);
-  }
+  pass.bind_ssbo(EVALUATED_POS_RAD_SLOT, cache.evaluated_pos_rad_buf);
+  pass.bind_ssbo(EVALUATED_TIME_SLOT, cache.evaluated_time_buf);
+  pass.bind_ssbo(CURVES_LENGTH_SLOT, cache.curves_length_buf);
+  pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+  /* Bake object transform for legacy hair particle. */
+  pass.push_constant("use_cyclic", has_cyclic);
+  dispatch(curve_count, pass);
 }
 
-static CurvesEvalCache *drw_curves_cache_get(Curves &curves,
-                                             GPUMaterial *gpu_material,
-                                             int subdiv,
-                                             int thickness_res)
-{
-  CurvesEvalCache *cache;
-  const bool update = curves_ensure_procedural_data(
-      &curves, &cache, gpu_material, subdiv, thickness_res);
-
-  if (update) {
-    if (drw_curves_shader_type_get() == PART_REFINE_SHADER_COMPUTE) {
-      drw_curves_cache_update_compute(cache, subdiv);
-    }
-    else {
-      drw_curves_cache_update_transform_feedback(cache, subdiv);
-    }
-  }
-  return cache;
-}
-
-GPUVertBuf *DRW_curves_pos_buffer_get(Object *object)
-{
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  const Scene *scene = draw_ctx->scene;
-
-  const int subdiv = scene->r.hair_subdiv;
-  const int thickness_res = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 1 : 2;
-
-  Curves &curves = *static_cast<Curves *>(object->data);
-  CurvesEvalCache *cache = drw_curves_cache_get(curves, nullptr, subdiv, thickness_res);
-
-  return cache->final[subdiv].proc_buf;
-}
-
-static int attribute_index_in_material(GPUMaterial *gpu_material, const char *name)
+static int attribute_index_in_material(const GPUMaterial *gpu_material,
+                                       const StringRef name,
+                                       bool is_curve_length = false,
+                                       bool is_curve_intercept = false)
 {
   if (!gpu_material) {
     return -1;
@@ -292,476 +300,269 @@ static int attribute_index_in_material(GPUMaterial *gpu_material, const char *na
 
   ListBase gpu_attrs = GPU_material_attributes(gpu_material);
   LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
-    if (STREQ(gpu_attr->name, name)) {
+    if (gpu_attr->is_hair_length == true) {
+      if (gpu_attr->is_hair_length == is_curve_length) {
+        return index;
+      }
+    }
+    else if (gpu_attr->is_hair_intercept == true) {
+      if (gpu_attr->is_hair_intercept == is_curve_intercept) {
+        return index;
+      }
+    }
+    else if (gpu_attr->name == name) {
       return index;
     }
-
     index++;
   }
 
   return -1;
 }
 
-DRWShadingGroup *DRW_shgroup_curves_create_sub(Object *object,
-                                               DRWShadingGroup *shgrp_parent,
-                                               GPUMaterial *gpu_material)
+void DRW_curves_update(draw::Manager &manager)
 {
-  using namespace blender;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  const Scene *scene = draw_ctx->scene;
-  CurvesUniformBufPool *pool = DST.vmempool->curves_ubos;
-  CurvesInfosBuf &curves_infos = pool->alloc();
-  Curves &curves_id = *static_cast<Curves *>(object->data);
+  DRW_submission_start();
 
-  const int subdiv = scene->r.hair_subdiv;
-  const int thickness_res = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 1 : 2;
+  /* TODO(fclem): Remove Global access. */
+  CurvesModule &module = *drw_get().data->curves_module;
 
-  CurvesEvalCache *curves_cache = drw_curves_cache_get(
-      curves_id, gpu_material, subdiv, thickness_res);
+  /* NOTE: This also update legacy hairs too as they populate the same pass. */
+  manager.submit(module.refine);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
-  DRWShadingGroup *shgrp = DRW_shgroup_create_sub(shgrp_parent);
+  module.transient_buffers.clear();
 
-  /* Fix issue with certain driver not drawing anything if there is nothing bound to
-   * "ac", "au", "u" or "c". */
-  DRW_shgroup_buffer_texture(shgrp, "u", g_dummy_vbo);
-  DRW_shgroup_buffer_texture(shgrp, "au", g_dummy_vbo);
-  DRW_shgroup_buffer_texture(shgrp, "c", g_dummy_vbo);
-  DRW_shgroup_buffer_texture(shgrp, "ac", g_dummy_vbo);
+  /* Make sure calling this function again will not subdivide the same data. */
+  module.refine.init();
 
-  /* TODO: Generalize radius implementation for curves data type. */
-  float hair_rad_shape = 0.0f;
-  float hair_rad_root = 0.005f;
-  float hair_rad_tip = 0.0f;
-  bool hair_close_tip = true;
-
-  /* Use the radius of the root and tip of the first curve for now. This is a workaround that we
-   * use for now because we can't use a per-point radius yet. */
-  const blender::bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-  if (curves.curves_num() >= 1) {
-    blender::VArray<float> radii = *curves.attributes().lookup_or_default(
-        "radius", ATTR_DOMAIN_POINT, 0.005f);
-    const blender::IndexRange first_curve_points = curves.points_by_curve()[0];
-    const float first_radius = radii[first_curve_points.first()];
-    const float last_radius = radii[first_curve_points.last()];
-    const float middle_radius = radii[first_curve_points.size() / 2];
-    hair_rad_root = radii[first_curve_points.first()];
-    hair_rad_tip = radii[first_curve_points.last()];
-    hair_rad_shape = std::clamp(
-        math::safe_divide(middle_radius - first_radius, last_radius - first_radius) * 2.0f - 1.0f,
-        -1.0f,
-        1.0f);
-  }
-
-  DRW_shgroup_buffer_texture(shgrp, "hairPointBuffer", curves_cache->final[subdiv].proc_buf);
-  if (curves_cache->proc_length_buf) {
-    DRW_shgroup_buffer_texture(shgrp, "hairLen", curves_cache->proc_length_buf);
-  }
-
-  const DRW_Attributes &attrs = curves_cache->final[subdiv].attr_used;
-  for (int i = 0; i < attrs.num_requests; i++) {
-    const DRW_AttributeRequest &request = attrs.requests[i];
-
-    char sampler_name[32];
-    drw_curves_get_attribute_sampler_name(request.attribute_name, sampler_name);
-
-    if (request.domain == ATTR_DOMAIN_CURVE) {
-      if (!curves_cache->proc_attributes_buf[i]) {
-        continue;
-      }
-
-      DRW_shgroup_buffer_texture(shgrp, sampler_name, curves_cache->proc_attributes_buf[i]);
-    }
-    else {
-      if (!curves_cache->final[subdiv].attributes_buf[i]) {
-        continue;
-      }
-      DRW_shgroup_buffer_texture(
-          shgrp, sampler_name, curves_cache->final[subdiv].attributes_buf[i]);
-    }
-
-    /* Some attributes may not be used in the shader anymore and were not garbage collected yet, so
-     * we need to find the right index for this attribute as uniforms defining the scope of the
-     * attributes are based on attribute loading order, which is itself based on the material's
-     * attributes. */
-    const int index = attribute_index_in_material(gpu_material, request.attribute_name);
-    if (index != -1) {
-      curves_infos.is_point_attribute[index][0] = request.domain == ATTR_DOMAIN_POINT;
-    }
-  }
-
-  curves_infos.push_update();
-
-  DRW_shgroup_uniform_block(shgrp, "drw_curves", curves_infos);
-
-  DRW_shgroup_uniform_int(shgrp, "hairStrandsRes", &curves_cache->final[subdiv].strands_res, 1);
-  DRW_shgroup_uniform_int_copy(shgrp, "hairThicknessRes", thickness_res);
-  DRW_shgroup_uniform_float_copy(shgrp, "hairRadShape", hair_rad_shape);
-  DRW_shgroup_uniform_mat4_copy(shgrp, "hairDupliMatrix", object->object_to_world);
-  DRW_shgroup_uniform_float_copy(shgrp, "hairRadRoot", hair_rad_root);
-  DRW_shgroup_uniform_float_copy(shgrp, "hairRadTip", hair_rad_tip);
-  DRW_shgroup_uniform_bool_copy(shgrp, "hairCloseTip", hair_close_tip);
-  if (gpu_material) {
-    /* NOTE: This needs to happen before the drawcall to allow correct attribute extraction.
-     * (see #101896) */
-    DRW_shgroup_add_material_resources(shgrp, gpu_material);
-  }
-  /* TODO(fclem): Until we have a better way to cull the curves and render with orco, bypass
-   * culling test. */
-  GPUBatch *geom = curves_cache->final[subdiv].proc_hairs[thickness_res - 1];
-  DRW_shgroup_call_no_cull(shgrp, geom, object);
-
-  return shgrp;
-}
-
-void DRW_curves_update()
-{
-
-  /* Ensure there's a valid active view.
-   * "Next" engines use this function, but this still uses the old Draw Manager. */
-  if (DRW_view_default_get() == nullptr) {
-    /* Create a dummy default view, it's not really used. */
-    DRW_view_default_set(DRW_view_create(
-        float4x4::identity().ptr(), float4x4::identity().ptr(), nullptr, nullptr, nullptr));
-  }
-  if (DRW_view_get_active() == nullptr) {
-    DRW_view_set_active(DRW_view_default_get());
-  }
-
-  /* Update legacy hair too, to avoid verbosity in callers. */
-  DRW_hair_update();
-
-  if (drw_curves_shader_type_get() == PART_REFINE_SHADER_TRANSFORM_FEEDBACK_WORKAROUND) {
-    /**
-     * Workaround to transform feedback not working on mac.
-     * On some system it crashes (see #58489) and on some other it renders garbage (see #60171).
-     *
-     * So instead of using transform feedback we render to a texture,
-     * read back the result to system memory and re-upload as VBO data.
-     * It is really not ideal performance wise, but it is the simplest
-     * and the most local workaround that still uses the power of the GPU.
-     */
-
-    if (g_tf_calls == nullptr) {
-      return;
-    }
-
-    /* Search ideal buffer size. */
-    uint max_size = 0;
-    for (CurvesEvalCall *pr_call = g_tf_calls; pr_call; pr_call = pr_call->next) {
-      max_size = max_ii(max_size, pr_call->vert_len);
-    }
-
-    /* Create target Texture / Frame-buffer */
-    /* Don't use max size as it can be really heavy and fail.
-     * Do chunks of maximum 2048 * 2048 hair points. */
-    int width = 2048;
-    int height = min_ii(width, 1 + max_size / width);
-    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
-                             GPU_TEXTURE_USAGE_SHADER_WRITE;
-    GPUTexture *tex = DRW_texture_pool_query_2d_ex(
-        width, height, GPU_RGBA32F, usage, (DrawEngineType *)DRW_curves_update);
-    g_tf_target_height = height;
-    g_tf_target_width = width;
-
-    GPUFrameBuffer *fb = nullptr;
-    GPU_framebuffer_ensure_config(&fb,
-                                  {
-                                      GPU_ATTACHMENT_NONE,
-                                      GPU_ATTACHMENT_TEXTURE(tex),
-                                  });
-
-    float *data = static_cast<float *>(
-        MEM_mallocN(sizeof(float[4]) * width * height, "tf fallback buffer"));
-
-    GPU_framebuffer_bind(fb);
-    while (g_tf_calls != nullptr) {
-      CurvesEvalCall *pr_call = g_tf_calls;
-      g_tf_calls = g_tf_calls->next;
-
-      g_tf_id_offset = 0;
-      while (pr_call->vert_len > 0) {
-        int max_read_px_len = min_ii(width * height, pr_call->vert_len);
-
-        DRW_draw_pass_subset(g_tf_pass, pr_call->shgrp, pr_call->shgrp);
-        /* Read back result to main memory. */
-        GPU_framebuffer_read_color(fb, 0, 0, width, height, 4, 0, GPU_DATA_FLOAT, data);
-        /* Upload back to VBO. */
-        GPU_vertbuf_use(pr_call->vbo);
-        GPU_vertbuf_update_sub(pr_call->vbo,
-                               sizeof(float[4]) * g_tf_id_offset,
-                               sizeof(float[4]) * max_read_px_len,
-                               data);
-
-        g_tf_id_offset += max_read_px_len;
-        pr_call->vert_len -= max_read_px_len;
-      }
-
-      MEM_freeN(pr_call);
-    }
-
-    MEM_freeN(data);
-    GPU_framebuffer_free(fb);
-  }
-  else {
-    /* NOTE(Metal): If compute is not supported, bind a temporary frame-buffer to avoid
-     * side-effects from rendering in the active buffer.
-     * We also need to guarantee that a Frame-buffer is active to perform any rendering work,
-     * even if there is no output */
-    GPUFrameBuffer *temp_fb = nullptr;
-    GPUFrameBuffer *prev_fb = nullptr;
-    if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY, GPU_BACKEND_METAL)) {
-      if (!GPU_compute_shader_support()) {
-        prev_fb = GPU_framebuffer_active_get();
-        char errorOut[256];
-        /* if the frame-buffer is invalid we need a dummy frame-buffer to be bound. */
-        if (!GPU_framebuffer_check_valid(prev_fb, errorOut)) {
-          int width = 64;
-          int height = 64;
-
-          eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
-          GPUTexture *tex = DRW_texture_pool_query_2d_ex(
-              width, height, GPU_DEPTH_COMPONENT32F, usage, (DrawEngineType *)DRW_hair_update);
-          g_tf_target_height = height;
-          g_tf_target_width = width;
-
-          GPU_framebuffer_ensure_config(&temp_fb, {GPU_ATTACHMENT_TEXTURE(tex)});
-
-          GPU_framebuffer_bind(temp_fb);
-        }
-      }
-    }
-
-    /* Just render the pass when using compute shaders or transform feedback. */
-    DRW_draw_pass(g_tf_pass);
-    if (drw_curves_shader_type_get() == PART_REFINE_SHADER_COMPUTE) {
-      GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-    }
-
-    /* Release temporary frame-buffer. */
-    if (temp_fb != nullptr) {
-      GPU_framebuffer_free(temp_fb);
-    }
-    /* Rebind existing frame-buffer */
-    if (prev_fb != nullptr) {
-      GPU_framebuffer_bind(prev_fb);
-    }
-  }
-}
-
-void DRW_curves_free()
-{
-  DRW_hair_free();
-
-  GPU_VERTBUF_DISCARD_SAFE(g_dummy_vbo);
+  DRW_submission_end();
 }
 
 /* New Draw Manager. */
-#include "draw_common.hh"
 
-namespace blender::draw {
-
-static PassSimple *g_pass = nullptr;
-
-void curves_init()
+gpu::VertBuf *curves_pos_buffer_get(Object *object)
 {
-  if (!g_pass) {
-    g_pass = MEM_new<PassSimple>("drw_curves g_pass", "Update Curves Pass");
-  }
-  g_pass->init();
-  g_pass->state_set(DRW_STATE_NO_DRAW);
+  CurvesModule &module = *drw_get().data->curves_module;
+  Curves &curves = DRW_object_get_data_for_drawing<Curves>(*object);
+
+  CurvesEvalCache &cache = curves_get_eval_cache(curves);
+  cache.ensure_positions(module, curves.geometry.wrap());
+
+  return cache.evaluated_pos_rad_buf.get();
 }
 
-static CurvesEvalCache *curves_cache_get(Curves &curves,
-                                         GPUMaterial *gpu_material,
-                                         int subdiv,
-                                         int thickness_res)
+static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &attributes)
 {
-  CurvesEvalCache *cache;
-  const bool update = curves_ensure_procedural_data(
-      &curves, &cache, gpu_material, subdiv, thickness_res);
-
-  if (!update) {
-    return cache;
-  }
-
-  const int strands_len = cache->strands_len;
-  const int final_points_len = cache->final[subdiv].strands_res * strands_len;
-
-  auto cache_update = [&](GPUVertBuf *output_buf, GPUVertBuf *input_buf) {
-    PassSimple::Sub &ob_ps = g_pass->sub("Object Pass");
-
-    ob_ps.shader_set(
-        DRW_shader_curves_refine_get(CURVES_EVAL_CATMULL_ROM, PART_REFINE_SHADER_COMPUTE));
-
-    ob_ps.bind_texture("hairPointBuffer", input_buf);
-    ob_ps.bind_texture("hairStrandBuffer", cache->proc_strand_buf);
-    ob_ps.bind_texture("hairStrandSegBuffer", cache->proc_strand_seg_buf);
-    ob_ps.push_constant("hairStrandsRes", &cache->final[subdiv].strands_res);
-    ob_ps.bind_ssbo("posTime", output_buf);
-
-    const int max_strands_per_call = GPU_max_work_group_count(0);
-    int strands_start = 0;
-    while (strands_start < strands_len) {
-      int batch_strands_len = std::min(strands_len - strands_start, max_strands_per_call);
-      PassSimple::Sub &sub_ps = ob_ps.sub("Sub Pass");
-      sub_ps.push_constant("hairStrandOffset", strands_start);
-      sub_ps.dispatch(int3(batch_strands_len, cache->final[subdiv].strands_res, 1));
-      strands_start += batch_strands_len;
+  std::optional<StringRef> name;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.data_type == bke::AttrType::Float2) {
+      name = iter.name;
+      iter.stop();
     }
-  };
+  });
+  return name;
+}
 
-  if (final_points_len > 0) {
-    cache_update(cache->final[subdiv].proc_buf, cache->proc_point_buf);
-
-    const DRW_Attributes &attrs = cache->final[subdiv].attr_used;
-    for (int i : IndexRange(attrs.num_requests)) {
-      /* Only refine point attributes. */
-      if (attrs.requests[i].domain != ATTR_DOMAIN_CURVE) {
-        cache_update(cache->final[subdiv].attributes_buf[i], cache->proc_attributes_buf[i]);
-      }
-    }
+/* Return true if attribute exists in shader. */
+static bool set_attribute_type(const GPUMaterial *gpu_material,
+                               const StringRef name,
+                               CurvesInfosBuf &curves_infos,
+                               const bool is_point_domain)
+{
+  /* Some attributes may not be used in the shader anymore and were not garbage collected yet, so
+   * we need to find the right index for this attribute as uniforms defining the scope of the
+   * attributes are based on attribute loading order, which is itself based on the material's
+   * attributes. */
+  const int index = attribute_index_in_material(gpu_material, name);
+  if (index == -1) {
+    return false;
   }
-
-  return cache;
-}
-
-GPUVertBuf *curves_pos_buffer_get(Scene *scene, Object *object)
-{
-  const int subdiv = scene->r.hair_subdiv;
-  const int thickness_res = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 1 : 2;
-
-  Curves &curves = *static_cast<Curves *>(object->data);
-  CurvesEvalCache *cache = curves_cache_get(curves, nullptr, subdiv, thickness_res);
-
-  return cache->final[subdiv].proc_buf;
-}
-
-void curves_update(Manager &manager)
-{
-  manager.submit(*g_pass);
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-}
-
-void curves_free()
-{
-  MEM_delete(g_pass);
-  g_pass = nullptr;
+  curves_infos.is_point_attribute[index][0] = is_point_domain;
+  return true;
 }
 
 template<typename PassT>
-GPUBatch *curves_sub_pass_setup_implementation(PassT &sub_ps,
-                                               const Scene *scene,
-                                               Object *ob,
-                                               GPUMaterial *gpu_material)
+void curves_bind_resources_implementation(PassT &sub_ps,
+                                          CurvesModule &module,
+                                          CurvesEvalCache &cache,
+                                          const int face_per_segment,
+                                          GPUMaterial *gpu_material,
+                                          gpu::VertBufPtr &indirection_buf,
+                                          const std::optional<StringRef> uv_name)
 {
-  /** NOTE: This still relies on the old DRW_curves implementation. */
-
-  CurvesUniformBufPool *pool = DST.vmempool->curves_ubos;
-  CurvesInfosBuf &curves_infos = pool->alloc();
-  BLI_assert(ob->type == OB_CURVES);
-  Curves &curves_id = *static_cast<Curves *>(ob->data);
-
-  const int subdiv = scene->r.hair_subdiv;
-  const int thickness_res = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 1 : 2;
-
-  CurvesEvalCache *curves_cache = drw_curves_cache_get(
-      curves_id, gpu_material, subdiv, thickness_res);
-
-  /* Fix issue with certain driver not drawing anything if there is nothing bound to
-   * "ac", "au", "u" or "c". */
-  sub_ps.bind_texture("u", g_dummy_vbo);
-  sub_ps.bind_texture("au", g_dummy_vbo);
-  sub_ps.bind_texture("c", g_dummy_vbo);
-  sub_ps.bind_texture("ac", g_dummy_vbo);
-
-  /* TODO: Generalize radius implementation for curves data type. */
-  float hair_rad_shape = 0.0f;
-  float hair_rad_root = 0.005f;
-  float hair_rad_tip = 0.0f;
-  bool hair_close_tip = true;
-
-  /* Use the radius of the root and tip of the first curve for now. This is a workaround that we
-   * use for now because we can't use a per-point radius yet. */
-  const blender::bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-  if (curves.curves_num() >= 1) {
-    blender::VArray<float> radii = *curves.attributes().lookup_or_default(
-        "radius", ATTR_DOMAIN_POINT, 0.005f);
-    const blender::IndexRange first_curve_points = curves.points_by_curve()[0];
-    const float first_radius = radii[first_curve_points.first()];
-    const float last_radius = radii[first_curve_points.last()];
-    const float middle_radius = radii[first_curve_points.size() / 2];
-    hair_rad_root = radii[first_curve_points.first()];
-    hair_rad_tip = radii[first_curve_points.last()];
-    hair_rad_shape = std::clamp(
-        math::safe_divide(middle_radius - first_radius, last_radius - first_radius) * 2.0f - 1.0f,
-        -1.0f,
-        1.0f);
+  /* Ensure we have no unbound resources.
+   * Required for Vulkan.
+   * Fixes issues with certain GL drivers not drawing anything. */
+  sub_ps.bind_texture("u", module.dummy_vbo);
+  sub_ps.bind_texture("au", module.dummy_vbo);
+  sub_ps.bind_texture("a", module.dummy_vbo);
+  sub_ps.bind_texture("c", module.dummy_vbo);
+  sub_ps.bind_texture("ac", module.dummy_vbo);
+  sub_ps.bind_texture("l", module.dummy_vbo);
+  sub_ps.bind_texture("i", module.dummy_vbo);
+  if (gpu_material) {
+    ListBase attr_list = GPU_material_attributes(gpu_material);
+    ListBaseWrapper<GPUMaterialAttribute> attrs(attr_list);
+    for (const GPUMaterialAttribute *attr : attrs) {
+      sub_ps.bind_texture(attr->input_name, module.dummy_vbo);
+    }
   }
 
-  sub_ps.bind_texture("hairPointBuffer", curves_cache->final[subdiv].proc_buf);
-  if (curves_cache->proc_length_buf) {
-    sub_ps.bind_texture("hairLen", curves_cache->proc_length_buf);
+  CurvesInfosBuf &curves_infos = module.ubo_pool.alloc();
+
+  {
+    /* TODO(fclem): Compute only if needed. */
+    const int index = attribute_index_in_material(gpu_material, "", true, false);
+    if (index != -1) {
+      sub_ps.bind_texture("l", cache.curves_length_buf);
+      curves_infos.is_point_attribute[index][0] = false;
+    }
+  }
+  {
+    /* TODO(fclem): Compute only if needed. */
+    const int index = attribute_index_in_material(gpu_material, "", false, true);
+    if (index != -1) {
+      sub_ps.bind_texture("i", cache.evaluated_time_buf);
+      curves_infos.is_point_attribute[index][0] = true;
+    }
   }
 
-  const DRW_Attributes &attrs = curves_cache->final[subdiv].attr_used;
-  for (int i = 0; i < attrs.num_requests; i++) {
-    const DRW_AttributeRequest &request = attrs.requests[i];
-
+  const VectorSet<std::string> &attrs = cache.attr_used;
+  for (const int i : attrs.index_range()) {
+    const StringRef name = attrs[i];
     char sampler_name[32];
-    drw_curves_get_attribute_sampler_name(request.attribute_name, sampler_name);
+    drw_curves_get_attribute_sampler_name(name, sampler_name);
 
-    if (request.domain == ATTR_DOMAIN_CURVE) {
-      if (!curves_cache->proc_attributes_buf[i]) {
+    if (cache.attributes_point_domain[i]) {
+      if (!cache.evaluated_attributes_buf[i]) {
         continue;
       }
-      sub_ps.bind_texture(sampler_name, curves_cache->proc_attributes_buf[i]);
+      if (set_attribute_type(gpu_material, name, curves_infos, true)) {
+        sub_ps.bind_texture(sampler_name, cache.evaluated_attributes_buf[i]);
+      }
+      if (name == uv_name) {
+        if (set_attribute_type(gpu_material, "", curves_infos, true)) {
+          sub_ps.bind_texture("a", cache.evaluated_attributes_buf[i]);
+        }
+      }
     }
     else {
-      if (!curves_cache->final[subdiv].attributes_buf[i]) {
+      if (!cache.curve_attributes_buf[i]) {
         continue;
       }
-      sub_ps.bind_texture(sampler_name, curves_cache->final[subdiv].attributes_buf[i]);
-    }
-
-    /* Some attributes may not be used in the shader anymore and were not garbage collected yet, so
-     * we need to find the right index for this attribute as uniforms defining the scope of the
-     * attributes are based on attribute loading order, which is itself based on the material's
-     * attributes. */
-    const int index = attribute_index_in_material(gpu_material, request.attribute_name);
-    if (index != -1) {
-      curves_infos.is_point_attribute[index][0] = request.domain == ATTR_DOMAIN_POINT;
+      if (set_attribute_type(gpu_material, name, curves_infos, false)) {
+        sub_ps.bind_texture(sampler_name, cache.curve_attributes_buf[i]);
+      }
+      if (name == uv_name) {
+        if (set_attribute_type(gpu_material, "", curves_infos, false)) {
+          sub_ps.bind_texture("a", cache.curve_attributes_buf[i]);
+        }
+      }
     }
   }
+
+  curves_infos.half_cylinder_face_count = face_per_segment;
+  curves_infos.vertex_per_segment = face_per_segment < 2 ? (face_per_segment + 1) :
+                                                           ((face_per_segment + 1) * 2 + 1);
 
   curves_infos.push_update();
 
   sub_ps.bind_ubo("drw_curves", curves_infos);
-
-  sub_ps.push_constant("hairStrandsRes", &curves_cache->final[subdiv].strands_res, 1);
-  sub_ps.push_constant("hairThicknessRes", thickness_res);
-  sub_ps.push_constant("hairRadShape", hair_rad_shape);
-  sub_ps.push_constant("hairDupliMatrix", float4x4(ob->object_to_world));
-  sub_ps.push_constant("hairRadRoot", hair_rad_root);
-  sub_ps.push_constant("hairRadTip", hair_rad_tip);
-  sub_ps.push_constant("hairCloseTip", hair_close_tip);
-
-  return curves_cache->final[subdiv].proc_hairs[thickness_res - 1];
+  sub_ps.bind_texture("curves_pos_rad_buf", cache.evaluated_pos_rad_buf);
+  sub_ps.bind_texture("curves_indirection_buf", indirection_buf);
 }
 
-GPUBatch *curves_sub_pass_setup(PassMain::Sub &ps,
-                                const Scene *scene,
-                                Object *ob,
-                                GPUMaterial *gpu_material)
+void curves_bind_resources(PassMain::Sub &sub_ps,
+                           CurvesModule &module,
+                           CurvesEvalCache &cache,
+                           const int face_per_segment,
+                           GPUMaterial *gpu_material,
+                           gpu::VertBufPtr &indirection_buf,
+                           const std::optional<StringRef> active_uv_name)
 {
-  return curves_sub_pass_setup_implementation(ps, scene, ob, gpu_material);
+  curves_bind_resources_implementation(
+      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv_name);
 }
 
-GPUBatch *curves_sub_pass_setup(PassSimple::Sub &ps,
-                                const Scene *scene,
-                                Object *ob,
-                                GPUMaterial *gpu_material)
+void curves_bind_resources(PassSimple::Sub &sub_ps,
+                           CurvesModule &module,
+                           CurvesEvalCache &cache,
+                           const int face_per_segment,
+                           GPUMaterial *gpu_material,
+                           gpu::VertBufPtr &indirection_buf,
+                           const std::optional<StringRef> active_uv_name)
 {
-  return curves_sub_pass_setup_implementation(ps, scene, ob, gpu_material);
+  curves_bind_resources_implementation(
+      sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv_name);
+}
+
+template<typename PassT>
+gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
+                                                 const Scene *scene,
+                                                 Object *ob,
+                                                 const char *&r_error,
+                                                 GPUMaterial *gpu_material = nullptr)
+{
+  BLI_assert(ob->type == OB_CURVES);
+  Curves &curves_id = DRW_object_get_data_for_drawing<Curves>(*ob);
+  const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+
+  const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND)   ? 0 :
+                               (scene->r.hair_type == SCE_HAIR_SHAPE_CYLINDER) ? 3 :
+                                                                                 1;
+
+  CurvesEvalCache &curves_cache = curves_get_eval_cache(curves_id);
+
+  if (curves.curves_num() == 0) {
+    /* Nothing to draw. Just return an empty drawcall that will be skipped. */
+    bool unused_error = false;
+    return curves_cache.batch_get(0, 0, face_per_segment, false, unused_error);
+  }
+
+  CurvesModule &module = *drw_get().data->curves_module;
+
+  curves_cache.ensure_positions(module, curves);
+  curves_cache.ensure_attributes(module, curves, gpu_material);
+
+  gpu::VertBufPtr &indirection_buf = curves_cache.indirection_buf_get(
+      module, curves, face_per_segment);
+
+  const std::optional<StringRef> uv_name = get_first_uv_name(
+      curves_id.geometry.wrap().attributes());
+
+  curves_bind_resources(
+      sub_ps, module, curves_cache, face_per_segment, gpu_material, indirection_buf, uv_name);
+
+  bool error = false;
+  gpu::Batch *batch = curves_cache.batch_get(curves.evaluated_points_num(),
+                                             curves.curves_num(),
+                                             face_per_segment,
+                                             curves.has_cyclic_curve(),
+                                             error);
+  if (error) {
+    r_error = RPT_(
+        "Error: Curves object contains too many points. "
+        "Reduce curve resolution or curve count to fix this issue.\n");
+  }
+  return batch;
+}
+
+gpu::Batch *curves_sub_pass_setup(PassMain::Sub &ps,
+                                  const Scene *scene,
+                                  Object *ob,
+                                  const char *&r_error,
+                                  GPUMaterial *gpu_material)
+{
+  return curves_sub_pass_setup_implementation(ps, scene, ob, r_error, gpu_material);
+}
+
+gpu::Batch *curves_sub_pass_setup(PassSimple::Sub &ps,
+                                  const Scene *scene,
+                                  Object *ob,
+                                  const char *&r_error,
+                                  GPUMaterial *gpu_material)
+{
+  return curves_sub_pass_setup_implementation(ps, scene, ob, r_error, gpu_material);
 }
 
 }  // namespace blender::draw

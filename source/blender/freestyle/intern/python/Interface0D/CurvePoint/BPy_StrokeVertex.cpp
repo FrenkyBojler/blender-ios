@@ -13,10 +13,6 @@
 #include "../../BPy_StrokeAttribute.h"
 #include "../../Interface0D/BPy_SVertex.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -24,6 +20,7 @@ using namespace Freestyle;
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     StrokeVertex_doc,
     "Class hierarchy: :class:`Interface0D` > :class:`CurvePoint` > :class:`StrokeVertex`\n"
     "\n"
@@ -56,8 +53,7 @@ PyDoc_STRVAR(
     "   :arg svertex: An SVertex object.\n"
     "   :type svertex: :class:`SVertex`\n"
     "   :arg attribute: A StrokeAttribute object.\n"
-    "   :type attribute: :class:`StrokeAttribute`");
-
+    "   :type attribute: :class:`StrokeAttribute`\n");
 static int StrokeVertex_init(BPy_StrokeVertex *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -220,11 +216,12 @@ void StrokeVertex_mathutils_register_callback()
 
 /*----------------------StrokeVertex get/setters ----------------------------*/
 
-PyDoc_STRVAR(StrokeVertex_attribute_doc,
-             "StrokeAttribute for this StrokeVertex.\n"
-             "\n"
-             ":type: :class:`StrokeAttribute`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_attribute_doc,
+    "StrokeAttribute for this StrokeVertex.\n"
+    "\n"
+    ":type: :class:`StrokeAttribute`\n");
 static PyObject *StrokeVertex_attribute_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return BPy_StrokeAttribute_from_StrokeAttribute(self->sv->attribute());
@@ -240,11 +237,12 @@ static int StrokeVertex_attribute_set(BPy_StrokeVertex *self, PyObject *value, v
   return 0;
 }
 
-PyDoc_STRVAR(StrokeVertex_curvilinear_abscissa_doc,
-             "Curvilinear abscissa of this StrokeVertex in the Stroke.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_curvilinear_abscissa_doc,
+    "Curvilinear abscissa of this StrokeVertex in the Stroke.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *StrokeVertex_curvilinear_abscissa_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv->curvilinearAbscissa());
@@ -264,11 +262,12 @@ static int StrokeVertex_curvilinear_abscissa_set(BPy_StrokeVertex *self,
   return 0;
 }
 
-PyDoc_STRVAR(StrokeVertex_point_doc,
-             "2D point coordinates.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_point_doc,
+    "2D point coordinates.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`\n");
 static PyObject *StrokeVertex_point_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return Vector_CreatePyObject_cb((PyObject *)self, 2, StrokeVertex_mathutils_cb_index, 0);
@@ -285,12 +284,13 @@ static int StrokeVertex_point_set(BPy_StrokeVertex *self, PyObject *value, void 
   return 0;
 }
 
-PyDoc_STRVAR(StrokeVertex_stroke_length_doc,
-             "Stroke length (it is only a value retained by the StrokeVertex,\n"
-             "and it won't change the real stroke length).\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_stroke_length_doc,
+    "Stroke length (it is only a value retained by the StrokeVertex,\n"
+    "and it won't change the real stroke length).\n"
+    "\n"
+    ":type: float\n");
 static PyObject *StrokeVertex_stroke_length_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv->strokeLength());
@@ -310,11 +310,12 @@ static int StrokeVertex_stroke_length_set(BPy_StrokeVertex *self,
   return 0;
 }
 
-PyDoc_STRVAR(StrokeVertex_u_doc,
-             "Curvilinear abscissa of this StrokeVertex in the Stroke.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_u_doc,
+    "Curvilinear abscissa of this StrokeVertex in the Stroke.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *StrokeVertex_u_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv->u());
@@ -389,7 +390,3 @@ PyTypeObject StrokeVertex_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

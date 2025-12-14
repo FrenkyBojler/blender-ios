@@ -2,25 +2,20 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
-#include "BLI_task.hh"
-
 #include "DNA_modifier_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_lib_id.h"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_mesh.hh"
 
-#include "UI_interface.hh"
-#include "UI_resources.hh"
-
 #include "RNA_enum_types.hh"
 
-#include "NOD_rna_define.hh"
-
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
+
+#include "FN_multi_function_builder.hh"
 
 #include "node_geometry_util.hh"
 
@@ -30,7 +25,12 @@ NODE_STORAGE_FUNCS(NodeGeometrySubdivisionSurface)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to subdivide");
+  b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Int>("Level").default_value(1).min(0).max(6);
   b.add_input<decl::Float>("Edge Crease")
       .default_value(0.0f)
@@ -44,21 +44,27 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .field_on_all();
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
-}
-
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "uv_smooth", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "boundary_smooth", UI_ITEM_NONE, "", ICON_NONE);
+  b.add_input<decl::Bool>("Limit Surface")
+      .default_value(true)
+      .description(
+          "Place vertices at the surface that would be produced with infinite "
+          "levels of subdivision (smoothest possible shape)");
+  b.add_input<decl::Menu>("UV Smooth")
+      .static_items(rna_enum_subdivision_uv_smooth_items)
+      .default_value(SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES)
+      .optional_label()
+      .description("Controls how smoothing is applied to UVs");
+  b.add_input<decl::Menu>("Boundary Smooth")
+      .static_items(rna_enum_subdivision_boundary_smooth_items)
+      .default_value(SUBSURF_BOUNDARY_SMOOTH_ALL)
+      .optional_label()
+      .description("Controls how open boundaries are smoothed");
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySubdivisionSurface *data = MEM_cnew<NodeGeometrySubdivisionSurface>(__func__);
-  data->uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES;
-  data->boundary_smooth = SUBSURF_BOUNDARY_SMOOTH_ALL;
-  node->storage = data;
+  /* Still used for forward compatibility. */
+  node->storage = MEM_callocN<NodeGeometrySubdivisionSurface>(__func__);
 }
 
 #ifdef WITH_OPENSUBDIV
@@ -67,14 +73,14 @@ static void write_vert_creases(Mesh &mesh, const VArray<float> &creases)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   attributes.remove("crease_vert");
-  attributes.add<float>("crease_vert", ATTR_DOMAIN_POINT, bke::AttributeInitVArray(creases));
+  attributes.add<float>("crease_vert", AttrDomain::Point, bke::AttributeInitVArray(creases));
 }
 
 static void write_edge_creases(Mesh &mesh, const VArray<float> &creases)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   attributes.remove("crease_edge");
-  attributes.add<float>("crease_edge", ATTR_DOMAIN_EDGE, bke::AttributeInitVArray(creases));
+  attributes.add<float>("crease_edge", AttrDomain::Edge, bke::AttributeInitVArray(creases));
 }
 
 static bool varray_is_single_zero(const VArray<float> &varray)
@@ -91,7 +97,7 @@ static fn::Field<float> clamp_crease(fn::Field<float> crease_field)
       "Clamp",
       [](float value) { return std::clamp(value, 0.0f, 1.0f); },
       mf::build::exec_presets::AllSpanOrSingle());
-  return fn::Field<float>(fn::FieldOperation::Create(clamp_fn, {std::move(crease_field)}));
+  return fn::Field<float>(fn::FieldOperation::from(clamp_fn, {std::move(crease_field)}));
 }
 
 static Mesh *mesh_subsurf_calc(const Mesh *mesh,
@@ -99,15 +105,16 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
                                const Field<float> &vert_crease_field,
                                const Field<float> &edge_crease_field,
                                const int boundary_smooth,
-                               const int uv_smooth)
+                               const int uv_smooth,
+                               const bool use_limit_surface)
 {
-  const bke::MeshFieldContext point_context{*mesh, ATTR_DOMAIN_POINT};
-  FieldEvaluator point_evaluator(point_context, mesh->totvert);
+  const bke::MeshFieldContext point_context{*mesh, AttrDomain::Point};
+  FieldEvaluator point_evaluator(point_context, mesh->verts_num);
   point_evaluator.add(clamp_crease(vert_crease_field));
   point_evaluator.evaluate();
 
-  const bke::MeshFieldContext edge_context{*mesh, ATTR_DOMAIN_EDGE};
-  FieldEvaluator edge_evaluator(edge_context, mesh->totedge);
+  const bke::MeshFieldContext edge_context{*mesh, AttrDomain::Edge};
+  FieldEvaluator edge_evaluator(edge_context, mesh->edges_num);
   edge_evaluator.add(clamp_crease(edge_crease_field));
   edge_evaluator.evaluate();
 
@@ -121,33 +128,33 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
     /* Due to the "BKE_subdiv" API, the crease layers must be on the input mesh. But in this node
      * they are provided as separate inputs, not as custom data layers. When needed, retrieve the
      * mesh with write access and store the new crease values there. */
-    mesh_copy = BKE_mesh_copy_for_eval(mesh);
+    mesh_copy = BKE_mesh_copy_for_eval(*mesh);
     write_vert_creases(*mesh_copy, vert_creases);
     write_edge_creases(*mesh_copy, edge_creases);
     mesh = mesh_copy;
   }
 
-  SubdivToMeshSettings mesh_settings;
+  bke::subdiv::ToMeshSettings mesh_settings;
   mesh_settings.resolution = (1 << level) + 1;
   mesh_settings.use_optimal_display = false;
 
-  SubdivSettings subdiv_settings;
+  bke::subdiv::Settings subdiv_settings;
   subdiv_settings.is_simple = false;
-  subdiv_settings.is_adaptive = false;
+  subdiv_settings.is_adaptive = use_limit_surface;
   subdiv_settings.use_creases = use_creases;
   subdiv_settings.level = level;
-  subdiv_settings.vtx_boundary_interpolation = BKE_subdiv_vtx_boundary_interpolation_from_subsurf(
-      boundary_smooth);
-  subdiv_settings.fvar_linear_interpolation = BKE_subdiv_fvar_interpolation_from_uv_smooth(
+  subdiv_settings.vtx_boundary_interpolation =
+      bke::subdiv::vtx_boundary_interpolation_from_subsurf(boundary_smooth);
+  subdiv_settings.fvar_linear_interpolation = bke::subdiv::fvar_interpolation_from_uv_smooth(
       uv_smooth);
 
-  Subdiv *subdiv = BKE_subdiv_new_from_mesh(&subdiv_settings, mesh);
+  bke::subdiv::Subdiv *subdiv = bke::subdiv::new_from_mesh(&subdiv_settings, mesh);
   if (!subdiv) {
     return nullptr;
   }
 
-  Mesh *result = BKE_subdiv_to_mesh(subdiv, &mesh_settings, mesh);
-  BKE_subdiv_free(subdiv);
+  Mesh *result = bke::subdiv::subdiv_to_mesh(subdiv, &mesh_settings, mesh);
+  bke::subdiv::free(subdiv);
 
   if (use_creases) {
     /* Remove the layer in case it was created by the node from the field input. The fact
@@ -175,19 +182,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float> vert_crease = params.extract_input<Field<float>>("Vertex Crease");
   const Field<float> edge_crease = params.extract_input<Field<float>>("Edge Crease");
 
-  const NodeGeometrySubdivisionSurface &storage = node_storage(params.node());
-  const int uv_smooth = storage.uv_smooth;
-  const int boundary_smooth = storage.boundary_smooth;
-  const int level = std::clamp(params.extract_input<int>("Level"), 0, 11);
+  const int uv_smooth = params.get_input<eSubsurfUVSmooth>("UV Smooth");
+  const int boundary_smooth = params.get_input<eSubsurfBoundarySmooth>("Boundary Smooth");
+  const int level = std::max(params.extract_input<int>("Level"), 0);
+  const bool use_limit_surface = params.extract_input<bool>("Limit Surface");
   if (level == 0) {
     params.set_output("Mesh", std::move(geometry_set));
     return;
   }
+  /* At this limit, a subdivided single triangle would be too large to be stored in #Mesh. */
+  if (level >= 16) {
+    params.error_message_add(NodeWarningType::Error, TIP_("The subdivision level is too large"));
+    params.set_default_remaining_outputs();
+    return;
+  }
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
-      geometry_set.replace_mesh(
-          mesh_subsurf_calc(mesh, level, vert_crease, edge_crease, boundary_smooth, uv_smooth));
+      geometry_set.replace_mesh(mesh_subsurf_calc(
+          mesh, level, vert_crease, edge_crease, boundary_smooth, uv_smooth, use_limit_surface));
     }
   });
 #else
@@ -198,43 +211,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Mesh", std::move(geometry_set));
 }
 
-static void node_rna(StructRNA *srna)
-{
-  RNA_def_node_enum(srna,
-                    "uv_smooth",
-                    "UV Smooth",
-                    "Controls how smoothing is applied to UVs",
-                    rna_enum_subdivision_uv_smooth_items,
-                    NOD_storage_enum_accessors(uv_smooth),
-                    SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES);
-
-  RNA_def_node_enum(srna,
-                    "boundary_smooth",
-                    "Boundary Smooth",
-                    "Controls how open boundaries are smoothed",
-                    rna_enum_subdivision_boundary_smooth_items,
-                    NOD_storage_enum_accessors(boundary_smooth),
-                    SUBSURF_BOUNDARY_SMOOTH_ALL);
-}
-
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SUBDIVISION_SURFACE, "Subdivision Surface", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSubdivisionSurface", GEO_NODE_SUBDIVISION_SURFACE);
+  ntype.ui_name = "Subdivision Surface";
+  ntype.ui_description =
+      "Divide mesh faces to form a smooth surface, using the Catmull-Clark subdivision method";
+  ntype.enum_name_legacy = "SUBDIVISION_SURFACE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  bke::node_type_size_preset(&ntype, bke::eNodeSizePreset::MIDDLE);
-  node_type_storage(&ntype,
-                    "NodeGeometrySubdivisionSurface",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
-  nodeRegisterType(&ntype);
-
-  node_rna(ntype.rna_ext.srna);
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
+  blender::bke::node_type_storage(ntype,
+                                  "NodeGeometrySubdivisionSurface",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

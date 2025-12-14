@@ -7,20 +7,17 @@
  */
 
 #include "DNA_defaults.h"
-#include "DNA_object_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_speaker_types.h"
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_anim_data.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_main.h"
-#include "BKE_speaker.h"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_speaker.hh"
 
 #include "BLO_read_write.hh"
 
@@ -52,8 +49,9 @@ static void speaker_blend_write(BlendWriter *writer, ID *id, const void *id_addr
 }
 
 IDTypeInfo IDType_ID_SPK = {
-    /*id_code*/ ID_SPK,
+    /*id_code*/ Speaker::id_type,
     /*id_filter*/ FILTER_ID_SPK,
+    /*dependencies_id_types*/ FILTER_ID_SO,
     /*main_listbase_index*/ INDEX_ID_SPK,
     /*struct_size*/ sizeof(Speaker),
     /*name*/ "Speaker",
@@ -69,6 +67,7 @@ IDTypeInfo IDType_ID_SPK = {
     /*foreach_id*/ speaker_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ speaker_blend_write,
@@ -80,11 +79,11 @@ IDTypeInfo IDType_ID_SPK = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-void *BKE_speaker_add(Main *bmain, const char *name)
+Speaker *BKE_speaker_add(Main *bmain, const char *name)
 {
   Speaker *spk;
 
-  spk = static_cast<Speaker *>(BKE_id_new(bmain, ID_SPK, name));
+  spk = BKE_id_new<Speaker>(bmain, name);
 
   return spk;
 }

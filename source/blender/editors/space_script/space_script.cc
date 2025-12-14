@@ -6,16 +6,15 @@
  * \ingroup spscript
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_screen.hh"
 
 #include "ED_screen.hh"
@@ -28,10 +27,7 @@
 
 #include "BLO_read_write.hh"
 
-#ifdef WITH_PYTHON
-#endif
-
-#include "script_intern.h" /* own include */
+#include "script_intern.hh" /* own include */
 
 // static script_run_python(char *funcname, )
 
@@ -42,18 +38,18 @@ static SpaceLink *script_create(const ScrArea * /*area*/, const Scene * /*scene*
   ARegion *region;
   SpaceScript *sscript;
 
-  sscript = static_cast<SpaceScript *>(MEM_callocN(sizeof(SpaceScript), "initscript"));
+  sscript = MEM_callocN<SpaceScript>("initscript");
   sscript->spacetype = SPACE_SCRIPT;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for script"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sscript->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for script"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&sscript->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -94,11 +90,12 @@ static void script_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
+  view2d_region_reinit(
+      &region->v2d, blender::ui::V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Script", SPACE_SCRIPT, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Script", SPACE_SCRIPT, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
 static void script_main_region_draw(const bContext *C, ARegion *region)
@@ -108,9 +105,9 @@ static void script_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* data... */
   // BPY_script_exec(C, "/root/blender-svn/blender25/test.py", nullptr);
@@ -124,7 +121,7 @@ static void script_main_region_draw(const bContext *C, ARegion *region)
 #endif
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* scrollers? */
 }
@@ -151,7 +148,7 @@ static void script_main_region_listener(const wmRegionListenerParams * /*params*
 static void script_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
 {
   SpaceScript *scpt = reinterpret_cast<SpaceScript *>(space_link);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scpt->script, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scpt->script, IDWALK_CB_DIRECT_WEAK_LINK);
 }
 
 static void script_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
@@ -175,11 +172,11 @@ static void script_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 void ED_spacetype_script()
 {
-  SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(SpaceType), "spacetype script"));
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_SCRIPT;
-  STRNCPY(st->name, "Script");
+  STRNCPY_UTF8(st->name, "Script");
 
   st->create = script_create;
   st->free = script_free;
@@ -192,7 +189,7 @@ void ED_spacetype_script()
   st->blend_write = script_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype script region"));
+  art = MEM_callocN<ARegionType>("spacetype script region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = script_main_region_init;
   art->draw = script_main_region_draw;
@@ -203,7 +200,7 @@ void ED_spacetype_script()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype script region"));
+  art = MEM_callocN<ARegionType>("spacetype script region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
@@ -213,5 +210,5 @@ void ED_spacetype_script()
 
   BLI_addhead(&st->regiontypes, art);
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }

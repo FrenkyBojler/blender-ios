@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ConstantColorShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ConstantColorShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`ConstantColorShader`\n"
     "\n"
     "[Color shader]\n"
@@ -43,8 +41,7 @@ static char ConstantColorShader___doc__[] =
     "   Assigns a constant color to every vertex of the Stroke.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int ConstantColorShader___init__(BPy_ConstantColorShader *self,
                                         PyObject *args,
                                         PyObject *kwds)
@@ -103,7 +100,3 @@ PyTypeObject ConstantColorShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

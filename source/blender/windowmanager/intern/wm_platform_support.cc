@@ -5,28 +5,30 @@
 /** \file
  * \ingroup wm
  */
-#include "wm_platform_support.h"
-#include "wm_window_private.h"
+#include "wm_platform_support.hh"
+#include "wm_window_private.hh"
 
 #include <cstring>
 
 #include "BLI_dynstr.h"
 #include "BLI_fileops.h"
 #include "BLI_linklist.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_sys_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_appdir.h"
-#include "BKE_global.h"
+#include "BKE_appdir.hh"
+#include "BKE_global.hh"
 
-#include "GPU_platform.h"
+#include "GPU_context.hh"
+#include "GPU_platform.hh"
 
-#include "GHOST_C-api.h"
+#include "CLG_log.h"
 
 #define WM_PLATFORM_SUPPORT_TEXT_SIZE 1024
+
+static CLG_LogRef LOG = {"gpu.platform"};
 
 /**
  * Check if user has already approved the given `platform_support_key`.
@@ -36,14 +38,14 @@ static bool wm_platform_support_check_approval(const char *platform_support_key,
   if (G.factory_startup) {
     return false;
   }
-  const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
-  if (!cfgdir) {
+  const std::optional<std::string> cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
+  if (!cfgdir.has_value()) {
     return false;
   }
 
   bool result = false;
   char filepath[FILE_MAX];
-  BLI_path_join(filepath, sizeof(filepath), cfgdir, BLENDER_PLATFORM_SUPPORT_FILE);
+  BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_PLATFORM_SUPPORT_FILE);
   LinkNode *lines = BLI_file_read_as_lines(filepath);
   for (LinkNode *line_node = lines; line_node; line_node = line_node->next) {
     const char *line = static_cast<char *>(line_node->link);
@@ -74,7 +76,7 @@ static void wm_platform_support_create_link(char *link)
   BLI_dynstr_append(ds, "windows/");
 #elif defined(__APPLE__)
   BLI_dynstr_append(ds, "apple/");
-#else /* UNIX */
+#else /* UNIX. */
   BLI_dynstr_append(ds, "linux/");
 #endif
 
@@ -104,8 +106,11 @@ bool WM_platform_support_perform_checks()
 
   bool result = true;
 
-  eGPUSupportLevel support_level = GPU_platform_support_level();
+  GPUSupportLevel support_level = GPU_platform_support_level();
   const char *platform_key = GPU_platform_support_level_key();
+
+  CLOG_INFO(&LOG, "Using GPU \"%s\"", GPU_platform_gpu_name());
+  CLOG_INFO(&LOG, "Using Backend \"%s\"", GPU_backend_get_name());
 
   /* Check if previous check matches the current check. Don't update the approval when running in
    * `background`. this could have been triggered by installing add-ons via installers. */
@@ -116,7 +121,17 @@ bool WM_platform_support_perform_checks()
     return result;
   }
 
-  /* update the message and link based on the found support level */
+  bool backend_detected = GPU_backend_get_type() != GPU_BACKEND_NONE;
+  bool show_message = ELEM(
+      support_level, GPU_SUPPORT_LEVEL_LIMITED, GPU_SUPPORT_LEVEL_UNSUPPORTED);
+  bool show_continue = backend_detected && support_level != GPU_SUPPORT_LEVEL_UNSUPPORTED;
+  bool show_link = backend_detected;
+  link[0] = '\0';
+  if (show_link) {
+    wm_platform_support_create_link(link);
+  }
+
+  /* Update the message and link based on the found support level. */
   GHOST_DialogOptions dialog_options = GHOST_DialogOptions(0);
 
   switch (support_level) {
@@ -133,9 +148,10 @@ bool WM_platform_support_perform_checks()
       STR_CONCAT(
           message,
           slen,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                     "Your graphics card or driver has limited support. It may work, but with "
-                     "issues."));
+          CTX_IFACE_(
+              BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+              "Your graphics card or driver version has limited support. It may work, but with "
+              "issues."));
 
       /* TODO: Extra space is needed for the split function in GHOST_SystemX11. We should change
        * the behavior in GHOST_SystemX11. */
@@ -143,8 +159,9 @@ bool WM_platform_support_perform_checks()
       STR_CONCAT(
           message,
           slen,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                     "Newer graphics drivers may be available to improve Blender support."));
+          CTX_IFACE_(
+              BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+              "Newer graphics drivers might be available with better Blender compatibility."));
       STR_CONCAT(message, slen, "\n \n");
       STR_CONCAT(message, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Graphics card:\n"));
       STR_CONCAT(message, slen, GPU_platform_gpu_name());
@@ -161,26 +178,37 @@ bool WM_platform_support_perform_checks()
       slen = 0;
 
 #ifdef __APPLE__
-      STR_CONCAT(message,
-                 slen,
-                 CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                            "Your graphics card or macOS version is not supported"));
-      STR_CONCAT(message, slen, "\n \n");
-      STR_CONCAT(message,
-                 slen,
-                 CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                            "Upgrading to the latest macOS version may improve Blender support"));
+      if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+        STR_CONCAT(
+            message,
+            slen,
+            CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Your graphics card is not supported"));
+      }
+      else {
+        STR_CONCAT(message,
+                   slen,
+                   CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+                              "Your graphics card or macOS version is not supported"));
+        STR_CONCAT(message, slen, "\n \n");
+
+        STR_CONCAT(
+            message,
+            slen,
+            CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+                       "Upgrading to the latest macOS version may improve Blender support"));
+      }
 #else
       STR_CONCAT(message,
                  slen,
                  CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                            "Your graphics card or driver is not supported."));
+                            "Your graphics card or driver version is not supported."));
       STR_CONCAT(message, slen, "\n \n");
       STR_CONCAT(
           message,
           slen,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                     "Newer graphics drivers may be available to improve Blender support."));
+          CTX_IFACE_(
+              BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+              "Newer graphics drivers might be available with better Blender compatibility."));
 
       STR_CONCAT(message, slen, "\n \n");
       STR_CONCAT(message, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Graphics card:\n"));
@@ -188,28 +216,25 @@ bool WM_platform_support_perform_checks()
 #endif
       STR_CONCAT(message, slen, "\n \n");
 
-      STR_CONCAT(message,
-                 slen,
-                 CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "The program will now close."));
-      dialog_options = GHOST_DialogError;
-      result = false;
+      if (!show_continue) {
+        STR_CONCAT(message,
+                   slen,
+                   CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Blender will now close."));
+        dialog_options = GHOST_DialogError;
+        result = false;
+      }
       break;
     }
   }
 
-  bool backend_detected = GPU_backend_get_type() != GPU_BACKEND_NONE;
-  bool show_message = ELEM(
-      support_level, GPU_SUPPORT_LEVEL_LIMITED, GPU_SUPPORT_LEVEL_UNSUPPORTED);
-  bool show_continue = backend_detected;
-  bool show_link = backend_detected;
-  link[0] = '\0';
-  if (show_link) {
-    wm_platform_support_create_link(link);
-  }
-
-  /* We are running in the background print the message in the console. */
-  if ((G.background || G.debug & G_DEBUG) && show_message) {
-    printf("%s\n\n%s\n%s\n", title, message, link);
+  if (show_message) {
+    /* Always print when in background mode or using debug argument. */
+    if (G.background || G.debug & G_DEBUG) {
+      CLOG_INFO_NOCHECK(&LOG, "%s\n\n%s\n%s\n", title, message, link);
+    }
+    else {
+      CLOG_INFO(&LOG, "%s\n\n%s\n%s\n", title, message, link);
+    }
   }
   if (G.background) {
     /* Don't show the message-box when running in background mode.

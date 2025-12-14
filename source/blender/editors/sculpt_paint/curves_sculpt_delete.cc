@@ -2,23 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <algorithm>
-
 #include "curves_sculpt_intern.hh"
 
-#include "BLI_kdtree.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_rand.hh"
 #include "BLI_vector.hh"
-
-#include "PIL_time.h"
 
 #include "DEG_depsgraph.hh"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
-#include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
@@ -28,11 +20,8 @@
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -63,7 +52,8 @@ class DeleteOperation : public CurvesSculptStrokeOperation {
   friend struct DeleteOperationExecutor;
 
  public:
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 struct DeleteOperationExecutor {
@@ -77,7 +67,7 @@ struct DeleteOperationExecutor {
   IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -86,12 +76,12 @@ struct DeleteOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  DeleteOperationExecutor(const bContext &C) : ctx_(C) {}
+  DeleteOperationExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(DeleteOperation &self, const bContext &C, const StrokeExtension &stroke_extension)
+  void execute(DeleteOperation &self, const StrokeExtension &stroke_extension)
   {
     self_ = &self;
-    object_ = CTX_data_active_object(&C);
+    object_ = ctx_.object;
 
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
@@ -100,18 +90,17 @@ struct DeleteOperationExecutor {
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
 
     brush_pos_re_ = stroke_extension.mouse_position;
 
     transforms_ = CurvesSurfaceTransforms(*object_, curves_id_->surface);
 
-    const eBrushFalloffShape falloff_shape = static_cast<eBrushFalloffShape>(
-        brush_->falloff_shape);
+    const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
 
     if (stroke_extension.is_first) {
-      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
+      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.uiflag & USER_ORBIT_SELECTION)) {
         this->initialize_spherical_brush_reference_point();
       }
       const bke::crazyspace::GeometryDeformation deformation =
@@ -162,8 +151,7 @@ struct DeleteOperationExecutor {
   {
     const float4x4 brush_transform_inv = math::invert(brush_transform);
 
-    float4x4 projection;
-    ED_view3d_ob_project_mat_get(ctx_.rv3d, object_, projection.ptr());
+    const float4x4 projection = ED_view3d_ob_project_mat_get(ctx_.rv3d, object_);
 
     const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;
     const float brush_radius_sq_re = pow2f(brush_radius_re);
@@ -175,8 +163,7 @@ struct DeleteOperationExecutor {
         if (points.size() == 1) {
           const float3 pos_cu = math::transform_point(brush_transform_inv,
                                                       self_->deformed_positions_[points.first()]);
-          float2 pos_re;
-          ED_view3d_project_float_v2_m4(ctx_.region, pos_cu, pos_re, projection.ptr());
+          const float2 pos_re = ED_view3d_project_float_v2_m4(ctx_.region, pos_cu, projection);
 
           if (math::distance_squared(brush_pos_re_, pos_re) <= brush_radius_sq_re) {
             curves_to_keep[curve_i] = false;
@@ -190,9 +177,8 @@ struct DeleteOperationExecutor {
           const float3 pos2_cu = math::transform_point(brush_transform_inv,
                                                        self_->deformed_positions_[segment_i + 1]);
 
-          float2 pos1_re, pos2_re;
-          ED_view3d_project_float_v2_m4(ctx_.region, pos1_cu, pos1_re, projection.ptr());
-          ED_view3d_project_float_v2_m4(ctx_.region, pos2_cu, pos2_re, projection.ptr());
+          const float2 pos1_re = ED_view3d_project_float_v2_m4(ctx_.region, pos1_cu, projection);
+          const float2 pos2_re = ED_view3d_project_float_v2_m4(ctx_.region, pos2_cu, projection);
 
           const float dist_sq_re = dist_squared_to_line_segment_v2(
               brush_pos_re_, pos1_re, pos2_re);
@@ -207,9 +193,6 @@ struct DeleteOperationExecutor {
 
   void delete_spherical_with_symmetry(MutableSpan<bool> curves_to_keep)
   {
-    float4x4 projection;
-    ED_view3d_ob_project_mat_get(ctx_.rv3d, object_, projection.ptr());
-
     float3 brush_wo;
     ED_view3d_win_to_3d(
         ctx_.v3d,
@@ -272,15 +255,18 @@ struct DeleteOperationExecutor {
                                                                    brush_radius_base_re_);
     if (brush_3d.has_value()) {
       self_->brush_3d_ = *brush_3d;
+      remember_stroke_position(
+          *curves_sculpt_,
+          math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
     }
   }
 };
 
-void DeleteOperation::on_stroke_extended(const bContext &C,
+void DeleteOperation::on_stroke_extended(const PaintStroke &stroke,
                                          const StrokeExtension &stroke_extension)
 {
-  DeleteOperationExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  DeleteOperationExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_delete_operation()

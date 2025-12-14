@@ -18,11 +18,13 @@
 #include "BLI_memarena.h"
 #include "BLI_utildefines_stack.h"
 
+#include "DNA_modifier_enums.h"
+
 #include "BKE_customdata.hh"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 /* Merge loop-data that diverges, see: #41445 */
 #define USE_LOOP_CUSTOMDATA_MERGE
@@ -59,28 +61,28 @@ static void bm_interp_face_store(InterpFace *iface, BMesh *bm, BMFace *f, MemAre
       BLI_memarena_alloc(interp_arena, sizeof(*iface->blocks_l) * f->len));
   void **blocks_v = iface->blocks_v = static_cast<void **>(
       BLI_memarena_alloc(interp_arena, sizeof(*iface->blocks_v) * f->len));
-  float(*cos_2d)[2] = iface->cos_2d = static_cast<float(*)[2]>(
+  float (*cos_2d)[2] = iface->cos_2d = static_cast<float (*)[2]>(
       BLI_memarena_alloc(interp_arena, sizeof(*iface->cos_2d) * f->len));
   void *axis_mat = iface->axis_mat;
   int i;
 
   BLI_assert(BM_face_is_normal_valid(f));
 
-  axis_dominant_v3_to_m3(static_cast<float(*)[3]>(axis_mat), f->no);
+  axis_dominant_v3_to_m3(static_cast<float (*)[3]>(axis_mat), f->no);
 
   iface->f = f;
 
   i = 0;
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
   do {
-    mul_v2_m3v3(cos_2d[i], static_cast<const float(*)[3]>(axis_mat), l_iter->v->co);
+    mul_v2_m3v3(cos_2d[i], static_cast<const float (*)[3]>(axis_mat), l_iter->v->co);
     blocks_l[i] = nullptr;
-    CustomData_bmesh_copy_data(&bm->ldata, &bm->ldata, l_iter->head.data, &blocks_l[i]);
+    CustomData_bmesh_copy_block(bm->ldata, l_iter->head.data, &blocks_l[i]);
     /* if we were not modifying the loops later we would do... */
     // blocks[i] = l_iter->head.data;
 
     blocks_v[i] = nullptr;
-    CustomData_bmesh_copy_data(&bm->vdata, &bm->vdata, l_iter->v->head.data, &blocks_v[i]);
+    CustomData_bmesh_copy_block(bm->vdata, l_iter->v->head.data, &blocks_v[i]);
 
     /* use later for index lookups */
     BM_elem_index_set(l_iter, i); /* set_dirty */
@@ -268,8 +270,8 @@ static void bmo_face_inset_individual(BMesh *bm,
   /* stores verts split away from the face (aligned with face verts) */
   BMVert **verts = BLI_array_alloca(verts, f->len);
   /* store edge normals (aligned with face-loop-edges) */
-  float(*edge_nors)[3] = BLI_array_alloca(edge_nors, f->len);
-  float(*coords)[3] = BLI_array_alloca(coords, f->len);
+  float (*edge_nors)[3] = BLI_array_alloca(edge_nors, f->len);
+  float (*coords)[3] = BLI_array_alloca(coords, f->len);
 
   BMLoop *l_iter, *l_first;
   BMLoop *l_other;
@@ -310,12 +312,12 @@ static void bmo_face_inset_individual(BMesh *bm,
 
     /* copy loop data */
     l_other = l_iter->radial_next;
-    BM_elem_attrs_copy(bm, bm, l_iter->next, l_other->prev);
-    BM_elem_attrs_copy(bm, bm, l_iter, l_other->next->next);
+    BM_elem_attrs_copy(bm, l_iter->next, l_other->prev);
+    BM_elem_attrs_copy(bm, l_iter, l_other->next->next);
 
     if (use_interpolate == false) {
-      BM_elem_attrs_copy(bm, bm, l_iter->next, l_other);
-      BM_elem_attrs_copy(bm, bm, l_iter, l_other->next);
+      BM_elem_attrs_copy(bm, l_iter->next, l_other);
+      BM_elem_attrs_copy(bm, l_iter, l_other->next);
     }
   } while ((void)i++, ((l_iter = l_iter->next) != l_first));
 
@@ -393,8 +395,8 @@ static void bmo_face_inset_individual(BMesh *bm,
       /* copy loop data */
       l_other = l_iter->radial_next;
 
-      BM_elem_attrs_copy(bm, bm, l_iter->next, l_other);
-      BM_elem_attrs_copy(bm, bm, l_iter, l_other->next);
+      BM_elem_attrs_copy(bm, l_iter->next, l_other);
+      BM_elem_attrs_copy(bm, l_iter, l_other->next);
     } while ((l_iter = l_iter->next) != l_first);
 
     bm_interp_face_free(iface, bm);
@@ -572,8 +574,7 @@ static float bm_edge_info_average_length_fallback(BMVert *v_lookup,
     STACK_DECLARE(vert_stack);
     STACK_INIT(vert_stack, bm->totvert);
 
-    vert_lengths = static_cast<VertLengths *>(
-        MEM_callocN(sizeof(*vert_lengths) * bm->totvert, __func__));
+    vert_lengths = MEM_calloc_arrayN<VertLengths>(bm->totvert, __func__);
 
     /* Needed for 'vert_lengths' lookup from connected vertices. */
     BM_mesh_elem_index_ensure(bm, BM_VERT);
@@ -699,8 +700,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
 
   /* BMVert original location storage */
   const bool use_vert_coords_orig = use_edge_rail;
-  MemArena *vert_coords_orig = nullptr;
-  GHash *vert_coords = nullptr;
+  blender::Map<BMVert *, blender::float3> vert_coords;
 
   BMVert *v;
   BMEdge *e;
@@ -753,8 +753,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
   }
   bm->elem_index_dirty |= BM_EDGE;
 
-  edge_info = static_cast<SplitEdgeInfo *>(
-      MEM_mallocN(edge_info_len * sizeof(SplitEdgeInfo), __func__));
+  edge_info = MEM_malloc_arrayN<SplitEdgeInfo>(edge_info_len, __func__);
 
   /* fill in array and initialize tagging */
   es = edge_info;
@@ -768,24 +767,6 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
       /* initialize no and e_new after */
     }
   }
-
-  if (use_vert_coords_orig) {
-    vert_coords_orig = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
-    vert_coords = BLI_ghash_ptr_new(__func__);
-  }
-
-/* Utility macros. */
-#define VERT_ORIG_STORE(_v) \
-  { \
-    float *_co = static_cast<float *>(BLI_memarena_alloc(vert_coords_orig, sizeof(float[3]))); \
-    copy_v3_v3(_co, (_v)->co); \
-    BLI_ghash_insert(vert_coords, _v, _co); \
-  } \
-  (void)0
-#define VERT_ORIG_GET(_v) (const float *)BLI_ghash_lookup_default(vert_coords, (_v), (_v)->co)
-/* memory for the coords isn't given back to the arena,
- * acceptable in this case since it runs a fixed number of times. */
-#define VERT_ORIG_REMOVE(_v) BLI_ghash_remove(vert_coords, (_v), nullptr, nullptr)
 
   for (i = 0, es = edge_info; i < edge_info_len; i++, es++) {
     if ((es->l = bm_edge_is_mixed_face_tag(es->e_old->l))) {
@@ -872,25 +853,25 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
       /* comment the first part because we know this verts in a tagged face */
       if (/* v->e && */ BM_elem_flag_test(v, BM_ELEM_TAG)) {
         BMVert **vout;
-        int r_vout_len;
+        int vout_len;
         BMVert *v_glue = nullptr;
 
         /* disable touching twice, this _will_ happen if the flags not disabled */
         BM_elem_flag_disable(v, BM_ELEM_TAG);
 
-        bmesh_kernel_vert_separate(bm, v, &vout, &r_vout_len, false);
+        bmesh_kernel_vert_separate(bm, v, &vout, &vout_len, false);
         v = nullptr; /* don't use again */
 
         /* in some cases the edge doesn't split off */
-        if (r_vout_len == 1) {
+        if (vout_len == 1) {
           if (use_vert_coords_orig) {
-            VERT_ORIG_STORE(vout[0]);
+            vert_coords.add(vout[0], vout[0]->co);
           }
           MEM_freeN(vout);
           continue;
         }
 
-        for (k = 0; k < r_vout_len; k++) {
+        for (k = 0; k < vout_len; k++) {
           BMVert *v_split = vout[k]; /* only to avoid vout[k] all over */
 
           /* need to check if this vertex is from a */
@@ -898,13 +879,14 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
           int vecpair[2];
 
           if (use_vert_coords_orig) {
-            VERT_ORIG_STORE(v_split);
+            vert_coords.add(v_split, v_split->co);
           }
 
           /* find adjacent */
           BM_ITER_ELEM (e, &iter, v_split, BM_EDGES_OF_VERT) {
             if (BM_elem_flag_test(e, BM_ELEM_TAG) && e->l &&
-                BM_elem_flag_test(e->l->f, BM_ELEM_TAG)) {
+                BM_elem_flag_test(e->l->f, BM_ELEM_TAG))
+            {
               if (vert_edge_tag_tot < 2) {
                 vecpair[vert_edge_tag_tot] = BM_elem_index_get(e);
                 BLI_assert(vecpair[vert_edge_tag_tot] != -1);
@@ -953,12 +935,12 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
                 if (l_other_a->v == l_other_b->v) {
                   /* both edges faces are adjacent, but we don't need to know the shared edge
                    * having both verts is enough. */
-                  const float *co_other;
+                  blender::float3 co_other;
 
                   /* note that we can't use 'l_other_a->v' directly since it
                    * may be inset and give a feedback loop. */
                   if (use_vert_coords_orig) {
-                    co_other = VERT_ORIG_GET(l_other_a->v);
+                    co_other = vert_coords.lookup_default(l_other_a->v, l_other_a->v->co);
                   }
                   else {
                     co_other = l_other_a->v->co;
@@ -1101,7 +1083,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
           }
 
           /* this saves expensive/slow glue check for common cases */
-          if (r_vout_len > 2) {
+          if (vout_len > 2) {
             bool ok = true;
             /* last step, nullptr this vertex if has a tagged face */
             BM_ITER_ELEM (f, &iter, v_split, BM_FACES_OF_VERT) {
@@ -1118,7 +1100,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
               else {
                 if (BM_vert_splice(bm, v_glue, v_split)) {
                   if (use_vert_coords_orig) {
-                    VERT_ORIG_REMOVE(v_split);
+                    vert_coords.remove(v_split);
                   }
                 }
               }
@@ -1129,11 +1111,6 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
         MEM_freeN(vout);
       }
     }
-  }
-
-  if (use_vert_coords_orig) {
-    BLI_memarena_free(vert_coords_orig);
-    BLI_ghash_free(vert_coords, nullptr, nullptr);
   }
 
   if (use_interpolate) {
@@ -1220,8 +1197,8 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
       /* we know this side has a radial_next because of the order of created verts in the quad */
       l_a_other = BM_edge_other_loop(l_a->e, l_a);
       l_b_other = BM_edge_other_loop(l_a->e, l_b);
-      BM_elem_attrs_copy(bm, bm, l_a_other, l_a);
-      BM_elem_attrs_copy(bm, bm, l_b_other, l_b);
+      BM_elem_attrs_copy(bm, l_a_other, l_a);
+      BM_elem_attrs_copy(bm, l_b_other, l_b);
 
       BLI_assert(l_a->f != l_a_other->f);
       BLI_assert(l_b->f != l_b_other->f);
@@ -1258,8 +1235,8 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
         const int i_b = BM_elem_index_get(l_b_other);
         CustomData_bmesh_free_block_data(&bm->ldata, l_b->head.data);
         CustomData_bmesh_free_block_data(&bm->ldata, l_a->head.data);
-        CustomData_bmesh_copy_data(&bm->ldata, &bm->ldata, iface->blocks_l[i_a], &l_b->head.data);
-        CustomData_bmesh_copy_data(&bm->ldata, &bm->ldata, iface->blocks_l[i_b], &l_a->head.data);
+        CustomData_bmesh_copy_block(bm->ldata, iface->blocks_l[i_a], &l_b->head.data);
+        CustomData_bmesh_copy_block(bm->ldata, iface->blocks_l[i_b], &l_a->head.data);
 
 #ifdef USE_LOOP_CUSTOMDATA_MERGE
         if (has_math_ldata) {
@@ -1291,8 +1268,8 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
 #endif /* USE_LOOP_CUSTOMDATA_MERGE */
       }
       else {
-        BM_elem_attrs_copy(bm, bm, l_a_other, l_b);
-        BM_elem_attrs_copy(bm, bm, l_b_other, l_a);
+        BM_elem_attrs_copy(bm, l_a_other, l_b);
+        BM_elem_attrs_copy(bm, l_b_other, l_a);
       }
     }
   }
@@ -1313,7 +1290,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
 
   /* cheap feature to add depth to the inset */
   if (depth != 0.0f) {
-    float(*varr_co)[3];
+    float (*varr_co)[3];
     BMOIter oiter;
 
     /* We need to re-calculate tagged normals,
@@ -1355,7 +1332,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
      * which BM_vert_calc_shell_factor uses. */
 
     /* over allocate */
-    varr_co = static_cast<float(*)[3]>(MEM_callocN(sizeof(*varr_co) * bm->totvert, __func__));
+    varr_co = MEM_calloc_arrayN<float[3]>(bm->totvert, __func__);
     void *vert_lengths_p = nullptr;
 
     BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {

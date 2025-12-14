@@ -10,30 +10,23 @@
 #include "abc_hierarchy_iterator.h"
 #include "intern/abc_axis_conversion.h"
 
-#include "BLI_array_utils.hh"
-#include "BLI_assert.h"
-#include "BLI_math_vector.h"
-
 #include "BKE_attribute.h"
 #include "BKE_attribute.hh"
-#include "BKE_customdata.hh"
-#include "BKE_lib_id.h"
-#include "BKE_material.h"
+#include "BKE_lib_id.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
+#include "BKE_subdiv.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
-#include "DEG_depsgraph.hh"
-
-#include "DNA_layer_types.h"
+#include "DNA_customdata_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_fluidsim_types.h"
-#include "DNA_particle_types.h"
+#include "DNA_object_types.h"
 
 #include "CLG_log.h"
 static CLG_LogRef LOG = {"io.alembic"};
@@ -86,12 +79,12 @@ void ABCGenericMeshWriter::create_alembic_objects(const HierarchyContext *contex
   }
 
   if (is_subd_) {
-    CLOG_INFO(&LOG, 2, "exporting OSubD %s", args_.abc_path.c_str());
+    CLOG_DEBUG(&LOG, "exporting OSubD %s", args_.abc_path.c_str());
     abc_subdiv_ = OSubD(args_.abc_parent, args_.abc_name, timesample_index_);
     abc_subdiv_schema_ = abc_subdiv_.getSchema();
   }
   else {
-    CLOG_INFO(&LOG, 2, "exporting OPolyMesh %s", args_.abc_path.c_str());
+    CLOG_DEBUG(&LOG, "exporting OPolyMesh %s", args_.abc_path.c_str());
     abc_poly_mesh_ = OPolyMesh(args_.abc_parent, args_.abc_name, timesample_index_);
     abc_poly_mesh_schema_ = abc_poly_mesh_.getSchema();
 
@@ -134,10 +127,7 @@ bool ABCGenericMeshWriter::export_as_subdivision_surface(Object *ob_eval) const
 
 bool ABCGenericMeshWriter::is_supported(const HierarchyContext *context) const
 {
-  if (args_.export_params->visible_objects_only) {
-    return context->is_object_visible(args_.export_params->evaluation_mode);
-  }
-  return true;
+  return context->is_object_visible(args_.export_params->evaluation_mode);
 }
 
 void ABCGenericMeshWriter::do_write(HierarchyContext &context)
@@ -150,6 +140,9 @@ void ABCGenericMeshWriter::do_write(HierarchyContext &context)
   if (mesh == nullptr) {
     return;
   }
+
+  /* Ensure data exists if currently in edit mode. */
+  BKE_mesh_wrapper_ensure_mdata(mesh);
 
   if (args_.export_params->triangulate) {
     const bool tag_only = false;
@@ -179,8 +172,8 @@ void ABCGenericMeshWriter::do_write(HierarchyContext &context)
   m_custom_data_config.face_offsets = mesh->face_offsets_for_write().data();
   m_custom_data_config.corner_verts = mesh->corner_verts_for_write().data();
   m_custom_data_config.faces_num = mesh->faces_num;
-  m_custom_data_config.totloop = mesh->totloop;
-  m_custom_data_config.totvert = mesh->totvert;
+  m_custom_data_config.totloop = mesh->corners_num;
+  m_custom_data_config.totvert = mesh->verts_num;
   m_custom_data_config.timesample_index = timesample_index_;
 
   try {
@@ -227,7 +220,7 @@ void ABCGenericMeshWriter::write_mesh(HierarchyContext &context, Mesh *mesh)
   UVSample uvs_and_indices;
 
   if (args_.export_params->uvs) {
-    const char *name = get_uv_sample(uvs_and_indices, m_custom_data_config, &mesh->loop_data);
+    const char *name = get_uv_sample(uvs_and_indices, m_custom_data_config, *mesh);
 
     if (!uvs_and_indices.indices.empty() && !uvs_and_indices.uvs.empty()) {
       OV2fGeomParam::Sample uv_sample;
@@ -239,10 +232,8 @@ void ABCGenericMeshWriter::write_mesh(HierarchyContext &context, Mesh *mesh)
       mesh_sample.setUVs(uv_sample);
     }
 
-    write_custom_data(abc_poly_mesh_schema_.getArbGeomParams(),
-                      m_custom_data_config,
-                      &mesh->loop_data,
-                      CD_PROP_FLOAT2);
+    write_custom_data(
+        abc_poly_mesh_schema_.getArbGeomParams(), m_custom_data_config, *mesh, CD_PROP_FLOAT2);
   }
 
   if (args_.export_params->normals) {
@@ -294,7 +285,7 @@ void ABCGenericMeshWriter::write_subd(HierarchyContext &context, Mesh *mesh)
 
   UVSample sample;
   if (args_.export_params->uvs) {
-    const char *name = get_uv_sample(sample, m_custom_data_config, &mesh->loop_data);
+    const char *name = get_uv_sample(sample, m_custom_data_config, *mesh);
 
     if (!sample.indices.empty() && !sample.uvs.empty()) {
       OV2fGeomParam::Sample uv_sample;
@@ -306,10 +297,8 @@ void ABCGenericMeshWriter::write_subd(HierarchyContext &context, Mesh *mesh)
       subdiv_sample.setUVs(uv_sample);
     }
 
-    write_custom_data(abc_subdiv_schema_.getArbGeomParams(),
-                      m_custom_data_config,
-                      &mesh->loop_data,
-                      CD_PROP_FLOAT2);
+    write_custom_data(
+        abc_subdiv_schema_.getArbGeomParams(), m_custom_data_config, *mesh, CD_PROP_FLOAT2);
   }
 
   if (args_.export_params->orcos) {
@@ -349,7 +338,7 @@ void ABCGenericMeshWriter::write_face_sets(Object *object, Mesh *mesh, Schema &s
   }
 }
 
-void ABCGenericMeshWriter::write_arb_geo_params(Mesh *me)
+void ABCGenericMeshWriter::write_arb_geo_params(Mesh *mesh)
 {
   if (!args_.export_params->vcolors) {
     return;
@@ -362,28 +351,26 @@ void ABCGenericMeshWriter::write_arb_geo_params(Mesh *me)
   else {
     arb_geom_params = abc_poly_mesh_.getSchema().getArbGeomParams();
   }
-  write_custom_data(arb_geom_params, m_custom_data_config, &me->loop_data, CD_PROP_BYTE_COLOR);
+  write_custom_data(arb_geom_params, m_custom_data_config, *mesh, CD_PROP_BYTE_COLOR);
 }
 
 bool ABCGenericMeshWriter::get_velocities(Mesh *mesh, std::vector<Imath::V3f> &vels)
 {
   /* Export velocity attribute output by fluid sim, sequence cache modifier
    * and geometry nodes. */
-  const CustomDataLayer *velocity_layer = BKE_id_attribute_find(
-      &mesh->id, "velocity", CD_PROP_FLOAT3, ATTR_DOMAIN_POINT);
-
-  if (velocity_layer == nullptr) {
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const VArraySpan attr = *attributes.lookup<float3>("velocity", bke::AttrDomain::Point);
+  if (attr.is_empty()) {
     return false;
   }
 
-  const int totverts = mesh->totvert;
-  const float(*mesh_velocities)[3] = reinterpret_cast<float(*)[3]>(velocity_layer->data);
+  const int totverts = mesh->verts_num;
 
   vels.clear();
   vels.resize(totverts);
 
   for (int i = 0; i < totverts; i++) {
-    copy_yup_from_zup(vels[i].getValue(), mesh_velocities[i]);
+    copy_yup_from_zup(vels[i].getValue(), attr[i]);
   }
 
   return true;
@@ -395,7 +382,7 @@ void ABCGenericMeshWriter::get_geo_groups(Object *object,
 {
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", ATTR_DOMAIN_FACE, 0);
+      "material_index", bke::AttrDomain::Face, 0);
 
   for (const int i : material_indices.index_range()) {
     short mnr = material_indices[i];
@@ -436,10 +423,10 @@ void ABCGenericMeshWriter::get_geo_groups(Object *object,
 static void get_vertices(Mesh *mesh, std::vector<Imath::V3f> &points)
 {
   points.clear();
-  points.resize(mesh->totvert);
+  points.resize(mesh->verts_num);
 
   const Span<float3> positions = mesh->vert_positions();
-  for (int i = 0, e = mesh->totvert; i < e; i++) {
+  for (int i = 0, e = mesh->verts_num; i < e; i++) {
     copy_yup_from_zup(points[i].getValue(), positions[i]);
   }
 }
@@ -478,19 +465,20 @@ static void get_edge_creases(Mesh *mesh,
   sharpnesses.clear();
 
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const bke::AttributeReader attribute = attributes.lookup<float>("crease_edge", ATTR_DOMAIN_EDGE);
+  const bke::AttributeReader attribute = attributes.lookup<float>("crease_edge",
+                                                                  bke::AttrDomain::Edge);
   if (!attribute) {
     return;
   }
   const VArraySpan creases(*attribute);
   const Span<int2> edges = mesh->edges();
   for (const int i : edges.index_range()) {
-    const float sharpness = creases[i];
+    const float crease = std::clamp(creases[i], 0.0f, 1.0f);
 
-    if (sharpness != 0.0f) {
+    if (crease != 0.0f) {
       indices.push_back(edges[i][0]);
       indices.push_back(edges[i][1]);
-      sharpnesses.push_back(sharpness);
+      sharpnesses.push_back(bke::subdiv::crease_to_sharpness(crease));
     }
   }
 
@@ -506,17 +494,17 @@ static void get_vert_creases(Mesh *mesh,
 
   const bke::AttributeAccessor attributes = mesh->attributes();
   const bke::AttributeReader attribute = attributes.lookup<float>("crease_vert",
-                                                                  ATTR_DOMAIN_POINT);
+                                                                  bke::AttrDomain::Point);
   if (!attribute) {
     return;
   }
   const VArraySpan creases(*attribute);
   for (const int i : creases.index_range()) {
-    const float sharpness = creases[i];
+    const float crease = std::clamp(creases[i], 0.0f, 1.0f);
 
-    if (sharpness != 0.0f) {
+    if (crease != 0.0f) {
       indices.push_back(i);
-      sharpnesses.push_back(sharpness);
+      sharpnesses.push_back(bke::subdiv::crease_to_sharpness(crease));
     }
   }
 }
@@ -532,7 +520,7 @@ static void get_loop_normals(const Mesh *mesh, std::vector<Imath::V3f> &normals)
       break;
     }
     case blender::bke::MeshNormalDomain::Face: {
-      normals.resize(mesh->totloop);
+      normals.resize(mesh->corners_num);
       MutableSpan dst_normals(reinterpret_cast<float3 *>(normals.data()), normals.size());
 
       const OffsetIndices faces = mesh->faces();
@@ -547,7 +535,7 @@ static void get_loop_normals(const Mesh *mesh, std::vector<Imath::V3f> &normals)
       break;
     }
     case blender::bke::MeshNormalDomain::Corner: {
-      normals.resize(mesh->totloop);
+      normals.resize(mesh->corners_num);
       MutableSpan dst_normals(reinterpret_cast<float3 *>(normals.data()), normals.size());
 
       /* NOTE: data needs to be written in the reverse order. */

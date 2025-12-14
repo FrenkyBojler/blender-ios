@@ -10,46 +10,41 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
-#include "BKE_deform.h"
-#include "BKE_lattice.hh"
-#include "BKE_lib_id.h"
+#include "BKE_attribute_legacy_convert.hh"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
 #include "BKE_particle.h"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
+#include "BKE_scene.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "BLO_read_write.hh"
-
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 static void init_data(ModifierData *md)
@@ -95,7 +90,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
   ParticleSystem *psys = psmd->psys;
   MFace *fa = nullptr, *mface = nullptr;
   ParticleData *pa;
-  KDTree_3d *tree;
+  blender::KDTree_3d *tree;
   RNG *rng;
   float center[3], co[3];
   int *facepa = nullptr, *vertpa = nullptr, totvert = 0, totface = 0, totpart = 0;
@@ -105,7 +100,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
   blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
   mface = (MFace *)CustomData_get_layer_for_write(
       &mesh->fdata_legacy, CD_MFACE, mesh->totface_legacy);
-  totvert = mesh->totvert;
+  totvert = mesh->verts_num;
   totface = mesh->totface_legacy;
   totpart = psmd->psys->totpart;
 
@@ -114,9 +109,9 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
   if (emd->facepa) {
     MEM_freeN(emd->facepa);
   }
-  facepa = emd->facepa = static_cast<int *>(MEM_calloc_arrayN(totface, sizeof(int), __func__));
+  facepa = emd->facepa = MEM_calloc_arrayN<int>(totface, __func__);
 
-  vertpa = static_cast<int *>(MEM_calloc_arrayN(totvert, sizeof(int), __func__));
+  vertpa = MEM_calloc_arrayN<int>(totvert, __func__);
 
   /* initialize all faces & verts to no particle */
   for (i = 0; i < totface; i++) {
@@ -128,7 +123,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
 
   /* set protected verts */
   if (emd->vgroup) {
-    const MDeformVert *dvert = BKE_mesh_deform_verts(mesh);
+    const MDeformVert *dvert = mesh->deform_verts().data();
     if (dvert) {
       const int defgrp_index = emd->vgroup - 1;
       for (i = 0; i < totvert; i++, dvert++) {
@@ -144,7 +139,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
   }
 
   /* make tree of emitter locations */
-  tree = BLI_kdtree_3d_new(totpart);
+  tree = blender::kdtree_3d_new(totpart);
   for (p = 0, pa = psys->particles; p < totpart; p++, pa++) {
     psys_particle_on_emitter(psmd,
                              psys->part->from,
@@ -157,9 +152,9 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
                              nullptr,
                              nullptr,
                              nullptr);
-    BLI_kdtree_3d_insert(tree, p, co);
+    blender::kdtree_3d_insert(tree, p, co);
   }
-  BLI_kdtree_3d_balance(tree);
+  blender::kdtree_3d_balance(tree);
 
   /* set face-particle-indexes to nearest particle to face center */
   for (i = 0, fa = mface; i < totface; i++, fa++) {
@@ -173,7 +168,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
       mul_v3_fl(center, 1.0f / 3.0f);
     }
 
-    p = BLI_kdtree_3d_find_nearest(tree, center, nullptr);
+    p = blender::kdtree_3d_find_nearest(tree, center, nullptr);
 
     v1 = vertpa[fa->v1];
     v2 = vertpa[fa->v2];
@@ -203,7 +198,7 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
   if (vertpa) {
     MEM_freeN(vertpa);
   }
-  BLI_kdtree_3d_free(tree);
+  blender::kdtree_3d_free(tree);
 
   BLI_rng_free(rng);
 }
@@ -654,16 +649,17 @@ static void remap_uvs_23(
 
 static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
 {
+  using namespace blender;
   Mesh *split_m;
   MFace *mf = nullptr, *df1 = nullptr;
   MFace *mface = static_cast<MFace *>(
       CustomData_get_layer_for_write(&mesh->fdata_legacy, CD_MFACE, mesh->totface_legacy));
   float *dupve;
-  int totvert = mesh->totvert;
+  int totvert = mesh->verts_num;
   int totface = mesh->totface_legacy;
 
-  int *facesplit = static_cast<int *>(MEM_calloc_arrayN(totface, sizeof(int), __func__));
-  int *vertpa = static_cast<int *>(MEM_calloc_arrayN(totvert, sizeof(int), __func__));
+  int *facesplit = MEM_calloc_arrayN<int>(totface, __func__);
+  int *vertpa = MEM_calloc_arrayN<int>(totvert, __func__);
   int *facepa = emd->facepa;
   int *fs, totfsplit = 0, curdupface = 0;
   int i, v1, v2, v3, v4, v[4] = {0, 0, 0, 0}, /* To quite gcc barking... */
@@ -671,7 +667,7 @@ static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
   int layers_num;
 
   int totesplit = totvert;
-  blender::Map<blender::OrderedEdge, int> edgehash;
+  Map<OrderedEdge, int> edgehash;
 
   /* recreate vertpa from facepa calculation */
   for (i = 0, mf = mface; i < totface; i++, mf++) {
@@ -739,21 +735,21 @@ static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
 
   layers_num = CustomData_number_of_layers(&split_m->fdata_legacy, CD_MTFACE);
 
-  blender::MutableSpan<blender::float3> split_m_positions = split_m->vert_positions_for_write();
+  MutableSpan<blender::float3> split_m_positions = split_m->vert_positions_for_write();
 
   /* copy new faces & verts (is it really this painful with custom data??) */
+  bke::LegacyMeshInterpolator vert_interp(*mesh, *split_m, bke::AttrDomain::Point);
   for (i = 0; i < totvert; i++) {
-    CustomData_copy_data(&mesh->vert_data, &split_m->vert_data, i, i, 1);
+    vert_interp.copy(i, i, 1);
   }
 
   /* override original facepa (original pointer is saved in caller function) */
 
   /* TODO(@ideasman42): `(totfsplit * 2)` over allocation is used since the quads are
-   * later interpreted as tri's, for this to work right I think we probably
+   * later interpreted as triangles, for this to work right I think we probably
    * have to stop using tessface. */
 
-  facepa = static_cast<int *>(
-      MEM_calloc_arrayN((totface + (totfsplit * 2)), sizeof(int), __func__));
+  facepa = MEM_calloc_arrayN<int>(size_t(totface) + (size_t(totfsplit) * 2), __func__);
   // memcpy(facepa, emd->facepa, totface*sizeof(int));
   emd->facepa = facepa;
 
@@ -762,8 +758,7 @@ static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
     const int ed_v1 = edge.v_low;
     const int ed_v2 = edge.v_high;
 
-    CustomData_free_elem(&split_m->vert_data, esplit, 1);
-    CustomData_copy_data(&split_m->vert_data, &split_m->vert_data, ed_v2, esplit, 1);
+    vert_interp.copy(ed_v2, esplit, 1);
 
     dupve = split_m_positions[esplit];
     copy_v3_v3(dupve, split_m_positions[ed_v2]);
@@ -902,6 +897,7 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
                          Scene *scene,
                          Mesh *to_explode)
 {
+  using namespace blender;
   Mesh *explode, *mesh = to_explode;
   MFace *mf = nullptr, *mface;
   // ParticleSettings *part=psmd->psys->part; /* UNUSED */
@@ -918,7 +914,7 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
   uint mindex = 0;
 
   totface = mesh->totface_legacy;
-  totvert = mesh->totvert;
+  totvert = mesh->verts_num;
   mface = static_cast<MFace *>(
       CustomData_get_layer_for_write(&mesh->fdata_legacy, CD_MFACE, mesh->totface_legacy));
   totpart = psmd->psys->totpart;
@@ -934,7 +930,7 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
   ctime = BKE_scene_ctime_get(scene);
 
   /* hash table for vertex <-> particle relations */
-  blender::Map<blender::OrderedEdge, int> vertpahash;
+  Map<OrderedEdge, int> vertpahash;
 
   for (i = 0; i < totface; i++) {
     if (facepa[i] != totpart) {
@@ -979,12 +975,14 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
       &explode->fdata_legacy, CD_MTFACE, emd->uvname, explode->totface_legacy));
 
   /* getting back to object space */
-  invert_m4_m4(imat, ctx->object->object_to_world);
+  invert_m4_m4(imat, ctx->object->object_to_world().ptr());
 
   psys_sim_data_init(&sim);
 
-  const blender::Span<blender::float3> positions = mesh->vert_positions();
-  blender::MutableSpan<blender::float3> explode_positions = explode->vert_positions_for_write();
+  const Span<blender::float3> positions = mesh->vert_positions();
+  MutableSpan<blender::float3> explode_positions = explode->vert_positions_for_write();
+
+  bke::LegacyMeshInterpolator vert_interp(*mesh, *explode, bke::AttrDomain::Point);
 
   for (const auto [edge, v] : vertpahash.items()) {
     int ed_v1 = edge.v_low;
@@ -993,7 +991,7 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
 
     copy_v3_v3(explode_positions[v], positions[ed_v1]);
 
-    CustomData_copy_data(&mesh->vert_data, &explode->vert_data, ed_v1, v, 1);
+    vert_interp.copy(ed_v1, v, 1);
 
     copy_v3_v3(explode_positions[v], positions[ed_v1]);
 
@@ -1007,7 +1005,7 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
       psys_get_particle_state(&sim, ed_v2, &state, true);
 
       vertco = explode_positions[v];
-      mul_m4_v3(ctx->object->object_to_world, vertco);
+      mul_m4_v3(ctx->object->object_to_world().ptr(), vertco);
 
       sub_v3_v3(vertco, birth.co);
 
@@ -1167,9 +1165,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row, *col;
-  uiLayout *layout = panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  blender::ui::Layout &layout = *panel->layout;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -1177,30 +1175,30 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
   bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemPointerR(layout, ptr, "particle_uv", &obj_data_ptr, "uv_layers", nullptr, ICON_GROUP_UVS);
+  layout.prop_search(ptr, "particle_uv", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Show"));
-  uiItemR(row, ptr, "show_alive", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "show_dead", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "show_unborn", toggles_flag, nullptr, ICON_NONE);
+  blender::ui::Layout *row = &layout.row(true, IFACE_("Show"));
+  row->prop(ptr, "show_alive", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_edge_cut", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_size", UI_ITEM_NONE, nullptr, ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(ptr, "use_edge_cut", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "use_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  row = uiLayoutRow(layout, false);
-  uiLayoutSetActive(row, has_vertex_group);
-  uiItemR(row, ptr, "protect", UI_ITEM_NONE, nullptr, ICON_NONE);
+  row = &layout.row(false);
+  row->active_set(has_vertex_group);
+  row->prop(ptr, "protect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemO(layout, IFACE_("Refresh"), ICON_NONE, "OBJECT_OT_explode_refresh");
+  layout.op("OBJECT_OT_explode_refresh", IFACE_("Refresh"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -1246,4 +1244,6 @@ ModifierTypeInfo modifierType_Explode = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

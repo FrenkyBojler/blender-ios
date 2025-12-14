@@ -61,9 +61,9 @@ static int node_shader_gpu_geometry(GPUMaterial *mat,
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  /* NOTE: Some outputs aren't supported by MaterialX.*/
+  /* NOTE: Some outputs aren't supported by MaterialX. */
   NodeItem res = empty();
-  std::string name = socket_out_->name;
+  std::string name = socket_out_->identifier;
 
   if (name == "Position") {
     res = create_node("position", NodeItem::Type::Vector3, {{"space", val(std::string("world"))}});
@@ -89,12 +89,16 @@ void register_node_type_sh_geometry()
 {
   namespace file_ns = blender::nodes::node_shader_geometry_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_NEW_GEOMETRY, "Geometry", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, "ShaderNodeNewGeometry", SH_NODE_NEW_GEOMETRY);
+  ntype.ui_name = "Geometry";
+  ntype.ui_description = "Retrieve geometric information about the current shading point";
+  ntype.enum_name_legacy = "NEW_GEOMETRY";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_geometry;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

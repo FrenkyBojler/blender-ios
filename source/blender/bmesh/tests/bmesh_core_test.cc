@@ -5,8 +5,7 @@
 #include "testing/testing.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
-#include "bmesh.h"
+#include "bmesh.hh"
 
 TEST(bmesh_core, BMVertCreate)
 {

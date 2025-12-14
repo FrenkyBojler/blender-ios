@@ -18,20 +18,25 @@
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_main.h"
-#include "BKE_undo_system.h"
+#include "BKE_library.hh"
+#include "BKE_main.hh"
+#include "BKE_undo_system.hh"
 
 #include "RNA_access.hh"
 
 #include "MEM_guardedalloc.h"
+
+/* Header to pull symbols from the file which otherwise might get stripped away. */
+#include "BKE_blender_undo.hh"
 
 #define undo_stack _wm_undo_stack_disallow /* pass in as a variable always. */
 
@@ -48,7 +53,7 @@
 #define WITH_GLOBAL_UNDO_CORRECT_ORDER
 
 /** We only need this locally. */
-static CLG_LogRef LOG = {"bke.undosys"};
+static CLG_LogRef LOG = {"undo"};
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Types
@@ -62,6 +67,15 @@ const UndoType *BKE_UNDOSYS_TYPE_SCULPT = nullptr;
 const UndoType *BKE_UNDOSYS_TYPE_TEXT = nullptr;
 
 static ListBase g_undo_types = {nullptr, nullptr};
+
+/* An unused function with public linkage just to ensure symbols from the blender_undo.cc are not
+ * stripped. */
+void bke_undo_system_linker_workaround();
+void bke_undo_system_linker_workaround()
+{
+  BLI_assert_unreachable();
+  BKE_memfile_undo_free(nullptr);
+}
 
 static const UndoType *BKE_undosys_type_from_context(bContext *C)
 {
@@ -122,6 +136,12 @@ static void undosys_id_ref_store(void * /*user_data*/, UndoRefID *id_ref)
   BLI_assert(id_ref->name[0] == '\0');
   if (id_ref->ptr) {
     STRNCPY(id_ref->name, id_ref->ptr->name);
+    if (id_ref->ptr->lib) {
+      STRNCPY(id_ref->library_filepath_abs, id_ref->ptr->lib->runtime->filepath_abs);
+    }
+    else {
+      id_ref->library_filepath_abs[0] = '\0';
+    }
     /* Not needed, just prevents stale data access. */
     id_ref->ptr = nullptr;
   }
@@ -132,18 +152,16 @@ static void undosys_id_ref_resolve(void *user_data, UndoRefID *id_ref)
   /* NOTE: we could optimize this,
    * for now it's not too bad since it only runs when we access undo! */
   Main *bmain = static_cast<Main *>(user_data);
-  ListBase *lb = which_libbase(bmain, GS(id_ref->name));
-  LISTBASE_FOREACH (ID *, id, lb) {
-    if (STREQ(id_ref->name, id->name) && !ID_IS_LINKED(id)) {
-      id_ref->ptr = id;
-      break;
-    }
-  }
+  id_ref->ptr = BKE_libblock_find_name_and_library_filepath(
+      bmain,
+      GS(id_ref->name),
+      id_ref->name + 2,
+      (id_ref->library_filepath_abs[0] ? id_ref->library_filepath_abs : nullptr));
 }
 
 static bool undosys_step_encode(bContext *C, Main *bmain, UndoStack *ustack, UndoStep *us)
 {
-  CLOG_INFO(&LOG, 2, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
   UNDO_NESTED_CHECK_BEGIN;
   bool ok = us->type->step_encode(C, bmain, us);
   UNDO_NESTED_CHECK_END;
@@ -161,7 +179,7 @@ static bool undosys_step_encode(bContext *C, Main *bmain, UndoStack *ustack, Und
 #endif
   }
   if (ok == false) {
-    CLOG_INFO(&LOG, 2, "encode callback didn't create undo step");
+    CLOG_DEBUG(&LOG, "encode callback didn't create undo step");
   }
   return ok;
 }
@@ -173,7 +191,7 @@ static void undosys_step_decode(bContext *C,
                                 const eUndoStepDir dir,
                                 bool is_final)
 {
-  CLOG_INFO(&LOG, 2, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
 
   if (us->type->step_foreach_ID_ref) {
 #ifdef WITH_GLOBAL_UNDO_CORRECT_ORDER
@@ -213,7 +231,7 @@ static void undosys_step_decode(bContext *C,
 
 static void undosys_step_free_and_unlink(UndoStack *ustack, UndoStep *us)
 {
-  CLOG_INFO(&LOG, 2, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
   UNDO_NESTED_CHECK_BEGIN;
   us->type->step_free(us);
   UNDO_NESTED_CHECK_END;
@@ -251,7 +269,7 @@ static void undosys_stack_validate(UndoStack * /*ustack*/, bool /*expect_non_emp
 
 UndoStack *BKE_undosys_stack_create()
 {
-  UndoStack *ustack = MEM_cnew<UndoStack>(__func__);
+  UndoStack *ustack = MEM_callocN<UndoStack>(__func__);
   return ustack;
 }
 
@@ -264,10 +282,14 @@ void BKE_undosys_stack_destroy(UndoStack *ustack)
 void BKE_undosys_stack_clear(UndoStack *ustack)
 {
   UNDO_NESTED_ASSERT(false);
-  CLOG_INFO(&LOG, 1, "steps=%d", BLI_listbase_count(&ustack->steps));
+  CLOG_DEBUG(&LOG, "steps=%d", BLI_listbase_count(&ustack->steps));
   for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.last), *us_prev; us; us = us_prev) {
     us_prev = us->prev;
     undosys_step_free_and_unlink(ustack, us);
+  }
+  if (UndoStep *us = ustack->step_init) {
+    undosys_step_free_and_unlink(ustack, us);
+    ustack->step_init = nullptr;
   }
   BLI_listbase_clear(&ustack->steps);
   ustack->step_active = nullptr;
@@ -330,7 +352,7 @@ static bool undosys_stack_push_main(UndoStack *ustack, const char *name, Main *b
 {
   UNDO_NESTED_ASSERT(false);
   BLI_assert(ustack->step_init == nullptr);
-  CLOG_INFO(&LOG, 1, "'%s'", name);
+  CLOG_DEBUG(&LOG, "Push main '%s'", name);
   bContext *C_temp = CTX_create();
   CTX_data_main_set(C_temp, bmain);
   eUndoPushReturn ret = BKE_undosys_step_push_with_type(
@@ -376,7 +398,6 @@ UndoStep *BKE_undosys_stack_active_with_type(UndoStack *ustack, const UndoType *
 UndoStep *BKE_undosys_stack_init_or_active_with_type(UndoStack *ustack, const UndoType *ut)
 {
   UNDO_NESTED_ASSERT(false);
-  CLOG_INFO(&LOG, 1, "type='%s'", ut->name);
   if (ustack->step_init && (ustack->step_init->type == ut)) {
     return ustack->step_init;
   }
@@ -390,7 +411,7 @@ void BKE_undosys_stack_limit_steps_and_memory(UndoStack *ustack, int steps, size
     return;
   }
 
-  CLOG_INFO(&LOG, 1, "steps=%d, memory_limit=%zu", steps, memory_limit);
+  CLOG_DEBUG(&LOG, "Limit steps=%d, memory_limit=%zu", steps, memory_limit);
   UndoStep *us;
   UndoStep *us_exclude = nullptr;
   /* keep at least two (original + other) */
@@ -400,12 +421,11 @@ void BKE_undosys_stack_limit_steps_and_memory(UndoStack *ustack, int steps, size
     if (memory_limit) {
       data_size_all += us->data_size;
       if (data_size_all > memory_limit) {
-        CLOG_INFO(&LOG,
-                  1,
-                  "At step %zu: data_size_all=%zu >= memory_limit=%zu",
-                  us_count,
-                  data_size_all,
-                  memory_limit);
+        CLOG_DEBUG(&LOG,
+                   "At step %zu: data_size_all=%zu >= memory_limit=%zu",
+                   us_count,
+                   data_size_all,
+                   memory_limit);
         break;
       }
     }
@@ -419,7 +439,7 @@ void BKE_undosys_stack_limit_steps_and_memory(UndoStack *ustack, int steps, size
     }
   }
 
-  CLOG_INFO(&LOG, 1, "Total steps %zu: data_size_all=%zu", us_count, data_size_all);
+  CLOG_DEBUG(&LOG, "Total steps %zu: data_size_all=%zu", us_count, data_size_all);
 
   if (us) {
 #ifdef WITH_GLOBAL_UNDO_KEEP_ONE
@@ -455,11 +475,13 @@ UndoStep *BKE_undosys_step_push_init_with_type(UndoStack *ustack,
                                                const UndoType *ut)
 {
   UNDO_NESTED_ASSERT(false);
-  /* We could detect and clean this up (but it should never happen!). */
-  BLI_assert(ustack->step_init == nullptr);
   if (ut->step_encode_init) {
     undosys_stack_validate(ustack, false);
 
+    if (UndoStep *us = ustack->step_init) {
+      undosys_step_free_and_unlink(ustack, us);
+      ustack->step_init = nullptr;
+    }
     if (ustack->step_active) {
       undosys_stack_clear_all_last(ustack, ustack->step_active->next);
     }
@@ -470,7 +492,8 @@ UndoStep *BKE_undosys_step_push_init_with_type(UndoStack *ustack,
     }
     us->type = ut;
     ustack->step_init = us;
-    CLOG_INFO(&LOG, 1, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+    CLOG_INFO(&LOG, "Initialize type='%s'", ut->name);
+    CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
     ut->step_encode_init(C, us);
     undosys_stack_validate(ustack, false);
     return us;
@@ -482,8 +505,6 @@ UndoStep *BKE_undosys_step_push_init_with_type(UndoStack *ustack,
 UndoStep *BKE_undosys_step_push_init(UndoStack *ustack, bContext *C, const char *name)
 {
   UNDO_NESTED_ASSERT(false);
-  /* We could detect and clean this up (but it should never happen!). */
-  BLI_assert(ustack->step_init == nullptr);
   const UndoType *ut = BKE_undosys_type_from_context(C);
   if (ut == nullptr) {
     return nullptr;
@@ -558,7 +579,7 @@ eUndoPushReturn BKE_undosys_step_push_with_type(UndoStack *ustack,
     us->use_old_bmain_data = true;
     /* Initialized, not added yet. */
 
-    CLOG_INFO(&LOG, 1, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+    CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
 
     if (!undosys_step_encode(C, G_MAIN, ustack, us)) {
       MEM_freeN(us);
@@ -757,21 +778,19 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
       us_target_active = (undo_dir == -1) ? us_target_active->prev : us_target_active->next;
     }
     if (us_target_active == nullptr) {
-      CLOG_INFO(&LOG,
-                2,
-                "undo/redo did not find a step after stepping over skip-steps "
-                "(undo limit exceeded)");
+      CLOG_DEBUG(&LOG,
+                 "undo/redo did not find a step after stepping over skip-steps "
+                 "(undo limit exceeded)");
       return false;
     }
   }
 
-  CLOG_INFO(&LOG,
-            1,
-            "addr=%p, name='%s', type='%s', undo_dir=%d",
-            us_target,
-            us_target->name,
-            us_target->type->name,
-            undo_dir);
+  CLOG_DEBUG(&LOG,
+             "addr=%p, name='%s', type='%s', undo_dir=%d",
+             us_target,
+             us_target->name,
+             us_target->type->name,
+             undo_dir);
 
   /* Undo/Redo steps until we reach given target step (or beyond if it has to be skipped),
    * from given reference step. */
@@ -785,12 +804,11 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
 
     if (!is_final && is_processing_extra_skipped_steps) {
       BLI_assert(us_iter->skip == true);
-      CLOG_INFO(&LOG,
-                2,
-                "undo/redo continue with skip addr=%p, name='%s', type='%s'",
-                us_iter,
-                us_iter->name,
-                us_iter->type->name);
+      CLOG_DEBUG(&LOG,
+                 "undo/redo continue with skip addr=%p, name='%s', type='%s'",
+                 us_iter,
+                 us_iter->name,
+                 us_iter->type->name);
     }
 
     undosys_step_decode(C, G_MAIN, ustack, us_iter, undo_dir, is_final);
@@ -806,8 +824,9 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
     }
   }
 
-  BLI_assert(
-      !"This should never be reached, either undo stack is corrupted, or code above is buggy");
+  BLI_assert_msg(
+      false,
+      "This should never be reached, either undo stack is corrupted, or code above is buggy");
   return false;
 }
 
@@ -884,7 +903,7 @@ bool BKE_undosys_step_redo(UndoStack *ustack, bContext *C)
 
 UndoType *BKE_undosys_type_append(void (*undosys_fn)(UndoType *))
 {
-  UndoType *ut = MEM_cnew<UndoType>(__func__);
+  UndoType *ut = MEM_callocN<UndoType>(__func__);
 
   undosys_fn(ut);
 
@@ -967,6 +986,10 @@ static void UNUSED_FUNCTION(BKE_undosys_foreach_ID_ref(UndoStack *ustack,
 
 void BKE_undosys_print(UndoStack *ustack)
 {
+  if (!ustack) {
+    printf("No undo steps recorded yet.\n");
+    return;
+  }
   printf("Undo %d Steps (*: active, #=applied, M=memfile-active, S=skip)\n",
          BLI_listbase_count(&ustack->steps));
   int index = 0;

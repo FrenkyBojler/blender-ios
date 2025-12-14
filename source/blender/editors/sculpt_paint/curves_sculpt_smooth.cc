@@ -5,6 +5,7 @@
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
+#include "BKE_paint.hh"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -15,7 +16,6 @@
 
 #include "WM_api.hh"
 
-#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_task.hh"
 
 #include "curves_sculpt_intern.hh"
@@ -30,7 +30,8 @@ class SmoothOperation : public CurvesSculptStrokeOperation {
   friend struct SmoothOperationExecutor;
 
  public:
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 /**
@@ -49,7 +50,7 @@ struct SmoothOperationExecutor {
   IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -58,36 +59,34 @@ struct SmoothOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  SmoothOperationExecutor(const bContext &C) : ctx_(C) {}
+  SmoothOperationExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(SmoothOperation &self, const bContext &C, const StrokeExtension &stroke_extension)
+  void execute(SmoothOperation &self, const StrokeExtension &stroke_extension)
   {
-    UNUSED_VARS(C, stroke_extension);
     self_ = &self;
 
-    object_ = CTX_data_active_object(&C);
+    object_ = ctx_.object;
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
-    if (curves_->curves_num() == 0) {
+    if (curves_->is_empty()) {
       return;
     }
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     point_factors_ = *curves_->attributes().lookup_or_default<float>(
-        ".selection", ATTR_DOMAIN_POINT, 1.0f);
+        ".selection", bke::AttrDomain::Point, 1.0f);
     curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_memory_);
     transforms_ = CurvesSurfaceTransforms(*object_, curves_id_->surface);
 
-    const eBrushFalloffShape falloff_shape = static_cast<eBrushFalloffShape>(
-        brush_->falloff_shape);
+    const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
     if (stroke_extension.is_first) {
-      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
+      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.uiflag & USER_ORBIT_SELECTION)) {
         self.brush_3d_ = *sample_curves_3d_brush(*ctx_.depsgraph,
                                                  *ctx_.region,
                                                  *ctx_.v3d,
@@ -95,6 +94,9 @@ struct SmoothOperationExecutor {
                                                  *object_,
                                                  brush_pos_re_,
                                                  brush_radius_base_re_);
+        remember_stroke_position(
+            *curves_sculpt_,
+            math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
       }
     }
 
@@ -134,8 +136,7 @@ struct SmoothOperationExecutor {
     const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;
     const float brush_radius_sq_re = pow2f(brush_radius_re);
 
-    float4x4 projection;
-    ED_view3d_ob_project_mat_get(ctx_.rv3d, object_, projection.ptr());
+    const float4x4 projection = ED_view3d_ob_project_mat_get(ctx_.rv3d, object_);
 
     const bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
@@ -146,8 +147,7 @@ struct SmoothOperationExecutor {
       for (const int point_i : points) {
         const float3 &pos_cu = math::transform_point(brush_transform_inv,
                                                      deformation.positions[point_i]);
-        float2 pos_re;
-        ED_view3d_project_float_v2_m4(ctx_.region, pos_cu, pos_re, projection.ptr());
+        const float2 pos_re = ED_view3d_project_float_v2_m4(ctx_.region, pos_cu, projection);
         const float dist_to_brush_sq_re = math::distance_squared(pos_re, brush_pos_re_);
         if (dist_to_brush_sq_re > brush_radius_sq_re) {
           continue;
@@ -168,9 +168,6 @@ struct SmoothOperationExecutor {
 
   void find_spherical_smooth_factors_with_symmetry(MutableSpan<float> r_point_smooth_factors)
   {
-    float4x4 projection;
-    ED_view3d_ob_project_mat_get(ctx_.rv3d, object_, projection.ptr());
-
     float3 brush_pos_wo;
     ED_view3d_win_to_3d(
         ctx_.v3d,
@@ -251,11 +248,11 @@ struct SmoothOperationExecutor {
   }
 };
 
-void SmoothOperation::on_stroke_extended(const bContext &C,
+void SmoothOperation::on_stroke_extended(const PaintStroke &stroke,
                                          const StrokeExtension &stroke_extension)
 {
-  SmoothOperationExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  SmoothOperationExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_smooth_operation()

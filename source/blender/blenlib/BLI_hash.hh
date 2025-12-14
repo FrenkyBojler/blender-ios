@@ -61,13 +61,12 @@
  *     };
  */
 
-#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 
+#include "BLI_hash_fwd.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 
 namespace blender {
 
@@ -145,7 +144,8 @@ TRIVIAL_DEFAULT_INT_HASH(uint64_t);
 template<> struct DefaultHash<float> {
   uint64_t operator()(float value) const
   {
-    return *reinterpret_cast<uint32_t *>(&value);
+    /* Explicit `uint64_t` cast to suppress CPPCHECK warning. */
+    return uint64_t(*reinterpret_cast<uint32_t *>(&value));
   }
 };
 
@@ -216,35 +216,25 @@ template<typename T> struct DefaultHash<T *> {
   }
 };
 
-template<typename T> uint64_t get_default_hash(const T &v)
+namespace detail {
+static constexpr std::array<uint64_t, 5> default_hash_factors = {
+    19349669, 83492791, 3632623, 8789800933, 7235126189};
+
+template<size_t... I, typename... Args>
+inline uint64_t get_default_hash_array(std::index_sequence<I...> /*indices*/, const Args &...args)
 {
-  return DefaultHash<std::decay_t<T>>{}(v);
+  static_assert(sizeof...(Args) == sizeof...(I));
+  static_assert(sizeof...(Args) <= default_hash_factors.size());
+  return (0 ^ ... ^ (default_hash_factors[I] * DefaultHash<std::decay_t<Args>>{}(args)));
 }
 
-template<typename T1, typename T2> uint64_t get_default_hash_2(const T1 &v1, const T2 &v2)
-{
-  const uint64_t h1 = get_default_hash(v1);
-  const uint64_t h2 = get_default_hash(v2);
-  return h1 ^ (h2 * 19349669);
-}
+}  // namespace detail
 
-template<typename T1, typename T2, typename T3>
-uint64_t get_default_hash_3(const T1 &v1, const T2 &v2, const T3 &v3)
+template<typename T, typename... Args>
+inline uint64_t get_default_hash(const T &v, const Args &...args)
 {
-  const uint64_t h1 = get_default_hash(v1);
-  const uint64_t h2 = get_default_hash(v2);
-  const uint64_t h3 = get_default_hash(v3);
-  return h1 ^ (h2 * 19349669) ^ (h3 * 83492791);
-}
-
-template<typename T1, typename T2, typename T3, typename T4>
-uint64_t get_default_hash_4(const T1 &v1, const T2 &v2, const T3 &v3, const T4 &v4)
-{
-  const uint64_t h1 = get_default_hash(v1);
-  const uint64_t h2 = get_default_hash(v2);
-  const uint64_t h3 = get_default_hash(v3);
-  const uint64_t h4 = get_default_hash(v4);
-  return h1 ^ (h2 * 19349669) ^ (h3 * 83492791) ^ (h4 * 3632623);
+  return DefaultHash<std::decay_t<T>>{}(v) ^
+         detail::get_default_hash_array(std::make_index_sequence<sizeof...(Args)>(), args...);
 }
 
 /** Support hashing different kinds of pointer types. */
@@ -255,10 +245,8 @@ template<typename T> struct PointerHashes {
   }
 };
 
-template<typename T> struct DefaultHash<std::unique_ptr<T>> : public PointerHashes<T> {
-};
-template<typename T> struct DefaultHash<std::shared_ptr<T>> : public PointerHashes<T> {
-};
+template<typename T> struct DefaultHash<std::unique_ptr<T>> : public PointerHashes<T> {};
+template<typename T> struct DefaultHash<std::shared_ptr<T>> : public PointerHashes<T> {};
 
 template<typename T> struct DefaultHash<std::reference_wrapper<T>> {
   uint64_t operator()(const std::reference_wrapper<T> &value) const
@@ -270,7 +258,7 @@ template<typename T> struct DefaultHash<std::reference_wrapper<T>> {
 template<typename T1, typename T2> struct DefaultHash<std::pair<T1, T2>> {
   uint64_t operator()(const std::pair<T1, T2> &value) const
   {
-    return get_default_hash_2(value.first, value.second);
+    return get_default_hash(value.first, value.second);
   }
 };
 

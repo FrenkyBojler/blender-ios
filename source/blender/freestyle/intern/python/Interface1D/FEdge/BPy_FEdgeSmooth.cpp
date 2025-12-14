@@ -13,37 +13,34 @@
 
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 /*----------------------FEdgeSmooth methods ----------------------------*/
 
-PyDoc_STRVAR(FEdgeSmooth_doc,
-             "Class hierarchy: :class:`Interface1D` > :class:`FEdge` > :class:`FEdgeSmooth`\n"
-             "\n"
-             "Class defining a smooth edge. This kind of edge typically runs across\n"
-             "a face of the input mesh. It can be a silhouette, a ridge or valley,\n"
-             "a suggestive contour.\n"
-             "\n"
-             ".. method:: __init__()\n"
-             "            __init__(brother)\n"
-             "            __init__(first_vertex, second_vertex)\n"
-             "\n"
-             "   Builds an :class:`FEdgeSmooth` using the default constructor,\n"
-             "   copy constructor, or between two :class:`SVertex`.\n"
-             "\n"
-             "   :arg brother: An FEdgeSmooth object.\n"
-             "   :type brother: :class:`FEdgeSmooth`\n"
-             "   :arg first_vertex: The first SVertex object.\n"
-             "   :type first_vertex: :class:`SVertex`\n"
-             "   :arg second_vertex: The second SVertex object.\n"
-             "   :type second_vertex: :class:`SVertex`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_doc,
+    "Class hierarchy: :class:`Interface1D` > :class:`FEdge` > :class:`FEdgeSmooth`\n"
+    "\n"
+    "Class defining a smooth edge. This kind of edge typically runs across\n"
+    "a face of the input mesh. It can be a silhouette, a ridge or valley,\n"
+    "a suggestive contour.\n"
+    "\n"
+    ".. method:: __init__()\n"
+    "            __init__(brother)\n"
+    "            __init__(first_vertex, second_vertex)\n"
+    "\n"
+    "   Builds an :class:`FEdgeSmooth` using the default constructor,\n"
+    "   copy constructor, or between two :class:`SVertex`.\n"
+    "\n"
+    "   :arg brother: An FEdgeSmooth object.\n"
+    "   :type brother: :class:`FEdgeSmooth`\n"
+    "   :arg first_vertex: The first SVertex object.\n"
+    "   :type first_vertex: :class:`SVertex`\n"
+    "   :arg second_vertex: The second SVertex object.\n"
+    "   :type second_vertex: :class:`SVertex`\n");
 static int FEdgeSmooth_init(BPy_FEdgeSmooth *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -137,11 +134,12 @@ void FEdgeSmooth_mathutils_register_callback()
 
 /*----------------------FEdgeSmooth get/setters ----------------------------*/
 
-PyDoc_STRVAR(FEdgeSmooth_normal_doc,
-             "The normal of the face that this FEdge is running across.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_normal_doc,
+    "The normal of the face that this FEdge is running across.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`\n");
 static PyObject *FEdgeSmooth_normal_get(BPy_FEdgeSmooth *self, void * /*closure*/)
 {
   return Vector_CreatePyObject_cb((PyObject *)self, 3, FEdgeSmooth_mathutils_cb_index, 0);
@@ -158,11 +156,12 @@ static int FEdgeSmooth_normal_set(BPy_FEdgeSmooth *self, PyObject *value, void *
   return 0;
 }
 
-PyDoc_STRVAR(FEdgeSmooth_material_index_doc,
-             "The index of the material of the face that this FEdge is running across.\n"
-             "\n"
-             ":type: int");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_material_index_doc,
+    "The index of the material of the face that this FEdge is running across.\n"
+    "\n"
+    ":type: int\n");
 static PyObject *FEdgeSmooth_material_index_get(BPy_FEdgeSmooth *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->fes->frs_materialIndex());
@@ -180,21 +179,23 @@ static int FEdgeSmooth_material_index_set(BPy_FEdgeSmooth *self,
   return 0;
 }
 
-PyDoc_STRVAR(FEdgeSmooth_material_doc,
-             "The material of the face that this FEdge is running across.\n"
-             "\n"
-             ":type: :class:`Material`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_material_doc,
+    "The material of the face that this FEdge is running across.\n"
+    "\n"
+    ":type: :class:`Material`\n");
 static PyObject *FEdgeSmooth_material_get(BPy_FEdgeSmooth *self, void * /*closure*/)
 {
   return BPy_FrsMaterial_from_FrsMaterial(self->fes->frs_material());
 }
 
-PyDoc_STRVAR(FEdgeSmooth_face_mark_doc,
-             "The face mark of the face that this FEdge is running across.\n"
-             "\n"
-             ":type: bool");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FEdgeSmooth_face_mark_doc,
+    "The face mark of the face that this FEdge is running across.\n"
+    "\n"
+    ":type: bool\n");
 static PyObject *FEdgeSmooth_face_mark_get(BPy_FEdgeSmooth *self, void * /*closure*/)
 {
   return PyBool_from_bool(self->fes->faceMark());
@@ -277,7 +278,3 @@ PyTypeObject FEdgeSmooth_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

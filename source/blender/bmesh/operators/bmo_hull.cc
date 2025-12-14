@@ -21,9 +21,9 @@
 /* XXX: using 128 for totelem and `pchunk` of `mempool`, no idea what good
  * values would be though */
 
-#  include "bmesh.h"
+#  include "bmesh.hh"
 
-#  include "intern/bmesh_operators_private.h" /* own include */
+#  include "intern/bmesh_operators_private.hh" /* own include */
 
 using blender::Vector;
 
@@ -138,7 +138,8 @@ static void hull_output_triangles(BMesh *bm, BLI_mempool *hull_triangles)
         const int next = (i == 2 ? 0 : i + 1);
         BMEdge *e = BM_edge_exists(t->v[i], t->v[next]);
         if (e && BMO_edge_flag_test(bm, e, HULL_FLAG_INPUT) &&
-            !BMO_edge_flag_test(bm, e, HULL_FLAG_HOLE)) {
+            !BMO_edge_flag_test(bm, e, HULL_FLAG_HOLE))
+        {
           BMO_edge_flag_enable(bm, e, HULL_FLAG_OUTPUT_GEOM);
         }
       }
@@ -154,7 +155,7 @@ static void hull_output_triangles(BMesh *bm, BLI_mempool *hull_triangles)
 /***************************** Final Edges ****************************/
 
 struct HullFinalEdges {
-  GHash *edges;
+  blender::Map<BMVert *, ListBase *> *edges;
   BLI_mempool *base_pool, *link_pool;
 };
 
@@ -175,10 +176,10 @@ static int hull_final_edges_lookup(HullFinalEdges *final_edges, BMVert *v1, BMVe
 
   /* Use lower vertex pointer for hash key */
   if (v1 > v2) {
-    SWAP(BMVert *, v1, v2);
+    std::swap(v1, v2);
   }
 
-  adj = static_cast<ListBase *>(BLI_ghash_lookup(final_edges->edges, v1));
+  adj = final_edges->edges->lookup_default(v1, nullptr);
   if (!adj) {
     return false;
   }
@@ -191,9 +192,8 @@ static HullFinalEdges *hull_final_edges(BLI_mempool *hull_triangles)
 {
   HullFinalEdges *final_edges;
 
-  final_edges = static_cast<HullFinalEdges *>(
-      MEM_callocN(sizeof(HullFinalEdges), "HullFinalEdges"));
-  final_edges->edges = BLI_ghash_ptr_new("final edges ghash");
+  final_edges = MEM_callocN<HullFinalEdges>("HullFinalEdges");
+  final_edges->edges = MEM_new<blender::Map<BMVert *, ListBase *>>("final edges map");
   final_edges->base_pool = BLI_mempool_create(sizeof(ListBase), 0, 128, BLI_MEMPOOL_NOP);
   final_edges->link_pool = BLI_mempool_create(sizeof(LinkData), 0, 128, BLI_MEMPOOL_NOP);
 
@@ -208,18 +208,15 @@ static HullFinalEdges *hull_final_edges(BLI_mempool *hull_triangles)
     for (i = 0; i < 3; i++) {
       BMVert *v1 = t->v[i];
       BMVert *v2 = t->v[(i + 1) % 3];
-      ListBase *adj;
 
       /* Use lower vertex pointer for hash key */
       if (v1 > v2) {
-        SWAP(BMVert *, v1, v2);
+        std::swap(v1, v2);
       }
 
-      adj = static_cast<ListBase *>(BLI_ghash_lookup(final_edges->edges, v1));
-      if (!adj) {
-        adj = static_cast<ListBase *>(BLI_mempool_calloc(final_edges->base_pool));
-        BLI_ghash_insert(final_edges->edges, v1, adj);
-      }
+      ListBase *adj = final_edges->edges->lookup_or_add_cb(v1, [&]() {
+        return static_cast<ListBase *>(BLI_mempool_calloc(final_edges->base_pool));
+      });
 
       if (!final_edges_find_link(adj, v2)) {
         link = static_cast<LinkData *>(BLI_mempool_calloc(final_edges->link_pool));
@@ -234,7 +231,7 @@ static HullFinalEdges *hull_final_edges(BLI_mempool *hull_triangles)
 
 static void hull_final_edges_free(HullFinalEdges *final_edges)
 {
-  BLI_ghash_free(final_edges->edges, nullptr, nullptr);
+  MEM_delete(final_edges->edges);
   BLI_mempool_destroy(final_edges->base_pool);
   BLI_mempool_destroy(final_edges->link_pool);
   MEM_freeN(final_edges);
@@ -429,7 +426,7 @@ static BMVert **hull_input_verts_copy(BMOperator *op, const int num_input_verts)
 
 static float (*hull_verts_for_bullet(BMVert **input_verts, const int num_input_verts))[3]
 {
-  float(*coords)[3] = static_cast<float(*)[3]>(
+  float (*coords)[3] = static_cast<float (*)[3]>(
       MEM_callocN(sizeof(*coords) * num_input_verts, __func__));
   int i;
 
@@ -445,7 +442,7 @@ static BMVert **hull_verts_from_bullet(plConvexHull hull,
                                        const int num_input_verts)
 {
   const int num_verts = plConvexHullNumVertices(hull);
-  BMVert **hull_verts = static_cast<BMVert **>(MEM_mallocN(sizeof(*hull_verts) * num_verts, AT));
+  BMVert **hull_verts = MEM_malloc_arrayN<BMVert *>(num_verts, AT);
   int i;
 
   for (i = 0; i < num_verts; i++) {
@@ -467,7 +464,7 @@ static BMVert **hull_verts_from_bullet(plConvexHull hull,
 static void hull_from_bullet(BMesh *bm, BMOperator *op, BLI_mempool *hull_triangles)
 {
   BMVert **input_verts;
-  float(*coords)[3];
+  float (*coords)[3];
   BMVert **hull_verts;
 
   plConvexHull hull;

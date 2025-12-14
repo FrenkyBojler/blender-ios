@@ -10,31 +10,22 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
-#include "BKE_editmesh.hh"
 #include "BKE_lattice.hh"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "DEG_depsgraph_query.hh"
-
-#include "MEM_guardedalloc.h"
+#include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
@@ -101,11 +92,11 @@ static void deform_verts(ModifierData *md,
   LatticeModifierData *lmd = (LatticeModifierData *)md;
 
   /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<const float(*)[3]>(positions.data()));
+  MOD_previous_vcos_store(md, reinterpret_cast<const float (*)[3]>(positions.data()));
 
   BKE_lattice_deform_coords_with_mesh(lmd->object,
                                       ctx->object,
-                                      reinterpret_cast<float(*)[3]>(positions.data()),
+                                      reinterpret_cast<float (*)[3]>(positions.data()),
                                       positions.size(),
                                       lmd->flag,
                                       lmd->name,
@@ -115,7 +106,7 @@ static void deform_verts(ModifierData *md,
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh *em,
+                            const BMEditMesh *em,
                             Mesh *mesh,
                             blender::MutableSpan<blender::float3> positions)
 {
@@ -127,11 +118,11 @@ static void deform_verts_EM(ModifierData *md,
   LatticeModifierData *lmd = (LatticeModifierData *)md;
 
   /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<const float(*)[3]>(positions.data()));
+  MOD_previous_vcos_store(md, reinterpret_cast<const float (*)[3]>(positions.data()));
 
   BKE_lattice_deform_coords_with_editmesh(lmd->object,
                                           ctx->object,
-                                          reinterpret_cast<float(*)[3]>(positions.data()),
+                                          reinterpret_cast<float (*)[3]>(positions.data()),
                                           positions.size(),
                                           lmd->flag,
                                           lmd->name,
@@ -141,20 +132,20 @@ static void deform_verts_EM(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  uiItemR(layout, ptr, "strength", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  layout.prop(ptr, "strength", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -195,4 +186,6 @@ ModifierTypeInfo modifierType_Lattice = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

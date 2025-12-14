@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -39,6 +38,8 @@
     .bevresol = 4, \
     .bevel_mode = CU_BEV_MODE_ROUND, \
     .taper_radius_mode = CU_TAPER_RADIUS_OVERRIDE, \
+    /* Use a default to prevent invalid values. */ \
+    .ob_type = OB_CURVES_LEGACY, \
   }
 
 /** \} */

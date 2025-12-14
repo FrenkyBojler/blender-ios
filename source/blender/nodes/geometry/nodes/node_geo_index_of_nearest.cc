@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_map.hh"
 #include "BLI_task.hh"
 
@@ -13,25 +13,27 @@ namespace blender::nodes::node_geo_index_of_nearest_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Position").implicit_field(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Position")
+      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
+      .structure_type(StructureType::Field);
   b.add_input<decl::Int>("Group ID").supports_field().hide_value();
 
-  b.add_output<decl::Int>("Index").field_source().description("Index of nearest element");
-  b.add_output<decl::Bool>("Has Neighbor").field_source();
+  b.add_output<decl::Int>("Index").field_source_reference_all().description(
+      "Index of nearest element");
+  b.add_output<decl::Bool>("Has Neighbor").field_source_reference_all();
 }
 
 static KDTree_3d *build_kdtree(const Span<float3> positions, const IndexMask &mask)
 {
-  KDTree_3d *tree = BLI_kdtree_3d_new(mask.size());
-  mask.foreach_index(
-      [&](const int index) { BLI_kdtree_3d_insert(tree, index, positions[index]); });
-  BLI_kdtree_3d_balance(tree);
+  KDTree_3d *tree = kdtree_3d_new(mask.size());
+  mask.foreach_index([&](const int index) { kdtree_3d_insert(tree, index, positions[index]); });
+  kdtree_3d_balance(tree);
   return tree;
 }
 
 static int find_nearest_non_self(const KDTree_3d &tree, const float3 &position, const int index)
 {
-  return BLI_kdtree_3d_find_nearest_cb_cpp(
+  return kdtree_find_nearest_cb_cpp<3>(
       &tree,
       position,
       nullptr,
@@ -83,8 +85,8 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
       result.reinitialize(mask.min_array_size());
       KDTree_3d *tree = build_kdtree(positions, IndexRange(domain_size));
       find_neighbors(*tree, positions, mask, result);
-      BLI_kdtree_3d_free(tree);
-      return VArray<int>::ForContainer(std::move(result));
+      kdtree_3d_free(tree);
+      return VArray<int>::from_container(std::move(result));
     }
     const VArraySpan<int> group_ids_span(group_ids);
 
@@ -121,15 +123,14 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
         const IndexMask &lookup_mask = lookup_indices_by_group_id[group_index];
         KDTree_3d *tree = build_kdtree(positions, tree_mask);
         find_neighbors(*tree, positions, lookup_mask, result);
-        BLI_kdtree_3d_free(tree);
+        kdtree_3d_free(tree);
       }
     });
 
-    return VArray<int>::ForContainer(std::move(result));
+    return VArray<int>::from_container(std::move(result));
   }
 
- public:
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
   {
     positions_field_.node().for_each_field_input_recursive(fn);
     group_field_.node().for_each_field_input_recursive(fn);
@@ -137,7 +138,7 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
 
   uint64_t hash() const final
   {
-    return get_default_hash_2(positions_field_, group_field_);
+    return get_default_hash(positions_field_, group_field_);
   }
 
   bool is_equal_to(const fn::FieldNode &other) const final
@@ -149,7 +150,7 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const GeometryComponent &component) const final
+  std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const final
   {
     return bke::try_detect_field_domain(component, positions_field_);
   }
@@ -174,7 +175,7 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
     }
     const int domain_size = context.attributes()->domain_size(context.domain());
     if (domain_size == 1) {
-      return VArray<bool>::ForSingle(false, mask.min_array_size());
+      return VArray<bool>::from_single(false, mask.min_array_size());
     }
 
     fn::FieldEvaluator evaluator{context, domain_size};
@@ -183,29 +184,28 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
     const VArray<int> group = evaluator.get_evaluated<int>(0);
 
     if (group.is_single()) {
-      return VArray<bool>::ForSingle(true, mask.min_array_size());
+      return VArray<bool>::from_single(true, mask.min_array_size());
     }
 
     Map<int, int> counts;
     const VArraySpan<int> group_span(group);
     mask.foreach_index([&](const int i) {
       counts.add_or_modify(
-          group_span[i], [](int *count) { *count = 0; }, [](int *count) { (*count)++; });
+          group_span[i], [](int *count) { *count = 1; }, [](int *count) { (*count)++; });
     });
     Array<bool> result(mask.min_array_size());
     mask.foreach_index([&](const int i) { result[i] = counts.lookup(group_span[i]) > 1; });
-    return VArray<bool>::ForContainer(std::move(result));
+    return VArray<bool>::from_container(std::move(result));
   }
 
- public:
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const
+  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
   {
     group_field_.node().for_each_field_input_recursive(fn);
   }
 
   uint64_t hash() const final
   {
-    return get_default_hash_2(39847876, group_field_);
+    return get_default_hash(39847876, group_field_);
   }
 
   bool is_equal_to(const fn::FieldNode &other) const final
@@ -216,7 +216,7 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const GeometryComponent &component) const final
+  std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const final
   {
     return bke::try_detect_field_domain(component, group_field_);
   }
@@ -242,12 +242,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INDEX_OF_NEAREST, "Index of Nearest", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, "GeometryNodeIndexOfNearest", GEO_NODE_INDEX_OF_NEAREST);
+  ntype.ui_name = "Index of Nearest";
+  ntype.ui_description =
+      "Find the nearest element in a group. Similar to the \"Sample Nearest\" node";
+  ntype.enum_name_legacy = "INDEX_OF_NEAREST";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -6,18 +6,18 @@
  * \ingroup RNA
  */
 
+#include <algorithm>
 #include <climits>
 #include <cstdlib>
 
 #include "DNA_cloth_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+
+#include "BLI_math_base.h"
 
 #include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
-#include "BKE_cloth.hh"
 #include "BKE_modifier.hh"
 
 #include "SIM_mass_spring.h"
@@ -27,7 +27,17 @@
 
 #ifdef RNA_RUNTIME
 
+#  include <algorithm>
+
+#  include <fmt/format.h>
+
+#  include "BLI_string.h"
+
+#  include "BKE_cloth.hh"
 #  include "BKE_context.hh"
+
+#  include "BLT_translation.hh"
+
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
@@ -65,9 +75,7 @@ static void rna_ClothSettings_bending_set(PointerRNA *ptr, float value)
   settings->bending = value;
 
   /* check for max clipping */
-  if (value > settings->max_bend) {
-    settings->max_bend = value;
-  }
+  settings->max_bend = std::max(value, settings->max_bend);
 }
 
 static void rna_ClothSettings_max_bend_set(PointerRNA *ptr, float value)
@@ -75,9 +83,7 @@ static void rna_ClothSettings_max_bend_set(PointerRNA *ptr, float value)
   ClothSimSettings *settings = (ClothSimSettings *)ptr->data;
 
   /* check for clipping */
-  if (value < settings->bending) {
-    value = settings->bending;
-  }
+  value = std::max(value, settings->bending);
 
   settings->max_bend = value;
 }
@@ -89,9 +95,7 @@ static void rna_ClothSettings_tension_set(PointerRNA *ptr, float value)
   settings->tension = value;
 
   /* check for max clipping */
-  if (value > settings->max_tension) {
-    settings->max_tension = value;
-  }
+  settings->max_tension = std::max(value, settings->max_tension);
 }
 
 static void rna_ClothSettings_max_tension_set(PointerRNA *ptr, float value)
@@ -99,9 +103,7 @@ static void rna_ClothSettings_max_tension_set(PointerRNA *ptr, float value)
   ClothSimSettings *settings = (ClothSimSettings *)ptr->data;
 
   /* check for clipping */
-  if (value < settings->tension) {
-    value = settings->tension;
-  }
+  value = std::max(value, settings->tension);
 
   settings->max_tension = value;
 }
@@ -113,9 +115,7 @@ static void rna_ClothSettings_compression_set(PointerRNA *ptr, float value)
   settings->compression = value;
 
   /* check for max clipping */
-  if (value > settings->max_compression) {
-    settings->max_compression = value;
-  }
+  settings->max_compression = std::max(value, settings->max_compression);
 }
 
 static void rna_ClothSettings_max_compression_set(PointerRNA *ptr, float value)
@@ -123,9 +123,7 @@ static void rna_ClothSettings_max_compression_set(PointerRNA *ptr, float value)
   ClothSimSettings *settings = (ClothSimSettings *)ptr->data;
 
   /* check for clipping */
-  if (value < settings->compression) {
-    value = settings->compression;
-  }
+  value = std::max(value, settings->compression);
 
   settings->max_compression = value;
 }
@@ -137,9 +135,7 @@ static void rna_ClothSettings_shear_set(PointerRNA *ptr, float value)
   settings->shear = value;
 
   /* check for max clipping */
-  if (value > settings->max_shear) {
-    settings->max_shear = value;
-  }
+  settings->max_shear = std::max(value, settings->max_shear);
 }
 
 static void rna_ClothSettings_max_shear_set(PointerRNA *ptr, float value)
@@ -147,9 +143,7 @@ static void rna_ClothSettings_max_shear_set(PointerRNA *ptr, float value)
   ClothSimSettings *settings = (ClothSimSettings *)ptr->data;
 
   /* check for clipping */
-  if (value < settings->shear) {
-    value = settings->shear;
-  }
+  value = std::max(value, settings->shear);
 
   settings->max_shear = value;
 }
@@ -159,9 +153,7 @@ static void rna_ClothSettings_max_sewing_set(PointerRNA *ptr, float value)
   ClothSimSettings *settings = (ClothSimSettings *)ptr->data;
 
   /* check for clipping */
-  if (value < 0.0f) {
-    value = 0.0f;
-  }
+  value = std::max(value, 0.0f);
 
   settings->max_sewing = value;
 }
@@ -173,9 +165,7 @@ static void rna_ClothSettings_shrink_min_set(PointerRNA *ptr, float value)
   settings->shrink_min = value;
 
   /* check for max clipping */
-  if (value > settings->shrink_max) {
-    settings->shrink_max = value;
-  }
+  settings->shrink_max = std::max(value, settings->shrink_max);
 }
 
 static void rna_ClothSettings_shrink_max_set(PointerRNA *ptr, float value)
@@ -183,9 +173,7 @@ static void rna_ClothSettings_shrink_max_set(PointerRNA *ptr, float value)
   ClothSimSettings *settings = (ClothSimSettings *)ptr->data;
 
   /* check for clipping */
-  if (value < settings->shrink_min) {
-    value = settings->shrink_min;
-  }
+  value = std::max(value, settings->shrink_min);
 
   settings->shrink_max = value;
 }
@@ -197,9 +185,7 @@ static void rna_ClothSettings_internal_tension_set(PointerRNA *ptr, float value)
   settings->internal_tension = value;
 
   /* check for max clipping */
-  if (value > settings->max_internal_tension) {
-    settings->max_internal_tension = value;
-  }
+  settings->max_internal_tension = std::max(value, settings->max_internal_tension);
 }
 
 static void rna_ClothSettings_max_internal_tension_set(PointerRNA *ptr, float value)
@@ -207,9 +193,7 @@ static void rna_ClothSettings_max_internal_tension_set(PointerRNA *ptr, float va
   ClothSimSettings *settings = (ClothSimSettings *)ptr->data;
 
   /* check for clipping */
-  if (value < settings->internal_tension) {
-    value = settings->internal_tension;
-  }
+  value = std::max(value, settings->internal_tension);
 
   settings->max_internal_tension = value;
 }
@@ -221,9 +205,7 @@ static void rna_ClothSettings_internal_compression_set(PointerRNA *ptr, float va
   settings->internal_compression = value;
 
   /* check for max clipping */
-  if (value > settings->max_internal_compression) {
-    settings->max_internal_compression = value;
-  }
+  settings->max_internal_compression = std::max(value, settings->max_internal_compression);
 }
 
 static void rna_ClothSettings_max_internal_compression_set(PointerRNA *ptr, float value)
@@ -231,9 +213,7 @@ static void rna_ClothSettings_max_internal_compression_set(PointerRNA *ptr, floa
   ClothSimSettings *settings = (ClothSimSettings *)ptr->data;
 
   /* check for clipping */
-  if (value < settings->internal_compression) {
-    value = settings->internal_compression;
-  }
+  value = std::max(value, settings->internal_compression);
 
   settings->max_internal_compression = value;
 }
@@ -437,7 +417,7 @@ static void rna_ClothSettings_gravity_set(PointerRNA *ptr, const float *values)
   sim->gravity[2] = values[2];
 }
 
-static char *rna_ClothSettings_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_ClothSettings_path(const PointerRNA *ptr)
 {
   const Object *ob = (Object *)ptr->owner_id;
   const ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Cloth);
@@ -445,14 +425,12 @@ static char *rna_ClothSettings_path(const PointerRNA *ptr)
   if (md) {
     char name_esc[sizeof(md->name) * 2];
     BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-    return BLI_sprintfN("modifiers[\"%s\"].settings", name_esc);
+    return fmt::format("modifiers[\"{}\"].settings", name_esc);
   }
-  else {
-    return nullptr;
-  }
+  return std::nullopt;
 }
 
-static char *rna_ClothCollisionSettings_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_ClothCollisionSettings_path(const PointerRNA *ptr)
 {
   const Object *ob = (Object *)ptr->owner_id;
   const ModifierData *md = BKE_modifiers_findby_type(ob, eModifierType_Cloth);
@@ -460,19 +438,17 @@ static char *rna_ClothCollisionSettings_path(const PointerRNA *ptr)
   if (md) {
     char name_esc[sizeof(md->name) * 2];
     BLI_str_escape(name_esc, md->name, sizeof(name_esc));
-    return BLI_sprintfN("modifiers[\"%s\"].collision_settings", name_esc);
+    return fmt::format("modifiers[\"{}\"].collision_settings", name_esc);
   }
-  else {
-    return nullptr;
-  }
+  return std::nullopt;
 }
 
-static int rna_ClothSettings_internal_editable(PointerRNA *ptr, const char **r_info)
+static int rna_ClothSettings_internal_editable(const PointerRNA *ptr, const char **r_info)
 {
   ClothSimSettings *sim = (ClothSimSettings *)ptr->data;
 
   if (sim && (sim->bending_model == CLOTH_BENDING_LINEAR)) {
-    *r_info = "Only available with angular bending springs.";
+    *r_info = N_("Only available with angular bending springs.");
     return 0;
   }
 
@@ -512,9 +488,9 @@ static void rna_def_cloth_solver_result(BlenderRNA *brna)
   RNA_define_verify_sdna(false);
 
   prop = RNA_def_property(srna, "status", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_enum_items(prop, status_items);
   RNA_def_property_enum_sdna(prop, nullptr, "status");
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Status", "Status of the solver iteration");
 
@@ -916,7 +892,7 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
       "The maximum length an internal spring can have during creation. If the distance between "
       "internal points is greater than this, no internal spring will be created between these "
       "points. "
-      "A length of zero means that there is no length limit");
+      "A length of zero means that there is no length limit.");
   RNA_def_property_editable_func(prop, "rna_ClothSettings_internal_editable");
   RNA_def_property_update(prop, 0, "rna_cloth_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -1005,7 +981,7 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Pressure",
                            "The uniform pressure that is constantly applied to the mesh, in units "
-                           "of Pressure Scale. Can be negative");
+                           "of Pressure Scale. Can be negative.");
   RNA_def_property_update(prop, 0, "rna_cloth_update");
 
   prop = RNA_def_property(srna, "target_volume", PROP_FLOAT, PROP_NONE);
@@ -1015,7 +991,7 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Target Volume",
                            "The mesh volume where the inner/outer pressure will be the same. If "
-                           "set to zero the change in volume will not affect pressure");
+                           "set to zero the change in volume will not affect pressure.");
   RNA_def_property_update(prop, 0, "rna_cloth_update");
 
   prop = RNA_def_property(srna, "pressure_factor", PROP_FLOAT, PROP_NONE);
@@ -1049,7 +1025,7 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
       "Pressure Vertex Group",
       "Vertex Group for where to apply pressure. Zero weight means no "
       "pressure while a weight of one means full pressure. Faces with a vertex "
-      "that has zero weight will be excluded from the volume calculation");
+      "that has zero weight will be excluded from the volume calculation.");
   RNA_def_property_update(prop, 0, "rna_cloth_update");
 
   /* unused */
@@ -1137,7 +1113,7 @@ static void rna_def_cloth_collision_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Collision Quality",
-      "How many collision iterations should be done. (higher is better quality but slower)");
+      "How many collision iterations should be done (higher is better quality but slower)");
   RNA_def_property_update(prop, 0, "rna_cloth_update");
 
   prop = RNA_def_property(srna, "impulse_clamp", PROP_FLOAT, PROP_NONE);

@@ -14,25 +14,20 @@
  * - matrix_offset: used to store the orientation.
  */
 
-#include "MEM_guardedalloc.h"
+#include <algorithm>
 
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sort_utils.h"
 
 #include "BKE_context.hh"
 
-#include "GPU_batch.h"
-#include "GPU_batch_presets.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
-#include "BLF_api.h"
-
-#include "RNA_access.hh"
-#include "RNA_define.hh"
+#include "BLF_api.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -40,9 +35,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_screen.hh"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 /* Radius of the entire background. */
 #define WIDGET_RADIUS ((U.gizmo_size_navigate_v3d / 2.0f) * UI_SCALE_FAC)
@@ -103,8 +96,10 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
   GPU_matrix_mul(matrix_screen);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  const uint color_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  const uint pos_id = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint color_id = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   float viewport_size[4];
   GPU_viewport_size_get_f(viewport_size);
 
@@ -118,7 +113,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
   } font;
 
   font.id = BLF_default();
-  BLF_disable(font.id, BLF_ROTATION | BLF_SHADOW | BLF_MATRIX | BLF_ASPECT | BLF_WORD_WRAP);
+  BLF_disable(font.id, BLF_ROTATION | BLF_SHADOW | BLF_ASPECT | BLF_WORD_WRAP);
   BLF_enable(font.id, BLF_BOLD);
   BLF_size(font.id, AXIS_TEXT_SIZE);
   BLF_position(font.id, 0, 0, 0);
@@ -142,7 +137,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
     GPU_matrix_ortho_set_z(-gz->scale_final, gz->scale_final);
   }
 
-  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  draw_roundbox_corner_set(blender::ui::CNR_ALL);
   GPU_polygon_smooth(false);
 
   /* Circle defining active area. */
@@ -156,7 +151,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
     rect.xmax = rad;
     rect.ymin = -rad;
     rect.ymax = rad;
-    UI_draw_roundbox_4fv(&rect, true, rad, gz->color_hi);
+    blender::ui::draw_roundbox_4fv(&rect, true, rad, gz->color_hi);
     GPU_matrix_pop();
   }
 
@@ -180,7 +175,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
       is_highlight = true;
     }
 
-    UI_GetThemeColor3fv(TH_AXIS_X + axis, axis_color[axis]);
+    blender::ui::theme::get_color_3fv(TH_AXIS_X + axis, axis_color[axis]);
     axis_color[axis][3] = 1.0f;
 
     /* Color that is full at front, but 50% view background when in back. */
@@ -225,12 +220,12 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
         if (is_aligned_front) {
           interp_v4_v4v4(
               negative_color, blender::float4{1.0f, 1.0f, 1.0f, 1.0f}, axis_color[axis], 0.5f);
-          negative_color[3] = MIN2(depth + 1, 1.0f);
+          negative_color[3] = std::min(depth + 1, 1.0f);
           outline_color = negative_color;
         }
         else {
           interp_v4_v4v4(negative_color, view_color, axis_color[axis], 0.25f);
-          negative_color[3] = MIN2(depth + 1, 1.0f);
+          negative_color[3] = std::min(depth + 1, 1.0f);
           inner_color = negative_color;
         }
       }
@@ -246,7 +241,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
       rect.xmax = rad;
       rect.ymin = -rad;
       rect.ymax = rad;
-      UI_draw_roundbox_4fv_ex(
+      blender::ui::draw_roundbox_4fv_ex(
           &rect, inner_color, nullptr, 0.0f, outline_color, AXIS_RING_WIDTH, rad);
       GPU_matrix_pop();
     }
@@ -367,7 +362,7 @@ void VIEW3D_GT_navigate_rotate(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "VIEW3D_GT_navigate_rotate";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_axis_draw;
   gzt->test_select = gizmo_axis_test_select;
   gzt->cursor_get = gizmo_axis_cursor_get;

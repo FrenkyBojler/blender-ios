@@ -106,7 +106,7 @@ macro(file_list_suffix
   fp_list_new fp_list fn_suffix
   )
 
-  # incase of empty list
+  # in case of empty list
   set(_fp)
   set(_fp_suffixed)
 
@@ -223,6 +223,20 @@ function(blender_target_include_dirs_sys
   blender_target_include_dirs_impl(${target} TRUE "${_ALL_INCS}")
 endfunction()
 
+# Enable unity build for the given target.
+function(blender_set_target_unity_build target batch_size)
+  if(WITH_UNITY_BUILD)
+    set_target_properties(${target} PROPERTIES
+      UNITY_BUILD ON
+      UNITY_BUILD_BATCH_SIZE ${batch_size}
+    )
+    if(WITH_NINJA_POOL_JOBS AND NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS)
+      # Unity builds are typically heavy.
+      set_target_properties(${target} PROPERTIES JOB_POOL_COMPILE compile_heavy_job_pool)
+    endif()
+  endif()
+endfunction()
+
 # Set include paths for header files included with "*.h" syntax.
 # This enables auto-complete suggestions for user header files on Xcode.
 # Build process is not affected since the include paths are the same
@@ -336,7 +350,7 @@ function(blender_link_libraries
   # CMake have a native way of dealing with this, which is specifying what build type the
   # libraries are provided for:
   #
-  #   target_link_libraries(tagret optimized|debug|general <libraries>)
+  #   target_link_libraries(target optimized|debug|general <libraries>)
   #
   # The build type is to be provided as a separate argument to the function.
   #
@@ -390,7 +404,6 @@ function(blender_link_libraries
   endif()
 endfunction()
 
-# only MSVC uses SOURCE_GROUP
 function(blender_add_lib__impl
   name
   sources
@@ -403,6 +416,11 @@ function(blender_add_lib__impl
 
   add_library(${name} ${sources})
 
+  # On windows vcpkg goes out of its way to make its libs the preferred
+  # libs, and needs to be explicitly be told not to do that.
+  if(WIN32)
+    set_target_properties(${name} PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
+  endif()
   blender_target_include_dirs(${name} ${includes})
   blender_target_include_dirs_sys(${name} ${includes_sys})
 
@@ -420,6 +438,9 @@ function(blender_add_lib__impl
   # Not for system includes because they can resolve to the same path
   # list_assert_duplicates("${includes_sys}")
 
+  # blenders dependency loops are longer than cmake expects and we need additional loops to
+  # properly link.
+  set_property(TARGET ${name} APPEND PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
 endfunction()
 
 
@@ -451,164 +472,11 @@ function(blender_add_lib
   set_property(GLOBAL APPEND PROPERTY BLENDER_LINK_LIBS ${name})
 endfunction()
 
-function(blender_add_test_suite)
-  if(ARGC LESS 1)
-    message(FATAL_ERROR "No arguments supplied to blender_add_test_suite()")
-  endif()
-
-  # Parse the arguments
-  set(oneValueArgs TARGET SUITE_NAME)
-  set(multiValueArgs SOURCES)
-  cmake_parse_arguments(ARGS "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-  # Figure out the release dir, as some tests need files from there.
-  get_blender_test_install_dir(TEST_INSTALL_DIR)
-  if(APPLE)
-    set(_test_release_dir ${TEST_INSTALL_DIR}/Blender.app/Contents/Resources/${BLENDER_VERSION})
-  else()
-    if(WIN32 OR WITH_INSTALL_PORTABLE)
-      set(_test_release_dir ${TEST_INSTALL_DIR}/${BLENDER_VERSION})
-    else()
-      set(_test_release_dir ${TEST_INSTALL_DIR}/share/blender/${BLENDER_VERSION})
-    endif()
-  endif()
-
-  # Define a test case with our custom gtest_add_tests() command.
-  include(GTest)
-  gtest_add_tests(
-    TARGET ${ARGS_TARGET}
-    SOURCES "${ARGS_SOURCES}"
-    TEST_PREFIX ${ARGS_SUITE_NAME}
-    WORKING_DIRECTORY "${TEST_INSTALL_DIR}"
-    EXTRA_ARGS
-      --test-assets-dir "${CMAKE_SOURCE_DIR}/../lib/tests"
-      --test-release-dir "${_test_release_dir}"
-  )
-  if(WIN32)
-    set_tests_properties(
-      ${ARGS_SUITE_NAME} PROPERTIES
-      ENVIRONMENT "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/;$ENV{PATH}"
-    )
-  endif()
-  unset(_test_release_dir)
-endfunction()
-
-# Add tests for a Blender library, to be called in tandem with blender_add_lib().
-# The tests will be part of the blender_test executable (see tests/gtests/runner).
-function(blender_add_test_lib
-  name
-  sources
-  includes
-  includes_sys
-  library_deps
-  )
-
-  add_cc_flags_custom_test(${name} PARENT_SCOPE)
-
-  # Otherwise external projects will produce warnings that we cannot fix.
-  remove_strict_flags()
-
-  # This duplicates logic that's also in GTestTesting.cmake, macro BLENDER_SRC_GTEST_EX.
-  # TODO(Sybren): deduplicate after the general approach in D7649 has been approved.
-  list(APPEND includes
-    ${CMAKE_SOURCE_DIR}/tests/gtests
-  )
-  list(APPEND includes_sys
-    ${GLOG_INCLUDE_DIRS}
-    ${GFLAGS_INCLUDE_DIRS}
-    ${CMAKE_SOURCE_DIR}/extern/gtest/include
-    ${CMAKE_SOURCE_DIR}/extern/gmock/include
-  )
-
-  blender_add_lib__impl(${name} "${sources}" "${includes}" "${includes_sys}" "${library_deps}")
-
-  target_compile_definitions(${name} PRIVATE ${GFLAGS_DEFINES})
-  target_compile_definitions(${name} PRIVATE ${GLOG_DEFINES})
-
-  set_property(GLOBAL APPEND PROPERTY BLENDER_TEST_LIBS ${name})
-
-  blender_add_test_suite(
-    TARGET blender_test
-    SUITE_NAME ${name}
-    SOURCES "${sources}"
-  )
-endfunction()
-
-
-# Add tests for a Blender library, to be called in tandem with blender_add_lib().
-# Test will be compiled into a ${name}_test executable.
-#
-# To be used for smaller isolated libraries, that do not have many dependencies.
-# For libraries that do drag in many other Blender libraries and would create a
-# very large executable, blender_add_test_lib() should be used instead.
-function(blender_add_test_executable_impl
-  name
-  add_test_suite
-  sources
-  includes
-  includes_sys
-  library_deps
-  )
-
-  add_cc_flags_custom_test(${name} PARENT_SCOPE)
-
-  ## Otherwise external projects will produce warnings that we cannot fix.
-  remove_strict_flags()
-
-  blender_src_gtest_ex(
-    NAME ${name}
-    SRC "${sources}"
-    EXTRA_LIBS "${library_deps}"
-    SKIP_ADD_TEST
-  )
-  if(add_test_suite)
-    blender_add_test_suite(
-      TARGET ${name}_test
-      SUITE_NAME ${name}
-      SOURCES "${sources}"
-    )
-  endif()
-  blender_target_include_dirs(${name}_test ${includes})
-  blender_target_include_dirs_sys(${name}_test ${includes_sys})
-endfunction()
-
-function(blender_add_test_executable
-  name
-  sources
-  includes
-  includes_sys
-  library_deps
-  )
-  blender_add_test_executable_impl(
-    "${name}"
-    TRUE
-    "${sources}"
-    "${includes}"
-    "${includes_sys}"
-    "${library_deps}"
-   )
-endfunction()
-
-function(blender_add_performancetest_executable
-  name
-  sources
-  includes
-  includes_sys
-  library_deps
-  )
-  blender_add_test_executable_impl(
-    "${name}"
-    FALSE
-    "${sources}"
-    "${includes}"
-    "${includes_sys}"
-    "${library_deps}"
-  )
-endfunction()
-
 # Ninja only: assign 'heavy pool' to some targets that are especially RAM-consuming to build.
 function(setup_heavy_lib_pool)
   if(WITH_NINJA_POOL_JOBS AND NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS)
+    set(_HEAVY_LIBS)
+    set(_TARGET)
     if(WITH_CYCLES)
       list(APPEND _HEAVY_LIBS "cycles_device" "cycles_kernel")
     endif()
@@ -619,11 +487,13 @@ function(setup_heavy_lib_pool)
       list(APPEND _HEAVY_LIBS "bf_intern_openvdb")
     endif()
 
-    foreach(TARGET ${_HEAVY_LIBS})
-      if(TARGET ${TARGET})
-        set_property(TARGET ${TARGET} PROPERTY JOB_POOL_COMPILE compile_heavy_job_pool)
+    foreach(_TARGET ${_HEAVY_LIBS})
+      if(TARGET ${_TARGET})
+        set_property(TARGET ${_TARGET} PROPERTY JOB_POOL_COMPILE compile_heavy_job_pool)
       endif()
     endforeach()
+    unset(_TARGET)
+    unset(_HEAVY_LIBS)
   endif()
 endfunction()
 
@@ -671,62 +541,42 @@ function(setup_platform_linker_libs
   target_link_libraries(${target} PRIVATE ${PLATFORM_LINKLIBS})
 endfunction()
 
-macro(TEST_SSE_SUPPORT
-  _sse_flags
-  _sse2_flags)
+macro(get_sse_flags
+  _sse42_flags)
 
-  include(CheckCSourceRuns)
-
-  # message(STATUS "Detecting SSE support")
-  if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
-    set(${_sse_flags} "-msse")
-    set(${_sse2_flags} "-msse2")
-  elseif(MSVC)
-    # x86_64 has this auto enabled
-    if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-      set(${_sse_flags} "")
-      set(${_sse2_flags} "")
+  if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+    # message(STATUS "Detecting SSE support")
+    if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+      set(${_sse42_flags} "-march=x86-64-v2")
+    elseif(MSVC)
+      # MSVC has no specific compile flags for SSE42 (only for AVX).
+      set(${_sse42_flags})
+      # It also doesn't define __SSE__/__MMX__ flags and only does the AVX and higher flags.
+      # For consistency we define these flags for MSVC.
+      add_compile_definitions(__MMX__ __SSE__ __SSE2__ _SSE3__ __SSE4_1__ __SSE4_2__)
+    elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
+      if(WIN32)
+        set(${_sse42_flags} "/QxSSE4.2")
+      else()
+        set(${_sse42_flags} "-xsse4.2")
+      endif()
     else()
-      set(${_sse_flags} "/arch:SSE")
-      set(${_sse2_flags} "/arch:SSE2")
+      message(WARNING "SSE flags for this compiler: '${CMAKE_C_COMPILER_ID}' not known")
+      set(${_sse42_flags})
     endif()
-  elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
-    set(${_sse_flags} "")  # icc defaults to -msse
-    set(${_sse2_flags} "")  # icc defaults to -msse2
   else()
-    message(WARNING "SSE flags for this compiler: '${CMAKE_C_COMPILER_ID}' not known")
-    set(${_sse_flags})
-    set(${_sse2_flags})
+    # Not a 64bit x86 system, don't set any SSE x86 compiler flags.
+    set(${_sse42_flags})
   endif()
-
-  set(CMAKE_REQUIRED_FLAGS "${${_sse_flags}} ${${_sse2_flags}}")
-
-  if(NOT DEFINED SUPPORT_SSE_BUILD)
-    # result cached
-    check_c_source_runs("
-      #include <xmmintrin.h>
-      int main(void) { __m128 v = _mm_setzero_ps(); return 0; }"
-    SUPPORT_SSE_BUILD)
-  endif()
-
-  if(NOT DEFINED SUPPORT_SSE2_BUILD)
-    # result cached
-    check_c_source_runs("
-      #include <emmintrin.h>
-      int main(void) { __m128d v = _mm_setzero_pd(); return 0; }"
-    SUPPORT_SSE2_BUILD)
-  endif()
-
-  unset(CMAKE_REQUIRED_FLAGS)
 endmacro()
 
-macro(TEST_NEON_SUPPORT)
-  if(NOT DEFINED SUPPORT_NEON_BUILD)
+macro(test_neon_support)
+  if(NOT DEFINED SUPPORTS_NEON_BUILD)
     include(CheckCXXSourceCompiles)
     check_cxx_source_compiles(
       "#include <arm_neon.h>
        int main() {return vaddvq_s32(vdupq_n_s32(1));}"
-      SUPPORT_NEON_BUILD)
+      SUPPORTS_NEON_BUILD)
   endif()
 endmacro()
 
@@ -745,11 +595,11 @@ macro(remove_c_flag
   _flag)
 
   foreach(f ${ARGV})
-    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
-    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
-    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS_MINSIZEREL ${CMAKE_C_FLAGS_MINSIZEREL})
-    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS_RELWITHDEBINFO ${CMAKE_C_FLAGS_RELWITHDEBINFO})
+    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
+    string(REGEX REPLACE ${f} "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
   endforeach()
   unset(f)
 endmacro()
@@ -758,11 +608,11 @@ macro(remove_cxx_flag
   _flag)
 
   foreach(f ${ARGV})
-    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
-    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS_MINSIZEREL ${CMAKE_CXX_FLAGS_MINSIZEREL})
-    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
+    string(REGEX REPLACE ${f} "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   endforeach()
   unset(f)
 endmacro()
@@ -788,6 +638,25 @@ macro(add_cxx_flag
   string(APPEND CMAKE_CXX_FLAGS " ${flag}")
 endmacro()
 
+# Needed to "negate" options: `-Wno-example`
+# as this doesn't work when added to `CMAKE_CXX_FLAGS`.
+macro(add_c_flag_per_config
+  flag)
+
+  string(APPEND CMAKE_C_FLAGS_DEBUG " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_RELEASE " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_MINSIZEREL " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " ${flag}")
+endmacro()
+macro(add_cxx_flag_per_config
+  flag)
+
+  string(APPEND CMAKE_CXX_FLAGS_DEBUG " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_RELEASE " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " ${flag}")
+endmacro()
+
 macro(remove_strict_flags)
 
   if(CMAKE_COMPILER_IS_GNUCC)
@@ -806,6 +675,7 @@ macro(remove_strict_flags)
       "-Wshadow"
       "-Wdouble-promotion"
       "-Wold-style-definition"
+      "-Wextra"
       "-Werror=[^ ]+"
       "-Werror"
     )
@@ -829,6 +699,10 @@ macro(remove_strict_flags)
   endif()
 
   if(MSVC)
+    add_cxx_flag(
+      # Warning C5038: data member 'foo' will be initialized after data member 'bar'.
+      "/wd5038"
+    )
     remove_cc_flag(
       # Restore warn C4100 (unreferenced formal parameter) back to w4.
       "/w34100"
@@ -902,7 +776,7 @@ endmacro()
 macro(remove_cc_flag_unsigned_char)
   if(CMAKE_COMPILER_IS_GNUCC OR
      (CMAKE_C_COMPILER_ID MATCHES "Clang") OR
-     (CMAKE_C_COMPILER_ID MATCHES "Intel"))
+     (CMAKE_C_COMPILER_ID STREQUAL "Intel"))
     remove_cc_flag("-funsigned-char")
   elseif(MSVC)
     remove_cc_flag("/J")
@@ -985,7 +859,7 @@ function(get_blender_version)
   # - BLENDER_VERSION_PATCH
   # - BLENDER_VERSION_CYCLE (alpha, beta, rc, release)
 
-  # So CMAKE depends on `BKE_blender.h`, beware of infinite-loops!
+  # So CMAKE depends on `BKE_blender_version.h`, beware of infinite-loops!
   configure_file(
     ${CMAKE_SOURCE_DIR}/source/blender/blenkernel/BKE_blender_version.h
     ${CMAKE_BINARY_DIR}/source/blender/blenkernel/BKE_blender_version.h.done
@@ -1071,7 +945,6 @@ macro(blender_project_hack_post)
 
   unset(_reset_standard_cflags_rel)
   unset(_reset_standard_cxxflags_rel)
-
 endmacro()
 
 # pair of macros to allow libraries to be specify files to install, but to
@@ -1118,7 +991,6 @@ function(delayed_do_install
 endfunction()
 
 # Same as above but generates the var name and output automatic.
-# Takes optional: `STRIP_LEADING_C_COMMENTS` argument.
 function(data_to_c
   file_from file_to
   list_to_add
@@ -1129,19 +1001,9 @@ function(data_to_c
 
   get_filename_component(_file_to_path ${file_to} PATH)
 
-  set(optional_args "")
-  foreach(f ${ARGN})
-    if(f STREQUAL "STRIP_LEADING_C_COMMENTS")
-      set(optional_args "--options=strip_leading_c_comments")
-    else()
-      message(FATAL_ERROR "Unknown optional argument ${f} to \"data_to_c\"")
-    endif()
-  endforeach()
-
   add_custom_command(
     OUTPUT ${file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
-    COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to} ${optional_args}
+    COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to}
     DEPENDS ${file_from} datatoc)
 
   set_source_files_properties(${file_to} PROPERTIES GENERATED TRUE)
@@ -1149,7 +1011,6 @@ endfunction()
 
 
 # Same as above but generates the var name and output automatic.
-# Takes optional: `STRIP_LEADING_C_COMMENTS` argument.
 function(data_to_c_simple
   file_from
   list_to_add
@@ -1166,108 +1027,47 @@ function(data_to_c_simple
 
   get_filename_component(_file_to_path ${_file_to} PATH)
 
-  set(optional_args "")
-  foreach(f ${ARGN})
-    if(f STREQUAL "STRIP_LEADING_C_COMMENTS")
-      set(optional_args "--options=strip_leading_c_comments")
-    else()
-      message(FATAL_ERROR "Unknown optional argument ${f} to \"data_to_c_simple\"")
-    endif()
-  endforeach()
-
   add_custom_command(
     OUTPUT  ${_file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
-    COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to} ${optional_args}
+    COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to}
     DEPENDS ${_file_from} datatoc)
 
   set_source_files_properties(${_file_to} PROPERTIES GENERATED TRUE)
 endfunction()
 
-# Function for converting pixmap directory to a '.png' and then a '.c' file.
-function(data_to_c_simple_icons
-  path_from icon_prefix icon_names
+
+# Process glsl file and convert it to c
+function(glsl_to_c
+  file_from
   list_to_add
   )
 
-  # Conversion steps
-  #  path_from  ->  _file_from  ->  _file_to
-  #  foo/*.dat  ->  foo.png     ->  foo.png.c
-
-  get_filename_component(_path_from_abs ${path_from} ABSOLUTE)
   # remove ../'s
-  get_filename_component(_file_from ${CMAKE_CURRENT_BINARY_DIR}/${path_from}.png   REALPATH)
-  get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${path_from}.png.c REALPATH)
+  get_filename_component(_file_from ${CMAKE_CURRENT_SOURCE_DIR}/${file_from}    REALPATH)
+  get_filename_component(_file_tmp  ${CMAKE_CURRENT_BINARY_DIR}/${file_from}    REALPATH)
+  get_filename_component(_file_meta ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.hh REALPATH)
+  get_filename_component(_file_info ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.info  REALPATH)
+  get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c  REALPATH)
 
   list(APPEND ${list_to_add} ${_file_to})
+  source_group(Generated FILES ${_file_to})
+  list(APPEND ${list_to_add} ${file_from})
   set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
 
   get_filename_component(_file_to_path ${_file_to} PATH)
 
-  # Construct a list of absolute paths from input
-  set(_icon_files)
-  foreach(_var ${icon_names})
-    list(APPEND _icon_files "${_path_from_abs}/${icon_prefix}${_var}.dat")
-  endforeach()
-
   add_custom_command(
-    OUTPUT  ${_file_from} ${_file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
-    # COMMAND python3 ${CMAKE_SOURCE_DIR}/source/blender/datatoc/datatoc_icon.py
-    #         ${_path_from_abs} ${_file_from}
-    COMMAND "$<TARGET_FILE:datatoc_icon>" ${_path_from_abs} ${_file_from}
-    COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to}
-    DEPENDS
-      ${_icon_files}
-      datatoc_icon
-      datatoc
-      # could be an arg but for now we only create icons depending on UI_icons.hh
-      ${CMAKE_SOURCE_DIR}/source/blender/editors/include/UI_icons.hh
-    )
+    OUTPUT  ${_file_to} ${_file_meta} ${_file_info}
+    COMMAND "$<TARGET_FILE:shader_tool>" ${_file_from} ${_file_tmp} ${_file_meta} ${_file_info}
+    COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
+    DEPENDS ${_file_from} datatoc shader_tool)
 
-  set_source_files_properties(${_file_from} ${_file_to} PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_tmp} PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_to}  PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_meta}  PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_info}  PROPERTIES GENERATED TRUE)
 endfunction()
 
-# XXX Not used for now...
-function(svg_to_png
-  file_from
-  file_to
-  dpi
-  list_to_add
-  )
-
-  # remove ../'s
-  get_filename_component(_file_from ${CMAKE_CURRENT_SOURCE_DIR}/${file_from} REALPATH)
-  get_filename_component(_file_to   ${CMAKE_CURRENT_SOURCE_DIR}/${file_to}   REALPATH)
-
-  list(APPEND ${list_to_add} ${_file_to})
-  set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
-
-  find_program(INKSCAPE_EXE inkscape)
-  mark_as_advanced(INKSCAPE_EXE)
-
-  if(INKSCAPE_EXE)
-    if(APPLE)
-      # in OS X app bundle, the binary is a shim that doesn't take any
-      # command line arguments, replace it with the actual binary
-      string(REPLACE "MacOS/Inkscape" "Resources/bin/inkscape" INKSCAPE_REAL_EXE ${INKSCAPE_EXE})
-      if(EXISTS "${INKSCAPE_REAL_EXE}")
-        set(INKSCAPE_EXE ${INKSCAPE_REAL_EXE})
-      endif()
-    endif()
-
-    add_custom_command(
-      OUTPUT  ${_file_to}
-
-      COMMAND ${INKSCAPE_EXE}
-      ${_file_from} --export-dpi=${dpi}  --without-gui --export-png=${_file_to}
-
-      DEPENDS ${_file_from} ${INKSCAPE_EXE}
-    )
-  else()
-    message(WARNING "Inkscape not found, could not re-generate ${_file_to} from ${_file_from}!")
-  endif()
-endfunction()
 
 function(msgfmt_simple
   file_from
@@ -1480,39 +1280,9 @@ endmacro()
 function(print_all_vars)
   get_cmake_property(_vars VARIABLES)
   foreach(_var ${_vars})
-    message("${_var}=${${_var}}")
+    message(STATUS "${_var}=${${_var}}")
   endforeach()
 endfunction()
-
-macro(openmp_delayload
-  projectname
-  )
-  if(MSVC)
-    if(WITH_OPENMP)
-      if(MSVC_CLANG)
-        set(OPENMP_DLL_NAME "libomp")
-      else()
-        set(OPENMP_DLL_NAME "vcomp140")
-      endif()
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_RELEASE " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_DEBUG " /DELAYLOAD:${OPENMP_DLL_NAME}d.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_RELWITHDEBINFO " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_MINSIZEREL " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-    endif()
-  endif()
-endmacro()
 
 macro(set_and_warn_dependency
   _dependency _setting _val)
@@ -1627,14 +1397,14 @@ macro(windows_install_shared_manifest)
     endif()
     install(
       FILES ${WINDOWS_INSTALL_FILES}
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS ${WINDOWS_CONFIGURATIONS}
     )
   else()
     # Python module without manifest.
     install(
       FILES ${WINDOWS_INSTALL_FILES}
-      DESTINATION "./bpy"
+      DESTINATION "bpy"
       CONFIGURATIONS ${WINDOWS_CONFIGURATIONS}
     )
   endif()
@@ -1672,7 +1442,7 @@ macro(windows_generate_shared_manifest)
     )
     install(
       FILES ${CMAKE_BINARY_DIR}/Debug/blender.shared.manifest
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS Debug
     )
   endif()
@@ -1684,7 +1454,7 @@ macro(windows_generate_shared_manifest)
     )
     install(
       FILES ${CMAKE_BINARY_DIR}/Release/blender.shared.manifest
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
   endif()
@@ -1701,11 +1471,61 @@ macro(windows_process_platform_bundled_libraries library_deps)
         set(next_library_mode "${library_upper}")
       else()
         windows_install_shared_manifest(
-            FILES ${library}
-            ${next_library_mode}
+          FILES ${library}
+          ${next_library_mode}
         )
         set(next_library_mode "ALL")
       endif()
     endforeach()
+  endif()
+endmacro()
+
+macro(with_shader_cpp_compilation_config)
+  # avoid noisy warnings
+  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    add_c_flag("-Wno-unused-result")
+    remove_cc_flag("-Wmissing-declarations")
+    # Would be nice to enable the warning once we support references.
+    add_cxx_flag("-Wno-uninitialized")
+    # Would be nice to enable the warning once we support nameless parameters.
+    add_cxx_flag("-Wno-unused-parameter")
+    # To compile libraries.
+    add_cxx_flag("-Wno-pragma-once-outside-header")
+  elseif(MSVC)
+    # Equivalent to "-Wno-uninitialized"
+    add_cxx_flag("/wd4700")
+    # Equivalent to "-Wno-unused-parameter"
+    add_cxx_flag("/wd4100")
+    # Disable "potential divide by 0" warning
+    add_cxx_flag("/wd4723")
+  endif()
+  add_definitions(-DGPU_SHADER)
+endmacro()
+
+function(compile_sources_as_cpp
+  executable
+  sources
+  define
+  )
+
+  foreach(glsl_file ${sources})
+    set_source_files_properties(${glsl_file} PROPERTIES LANGUAGE CXX)
+  endforeach()
+
+  add_library(${executable} OBJECT ${sources})
+  set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
+  target_include_directories(${executable} PUBLIC ${INC_GLSL})
+  target_compile_definitions(${executable} PRIVATE ${define})
+endfunction()
+
+macro(optimize_debug_target executable)
+  if(WITH_OPTIMIZED_BUILD_TOOLS)
+    if(WIN32)
+      remove_cc_flag(${executable} "/Od" "/RTC1")
+      target_compile_options(${executable} PRIVATE "/Ox")
+      target_compile_definitions(${executable} PRIVATE "_ITERATOR_DEBUG_LEVEL=0")
+    else()
+      target_compile_options(${executable} PRIVATE "-O2")
+    endif()
   endif()
 endmacro()

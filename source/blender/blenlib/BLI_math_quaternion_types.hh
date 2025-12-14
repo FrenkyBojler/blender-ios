@@ -15,6 +15,7 @@
 #include "BLI_math_basis_types.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_struct_equality_utils.hh"
 
 namespace blender::math {
 
@@ -39,19 +40,19 @@ template<typename T> struct QuaternionBase {
   QuaternionBase() = default;
 
   QuaternionBase(const T &new_w, const T &new_x, const T &new_y, const T &new_z)
-      : w(new_w), x(new_x), y(new_y), z(new_z){};
+      : w(new_w), x(new_x), y(new_y), z(new_z) {};
 
   /**
    * Creates a quaternion from an vector without reordering the components.
    * \note Component order must follow the scalar constructor (w, x, y, z).
    */
-  explicit QuaternionBase(const VecBase<T, 4> &vec) : QuaternionBase(UNPACK4(vec)){};
+  explicit QuaternionBase(const VecBase<T, 4> &vec) : QuaternionBase(UNPACK4(vec)) {};
 
   /**
    * Creates a quaternion from real (w) and imaginary parts (x, y, z).
    */
   QuaternionBase(const T &real, const VecBase<T, 3> &imaginary)
-      : QuaternionBase(real, UNPACK3(imaginary)){};
+      : QuaternionBase(real, UNPACK3(imaginary)) {};
 
   /** Static functions. */
 
@@ -139,7 +140,7 @@ template<typename T> struct QuaternionBase {
             a.w * b.z + a.z * b.w + a.x * b.y - a.y * b.x};
   }
 
-  QuaternionBase &operator*=(const QuaternionBase &b)
+  QuaternionBase &operator*=(const QuaternionBase &b) &
   {
     *this = *this * b;
     return *this;
@@ -157,10 +158,7 @@ template<typename T> struct QuaternionBase {
     return {-a.w, -a.x, -a.y, -a.z};
   }
 
-  friend bool operator==(const QuaternionBase &a, const QuaternionBase &b)
-  {
-    return (a.w == b.w) && (a.x == b.x) && (a.y == b.y) && (a.z == b.z);
-  }
+  BLI_STRUCT_EQUALITY_OPERATORS_4(QuaternionBase, w, x, y, z)
 
   uint64_t hash() const
   {
@@ -235,10 +233,10 @@ template<typename T> struct DualQuaternionBase {
   /** Operators. */
 
   /** Apply a scalar weight to a dual quaternion. */
-  DualQuaternionBase &operator*=(const T &t);
+  DualQuaternionBase &operator*=(const T &t) &;
 
   /** Add two weighted dual-quaternions rotations. */
-  DualQuaternionBase &operator+=(const DualQuaternionBase &b);
+  DualQuaternionBase &operator+=(const DualQuaternionBase &b) &;
 
   /** Apply a scalar weight to a dual quaternion. */
   friend DualQuaternionBase operator*(const DualQuaternionBase &a, const T &t)
@@ -264,11 +262,8 @@ template<typename T> struct DualQuaternionBase {
     return dq;
   }
 
-  friend bool operator==(const DualQuaternionBase &a, const DualQuaternionBase &b)
-  {
-    return (a.quat == b.quat) && (a.trans == b.trans) && (a.quat_weight == b.quat_weight) &&
-           (a.scale_weight == b.scale_weight) && (a.scale == b.scale);
-  }
+  BLI_STRUCT_EQUALITY_OPERATORS_5(
+      DualQuaternionBase, quat, trans, quat_weight, scale_weight, scale)
 
   friend std::ostream &operator<<(std::ostream &stream, const DualQuaternionBase &rot)
   {

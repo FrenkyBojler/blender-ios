@@ -10,17 +10,15 @@
 
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ShapeUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ShapeUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`ShapeUP1D`\n"
     "\n"
     ".. method:: __init__(first, second=0)\n"
@@ -41,8 +39,7 @@ static char ShapeUP1D___doc__[] =
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if Interface1D belongs to the shape of the\n"
     "      user-specified Id.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int ShapeUP1D___init__(BPy_ShapeUP1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"first", "second", nullptr};
@@ -99,7 +96,3 @@ PyTypeObject ShapeUP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

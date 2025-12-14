@@ -9,29 +9,41 @@
  * with polygons (normal/area calculation, tessellation, etc)
  */
 
-#include "DNA_listBase.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_alloca.h"
-#include "BLI_heap.h"
 #include "BLI_linklist.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_memarena.h"
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
 #include "BKE_customdata.hh"
 
-#include "intern/bmesh_private.h"
+#include "intern/bmesh_private.hh"
+
+using blender::float2;
+using blender::float3;
+using blender::Span;
+
+/**
+ * Return an angle in the range: `[0.0..M_PI * 2]`.
+ */
+static float angle_signed_v2v2_pos(const float v1[2], const float v2[2])
+{
+  const float angle = angle_signed_v2v2(v1, v2);
+  if (angle < 0.0f) {
+    return angle + (M_PI * 2);
+  }
+  return angle;
+}
 
 /**
  * \brief COMPUTE POLY NORMAL (BMFace)
@@ -68,7 +80,7 @@ static float bm_face_calc_poly_normal(const BMFace *f, float n[3])
  */
 static float bm_face_calc_poly_normal_vertex_cos(const BMFace *f,
                                                  float r_no[3],
-                                                 float const (*vertexCos)[3])
+                                                 const Span<float3> vertexCos)
 {
   BMLoop *l_first = BM_FACE_FIRST_LOOP(f);
   BMLoop *l_iter = l_first;
@@ -92,9 +104,8 @@ static float bm_face_calc_poly_normal_vertex_cos(const BMFace *f,
 /**
  * \brief COMPUTE POLY CENTER (BMFace)
  */
-static void bm_face_calc_poly_center_median_vertex_cos(const BMFace *f,
-                                                       float r_cent[3],
-                                                       float const (*vertexCos)[3])
+static void bm_face_calc_poly_center_median_vertex_cos(
+    const BMFace *f, float r_cent[3], const blender::Span<blender::float3> vert_positions)
 {
   const BMLoop *l_first, *l_iter;
 
@@ -103,7 +114,7 @@ static void bm_face_calc_poly_center_median_vertex_cos(const BMFace *f,
   /* Newell's Method */
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
   do {
-    add_v3_v3(r_cent, vertexCos[BM_elem_index_get(l_iter->v)]);
+    add_v3_v3(r_cent, vert_positions[BM_elem_index_get(l_iter->v)]);
   } while ((l_iter = l_iter->next) != l_first);
   mul_v3_fl(r_cent, 1.0f / f->len);
 }
@@ -141,7 +152,7 @@ void BM_face_calc_tessellation(const BMFace *f,
   }
   else {
     float axis_mat[3][3];
-    float(*projverts)[2] = BLI_array_alloca(projverts, f->len);
+    float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
     int j;
 
     axis_dominant_v3_to_m3_negate(axis_mat, f->no);
@@ -161,11 +172,11 @@ void BM_face_calc_tessellation(const BMFace *f,
 
 void BM_face_calc_point_in_face(const BMFace *f, float r_co[3])
 {
-  const BMLoop *l_tri[3];
+  const BMLoop *ltri[3];
 
   if (f->len == 3) {
     const BMLoop *l = BM_FACE_FIRST_LOOP(f);
-    ARRAY_SET_ITEMS(l_tri, l, l->next, l->prev);
+    ARRAY_SET_ITEMS(ltri, l, l->next, l->prev);
   }
   else {
     /* tessellation here seems overkill when in many cases this will be the center,
@@ -191,10 +202,10 @@ void BM_face_calc_point_in_face(const BMFace *f, float r_co[3])
     }
 
     ARRAY_SET_ITEMS(
-        l_tri, loops[index[j_best][0]], loops[index[j_best][1]], loops[index[j_best][2]]);
+        ltri, loops[index[j_best][0]], loops[index[j_best][1]], loops[index[j_best][2]]);
   }
 
-  mid_v3_v3v3v3(r_co, l_tri[0]->v->co, l_tri[1]->v->co, l_tri[2]->v->co);
+  mid_v3_v3v3v3(r_co, ltri[0]->v->co, ltri[1]->v->co, ltri[2]->v->co);
 }
 
 float BM_face_calc_area(const BMFace *f)
@@ -325,13 +336,38 @@ static int bm_vert_tri_find_unique_edge(BMVert *verts[3])
   return order[0];
 }
 
-void BM_vert_tri_calc_tangent_edge(BMVert *verts[3], float r_tangent[3])
+void BM_vert_tri_calc_tangent_from_edge(BMVert *verts[3], float r_tangent[3])
 {
   const int index = bm_vert_tri_find_unique_edge(verts);
+  const int index_next = (index + 1) % 3;
 
-  sub_v3_v3v3(r_tangent, verts[index]->co, verts[(index + 1) % 3]->co);
-
+  sub_v3_v3v3(r_tangent, verts[index]->co, verts[index_next]->co);
   normalize_v3(r_tangent);
+}
+
+void BM_vert_tri_calc_tangent_pair_from_edge(BMVert *verts[3],
+                                             float r_tangent_a[3],
+                                             float r_tangent_b[3])
+{
+  const int index = bm_vert_tri_find_unique_edge(verts);
+  const int index_next = (index + 1) % 3;
+  const int index_prev = (index_next + 1) % 3;
+
+  sub_v3_v3v3(r_tangent_a, verts[index]->co, verts[index_next]->co);
+  normalize_v3(r_tangent_a);
+
+  /* Pick the adjacent loop that is least co-linear. */
+  float vec_prev[3], vec_next[3];
+  float tmp_prev[3], tmp_next[3];
+
+  sub_v3_v3v3(vec_prev, verts[index_prev]->co, verts[index]->co);
+  sub_v3_v3v3(vec_next, verts[index_next]->co, verts[index_prev]->co);
+
+  cross_v3_v3v3(tmp_prev, r_tangent_a, vec_prev);
+  cross_v3_v3v3(tmp_next, r_tangent_a, vec_next);
+
+  normalize_v3_v3(r_tangent_b,
+                  len_squared_v3(tmp_next) > len_squared_v3(tmp_prev) ? vec_next : vec_prev);
 }
 
 void BM_vert_tri_calc_tangent_edge_pair(BMVert *verts[3], float r_tangent[3])
@@ -348,7 +384,7 @@ void BM_vert_tri_calc_tangent_edge_pair(BMVert *verts[3], float r_tangent[3])
   normalize_v3(r_tangent);
 }
 
-void BM_face_calc_tangent_edge(const BMFace *f, float r_tangent[3])
+void BM_face_calc_tangent_from_edge(const BMFace *f, float r_tangent[3])
 {
   const BMLoop *l_long = BM_face_find_longest_loop((BMFace *)f);
 
@@ -357,7 +393,75 @@ void BM_face_calc_tangent_edge(const BMFace *f, float r_tangent[3])
   normalize_v3(r_tangent);
 }
 
-void BM_face_calc_tangent_edge_pair(const BMFace *f, float r_tangent[3])
+static void bm_face_calc_tangent_from_quad_edge_pair(const BMFace *f, float r_tangent[3])
+{
+  BMVert *verts[4];
+  float vec[3], vec_a[3], vec_b[3];
+
+  BM_face_as_array_vert_quad((BMFace *)f, verts);
+
+  sub_v3_v3v3(vec_a, verts[3]->co, verts[2]->co);
+  sub_v3_v3v3(vec_b, verts[0]->co, verts[1]->co);
+  add_v3_v3v3(r_tangent, vec_a, vec_b);
+
+  sub_v3_v3v3(vec_a, verts[0]->co, verts[3]->co);
+  sub_v3_v3v3(vec_b, verts[1]->co, verts[2]->co);
+  add_v3_v3v3(vec, vec_a, vec_b);
+  /* use the longest edge length */
+  if (len_squared_v3(r_tangent) < len_squared_v3(vec)) {
+    copy_v3_v3(r_tangent, vec);
+  }
+  normalize_v3(r_tangent);
+}
+
+static void bm_face_calc_tangent_pair_from_quad_edge_pair(const BMFace *f,
+                                                          float r_tangent_a[3],
+                                                          float r_tangent_b[3])
+{
+  BLI_assert(f->len == 4);
+  BMVert *verts[4];
+  float vec_a[3], vec_b[3];
+
+  BM_face_as_array_vert_quad((BMFace *)f, verts);
+
+  sub_v3_v3v3(vec_a, verts[3]->co, verts[2]->co);
+  sub_v3_v3v3(vec_b, verts[0]->co, verts[1]->co);
+  add_v3_v3v3(r_tangent_a, vec_a, vec_b);
+
+  sub_v3_v3v3(vec_a, verts[0]->co, verts[3]->co);
+  sub_v3_v3v3(vec_b, verts[1]->co, verts[2]->co);
+  add_v3_v3v3(r_tangent_b, vec_a, vec_b);
+
+  /* `r_tangent_a` always gets the longest edge. */
+  if (normalize_v3(r_tangent_a) < normalize_v3(r_tangent_b)) {
+    swap_v3_v3(r_tangent_a, r_tangent_b);
+  }
+}
+
+void BM_face_calc_tangent_pair_from_edge(const BMFace *f,
+                                         float r_tangent_a[3],
+                                         float r_tangent_b[3])
+{
+  const BMLoop *l_long = BM_face_find_longest_loop((BMFace *)f);
+
+  sub_v3_v3v3(r_tangent_a, l_long->v->co, l_long->next->v->co);
+  normalize_v3(r_tangent_a);
+
+  /* Pick the adjacent loop that is least co-linear. */
+  float vec_prev[3], vec_next[3];
+  float tmp_prev[3], tmp_next[3];
+
+  sub_v3_v3v3(vec_prev, l_long->prev->v->co, l_long->v->co);
+  sub_v3_v3v3(vec_next, l_long->next->v->co, l_long->next->next->v->co);
+
+  cross_v3_v3v3(tmp_prev, r_tangent_a, vec_prev);
+  cross_v3_v3v3(tmp_next, r_tangent_a, vec_next);
+
+  normalize_v3_v3(r_tangent_b,
+                  len_squared_v3(tmp_next) > len_squared_v3(tmp_prev) ? vec_next : vec_prev);
+}
+
+void BM_face_calc_tangent_from_edge_pair(const BMFace *f, float r_tangent[3])
 {
   if (f->len == 3) {
     BMVert *verts[3];
@@ -368,22 +472,8 @@ void BM_face_calc_tangent_edge_pair(const BMFace *f, float r_tangent[3])
   }
   else if (f->len == 4) {
     /* Use longest edge pair */
-    BMVert *verts[4];
-    float vec[3], vec_a[3], vec_b[3];
-
-    BM_face_as_array_vert_quad((BMFace *)f, verts);
-
-    sub_v3_v3v3(vec_a, verts[3]->co, verts[2]->co);
-    sub_v3_v3v3(vec_b, verts[0]->co, verts[1]->co);
-    add_v3_v3v3(r_tangent, vec_a, vec_b);
-
-    sub_v3_v3v3(vec_a, verts[0]->co, verts[3]->co);
-    sub_v3_v3v3(vec_b, verts[1]->co, verts[2]->co);
-    add_v3_v3v3(vec, vec_a, vec_b);
-    /* use the longest edge length */
-    if (len_squared_v3(r_tangent) < len_squared_v3(vec)) {
-      copy_v3_v3(r_tangent, vec);
-    }
+    float r_tangent_dummy[3];
+    bm_face_calc_tangent_pair_from_quad_edge_pair(f, r_tangent, r_tangent_dummy);
   }
   else {
     /* For ngons use two longest disconnected edges */
@@ -410,14 +500,14 @@ void BM_face_calc_tangent_edge_pair(const BMFace *f, float r_tangent[3])
 
     /* Edges may not be opposite side of the ngon,
      * this could cause problems for ngons with multiple-aligned edges of the same length.
-     * Fallback to longest edge. */
+     * Fall back to longest edge. */
     if (UNLIKELY(normalize_v3(r_tangent) == 0.0f)) {
       normalize_v3_v3(r_tangent, vec_a);
     }
   }
 }
 
-void BM_face_calc_tangent_edge_diagonal(const BMFace *f, float r_tangent[3])
+void BM_face_calc_tangent_from_edge_diagonal(const BMFace *f, float r_tangent[3])
 {
   BMLoop *l_iter, *l_first;
 
@@ -449,7 +539,7 @@ void BM_face_calc_tangent_edge_diagonal(const BMFace *f, float r_tangent[3])
   normalize_v3(r_tangent);
 }
 
-void BM_face_calc_tangent_vert_diagonal(const BMFace *f, float r_tangent[3])
+void BM_face_calc_tangent_from_vert_diagonal(const BMFace *f, float r_tangent[3])
 {
   BMLoop *l_iter, *l_first;
 
@@ -483,15 +573,33 @@ void BM_face_calc_tangent_auto(const BMFace *f, float r_tangent[3])
     /* most 'unique' edge of a triangle */
     BMVert *verts[3];
     BM_face_as_array_vert_tri((BMFace *)f, verts);
-    BM_vert_tri_calc_tangent_edge(verts, r_tangent);
+    BM_vert_tri_calc_tangent_from_edge(verts, r_tangent);
   }
   else if (f->len == 4) {
     /* longest edge pair of a quad */
-    BM_face_calc_tangent_edge_pair((BMFace *)f, r_tangent);
+    bm_face_calc_tangent_from_quad_edge_pair(f, r_tangent);
   }
   else {
     /* longest edge of an ngon */
-    BM_face_calc_tangent_edge((BMFace *)f, r_tangent);
+    BM_face_calc_tangent_from_edge(f, r_tangent);
+  }
+}
+
+void BM_face_calc_tangent_pair_auto(const BMFace *f, float r_tangent_a[3], float r_tangent_b[3])
+{
+  if (f->len == 3) {
+    /* most 'unique' edge of a triangle */
+    BMVert *verts[3];
+    BM_face_as_array_vert_tri((BMFace *)f, verts);
+    BM_vert_tri_calc_tangent_pair_from_edge(verts, r_tangent_a, r_tangent_b);
+  }
+  else if (f->len == 4) {
+    /* longest edge pair of a quad */
+    bm_face_calc_tangent_pair_from_quad_edge_pair(f, r_tangent_a, r_tangent_b);
+  }
+  else {
+    /* longest edge of an ngon */
+    BM_face_calc_tangent_pair_from_edge(f, r_tangent_a, r_tangent_b);
   }
 }
 
@@ -522,7 +630,7 @@ void BM_face_calc_center_bounds(const BMFace *f, float r_cent[3])
 void BM_face_calc_center_bounds_vcos(const BMesh *bm,
                                      const BMFace *f,
                                      float r_cent[3],
-                                     float const (*vertexCos)[3])
+                                     const blender::Span<blender::float3> vert_positions)
 {
   /* must have valid index data */
   BLI_assert((bm->elem_index_dirty & BM_VERT) == 0);
@@ -535,7 +643,7 @@ void BM_face_calc_center_bounds_vcos(const BMesh *bm,
 
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
   do {
-    minmax_v3v3_v3(min, max, vertexCos[BM_elem_index_get(l_iter->v)]);
+    minmax_v3v3_v3(min, max, vert_positions[BM_elem_index_get(l_iter->v)]);
   } while ((l_iter = l_iter->next) != l_first);
 
   mid_v3_v3v3(r_cent, min, max);
@@ -574,7 +682,7 @@ void BM_face_calc_center_median_weighted(const BMFace *f, float r_cent[3])
   } while ((l_iter = l_iter->next) != l_first);
 
   if (totw != 0.0f) {
-    mul_v3_fl(r_cent, 1.0f / float(totw));
+    mul_v3_fl(r_cent, 1.0f / totw);
   }
 }
 
@@ -745,7 +853,7 @@ void BM_face_normal_update(BMFace *f)
 float BM_face_calc_normal_vcos(const BMesh *bm,
                                const BMFace *f,
                                float r_no[3],
-                               float const (*vertexCos)[3])
+                               const Span<float3> vertexCos)
 {
   BMLoop *l;
 
@@ -902,13 +1010,13 @@ float BM_face_calc_normal_subset(const BMLoop *l_first, const BMLoop *l_last, fl
 void BM_face_calc_center_median_vcos(const BMesh *bm,
                                      const BMFace *f,
                                      float r_cent[3],
-                                     float const (*vertexCos)[3])
+                                     const blender::Span<blender::float3> vert_positions)
 {
   /* must have valid index data */
   BLI_assert((bm->elem_index_dirty & BM_VERT) == 0);
   (void)bm;
 
-  bm_face_calc_poly_center_median_vertex_cos(f, r_cent, vertexCos);
+  bm_face_calc_poly_center_median_vertex_cos(f, r_cent, vert_positions);
 }
 
 void BM_face_normal_flip_ex(BMesh *bm,
@@ -929,7 +1037,7 @@ void BM_face_normal_flip(BMesh *bm, BMFace *f)
 bool BM_face_point_inside_test(const BMFace *f, const float co[3])
 {
   float axis_mat[3][3];
-  float(*projverts)[2] = BLI_array_alloca(projverts, f->len);
+  float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
 
   float co_2d[2];
   BMLoop *l_iter;
@@ -1069,7 +1177,7 @@ void BM_face_triangulate(BMesh *bm,
     else {
       BMLoop *l_iter;
       float axis_mat[3][3];
-      float(*projverts)[2] = BLI_array_alloca(projverts, f->len);
+      float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
 
       axis_dominant_v3_to_m3_negate(axis_mat, f->no);
 
@@ -1093,9 +1201,9 @@ void BM_face_triangulate(BMesh *bm,
 
     /* loop over calculated triangles and create new geometry */
     for (i = 0; i < totfilltri; i++) {
-      BMLoop *l_tri[3] = {loops[tris[i][0]], loops[tris[i][1]], loops[tris[i][2]]};
+      BMLoop *ltri[3] = {loops[tris[i][0]], loops[tris[i][1]], loops[tris[i][2]]};
 
-      BMVert *v_tri[3] = {l_tri[0]->v, l_tri[1]->v, l_tri[2]->v};
+      BMVert *v_tri[3] = {ltri[0]->v, ltri[1]->v, ltri[2]->v};
 
       f_new = BM_face_create_verts(bm, v_tri, 3, f, BM_CREATE_NOP, true);
       l_new = BM_FACE_FIRST_LOOP(f_new);
@@ -1115,9 +1223,9 @@ void BM_face_triangulate(BMesh *bm,
       }
 
       /* copy CD data */
-      BM_elem_attrs_copy(bm, bm, l_tri[0], l_new);
-      BM_elem_attrs_copy(bm, bm, l_tri[1], l_new->next);
-      BM_elem_attrs_copy(bm, bm, l_tri[2], l_new->prev);
+      BM_elem_attrs_copy(bm, ltri[0], l_new);
+      BM_elem_attrs_copy(bm, ltri[1], l_new->next);
+      BM_elem_attrs_copy(bm, ltri[2], l_new->prev);
 
       /* add all but the last face which is swapped and removed (below) */
       if (i != last_tri) {
@@ -1179,10 +1287,9 @@ void BM_face_triangulate(BMesh *bm,
 
 void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int len)
 {
-  float out[2] = {-FLT_MAX, -FLT_MAX};
   float center[2] = {0.0f, 0.0f};
   float axis_mat[3][3];
-  float(*projverts)[2] = BLI_array_alloca(projverts, f->len);
+  float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
   const float *(*edgeverts)[2] = BLI_array_alloca(edgeverts, len);
   BMLoop *l;
   int i, i_prev, j;
@@ -1208,36 +1315,62 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
 
     /* center the projection for maximum accuracy */
     sub_v2_v2(projverts[i], center);
-
-    out[0] = max_ff(out[0], projverts[i][0]);
-    out[1] = max_ff(out[1], projverts[i][1]);
   }
   bm->elem_index_dirty |= BM_LOOP;
-
-  /* ensure we are well outside the face bounds (value is arbitrary) */
-  add_v2_fl(out, 1.0f);
 
   for (i = 0; i < len; i++) {
     edgeverts[i][0] = projverts[BM_elem_index_get(loops[i][0])];
     edgeverts[i][1] = projverts[BM_elem_index_get(loops[i][1])];
   }
-
-  /* do convexity test */
+  /* Check the split is inside the face, otherwise clear it.
+   *
+   * Ensure the edge between the two corners of the face defines a line that lies within the face.
+   * Consider an edge that connects both tips of a crescent-moon shaped face.
+   * In this case the edge would span the empty region and must not be considered "legal". */
   for (i = 0; i < len; i++) {
-    float mid[2];
-    mid_v2_v2v2(mid, edgeverts[i][0], edgeverts[i][1]);
+    /* Compare the angles at the loops. */
+    BMLoop **l_pair = loops[i];
+    const float *co_pair[2] = {
+        projverts[BM_elem_index_get(l_pair[0])],
+        projverts[BM_elem_index_get(l_pair[1])],
+    };
 
-    int isect = 0;
-    int j_prev;
-    for (j = 0, j_prev = f->len - 1; j < f->len; j_prev = j++) {
-      const float *f_edge[2] = {projverts[j_prev], projverts[j]};
-      if (isect_seg_seg_v2(UNPACK2(f_edge), mid, out) == ISECT_LINE_LINE_CROSS) {
-        isect++;
-      }
+    /* Always allow cuts that overlap (unlikely but not an error). */
+    if (UNLIKELY(equals_v2v2(co_pair[0], co_pair[1]))) {
+      continue;
     }
 
-    if (isect % 2 == 0) {
-      loops[i][0] = nullptr;
+    const float2 pair_dir = blender::math::normalize(float2(co_pair[1]) - float2(co_pair[0]));
+    for (const int side : blender::IndexRange(2)) {
+      const float2 co = float2(co_pair[side]);
+      BMLoop *l_prev = l_pair[side]->prev;
+      BMLoop *l_next = l_pair[side]->next;
+
+      /* Account for zero length edges, not essential but they shouldn't break the calculation. */
+      {
+        const int limit_init = f->len - 3;
+        int limit;
+        limit = limit_init;
+        while (UNLIKELY(equals_v2v2(co, projverts[BM_elem_index_get(l_prev)])) && limit-- > 0) {
+          l_prev = l_prev->prev;
+        }
+        limit = limit_init;
+        while (UNLIKELY(equals_v2v2(co, projverts[BM_elem_index_get(l_next)])) && limit-- > 0) {
+          l_next = l_next->next;
+        }
+      }
+
+      const float2 co_prev = float2(projverts[BM_elem_index_get(l_prev)]);
+      const float2 co_next = float2(projverts[BM_elem_index_get(l_next)]);
+
+      const float2 dir_other = side == 0 ? pair_dir : -pair_dir;
+      const float2 dir_prev = blender::math::normalize(co_prev - co);
+      const float2 dir_next = blender::math::normalize(co_next - co);
+
+      if (angle_signed_v2v2_pos(dir_prev, dir_other) > angle_signed_v2v2_pos(dir_prev, dir_next)) {
+        loops[i][0] = nullptr;
+        break;
+      }
     }
   }
 
@@ -1262,7 +1395,8 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
       for (j = i + 1; j < len; j++) {
         if ((loops[j][0] != nullptr) && !EDGE_SHARE_VERT(edgeverts[i], edgeverts[j])) {
           if (isect_seg_seg_v2(UNPACK2(edgeverts[i]), UNPACK2(edgeverts[j])) ==
-              ISECT_LINE_LINE_CROSS) {
+              ISECT_LINE_LINE_CROSS)
+          {
             loops[i][0] = nullptr;
             break;
           }

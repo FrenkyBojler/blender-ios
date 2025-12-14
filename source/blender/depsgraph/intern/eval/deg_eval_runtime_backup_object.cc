@@ -6,6 +6,8 @@
  * \ingroup depsgraph
  */
 
+#include "BLI_session_uid.h"
+
 #include "intern/eval/deg_eval_runtime_backup_object.h"
 
 #include <cstring>
@@ -14,7 +16,10 @@
 
 #include "BLI_listbase.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
+#include "BKE_light_linking.h"
+#include "BKE_mesh_types.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
@@ -36,7 +41,7 @@ void ObjectRuntimeBackup::init_from_object(Object *object)
   }
   BKE_object_runtime_reset(object);
   /* Keep bounding-box (for now at least). */
-  object->runtime->bb = runtime.bb;
+  object->runtime->bounds_eval = runtime.bounds_eval;
   /* Object update will override actual object->data to an evaluated version.
    * Need to make sure we don't have data set to evaluated one before free
    * anything. */
@@ -57,10 +62,7 @@ void ObjectRuntimeBackup::backup_modifier_runtime_data(Object *object)
       continue;
     }
 
-    const SessionUUID &session_uuid = modifier_data->session_uuid;
-    BLI_assert(BLI_session_uuid_is_generated(&session_uuid));
-
-    modifier_runtime_data.add(session_uuid, ModifierDataBackup(modifier_data));
+    modifier_runtime_data.add(modifier_data->persistent_uid, ModifierDataBackup(modifier_data));
     modifier_data->runtime = nullptr;
   }
 }
@@ -69,10 +71,10 @@ void ObjectRuntimeBackup::backup_pose_channel_runtime_data(Object *object)
 {
   if (object->pose != nullptr) {
     LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
-      const SessionUUID &session_uuid = pchan->runtime.session_uuid;
-      BLI_assert(BLI_session_uuid_is_generated(&session_uuid));
+      const SessionUID &session_uid = pchan->runtime.session_uid;
+      BLI_assert(BLI_session_uid_is_generated(&session_uid));
 
-      pose_channel_runtime_data.add(session_uuid, pchan->runtime);
+      pose_channel_runtime_data.add(session_uid, pchan->runtime);
       BKE_pose_channel_runtime_reset(&pchan->runtime);
     }
   }
@@ -82,10 +84,10 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
 {
   ID *data_orig = object->runtime->data_orig;
   ID *data_eval = runtime.data_eval;
-  BoundBox *bb = object->runtime->bb;
+  std::optional<Bounds<float3>> bounds = object->runtime->bounds_eval;
   *object->runtime = runtime;
   object->runtime->data_orig = data_orig;
-  object->runtime->bb = bb;
+  object->runtime->bounds_eval = bounds;
   if (ELEM(object->type, OB_MESH, OB_LATTICE, OB_CURVES_LEGACY, OB_FONT) && data_eval != nullptr) {
     if (object->id.recalc & ID_RECALC_GEOMETRY) {
       /* If geometry is tagged for update it means, that part of
@@ -112,7 +114,7 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
       if (object->type == OB_MESH) {
         Mesh *mesh_eval = (Mesh *)data_eval;
         Mesh *mesh_orig = (Mesh *)data_orig;
-        mesh_eval->edit_mesh = mesh_orig->edit_mesh;
+        mesh_eval->runtime->edit_mesh = mesh_orig->runtime->edit_mesh;
       }
     }
   }
@@ -130,9 +132,7 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
   if (light_linking_runtime) {
     /* Lazily allocate light linking on the evaluated object for the cases when the object is only
      * a receiver or a blocker and does not need its own LightLinking on the original object. */
-    if (!object->light_linking) {
-      object->light_linking = MEM_cnew<LightLinking>(__func__);
-    }
+    BKE_light_linking_ensure(object);
     object->light_linking->runtime = *light_linking_runtime;
   }
 
@@ -148,10 +148,8 @@ void ObjectRuntimeBackup::restore_to_object(Object *object)
 void ObjectRuntimeBackup::restore_modifier_runtime_data(Object *object)
 {
   LISTBASE_FOREACH (ModifierData *, modifier_data, &object->modifiers) {
-    const SessionUUID &session_uuid = modifier_data->session_uuid;
-    BLI_assert(BLI_session_uuid_is_generated(&session_uuid));
-
-    optional<ModifierDataBackup> backup = modifier_runtime_data.pop_try(session_uuid);
+    std::optional<ModifierDataBackup> backup = modifier_runtime_data.pop_try(
+        modifier_data->persistent_uid);
     if (backup.has_value()) {
       modifier_data->runtime = backup->runtime;
     }
@@ -161,6 +159,15 @@ void ObjectRuntimeBackup::restore_modifier_runtime_data(Object *object)
     const ModifierTypeInfo *modifier_type_info = BKE_modifier_get_info(backup.type);
     BLI_assert(modifier_type_info != nullptr);
     modifier_type_info->free_runtime_data(backup.runtime);
+
+    if (backup.type == eModifierType_Subsurf) {
+      if (object->type == OB_MESH) {
+        Mesh *mesh = (Mesh *)object->data;
+        if (mesh->runtime->subsurf_runtime_data == backup.runtime) {
+          mesh->runtime->subsurf_runtime_data = nullptr;
+        }
+      }
+    }
   }
 }
 
@@ -168,8 +175,8 @@ void ObjectRuntimeBackup::restore_pose_channel_runtime_data(Object *object)
 {
   if (object->pose != nullptr) {
     LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
-      const SessionUUID &session_uuid = pchan->runtime.session_uuid;
-      optional<bPoseChannel_Runtime> runtime = pose_channel_runtime_data.pop_try(session_uuid);
+      const SessionUID &session_uid = pchan->runtime.session_uid;
+      std::optional<bPoseChannel_Runtime> runtime = pose_channel_runtime_data.pop_try(session_uid);
       if (runtime.has_value()) {
         pchan->runtime = *runtime;
       }

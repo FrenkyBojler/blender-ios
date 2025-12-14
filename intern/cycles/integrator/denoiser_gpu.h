@@ -6,6 +6,8 @@
 
 #include "integrator/denoiser.h"
 
+#include "session/buffers.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Implementation of Denoiser which uses a device-specific denoising implementation, running on a
@@ -13,13 +15,13 @@ CCL_NAMESPACE_BEGIN
  * and invokes denoising kernels via the device queue API. */
 class DenoiserGPU : public Denoiser {
  public:
-  DenoiserGPU(Device *path_trace_device, const DenoiseParams &params);
-  ~DenoiserGPU();
+  DenoiserGPU(Device *denoiser_device, const DenoiseParams &params);
+  ~DenoiserGPU() override;
 
-  virtual bool denoise_buffer(const BufferParams &buffer_params,
-                              RenderBuffers *render_buffers,
-                              const int num_samples,
-                              bool allow_inplace_modification) override;
+  bool denoise_buffer(const BufferParams &buffer_params,
+                      RenderBuffers *render_buffers,
+                      const int num_samples,
+                      bool allow_inplace_modification) override;
 
  protected:
   class DenoisePass;
@@ -65,6 +67,8 @@ class DenoiserGPU : public Denoiser {
    * denoiser result to the render buffer. */
   bool denoise_filter_color_preprocess(const DenoiseContext &context, const DenoisePass &pass);
   bool denoise_filter_color_postprocess(const DenoiseContext &context, const DenoisePass &pass);
+  bool denoise_filter_color_flip_y(const DenoiseContext &context, const DenoisePass &pass);
+  bool denoise_filter_guiding_flip_y(const DenoiseContext &context);
   bool denoise_filter_guiding_set_fake_albedo(const DenoiseContext &context);
 
   /* Read guiding passes from the render buffers, preprocess them in a way which is expected by
@@ -79,8 +83,6 @@ class DenoiserGPU : public Denoiser {
   /* Returns true if task is fully handled. */
   virtual bool denoise_buffer(const DenoiseTask &task);
   virtual bool denoise_run(const DenoiseContext &context, const DenoisePass &pass) = 0;
-
-  virtual Device *ensure_denoiser_device(Progress *progress) override;
 
   unique_ptr<DeviceQueue> denoiser_queue_;
 
@@ -103,7 +105,7 @@ class DenoiserGPU : public Denoiser {
     int denoised_offset;
 
     int num_components;
-    bool use_compositing;
+    int use_compositing;
     bool use_denoising_albedo;
   };
 

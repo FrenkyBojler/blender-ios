@@ -35,16 +35,17 @@ typedef unsigned long long uint64_t;
 #define ccl_device_noinline __device__ __noinline__
 #define ccl_device_noinline_cpu ccl_device
 #define ccl_device_inline_method ccl_device
+#define ccl_device_template_spec template<> ccl_device_inline
 #define ccl_global
 #define ccl_inline_constant __constant__
 #define ccl_device_constant __constant__ __device__
+#define ccl_static_constexpr static constexpr
 #define ccl_constant const
 #define ccl_gpu_shared __shared__
 #define ccl_private
 #define ccl_ray_data ccl_private
 #define ccl_may_alias
 #define ccl_restrict __restrict__
-#define ccl_loop_no_unroll
 #define ccl_align(n) __align__(n)
 #define ccl_optional_struct_init
 
@@ -77,7 +78,6 @@ typedef unsigned long long uint64_t;
 
 /* GPU texture objects */
 typedef hipTextureObject_t ccl_gpu_tex_object_2D;
-typedef hipTextureObject_t ccl_gpu_tex_object_3D;
 
 template<typename T>
 ccl_device_forceinline T ccl_gpu_tex_object_read_2D(const ccl_gpu_tex_object_2D texobj,
@@ -85,15 +85,6 @@ ccl_device_forceinline T ccl_gpu_tex_object_read_2D(const ccl_gpu_tex_object_2D 
                                                     const float y)
 {
   return tex2D<T>(texobj, x, y);
-}
-
-template<typename T>
-ccl_device_forceinline T ccl_gpu_tex_object_read_3D(const ccl_gpu_tex_object_3D texobj,
-                                                    const float x,
-                                                    const float y,
-                                                    const float z)
-{
-  return tex3D<T>(texobj, x, y, z);
 }
 
 /* Use fast math functions */

@@ -10,29 +10,25 @@
 
 #include "intern/eval/deg_eval_flush.h"
 
-#include <cmath>
+#include <deque>
 
 #include "BLI_listbase.h"
-#include "BLI_math_vector.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_key.h"
+#include "BKE_global.hh"
+#include "BKE_key.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
-#include "DNA_key_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-
-#include "DRW_engine.h"
+#include "DRW_engine.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_debug.hh"
 
 #include "intern/debug/deg_debug.h"
 #include "intern/depsgraph.hh"
 #include "intern/depsgraph_relation.hh"
-#include "intern/depsgraph_type.hh"
 #include "intern/depsgraph_update.hh"
 #include "intern/node/deg_node.hh"
 #include "intern/node/deg_node_component.hh"
@@ -67,7 +63,7 @@ enum {
   COMPONENT_STATE_DONE = 2,
 };
 
-using FlushQueue = deque<OperationNode *>;
+using FlushQueue = std::deque<OperationNode *>;
 
 namespace {
 
@@ -159,7 +155,7 @@ inline void flush_handle_component_node(IDNode *id_node,
 
 /* Schedule children of the given operation node for traversal.
  *
- * One of the children will by-pass the queue and will be returned as a function
+ * One of the children will bypass the queue and will be returned as a function
  * return value, so it can start being handled right away, without building too
  * much of a queue.
  */
@@ -202,17 +198,6 @@ inline OperationNode *flush_schedule_children(OperationNode *op_node, FlushQueue
   return result;
 }
 
-void flush_engine_data_update(ID *id)
-{
-  DrawDataList *draw_data_list = DRW_drawdatalist_from_id(id);
-  if (draw_data_list == nullptr) {
-    return;
-  }
-  LISTBASE_FOREACH (DrawData *, draw_data, draw_data_list) {
-    draw_data->recalc |= id->recalc;
-  }
-}
-
 /* NOTE: It will also accumulate flags from changed components. */
 void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *update_ctx)
 {
@@ -243,38 +228,12 @@ void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *upd
      * time, to distinguish between user edits and initial evaluation when
      * the data-block becomes visible.
      *
-     * TODO: image data-blocks do not use COW, so might not be detected
+     * TODO: image data-blocks do not use copy-on-eval, so might not be detected
      * correctly. */
-    if (deg_copy_on_write_is_expanded(id_cow)) {
+    if (deg_eval_copy_is_expanded(id_cow)) {
       if (graph->is_active && id_node->is_user_modified) {
         deg_editors_id_update(update_ctx, id_orig);
-
-        /* We only want to tag an ID for lib-override auto-refresh if it was actually tagged as
-         * changed. CoW IDs indirectly modified because of changes in other IDs should never
-         * require a lib-override diffing. */
-        if (ID_IS_OVERRIDE_LIBRARY_REAL(id_orig)) {
-          id_orig->tag |= LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
-        }
-        else if (ID_IS_OVERRIDE_LIBRARY_VIRTUAL(id_orig)) {
-          switch (GS(id_orig->name)) {
-            case ID_KE:
-              ((Key *)id_orig)->from->tag |= LIB_TAG_LIBOVERRIDE_AUTOREFRESH;
-              break;
-            case ID_GR:
-              BLI_assert(id_orig->flag & LIB_EMBEDDED_DATA);
-              /* TODO. */
-              break;
-            case ID_NT:
-              BLI_assert(id_orig->flag & LIB_EMBEDDED_DATA);
-              /* TODO. */
-              break;
-            default:
-              BLI_assert(0);
-          }
-        }
       }
-      /* Inform draw engines that something was changed. */
-      flush_engine_data_update(id_cow);
     }
   }
 }
@@ -286,7 +245,7 @@ void invalidate_tagged_evaluated_transform(ID *id)
   switch (id_type) {
     case ID_OB: {
       Object *object = (Object *)id;
-      copy_vn_fl((float *)object->object_to_world, 16, NAN);
+      copy_vn_fl((float *)object->object_to_world().ptr(), 16, NAN);
       break;
     }
     default:
@@ -317,7 +276,7 @@ void invalidate_tagged_evaluated_data(Depsgraph *graph)
       continue;
     }
     ID *id_cow = id_node->id_cow;
-    if (!deg_copy_on_write_is_expanded(id_cow)) {
+    if (!deg_eval_copy_is_expanded(id_cow)) {
       continue;
     }
     for (ComponentNode *comp_node : id_node->components.values()) {

@@ -9,19 +9,14 @@
 #include "abc_writer_hair.h"
 #include "intern/abc_axis_conversion.h"
 
-#include <cstdio>
-
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_customdata.hh"
-#include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_object.hh"
@@ -45,7 +40,7 @@ ABCHairWriter::ABCHairWriter(const ABCWriterConstructorArgs &args)
 
 void ABCHairWriter::create_alembic_objects(const HierarchyContext * /*context*/)
 {
-  CLOG_INFO(&LOG, 2, "exporting %s", args_.abc_path.c_str());
+  CLOG_DEBUG(&LOG, "exporting %s", args_.abc_path.c_str());
   abc_curves_ = OCurves(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_curves_schema_ = abc_curves_.getSchema();
 }
@@ -127,7 +122,7 @@ void ABCHairWriter::write_hair_sample(const HierarchyContext &context,
 {
   /* Get untransformed vertices, there's a xform under the hair. */
   float inv_mat[4][4];
-  invert_m4_m4_safe(inv_mat, context.object->object_to_world);
+  invert_m4_m4_safe(inv_mat, context.object->object_to_world().ptr());
 
   MTFace *mtface = (MTFace *)CustomData_get_layer_for_write(
       &mesh->fdata_legacy, CD_MTFACE, mesh->totface_legacy);
@@ -167,14 +162,14 @@ void ABCHairWriter::write_hair_sample(const HierarchyContext &context,
         MTFace *tface = mtface + num;
 
         if (mface) {
-          float r_uv[2], mapfw[4], vec[3];
+          float uv[2], mapfw[4], vec[3];
 
-          psys_interpolate_uvs(tface, face->v4, pa->fuv, r_uv);
-          uv_values.emplace_back(r_uv[0], r_uv[1]);
+          psys_interpolate_uvs(tface, face->v4, pa->fuv, uv);
+          uv_values.emplace_back(uv[0], uv[1]);
 
           psys_interpolate_face(mesh,
-                                reinterpret_cast<const float(*)[3]>(positions.data()),
-                                reinterpret_cast<const float(*)[3]>(vert_normals.data()),
+                                reinterpret_cast<const float (*)[3]>(positions.data()),
+                                reinterpret_cast<const float (*)[3]>(vert_normals.data()),
                                 face,
                                 tface,
                                 nullptr,
@@ -252,7 +247,7 @@ void ABCHairWriter::write_hair_child_sample(const HierarchyContext &context,
 {
   /* Get untransformed vertices, there's a xform under the hair. */
   float inv_mat[4][4];
-  invert_m4_m4_safe(inv_mat, context.object->object_to_world);
+  invert_m4_m4_safe(inv_mat, context.object->object_to_world().ptr());
 
   const MFace *mface = (const MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE);
   MTFace *mtface = (MTFace *)CustomData_get_layer_for_write(
@@ -285,14 +280,14 @@ void ABCHairWriter::write_hair_child_sample(const HierarchyContext &context,
       const MFace *face = &mface[num];
       MTFace *tface = mtface + num;
 
-      float r_uv[2], tmpnor[3], mapfw[4], vec[3];
+      float uv[2], tmpnor[3], mapfw[4], vec[3];
 
-      psys_interpolate_uvs(tface, face->v4, pc->fuv, r_uv);
-      uv_values.emplace_back(r_uv[0], r_uv[1]);
+      psys_interpolate_uvs(tface, face->v4, pc->fuv, uv);
+      uv_values.emplace_back(uv[0], uv[1]);
 
       psys_interpolate_face(mesh,
-                            reinterpret_cast<const float(*)[3]>(positions.data()),
-                            reinterpret_cast<const float(*)[3]>(vert_normals.data()),
+                            reinterpret_cast<const float (*)[3]>(positions.data()),
+                            reinterpret_cast<const float (*)[3]>(vert_normals.data()),
                             face,
                             tface,
                             nullptr,

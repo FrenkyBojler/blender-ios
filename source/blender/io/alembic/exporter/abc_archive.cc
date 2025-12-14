@@ -5,18 +5,22 @@
 #include "abc_archive.h"
 
 #include "BKE_blender_version.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
-
-#include "DEG_depsgraph_query.hh"
+#include "BKE_main.hh"
 
 #include "DNA_scene_types.h"
 
-#include <Alembic/AbcCoreOgawa/All.h>
-#include <Alembic/AbcGeom/All.h>
+#include <Alembic/Abc/ArchiveInfo.h>
+#include <Alembic/Abc/ErrorHandler.h>
+#include <Alembic/Abc/Foundation.h>
+#include <Alembic/Abc/OArchive.h>
+#include <Alembic/AbcCoreAbstract/MetaData.h>
+#include <Alembic/AbcCoreAbstract/TimeSampling.h>
+#include <Alembic/AbcCoreAbstract/TimeSamplingType.h>
+#include <Alembic/AbcCoreOgawa/ReadWrite.h>
+#include <Alembic/AbcGeom/ArchiveBounds.h>
 
 #ifdef WIN32
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 
 #  include "utfconv.hh"
@@ -159,7 +163,7 @@ ABCArchive::ABCArchive(const Main *bmain,
                        const std::string &filepath)
     : archive(nullptr)
 {
-  double scene_fps = FPS;
+  double scene_fps = scene->frames_per_second();
   MetaData abc_metadata = create_abc_metadata(bmain, scene_fps);
 
   /* Create the Archive. */

@@ -10,6 +10,10 @@
 
 #include <memory>
 
+#include "DNA_listBase.h"
+
+#include "BLI_function_ref.hh"
+
 #include "RNA_types.hh"
 
 /* Needed for `tree_element_cast()`. */
@@ -18,31 +22,23 @@
 /* internal exports only */
 
 struct ARegion;
-struct Bone;
 struct Collection;
 struct EditBone;
-struct GpencilModifierData;
 struct ID;
 struct LayerCollection;
 struct ListBase;
 struct Main;
-struct ModifierData;
-struct ModifierDataStoreElem;
 struct Object;
 struct Scene;
-struct ShaderFxData;
 struct TreeStoreElem;
 struct ViewLayer;
-struct bActionGroup;
-struct bConstraint;
 struct bContext;
 struct bContextDataResult;
-struct bDeformGroup;
 struct bPoseChannel;
-struct ParticleSystem;
 struct View2D;
 struct wmKeyConfig;
 struct wmOperatorType;
+struct WorkSpace;
 
 namespace blender::bke::outliner::treehash {
 class TreeHash;
@@ -86,7 +82,7 @@ enum TreeTraversalAction {
   TRAVERSE_SKIP_CHILDS,
 };
 
-typedef TreeTraversalAction (*TreeTraversalFunc)(TreeElement *te, void *customdata);
+using TreeTraversalFunc = TreeTraversalAction (*)(TreeElement *te, void *customdata);
 
 struct TreeElement {
   TreeElement *next, *prev, *parent;
@@ -145,7 +141,7 @@ struct TreeElementIcon {
         ID_CV, \
         ID_PT, \
         ID_VO, \
-        ID_GP) || /* Only in 'blendfile' mode ... :/ */ \
+        ID_GP) || /* Only in blend-file mode ... :/ */ \
    ELEM(GS((_id)->name), \
         ID_SCR, \
         ID_WM, \
@@ -200,8 +196,7 @@ enum eOLSetState {
 /* size constants */
 #define OL_Y_OFFSET 2
 
-#define OL_TOG_USER_BUTS_USERS (UI_UNIT_X * 2.0f + V2D_SCROLL_WIDTH)
-#define OL_TOG_USER_BUTS_STATUS (UI_UNIT_X + V2D_SCROLL_WIDTH)
+#define OL_TOG_USER_BUTS_USERS (UI_UNIT_X * 1.2f + V2D_SCROLL_WIDTH)
 
 #define OL_RNA_COLX (UI_UNIT_X * 15)
 #define OL_RNA_COL_SIZEX (UI_UNIT_X * 7.5f)
@@ -241,9 +236,13 @@ enum eOLSetState {
  * Also so we can have one place to assign these variables.
  */
 struct TreeViewContext {
+  /* Workspace. */
+  WorkSpace *workspace;
+
   /* Scene level. */
   Scene *scene;
   ViewLayer *view_layer;
+  LayerCollection *layer_collection;
 
   /* Object level. */
   /** Avoid `BKE_view_layer_active_object_get` everywhere. */
@@ -280,6 +279,7 @@ void outliner_free_tree_element(TreeElement *element, ListBase *parent_subtree);
  * Main entry point for building the tree data-structure that the outliner represents.
  */
 void outliner_build_tree(Main *mainvar,
+                         WorkSpace *workspace,
                          Scene *scene,
                          ViewLayer *view_layer,
                          SpaceOutliner *space_outliner,
@@ -300,7 +300,10 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
 
 /* `outliner_draw.cc` */
 
-void draw_outliner(const bContext *C);
+/**
+ * \param do_rebuild: When false, only the scroll position changed since last draw.
+ */
+void draw_outliner(const bContext *C, bool do_rebuild);
 
 void outliner_tree_dimensions(SpaceOutliner *space_outliner, int *r_width, int *r_height);
 
@@ -327,7 +330,7 @@ int tree_element_id_type_to_index(TreeElement *te);
  * Generic call for non-id data to make active in UI
  */
 void tree_element_type_active_set(bContext *C,
-                                  const TreeViewContext *tvc,
+                                  const TreeViewContext &tvc,
                                   TreeElement *te,
                                   TreeStoreElem *tselem,
                                   eOLSetState set,
@@ -335,19 +338,18 @@ void tree_element_type_active_set(bContext *C,
 /**
  * Generic call for non-id data to check the active state in UI.
  */
-eOLDrawState tree_element_type_active_state_get(const bContext *C,
-                                                const TreeViewContext *tvc,
+eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
                                                 const TreeElement *te,
                                                 const TreeStoreElem *tselem);
 /**
  * Generic call for ID data check or make/check active in UI.
  */
 void tree_element_activate(bContext *C,
-                           const TreeViewContext *tvc,
+                           const TreeViewContext &tvc,
                            TreeElement *te,
                            eOLSetState set,
                            bool handle_all_types);
-eOLDrawState tree_element_active_state_get(const TreeViewContext *tvc,
+eOLDrawState tree_element_active_state_get(const TreeViewContext &tvc,
                                            const TreeElement *te,
                                            const TreeStoreElem *tselem);
 
@@ -379,16 +381,18 @@ bool outliner_is_co_within_mode_column(SpaceOutliner *space_outliner, const floa
 /**
  * Toggle the item's interaction mode if supported.
  */
-void outliner_item_mode_toggle(bContext *C, TreeViewContext *tvc, TreeElement *te, bool do_extend);
+void outliner_item_mode_toggle(bContext *C,
+                               const TreeViewContext &tvc,
+                               TreeElement *te,
+                               bool do_extend);
 
 /* `outliner_edit.cc` */
-typedef void (*outliner_operation_fn)(bContext *C,
-                                      ReportList *,
-                                      Scene *scene,
-                                      TreeElement *,
-                                      TreeStoreElem *,
-                                      TreeStoreElem *,
-                                      void *);
+using outliner_operation_fn = FunctionRef<void(bContext *C,
+                                               ReportList *reports,
+                                               Scene *scene,
+                                               TreeElement *te,
+                                               TreeStoreElem *tsep,
+                                               TreeStoreElem *tselem)>;
 
 /**
  * \param recurse_selected: Set to false for operations which are already
@@ -400,7 +404,6 @@ void outliner_do_object_operation_ex(bContext *C,
                                      SpaceOutliner *space_outliner,
                                      ListBase *lb,
                                      outliner_operation_fn operation_fn,
-                                     void *user_data,
                                      bool recurse_selected);
 void outliner_do_object_operation(bContext *C,
                                   ReportList *reports,
@@ -424,37 +427,32 @@ void item_rename_fn(bContext *C,
                     Scene *scene,
                     TreeElement *te,
                     TreeStoreElem *tsep,
-                    TreeStoreElem *tselem,
-                    void *user_data);
+                    TreeStoreElem *tselem);
 void lib_relocate_fn(bContext *C,
                      ReportList *reports,
                      Scene *scene,
                      TreeElement *te,
                      TreeStoreElem *tsep,
-                     TreeStoreElem *tselem,
-                     void *user_data);
+                     TreeStoreElem *tselem);
 void lib_reload_fn(bContext *C,
                    ReportList *reports,
                    Scene *scene,
                    TreeElement *te,
                    TreeStoreElem *tsep,
-                   TreeStoreElem *tselem,
-                   void *user_data);
+                   TreeStoreElem *tselem);
 
 void id_delete_tag_fn(bContext *C,
                       ReportList *reports,
                       Scene *scene,
                       TreeElement *te,
                       TreeStoreElem *tsep,
-                      TreeStoreElem *tselem,
-                      void *user_data);
+                      TreeStoreElem *tselem);
 void id_remap_fn(bContext *C,
                  ReportList *reports,
                  Scene *scene,
                  TreeElement *te,
                  TreeStoreElem *tsep,
-                 TreeStoreElem *tselem,
-                 void *user_data);
+                 TreeStoreElem *tselem);
 
 /**
  * To retrieve coordinates with redrawing the entire tree.
@@ -492,6 +490,7 @@ void OUTLINER_OT_lib_relocate(wmOperatorType *ot);
 void OUTLINER_OT_lib_reload(wmOperatorType *ot);
 
 void OUTLINER_OT_id_delete(wmOperatorType *ot);
+void OUTLINER_OT_id_linked_relocate(wmOperatorType *ot);
 
 void OUTLINER_OT_show_one_level(wmOperatorType *ot);
 void OUTLINER_OT_show_active(wmOperatorType *ot);
@@ -502,6 +501,8 @@ void OUTLINER_OT_select_walk(wmOperatorType *ot);
 
 void OUTLINER_OT_select_all(wmOperatorType *ot);
 void OUTLINER_OT_expanded_toggle(wmOperatorType *ot);
+void OUTLINER_OT_start_filter(wmOperatorType *ot);
+void OUTLINER_OT_clear_filter(wmOperatorType *ot);
 
 void OUTLINER_OT_scroll_page(wmOperatorType *ot);
 
@@ -512,9 +513,14 @@ void OUTLINER_OT_drivers_add_selected(wmOperatorType *ot);
 void OUTLINER_OT_drivers_delete_selected(wmOperatorType *ot);
 
 void OUTLINER_OT_orphans_purge(wmOperatorType *ot);
+void OUTLINER_OT_orphans_manage(wmOperatorType *ot);
 
 /* `outliner_query.cc` */
 
+/**
+ * Iterate over the entire tree (including collapsed sub-elements),
+ * probing if any of the elements has a warning to be displayed.
+ */
 bool outliner_shows_mode_column(const SpaceOutliner &space_outliner);
 bool outliner_has_element_warnings(const SpaceOutliner &space_outliner);
 
@@ -670,7 +676,9 @@ void outliner_tag_redraw_avoid_rebuild_on_open_change(const SpaceOutliner *space
 /**
  * If outliner is dirty sync selection from view layer and sequencer.
  */
-void outliner_sync_selection(const bContext *C, SpaceOutliner *space_outliner);
+void outliner_sync_selection(const bContext *C,
+                             const TreeViewContext &tvc,
+                             SpaceOutliner *space_outliner);
 
 /* `outliner_context.cc` */
 

@@ -6,27 +6,26 @@
  * \ingroup spclip
  */
 
-#include "MEM_guardedalloc.h"
+#include <algorithm>
 
 #include "DNA_movieclip_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
 
-#include "BLI_lasso_2d.h"
+#include "BLI_lasso_2d.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "ED_clip.hh"
-#include "ED_mask.hh"
-#include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
 #include "RNA_access.hh"
@@ -36,8 +35,14 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "clip_intern.h"         /* own include */
-#include "tracking_ops_intern.h" /* own include */
+#include "clip_intern.hh"         /* own include */
+#include "tracking_ops_intern.hh" /* own include */
+
+using blender::Array;
+using blender::int2;
+using blender::Span;
+
+namespace math = blender::math;
 
 /* -------------------------------------------------------------------- */
 /** \name Point track marker picking.
@@ -154,9 +159,7 @@ static float mouse_to_closest_corners_edge_distance_squared(const float co[2],
     const float distance_squared = dist_squared_to_line_segment_v2(
         co_px, corner_co_px, prev_corner_co_px);
 
-    if (distance_squared < min_distance_squared) {
-      min_distance_squared = distance_squared;
-    }
+    min_distance_squared = std::min(distance_squared, min_distance_squared);
 
     copy_v2_v2(prev_corner_co_px, corner_co_px);
   }
@@ -203,7 +206,8 @@ PointTrackPick ed_tracking_pick_point_track(const TrackPickOptions *options,
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
-  const float distance_tolerance_px_squared = (12.0f * 12.0f) / space_clip->zoom;
+  const float distance_tolerance_px_squared = math::square(12.0f / space_clip->zoom *
+                                                           UI_SCALE_FAC);
   const bool are_disabled_markers_visible = (space_clip->flag & SC_HIDE_DISABLED) == 0;
   const int framenr = ED_space_clip_get_clip_frame_number(space_clip);
 
@@ -392,7 +396,8 @@ PlaneTrackPick ed_tracking_pick_plane_track(const TrackPickOptions *options,
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const int framenr = ED_space_clip_get_clip_frame_number(space_clip);
 
-  const float distance_tolerance_px_squared = (12.0f * 12.0f) / space_clip->zoom;
+  const float distance_tolerance_px_squared = math::square(12.0f / space_clip->zoom *
+                                                           UI_SCALE_FAC);
   PlaneTrackPick pick = plane_track_pick_make_null();
 
   LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, &tracking_object->plane_tracks) {
@@ -490,7 +495,7 @@ static bool tracking_should_prefer_point_track(bContext *C,
   if (can_slide_point_track && !can_slide_plane_track) {
     return true;
   }
-  else if (!can_slide_point_track && can_slide_plane_track) {
+  if (!can_slide_point_track && can_slide_plane_track) {
     return false;
   }
 
@@ -549,7 +554,7 @@ static bool select_poll(bContext *C)
   return false;
 }
 
-static int select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -569,8 +574,7 @@ static int select_exec(bContext *C, wmOperator *op)
    * operator can be used immediately after.
    * This logic makes it convenient to slide markers when left mouse selection is used. Without it
    * selection will be lost which causes inconvenience for the VFX artist. */
-  const bool activate_selected = !extend;
-  if (activate_selected && ed_tracking_pick_can_slide(sc, &pick)) {
+  if (!extend && ed_tracking_pick_can_slide(sc, &pick)) {
     if (pick.point_track_pick.track != nullptr) {
       tracking_object->active_track = pick.point_track_pick.track;
       tracking_object->active_plane_track = nullptr;
@@ -595,7 +599,7 @@ static int select_exec(bContext *C, wmOperator *op)
     }
 
     MovieTrackingTrack *track = pick.point_track_pick.track;
-    int area = pick.point_track_pick.area;
+    eTrackArea area = pick.point_track_pick.area;
 
     if (!extend || !TRACK_VIEW_SELECTED(sc, track)) {
       area = TRACK_AREA_ALL;
@@ -651,28 +655,11 @@ static int select_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
   DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
 
-  /* This is a bit implicit, but when the selection operator is used from a LMB Add Marker and
-   * tweak tool we do not want the pass-through here and only want selection to happen. This way
-   * the selection operator will not fall-through to Add Marker operator. */
-  if (activate_selected) {
-    if (ed_tracking_pick_can_slide(sc, &pick)) {
-      return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
-    }
-
-    if (ed_tracking_pick_empty(&pick)) {
-      /* When nothing was selected pass-though and allow Add Marker part of the keymap to add new
-       * marker at the position. */
-      return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
-    }
-
-    return OPERATOR_FINISHED;
-  }
-
   /* Pass-through + finished to allow tweak to transform. */
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
 
-static int select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -691,7 +678,7 @@ void CLIP_OT_select(wmOperatorType *ot)
   ot->description = "Select tracking markers";
   ot->idname = "CLIP_OT_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_exec;
   ot->invoke = select_invoke;
   ot->poll = select_poll;
@@ -735,7 +722,7 @@ bool ED_clip_can_select(bContext *C)
 
 /********************** box select operator *********************/
 
-static int box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -821,7 +808,7 @@ void CLIP_OT_select_box(wmOperatorType *ot)
   ot->description = "Select markers using box selection";
   ot->idname = "CLIP_OT_select_box";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = box_select_exec;
   ot->modal = WM_gesture_box_modal;
@@ -837,10 +824,7 @@ void CLIP_OT_select_box(wmOperatorType *ot)
 
 /********************** lasso select operator *********************/
 
-static int do_lasso_select_marker(bContext *C,
-                                  const int mcoords[][2],
-                                  const int mcoords_len,
-                                  bool select)
+static int do_lasso_select_marker(bContext *C, const Span<int2> mcoords, bool select)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -852,7 +836,7 @@ static int do_lasso_select_marker(bContext *C,
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   /* get rectangle from operator */
-  BLI_lasso_boundbox(&rect, mcoords, mcoords_len);
+  BLI_lasso_boundbox(&rect, mcoords);
 
   /* do actual selection */
   LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
@@ -869,8 +853,7 @@ static int do_lasso_select_marker(bContext *C,
       ED_clip_point_stable_pos__reverse(sc, region, marker->pos, screen_co);
 
       if (BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
-          BLI_lasso_is_point_inside(
-              mcoords, mcoords_len, screen_co[0], screen_co[1], V2D_IS_CLIPPED))
+          BLI_lasso_is_point_inside(mcoords, screen_co[0], screen_co[1], V2D_IS_CLIPPED))
       {
         if (select) {
           BKE_tracking_track_flag_set(track, TRACK_AREA_ALL, SELECT);
@@ -899,8 +882,7 @@ static int do_lasso_select_marker(bContext *C,
       ED_clip_point_stable_pos__reverse(sc, region, plane_marker->corners[i], screen_co);
 
       if (BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
-          BLI_lasso_is_point_inside(
-              mcoords, mcoords_len, screen_co[0], screen_co[1], V2D_IS_CLIPPED))
+          BLI_lasso_is_point_inside(mcoords, screen_co[0], screen_co[1], V2D_IS_CLIPPED))
       {
         if (select) {
           plane_track->flag |= SELECT;
@@ -924,26 +906,24 @@ static int do_lasso_select_marker(bContext *C,
   return changed;
 }
 
-static int clip_lasso_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clip_lasso_select_exec(bContext *C, wmOperator *op)
 {
-  int mcoords_len;
-  const int(*mcoords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcoords_len);
+  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
 
-  if (mcoords) {
-    const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
-    const bool select = (sel_op != SEL_OP_SUB);
-    if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-      SpaceClip *sc = CTX_wm_space_clip(C);
-      ED_clip_select_all(sc, SEL_DESELECT, nullptr);
-    }
-
-    do_lasso_select_marker(C, mcoords, mcoords_len, select);
-
-    MEM_freeN((void *)mcoords);
-
-    return OPERATOR_FINISHED;
+  if (mcoords.is_empty()) {
+    return OPERATOR_PASS_THROUGH;
   }
-  return OPERATOR_PASS_THROUGH;
+
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const bool select = (sel_op != SEL_OP_SUB);
+  if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
+    SpaceClip *sc = CTX_wm_space_clip(C);
+    ED_clip_select_all(sc, SEL_DESELECT, nullptr);
+  }
+
+  do_lasso_select_marker(C, mcoords, select);
+
+  return OPERATOR_FINISHED;
 }
 
 void CLIP_OT_select_lasso(wmOperatorType *ot)
@@ -953,7 +933,7 @@ void CLIP_OT_select_lasso(wmOperatorType *ot)
   ot->description = "Select markers using lasso selection";
   ot->idname = "CLIP_OT_select_lasso";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_lasso_invoke;
   ot->modal = WM_gesture_lasso_modal;
   ot->exec = clip_lasso_select_exec;
@@ -990,7 +970,7 @@ static int marker_inside_ellipse(const MovieTrackingMarker *marker,
   return point_inside_ellipse(marker->pos, offset, ellipse);
 }
 
-static int circle_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -1087,7 +1067,7 @@ void CLIP_OT_select_circle(wmOperatorType *ot)
   ot->description = "Select markers using circle selection";
   ot->idname = "CLIP_OT_select_circle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_circle_invoke;
   ot->modal = WM_gesture_circle_modal;
   ot->exec = circle_select_exec;
@@ -1104,7 +1084,7 @@ void CLIP_OT_select_circle(wmOperatorType *ot)
 
 /********************** select all operator *********************/
 
-static int select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1137,7 +1117,7 @@ void CLIP_OT_select_all(wmOperatorType *ot)
   ot->description = "Change selection of all tracking markers";
   ot->idname = "CLIP_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_all_exec;
   ot->poll = ED_space_clip_tracking_poll;
 
@@ -1149,7 +1129,7 @@ void CLIP_OT_select_all(wmOperatorType *ot)
 
 /********************** select grouped operator *********************/
 
-static int select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_grouped_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -1233,7 +1213,7 @@ void CLIP_OT_select_grouped(wmOperatorType *ot)
   ot->description = "Select all tracks from specified group";
   ot->idname = "CLIP_OT_select_grouped";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_grouped_exec;
   ot->poll = ED_space_clip_tracking_poll;
 

@@ -8,14 +8,21 @@
  * \ingroup bke
  */
 
+#include <optional>
+
+#include "BLI_array.hh"
+#include "BLI_bounds_types.hh"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
 #include "BLI_sys_types.h"
 
+#include "DNA_curve_types.h"
 #include "DNA_listBase.h"
 
 struct BezTriple;
 struct BezTriple;
 struct BMEditMesh;
-struct BoundBox;
 struct BPoint;
 struct Curve;
 struct Depsgraph;
@@ -28,7 +35,7 @@ struct Object;
 struct rctf;
 struct TextBox;
 
-typedef int eBezTriple_Flag__Alias;
+using eBezTriple_Flag__Alias = int;
 
 struct CurveCache {
   ListBase disp;
@@ -92,20 +99,16 @@ enum eNurbHandleTest_Mode {
 void BKE_curve_editfont_free(Curve *cu);
 void BKE_curve_init(Curve *cu, short curve_type);
 Curve *BKE_curve_add(Main *bmain, const char *name, int type);
-short BKE_curve_type_get(const Curve *cu);
-void BKE_curve_type_test(Object *ob);
+void BKE_curve_type_test(Object *ob, bool dimension_update);
 void BKE_curve_dimension_update(Curve *cu);
-
-BoundBox *BKE_curve_boundbox_get(Object *ob);
 
 void BKE_curve_texspace_calc(Curve *cu);
 void BKE_curve_texspace_ensure(Curve *cu);
 
 /* Basic vertex data functions. */
 
-bool BKE_curve_minmax(Curve *cu, bool use_radius, float min[3], float max[3]);
+std::optional<blender::Bounds<blender::float3>> BKE_curve_minmax(const Curve *cu, bool use_radius);
 bool BKE_curve_center_median(Curve *cu, float cent[3]);
-bool BKE_curve_center_bounds(Curve *cu, float cent[3]);
 void BKE_curve_transform_ex(
     Curve *cu, const float mat[4][4], bool do_keys, bool do_props, float unit_scale);
 void BKE_curve_transform(Curve *cu, const float mat[4][4], bool do_keys, bool do_props);
@@ -141,26 +144,28 @@ void BKE_curve_nurb_vert_active_set(Curve *cu, const Nurb *nu, const void *vert)
 bool BKE_curve_nurb_vert_active_get(Curve *cu, Nurb **r_nu, void **r_vert);
 void BKE_curve_nurb_vert_active_validate(Curve *cu);
 
-float (*BKE_curve_nurbs_vert_coords_alloc(const ListBase *lb, int *r_vert_len))[3];
-void BKE_curve_nurbs_vert_coords_get(const ListBase *lb, float (*vert_coords)[3], int vert_len);
+blender::Array<blender::float3> BKE_curve_nurbs_vert_coords_alloc(const ListBase *lb);
+void BKE_curve_nurbs_vert_coords_get(const ListBase *lb,
+                                     blender::MutableSpan<blender::float3> vert_coords);
 
 void BKE_curve_nurbs_vert_coords_apply_with_mat4(ListBase *lb,
-                                                 const float (*vert_coords)[3],
-                                                 const float mat[4][4],
+                                                 const blender::Span<blender::float3>,
+                                                 const blender::float4x4 &transform,
                                                  bool constrain_2d);
 
 void BKE_curve_nurbs_vert_coords_apply(ListBase *lb,
-                                       const float (*vert_coords)[3],
+                                       const blender::Span<blender::float3> vert_coords,
                                        bool constrain_2d);
 
-float (*BKE_curve_nurbs_key_vert_coords_alloc(const ListBase *lb, float *key, int *r_vert_len))[3];
+blender::Array<blender::float3> BKE_curve_nurbs_key_vert_coords_alloc(const ListBase *lb,
+                                                                      const float *key);
 void BKE_curve_nurbs_key_vert_tilts_apply(ListBase *lb, const float *key);
 
-void BKE_curve_editNurb_keyIndex_delCV(GHash *keyindex, const void *cv);
-void BKE_curve_editNurb_keyIndex_free(GHash **keyindex);
+void BKE_curve_editNurb_keyIndex_delCV(CVKeyIndexMap *keyindex, const void *cv);
+void BKE_curve_editNurb_keyIndex_free(CVKeyIndexMap **keyindex);
 void BKE_curve_editNurb_free(Curve *cu);
 /**
- * Get list of nurbs from edit-nurbs ure.
+ * Get list of nurbs from edit-nurbs structure.
  */
 ListBase *BKE_curve_editNurbs_get(Curve *cu);
 const ListBase *BKE_curve_editNurbs_get_for_read(const Curve *cu);
@@ -190,7 +195,7 @@ void BKE_curve_correct_bezpart(const float v1[2], float v2[2], float v3[2], cons
 
 /* ** Nurbs ** */
 
-bool BKE_nurbList_index_get_co(ListBase *editnurb, int index, float r_co[3]);
+bool BKE_nurbList_index_get_co(ListBase *nurb, int index, float r_co[3]);
 
 int BKE_nurbList_verts_count(const ListBase *nurb);
 int BKE_nurbList_verts_count_without_handles(const ListBase *nurb);
@@ -224,11 +229,6 @@ Nurb *BKE_nurb_duplicate(const Nurb *nu);
 Nurb *BKE_nurb_copy(Nurb *src, int pntsu, int pntsv);
 
 void BKE_nurb_project_2d(Nurb *nu);
-/**
- * if use_radius is truth, minmax will take points' radius into account,
- * which will make bound-box closer to beveled curve.
- */
-void BKE_nurb_minmax(const Nurb *nu, bool use_radius, float min[3], float max[3]);
 float BKE_nurb_calc_length(const Nurb *nu, int resolution);
 
 /**
@@ -266,11 +266,11 @@ void BKE_curve_calc_coords_axis(const BezTriple *bezt_array,
                                 unsigned int resolu,
                                 bool is_cyclic,
                                 bool use_cyclic_duplicate_endpoint,
-                                /* array params */
+                                /* Array parameters. */
                                 unsigned int axis,
                                 unsigned int stride,
                                 float *r_points);
-
+void BKE_nurb_knot_alloc_u(Nurb *nu);
 void BKE_nurb_knot_calc_u(Nurb *nu);
 void BKE_nurb_knot_calc_v(Nurb *nu);
 
@@ -428,7 +428,7 @@ void BKE_curve_deform_coords_with_editmesh(const Object *ob_curve,
                                            int defgrp_index,
                                            short flag,
                                            short defaxis,
-                                           BMEditMesh *em_target);
+                                           const BMEditMesh *em_target);
 
 /**
  * \param orco: Input vec and orco = local coord in curve space

@@ -5,12 +5,10 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
 
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_function_util.hh"
@@ -41,10 +39,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Rotation");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "space", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  layout.prop(ptr, "rotation_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "space", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
@@ -122,13 +120,19 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_ROTATE_EULER, "Rotate Euler", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, "FunctionNodeRotateEuler", FN_NODE_ROTATE_EULER);
+  ntype.ui_name = "Rotate Euler";
+  ntype.ui_description = "Apply a secondary Euler rotation to a given Euler rotation";
+  ntype.enum_name_legacy = "ROTATE_EULER";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
-  nodeRegisterType(&ntype);
+  ntype.deprecation_notice = N_("Use the \"Rotate Rotation\" node instead");
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

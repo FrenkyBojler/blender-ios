@@ -8,68 +8,35 @@
 
 #include "abc_util.h"
 
-#include "abc_axis_conversion.h"
 #include "abc_reader_camera.h"
 #include "abc_reader_curves.h"
 #include "abc_reader_mesh.h"
-#include "abc_reader_nurbs.h"
 #include "abc_reader_points.h"
 #include "abc_reader_transform.h"
 
+#include <Alembic/AbcGeom/ILight.h>
+#include <Alembic/AbcGeom/INuPatch.h>
 #include <Alembic/AbcMaterial/IMaterial.h>
 
 #include <algorithm>
 
-#include "DNA_object_types.h"
-
-#include "BLI_math_geom.h"
-
-#include "PIL_time.h"
+using Alembic::Abc::IV3fArrayProperty;
+using Alembic::Abc::PropertyHeader;
+using Alembic::Abc::V3fArraySamplePtr;
 
 namespace blender::io::alembic {
 
-std::string get_id_name(const Object *const ob)
-{
-  if (!ob) {
-    return "";
-  }
-
-  return get_id_name(&ob->id);
-}
-
-std::string get_id_name(const ID *const id)
-{
-  return get_valid_abc_name(id->name + 2);
-}
-
 std::string get_valid_abc_name(const char *name)
 {
-  std::string name_string(name);
-  std::replace(name_string.begin(), name_string.end(), ' ', '_');
-  std::replace(name_string.begin(), name_string.end(), '.', '_');
-  std::replace(name_string.begin(), name_string.end(), ':', '_');
-  return name_string;
+  std::string abc_name(name);
+  std::replace(abc_name.begin(), abc_name.end(), ' ', '_');
+  std::replace(abc_name.begin(), abc_name.end(), '.', '_');
+  std::replace(abc_name.begin(), abc_name.end(), ':', '_');
+  std::replace(abc_name.begin(), abc_name.end(), '/', '_');
+  return abc_name;
 }
 
-std::string get_object_dag_path_name(const Object *const ob, Object *dupli_parent)
-{
-  std::string name = get_id_name(ob);
-
-  Object *p = ob->parent;
-
-  while (p) {
-    name = get_id_name(p) + "/" + name;
-    p = p->parent;
-  }
-
-  if (dupli_parent && (ob != dupli_parent)) {
-    name = get_id_name(dupli_parent) + "/" + name;
-  }
-
-  return name;
-}
-
-Imath::M44d convert_matrix_datatype(float mat[4][4])
+Imath::M44d convert_matrix_datatype(const float mat[4][4])
 {
   Imath::M44d m;
 
@@ -114,6 +81,42 @@ bool has_property(const Alembic::Abc::ICompoundProperty &prop, const std::string
   return prop.getPropertyHeader(name) != nullptr;
 }
 
+V3fArraySamplePtr get_velocity_prop(const Alembic::Abc::ICompoundProperty &schema,
+                                    const Alembic::AbcGeom::ISampleSelector &selector,
+                                    const std::string &name)
+{
+  for (size_t i = 0; i < schema.getNumProperties(); i++) {
+    const PropertyHeader &header = schema.getPropertyHeader(i);
+
+    if (header.isCompound()) {
+      const Alembic::Abc::ICompoundProperty &prop = Alembic::Abc::ICompoundProperty(
+          schema, header.getName());
+
+      if (has_property(prop, name)) {
+        /* Header cannot be null here, as its presence is checked via has_property, so it is safe
+         * to dereference. */
+        const PropertyHeader *header = prop.getPropertyHeader(name);
+        if (!IV3fArrayProperty::matches(*header)) {
+          continue;
+        }
+
+        const IV3fArrayProperty &velocity_prop = IV3fArrayProperty(prop, name, 0);
+        if (velocity_prop) {
+          return velocity_prop.getValue(selector);
+        }
+      }
+    }
+    else if (header.isArray()) {
+      if (header.getName() == name && IV3fArrayProperty::matches(header)) {
+        const IV3fArrayProperty &velocity_prop = IV3fArrayProperty(schema, name, 0);
+        return velocity_prop.getValue(selector);
+      }
+    }
+  }
+
+  return V3fArraySamplePtr();
+}
+
 using index_time_pair_t = std::pair<Alembic::AbcCoreAbstract::index_t, Alembic::AbcGeom::chrono_t>;
 
 std::optional<SampleInterpolationSettings> get_sample_interpolation_settings(
@@ -147,7 +150,7 @@ std::optional<SampleInterpolationSettings> get_sample_interpolation_settings(
   return SampleInterpolationSettings{i0, i1, bias};
 }
 
-//#define USE_NURBS
+// #define USE_NURBS
 
 AbcObjectReader *create_reader(const Alembic::AbcGeom::IObject &object, ImportSettings &settings)
 {
@@ -199,42 +202,6 @@ AbcObjectReader *create_reader(const Alembic::AbcGeom::IObject &object, ImportSe
   }
 
   return reader;
-}
-
-/* ********************** */
-
-ScopeTimer::ScopeTimer(const char *message)
-    : m_message(message), m_start(PIL_check_seconds_timer())
-{
-}
-
-ScopeTimer::~ScopeTimer()
-{
-  fprintf(stderr, "%s: %fs\n", m_message, PIL_check_seconds_timer() - m_start);
-}
-
-/* ********************** */
-
-std::string SimpleLogger::str() const
-{
-  return m_stream.str();
-}
-
-void SimpleLogger::clear()
-{
-  m_stream.clear();
-  m_stream.str("");
-}
-
-std::ostringstream &SimpleLogger::stream()
-{
-  return m_stream;
-}
-
-std::ostream &operator<<(std::ostream &os, const SimpleLogger &logger)
-{
-  os << logger.str();
-  return os;
 }
 
 }  // namespace blender::io::alembic

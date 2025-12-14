@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
 #ifdef WITH_TBB
@@ -23,9 +27,10 @@
 #  endif
 #else
 #  include <atomic>
-#  include <mutex>
+#  include <functional>
 
 #  include "BLI_map.hh"
+#  include "BLI_mutex.hh"
 #endif
 
 #include "BLI_utility_mixins.hh"
@@ -37,7 +42,7 @@ namespace enumerable_thread_specific_utils {
 inline std::atomic<int> next_id = 0;
 inline thread_local int thread_id = next_id.fetch_add(1, std::memory_order_relaxed);
 }  // namespace enumerable_thread_specific_utils
-#endif
+#endif /* !WITH_TBB */
 
 /**
  * This is mainly a wrapper for `tbb::enumerable_thread_specific`. The wrapper is needed because we
@@ -76,7 +81,7 @@ template<typename T> class EnumerableThreadSpecific : NonCopyable, NonMovable {
 #else /* WITH_TBB */
 
  private:
-  std::mutex mutex_;
+  Mutex mutex_;
   /* Maps thread ids to their corresponding values. The values are not embedded in the map, so that
    * their addresses do not change when the map grows. */
   Map<int, std::reference_wrapper<T>> values_;

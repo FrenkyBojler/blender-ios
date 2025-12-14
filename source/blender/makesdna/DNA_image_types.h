@@ -12,15 +12,25 @@
 #include "DNA_color_types.h" /* for color management */
 #include "DNA_defs.h"
 
-struct GPUTexture;
+#ifdef __cplusplus
+namespace blender::bke {
+struct ImageRuntime;
+}  // namespace blender::bke
+using ImageRuntimeHandle = blender::bke::ImageRuntime;
+#else
+typedef struct ImageRuntimeHandle ImageRuntimeHandle;
+#endif
+
+struct MovieReader;
 struct MovieCache;
 struct PackedFile;
 struct RenderResult;
 struct Scene;
-struct anim;
 
-/* ImageUser is in Texture, in Nodes, Background Image, Image Window, .... */
-/* should be used in conjunction with an ID * to Image. */
+/**
+ * ImageUser is in Texture, in Nodes, Background Image, Image Window, ...
+ * should be used in conjunction with an ID * to Image.
+ */
 typedef struct ImageUser {
   /** To retrieve render result. */
   struct Scene *scene;
@@ -47,15 +57,13 @@ typedef struct ImageUser {
 
 typedef struct ImageAnim {
   struct ImageAnim *next, *prev;
-  struct anim *anim;
+  struct MovieReader *anim;
 } ImageAnim;
 
 typedef struct ImageView {
   struct ImageView *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char name[/*MAX_NAME*/ 64];
+  char filepath[/*FILE_MAX*/ 1024];
 } ImageView;
 
 typedef struct ImagePackedFile {
@@ -66,14 +74,12 @@ typedef struct ImagePackedFile {
    * respectively when creating their ImagePackedFile. Must be provided for each packed image. */
   int view;
   int tile_number;
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 } ImagePackedFile;
 
 typedef struct RenderSlot {
   struct RenderSlot *next, *prev;
-  /** 64 = MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   struct RenderResult *render;
 } RenderSlot;
 
@@ -103,7 +109,7 @@ typedef struct ImageTile {
 /** #ImageUser::flag */
 enum {
   IMA_ANIM_ALWAYS = 1 << 0,
-  // IMA_UNUSED_1 = 1 << 1,
+  IMA_SHOW_SEQUENCER_SCENE = 1 << 1,
   // IMA_UNUSED_2 = 1 << 2,
   IMA_NEED_FRAME_RECALC = 1 << 3,
   IMA_SHOW_STEREO = 1 << 4,
@@ -113,37 +119,22 @@ enum {
 /* Used to get the correct gpu texture from an Image datablock. */
 typedef enum eGPUTextureTarget {
   TEXTARGET_2D = 0,
-  TEXTARGET_2D_ARRAY,
-  TEXTARGET_TILE_MAPPING,
-  TEXTARGET_COUNT,
+  TEXTARGET_2D_ARRAY = 1,
+  TEXTARGET_TILE_MAPPING = 2,
+  TEXTARGET_COUNT = 3,
 } eGPUTextureTarget;
 
-/* Defined in BKE_image.h. */
-struct PartialUpdateRegister;
-struct PartialUpdateUser;
-
-typedef struct Image_Runtime {
-  /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
-   */
-  void *cache_mutex;
-
-  /** \brief Register containing partial updates. */
-  struct PartialUpdateRegister *partial_update_register;
-  /** \brief Partial update user for GPUTextures stored inside the Image. */
-  struct PartialUpdateUser *partial_update_user;
-
-} Image_Runtime;
-
 typedef struct Image {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_IM;
+#endif
+
   ID id;
+  struct AnimData *adt;
 
-  /** File path, 1024 = FILE_MAX. */
-  char filepath[1024];
-
-  /** Not written in file. */
-  struct MovieCache *cache;
-  /** Not written in file 3 = TEXTARGET_COUNT, 2 = stereo eyes. */
-  struct GPUTexture *gputexture[3][2];
+  /** File path. */
+  char filepath[/*FILE_MAX*/ 1024];
 
   /* sources from: */
   ListBase anims;
@@ -156,24 +147,17 @@ typedef struct Image {
   short source, type;
   int lastframe;
 
-  /* GPU texture flag. */
-  int gpuframenr;
-  short gpuflag;
-  short gpu_pass;
-  short gpu_layer;
-  short gpu_view;
-
   /* Number of iterations to perform when extracting mask for uv seam fixing. */
   short seam_margin;
 
-  char _pad2[2];
+  char _pad2[6];
 
   /** Deprecated. */
   struct PackedFile *packedfile DNA_DEPRECATED;
   struct ListBase packedfiles;
   struct PreviewImage *preview;
 
-  int lastused;
+  char _pad3[4];
 
   /* for generated images */
   int gen_x DNA_DEPRECATED, gen_y DNA_DEPRECATED;
@@ -195,9 +179,6 @@ typedef struct Image {
   char eye;
   char views_format;
 
-  /** Offset caused by translation. Used in compositor backdrop for viewer nodes in image space. */
-  int offset_x, offset_y;
-
   /* ImageTile list for UDIMs. */
   int active_tile_index;
   ListBase tiles;
@@ -206,7 +187,7 @@ typedef struct Image {
   ListBase views;
   struct Stereo3dFormat *stereo3d_format;
 
-  Image_Runtime runtime;
+  ImageRuntimeHandle *runtime;
 } Image;
 
 /* **************** IMAGE ********************* */

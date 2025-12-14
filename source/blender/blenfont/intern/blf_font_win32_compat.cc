@@ -22,7 +22,7 @@
 #  include "BLI_fileops.h"
 #  include "BLI_utildefines.h"
 
-#  include "blf_internal.h"
+#  include "blf_internal.hh"
 
 /* internal freetype defines */
 #  define STREAM_FILE(stream) static_cast<FILE *>(stream->descriptor.pointer)
@@ -72,7 +72,7 @@ static FT_Error FT_Stream_Open__win32_compat(FT_Stream stream, const char *filep
   if (!file) {
     fprintf(stderr,
             "FT_Stream_Open: "
-            "could not open `%s'\n",
+            "could not open '%s'\n",
             filepathname);
     return FT_THROW(Cannot_Open_Resource);
   }
@@ -82,7 +82,7 @@ static FT_Error FT_Stream_Open__win32_compat(FT_Stream stream, const char *filep
   if (!stream->size) {
     fprintf(stderr,
             "FT_Stream_Open: "
-            "opened `%s' but zero-sized\n",
+            "opened '%s' but zero-sized\n",
             filepathname);
     fclose(file);
     return FT_THROW(Cannot_Open_Stream);

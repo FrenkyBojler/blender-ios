@@ -6,8 +6,7 @@ from bpy.types import Operator
 from mathutils import Vector
 
 
-def randomize_selected(context, seed, delta,
-                       loc, rot, scale, scale_even, _scale_min):
+def randomize_selected(context, seed, delta, loc, rot, scale, scale_even, _scale_min):
 
     import random
     from random import uniform
@@ -55,9 +54,11 @@ def randomize_selected(context, seed, delta,
             else:
                 org_sca_x, org_sca_y, org_sca_z = obj.scale
 
-            sca_x, sca_y, sca_z = (uniform(-scale[0] + 2.0, scale[0]),
-                                   uniform(-scale[1] + 2.0, scale[1]),
-                                   uniform(-scale[2] + 2.0, scale[2]))
+            sca_x, sca_y, sca_z = (
+                uniform(-scale[0] + 2.0, scale[0]),
+                uniform(-scale[1] + 2.0, scale[1]),
+                uniform(-scale[2] + 2.0, scale[2]),
+            )
 
             if scale_even:
                 aX = sca_x * org_sca_x
@@ -100,8 +101,7 @@ class RandomizeLocRotSize(Operator):
     )
     use_delta: BoolProperty(
         name="Transform Delta",
-        description=("Randomize delta transform values "
-                     "instead of regular transform"),
+        description="Randomize delta transform values instead of regular transform",
         default=False,
     )
     use_loc: BoolProperty(
@@ -111,8 +111,7 @@ class RandomizeLocRotSize(Operator):
     )
     loc: FloatVectorProperty(
         name="Location",
-        description=("Maximum distance the objects "
-                     "can spread over each axis"),
+        description="Maximum distance the objects can spread over each axis",
         min=-100.0,
         max=100.0,
         default=(0.0, 0.0, 0.0),
@@ -174,8 +173,7 @@ class RandomizeLocRotSize(Operator):
         # scale_min = self.scale_min
         scale_min = 0
 
-        randomize_selected(context, seed, delta,
-                           loc, rot, scale, scale_even, scale_min)
+        randomize_selected(context, seed, delta, loc, rot, scale, scale_even, scale_min)
 
         return {'FINISHED'}
 

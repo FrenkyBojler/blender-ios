@@ -14,10 +14,6 @@
 
 #include "UnaryFunction1D_Nature_EdgeNature/BPy_CurveNatureF1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -33,22 +29,22 @@ int UnaryFunction1DEdgeNature_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction1DEdgeNature_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction1DEdgeNature_Type);
-  PyModule_AddObject(
+  PyModule_AddObjectRef(
       module, "UnaryFunction1DEdgeNature", (PyObject *)&UnaryFunction1DEdgeNature_Type);
 
   if (PyType_Ready(&CurveNatureF1D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&CurveNatureF1D_Type);
-  PyModule_AddObject(module, "CurveNatureF1D", (PyObject *)&CurveNatureF1D_Type);
+  PyModule_AddObjectRef(module, "CurveNatureF1D", (PyObject *)&CurveNatureF1D_Type);
 
   return 0;
 }
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char UnaryFunction1DEdgeNature___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    UnaryFunction1DEdgeNature___doc__,
     "Class hierarchy: :class:`UnaryFunction1D` > :class:`UnaryFunction1DEdgeNature`\n"
     "\n"
     "Base class for unary functions (functors) that work on\n"
@@ -61,8 +57,7 @@ static char UnaryFunction1DEdgeNature___doc__[] =
     "   or the integration method given as an argument.\n"
     "\n"
     "   :arg integration_type: An integration method.\n"
-    "   :type integration_type: :class:`IntegrationType`\n";
-
+    "   :type integration_type: :class:`IntegrationType`\n");
 static int UnaryFunction1DEdgeNature___init__(BPy_UnaryFunction1DEdgeNature *self,
                                               PyObject *args,
                                               PyObject *kwds)
@@ -71,7 +66,8 @@ static int UnaryFunction1DEdgeNature___init__(BPy_UnaryFunction1DEdgeNature *sel
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
 
@@ -127,11 +123,12 @@ static PyObject *UnaryFunction1DEdgeNature___call__(BPy_UnaryFunction1DEdgeNatur
 
 /*----------------------UnaryFunction1DEdgeNature get/setters ----------------------------*/
 
-PyDoc_STRVAR(integration_type_doc,
-             "The integration method.\n"
-             "\n"
-             ":type: :class:`IntegrationType`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    integration_type_doc,
+    "The integration method.\n"
+    "\n"
+    ":type: :class:`IntegrationType`\n");
 static PyObject *integration_type_get(BPy_UnaryFunction1DEdgeNature *self, void * /*closure*/)
 {
   return BPy_IntegrationType_from_IntegrationType(self->uf1D_edgenature->getIntegrationType());
@@ -202,7 +199,3 @@ PyTypeObject UnaryFunction1DEdgeNature_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

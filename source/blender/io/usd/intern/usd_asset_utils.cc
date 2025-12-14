@@ -2,34 +2,41 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_asset_utils.h"
+#include "usd_asset_utils.hh"
+#include "usd.hh"
 
 #include <pxr/usd/ar/asset.h>
 #include <pxr/usd/ar/packageUtils.h>
 #include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/ar/writableAsset.h>
+#include <pxr/usd/usd/common.h>
+#include <pxr/usd/usd/stage.h>
 
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_appdir.hh"
+#include "BKE_idprop.hh"
+#include "BKE_main.hh"
+#include "BKE_report.hh"
 
-#include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_fileops.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 
 #include "WM_api.hh"
-#include "WM_types.hh"
 
-static const char UDIM_PATTERN[] = "<UDIM>";
-static const char UDIM_PATTERN2[] = "%3CUDIM%3E";
+#include <string_view>
+
+namespace blender::io::usd {
+
+constexpr char UDIM_PATTERN[] = "<UDIM>";
+constexpr char UDIM_PATTERN2[] = "%3CUDIM%3E";
 
 /* Maximum range of UDIM tiles, per the
  * UsdPreviewSurface specifications.  See
  * https://graphics.pixar.com/usd/release/spec_usdpreviewsurface.html#texture-reader
  */
-static const int UDIM_START_TILE = 1001;
-static const int UDIM_END_TILE = 1100;
-
-namespace blender::io::usd {
+constexpr int UDIM_START_TILE = 1001;
+constexpr int UDIM_END_TILE = 1100;
 
 /**
  * The following is copied from `_SplitUdimPattern()` in
@@ -39,21 +46,20 @@ namespace blender::io::usd {
  */
 static std::pair<std::string, std::string> split_udim_pattern(const std::string &path)
 {
-  static const std::vector<std::string> patterns = {UDIM_PATTERN, UDIM_PATTERN2};
-
-  for (const std::string &pattern : patterns) {
+  std::string_view patterns[]{UDIM_PATTERN, UDIM_PATTERN2};
+  for (const std::string_view pattern : patterns) {
     const std::string::size_type pos = path.find(pattern);
     if (pos != std::string::npos) {
       return {path.substr(0, pos), path.substr(pos + pattern.size())};
     }
   }
 
-  return {std::string(), std::string()};
+  return {};
 }
 
 /* Return the asset file base name, with special handling of
  * package relative paths. */
-static std::string get_asset_base_name(const char *src_path, ReportList *reports)
+static std::string get_asset_base_name(const std::string &src_path, ReportList *reports)
 {
   char base_name[FILE_MAXFILE];
 
@@ -64,20 +70,20 @@ static std::string get_asset_base_name(const char *src_path, ReportList *reports
                   RPT_WARNING,
                   "%s: Couldn't determine package-relative file name from path %s",
                   __func__,
-                  src_path);
+                  src_path.c_str());
       return src_path;
     }
     BLI_path_split_file_part(split.second.c_str(), base_name, sizeof(base_name));
   }
   else {
-    BLI_path_split_file_part(src_path, base_name, sizeof(base_name));
+    BLI_path_split_file_part(src_path.c_str(), base_name, sizeof(base_name));
   }
 
   return base_name;
 }
 
 /* Copy an asset to a destination directory. */
-static std::string copy_asset_to_directory(const char *src_path,
+static std::string copy_asset_to_directory(const std::string &src_path,
                                            const char *dest_dir_path,
                                            eUSDTexNameCollisionMode name_collision_mode,
                                            ReportList *reports)
@@ -97,7 +103,7 @@ static std::string copy_asset_to_directory(const char *src_path,
                 RPT_WARNING,
                 "%s: Couldn't copy file %s to %s",
                 __func__,
-                src_path,
+                src_path.c_str(),
                 dest_file_path);
     return src_path;
   }
@@ -105,7 +111,7 @@ static std::string copy_asset_to_directory(const char *src_path,
   return dest_file_path;
 }
 
-static std::string copy_udim_asset_to_directory(const char *src_path,
+static std::string copy_udim_asset_to_directory(const std::string &src_path,
                                                 const char *dest_dir_path,
                                                 eUSDTexNameCollisionMode name_collision_mode,
                                                 ReportList *reports)
@@ -113,7 +119,8 @@ static std::string copy_udim_asset_to_directory(const char *src_path,
   /* Get prefix and suffix from udim pattern. */
   std::pair<std::string, std::string> splitPath = split_udim_pattern(src_path);
   if (splitPath.first.empty() || splitPath.second.empty()) {
-    BKE_reportf(reports, RPT_ERROR, "%s: Couldn't split UDIM pattern %s", __func__, src_path);
+    BKE_reportf(
+        reports, RPT_ERROR, "%s: Couldn't split UDIM pattern %s", __func__, src_path.c_str());
     return src_path;
   }
 
@@ -121,13 +128,13 @@ static std::string copy_udim_asset_to_directory(const char *src_path,
    * of a directory using the USD resolver, we must take a brute force approach.  We iterate
    * over the allowed range of tile indices and copy any tiles that exist.  The USDPreviewSurface
    * specification stipulates "a maximum of ten tiles in the U direction" and that
-   * "the tiles must be within the range [1001, 1099]". See
+   * "the tiles must be within the range [1001, 1100] (as of specification version 2.5)". See
    * https://graphics.pixar.com/usd/release/spec_usdpreviewsurface.html#texture-reader
    */
-  for (int i = UDIM_START_TILE; i < UDIM_END_TILE; ++i) {
+  for (int i = UDIM_START_TILE; i <= UDIM_END_TILE; ++i) {
     const std::string src_udim = splitPath.first + std::to_string(i) + splitPath.second;
-    if (asset_exists(src_udim.c_str())) {
-      copy_asset_to_directory(src_udim.c_str(), dest_dir_path, name_collision_mode, reports);
+    if (asset_exists(src_udim)) {
+      copy_asset_to_directory(src_udim, dest_dir_path, name_collision_mode, reports);
     }
   }
 
@@ -147,21 +154,18 @@ static std::string copy_udim_asset_to_directory(const char *src_path,
   return splitPath.first + UDIM_PATTERN + splitPath.second;
 }
 
-bool copy_asset(const char *src,
-                const char *dst,
+bool copy_asset(const std::string &src,
+                const std::string &dst,
                 eUSDTexNameCollisionMode name_collision_mode,
                 ReportList *reports)
 {
-  if (!(src && dst)) {
-    return false;
-  }
-
-  pxr::ArResolver &ar = pxr::ArGetResolver();
+  const pxr::ArResolver &ar = pxr::ArGetResolver();
 
   if (name_collision_mode != USD_TEX_NAME_COLLISION_OVERWRITE) {
     if (!ar.Resolve(dst).IsEmpty()) {
       /* The asset exists, so this is a no-op. */
-      BKE_reportf(reports, RPT_INFO, "%s: Will not overwrite existing asset %s", __func__, dst);
+      BKE_reportf(
+          reports, RPT_INFO, "%s: Will not overwrite existing asset %s", __func__, dst.c_str());
       return true;
     }
   }
@@ -169,21 +173,22 @@ bool copy_asset(const char *src,
   pxr::ArResolvedPath src_path = ar.Resolve(src);
 
   if (src_path.IsEmpty()) {
-    BKE_reportf(reports, RPT_ERROR, "%s: Can't resolve path %s", __func__, src);
+    BKE_reportf(reports, RPT_ERROR, "%s: Cannot resolve path %s", __func__, src.c_str());
     return false;
   }
 
   pxr::ArResolvedPath dst_path = ar.ResolveForNewAsset(dst);
 
   if (dst_path.IsEmpty()) {
-    BKE_reportf(reports, RPT_ERROR, "%s: Can't resolve path %s for writing", __func__, dst);
+    BKE_reportf(
+        reports, RPT_ERROR, "%s: Cannot resolve path %s for writing", __func__, dst.c_str());
     return false;
   }
 
   if (src_path == dst_path) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "%s: Can't copy %s. The source and destination paths are the same",
+                "%s: Cannot copy %s. The source and destination paths are the same",
                 __func__,
                 src_path.GetPathString().c_str());
     return false;
@@ -193,7 +198,7 @@ bool copy_asset(const char *src,
   if (!ar.CanWriteAssetToPath(dst_path, &why_not)) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "%s: Can't write to asset %s:  %s",
+                "%s: Cannot write to asset %s: %s",
                 __func__,
                 dst_path.GetPathString().c_str(),
                 why_not.c_str());
@@ -204,7 +209,7 @@ bool copy_asset(const char *src,
   if (!src_asset) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "%s: Can't open source asset %s",
+                "%s: Cannot open source asset %s",
                 __func__,
                 src_path.GetPathString().c_str());
     return false;
@@ -237,7 +242,7 @@ bool copy_asset(const char *src,
   if (!dst_asset) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "%s: Can't open destination asset %s for writing",
+                "%s: Cannot open destination asset %s for writing",
                 __func__,
                 src_path.GetPathString().c_str());
     return false;
@@ -265,12 +270,12 @@ bool copy_asset(const char *src,
   return bytes_written > 0;
 }
 
-bool asset_exists(const char *path)
+bool asset_exists(const std::string &path)
 {
-  return path && !pxr::ArGetResolver().Resolve(path).IsEmpty();
+  return !pxr::ArGetResolver().Resolve(path).IsEmpty();
 }
 
-std::string import_asset(const char *src,
+std::string import_asset(const std::string &src,
                          const char *import_dir,
                          eUSDTexNameCollisionMode name_collision_mode,
                          ReportList *reports)
@@ -280,31 +285,31 @@ std::string import_asset(const char *src,
                 RPT_ERROR,
                 "%s: Texture import directory path empty, couldn't import %s",
                 __func__,
-                src);
+                src.c_str());
     return src;
   }
 
   char dest_dir_path[FILE_MAXDIR];
   STRNCPY(dest_dir_path, import_dir);
 
-  const char *basepath = nullptr;
-
   if (BLI_path_is_rel(import_dir)) {
-    basepath = BKE_main_blendfile_path_from_global();
-
-    if (!basepath || basepath[0] == '\0') {
+    const char *basepath = BKE_main_blendfile_path_from_global();
+    if (basepath[0] == '\0') {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "%s: import directory is relative "
                   "but the blend file path is empty. "
                   "Please save the blend file before importing the USD "
                   "or provide an absolute import directory path. "
-                  "Can't import %s",
+                  "Cannot import %s",
                   __func__,
-                  src);
+                  src.c_str());
       return src;
     }
-    BLI_path_abs(dest_dir_path, basepath);
+    char path_temp[FILE_MAX];
+    STRNCPY(path_temp, dest_dir_path);
+    BLI_path_abs(path_temp, basepath);
+    STRNCPY(dest_dir_path, path_temp);
   }
 
   BLI_path_normalize(dest_dir_path);
@@ -325,10 +330,324 @@ std::string import_asset(const char *src,
   return copy_asset_to_directory(src, dest_dir_path, name_collision_mode, reports);
 }
 
+/**
+ * Returns true if the parent directory of the given path exists on the
+ * file system.
+ *
+ * \param path: input file path
+ * \return true if the parent directory exists
+ */
+static bool parent_dir_exists_on_file_system(const std::string &path)
+{
+  char dir_path[FILE_MAX];
+  BLI_path_split_dir_part(path.c_str(), dir_path, FILE_MAX);
+  return BLI_is_dir(dir_path);
+}
+
 bool is_udim_path(const std::string &path)
 {
   return path.find(UDIM_PATTERN) != std::string::npos ||
          path.find(UDIM_PATTERN2) != std::string::npos;
+}
+
+std::string get_export_textures_dir(const pxr::UsdStageRefPtr stage)
+{
+  pxr::SdfLayerHandle layer = stage->GetRootLayer();
+
+  if (layer->IsAnonymous()) {
+    WM_global_reportf(RPT_WARNING,
+                      "%s: Cannot generate a textures directory path for anonymous stage",
+                      __func__);
+    return "";
+  }
+
+  const pxr::ArResolvedPath &stage_path = layer->GetResolvedPath();
+
+  if (stage_path.empty()) {
+    WM_global_reportf(RPT_WARNING, "%s: Cannot get resolved path for stage", __func__);
+    return "";
+  }
+
+  const pxr::ArResolver &ar = pxr::ArGetResolver();
+
+  /* Resolve the `./textures` relative path, with the stage path as an anchor. */
+  std::string textures_dir = ar.CreateIdentifierForNewAsset("./textures", stage_path);
+
+  /* If parent of the stage path exists as a file system directory, try to create the
+   * textures directory. */
+  if (parent_dir_exists_on_file_system(stage_path.GetPathString())) {
+    BLI_dir_create_recursive(textures_dir.c_str());
+  }
+
+  return textures_dir;
+}
+
+bool should_import_asset(const std::string &path)
+{
+  if (path.empty()) {
+    return false;
+  }
+
+  if (BLI_path_is_rel(path.c_str())) {
+    return false;
+  }
+
+  if (pxr::ArIsPackageRelativePath(path)) {
+    return true;
+  }
+
+  if (is_udim_path(path) && parent_dir_exists_on_file_system(path)) {
+    return false;
+  }
+
+  return !BLI_is_file(path.c_str()) && asset_exists(path);
+}
+
+bool paths_equal(const std::string &path1, const std::string &path2)
+{
+  BLI_assert_msg(!BLI_path_is_rel(path1.c_str()) && !BLI_path_is_rel(path2.c_str()),
+                 "Paths arguments must be absolute");
+
+  const pxr::ArResolver &ar = pxr::ArGetResolver();
+  return ar.ResolveForNewAsset(path1) == ar.ResolveForNewAsset(path2);
+}
+
+const char *temp_textures_dir()
+{
+  static bool inited = false;
+
+  static char temp_dir[FILE_MAXDIR] = {'\0'};
+
+  if (!inited) {
+    BLI_path_join(temp_dir, sizeof(temp_dir), BKE_tempdir_session(), "usd_textures_tmp", SEP_STR);
+    inited = true;
+  }
+
+  return temp_dir;
+}
+
+bool write_to_path(const void *data, size_t size, const std::string &path, ReportList *reports)
+{
+  BLI_assert(data);
+  if (size == 0) {
+    return false;
+  }
+
+  const pxr::ArResolver &ar = pxr::ArGetResolver();
+  pxr::ArResolvedPath resolved_path = ar.ResolveForNewAsset(path);
+
+  if (resolved_path.IsEmpty()) {
+    BKE_reportf(reports, RPT_ERROR, "Cannot resolve path %s for writing", path.c_str());
+    return false;
+  }
+
+  std::string why_not;
+  if (!ar.CanWriteAssetToPath(resolved_path, &why_not)) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Cannot write to asset %s: %s",
+                resolved_path.GetPathString().c_str(),
+                why_not.c_str());
+    return false;
+  }
+
+  std::shared_ptr<pxr::ArWritableAsset> dst_asset = ar.OpenAssetForWrite(
+      resolved_path, pxr::ArResolver::WriteMode::Replace);
+  if (!dst_asset) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Cannot open destination asset %s for writing",
+                resolved_path.GetPathString().c_str());
+    return false;
+  }
+
+  size_t bytes_written = dst_asset->Write(data, size, 0);
+
+  if (bytes_written == 0) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Error writing to destination asset %s",
+                resolved_path.GetPathString().c_str());
+  }
+
+  if (!dst_asset->Close()) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Couldn't close destination asset %s",
+                resolved_path.GetPathString().c_str());
+    return false;
+  }
+
+  return bytes_written > 0;
+}
+
+void ensure_usd_source_path_prop(const std::string &path, ID *id)
+{
+  if (!id || path.empty()) {
+    return;
+  }
+
+  if (pxr::ArIsPackageRelativePath(path)) {
+    /* Don't record package-relative paths (e.g., images in USDZ
+     * archives). */
+    return;
+  }
+
+  IDProperty *idgroup = IDP_EnsureProperties(id);
+
+  if (!idgroup) {
+    return;
+  }
+
+  const StringRef prop_name = "usd_source_path";
+
+  if (IDP_GetPropertyFromGroup(idgroup, prop_name)) {
+    return;
+  }
+
+  IDPropertyTemplate val = {0};
+  val.string.str = path.c_str();
+  /* Note length includes null terminator. */
+  val.string.len = path.size() + 1;
+  val.string.subtype = IDP_STRING_SUB_UTF8;
+
+  IDProperty *prop = IDP_New(IDP_STRING, &val, prop_name);
+
+  IDP_AddToGroup(idgroup, prop);
+}
+
+std::string get_usd_source_path(ID *id)
+{
+  if (!id) {
+    return "";
+  }
+
+  const IDProperty *idgroup = IDP_EnsureProperties(id);
+  if (!idgroup) {
+    return "";
+  }
+
+  const StringRef prop_name = "usd_source_path";
+  const IDProperty *prop = IDP_GetPropertyFromGroup(idgroup, prop_name);
+  if (!prop) {
+    return "";
+  }
+
+  return static_cast<const char *>(prop->data.pointer);
+}
+
+std::string get_relative_path(const std::string &path, const std::string &anchor)
+{
+  if (path.empty() || anchor.empty()) {
+    return path;
+  }
+
+  if (path == anchor) {
+    return path;
+  }
+
+  if (BLI_path_is_rel(path.c_str())) {
+    return path;
+  }
+
+  if (pxr::ArIsPackageRelativePath(path)) {
+    return path;
+  }
+
+  if (BLI_is_file(path.c_str()) && BLI_is_file(anchor.c_str())) {
+    /* Treat the paths as standard files. */
+    char rel_path[FILE_MAX];
+    STRNCPY(rel_path, path.c_str());
+    BLI_path_rel(rel_path, anchor.c_str());
+    if (!BLI_path_is_rel(rel_path)) {
+      return path;
+    }
+    BLI_string_replace_char(rel_path, '\\', '/');
+    return rel_path + 2;
+  }
+
+  /* If we got here, the paths may be URIs or files on the file system. */
+
+  /* We don't have a library to compute relative paths for URIs
+   * so we use the standard file-system calls to do so. This
+   * may not work for all URIs in theory, but is probably sufficient
+   * for the subset of URIs we are likely to encounter in practice
+   * currently.
+   * TODO(makowalski): provide better utilities for this. */
+
+  const pxr::ArResolver &ar = pxr::ArGetResolver();
+
+  std::string resolved_path = ar.Resolve(path);
+  std::string resolved_anchor = ar.Resolve(anchor);
+
+  if (resolved_path.empty() || resolved_anchor.empty()) {
+    return path;
+  }
+
+  std::string prefix = pxr::TfStringGetCommonPrefix(path, anchor);
+  if (prefix.empty()) {
+    return path;
+  }
+
+  std::replace(prefix.begin(), prefix.end(), '\\', '/');
+
+  size_t last_slash_pos = prefix.find_last_of('/');
+  if (last_slash_pos == std::string::npos) {
+    /* Unexpected: The prefix doesn't contain a slash,
+     * so this was not an absolute path. */
+    return path;
+  }
+
+  /* Replace the common prefix up to the last slash with
+   * a fake root directory to allow computing the relative path
+   * excluding the URI.  We omit the URI because it might not
+   * be handled correctly by the standard file-system path computations. */
+  resolved_path = "/root" + resolved_path.substr(last_slash_pos);
+  resolved_anchor = "/root" + resolved_anchor.substr(last_slash_pos);
+
+  char anchor_parent_dir[FILE_MAX];
+  BLI_path_split_dir_part(resolved_anchor.c_str(), anchor_parent_dir, FILE_MAX);
+
+  if (anchor_parent_dir[0] == '\0') {
+    return path;
+  }
+
+  char result_path[FILE_MAX];
+  STRNCPY(result_path, resolved_path.c_str());
+  BLI_path_rel(result_path, anchor_parent_dir);
+
+  if (BLI_path_is_rel(result_path)) {
+    /* Strip the Blender relative path marker, and set paths to Unix-style. */
+    BLI_string_replace_char(result_path, '\\', '/');
+    return std::string(result_path + 2);
+  }
+
+  return path;
+}
+
+void USD_path_abs(char *path, const char *basepath, bool for_import)
+{
+  if (!BLI_path_is_rel(path)) {
+    pxr::ArResolvedPath resolved_path = for_import ? pxr::ArGetResolver().Resolve(path) :
+                                                     pxr::ArGetResolver().ResolveForNewAsset(path);
+
+    const std::string &path_str = resolved_path.GetPathString();
+
+    if (!path_str.empty()) {
+      if (path_str.length() < FILE_MAX) {
+        BLI_strncpy(path, path_str.c_str(), FILE_MAX);
+        return;
+      }
+      WM_global_reportf(RPT_ERROR,
+                        "In %s: resolved path %s exceeds path buffer length.",
+                        __func__,
+                        path_str.c_str());
+    }
+  }
+
+  /* If we got here, the path couldn't be resolved by the ArResolver, so we
+   * fall back on the standard Blender absolute path resolution. */
+  BLI_path_abs(path, basepath);
 }
 
 }  // namespace blender::io::usd

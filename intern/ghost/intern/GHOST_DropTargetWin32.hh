@@ -23,8 +23,8 @@ class GHOST_DropTargetWin32 : public IDropTarget {
    * methods in IUnknown are the first entries in the VTable for every interface.
    */
   HRESULT __stdcall QueryInterface(REFIID riid, void **ppv_obj);
-  ULONG __stdcall AddRef(void);
-  ULONG __stdcall Release(void);
+  ULONG __stdcall AddRef();
+  ULONG __stdcall Release();
 
   /* IDropTarget implementation
    * + The IDropTarget interface is one of the interfaces you implement to
@@ -50,7 +50,7 @@ class GHOST_DropTargetWin32 : public IDropTarget {
                               POINTL pt,
                               DWORD *pdw_effect);
   HRESULT __stdcall DragOver(DWORD grf_key_state, POINTL pt, DWORD *pdw_effect);
-  HRESULT __stdcall DragLeave(void);
+  HRESULT __stdcall DragLeave();
   HRESULT __stdcall Drop(IDataObject *p_data_object,
                          DWORD grf_key_state,
                          POINTL pt,
@@ -123,17 +123,15 @@ class GHOST_DropTargetWin32 : public IDropTarget {
 
   /* Private member variables */
   /* COM reference count. */
-  LONG m_cRef;
+  LONG c_ref_;
   /* Handle of the associated window. */
-  HWND m_hWnd;
+  HWND h_wnd_;
   /* The associated GHOST_WindowWin32. */
-  GHOST_WindowWin32 *m_window;
+  GHOST_WindowWin32 *window_;
   /* The System. */
-  GHOST_SystemWin32 *m_system;
+  GHOST_SystemWin32 *system_;
   /* Data type of the dragged object */
-  GHOST_TDragnDropTypes m_draggedObjectType;
+  GHOST_TDragnDropTypes dragged_object_type_;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_DropTargetWin32")
-#endif
 };

@@ -11,17 +11,15 @@
 #include "../../stroke/AdvancedStrokeShaders.h"
 #include "../BPy_Convert.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char CalligraphicShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    CalligraphicShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`CalligraphicShader`\n"
     "\n"
     "[Thickness Shader]\n"
@@ -51,8 +49,7 @@ static char CalligraphicShader___doc__[] =
     "   perpendicular to this one, and an interpolation in between.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int CalligraphicShader___init__(BPy_CalligraphicShader *self,
                                        PyObject *args,
                                        PyObject *kwds)
@@ -117,7 +114,3 @@ PyTypeObject CalligraphicShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

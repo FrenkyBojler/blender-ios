@@ -14,24 +14,56 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_assert.h"
-#include "BLI_string.h"
+#include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 
-#include "BKE_collection.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_report.h"
+#include "BKE_collection.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_report.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
+
+void BKE_light_linking_ensure(Object *object)
+{
+  if (object->light_linking == nullptr) {
+    object->light_linking = MEM_callocN<LightLinking>(__func__);
+  }
+}
+
+void BKE_light_linking_copy(Object *object_dst, const Object *object_src, const int copy_flags)
+{
+  BLI_assert(ELEM(object_dst->light_linking, nullptr, object_src->light_linking));
+  if (object_src->light_linking) {
+    object_dst->light_linking = MEM_dupallocN<LightLinking>(__func__,
+                                                            *(object_src->light_linking));
+    if ((copy_flags & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+      id_us_plus(blender::id_cast<ID *>(object_dst->light_linking->receiver_collection));
+      id_us_plus(blender::id_cast<ID *>(object_dst->light_linking->blocker_collection));
+    }
+  }
+}
+
+void BKE_light_linking_delete(Object *object, const int delete_flags)
+{
+  if (object->light_linking) {
+    if ((delete_flags & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+      id_us_min(blender::id_cast<ID *>(object->light_linking->receiver_collection));
+      id_us_min(blender::id_cast<ID *>(object->light_linking->blocker_collection));
+    }
+    MEM_SAFE_FREE(object->light_linking);
+  }
+}
 
 void BKE_light_linking_free_if_empty(Object *object)
 {
   if (object->light_linking->receiver_collection == nullptr &&
       object->light_linking->blocker_collection == nullptr)
   {
-    MEM_SAFE_FREE(object->light_linking);
+    BKE_light_linking_delete(object, LIB_ID_CREATE_NO_USER_REFCOUNT);
   }
 }
 
@@ -66,8 +98,8 @@ static std::string get_default_collection_name(const Object *object,
       break;
   }
 
-  char name[MAX_ID_NAME];
-  SNPRINTF(name, format, object->id.name + 2);
+  char name[MAX_ID_NAME - 2];
+  SNPRINTF_UTF8(name, format, object->id.name + 2);
 
   return name;
 }
@@ -96,8 +128,8 @@ void BKE_light_linking_collection_assign_only(Object *object,
   }
 
   /* Allocate light linking on demand. */
-  if (new_collection && !object->light_linking) {
-    object->light_linking = MEM_cnew<LightLinking>(__func__);
+  if (new_collection) {
+    BKE_light_linking_ensure(object);
   }
 
   if (object->light_linking) {
@@ -129,7 +161,7 @@ void BKE_light_linking_collection_assign(Main *bmain,
 {
   BKE_light_linking_collection_assign_only(object, new_collection, link_type);
 
-  DEG_id_tag_update(&object->id, ID_RECALC_COPY_ON_WRITE | ID_RECALC_SHADING);
+  DEG_id_tag_update(&object->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SHADING);
   DEG_relations_tag_update(bmain);
 }
 
@@ -209,7 +241,13 @@ void BKE_light_linking_add_receiver_to_collection(Main *bmain,
 
   if (id_type == ID_OB) {
     Object *object = reinterpret_cast<Object *>(receiver);
-    if (!OB_TYPE_IS_GEOMETRY(object->type)) {
+
+    if (object->type == OB_EMPTY && object->instance_collection) {
+      if (!BKE_collection_contains_geometry_recursive(object->instance_collection)) {
+        return;
+      }
+    }
+    else if (!OB_TYPE_IS_GEOMETRY(object->type)) {
       return;
     }
     collection_light_linking = light_linking_collection_add_object(bmain, collection, object);
@@ -433,6 +471,9 @@ bool BKE_light_linking_unlink_id_from_collection(Main *bmain,
   }
 
   DEG_id_tag_update(&collection->id, ID_RECALC_HIERARCHY);
+  if (id_type == ID_OB) {
+    DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+  }
 
   DEG_relations_tag_update(bmain);
 
@@ -445,7 +486,12 @@ void BKE_light_linking_link_receiver_to_emitter(Main *bmain,
                                                 const LightLinkingType link_type,
                                                 const eCollectionLightLinkingState link_state)
 {
-  if (!OB_TYPE_IS_GEOMETRY(receiver->type)) {
+  if (receiver->type == OB_EMPTY && receiver->instance_collection) {
+    if (!BKE_collection_contains_geometry_recursive(receiver->instance_collection)) {
+      return;
+    }
+  }
+  else if (!OB_TYPE_IS_GEOMETRY(receiver->type)) {
     return;
   }
 

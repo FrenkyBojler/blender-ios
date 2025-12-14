@@ -6,7 +6,9 @@
  * Convert DrawPrototype into draw commands.
  */
 
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
+#include "draw_view_infos.hh"
+
+COMPUTE_SHADER_CREATE_INFO(draw_command_generate)
 
 #define atomicAddAndGet(dst, val) (atomicAdd(dst, val) + val)
 
@@ -14,22 +16,24 @@
 void write_draw_call(DrawGroup group, uint group_id)
 {
   DrawCommand cmd;
-  cmd.vertex_len = group.vertex_len;
-  cmd.vertex_first = group.vertex_first;
+  cmd.vertex_len = uint(group.vertex_len);
+  cmd.vertex_first = uint(group.vertex_first);
   bool indexed_draw = group.base_index != -1;
+
+  /* Back-facing command. */
+  uint back_facing_start = group.start * uint(view_len);
   if (indexed_draw) {
-    cmd.base_index = group.base_index;
-    cmd.instance_first_indexed = group.start;
+    cmd.base_index = uint(group.base_index);
+    cmd.instance_first_indexed = back_facing_start;
   }
   else {
-    cmd._instance_first_array = group.start;
+    cmd._instance_first_array = back_facing_start;
   }
-  /* Back-facing command. */
   cmd.instance_len = group_buf[group_id].back_facing_counter;
   command_buf[group_id * 2 + 0] = cmd;
 
   /* Front-facing command. */
-  uint front_facing_start = group.start + (group.len - group.front_facing_len);
+  uint front_facing_start = (group.start + (group.len - group.front_facing_len)) * uint(view_len);
   if (indexed_draw) {
     cmd.instance_first_indexed = front_facing_start;
   }
@@ -55,17 +59,17 @@ void main()
 
   DrawPrototype proto = prototype_buf[proto_id];
   uint group_id = proto.group_id;
-  bool is_inverted = (proto.resource_handle & 0x80000000u) != 0;
-  uint resource_index = (proto.resource_handle & 0x7FFFFFFFu);
+  bool is_inverted = (proto.res_index & 0x80000000u) != 0;
+  uint resource_index = (proto.res_index & 0x7FFFFFFFu);
 
   /* Visibility test result. */
   uint visible_instance_len = 0;
   if (visibility_word_per_draw > 0) {
-    uint visibility_word = resource_index * visibility_word_per_draw;
+    uint visibility_word = resource_index * uint(visibility_word_per_draw);
     for (int i = 0; i < visibility_word_per_draw; i++, visibility_word++) {
       /* NOTE: This assumes `proto.instance_len` is 1. */
       /* TODO: Assert. */
-      visible_instance_len += bitCount(visibility_buf[visibility_word]);
+      visible_instance_len += uint(bitCount(visibility_buf[visibility_word]));
     }
   }
   else {
@@ -85,9 +89,8 @@ void main()
     return;
   }
 
-  uint back_facing_len = group.len - group.front_facing_len;
-  uint front_facing_len = group.front_facing_len;
-  uint dst_index = group.start;
+  uint back_facing_len = (group.len - group.front_facing_len) * uint(view_len);
+  uint dst_index = group.start * uint(view_len);
   if (is_inverted) {
     uint offset = atomicAdd(group_buf[group_id].back_facing_counter, visible_instance_len);
     dst_index += offset;
@@ -105,10 +108,10 @@ void main()
 
   /* Fill resource_id buffer for each instance of this draw. */
   if (visibility_word_per_draw > 0) {
-    uint visibility_word = resource_index * visibility_word_per_draw;
+    uint visibility_word = resource_index * uint(visibility_word_per_draw);
     for (int i = 0; i < visibility_word_per_draw; i++, visibility_word++) {
       uint word = visibility_buf[visibility_word];
-      uint view_index = i * 32u;
+      uint view_index = uint(i) * 32u;
       while (word != 0u) {
         if ((word & 1u) != 0u) {
           if (use_custom_ids) {

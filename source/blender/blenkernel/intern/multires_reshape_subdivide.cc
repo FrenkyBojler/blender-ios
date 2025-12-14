@@ -6,24 +6,15 @@
  * \ingroup bke
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_customdata.hh"
-#include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
-#include "BKE_modifier.hh"
 #include "BKE_multires.hh"
-#include "BKE_subdiv.hh"
-#include "BKE_subsurf.hh"
 #include "BLI_math_vector.h"
-
-#include "DEG_depsgraph_query.hh"
 
 #include "multires_reshape.hh"
 
@@ -32,18 +23,18 @@ static void multires_subdivide_create_object_space_linear_grids(Mesh *mesh)
   using namespace blender;
   using namespace blender::bke;
   const Span<float3> positions = mesh->vert_positions();
-  const blender::OffsetIndices faces = mesh->faces();
-  const blender::Span<int> corner_verts = mesh->corner_verts();
+  const OffsetIndices faces = mesh->faces();
+  const Span<int> corner_verts = mesh->corner_verts();
 
   MDisps *mdisps = static_cast<MDisps *>(
-      CustomData_get_layer_for_write(&mesh->loop_data, CD_MDISPS, mesh->totloop));
+      CustomData_get_layer_for_write(&mesh->corner_data, CD_MDISPS, mesh->corners_num));
   for (const int p : faces.index_range()) {
-    const blender::IndexRange face = faces[p];
+    const IndexRange face = faces[p];
     const float3 face_center = mesh::face_center_calc(positions, corner_verts.slice(face));
     for (int l = 0; l < face.size(); l++) {
       const int loop_index = face[l];
 
-      float(*disps)[3] = mdisps[loop_index].disps;
+      float (*disps)[3] = mdisps[loop_index].disps;
       mdisps[loop_index].totdisp = 4;
       mdisps[loop_index].level = 1;
 
@@ -72,9 +63,10 @@ void multires_subdivide_create_tangent_displacement_linear_grids(Object *object,
 
   const int new_top_level = mmd->totlvl + 1;
 
-  const bool has_mdisps = CustomData_has_layer(&coarse_mesh->loop_data, CD_MDISPS);
+  const bool has_mdisps = CustomData_has_layer(&coarse_mesh->corner_data, CD_MDISPS);
   if (!has_mdisps) {
-    CustomData_add_layer(&coarse_mesh->loop_data, CD_MDISPS, CD_SET_DEFAULT, coarse_mesh->totloop);
+    CustomData_add_layer(
+        &coarse_mesh->corner_data, CD_MDISPS, CD_SET_DEFAULT, coarse_mesh->corners_num);
   }
 
   if (new_top_level == 1) {

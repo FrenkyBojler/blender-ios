@@ -38,28 +38,22 @@
 
 /* These definitions are also in BLI_math for simplicity. */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #if !defined(_USE_MATH_DEFINES)
 #  define _USE_MATH_DEFINES
 #endif
 
-#define MAXPATHLEN MAX_PATH
-
 #ifndef S_ISREG
-#  define S_ISREG(x) (((x)&_S_IFREG) == _S_IFREG)
+#  define S_ISREG(x) (((x) & _S_IFREG) == _S_IFREG)
 #endif
 #ifndef S_ISDIR
-#  define S_ISDIR(x) (((x)&_S_IFDIR) == _S_IFDIR)
+#  define S_ISDIR(x) (((x) & _S_IFDIR) == _S_IFDIR)
 #endif
 
 #if defined(_MSC_VER)
 #  define R_OK 4
 #  define W_OK 2
 /* Not accepted by `access()` on windows. */
-//#  define X_OK    1
+// #  define X_OK    1
 #  define F_OK 0
 #endif
 
@@ -94,6 +88,12 @@ bool BLI_windows_update_pinned_launcher(const char *launcher_path);
 bool BLI_windows_get_directx_driver_version(const wchar_t *deviceSubString,
                                             long long *r_driverVersion);
 
+/* Checks the version of the Windows build in the format "major.minor.build".
+ * Example: 10.0.22000 corresponds to Windows 11 21H2. */
+bool BLI_windows_is_build_version_greater_or_equal(DWORD majorVersion,
+                                                   DWORD minorVersion,
+                                                   DWORD buildNumber);
+
 /**
  * Set the `root_dir` to the default root directory on MS-Windows,
  * The string is guaranteed to be set with a length of 3 & null terminated,
@@ -120,6 +120,30 @@ bool BLI_windows_execute_self(const char *parameters,
                               const bool elevated,
                               const bool silent);
 
-#ifdef __cplusplus
-}
-#endif
+/** Quality of Service (QoS) modes as defined in the Windows documentation at:
+ * https://learn.microsoft.com/en-us/windows/win32/procthread/quality-of-service */
+enum class QoSMode {
+  /** Default mode uses heuristics described in Windows docs. */
+  DEFAULT = 0,
+  /** HighQoS mode for performance critical scenarios. */
+  HIGH = 1,
+  /** EcoQoS mode for preserving energy. */
+  ECO = 2
+};
+
+/** QoS precedence (to make sure command line args overwrite what is set by jobs).
+ * Higher values have more precedence. */
+enum class QoSPrecedence {
+  /** QoS mode requested set via the job system. */
+  JOB = 0,
+  /** QoS mode requested set via a command line argument. */
+  CMDLINE_ARG = 1,
+};
+
+/**
+ * Sets the Quality of Service (QoS) mode of the process.
+ *
+ * \param qos_mode: The QoS mode to use for the process.
+ * \param qos_precedence: The precedence of the caller (higher wins).
+ */
+void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence);

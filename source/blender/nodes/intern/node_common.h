@@ -8,11 +8,7 @@
 
 #pragma once
 
-#include "DNA_listBase.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
 
 struct bNodeTree;
 
@@ -31,6 +27,4 @@ bool node_group_poll_instance(const struct bNode *node,
  */
 void ntree_update_reroute_nodes(struct bNodeTree *ntree);
 
-#ifdef __cplusplus
-}
-#endif
+std::string node_group_ui_description(const bNode &node);

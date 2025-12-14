@@ -14,8 +14,6 @@
 
 OIIO_NAMESPACE_USING
 
-extern "C" {
-
 void OIIO_init()
 {
   /* Make OIIO thread pool follow Blender number of threads override. */
@@ -23,11 +21,17 @@ void OIIO_init()
   if (threads_override) {
     OIIO::attribute("threads", threads_override);
   }
+
+  /* As of OpenEXR 3.2.1 there are still issues related to the use of OpenEXR Core. */
+  OIIO::attribute("openexr:core", 0);
+
+  /* Allow OpenImageIO to open files up to the size specified. An 80gb limit
+   * will allow a 4-gigapixel, 5-channel, image to be opened (e.g. like what
+   * would be encountered with the Cycles "tile" buffer file). */
+  OIIO::attribute("limits:imagesize_MB", 80 * 1024);
 }
 
 int OIIO_getVersionHex()
 {
   return openimageio_version();
 }
-
-} /* extern "C" */

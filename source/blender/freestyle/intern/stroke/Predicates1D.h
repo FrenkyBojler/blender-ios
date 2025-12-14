@@ -18,9 +18,7 @@
 #include "../view_map/Functions1D.h"
 #include "../view_map/Interface1D.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -57,14 +55,12 @@ class UnaryPredicate1D {
 
   /** The () operator. Must be overload by inherited classes.
    *  \param inter:
-   *    The Interface1D on  which we wish to evaluate the predicate.
+   *    The Interface1D on which we wish to evaluate the predicate.
    *  \return true if the condition is satisfied, false otherwise.
    */
   virtual int operator()(Interface1D &inter);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:UnaryPredicate1D")
-#endif
 };
 
 //
@@ -107,9 +103,7 @@ class BinaryPredicate1D {
    */
   virtual int operator()(Interface1D &inter1, Interface1D &inter2);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:BinaryPredicate1D")
-#endif
 };
 
 //
@@ -254,7 +248,8 @@ class ExternalContourUP1D : public UnaryPredicate1D {
       set<ViewShape *> occluded;
       Functions1D::getOccludeeF1D(inter, occluded);
       for (set<ViewShape *>::iterator os = occluded.begin(), osend = occluded.end(); os != osend;
-           ++os) {
+           ++os)
+      {
         if ((*os) == 0) {
           result = true;
           return 0;
@@ -507,7 +502,8 @@ class SameShapeIdBP1D : public BinaryPredicate1D {
     for (set<ViewShape *>::iterator s = shapes1.begin(), send = shapes1.end(); s != send; ++s) {
       Id current = (*s)->getId();
       for (set<ViewShape *>::iterator s2 = shapes2.begin(), s2end = shapes2.end(); s2 != s2end;
-           ++s2) {
+           ++s2)
+      {
         if ((*s2)->getId() == current) {
           result = true;
           return 0;

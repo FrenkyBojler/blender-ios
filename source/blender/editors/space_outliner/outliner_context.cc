@@ -6,8 +6,6 @@
  * \ingroup spoutliner
  */
 
-#include "BLI_listbase.h"
-
 #include "BKE_context.hh"
 
 #include "DNA_space_types.h"
@@ -26,7 +24,7 @@ static void outliner_context_selected_ids(const SpaceOutliner *space_outliner,
       CTX_data_id_list_add(result, tse->id);
     }
   });
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
 }
 
 static const char *outliner_context_dir[] = {

@@ -2,15 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <algorithm>
-
 #include "curves_sculpt_intern.hh"
 
 #include "BLI_math_matrix_types.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
-
-#include "PIL_time.h"
 
 #include "DEG_depsgraph.hh"
 
@@ -24,7 +20,6 @@
 #include "DNA_curves_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -56,7 +51,8 @@ class PinchOperation : public CurvesSculptStrokeOperation {
  public:
   PinchOperation(const bool invert_pinch) : invert_pinch_(invert_pinch) {}
 
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 struct PinchOperationExecutor {
@@ -73,7 +69,7 @@ struct PinchOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -83,39 +79,38 @@ struct PinchOperationExecutor {
 
   float2 brush_pos_re_;
 
-  PinchOperationExecutor(const bContext &C) : ctx_(C) {}
+  PinchOperationExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(PinchOperation &self, const bContext &C, const StrokeExtension &stroke_extension)
+  void execute(PinchOperation &self, const StrokeExtension &stroke_extension)
   {
     self_ = &self;
 
-    object_ = CTX_data_active_object(&C);
+    object_ = ctx_.object;
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
-    if (curves_->curves_num() == 0) {
+    if (curves_->is_empty()) {
       return;
     }
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = BKE_brush_alpha_get(ctx_.scene, brush_);
+    brush_strength_ = BKE_brush_alpha_get(&curves_sculpt_->paint, brush_);
 
     invert_factor_ = self_->invert_pinch_ ? -1.0f : 1.0f;
 
     transforms_ = CurvesSurfaceTransforms(*object_, curves_id_->surface);
 
     point_factors_ = *curves_->attributes().lookup_or_default<float>(
-        ".selection", ATTR_DOMAIN_POINT, 1.0f);
+        ".selection", bke::AttrDomain::Point, 1.0f);
     curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_memory_);
 
     brush_pos_re_ = stroke_extension.mouse_position;
-    const eBrushFalloffShape falloff_shape = static_cast<eBrushFalloffShape>(
-        brush_->falloff_shape);
+    const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
 
     if (stroke_extension.is_first) {
-      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
+      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.uiflag & USER_ORBIT_SELECTION)) {
         self_->brush_3d_ = *sample_curves_3d_brush(*ctx_.depsgraph,
                                                    *ctx_.region,
                                                    *ctx_.v3d,
@@ -123,10 +118,15 @@ struct PinchOperationExecutor {
                                                    *object_,
                                                    brush_pos_re_,
                                                    brush_radius_base_re_);
+        remember_stroke_position(
+            *curves_sculpt_,
+            math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
       }
 
-      self_->constraint_solver_.initialize(
-          *curves_, curve_selection_, curves_id_->flag & CV_SCULPT_COLLISION_ENABLED);
+      self_->constraint_solver_.initialize(*curves_,
+                                           curve_selection_,
+                                           curves_id_->flag & CV_SCULPT_COLLISION_ENABLED,
+                                           curves_id_->surface_collision_distance);
     }
 
     Array<bool> changed_curves(curves_->curves_num(), false);
@@ -170,8 +170,7 @@ struct PinchOperationExecutor {
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    float4x4 projection;
-    ED_view3d_ob_project_mat_get(ctx_.rv3d, object_, projection.ptr());
+    const float4x4 projection = ED_view3d_ob_project_mat_get(ctx_.rv3d, object_);
     MutableSpan<float3> positions_cu = curves_->positions_for_write();
     const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;
     const float brush_radius_sq_re = pow2f(brush_radius_re);
@@ -182,9 +181,8 @@ struct PinchOperationExecutor {
         for (const int point_i : points.drop_front(1)) {
           const float3 old_pos_cu = deformation.positions[point_i];
           const float3 old_symm_pos_cu = math::transform_point(brush_transform_inv, old_pos_cu);
-          float2 old_symm_pos_re;
-          ED_view3d_project_float_v2_m4(
-              ctx_.region, old_symm_pos_cu, old_symm_pos_re, projection.ptr());
+          const float2 old_symm_pos_re = ED_view3d_project_float_v2_m4(
+              ctx_.region, old_symm_pos_cu, projection);
 
           const float dist_to_brush_sq_re = math::distance_squared(old_symm_pos_re, brush_pos_re_);
           if (dist_to_brush_sq_re > brush_radius_sq_re) {
@@ -279,16 +277,16 @@ struct PinchOperationExecutor {
   }
 };
 
-void PinchOperation::on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension)
+void PinchOperation::on_stroke_extended(const PaintStroke &stroke,
+                                        const StrokeExtension &stroke_extension)
 {
-  PinchOperationExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  PinchOperationExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_pinch_operation(const BrushStrokeMode brush_mode,
-                                                                 const bContext &C)
+                                                                 const Scene &scene)
 {
-  const Scene &scene = *CTX_data_scene(&C);
   const Brush &brush = *BKE_paint_brush_for_read(&scene.toolsettings->curves_sculpt->paint);
 
   const bool invert_pinch = (brush_mode == BRUSH_STROKE_INVERT) !=

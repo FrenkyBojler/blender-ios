@@ -20,7 +20,7 @@ struct wmOperatorType;
 struct wmWindow;
 struct wmWindowManager;
 
-/* wm_files.cc */
+/* `wm_files.cc`. */
 
 void wm_history_file_read();
 
@@ -42,6 +42,11 @@ struct wmHomeFileRead_Params {
    * Useful for automated content generation, so the file starts without data.
    */
   unsigned int use_empty_data : 1;
+  /**
+   * When true, this is the first time the home file is read.
+   * In this case resetting the previous state can be skipped.
+   */
+  unsigned int is_first_time : 1;
   /**
    * Optional path pointing to an alternative blend file (may be NULL).
    */
@@ -97,7 +102,7 @@ bool wm_file_or_session_data_has_unsaved_changes(const Main *bmain, const wmWind
  *
  * Important to ask confirmation, as this is a very common scenario of data loss.
  */
-void wm_save_file_forwardcompat_dialog(bContext *C, wmOperator *op);
+void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op);
 
 void WM_OT_save_homefile(wmOperatorType *ot);
 void WM_OT_save_userpref(wmOperatorType *ot);
@@ -116,10 +121,17 @@ void WM_OT_recover_auto_save(wmOperatorType *ot);
 void WM_OT_save_as_mainfile(wmOperatorType *ot);
 void WM_OT_save_mainfile(wmOperatorType *ot);
 
+void WM_OT_clear_recent_files(wmOperatorType *ot);
+
 /* `wm_files_link.cc` */
 
 void WM_OT_link(wmOperatorType *ot);
 void WM_OT_append(wmOperatorType *ot);
+void WM_OT_id_linked_relocate(wmOperatorType *ot);
 
 void WM_OT_lib_relocate(wmOperatorType *ot);
 void WM_OT_lib_reload(wmOperatorType *ot);
+
+/* `wm_files_colorspace.cc` */
+
+void WM_OT_set_working_color_space(wmOperatorType *ot);

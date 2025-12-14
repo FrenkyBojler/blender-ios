@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char Orientation3DF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    Orientation3DF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DVec3f` > :class:`Orientation3DF1D`\n"
     "\n"
@@ -41,15 +39,15 @@ static char Orientation3DF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The 3D orientation of the Interface1D.\n"
-    "   :rtype: :class:`mathutils.Vector`\n";
-
+    "   :rtype: :class:`mathutils.Vector`\n");
 static int Orientation3DF1D___init__(BPy_Orientation3DF1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"integration_type", nullptr};
   PyObject *obj = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj)) {
+          args, kwds, "|O!", (char **)kwlist, &IntegrationType_Type, &obj))
+  {
     return -1;
   }
   IntegrationType t = (obj) ? IntegrationType_from_BPy_IntegrationType(obj) : MEAN;
@@ -101,7 +99,3 @@ PyTypeObject Orientation3DF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

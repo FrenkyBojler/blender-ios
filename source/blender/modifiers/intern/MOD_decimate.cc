@@ -9,7 +9,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
@@ -19,29 +19,27 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_context.hh"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "GEO_randomize.hh"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
 
 // #define USE_TIMEIT
 
 #ifdef USE_TIMEIT
-#  include "PIL_time.h"
-#  include "PIL_time_utildefines.h"
+#  include "BLI_time.h"
+#  include "BLI_time_utildefines.h"
 #endif
 
 #include "MOD_ui_common.hh"
@@ -69,7 +67,7 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 static DecimateModifierData *getOriginalModifierData(const DecimateModifierData *dmd,
                                                      const ModifierEvalContext *ctx)
 {
-  Object *ob_orig = DEG_get_original_object(ctx->object);
+  Object *ob_orig = DEG_get_original(ctx->object);
   return (DecimateModifierData *)BKE_modifiers_findby_name(ob_orig, dmd->modifier.name);
 }
 
@@ -141,10 +139,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       MOD_get_vgroup(ctx->object, mesh, dmd->defgrp_name, &dvert, &defgrp_index);
 
       if (dvert) {
-        const uint vert_tot = mesh->totvert;
+        const uint vert_tot = mesh->verts_num;
         uint i;
 
-        vweights = static_cast<float *>(MEM_malloc_arrayN(vert_tot, sizeof(float), __func__));
+        vweights = MEM_malloc_arrayN<float>(vert_tot, __func__);
 
         if (dmd->flag & MOD_DECIM_FLAG_INVERT_VGROUP) {
           for (i = 0; i < vert_tot; i++) {
@@ -201,7 +199,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   updateFaceCount(ctx, dmd, bm->totface);
 
-  /* make sure we never alloc'd these */
+  /* Make sure we never allocated these. */
   BLI_assert(bm->vtoolflagpool == nullptr && bm->etoolflagpool == nullptr &&
              bm->ftoolflagpool == nullptr);
 
@@ -220,52 +218,51 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *sub, *row;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   int decimate_type = RNA_enum_get(ptr, "decimate_type");
   char count_info[64];
-  SNPRINTF(count_info, TIP_("Face Count: %d"), RNA_int_get(ptr, "face_count"));
+  SNPRINTF(count_info, RPT_("Face Count: %d"), RNA_int_get(ptr, "face_count"));
 
-  uiItemR(layout, ptr, "decimate_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  layout.prop(ptr, "decimate_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
   if (decimate_type == MOD_DECIM_MODE_COLLAPSE) {
-    uiItemR(layout, ptr, "ratio", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+    layout.prop(ptr, "ratio", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
-    row = uiLayoutRowWithHeading(layout, true, IFACE_("Symmetry"));
-    uiLayoutSetPropDecorate(row, false);
-    sub = uiLayoutRow(row, true);
-    uiItemR(sub, ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
-    sub = uiLayoutRow(sub, true);
-    uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_symmetry"));
-    uiItemR(sub, ptr, "symmetry_axis", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-    uiItemDecoratorR(row, ptr, "symmetry_axis", 0);
+    blender::ui::Layout &row = layout.row(true, IFACE_("Symmetry"));
+    row.use_property_decorate_set(false);
+    blender::ui::Layout *sub = &row.row(true);
+    sub->prop(ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
+    sub = &sub->row(true);
+    sub->active_set(RNA_boolean_get(ptr, "use_symmetry"));
+    sub->prop(ptr, "symmetry_axis", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    row.decorator(ptr, "symmetry_axis", 0);
 
-    uiItemR(layout, ptr, "use_collapse_triangulate", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(ptr, "use_collapse_triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
-    sub = uiLayoutRow(layout, true);
+    modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
+    sub = &layout.row(true);
     bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
-    uiLayoutSetActive(sub, has_vertex_group);
-    uiItemR(sub, ptr, "vertex_group_factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+    sub->active_set(has_vertex_group);
+    sub->prop(ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (decimate_type == MOD_DECIM_MODE_UNSUBDIV) {
-    uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else { /* decimate_type == MOD_DECIM_MODE_DISSOLVE. */
-    uiItemR(layout, ptr, "angle_limit", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "delimit", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(layout, ptr, "use_dissolve_boundaries", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(ptr, "angle_limit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    blender::ui::Layout &col = layout.column(false);
+    col.prop(ptr, "delimit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "use_dissolve_boundaries", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  uiItemL(layout, count_info, ICON_NONE);
+  layout.label(count_info, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -305,4 +302,6 @@ ModifierTypeInfo modifierType_Decimate = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -6,8 +6,11 @@
 """
 this script updates XML themes once new settings are added
 
-  ./blender.bin --background -noaudio --python tools/check_source/check_descriptions.py
+  ./blender.bin --background --python tools/check_source/check_descriptions.py
 """
+__all__ = (
+    "main",
+)
 
 import bpy
 
@@ -89,7 +92,7 @@ DUPLICATE_IGNORE = {
 
 
 def check_duplicates():
-    import rna_info
+    import _rna_info as rna_info
 
     DUPLICATE_IGNORE_FOUND = set()
     DUPLICATE_ACCEPT_FOUND = set()

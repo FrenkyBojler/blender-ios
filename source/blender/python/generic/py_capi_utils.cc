@@ -7,10 +7,6 @@
  *
  * Extend upon CPython's API, filling in some gaps, these functions use PyC_
  * prefix to distinguish them apart from CPython.
- *
- * \note
- * This module should only depend on CPython, however it currently uses
- * BLI_string_utf8() for unicode conversion.
  */
 
 /* Future-proof, See https://docs.python.org/3/c-api/arg.html#strings-and-buffers */
@@ -21,22 +17,22 @@
 
 #include "BLI_utildefines.h" /* for bool */
 
-#include "py_capi_utils.h"
+#include "py_capi_utils.hh"
 
-#include "python_utildefines.h"
+#include "python_utildefines.hh"
 
 #ifndef MATH_STANDALONE
 #  include "MEM_guardedalloc.h"
 
-#  include "BLI_string.h"
-
-/* Only for #BLI_strncpy_wchar_from_utf8,
- * should replace with Python functions but too late in release now. */
 #  include "BLI_string_utf8.h"
 #endif
 
 #ifdef _WIN32
 #  include "BLI_math_base.h" /* isfinite() */
+#endif
+
+#if PY_VERSION_HEX < 0x030d0000 /* <3.13 */
+#  define PyLong_AsInt _PyLong_AsInt
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -351,6 +347,23 @@ PyObject *PyC_Tuple_PackArray_Bool(const bool *array, uint len)
   return tuple;
 }
 
+PyObject *PyC_Tuple_PackArray_String(const char **array, uint len)
+{
+  /* Not part of numeric array packing but useful none the less. */
+  PyObject *tuple = PyTuple_New(len);
+  for (uint i = 0; i < len; i++) {
+    if (PyObject *value = PyUnicode_FromString(array[i])) {
+      PyTuple_SET_ITEM(tuple, i, value);
+    }
+    else {
+      Py_DECREF(tuple);
+      tuple = nullptr;
+      break;
+    }
+  }
+  return tuple;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -577,7 +590,7 @@ void PyC_ObSpitStr(char *result, size_t result_maxncpy, PyObject *var)
   /* No name, creator of string can manage that. */
   const char *null_str = "<null>";
   if (var == nullptr) {
-    BLI_snprintf(result, result_maxncpy, "%s", null_str);
+    BLI_strncpy_utf8(result, null_str, result_maxncpy);
   }
   else {
     const PyTypeObject *type = Py_TYPE(var);
@@ -587,13 +600,13 @@ void PyC_ObSpitStr(char *result, size_t result_maxncpy, PyObject *var)
        * but this may be used for generating errors - so don't for now. */
       PyErr_Clear();
     }
-    BLI_snprintf(result,
-                 result_maxncpy,
-                 " ref=%d, ptr=%p, type=%s, value=%.200s",
-                 int(var->ob_refcnt),
-                 (void *)var,
-                 type ? type->tp_name : null_str,
-                 var_str ? PyUnicode_AsUTF8(var_str) : "<error>");
+    BLI_snprintf_utf8(result,
+                      result_maxncpy,
+                      " ref=%d, ptr=%p, type=%s, value=%.200s",
+                      int(var->ob_refcnt),
+                      (void *)var,
+                      type ? type->tp_name : null_str,
+                      var_str ? PyUnicode_AsUTF8(var_str) : "<error>");
     if (var_str != nullptr) {
       Py_DECREF(var_str);
     }
@@ -820,7 +833,6 @@ void PyC_Err_PrintWithFunc(PyObject *py_func)
   /* since we return to C code we can't leave the error */
   PyCodeObject *f_code = (PyCodeObject *)PyFunction_GET_CODE(py_func);
   PyErr_Print();
-  PyErr_Clear();
 
   /* use py style error */
   fprintf(stderr,
@@ -857,10 +869,12 @@ static void pyc_exception_buffer_handle_system_exit()
   if (!PyErr_ExceptionMatches(PyExc_SystemExit)) {
     return;
   }
-  /* Inspecting, follow Python's logic in #_Py_HandleSystemExit & treat as a regular exception. */
+/* Inspecting, follow Python's logic in #_Py_HandleSystemExit & treat as a regular exception. */
+#  if 0 /* FIXME: */
   if (_Py_GetConfig()->inspect) {
     return;
   }
+#  endif
 
   /* NOTE(@ideasman42): A `SystemExit` exception will exit immediately (unless inspecting).
    * So print the error and exit now. Without this #PyErr_Display shows the error stack-trace
@@ -1053,6 +1067,11 @@ PyObject *PyC_UnicodeFromBytes(const char *str)
   return PyC_UnicodeFromBytesAndSize(str, strlen(str));
 }
 
+PyObject *PyC_UnicodeFromStdStr(const std::string &str)
+{
+  return PyC_UnicodeFromBytesAndSize(str.c_str(), str.length());
+}
+
 int PyC_ParseUnicodeAsBytesAndSize(PyObject *o, void *p)
 {
   PyC_UnicodeAsBytesAndSize_Data *data = static_cast<PyC_UnicodeAsBytesAndSize_Data *>(p);
@@ -1097,13 +1116,13 @@ PyObject *PyC_DefaultNameSpace(const char *filename)
   PyDict_SetItemString(modules, "__main__", mod_main);
   Py_DECREF(mod_main); /* `sys.modules` owns now. */
   PyModule_AddStringConstant(mod_main, "__name__", "__main__");
-  if (filename) {
-    /* __file__ mainly for nice UI'ness
-     * NOTE: this won't map to a real file when executing text-blocks and buttons. */
-    PyModule_AddObject(mod_main, "__file__", PyC_UnicodeFromBytes(filename));
-  }
-  PyModule_AddObject(mod_main, "__builtins__", builtins);
-  Py_INCREF(builtins); /* AddObject steals a reference */
+
+  /* This won't map to a real file when executing text-blocks and buttons.
+   * In this case an identifier is typically used that is surrounded by angle-brackets.
+   * It's mainly helpful for the UI and messages to show *something*. */
+  PyModule_AddObject(mod_main, "__file__", PyC_UnicodeFromBytes(filename));
+  PyModule_AddObjectRef(mod_main, "__builtins__", builtins);
+
   return PyModule_GetDict(mod_main);
 }
 
@@ -1127,7 +1146,7 @@ bool PyC_NameSpace_ImportArray(PyObject *py_dict, const char *imports[])
   return true;
 }
 
-void PyC_MainModule_Backup(PyObject **r_main_mod)
+PyObject *PyC_MainModule_Backup()
 {
   PyObject *modules = PyImport_GetModuleDict();
   PyObject *main_mod = PyDict_GetItemString(modules, "__main__");
@@ -1136,7 +1155,7 @@ void PyC_MainModule_Backup(PyObject **r_main_mod)
     /* is transferred back to `sys.modules`. */
     Py_INCREF(main_mod);
   }
-  *r_main_mod = main_mod;
+  return main_mod;
 }
 
 void PyC_MainModule_Restore(PyObject *main_mod)
@@ -1166,7 +1185,7 @@ bool PyC_IsInterpreterActive()
 void PyC_RunQuicky(const char *filepath, int n, ...)
 {
   /* NOTE: Would be nice if python had this built in
-   * See: https://wiki.blender.org/wiki/Tools/Debugging/PyFromC */
+   * See: https://developer.blender.org/docs/handbook/tooling/pyfromc/ */
 
   FILE *fp = fopen(filepath, "r");
 
@@ -1206,9 +1225,8 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
       if (ret == nullptr) {
         printf("%s error, line:%d\n", __func__, __LINE__);
         PyErr_Print();
-        PyErr_Clear();
 
-        PyList_SET_ITEM(values, i, Py_INCREF_RET(Py_None)); /* hold user */
+        PyList_SET_ITEM(values, i, Py_NewRef(Py_None)); /* hold user */
 
         sizes[i] = 0;
       }
@@ -1282,7 +1300,6 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
             printf("%s error on arg '%d', line:%d\n", __func__, i, __LINE__);
             PyC_ObSpit("failed converting:", item_new);
             PyErr_Print();
-            PyErr_Clear();
           }
 
           Py_DECREF(item_new);
@@ -1296,7 +1313,6 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
     else {
       printf("%s error line:%d\n", __func__, __LINE__);
       PyErr_Print();
-      PyErr_Clear();
     }
 
     Py_DECREF(calcsize);
@@ -1314,37 +1330,35 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
 
 void *PyC_RNA_AsPointer(PyObject *value, const char *type_name)
 {
-  PyObject *as_pointer;
-  PyObject *pointer;
-
-  if (STREQ(Py_TYPE(value)->tp_name, type_name) &&
-      (as_pointer = PyObject_GetAttrString(value, "as_pointer")) != nullptr &&
-      PyCallable_Check(as_pointer))
-  {
-    void *result = nullptr;
-
-    /* must be a 'type_name' object */
-    pointer = PyObject_CallObject(as_pointer, nullptr);
-    Py_DECREF(as_pointer);
-
-    if (!pointer) {
-      PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
-      return nullptr;
-    }
-    result = PyLong_AsVoidPtr(pointer);
-    Py_DECREF(pointer);
-    if (!result) {
-      PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
-    }
-
-    return result;
+  if (!STREQ(Py_TYPE(value)->tp_name, type_name)) {
+    PyErr_Format(PyExc_TypeError,
+                 "expected '%.200s' type found '%.200s' instead",
+                 type_name,
+                 Py_TYPE(value)->tp_name);
+    return nullptr;
   }
 
-  PyErr_Format(PyExc_TypeError,
-               "expected '%.200s' type found '%.200s' instead",
-               type_name,
-               Py_TYPE(value)->tp_name);
-  return nullptr;
+  PyObject *as_pointer = PyObject_GetAttrString(value, "as_pointer");
+  if ((as_pointer == nullptr) || !PyCallable_Check(as_pointer)) {
+    PyErr_Format(PyExc_TypeError, "Invalid %.200s pointer", type_name);
+    return nullptr;
+  }
+
+  /* Must be a `type_name` object. */
+  PyObject *pointer = PyObject_CallObject(as_pointer, nullptr);
+  Py_DECREF(as_pointer);
+
+  if (pointer == nullptr) {
+    PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
+    return nullptr;
+  }
+  void *result = PyLong_AsVoidPtr(pointer);
+  Py_DECREF(pointer);
+  if (!result) {
+    PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
+  }
+
+  return result;
 }
 
 /** \} */
@@ -1402,11 +1416,6 @@ int PyC_FlagSet_ToBitfield(const PyC_FlagSet *items,
   /* set of enum items, concatenate all values with OR */
   int ret, flag = 0;
 
-  /* set looping */
-  Py_ssize_t pos = 0;
-  Py_ssize_t hash = 0;
-  PyObject *key;
-
   if (!PySet_Check(value)) {
     PyErr_Format(PyExc_TypeError,
                  "%.200s expected a set, not %.200s",
@@ -1417,22 +1426,32 @@ int PyC_FlagSet_ToBitfield(const PyC_FlagSet *items,
 
   *r_value = 0;
 
-  while (_PySet_NextEntry(value, &pos, &key, &hash)) {
-    const char *param = PyUnicode_AsUTF8(key);
+  if (PySet_GET_SIZE(value) > 0) {
+    PyObject *it = PyObject_GetIter(value);
+    PyObject *key;
+    while ((key = PyIter_Next(it))) {
+      /* Borrow from the set. */
+      Py_DECREF(key);
 
-    if (param == nullptr) {
-      PyErr_Format(PyExc_TypeError,
-                   "%.200s set must contain strings, not %.200s",
-                   error_prefix,
-                   Py_TYPE(key)->tp_name);
+      const char *param = PyUnicode_AsUTF8(key);
+      if (param == nullptr) {
+        PyErr_Format(PyExc_TypeError,
+                     "%.200s set must contain strings, not %.200s",
+                     error_prefix,
+                     Py_TYPE(key)->tp_name);
+        break;
+      }
+
+      if (PyC_FlagSet_ValueFromID(items, param, &ret, error_prefix) < 0) {
+        break;
+      }
+
+      flag |= ret;
+    }
+    Py_DECREF(it);
+    if (key != nullptr) {
       return -1;
     }
-
-    if (PyC_FlagSet_ValueFromID(items, param, &ret, error_prefix) < 0) {
-      return -1;
-    }
-
-    flag |= ret;
   }
 
   *r_value = flag;
@@ -1461,45 +1480,61 @@ PyObject *PyC_FlagSet_FromBitfield(PyC_FlagSet *items, int flag)
 /** \name Run String (Evaluate to Primitive Types)
  * \{ */
 
+[[nodiscard]] static PyObject *pyc_run_string_as_py_object(const char *imports[],
+                                                           const char *imports_star[],
+                                                           const char *expr,
+                                                           const char *filename)
+    ATTR_NONNULL(3, 4);
+static PyObject *pyc_run_string_as_py_object(const char *imports[],
+                                             const char *imports_star[],
+                                             const char *expr,
+                                             const char *filename)
+{
+  PyObject *main_mod = PyC_MainModule_Backup();
+
+  PyObject *py_dict = PyC_DefaultNameSpace(filename);
+
+  if (imports_star) {
+    for (int i = 0; imports_star[i]; i++) {
+      PyObject *mod = PyImport_ImportModule("math");
+      if (mod) {
+        /* Don't overwrite existing values (override=0). */
+        PyDict_Merge(py_dict, PyModule_GetDict(mod), 0);
+        Py_DECREF(mod);
+      }
+      else { /* Highly unlikely but possibly. */
+        PyErr_Print();
+      }
+    }
+  }
+
+  PyObject *retval;
+  if (imports && !PyC_NameSpace_ImportArray(py_dict, imports)) {
+    retval = nullptr; /* Failure. */
+  }
+  else {
+    retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
+  }
+
+  PyC_MainModule_Restore(main_mod);
+
+  return retval;
+}
+
 bool PyC_RunString_AsNumber(const char *imports[],
                             const char *expr,
                             const char *filename,
                             double *r_value)
 {
-  PyObject *py_dict, *mod, *retval;
-  bool ok = true;
-  PyObject *main_mod = nullptr;
-
-  PyC_MainModule_Backup(&main_mod);
-
-  py_dict = PyC_DefaultNameSpace(filename);
-
-  mod = PyImport_ImportModule("math");
-  if (mod) {
-    PyDict_Merge(py_dict, PyModule_GetDict(mod), 0); /* 0 - don't overwrite existing values */
-    Py_DECREF(mod);
-  }
-  else { /* highly unlikely but possibly */
-    PyErr_Print();
-    PyErr_Clear();
-  }
-
-  if (imports && !PyC_NameSpace_ImportArray(py_dict, imports)) {
-    ok = false;
-  }
-  else if ((retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict)) == nullptr) {
-    ok = false;
-  }
-  else {
+  int ok = -1;
+  const char *imports_star[] = {"math", nullptr};
+  if (PyObject *retval = pyc_run_string_as_py_object(imports, imports_star, expr, filename)) {
     double val;
 
     if (PyTuple_Check(retval)) {
-      /* Users my have typed in 10km, 2m
-       * add up all values */
-      int i;
+      /* Users my have typed in `10km, 2m`, accumulate all values. */
       val = 0.0;
-
-      for (i = 0; i < PyTuple_GET_SIZE(retval); i++) {
+      for (int i = 0; i < PyTuple_GET_SIZE(retval); i++) {
         const double val_item = PyFloat_AsDouble(PyTuple_GET_ITEM(retval, i));
         if (val_item == -1 && PyErr_Occurred()) {
           val = -1;
@@ -1518,15 +1553,18 @@ bool PyC_RunString_AsNumber(const char *imports[],
     }
     else if (!isfinite(val)) {
       *r_value = 0.0;
+      ok = true;
     }
     else {
       *r_value = val;
+      ok = true;
     }
   }
-
-  PyC_MainModule_Restore(main_mod);
-
-  return ok;
+  else {
+    ok = false;
+  }
+  BLI_assert(ok != -1);
+  return bool(ok);
 }
 
 bool PyC_RunString_AsIntPtr(const char *imports[],
@@ -1534,36 +1572,23 @@ bool PyC_RunString_AsIntPtr(const char *imports[],
                             const char *filename,
                             intptr_t *r_value)
 {
-  PyObject *py_dict, *retval;
-  bool ok = true;
-  PyObject *main_mod = nullptr;
-
-  PyC_MainModule_Backup(&main_mod);
-
-  py_dict = PyC_DefaultNameSpace(filename);
-
-  if (imports && !PyC_NameSpace_ImportArray(py_dict, imports)) {
-    ok = false;
-  }
-  else if ((retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict)) == nullptr) {
-    ok = false;
-  }
-  else {
-    intptr_t val;
-
-    val = intptr_t(PyLong_AsVoidPtr(retval));
+  int ok = -1;
+  if (PyObject *retval = pyc_run_string_as_py_object(imports, nullptr, expr, filename)) {
+    const intptr_t val = intptr_t(PyLong_AsVoidPtr(retval));
     if (val == 0 && PyErr_Occurred()) {
       ok = false;
     }
     else {
       *r_value = val;
+      ok = true;
     }
 
     Py_DECREF(retval);
   }
-
-  PyC_MainModule_Restore(main_mod);
-
+  else {
+    ok = false;
+  }
+  BLI_assert(ok != -1);
   return ok;
 }
 
@@ -1573,40 +1598,26 @@ bool PyC_RunString_AsStringAndSize(const char *imports[],
                                    char **r_value,
                                    size_t *r_value_size)
 {
-  PyObject *py_dict, *retval;
-  bool ok = true;
-  PyObject *main_mod = nullptr;
-
-  PyC_MainModule_Backup(&main_mod);
-
-  py_dict = PyC_DefaultNameSpace(filename);
-
-  if (imports && !PyC_NameSpace_ImportArray(py_dict, imports)) {
-    ok = false;
-  }
-  else if ((retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict)) == nullptr) {
-    ok = false;
-  }
-  else {
-    const char *val;
+  int ok = -1;
+  if (PyObject *retval = pyc_run_string_as_py_object(imports, nullptr, expr, filename)) {
     Py_ssize_t val_len;
-
-    val = PyUnicode_AsUTF8AndSize(retval, &val_len);
+    const char *val = PyUnicode_AsUTF8AndSize(retval, &val_len);
     if (val == nullptr && PyErr_Occurred()) {
       ok = false;
     }
     else {
-      char *val_alloc = static_cast<char *>(MEM_mallocN(val_len + 1, __func__));
-      memcpy(val_alloc, val, val_len + 1);
+      char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
+      memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(*val_alloc));
       *r_value = val_alloc;
       *r_value_size = val_len;
+      ok = true;
     }
-
     Py_DECREF(retval);
   }
-
-  PyC_MainModule_Restore(main_mod);
-
+  else {
+    ok = false;
+  }
+  BLI_assert(ok != -1);
   return ok;
 }
 
@@ -1619,9 +1630,94 @@ bool PyC_RunString_AsString(const char *imports[],
   return PyC_RunString_AsStringAndSize(imports, expr, filename, r_value, &value_size);
 }
 
+bool PyC_RunString_AsStringAndSizeOrNone(const char *imports[],
+                                         const char *expr,
+                                         const char *filename,
+                                         char **r_value,
+                                         size_t *r_value_size)
+{
+  int ok = -1;
+  if (PyObject *retval = pyc_run_string_as_py_object(imports, nullptr, expr, filename)) {
+    if (retval == Py_None) {
+      *r_value = nullptr;
+      *r_value_size = 0;
+      ok = true;
+    }
+    else {
+      Py_ssize_t val_len;
+      const char *val = PyUnicode_AsUTF8AndSize(retval, &val_len);
+      if (val == nullptr && PyErr_Occurred()) {
+        ok = false;
+      }
+      else {
+        char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
+        memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(val_alloc));
+        *r_value = val_alloc;
+        *r_value_size = val_len;
+        ok = true;
+      }
+    }
+    Py_DECREF(retval);
+  }
+  else {
+    ok = false;
+  }
+  BLI_assert(ok != -1);
+  return bool(ok);
+}
+
+bool PyC_RunString_AsStringOrNone(const char *imports[],
+                                  const char *expr,
+                                  const char *filename,
+                                  char **r_value)
+{
+  size_t value_size;
+  return PyC_RunString_AsStringAndSizeOrNone(imports, expr, filename, r_value, &value_size);
+}
+
 /** \} */
 
 #endif /* #ifndef MATH_STANDALONE */
+
+/* -------------------------------------------------------------------- */
+/** \name Std Files Flush
+ *
+ * \{ */
+
+void PyC_StdFilesFlush()
+{
+  /* This is ported from CPython's internal #flush_std_files (2025-03-31). The code is a bit
+   * different because the original code uses some internal APIs.
+   *
+   * This is approximately equivalent to:
+   * \code{.py}
+   * try:
+   *     sys.stdout.flush()
+   *     sys.stderr.flush()
+   * except Exception:
+   *     pass
+   * \endcode
+   */
+  PyObject *py_flush = PyUnicode_FromString("flush");
+  BLI_assert(py_flush);
+  for (const char *name : {"stdout", "stderr"}) {
+    PyObject *py_file = PySys_GetObject(name);
+    if (!py_file) {
+      PyErr_Clear();
+      continue;
+    }
+    PyObject *py_flush_retval = PyObject_CallMethodNoArgs(py_file, py_flush);
+    if (py_flush_retval) {
+      Py_DECREF(py_flush_retval);
+    }
+    else {
+      PyErr_Clear();
+    }
+  }
+  Py_DECREF(py_flush);
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Int Conversion
@@ -1631,14 +1727,41 @@ bool PyC_RunString_AsString(const char *imports[],
  * \{ */
 
 /* Compiler optimizes out redundant checks. */
-#ifdef __GNUC__
-#  pragma warning(push)
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wtype-limits"
+
 #endif
+
+/* #PyLong_AsUnsignedLong, unlike #PyLong_AsLong, does not fall back to calling #PyNumber_Index
+ * when its argument is not a `PyLongObject` instance. To match parsing signed integer types with
+ * #PyLong_AsLong, this function performs the #PyNumber_Index fallback, if necessary, before
+ * calling #PyLong_AsUnsignedLong. */
+static ulong pyc_Long_AsUnsignedLong(PyObject *value)
+{
+  if (value == nullptr) {
+    /* Let PyLong_AsUnsignedLong handle error raising. */
+    return PyLong_AsUnsignedLong(value);
+  }
+
+  if (PyLong_Check(value)) {
+    return PyLong_AsUnsignedLong(value);
+  }
+
+  /* Call `__index__` like PyLong_AsLong. */
+  PyObject *value_converted = PyNumber_Index(value);
+  if (value_converted == nullptr) {
+    /* A `TypeError` will have been raised. */
+    return ulong(-1);
+  }
+  ulong to_return = PyLong_AsUnsignedLong(value_converted);
+  Py_DECREF(value_converted);
+  return to_return;
+}
 
 int PyC_Long_AsBool(PyObject *value)
 {
-  const int test = _PyLong_AsInt(value);
+  const int test = PyLong_AsInt(value);
   if (UNLIKELY(test == -1 && PyErr_Occurred())) {
     return -1;
   }
@@ -1651,7 +1774,7 @@ int PyC_Long_AsBool(PyObject *value)
 
 int8_t PyC_Long_AsI8(PyObject *value)
 {
-  const int test = _PyLong_AsInt(value);
+  const int test = PyLong_AsInt(value);
   if (UNLIKELY(test == -1 && PyErr_Occurred())) {
     return -1;
   }
@@ -1664,7 +1787,7 @@ int8_t PyC_Long_AsI8(PyObject *value)
 
 int16_t PyC_Long_AsI16(PyObject *value)
 {
-  const int test = _PyLong_AsInt(value);
+  const int test = PyLong_AsInt(value);
   if (UNLIKELY(test == -1 && PyErr_Occurred())) {
     return -1;
   }
@@ -1682,7 +1805,7 @@ int16_t PyC_Long_AsI16(PyObject *value)
 
 uint8_t PyC_Long_AsU8(PyObject *value)
 {
-  const ulong test = PyLong_AsUnsignedLong(value);
+  const ulong test = pyc_Long_AsUnsignedLong(value);
   if (UNLIKELY(test == ulong(-1) && PyErr_Occurred())) {
     return uint8_t(-1);
   }
@@ -1695,7 +1818,7 @@ uint8_t PyC_Long_AsU8(PyObject *value)
 
 uint16_t PyC_Long_AsU16(PyObject *value)
 {
-  const ulong test = PyLong_AsUnsignedLong(value);
+  const ulong test = pyc_Long_AsUnsignedLong(value);
   if (UNLIKELY(test == ulong(-1) && PyErr_Occurred())) {
     return uint16_t(-1);
   }
@@ -1708,7 +1831,7 @@ uint16_t PyC_Long_AsU16(PyObject *value)
 
 uint32_t PyC_Long_AsU32(PyObject *value)
 {
-  const ulong test = PyLong_AsUnsignedLong(value);
+  const ulong test = pyc_Long_AsUnsignedLong(value);
   if (UNLIKELY(test == ulong(-1) && PyErr_Occurred())) {
     return uint32_t(-1);
   }
@@ -1719,12 +1842,31 @@ uint32_t PyC_Long_AsU32(PyObject *value)
   return uint32_t(test);
 }
 
-/* Inlined in header:
- * PyC_Long_AsU64
- */
+uint64_t PyC_Long_AsU64(PyObject *value)
+{
+  if (value == nullptr) {
+    /* Let PyLong_AsUnsignedLongLong handle error raising. */
+    return uint64_t(PyLong_AsUnsignedLongLong(value));
+  }
 
-#ifdef __GNUC__
-#  pragma warning(pop)
+  if (PyLong_Check(value)) {
+    return uint64_t(PyLong_AsUnsignedLongLong(value));
+  }
+
+  /* Call `__index__` like PyLong_AsLongLong. */
+  PyObject *value_converted = PyNumber_Index(value);
+  if (value_converted == nullptr) {
+    /* A `TypeError` will have been raised. */
+    return uint64_t(-1);
+  }
+
+  uint64_t to_return = uint64_t(PyLong_AsUnsignedLongLong(value_converted));
+  Py_DECREF(value_converted);
+  return to_return;
+}
+
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
 #endif
 
 /** \} */

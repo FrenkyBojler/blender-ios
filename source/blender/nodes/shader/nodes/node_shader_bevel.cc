@@ -4,7 +4,7 @@
 
 #include "node_shader_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_bevel_cc {
@@ -16,9 +16,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Normal");
 }
 
-static void node_shader_buts_bevel(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_bevel(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "samples", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  layout.prop(ptr, "samples", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static void node_shader_init_bevel(bNodeTree * /*ntree*/, bNode *node)
@@ -42,7 +42,7 @@ static int gpu_shader_bevel(GPUMaterial *mat,
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  /* NOTE: This node isn't supported by MaterialX.*/
+  /* NOTE: This node isn't supported by MaterialX. */
   return get_input_link("Normal", NodeItem::Type::Vector3);
 }
 #endif
@@ -55,14 +55,20 @@ void register_node_type_sh_bevel()
 {
   namespace file_ns = blender::nodes::node_shader_bevel_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BEVEL, "Bevel", NODE_CLASS_INPUT);
+  sh_node_type_base(&ntype, "ShaderNodeBevel", SH_NODE_BEVEL);
+  ntype.ui_name = "Bevel";
+  ntype.ui_description =
+      "Generates normals with round corners.\nNote: only supported in Cycles, and may slow down "
+      "renders";
+  ntype.enum_name_legacy = "BEVEL";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_bevel;
   ntype.initfunc = file_ns::node_shader_init_bevel;
   ntype.gpu_fn = file_ns::gpu_shader_bevel;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

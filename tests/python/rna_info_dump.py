@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Used for generating API diffs between releases
-#  ./blender.bin --background -noaudio --python tests/python/rna_info_dump.py
+#  ./blender.bin --background --python tests/python/rna_info_dump.py
 
 import bpy
 
@@ -97,7 +97,7 @@ def api_dump(use_properties=True, use_functions=True):
         data.insert(0, "# * properties *")
         return data
 
-    import rna_info
+    import _rna_info as rna_info
     struct = rna_info.BuildRNAInfo()[0]
     data = []
 

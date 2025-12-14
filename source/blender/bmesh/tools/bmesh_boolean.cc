@@ -8,16 +8,17 @@
  * Main functions for boolean on a #BMesh (used by the tool and modifier)
  */
 
+#include <functional>
+
 #include "BLI_array.hh"
+#include "BLI_math_base.h"
 #include "BLI_math_mpq.hh"
 #include "BLI_mesh_boolean.hh"
 #include "BLI_mesh_intersect.hh"
 
-#include "bmesh.h"
-#include "bmesh_boolean.h"
-#include "bmesh_edgesplit.h"
-
-#include "PIL_time.h"
+#include "bmesh.hh"
+#include "bmesh_boolean.hh"
+#include "bmesh_edgesplit.hh"
 
 // #define PERF_DEBUG
 
@@ -35,8 +36,7 @@ namespace blender::meshintersect {
  * the faces in the returned (polygonal) mesh.
  */
 static IMesh mesh_from_bm(BMesh *bm,
-                          BMLoop *(*looptris)[3],
-                          const int looptris_tot,
+                          const Span<std::array<BMLoop *, 3>> looptris,
                           IMesh *r_triangulated,
                           IMeshArena *arena)
 {
@@ -75,10 +75,10 @@ static IMesh mesh_from_bm(BMesh *bm,
    * The loop_tris have accurate v and f members for the triangles,
    * but their next and e pointers are not correct for the loops
    * that start added-diagonal edges. */
-  Array<Face *> tri_face(looptris_tot);
+  Array<Face *> tri_face(looptris.size());
   face_vert.resize(3);
   face_edge_orig.resize(3);
-  for (int i = 0; i < looptris_tot; ++i) {
+  for (const int i : looptris.index_range()) {
     BMFace *bmf = looptris[i][0]->f;
     int f = BM_elem_index_get(bmf);
     for (int j = 0; j < 3; ++j) {
@@ -300,7 +300,7 @@ static bool apply_mesh_output_to_bmesh(BMesh *bm, IMesh &m_out, bool keep_hidden
   BMIter iter;
   BMFace *bmf = static_cast<BMFace *>(BM_iter_new(&iter, bm, BM_FACES_OF_MESH, nullptr));
   while (bmf != nullptr) {
-#  ifdef DEBUG
+#  ifndef NDEBUG
     iter.count = BM_iter_mesh_count(BM_FACES_OF_MESH, bm);
 #  endif
     BMFace *bmf_next = static_cast<BMFace *>(BM_iter_step(&iter));
@@ -318,7 +318,7 @@ static bool apply_mesh_output_to_bmesh(BMesh *bm, IMesh &m_out, bool keep_hidden
   }
   BMVert *bmv = static_cast<BMVert *>(BM_iter_new(&iter, bm, BM_VERTS_OF_MESH, nullptr));
   while (bmv != nullptr) {
-#  ifdef DEBUG
+#  ifndef NDEBUG
     iter.count = BM_iter_mesh_count(BM_VERTS_OF_MESH, bm);
 #  endif
     BMVert *bmv_next = static_cast<BMVert *>(BM_iter_step(&iter));
@@ -336,8 +336,7 @@ static bool apply_mesh_output_to_bmesh(BMesh *bm, IMesh &m_out, bool keep_hidden
 }
 
 static bool bmesh_boolean(BMesh *bm,
-                          BMLoop *(*looptris)[3],
-                          const int looptris_tot,
+                          const Span<std::array<BMLoop *, 3>> looptris,
                           int (*test_fn)(BMFace *f, void *user_data),
                           void *user_data,
                           int nshapes,
@@ -350,11 +349,11 @@ static bool bmesh_boolean(BMesh *bm,
   IMeshArena arena;
   IMesh m_triangulated;
 #  ifdef PERF_DEBUG
-  double start_time = PIL_check_seconds_timer();
+  double start_time = BLI_time_now_seconds();
 #  endif
-  IMesh m_in = mesh_from_bm(bm, looptris, looptris_tot, &m_triangulated, &arena);
+  IMesh m_in = mesh_from_bm(bm, looptris, &m_triangulated, &arena);
 #  ifdef PERF_DEBUG
-  double mesh_time = PIL_check_seconds_timer();
+  double mesh_time = BLI_time_now_seconds();
   std::cout << "bmesh_boolean, imesh_from_bm done, time = " << mesh_time - start_time << "\n";
 #  endif
   std::function<int(int)> shape_fn;
@@ -382,12 +381,12 @@ static bool bmesh_boolean(BMesh *bm,
   IMesh m_out = boolean_mesh(
       m_in, boolean_mode, nshapes, shape_fn, use_self, hole_tolerant, &m_triangulated, &arena);
 #  ifdef PERF_DEBUG
-  double boolean_time = PIL_check_seconds_timer();
+  double boolean_time = BLI_time_now_seconds();
   std::cout << "boolean done, time = " << boolean_time - mesh_time << "\n";
 #  endif
   bool any_change = apply_mesh_output_to_bmesh(bm, m_out, keep_hidden);
 #  ifdef PERF_DEBUG
-  double apply_mesh_time = PIL_check_seconds_timer();
+  double apply_mesh_time = BLI_time_now_seconds();
   std::cout << "applied boolean output to bmesh, time = " << apply_mesh_time - boolean_time
             << "\n";
 #  endif
@@ -402,7 +401,6 @@ static bool bmesh_boolean(BMesh *bm,
 
 }  // namespace blender::meshintersect
 
-extern "C" {
 /**
  * Perform the boolean operation specified by boolean_mode on the mesh bm.
  * The inputs to the boolean operation are either one sub-mesh (if use_self is true),
@@ -421,8 +419,7 @@ extern "C" {
  */
 #ifdef WITH_GMP
 bool BM_mesh_boolean(BMesh *bm,
-                     BMLoop *(*looptris)[3],
-                     const int looptris_tot,
+                     const blender::Span<std::array<BMLoop *, 3>> looptris,
                      int (*test_fn)(BMFace *f, void *user_data),
                      void *user_data,
                      const int nshapes,
@@ -434,7 +431,6 @@ bool BM_mesh_boolean(BMesh *bm,
   return blender::meshintersect::bmesh_boolean(
       bm,
       looptris,
-      looptris_tot,
       test_fn,
       user_data,
       nshapes,
@@ -446,8 +442,7 @@ bool BM_mesh_boolean(BMesh *bm,
 }
 
 bool BM_mesh_boolean_knife(BMesh *bm,
-                           BMLoop *(*looptris)[3],
-                           const int looptris_tot,
+                           const blender::Span<std::array<BMLoop *, 3>> looptris,
                            int (*test_fn)(BMFace *f, void *user_data),
                            void *user_data,
                            const int nshapes,
@@ -458,7 +453,6 @@ bool BM_mesh_boolean_knife(BMesh *bm,
 {
   return blender::meshintersect::bmesh_boolean(bm,
                                                looptris,
-                                               looptris_tot,
                                                test_fn,
                                                user_data,
                                                nshapes,
@@ -470,8 +464,7 @@ bool BM_mesh_boolean_knife(BMesh *bm,
 }
 #else
 bool BM_mesh_boolean(BMesh * /*bm*/,
-                     BMLoop *(*looptris)[3],
-                     const int /*looptris_tot*/,
+                     blender::Span<std::array<BMLoop *, 3>> looptris,
                      int (*test_fn)(BMFace *, void *),
                      void * /*user_data*/,
                      const int /*nshapes*/,
@@ -484,17 +477,8 @@ bool BM_mesh_boolean(BMesh * /*bm*/,
   return false;
 }
 
-/**
- * Perform a Knife Intersection operation on the mesh bm.
- * There are either one or two operands, the same as described above for #BM_mesh_boolean().
- * If use_separate_all is true, each edge that is created from the intersection should
- * be used to separate all its incident faces. TODO: implement that.
- * TODO: need to ensure that "selected/non-selected" flag of original faces gets propagated
- * to the intersection result faces.
- */
 bool BM_mesh_boolean_knife(BMesh * /*bm*/,
-                           BMLoop *(*looptris)[3],
-                           const int /*looptris_tot*/,
+                           blender::Span<std::array<BMLoop *, 3>> looptris,
                            int (*test_fn)(BMFace *, void *),
                            void * /*user_data*/,
                            const int /*nshapes*/,
@@ -507,5 +491,3 @@ bool BM_mesh_boolean_knife(BMesh * /*bm*/,
   return false;
 }
 #endif
-
-} /* extern "C" */

@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
-#include "BLI_task.hh"
 
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
 
@@ -14,14 +13,14 @@ namespace blender::nodes::node_geo_mesh_topology_corners_of_face_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Face Index")
-      .implicit_field(implicit_field_inputs::index)
-      .description("The face to retrieve data from. Defaults to the face from the context");
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
+      .description("The face to retrieve data from. Defaults to the face from the context")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values used to sort the face's corners. Uses indices by default");
   b.add_input<decl::Int>("Sort Index")
-      .min(0)
       .supports_field()
-      .description("Which of the sorted corners to output");
+      .description("Which of the sorted corners to output. Negative indexing is supported");
   b.add_output<decl::Int>("Corner Index")
       .field_source_reference_all()
       .description("A corner of the face, chosen by the sort index");
@@ -45,7 +44,7 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask &mask) const final
   {
     const OffsetIndices faces = mesh.faces();
@@ -58,8 +57,8 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     const VArray<int> face_indices = evaluator.get_evaluated<int>(0);
     const VArray<int> indices_in_sort = evaluator.get_evaluated<int>(1);
 
-    const bke::MeshFieldContext corner_context{mesh, ATTR_DOMAIN_CORNER};
-    fn::FieldEvaluator corner_evaluator{corner_context, mesh.totloop};
+    const bke::MeshFieldContext corner_context{mesh, AttrDomain::Corner};
+    fn::FieldEvaluator corner_evaluator{corner_context, mesh.corners_num};
     corner_evaluator.add(sort_weight_);
     corner_evaluator.evaluate();
     const VArray<float> all_sort_weights = corner_evaluator.get_evaluated<float>(0);
@@ -105,7 +104,7 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
       }
     });
 
-    return VArray<int>::ForContainer(std::move(corner_of_face));
+    return VArray<int>::from_container(std::move(corner_of_face));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -129,9 +128,9 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_FACE;
+    return AttrDomain::Face;
   }
 };
 
@@ -143,15 +142,15 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_FACE) {
+    if (domain != AttrDomain::Face) {
       return {};
     }
     const OffsetIndices faces = mesh.faces();
-    return VArray<int>::ForFunc(mesh.faces_num,
-                                [faces](const int64_t i) { return faces[i].size(); });
+    return VArray<int>::from_func(mesh.faces_num,
+                                  [faces](const int64_t i) { return faces[i].size(); });
   }
 
   uint64_t hash() const final
@@ -164,9 +163,9 @@ class CornersOfFaceCountInput final : public bke::MeshFieldInput {
     return dynamic_cast<const CornersOfFaceCountInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_FACE;
+    return AttrDomain::Face;
   }
 };
 
@@ -175,10 +174,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> face_index = params.extract_input<Field<int>>("Face Index");
   if (params.output_is_required("Total")) {
     params.set_output("Total",
-                      Field<int>(std::make_shared<EvaluateAtIndexInput>(
+                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           face_index,
                           Field<int>(std::make_shared<CornersOfFaceCountInput>()),
-                          ATTR_DOMAIN_FACE)));
+                          AttrDomain::Face)));
   }
   if (params.output_is_required("Corner Index")) {
     params.set_output("Corner Index",
@@ -191,12 +190,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE, "Corners of Face", NODE_CLASS_INPUT);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeCornersOfFace", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE);
+  ntype.ui_name = "Corners of Face";
+  ntype.ui_description = "Retrieve corners that make up a face";
+  ntype.enum_name_legacy = "CORNERS_OF_FACE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

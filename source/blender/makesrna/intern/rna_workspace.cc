@@ -10,35 +10,34 @@
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
 
-#include "BKE_workspace.h"
-
-#include "ED_render.hh"
-
-#include "RE_engine.h"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "DNA_workspace_types.h"
 
 #ifdef RNA_RUNTIME
 
 #  include "BLI_listbase.h"
+#  include "BLI_string.h"
 
-#  include "BKE_global.h"
+#  include "BKE_global.hh"
+#  include "BKE_paint.hh"
+#  include "BKE_paint_types.hh"
+#  include "BKE_report.hh"
+#  include "BKE_workspace.hh"
 
-#  include "DNA_object_types.h"
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"
 
 #  include "ED_asset.hh"
 #  include "ED_paint.hh"
+#  include "ED_sequencer.hh"
 
 #  include "RNA_access.hh"
 
-#  include "WM_toolsystem.h"
+#  include "WM_toolsystem.hh"
 
 static void rna_window_update_all(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
@@ -48,7 +47,7 @@ static void rna_window_update_all(Main * /*bmain*/, Scene * /*scene*/, PointerRN
 void rna_workspace_screens_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   WorkSpace *workspace = (WorkSpace *)ptr->owner_id;
-  rna_iterator_listbase_begin(iter, &workspace->layouts, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &workspace->layouts, nullptr);
 }
 
 static PointerRNA rna_workspace_screens_item_get(CollectionPropertyIterator *iter)
@@ -56,14 +55,14 @@ static PointerRNA rna_workspace_screens_item_get(CollectionPropertyIterator *ite
   WorkSpaceLayout *layout = static_cast<WorkSpaceLayout *>(rna_iterator_listbase_get(iter));
   bScreen *screen = BKE_workspace_layout_screen_get(layout);
 
-  return rna_pointer_inherit_refine(&iter->parent, &RNA_Screen, screen);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(screen));
 }
 
 /* workspace.owner_ids */
 
 static wmOwnerID *rna_WorkSpace_owner_ids_new(WorkSpace *workspace, const char *name)
 {
-  wmOwnerID *owner_id = static_cast<wmOwnerID *>(MEM_callocN(sizeof(*owner_id), __func__));
+  wmOwnerID *owner_id = MEM_callocN<wmOwnerID>(__func__);
   BLI_addtail(&workspace->owner_ids, owner_id);
   STRNCPY(owner_id->name, name);
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -85,7 +84,7 @@ static void rna_WorkSpace_owner_ids_remove(WorkSpace *workspace,
   }
 
   MEM_freeN(owner_id);
-  RNA_POINTER_INVALIDATE(wstag_ptr);
+  wstag_ptr->invalidate();
 
   WM_main_add_notifier(NC_WINDOW, nullptr);
 }
@@ -99,13 +98,13 @@ static void rna_WorkSpace_owner_ids_clear(WorkSpace *workspace)
 static int rna_WorkSpace_asset_library_get(PointerRNA *ptr)
 {
   const WorkSpace *workspace = static_cast<WorkSpace *>(ptr->data);
-  return ED_asset_library_reference_to_enum_value(&workspace->asset_library_ref);
+  return blender::ed::asset::library_reference_to_enum_value(&workspace->asset_library_ref);
 }
 
 static void rna_WorkSpace_asset_library_set(PointerRNA *ptr, int value)
 {
   WorkSpace *workspace = static_cast<WorkSpace *>(ptr->data);
-  workspace->asset_library_ref = ED_asset_library_reference_from_enum_value(value);
+  workspace->asset_library_ref = blender::ed::asset::library_reference_from_enum_value(value);
 }
 
 static bToolRef *rna_WorkSpace_tools_from_tkey(WorkSpace *workspace,
@@ -176,7 +175,7 @@ const EnumPropertyItem *rna_WorkSpace_tools_mode_itemf(bContext * /*C*/,
 static bool rna_WorkSpaceTool_use_paint_canvas_get(PointerRNA *ptr)
 {
   bToolRef *tref = static_cast<bToolRef *>(ptr->data);
-  return ED_paint_tool_use_canvas(nullptr, tref);
+  return ED_paint_brush_type_use_canvas(nullptr, tref);
 }
 
 static int rna_WorkSpaceTool_index_get(PointerRNA *ptr)
@@ -191,6 +190,50 @@ static bool rna_WorkSpaceTool_has_datablock_get(PointerRNA *ptr)
   return (tref->runtime) ? (tref->runtime->data_block[0] != '\0') : false;
 }
 
+static bool rna_WorkSpaceTool_use_brushes_get(PointerRNA *ptr)
+{
+  bToolRef *tref = static_cast<bToolRef *>(ptr->data);
+  return (tref->runtime) ? ((tref->runtime->flag & TOOLREF_FLAG_USE_BRUSHES) != 0) : false;
+}
+
+static int rna_WorkSpaceTool_brush_type_get(PointerRNA *ptr)
+{
+  bToolRef *tref = static_cast<bToolRef *>(ptr->data);
+  return tref->runtime ? tref->runtime->brush_type : -1;
+}
+
+const EnumPropertyItem *rna_WorkSpaceTool_brush_type_itemf(bContext *C,
+                                                           PointerRNA *ptr,
+                                                           PropertyRNA * /*prop*/,
+                                                           bool *r_free)
+{
+
+  PaintMode paint_mode = [&]() {
+    if (ptr->type == &RNA_WorkSpaceTool) {
+      const bToolRef *tref = static_cast<bToolRef *>(ptr->data);
+      return BKE_paintmode_get_from_tool(tref);
+    }
+    return C ? BKE_paintmode_get_active_from_context(C) : PaintMode::Invalid;
+  }();
+
+  EnumPropertyItem *items = nullptr;
+  int totitem = 0;
+
+  EnumPropertyItem unset_item = {
+      -1, "ANY", 0, "Any", "Do not limit this tool to a specific brush type"};
+  RNA_enum_item_add(&items, &totitem, &unset_item);
+
+  if (paint_mode != PaintMode::Invalid) {
+    const EnumPropertyItem *valid_items = BKE_paint_get_tool_enum_from_paintmode(paint_mode);
+    RNA_enum_items_add(&items, &totitem, valid_items);
+  }
+
+  RNA_enum_item_end(&items, &totitem);
+
+  *r_free = true;
+  return items;
+}
+
 static void rna_WorkSpaceTool_widget_get(PointerRNA *ptr, char *value)
 {
   bToolRef *tref = static_cast<bToolRef *>(ptr->data);
@@ -203,6 +246,11 @@ static int rna_WorkSpaceTool_widget_length(PointerRNA *ptr)
   return tref->runtime ? strlen(tref->runtime->gizmo_group) : 0;
 }
 
+static void rna_workspace_sync_scene_time_update(bContext *C, PointerRNA * /*ptr*/)
+{
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
+}
+
 #else /* RNA_RUNTIME */
 
 static void rna_def_workspace_owner(BlenderRNA *brna)
@@ -212,7 +260,6 @@ static void rna_def_workspace_owner(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "wmOwnerID", nullptr);
   RNA_def_struct_sdna(srna, "wmOwnerID");
-  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
   RNA_def_struct_ui_text(srna, "Work Space UI Tag", "");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
@@ -262,7 +309,6 @@ static void rna_def_workspace_tool(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "WorkSpaceTool", nullptr);
   RNA_def_struct_sdna(srna, "bToolRef");
-  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
   RNA_def_struct_ui_text(srna, "Work Space Tool", "");
 
   prop = RNA_def_property(srna, "idname", PROP_STRING, PROP_NONE);
@@ -297,10 +343,27 @@ static void rna_def_workspace_tool(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Use Paint Canvas", "Does this tool use a painting canvas");
 
   RNA_define_verify_sdna(false);
+
   prop = RNA_def_property(srna, "has_datablock", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Has Data-Block", "");
   RNA_def_property_boolean_funcs(prop, "rna_WorkSpaceTool_has_datablock_get", nullptr);
+
+  prop = RNA_def_property(srna, "use_brushes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Uses Brushes", "");
+  RNA_def_property_boolean_funcs(prop, "rna_WorkSpaceTool_use_brushes_get", nullptr);
+
+  prop = RNA_def_property(srna, "brush_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Brush Type",
+                           "If the tool uses brushes and is limited to a specific brush type, the "
+                           "identifier of the brush type");
+  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
+  RNA_def_property_enum_funcs(
+      prop, "rna_WorkSpaceTool_brush_type_get", nullptr, "rna_WorkSpaceTool_brush_type_itemf");
+
   RNA_define_verify_sdna(true);
 
   prop = RNA_def_property(srna, "widget", PROP_STRING, PROP_NONE);
@@ -427,6 +490,19 @@ static void rna_def_workspace(BlenderRNA *brna)
                            "Active asset library to show in the UI, not used by the Asset Browser "
                            "(which has its own active asset library)");
   RNA_def_property_update(prop, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
+
+  prop = RNA_def_property(srna, "sequencer_scene", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "sequencer_scene");
+  RNA_def_property_ui_text(prop, "Sequencer Scene", "");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_PTR_NO_OWNERSHIP);
+  RNA_def_property_update(prop, 0, "rna_window_update_all");
+
+  prop = RNA_def_property(srna, "use_scene_time_sync", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flags", WORKSPACE_SYNC_SCENE_TIME);
+  RNA_def_property_ui_text(
+      prop, "Sync Scene Time", "Set the active scene and time based on the current scene strip");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_WINDOW, "rna_workspace_sync_scene_time_update");
 
   RNA_api_workspace(srna);
 }

@@ -6,22 +6,19 @@
 
 #include "curves_sculpt_intern.hh"
 
-#include "BLI_kdtree.h"
+#include "BLI_bounds.hh"
+#include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_rand.hh"
 #include "BLI_vector.hh"
 
-#include "PIL_time.h"
-
 #include "DEG_depsgraph.hh"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
-#include "BKE_curves_utils.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
@@ -29,16 +26,12 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_report.h"
 
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -72,11 +65,12 @@ class AddOperation : public CurvesSculptStrokeOperation {
   ~AddOperation() override
   {
     if (curve_roots_kdtree_ != nullptr) {
-      BLI_kdtree_3d_free(curve_roots_kdtree_);
+      kdtree_3d_free(curve_roots_kdtree_);
     }
   }
 
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 /**
@@ -95,11 +89,11 @@ struct AddOperationExecutor {
   Mesh *surface_eval_ = nullptr;
   Span<float3> surface_positions_eval_;
   Span<int> surface_corner_verts_eval_;
-  Span<MLoopTri> surface_looptris_eval_;
+  Span<int3> surface_corner_tris_eval_;
   VArraySpan<float2> surface_uv_map_eval_;
-  BVHTreeFromMesh surface_bvh_eval_;
+  bke::BVHTreeFromMesh surface_bvh_eval_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   const BrushCurvesSculptSettings *brush_settings_ = nullptr;
   int add_amount_;
@@ -110,12 +104,12 @@ struct AddOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  AddOperationExecutor(const bContext &C) : ctx_(C) {}
+  AddOperationExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(AddOperation &self, const bContext &C, const StrokeExtension &stroke_extension)
+  void execute(AddOperation &self, const StrokeExtension &stroke_extension)
   {
     self_ = &self;
-    curves_ob_orig_ = CTX_data_active_object(&C);
+    curves_ob_orig_ = ctx_.object;
 
     curves_id_orig_ = static_cast<Curves *>(curves_ob_orig_->data);
     curves_orig_ = &curves_id_orig_->geometry.wrap();
@@ -134,7 +128,7 @@ struct AddOperationExecutor {
       return;
     }
 
-    surface_ob_eval_ = DEG_get_evaluated_object(ctx_.depsgraph, &surface_ob_orig);
+    surface_ob_eval_ = DEG_get_evaluated(ctx_.depsgraph, &surface_ob_orig);
     if (surface_ob_eval_ == nullptr) {
       return;
     }
@@ -145,19 +139,17 @@ struct AddOperationExecutor {
     }
     surface_positions_eval_ = surface_eval_->vert_positions();
     surface_corner_verts_eval_ = surface_eval_->corner_verts();
-    surface_looptris_eval_ = surface_eval_->looptris();
-    BKE_bvhtree_from_mesh_get(&surface_bvh_eval_, surface_eval_, BVHTREE_FROM_LOOPTRI, 2);
-    BLI_SCOPED_DEFER([&]() { free_bvhtree_from_mesh(&surface_bvh_eval_); });
+    surface_corner_tris_eval_ = surface_eval_->corner_tris();
+    surface_bvh_eval_ = surface_eval_->bvh_corner_tris();
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
     brush_settings_ = brush_->curves_sculpt_settings;
-    brush_radius_re_ = brush_radius_get(*ctx_.scene, *brush_, stroke_extension);
+    brush_radius_re_ = brush_radius_get(curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     use_front_face_ = brush_->flag & BRUSH_FRONTFACE;
-    const eBrushFalloffShape falloff_shape = static_cast<eBrushFalloffShape>(
-        brush_->falloff_shape);
+    const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
     add_amount_ = std::max(0, brush_settings_->add_amount);
 
     if (add_amount_ == 0) {
@@ -168,9 +160,9 @@ struct AddOperationExecutor {
     VArraySpan<float2> surface_uv_map;
     if (curves_id_orig_->surface_uv_map != nullptr) {
       surface_uv_map = *surface_orig.attributes().lookup<float2>(curves_id_orig_->surface_uv_map,
-                                                                 ATTR_DOMAIN_CORNER);
+                                                                 bke::AttrDomain::Corner);
       surface_uv_map_eval_ = *surface_eval_->attributes().lookup<float2>(
-          curves_id_orig_->surface_uv_map, ATTR_DOMAIN_CORNER);
+          curves_id_orig_->surface_uv_map, bke::AttrDomain::Corner);
     }
 
     if (surface_uv_map.is_empty()) {
@@ -182,9 +174,7 @@ struct AddOperationExecutor {
       return;
     }
 
-    const double time = PIL_check_seconds_timer() * 1000000.0;
-    /* Use a pointer cast to avoid overflow warnings. */
-    RandomNumberGenerator rng{*(uint32_t *)(&time)};
+    RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
 
     /* Sample points on the surface using one of multiple strategies. */
     Vector<float2> sampled_uvs;
@@ -206,29 +196,33 @@ struct AddOperationExecutor {
       return;
     }
 
-    const Span<MLoopTri> surface_looptris_orig = surface_orig.looptris();
+    const Span<int3> surface_corner_tris_orig = surface_orig.corner_tris();
     const Span<float3> corner_normals_su = surface_orig.corner_normals();
-    const geometry::ReverseUVSampler reverse_uv_sampler{surface_uv_map, surface_looptris_orig};
+    const geometry::ReverseUVSampler reverse_uv_sampler{surface_uv_map, surface_corner_tris_orig};
 
     geometry::AddCurvesOnMeshInputs add_inputs;
     add_inputs.uvs = sampled_uvs;
     add_inputs.interpolate_length = brush_settings_->flag &
                                     BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_LENGTH;
+    add_inputs.interpolate_radius = brush_settings_->flag &
+                                    BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_RADIUS;
     add_inputs.interpolate_shape = brush_settings_->flag &
                                    BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_SHAPE;
     add_inputs.interpolate_point_count = brush_settings_->flag &
                                          BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_POINT_COUNT;
     add_inputs.interpolate_resolution = curves_orig_->attributes().contains("resolution");
     add_inputs.fallback_curve_length = brush_settings_->curve_length;
+    add_inputs.fallback_curve_radius = brush_settings_->curve_radius;
     add_inputs.fallback_point_count = std::max(2, brush_settings_->points_per_curve);
     add_inputs.transforms = &transforms_;
-    add_inputs.surface_looptris = surface_looptris_orig;
+    add_inputs.surface_corner_tris = surface_corner_tris_orig;
     add_inputs.reverse_uv_sampler = &reverse_uv_sampler;
     add_inputs.surface = &surface_orig;
     add_inputs.corner_normals_su = corner_normals_su;
 
-    if (add_inputs.interpolate_length || add_inputs.interpolate_shape ||
-        add_inputs.interpolate_point_count || add_inputs.interpolate_resolution)
+    if (add_inputs.interpolate_length || add_inputs.interpolate_radius ||
+        add_inputs.interpolate_shape || add_inputs.interpolate_point_count ||
+        add_inputs.interpolate_resolution)
     {
       this->ensure_curve_roots_kdtree();
       add_inputs.old_roots_kdtree = self_->curve_roots_kdtree_;
@@ -238,10 +232,19 @@ struct AddOperationExecutor {
         *curves_orig_, add_inputs);
     bke::MutableAttributeAccessor attributes = curves_orig_->attributes_for_write();
     if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection")) {
-      curves::fill_selection_true(selection.span.slice(selection.domain == ATTR_DOMAIN_POINT ?
+      curves::fill_selection_true(selection.span.slice(selection.domain == bke::AttrDomain::Point ?
                                                            add_outputs.new_points_range :
                                                            add_outputs.new_curves_range));
       selection.finish();
+    }
+    if (U.uiflag & USER_ORBIT_SELECTION) {
+      if (const std::optional<Bounds<float3>> center_cu = bounds::min_max(
+              curves_orig_->positions().slice(add_outputs.new_points_range)))
+      {
+        remember_stroke_position(
+            *curves_sculpt_,
+            math::transform_point(transforms_.curves_to_world, center_cu->center()));
+      }
     }
 
     if (add_outputs.uv_error) {
@@ -296,14 +299,14 @@ struct AddOperationExecutor {
       return;
     }
 
-    const int looptri_index = ray_hit.index;
-    const MLoopTri &looptri = surface_looptris_eval_[looptri_index];
+    const int tri_index = ray_hit.index;
+    const int3 &tri = surface_corner_tris_eval_[tri_index];
     const float3 brush_pos_su = ray_hit.co;
     const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
-        surface_positions_eval_, surface_corner_verts_eval_, looptri, brush_pos_su);
+        surface_positions_eval_, surface_corner_verts_eval_, tri, brush_pos_su);
 
     const float2 uv = bke::mesh_surface_sample::sample_corner_attribute_with_bary_coords(
-        bary_coords, looptri, surface_uv_map_eval_);
+        bary_coords, tri, surface_uv_map_eval_);
     r_sampled_uvs.append(uv);
   }
 
@@ -331,7 +334,7 @@ struct AddOperationExecutor {
         break;
       }
       Vector<float3> bary_coords;
-      Vector<int> looptri_indices;
+      Vector<int> tri_indices;
       Vector<float3> positions_su;
 
       const int missing_amount = add_amount_ + old_amount - r_sampled_uvs.size();
@@ -356,12 +359,12 @@ struct AddOperationExecutor {
           add_amount_,
           missing_amount,
           bary_coords,
-          looptri_indices,
+          tri_indices,
           positions_su);
 
       for (const int i : IndexRange(new_points)) {
         const float2 uv = bke::mesh_surface_sample::sample_corner_attribute_with_bary_coords(
-            bary_coords[i], surface_looptris_eval_[looptri_indices[i]], surface_uv_map_eval_);
+            bary_coords[i], surface_corner_tris_eval_[tri_indices[i]], surface_uv_map_eval_);
         r_sampled_uvs.append(uv);
       }
     }
@@ -422,26 +425,23 @@ struct AddOperationExecutor {
     const float brush_radius_sq_su = pow2f(brush_radius_su);
 
     /* Find surface triangles within brush radius. */
-    Vector<int> selected_looptri_indices;
+    Vector<int> selected_tri_indices;
     if (use_front_face_) {
       BLI_bvhtree_range_query_cpp(
           *surface_bvh_eval_.tree,
           brush_pos_su,
           brush_radius_su,
           [&](const int index, const float3 & /*co*/, const float /*dist_sq*/) {
-            const MLoopTri &looptri = surface_looptris_eval_[index];
-            const float3 &v0_su =
-                surface_positions_eval_[surface_corner_verts_eval_[looptri.tri[0]]];
-            const float3 &v1_su =
-                surface_positions_eval_[surface_corner_verts_eval_[looptri.tri[1]]];
-            const float3 &v2_su =
-                surface_positions_eval_[surface_corner_verts_eval_[looptri.tri[2]]];
+            const int3 &tri = surface_corner_tris_eval_[index];
+            const float3 &v0_su = surface_positions_eval_[surface_corner_verts_eval_[tri[0]]];
+            const float3 &v1_su = surface_positions_eval_[surface_corner_verts_eval_[tri[1]]];
+            const float3 &v2_su = surface_positions_eval_[surface_corner_verts_eval_[tri[2]]];
             float3 normal_su;
             normal_tri_v3(normal_su, v0_su, v1_su, v2_su);
             if (math::dot(normal_su, view_direction_su) >= 0.0f) {
               return;
             }
-            selected_looptri_indices.append(index);
+            selected_tri_indices.append(index);
           });
     }
     else {
@@ -450,7 +450,7 @@ struct AddOperationExecutor {
           brush_pos_su,
           brush_radius_su,
           [&](const int index, const float3 & /*co*/, const float /*dist_sq*/) {
-            selected_looptri_indices.append(index);
+            selected_tri_indices.append(index);
           });
     }
 
@@ -470,21 +470,21 @@ struct AddOperationExecutor {
         break;
       }
       Vector<float3> bary_coords;
-      Vector<int> looptri_indices;
+      Vector<int> tri_indices;
       Vector<float3> positions_su;
       const int new_points = bke::mesh_surface_sample::sample_surface_points_spherical(
           rng,
           *surface_eval_,
-          selected_looptri_indices,
+          selected_tri_indices,
           brush_pos_su,
           brush_radius_su,
           approximate_density_su,
           bary_coords,
-          looptri_indices,
+          tri_indices,
           positions_su);
       for (const int i : IndexRange(new_points)) {
         const float2 uv = bke::mesh_surface_sample::sample_corner_attribute_with_bary_coords(
-            bary_coords[i], surface_looptris_eval_[looptri_indices[i]], surface_uv_map_eval_);
+            bary_coords[i], surface_corner_tris_eval_[tri_indices[i]], surface_uv_map_eval_);
         r_sampled_uvs.append(uv);
       }
     }
@@ -499,21 +499,22 @@ struct AddOperationExecutor {
   void ensure_curve_roots_kdtree()
   {
     if (self_->curve_roots_kdtree_ == nullptr) {
-      self_->curve_roots_kdtree_ = BLI_kdtree_3d_new(curves_orig_->curves_num());
+      self_->curve_roots_kdtree_ = kdtree_3d_new(curves_orig_->curves_num());
       const Span<int> offsets = curves_orig_->offsets();
       const Span<float3> positions = curves_orig_->positions();
       for (const int curve_i : curves_orig_->curves_range()) {
-        BLI_kdtree_3d_insert(self_->curve_roots_kdtree_, curve_i, positions[offsets[curve_i]]);
+        kdtree_3d_insert(self_->curve_roots_kdtree_, curve_i, positions[offsets[curve_i]]);
       }
-      BLI_kdtree_3d_balance(self_->curve_roots_kdtree_);
+      kdtree_3d_balance(self_->curve_roots_kdtree_);
     }
   }
 };
 
-void AddOperation::on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension)
+void AddOperation::on_stroke_extended(const PaintStroke &stroke,
+                                      const StrokeExtension &stroke_extension)
 {
-  AddOperationExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  AddOperationExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_add_operation()

@@ -8,44 +8,44 @@
  * based on mouse cursor position, split of vertices along the closest edge.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_object_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_layer.h"
-#include "BKE_report.h"
+#include "BKE_layer.hh"
 
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 
 #include "WM_types.hh"
 
 #include "ED_mesh.hh"
-#include "ED_screen.hh"
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "mesh_intern.h" /* own include */
+#include "mesh_intern.hh" /* own include */
+
+using blender::float2;
+using blender::Vector;
 
 /* uses total number of selected edges around a vertex to choose how to extend */
 #define USE_TRICKY_EXTEND
 
-static int edbm_rip_edge_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
+                                             wmOperator * /*op*/,
+                                             const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
 
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *obedit = objects[ob_index];
+  for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
 
@@ -59,13 +59,11 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
     /* mouse direction to view center */
     float mval_dir[2];
 
-    float projectMat[4][4];
-
     if (bm->totvertsel == 0) {
       continue;
     }
 
-    ED_view3d_ob_project_mat_get(rv3d, obedit, projectMat);
+    const blender::float4x4 projectMat = ED_view3d_ob_project_mat_get(rv3d, obedit);
 
     zero_v2(cent_sco);
     cent_tot = 0;
@@ -75,8 +73,7 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
       BM_elem_flag_disable(v, BM_ELEM_TAG);
 
       if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-        float v_sco[2];
-        ED_view3d_project_float_v2_m4(region, v->co, v_sco, projectMat);
+        const float2 v_sco = ED_view3d_project_float_v2_m4(region, v->co, projectMat);
 
         add_v2_v2(cent_sco, v_sco);
         cent_tot += 1;
@@ -94,14 +91,13 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
 
       BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
         if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-          float e_sco[2][2];
           float cent_sco_test[2];
           float dist_sq_test;
 
-          ED_view3d_project_float_v2_m4(region, e->v1->co, e_sco[0], projectMat);
-          ED_view3d_project_float_v2_m4(region, e->v2->co, e_sco[1], projectMat);
+          const float2 e_sco_0 = ED_view3d_project_float_v2_m4(region, e->v1->co, projectMat);
+          const float2 e_sco_1 = ED_view3d_project_float_v2_m4(region, e->v2->co, projectMat);
 
-          closest_to_line_segment_v2(cent_sco_test, mval_fl, e_sco[0], e_sco[1]);
+          closest_to_line_segment_v2(cent_sco_test, mval_fl, e_sco_0, e_sco_1);
           dist_sq_test = len_squared_v2v2(cent_sco_test, mval_fl);
           if (dist_sq_test < dist_sq_best) {
             dist_sq_best = dist_sq_test;
@@ -120,7 +116,7 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
     BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
       BMIter eiter;
       BMEdge *e;
-      float v_sco[2];
+      float2 v_sco;
 
       if (BM_elem_flag_test(v, BM_ELEM_SELECT) && BM_elem_flag_test(v, BM_ELEM_TAG) == false) {
         /* Rules for */
@@ -156,15 +152,14 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
           goto found_edge;
         }
 #endif
-        ED_view3d_project_float_v2_m4(region, v->co, v_sco, projectMat);
+        v_sco = ED_view3d_project_float_v2_m4(region, v->co, projectMat);
 
         BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
           if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
             BMVert *v_other = BM_edge_other_vert(e, v);
-            float v_other_sco[2];
             float angle_test;
 
-            ED_view3d_project_float_v2_m4(region, v_other->co, v_other_sco, projectMat);
+            float2 v_other_sco = ED_view3d_project_float_v2_m4(region, v_other->co, projectMat);
 
             /* avoid comparing with view-axis aligned edges (less than a pixel) */
             if (len_squared_v2v2(v_sco, v_other_sco) > 1.0f) {
@@ -202,6 +197,36 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
           }
           BM_elem_flag_enable(v_new, BM_ELEM_TAG); /* prevent further splitting */
 
+          /* When UV sync select is enabled, the wrong UV's will be selected
+           * because the existing loops will have the selection and the new ones won't.
+           * transfer the selection state to the new loops. */
+          if (bm->uv_select_sync_valid) {
+            if (e_best->l) {
+              BMLoop *l_iter, *l_first;
+              l_iter = l_first = e_best->l;
+              do {
+                bool was_select = false;
+                if (l_iter->next->e == e_new) {
+                  if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
+                    BM_loop_edge_uvselect_set(bm, l_iter->next, false);
+                    was_select = true;
+                  }
+                }
+                else {
+                  BLI_assert(l_iter->prev->e == e_new);
+                  if (BM_elem_flag_test(l_iter->prev, BM_ELEM_SELECT_UV)) {
+                    BM_loop_edge_uvselect_set(bm, l_iter->prev, false);
+                    was_select = true;
+                  }
+                }
+                if (was_select) {
+                  BM_loop_edge_uvselect_set(bm, l_iter, true);
+                }
+
+              } while ((l_iter = l_iter->radial_next) != l_first);
+            }
+          }
+
           changed = true;
         }
       }
@@ -213,14 +238,12 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
       BM_mesh_select_mode_flush(bm);
 
       EDBMUpdate_Params params{};
-      params.calc_looptri = true;
+      params.calc_looptris = true;
       params.calc_normals = false;
       params.is_destructive = true;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
     }
   }
-
-  MEM_freeN(objects);
 
   return OPERATOR_FINISHED;
 }
@@ -232,7 +255,7 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
   ot->idname = "MESH_OT_rip_edge";
   ot->description = "Extend vertices along the edge closest to the cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_rip_edge_invoke;
   ot->poll = EDBM_view3d_poll;
 
@@ -240,5 +263,5 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   /* to give to transform */
-  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
 }

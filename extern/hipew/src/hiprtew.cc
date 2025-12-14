@@ -22,7 +22,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
-static DynamicLibrary hiprt_lib;
+static DynamicLibrary hip_lib = nullptr;
+static DynamicLibrary hiprt_lib = nullptr;
 
 #define HIPRT_LIBRARY_FIND(name) \
   name = (t##name *)dynamic_library_find(hiprt_lib, #name);
@@ -40,8 +41,22 @@ thiprtBuildScene *hiprtBuildScene;
 thiprtGetSceneBuildTemporaryBufferSize *hiprtGetSceneBuildTemporaryBufferSize;
 thiprtCreateFuncTable *hiprtCreateFuncTable;
 thiprtSetFuncTable *hiprtSetFuncTable;
+thiprtCreateGlobalStackBuffer *hiprtCreateGlobalStackBuffer;
+thiprtDestroyGlobalStackBuffer *hiprtDestroyGlobalStackBuffer;
 thiprtDestroyFuncTable *hiprtDestroyFuncTable;
 thiprtSetLogLevel *hiprtSetLogLevel;
+
+static DynamicLibrary dynamic_library_open_find(const char **paths) {
+  int i = 0;
+  while (paths[i] != NULL) {
+      DynamicLibrary lib = dynamic_library_open(paths[i]);
+      if (lib != NULL) {
+        return lib;
+      }
+      ++i;
+  }
+  return NULL;
+}
 
 static void hipewHipRtExit(void)
 {
@@ -49,6 +64,12 @@ static void hipewHipRtExit(void)
     /* Ignore errors. */
     dynamic_library_close(hiprt_lib);
     hiprt_lib = NULL;
+  }
+
+  if (hip_lib != NULL) {
+    /* Ignore errors. */
+    dynamic_library_close(hip_lib);
+    hip_lib = NULL;
   }
 }
 
@@ -61,17 +82,38 @@ bool hiprtewInit()
     return result;
   }
 
-#ifdef _WIN32
   initialized = true;
 
   if (atexit(hipewHipRtExit)) {
     return false;
   }
 
-  std::string hiprt_ver(HIPRT_VERSION_STR);
-  std::string hiprt_path = "hiprt" + hiprt_ver + "64.dll";
+#ifdef _WIN32
+  const char *hiprt_paths[] = {"hiprt64.dll", NULL};
+#else
+  /* The current version of HIP-RT requires libamdhip64.so which Fedora puts
+   * in a separate package than libamdhip64.so.6 as required by HIP. For now
+   * check for the existence of this, in a future update we'll make HIP-RT
+   * consistent and this code can be removed. */
+  const char* hip_paths[] = {"libamdhip64.so",
+                             "/opt/rocm/lib/libamdhip64.so",
+                             "/opt/rocm/hip/lib/libamdhip64.so",
+                             NULL};
 
-  hiprt_lib = dynamic_library_open(hiprt_path.c_str());
+  hip_lib = dynamic_library_open_find(hip_paths);
+  if (!hip_lib) {
+    return false;
+  }
+
+  /* libhiprt is installed to the bin subfolder by default, so we include it
+   * in our search path. */
+  const char *hiprt_paths[] = {"libhiprt64.so",
+                               "/opt/rocm/lib/libhiprt64.so",
+                               "/opt/rocm/bin/libhiprt64.so", NULL};
+
+#endif
+
+  hiprt_lib = dynamic_library_open_find(hiprt_paths);
 
   if (hiprt_lib == NULL) {
     return false;
@@ -89,11 +131,12 @@ bool hiprtewInit()
   HIPRT_LIBRARY_FIND(hiprtGetSceneBuildTemporaryBufferSize)
   HIPRT_LIBRARY_FIND(hiprtCreateFuncTable)
   HIPRT_LIBRARY_FIND(hiprtSetFuncTable)
+  HIPRT_LIBRARY_FIND(hiprtCreateGlobalStackBuffer)
   HIPRT_LIBRARY_FIND(hiprtDestroyFuncTable)
+  HIPRT_LIBRARY_FIND(hiprtDestroyGlobalStackBuffer)
   HIPRT_LIBRARY_FIND(hiprtSetLogLevel)
 
   result = true;
-#endif
 
   return result;
 }

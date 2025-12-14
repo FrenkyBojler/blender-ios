@@ -6,28 +6,27 @@
  * \ingroup intern_mantaflow
  */
 
+#include <algorithm>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <zlib.h>
 
+#include <Python.h>
+
+#include <manta.h>
+
 #include "MANTA_main.h"
-#include "Python.h"
 #include "fluid_script.h"
 #include "liquid_script.h"
-#include "manta.h"
 #include "smoke_script.h"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_fluid_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_scene_types.h"
-
-#include "MEM_guardedalloc.h"
 
 using std::cerr;
 using std::cout;
@@ -60,6 +59,7 @@ MANTA::MANTA(int *res, FluidModifierData *fmd)
   mUsingDiffusion = (fds->flags & FLUID_DOMAIN_USE_DIFFUSION) && mUsingLiquid;
   mUsingViscosity = (fds->flags & FLUID_DOMAIN_USE_VISCOSITY) && mUsingLiquid;
   mUsingMVel = (fds->flags & FLUID_DOMAIN_USE_SPEED_VECTORS) && mUsingLiquid;
+  mUsingGuiding = (fds->flags & FLUID_DOMAIN_USE_GUIDE);
   mUsingDrops = (fds->particle_type & FLUID_DOMAIN_PARTICLE_SPRAY) && mUsingLiquid;
   mUsingBubbles = (fds->particle_type & FLUID_DOMAIN_PARTICLE_BUBBLE) && mUsingLiquid;
   mUsingFloats = (fds->particle_type & FLUID_DOMAIN_PARTICLE_FOAM) && mUsingLiquid;
@@ -69,7 +69,6 @@ MANTA::MANTA(int *res, FluidModifierData *fmd)
   mUsingFire = (fds->active_fields & FLUID_DOMAIN_ACTIVE_FIRE) && mUsingSmoke;
   mUsingColors = (fds->active_fields & FLUID_DOMAIN_ACTIVE_COLORS) && mUsingSmoke;
   mUsingObstacle = (fds->active_fields & FLUID_DOMAIN_ACTIVE_OBSTACLE);
-  mUsingGuiding = (fds->active_fields & FLUID_DOMAIN_ACTIVE_GUIDE);
   mUsingInvel = (fds->active_fields & FLUID_DOMAIN_ACTIVE_INVEL);
   mUsingOutflow = (fds->active_fields & FLUID_DOMAIN_ACTIVE_OUTFLOW);
 
@@ -561,7 +560,7 @@ MANTA::~MANTA()
   }
 
   /* Destruction string for Python. */
-  string tmpString = "";
+  string tmpString;
   vector<string> pythonCommands;
   bool result = false;
 
@@ -593,7 +592,7 @@ MANTA::~MANTA()
  * with some differences:
  * - Doesn't touch `sys.modules`, use #manta_python_main_module_activate instead.
  * - Returns the module instead of the modules `dict`.
- * */
+ */
 static PyObject *manta_python_main_module_create(const char *filename)
 {
   PyObject *builtins = PyEval_GetBuiltins();
@@ -604,8 +603,7 @@ static PyObject *manta_python_main_module_create(const char *filename)
      * NOTE: this won't map to a real file when executing text-blocks and buttons. */
     PyModule_AddObject(mod_main, "__file__", PyUnicode_InternFromString(filename));
   }
-  PyModule_AddObject(mod_main, "__builtins__", builtins);
-  Py_INCREF(builtins); /* AddObject steals a reference */
+  PyModule_AddObjectRef(mod_main, "__builtins__", builtins);
   return mod_main;
 }
 
@@ -778,7 +776,7 @@ void MANTA::initializeRNAMap(FluidModifierData *fmd)
   FluidDomainSettings *fds = fmd->domain;
   bool is2D = (fds->solver_res == 2);
 
-  string borderCollisions = "";
+  string borderCollisions;
   if ((fds->border_collisions & FLUID_DOMAIN_BORDER_LEFT) == 0) {
     borderCollisions += "x";
   }
@@ -798,7 +796,7 @@ void MANTA::initializeRNAMap(FluidModifierData *fmd)
     borderCollisions += "Z";
   }
 
-  string particleTypesStr = "";
+  string particleTypesStr;
   if (fds->particle_type & FLUID_DOMAIN_PARTICLE_SPRAY) {
     particleTypesStr += "PtypeSpray";
   }
@@ -830,7 +828,7 @@ void MANTA::initializeRNAMap(FluidModifierData *fmd)
   string cacheDirectory(fds->cache_directory);
 
   float viscosity = fds->viscosity_base * pow(10.0f, -fds->viscosity_exponent);
-  float domainSize = MAX3(fds->global_size[0], fds->global_size[1], fds->global_size[2]);
+  float domainSize = std::max({fds->global_size[0], fds->global_size[1], fds->global_size[2]});
 
   string vdbCompressionMethod = "Compression_None";
   if (fds->openvdb_compression == VDB_COMPRESSION_NONE) {
@@ -1145,8 +1143,7 @@ string MANTA::getRealValue(const string &varName)
   it = mRNAMap.find(varName);
 
   if (it == mRNAMap.end()) {
-    cerr << "Fluid Error -- variable " << varName << " not found in RNA map " << it->second
-         << endl;
+    cerr << "Fluid Error -- variable " << varName << " not found in RNA map" << endl;
     return "";
   }
 
@@ -1158,7 +1155,7 @@ string MANTA::parseLine(const string &line)
   if (line.size() == 0) {
     return "";
   }
-  string res = "";
+  string res;
   int currPos = 0, start_del = 0, end_del = -1;
   bool readingVar = false;
   const char delimiter = '$';
@@ -1187,7 +1184,7 @@ string MANTA::parseScript(const string &setup_string, FluidModifierData *fmd)
 
   istringstream f(setup_string);
   ostringstream res;
-  string line = "";
+  string line;
 
   /* Update RNA map if modifier data is handed over. */
   if (fmd) {
@@ -1202,7 +1199,7 @@ string MANTA::parseScript(const string &setup_string, FluidModifierData *fmd)
 /** Dirty hack: Needed to format paths from python code that is run via #PyRun_String. */
 static string escapePath(string const &s)
 {
-  string result = "";
+  string result;
   for (char c : s) {
     if (c == '\\') {
       result += "\\\\";
@@ -1557,7 +1554,6 @@ bool MANTA::bakeData(FluidModifierData *fmd, int framenr)
     cout << "MANTA::bakeData()" << endl;
   }
 
-  string tmpString, finalString;
   ostringstream ss;
   vector<string> pythonCommands;
   FluidDomainSettings *fds = fmd->domain;
@@ -2032,6 +2028,7 @@ static PyObject *callPythonFunction(string varName, string functionName, bool is
 
   var = PyObject_GetAttrString(manta_main_module, varName.c_str());
   if (!var) {
+    PyErr_Clear();
     PyGILState_Release(gilstate);
     return nullptr;
   }
@@ -2040,12 +2037,17 @@ static PyObject *callPythonFunction(string varName, string functionName, bool is
 
   Py_DECREF(var);
   if (!func) {
+    PyErr_Clear();
     PyGILState_Release(gilstate);
     return nullptr;
   }
 
   if (!isAttribute) {
     returnedValue = PyObject_CallObject(func, nullptr);
+    if (returnedValue == nullptr) {
+      /* Print any unexpected errors, also clear them. */
+      PyErr_Print();
+    }
     Py_DECREF(func);
   }
 

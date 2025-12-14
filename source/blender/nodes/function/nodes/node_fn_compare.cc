@@ -6,13 +6,14 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
+
+#include "IMB_colormanagement.hh"
 
 #include "RNA_enum_types.hh"
 
@@ -39,8 +40,15 @@ static void node_declare(NodeDeclarationBuilder &b)
     const bool type_is_floating = !ELEM(data_type, SOCK_INT, SOCK_STRING);
     const bool is_vector = data_type == SOCK_VECTOR;
 
-    b.add_output(data_type, "A").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-    b.add_output(data_type, "B").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+    const auto &a_input =
+        b.add_output(data_type, "A").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+    const auto &b_input =
+        b.add_output(data_type, "B").translation_context(BLT_I18NCONTEXT_ID_NODETREE);
+
+    if (data_type == SOCK_STRING) {
+      a_input.optional_label();
+      b_input.optional_label();
+    }
 
     if (is_vector && mode == NODE_COMPARE_MODE_DOT_PRODUCT) {
       b.add_input<decl::Float>("C").default_value(0.9f);
@@ -58,19 +66,19 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Result");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   const NodeFunctionCompare &data = node_storage(*static_cast<const bNode *>(ptr->data));
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
   if (data.data_type == SOCK_VECTOR) {
-    uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+    layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   }
-  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeFunctionCompare *data = MEM_cnew<NodeFunctionCompare>(__func__);
+  NodeFunctionCompare *data = MEM_callocN<NodeFunctionCompare>(__func__);
   data->operation = NODE_COMPARE_GREATER_THAN;
   data->data_type = SOCK_FLOAT;
   data->mode = NODE_COMPARE_MODE_ELEMENT;
@@ -168,7 +176,7 @@ static void node_label(const bNodeTree * /*tree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_compare_operation_items, data->operation, &name);
   if (!enum_label) {
-    name = "Unknown";
+    name = N_("Unknown");
   }
   BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
@@ -543,7 +551,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
           static auto fn = mf::build::SI2_SO<ColorGeometry4f, ColorGeometry4f, bool>(
               "Brighter",
               [](ColorGeometry4f a, ColorGeometry4f b) {
-                return rgb_to_grayscale(a) > rgb_to_grayscale(b);
+                return IMB_colormanagement_get_luminance(a) > IMB_colormanagement_get_luminance(b);
               },
               exec_preset_all);
           return &fn;
@@ -552,7 +560,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
           static auto fn = mf::build::SI2_SO<ColorGeometry4f, ColorGeometry4f, bool>(
               "Darker",
               [](ColorGeometry4f a, ColorGeometry4f b) {
-                return rgb_to_grayscale(a) < rgb_to_grayscale(b);
+                return IMB_colormanagement_get_luminance(a) < IMB_colormanagement_get_luminance(b);
               },
               exec_preset_all);
           return &fn;
@@ -658,13 +666,13 @@ static void node_rna(StructRNA *srna)
                 return !ELEM(item.value, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER);
               });
         }
-        else if (data->data_type == SOCK_STRING) {
+        if (data->data_type == SOCK_STRING) {
           return enum_items_filter(
               rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
                 return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
               });
         }
-        else if (data->data_type == SOCK_RGBA) {
+        if (data->data_type == SOCK_RGBA) {
           return enum_items_filter(rna_enum_node_compare_operation_items,
                                    [](const EnumPropertyItem &item) {
                                      return ELEM(item.value,
@@ -674,10 +682,8 @@ static void node_rna(StructRNA *srna)
                                                  NODE_COMPARE_COLOR_DARKER);
                                    });
         }
-        else {
-          return enum_items_filter(rna_enum_node_compare_operation_items,
-                                   [](const EnumPropertyItem & /*item*/) { return false; });
-        }
+        return enum_items_filter(rna_enum_node_compare_operation_items,
+                                 [](const EnumPropertyItem & /*item*/) { return false; });
       });
 
   prop = RNA_def_node_enum(
@@ -708,17 +714,21 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  fn_node_type_base(&ntype, FN_NODE_COMPARE, "Compare", NODE_CLASS_CONVERTER);
+  static blender::bke::bNodeType ntype;
+  fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
+  ntype.ui_name = "Compare";
+  ntype.ui_description = "Perform a comparison operation on the two given inputs";
+  ntype.enum_name_legacy = "COMPARE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
   ntype.initfunc = node_init;
-  node_type_storage(
-      &ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

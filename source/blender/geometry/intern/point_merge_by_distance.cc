@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_attribute_math.hh"
-#include "BKE_geometry_set.hh"
-#include "BKE_pointcloud.h"
+#include "BKE_pointcloud.hh"
 
 #include "GEO_point_merge_by_distance.hh"
 #include "GEO_randomize.hh"
@@ -21,7 +20,7 @@ namespace blender::geometry {
 PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const float merge_distance,
                                     const IndexMask &selection,
-                                    const bke::AnonymousAttributePropagationInfo &propagation_info)
+                                    const bke::AttributeFilter &attribute_filter)
 {
   const bke::AttributeAccessor src_attributes = src_points.attributes();
   const Span<float3> positions = src_points.positions();
@@ -29,18 +28,18 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
 
   /* Create the KD tree based on only the selected points, to speed up merge detection and
    * balancing. */
-  KDTree_3d *tree = BLI_kdtree_3d_new(selection.size());
+  KDTree_3d *tree = kdtree_3d_new(selection.size());
   selection.foreach_index_optimized<int64_t>(
-      [&](const int64_t i, const int64_t pos) { BLI_kdtree_3d_insert(tree, pos, positions[i]); });
-  BLI_kdtree_3d_balance(tree);
+      [&](const int64_t i, const int64_t pos) { kdtree_3d_insert(tree, pos, positions[i]); });
+  kdtree_3d_balance(tree);
 
   /* Find the duplicates in the KD tree. Because the tree only contains the selected points, the
    * resulting indices are indices into the selection, rather than indices of the source point
    * cloud. */
   Array<int> selection_merge_indices(selection.size(), -1);
-  const int duplicate_count = BLI_kdtree_3d_calc_duplicates_fast(
+  const int duplicate_count = kdtree_3d_calc_duplicates_fast(
       tree, merge_distance, false, selection_merge_indices.data());
-  BLI_kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
 
   /* Create the new point cloud and add it to a temporary component for the attribute API. */
   const int dst_size = src_size - duplicate_count;
@@ -104,13 +103,16 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
     point_merge_counts[dst_index]++;
   }
 
-  Set<bke::AttributeIDRef> attribute_ids = src_attributes.all_ids();
+  Set<StringRefNull> attribute_ids = src_attributes.all_ids();
 
   /* Transfer the ID attribute if it exists, using the ID of the first merged point. */
-  if (attribute_ids.contains("id")) {
-    VArraySpan<int> src = *src_attributes.lookup_or_default<int>("id", ATTR_DOMAIN_POINT, 0);
+  bke::GAttributeReader src_id_attribute = src_attributes.lookup("id");
+  if (src_id_attribute && src_id_attribute.domain == bke::AttrDomain::Point &&
+      src_id_attribute.varray.type().is<int>())
+  {
+    VArraySpan<int> src = src_id_attribute.varray.typed<int>();
     bke::SpanAttributeWriter<int> dst = dst_attributes.lookup_or_add_for_write_only_span<int>(
-        "id", ATTR_DOMAIN_POINT);
+        "id", bke::AttrDomain::Point);
 
     threading::parallel_for(IndexRange(dst_size), 1024, [&](IndexRange range) {
       for (const int i_dst : range) {
@@ -123,8 +125,8 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
   }
 
   /* Transfer all other attributes. */
-  for (const bke::AttributeIDRef &id : attribute_ids) {
-    if (id.is_anonymous() && !propagation_info.propagate(id.anonymous_id())) {
+  for (const StringRef id : attribute_ids) {
+    if (attribute_filter.allow_skip(id)) {
       continue;
     }
 
@@ -133,7 +135,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
-            dst_attributes.lookup_or_add_for_write_only_span<T>(id, ATTR_DOMAIN_POINT);
+            dst_attributes.lookup_or_add_for_write_only_span<T>(id, bke::AttrDomain::Point);
         VArraySpan<T> src = src_attribute.varray.typed<T>();
 
         threading::parallel_for(IndexRange(dst_size), 1024, [&](IndexRange range) {

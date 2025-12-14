@@ -19,6 +19,10 @@ struct Object;
 struct ReportList;
 struct Scene;
 
+namespace blender::bke::greasepencil {
+class Drawing;
+}  // namespace blender::bke::greasepencil
+
 namespace blender::bke::crazyspace {
 
 /**
@@ -56,14 +60,12 @@ struct GeometryDeformation {
 GeometryDeformation get_evaluated_curves_deformation(const Object *ob_eval, const Object &ob_orig);
 GeometryDeformation get_evaluated_curves_deformation(const Depsgraph &depsgraph,
                                                      const Object &ob_orig);
-GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Object *ob_eval,
-                                                                    const Object &ob_orig,
-                                                                    int layer_index,
-                                                                    int frame);
-GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(const Depsgraph &depsgraph,
-                                                                    const Object &ob_orig,
-                                                                    int layer_index,
-                                                                    int frame);
+GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(
+    const Object *ob_eval, const Object &ob_orig, const bke::greasepencil::Drawing &drawing_orig);
+GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(
+    const Depsgraph &depsgraph,
+    const Object &ob_orig,
+    const bke::greasepencil::Drawing &drawing_orig);
 
 }  // namespace blender::bke::crazyspace
 
@@ -77,7 +79,7 @@ void BKE_crazyspace_set_quats_editmesh(BMEditMesh *em,
                                        blender::Span<blender::float3> mappedcos,
                                        float (*quats)[4],
                                        bool use_select);
-void BKE_crazyspace_set_quats_mesh(Mesh *me,
+void BKE_crazyspace_set_quats_mesh(Mesh *mesh,
                                    blender::Span<blender::float3> origcos,
                                    blender::Span<blender::float3> mappedcos,
                                    float (*quats)[4]);

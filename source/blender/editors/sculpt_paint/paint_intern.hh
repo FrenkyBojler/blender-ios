@@ -8,101 +8,334 @@
 
 #pragma once
 
-#include "BKE_paint.hh"
+#include "BLI_index_mask_fwd.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_rand.hh"
+#include "BLI_span.hh"
 
-#include "BLI_compiler_compat.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-
-#include "ED_select_utils.hh"
-
+#include "DNA_object_enums.h"
+#include "DNA_scene_enums.h"
 #include "DNA_scene_types.h"
+#include "DNA_vec_types.h"
+#include "DNA_windowmanager_enums.h"
+
+#include "ED_view3d.hh"
+
+#include <optional>
+
+enum class PaintMode : int8_t;
 
 struct ARegion;
+struct bContext;
 struct Brush;
-struct ColorManagedDisplay;
-struct ColorSpace;
+struct Depsgraph;
+struct Image;
 struct ImagePool;
+struct ImageUser;
+struct ImBuf;
+struct Main;
 struct MTex;
 struct Object;
 struct Paint;
-struct PaintStroke;
 struct PointerRNA;
 struct RegionView3D;
+struct ReportList;
 struct Scene;
+struct ScrArea;
+struct SculptSession;
 struct SpaceImage;
-struct VPaint;
+struct ToolSettings;
+struct VertProjHandle;
 struct ViewContext;
-struct bContext;
+struct VPaint;
 struct wmEvent;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperator;
 struct wmOperatorType;
-struct VertProjHandle;
+namespace blender {
 
-struct CoNo {
-  float co[3];
-  float no[3];
-};
+namespace bke::pbvh {
+class Node;
+}
+
+namespace ed::sculpt_paint {
+class PaintModeData;
+struct PaintStroke;
+struct PaintSample;
+struct StrokeCache;
+}  // namespace ed::sculpt_paint
+
+namespace ocio {
+class Display;
+}
+}  // namespace blender
+using ColorManagedDisplay = blender::ocio::Display;
 
 /* paint_stroke.cc */
 
-using StrokeGetLocation = bool (*)(bContext *C,
-                                   float location[3],
-                                   const float mouse[2],
-                                   bool force_original);
-using StrokeTestStart = bool (*)(bContext *C, wmOperator *op, const float mouse[2]);
-using StrokeUpdateStep = void (*)(bContext *C,
-                                  wmOperator *op,
-                                  PaintStroke *stroke,
-                                  PointerRNA *itemptr);
-using StrokeRedraw = void (*)(const bContext *C, PaintStroke *stroke, bool final);
-using StrokeDone = void (*)(const bContext *C, PaintStroke *stroke);
+enum BrushStrokeMode {
+  BRUSH_STROKE_NORMAL,
+  BRUSH_STROKE_INVERT,
+  BRUSH_STROKE_SMOOTH,
+  BRUSH_STROKE_ERASE,
+};
 
-PaintStroke *paint_stroke_new(bContext *C,
-                              wmOperator *op,
-                              StrokeGetLocation get_location,
-                              StrokeTestStart test_start,
-                              StrokeUpdateStep update_step,
-                              StrokeRedraw redraw,
-                              StrokeDone done,
-                              int event_type);
-void paint_stroke_free(bContext *C, wmOperator *op, PaintStroke *stroke);
+namespace blender::ed::sculpt_paint {
+
+using StrokeDone = void (*)(PaintStroke *stroke, bool is_cancel);
+
+/* stroke operator */
+
+struct PaintSample {
+  float2 mouse = float2(0.0f, 0.0f);
+  float pressure = 0.0f;
+};
+
+/**
+ * Common structure for various paint operators (e.g. Sculpt, Grease Pencil, Curves Sculpt)
+ *
+ * Callback functions defined and stored on this struct (e.g. `StrokeGetLocation`) allow each of
+ * these modes to customize specific behavior while still sharing other common handing.
+ *
+ * See #paint_stroke_modal for the majority of the paint operator logic.
+ */
+struct PaintStroke : NonCopyable, NonMovable {
+ public:
+  /* TODO: Temporary, used to assist removing usage of bContext in PaintStroke callbacks.
+   * See #149378 */
+  bContext *evil_C = nullptr;
+
+  /* Cached values */
+  ViewContext vc = {};
+  Object *object = nullptr;
+  Paint *paint = nullptr;
+  Brush *brush = nullptr;
+  UnifiedPaintSettings *ups = nullptr;
+
+  /* TODO: These are only public so that cursor drawing code can use them. Find a better place.*/
+  float2 last_mouse_position = float2(0.0f, 0.0f);
+  bool constrain_line = false;
+  float2 constrained_pos = float2(0.0f, 0.0f);
+
+ protected:
+  std::unique_ptr<PaintModeData> mode_data_ = nullptr;
+
+ private:
+  void *stroke_cursor_ = nullptr;
+
+  wmTimer *timer_ = nullptr;
+  std::optional<RandomNumberGenerator> rng_ = std::nullopt;
+
+  /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
+   * to smooth the stroke */
+  PaintSample samples_[PAINT_MAX_INPUT_SAMPLES];
+  int num_samples_ = 0;
+  int cur_sample_ = 0;
+  int tot_samples_ = 0;
+
+  float3 last_world_space_position_ = float3(0.0f, 0.0f, 0.0f);
+  float3 last_scene_spacing_delta_ = float3(0.0f, 0.0f, 0.0f);
+
+  bool stroke_over_mesh_ = false;
+  /* space distance covered so far */
+  float stroke_distance_ = 0.0f;
+
+  /* Set whether any stroke step has yet occurred
+   * e.g. in sculpt mode, stroke doesn't start until cursor
+   * passes over the mesh */
+  bool stroke_started_ = false;
+  /* Set when enough motion was found for rake rotation */
+  bool rake_started_ = false;
+  /* event that started stroke, for modal() return */
+  int event_type_ = 0;
+  /* check if stroke variables have been initialized */
+  bool stroke_init_ = false;
+  /* check if input variables have been initialized (e.g. cursor position & pressure)*/
+  bool input_init_ = false;
+  float2 initial_mouse_ = float2(0.0f, 0.0f);
+  float cached_size_pressure_ = 0.0f;
+  /* last pressure will store last pressure value for use in interpolation for space strokes */
+  float last_pressure_ = 0.0f;
+  int stroke_mode_ = 0;
+
+  float last_tablet_event_pressure_ = 0.0f;
+
+  float zoom_2d_ = 0.0f;
+  bool pen_flip_ = false;
+
+  /* Tilt, as read from the event. */
+  float2 tilt_ = float2(0.0f, 0.0f);
+
+  bool original_ = false; /* Ray-cast original mesh at start of stroke. */
+
+ public:
+  PaintStroke() = delete;
+
+  /**
+   * The main modal callback shared by any custom operator that implements a form of painting.
+   *
+   * At a high level, this function performs the following steps for interactive stroke types:
+   * 1. Initialization of necessary common `PaintStroke` values.
+   * 2. Custom paint initialization via `StrokeTestStart`>
+   * 3. Create an `OperatorStrokeElement` for a given mouse position by calling `StrokeGetLocation`
+   *    to potentially turn screen space coordinates into object space coordinates.
+   * 4. Call `StrokeUpdateStep` to perform custom paint operation on the most recent
+   *    `OperatorStrokeElement` data.
+   * 5. Tag extra redraws if necessary via `StrokeRedraw`.
+   * 6. Return to step 3 while stroke is ongoing.
+   * 7. Call `StrokeDone` when finished to perform any cleanup or finalization.
+   */
+  wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
+  wmOperatorStatus exec(bContext *C, wmOperator *op);
+  /** Cancel a stroke and return to the initial state. */
+  void cancel(bContext *C, wmOperator *op);
+  /**
+   * Free internal stroke data, not a destructor due to needed parameters.
+   * TODO: This might not need to be exposed, all internal code paths should end up calling this.
+   */
+  void free(bContext *C, wmOperator *op);
+
+  /* TODO: The following accessors should all be parameters passed into various callbacks */
+  bool stroke_flipped() const
+  {
+    return pen_flip_;
+  }
+
+  bool stroke_inverted() const
+  {
+    return stroke_mode_ == BRUSH_STROKE_INVERT;
+  }
+
+  float stroke_distance() const
+  {
+    return stroke_distance_;
+  }
+
+ protected:
+  ~PaintStroke() = default;
+  PaintStroke(bContext *C, wmOperator *op, int event_type);
+
+  /**
+   * Callback function to retrieve the object space coordinates based on screen space coordinates.
+   * \param location: resulting object space coordinates
+   * \returns whether or not a value was actually found & the value in location is usable
+   */
+  virtual bool get_location(float location[3], const float mouse[2], bool force_original) = 0;
+
+  /**
+   * Callback function to determine whether a stroke has started, and performing initialization.
+   *
+   * In many cases, this is a check to whether the stroke is over the active mesh.
+   */
+  virtual bool test_start(wmOperator *op, const float mouse[2]) = 0;
+
+  /**
+   * Callback function for performing a paint stroke for a new step.
+   */
+  virtual void update_step(wmOperator *op, PointerRNA *itemptr) = 0;
+
+  /**
+   * Callback function for performing necessary redraw functions based on the stroke.
+   */
+  virtual void redraw(bool final) = 0;
+
+  /**
+   * Callback function for dynamically determining if a stroke can be cancelled.
+   */
+  virtual bool test_cancel() = 0;
+
+  /**
+   * Callback function for cleaning up and finalizing data after a stroke has finished.
+   *
+   * \param is_cancel: Some paint modes support cancelling a stroke and returning to the initial
+   * state. This parameter indicates this case so that appropriate cleanup actions can be taken.
+   */
+  virtual void done(bool is_cancel) = 0;
+
+  /* TODO: This can probably be private, but `paint_image_ops_paint` depends on this */
+  bool update(bContext *C,
+              const Brush &brush,
+              PaintMode mode,
+              const float mouse_init[2],
+              float mouse[2],
+              float pressure,
+              float r_location[3],
+              bool *r_location_is_set);
+
+ private:
+  void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
+
+  void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);
+
+  void add_sample(int input_samples, float x, float y, float pressure);
+  void calc_average_sample(PaintSample *average);
+
+  void lines_spacing(bContext *C,
+                     wmOperator *op,
+                     float spacing,
+                     float *length_residue,
+                     float2 old_pos,
+                     float2 new_pos);
+  int space_stroke(bContext *C, wmOperator *op, float2 final_mouse, float final_pressure);
+
+  void line_end(bContext *C, wmOperator *op, float2 mouse);
+  bool curve_end(bContext *C, wmOperator *op);
+};
+
+void paint_stroke_jitter_pos(Paint *paint,
+                             PaintMode mode,
+                             const Brush &brush,
+                             float pressure,
+                             int stroke_mode,
+                             float zoom_2d,
+                             const float mval[2],
+                             float r_mouse_out[2]);
 
 /**
  * Returns zero if the stroke dots should not be spaced, non-zero otherwise.
  */
-bool paint_space_stroke_enabled(Brush *br, enum ePaintMode mode);
+bool paint_space_stroke_enabled(const Brush &br, PaintMode mode);
 /**
  * Return true if the brush size can change during paint (normally used for pressure).
  */
-bool paint_supports_dynamic_size(Brush *br, enum ePaintMode mode);
+bool paint_supports_dynamic_size(const Brush &br, PaintMode mode);
 /**
  * Return true if the brush size can change during paint (normally used for pressure).
  */
-bool paint_supports_dynamic_tex_coords(Brush *br, enum ePaintMode mode);
-bool paint_supports_smooth_stroke(Brush *br, enum ePaintMode mode);
-bool paint_supports_texture(enum ePaintMode mode);
-bool paint_supports_jitter(enum ePaintMode mode);
+bool paint_supports_dynamic_tex_coords(const Brush &br, PaintMode mode);
+bool paint_supports_smooth_stroke(const Brush &brush, PaintMode mode, int stroke_mode);
+bool paint_supports_texture(PaintMode mode);
 
 /**
  * Called in paint_ops.cc, on each regeneration of key-maps.
  */
 wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf);
-int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p);
-int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke);
-void paint_stroke_cancel(bContext *C, wmOperator *op, PaintStroke *stroke);
-bool paint_stroke_flipped(PaintStroke *stroke);
-bool paint_stroke_inverted(PaintStroke *stroke);
-ViewContext *paint_stroke_view_context(PaintStroke *stroke);
-void *paint_stroke_mode_data(PaintStroke *stroke);
-float paint_stroke_distance_get(PaintStroke *stroke);
-void paint_stroke_set_mode_data(PaintStroke *stroke, void *mode_data);
-bool paint_stroke_started(PaintStroke *stroke);
 
-bool PAINT_brush_tool_poll(bContext *C);
+class PaintModeData {
+ public:
+  virtual ~PaintModeData() = default;
+};
+
+/** Returns true if the active tool uses brushes. */
+bool paint_brush_tool_poll(bContext *C);
+bool paint_brush_tool_poll(const ScrArea *area,
+                           const ARegion *region,
+                           const Paint *paint,
+                           const Object *ob);
+/** Returns true if the brush cursor should be activated. */
+bool paint_brush_cursor_poll(bContext *C);
+
+void BRUSH_OT_asset_activate(wmOperatorType *ot);
+void BRUSH_OT_asset_save_as(wmOperatorType *ot);
+void BRUSH_OT_asset_edit_metadata(wmOperatorType *ot);
+void BRUSH_OT_asset_load_preview(wmOperatorType *ot);
+void BRUSH_OT_asset_delete(wmOperatorType *ot);
+void BRUSH_OT_asset_save(wmOperatorType *ot);
+void BRUSH_OT_asset_revert(wmOperatorType *ot);
+
+}  // namespace blender::ed::sculpt_paint
+
 /**
  * Delete overlay cursor textures to preserve memory and invalidate all overlay flags.
  */
@@ -121,9 +354,9 @@ bool vertex_paint_poll_ignore_tool(bContext *C);
  */
 bool vertex_paint_mode_poll(bContext *C);
 
-typedef void (*VPaintTransform_Callback)(const float col[3],
-                                         const void *user_data,
-                                         float r_col[3]);
+using VPaintTransform_Callback = void (*)(const float col[3],
+                                          const void *user_data,
+                                          float r_col[3]);
 
 void PAINT_OT_weight_paint_toggle(wmOperatorType *ot);
 void PAINT_OT_weight_paint(wmOperatorType *ot);
@@ -167,7 +400,7 @@ struct WPaintVGroupIndex {
  */
 bool ED_wpaint_ensure_data(bContext *C,
                            ReportList *reports,
-                           enum eWPaintFlag flag,
+                           eWPaintFlag flag,
                            WPaintVGroupIndex *vgroup_index);
 /** Return -1 when invalid. */
 int ED_wpaint_mirror_vgroup_ensure(Object *ob, int vgroup_active);
@@ -190,10 +423,11 @@ void PAINT_OT_weight_sample_group(wmOperatorType *ot);
 
 /* `paint_vertex_proj.cc` */
 
-VertProjHandle *ED_vpaint_proj_handle_create(Depsgraph *depsgraph,
-                                             Scene *scene,
-                                             Object *ob,
-                                             CoNo **r_vcosnos);
+VertProjHandle *ED_vpaint_proj_handle_create(Depsgraph &depsgraph,
+                                             Scene &scene,
+                                             Object &ob,
+                                             blender::Span<blender::float3> &r_vert_positions,
+                                             blender::Span<blender::float3> &r_vert_normals);
 void ED_vpaint_proj_handle_update(Depsgraph *depsgraph,
                                   VertProjHandle *vp_handle,
                                   /* runtime vars */
@@ -208,6 +442,7 @@ struct ImagePaintPartialRedraw {
 };
 
 bool image_texture_paint_poll(bContext *C);
+bool image_paint_poll_ignore_tool(bContext *C);
 void imapaint_image_update(
     SpaceImage *sima, Image *image, ImBuf *ibuf, ImageUser *iuser, short texpaint);
 ImagePaintPartialRedraw *get_imapaintpartial();
@@ -224,9 +459,9 @@ void paint_2d_stroke(void *ps,
                      bool eraser,
                      float pressure,
                      float distance,
-                     float size);
+                     float base_size);
 /**
- * This function expects linear space color values.
+ * This function expects sRGB space color values.
  */
 void paint_2d_bucket_fill(const bContext *C,
                           const float color[3],
@@ -248,21 +483,21 @@ void paint_proj_stroke(const bContext *C,
 void paint_proj_redraw(const bContext *C, void *ps_handle_p, bool final);
 void paint_proj_stroke_done(void *ps_handle_p);
 
-void paint_brush_color_get(Scene *scene,
+void paint_brush_color_get(const Paint *paint,
                            Brush *br,
-                           bool color_correction,
+                           std::optional<blender::float3> &initial_hsv_jitter,
                            bool invert,
                            float distance,
                            float pressure,
-                           float color[3],
-                           ColorManagedDisplay *display);
-bool paint_use_opacity_masking(Brush *brush);
+                           float r_color[3]);
+bool paint_use_opacity_masking(const Paint *paint, const Brush *brush);
 void paint_brush_init_tex(Brush *brush);
 void paint_brush_exit_tex(Brush *brush);
-bool image_paint_poll(bContext *C);
 
 void PAINT_OT_grab_clone(wmOperatorType *ot);
+namespace blender::ed::sculpt_paint {
 void PAINT_OT_sample_color(wmOperatorType *ot);
+}
 void PAINT_OT_brush_colors_flip(wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(wmOperatorType *ot);
 void PAINT_OT_project_image(wmOperatorType *ot);
@@ -313,7 +548,9 @@ void paint_curve_mask_cache_update(CurveMaskCache *curve_mask_cache,
 
 /* `sculpt_uv.cc` */
 
-void SCULPT_OT_uv_sculpt_stroke(wmOperatorType *ot);
+void SCULPT_OT_uv_sculpt_grab(wmOperatorType *ot);
+void SCULPT_OT_uv_sculpt_relax(wmOperatorType *ot);
+void SCULPT_OT_uv_sculpt_pinch(wmOperatorType *ot);
 
 /* paint_utils.cc */
 
@@ -325,21 +562,13 @@ void SCULPT_OT_uv_sculpt_stroke(wmOperatorType *ot);
 bool paint_convert_bb_to_rect(rcti *rect,
                               const float bb_min[3],
                               const float bb_max[3],
-                              const ARegion *region,
-                              RegionView3D *rv3d,
-                              Object *ob);
+                              const ARegion &region,
+                              const RegionView3D &rv3d,
+                              const Object &ob);
 
-/**
- * Get four planes in object-space that describe the projection of
- * screen_rect from screen into object-space (essentially converting a
- * 2D screens-space bounding box into four 3D planes).
- */
-void paint_calc_redraw_planes(float planes[4][4],
-                              const ARegion *region,
-                              Object *ob,
-                              const rcti *screen_rect);
-
-float paint_calc_object_space_radius(ViewContext *vc, const float center[3], float pixel_radius);
+float paint_calc_object_space_radius(const ViewContext &vc,
+                                     const blender::float3 &center,
+                                     float pixel_radius);
 
 /**
  * Returns true when a color was sampled and false when a value was sampled.
@@ -351,12 +580,6 @@ bool paint_get_tex_pixel(const MTex *mtex,
                          int thread,
                          float *r_intensity,
                          float r_rgba[4]);
-
-/**
- * Used for both 3D view and image window.
- */
-void paint_sample_color(
-    bContext *C, ARegion *region, int x, int y, bool texpaint_proj, bool palette);
 
 void paint_stroke_operator_properties(wmOperatorType *ot);
 
@@ -386,107 +609,47 @@ bool mask_paint_poll(bContext *C);
 bool paint_curve_poll(bContext *C);
 
 bool facemask_paint_poll(bContext *C);
+
+namespace blender::ed::sculpt_paint {
+
 /**
- * Uses symm to selectively flip any axis of a coordinate.
- */
-
-BLI_INLINE void flip_v3_v3(float out[3], const float in[3], const ePaintSymmetryFlags symm)
-{
-  if (symm & PAINT_SYMM_X) {
-    out[0] = -in[0];
-  }
-  else {
-    out[0] = in[0];
-  }
-  if (symm & PAINT_SYMM_Y) {
-    out[1] = -in[1];
-  }
-  else {
-    out[1] = in[1];
-  }
-  if (symm & PAINT_SYMM_Z) {
-    out[2] = -in[2];
-  }
-  else {
-    out[2] = in[2];
-  }
-}
-
-BLI_INLINE void flip_qt_qt(float out[4], const float in[4], const ePaintSymmetryFlags symm)
-{
-  float axis[3], angle;
-
-  quat_to_axis_angle(axis, &angle, in);
-  normalize_v3(axis);
-
-  if (symm & PAINT_SYMM_X) {
-    axis[0] *= -1.0f;
-    angle *= -1.0f;
-  }
-  if (symm & PAINT_SYMM_Y) {
-    axis[1] *= -1.0f;
-    angle *= -1.0f;
-  }
-  if (symm & PAINT_SYMM_Z) {
-    axis[2] *= -1.0f;
-    angle *= -1.0f;
-  }
-
-  axis_angle_normalized_to_quat(out, axis, angle);
-}
-
-BLI_INLINE void flip_v3(float v[3], const ePaintSymmetryFlags symm)
-{
-  flip_v3_v3(v, v, symm);
-}
-
-BLI_INLINE void flip_qt(float quat[4], const ePaintSymmetryFlags symm)
-{
-  flip_qt_qt(quat, quat, symm);
-}
-
-/* stroke operator */
-enum BrushStrokeMode {
-  BRUSH_STROKE_NORMAL,
-  BRUSH_STROKE_INVERT,
-  BRUSH_STROKE_SMOOTH,
-};
-
-/* paint_hide.cc */
-
-enum PartialVisAction {
-  PARTIALVIS_HIDE,
-  PARTIALVIS_SHOW,
-};
-
-enum PartialVisArea {
-  PARTIALVIS_INSIDE,
-  PARTIALVIS_OUTSIDE,
-  PARTIALVIS_ALL,
-  PARTIALVIS_MASKED,
-};
-
-void PAINT_OT_hide_show(wmOperatorType *ot);
-
-/* `paint_mask.cc` */
-
-/* The gesture API doesn't write to this enum type,
- * it writes to eSelectOp from ED_select_utils.hh.
- * We must thus map the modes here to the desired
- * eSelectOp modes.
+ * Determines whether a given symmetry pass is valid.
  *
- * Fixes #102349.
+ * Uses the #ePaintSymmetryFlags enum.
+ *
+ * symm is a bit combination of XYZ.
+ * 1 is X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ
  */
-enum PaintMaskFloodMode {
-  PAINT_MASK_FLOOD_VALUE = SEL_OP_SUB,
-  PAINT_MASK_FLOOD_VALUE_INVERSE = SEL_OP_ADD,
-  PAINT_MASK_INVERT = SEL_OP_XOR,
-};
+inline bool is_symmetry_iteration_valid(const char i, const char symm)
+{
+  return i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || !ELEM(i, 3, 5)));
+}
 
-void PAINT_OT_mask_flood_fill(wmOperatorType *ot);
-void PAINT_OT_mask_lasso_gesture(wmOperatorType *ot);
-void PAINT_OT_mask_box_gesture(wmOperatorType *ot);
-void PAINT_OT_mask_line_gesture(wmOperatorType *ot);
+inline float3 symmetry_flip(const float3 &src, const ePaintSymmetryFlags symm)
+{
+  float3 dst;
+  if (symm & PAINT_SYMM_X) {
+    dst.x = -src.x;
+  }
+  else {
+    dst.x = src.x;
+  }
+  if (symm & PAINT_SYMM_Y) {
+    dst.y = -src.y;
+  }
+  else {
+    dst.y = src.y;
+  }
+  if (symm & PAINT_SYMM_Z) {
+    dst.z = -src.z;
+  }
+  else {
+    dst.z = src.z;
+  }
+  return dst;
+}
+
+}  // namespace blender::ed::sculpt_paint
 
 /* `paint_curve.cc` */
 
@@ -506,7 +669,6 @@ struct BlurKernel {
   int pixel_len;    /* pixels around center that kernel is wide */
 };
 
-enum eBlurKernelType;
 /**
  * Paint blur kernels. Projective painting enforces use of a 2x2 kernel due to lagging.
  * Can be extended to other blur kernels later,
@@ -515,7 +677,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj);
 void paint_delete_blur_kernel(BlurKernel *);
 
 /** Initialize viewport pivot from evaluated bounding box center of `ob`. */
-void paint_init_pivot(Object *ob, Scene *scene);
+void paint_init_pivot(Object *ob, Scene *scene, Paint *paint);
 
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
@@ -537,36 +699,48 @@ void view_angle_limits_init(NormalAnglePrecalc *a, float angle, bool do_mask_nor
 float view_angle_limits_apply_falloff(const NormalAnglePrecalc *a, float angle_cos, float *mask_p);
 bool test_brush_angle_falloff(const Brush &brush,
                               const NormalAnglePrecalc &normal_angle_precalc,
-                              const float angle_cos,
+                              float angle_cos,
                               float *brush_strength);
-bool use_normal(const VPaint *vp);
+bool use_normal(const VPaint &vp);
 
-bool brush_use_accumulate_ex(const Brush *brush, const int ob_mode);
-bool brush_use_accumulate(const VPaint *vp);
+bool brush_use_accumulate_ex(const Brush &brush, eObjectMode ob_mode);
+bool brush_use_accumulate(const VPaint &vp);
 
-void get_brush_alpha_data(const Scene *scene,
-                          const SculptSession *ss,
-                          const Brush *brush,
+void get_brush_alpha_data(const SculptSession &ss,
+                          const Paint &paint,
+                          const Brush &brush,
                           float *r_brush_size_pressure,
                           float *r_brush_alpha_value,
                           float *r_brush_alpha_pressure);
 
-void init_stroke(Depsgraph *depsgraph, Object *ob);
-void init_session_data(const ToolSettings *ts, Object *ob);
-void init_session(Depsgraph *depsgraph, Scene *scene, Object *ob, eObjectMode object_mode);
+void init_stroke(Depsgraph &depsgraph, Object &ob);
+void init_session_data(const ToolSettings &ts, Object &ob);
+/** Toggle operator for turning vertex paint mode on or off (copied from `sculpt.cc`) */
+void init_session(Main &bmain,
+                  Depsgraph &depsgraph,
+                  Scene &scene,
+                  Paint &paint,
+                  Object &ob,
+                  eObjectMode object_mode);
 
-Vector<PBVHNode *> pbvh_gather_generic(Object *ob, VPaint *wp, Sculpt *sd, Brush *brush);
+IndexMask pbvh_gather_generic(const Depsgraph &depsgraph,
+                              const Object &ob,
+                              const VPaint &wp,
+                              const Brush &brush,
+                              IndexMaskMemory &memory);
 
 void mode_enter_generic(
-    Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob, const eObjectMode mode_flag);
-void mode_exit_generic(Object *ob, const eObjectMode mode_flag);
+    Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, eObjectMode mode_flag);
+void mode_exit_generic(Object &ob, eObjectMode mode_flag);
 bool mode_toggle_poll_test(bContext *C);
 
-void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache *cache);
+void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache);
 void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache);
 
-void update_cache_variants(bContext *C, VPaint *vp, Object *ob, PointerRNA *ptr);
+/** Initialize the stroke cache variants from operator properties. */
+void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr);
+/** Initialize the stroke cache invariants from operator properties. */
 void update_cache_invariants(
-    bContext *C, VPaint *vp, SculptSession *ss, wmOperator *op, const float mval[2]);
-void last_stroke_update(Scene *scene, const float location[3]);
+    bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
+void last_stroke_update(const float location[3], Paint &paint);
 }  // namespace blender::ed::sculpt_paint::vwpaint

@@ -6,10 +6,12 @@
  * \ingroup editorui
  *
  * API for simple creation of grid UIs, supporting typically needed features.
- * https://wiki.blender.org/wiki/Source/Interface/Views/Grid_Views
+ * https://developer.blender.org/docs/features/interface/views/grid_views/
  */
 
 #pragma once
+
+#include <optional>
 
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
@@ -19,15 +21,14 @@
 #include "UI_resources.hh"
 
 struct bContext;
-struct uiBlock;
-struct uiButViewItem;
-struct uiLayout;
 struct View2D;
 
 namespace blender::ui {
 
 class AbstractGridView;
 class GridViewItemDropTarget;
+
+struct Layout;
 
 /* ---------------------------------------------------------------------- */
 /** \name Grid-View Item Type
@@ -38,13 +39,19 @@ class AbstractGridViewItem : public AbstractViewItem {
   friend class GridViewLayoutBuilder;
 
  protected:
-  /** Reference to a string that uniquely identifies this item in the view. */
-  StringRef identifier_{};
+  /**
+   * A string that uniquely identifies this item in the view.
+   *
+   * Ideally this would just be a StringRef to save memory. This was made a
+   * std::string to fix #141882 in a relatively safe way. */
+  std::string identifier_{};
 
  public:
   /* virtual */ ~AbstractGridViewItem() override = default;
 
-  virtual void build_grid_tile(uiLayout &layout) const = 0;
+  virtual void build_grid_tile(const bContext &C, Layout &layout) const = 0;
+
+  /* virtual */ std::optional<std::string> debug_name() const override;
 
   AbstractGridView &get_view() const;
 
@@ -58,8 +65,7 @@ class AbstractGridViewItem : public AbstractViewItem {
   virtual std::unique_ptr<GridViewItemDropTarget> create_drop_target();
 
  private:
-  static void grid_tile_click_fn(bContext *, void *but_arg1, void *);
-  void add_grid_tile_button(uiBlock &block);
+  void add_grid_tile_button(Block &block);
 };
 
 /** \} */
@@ -165,11 +171,12 @@ class GridViewItemDropTarget : public DropTargetInterface {
 
 class GridViewBuilder {
  public:
-  GridViewBuilder(uiBlock &block);
+  GridViewBuilder(Block &block);
 
-  /** Build \a grid_view into the previously provided block, clipped by \a view_bounds (view space,
-   * typically `View2D.cur`). */
-  void build_grid_view(AbstractGridView &grid_view, const View2D &v2d, uiLayout &layout);
+  void build_grid_view(const bContext &C,
+                       AbstractGridView &grid_view,
+                       Layout &layout,
+                       std::optional<StringRef> search_string = {});
 };
 
 /** \} */
@@ -197,12 +204,15 @@ class PreviewGridItem : public AbstractGridViewItem {
   bool hide_label_ = false;
 
  public:
-  std::string label{};
+  std::string label;
   int preview_icon_id = ICON_NONE;
 
   PreviewGridItem(StringRef identifier, StringRef label, int preview_icon_id);
 
-  void build_grid_tile(uiLayout &layout) const override;
+  void build_grid_tile(const bContext &C, Layout &layout) const override;
+
+  void build_grid_tile_button(Layout &layout,
+                              BIFIconID override_preview_icon_id = ICON_NONE) const;
 
   /**
    * Set a custom callback to execute when activating this view item. This way users don't have to
@@ -228,7 +238,7 @@ class PreviewGridItem : public AbstractGridViewItem {
 
 template<class ItemT, typename... Args> inline ItemT &AbstractGridView::add_item(Args &&...args)
 {
-  static_assert(std::is_base_of<AbstractGridViewItem, ItemT>::value,
+  static_assert(std::is_base_of_v<AbstractGridViewItem, ItemT>,
                 "Type must derive from and implement the AbstractGridViewItem interface");
 
   return dynamic_cast<ItemT &>(add_item(std::make_unique<ItemT>(std::forward<Args>(args)...)));
@@ -236,7 +246,7 @@ template<class ItemT, typename... Args> inline ItemT &AbstractGridView::add_item
 
 template<class ViewType> ViewType &GridViewItemDropTarget::get_view() const
 {
-  static_assert(std::is_base_of<AbstractGridView, ViewType>::value,
+  static_assert(std::is_base_of_v<AbstractGridView, ViewType>,
                 "Type must derive from and implement the ui::AbstractGridView interface");
   return dynamic_cast<ViewType &>(view_);
 }

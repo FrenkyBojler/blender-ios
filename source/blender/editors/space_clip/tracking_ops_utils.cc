@@ -8,17 +8,19 @@
 
 #include "DNA_space_types.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "tracking_ops_intern.h" /* own include */
+#include "tracking_ops_intern.hh" /* own include */
 
 void clip_tracking_clear_invisible_track_selection(SpaceClip *sc, MovieClip *clip)
 {
-  int hidden = 0;
+  eTrackArea hidden = TRACK_AREA_NONE;
   if ((sc->flag & SC_SHOW_MARKER_PATTERN) == 0) {
     hidden |= TRACK_AREA_PAT;
   }

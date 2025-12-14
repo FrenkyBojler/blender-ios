@@ -8,32 +8,27 @@
 
 #include "BLI_span.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh_mirror.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "DEG_depsgraph_build.hh"
-#include "DEG_depsgraph_query.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 #include "GEO_mesh_merge_by_distance.hh"
@@ -86,7 +81,7 @@ static Mesh *mirror_apply_on_axis(MirrorModifierData *mmd,
     if (vert_merge_map_len) {
       Mesh *tmp = result;
       result = geometry::mesh_merge_verts(
-          *tmp, MutableSpan<int>{vert_merge_map, result->totvert}, vert_merge_map_len, false);
+          *tmp, MutableSpan<int>{vert_merge_map, result->verts_num}, vert_merge_map_len, false);
       BKE_id_free(nullptr, tmp);
     }
     MEM_freeN(vert_merge_map);
@@ -136,98 +131,93 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row, *col, *sub;
-  uiLayout *layout = panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  ui::Layout *row, *sub;
+  ui::Layout &layout = *panel->layout;
+  const ui::eUI_Item_Flag toggles_flag = ui::ITEM_R_TOGGLE | ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PropertyRNA *prop;
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   MirrorModifierData *mmd = (MirrorModifierData *)ptr->data;
   bool has_bisect = (mmd->flag &
-                     (MOD_MIR_BISECT_AXIS_X | MOD_MIR_BISECT_AXIS_X | MOD_MIR_BISECT_AXIS_X));
+                     (MOD_MIR_BISECT_AXIS_X | MOD_MIR_BISECT_AXIS_Y | MOD_MIR_BISECT_AXIS_Z));
 
-  col = uiLayoutColumn(layout, false);
-  uiLayoutSetPropSep(col, true);
+  ui::Layout &col = layout.column(false);
+  col.use_property_split_set(true);
 
   prop = RNA_struct_find_property(ptr, "use_axis");
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Axis"));
-  uiItemFullR(row, ptr, prop, 0, 0, toggles_flag, IFACE_("X"), ICON_NONE);
-  uiItemFullR(row, ptr, prop, 1, 0, toggles_flag, IFACE_("Y"), ICON_NONE);
-  uiItemFullR(row, ptr, prop, 2, 0, toggles_flag, IFACE_("Z"), ICON_NONE);
+  row = &col.row(true, IFACE_("Axis"));
+  row->prop(ptr, prop, 0, 0, toggles_flag, IFACE_("X"), ICON_NONE);
+  row->prop(ptr, prop, 1, 0, toggles_flag, IFACE_("Y"), ICON_NONE);
+  row->prop(ptr, prop, 2, 0, toggles_flag, IFACE_("Z"), ICON_NONE);
 
   prop = RNA_struct_find_property(ptr, "use_bisect_axis");
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Bisect"));
-  uiItemFullR(row, ptr, prop, 0, 0, toggles_flag, IFACE_("X"), ICON_NONE);
-  uiItemFullR(row, ptr, prop, 1, 0, toggles_flag, IFACE_("Y"), ICON_NONE);
-  uiItemFullR(row, ptr, prop, 2, 0, toggles_flag, IFACE_("Z"), ICON_NONE);
+  row = &col.row(true, IFACE_("Bisect"));
+  row->prop(ptr, prop, 0, 0, toggles_flag, IFACE_("X"), ICON_NONE);
+  row->prop(ptr, prop, 1, 0, toggles_flag, IFACE_("Y"), ICON_NONE);
+  row->prop(ptr, prop, 2, 0, toggles_flag, IFACE_("Z"), ICON_NONE);
 
   prop = RNA_struct_find_property(ptr, "use_bisect_flip_axis");
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Flip"));
-  uiLayoutSetActive(row, has_bisect);
-  uiItemFullR(row, ptr, prop, 0, 0, toggles_flag, IFACE_("X"), ICON_NONE);
-  uiItemFullR(row, ptr, prop, 1, 0, toggles_flag, IFACE_("Y"), ICON_NONE);
-  uiItemFullR(row, ptr, prop, 2, 0, toggles_flag, IFACE_("Z"), ICON_NONE);
+  row = &col.row(true, IFACE_("Flip"));
+  row->active_set(has_bisect);
+  row->prop(ptr, prop, 0, 0, toggles_flag, IFACE_("X"), ICON_NONE);
+  row->prop(ptr, prop, 1, 0, toggles_flag, IFACE_("Y"), ICON_NONE);
+  row->prop(ptr, prop, 2, 0, toggles_flag, IFACE_("Z"), ICON_NONE);
 
-  uiItemS(col);
+  col.separator();
 
-  uiItemR(col, ptr, "mirror_object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  col.prop(ptr, "mirror_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(col,
-          ptr,
-          "use_clip",
-          UI_ITEM_NONE,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_MESH, "Clipping"),
-          ICON_NONE);
+  col.prop(
+      ptr, "use_clip", UI_ITEM_NONE, CTX_IFACE_(BLT_I18NCONTEXT_ID_MESH, "Clipping"), ICON_NONE);
 
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Merge"));
-  uiItemR(row, ptr, "use_mirror_merge", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(row, true);
-  uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_mirror_merge"));
-  uiItemR(sub, ptr, "merge_threshold", UI_ITEM_NONE, "", ICON_NONE);
+  row = &col.row(true, IFACE_("Merge"));
+  row->prop(ptr, "use_mirror_merge", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->row(true);
+  sub->active_set(RNA_boolean_get(ptr, "use_mirror_merge"));
+  sub->prop(ptr, "merge_threshold", UI_ITEM_NONE, "", ICON_NONE);
 
-  sub = uiLayoutRow(col, true);
-  uiLayoutSetActive(sub, has_bisect);
-  uiItemR(sub, ptr, "bisect_threshold", UI_ITEM_NONE, IFACE_("Bisect Distance"), ICON_NONE);
+  sub = &col.row(true);
+  sub->active_set(has_bisect);
+  sub->prop(ptr, "bisect_threshold", UI_ITEM_NONE, IFACE_("Bisect Distance"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void data_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col, *row, *sub;
-  uiLayout *layout = panel->layout;
+  ui::Layout *col, *row, *sub;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  col = uiLayoutColumn(layout, true);
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Mirror U"));
-  uiLayoutSetPropDecorate(row, false);
-  sub = uiLayoutRow(row, true);
-  uiItemR(sub, ptr, "use_mirror_u", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(sub, true);
-  uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_mirror_u"));
-  uiItemR(sub, ptr, "mirror_offset_u", UI_ITEM_R_SLIDER, "", ICON_NONE);
-  uiItemDecoratorR(row, ptr, "mirror_offset_u", 0);
+  col = &layout.column(true);
+  row = &col->row(true, IFACE_("Mirror U"));
+  row->use_property_decorate_set(false);
+  sub = &row->row(true);
+  sub->prop(ptr, "use_mirror_u", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &sub->row(true);
+  sub->active_set(RNA_boolean_get(ptr, "use_mirror_u"));
+  sub->prop(ptr, "mirror_offset_u", ui::ITEM_R_SLIDER, "", ICON_NONE);
+  row->decorator(ptr, "mirror_offset_u", 0);
 
-  row = uiLayoutRowWithHeading(col, true, IFACE_("V"));
-  uiLayoutSetPropDecorate(row, false);
-  sub = uiLayoutRow(row, true);
-  uiItemR(sub, ptr, "use_mirror_v", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(sub, true);
-  uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_mirror_v"));
-  uiItemR(sub, ptr, "mirror_offset_v", UI_ITEM_R_SLIDER, "", ICON_NONE);
-  uiItemDecoratorR(row, ptr, "mirror_offset_v", 0);
+  row = &col->row(true, IFACE_("V"));
+  row->use_property_decorate_set(false);
+  sub = &row->row(true);
+  sub->prop(ptr, "use_mirror_v", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &sub->row(true);
+  sub->active_set(RNA_boolean_get(ptr, "use_mirror_v"));
+  sub->prop(ptr, "mirror_offset_v", ui::ITEM_R_SLIDER, "", ICON_NONE);
+  row->decorator(ptr, "mirror_offset_v", 0);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "offset_u", UI_ITEM_R_SLIDER, IFACE_("Offset U"), ICON_NONE);
-  uiItemR(col, ptr, "offset_v", UI_ITEM_R_SLIDER, IFACE_("V"), ICON_NONE);
+  col = &layout.column(true);
+  col->prop(ptr, "offset_u", ui::ITEM_R_SLIDER, IFACE_("Offset U"), ICON_NONE);
+  col->prop(ptr, "offset_v", ui::ITEM_R_SLIDER, IFACE_("V"), ICON_NONE);
 
-  uiItemR(
-      layout, ptr, "use_mirror_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
-  uiItemR(layout, ptr, "use_mirror_udim", UI_ITEM_NONE, IFACE_("Flip UDIM"), ICON_NONE);
+  layout.prop(ptr, "use_mirror_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
+  layout.prop(ptr, "use_mirror_udim", UI_ITEM_NONE, IFACE_("Flip UDIM"), ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -245,9 +235,7 @@ ModifierTypeInfo modifierType_Mirror = {
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
-        eModifierTypeFlag_AcceptsCVs |
-        /* this is only the case when 'MOD_MIR_VGROUP' is used */
-        eModifierTypeFlag_UsesPreview,
+        eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_MIRROR,
 
     /*copy_data*/ BKE_modifier_copydata_generic,
@@ -272,4 +260,6 @@ ModifierTypeInfo modifierType_Mirror = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

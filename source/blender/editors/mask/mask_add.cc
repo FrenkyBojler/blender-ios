@@ -6,11 +6,13 @@
  * \ingroup edmask
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -25,13 +27,12 @@
 #include "WM_types.hh"
 
 #include "ED_mask.hh" /* own include */
-#include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "mask_intern.h" /* own include */
+#include "mask_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Add Vertex
@@ -85,13 +86,13 @@ static void setup_vertex_point(Mask *mask,
 
         current_point = &spline->points[point_index];
         if (current_point->bezt.h1 != HD_VECT || current_point->bezt.h2 != HD_VECT) {
-          bezt->h1 = bezt->h2 = MAX2(current_point->bezt.h2, current_point->bezt.h1);
+          bezt->h1 = bezt->h2 = std::max(current_point->bezt.h2, current_point->bezt.h1);
           break;
         }
       }
     }
     else {
-      bezt->h1 = bezt->h2 = MAX2(reference_point->bezt.h2, reference_point->bezt.h1);
+      bezt->h1 = bezt->h2 = std::max(reference_point->bezt.h2, reference_point->bezt.h1);
     }
 
     reference_parent_point = reference_point;
@@ -121,12 +122,12 @@ static void setup_vertex_point(Mask *mask,
       }
 
       /* handle type */
-      char handle_type = 0;
+      uint8_t handle_type = 0;
       if (prev_point) {
         handle_type = prev_point->bezt.h2;
       }
       if (next_point) {
-        handle_type = MAX2(next_point->bezt.h2, handle_type);
+        handle_type = std::max(next_point->bezt.h2, handle_type);
       }
       bezt->h1 = bezt->h2 = handle_type;
 
@@ -160,7 +161,7 @@ static void setup_vertex_point(Mask *mask,
   }
 
   /* select new point */
-  MASKPOINT_SEL_ALL(new_point);
+  BKE_mask_point_select_handles(new_point);
   ED_mask_select_flush_all(mask);
 }
 
@@ -183,7 +184,8 @@ static void finSelectedSplinePoint(MaskLayer *mask_layer,
   if (check_active) {
     /* TODO: having an active point but no active spline is possible, why? */
     if (mask_layer->act_spline && mask_layer->act_point &&
-        MASKPOINT_ISSEL_ANY(mask_layer->act_point)) {
+        BKE_mask_point_selected(mask_layer->act_point))
+    {
       *spline = mask_layer->act_spline;
       *point = mask_layer->act_point;
       return;
@@ -194,7 +196,7 @@ static void finSelectedSplinePoint(MaskLayer *mask_layer,
     for (int i = 0; i < cur_spline->tot_point; i++) {
       MaskSplinePoint *cur_point = &cur_spline->points[i];
 
-      if (MASKPOINT_ISSEL_ANY(cur_point)) {
+      if (BKE_mask_point_selected(cur_point)) {
         if (!ELEM(*spline, nullptr, cur_spline)) {
           *spline = nullptr;
           *point = nullptr;
@@ -224,7 +226,8 @@ static void mask_spline_add_point_at_index(MaskSpline *spline, int point_index)
 {
   MaskSplinePoint *new_point_array;
 
-  new_point_array = MEM_cnew_array<MaskSplinePoint>(spline->tot_point + 1, "add mask vert points");
+  new_point_array = MEM_calloc_arrayN<MaskSplinePoint>(spline->tot_point + 1,
+                                                       "add mask vert points");
 
   memcpy(new_point_array, spline->points, sizeof(MaskSplinePoint) * (point_index + 1));
   memcpy(new_point_array + point_index + 2,
@@ -319,7 +322,7 @@ static bool add_vertex_extrude(const bContext *C,
 
   point_index = (point - spline->points);
 
-  MASKPOINT_DESEL_ALL(point);
+  BKE_mask_point_deselect_handles(point);
 
   if ((spline->flag & MASK_SPLINE_CYCLIC) ||
       (point_index > 0 && point_index != spline->tot_point - 1))
@@ -369,7 +372,7 @@ static bool add_vertex_extrude(const bContext *C,
     ref_point = &spline->points[point_index + 1];
     new_point = &spline->points[point_index];
     *ref_point = *new_point;
-    memset(new_point, 0, sizeof(*new_point));
+    *new_point = MaskSplinePoint{};
   }
   else {
     ref_point = &spline->points[point_index];
@@ -449,12 +452,12 @@ static void mask_point_make_pixel_space(bContext *C,
   point_pixel[1] = point_normalized[1] * scaley;
 }
 
-static int add_vertex_handle_cyclic_at_point(bContext *C,
-                                             Mask *mask,
-                                             MaskSpline *spline,
-                                             MaskSplinePoint *active_point,
-                                             MaskSplinePoint *other_point,
-                                             float co[2])
+static wmOperatorStatus add_vertex_handle_cyclic_at_point(bContext *C,
+                                                          Mask *mask,
+                                                          MaskSpline *spline,
+                                                          MaskSplinePoint *active_point,
+                                                          MaskSplinePoint *other_point,
+                                                          float co[2])
 {
   const float tolerance_in_pixels_squared = 4 * 4;
 
@@ -489,7 +492,7 @@ static int add_vertex_handle_cyclic_at_point(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static int add_vertex_handle_cyclic(
+static wmOperatorStatus add_vertex_handle_cyclic(
     bContext *C, Mask *mask, MaskSpline *spline, MaskSplinePoint *active_point, float co[2])
 {
   MaskSplinePoint *first_point = &spline->points[0];
@@ -511,7 +514,7 @@ static int add_vertex_handle_cyclic(
 /** \name Add Vertex Operator
  * \{ */
 
-static int add_vertex_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
 {
   MaskViewLockState lock_state;
   ED_mask_view_lock_state_store(C, &lock_state);
@@ -533,11 +536,12 @@ static int add_vertex_exec(bContext *C, wmOperator *op)
 
   /* TODO: having an active point but no active spline is possible, why? */
   if (mask_layer && mask_layer->act_spline && mask_layer->act_point &&
-      MASKPOINT_ISSEL_ANY(mask_layer->act_point))
+      BKE_mask_point_selected(mask_layer->act_point))
   {
     MaskSpline *spline = mask_layer->act_spline;
     MaskSplinePoint *active_point = mask_layer->act_point;
-    const int cyclic_result = add_vertex_handle_cyclic(C, mask, spline, active_point, co);
+    const wmOperatorStatus cyclic_result = add_vertex_handle_cyclic(
+        C, mask, spline, active_point, co);
     if (cyclic_result != OPERATOR_PASS_THROUGH) {
       return cyclic_result;
     }
@@ -563,7 +567,7 @@ static int add_vertex_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
@@ -584,7 +588,7 @@ void MASK_OT_add_vertex(wmOperatorType *ot)
   ot->description = "Add vertex to active spline";
   ot->idname = "MASK_OT_add_vertex";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = add_vertex_exec;
   ot->invoke = add_vertex_invoke;
   ot->poll = ED_maskedit_visible_splines_poll;
@@ -611,7 +615,7 @@ void MASK_OT_add_vertex(wmOperatorType *ot)
 /** \name Add Feather Vertex Operator
  * \{ */
 
-static int add_feather_vertex_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_feather_vertex_exec(bContext *C, wmOperator *op)
 {
   Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer;
@@ -660,7 +664,9 @@ static int add_feather_vertex_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static int add_feather_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus add_feather_vertex_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
@@ -681,7 +687,7 @@ void MASK_OT_add_feather_vertex(wmOperatorType *ot)
   ot->description = "Add vertex to feather";
   ot->idname = "MASK_OT_add_feather_vertex";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = add_feather_vertex_exec;
   ot->invoke = add_feather_vertex_invoke;
   ot->poll = ED_maskedit_mask_poll;
@@ -714,7 +720,7 @@ static BezTriple *points_to_bezier(const float (*points)[2],
                                    const float scale,
                                    const float location[2])
 {
-  BezTriple *bezier_points = MEM_cnew_array<BezTriple>(num_points, __func__);
+  BezTriple *bezier_points = MEM_calloc_arrayN<BezTriple>(num_points, __func__);
   for (int i = 0; i < num_points; i++) {
     copy_v2_v2(bezier_points[i].vec[1], points[i]);
     mul_v2_fl(bezier_points[i].vec[1], scale);
@@ -809,7 +815,9 @@ static int create_primitive_from_points(
   return OPERATOR_FINISHED;
 }
 
-static int primitive_add_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus primitive_add_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   ScrArea *area = CTX_wm_area(C);
   float cursor[2];
@@ -848,7 +856,7 @@ static void define_primitive_add_properties(wmOperatorType *ot)
 /** \name Primitive Add Circle Operator
  * \{ */
 
-static int primitive_circle_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus primitive_circle_add_exec(bContext *C, wmOperator *op)
 {
   const float points[4][2] = {{0.0f, 0.5f}, {0.5f, 1.0f}, {1.0f, 0.5f}, {0.5f, 0.0f}};
   int num_points = ARRAY_SIZE(points);
@@ -865,7 +873,7 @@ void MASK_OT_primitive_circle_add(wmOperatorType *ot)
   ot->description = "Add new circle-shaped spline";
   ot->idname = "MASK_OT_primitive_circle_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = primitive_circle_add_exec;
   ot->invoke = primitive_add_invoke;
   ot->poll = ED_maskedit_visible_splines_poll;
@@ -883,7 +891,7 @@ void MASK_OT_primitive_circle_add(wmOperatorType *ot)
 /** \name Primitive Add Square Operator
  * \{ */
 
-static int primitive_square_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus primitive_square_add_exec(bContext *C, wmOperator *op)
 {
   const float points[4][2] = {{0.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}};
   int num_points = ARRAY_SIZE(points);
@@ -900,7 +908,7 @@ void MASK_OT_primitive_square_add(wmOperatorType *ot)
   ot->description = "Add new square-shaped spline";
   ot->idname = "MASK_OT_primitive_square_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = primitive_square_add_exec;
   ot->invoke = primitive_add_invoke;
   ot->poll = ED_maskedit_visible_splines_poll;

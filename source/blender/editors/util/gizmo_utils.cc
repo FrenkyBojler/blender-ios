@@ -17,7 +17,7 @@
 #include "DNA_workspace_types.h"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "ED_gizmo_utils.hh"
@@ -31,7 +31,7 @@ bool ED_gizmo_poll_or_unlink_delayed_from_operator(const bContext *C,
   wmOperator *op = WM_operator_last_redo(C);
 #else
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmOperator *op = static_cast<wmOperator *>(wm->operators.last);
+  wmOperator *op = static_cast<wmOperator *>(wm->runtime->operators.last);
 #endif
 
   if (op == nullptr || !STREQ(op->type->idname, idname)) {

@@ -14,14 +14,17 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_context.hh"
 #include "BKE_lattice.hh"
+
+#include "ED_object.hh"
 
 #include "transform.hh"
 #include "transform_snap.hh"
 
 /* Own include. */
 #include "transform_convert.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Curve/Surfaces Transform Creation
@@ -39,6 +42,11 @@ static void createTransLatticeVerts(bContext * /*C*/, TransInfo *t)
     int count = 0, countsel = 0;
     const bool is_prop_edit = (t->flag & T_PROP_EDIT) != 0;
     const bool is_prop_connected = (t->flag & T_PROP_CONNECTED) != 0;
+
+    /* Avoid editing locked shapes. */
+    if (t->mode != TFM_DUMMY && object::shape_key_report_if_locked(tc->obedit, t->reports)) {
+      continue;
+    }
 
     bp = latt->def;
     a = latt->pntsu * latt->pntsv * latt->pntsw;
@@ -67,10 +75,9 @@ static void createTransLatticeVerts(bContext * /*C*/, TransInfo *t)
     else {
       tc->data_len = countsel;
     }
-    tc->data = static_cast<TransData *>(
-        MEM_callocN(tc->data_len * sizeof(TransData), "TransObData(Lattice EditMode)"));
+    tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransObData(Lattice EditMode)");
 
-    copy_m3_m4(mtx, tc->obedit->object_to_world);
+    copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
     td = tc->data;
@@ -91,7 +98,6 @@ static void createTransLatticeVerts(bContext * /*C*/, TransInfo *t)
           copy_m3_m3(td->smtx, smtx);
           copy_m3_m3(td->mtx, mtx);
 
-          td->ext = nullptr;
           td->val = nullptr;
 
           td++;
@@ -125,3 +131,5 @@ TransConvertTypeInfo TransConvertType_Lattice = {
     /*recalc_data*/ recalcData_lattice,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

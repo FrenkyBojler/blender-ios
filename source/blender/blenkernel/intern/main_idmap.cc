@@ -8,16 +8,16 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_ghash.h"
-#include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_mempool.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_ID.h"
 
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_main_idmap.h" /* own include */
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_main_idmap.hh" /* own include */
 
 /** \file
  * \ingroup bke
@@ -54,9 +54,9 @@ struct IDNameLib_TypeMap {
  */
 struct IDNameLib_Map {
   IDNameLib_TypeMap type_maps[INDEX_ID_MAX];
-  GHash *uuid_map;
+  blender::Map<uint32_t, ID *> *uid_map;
   Main *bmain;
-  GSet *valid_id_pointers;
+  blender::Set<const ID *> *valid_id_pointers;
   int idmap_types;
 
   /* For storage of keys for the #TypeMap #GHash, avoids many single allocations. */
@@ -80,7 +80,7 @@ IDNameLib_Map *BKE_main_idmap_create(Main *bmain,
                                      Main *old_bmain,
                                      const int idmap_types)
 {
-  IDNameLib_Map *id_map = static_cast<IDNameLib_Map *>(MEM_mallocN(sizeof(*id_map), __func__));
+  IDNameLib_Map *id_map = MEM_mallocN<IDNameLib_Map>(__func__);
   id_map->bmain = bmain;
   id_map->idmap_types = idmap_types;
 
@@ -94,29 +94,23 @@ IDNameLib_Map *BKE_main_idmap_create(Main *bmain,
   BLI_assert(index == INDEX_ID_MAX);
   id_map->type_maps_keys_pool = nullptr;
 
-  if (idmap_types & MAIN_IDMAP_TYPE_UUID) {
+  if (idmap_types & MAIN_IDMAP_TYPE_UID) {
     ID *id;
-    id_map->uuid_map = BLI_ghash_int_new(__func__);
+    id_map->uid_map = MEM_new<blender::Map<uint32_t, ID *>>(__func__);
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      BLI_assert(id->session_uuid != MAIN_ID_SESSION_UUID_UNSET);
-      void **id_ptr_v;
-      const bool existing_key = BLI_ghash_ensure_p(
-          id_map->uuid_map, POINTER_FROM_UINT(id->session_uuid), &id_ptr_v);
-      BLI_assert(existing_key == false);
-      UNUSED_VARS_NDEBUG(existing_key);
-
-      *id_ptr_v = id;
+      BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
+      id_map->uid_map->add_new(id->session_uid, id);
     }
     FOREACH_MAIN_ID_END;
   }
   else {
-    id_map->uuid_map = nullptr;
+    id_map->uid_map = nullptr;
   }
 
   if (create_valid_ids_set) {
-    id_map->valid_id_pointers = BKE_main_gset_create(bmain, nullptr);
+    id_map->valid_id_pointers = BKE_main_set_create(bmain, nullptr);
     if (old_bmain != nullptr) {
-      id_map->valid_id_pointers = BKE_main_gset_create(old_bmain, id_map->valid_id_pointers);
+      id_map->valid_id_pointers = BKE_main_set_create(old_bmain, id_map->valid_id_pointers);
     }
   }
   else {
@@ -144,20 +138,14 @@ void BKE_main_idmap_insert_id(IDNameLib_Map *id_map, ID *id)
     }
   }
 
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UUID) {
-    BLI_assert(id_map->uuid_map != nullptr);
-    BLI_assert(id->session_uuid != MAIN_ID_SESSION_UUID_UNSET);
-    void **id_ptr_v;
-    const bool existing_key = BLI_ghash_ensure_p(
-        id_map->uuid_map, POINTER_FROM_UINT(id->session_uuid), &id_ptr_v);
-    BLI_assert(existing_key == false);
-    UNUSED_VARS_NDEBUG(existing_key);
-
-    *id_ptr_v = id;
+  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
+    BLI_assert(id_map->uid_map != nullptr);
+    BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
+    id_map->uid_map->add_new(id->session_uid, id);
   }
 }
 
-void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, ID *id)
+void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, const ID *id)
 {
   if (id_map->idmap_types & MAIN_IDMAP_TYPE_NAME) {
     const short id_type = GS(id->name);
@@ -174,11 +162,10 @@ void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, ID *id)
     }
   }
 
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UUID) {
-    BLI_assert(id_map->uuid_map != nullptr);
-    BLI_assert(id->session_uuid != MAIN_ID_SESSION_UUID_UNSET);
-
-    BLI_ghash_remove(id_map->uuid_map, POINTER_FROM_UINT(id->session_uuid), nullptr, nullptr);
+  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
+    BLI_assert(id_map->uid_map != nullptr);
+    BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
+    id_map->uid_map->remove(id->session_uid);
   }
 }
 
@@ -245,28 +232,45 @@ ID *BKE_main_idmap_lookup_id(IDNameLib_Map *id_map, const ID *id)
    * Otherwise, we cannot provide new ID pointer that way (would crash accessing freed memory
    * when trying to get ID name).
    */
-  if (id_map->valid_id_pointers == nullptr || BLI_gset_haskey(id_map->valid_id_pointers, id)) {
+  if (id_map->valid_id_pointers == nullptr || id_map->valid_id_pointers->contains(id)) {
     return BKE_main_idmap_lookup_name(id_map, GS(id->name), id->name + 2, id->lib);
   }
   return nullptr;
 }
 
-ID *BKE_main_idmap_lookup_uuid(IDNameLib_Map *id_map, const uint session_uuid)
+ID *BKE_main_idmap_lookup_uid(IDNameLib_Map *id_map, const uint session_uid)
 {
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UUID) {
-    return static_cast<ID *>(BLI_ghash_lookup(id_map->uuid_map, POINTER_FROM_UINT(session_uuid)));
+  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
+    return id_map->uid_map->lookup_default(session_uid, nullptr);
   }
   return nullptr;
+}
+
+void BKE_main_idmap_clear(IDNameLib_Map &id_map)
+{
+  if (id_map.idmap_types & MAIN_IDMAP_TYPE_NAME) {
+    for (IDNameLib_TypeMap &type_map : id_map.type_maps) {
+      if (type_map.map) {
+        BLI_ghash_clear(type_map.map, nullptr, nullptr);
+      }
+    }
+  }
+  if (id_map.idmap_types & MAIN_IDMAP_TYPE_UID) {
+    id_map.uid_map->clear();
+  }
+
+  if (id_map.valid_id_pointers != nullptr) {
+    id_map.valid_id_pointers->clear();
+  }
 }
 
 void BKE_main_idmap_destroy(IDNameLib_Map *id_map)
 {
   if (id_map->idmap_types & MAIN_IDMAP_TYPE_NAME) {
-    IDNameLib_TypeMap *type_map = id_map->type_maps;
-    for (int i = 0; i < INDEX_ID_MAX; i++, type_map++) {
-      if (type_map->map) {
-        BLI_ghash_free(type_map->map, nullptr, nullptr);
-        type_map->map = nullptr;
+    for (IDNameLib_TypeMap &type_map : id_map->type_maps) {
+      if (type_map.map) {
+        BLI_ghash_free(type_map.map, nullptr, nullptr);
+        type_map.map = nullptr;
       }
     }
     if (id_map->type_maps_keys_pool != nullptr) {
@@ -274,16 +278,13 @@ void BKE_main_idmap_destroy(IDNameLib_Map *id_map)
       id_map->type_maps_keys_pool = nullptr;
     }
   }
-  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UUID) {
-    BLI_ghash_free(id_map->uuid_map, nullptr, nullptr);
+  if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
+    MEM_delete(id_map->uid_map);
   }
 
   BLI_assert(id_map->type_maps_keys_pool == nullptr);
 
-  if (id_map->valid_id_pointers != nullptr) {
-    BLI_gset_free(id_map->valid_id_pointers, nullptr);
-  }
-
+  MEM_delete(id_map->valid_id_pointers);
   MEM_freeN(id_map);
 }
 

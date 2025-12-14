@@ -2,20 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <pxr/imaging/hd/bprim.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hd/volumeFieldSchema.h>
 #include <pxr/usd/usdHydra/tokens.h>
 #include <pxr/usd/usdVol/tokens.h>
 #include <pxr/usdImaging/usdVolImaging/tokens.h>
 
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_volume.hh"
 #include "BLI_index_range.hh"
 #include "DNA_volume_types.h"
 
-#include "hydra_scene_delegate.h"
-#include "volume.h"
+#include "hydra_scene_delegate.hh"
+#include "volume.hh"
 
 namespace blender::io::hydra {
 
@@ -35,14 +34,14 @@ void VolumeData::init()
     return;
   }
   filepath_ = BKE_volume_grids_frame_filepath(volume);
-  ID_LOGN(1, "%s", filepath_.c_str());
+  ID_LOGN("%s", filepath_.c_str());
 
-  if (volume->runtime.grids) {
+  if (volume->runtime->grids) {
     const int num_grids = BKE_volume_num_grids(volume);
     if (num_grids) {
       for (const int i : IndexRange(num_grids)) {
-        const VolumeGrid *grid = BKE_volume_grid_get_for_read(volume, i);
-        const std::string grid_name = BKE_volume_grid_name(grid);
+        const bke::VolumeGridData *grid = BKE_volume_grid_get(volume, i);
+        const std::string grid_name = bke::volume_grid::get_name(*grid);
 
         field_descriptors_.emplace_back(pxr::TfToken(grid_name),
                                         pxr::UsdVolImagingTokens->openvdbAsset,
@@ -61,22 +60,22 @@ void VolumeData::insert()
   scene_delegate_->GetRenderIndex().InsertRprim(
       pxr::HdPrimTypeTokens->volume, scene_delegate_, prim_id);
 
-  ID_LOGN(1, "");
+  ID_LOGN("");
 
   for (auto &desc : field_descriptors_) {
     scene_delegate_->GetRenderIndex().InsertBprim(
         desc.fieldPrimType, scene_delegate_, desc.fieldId);
-    ID_LOGN(2, "Volume field %s", desc.fieldId.GetText());
+    ID_LOGN("Volume field %s", desc.fieldId.GetText());
   }
 }
 
 void VolumeData::remove()
 {
   for (auto &desc : field_descriptors_) {
-    ID_LOG(2, "%s", desc.fieldId.GetText());
+    ID_LOG("%s", desc.fieldId.GetText());
     scene_delegate_->GetRenderIndex().RemoveBprim(desc.fieldPrimType, desc.fieldId);
   }
-  ID_LOG(1, "");
+  ID_LOG("");
   scene_delegate_->GetRenderIndex().RemoveRprim(prim_id);
 }
 
@@ -102,7 +101,7 @@ void VolumeData::update()
   }
 
   scene_delegate_->GetRenderIndex().GetChangeTracker().MarkRprimDirty(prim_id, bits);
-  ID_LOGN(1, "");
+  ID_LOGN("");
 }
 
 pxr::VtValue VolumeData::get_data(pxr::TfToken const &key) const

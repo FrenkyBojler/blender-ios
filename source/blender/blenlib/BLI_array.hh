@@ -133,7 +133,14 @@ class Array {
   {
     BLI_assert(size >= 0);
     data_ = this->get_buffer_for_size(size);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
     uninitialized_fill_n(data_, size, value);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
     size_ = size;
   }
 
@@ -163,7 +170,14 @@ class Array {
       : Array(NoExceptConstructor(), other.allocator_)
   {
     if (other.data_ == other.inline_buffer_) {
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
       uninitialized_relocate_n(other.data_, other.size_, data_);
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
     }
     else {
       data_ = other.data_;
@@ -348,6 +362,26 @@ class Array {
     return IndexRange(size_);
   }
 
+  uint64_t hash() const
+  {
+    return this->as_span().hash();
+  }
+
+  static uint64_t hash_as(const Span<T> values)
+  {
+    return values.hash();
+  }
+
+  friend bool operator==(const Array &a, const Array &b)
+  {
+    return a.as_span() == b.as_span();
+  }
+
+  friend bool operator!=(const Array &a, const Array &b)
+  {
+    return !(a == b);
+  }
+
   /**
    * Sets the size to zero. This should only be used when you have manually destructed all elements
    * in the array beforehand. Use with care.
@@ -415,9 +449,7 @@ class Array {
     if (size <= InlineBufferCapacity) {
       return inline_buffer_;
     }
-    else {
-      return this->allocate(size);
-    }
+    return this->allocate(size);
   }
 
   T *allocate(int64_t size)

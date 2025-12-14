@@ -8,7 +8,7 @@
  * \ingroup bli
  *
  * Shared logic for #BLI_task_parallel_mempool to create a threaded iterator,
- * without exposing the these functions publicly.
+ * without exposing these functions publicly.
  */
 
 #include "BLI_compiler_attrs.h"
@@ -49,8 +49,4 @@ void mempool_iter_threadsafe_destroy(ParallelMempoolTaskData *iter_arr) ATTR_NON
  * #BLI_mempool_threadsafe_iter.curchunk_threaded_shared for threaded iteration support.
  * (threaded section noted in comments).
  */
-void *mempool_iter_threadsafe_step(BLI_mempool_threadsafe_iter *iter);
-
-#ifdef __cplusplus
-}
-#endif
+void *mempool_iter_threadsafe_step(BLI_mempool_threadsafe_iter *ts_iter);

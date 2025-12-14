@@ -7,7 +7,7 @@
 #include "testing/testing.h"
 
 #include "BLI_fileops.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_tempfile.h"
@@ -67,15 +67,9 @@ TEST_F(FileOpsTest, rename)
   BLI_file_touch(test_filepath_src.c_str());
   ASSERT_TRUE(BLI_exists(test_filepath_src.c_str()));
 
-  /* `test_filepath_dst` does exist now, so regular rename should succeed on Unix, but fail on
-   * Windows. */
-#ifdef WIN32
+  /* `test_filepath_dst` does exist now, so regular rename should fail. */
   ASSERT_NE(0, BLI_rename(test_filepath_src.c_str(), test_filepath_dst.c_str()));
   ASSERT_TRUE(BLI_exists(test_filepath_src.c_str()));
-#else
-  ASSERT_EQ(0, BLI_rename(test_filepath_src.c_str(), test_filepath_dst.c_str()));
-  ASSERT_FALSE(BLI_exists(test_filepath_src.c_str()));
-#endif
   ASSERT_TRUE(BLI_exists(test_filepath_dst.c_str()));
 
   BLI_file_touch(test_filepath_src.c_str());
@@ -94,18 +88,6 @@ TEST_F(FileOpsTest, rename)
    *
    * This is expected to succeed on Unix, but fail on Windows. */
   int fd_dst = BLI_open(test_filepath_dst.c_str(), O_BINARY | O_RDONLY, 0);
-#ifdef WIN32
-  ASSERT_NE(0, BLI_rename(test_filepath_src.c_str(), test_filepath_dst.c_str()));
-  ASSERT_TRUE(BLI_exists(test_filepath_src.c_str()));
-#else
-  ASSERT_EQ(0, BLI_rename(test_filepath_src.c_str(), test_filepath_dst.c_str()));
-  ASSERT_FALSE(BLI_exists(test_filepath_src.c_str()));
-#endif
-  ASSERT_TRUE(BLI_exists(test_filepath_dst.c_str()));
-
-  BLI_file_touch(test_filepath_src.c_str());
-  ASSERT_TRUE(BLI_exists(test_filepath_src.c_str()));
-
 #ifdef WIN32
   ASSERT_NE(0, BLI_rename_overwrite(test_filepath_src.c_str(), test_filepath_dst.c_str()));
   ASSERT_TRUE(BLI_exists(test_filepath_src.c_str()));
@@ -138,20 +120,17 @@ TEST_F(FileOpsTest, rename)
   BLI_dir_create_recursive(test_dirpath_src.c_str());
   ASSERT_TRUE(BLI_exists(test_dirpath_src.c_str()));
 
-  /* `test_dirpath_dst` now exists, so regular rename should succeed on Unix, but fail on Windows.
-   */
-#ifdef WIN32
+  /* `test_dirpath_dst` now exists, so regular rename should fail. */
   ASSERT_NE(0, BLI_rename(test_dirpath_src.c_str(), test_dirpath_dst.c_str()));
   ASSERT_TRUE(BLI_exists(test_dirpath_src.c_str()));
-#else
-  ASSERT_EQ(0, BLI_rename(test_dirpath_src.c_str(), test_dirpath_dst.c_str()));
-  ASSERT_FALSE(BLI_exists(test_dirpath_src.c_str()));
-#endif
   ASSERT_TRUE(BLI_exists(test_dirpath_dst.c_str()));
 
-#ifndef WIN32
+  /* `test_dirpath_dst` now exists, but is empty, so overwrite rename should succeed. */
+  ASSERT_EQ(0, BLI_rename_overwrite(test_dirpath_src.c_str(), test_dirpath_dst.c_str()));
+  ASSERT_FALSE(BLI_exists(test_dirpath_src.c_str()));
+  ASSERT_TRUE(BLI_exists(test_dirpath_dst.c_str()));
+
   BLI_dir_create_recursive(test_dirpath_src.c_str());
-#endif
   ASSERT_TRUE(BLI_exists(test_dirpath_src.c_str()));
 
   const std::string test_dir_filepath_src = test_dirpath_src + SEP_STR + file_name_src;
@@ -167,16 +146,33 @@ TEST_F(FileOpsTest, rename)
   ASSERT_FALSE(BLI_exists(test_dir_filepath_src.c_str()));
   ASSERT_TRUE(BLI_exists(test_dir_filepath_dst.c_str()));
 
-  /* `test_dirpath_dst` exists and is not empty, so regular rename should fail on all platforms. */
+  /* `test_dirpath_dst` exists and is not empty, so regular rename should fail. */
   ASSERT_NE(0, BLI_rename(test_dirpath_src.c_str(), test_dirpath_dst.c_str()));
   ASSERT_TRUE(BLI_exists(test_dirpath_src.c_str()));
   ASSERT_TRUE(BLI_exists(test_dirpath_dst.c_str()));
 
-  /* `test_dirpath_dst` exists and is not empty, so even overwrite rename should fail on all
-   * platforms. */
+  /* `test_dirpath_dst` exists and is not empty, so even overwrite rename should fail. */
   ASSERT_NE(0, BLI_rename_overwrite(test_dirpath_src.c_str(), test_dirpath_dst.c_str()));
   ASSERT_TRUE(BLI_exists(test_dirpath_src.c_str()));
   ASSERT_TRUE(BLI_exists(test_dirpath_dst.c_str()));
+}
+
+TEST_F(FileOpsTest, dir_create_recursive)
+{
+  const std::string dir_path = this->temp_dir + SEP_STR + "dir-to-create";
+  const std::string subdir_path = dir_path + SEP_STR + "subdir";
+
+  ASSERT_FALSE(BLI_exists(dir_path.c_str()));
+  ASSERT_TRUE(BLI_dir_create_recursive(subdir_path.c_str()));
+  ASSERT_TRUE(BLI_exists(subdir_path.c_str()));
+
+  ASSERT_TRUE(BLI_dir_create_recursive(subdir_path.c_str()))
+      << "Creating an already-existing directory should be fine";
+
+  const std::string subfile_path = dir_path + SEP_STR + "some_file.txt";
+  ASSERT_TRUE(BLI_file_touch(subfile_path.c_str()));
+  ASSERT_FALSE(BLI_dir_create_recursive(subfile_path.c_str()))
+      << "Creating a directory that already exists as file should return an error status";
 }
 
 /*

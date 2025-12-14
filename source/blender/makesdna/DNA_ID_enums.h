@@ -20,26 +20,96 @@ enum eIconSizes {
   NUM_ICON_SIZES,
 };
 
+/** #IDProperty.type */
+typedef enum eIDPropertyType {
+  IDP_STRING = 0,
+  IDP_INT = 1,
+  IDP_FLOAT = 2,
+  /** Array containing int, floats, doubles or groups. */
+  IDP_ARRAY = 5,
+  IDP_GROUP = 6,
+  IDP_ID = 7,
+  IDP_DOUBLE = 8,
+  IDP_IDPARRAY = 9,
+  /**
+   * True or false value, backed by an `int8_t` underlying type for arrays. Values are expected to
+   * be 0 or 1.
+   */
+  IDP_BOOLEAN = 10,
+} eIDPropertyType;
+#define IDP_NUMTYPES 11
+
+/** Used by some IDP utils, keep values in sync with type enum above. */
+enum {
+  IDP_TYPE_FILTER_STRING = 1 << IDP_STRING,
+  IDP_TYPE_FILTER_INT = 1 << IDP_INT,
+  IDP_TYPE_FILTER_FLOAT = 1 << IDP_FLOAT,
+  IDP_TYPE_FILTER_ARRAY = 1 << IDP_ARRAY,
+  IDP_TYPE_FILTER_GROUP = 1 << IDP_GROUP,
+  IDP_TYPE_FILTER_ID = 1 << IDP_ID,
+  IDP_TYPE_FILTER_DOUBLE = 1 << IDP_DOUBLE,
+  IDP_TYPE_FILTER_IDPARRAY = 1 << IDP_IDPARRAY,
+  IDP_TYPE_FILTER_BOOLEAN = 1 << IDP_BOOLEAN,
+};
+
+/** #IDProperty.subtype for #IDP_STRING properties. */
+typedef enum eIDPropertySubType {
+  IDP_STRING_SUB_UTF8 = 0, /* default */
+  IDP_STRING_SUB_BYTE = 1, /* arbitrary byte array, _not_ null terminated */
+} eIDPropertySubType;
+
+/** #IDProperty.flag. */
+typedef enum eIDPropertyFlag {
+  /**
+   * This #IDProperty may be library-overridden.
+   * Should only be used/be relevant for custom properties.
+   */
+  IDP_FLAG_OVERRIDABLE_LIBRARY = 1 << 0,
+  /**
+   * This collection item #IDProperty has been inserted in a local override.
+   * This is used by internal code to distinguish between library-originated items and
+   * local-inserted ones, as many operations are not allowed on the former.
+   */
+  IDP_FLAG_OVERRIDELIBRARY_LOCAL = 1 << 1,
+  /**
+   * This #IDProperty has a static type, i.e. its #eIDPropertyType cannot be changed by assigning a
+   * new value to it.
+   *
+   * Currently, array length is also considered as fixed (i.e. part of the type) when this flag is
+   * set. This allows to avoid IDProperty storing vectors e.g. to see their length modified.
+   *
+   * \note Currently, all overridable IDProp are also statically typed. IDProps used as storage for
+   * dynamic RNA properties are also always dynamically typed.
+   *
+   * \note Internal flag, user have no direct way to define or edit it.
+   */
+  IDP_FLAG_STATIC_TYPE = 1 << 4,
+  /**
+   * This means the property is set but RNA will return false when checking
+   * #RNA_property_is_set, currently this is a runtime flag.
+   */
+  IDP_FLAG_GHOST = 1 << 7,
+} eIDPropertyFlag;
+
 /**
  * Defines for working with IDs.
  *
  * The tags represent types! This is a dirty way of enabling RTTI. The
  * sig_byte end endian defines aren't really used much.
  */
-
-#ifdef __BIG_ENDIAN__
-/* big endian */
-#  define MAKE_ID2(c, d) ((c) << 8 | (d))
-#else
-/* little endian */
-#  define MAKE_ID2(c, d) ((d) << 8 | (c))
-#endif
+/* NOTE: this is endianness-sensitive. */
+#define MAKE_ID2(c, d) ((d) << 8 | (c))
 
 /**
  * ID from database.
  *
  * Written to #BHead.code (for file IO)
  * and the first 2 bytes of #ID.name (for runtime checks, see #GS macro).
+ *
+ * These types should also be available on their corresponding DNA struct.
+ * It must be a static `constexpr` data member so that it can be used in
+ * compile-time expressions and does not take up space in the struct.
+ * This is used by e.g. #BKE_id_new_nomain for improved type safety.
  *
  * Update #ID_TYPE_IS_DEPRECATED() when deprecating types.
  */
@@ -56,10 +126,9 @@ typedef enum ID_Type {
   ID_LT = MAKE_ID2('L', 'T'),        /* Lattice */
   ID_LA = MAKE_ID2('L', 'A'),        /* Light */
   ID_CA = MAKE_ID2('C', 'A'),        /* Camera */
-  ID_IP = MAKE_ID2('I', 'P'),        /* Ipo (depreciated, replaced by FCurves) */
   ID_KE = MAKE_ID2('K', 'E'),        /* Key (shape key) */
   ID_WO = MAKE_ID2('W', 'O'),        /* World */
-  ID_SCR = MAKE_ID2('S', 'R'),       /* Screen */
+  ID_SCR = MAKE_ID2('S', 'R'),       /* bScreen */
   ID_VF = MAKE_ID2('V', 'F'),        /* VFont (Vector Font) */
   ID_TXT = MAKE_ID2('T', 'X'),       /* Text */
   ID_SPK = MAKE_ID2('S', 'K'),       /* Speaker */
@@ -71,7 +140,7 @@ typedef enum ID_Type {
   ID_BR = MAKE_ID2('B', 'R'),        /* Brush */
   ID_PA = MAKE_ID2('P', 'A'),        /* ParticleSettings */
   ID_GD_LEGACY = MAKE_ID2('G', 'D'), /* bGPdata, (legacy Grease Pencil) */
-  ID_WM = MAKE_ID2('W', 'M'),        /* WindowManager */
+  ID_WM = MAKE_ID2('W', 'M'),        /* wmWindowManager */
   ID_MC = MAKE_ID2('M', 'C'),        /* MovieClip */
   ID_MSK = MAKE_ID2('M', 'S'),       /* Mask */
   ID_LS = MAKE_ID2('L', 'S'),        /* FreestyleLineStyle */

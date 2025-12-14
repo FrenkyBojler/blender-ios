@@ -13,7 +13,7 @@
  * A typical example is a field that computes a displacement vector for every vertex on a mesh
  * based on its position.
  *
- * Fields can be build, composed and evaluated at run-time. They are stored in a directed tree
+ * Fields can be built, composed and evaluated at run-time. They are stored in a directed tree
  * graph data structure, whereby each node is a #FieldNode and edges are dependencies. A #FieldNode
  * has an arbitrary number of inputs and at least one output and a #Field references a specific
  * output of a #FieldNode. The inputs of a #FieldNode are other fields.
@@ -33,8 +33,6 @@
  * Whenever possible, multiple fields should be evaluated together to avoid duplicate work when
  * they share common sub-fields and a common context.
  */
-
-#include <iostream>
 
 #include "BLI_function_ref.hh"
 #include "BLI_generic_virtual_array.hh"
@@ -126,7 +124,7 @@ template<typename NodePtr> class GFieldBase {
 
   uint64_t hash() const
   {
-    return get_default_hash_2(*node_, node_output_index_);
+    return get_default_hash(*node_, node_output_index_);
   }
 
   const CPPType &cpp_type() const
@@ -179,8 +177,7 @@ class GFieldRef : public GFieldBase<const FieldNode *> {
 
 namespace detail {
 /* Utility class to make #is_field_v work. */
-struct TypedFieldBase {
-};
+struct TypedFieldBase {};
 }  // namespace detail
 
 /**
@@ -230,25 +227,25 @@ class FieldOperation : public FieldNode {
   const mf::MultiFunction *function_;
 
   /** Inputs to the operation. */
-  blender::Vector<GField> inputs_;
+  Vector<GField> inputs_;
 
  public:
   FieldOperation(std::shared_ptr<const mf::MultiFunction> function, Vector<GField> inputs = {});
   FieldOperation(const mf::MultiFunction &function, Vector<GField> inputs = {});
-  ~FieldOperation();
+  ~FieldOperation() override;
 
   Span<GField> inputs() const;
   const mf::MultiFunction &multi_function() const;
 
   const CPPType &output_cpp_type(int output_index) const override;
 
-  static std::shared_ptr<FieldOperation> Create(std::shared_ptr<const mf::MultiFunction> function,
-                                                Vector<GField> inputs = {})
+  static std::shared_ptr<FieldOperation> from(std::shared_ptr<const mf::MultiFunction> function,
+                                              Vector<GField> inputs = {})
   {
     return std::make_shared<FieldOperation>(FieldOperation(std::move(function), inputs));
   }
-  static std::shared_ptr<FieldOperation> Create(const mf::MultiFunction &function,
-                                                Vector<GField> inputs = {})
+  static std::shared_ptr<FieldOperation> from(const mf::MultiFunction &function,
+                                              Vector<GField> inputs = {})
   {
     return std::make_shared<FieldOperation>(FieldOperation(function, inputs));
   }
@@ -276,7 +273,7 @@ class FieldInput : public FieldNode {
 
  public:
   FieldInput(const CPPType &type, std::string debug_name = "");
-  ~FieldInput();
+  ~FieldInput() override;
 
   /**
    * Get the value of this specific input based on the given context. The returned virtual array,
@@ -287,7 +284,7 @@ class FieldInput : public FieldNode {
                                          ResourceScope &scope) const = 0;
 
   virtual std::string socket_inspection_name() const;
-  blender::StringRef debug_name() const;
+  StringRef debug_name() const;
   const CPPType &cpp_type() const;
   Category category() const;
 
@@ -301,7 +298,7 @@ class FieldConstant : public FieldNode {
 
  public:
   FieldConstant(const CPPType &type, const void *value);
-  ~FieldConstant();
+  ~FieldConstant() override;
 
   const CPPType &output_cpp_type(int output_index) const override;
   const CPPType &type() const;
@@ -337,7 +334,6 @@ class FieldContext {
  * Utility class that makes it easier to evaluate fields.
  */
 class FieldEvaluator : NonMovable, NonCopyable {
- private:
   struct OutputPointerInfo {
     void *dst = nullptr;
     /* When a destination virtual array is provided for an input, this is
@@ -417,7 +413,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
    */
   template<typename T> int add_with_destination(Field<T> field, MutableSpan<T> dst)
   {
-    return this->add_with_destination(std::move(field), VMutableArray<T>::ForSpan(dst));
+    return this->add_with_destination(std::move(field), VMutableArray<T>::from_span(dst));
   }
 
   int add(GField field, GVArray *varray_ptr);
@@ -460,7 +456,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
     return this->get_evaluated(field_index).typed<T>();
   }
 
-  IndexMask get_evaluated_selection_as_mask();
+  IndexMask get_evaluated_selection_as_mask() const;
 
   /**
    * Retrieve the output of an evaluated boolean field and convert it to a mask, which can be used
@@ -540,59 +536,6 @@ class IndexFieldInput final : public FieldInput {
 
   uint64_t hash() const override;
   bool is_equal_to(const fn::FieldNode &other) const override;
-};
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Value or Field Class
- *
- * Utility class that wraps a single value and a field, to simplify accessing both of the types.
- * \{ */
-
-template<typename T> struct ValueOrField {
-  /** Value that is used when the field is empty. */
-  T value{};
-  Field<T> field;
-
-  ValueOrField() = default;
-
-  ValueOrField(T value) : value(std::move(value)) {}
-
-  ValueOrField(Field<T> field) : field(std::move(field)) {}
-
-  bool is_field() const
-  {
-    return bool(this->field);
-  }
-
-  Field<T> as_field() const
-  {
-    if (this->field) {
-      return this->field;
-    }
-    return make_constant_field(this->value);
-  }
-
-  T as_value() const
-  {
-    if (this->field) {
-      /* This returns a default value when the field is not constant. */
-      return evaluate_constant_field(this->field);
-    }
-    return this->value;
-  }
-
-  friend std::ostream &operator<<(std::ostream &stream, const ValueOrField<T> &value_or_field)
-  {
-    if (value_or_field.field) {
-      stream << "ValueOrField<T>";
-    }
-    else {
-      stream << value_or_field.value;
-    }
-    return stream;
-  }
 };
 
 /** \} */

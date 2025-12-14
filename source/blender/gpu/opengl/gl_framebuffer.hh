@@ -38,7 +38,8 @@ class GLFrameBuffer : public FrameBuffer {
   GPUAttachment tmp_detached_[GPU_FB_MAX_ATTACHMENT];
   /** Internal frame-buffers are immutable. */
   bool immutable_ = false;
-  /** True is the frame-buffer has its first color target using the GPU_SRGB8_A8 format. */
+  /** True is the frame-buffer has its first color target using the
+   * TextureFormat::SRGBA_8_8_8_8 format. */
   bool srgb_ = false;
   /** True is the frame-buffer has been bound using the GL_FRAMEBUFFER_SRGB feature. */
   bool enabled_srgb_ = false;
@@ -69,7 +70,7 @@ class GLFrameBuffer : public FrameBuffer {
    */
   bool check(char err_out[256]) override;
 
-  void clear(eGPUFrameBufferBits buffers,
+  void clear(GPUFrameBufferBits buffers,
              const float clear_col[4],
              float clear_depth,
              uint clear_stencil) override;
@@ -81,10 +82,12 @@ class GLFrameBuffer : public FrameBuffer {
   /* Attachment load-stores are currently no-op's in OpenGL. */
   void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls) override;
 
-  void subpass_transition(const GPUAttachmentState depth_attachment_state,
-                          Span<GPUAttachmentState> color_attachment_states) override;
+ protected:
+  void subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
+                               Span<GPUAttachmentState> color_attachment_states) override;
 
-  void read(eGPUFrameBufferBits planes,
+ public:
+  void read(GPUFrameBufferBits planes,
             eGPUDataFormat format,
             const int area[4],
             int channel_len,
@@ -94,7 +97,7 @@ class GLFrameBuffer : public FrameBuffer {
   /**
    * Copy \a src at the give offset inside \a dst.
    */
-  void blit_to(eGPUFrameBufferBits planes,
+  void blit_to(GPUFrameBufferBits planes,
                int src_slot,
                FrameBuffer *dst,
                int dst_slot,
@@ -141,7 +144,7 @@ static inline GLenum to_gl(const GPUAttachmentType type)
 #undef ATTACHMENT
 }
 
-static inline GLbitfield to_gl(const eGPUFrameBufferBits bits)
+static inline GLbitfield to_gl(const GPUFrameBufferBits bits)
 {
   GLbitfield mask = 0;
   mask |= (bits & GPU_DEPTH_BIT) ? GL_DEPTH_BUFFER_BIT : 0;

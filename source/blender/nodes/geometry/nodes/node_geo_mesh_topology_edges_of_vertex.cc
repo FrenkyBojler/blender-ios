@@ -2,7 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
+
 #include "BKE_mesh_mapping.hh"
 
 #include "BLI_array_utils.hh"
@@ -14,14 +15,14 @@ namespace blender::nodes::node_geo_mesh_topology_edges_of_vertex_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Vertex Index")
-      .implicit_field(implicit_field_inputs::index)
-      .description("The vertex to retrieve data from. Defaults to the vertex from the context");
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
+      .description("The vertex to retrieve data from. Defaults to the vertex from the context")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values used to sort the edges connected to the vertex. Uses indices by default");
   b.add_input<decl::Int>("Sort Index")
-      .min(0)
       .supports_field()
-      .description("Which of the sorted edges to output");
+      .description("Which of the sorted edges to output. Negative indexing is supported");
   b.add_output<decl::Int>("Edge Index")
       .field_source_reference_all()
       .description("An edge connected to the face, chosen by the sort index");
@@ -45,15 +46,15 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask &mask) const final
   {
-    const IndexRange vert_range(mesh.totvert);
+    const IndexRange vert_range(mesh.verts_num);
     const Span<int2> edges = mesh.edges();
     Array<int> map_offsets;
     Array<int> map_indices;
     const GroupedSpan<int> vert_to_edge_map = bke::mesh::build_vert_to_edge_map(
-        edges, mesh.totvert, map_offsets, map_indices);
+        edges, mesh.verts_num, map_offsets, map_indices);
 
     const bke::MeshFieldContext context{mesh, domain};
     fn::FieldEvaluator evaluator{context, &mask};
@@ -63,8 +64,8 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
     const VArray<int> vert_indices = evaluator.get_evaluated<int>(0);
     const VArray<int> indices_in_sort = evaluator.get_evaluated<int>(1);
 
-    const bke::MeshFieldContext edge_context{mesh, ATTR_DOMAIN_EDGE};
-    fn::FieldEvaluator edge_evaluator{edge_context, mesh.totedge};
+    const bke::MeshFieldContext edge_context{mesh, AttrDomain::Edge};
+    fn::FieldEvaluator edge_evaluator{edge_context, mesh.edges_num};
     edge_evaluator.add(sort_weight_);
     edge_evaluator.evaluate();
     const VArray<float> all_sort_weights = edge_evaluator.get_evaluated<float>(0);
@@ -116,7 +117,7 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
       }
     });
 
-    return VArray<int>::ForContainer(std::move(edge_of_vertex));
+    return VArray<int>::from_container(std::move(edge_of_vertex));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -140,9 +141,9 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -154,15 +155,15 @@ class EdgesOfVertCountInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != ATTR_DOMAIN_POINT) {
+    if (domain != AttrDomain::Point) {
       return {};
     }
-    Array<int> counts(mesh.totvert, 0);
+    Array<int> counts(mesh.verts_num, 0);
     array_utils::count_indices(mesh.edges().cast<int>(), counts);
-    return VArray<int>::ForContainer(std::move(counts));
+    return VArray<int>::from_container(std::move(counts));
   }
 
   uint64_t hash() const final
@@ -175,9 +176,9 @@ class EdgesOfVertCountInput final : public bke::MeshFieldInput {
     return dynamic_cast<const EdgesOfVertCountInput *>(&other) != nullptr;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -186,10 +187,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<int> vert_index = params.extract_input<Field<int>>("Vertex Index");
   if (params.output_is_required("Total")) {
     params.set_output("Total",
-                      Field<int>(std::make_shared<EvaluateAtIndexInput>(
+                      Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           vert_index,
                           Field<int>(std::make_shared<EdgesOfVertCountInput>()),
-                          ATTR_DOMAIN_POINT)));
+                          AttrDomain::Point)));
   }
   if (params.output_is_required("Edge Index")) {
     params.set_output("Edge Index",
@@ -202,12 +203,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_MESH_TOPOLOGY_EDGES_OF_VERTEX, "Edges of Vertex", NODE_CLASS_INPUT);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeEdgesOfVertex", GEO_NODE_MESH_TOPOLOGY_EDGES_OF_VERTEX);
+  ntype.ui_name = "Edges of Vertex";
+  ntype.ui_description = "Retrieve the edges connected to each vertex";
+  ntype.enum_name_legacy = "EDGES_OF_VERTEX";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GuidingLinesShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GuidingLinesShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`GuidingLinesShader`\n"
     "\n"
     "[Geometry shader]\n"
@@ -45,8 +43,7 @@ static char GuidingLinesShader___doc__[] =
     "   approximation is.\n"
     "\n"
     "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int GuidingLinesShader___init__(BPy_GuidingLinesShader *self,
                                        PyObject *args,
                                        PyObject *kwds)
@@ -105,7 +102,3 @@ PyTypeObject GuidingLinesShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

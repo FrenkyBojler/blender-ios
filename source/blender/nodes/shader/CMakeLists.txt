@@ -6,19 +6,10 @@ set(INC
   .
   ..
   ../intern
-  ../../blenkernel
-  ../../blentranslation
-  ../../depsgraph
   ../../editors/include
-  ../../functions
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../render
-  ../../windowmanager
-  ../../../../intern/clog
   ../../../../intern/sky/include
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -38,7 +29,9 @@ set(SRC
   nodes/node_shader_bsdf_glossy.cc
   nodes/node_shader_bsdf_hair.cc
   nodes/node_shader_bsdf_hair_principled.cc
+  nodes/node_shader_bsdf_metallic.cc
   nodes/node_shader_bsdf_principled.cc
+  nodes/node_shader_bsdf_ray_portal.cc
   nodes/node_shader_bsdf_refraction.cc
   nodes/node_shader_bsdf_sheen.cc
   nodes/node_shader_bsdf_toon.cc
@@ -80,12 +73,11 @@ set(SRC
   nodes/node_shader_output_world.cc
   nodes/node_shader_particle_info.cc
   nodes/node_shader_point_info.cc
+  nodes/node_shader_radial_tiling.cc
   nodes/node_shader_rgb.cc
   nodes/node_shader_rgb_to_bw.cc
   nodes/node_shader_script.cc
   nodes/node_shader_sepcomb_color.cc
-  nodes/node_shader_sepcomb_hsv.cc
-  nodes/node_shader_sepcomb_rgb.cc
   nodes/node_shader_sepcomb_xyz.cc
   nodes/node_shader_shader_to_rgb.cc
   nodes/node_shader_squeeze.cc
@@ -95,11 +87,11 @@ set(SRC
   nodes/node_shader_tex_checker.cc
   nodes/node_shader_tex_coord.cc
   nodes/node_shader_tex_environment.cc
+  nodes/node_shader_tex_gabor.cc
   nodes/node_shader_tex_gradient.cc
   nodes/node_shader_tex_image.cc
   nodes/node_shader_tex_magic.cc
   nodes/node_shader_tex_noise.cc
-  nodes/node_shader_tex_pointdensity.cc
   nodes/node_shader_tex_sky.cc
   nodes/node_shader_tex_voronoi.cc
   nodes/node_shader_tex_wave.cc
@@ -113,6 +105,7 @@ set(SRC
   nodes/node_shader_vector_transform.cc
   nodes/node_shader_vertex_color.cc
   nodes/node_shader_volume_absorption.cc
+  nodes/node_shader_volume_coefficients.cc
   nodes/node_shader_volume_info.cc
   nodes/node_shader_volume_principled.cc
   nodes/node_shader_volume_scatter.cc
@@ -128,12 +121,20 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_functions
+  PRIVATE bf::functions
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_sky
   bf_nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_MATERIALX)
@@ -141,11 +142,13 @@ if(WITH_MATERIALX)
   list(APPEND SRC
     materialx/group_nodes.cc
     materialx/material.cc
+    materialx/node_graph.cc
     materialx/node_item.cc
     materialx/node_parser.cc
 
     materialx/group_nodes.h
     materialx/material.h
+    materialx/node_graph.h
     materialx/node_item.h
     materialx/node_parser.h
   )
@@ -168,27 +171,16 @@ if(WITH_FREESTYLE)
 endif()
 
 if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
   if(WIN32)
     # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_nodes_shader "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-if(WITH_UNITY_BUILD)
-  set_target_properties(bf_nodes_shader PROPERTIES UNITY_BUILD ON)
-  set_target_properties(bf_nodes_shader PROPERTIES UNITY_BUILD_BATCH_SIZE 10)
-endif()
+blender_set_target_unity_build(bf_nodes_shader 10)
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_nodes_shader bf_rna)

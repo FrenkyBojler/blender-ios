@@ -8,7 +8,6 @@ blosc*
 *ceres*
 *cineon*
 *clang*
-*COLLADA*
 cu*
 decodeInstruction
 *default_error_condition*
@@ -36,6 +35,7 @@ _Jv_RegisterClasses
 lame_*
 *llvm*
 *LLVM*
+*Manta*
 *MathML*
 *mkldnn*
 Name

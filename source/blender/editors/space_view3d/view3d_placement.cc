@@ -13,17 +13,21 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_screen.hh"
+
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 
 #include "ED_gizmo_utils.hh"
 #include "ED_screen.hh"
@@ -32,9 +36,10 @@
 
 #include "UI_resources.hh"
 
-#include "GPU_immediate.h"
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 static const char *view3d_gzgt_placement_id = "VIEW3D_GGT_placement";
 
@@ -156,7 +161,9 @@ struct InteractivePlaceData {
   /** When activated without a tool. */
   bool wait_for_input;
 
-  eSnapMode snap_to;
+  /* WORKAROUND: We need to remove #SCE_SNAP_TO_GRID temporarily. */
+  short *snap_to_ptr;
+  eSnapMode snap_to_restore;
 };
 
 /** \} */
@@ -209,7 +216,7 @@ static int dot_v3_array_find_max_index(const float dirs[][3],
 static UNUSED_FUNCTION_WITH_RETURN_TYPE(wmGizmoGroup *,
                                         idp_gizmogroup_from_region)(ARegion *region)
 {
-  wmGizmoMap *gzmap = region->gizmo_map;
+  wmGizmoMap *gzmap = region->runtime->gizmo_map;
   return gzmap ? WM_gizmomap_group_find(gzmap, view3d_gzgt_placement_id) : nullptr;
 }
 
@@ -226,7 +233,7 @@ static bool idp_snap_calc_incremental(
     return false;
   }
 
-  if (scene->toolsettings->snap_flag & SCE_SNAP_ABS_GRID) {
+  if (scene->toolsettings->snap_mode & SCE_SNAP_TO_GRID) {
     co_relative = nullptr;
   }
 
@@ -254,17 +261,18 @@ static bool idp_snap_calc_incremental(
 static void draw_line_loop(const float coords[][3], int coords_len, const float color[4])
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
-  GPUVertBuf *vert = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(vert, coords_len);
+  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(*format);
+  GPU_vertbuf_data_alloc(*vert, coords_len);
 
   for (int i = 0; i < coords_len; i++) {
     GPU_vertbuf_attr_set(vert, pos, i, coords[i]);
   }
 
   GPU_blend(GPU_BLEND_ALPHA);
-  GPUBatch *batch = GPU_batch_create_ex(GPU_PRIM_LINE_LOOP, vert, nullptr, GPU_BATCH_OWNS_VBO);
+  blender::gpu::Batch *batch = GPU_batch_create_ex(
+      GPU_PRIM_LINE_LOOP, vert, nullptr, GPU_BATCH_OWNS_VBO);
   GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
 
   GPU_batch_uniform_4fv(batch, "color", color);
@@ -286,10 +294,10 @@ static void draw_line_pairs(const float coords_a[][3],
                             const float color[4])
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
-  GPUVertBuf *vert = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(vert, coords_len * 2);
+  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(*format);
+  GPU_vertbuf_data_alloc(*vert, coords_len * 2);
 
   for (int i = 0; i < coords_len; i++) {
     GPU_vertbuf_attr_set(vert, pos, i * 2, coords_a[i]);
@@ -297,7 +305,8 @@ static void draw_line_pairs(const float coords_a[][3],
   }
 
   GPU_blend(GPU_BLEND_ALPHA);
-  GPUBatch *batch = GPU_batch_create_ex(GPU_PRIM_LINES, vert, nullptr, GPU_BATCH_OWNS_VBO);
+  blender::gpu::Batch *batch = GPU_batch_create_ex(
+      GPU_PRIM_LINES, vert, nullptr, GPU_BATCH_OWNS_VBO);
   GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
 
   GPU_batch_uniform_4fv(batch, "color", color);
@@ -316,7 +325,7 @@ static void draw_line_pairs(const float coords_a[][3],
 static void draw_line_bounds(const BoundBox *bounds, const float color[4])
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   const int edges[12][2] = {
       /* First side. */
@@ -334,8 +343,8 @@ static void draw_line_bounds(const BoundBox *bounds, const float color[4])
       {3, 7},
   };
 
-  GPUVertBuf *vert = GPU_vertbuf_create_with_format(format);
-  GPU_vertbuf_data_alloc(vert, ARRAY_SIZE(edges) * 2);
+  blender::gpu::VertBuf *vert = GPU_vertbuf_create_with_format(*format);
+  GPU_vertbuf_data_alloc(*vert, ARRAY_SIZE(edges) * 2);
 
   for (int i = 0, j = 0; i < ARRAY_SIZE(edges); i++) {
     GPU_vertbuf_attr_set(vert, pos, j++, bounds->vec[edges[i][0]]);
@@ -343,7 +352,8 @@ static void draw_line_bounds(const BoundBox *bounds, const float color[4])
   }
 
   GPU_blend(GPU_BLEND_ALPHA);
-  GPUBatch *batch = GPU_batch_create_ex(GPU_PRIM_LINES, vert, nullptr, GPU_BATCH_OWNS_VBO);
+  blender::gpu::Batch *batch = GPU_batch_create_ex(
+      GPU_PRIM_LINES, vert, nullptr, GPU_BATCH_OWNS_VBO);
   GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
 
   GPU_batch_uniform_4fv(batch, "color", color);
@@ -361,7 +371,7 @@ static void draw_line_bounds(const BoundBox *bounds, const float color[4])
 
 static bool calc_bbox(InteractivePlaceData *ipd, BoundBox *bounds)
 {
-  memset(bounds, 0x0, sizeof(*bounds));
+  *bounds = BoundBox{};
 
   if (compare_v3v3(ipd->co_src, ipd->step[0].co_dst, FLT_EPSILON)) {
     return false;
@@ -503,7 +513,7 @@ static void draw_circle_in_quad(const float v1[3],
       {-1, +1},
   };
 
-  float(*coords)[3] = static_cast<float(*)[3]>(
+  float (*coords)[3] = static_cast<float (*)[3]>(
       MEM_mallocN(sizeof(float[3]) * (resolution + 1), __func__));
   for (int i = 0; i <= resolution; i++) {
     float theta = ((2.0f * M_PI) * (float(i) / float(resolution))) + 0.01f;
@@ -636,10 +646,10 @@ static void draw_primitive_view(const bContext *C, ARegion * /*region*/, void *a
 {
   InteractivePlaceData *ipd = static_cast<InteractivePlaceData *>(arg);
   float color[4];
-  UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, color);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, color);
 
   const bool use_depth = !XRAY_ENABLED(ipd->v3d);
-  const eGPUDepthTest depth_test_enabled = GPU_depth_test_get();
+  const GPUDepthTest depth_test_enabled = GPU_depth_test_get();
 
   if (use_depth) {
     GPU_depth_test(GPU_DEPTH_NONE);
@@ -730,7 +740,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
     /* For drag events, update the location since it will be set from the drag-start.
      * This is needed as cursor-drawing doesn't deal with drag events and will use
      * the current cursor location instead of the drag-start. */
-    if (event->val == KM_CLICK_DRAG) {
+    if (event->val == KM_PRESS_DRAG) {
       /* Set this flag so snapping always updated. */
       int mval[2];
       WM_event_drag_start_mval(event, ipd->region, mval);
@@ -738,7 +748,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
       /* Be sure to also compute the #V3DSnapCursorData.plane_omat. */
       snap_state->draw_plane = true;
 
-      ED_view3d_cursor_snap_data_update(snap_state_new, C, mval[0], mval[1]);
+      ED_view3d_cursor_snap_data_update(snap_state_new, C, ipd->region, mval);
     }
   }
 
@@ -762,10 +772,11 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
 
   ipd->step_index = STEP_BASE;
 
-  ipd->snap_to = eSnapMode(tool_settings->snap_mode_tools);
-  if (ipd->snap_to == SCE_SNAP_TO_NONE) {
-    ipd->snap_to = eSnapMode(tool_settings->snap_mode);
+  ipd->snap_to_ptr = &tool_settings->snap_mode_tools;
+  if (eSnapMode(*ipd->snap_to_ptr) == SCE_SNAP_TO_NONE) {
+    ipd->snap_to_ptr = &tool_settings->snap_mode;
   }
+  ipd->snap_to_restore = eSnapMode(*ipd->snap_to_ptr);
 
   plane_from_point_normal_v3(ipd->step[0].plane, ipd->co_src, ipd->matrix_orient[plane_axis]);
 
@@ -834,7 +845,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
   }
 
   ipd->draw_handle_view = ED_region_draw_cb_activate(
-      ipd->region->type, draw_primitive_view, ipd, REGION_DRAW_POST_VIEW);
+      ipd->region->runtime->type, draw_primitive_view, ipd, REGION_DRAW_POST_VIEW);
 
   ED_region_tag_redraw(ipd->region);
 
@@ -875,7 +886,36 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
   }
 }
 
-static int view3d_interactive_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+enum {
+  PLACE_MODAL_SNAP_ON,
+  PLACE_MODAL_SNAP_OFF,
+  PLACE_MODAL_FIXED_ASPECT_ON,
+  PLACE_MODAL_FIXED_ASPECT_OFF,
+  PLACE_MODAL_PIVOT_CENTER_ON,
+  PLACE_MODAL_PIVOT_CENTER_OFF,
+};
+
+static void view3d_interactive_add_status(wmOperator *op, bContext *C)
+{
+  InteractivePlaceData *ipd = static_cast<InteractivePlaceData *>(op->customdata);
+  WorkspaceStatus status(C);
+  status.item(ipd->step_index == STEP_BASE ? IFACE_("Define Base") : IFACE_("Define Depth"),
+              ICON_MOUSE_MOVE);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.opmodal(IFACE_("Fixed Aspect"),
+                 op->type,
+                 PLACE_MODAL_FIXED_ASPECT_ON,
+                 ipd->step[ipd->step_index].is_fixed_aspect);
+  status.opmodal(IFACE_("Center Pivot"),
+                 op->type,
+                 PLACE_MODAL_PIVOT_CENTER_ON,
+                 ipd->step[ipd->step_index].is_centered);
+  status.opmodal(IFACE_("Snap"), op->type, PLACE_MODAL_SNAP_ON, ipd->use_snap);
+}
+
+static wmOperatorStatus view3d_interactive_add_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent *event)
 {
   const bool wait_for_input = RNA_boolean_get(op->ptr, "wait_for_input");
 
@@ -901,6 +941,8 @@ static int view3d_interactive_add_invoke(bContext *C, wmOperator *op, const wmEv
 
   WM_event_add_modal_handler(C, op);
 
+  view3d_interactive_add_status(op, C);
+
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -913,10 +955,12 @@ static void view3d_interactive_add_exit(bContext *C, wmOperator *op)
 
   if (ipd->region != nullptr) {
     if (ipd->draw_handle_view != nullptr) {
-      ED_region_draw_cb_exit(ipd->region->type, ipd->draw_handle_view);
+      ED_region_draw_cb_exit(ipd->region->runtime->type, ipd->draw_handle_view);
     }
     ED_region_tag_redraw(ipd->region);
   }
+
+  ED_workspace_status_text(C, "");
 
   MEM_freeN(ipd);
 }
@@ -925,15 +969,6 @@ static void view3d_interactive_add_cancel(bContext *C, wmOperator *op)
 {
   view3d_interactive_add_exit(C, op);
 }
-
-enum {
-  PLACE_MODAL_SNAP_ON,
-  PLACE_MODAL_SNAP_OFF,
-  PLACE_MODAL_FIXED_ASPECT_ON,
-  PLACE_MODAL_FIXED_ASPECT_OFF,
-  PLACE_MODAL_PIVOT_CENTER_ON,
-  PLACE_MODAL_PIVOT_CENTER_OFF,
-};
 
 void viewplace_modal_keymap(wmKeyConfig *keyconf)
 {
@@ -960,7 +995,9 @@ void viewplace_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_interactive_add");
 }
 
-static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
 {
   UNUSED_VARS(C, op);
 
@@ -1011,11 +1048,16 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
     switch (event->type) {
       case EVT_ESCKEY:
       case RIGHTMOUSE: {
+        /* Restore snap mode. */
+        *ipd->snap_to_ptr = ipd->snap_to_restore;
         view3d_interactive_add_exit(C, op);
         return OPERATOR_CANCELLED;
       }
       case MOUSEMOVE: {
         do_cursor_update = true;
+        break;
+      }
+      default: {
         break;
       }
     }
@@ -1036,6 +1078,10 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
     if (ELEM(event->type, ipd->launch_event, LEFTMOUSE)) {
       if (event->val == KM_RELEASE) {
         ED_view3d_cursor_snap_state_prevpoint_set(ipd->snap_state, ipd->co_src);
+        if (ipd->snap_to_restore & SCE_SNAP_TO_GRID) {
+          /* Don't snap to grid in #STEP_DEPTH. */
+          *ipd->snap_to_ptr = ipd->snap_to_restore & ~SCE_SNAP_TO_GRID;
+        }
 
         /* Set secondary plane. */
 
@@ -1073,7 +1119,10 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
   else if (ipd->step_index == STEP_DEPTH) {
     if (ELEM(event->type, ipd->launch_event, LEFTMOUSE)) {
       if (event->val == KM_PRESS) {
+        /* Restore snap mode. */
+        *ipd->snap_to_ptr = ipd->snap_to_restore;
 
+        /* Confirm. */
         BoundBox bounds;
         calc_bbox(ipd, &bounds);
 
@@ -1110,7 +1159,6 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
         }
 
         wmOperatorType *ot = nullptr;
-        PointerRNA op_props;
         if (ipd->primitive_type == PLACE_PRIMITIVE_TYPE_CUBE) {
           ot = WM_operatortype_find("MESH_OT_primitive_cube_add", false);
         }
@@ -1128,13 +1176,13 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
         }
 
         if (ot != nullptr) {
-          WM_operator_properties_create_ptr(&op_props, ot);
+          PointerRNA op_props = WM_operator_properties_create_ptr(ot);
 
           if (ipd->use_tool) {
             bToolRef *tref = ipd->area->runtime.tool;
             PointerRNA temp_props;
             WM_toolsystem_ref_properties_init_for_keymap(tref, &temp_props, &op_props, ot);
-            SWAP(PointerRNA, temp_props, op_props);
+            std::swap(temp_props, op_props);
             WM_operator_properties_free(&temp_props);
           }
 
@@ -1163,7 +1211,8 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
             RNA_float_set(&op_props, "radius2", 0.0f);
           }
 
-          WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+          WM_operator_name_call_ptr(
+              C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
           WM_operator_properties_free(&op_props);
         }
         else {
@@ -1206,7 +1255,7 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
           /* pass */
         }
 
-        if (ipd->use_snap && (ipd->snap_to & SCE_SNAP_TO_INCREMENT)) {
+        if (ipd->use_snap && (ipd->snap_to_restore & (SCE_SNAP_TO_GRID | SCE_SNAP_TO_INCREMENT))) {
           if (idp_snap_calc_incremental(
                   ipd->scene, ipd->v3d, ipd->region, ipd->co_src, ipd->step[STEP_BASE].co_dst))
           {
@@ -1230,7 +1279,7 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
           /* pass */
         }
 
-        if (ipd->use_snap && (ipd->snap_to & SCE_SNAP_TO_INCREMENT)) {
+        if (ipd->use_snap && (ipd->snap_to_restore & (SCE_SNAP_TO_GRID | SCE_SNAP_TO_INCREMENT))) {
           if (idp_snap_calc_incremental(
                   ipd->scene, ipd->v3d, ipd->region, ipd->co_src, ipd->step[STEP_DEPTH].co_dst))
           {
@@ -1250,6 +1299,7 @@ static int view3d_interactive_add_modal(bContext *C, wmOperator *op, const wmEve
 
   if (do_redraw) {
     ED_region_tag_redraw(region);
+    view3d_interactive_add_status(op, C);
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1268,7 +1318,7 @@ void VIEW3D_OT_interactive_add(wmOperatorType *ot)
   ot->description = "Interactively add an object";
   ot->idname = "VIEW3D_OT_interactive_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = view3d_interactive_add_invoke;
   ot->modal = view3d_interactive_add_modal;
   ot->cancel = view3d_interactive_add_cancel;
@@ -1350,7 +1400,8 @@ static void preview_plane_free_fn(void *customdata)
 
 static bool snap_cursor_poll(ARegion *region, void *data)
 {
-  if (WM_gizmomap_group_find_ptr(region->gizmo_map, (wmGizmoGroupType *)data) == nullptr) {
+  if (WM_gizmomap_group_find_ptr(region->runtime->gizmo_map, (wmGizmoGroupType *)data) == nullptr)
+  {
     /* Wrong viewport. */
     return false;
   }
@@ -1370,6 +1421,17 @@ static void WIDGETGROUP_placement_setup(const bContext * /*C*/, wmGizmoGroup *gz
   }
 }
 
+static bool WIDGETGROUP_placement_poll(const bContext *C, wmGizmoGroupType *gzgt)
+{
+  if (ED_gizmo_poll_or_unlink_delayed_from_tool(C, gzgt)) {
+    const Scene *scene = CTX_data_scene(C);
+    if (BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void VIEW3D_GGT_placement(wmGizmoGroupType *gzgt)
 {
   gzgt->name = "Placement Widget";
@@ -1380,7 +1442,7 @@ void VIEW3D_GGT_placement(wmGizmoGroupType *gzgt)
   gzgt->gzmap_params.spaceid = SPACE_VIEW3D;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
 
-  gzgt->poll = ED_gizmo_poll_or_unlink_delayed_from_tool;
+  gzgt->poll = WIDGETGROUP_placement_poll;
   gzgt->setup = WIDGETGROUP_placement_setup;
 }
 

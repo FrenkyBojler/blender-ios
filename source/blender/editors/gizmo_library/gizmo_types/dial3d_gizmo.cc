@@ -10,7 +10,7 @@
  * 3D Gizmo
  *
  * \brief Circle shaped gizmo for circular interaction.
- * Currently no own handling, use with operator only.
+ * Currently no separate handling, use with operator only.
  *
  * - `matrix[0]` is derived from Y and Z.
  * - `matrix[1]` is 'up' when DialGizmo.use_start_y_axis is set.
@@ -19,16 +19,17 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 
 #include "BKE_context.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_select.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_select.hh"
+#include "GPU_state.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -42,8 +43,7 @@
 #include "ED_view3d.hh"
 
 /* own includes */
-#include "../gizmo_geometry.h"
-#include "../gizmo_library_intern.h"
+#include "../gizmo_library_intern.hh"
 
 // /** To use custom dials exported to `geom_dial_gizmo.cc`. */
 // #define USE_GIZMO_CUSTOM_DIAL
@@ -112,7 +112,7 @@ static void dial_geom_draw(const float color[4],
 
   GPUVertFormat *format = immVertexFormat();
   /* NOTE(Metal): Prefer using 3D coordinates with 3D shader, even if rendering 2D gizmo's. */
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   if (clip_plane) {
     immBindBuiltinProgram(filled ? GPU_SHADER_3D_CLIPPED_UNIFORM_COLOR :
@@ -154,7 +154,7 @@ static void dial_geom_draw(const float color[4],
     float viewport[4];
     GPU_viewport_size_get_f(viewport);
     immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", line_width * U.pixelsize);
+    immUniform1f("lineWidth", line_width);
 
     if (arc_partial_angle == 0.0f) {
       imm_draw_circle_wire_3d(pos, 0.0f, 0.0f, 1.0f, DIAL_RESOLUTION);
@@ -191,7 +191,8 @@ static void dial_ghostarc_draw_helpline(const float angle,
   GPU_matrix_push();
   GPU_matrix_rotate_3f(RAD2DEGF(angle), 0.0f, 0.0f, -1.0f);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
 
@@ -215,11 +216,13 @@ static void dial_ghostarc_draw_helpline(const float angle,
 /**
  * Draws segments to indicate the position of each increment.
  */
-static void dial_ghostarc_draw_incremental_angle(const float incremental_angle, const float offset)
+static void dial_ghostarc_draw_incremental_angle(const float incremental_angle,
+                                                 const float offset,
+                                                 const float angle_delta)
 {
-  const int tot_incr = (2 * M_PI) / incremental_angle;
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
 
   immUniformColor3f(1.0f, 1.0f, 1.0f);
@@ -229,12 +232,21 @@ static void dial_ghostarc_draw_incremental_angle(const float incremental_angle, 
   immUniform2fv("viewportSize", &viewport[2]);
   immUniform1f("lineWidth", U.pixelsize);
 
-  immBegin(GPU_PRIM_LINES, tot_incr * 2);
+  const int current_increment = roundf(angle_delta / incremental_angle);
+  const int total_increment = roundf((M_PI * 2.0f) / incremental_angle);
+
+  immBegin(GPU_PRIM_LINES, total_increment * 2);
+
+  /* Chop off excess full circles, draw an arc of ticks centered at current increment;
+   * if there's no even division of circle by increment,
+   * ends of the arc will move with the rotation. */
+  const float start_offset = fmodf(
+      offset + incremental_angle * (current_increment - total_increment / 2), M_PI * 2.0f);
 
   float v[3] = {0};
-  for (int i = 0; i < tot_incr; i++) {
-    v[0] = sinf(offset + incremental_angle * i);
-    v[1] = cosf(offset + incremental_angle * i);
+  for (int i = 0; i < total_increment; i++) {
+    v[0] = sinf(start_offset + incremental_angle * i);
+    v[1] = cosf(start_offset + incremental_angle * i);
 
     mul_v2_fl(v, DIAL_WIDTH * 1.1f);
     immVertex3fv(pos, v);
@@ -254,7 +266,7 @@ static void dial_ghostarc_draw(const float angle_ofs,
 {
   const float width_inner = DIAL_WIDTH;
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Avoid artifacts by drawing the main arc over the span of one rotation only. */
@@ -333,13 +345,16 @@ static void dial_ghostarc_get_angles(const wmGizmo *gz,
   };
 
   if (!ED_view3d_win_to_3d_on_plane(
-          region, dial_plane, inter->init.mval, false, proj_mval_init_rel)) {
-    return fail();
+          region, dial_plane, inter->init.mval, false, proj_mval_init_rel))
+  {
+    fail();
+    return;
   }
   sub_v3_v3(proj_mval_init_rel, gz->matrix_basis[3]);
 
   if (!ED_view3d_win_to_3d_on_plane(region, dial_plane, mval, false, proj_mval_new_rel)) {
-    return fail();
+    fail();
+    return;
   }
   sub_v3_v3(proj_mval_new_rel, gz->matrix_basis[3]);
 
@@ -391,8 +406,11 @@ static void dial_ghostarc_draw_with_helplines(const float angle_ofs,
   dial_ghostarc_draw_helpline(angle_ofs + angle_delta, co_outer, color_helpline, line_width);
 }
 
-static void dial_draw_intern(
-    const bContext *C, wmGizmo *gz, const bool select, const bool highlight, float clip_plane[4])
+static void dial_draw_intern(const bContext *C,
+                             wmGizmo *gz,
+                             const bool select,
+                             const bool highlight,
+                             const bool use_clip_plane)
 {
   float matrix_final[4][4];
   float color[4];
@@ -403,6 +421,20 @@ static void dial_draw_intern(
   gizmo_color_get(gz, highlight, color);
 
   WM_gizmo_calc_matrix_final(gz, matrix_final);
+
+  float clip_plane[4];
+  if (use_clip_plane) {
+    ARegion *region = CTX_wm_region(C);
+    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+    copy_v3_v3(clip_plane, rv3d->viewinv[2]);
+    clip_plane[3] = -dot_v3v3(rv3d->viewinv[2], gz->matrix_basis[3]);
+    /* NOTE: scaling by the pixel size has been needed since v3.4x,
+     * afterwards the behavior of the `ClipPlane` seems to have changed.
+     * While this works, it may be worth restoring the old behavior, see #111060. */
+    clip_plane[3] += (DIAL_CLIP_BIAS *
+                      ED_view3d_pixel_size_no_ui_scale(rv3d, gz->matrix_basis[2]));
+  }
 
   const float arc_partial_angle = RNA_float_get(gz->ptr, "arc_partial_angle");
   const float arc_inner_factor = RNA_float_get(gz->ptr, "arc_inner_factor");
@@ -440,57 +472,37 @@ static void dial_draw_intern(
   params.angle_increment = angle_increment;
   params.arc_partial_angle = arc_partial_angle;
   params.arc_inner_factor = arc_inner_factor;
-  params.clip_plane = clip_plane;
-  dial_3d_draw_util(matrix_final, gz->line_width, color, select, &params);
+  params.clip_plane = use_clip_plane ? clip_plane : nullptr;
+
+  const float line_width = (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select);
+  dial_3d_draw_util(matrix_final, line_width, color, select, &params);
 }
 
 static void gizmo_dial_draw_select(const bContext *C, wmGizmo *gz, int select_id)
 {
-  float clip_plane_buf[4];
   const int draw_options = RNA_enum_get(gz->ptr, "draw_options");
-  float *clip_plane = (draw_options & ED_GIZMO_DIAL_DRAW_FLAG_CLIP) ? clip_plane_buf : nullptr;
-
-  if (clip_plane) {
-    ARegion *region = CTX_wm_region(C);
-    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-
-    copy_v3_v3(clip_plane, rv3d->viewinv[2]);
-    clip_plane[3] = -dot_v3v3(rv3d->viewinv[2], gz->matrix_basis[3]);
-    clip_plane[3] += DIAL_CLIP_BIAS;
-  }
+  const bool use_clip_plane = (draw_options & ED_GIZMO_DIAL_DRAW_FLAG_CLIP);
 
   GPU_select_load_id(select_id);
-  dial_draw_intern(C, gz, true, false, clip_plane);
+  dial_draw_intern(C, gz, true, false, use_clip_plane);
 }
 
 static void gizmo_dial_draw(const bContext *C, wmGizmo *gz)
 {
   const bool is_modal = gz->state & WM_GIZMO_STATE_MODAL;
   const bool is_highlight = (gz->state & WM_GIZMO_STATE_HIGHLIGHT) != 0;
-  float clip_plane_buf[4];
   const int draw_options = RNA_enum_get(gz->ptr, "draw_options");
-  float *clip_plane = (!is_modal && (draw_options & ED_GIZMO_DIAL_DRAW_FLAG_CLIP)) ?
-                          clip_plane_buf :
-                          nullptr;
-
-  if (clip_plane) {
-    ARegion *region = CTX_wm_region(C);
-    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-
-    copy_v3_v3(clip_plane, rv3d->viewinv[2]);
-    clip_plane[3] = -dot_v3v3(rv3d->viewinv[2], gz->matrix_basis[3]);
-    clip_plane[3] += DIAL_CLIP_BIAS;
-  }
+  const bool use_clip_plane = !is_modal && (draw_options & ED_GIZMO_DIAL_DRAW_FLAG_CLIP);
 
   GPU_blend(GPU_BLEND_ALPHA);
-  dial_draw_intern(C, gz, false, is_highlight, clip_plane);
+  dial_draw_intern(C, gz, false, is_highlight, use_clip_plane);
   GPU_blend(GPU_BLEND_NONE);
 }
 
-static int gizmo_dial_modal(bContext *C,
-                            wmGizmo *gz,
-                            const wmEvent *event,
-                            eWM_GizmoFlagTweak tweak_flag)
+static wmOperatorStatus gizmo_dial_modal(bContext *C,
+                                         wmGizmo *gz,
+                                         const wmEvent *event,
+                                         eWM_GizmoFlagTweak tweak_flag)
 {
   DialInteraction *inter = static_cast<DialInteraction *>(gz->interaction_data);
   if (!inter) {
@@ -509,7 +521,7 @@ static int gizmo_dial_modal(bContext *C,
 
   if (tweak_flag & WM_GIZMO_TWEAK_SNAP) {
     angle_increment = RNA_float_get(gz->ptr, "incremental_angle");
-    angle_delta = float(roundf(double(angle_delta) / angle_increment)) * angle_increment;
+    angle_delta = roundf(double(angle_delta) / angle_increment) * angle_increment;
   }
   if (tweak_flag & WM_GIZMO_TWEAK_PRECISE) {
     angle_increment *= 0.2f;
@@ -583,15 +595,14 @@ static void gizmo_dial_setup(wmGizmo *gz)
   copy_v3_v3(gz->matrix_basis[2], dir_default);
 }
 
-static int gizmo_dial_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent *event)
+static wmOperatorStatus gizmo_dial_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent *event)
 {
   if (gz->custom_modal) {
     /* #DialInteraction is only used for the inner modal. */
     return OPERATOR_RUNNING_MODAL;
   }
 
-  DialInteraction *inter = static_cast<DialInteraction *>(
-      MEM_callocN(sizeof(DialInteraction), __func__));
+  DialInteraction *inter = MEM_callocN<DialInteraction>(__func__);
 
   inter->init.mval[0] = event->mval[0];
   inter->init.mval[1] = event->mval[1];
@@ -639,7 +650,8 @@ static void dial_3d_draw_util(const float matrix_final[4][4],
   }
 
   if (params->angle_increment) {
-    dial_ghostarc_draw_incremental_angle(params->angle_increment, params->angle_ofs);
+    dial_ghostarc_draw_incremental_angle(
+        params->angle_increment, params->angle_ofs, params->angle_delta);
   }
 
   /* Draw actual dial gizmo. */
@@ -660,7 +672,7 @@ static void GIZMO_GT_dial_3d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_dial_3d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_dial_draw;
   gzt->draw_select = gizmo_dial_draw_select;
   gzt->setup = gizmo_dial_setup;
@@ -671,7 +683,7 @@ static void GIZMO_GT_dial_3d(wmGizmoType *gzt)
   gzt->struct_size = sizeof(wmGizmo);
 
   /* rna */
-  static EnumPropertyItem rna_enum_draw_options[] = {
+  static const EnumPropertyItem rna_enum_draw_options[] = {
       {ED_GIZMO_DIAL_DRAW_FLAG_CLIP, "CLIP", 0, "Clipped", ""},
       {ED_GIZMO_DIAL_DRAW_FLAG_FILL, "FILL", 0, "Filled", ""},
       {ED_GIZMO_DIAL_DRAW_FLAG_FILL_SELECT, "FILL_SELECT", 0, "Use fill for selection test", ""},

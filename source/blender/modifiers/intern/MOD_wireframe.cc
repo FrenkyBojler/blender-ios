@@ -10,29 +10,27 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "bmesh.h"
-#include "tools/bmesh_wireframe.h"
+#include "bmesh.hh"
+#include "tools/bmesh_wireframe.hh"
 
 static void init_data(ModifierData *md)
 {
@@ -51,11 +49,6 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   if (wmd->defgrp_name[0] != '\0') {
     r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
   }
-}
-
-static bool depends_on_normals(ModifierData * /*md*/)
-{
-  return true;
 }
 
 static Mesh *WireframeModifier_do(WireframeModifierData *wmd, Object *ob, Mesh *mesh)
@@ -107,53 +100,51 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col, *row, *sub;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "thickness", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
-  uiItemR(layout, ptr, "offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "thickness", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
+  layout.prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "use_boundary", UI_ITEM_NONE, IFACE_("Boundary"), ICON_NONE);
-  uiItemR(col, ptr, "use_replace", UI_ITEM_NONE, IFACE_("Replace Original"), ICON_NONE);
+  blender::ui::Layout *col = &layout.column(true);
+  col->prop(ptr, "use_boundary", UI_ITEM_NONE, IFACE_("Boundary"), ICON_NONE);
+  col->prop(ptr, "use_replace", UI_ITEM_NONE, IFACE_("Replace Original"), ICON_NONE);
 
-  col = uiLayoutColumnWithHeading(layout, true, IFACE_("Thickness"));
-  uiItemR(col, ptr, "use_even_offset", UI_ITEM_NONE, IFACE_("Even"), ICON_NONE);
-  uiItemR(col, ptr, "use_relative_offset", UI_ITEM_NONE, IFACE_("Relative"), ICON_NONE);
+  col = &layout.column(true, IFACE_("Thickness"));
+  col->prop(ptr, "use_even_offset", UI_ITEM_NONE, IFACE_("Even"), ICON_NONE);
+  col->prop(ptr, "use_relative_offset", UI_ITEM_NONE, IFACE_("Relative"), ICON_NONE);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Crease Edges"));
-  uiItemR(row, ptr, "use_crease", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(row, true);
-  uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_crease"));
-  uiItemR(sub, ptr, "crease_weight", UI_ITEM_R_SLIDER, "", ICON_NONE);
+  blender::ui::Layout &row = layout.row(true, IFACE_("Crease Edges"));
+  row.prop(ptr, "use_crease", UI_ITEM_NONE, "", ICON_NONE);
+  blender::ui::Layout &sub = row.row(true);
+  sub.active_set(RNA_boolean_get(ptr, "use_crease"));
+  sub.prop(ptr, "crease_weight", blender::ui::ITEM_R_SLIDER, "", ICON_NONE);
 
-  uiItemR(layout, ptr, "material_offset", UI_ITEM_NONE, IFACE_("Material Offset"), ICON_NONE);
+  layout.prop(ptr, "material_offset", UI_ITEM_NONE, IFACE_("Material Offset"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void vertex_group_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  row = uiLayoutRow(layout, true);
-  uiLayoutSetActive(row, has_vertex_group);
-  uiItemR(row, ptr, "thickness_vertex_group", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
+  blender::ui::Layout &row = layout.row(true);
+  row.active_set(has_vertex_group);
+  row.prop(ptr, "thickness_vertex_group", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -189,11 +180,13 @@ ModifierTypeInfo modifierType_Wireframe = {
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
-    /*depends_on_normals*/ depends_on_normals,
+    /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ nullptr,
     /*foreach_tex_link*/ nullptr,
     /*free_runtime_data*/ nullptr,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -33,7 +33,7 @@ While the current set of commands is fairly limited more can be added as needed.
 
 To see a list of actions as well as their arguments run:
 
-    ./blender.bin --python tests/python/bl_run_operators_event_simulate.py -- --help
+    ./blender.bin --python tests/utils/bl_run_operators_event_simulate.py -- --help
 
 
 Examples
@@ -44,7 +44,7 @@ Rotate in edit-mode examples:
     ./blender.bin \
         --factory-startup \
         --enable-event-simulate \
-        --python tests/python/bl_run_operators_event_simulate.py \
+        --python tests/utils/bl_run_operators_event_simulate.py \
         -- \
         --actions \
         'area_maximize(ui_type="VIEW_3D")' \
@@ -59,7 +59,7 @@ Sculpt stroke:
     ./blender.bin \
         --factory-startup \
         --enable-event-simulate \
-        --python tests/python/bl_run_operators_event_simulate.py \
+        --python tests/utils/bl_run_operators_event_simulate.py \
         -- \
         --actions \
         'area_maximize(ui_type="VIEW_3D")' \
@@ -82,7 +82,9 @@ or the context for executing the actions is not properly set (the case for timer
 
 This utility executes actions as if the user initiated them from a key shortcut.
 """
-
+__all__ = (
+    "main",
+)
 
 import os
 import sys
@@ -131,7 +133,7 @@ def find_main_area(ui_type=None):
 
 def gen_events_type_text(text):
     """
-    Generate events to type in `text`.
+    Generate events to type in ``text``.
     """
     for ch in text:
         kw_extra = {}
@@ -265,13 +267,14 @@ class action_handlers:
         yield dict(type='RET', value='TAP')
 
     @staticmethod
-    def event(*, type, value, ctrl=False, alt=False, shift=False, repeat=1, only_validate=False):
+    def event(*, type, value, ctrl=False, alt=False, shift=False, hyper=False, repeat=1, only_validate=False):
         """
         type: The event, typically key, e.g. 'ESC', 'RET', 'SPACE', 'A'.
         value: The event type, valid values include: 'PRESS', 'RELEASE', 'TAP'.
         ctrl: Control modifier.
         alt: Alt modifier.
         shift: Shift modifier.
+        hyper: Hyper modifier.
         """
         valid_items = EVENT_VALUES_EXTRA
         if value not in valid_items:
@@ -288,7 +291,7 @@ class action_handlers:
             return
 
         for _ in range(repeat):
-            yield dict(type=type, ctrl=ctrl, alt=alt, shift=shift, value=value)
+            yield dict(type=type, ctrl=ctrl, alt=alt, shift=shift, hyper=hyper, value=value)
 
     @staticmethod
     def cursor_motion(*, path, steps, radius=100, repeat=1, only_validate=False):

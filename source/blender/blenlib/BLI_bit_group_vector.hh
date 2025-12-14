@@ -2,8 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
+#include "BLI_bit_span_ops.hh"
 #include "BLI_bit_vector.hh"
 
 namespace blender::bits {
@@ -33,14 +38,19 @@ class BitGroupVector {
   {
     if (group_size < 64) {
       /* Align to next power of two so that a single group never spans across two ints. */
-      return int64_t(power_of_2_max_u(uint32_t(group_size)));
+      return power_of_2_max(group_size);
     }
     /* Align to multiple of BitsPerInt. */
     return (group_size + BitsPerInt - 1) & ~(BitsPerInt - 1);
   }
 
  public:
-  BitGroupVector() = default;
+  BitGroupVector(Allocator allocator = {}) noexcept : data_(allocator) {}
+
+  BitGroupVector(NoExceptConstructor, Allocator allocator = {}) noexcept
+      : BitGroupVector(allocator)
+  {
+  }
 
   BitGroupVector(const int64_t size_in_groups,
                  const int64_t group_size,
@@ -52,6 +62,30 @@ class BitGroupVector {
   {
     BLI_assert(group_size >= 0);
     BLI_assert(size_in_groups >= 0);
+  }
+
+  BitGroupVector(const BitGroupVector &other)
+      : group_size_(other.group_size_),
+        aligned_group_size_(other.aligned_group_size_),
+        data_(other.data_)
+  {
+  }
+
+  BitGroupVector(BitGroupVector &&other)
+      : group_size_(other.group_size_),
+        aligned_group_size_(other.aligned_group_size_),
+        data_(std::move(other.data_))
+  {
+  }
+
+  BitGroupVector &operator=(const BitGroupVector &other)
+  {
+    return copy_assign_container(*this, other);
+  }
+
+  BitGroupVector &operator=(BitGroupVector &&other)
+  {
+    return move_assign_container(*this, std::move(other));
   }
 
   /** Get all the bits at an index. */
@@ -74,6 +108,11 @@ class BitGroupVector {
   int64_t size() const
   {
     return aligned_group_size_ == 0 ? 0 : data_.size() / aligned_group_size_;
+  }
+
+  bool is_empty() const
+  {
+    return this->size() == 0;
   }
 
   /** Number of bits per group. */
@@ -99,6 +138,20 @@ class BitGroupVector {
   MutableBoundedBitSpan all_bits()
   {
     return data_;
+  }
+
+  /**
+   * Updates each group by computing the bitwise-and with the given bits.
+   */
+  void foreach_and(const BoundedBitSpan bits)
+  {
+    /* This can still be optimized due to the additional knowledge we have how consecutive groups
+     * are laid out in memory. It is possible to updated multiple small groups at once. */
+    BLI_assert(bits.size() == group_size_);
+    for (const int64_t i : this->index_range()) {
+      MutableBoundedBitSpan group = (*this)[i];
+      group &= bits;
+    }
   }
 };
 

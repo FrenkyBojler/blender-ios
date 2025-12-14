@@ -17,10 +17,6 @@
 #include "UnaryFunction1D/BPy_UnaryFunction1DVectorViewShape.h"
 #include "UnaryFunction1D/BPy_UnaryFunction1DVoid.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -35,8 +31,7 @@ int UnaryFunction1D_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction1D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction1D_Type);
-  PyModule_AddObject(module, "UnaryFunction1D", (PyObject *)&UnaryFunction1D_Type);
+  PyModule_AddObjectRef(module, "UnaryFunction1D", (PyObject *)&UnaryFunction1D_Type);
 
   UnaryFunction1DDouble_Init(module);
   UnaryFunction1DEdgeNature_Init(module);
@@ -52,7 +47,9 @@ int UnaryFunction1D_Init(PyObject *module)
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char UnaryFunction1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    UnaryFunction1D___doc__,
     "Base class for Unary Functions (functors) working on\n"
     ":class:`Interface1D`. A unary function will be used by invoking\n"
     "__call__() on an Interface1D. In Python, several different subclasses\n"
@@ -68,8 +65,7 @@ static char UnaryFunction1D___doc__[] =
     "* :class:`UnaryFunction1DVec2f`\n"
     "* :class:`UnaryFunction1DVec3f`\n"
     "* :class:`UnaryFunction1DVectorViewShape`\n"
-    "* :class:`UnaryFunction1DVoid`\n";
-
+    "* :class:`UnaryFunction1DVoid`\n");
 static void UnaryFunction1D___dealloc__(BPy_UnaryFunction1D *self)
 {
   Py_TYPE(self)->tp_free((PyObject *)self);
@@ -82,11 +78,12 @@ static PyObject *UnaryFunction1D___repr__(BPy_UnaryFunction1D * /*self*/)
 
 /*----------------------UnaryFunction1D get/setters ----------------------------*/
 
-PyDoc_STRVAR(UnaryFunction1D_name_doc,
-             "The name of the unary 1D function.\n"
-             "\n"
-             ":type: str");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    UnaryFunction1D_name_doc,
+    "The name of the unary 1D function.\n"
+    "\n"
+    ":type: str\n");
 static PyObject *UnaryFunction1D_name_get(BPy_UnaryFunction1D *self, void * /*closure*/)
 {
   return PyUnicode_FromString(Py_TYPE(self)->tp_name);
@@ -145,7 +142,3 @@ PyTypeObject UnaryFunction1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

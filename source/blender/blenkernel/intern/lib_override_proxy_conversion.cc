@@ -8,9 +8,8 @@
 
 #include "CLG_log.h"
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 
 /* Required for proxy to liboverrides conversion code. */
 #define DNA_DEPRECATED_ALLOW
@@ -22,15 +21,15 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "BKE_collection.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
+#include "BKE_collection.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
-#include "BKE_main.h"
+#include "BKE_main.hh"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
-static CLG_LogRef LOG = {"bke.liboverride_proxy_conversion"};
+static CLG_LogRef LOG = {"lib.override.proxy_conversion"};
 
 bool BKE_lib_override_library_proxy_convert(Main *bmain,
                                             Scene *scene,
@@ -61,7 +60,7 @@ bool BKE_lib_override_library_proxy_convert(Main *bmain,
    * then be handled by `BKE_lib_override_library_create()` just as for a regular override
    * creation.
    */
-  ob_proxy->proxy->id.tag |= LIB_TAG_DOIT;
+  ob_proxy->proxy->id.tag |= ID_TAG_DOIT;
   ob_proxy->proxy->id.newid = &ob_proxy->id;
   BKE_lib_override_library_init(&ob_proxy->id, &ob_proxy->proxy->id);
   ob_proxy->id.override_library->flag &= ~LIBOVERRIDE_FLAG_SYSTEM_DEFINED;
@@ -69,7 +68,7 @@ bool BKE_lib_override_library_proxy_convert(Main *bmain,
   ob_proxy->proxy->proxy_from = nullptr;
   ob_proxy->proxy = ob_proxy->proxy_group = nullptr;
 
-  DEG_id_tag_update(&ob_proxy->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob_proxy->id, ID_RECALC_SYNC_TO_EVAL);
 
   /* In case of proxy conversion, remap all local ID usages to linked IDs to their newly created
    * overrides. Also do that for the IDs from the same lib as the proxy in case it is linked.
@@ -78,7 +77,7 @@ bool BKE_lib_override_library_proxy_convert(Main *bmain,
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
     if (!ID_IS_LINKED(id_iter) || id_iter->lib == ob_proxy->id.lib) {
-      id_iter->tag |= LIB_TAG_DOIT;
+      id_iter->tag |= ID_TAG_DOIT;
     }
   }
   FOREACH_MAIN_ID_END;
@@ -105,10 +104,8 @@ static void lib_override_library_proxy_convert_do(Main *bmain,
   const bool success = BKE_lib_override_library_proxy_convert(bmain, scene, nullptr, ob_proxy);
 
   if (success) {
-    CLOG_INFO(&LOG,
-              4,
-              "Proxy object '%s' successfully converted to library overrides",
-              ob_proxy->id.name);
+    CLOG_INFO(
+        &LOG, "Proxy object '%s' successfully converted to library overrides", ob_proxy->id.name);
     /* Remove the instance empty from this scene, the items now have an overridden collection
      * instead. */
     if (is_override_instancing_object) {

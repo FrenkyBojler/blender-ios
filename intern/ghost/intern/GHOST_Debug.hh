@@ -10,14 +10,14 @@
 #pragma once
 
 #ifdef _MSC_VER
-#  ifdef DEBUG
+#  ifdef _DEBUG
 /* Suppress STL-MSVC debug info warning. */
 #    pragma warning(disable : 4786)
 #  endif
 #endif
 
+#include <cstdio> /* For `printf()`. */
 #include <iostream>
-#include <stdio.h> /* For `printf()`. */
 
 #if defined(WITH_GHOST_DEBUG)
 #  define GHOST_PRINT(x) \
@@ -50,29 +50,31 @@
 
 #endif /* `!defined(WITH_GHOST_DEBUG)` */
 
-#ifdef WITH_ASSERT_ABORT
-#  include <stdlib.h>  //for abort()
-#  define GHOST_ASSERT(x, info) \
-    { \
-      if (!(x)) { \
-        fprintf(stderr, "GHOST_ASSERT failed: "); \
-        fprintf(stderr, info); \
-        fprintf(stderr, "\n"); \
-        abort(); \
+#ifndef NDEBUG
+#  ifdef WITH_ASSERT_ABORT
+#    include <cstdlib> /* For `abort()`. */
+#    define GHOST_ASSERT(x, info) \
+      { \
+        if (!(x)) { \
+          fprintf(stderr, "GHOST_ASSERT failed: "); \
+          fprintf(stderr, info); \
+          fprintf(stderr, "\n"); \
+          abort(); \
+        } \
       } \
-    } \
-    ((void)0)
-/* Assert in non-release builds too. */
-#elif defined(WITH_GHOST_DEBUG) || (!defined(NDEBUG))
-#  define GHOST_ASSERT(x, info) \
-    { \
-      if (!(x)) { \
-        GHOST_PRINT("GHOST_ASSERT failed: "); \
-        GHOST_PRINT(info); \
-        GHOST_PRINT("\n"); \
+      ((void)0)
+/* Show the failure in non-release builds too. */
+#  else
+#    define GHOST_ASSERT(x, info) \
+      { \
+        if (!(x)) { \
+          GHOST_PRINT("GHOST_ASSERT failed: "); \
+          GHOST_PRINT(info); \
+          GHOST_PRINT("\n"); \
+        } \
       } \
-    } \
-    ((void)0)
-#else /* `defined(WITH_GHOST_DEBUG) || (!defined(NDEBUG))` */
+      ((void)0)
+#  endif
+#else /* `!defined(NDEBUG)` */
 #  define GHOST_ASSERT(x, info) ((void)0)
-#endif /* `defined(WITH_GHOST_DEBUG) || (!defined(NDEBUG))` */
+#endif /* `!defined(NDEBUG)` */

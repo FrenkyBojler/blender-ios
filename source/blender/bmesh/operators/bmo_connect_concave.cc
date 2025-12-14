@@ -26,11 +26,10 @@
 #include "BLI_memarena.h"
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
-#include "BLI_utildefines.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 #define EDGE_OUT (1 << 0)
 #define FACE_OUT (1 << 1)
@@ -141,8 +140,13 @@ static bool bm_face_split_by_concave(BMesh *bm,
         }
 
         if (ok) {
+          BMFace *f_double;
           BMFace *f_new, *f_pair[2] = {l_pair[0]->f, l_pair[1]->f};
-          f_new = BM_faces_join(bm, f_pair, 2, true);
+          f_new = BM_faces_join(bm, f_pair, 2, true, &f_double);
+          /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+          BLI_assert_msg(f_double == nullptr,
+                         "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
           if (f_new) {
             BMO_face_flag_enable(bm, f_new, FACE_OUT);
           }

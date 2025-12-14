@@ -79,7 +79,7 @@ void ViewEdgeXBuilder::BuildViewEdges(WXShape *iWShape,
       }
       // here we know that we're dealing with a face layer that has not been processed yet and that
       // contains a smooth edge.
-      /* vedge =*//* UNUSED */ BuildSmoothViewEdge(OWXFaceLayer(*sl, true));
+      /* `vedge =` */ /* UNUSED */ BuildSmoothViewEdge(OWXFaceLayer(*sl, true));
     }
   }
 
@@ -259,7 +259,8 @@ ViewEdge *ViewEdgeXBuilder::BuildSharpViewEdge(const OWXEdge &iWEdge)
   FEdge *fefirst = nullptr;
   FEdge *fe = nullptr;
   for (list<OWXEdge>::iterator we = edgesChain.begin(), weend = edgesChain.end(); we != weend;
-       ++we) {
+       ++we)
+  {
     fe = BuildSharpFEdge(feprevious, (*we));
     fe->setViewEdge(newVEdge);
     if (!fefirst) {

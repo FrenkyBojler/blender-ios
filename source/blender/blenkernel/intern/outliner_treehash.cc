@@ -19,8 +19,6 @@
 
 #include "BKE_outliner_treehash.hh"
 
-#include "MEM_guardedalloc.h"
-
 namespace blender::bke::outliner::treehash {
 
 /* -------------------------------------------------------------------- */
@@ -29,7 +27,7 @@ namespace blender::bke::outliner::treehash {
 
 class TseGroup {
  public:
-  blender::Vector<TreeStoreElem *> elems;
+  Vector<TreeStoreElem *> elems;
   /* Index of last used #TreeStoreElem item, to speed up search for another one. */
   int lastused = 0;
   /* Counter used to reduce the amount of 'rests' of `lastused` index, otherwise search for unused
@@ -70,7 +68,7 @@ TreeStoreElemKey::TreeStoreElemKey(ID *id, short type, short nr) : id(id), type(
 
 uint64_t TreeStoreElemKey::hash() const
 {
-  return get_default_hash_3(id, type, nr);
+  return get_default_hash(id, type, nr);
 }
 
 bool operator==(const TreeStoreElemKey &a, const TreeStoreElemKey &b)
@@ -150,9 +148,9 @@ TseGroup *TreeHash::lookup_group(const TreeStoreElemKey &key) const
   return nullptr;
 }
 
-TseGroup *TreeHash::lookup_group(const TreeStoreElem &key_elem) const
+TseGroup *TreeHash::lookup_group(const TreeStoreElem &elem) const
 {
-  return lookup_group(TreeStoreElemKey(key_elem));
+  return lookup_group(TreeStoreElemKey(elem));
 }
 
 TseGroup *TreeHash::lookup_group(const short type, const short nr, ID *id) const

@@ -6,7 +6,6 @@
  * \ingroup edphys
  */
 
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -14,7 +13,6 @@
 
 #include "CLG_log.h"
 
-#include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -22,10 +20,10 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -36,10 +34,8 @@
 
 #include "particle_edit_utildefines.h"
 
-#include "physics_intern.h"
-
 /** Only needed this locally. */
-static CLG_LogRef LOG = {"ed.undo.particle_edit"};
+static CLG_LogRef LOG = {"undo.particle"};
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion

@@ -11,22 +11,24 @@
 
 #include <optional>
 
+#include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
+#include "BLI_vector.hh"
 
 #include "DNA_object_enums.h"
-#include "DNA_object_types.h" /* #BoundBox. */
 #include "DNA_userdef_enums.h"
 
 struct Base;
 struct BoundBox;
 struct Curve;
 struct Depsgraph;
-struct GpencilModifierData;
 struct HookGpencilModifierData;
 struct HookModifierData;
 struct ID;
-struct KDTree_3d;
 struct KeyBlock;
 struct Lattice;
 struct LinkNode;
@@ -44,6 +46,10 @@ struct SubsurfModifierData;
 struct View3D;
 struct ViewLayer;
 
+namespace blender {
+template<int DimsNum> struct KDTree;
+}  // namespace blender
+
 void BKE_object_workob_clear(Object *workob);
 /**
  * For calculation of the inverse parent transform, only used for editor.
@@ -52,8 +58,10 @@ void BKE_object_workob_clear(Object *workob);
  * Otherwise, after changing ob->parent you need to call:
  * - #DEG_relations_tag_update(bmain);
  * - #BKE_scene_graph_update_tagged(depsgraph, bmain);
+ *
+ * \return calculated object_to_world.
  */
-void BKE_object_workob_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *ob, Object *workob);
+blender::float4x4 BKE_object_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *ob);
 
 void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src);
 void BKE_object_copy_softbody(Object *ob_dst, const Object *ob_src, int flag);
@@ -101,19 +109,13 @@ ModifierData *BKE_object_active_modifier(const Object *ob);
  * more than once, this function should preferably be called in stack order.
  */
 bool BKE_object_copy_modifier(
-    Main *bmain, Scene *scene, Object *ob_dst, const Object *ob_src, ModifierData *md);
-/**
- * Copy a single GPencil modifier.
- *
- * \note *Do not* use this function to copy a whole modifier stack. Use
- * `BKE_object_modifier_stack_copy` instead.
- */
-bool BKE_object_copy_gpencil_modifier(Object *ob_dst, GpencilModifierData *gmd_src);
+    Main *bmain, const Scene *scene, Object *ob_dst, const Object *ob_src, const ModifierData *md);
 /**
  * Copy the whole stack of modifiers from one object into another.
  *
  * \warning *Does not* clear modifier stack and related data (particle systems, soft-body,
- * etc.) in `ob_dst`, if needed calling code must do it.
+ * etc.) in `ob_dst`, if needed calling code must do it. The caller is also responsible for
+ * ensuring the modifier identifiers are unique.
  *
  * \param do_copy_all: If true, even modifiers that should not support copying (like Hook one)
  * will be duplicated.
@@ -220,27 +222,34 @@ bool BKE_object_obdata_is_libdata(const Object *ob);
  *
  * \param dupflag: Controls which sub-data are also duplicated
  * (see #eDupli_ID_Flags in DNA_userdef_types.h).
+ * \param duplicate_options: Additional context information about current duplicate call (e.g. if
+ * it's part of a higher-level duplication or not, etc.). (see #eLibIDDuplicateFlags in
+ * BKE_lib_id.hh).
  *
- * \note This function does not do any remapping to new IDs, caller must do it
- * (\a #BKE_libblock_relink_to_newid()).
- * \note Caller MUST free \a newid pointers itself (#BKE_main_id_newptr_and_tag_clear()) and call
- * updates of DEG too (#DAG_relations_tag_update()).
+ * \warning By default, this functions will clear all \a bmain #ID.idnew pointers
+ * (#BKE_main_id_newptr_and_tag_clear), and take care of post-duplication updates like remapping to
+ * new IDs (#BKE_libblock_relink_to_newid).
+ * If \a #LIB_ID_DUPLICATE_IS_SUBPROCESS duplicate option is passed on (typically when duplication
+ * is called recursively from another parent duplication operation), the caller is responsible to
+ * handle all of these operations.
+ *
+ * \note Caller MUST handle updates of the depsgraph (#DAG_relations_tag_update).
  */
 Object *BKE_object_duplicate(Main *bmain,
                              Object *ob,
                              eDupli_ID_Flags dupflag,
-                             uint duplicate_options);
+                             /*eLibIDDuplicateFlags*/ uint duplicate_options);
 
 /**
  * Use with newly created objects to set their size (used to apply scene-scale).
  */
 void BKE_object_obdata_size_init(Object *ob, float size);
 
-void BKE_object_scale_to_mat3(Object *ob, float r_mat[3][3]);
+void BKE_object_scale_to_mat3(const Object *ob, float r_mat[3][3]);
 void BKE_object_rot_to_mat3(const Object *ob, float r_mat[3][3], bool use_drot);
 void BKE_object_mat3_to_rot(Object *ob, float r_mat[3][3], bool use_compat);
-void BKE_object_to_mat3(Object *ob, float r_mat[3][3]);
-void BKE_object_to_mat4(Object *ob, float r_mat[4][4]);
+void BKE_object_to_mat3(const Object *ob, float r_mat[3][3]);
+void BKE_object_to_mat4(const Object *ob, float r_mat[4][4]);
 /**
  * Applies the global transformation \a mat to the \a ob using a relative parent space if
  * supplied.
@@ -291,38 +300,32 @@ Object *BKE_object_pose_armature_get_visible(Object *ob,
 /**
  * Access pose array with special check to get pose object when in weight paint mode.
  */
-Object **BKE_object_pose_array_get_ex(const Scene *scene,
-                                      ViewLayer *view_layer,
-                                      View3D *v3d,
-                                      unsigned int *r_objects_len,
-                                      bool unique);
-Object **BKE_object_pose_array_get_unique(const Scene *scene,
-                                          ViewLayer *view_layer,
-                                          View3D *v3d,
-                                          unsigned int *r_objects_len);
-Object **BKE_object_pose_array_get(const Scene *scene,
-                                   ViewLayer *view_layer,
-                                   View3D *v3d,
-                                   unsigned int *r_objects_len);
+blender::Vector<Object *> BKE_object_pose_array_get_ex(const Scene *scene,
+                                                       ViewLayer *view_layer,
+                                                       View3D *v3d,
+                                                       bool unique);
+blender::Vector<Object *> BKE_object_pose_array_get_unique(const Scene *scene,
+                                                           ViewLayer *view_layer,
+                                                           View3D *v3d);
+blender::Vector<Object *> BKE_object_pose_array_get(const Scene *scene,
+                                                    ViewLayer *view_layer,
+                                                    View3D *v3d);
 
-Base **BKE_object_pose_base_array_get_ex(const Scene *scene,
-                                         ViewLayer *view_layer,
-                                         View3D *v3d,
-                                         unsigned int *r_bases_len,
-                                         bool unique);
-Base **BKE_object_pose_base_array_get_unique(const Scene *scene,
-                                             ViewLayer *view_layer,
-                                             View3D *v3d,
-                                             unsigned int *r_bases_len);
-Base **BKE_object_pose_base_array_get(const Scene *scene,
-                                      ViewLayer *view_layer,
-                                      View3D *v3d,
-                                      unsigned int *r_bases_len);
+blender::Vector<Base *> BKE_object_pose_base_array_get_ex(const Scene *scene,
+                                                          ViewLayer *view_layer,
+                                                          View3D *v3d,
+                                                          bool unique);
+blender::Vector<Base *> BKE_object_pose_base_array_get_unique(const Scene *scene,
+                                                              ViewLayer *view_layer,
+                                                              View3D *v3d);
+blender::Vector<Base *> BKE_object_pose_base_array_get(const Scene *scene,
+                                                       ViewLayer *view_layer,
+                                                       View3D *v3d);
 
-void BKE_object_get_parent_matrix(Object *ob, Object *par, float r_parentmat[4][4]);
+void BKE_object_get_parent_matrix(const Object *ob, Object *par, float r_parentmat[4][4]);
 
 /**
- * Compute object world transform and store it in `ob->object_to_world`.
+ * Compute object world transform and store it in `ob->object_to_world().ptr()`.
  */
 void BKE_object_where_is_calc(Depsgraph *depsgraph, Scene *scene, Object *ob);
 void BKE_object_where_is_calc_ex(
@@ -334,36 +337,41 @@ void BKE_object_where_is_calc_time(Depsgraph *depsgraph, Scene *scene, Object *o
  * No changes to object and its parent would be done.
  * Used for bundles orientation in 3d space relative to parented blender camera.
  */
-void BKE_object_where_is_calc_mat4(Object *ob, float r_obmat[4][4]);
-
-/* Possibly belong in own module? */
-
-BoundBox *BKE_boundbox_alloc_unit();
-void BKE_boundbox_init_from_minmax(BoundBox *bb, const float min[3], const float max[3]);
-void BKE_boundbox_calc_center_aabb(const BoundBox *bb, float r_cent[3]);
-void BKE_boundbox_calc_size_aabb(const BoundBox *bb, float r_size[3]);
-void BKE_boundbox_minmax(const BoundBox *bb,
-                         const float obmat[4][4],
-                         float r_min[3],
-                         float r_max[3]);
+void BKE_object_where_is_calc_mat4(const Object *ob, float r_obmat[4][4]);
 
 /**
- * Retrieve the bounds of the object's geometry, in the local space of the object
- * (not accounting for the object's transform). For evaluated objects, this includes
- * the evaluated geometry (not just #Object.data).
+ * Retrieve the bounds of the object's evaluated geometry. This is important because it includes
+ * all geometry component types created during evaluation rather than just #Object::data. This
+ * should only be called on evaluated objects, since otherwise the evaluated geometry set won't be
+ * available.
+ *
+ * \note This only includes the bounds of data stored in #GeometrySet, so it won't include the
+ * bounds of other object types that aren't considered "geometry", like armatures.
  */
-std::optional<BoundBox> BKE_object_boundbox_get(Object *ob);
-void BKE_object_dimensions_get(Object *ob, float r_vec[3]);
+std::optional<blender::Bounds<blender::float3>> BKE_object_evaluated_geometry_bounds(
+    const Object *ob);
 
 /**
- * Retrieve the bounds of the evalauted object's geometry, stored on the original object as part of
- * the latest dependency graph evaluation, or fall back to the current bounds of the object if no
- * such cache exists. For evaluated objects this indirection is unnecessary, so
- * #BKE_object_boundbox_get should be used instead.
+ * Retrieve the bounds of the object's data, in the object's local space (i.e. not accounting for
+ * the object's transform). This does *not* include the bounds of all evaluated geometry, only
+ * #Object::data.
  */
-std::optional<BoundBox> BKE_object_boundbox_eval_cached_get(Object *ob);
-/** Similar to #BKE_object_boundbox_eval_cached_get but gives the size of the bounds instead. */
-void BKE_object_dimensions_eval_cached_get(Object *ob, float r_vec[3]);
+std::optional<blender::Bounds<blender::float3>> BKE_object_boundbox_get(const Object *ob);
+
+/** The dimensions based on #BKE_object_boundbox_get, scaled by the object's scale. */
+void BKE_object_dimensions_get(const Object *ob, float r_vec[3]);
+
+/**
+ * Retrieve the bounds of the evaluated object's geometry, stored on the original object as part of
+ * the latest evaluation of the active dependency graph. If no such cache exists, fall back to the
+ * current bounds of the object's data. For evaluated objects this indirection is unnecessary, and
+ * #BKE_object_boundbox_get or #BKE_object_evaluated_geometry_bounds should be used instead.
+ */
+std::optional<blender::Bounds<blender::float3>> BKE_object_boundbox_eval_cached_get(
+    const Object *ob);
+
+/** Similar to #BKE_object_dimensions_get but uses the cached evaluated bounds instead. */
+void BKE_object_dimensions_eval_cached_get(const Object *ob, float r_vec[3]);
 
 /**
  * The original scale and object matrix can be passed in so any difference
@@ -382,20 +390,18 @@ void BKE_object_dimensions_set(Object *ob, const float value[3], int axis_mask);
 
 void BKE_object_empty_draw_type_set(Object *ob, int value);
 
-void BKE_object_boundbox_calc_from_mesh(Object *ob, const Mesh *me_eval);
-bool BKE_object_boundbox_calc_from_evaluated_geometry(Object *ob);
-void BKE_object_minmax(Object *ob, float r_min[3], float r_max[3], bool use_hidden);
+void BKE_object_minmax(Object *ob, blender::float3 &r_min, blender::float3 &r_max);
 bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
                              Scene *scene,
                              Object *ob,
-                             float r_min[3],
-                             float r_max[3],
+                             blender::float3 &r_min,
+                             blender::float3 &r_max,
                              bool use_hidden);
 /**
  * Calculate visual bounds from an empty objects draw-type.
  *
  * \note This is not part of the calculation used by #BKE_object_boundbox_get
- * as these bounds represent the extents of visual guides (use for viewport culling for e.g.)
+ * as these bounds represent the extents of visual guides (use for viewport culling for example)
  */
 bool BKE_object_minmax_empty_drawtype(const Object *ob, float r_min[3], float r_max[3]);
 
@@ -452,6 +458,8 @@ void BKE_object_eval_transform_final(Depsgraph *depsgraph, Object *ob);
 void BKE_object_eval_uber_transform(Depsgraph *depsgraph, Object *object);
 void BKE_object_eval_uber_data(Depsgraph *depsgraph, Scene *scene, Object *ob);
 
+void BKE_object_eval_shading(Depsgraph *depsgraph, Object *object);
+
 void BKE_object_eval_light_linking(Depsgraph *depsgraph, Object *object);
 
 /**
@@ -503,17 +511,23 @@ bool BKE_object_obdata_texspace_get(Object *ob,
                                     float **r_texspace_location,
                                     float **r_texspace_size);
 
-Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object);
+Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object_eval);
 /** Get evaluated mesh for given object. */
-Mesh *BKE_object_get_evaluated_mesh(const Object *object);
+Mesh *BKE_object_get_evaluated_mesh(const Object *object_eval);
+/**
+ * Same as #BKE_object_get_evaluated_mesh, but does not check
+ * if the object's geometry is fully evaluated already.
+ * This should barely ever be used.
+ */
+Mesh *BKE_object_get_evaluated_mesh_no_subsurf_unchecked(const Object *object);
+Mesh *BKE_object_get_evaluated_mesh_unchecked(const Object *object);
 /**
  * Get mesh which is not affected by modifiers:
- * - For original objects it will be same as `object->data`, and it is a mesh
- *   which is in the corresponding #Main.
- * - For copied-on-write objects it will give pointer to a copied-on-write
- *   mesh which corresponds to original object's mesh.
+ * - For original objects, return #Object::data: the mesh in the original #Main database.
+ * - For evaluated objects, return the evaluated mesh which corresponds to the original
+ *   mesh, if the original object was a mesh object (otherwise null).
  */
-Mesh *BKE_object_get_pre_modified_mesh(const Object *object);
+const Mesh *BKE_object_get_pre_modified_mesh(const Object *object);
 /**
  * Get a mesh which corresponds to the very original mesh from #Main.
  * - For original objects it will be object->data.
@@ -522,8 +536,9 @@ Mesh *BKE_object_get_pre_modified_mesh(const Object *object);
  */
 Mesh *BKE_object_get_original_mesh(const Object *object);
 
-Mesh *BKE_object_get_editmesh_eval_final(const Object *object);
-Mesh *BKE_object_get_editmesh_eval_cage(const Object *object);
+const Mesh *BKE_object_get_editmesh_eval_final(const Object *object);
+const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object);
+const Mesh *BKE_object_get_mesh_deform_eval(const Object *object);
 
 /* Lattice accessors.
  * These functions return either the regular lattice, or the edit-mode lattice,
@@ -576,7 +591,7 @@ bool BKE_object_moves_in_time(const Object *object, bool recurse_parent);
 /** Return the number of scenes using (instantiating) that object in their collections. */
 int BKE_object_scenes_users_get(Main *bmain, Object *ob);
 
-MovieClip *BKE_object_movieclip_get(Scene *scene, Object *ob, bool use_default);
+MovieClip *BKE_object_movieclip_get(Scene *scene, const Object *ob, bool use_default);
 
 void BKE_object_runtime_reset(Object *object);
 /**
@@ -629,7 +644,7 @@ LinkNode *BKE_object_groups(Main *bmain, Scene *scene, Object *ob);
 void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *object);
 
 /**
- * Return a KDTree_3d from the deformed object (in world-space).
+ * Return a KDTree<3> from the deformed object (in world-space).
  *
  * \note Only mesh objects currently support deforming, others are TODO.
  *
@@ -637,19 +652,39 @@ void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *object);
  * \param r_tot:
  * \return The KD-tree or nullptr if it can't be created.
  */
-KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot);
+blender::KDTree<3> *BKE_object_as_kdtree(Object *ob, int *r_tot);
+
+/**
+ * The number of times to recurse parents for evaluation.
+ *
+ * NOTE(@ideasman42): This value was picked to avoid infinite recursion.
+ * 5 is arbitrary but changing it would change behavior in some corner cases.
+ * See code comments in #BKE_object_modifier_update_subframe_only_callback for details.
+ */
+#define OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT 5
 
 /**
  * \note this function should eventually be replaced by depsgraph functionality.
  * Avoid calling this in new code unless there is a very good reason for it!
  */
-bool BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
+void BKE_object_modifier_update_subframe(Depsgraph *depsgraph,
                                          Scene *scene,
                                          Object *ob,
                                          bool update_mesh,
-                                         int parent_recursion,
+                                         int parent_recursion_limit,
                                          float frame,
-                                         int type);
+                                         int /*ModifierType*/ modifier_type);
+
+/**
+ * Call `update_or_tag_fn` on all objects which #BKE_object_modifier_update_subframe would update.
+ * Used by the depsgraph to setup relations.
+ */
+void BKE_object_modifier_update_subframe_only_callback(
+    Object *ob,
+    bool update_mesh,
+    int parent_recursion_limit,
+    int /*ModifierType*/ modifier_type,
+    blender::FunctionRef<void(Object *object, bool update_mesh)> update_or_tag_fn);
 
 bool BKE_object_empty_image_frame_is_visible_in_view3d(const Object *ob, const RegionView3D *rv3d);
 bool BKE_object_empty_image_data_is_visible_in_view3d(const Object *ob, const RegionView3D *rv3d);
@@ -661,7 +696,7 @@ bool BKE_object_empty_image_data_is_visible_in_view3d(const Object *ob, const Re
  * The mesh will be freed when object is re-evaluated or is destroyed. It is possible to force to
  * clear memory used by this mesh by calling BKE_object_to_mesh_clear().
  *
- * If preserve_all_data_layers is truth then the modifier stack is re-evaluated to ensure it
+ * If preserve_all_data_layers is true then the modifier stack is re-evaluated to ensure it
  * preserves all possible custom data layers.
  *
  * NOTE: Dependency graph argument is required when preserve_all_data_layers is truth, and is
@@ -684,7 +719,7 @@ Curve *BKE_object_to_curve(Object *object, Depsgraph *depsgraph, bool apply_modi
 
 void BKE_object_to_curve_clear(Object *object);
 
-void BKE_object_check_uuids_unique_and_report(const Object *object);
+void BKE_object_check_uids_unique_and_report(const Object *object);
 
 /**
  * Return the last subsurf modifier of an object, this does not check whether modifiers on top of
@@ -700,3 +735,14 @@ void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data);
 PartEff *BKE_object_do_version_give_parteff_245(Object *ob);
 
 bool BKE_object_supports_material_slots(Object *ob);
+
+/** Sets the location of the object, respecting #Object::protectflag. */
+void BKE_object_protected_location_set(Object *ob, const float location[3]);
+/** Sets the scale of the object, respecting #Object::protectflag. */
+void BKE_object_protected_scale_set(Object *ob, const float scale[3]);
+/** Sets the quaternion rotation of the object, respecting #Object::protectflag. */
+void BKE_object_protected_rotation_quaternion_set(Object *ob, const float quat[4]);
+/** Sets the euler rotation of the object, respecting #Object::protectflag. */
+void BKE_object_protected_rotation_euler_set(Object *ob, const float euler[3]);
+/** Sets the quaternion rotation of the object, respecting #Object::protectflag. */
+void BKE_object_protected_rotation_axisangle_set(Object *ob, const float axis[3], float angle);

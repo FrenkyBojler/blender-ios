@@ -14,7 +14,6 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_lattice.hh"
 #include "BKE_particle.h"
 
 #include "DEG_depsgraph_query.hh"
@@ -32,7 +31,7 @@ ABCPointsWriter::ABCPointsWriter(const ABCWriterConstructorArgs &args) : ABCAbst
 
 void ABCPointsWriter::create_alembic_objects(const HierarchyContext * /*context*/)
 {
-  CLOG_INFO(&LOG, 2, "exporting OPoints %s", args_.abc_path.c_str());
+  CLOG_DEBUG(&LOG, "exporting OPoints %s", args_.abc_path.c_str());
   abc_points_ = OPoints(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_points_schema_ = abc_points_.getSchema();
 }
@@ -101,7 +100,7 @@ void ABCPointsWriter::do_write(HierarchyContext &context)
     }
 
     /* location */
-    mul_v3_m4v3(pos, context.object->world_to_object, state.co);
+    mul_v3_m4v3(pos, context.object->world_to_object().ptr(), state.co);
 
     /* velocity */
     sub_v3_v3v3(vel, state.co, psys->particles[p].prev_state.co);

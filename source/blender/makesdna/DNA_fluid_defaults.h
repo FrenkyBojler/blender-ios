@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -63,11 +62,11 @@
     .gravity_final = {0.0f, 0.0f, 0.0f}, \
     .adapt_margin = 4, \
     .adapt_res = 0, \
-    .adapt_threshold = 0.02f, \
+    .adapt_threshold = 0.002f, \
     .maxres = 32, \
     .solver_res = 3, \
     .border_collisions = 0, \
-    .flags = FLUID_DOMAIN_USE_DISSOLVE_LOG | FLUID_DOMAIN_USE_ADAPTIVE_TIME, \
+    .flags = FLUID_DOMAIN_USE_DISSOLVE_LOG | FLUID_DOMAIN_USE_ADAPTIVE_TIME | FLUID_DOMAIN_USE_MESH, \
     .gravity = {0.0f, 0.0f, -9.81f}, \
     .active_fields = 0, \
     .type = FLUID_DOMAIN_TYPE_GAS, \
@@ -155,7 +154,7 @@
     .time_per_frame = 0.0f, \
     .frame_length = 0.0f, \
     .time_scale = 1.0f, \
-    .cfl_condition = 4.0f, \
+    .cfl_condition = 2.0f, \
     .timesteps_minimum = 1, \
     .timesteps_maximum = 4, \
     .slice_per_voxel = 5.0f, \
@@ -215,7 +214,7 @@
     .fuel_amount = 1.0f, \
     .temperature = 1.0f, \
     .volume_density = 0.0f, \
-    .surface_distance = 1.5f, \
+    .surface_distance = 1.0f, \
     .particle_size = 1.0f, \
     .subframes = 0, \
     .texture_size = 1.0f, \

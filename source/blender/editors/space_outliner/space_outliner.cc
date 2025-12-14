@@ -9,18 +9,19 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include <cstdio>
+#include <cfloat>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_mempool.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
+#include "BKE_lib_query.hh"
+#include "BKE_lib_remap.hh"
 #include "BKE_outliner_treehash.hh"
 #include "BKE_screen.hh"
 
@@ -31,9 +32,6 @@
 #include "WM_message.hh"
 #include "WM_types.hh"
 
-#include "RNA_access.hh"
-
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "UI_resources.hh"
@@ -43,6 +41,14 @@
 
 #include "outliner_intern.hh"
 #include "tree/tree_display.hh"
+
+/**
+ * Since 2.8x outliner drawing itself can change the scroll position of the outliner
+ * after drawing has completed. Failing to draw a second time can cause nothing to display.
+ * Making search seem to fail & deleting objects fail to scroll up to show remaining objects.
+ * See #128346 for details.
+ */
+#define USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK
 
 namespace blender::ed::outliner {
 
@@ -56,6 +62,8 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   ListBase *lb;
   wmKeyMap *keymap;
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* make sure we keep the hide flags */
   region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
   region->v2d.scroll &= ~(V2D_SCROLL_LEFT | V2D_SCROLL_TOP); /* prevent any noise of past */
@@ -67,31 +75,44 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.keeptot = V2D_KEEPTOT_STRICT;
   region->v2d.minzoom = region->v2d.maxzoom = 1.0f;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->handlers, keymap);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* Add dropboxes */
   lb = WM_dropboxmap_find("Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
-  WM_event_add_dropbox_handler(&region->handlers, lb);
+  WM_event_add_dropbox_handler(&region->runtime->handlers, lb);
 }
 
 static void outliner_main_region_draw(const bContext *C, ARegion *region)
 {
   View2D *v2d = &region->v2d;
 
-  /* clear */
-  UI_ThemeClearColor(TH_BACK);
+#ifdef USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK
+  const rctf v2d_cur_prev = v2d->cur;
+#endif
 
-  draw_outliner(C);
+  ui::theme::frame_buffer_clear(TH_BACK);
+  draw_outliner(C, true);
+
+#ifdef USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK
+  /* This happens when scrolling is clamped & occasionally when resizing the area.
+   * In practice this isn't often which is important as that would hurt performance. */
+  if (!BLI_rctf_compare(&v2d->cur, &v2d_cur_prev, FLT_EPSILON)) {
+    ui::theme::frame_buffer_clear(TH_BACK);
+    draw_outliner(C, false);
+  }
+#endif
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  ui::view2d_view_restore(C);
+
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  ui::view2d_scrollers_draw(v2d, nullptr);
 }
 
 static void outliner_main_region_free(ARegion * /*region*/) {}
@@ -105,6 +126,16 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
 
   /* context changes */
   switch (wmn->category) {
+    case NC_WINDOW:
+      switch (wmn->action) {
+        case NA_ADDED:
+        case NA_REMOVED:
+          if (space_outliner->outlinevis == SO_DATA_API) {
+            ED_region_tag_redraw(region);
+          }
+          break;
+      }
+      break;
     case NC_WM:
       switch (wmn->data) {
         case ND_LIB_OVERRIDE_CHANGED:
@@ -123,11 +154,14 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
             ED_region_tag_redraw_no_rebuild(region);
           }
           break;
+        case ND_FRAME:
+          /* Rebuilding the outliner tree is expensive and shouldn't be done when scrubbing. */
+          ED_region_tag_redraw_no_rebuild(region);
+          break;
         case ND_OB_VISIBLE:
         case ND_OB_RENDER:
         case ND_MODE:
         case ND_KEYINGSET:
-        case ND_FRAME:
         case ND_RENDER_OPTIONS:
         case ND_SEQUENCER:
         case ND_LAYER_CONTENT:
@@ -211,8 +245,12 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
     case NC_GEOM:
       switch (wmn->data) {
         case ND_VERTEX_GROUP:
-        case ND_DATA:
           ED_region_tag_redraw(region);
+          break;
+        case ND_DATA:
+          if (wmn->action == NA_RENAME) {
+            ED_region_tag_redraw(region);
+          }
           break;
       }
       break;
@@ -269,6 +307,13 @@ static void outliner_main_region_listener(const wmRegionListenerParams *params)
         ED_region_tag_redraw(region);
       }
       break;
+    case NC_IMAGE:
+      if (ELEM(wmn->action, NA_ADDED, NA_REMOVED) &&
+          ELEM(space_outliner->outlinevis, SO_LIBRARIES, SO_DATA_API))
+      {
+        ED_region_tag_redraw(region);
+      }
+      break;
   }
 }
 
@@ -312,8 +357,16 @@ static void outliner_header_region_listener(const wmRegionListenerParams *params
   /* context changes */
   switch (wmn->category) {
     case NC_SCENE:
-      if (wmn->data == ND_KEYINGSET) {
-        ED_region_tag_redraw(region);
+      switch (wmn->data) {
+        case ND_KEYINGSET:
+          ED_region_tag_redraw(region);
+          break;
+        case ND_LAYER:
+          /* Not needed by blender itself, but requested by add-on developers. #109995 */
+          if ((wmn->subtype == NS_LAYER_COLLECTION) && (wmn->action == NA_ACTIVATED)) {
+            ED_region_tag_redraw(region);
+          }
+          break;
       }
       break;
     case NC_SPACE:
@@ -331,7 +384,8 @@ static SpaceLink *outliner_create(const ScrArea * /*area*/, const Scene * /*scen
   ARegion *region;
   SpaceOutliner *space_outliner;
 
-  space_outliner = MEM_cnew<SpaceOutliner>("initoutliner");
+  space_outliner = MEM_callocN<SpaceOutliner>("initoutliner");
+  space_outliner->runtime = MEM_new<SpaceOutliner_Runtime>(__func__);
   space_outliner->spacetype = SPACE_OUTLINER;
   space_outliner->filter_id_type = ID_GR;
   space_outliner->show_restrict_flags = SO_RESTRICT_ENABLE | SO_RESTRICT_HIDE | SO_RESTRICT_RENDER;
@@ -341,14 +395,14 @@ static SpaceLink *outliner_create(const ScrArea * /*area*/, const Scene * /*scen
   space_outliner->filter = SO_FILTER_NO_VIEW_LAYERS;
 
   /* header */
-  region = MEM_cnew<ARegion>("header for outliner");
+  region = BKE_area_region_new();
 
   BLI_addtail(&space_outliner->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
   /* main region */
-  region = MEM_cnew<ARegion>("main region for outliner");
+  region = BKE_area_region_new();
 
   BLI_addtail(&space_outliner->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -370,35 +424,25 @@ static void outliner_free(SpaceLink *sl)
 }
 
 /* spacetype; init callback */
-static void outliner_init(wmWindowManager * /*wm*/, ScrArea *area)
-{
-  SpaceOutliner *space_outliner = static_cast<SpaceOutliner *>(area->spacedata.first);
-
-  if (space_outliner->runtime == nullptr) {
-    space_outliner->runtime = MEM_new<SpaceOutliner_Runtime>("SpaceOutliner_Runtime");
-  }
-}
+static void outliner_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *outliner_duplicate(SpaceLink *sl)
 {
   SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
-  SpaceOutliner *space_outliner_new = MEM_cnew<SpaceOutliner>(__func__, *space_outliner);
+  SpaceOutliner *space_outliner_new = MEM_dupallocN<SpaceOutliner>(__func__, *space_outliner);
+  space_outliner_new->runtime = MEM_new<SpaceOutliner_Runtime>(__func__, *space_outliner->runtime);
 
   BLI_listbase_clear(&space_outliner_new->tree);
   space_outliner_new->treestore = nullptr;
 
   space_outliner_new->sync_select_dirty = WM_OUTLINER_SYNC_SELECT_FROM_ALL;
 
-  if (space_outliner->runtime) {
-    /* Copy constructor handles details. */
-    space_outliner_new->runtime = MEM_new<SpaceOutliner_Runtime>("SpaceOutliner_runtime dup",
-                                                                 *space_outliner->runtime);
-  }
-
   return (SpaceLink *)space_outliner_new;
 }
 
-static void outliner_id_remap(ScrArea *area, SpaceLink *slink, const IDRemapper *mappings)
+static void outliner_id_remap(ScrArea *area,
+                              SpaceLink *slink,
+                              const blender::bke::id::IDRemapper &mappings)
 {
   SpaceOutliner *space_outliner = (SpaceOutliner *)slink;
 
@@ -413,7 +457,7 @@ static void outliner_id_remap(ScrArea *area, SpaceLink *slink, const IDRemapper 
 
   BLI_mempool_iternew(space_outliner->treestore, &iter);
   while ((tselem = static_cast<TreeStoreElem *>(BLI_mempool_iterstep(&iter)))) {
-    switch (BKE_id_remapper_apply(mappings, &tselem->id, ID_REMAP_APPLY_DEFAULT)) {
+    switch (mappings.apply(&tselem->id, ID_REMAP_APPLY_DEFAULT)) {
       case ID_REMAP_RESULT_SOURCE_REMAPPED:
         changed = true;
         break;
@@ -446,32 +490,35 @@ static void outliner_id_remap(ScrArea *area, SpaceLink *slink, const IDRemapper 
 static void outliner_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
 {
   SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(space_link);
+  if (!space_outliner->treestore) {
+    return;
+  }
   const int data_flags = BKE_lib_query_foreachid_process_flags_get(data);
   const bool is_readonly = (data_flags & IDWALK_READONLY) != 0;
   const bool allow_pointer_access = (data_flags & IDWALK_NO_ORIG_POINTERS_ACCESS) == 0;
 
-  if (space_outliner->treestore != nullptr) {
-    TreeStoreElem *tselem;
-    BLI_mempool_iter iter;
-
-    BLI_mempool_iternew(space_outliner->treestore, &iter);
-    while ((tselem = static_cast<TreeStoreElem *>(BLI_mempool_iterstep(&iter)))) {
-      /* Do not try to restore non-ID pointers (drivers/sequence/etc.). */
-      if (TSE_IS_REAL_ID(tselem)) {
-        const int cb_flag = (tselem->id != nullptr && allow_pointer_access &&
-                             (tselem->id->flag & LIB_EMBEDDED_DATA) != 0) ?
-                                IDWALK_CB_EMBEDDED_NOT_OWNING :
-                                IDWALK_CB_NOP;
-        BKE_LIB_FOREACHID_PROCESS_ID(data, tselem->id, cb_flag);
-      }
-      else if (!is_readonly) {
-        tselem->id = nullptr;
-      }
+  BLI_mempool_iter iter;
+  BLI_mempool_iternew(space_outliner->treestore, &iter);
+  while (TreeStoreElem *tselem = static_cast<TreeStoreElem *>(BLI_mempool_iterstep(&iter))) {
+    /* Do not try to restore non-ID pointers (drivers/sequence/etc.). */
+    if (TSE_IS_REAL_ID(tselem)) {
+      /* NOTE: Outliner ID pointers are never `IDWALK_CB_DIRECT_WEAK_LINK`, they should never
+       * enforce keeping a reference to some linked data. They do need to be explicitly ignored by
+       * writefile code though. */
+      const LibraryForeachIDCallbackFlag cb_flag =
+          IDWALK_CB_WRITEFILE_IGNORE | ((tselem->id != nullptr && allow_pointer_access &&
+                                         (tselem->id->flag & ID_FLAG_EMBEDDED_DATA) != 0) ?
+                                            IDWALK_CB_EMBEDDED_NOT_OWNING :
+                                            IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_ID(data, tselem->id, cb_flag);
     }
-    if (!is_readonly) {
-      /* rebuild hash table, because it depends on ids too */
-      space_outliner->storeflag |= SO_TREESTORE_REBUILD;
+    else if (!is_readonly) {
+      tselem->id = nullptr;
     }
+  }
+  if (!is_readonly) {
+    /* rebuild hash table, because it depends on ids too */
+    space_outliner->storeflag |= SO_TREESTORE_REBUILD;
   }
 }
 
@@ -486,17 +533,18 @@ static void outliner_deactivate(ScrArea *area)
 static void outliner_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
+  space_outliner->runtime = MEM_new<SpaceOutliner_Runtime>(__func__);
 
   /* use #BLO_read_get_new_data_address_no_us and do not free old memory avoiding double
    * frees and use of freed memory. this could happen because of a
    * bug fixed in revision 58959 where the treestore memory address
    * was not unique */
   TreeStore *ts = static_cast<TreeStore *>(
-      BLO_read_get_new_data_address_no_us(reader, space_outliner->treestore));
+      BLO_read_get_new_data_address_no_us(reader, space_outliner->treestore, sizeof(TreeStore)));
   space_outliner->treestore = nullptr;
   if (ts) {
-    TreeStoreElem *elems = static_cast<TreeStoreElem *>(
-        BLO_read_get_new_data_address_no_us(reader, ts->data));
+    TreeStoreElem *elems = static_cast<TreeStoreElem *>(BLO_read_get_new_data_address_no_us(
+        reader, ts->data, sizeof(TreeStoreElem) * ts->usedelem));
 
     space_outliner->treestore = BLI_mempool_create(
         sizeof(TreeStoreElem), ts->usedelem, 512, BLI_MEMPOOL_ALLOW_ITER);
@@ -510,8 +558,7 @@ static void outliner_space_blend_read_data(BlendDataReader *reader, SpaceLink *s
     /* we only saved what was used */
     space_outliner->storeflag |= SO_TREESTORE_CLEANUP; /* at first draw */
   }
-  space_outliner->tree.first = space_outliner->tree.last = nullptr;
-  space_outliner->runtime = nullptr;
+  BLI_listbase_clear(&space_outliner->tree);
 }
 
 static void outliner_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
@@ -602,11 +649,11 @@ void ED_spacetype_outliner()
 {
   using namespace blender::ed::outliner;
 
-  SpaceType *st = MEM_cnew<SpaceType>("spacetype time");
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_OUTLINER;
-  STRNCPY(st->name, "Outliner");
+  STRNCPY_UTF8(st->name, "Outliner");
 
   st->create = outliner_create;
   st->free = outliner_free;
@@ -623,7 +670,7 @@ void ED_spacetype_outliner()
   st->blend_write = outliner_space_blend_write;
 
   /* regions: main window */
-  art = MEM_cnew<ARegionType>("spacetype outliner region");
+  art = MEM_callocN<ARegionType>("spacetype outliner region");
   art->regionid = RGN_TYPE_WINDOW;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
 
@@ -636,7 +683,7 @@ void ED_spacetype_outliner()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_cnew<ARegionType>("spacetype outliner header region");
+  art = MEM_callocN<ARegionType>("spacetype outliner header region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
@@ -647,5 +694,5 @@ void ED_spacetype_outliner()
   art->listener = outliner_header_region_listener;
   BLI_addhead(&st->regiontypes, art);
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }

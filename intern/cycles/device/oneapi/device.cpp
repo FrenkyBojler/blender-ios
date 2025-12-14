@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "device/oneapi/device.h"
+#include "device/device.h"
 
 #include "util/log.h"
 
 #ifdef WITH_ONEAPI
-#  include "device/device.h"
 #  include "device/oneapi/device_impl.h"
+#  include "integrator/denoiser_oidn_gpu.h"  // IWYU pragma: keep
 
-#  include "util/path.h"
 #  include "util/string.h"
 
 #  ifdef __linux__
@@ -49,11 +49,9 @@ bool device_oneapi_init()
       _putenv_s("ONEAPI_DEVICE_SELECTOR", "!opencl:*");
     }
   }
-  if (getenv("SYCL_ENABLE_PCI") == nullptr) {
-    _putenv_s("SYCL_ENABLE_PCI", "1");
-  }
-  if (getenv("SYCL_PI_LEVEL_ZERO_USE_COPY_ENGINE_FOR_IN_ORDER_QUEUE") == nullptr) {
-    _putenv_s("SYCL_PI_LEVEL_ZERO_USE_COPY_ENGINE_FOR_IN_ORDER_QUEUE", "0");
+  /* SYSMAN is needed for free_memory queries. */
+  if (getenv("ZES_ENABLE_SYSMAN") == nullptr) {
+    _putenv_s("ZES_ENABLE_SYSMAN", "1");
   }
   if (getenv("SYCL_PI_LEVEL_ZERO_USE_COPY_ENGINE") == nullptr) {
     _putenv_s("SYCL_PI_LEVEL_ZERO_USE_COPY_ENGINE", "0");
@@ -67,8 +65,8 @@ bool device_oneapi_init()
   else {
     setenv("ONEAPI_DEVICE_SELECTOR", "!opencl:*", false);
   }
-  setenv("SYCL_ENABLE_PCI", "1", false);
-  setenv("SYCL_PI_LEVEL_ZERO_USE_COPY_ENGINE_FOR_IN_ORDER_QUEUE", "0", false);
+  /* SYSMAN is needed for free_memory queries. */
+  setenv("ZES_ENABLE_SYSMAN", "1", false);
   setenv("SYCL_PI_LEVEL_ZERO_USE_COPY_ENGINE", "0", false);
 #  endif
 
@@ -76,24 +74,33 @@ bool device_oneapi_init()
 #endif
 }
 
-Device *device_oneapi_create(const DeviceInfo &info, Stats &stats, Profiler &profiler)
+unique_ptr<Device> device_oneapi_create(const DeviceInfo &info,
+                                        Stats &stats,
+                                        Profiler &profiler,
+                                        bool headless)
 {
 #ifdef WITH_ONEAPI
-  return new OneapiDevice(info, stats, profiler);
+  return make_unique<OneapiDevice>(info, stats, profiler, headless);
 #else
   (void)info;
   (void)stats;
   (void)profiler;
+  (void)headless;
 
-  LOG(FATAL) << "Requested to create oneAPI device while not enabled for this build.";
+  LOG_FATAL << "Requested to create oneAPI device while not enabled for this build.";
 
   return nullptr;
 #endif
 }
 
 #ifdef WITH_ONEAPI
-static void device_iterator_cb(
-    const char *id, const char *name, int num, bool hwrt_support, void *user_ptr)
+static void device_iterator_cb(const char *id,
+                               const char *name,
+                               const int num,
+                               bool hwrt_support,
+                               bool oidn_support,
+                               bool has_execution_optimization,
+                               void *user_ptr)
 {
   vector<DeviceInfo> *devices = (vector<DeviceInfo> *)user_ptr;
 
@@ -107,7 +114,16 @@ static void device_iterator_cb(
   info.id = id;
 
   info.has_nanovdb = true;
-  info.denoisers = 0;
+#  if defined(WITH_OPENIMAGEDENOISE)
+#    if OIDN_VERSION >= 20300
+  if (oidn_support) {
+#    else
+  if (OIDNDenoiserGPU::is_device_supported(info)) {
+#    endif
+    info.denoisers |= DENOISER_OPENIMAGEDENOISE;
+  }
+#  endif
+  (void)oidn_support;
 
   info.has_gpu_queue = true;
 
@@ -125,8 +141,15 @@ static void device_iterator_cb(
   (void)hwrt_support;
 #  endif
 
+  info.has_execution_optimization = has_execution_optimization;
+
   devices->push_back(info);
-  VLOG_INFO << "Added device \"" << name << "\" with id \"" << info.id << "\".";
+  LOG_INFO << "Added device \"" << info.description << "\" with id \"" << info.id << "\".";
+
+  if (info.denoisers & DENOISER_OPENIMAGEDENOISE) {
+    LOG_INFO << "Device with id \"" << info.id << "\" supports "
+             << denoiserTypeToHumanReadable(DENOISER_OPENIMAGEDENOISE) << ".";
+  }
 }
 #endif
 

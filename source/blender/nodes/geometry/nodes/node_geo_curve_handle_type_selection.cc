@@ -4,7 +4,7 @@
 
 #include "BKE_curves.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -18,15 +18,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Selection").field_source();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "handle_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "handle_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveSelectHandles *data = MEM_cnew<NodeGeometryCurveSelectHandles>(__func__);
+  NodeGeometryCurveSelectHandles *data = MEM_callocN<NodeGeometryCurveSelectHandles>(__func__);
 
   data->handle_type = GEO_NODE_CURVE_HANDLE_AUTO;
   data->mode = GEO_NODE_CURVE_HANDLE_LEFT | GEO_NODE_CURVE_HANDLE_RIGHT;
@@ -87,23 +87,23 @@ class HandleTypeFieldInput final : public bke::CurvesFieldInput {
   }
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask &mask) const final
   {
-    if (domain != ATTR_DOMAIN_POINT) {
+    if (domain != AttrDomain::Point) {
       return {};
     }
     Array<bool> selection(mask.min_array_size());
     select_by_handle_type(curves, type_, mode_, selection);
-    return VArray<bool>::ForContainer(std::move(selection));
+    return VArray<bool>::from_container(std::move(selection));
   }
 
-  uint64_t hash() const override
+  uint64_t hash() const final
   {
-    return get_default_hash_2(int(mode_), int(type_));
+    return get_default_hash(int(mode_), int(type_));
   }
 
-  bool is_equal_to(const fn::FieldNode &other) const override
+  bool is_equal_to(const fn::FieldNode &other) const final
   {
     if (const HandleTypeFieldInput *other_handle_selection =
             dynamic_cast<const HandleTypeFieldInput *>(&other))
@@ -113,9 +113,9 @@ class HandleTypeFieldInput final : public bke::CurvesFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const CurvesGeometry & /*curves*/) const
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
   {
-    return ATTR_DOMAIN_POINT;
+    return AttrDomain::Point;
   }
 };
 
@@ -132,20 +132,24 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_HANDLE_TYPE_SELECTION, "Handle Type Selection", NODE_CLASS_INPUT);
+      &ntype, "GeometryNodeCurveHandleTypeSelection", GEO_NODE_CURVE_HANDLE_TYPE_SELECTION);
+  ntype.ui_name = "Handle Type Selection";
+  ntype.ui_description = "Provide a selection based on the handle types of Bézier control points";
+  ntype.enum_name_legacy = "CURVE_HANDLE_TYPE_SELECTION";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
-  node_type_storage(&ntype,
-                    "NodeGeometryCurveSelectHandles",
-                    node_free_standard_storage,
-                    node_copy_standard_storage);
+  blender::bke::node_type_storage(ntype,
+                                  "NodeGeometryCurveSelectHandles",
+                                  node_free_standard_storage,
+                                  node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
