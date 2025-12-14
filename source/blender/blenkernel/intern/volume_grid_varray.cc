@@ -869,11 +869,12 @@ class VArrayImpl_For_GridValueValue final : public VArrayImpl_For_GridValueBase<
 };
 
 VArray<int3> varray_for_grid_origin(const VolumeGridData &grid,
-                                    std::shared_ptr<GridNodeIndexMapping> index_mapping,
                                     const GridValueOnOff grid_value_filter)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
+  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
+      grid_value_filter);
 
   VArray<int3> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
@@ -886,11 +887,12 @@ VArray<int3> varray_for_grid_origin(const VolumeGridData &grid,
 }
 
 VArray<int> varray_for_grid_level(const VolumeGridData &grid,
-                                  std::shared_ptr<GridNodeIndexMapping> index_mapping,
                                   const GridValueOnOff grid_value_filter)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
+  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
+      grid_value_filter);
 
   VArray<int> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
@@ -903,11 +905,12 @@ VArray<int> varray_for_grid_level(const VolumeGridData &grid,
 }
 
 VArray<int> varray_for_grid_size(const VolumeGridData &grid,
-                                 std::shared_ptr<GridNodeIndexMapping> index_mapping,
                                  const GridValueOnOff grid_value_filter)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
+  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
+      grid_value_filter);
 
   VArray<int> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
@@ -920,11 +923,12 @@ VArray<int> varray_for_grid_size(const VolumeGridData &grid,
 }
 
 VArray<bool> varray_for_grid_active(const VolumeGridData &grid,
-                                    std::shared_ptr<GridNodeIndexMapping> index_mapping,
                                     const GridValueOnOff grid_value_filter)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
+  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
+      grid_value_filter);
 
   VArray<bool> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
@@ -936,12 +940,12 @@ VArray<bool> varray_for_grid_active(const VolumeGridData &grid,
   return varray;
 }
 
-GVArray varray_for_grid_value(const VolumeGridData &grid,
-                              std::shared_ptr<GridNodeIndexMapping> index_mapping,
-                              const GridValueOnOff grid_value_filter)
+GVArray varray_for_grid_value(const VolumeGridData &grid, const GridValueOnOff grid_value_filter)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
+  const std::shared_ptr<const GridNodeIndexMapping> &index_mapping = grid.index_mapping(
+      grid_value_filter);
 
   GVArray varray;
   to_typed_grid(grid_base, [&](const auto &grid) {

@@ -16,6 +16,7 @@
 #  include "BLI_struct_equality_utils.hh"
 #  include "BLI_virtual_array_fwd.hh"
 
+#  include "BKE_volume_grid.hh"
 #  include "BKE_volume_openvdb.hh"
 
 namespace blender::bke::volume_grid {
@@ -32,8 +33,6 @@ struct GridNodeKey {
   }
 };
 
-enum class GridValueOnOff { On, Off, Dense };
-
 class GridNodeIndexMapping {
  private:
   Map<GridNodeKey, IndexRange> node_ranges_;
@@ -48,20 +47,14 @@ class GridNodeIndexMapping {
 };
 
 VArray<int3> varray_for_grid_origin(const VolumeGridData &grid,
-                                    std::shared_ptr<GridNodeIndexMapping> index_mapping,
                                     const GridValueOnOff grid_value_filter);
 VArray<int> varray_for_grid_level(const VolumeGridData &grid,
-                                  std::shared_ptr<GridNodeIndexMapping> index_mapping,
                                   const GridValueOnOff grid_value_filter);
 VArray<int> varray_for_grid_size(const VolumeGridData &grid,
-                                 std::shared_ptr<GridNodeIndexMapping> index_mapping,
                                  const GridValueOnOff grid_value_filter);
 VArray<bool> varray_for_grid_active(const VolumeGridData &grid,
-                                    std::shared_ptr<GridNodeIndexMapping> index_mapping,
                                     const GridValueOnOff grid_value_filter);
-GVArray varray_for_grid_value(const VolumeGridData &grid,
-                              std::shared_ptr<GridNodeIndexMapping> index_mapping,
-                              const GridValueOnOff grid_value_filter);
+GVArray varray_for_grid_value(const VolumeGridData &grid, const GridValueOnOff grid_value_filter);
 
 }  // namespace blender::bke::volume_grid
 
