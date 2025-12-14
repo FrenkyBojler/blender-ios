@@ -124,6 +124,7 @@ class BlendQuery {
   const RawBufferType *lookup_raw_buffer_type(const BlendBlock &block) const;
 
   BlendValue lookup(const BlendValue &in, const LookupPathElem &path_elem) const;
+  BlendValue lookup(const BlendValue &in, const Span<LookupPathElem> &path) const;
   BlendValue lookup(const BlendId *id,
                     const Struct &sdna_struct,
                     const char *data,

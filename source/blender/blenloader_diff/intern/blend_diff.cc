@@ -40,6 +40,7 @@ using rich_sdna::Type;
 using blend_query::BlendBlock;
 using blend_query::BlendId;
 using blend_query::BlendQuery;
+using blend_query::BlendValue;
 using blend_query::RawBufferType;
 
 struct DiffOptions {
@@ -1148,10 +1149,17 @@ class IdDiffer {
                        const Struct &new_IDProperty,
                        const StringRef context)
   {
-    const std::optional<char> old_type = try_read_inline_char_member(
-        old_block.data + old_struct_offset, old_IDProperty, "type");
-    const std::optional<char> new_type = try_read_inline_char_member(
-        new_block.data + new_struct_offset, new_IDProperty, "type");
+    const BlendValue old_prop{&old_.id_data,
+                              RawBufferType::from_sdna_type(*old_IDProperty.type),
+                              1,
+                              old_block.data + old_struct_offset};
+    const BlendValue new_prop{&new_.id_data,
+                              RawBufferType::from_sdna_type(*new_IDProperty.type),
+                              1,
+                              new_block.data + new_struct_offset};
+
+    const std::optional<char> old_type = old_.blend.lookup(old_prop, "type").as_primitive<char>();
+    const std::optional<char> new_type = new_.blend.lookup(new_prop, "type").as_primitive<char>();
     if (!old_type || !new_type) {
       return;
     }
@@ -1161,41 +1169,14 @@ class IdDiffer {
     if (!ELEM(new_type, IDP_INT, IDP_FLOAT, IDP_DOUBLE, IDP_BOOLEAN)) {
       return;
     }
-    const StructMember *old_data_member = old_IDProperty.members.lookup_key_default_as("data",
-                                                                                       nullptr);
-    const StructMember *new_data_member = new_IDProperty.members.lookup_key_default_as("data",
-                                                                                       nullptr);
-    if (!old_data_member || !new_data_member) {
-      return;
-    }
-    if (old_data_member->type->name != "IDPropertyData" ||
-        new_data_member->type->name != "IDPropertyData")
-    {
-      return;
-    }
-    if (old_data_member->category != StructMember::Category::Struct ||
-        new_data_member->category != StructMember::Category::Struct)
-    {
-      return;
-    }
-    const Struct &old_IDPropertyData = *old_data_member->type->opt_struct;
-    const Struct &new_IDPropertyData = *new_data_member->type->opt_struct;
-    const std::optional<int> old_val = try_read_inline_int_member(
-        old_block.data + old_struct_offset + old_data_member->offset_in_struct,
-        old_IDPropertyData,
-        "val");
-    const std::optional<int> old_val2 = try_read_inline_int_member(
-        old_block.data + old_struct_offset + old_data_member->offset_in_struct,
-        old_IDPropertyData,
-        "val2");
-    const std::optional<int> new_val = try_read_inline_int_member(
-        new_block.data + new_struct_offset + new_data_member->offset_in_struct,
-        new_IDPropertyData,
-        "val");
-    const std::optional<int> new_val2 = try_read_inline_int_member(
-        new_block.data + new_struct_offset + new_data_member->offset_in_struct,
-        new_IDPropertyData,
-        "val2");
+    const std::optional<int> old_val =
+        old_.blend.lookup(old_prop, {"data", "val"}).as_primitive<int>();
+    const std::optional<int> old_val2 =
+        old_.blend.lookup(old_prop, {"data", "val2"}).as_primitive<int>();
+    const std::optional<int> new_val =
+        new_.blend.lookup(new_prop, {"data", "val"}).as_primitive<int>();
+    const std::optional<int> new_val2 =
+        new_.blend.lookup(new_prop, {"data", "val2"}).as_primitive<int>();
     if (!old_val || !old_val2 || !new_val || !new_val2) {
       return;
     }

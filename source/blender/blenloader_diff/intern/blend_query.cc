@@ -402,6 +402,11 @@ BlendValue BlendQuery::lookup(const BlendId *id,
   in_raw_buffer_type.sdna_base_type = sdna_struct.type;
   in_raw_buffer_type.elem_size = sdna_struct.type->size_in_bytes;
   const BlendValue in = {id, in_raw_buffer_type, 1, data};
+  return this->lookup(in, path);
+}
+
+BlendValue BlendQuery::lookup(const BlendValue &in, const Span<LookupPathElem> &path) const
+{
   BlendValue current = in;
   for (const LookupPathElem &path_elem : path) {
     current = this->lookup(current, path_elem);
@@ -538,6 +543,12 @@ template<typename T> std::optional<T> BlendValue::as_primitive() const
   }
   return std::nullopt;
 }
+
+/* Explicit template instantiation. */
+template std::optional<float> BlendValue::as_primitive<float>() const;
+template std::optional<double> BlendValue::as_primitive<double>() const;
+template std::optional<int> BlendValue::as_primitive<int>() const;
+template std::optional<char> BlendValue::as_primitive<char>() const;
 
 std::optional<uint64_t> BlendValue::as_address() const
 {
