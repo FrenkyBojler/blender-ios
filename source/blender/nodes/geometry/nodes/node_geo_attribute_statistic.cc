@@ -88,34 +88,31 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
 
+  auto add_item_by_name = [&](StringRefNull socket_name) {
+    params.add_item(IFACE_(socket_name),
+                    [node_type, socket_name, type](LinkSearchOpParams &params) {
+                      bNode &node = params.add_node(node_type);
+                      node.custom1 = *type;
+                      params.update_and_connect_available_socket(node, socket_name);
+                    });
+  };
+
   if (params.in_out() == SOCK_IN) {
-    params.add_item(IFACE_("Attribute"), [node_type, type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node(node_type);
-      node.custom1 = *type;
-      params.update_and_connect_available_socket(node, "Attribute");
-    });
+    add_item_by_name("Attribute");
+    return;
   }
-  else {
-    if (type == CD_PROP_BOOL) {
-      for (const StringRefNull name : {"Any", "All"}) {
-        params.add_item(IFACE_(name), [node_type, name, type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node(node_type);
-          node.custom1 = *type;
-          params.update_and_connect_available_socket(node, name);
-        });
-      }
+
+  if (*type == CD_PROP_BOOL) {
+    for (const StringRefNull name : {"Any", "All"}) {
+      add_item_by_name(name);
     }
-    else {
-      for (const StringRefNull name :
-           {"Mean", "Median", "Sum", "Min", "Max", "Range", "Standard Deviation", "Variance"})
-      {
-        params.add_item(IFACE_(name), [node_type, name, type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node(node_type);
-          node.custom1 = *type;
-          params.update_and_connect_available_socket(node, name);
-        });
-      }
-    }
+    return;
+  }
+
+  for (const StringRefNull name :
+       {"Mean", "Median", "Sum", "Min", "Max", "Range", "Standard Deviation", "Variance"})
+  {
+    add_item_by_name(name);
   }
 }
 
