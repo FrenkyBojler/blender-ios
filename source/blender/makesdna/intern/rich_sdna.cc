@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_genfile.h"
 #include "DNA_rich_sdna.hh"
 
 #include "BLI_timeit.hh"
@@ -290,43 +291,43 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna(const SDNA &raw_sdna)
     sdna_type.size_in_bytes = raw_sdna.types_size[type_i];
     sdna_type.index = type_i;
     if (type_name == "char") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_CHAR;
+      sdna_type.opt_primitive_type = PrimitiveType::Char;
       BLI_assert(sdna_type.size_in_bytes == 1);
     }
     else if (type_name == "uchar") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_UCHAR;
+      sdna_type.opt_primitive_type = PrimitiveType::UChar;
       BLI_assert(sdna_type.size_in_bytes == 1);
     }
     else if (type_name == "short") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_SHORT;
+      sdna_type.opt_primitive_type = PrimitiveType::Short;
       BLI_assert(sdna_type.size_in_bytes == 2);
     }
     else if (type_name == "ushort") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_USHORT;
+      sdna_type.opt_primitive_type = PrimitiveType::UShort;
       BLI_assert(sdna_type.size_in_bytes == 2);
     }
     else if (type_name == "int") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_INT;
+      sdna_type.opt_primitive_type = PrimitiveType::Int;
       BLI_assert(sdna_type.size_in_bytes == 4);
     }
     else if (type_name == "float") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_FLOAT;
+      sdna_type.opt_primitive_type = PrimitiveType::Float;
       BLI_assert(sdna_type.size_in_bytes == 4);
     }
     else if (type_name == "double") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_DOUBLE;
+      sdna_type.opt_primitive_type = PrimitiveType::Double;
       BLI_assert(sdna_type.size_in_bytes == 8);
     }
     else if (type_name == "int64_t") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_INT64;
+      sdna_type.opt_primitive_type = PrimitiveType::Int64;
       BLI_assert(sdna_type.size_in_bytes == 8);
     }
     else if (type_name == "uint64_t") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_UINT64;
+      sdna_type.opt_primitive_type = PrimitiveType::UInt64;
       BLI_assert(sdna_type.size_in_bytes == 8);
     }
     else if (type_name == "int8_t") {
-      sdna_type.opt_primitive_type = SDNA_TYPE_INT8;
+      sdna_type.opt_primitive_type = PrimitiveType::Int8;
       BLI_assert(sdna_type.size_in_bytes == 1);
     }
 

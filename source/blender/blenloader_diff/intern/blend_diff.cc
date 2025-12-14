@@ -26,13 +26,13 @@
 #include "BLO_core_file_reader.hh"
 
 #include "DNA_attribute_types.h"
-#include "DNA_genfile.h"
 #include "DNA_node_types.h"
 #include "DNA_rich_sdna.hh"
 #include "DNA_sdna_types.h"
 
 namespace blender::blend_diff {
 
+using rich_sdna::PrimitiveType;
 using rich_sdna::PrimitiveValue;
 using rich_sdna::RichSDNA;
 using rich_sdna::Struct;
@@ -335,31 +335,29 @@ static AddressMap build_address_map(const BlendIdData &id_data)
   return address_map;
 }
 
-static PrimitiveValue read_primitive_value_at_address(const eSDNA_Type type, const void *data)
+static PrimitiveValue read_primitive_value_at_address(const PrimitiveType type, const void *data)
 {
   switch (type) {
-    case SDNA_TYPE_CHAR:
+    case PrimitiveType::Char:
       return *reinterpret_cast<const char *>(data);
-    case SDNA_TYPE_UCHAR:
+    case PrimitiveType::UChar:
       return *reinterpret_cast<const uchar *>(data);
-    case SDNA_TYPE_SHORT:
+    case PrimitiveType::Short:
       return *reinterpret_cast<const short *>(data);
-    case SDNA_TYPE_USHORT:
+    case PrimitiveType::UShort:
       return *reinterpret_cast<const ushort *>(data);
-    case SDNA_TYPE_INT:
+    case PrimitiveType::Int:
       return *reinterpret_cast<const int *>(data);
-    case SDNA_TYPE_FLOAT:
+    case PrimitiveType::Float:
       return *reinterpret_cast<const float *>(data);
-    case SDNA_TYPE_DOUBLE:
+    case PrimitiveType::Double:
       return *reinterpret_cast<const double *>(data);
-    case SDNA_TYPE_INT64:
+    case PrimitiveType::Int64:
       return *reinterpret_cast<const int64_t *>(data);
-    case SDNA_TYPE_UINT64:
+    case PrimitiveType::UInt64:
       return *reinterpret_cast<const uint64_t *>(data);
-    case SDNA_TYPE_INT8:
+    case PrimitiveType::Int8:
       return *reinterpret_cast<const int8_t *>(data);
-    case SDNA_TYPE_RAW_DATA:
-      break;
   }
   BLI_assert_unreachable();
   return 0;
@@ -381,7 +379,7 @@ static std::optional<std::string> try_read_inline_string_member(const void *stru
   if (member->category != StructMember::Category::Primitive) {
     return std::nullopt;
   }
-  if (member->type->opt_primitive_type != SDNA_TYPE_CHAR) {
+  if (member->type->opt_primitive_type != PrimitiveType::Char) {
     return std::nullopt;
   }
   const char *str_data = reinterpret_cast<const char *>(struct_data) + member->offset_in_struct;
@@ -400,7 +398,7 @@ static std::optional<int> try_read_inline_int_member(const void *struct_data,
   if (member->category != StructMember::Category::Primitive) {
     return std::nullopt;
   }
-  if (member->type->opt_primitive_type != SDNA_TYPE_INT) {
+  if (member->type->opt_primitive_type != PrimitiveType::Int) {
     return std::nullopt;
   }
   const int value = *reinterpret_cast<const int *>(static_cast<const char *>(struct_data) +
@@ -419,7 +417,7 @@ static std::optional<int8_t> try_read_inline_int8_member(const void *struct_data
   if (member->category != StructMember::Category::Primitive) {
     return std::nullopt;
   }
-  if (member->type->opt_primitive_type != SDNA_TYPE_INT8) {
+  if (member->type->opt_primitive_type != PrimitiveType::Int8) {
     return std::nullopt;
   }
   const int8_t value = *reinterpret_cast<const int8_t *>(static_cast<const char *>(struct_data) +
@@ -438,7 +436,7 @@ static std::optional<int16_t> try_read_inline_int16_member(const void *struct_da
   if (member->category != StructMember::Category::Primitive) {
     return std::nullopt;
   }
-  if (member->type->opt_primitive_type != SDNA_TYPE_SHORT) {
+  if (member->type->opt_primitive_type != PrimitiveType::Short) {
     return std::nullopt;
   }
   const int16_t value = *reinterpret_cast<const int16_t *>(static_cast<const char *>(struct_data) +
@@ -457,7 +455,7 @@ static std::optional<char> try_read_inline_char_member(const void *struct_data,
   if (member->category != StructMember::Category::Primitive) {
     return std::nullopt;
   }
-  if (member->type->opt_primitive_type != SDNA_TYPE_CHAR) {
+  if (member->type->opt_primitive_type != PrimitiveType::Char) {
     return std::nullopt;
   }
   const char value = *(static_cast<const char *>(struct_data) + member->offset_in_struct);
@@ -824,32 +822,31 @@ class IdDiffer {
     }
   }
 
-  const CPPType *cpp_type_from_sdna_type(const eSDNA_Type &type) const
+  const CPPType *cpp_type_from_primitive_type(const PrimitiveType type) const
   {
     switch (type) {
-      case SDNA_TYPE_CHAR:
-        break;
-      case SDNA_TYPE_UCHAR:
-        return &CPPType::get<uchar>();
-      case SDNA_TYPE_SHORT:
-        return &CPPType::get<short>();
-      case SDNA_TYPE_USHORT:
-        return &CPPType::get<ushort>();
-      case SDNA_TYPE_INT:
-        return &CPPType::get<int>();
-      case SDNA_TYPE_FLOAT:
-        return &CPPType::get<float>();
-      case SDNA_TYPE_DOUBLE:
-        break;
-      case SDNA_TYPE_INT64:
-        return &CPPType::get<int64_t>();
-      case SDNA_TYPE_UINT64:
-        return &CPPType::get<uint64_t>();
-      case SDNA_TYPE_INT8:
+      case PrimitiveType::Char:
         return &CPPType::get<int8_t>();
-      case SDNA_TYPE_RAW_DATA:
-        break;
+      case PrimitiveType::UChar:
+        return &CPPType::get<uchar>();
+      case PrimitiveType::Short:
+        return &CPPType::get<short>();
+      case PrimitiveType::UShort:
+        return &CPPType::get<ushort>();
+      case PrimitiveType::Int:
+        return &CPPType::get<int>();
+      case PrimitiveType::Float:
+        return &CPPType::get<float>();
+      case PrimitiveType::Double:
+        return &CPPType::get<double>();
+      case PrimitiveType::Int64:
+        return &CPPType::get<int64_t>();
+      case PrimitiveType::UInt64:
+        return &CPPType::get<uint64_t>();
+      case PrimitiveType::Int8:
+        return &CPPType::get<int8_t>();
     }
+    BLI_assert_unreachable();
     return nullptr;
   }
 
@@ -1013,7 +1010,7 @@ class IdDiffer {
     const StructMember::Category category = old_member.category;
     const int64_t elem_num = old_member.elem_num;
     const StringRef name_only = old_member.name_only;
-    const std::optional<eSDNA_Type> opt_primitive_type = old_member.type->opt_primitive_type;
+    const std::optional<PrimitiveType> opt_primitive_type = old_member.type->opt_primitive_type;
     if (new_member.type->name != type_name || new_member.category != category ||
         new_member.elem_num != elem_num || new_member.name_only != name_only ||
         new_member.type->opt_primitive_type != opt_primitive_type)
@@ -1045,8 +1042,8 @@ class IdDiffer {
       }
       case rich_sdna::StructMember::Category::Primitive: {
         BLI_assert(opt_primitive_type.has_value());
-        const eSDNA_Type primitive_type = *opt_primitive_type;
-        if (primitive_type == SDNA_TYPE_CHAR) {
+        const PrimitiveType primitive_type = *opt_primitive_type;
+        if (primitive_type == PrimitiveType::Char) {
           const Span<char> old_values{old_block.data + old_member_offset, elem_num};
           const Span<char> new_values{new_block.data + new_member_offset, elem_num};
           const std::optional<std::string> old_str = try_convert_char_array_to_readable_string(
@@ -1063,7 +1060,7 @@ class IdDiffer {
           }
         }
         if (elem_num > 1) {
-          if (const CPPType *cpp_type = this->cpp_type_from_sdna_type(primitive_type)) {
+          if (const CPPType *cpp_type = this->cpp_type_from_primitive_type(primitive_type)) {
             const GSpan old_values{
                 *cpp_type,
                 reinterpret_cast<const float *>(old_block.data + old_member_offset),

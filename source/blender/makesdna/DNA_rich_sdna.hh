@@ -10,7 +10,6 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
-#include "DNA_genfile.h"
 #include "DNA_sdna_types.h"
 
 namespace blender::rich_sdna {
@@ -19,6 +18,19 @@ class Member;
 class Struct;
 class Type;
 class RichSDNA;
+
+enum class PrimitiveType {
+  Char,
+  UChar,
+  Short,
+  UShort,
+  Int,
+  Float,
+  Double,
+  Int64,
+  UInt64,
+  Int8,
+};
 
 using PrimitiveValue =
     std::variant<char, uchar, short, ushort, int, float, double, int64_t, uint64_t>;
@@ -75,7 +87,7 @@ class Type {
   StringRefNull name;
   int64_t size_in_bytes;
   const Struct *opt_struct = nullptr;
-  std::optional<eSDNA_Type> opt_primitive_type = std::nullopt;
+  std::optional<PrimitiveType> opt_primitive_type = std::nullopt;
   int64_t index;
   const RichSDNA *owner;
 

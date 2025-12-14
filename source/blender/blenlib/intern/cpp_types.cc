@@ -51,6 +51,7 @@ const VectorCPPType *VectorCPPType::get_from_value(const CPPType &value)
 
 BLI_CPP_TYPE_MAKE(bool, CPPTypeFlags::BasicType)
 
+BLI_CPP_TYPE_MAKE(double, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(float, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(blender::float2, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(blender::float3, CPPTypeFlags::BasicType)
@@ -86,9 +87,11 @@ void register_cpp_types()
 {
   BLI_CPP_TYPE_REGISTER(bool);
 
+  BLI_CPP_TYPE_REGISTER(double);
   BLI_CPP_TYPE_REGISTER(float);
   BLI_CPP_TYPE_REGISTER(blender::float2);
   BLI_CPP_TYPE_REGISTER(blender::float3);
+  BLI_CPP_TYPE_REGISTER(blender::float4);
   BLI_CPP_TYPE_REGISTER(blender::float4x4);
 
   BLI_CPP_TYPE_REGISTER(int8_t);
