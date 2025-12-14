@@ -77,9 +77,21 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
   }
 }
 
+class SocketSearchOp {
+ public:
+  std::string socket_name;
+  eCustomDataType data_type;
+
+  void operator()(LinkSearchOpParams &params)
+  {
+    bNode &node = params.add_node("GeometryNodeAttributeStatistic");
+    node.custom1 = data_type;
+    params.update_and_connect_available_socket(node, socket_name);
+  }
+};
+
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const blender::bke::bNodeType &node_type = params.node_type();
   const NodeDeclaration &declaration = *params.node_type().static_declaration;
   search_link_ops_for_declarations(params, declaration.inputs);
 
@@ -88,23 +100,14 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
 
-  auto add_item_by_name = [&](StringRefNull socket_name) {
-    params.add_item(IFACE_(socket_name),
-                    [node_type, socket_name, type](LinkSearchOpParams &params) {
-                      bNode &node = params.add_node(node_type);
-                      node.custom1 = *type;
-                      params.update_and_connect_available_socket(node, socket_name);
-                    });
-  };
-
   if (params.in_out() == SOCK_IN) {
-    add_item_by_name("Attribute");
+    params.add_item(IFACE_("Attribute"), SocketSearchOp{"Attribute", *type});
     return;
   }
 
   if (*type == CD_PROP_BOOL) {
     for (const StringRefNull name : {"Any", "All"}) {
-      add_item_by_name(name);
+      params.add_item(IFACE_(name), SocketSearchOp{name, *type});
     }
     return;
   }
@@ -112,7 +115,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   for (const StringRefNull name :
        {"Mean", "Median", "Sum", "Min", "Max", "Range", "Standard Deviation", "Variance"})
   {
-    add_item_by_name(name);
+    params.add_item(IFACE_(name), SocketSearchOp{name, *type});
   }
 }
 
