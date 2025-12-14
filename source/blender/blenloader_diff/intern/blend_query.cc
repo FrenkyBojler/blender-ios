@@ -5,6 +5,8 @@
 #include "blend_query.hh"
 
 #include "BLI_string.h"
+#include "BLI_timeit.hh"
+
 #include "BLO_core_blend_header.hh"
 #include "BLO_core_file_reader.hh"
 
