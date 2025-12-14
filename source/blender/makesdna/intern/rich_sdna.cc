@@ -20,6 +20,9 @@ static std::string strip_name(const StringRefNull identifier)
 {
   std::string result;
   for (const char c : identifier) {
+    if (c == '[') {
+      break;
+    }
     if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
       result.push_back(c);
     }
@@ -258,9 +261,9 @@ class SdnaParser {
   }
 };
 
-std::optional<ParsedSdnaBuffer> parse_sdna_buffer(const void *buffer, const int64_t buffer_size)
+static std::optional<ParsedSdnaBuffer> parse_sdna_buffer(const void *buffer,
+                                                         const int64_t buffer_size)
 {
-  SCOPED_TIMER(__func__);
   SdnaParser parser{Span<char>(static_cast<const char *>(buffer), buffer_size)};
   return parser.parse();
 }
@@ -291,32 +294,36 @@ static const Map<StringRef, PrimitiveTypeInfo> &get_primitive_type_map()
 
 std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const int64_t buffer_size)
 {
-  std::optional<ParsedSdnaBuffer> parsed = parse_sdna_buffer(buffer, buffer_size);
-
-  SDNA *raw_sdna = DNA_sdna_from_data(buffer, buffer_size, false, true, nullptr);
-  if (!raw_sdna) {
+  const std::optional<ParsedSdnaBuffer> parsed = parse_sdna_buffer(buffer, buffer_size);
+  if (!parsed) {
     return nullptr;
   }
-  std::unique_ptr<RichSDNA> rich_sdna = RichSDNA::from_sdna(*raw_sdna);
-  DNA_sdna_free(raw_sdna);
-  return rich_sdna;
-}
-
-std::unique_ptr<RichSDNA> RichSDNA::from_sdna(const SDNA &raw_sdna)
-{
+  if (parsed->type_names.size() != parsed->type_sizes.size()) {
+    return nullptr;
+  }
+  const int64_t pointer_size = int64_t(sizeof(void *));
   auto rich_sdna = std::make_unique<RichSDNA>();
-
   const Map<StringRef, PrimitiveTypeInfo> &primitive_type_map = get_primitive_type_map();
+  ResourceScope &scope = rich_sdna->scope_;
+  LinearAllocator<> &allocator = scope.allocator();
 
-  LinearAllocator<> &allocator = rich_sdna->scope_.allocator();
-  for (const int type_i : IndexRange(raw_sdna.types_num)) {
-    const StringRefNull type_name = allocator.copy_string(raw_sdna.types[type_i]);
-    Type &sdna_type = rich_sdna->scope_.construct<Type>();
+  auto is_valid_type_i = [&](const int64_t type_i) {
+    return parsed->type_names.index_range().contains(type_i);
+  };
+  auto is_valid_member_name_i = [&](const int64_t name_i) {
+    return parsed->member_names.index_range().contains(name_i);
+  };
+
+  for (const int64_t type_i : parsed->type_names.index_range()) {
+    const StringRefNull type_name = allocator.copy_string(parsed->type_names[type_i]);
+    Type &sdna_type = scope.construct<Type>();
     sdna_type.owner = &*rich_sdna;
-    sdna_type.name = type_name;
-    sdna_type.size_in_bytes = raw_sdna.types_size[type_i];
     sdna_type.index = type_i;
-
+    sdna_type.name = type_name;
+    sdna_type.size_in_bytes = parsed->type_sizes[type_i];
+    if (sdna_type.size_in_bytes < 0) {
+      return nullptr;
+    }
     if (const PrimitiveTypeInfo *primitive_type_info = primitive_type_map.lookup_ptr(type_name)) {
       if (sdna_type.size_in_bytes != primitive_type_info->expected_size) {
         return nullptr;
@@ -325,28 +332,30 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna(const SDNA &raw_sdna)
     }
     rich_sdna->types.add(&sdna_type);
   }
-  for (const int struct_i : IndexRange(raw_sdna.structs_num)) {
-    const SDNA_Struct &raw_struct = *raw_sdna.structs[struct_i];
-    Struct &sdna_struct = rich_sdna->scope_.construct<Struct>();
-    sdna_struct.type = rich_sdna->types[raw_struct.type_index];
-    const_cast<Type *>(sdna_struct.type)->opt_struct = &sdna_struct;
-
-    for (const int member_i : IndexRange(raw_struct.members_num)) {
-      const SDNA_StructMember &raw_member = raw_struct.members[member_i];
-      StructMember &sdna_member = rich_sdna->scope_.construct<StructMember>();
-      sdna_member.elem_num = raw_sdna.members_array_num[raw_member.member_index];
-      sdna_member.type = rich_sdna->types[raw_member.type_index];
-      sdna_member.name_with_array = allocator.copy_string(
-          raw_sdna.members[raw_member.member_index]);
-      const int array_start = sdna_member.name_with_array.find_first_of('[');
-      if (array_start == StringRef::not_found) {
-        sdna_member.identifier = sdna_member.name_with_array;
+  for (const int64_t struct_i : parsed->structs.index_range()) {
+    const ParsedSdnaBuffer::StructItem &raw_struct = parsed->structs[struct_i];
+    if (!is_valid_type_i(raw_struct.type_i)) {
+      return nullptr;
+    }
+    Struct &sdna_struct = scope.construct<Struct>();
+    Type &type = const_cast<Type &>(*rich_sdna->types[raw_struct.type_i]);
+    sdna_struct.type = &type;
+    type.opt_struct = &sdna_struct;
+    for (const int64_t member_i : raw_struct.members.index_range()) {
+      const ParsedSdnaBuffer::MemberItem &raw_member = raw_struct.members[member_i];
+      if (!is_valid_type_i(raw_member.type_i)) {
+        return nullptr;
       }
-      else {
-        sdna_member.identifier = allocator.copy_string(
-            sdna_member.name_with_array.substr(0, array_start));
+      if (!is_valid_member_name_i(raw_member.name_i)) {
+        return nullptr;
       }
-      sdna_member.name_only = allocator.copy_string(strip_name(sdna_member.identifier));
+      const StringRefNull raw_member_name = allocator.copy_string(
+          parsed->member_names[raw_member.name_i]);
+      StructMember &sdna_member = scope.construct<StructMember>();
+      sdna_member.elem_num = DNA_member_array_num(raw_member_name.c_str());
+      sdna_member.type = rich_sdna->types[raw_member.type_i];
+      sdna_member.raw_name = raw_member_name;
+      sdna_member.name = allocator.copy_string(strip_name(raw_member_name.c_str()));
       sdna_member.parent = &sdna_struct;
       sdna_struct.members.add(&sdna_member);
     }
@@ -358,9 +367,9 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna(const SDNA &raw_sdna)
     for (const StructMember *sdna_member_const : sdna_struct.members) {
       StructMember &sdna_member = const_cast<StructMember &>(*sdna_member_const);
       sdna_member.offset_in_struct = offset;
-      if (name_is_pointer(sdna_member.name_with_array)) {
+      if (name_is_pointer(sdna_member.raw_name)) {
         sdna_member.category = StructMember::Category::Pointer;
-        sdna_member.elem_size = raw_sdna.pointer_size;
+        sdna_member.elem_size = pointer_size;
       }
       else if (sdna_member.type->opt_struct) {
         sdna_member.category = StructMember::Category::Struct;
@@ -415,8 +424,8 @@ void Type::print(std::ostream &stream, const bool verbose) const
     for (const int member_i : this->opt_struct->members.index_range()) {
       const StructMember &member = *this->opt_struct->members[member_i];
       if (verbose) {
-        fmt::format_to(dst, "    {}\n", member.identifier);
-        fmt::format_to(dst, "      Name with array: {}\n", member.name_with_array);
+        fmt::format_to(dst, "    {}\n", member.name);
+        fmt::format_to(dst, "      Raw Name: {}\n", member.raw_name);
         fmt::format_to(dst, "      Offset in struct: {}\n", member.offset_in_struct);
         fmt::format_to(dst, "      Elem size: {}\n", member.elem_size);
         fmt::format_to(dst, "      Elem num: {}\n", member.elem_num);
@@ -425,7 +434,7 @@ void Type::print(std::ostream &stream, const bool verbose) const
         fmt::format_to(dst, "      Type: {}\n", member.type->name);
       }
       else {
-        fmt::format_to(dst, "    {} {}\n", member.type->name, member.name_with_array);
+        fmt::format_to(dst, "    {} {}\n", member.type->name, member.raw_name);
       }
     }
   }
@@ -434,8 +443,7 @@ void Type::print(std::ostream &stream, const bool verbose) const
 
 std::string StructMember::to_decl_string() const
 {
-  return fmt::format(
-      "{} {}::{}", this->type->name, this->parent->type->name, this->name_with_array);
+  return fmt::format("{} {}::{}", this->type->name, this->parent->type->name, this->raw_name);
 }
 
 }  // namespace blender::rich_sdna

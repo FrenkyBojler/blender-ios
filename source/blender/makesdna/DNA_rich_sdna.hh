@@ -37,11 +37,10 @@ using PrimitiveValue =
 
 class StructMember {
  public:
-  /** For consistency with core Blender, this may still contain e.g. the `*` if it is a pointer. */
-  StringRefNull identifier;
-  /** Same as the identifier but may additionally have an array suffix (e.g. `[3]`). */
-  StringRefNull name_with_array;
-  StringRefNull name_only;
+  /** Name of the member without any additional information. */
+  StringRefNull name;
+  /** The name with additional information like array size (`offset[3]`) or point (`*data`). */
+  StringRefNull raw_name;
   int64_t offset_in_struct;
   int64_t elem_size;
   int64_t elem_num;
@@ -64,7 +63,7 @@ class StructMember {
 struct StructMemberIdentifierGetter {
   StringRef operator()(const StructMember *member) const
   {
-    return member->identifier;
+    return member->name;
   }
 };
 

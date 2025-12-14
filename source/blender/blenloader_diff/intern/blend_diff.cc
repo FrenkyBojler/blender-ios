@@ -55,7 +55,7 @@ struct DiffOptions {
     }
 
     MemberName(const StructMember &member)
-        : type_name(member.parent->type->name), member_identifier(member.identifier)
+        : type_name(member.parent->type->name), member_identifier(member.name)
     {
     }
 
@@ -89,7 +89,7 @@ struct DiffOptions {
   void add_next_prev_ignore_types(const Span<StringRef> type_names)
   {
     for (const StringRef type_name : type_names) {
-      this->add_members_to_ignore(type_name, {"*next", "*prev"});
+      this->add_members_to_ignore(type_name, {"next", "prev"});
     }
   }
 
@@ -110,12 +110,12 @@ struct DiffOptions {
   bool ignore_member(const StructMember &member) const
   {
     if (this->ignore_pad) {
-      if (member.name_only.startswith("_pad")) {
+      if (member.name.startswith("_pad")) {
         return true;
       }
     }
     if (this->ignore_runtime) {
-      if (member.name_only.find("runtime") != StringRef::not_found) {
+      if (member.name.find("runtime") != StringRef::not_found) {
         return true;
       }
     }
@@ -142,7 +142,7 @@ static bool is_specific_id_struct(const Struct &sdna_struct)
     return false;
   }
   const StructMember &first_member = *sdna_struct.members[0];
-  if (first_member.identifier != "id") {
+  if (first_member.name != "id") {
     return false;
   }
   if (first_member.type->name != "ID") {
@@ -242,7 +242,7 @@ static void write_diff_type(DiffLines &diff,
       continue;
     }
     if (const StructMember *new_member = new_type.opt_struct->members.lookup_key_default_as(
-            old_member->identifier, nullptr))
+            old_member->name, nullptr))
     {
       write_diff_struct_member(diff, *old_member, *new_member);
     }
@@ -255,7 +255,7 @@ static void write_diff_type(DiffLines &diff,
       continue;
     }
     const StructMember *old_member = old_type.opt_struct->members.lookup_key_default_as(
-        new_member->identifier, nullptr);
+        new_member->name, nullptr);
     if (old_member) {
       continue;
     }
@@ -720,7 +720,7 @@ class IdDiffer {
         break;
       }
       case rich_sdna::StructMember::Category::Pointer: {
-        const int pointer_level = this->pointer_level_from_name(sdna_member.name_with_array);
+        const int pointer_level = this->pointer_level_from_name(sdna_member.raw_name);
         BLI_assert(pointer_level >= 1);
         for (const int64_t i : IndexRange(sdna_member.elem_num)) {
           const int64_t offset = member_offset + i * sdna_member.elem_size;
@@ -752,7 +752,7 @@ class IdDiffer {
     const std::optional<int8_t> storage_type = try_read_inline_int8_member(
         block.data + struct_offset, sdna_Attribute, "storage_type");
     const std::optional<uint64_t> storage_address = try_read_inline_pointer_member(
-        block.data + struct_offset, sdna_Attribute, "*data");
+        block.data + struct_offset, sdna_Attribute, "data");
     if (!data_type || !storage_type || !storage_address) {
       return;
     }
@@ -771,7 +771,7 @@ class IdDiffer {
       return;
     }
     const std::optional<uint64_t> array_address = try_read_inline_pointer_member(
-        storage_block->data, *sdna_AttributeArray, "*data");
+        storage_block->data, *sdna_AttributeArray, "data");
     if (!array_address) {
       return;
     }
@@ -982,8 +982,8 @@ class IdDiffer {
     }
 
     for (const StructMember *old_member : old_struct.members) {
-      const StructMember *new_member = new_struct.members.lookup_key_default_as(
-          old_member->identifier, nullptr);
+      const StructMember *new_member = new_struct.members.lookup_key_default_as(old_member->name,
+                                                                                nullptr);
       if (!new_member) {
         /* This is in the diff as part of SDNA changes, no need to mention it for every block. */
         continue;
@@ -1009,10 +1009,10 @@ class IdDiffer {
     const StringRef type_name = old_member.type->name;
     const StructMember::Category category = old_member.category;
     const int64_t elem_num = old_member.elem_num;
-    const StringRef name_only = old_member.name_only;
+    const StringRef name = old_member.name;
     const std::optional<PrimitiveType> opt_primitive_type = old_member.type->opt_primitive_type;
     if (new_member.type->name != type_name || new_member.category != category ||
-        new_member.elem_num != elem_num || new_member.name_only != name_only ||
+        new_member.elem_num != elem_num || new_member.name != name ||
         new_member.type->opt_primitive_type != opt_primitive_type)
     {
       /* This is in the diff as part of SDNA changes, no need to mention it for every block. */
@@ -1027,9 +1027,8 @@ class IdDiffer {
         const Struct &old_substruct = *old_member.type->opt_struct;
         const Struct &new_substruct = *new_member.type->opt_struct;
         for (const int i : IndexRange(elem_num)) {
-          const std::string sub_context = is_array ?
-                                              fmt::format("{}.{}[{}]", context, name_only, i) :
-                                              fmt::format("{}.{}", context, name_only);
+          const std::string sub_context = is_array ? fmt::format("{}.{}[{}]", context, name, i) :
+                                                     fmt::format("{}.{}", context, name);
           this->diff_struct(old_block,
                             new_block,
                             old_member_offset + i * old_member.elem_size,
@@ -1054,8 +1053,8 @@ class IdDiffer {
             if (old_str == new_str) {
               break;
             }
-            diff_.change(fmt::format("{}.{} = \"{}\"", context, name_only, *old_str),
-                         fmt::format("{}.{} = \"{}\"", context, name_only, *new_str));
+            diff_.change(fmt::format("{}.{} = \"{}\"", context, name, *old_str),
+                         fmt::format("{}.{} = \"{}\"", context, name, *new_str));
             break;
           }
         }
@@ -1069,7 +1068,7 @@ class IdDiffer {
                 *cpp_type,
                 reinterpret_cast<const float *>(new_block.data + new_member_offset),
                 elem_num};
-            this->diff_GSpan(old_values, new_values, fmt::format("{}.{}", context, name_only));
+            this->diff_GSpan(old_values, new_values, fmt::format("{}.{}", context, name));
             break;
           }
         }
@@ -1092,9 +1091,8 @@ class IdDiffer {
           if (this->consider_primitive_values_equal(old_value, new_value)) {
             continue;
           }
-          const std::string sub_context = is_array ?
-                                              fmt::format("{}.{}[{}]", context, name_only, i) :
-                                              fmt::format("{}.{}", context, name_only);
+          const std::string sub_context = is_array ? fmt::format("{}.{}[{}]", context, name, i) :
+                                                     fmt::format("{}.{}", context, name);
           diff_.change(fmt::format("{} = {}", sub_context, primitive_value_to_string(old_value)),
                        fmt::format("{} = {}", sub_context, primitive_value_to_string(new_value)));
         }
@@ -1111,9 +1109,8 @@ class IdDiffer {
           if (!old_pointee && !new_pointee) {
             continue;
           }
-          const std::string sub_context = is_array ?
-                                              fmt::format("{}.{}[{}]", context, name_only, i) :
-                                              fmt::format("{}.{}", context, name_only);
+          const std::string sub_context = is_array ? fmt::format("{}.{}[{}]", context, name, i) :
+                                                     fmt::format("{}.{}", context, name);
           PointeeToStringOptions options;
           options.include_identifier = true;
           const std::string old_line = fmt::format(
@@ -1782,7 +1779,7 @@ class IdDiffer {
       return this->get_bNodeLink_identifier(blend_data, data, sdna_struct, ui_identifier);
     }
     if (sdna_struct.type->name == "Attribute") {
-      return this->try_read_alloced_string_member(blend_data, data, sdna_struct, "*name");
+      return this->try_read_alloced_string_member(blend_data, data, sdna_struct, "name");
     }
     if (sdna_struct.type->name == "bNodeTreeInterfacePanel") {
       if (!ui_identifier) {
@@ -1795,7 +1792,7 @@ class IdDiffer {
     }
     if (sdna_struct.type->name == "bNodeTreeInterfaceSocket") {
       if (!ui_identifier) {
-        return this->try_read_alloced_string_member(blend_data, data, sdna_struct, "*identifier");
+        return this->try_read_alloced_string_member(blend_data, data, sdna_struct, "identifier");
       }
     }
     if (ui_identifier) {
@@ -1805,7 +1802,7 @@ class IdDiffer {
         return name;
       }
       if (std::optional<std::string> name = this->try_read_alloced_string_member(
-              blend_data, data, sdna_struct, "*name"))
+              blend_data, data, sdna_struct, "name"))
       {
         return name;
       }
@@ -1833,13 +1830,13 @@ class IdDiffer {
                                                       const bool ui_identifier) const
   {
     const BlendBlock *from_node = this->lookup_local_data(
-        blend_data, data, sdna_struct, "*fromnode", "bNode");
+        blend_data, data, sdna_struct, "fromnode", "bNode");
     const BlendBlock *to_node = this->lookup_local_data(
-        blend_data, data, sdna_struct, "*tonode", "bNode");
+        blend_data, data, sdna_struct, "tonode", "bNode");
     const BlendBlock *from_socket = this->lookup_local_data(
-        blend_data, data, sdna_struct, "*fromsock", "bNodeSocket");
+        blend_data, data, sdna_struct, "fromsock", "bNodeSocket");
     const BlendBlock *to_socket = this->lookup_local_data(
-        blend_data, data, sdna_struct, "*tosock", "bNodeSocket");
+        blend_data, data, sdna_struct, "tosock", "bNodeSocket");
     if (!from_node || !to_node || !from_socket || !to_socket) {
       return std::nullopt;
     }
@@ -2228,8 +2225,8 @@ static int main_do(const int argc, char *argv[])
   options.ignore_pad = true;
   options.add_members_to_ignore(
       "bNode", {"locx", "locy", "width", "height", "ui_order", "location", "type"});
-  options.add_members_to_ignore("bNodeTree", {"view_center", "*owner_id"});
-  options.add_members_to_ignore("bNodeSocket", {"*link", "type"});
+  options.add_members_to_ignore("bNodeTree", {"view_center", "owner_id"});
+  options.add_members_to_ignore("bNodeSocket", {"link", "type"});
   options.add_members_to_ignore(
       "ID", {"session_uid", "recalc_up_to_undo_push", "recalc_after_undo_push", "recalc"});
   options.add_members_to_ignore("CustomData", {"typemap"});
@@ -2238,9 +2235,9 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore("PreviewImage", {"changed_timestamp"});
   options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
   options.add_members_to_ignore("Scene", {"customdata_mask", "customdata_mask_modal"});
-  options.add_members_to_ignore("bNodeLink", {"*fromnode", "*tonode", "*fromsock", "*tosock"});
-  options.add_members_to_ignore("Group", {"*owner_id"});
-  options.add_members_to_ignore("Bone", {"*parent", "constinv"});
+  options.add_members_to_ignore("bNodeLink", {"fromnode", "tonode", "fromsock", "tosock"});
+  options.add_members_to_ignore("Group", {"owner_id"});
+  options.add_members_to_ignore("Bone", {"parent", "constinv"});
   options.add_members_to_ignore("Object", {"constinv"});
   options.add_members_to_ignore("bPoseChannel", {"constinv"});
   options.add_next_prev_ignore_types({"bNode",
@@ -2257,8 +2254,8 @@ static int main_do(const int argc, char *argv[])
                             "flag",
                             SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED |
                                 SOCK_PANEL_COLLAPSED);
-  options.add_id_types_to_ignore({"wmWindowManager", "Screen", "WorkSpace"});
-  options.dont_follow_members.add({"bArmature", "*act_bone"});
+  options.add_id_types_to_ignore({"wmWindowManager", "bScreen", "WorkSpace"});
+  options.dont_follow_members.add({"bArmature", "act_bone"});
   /* These have special handling. */
   options.add_members_to_ignore("IDPropertyData", {"val", "val2"});
 
