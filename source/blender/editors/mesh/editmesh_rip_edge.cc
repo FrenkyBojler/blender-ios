@@ -15,9 +15,7 @@
 #include "BKE_layer.hh"
 
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_math_vector_types.hh"
+#include "BLI_math_matrix.hh"
 
 #include "WM_types.hh"
 
@@ -33,6 +31,7 @@
 
 using blender::float2;
 using blender::float3;
+using blender::float4x4;
 using blender::Vector;
 
 /* uses total number of selected edges around a vertex to choose how to extend */
@@ -109,15 +108,13 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
           if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
             BMVert *v_other = BM_edge_other_vert(e, v);
 
-            float3 v_world, v_other_world, v_dir;
-            mul_v3_m4v3(v_world, obedit->object_to_world().ptr(), v->co);
-            mul_v3_m4v3(v_other_world, obedit->object_to_world().ptr(), v_other->co);
-
-            sub_v3_v3v3(v_dir, v_other_world, v_world);
-            normalize_v3(v_dir);
+            const float4x4 &object_to_world = obedit->object_to_world();
+            const float3 v_world = blender::math::transform_point(object_to_world, float3(v->co));
+            const float3 v_other_world = blender::math::transform_point(object_to_world,
+                                                                        float3(v_other->co));
+            const float3 v_dir = blender::math::normalize(v_other_world - v_world);
 
             float angle_test = angle_normalized_v3v3(mval_dir, v_dir);
-
             if (angle_test < angle_best) {
               angle_best = angle_test;
               e_best = e;
@@ -207,7 +204,6 @@ static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const 
 
   RNA_float_set_array(op->ptr, "direction", ray_dir);
 
-
   return edbm_rip_edge_exec(C, op);
 }
 
@@ -238,5 +234,4 @@ void MESH_OT_rip_edge(wmOperatorType *ot)
                               -1.0f,
                               1.0f);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-
 }
