@@ -160,6 +160,11 @@ static void add_object_relation(
       DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
     }
   }
+  if (object.type == OB_ARMATURE) {
+    if (info.pose) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
+    }
+  }
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -213,9 +218,13 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
         DEG_add_generic_id_relation(ctx->node, id, "Nodes Modifier");
         break;
       }
-      default: {
+      case ID_MA: {
         /* Purposefully don't add relations for materials. While there are material sockets,
          * the pointers are only passed around as handles rather than dereferenced. */
+        break;
+      }
+      default: {
+        /* Other types don't need depsgraph dependencies currently. */
         break;
       }
     }
@@ -517,7 +526,8 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
     if (current_zones == nullptr) {
       return;
     }
-    const auto *lf_graph_info = nodes::ensure_geometry_nodes_lazy_function_graph(*current_tree);
+    const nodes::GeometryNodesLazyFunctionGraphInfo *lf_graph_info =
+        nodes::ensure_geometry_nodes_lazy_function_graph(*current_tree).get();
     if (lf_graph_info == nullptr) {
       return;
     }
@@ -674,7 +684,8 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
   if (final_node == nullptr) {
     return;
   }
-  const auto *lf_graph_info = nodes::ensure_geometry_nodes_lazy_function_graph(*current_tree);
+  const nodes::GeometryNodesLazyFunctionGraphInfo *lf_graph_info =
+      nodes::ensure_geometry_nodes_lazy_function_graph(*current_tree).get();
   if (lf_graph_info == nullptr) {
     return;
   }
@@ -1851,7 +1862,7 @@ static void modifyGeometry(ModifierData *md,
   }
 
   const nodes::GeometryNodesLazyFunctionGraphInfo *lf_graph_info =
-      nodes::ensure_geometry_nodes_lazy_function_graph(tree);
+      nodes::ensure_geometry_nodes_lazy_function_graph(tree).get();
   if (lf_graph_info == nullptr) {
     BKE_modifier_set_error(ctx->object, md, "Cannot evaluate node group");
     geometry_set.clear();
@@ -1971,7 +1982,7 @@ void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
   const Vector<nodes::InferenceValue> group_input_values =
       nodes::get_geometry_nodes_input_inference_values(tree, nmd.settings.properties, scope);
 
-  /* Compute the hash of the input values. This has to be done everytime currently, because there
+  /* Compute the hash of the input values. This has to be done every time currently, because there
    * is no reliable callback yet that is called any of the modifier properties changes. */
   XXH3_state_t *state = XXH3_createState();
   XXH3_64bits_reset(state);
@@ -2013,9 +2024,9 @@ void NodesModifierUsageInferenceCache::reset()
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
   PointerRNA *modifier_ptr = modifier_panel_get_property_pointers(panel, nullptr);
-  nodes::draw_geometry_nodes_modifier_ui(*C, modifier_ptr, *layout);
+  nodes::draw_geometry_nodes_modifier_ui(*C, modifier_ptr, layout);
 }
 
 static void panel_register(ARegionType *region_type)
