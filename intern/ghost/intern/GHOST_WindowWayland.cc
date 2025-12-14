@@ -1417,7 +1417,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
    * #wp_fractional_scale_v1_listener::preferred_scale information before the window is created
    * So leave the buffer scaled up because there is no *guarantee* the fractional scaling support
    * will run which could result in an incorrect buffer scale. */
-  int scale_fractional_from_output;
+  int scale_fractional_from_output = 0;
   int buffer_scale_from_output = 1;
   if (system_->native_pixel_) {
     buffer_scale_from_output = outputs_uniform_scale_or_default(
@@ -1945,6 +1945,11 @@ void GHOST_WindowWayland::clientToScreen(const int32_t inX,
 
 uint16_t GHOST_WindowWayland::getDPIHint()
 {
+  /* Early out if use of DPI scale is disabled. */
+  if (!system_->native_pixel_) {
+    return base_dpi;
+  }
+
   /* No need to lock `server_mutex`
    * (`outputs_changed_update_scale` never changes values in a non-main thread). */
 
