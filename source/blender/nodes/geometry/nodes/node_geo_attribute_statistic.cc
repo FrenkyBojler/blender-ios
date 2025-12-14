@@ -29,17 +29,22 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
+    const bool is_boolean = data_type == CD_PROP_BOOL;
     b.add_input(data_type, "Attribute").hide_value().field_on_all();
 
-    b.add_output(data_type, N_("Mean"));
+    b.add_output(data_type, N_("Mean")).available(!is_boolean);
     b.add_output(data_type, CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Median"))
-        .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
-    b.add_output(data_type, N_("Sum"));
-    b.add_output(data_type, N_("Min"));
-    b.add_output(data_type, N_("Max"));
-    b.add_output(data_type, N_("Range"));
-    b.add_output(data_type, N_("Standard Deviation"));
-    b.add_output(data_type, N_("Variance"));
+        .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
+        .available(!is_boolean);
+    b.add_output(data_type, N_("Sum")).available(!is_boolean);
+    b.add_output(data_type, N_("Min")).available(!is_boolean);
+    b.add_output(data_type, N_("Max")).available(!is_boolean);
+    b.add_output(data_type, N_("Range")).available(!is_boolean);
+    b.add_output(data_type, N_("Standard Deviation")).available(!is_boolean);
+    b.add_output(data_type, N_("Variance")).available(!is_boolean);
+
+    b.add_output<decl::Bool>(N_("Any")).available(is_boolean);
+    b.add_output<decl::Bool>(N_("All")).available(is_boolean);
   }
 }
 
@@ -58,8 +63,9 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSocket &socket)
 {
   switch (socket.type) {
-    case SOCK_FLOAT:
     case SOCK_BOOLEAN:
+      return CD_PROP_BOOL;
+    case SOCK_FLOAT:
     case SOCK_INT:
       return CD_PROP_FLOAT;
     case SOCK_VECTOR:
@@ -90,14 +96,25 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     });
   }
   else {
-    for (const StringRefNull name :
-         {"Mean", "Median", "Sum", "Min", "Max", "Range", "Standard Deviation", "Variance"})
-    {
-      params.add_item(IFACE_(name), [node_type, name, type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node(node_type);
-        node.custom1 = *type;
-        params.update_and_connect_available_socket(node, name);
-      });
+    if (type == CD_PROP_BOOL) {
+      for (const StringRefNull name : {"Any", "All"}) {
+        params.add_item(IFACE_(name), [node_type, name, type](LinkSearchOpParams &params) {
+          bNode &node = params.add_node(node_type);
+          node.custom1 = *type;
+          params.update_and_connect_available_socket(node, name);
+        });
+      }
+    }
+    else {
+      for (const StringRefNull name :
+           {"Mean", "Median", "Sum", "Min", "Max", "Range", "Standard Deviation", "Variance"})
+      {
+        params.add_item(IFACE_(name), [node_type, name, type](LinkSearchOpParams &params) {
+          bNode &node = params.add_node(node_type);
+          node.custom1 = *type;
+          params.update_and_connect_available_socket(node, name);
+        });
+      }
     }
   }
 }
@@ -323,6 +340,72 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
       break;
     }
+    case CD_PROP_BOOL: {
+      const Field<bool> input_field = params.extract_input<Field<bool>>("Attribute");
+      Vector<bool> data;
+      for (const GeometryComponent *component : components) {
+        const std::optional<AttributeAccessor> attributes = component->attributes();
+        if (!attributes.has_value()) {
+          continue;
+        }
+        if (attributes->domain_supported(domain)) {
+          const bke::GeometryFieldContext field_context{*component, domain};
+          fn::FieldEvaluator data_evaluator{field_context, attributes->domain_size(domain)};
+          data_evaluator.add(input_field);
+          data_evaluator.set_selection(selection_field);
+          data_evaluator.evaluate();
+          const VArray<bool> component_data = data_evaluator.get_evaluated<bool>(0);
+          const IndexMask selection = data_evaluator.get_evaluated_selection_as_mask();
+
+          const int next_data_index = data.size();
+          data.resize(next_data_index + selection.size());
+          MutableSpan<bool> selected_data = data.as_mutable_span().slice(next_data_index,
+                                                                         selection.size());
+          array_utils::gather(component_data, selection, selected_data);
+        }
+      }
+
+      bool any = false;
+      bool all = true;
+
+      bool any_required = params.output_is_required("Any");
+      bool all_required = params.output_is_required("All");
+
+      if (any_required && all_required) {
+        if (data.size() != 0) {
+          for (const bool value : data) {
+            any |= value;
+            all &= value;
+            if (any && !all) {
+              break;
+            }
+          }
+        }
+      }
+      else if (any_required) {
+        if (data.size() != 0) {
+          for (const bool value : data) {
+            if (value) {
+              any = true;
+              break;
+            }
+          }
+        }
+      }
+      else if (all_required) {
+        if (data.size() != 0) {
+          for (const bool value : data) {
+            if (!value) {
+              all = false;
+              break;
+            }
+          }
+        }
+      }
+
+      params.set_output("Any", any);
+      params.set_output("All", all);
+    }
     default:
       break;
   }
@@ -341,7 +424,7 @@ static void node_rna(StructRNA *srna)
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
         return enum_items_filter(rna_enum_attribute_type_items, [](const EnumPropertyItem &item) {
-          return ELEM(item.value, CD_PROP_FLOAT, CD_PROP_FLOAT3);
+          return ELEM(item.value, CD_PROP_FLOAT, CD_PROP_FLOAT3, CD_PROP_BOOL);
         });
       });
 
