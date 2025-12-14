@@ -21,7 +21,6 @@ using rich_sdna::Type;
 struct BlendBlock;
 struct BlendId;
 struct BlendSDNA;
-struct BlendStruct;
 class BlendQuery;
 
 struct BlendBlock {
@@ -38,8 +37,11 @@ struct BlendId {
 
 struct BlendSDNA {
   std::unique_ptr<RichSDNA> sdna;
-  const Struct *id_struct = nullptr;
-  const StructMember *id_name_member = nullptr;
+  const Struct *ID = nullptr;
+  const StructMember *ID_name = nullptr;
+  const Struct *ListBase = nullptr;
+  const StructMember *ListBase_first = nullptr;
+  const StructMember *ListBase_last = nullptr;
 };
 
 class BlendQuery {
@@ -53,6 +55,19 @@ class BlendQuery {
  public:
   static std::unique_ptr<BlendQuery> from_file(StringRef path);
   static std::unique_ptr<BlendQuery> from_reader(FileReader &reader);
+
+  const BlendSDNA &sdna() const;
+  Span<BlendId> ids() const;
 };
+
+inline const BlendSDNA &BlendQuery::sdna() const
+{
+  return sdna_;
+}
+
+inline Span<BlendId> BlendQuery::ids() const
+{
+  return ids_;
+}
 
 }  // namespace blender::blend_query

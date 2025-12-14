@@ -20,18 +20,33 @@ using rich_sdna::Type;
 static std::optional<BlendSDNA> prepare_blend_sdna(std::unique_ptr<RichSDNA> rich_sdna)
 {
   BlendSDNA blend_sdna;
-  blend_sdna.id_struct = rich_sdna->try_find_struct("ID");
-  if (!blend_sdna.id_struct) {
+  blend_sdna.ID = rich_sdna->try_find_struct("ID");
+  if (!blend_sdna.ID) {
     return std::nullopt;
   }
-  blend_sdna.id_name_member = blend_sdna.id_struct->members.lookup_key_default_as("name", nullptr);
-  if (!blend_sdna.id_name_member) {
+  blend_sdna.ID_name = blend_sdna.ID->members.lookup_key_default_as("name", nullptr);
+  if (!blend_sdna.ID_name) {
     return std::nullopt;
   }
-  if (!blend_sdna.id_name_member->is_char_array()) {
+  if (!blend_sdna.ID_name->is_char_array()) {
     return std::nullopt;
   }
-  if (blend_sdna.id_name_member->elem_num < 10) {
+  if (blend_sdna.ID_name->elem_num < 10) {
+    return std::nullopt;
+  }
+  blend_sdna.ListBase = rich_sdna->try_find_struct("ListBase");
+  if (!blend_sdna.ListBase) {
+    return std::nullopt;
+  }
+  if (blend_sdna.ListBase->members.size() != 2) {
+    return std::nullopt;
+  }
+  blend_sdna.ListBase_first = blend_sdna.ListBase->members[0];
+  if (!blend_sdna.ListBase_first->is_single_pointer()) {
+    return std::nullopt;
+  }
+  blend_sdna.ListBase_last = blend_sdna.ListBase->members[1];
+  if (!blend_sdna.ListBase_last->is_single_pointer()) {
     return std::nullopt;
   }
   blend_sdna.sdna = std::move(rich_sdna);
@@ -47,7 +62,7 @@ static bool is_specific_id_struct(const BlendSDNA &sdna, const Struct &sdna_stru
   if (first_member.name != "id") {
     return false;
   }
-  if (first_member.type != sdna.id_struct->type) {
+  if (first_member.type != sdna.ID->type) {
     return false;
   }
   return true;
@@ -179,8 +194,7 @@ std::unique_ptr<BlendQuery> BlendQuery::from_reader(FileReader &reader)
         continue;
       }
       const std::optional<StringRefNull> name_with_prefix = get_c_string_in_buffer(
-          {block.data + blend->sdna_.id_name_member->offset_in_struct,
-           blend->sdna_.id_name_member->elem_num});
+          {block.data + blend->sdna_.ID_name->offset_in_struct, blend->sdna_.ID_name->elem_num});
       if (!name_with_prefix) {
         return nullptr;
       }
