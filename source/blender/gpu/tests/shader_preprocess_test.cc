@@ -397,6 +397,22 @@ template void func(float a);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
+  {
+    string input = R"(a.template func<float, 1>(a);)";
+    string expect = R"(a.         funcTfloatT1(a);)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(this->template func<float, 1>(a);)";
+    string expect = R"(this_.funcTfloatT1(a);)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
 }
 GPU_TEST(preprocess_template);
 
@@ -647,19 +663,6 @@ struct SRT {
 };
 )";
     string expect = R"(
-struct SRT {
-                           T  a;
-#line 12
-};
-#line 5
-       SRT SRT_new_()
-{
-  SRT result;
-  result.a = T_new_();
-  return result;
-#line 3
-}
-#line 5
 #define access_SRT_a() T_new_()
 #ifdef CREATE_INFO_RES_PASS_SRT
 CREATE_INFO_RES_PASS_SRT
@@ -673,7 +676,23 @@ CREATE_INFO_RES_GEOMETRY_SRT
 #ifdef CREATE_INFO_RES_SHARED_VARS_SRT
 CREATE_INFO_RES_SHARED_VARS_SRT
 #endif
-#line 6
+#line 2
+struct SRT {
+                           T  a;
+#line 12
+};
+#ifndef GPU_METAL
+SRT SRT_new_();
+#endif
+#line 5
+       SRT SRT_new_()
+{
+  SRT result;
+  result.a = T_new_();
+  return result;
+#line 3
+}
+#line 5
 )";
     string error;
     string output = process_test_string(input, error);
@@ -733,28 +752,6 @@ struct SRT {
 };
 )";
     string expect = R"(
-struct SRT {
-                           T  a;
-#line 16
-};
-#line 5
-
-#if defined(CREATE_INFO_SRT)
-#line 5
-  void method(                   inout SRT _inout_sta this_ _inout_end, int t) {
-    srt_access(SRT, a);
-  }
-
-#endif
-#line 9
-       SRT SRT_new_()
-{
-  SRT result;
-  result.a = T_new_();
-  return result;
-#line 7
-}
-#line 9
 #define access_SRT_a() T_new_()
 #ifdef CREATE_INFO_RES_PASS_SRT
 CREATE_INFO_RES_PASS_SRT
@@ -768,7 +765,31 @@ CREATE_INFO_RES_GEOMETRY_SRT
 #ifdef CREATE_INFO_RES_SHARED_VARS_SRT
 CREATE_INFO_RES_SHARED_VARS_SRT
 #endif
-#line 10
+#line 2
+struct SRT {
+                           T  a;
+#line 16
+};
+#ifndef GPU_METAL
+void method(_ref(SRT ,this_), int t);
+SRT SRT_new_();
+#endif
+#line 5
+
+#if defined(CREATE_INFO_SRT)
+#line 5
+  void method(_ref(SRT ,this_), int t) {
+    srt_access(SRT, a);
+  }
+#endif
+       SRT SRT_new_()
+{
+  SRT result;
+  result.a = T_new_();
+  return result;
+#line 7
+}
+#line 9
 )";
     string error;
     string output = process_test_string(input, error);
@@ -791,7 +812,7 @@ void func([[resource_table]] Resources &srt)
     test;
   }
 
-  if (srt.use_color_band) [[static_branch]] {
+  if (srt.use_color_band == 1) [[static_branch]] {
     test;
   } else {
     test;
@@ -816,19 +837,19 @@ void func([[resource_table]] Resources &srt)
 
 #if defined(CREATE_INFO_Resources)
 #line 2
-void func(                   inout Resources _inout_sta srt _inout_end)
+void func(_ref(Resources ,srt))
 {
 
-#if Resources_use_color_band
+#if SRT_CONSTANT_use_color_band
 #line 4
                                                                {
     test;
   }
 #endif
 
-#if Resources_use_color_band
+#if SRT_CONSTANT_use_color_band== 1
 #line 8
-                                                               {
+                                                                   {
     test;
   }
 #else
@@ -838,24 +859,24 @@ void func(                   inout Resources _inout_sta srt _inout_end)
   }
 #endif
 
-#if Resources_use_color_band
+#if SRT_CONSTANT_use_color_band
 #line 14
                                                                {
     test;
   }
-#elif Resources_use_color_band
+#elif SRT_CONSTANT_use_color_band
 #line 16
                                                                       {
     test;
   }
 #endif
 
-#if Resources_use_color_band
+#if SRT_CONSTANT_use_color_band
 #line 20
                                                                {
     test;
   }
-#elif Resources_use_color_band
+#elif SRT_CONSTANT_use_color_band
 #line 22
                                                                       {
     test;
@@ -1193,16 +1214,20 @@ struct S {
 struct NS_S {
 #line 11
 int _pad;};
+
+#ifndef GPU_METAL
+NS_S NS_S_static_method(NS_S s);
+NS_S other_method(_ref(NS_S ,this_), int s);
+#endif
 #line 4
          NS_S NS_S_static_method(NS_S s) {
     return NS_S(0);
   }
-  NS_S other_method(inout NS_S _inout_sta this_ _inout_end, int s) {
+  NS_S other_method(_ref(NS_S ,this_), int s) {
     some_method(this_);
     return NS_S(0);
   }
-#line 12
-
+#line 13
 )";
     string error;
     string output = process_test_string(input, error);
@@ -1451,6 +1476,9 @@ struct T {int _pad;};
 struct U {
 
 int _pad;};
+#ifndef GPU_METAL
+void U_fn();
+#endif
 #line 5
          void U_fn() {}
 #line 7
@@ -1522,6 +1550,12 @@ struct S {
   int another_member;
 #line 29
 };
+
+#ifndef GPU_METAL
+S S_construct();
+S function(_ref(S ,this_), int i);
+int size(const S this_);
+#endif
 #line 8
          S S_construct()
   {
@@ -1530,20 +1564,20 @@ struct S {
     a.this_member = 0;
     return a;
   }
-#line 18
-  S function(inout S _inout_sta this_ _inout_end, int i)
+
+  #line 18
+  S function(_ref(S ,this_), int i)
   {
     this_.member = i;
-    this_member++;
+    this_.this_member++;
     return this_;
   }
-#line 25
+
   int size(const S this_)
   {
     return this_.member;
   }
-#line 30
-
+#line 31
 void main()
 {
   S s = S_construct();
@@ -1562,6 +1596,60 @@ void main()
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct A {
+  int a;
+  uint b;
+  float fn1() { return a; }
+  float fn2() { int fn2; return fn1(); }
+  static float fn3() { int a; return a; }
+};
+)";
+    string expect = R"(
+struct A {
+  int a;
+  uint b;
+#line 8
+};
+#ifndef GPU_METAL
+float fn1(_ref(A ,this_));
+float fn2(_ref(A ,this_));
+float A_fn3();
+#endif
+#line 5
+  float fn1(_ref(A ,this_)) { return this_.a; }
+  float fn2(_ref(A ,this_)) { int fn2; return fn1(this_); }
+         float A_fn3() { int a; return a; }
+#line 9
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct A {
+  int a;
+  float fn1(int a) { return a; }
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Class member shadowing.");
+  }
+  {
+    string input = R"(
+struct A {
+  int a;
+  float fn1() { int a; return a; }
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Class member shadowing.");
   }
   {
     string input = R"(
@@ -1599,7 +1687,7 @@ float fn([[resource_table]] SRT &srt) {
 
 #if defined(CREATE_INFO_SRT)
 #line 2
-float fn(                   inout SRT _inout_sta srt _inout_end) {
+float fn(_ref(SRT ,srt)) {
   return srt_access(SRT, member);
 }
 
@@ -1632,7 +1720,7 @@ float fn([[resource_table]] SRT &srt) {
 
 #if defined(CREATE_INFO_SRT)
 #line 2
-float fn(                   inout SRT _inout_sta srt _inout_end) {
+float fn(_ref(SRT ,srt)) {
 
   return srt_access(OtherSRT, member);
 }

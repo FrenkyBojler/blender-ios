@@ -77,7 +77,8 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
       return count;
     }();
 
-    KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(selected_count,
+    /* Allocate one extra element, to use it as null-delimiter. */
+    KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(selected_count + 1,
                                                               "Selected Key Blocks");
 
     selected_count = 0;
@@ -93,6 +94,8 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
         selected_count++;
       }
     }
+    BLI_assert_msg(selected_keys_[selected_count] == nullptr,
+                   "Expected last element to be null (null-delimiter)");
     return selected_keys_;
   }
 };
@@ -211,8 +214,13 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
         &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
 
-    if (shape_key_.index > 0) {
-      sub.prop(&shapekey_ptr, "value", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    if (shape_key_.key->type == KEY_NORMAL) {
+      sub.prop(&shapekey_ptr, "frame", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    }
+    else {
+      if (shape_key_.index > 0) {
+        sub.prop(&shapekey_ptr, "value", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+      }
     }
 
     sub.prop(&shapekey_ptr, "mute", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
