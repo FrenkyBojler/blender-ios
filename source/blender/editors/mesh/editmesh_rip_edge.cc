@@ -86,10 +86,10 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
             }
           }
         }
-
         if (tot_sel != 1) {
           e_best = nullptr;
         }
+
         /* only one edge selected, operate on that */
         if (e_best) {
           goto found_edge;
@@ -195,7 +195,6 @@ static wmOperatorStatus edbm_rip_edge_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus edbm_rip_edge_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
-
   const float2 mval_fl = {float(event->mval[0]), float(event->mval[1])};
 
   float3 ray_start, ray_dir;
