@@ -53,7 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   });
   b.add_output<decl::Float>("Alpha");
-}
+};
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
