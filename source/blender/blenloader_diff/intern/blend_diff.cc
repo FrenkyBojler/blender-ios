@@ -542,7 +542,6 @@ class IdDiffer {
   struct PerBlendData {
     const BlendQuery &blend;
     const BlendId &id_data;
-    const RichSDNA &sdna;
     Map<const BlendBlock *, RawBufferType> raw_buffer_types;
   };
 
@@ -579,13 +578,8 @@ class IdDiffer {
            const BlendQuery &old_blend,
            const BlendQuery &new_blend,
            const BlendId &old_id_data,
-           const BlendId &new_id_data,
-           const RichSDNA &old_sdna,
-           const RichSDNA &new_sdna)
-      : diff_(diff),
-        options_(options),
-        old_{old_blend, old_id_data, old_sdna},
-        new_{new_blend, new_id_data, new_sdna}
+           const BlendId &new_id_data)
+      : diff_(diff), options_(options), old_{old_blend, old_id_data}, new_{new_blend, new_id_data}
   {
   }
 
@@ -608,8 +602,10 @@ class IdDiffer {
         continue;
       }
 
-      const Struct *old_struct = old_.sdna.try_find_struct(match.old_block->bhead.SDNAnr);
-      const Struct *new_struct = new_.sdna.try_find_struct(match.new_block->bhead.SDNAnr);
+      const Struct *old_struct = old_.blend.sdna().sdna->try_find_struct(
+          match.old_block->bhead.SDNAnr);
+      const Struct *new_struct = new_.blend.sdna().sdna->try_find_struct(
+          match.new_block->bhead.SDNAnr);
       if (!old_struct || !new_struct) {
         continue;
       }
@@ -636,7 +632,8 @@ class IdDiffer {
     const Struct &id_struct = *blend_data.id_data.sdna_struct;
     this->gather_raw_buffer_types__struct(blend_data, *blend_data.id_data.id_block, 0, id_struct);
     for (const BlendBlock &block : blend_data.id_data.internal_blocks) {
-      const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr);
+      const Struct *sdna_struct = blend_data.blend.sdna().sdna->try_find_struct(
+          block.bhead.SDNAnr);
       if (!sdna_struct) {
         continue;
       }
@@ -722,7 +719,7 @@ class IdDiffer {
     if (storage_type != int(bke::AttrStorageType::Array)) {
       return;
     }
-    const Struct *sdna_AttributeArray = blend_data.sdna.try_find_struct(
+    const Struct *sdna_AttributeArray = blend_data.blend.sdna().sdna->try_find_struct(
         storage_block->bhead.SDNAnr);
     if (!sdna_AttributeArray || sdna_AttributeArray->type->name != "AttributeArray") {
       return;
@@ -1250,7 +1247,8 @@ class IdDiffer {
       if (!old_pointee) {
         continue;
       }
-      const Struct &old_struct = *old_.sdna.try_find_struct(old_pointee.block->bhead.SDNAnr);
+      const Struct &old_struct = *old_.blend.sdna().sdna->try_find_struct(
+          old_pointee.block->bhead.SDNAnr);
       const std::string identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_pointee.block->data, old_struct, i);
       if (!old_pointee_map.add(identifier, {old_pointee, i})) {
@@ -1274,7 +1272,8 @@ class IdDiffer {
         }
         continue;
       }
-      const Struct &new_struct = *new_.sdna.try_find_struct(new_pointee.block->bhead.SDNAnr);
+      const Struct &new_struct = *new_.blend.sdna().sdna->try_find_struct(
+          new_pointee.block->bhead.SDNAnr);
       const std::string identifier = this->get_struct_identifier_with_index_fallback(
           new_, new_pointee.block->data, new_struct, i);
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
@@ -1307,7 +1306,8 @@ class IdDiffer {
       if (!old_pointee) {
         continue;
       }
-      const Struct &old_struct = *old_.sdna.try_find_struct(old_pointee.block->bhead.SDNAnr);
+      const Struct &old_struct = *old_.blend.sdna().sdna->try_find_struct(
+          old_pointee.block->bhead.SDNAnr);
       const std::string identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_pointee.block->data, old_struct, i);
       if (new_pointee_map.contains(identifier)) {
@@ -1494,7 +1494,8 @@ class IdDiffer {
     Vector<Pointee> pointees;
     uint64_t next_address = first_address;
     while (const Pointee pointee = this->lookup_pointee(blend_data, next_address)) {
-      const Struct *sdna_struct = blend_data.sdna.try_find_struct(pointee.block->bhead.SDNAnr);
+      const Struct *sdna_struct = blend_data.blend.sdna().sdna->try_find_struct(
+          pointee.block->bhead.SDNAnr);
       if (!sdna_struct) {
         return {};
       }
@@ -1596,7 +1597,9 @@ class IdDiffer {
       BLI_str_format_byte_unit(size_buf, bytes.size(), true);
       return fmt::format("hash({}) -> 0x{:x}", size_buf, hash);
     }
-    if (const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr)) {
+    if (const Struct *sdna_struct = blend_data.blend.sdna().sdna->try_find_struct(
+            block.bhead.SDNAnr))
+    {
       const bool is_single = block.bhead.nr == 1;
       const std::string count_str = is_single ? "" : fmt::format("{}x ", block.bhead.nr);
       const std::optional<std::string> user_identifier =
@@ -1625,8 +1628,8 @@ class IdDiffer {
     if (old_is_raw != new_is_raw) {
       return;
     }
-    const Struct *old_struct = old_.sdna.try_find_struct(old_block.bhead.SDNAnr);
-    const Struct *new_struct = new_.sdna.try_find_struct(new_block.bhead.SDNAnr);
+    const Struct *old_struct = old_.blend.sdna().sdna->try_find_struct(old_block.bhead.SDNAnr);
+    const Struct *new_struct = new_.blend.sdna().sdna->try_find_struct(new_block.bhead.SDNAnr);
     if (old_struct && new_struct) {
       if (old_struct->type->name != new_struct->type->name) {
         return;
@@ -1648,8 +1651,8 @@ class IdDiffer {
     if (old_block.bhead.nr >= 2 || new_block.bhead.nr >= 2) {
       return std::nullopt;
     }
-    const Struct *old_struct = old_.sdna.try_find_struct(old_block.bhead.SDNAnr);
-    const Struct *new_struct = new_.sdna.try_find_struct(new_block.bhead.SDNAnr);
+    const Struct *old_struct = old_.blend.sdna().sdna->try_find_struct(old_block.bhead.SDNAnr);
+    const Struct *new_struct = new_.blend.sdna().sdna->try_find_struct(new_block.bhead.SDNAnr);
     if (!old_struct || !new_struct) {
       return std::nullopt;
     }
@@ -1794,8 +1797,9 @@ class IdDiffer {
     if (!from_node || !to_node || !from_socket || !to_socket) {
       return std::nullopt;
     }
-    const Struct &struct_bNode = *blend_data.sdna.try_find_struct("bNode");
-    const Struct &struct_bNodeSocket = *blend_data.sdna.try_find_struct("bNodeSocket");
+    const Struct &struct_bNode = *blend_data.blend.sdna().sdna->try_find_struct("bNode");
+    const Struct &struct_bNodeSocket = *blend_data.blend.sdna().sdna->try_find_struct(
+        "bNodeSocket");
     const std::optional<std::string> from_node_id = this->get_struct_identifier(
         blend_data, from_node->data, struct_bNode, ui_identifier);
     const std::optional<std::string> to_node_id = this->get_struct_identifier(
@@ -1874,14 +1878,7 @@ static AllIdDiffLines write_diff_ids(const DiffOptions &options,
       const BlendId &old_id_data = *id_pairs[i].first;
       const BlendId &new_id_data = *id_pairs[i].second;
       DiffLines id_diff;
-      IdDiffer id_differ(id_diff,
-                         options,
-                         old_blend,
-                         new_blend,
-                         old_id_data,
-                         new_id_data,
-                         *old_blend.sdna().sdna,
-                         *new_blend.sdna().sdna);
+      IdDiffer id_differ(id_diff, options, old_blend, new_blend, old_id_data, new_id_data);
       id_differ.run();
       all_diffs.changed_ids[i].first = new_id_data.name;
       all_diffs.changed_ids[i].second = std::move(id_diff);
