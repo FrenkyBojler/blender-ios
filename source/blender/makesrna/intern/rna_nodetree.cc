@@ -10178,6 +10178,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeExtrudeMesh");
   define("GeometryNode", "GeometryNodeFaceOfCorner");
   define("GeometryNode", "GeometryNodeFieldAtIndex");
+  define("GeometryNode", "GeometryNodeFieldAnyAll");
   define("GeometryNode", "GeometryNodeFieldAverage");
   define("GeometryNode", "GeometryNodeFieldMinAndMax");
   define("GeometryNode", "GeometryNodeFieldOnDomain");

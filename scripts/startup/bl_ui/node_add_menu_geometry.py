@@ -729,6 +729,7 @@ class NODE_MT_gn_utilities_field_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeAccumulateField")
         self.node_operator(layout, "GeometryNodeFieldAtIndex")
         self.node_operator(layout, "GeometryNodeFieldOnDomain")
+        self.node_operator(layout, "GeometryNodeFieldAnyAll")
         self.node_operator(layout, "GeometryNodeFieldAverage")
         self.node_operator(layout, "GeometryNodeFieldMinAndMax")
         self.node_operator(layout, "GeometryNodeFieldVariance")
