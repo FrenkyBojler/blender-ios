@@ -7,6 +7,9 @@ set(INC
 
 set(SRC
   intern/blend_diff.cc
+  intern/blend_query.cc
+
+  intern/blend_query.hh
 )
 
 set(LIB

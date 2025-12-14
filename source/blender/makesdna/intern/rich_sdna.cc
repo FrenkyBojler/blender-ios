@@ -329,7 +329,9 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const i
       }
       sdna_type.opt_primitive_type = primitive_type_info->type;
     }
-    rich_sdna->types.add(&sdna_type);
+    if (!rich_sdna->types.add(&sdna_type)) {
+      return nullptr;
+    }
   }
   for (const int64_t struct_i : parsed->structs.index_range()) {
     const ParsedSdnaBuffer::StructItem &raw_struct = parsed->structs[struct_i];
@@ -360,9 +362,13 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const i
       sdna_member.raw_name = raw_member_name;
       sdna_member.name = allocator.copy_string(strip_name(raw_member_name.c_str()));
       sdna_member.parent = &sdna_struct;
-      sdna_struct.members.add(&sdna_member);
+      if (!sdna_struct.members.add(&sdna_member)) {
+        return nullptr;
+      }
     }
-    rich_sdna->structs.add(&sdna_struct);
+    if (!rich_sdna->structs.add(&sdna_struct)) {
+      return nullptr;
+    }
   }
   for (const Struct *sdna_struct_const : rich_sdna->structs) {
     Struct &sdna_struct = const_cast<Struct &>(*sdna_struct_const);
@@ -384,6 +390,9 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const i
       }
       sdna_member.size_in_bytes = sdna_member.elem_size * sdna_member.elem_num;
       offset += sdna_member.size_in_bytes;
+    }
+    if (offset != sdna_struct.type->size_in_bytes) {
+      return nullptr;
     }
   }
 

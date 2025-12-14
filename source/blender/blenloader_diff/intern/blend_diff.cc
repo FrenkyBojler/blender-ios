@@ -30,6 +30,8 @@
 #include "DNA_rich_sdna.hh"
 #include "DNA_sdna_types.h"
 
+#include "blend_query.hh"
+
 namespace blender::blend_diff {
 
 using rich_sdna::PrimitiveType;
@@ -2141,6 +2143,22 @@ static int main_do(const int argc, char *argv[])
   }
   const StringRefNull file_old = argv[1];
   const StringRefNull file_new = argv[2];
+
+  std::unique_ptr<blend_query::BlendQuery> old_blend = blend_query::BlendQuery::from_file(
+      file_old);
+  std::unique_ptr<blend_query::BlendQuery> new_blend = blend_query::BlendQuery::from_file(
+      file_new);
+
+  if (!old_blend) {
+    fmt::println(stderr, "Unable to old read .blend file: {}", file_old);
+    return 1;
+  }
+  if (!new_blend) {
+    fmt::println(stderr, "Unable to new read .blend file: {}", file_new);
+    return 1;
+  }
+
+  return 0;
 
   FileReader *file_reader_old = BLO_file_reader_uncompressed_from_path(file_old.c_str());
   FileReader *file_reader_new = BLO_file_reader_uncompressed_from_path(file_new.c_str());
