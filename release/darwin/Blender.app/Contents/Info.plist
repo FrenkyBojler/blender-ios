@@ -56,7 +56,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Blender needs microphone access for audio input.</string>
+	<string>A Blender Extension wants to use your microphone.</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
