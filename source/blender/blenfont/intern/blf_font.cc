@@ -527,7 +527,8 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
     this->segment.font->hb_font = hb_ft_font_create_referenced(this->segment.font->face);
     hb_ot_font_set_funcs(this->segment.font->hb_font);
   }
-  hb_font_set_scale(this->segment.font->hb_font, int(font->size * 64.0f), int(font->size * 64.0f));
+  hb_font_set_scale(
+      this->segment.font->hb_font, ft_pix_from_float(font->size), ft_pix_from_float(font->size));
 
   hb_shape_full(this->segment.font->hb_font,
                 this->hb_buf,
@@ -544,7 +545,7 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   }
   this->segment.glyphs.resize(this->segment.glyph_count);
   int cwidth = std::max(gc->fixed_width, 1);
-  int pen_x = this->width * 64;
+  int pen_x = ft_pix_from_int(this->width);
   int max_width = pen_x;
   this->segment.gc = (!gc || this->segment.font != font) ?
                          blf_glyph_cache_acquire(this->segment.font) :
