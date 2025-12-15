@@ -443,13 +443,10 @@ void nav_initialize(FileSelectParams *params,
                     const blender::bke::path_templates::VariableMap &variables);
 
 /**
- * Handle user input of a path (potentially with template variables) via text.
+ * Handle textual user input of a path.
  *
  * Processes user-entered paths that may contain template syntax (e.g., `//render/{fps}/`).
  * Resolves template variables and updates all path fields in FileSelectParams accordingly.
- *
- * NOTE: Caller must ensure variables is valid (non-null). Only call when template
- * variables are available.
  *
  * \param params: FileSelectParams structure to update with new path information.
  * \param input_path: User-entered path string (may contain template variable syntax).
