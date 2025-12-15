@@ -5142,7 +5142,7 @@ static void rna_generate_header(BlenderRNA * /*brna*/, FILE *f)
     fprintf(f, "/**************** %s ****************/\n\n", srna->name);
 
     while (srna) {
-      fprintf(f, "extern StructRNA RNA_%s;\n", srna->identifier);
+      fprintf(f, "extern StructRNA *RNA_%s;\n", srna->identifier);
       srna = srna->base;
     }
     fprintf(f, "\n");
