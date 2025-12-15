@@ -1293,7 +1293,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
     if (is_undo) {
       /* Always write placeholders for all linked IDs in undo case. This allows to properly remove
        * linked data that should not exist on undo/redo. See also #read_undo_move_libmain_data,
-       * [other readfile.cc functions using this data]. */
+       * #read_libblock_undo_restore_linked and #read_undo_libraries_cleanup_unused_ids. */
       ids_used_from_library = ids;
     }
     else {

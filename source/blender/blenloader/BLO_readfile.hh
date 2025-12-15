@@ -577,7 +577,7 @@ struct ID_Readfile_Data {
 
     /**
      * Mark IDs used by 'no undo' IDs (e.g. brush dependencies). This is currently used to ensure
-     * that all linked 'no undo' IDs are preserved and remain fuly valid across undo steps (also
+     * that all linked 'no undo' IDs are preserved and remain fully valid across undo steps (also
      * used to tag libraries containing such no-undo linked IDs).
      */
     bool undo_is_dependency_of_no_undo_id : 1;

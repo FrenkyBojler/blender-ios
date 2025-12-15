@@ -553,7 +553,7 @@ typedef struct Library {
 
   /** Flags defining specific characteristics of a library. See #LibraryFlag. */
   uint16_t flag;
-  /** Library runtime tags need to be preserved in undo (memfile) case. */
+  /** #LibraryRuntime::tag need to be preserved in undo (memfile) case (#eLibrary_Tag). */
   uint16_t undo_runtime_tag;
   char _pad[4];
 
