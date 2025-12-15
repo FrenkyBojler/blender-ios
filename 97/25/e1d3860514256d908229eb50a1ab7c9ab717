@@ -1,1 +1,2 @@
 Referenced by pull request #151494, Fix: shapekey test for ASAN
+Referenced by pull request #151664, Fix: Out of bounds memory access with curves of size 1
