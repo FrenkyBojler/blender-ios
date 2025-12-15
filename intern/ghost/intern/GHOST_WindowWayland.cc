@@ -81,7 +81,7 @@ struct GWL_WindowCSD {
   /** Track the active type, intersecting the pointing device. */
   GHOST_TCSD_Type active_type = GHOST_kCSDTypeBody;
   /** For tracking double click/drag. */
-  GHOST_CSD_EventState event_state = {0};
+  GHOST_CSD_EventState event_state = {{0}};
 };
 
 #endif /* WITH_GHOST_CSD */
@@ -872,7 +872,7 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 
   if (dpi_changed) {
     GHOST_SystemWayland *system = win->ghost_system;
-    system->pushEvent(new GHOST_Event(
+    system->pushEvent(std::make_unique<GHOST_Event>(
         system->getMilliSeconds(), GHOST_kEventWindowDPIHintChanged, win->ghost_window));
   }
 
@@ -922,13 +922,17 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
     else {
       GHOST_SystemWayland *system = win->ghost_system;
       const GHOST_CSD_Params &params = system->getWindowCSD();
+      const GHOST_CSD_Layout &button_layout = system->getWindowCSD_Layout();
 
       const int32_t fractional_scale[2] = {
           GHOST_CSD_DPI_FRACTIONAL_BASE,
           win->ghost_window->getDPIHint(),
       };
-      xdg_csd->csd_elems_num = params.layout_callback(
-          win->frame.size, fractional_scale, gwl_window_state_get(win), xdg_csd->csd_elems);
+      xdg_csd->csd_elems_num = params.layout_callback(win->frame.size,
+                                                      fractional_scale,
+                                                      gwl_window_state_get(win),
+                                                      &button_layout,
+                                                      xdg_csd->csd_elems);
 
       if (state_changed) {
         /* NOTE(@ideasman42) This is not technically correct because after the
@@ -1691,7 +1695,7 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
   }
 
 #ifdef WITH_GHOST_CSD
-  if (window_->xdg_decor) {
+  if (window_->xdg_csd) {
     delete window_->xdg_csd;
     window_->xdg_csd = nullptr;
   }
@@ -2140,7 +2144,7 @@ const std::vector<GWL_Output *> &GHOST_WindowWayland::outputs_get()
 GHOST_TSuccess GHOST_WindowWayland::close()
 {
   return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowClose, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowClose, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::activate()
@@ -2161,7 +2165,7 @@ GHOST_TSuccess GHOST_WindowWayland::activate()
     }
   }
   const GHOST_TSuccess success = system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowActivate, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowActivate, this));
   return success;
 }
 
@@ -2179,23 +2183,23 @@ GHOST_TSuccess GHOST_WindowWayland::deactivate()
       system_->getWindowManager()->setWindowInactive(this);
     }
   }
-  const GHOST_TSuccess success = system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
+  const GHOST_TSuccess success = system_->pushEvent_maybe_pending(std::make_unique<GHOST_Event>(
+      system_->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
   return success;
 }
 
 GHOST_TSuccess GHOST_WindowWayland::notify_size()
 {
   return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowSize, this));
+      std::make_unique<GHOST_Event>(system_->getMilliSeconds(), GHOST_kEventWindowSize, this));
 }
 
 GHOST_TSuccess GHOST_WindowWayland::notify_decor_redraw()
 {
   /* NOTE: we want to `swapBuffers`, however this may run from a thread and
    * when this windows OpenGL context is not active, so send and update event instead. */
-  return system_->pushEvent_maybe_pending(
-      new GHOST_Event(system_->getMilliSeconds(), GHOST_kEventWindowUpdateDecor, this));
+  return system_->pushEvent_maybe_pending(std::make_unique<GHOST_Event>(
+      system_->getMilliSeconds(), GHOST_kEventWindowUpdateDecor, this));
 }
 
 /** \} */
