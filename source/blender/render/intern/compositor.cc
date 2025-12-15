@@ -488,8 +488,8 @@ class Compositor {
    * might be different from the current values returned by the context, since the user might have
    * changed them since the last evaluation. See the needs_to_be_recreated method for more info on
    * why those are needed. */
-  bool last_evaluation_used_gpu_;
-  compositor::ResultPrecision last_evaluation_precision_;
+  bool last_evaluation_used_gpu_ = false;
+  compositor::ResultPrecision last_evaluation_precision_ = compositor::ResultPrecision::Half;
 
  public:
   Compositor(Render &render) : render_(render) {}
