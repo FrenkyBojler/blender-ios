@@ -419,7 +419,8 @@ bool searchbox_event(
     return true;
   }
   else if (data->mmb_panning && type == MOUSEMOVE) {
-    int delta = (data->mmb_panning_last_y - event->xy[1]) / 16;
+    const int delta = (data->mmb_panning_last_y - event->xy[1]) / UI_UNIT_Y *
+                      (event->flag & WM_EVENT_SCROLL_INVERT ? -1 : 1);
     if (delta) {
       searchbox_select(C, region, but, delta);
       data->mmb_panning_last_y = event->xy[1];
