@@ -87,7 +87,10 @@ static bool is_within_template_bounds(const char *template_path,
  * stayed within template bounds, then reconstructs appropriate template syntax:
  * - Exact match: Return original template unchanged
  * - Going deeper: Append extra path components to template
- * - Going up: Remove directory levels from template path
+ * - Going up: Remove directory level from template path (only one level up supported)
+ *
+ * NOTE: This is called when browsing the directory via UI, changes occur one level at a
+ * time. Therefore jumping multiple levels is only handled by `nav_handle_text_input`.
  *
  * \return true if the update was successful and the template was preserved,
  *         false if navigation went outside template bounds.
