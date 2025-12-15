@@ -137,9 +137,6 @@ class ConditionalDownloader:
     def _download_to_file(self, http_req_descr: RequestDescription, local_path: Path) -> None:
         """Same as download_to_file(), but without the exception handling."""
 
-        import os
-        import tempfile
-
         http_meta = self._metadata_if_valid(http_req_descr, local_path)
         self._reporter.download_starts(http_req_descr)
 
@@ -150,13 +147,11 @@ class ConditionalDownloader:
         # Download to a temporary file first, in the same directory as the final
         # download location. This ensures we can atomically move the file to its
         # final path.
-        temp_filedescriptor, temp_path_str = tempfile.mkstemp(
+        temp_path = _create_temp_file(
+            dir=download_dir_path,
             prefix=local_path.stem + "-",
             suffix=local_path.suffix + '.part',
-            dir=download_dir_path,
         )
-        os.close(temp_filedescriptor)  # It will be re-opened when the HTTP server responds.
-        temp_path = Path(temp_path_str)
 
         # Do the actual download.
         try:
@@ -174,11 +169,7 @@ class ConditionalDownloader:
             return
 
         # Move the downloaded file to the final filename.
-        if sys.platform == "win32":
-            # TODO: AFAIK this is necessary on Windows, while on other platforms the
-            # rename is atomic. See if we can get this atomic everywhere.
-            local_path.unlink(missing_ok=True)
-        temp_path.rename(local_path)
+        _move_file(temp_path, local_path)
 
         self.metadata_provider.save(http_req_descr_with_headers, http_meta)
 
@@ -1127,10 +1118,29 @@ class MetadataProviderFilesystem(MetadataProvider):
         return self.cache_location / self._cache_key(http_req_descr)
 
     def load(self, http_req_descr: RequestDescription) -> HTTPMetadata | None:
+        import time
+        from _bpy_internal.file_locking import mutex_lock_and_open
+
         meta_path = self._metadata_path(http_req_descr)
         if not meta_path.exists():
             return None
-        meta_json = meta_path.read_bytes()
+
+        import os
+        for _ in range(20):
+            meta_file, unlocker = mutex_lock_and_open(meta_path, 'rb')
+            if meta_file is not None:
+                assert unlocker is not None
+                break
+            time.sleep(0.1)
+        else:
+            raise RuntimeError("could not open & lock file {!s}".format(meta_path))
+
+        try:
+            meta_json = meta_path.read_bytes()
+            # FOR TESTING: keep the file open for a bit, to force conflicts.
+            time.sleep(0.3)
+        finally:
+            unlocker(meta_file)
 
         converter = self._ensure_converter()
 
@@ -1170,15 +1180,34 @@ class MetadataProviderFilesystem(MetadataProvider):
         meta_path.unlink(missing_ok=True)
 
     def save(self, http_req_descr: RequestDescription, meta: HTTPMetadata) -> None:
+        import time
+        from _bpy_internal.file_locking import mutex_lock_and_open
+
         meta.request = http_req_descr
 
         converter = self._ensure_converter()
-        meta_json = converter.dumps(meta)
+        meta_json = converter.dumps(meta).encode()
         meta_path = self._metadata_path(http_req_descr)
 
-        # TODO: make this safe for multiple processes.
-        meta_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        meta_path.write_bytes(meta_json.encode())
+        dir = meta_path.parent
+        dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+
+        # Try to lock the file. If that fails, give it a few attempts.
+        for _ in range(20):
+            meta_file, unlocker = mutex_lock_and_open(meta_path, 'wb')
+            if meta_file is not None:
+                assert unlocker is not None
+                break
+            time.sleep(0.1)
+        else:
+            raise RuntimeError("could not open & lock file {!s}".format(meta_path))
+
+
+        # Write the JSON to the file & unlock it.
+        try:
+            meta_file.write(meta_json)
+        finally:
+            unlocker(meta_file)
 
     def _ensure_converter(self) -> cattrs.preconf.json.JsonConverter:
         if self._converter is not None:
@@ -1383,3 +1412,30 @@ def _cleanup_main_file_attribute() -> Generator[None]:
         yield
     finally:
         main_module.__file__ = old_file
+
+
+def _create_temp_file(dir: Path, prefix: str, suffix: str) -> Path:
+    """Create a temporary file on disk, ensuring it is uniquely named.
+
+    This is a wrapper around tempfile.mkstemp() that closes the file before
+    returning. Creating the file on disk is a necessary step to 'claim' the
+    filename for this specific call.
+
+    The caller is responsible for deleting the file after use.
+    """
+    import os
+    import tempfile
+
+    fd, path_as_str = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dir)
+    os.close(fd)
+    return Path(path_as_str)
+
+
+def _move_file(from_path: Path, to_path: Path) -> None:
+    """Move a file from one path to another, as atomically as possible."""
+    if sys.platform == "win32":
+        # As far as I (Sybren) know, this is necessary on Windows, while on
+        # other platforms the rename is atomic.
+        # TODO: See if we can get this atomic everywhere.
+        to_path.unlink(missing_ok=True)
+    from_path.rename(to_path)
