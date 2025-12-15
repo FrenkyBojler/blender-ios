@@ -43,9 +43,9 @@ static FileSelectParams create_params_with_state(const char *dir, const char *di
 static VariableMap create_test_variables()
 {
   VariableMap variables;
-  variables.add_string("project", "my_project");
-  variables.add_string("blend_file", "my_file");
-  variables.add_string("blend_dir", "blender_files");
+  variables.add_string("project_name", "my_project");
+  variables.add_filepath("blend_name", "my_file");
+  variables.add_filepath("blend_dir", "blender_files");
   variables.add_integer("frame", 42);
   return variables;
 }
@@ -58,12 +58,12 @@ static VariableMap create_test_variables()
 TEST(path_template_navigation, Initialize_WithVariable)
 {
   FileSelectParams params = create_empty_params();
-  BLI_strncpy(params.dir, "/home/{project}/renders", sizeof(params.dir));
+  BLI_strncpy(params.dir, "/home/{project_name}/renders", sizeof(params.dir));
   VariableMap variables = create_test_variables();
 
   nav_initialize(&params, variables);
 
-  EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
+  EXPECT_STREQ(params.dir_template, "/home/{project_name}/renders");
   EXPECT_STREQ(params.dir, "/home/my_project/renders");
 }
 
@@ -78,9 +78,9 @@ TEST(path_template_navigation, HandleText_WithSingleVariable)
   FileSelectParams params = create_empty_params();
   VariableMap variables = create_test_variables();
 
-  nav_handle_text_input(&params, "/home/{project}/renders", variables);
+  nav_handle_text_input(&params, "/home/{project_name}/renders", variables);
 
-  EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
+  EXPECT_STREQ(params.dir_template, "/home/{project_name}/renders");
   EXPECT_STREQ(params.dir, "/home/my_project/renders");
 }
 
@@ -105,23 +105,23 @@ TEST(path_template_navigation, HandleText_WithNestedVariable)
 TEST(path_template_navigation, Browse_UpWithSingleVariable)
 {
   FileSelectParams params = create_params_with_state("/home/my_project/renders",
-                                                     "/home/{project}/renders");
+                                                     "/home/{project_name}/renders");
   VariableMap variables = create_test_variables();
 
   nav_handle_browse(&params, "/home/my_project", variables);
 
-  EXPECT_STREQ(params.dir_template, "/home/{project}/");
+  EXPECT_STREQ(params.dir_template, "/home/{project_name}/");
   EXPECT_STREQ(params.dir, "/home/my_project/");
 }
 
 TEST(path_template_navigation, Browse_DownWithSingleVariable)
 {
-  FileSelectParams params = create_params_with_state("/home/my_project", "/home/{project}");
+  FileSelectParams params = create_params_with_state("/home/my_project", "/home/{project_name}");
   VariableMap variables = create_test_variables();
 
   nav_handle_browse(&params, "/home/my_project/renders", variables);
 
-  EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
+  EXPECT_STREQ(params.dir_template, "/home/{project_name}/renders");
   EXPECT_STREQ(params.dir, "/home/my_project/renders");
 }
 
@@ -149,6 +149,20 @@ TEST(path_template_navigation, Browse_DownWithNestedVariable)
 
   EXPECT_STREQ(params.dir_template, "/project/{nested_path}/assets");
   EXPECT_STREQ(params.dir, "/project/scenes/sequence/01/assets");
+}
+
+TEST(path_template_navigation, Browse_UpWithMultiPathVariable)
+{
+  /* Testing filepath as variable (instead of a single string).
+  expectation is to treat the entire variable as a unit. */
+  FileSelectParams params = create_params_with_state("/root/project", "/{project_root}");
+  VariableMap variables = create_test_variables();
+  variables.add_filepath("project_root", "/root/project");
+
+  nav_handle_browse(&params, "/", variables);
+
+  EXPECT_STREQ(params.dir_template, "/");
+  EXPECT_STREQ(params.dir, "/");
 }
 
 /** \} */
