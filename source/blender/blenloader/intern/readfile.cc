@@ -3020,17 +3020,18 @@ static bool read_libblock_undo_restore_library(FileData *fd,
  * even if they did not exist in the loaded undo step. */
 static void read_undo_libraries_preserve_never_undo_libraries(FileData *fd)
 {
-  Main *old_main = fd->old_bmain;
-  BLI_assert(old_main != nullptr);
-  BLI_assert(old_main->curlib == nullptr);
-  BLI_assert(old_main->split_mains);
+  Main *old_bmain = fd->old_bmain;
+  BLI_assert(old_bmain != nullptr);
+  BLI_assert(old_bmain->curlib == nullptr);
+  BLI_assert(old_bmain->split_mains);
   /* Cannot iterate directly over `old_main->split_mains`, as this is likely going to remove some
    * of its items. */
-  blender::Vector<Main *> old_main_split_mains = {old_main->split_mains->as_span().drop_front(1)};
-  for (Main *libmain : old_main_split_mains) {
-    BLI_assert(libmain->curlib);
-    if (BLO_readfile_id_runtime_tags(libmain->curlib->id).undo_is_dependency_of_no_undo_id) {
-      read_undo_move_libmain_data(fd, libmain, nullptr);
+  blender::Vector<Main *> old_bmain_split_mains = {
+      old_bmain->split_mains->as_span().drop_front(1)};
+  for (Main *lib_bmain : old_bmain_split_mains) {
+    BLI_assert(lib_bmain->curlib);
+    if (BLO_readfile_id_runtime_tags(lib_bmain->curlib->id).undo_is_dependency_of_no_undo_id) {
+      read_undo_move_libmain_data(fd, lib_bmain, nullptr);
     }
   }
 }
@@ -3064,14 +3065,14 @@ static void read_undo_libraries_cleanup_unused_ids(FileData *fd)
   BLI_assert(new_bmain->curlib == nullptr);
   BLI_assert(new_bmain->split_mains);
 
-  for (Main *libmain : new_bmain->split_mains->as_span().drop_front(1)) {
-    BLI_assert(libmain->curlib);
-    if (libmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+  for (Main *lib_bmain : new_bmain->split_mains->as_span().drop_front(1)) {
+    BLI_assert(lib_bmain->curlib);
+    if (lib_bmain->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
       /* Archived libraries are handled differently than regular libraries, and can be ignored
        * here. */
       continue;
     }
-    for (ID *unused_id : libmain->curlib->runtime->unused_ids_on_undo) {
+    for (ID *unused_id : lib_bmain->curlib->runtime->unused_ids_on_undo) {
       BLI_assert(ID_IS_LINKED(unused_id) && !ID_IS_PACKED(unused_id));
 
 #ifndef NDEBUG
@@ -3081,7 +3082,7 @@ static void read_undo_libraries_cleanup_unused_ids(FileData *fd)
       printf("%s: UNDO: Unused linked ID '%s' will be discarded\n", __func__, unused_id->name);
 
       const short idcode = GS(unused_id->name);
-      ListBase *new_lb = which_libbase(libmain, idcode);
+      ListBase *new_lb = which_libbase(lib_bmain, idcode);
       ListBase *old_lb = which_libbase(old_bmain, idcode);
       BLI_remlink(new_lb, unused_id);
       unused_id->lib = nullptr;
@@ -3090,7 +3091,7 @@ static void read_undo_libraries_cleanup_unused_ids(FileData *fd)
       /* NOTE: There should be no need to update ID pointers mapping (`fd->libmap`) here, as
        * these IDs should not be in there in the first place. */
     }
-    libmain->curlib->runtime->unused_ids_on_undo.clear();
+    lib_bmain->curlib->runtime->unused_ids_on_undo.clear();
   }
 }
 
