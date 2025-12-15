@@ -3079,7 +3079,7 @@ static void read_undo_libraries_cleanup_unused_ids(FileData *fd)
       const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(unused_id);
       BLI_assert((id_type->flags & IDTYPE_FLAGS_NO_MEMFILE_UNDO) == 0);
 #endif
-      printf("%s: UNDO: Unused linked ID '%s' will be discarded\n", __func__, unused_id->name);
+      CLOG_DEBUG(&LOG_UNDO, "Unused linked ID '%s' will be discarded", unused_id->name);
 
       const short idcode = GS(unused_id->name);
       ListBase *new_lb = which_libbase(lib_bmain, idcode);
