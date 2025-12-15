@@ -310,44 +310,48 @@ void template_node_socket(Layout *layout, bContext * /*C*/, const float color[4]
 /* Custom tooltip builder showing path template information.
  * Displays the template syntax, current value, and resolved/evaluated path. */
 static void file_select_path_tooltip_custom(bContext &C,
-                                            uiTooltipData &data,
-                                            uiBut *but,
+                                            blender::ui::TooltipData &data,
+                                            blender::ui::Button *but,
                                             void *argN)
 {
   /* Name/Label. */
-  std::string but_label = UI_but_string_get_label(*but);
+  std::string but_label = blender::ui::button_string_get_label(*but);
   if (!but_label.empty()) {
-    UI_tooltip_text_field_add(data, but_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
-    UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+    blender::ui::tooltip_text_field_add(
+        data, but_label, {}, blender::ui::TIP_STYLE_HEADER, blender::ui::TIP_LC_NORMAL);
+    blender::ui::tooltip_text_field_add(
+        data, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
   }
 
   /* Description (tooltip). */
-  std::string but_tip = UI_but_string_get_tooltip(C, *but);
+  std::string but_tip = blender::ui::button_string_get_tooltip(C, *but);
   if (!but_tip.empty()) {
-    UI_tooltip_text_field_add(data, but_tip, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+    blender::ui::tooltip_text_field_add(
+        data, but_tip, {}, blender::ui::TIP_STYLE_HEADER, blender::ui::TIP_LC_NORMAL);
   }
 
   /* Value (current path string shown in the button). */
   char buf[512];
-  ui_but_string_get(but, buf, sizeof(buf));
+  blender::ui::button_string_get(but, buf, sizeof(buf));
   if (buf[0]) {
-    UI_tooltip_text_field_add(data,
-                              fmt::format(fmt::runtime(TIP_("Value: {}")), buf),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_VALUE,
-                              true);
+    blender::ui::tooltip_text_field_add(data,
+                                        fmt::format(fmt::runtime(TIP_("Value: {}")), buf),
+                                        {},
+                                        blender::ui::TIP_STYLE_NORMAL,
+                                        blender::ui::TIP_LC_VALUE,
+                                        true);
   }
 
   /* Evaluated/resolved path (shown only if different from template). */
   FileSelectParams *params = static_cast<FileSelectParams *>(argN);
   if (params && params->dir[0] != '\0' && !STREQ(params->dir, params->dir_template)) {
-    UI_tooltip_text_field_add(data,
-                              fmt::format(fmt::runtime(TIP_("Evaluated: {}")), params->dir),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_PYTHON,
-                              true);
+    blender::ui::tooltip_text_field_add(
+        data,
+        fmt::format(fmt::runtime(TIP_("Evaluated: {}")), params->dir),
+        {},
+        blender::ui::TIP_STYLE_NORMAL,
+        blender::ui::TIP_LC_PYTHON,
+        true);
   }
 }
 
