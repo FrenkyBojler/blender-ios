@@ -2171,24 +2171,6 @@ def write_rst_ops_index(basepath):
         fw("   bpy.ops.*\n\n")
 
 
-def write_rst_action_slot(basepath):
-    """
-    Write the RST file for ``bpy.types.ActionSlot``.
-    """
-    if 'bpy.types.ActionSlot' in EXCLUDE_MODULES:
-        return
-
-    # Write the index.
-    filepath = os.path.join(basepath, "bpy.types.ActionSlot.rst")
-    with open(filepath, "w", encoding="utf-8") as fh:
-        fw = fh.write
-        fw(title_string("ActionSlot", "="))
-        write_example_ref("", fw, "bpy.types.ActionSlot")
-        pyclass2sphinx(fw, "bpy.types", "ActionSlot", bpy.types.ActionSlot, False)
-
-    EXAMPLE_SET_USED.add("bpy.types.ActionSlot")
-
-
 def write_rst_geometry_set(basepath):
     """
     Write the RST file for ``bpy.types.GeometrySet``.
@@ -2575,8 +2557,7 @@ def rna2sphinx(basepath):
     write_rst_bpy(basepath)                 # `bpy`, disabled by default
     write_rst_types_index(basepath)         # `bpy.types`.
     write_rst_ops_index(basepath)           # `bpy.ops`.
-    write_rst_msgbus(basepath)              # `bpy.msgbus`.
-    write_rst_action_slot(basepath)  # `bpy.types.ActionSlot`.
+    write_rst_msgbus(basepath)  # `bpy.msgbus`.
     write_rst_geometry_set(basepath)        # `bpy.types.GeometrySet`.
     write_rst_inline_shader_nodes(basepath)  # `bpy.types.InlineShaderNodes`.
     pyrna2sphinx(basepath)                  # `bpy.types.*` & `bpy.ops.*`.
