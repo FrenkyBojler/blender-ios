@@ -36,12 +36,10 @@ static void resolve_and_normalize_paths(const char *template_path,
                                         char *resolved_template,
                                         char *normalized_current,
                                         size_t buffer_size,
-                                        const VariableMap *variables)
+                                        const VariableMap &variables)
 {
   BLI_strncpy(resolved_template, template_path, buffer_size);
-  if (variables) {
-    BKE_path_apply_template(resolved_template, buffer_size, *variables);
-  }
+  BKE_path_apply_template(resolved_template, buffer_size, variables);
   normalize_path(resolved_template);
 
   BLI_strncpy(normalized_current, current_path, buffer_size);
@@ -63,7 +61,7 @@ static bool is_within_template_bounds(const char *template_path,
   char resolved_template[FILE_MAX];
   char normalized_current[FILE_MAX];
   resolve_and_normalize_paths(
-      template_path, current_path, resolved_template, normalized_current, FILE_MAX, &variables);
+      template_path, current_path, resolved_template, normalized_current, FILE_MAX, variables);
 
   const size_t resolved_len = strlen(resolved_template);
   const size_t current_len = strlen(normalized_current);
@@ -102,12 +100,8 @@ static bool update_template_on_navigation(const char *original_template,
 {
   char resolved_template[FILE_MAX];
   char normalized_current[FILE_MAX];
-  resolve_and_normalize_paths(original_template,
-                              current_path,
-                              resolved_template,
-                              normalized_current,
-                              FILE_MAX,
-                              &variables);
+  resolve_and_normalize_paths(
+      original_template, current_path, resolved_template, normalized_current, FILE_MAX, variables);
 
   const size_t resolved_len = strlen(resolved_template);
   const size_t current_len = strlen(normalized_current);
