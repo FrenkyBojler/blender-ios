@@ -35,6 +35,9 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
   const int fit_method = RNA_enum_get(op->ptr, "fit_method");
   const float custom_radius = RNA_float_get(op->ptr, "custom_radius");
   const float angle = RNA_float_get(op->ptr, "angle");
+  const bool lock_x = RNA_boolean_get(op->ptr, "lock_x");
+  const bool lock_y = RNA_boolean_get(op->ptr, "lock_y");
+  const bool lock_z = RNA_boolean_get(op->ptr, "lock_z");
 
   const blender::Vector<Object *> objects =
       BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
@@ -51,14 +54,17 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
     BMO_op_callf(bm,
                  BMO_FLAG_DEFAULTS,
                  "circularize geom=%hvef influence=%f flatten=%b regular=%b fit_method=%i "
-                 "custom_radius=%f angle=%f",
+                 "custom_radius=%f angle=%f lock_x=%b lock_y=%b lock_z=%b",
                  BM_ELEM_SELECT,
                  influence,
                  flatten,
                  regular,
                  fit_method,
                  custom_radius,
-                 angle);
+                 angle,
+                 lock_x,
+                 lock_y,
+                 lock_z);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -124,4 +130,7 @@ void MESH_OT_circularize(wmOperatorType *ot)
                        -M_PI * 2.0f,
                        M_PI * 2.0f);
   RNA_def_property_subtype(prop, PROP_ANGLE);
+  RNA_def_boolean(ot->srna, "lock_x", false, "Lock X", "Lock editing of the X-coordinate");
+  RNA_def_boolean(ot->srna, "lock_y", false, "Lock Y", "Lock editing of the Y-coordinate");
+  RNA_def_boolean(ot->srna, "lock_z", false, "Lock Z", "Lock editing of the Z-coordinate");
 }

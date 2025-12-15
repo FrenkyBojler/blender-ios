@@ -438,6 +438,9 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
   const float custom_radius = BMO_slot_float_get(op->slots_in, "custom_radius");
   const float angle = BMO_slot_float_get(op->slots_in, "angle");
+  const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
+  const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
+  const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");
 
   Vector<LoopData> loops;
   get_input_loops(bm, loops);
@@ -508,6 +511,20 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 
       add_v3_v3v3(final_pos, center_3d, offset_u);
       add_v3_v3(final_pos, offset_v);
+
+      /* If an axis is locked, restore the original coordinate. */
+      if (lock_x || lock_y || lock_z) {
+        const float *orig = cv.v->co;
+        if (lock_x) {
+          final_pos[0] = orig[0];
+        }
+        if (lock_y) {
+          final_pos[1] = orig[1];
+        }
+        if (lock_z) {
+          final_pos[2] = orig[2];
+        }
+      }
 
       interp_v3_v3v3(cv.v->co, cv.v->co, final_pos, influence);
     }
