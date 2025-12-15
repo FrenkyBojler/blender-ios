@@ -57,7 +57,6 @@ struct [[host_shared]] DepthOfFieldData {
   int _pad0;
   int _pad1;
 };
-BLI_STATIC_ASSERT_ALIGN(DepthOfFieldData, 16)
 
 struct [[host_shared]] ScatterRect {
   /** Color and CoC of the 4 pixels the scatter sprite represents. */
@@ -67,7 +66,6 @@ struct [[host_shared]] ScatterRect {
   /** Rect half extent in half pixel space. */
   float2 half_extent;
 };
-BLI_STATIC_ASSERT_ALIGN(ScatterRect, 16)
 
 static inline float coc_radius_from_camera_depth(DepthOfFieldData dof, float depth)
 {

@@ -213,7 +213,6 @@ struct [[host_shared]] Surfel {
   /** Surface radiance: Indirect Lighting. Double buffered to avoid race conditions. */
   struct SurfelRadiance radiance_indirect[2];
 };
-BLI_STATIC_ASSERT_ALIGN(Surfel, 16)
 
 struct [[host_shared]] CaptureInfoData {
   /** Grid size without padding. */
