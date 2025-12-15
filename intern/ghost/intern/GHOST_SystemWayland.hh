@@ -233,15 +233,13 @@ class GHOST_SystemWayland : public GHOST_System {
 
   bool cursor_grab_use_software_display_get(const GHOST_TGrabCursorMode mode);
 
-#ifdef USE_EVENT_BACKGROUND_THREAD
   /**
    * Return a separate WAYLAND local timer manager to #GHOST_System::getTimerManager
    * Manipulation & access must lock with #GHOST_WaylandSystem::server_mutex.
    *
-   * See #GWL_Display::ghost_timer_manager doc-string for details on why this is needed.
+   * See #GWL_Display::key_repeat_timer_manager doc-string for details on why this is needed.
    */
-  GHOST_TimerManager *ghost_timer_manager();
-#endif
+  GHOST_TimerManager *key_repeat_timer_manager();
 
   /* WAYLAND direct-data access. */
 
@@ -287,7 +285,7 @@ class GHOST_SystemWayland : public GHOST_System {
    * Push an event, with support for calling from a thread.
    * NOTE: only needed for `USE_EVENT_BACKGROUND_THREAD`.
    */
-  GHOST_TSuccess pushEvent_maybe_pending(const GHOST_IEvent *event);
+  GHOST_TSuccess pushEvent_maybe_pending(std::unique_ptr<const GHOST_IEvent> event);
 
   /** Set this seat to be active. */
   void seat_active_set(const struct GWL_Seat *seat);
