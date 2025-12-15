@@ -546,10 +546,10 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 
   CTX_LogFlags flags = CTX_LogFlags(0);
   if (enable) {
-    flags = flags | CTX_LogFlags::Access;
+    flags |= CTX_LogFlags::Access;
   }
   if (hide_missing) {
-    flags = flags | CTX_LogFlags::HideMissing;
+    flags |= CTX_LogFlags::HideMissing;
   }
   CTX_member_logging_set(self->context, flags);
 
