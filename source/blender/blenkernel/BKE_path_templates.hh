@@ -453,8 +453,8 @@ void nav_initialize(FileSelectParams *params,
  * \param variables: Variable map for template resolution (must be valid).
  */
 void nav_handle_text_input(FileSelectParams *params,
-                     const char *input_path,
-                     const blender::bke::path_templates::VariableMap &variables);
+                           const char *input_path,
+                           const blender::bke::path_templates::VariableMap &variables);
 
 /**
  * Handle directory navigation in browser while preserving parent template variables.
