@@ -24,8 +24,7 @@ namespace blender::nodes::node_geo_field_any_all_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("Value")
-      .supports_field();
+  b.add_input<decl::Bool>("Value").hide_value().supports_field();
 
   b.add_input<decl::Int>("Group ID", "Group Index")
       .supports_field()
