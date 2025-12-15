@@ -137,13 +137,28 @@ class ConditionalDownloader:
     def _download_to_file(self, http_req_descr: RequestDescription, local_path: Path) -> None:
         """Same as download_to_file(), but without the exception handling."""
 
+        import os
+        import tempfile
+
         http_meta = self._metadata_if_valid(http_req_descr, local_path)
         self._reporter.download_starts(http_req_descr)
 
-        # Download to a temporary file first.
-        temp_path = local_path.with_suffix(local_path.suffix + "~")
-        temp_path.parent.mkdir(exist_ok=True, parents=True)
+        # Create the directory to download to, if it doesn't exist yet.
+        download_dir_path = local_path.parent
+        download_dir_path.mkdir(exist_ok=True, parents=True)
 
+        # Download to a temporary file first, in the same directory as the final
+        # download location. This ensures we can atomically move the file to its
+        # final path.
+        temp_filedescriptor, temp_path_str = tempfile.mkstemp(
+            prefix=local_path.stem + "-",
+            suffix=local_path.suffix + '.part',
+            dir=download_dir_path,
+        )
+        os.close(temp_filedescriptor)  # It will be re-opened when the HTTP server responds.
+        temp_path = Path(temp_path_str)
+
+        # Do the actual download.
         try:
             result = self._request_and_stream(http_req_descr, temp_path, http_meta)
         except Exception:
@@ -154,14 +169,15 @@ class ConditionalDownloader:
         http_meta, http_req_descr_with_headers = result
         if http_meta is None:
             # Local file is already fresh, no need to re-download.
-            assert not temp_path.exists()
+            temp_path.unlink(missing_ok=True)
             self._reporter.already_downloaded(http_req_descr_with_headers, local_path)
             return
 
         # Move the downloaded file to the final filename.
-        # TODO: AFAIK this is necessary on Windows, while on other platforms the
-        # rename is atomic. See if we can get this atomic everywhere.
-        local_path.unlink(missing_ok=True)
+        if sys.platform == "win32":
+            # TODO: AFAIK this is necessary on Windows, while on other platforms the
+            # rename is atomic. See if we can get this atomic everywhere.
+            local_path.unlink(missing_ok=True)
         temp_path.rename(local_path)
 
         self.metadata_provider.save(http_req_descr_with_headers, http_meta)
@@ -1160,6 +1176,7 @@ class MetadataProviderFilesystem(MetadataProvider):
         meta_json = converter.dumps(meta)
         meta_path = self._metadata_path(http_req_descr)
 
+        # TODO: make this safe for multiple processes.
         meta_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         meta_path.write_bytes(meta_json.encode())
 
