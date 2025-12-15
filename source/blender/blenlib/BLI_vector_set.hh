@@ -411,7 +411,7 @@ class VectorSet {
    * Deletes the key from the set. Returns true when the key existed in the set and is now removed.
    *
    * This might change the order of elements in the vector. However, this will never affect the
-   * order of any element added _before_ the oldest removed one.
+   * order of any element added _before_ the removed one.
    *
    * This is similar to std::unordered_set::erase.
    */
