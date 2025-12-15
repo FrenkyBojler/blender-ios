@@ -646,7 +646,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
   ss << tot_rows_str << "   |   " << IFACE_("Columns:") << " " << runtime->tot_columns;
   std::string stats_str = ss.str();
 
-  ui::ThemeClearColor(TH_BACK);
+  ui::theme::frame_buffer_clear(TH_BACK);
 
   ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
   const uiStyle *style = ui::style_get_dpi();
@@ -756,8 +756,8 @@ static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 {
   SpaceSpreadsheet &sspreadsheet = *static_cast<SpaceSpreadsheet *>(area->spacedata.first);
 
-  const int2 cursor_re{win->eventstate->xy[0] - region->winrct.xmin,
-                       win->eventstate->xy[1] - region->winrct.ymin};
+  const int2 cursor_re{win->runtime->eventstate->xy[0] - region->winrct.xmin,
+                       win->runtime->eventstate->xy[1] - region->winrct.ymin};
   if (find_hovered_column_header_edge(sspreadsheet, *region, cursor_re)) {
     WM_cursor_set(win, WM_CURSOR_X_MOVE);
     return;

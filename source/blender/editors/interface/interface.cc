@@ -1762,9 +1762,8 @@ static PointerRNA *ui_but_extra_operator_icon_add_ptr(Button *but,
   extra_op_icon->icon = icon;
   extra_op_icon->optype_params = MEM_callocN<wmOperatorCallParams>(__func__);
   extra_op_icon->optype_params->optype = optype;
-  extra_op_icon->optype_params->opptr = MEM_new<PointerRNA>(__func__);
-  WM_operator_properties_create_ptr(extra_op_icon->optype_params->opptr,
-                                    extra_op_icon->optype_params->optype);
+  extra_op_icon->optype_params->opptr = MEM_new<PointerRNA>(
+      __func__, WM_operator_properties_create_ptr(extra_op_icon->optype_params->optype));
   extra_op_icon->optype_params->opcontext = opcontext;
   extra_op_icon->highlighted = false;
   extra_op_icon->disabled = false;
@@ -2179,7 +2178,7 @@ void block_end(const bContext *C, Block *block)
                CTX_wm_region(C),
                CTX_data_depsgraph_pointer(C),
                block,
-               window->eventstate->xy,
+               window->runtime->eventstate->xy,
                nullptr);
 }
 
@@ -2261,7 +2260,7 @@ void block_draw(const bContext *C, Block *block)
                        &style,
                        block,
                        &rect,
-                       panel_category_is_visible(region),
+                       panel_category_tabs_is_visible(region),
                        panel_should_show_background(region, block->panel->type),
                        region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE);
   }
@@ -2269,7 +2268,7 @@ void block_draw(const bContext *C, Block *block)
   if (block->panel && ELEM(region->regiontype, RGN_TYPE_HUD, RGN_TYPE_TEMPORARY)) {
     /* TODO: Add as theme color. */
     float subpanel_backcolor[4]{0.2f, 0.3f, 0.33f, 0.05f};
-    const bTheme *btheme = GetTheme();
+    const bTheme *btheme = theme::theme_get();
     const float aspect = block->panel->runtime->block->aspect;
     const float radius = btheme->tui.panel_roundness * U.widget_unit * 0.5f / aspect;
     draw_layout_panels_backdrop(region, block->panel, radius, subpanel_backcolor);
@@ -2288,6 +2287,17 @@ void block_draw(const bContext *C, Block *block)
     /* Optimization: Don't draw buttons that are not visible (outside view bounds). */
     if (!ui_but_pixelrect_in_view(region, &rect)) {
       continue;
+    }
+
+    /* Don't draw buttons that are wider than enclosing panel. #150173 */
+    if (block->panel && block->panel->sizex > 0) {
+      int panel_width = (block->panel->sizex * UI_SCALE_FAC / block->aspect);
+      if (panel_should_show_background(region, block->panel->type)) {
+        panel_width -= int(UI_PANEL_MARGIN_X / block->aspect * 2.0f);
+      }
+      if (BLI_rcti_size_x(&rect) > panel_width) {
+        continue;
+      }
     }
 
     /* XXX: figure out why invalid coordinates happen when closing render window */
@@ -4268,46 +4278,6 @@ static std::unique_ptr<Button> ui_but_new(const ButtonType type)
   return but;
 }
 
-Button *button_change_type(Button *but, ButtonType new_type)
-{
-  if (but->type == new_type) {
-    /* Nothing to do. */
-    return but;
-  }
-
-  const int64_t but_index = but->block->but_index(but);
-
-  /* Remove old button address */
-  std::unique_ptr<Button> old_but_ptr = std::move(but->block->buttons[but_index]);
-
-  /* Button may have pointer to a member within itself, this will have to be updated. */
-  const bool has_poin_ptr_to_self = but->poin == (char *)but;
-
-  /* Copy construct button with the new type. */
-  but->block->buttons[but_index] = ui_but_new(new_type);
-  but = but->block->buttons[but_index].get();
-  *but = *old_but_ptr;
-  /* We didn't mean to override this :) */
-  but->type = new_type;
-  if (has_poin_ptr_to_self) {
-    but->poin = (char *)but;
-  }
-
-  if (but->layout) {
-    const bool found_layout = layout_replace_but_ptr(but->layout, old_but_ptr.get(), but);
-    BLI_assert(found_layout);
-    UNUSED_VARS_NDEBUG(found_layout);
-    button_group_replace_but_ptr(but->layout->block(), old_but_ptr.get(), but);
-  }
-#ifdef WITH_PYTHON
-  if (editsource_enable_check()) {
-    editsource_but_replace(old_but_ptr.get(), but);
-  }
-#endif
-
-  return but;
-}
-
 /**
  * \param x, y: The lower left hand corner of the button (X axis)
  * \param width, height: The size of the button.
@@ -5097,10 +5067,10 @@ Button *uiDefButAlert(Block *block, AlertIcon icon, int x, int y, short width, s
   if (ibuf) {
     if (icon == AlertIcon::Error) {
       uchar color[4];
-      GetThemeColor4ubv(TH_ERROR, color);
+      theme::get_color_4ubv(TH_ERROR, color);
       return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, color);
     }
-    bTheme *btheme = GetTheme();
+    bTheme *btheme = theme::theme_get();
     return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, btheme->tui.wcol_menu_back.text);
   }
   return nullptr;
@@ -6054,8 +6024,7 @@ int button_return_value_get(Button *but)
 PointerRNA *button_operator_ptr_ensure(Button *but)
 {
   if (but->optype && !but->opptr) {
-    but->opptr = MEM_new<PointerRNA>(__func__);
-    WM_operator_properties_create_ptr(but->opptr, but->optype);
+    but->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(but->optype));
   }
 
   return but->opptr;
