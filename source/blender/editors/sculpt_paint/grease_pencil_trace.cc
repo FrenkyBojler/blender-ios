@@ -216,16 +216,18 @@ static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const 
   const VArraySpan<bool> holes = *attributes.lookup<bool>(hole_attribute_id);
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
-  threading::parallel_for(trace_curves.curves_range(), 4096, [&](const IndexRange range) {
-    for (const int curve_i : range) {
-      const bool is_hole = holes[curve_i];
-      material_indices.span[curve_i] = (is_hole ? trace_job.background_material_index :
-                                                  trace_job.foreground_material_index);
-    }
-  });
+
+  material_indices.span.fill(trace_job.foreground_material_index);
   material_indices.finish();
   /* Remove hole attribute */
   attributes.remove(hole_attribute_id);
+
+  bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_or_add_for_write_span<int>(
+      "shape_id", bke::AttrDomain::Curve);
+
+  /* Join all curves into one shape. */
+  shape_ids.span.fill(1);
+  shape_ids.finish();
 
   /* Uniform radius for all trace curves. */
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
