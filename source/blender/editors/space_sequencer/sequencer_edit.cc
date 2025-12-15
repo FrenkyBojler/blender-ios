@@ -2160,7 +2160,7 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
 
   /* Set preview frame to the opposite side when moving the box. */
-  if (gesture->move) {
+  if (gesture && gesture->move) {
     rctf box_rect;
     WM_operator_properties_border_to_rctf(op, &box_rect);
     ui::view2d_region_to_view_rctf(v2d, &box_rect, &box_rect);
