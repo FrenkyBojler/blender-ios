@@ -78,7 +78,7 @@ TEST(path_template_navigation, HandleText_WithSingleVariable)
   FileSelectParams params = create_empty_params();
   VariableMap variables = create_test_variables();
 
-  nav_handle_text(&params, "/home/{project}/renders", variables);
+  nav_handle_text_input(&params, "/home/{project}/renders", variables);
 
   EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
   EXPECT_STREQ(params.dir, "/home/my_project/renders");
@@ -90,7 +90,7 @@ TEST(path_template_navigation, HandleText_WithNestedVariable)
   VariableMap variables = create_test_variables();
   variables.add_filepath("nested_path", "scenes/sequence/01");
 
-  nav_handle_text(&params, "/project/{nested_path}/assets", variables);
+  nav_handle_text_input(&params, "/project/{nested_path}/assets", variables);
 
   EXPECT_STREQ(params.dir_template, "/project/{nested_path}/assets");
   EXPECT_STREQ(params.dir, "/project/scenes/sequence/01/assets");

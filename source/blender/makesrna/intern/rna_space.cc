@@ -3129,7 +3129,7 @@ static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *valu
   const blender::bke::path_templates::VariableMap *template_vars =
       ED_fileselect_params_get_template_vars(params);
   if (template_vars) {
-    blender::bke::path_templates::nav_handle_text(params, value, *template_vars);
+    blender::bke::path_templates::nav_handle_text_input(params, value, *template_vars);
   }
   else {
     /* No templates - simple path assignment */

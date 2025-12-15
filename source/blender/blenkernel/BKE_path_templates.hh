@@ -452,7 +452,7 @@ void nav_initialize(FileSelectParams *params,
  * \param input_path: User-entered path string (may contain template variable syntax).
  * \param variables: Variable map for template resolution (must be valid).
  */
-void nav_handle_text(FileSelectParams *params,
+void nav_handle_text_input(FileSelectParams *params,
                      const char *input_path,
                      const blender::bke::path_templates::VariableMap &variables);
 

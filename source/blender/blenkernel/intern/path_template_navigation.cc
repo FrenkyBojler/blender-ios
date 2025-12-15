@@ -161,9 +161,9 @@ void nav_initialize(FileSelectParams *params, const VariableMap &variables)
   BKE_path_apply_template(params->dir, sizeof(params->dir), variables);
 }
 
-void nav_handle_text(FileSelectParams *params,
-                     const char *input_path,
-                     const VariableMap &variables)
+void nav_handle_text_input(FileSelectParams *params,
+                           const char *input_path,
+                           const VariableMap &variables)
 {
   /* Store original input with template variables */
   BLI_strncpy(params->dir_template, input_path, sizeof(params->dir_template));

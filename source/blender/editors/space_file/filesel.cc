@@ -216,7 +216,8 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
           STRNCPY(params->file, template_file);
 
           /* Use centralized template handling for directory paths */
-          blender::bke::path_templates::nav_handle_text(params, template_dir, *template_vars);
+          blender::bke::path_templates::nav_handle_text_input(
+              params, template_dir, *template_vars);
         }
         else {
           BLI_path_split_dir_file(
