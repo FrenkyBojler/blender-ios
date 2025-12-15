@@ -213,13 +213,13 @@ static ResultType float_type(const int channels_count)
     case 3:
       return ResultType::Float3;
     case 4:
-      return ResultType::Float4;
+      return ResultType::Color;
     default:
       break;
   }
 
   BLI_assert_unreachable();
-  return ResultType::Float4;
+  return ResultType::Color;
 }
 
 /* Returns the appropriate result type for the given image buffer, which represents the pass in the
@@ -321,9 +321,9 @@ CachedImage::CachedImage(Context &context,
     buffer_result.wrap_external(linear_image_buffer->float_buffer.data, size);
     this->result.allocate_texture(size, false);
 
-    if (buffer_result.type() == ResultType::Float4 && result.type() == ResultType::Color) {
+    if (buffer_result.type() == ResultType::Color && result.type() == ResultType::Float4) {
       parallel_for(size, [&](const int2 texel) {
-        this->result.store_pixel(texel, Color(buffer_result.load_pixel<float4>(texel)));
+        this->result.store_pixel(texel, float4(buffer_result.load_pixel<Color>(texel)));
       });
     }
     else if (buffer_result.type() == ResultType::Float3 && result.type() == ResultType::Color) {

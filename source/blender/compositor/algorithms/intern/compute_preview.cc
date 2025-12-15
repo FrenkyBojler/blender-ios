@@ -34,10 +34,14 @@ static void compute_preview_cpu(Context &context, const Result &input, bke::bNod
   const int2 preview_size = int2(preview->ibuf->x, preview->ibuf->y);
 
   Result input_as_color = context.create_result(ResultType::Color);
-  input_as_color.allocate_texture(input.domain());
-
-  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
-  conversions.convert_to_initialized_n(input.cpu_data(), input_as_color.cpu_data());
+  if (input.type() == ResultType::Color) {
+    input_as_color = input;
+  }
+  else {
+    input_as_color.allocate_texture(input.domain());
+    const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+    conversions.convert_to_initialized_n(input.cpu_data(), input_as_color.cpu_data());
+  }
 
   ColormanageProcessor *color_processor = IMB_colormanagement_display_processor_new(
       &context.get_scene().view_settings, &context.get_scene().display_settings);
@@ -55,6 +59,10 @@ static void compute_preview_cpu(Context &context, const Result &input, bke::bNod
       }
     }
   });
+
+  if (input.type() != ResultType::Color) {
+    input_as_color.release();
+  }
 
   IMB_colormanagement_processor_free(color_processor);
 }
@@ -125,6 +133,10 @@ static int2 compute_preview_size(int2 size)
 
 void compute_preview(Context &context, const DNode &node, const Result &input_result)
 {
+  if (input_result.is_single_value()) {
+    return;
+  }
+
   /* Initialize node tree previews if not already initialized. */
   bNodeTree *root_tree = const_cast<bNodeTree *>(
       &node.context()->derived_tree().root_context().btree());
