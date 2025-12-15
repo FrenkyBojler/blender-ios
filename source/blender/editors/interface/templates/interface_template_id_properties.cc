@@ -53,7 +53,6 @@ class IDPropertyItem : public AbstractTreeViewItem {
   void build_row(ui::Layout &row) override
   {
     uiItemL_ex(&row, property_->name, ICON_NONE, false, false);
-    // Additional UI elements for the property can be added here.
   }
 
   std::optional<bool> should_be_active() const override
@@ -98,6 +97,19 @@ void template_tree(ui::Layout *layout, bContext *C, ID *id)
   tree_view->set_default_rows(4);
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
+}
+
+void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
+{
+  if (!id->properties) {
+    return;
+  }
+  IDProperty *active_prop = static_cast<IDProperty *>(
+      BLI_findlink(&id->properties->data.group, id->idprop_active_index));
+  PointerRNA id_ptr = RNA_pointer_create_discrete(
+      id, &RNA_IDPropertyUIDataFloat, active_prop->ui_data);
+  layout->prop(&id_ptr, "min", UI_ITEM_NONE, "Hard Min", ICON_NONE);
+  layout->prop(&id_ptr, "max", UI_ITEM_NONE, "Hard Max", ICON_NONE);
 }
 
 }  // namespace blender::ui::id_properties

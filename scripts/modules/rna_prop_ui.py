@@ -250,8 +250,9 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     else:
         value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 
-    property_type = get_property_type(rna_item, key)
-    print(property_type)
+    layout.draw_id_properties_value(rna_item.id_data)
+    # property_type = get_property_type(rna_item, key)
+    # print(property_type)
 
     return
 
