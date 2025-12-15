@@ -29,7 +29,7 @@ class ProjectLoadException(Exception):
 
 # --------------------------------------------------------------
 
-def save_project(project):
+def save_project(project, clear_dirty_flag: bool = True):
     """ Note: throws a ProjectSaveException on anticipated errors.
         Other exceptions indicate unanticipated errors (a.k.a. bugs).
     """
@@ -63,7 +63,8 @@ def save_project(project):
     except PermissionError:
         raise ProjectSaveException("Cannot write to '{}' due to filesystem permissions.".format(PROJECT_CONFIG))
 
-    project.is_dirty = False
+    if clear_dirty_flag:
+        project.is_dirty = False
 
     print("...done.")
 
@@ -112,7 +113,7 @@ def validate_config(config: dict):
         return
 
 
-def load_project_for_blend_path(context, blend_path: str):
+def load_project_for_blend_path(context, blend_path: str, clear_dirty_flag: bool = True):
     """ Loads the project for the given blend file path, or clears the project
         if no such project is found.
 
@@ -147,7 +148,8 @@ def load_project_for_blend_path(context, blend_path: str):
 
     context.project.init(config["name"], str(root_path))
 
-    context.project.is_dirty = False
+    if clear_dirty_flag:
+        context.project.is_dirty = False
 
 
 # --------------------------------------------------------------
@@ -239,10 +241,18 @@ def on_blend_save(blend_path: str):
 
 
 def on_exit():
-    # TODO: when this gets called on exit, the assignment to project.is_dirty in
-    # `save_project()` above appears to be the cause of a write-after-free bug.
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
-        save_project(bpy.context.project)
+        # We omit clearing the dirty flag here because:
+        #
+        # 1. It's unnecessary since we're exiting anyway.
+        # 2. It seems that some memory gets freed prior to Python's `atexit`
+        #    hook getting called, and attempting to clear the dirty flag runs
+        #    into that, causing a use-after-free bug.
+        #
+        # TODO: investigate the specifics of why the use-after-free bug is
+        # happening, because even with omitting the flag clearing, this seems
+        # delicate.
+        save_project(bpy.context.project, clear_dirty_flag=False)
 
 
 # -----------------------------------------------------------------------------
