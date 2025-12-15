@@ -52,8 +52,7 @@ static void resolve_and_normalize_paths(const char *template_path,
 /** \name Template Boundary and Navigation Helpers
  * \{ */
 
-/* Check if current path is within a resolved template directory.
- * NOTE: Assumes variables is non-null - caller must check before calling. */
+/* Check if current path is within a resolved template directory.*/
 static bool is_within_template_bounds(const char *template_path,
                                       const char *current_path,
                                       const VariableMap &variables)
