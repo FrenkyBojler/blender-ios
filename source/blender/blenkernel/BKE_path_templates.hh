@@ -480,9 +480,6 @@ void nav_handle_browse(FileSelectParams *params,
  * Example: Template "/home/{project}/nonexistent/renders" with resolved path
  * "/home/my_project" (after cleanup) becomes template "/home/{project}".
  *
- * NOTE: Caller must ensure variables is valid (non-null). Only call when template
- * variables are available.
- *
  * \param params: FileSelectParams with dir containing cleaned resolved path and
  *                dir_template containing the original template path to sync.
  * \param variables: Variable map for template resolution (must be valid).
