@@ -3137,14 +3137,12 @@ static wmOperatorStatus edbm_rotate_colors_exec(bContext *C, wmOperator *op)
 
     Mesh *mesh = BKE_object_get_original_mesh(ob);
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
-    if (!layer) {
-      continue;
-    }
 
     int color_index = BKE_attribute_to_index(
-        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, mesh->active_color_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+    if (color_index == -1) {
+      continue;
+    }
     EDBM_op_init(em,
                  &bmop,
                  op,
@@ -3186,16 +3184,14 @@ static wmOperatorStatus edbm_reverse_colors_exec(bContext *C, wmOperator *op)
 
     Mesh *mesh = BKE_object_get_original_mesh(obedit);
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
-    if (!layer) {
-      continue;
-    }
 
     BMOperator bmop;
 
     int color_index = BKE_attribute_to_index(
-        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, mesh->active_color_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+    if (color_index == -1) {
+      continue;
+    }
     EDBM_op_init(
         em, &bmop, op, "reverse_colors faces=%hf color_index=%i", BM_ELEM_SELECT, color_index);
 
@@ -4512,6 +4508,8 @@ static wmOperatorStatus edbm_separate_exec(bContext *C, wmOperator *op)
       BMesh *bm_old = BM_mesh_create(&bm_mesh_allocsize_default, &create_params);
 
       BMeshFromMeshParams from_mesh_params{};
+      from_mesh_params.calc_face_normal = true;
+      from_mesh_params.calc_vert_normal = true;
       BM_mesh_bm_from_me(bm_old, mesh, &from_mesh_params);
 
       bool changed = false;
@@ -9518,6 +9516,12 @@ static void edbm_normals_tools_ui(bContext *C, wmOperator *op)
                    false);
 }
 
+static bool edbm_normals_tools_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  const int mode = RNA_enum_get(ptr, "mode");
+  return mode == EDBM_CLNOR_TOOLS_PASTE;
+}
+
 void MESH_OT_normals_tools(wmOperatorType *ot)
 {
   /* identifiers */
@@ -9529,6 +9533,7 @@ void MESH_OT_normals_tools(wmOperatorType *ot)
   ot->exec = edbm_normals_tools_exec;
   ot->poll = ED_operator_editmesh;
   ot->ui = edbm_normals_tools_ui;
+  ot->ui_poll = edbm_normals_tools_ui_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

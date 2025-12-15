@@ -487,8 +487,7 @@ static void move_strips(bContext *C, wmOperator *op)
   }
 
   wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_seq_slide", true);
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   RNA_boolean_set(&ptr, "remove_on_cancel", true);
   RNA_boolean_set(&ptr, "view2d_edge_pan", true);
   RNA_boolean_set(&ptr, "release_confirm", false);
@@ -604,8 +603,8 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
   /* Override strip position by current mouse position. */
   if (can_move_strips(op) && region != nullptr) {
     const wmWindow *win = CTX_wm_window(C);
-    int2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
-                      win->eventstate->xy[1] - region->winrct.ymin);
+    int2 mouse_region(win->runtime->eventstate->xy[0] - region->winrct.xmin,
+                      win->runtime->eventstate->xy[1] - region->winrct.ymin);
 
     /* Clamp mouse cursor location (strip starting position) to the sequencer region bounds so that
      * it is immediately visible even if the mouse cursor is out of bounds. For maximums, use 90%
@@ -1367,6 +1366,10 @@ static bool sequencer_add_movie_single_strip(bContext *C,
 
 static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *op)
 {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   seq::LoadData load_data;
@@ -1562,6 +1565,10 @@ static bool sequencer_add_sound_single_strip(bContext *C, wmOperator *op, seq::L
 
 static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
 {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   seq::LoadData load_data;
@@ -1772,6 +1779,10 @@ static bool sequencer_add_image_sequence_force(bContext *C,
                                                wmOperator *op,
                                                seq::LoadData &load_data)
 {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+    return false;
+  }
+
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_ensure(scene);

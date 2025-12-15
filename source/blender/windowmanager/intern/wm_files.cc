@@ -85,6 +85,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -235,8 +236,8 @@ static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
   wmWindow *active_win = CTX_wm_window(C);
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     CTX_wm_window_set(C, win); /* Needed by operator close callbacks. */
-    WM_event_remove_handlers(C, &win->handlers);
-    WM_event_remove_handlers(C, &win->modalhandlers);
+    WM_event_remove_handlers(C, &win->runtime->handlers);
+    WM_event_remove_handlers(C, &win->runtime->modalhandlers);
     ED_screen_exit(C, win, WM_window_get_active_screen(win));
   }
   /* Reset active window. */
@@ -279,8 +280,8 @@ static void wm_file_read_setup_wm_substitute_old_window(wmWindowManager *oldwm,
                                                         wmWindow *oldwin,
                                                         wmWindow *win)
 {
-  win->ghostwin = oldwin->ghostwin;
-  win->gpuctx = oldwin->gpuctx;
+  win->runtime->ghostwin = oldwin->runtime->ghostwin;
+  win->runtime->gpuctx = oldwin->runtime->gpuctx;
   win->active = oldwin->active;
   if (win->active) {
     wm->runtime->winactive = win;
@@ -293,16 +294,16 @@ static void wm_file_read_setup_wm_substitute_old_window(wmWindowManager *oldwm,
   /* File loading in background mode still calls this. */
   if (!G.background) {
     /* Pointer back. */
-    GHOST_SetWindowUserData(static_cast<GHOST_WindowHandle>(win->ghostwin), win);
+    GHOST_SetWindowUserData(static_cast<GHOST_WindowHandle>(win->runtime->ghostwin), win);
   }
 
-  oldwin->ghostwin = nullptr;
-  oldwin->gpuctx = nullptr;
+  oldwin->runtime->ghostwin = nullptr;
+  oldwin->runtime->gpuctx = nullptr;
 
-  win->eventstate = oldwin->eventstate;
-  win->event_last_handled = oldwin->event_last_handled;
-  oldwin->eventstate = nullptr;
-  oldwin->event_last_handled = nullptr;
+  win->runtime->eventstate = oldwin->runtime->eventstate;
+  win->runtime->event_last_handled = oldwin->runtime->event_last_handled;
+  oldwin->runtime->eventstate = nullptr;
+  oldwin->runtime->event_last_handled = nullptr;
 
   /* Ensure proper screen re-scaling. */
   win->sizex = oldwin->sizex;
@@ -546,6 +547,10 @@ static void wm_init_userdef(Main *bmain)
 
   /* Update input device preference. */
   WM_init_input_devices();
+
+#ifdef WITH_GHOST_CSD
+  WM_window_csd_params_update();
+#endif
 
   BLO_sanitize_experimental_features_userpref_blend(&U);
 
@@ -799,12 +804,10 @@ static void wm_file_read_post(bContext *C,
      * Cycles. So we need to update compositor node trees after reading the file when add-ons are
      * now loaded. */
     if (is_startup_file) {
-      FOREACH_NODETREE_BEGIN (bmain, node_tree, owner_id) {
-        if (node_tree->type == NTREE_COMPOSIT) {
-          ntreeCompositUpdateRLayers(node_tree);
-        }
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        BKE_ntree_update_tag_id_changed(bmain, &scene->id);
       }
-      FOREACH_NODETREE_END;
+      BKE_ntree_update(*bmain);
     }
 
 #if 1
@@ -2369,7 +2372,7 @@ void wm_autosave_timer(Main *bmain, wmWindowManager *wm, wmTimer * /*wt*/)
   /* If a modal operator is running, don't autosave because we might not be in
    * a valid state to save. But try again in 10ms. */
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->modalhandlers) {
+    LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->runtime->modalhandlers) {
       if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
         if (handler->op) {
@@ -3458,8 +3461,7 @@ static wmOperatorStatus wm_recover_last_session_impl(bContext *C,
   if (WM_file_recover_last_session(C, use_scripts_autoexec_check, op->reports)) {
     if (!G.background) {
       wmOperatorType *ot = op->type;
-      PointerRNA *props_ptr = MEM_new<PointerRNA>(__func__);
-      WM_operator_properties_create_ptr(props_ptr, ot);
+      PointerRNA *props_ptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
       RNA_boolean_set(props_ptr, "use_scripts", true);
       wm_test_autorun_revert_action_set(ot, props_ptr);
     }
@@ -3537,8 +3539,7 @@ static wmOperatorStatus wm_recover_auto_save_exec(bContext *C, wmOperator *op)
   if (success) {
     if (!G.background) {
       wmOperatorType *ot = op->type;
-      PointerRNA *props_ptr = MEM_new<PointerRNA>(__func__);
-      WM_operator_properties_create_ptr(props_ptr, ot);
+      PointerRNA *props_ptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
       RNA_boolean_set(props_ptr, "use_scripts", true);
       wm_test_autorun_revert_action_set(ot, props_ptr);
     }
@@ -4224,8 +4225,7 @@ void wm_test_autorun_revert_action_exec(bContext *C)
   /* Use regular revert. */
   if (ot == nullptr) {
     ot = WM_operatortype_find("WM_OT_revert_mainfile", false);
-    ptr = MEM_new<PointerRNA>(__func__);
-    WM_operator_properties_create_ptr(ptr, ot);
+    ptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
     RNA_boolean_set(ptr, "use_scripts", true);
 
     /* Set state, so it's freed correctly. */
@@ -4808,18 +4808,17 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
     if (!has_extra_checkboxes) {
       layout.separator();
     }
-    uiDefButBitC(block,
-                 blender::ui::ButtonType::Checkbox,
-                 1,
-                 message,
-                 0,
-                 0,
-                 0,
-                 UI_UNIT_Y,
-                 &save_images_when_file_is_closed,
-                 0,
-                 0,
-                 "");
+    uiDefButC(block,
+              blender::ui::ButtonType::Checkbox,
+              message,
+              0,
+              0,
+              0,
+              UI_UNIT_Y,
+              &save_images_when_file_is_closed,
+              0,
+              0,
+              "");
     has_extra_checkboxes = true;
   }
 
@@ -4905,6 +4904,8 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
 void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
 {
   if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
+    save_images_when_file_is_closed = true;
+
     blender::ui::popup_block_invoke(
         C, block_create__close_file_dialog, post_action, free_post_file_close_action);
   }

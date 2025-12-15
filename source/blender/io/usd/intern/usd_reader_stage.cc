@@ -19,7 +19,6 @@
 #include "usd_reader_skeleton.hh"
 #include "usd_reader_volume.hh"
 #include "usd_reader_xform.hh"
-#include "usd_utils.hh"
 
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
@@ -61,6 +60,8 @@
 
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
+
+#include "WM_types.hh"
 
 #include <fmt/core.h>
 
@@ -224,6 +225,11 @@ bool USDStageReader::is_primitive_prim(const pxr::UsdPrim &prim) const
           prim.IsA<pxr::UsdGeomCylinder>() || prim.IsA<pxr::UsdGeomCylinder_1>() ||
           prim.IsA<pxr::UsdGeomCone>() || prim.IsA<pxr::UsdGeomCube>() ||
           prim.IsA<pxr::UsdGeomSphere>() || prim.IsA<pxr::UsdGeomPlane>());
+}
+
+ReportList *USDStageReader::reports() const
+{
+  return params_.worker_status ? params_.worker_status->reports : nullptr;
 }
 
 USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim)
@@ -743,7 +749,15 @@ void USDStageReader::sort_readers()
 {
   blender::parallel_sort(
       readers_.begin(), readers_.end(), [](const USDPrimReader *a, const USDPrimReader *b) {
-        return BLI_strcasecmp(a->name().c_str(), b->name().c_str()) < 0;
+        int result = BLI_strcasecmp(a->name().c_str(), b->name().c_str());
+
+        /* The sorting should be deterministic and consistent regardless of how the list of readers
+         * was created. Use the original, unique, USD prim path to break ties. */
+        if (result == 0) {
+          return a->prim_path() < b->prim_path();
+        }
+
+        return result < 0;
       });
 }
 

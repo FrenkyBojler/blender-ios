@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
+/* Do not apply C++ processing to this file. */
+#pragma no_processing
 
 #include "gpu_shader_glsl_extension.glsl"
 
@@ -164,6 +166,9 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define _inout_end
 #define _shared_sta
 #define _shared_end
+/* References (inout and out).
+ * Less verbose that the above for reading processed code. */
+#define _ref(_type, _var) inout _type _var
 
 /* Resource accessor. */
 #define specialization_constant_get(create_info, _res) _res
