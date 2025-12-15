@@ -195,7 +195,7 @@ ModifierTypeInfo modifierType_GreasePencilSubdiv = {
     /*name*/ N_("Subdivide"),
     /*struct_name*/ "GreasePencilSubdivModifierData",
     /*struct_size*/ sizeof(GreasePencilSubdivModifierData),
-    /*srna*/ RNA_GreasePencilSubdivModifier,
+    /*srna*/ &RNA_GreasePencilSubdivModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |

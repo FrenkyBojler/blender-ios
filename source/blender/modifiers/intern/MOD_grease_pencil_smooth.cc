@@ -276,7 +276,7 @@ ModifierTypeInfo modifierType_GreasePencilSmooth = {
     /*name*/ N_("Smooth"),
     /*struct_name*/ "GreasePencilSmoothModifierData",
     /*struct_size*/ sizeof(GreasePencilSmoothModifierData),
-    /*srna*/ RNA_GreasePencilSmoothModifier,
+    /*srna*/ &RNA_GreasePencilSmoothModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |

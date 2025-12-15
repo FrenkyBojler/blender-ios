@@ -68,7 +68,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = BakeItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &ntree->id, BakeItemsAccessor::item_srna, &item, "name");
+                               &ntree->id, *BakeItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type)) {
       input_decl.supports_field();
@@ -864,7 +864,7 @@ std::unique_ptr<LazyFunction> get_bake_lazy_function(
   return std::make_unique<file_ns::LazyFunctionForBakeNode>(node, lf_graph_info);
 }
 
-StructRNA *BakeItemsAccessor::item_srna = RNA_NodeGeometryBakeItem;
+StructRNA **BakeItemsAccessor::item_srna = &RNA_NodeGeometryBakeItem;
 
 void BakeItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

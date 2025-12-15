@@ -391,7 +391,7 @@ ModifierTypeInfo modifierType_WeightVGEdit = {
     /*name*/ N_("VertexWeightEdit"),
     /*struct_name*/ "WeightVGEditModifierData",
     /*struct_size*/ sizeof(WeightVGEditModifierData),
-    /*srna*/ RNA_VertexWeightEditModifier,
+    /*srna*/ &RNA_VertexWeightEditModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode,

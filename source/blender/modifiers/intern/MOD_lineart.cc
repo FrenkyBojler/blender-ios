@@ -878,7 +878,7 @@ ModifierTypeInfo modifierType_GreasePencilLineart = {
     /*name*/ N_("Lineart"),
     /*struct_name*/ "GreasePencilLineartModifierData",
     /*struct_size*/ sizeof(GreasePencilLineartModifierData),
-    /*srna*/ RNA_GreasePencilLineartModifier,
+    /*srna*/ &RNA_GreasePencilLineartModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil,
     /*icon*/ ICON_MOD_LINEART,

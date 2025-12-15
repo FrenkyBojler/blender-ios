@@ -872,7 +872,7 @@ ModifierTypeInfo modifierType_GreasePencilBuild = {
     /*name*/ N_("Build"),
     /*struct_name*/ "GreasePencilBuildModifierData",
     /*struct_size*/ sizeof(GreasePencilBuildModifierData),
-    /*srna*/ RNA_GreasePencilBuildModifier,
+    /*srna*/ &RNA_GreasePencilBuildModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_EnableInEditmode |

@@ -741,7 +741,7 @@ ModifierTypeInfo modifierType_GreasePencilEnvelope = {
     /*name*/ N_("Envelope"),
     /*struct_name*/ "GreasePencilEnvelopeModifierData",
     /*struct_size*/ sizeof(GreasePencilEnvelopeModifierData),
-    /*srna*/ RNA_GreasePencilEnvelopeModifier,
+    /*srna*/ &RNA_GreasePencilEnvelopeModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

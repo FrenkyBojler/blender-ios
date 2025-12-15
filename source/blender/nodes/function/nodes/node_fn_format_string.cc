@@ -51,7 +51,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const StringRef name = item.name;
     const std::string identifier = FormatStringItemsAccessor::socket_identifier_for_item(item);
     b.add_input(socket_type, name, identifier)
-        .socket_name_ptr(&ntree->id, FormatStringItemsAccessor::item_srna, &item, "name");
+        .socket_name_ptr(&ntree->id, *FormatStringItemsAccessor::item_srna, &item, "name");
   }
 
   b.add_input<decl::Extend>("", "__extend__");
@@ -797,7 +797,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *FormatStringItemsAccessor::item_srna = RNA_NodeFunctionFormatStringItem;
+StructRNA **FormatStringItemsAccessor::item_srna = &RNA_NodeFunctionFormatStringItem;
 
 void FormatStringItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

@@ -498,7 +498,7 @@ ModifierTypeInfo modifierType_GreasePencilTint = {
     /*name*/ N_("Tint"),
     /*struct_name*/ "GreasePencilTintModifierData",
     /*struct_size*/ sizeof(GreasePencilTintModifierData),
-    /*srna*/ RNA_GreasePencilTintModifier,
+    /*srna*/ &RNA_GreasePencilTintModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

@@ -883,7 +883,7 @@ static StructRNA *rna_Modifier_refine(PointerRNA *ptr)
   ModifierData *md = (ModifierData *)ptr->data;
   const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(ModifierType(md->type));
   if (modifier_type != nullptr) {
-    return modifier_type->srna;
+    return *modifier_type->srna;
   }
   return RNA_Modifier;
 }

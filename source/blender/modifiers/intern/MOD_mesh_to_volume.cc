@@ -189,7 +189,7 @@ ModifierTypeInfo modifierType_MeshToVolume = {
     /*name*/ N_("Mesh to Volume"),
     /*struct_name*/ "MeshToVolumeModifierData",
     /*struct_size*/ sizeof(MeshToVolumeModifierData),
-    /*srna*/ RNA_MeshToVolumeModifier,
+    /*srna*/ &RNA_MeshToVolumeModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ static_cast<ModifierTypeFlag>(0),
     /*icon*/ ICON_VOLUME_DATA, /* TODO: Use correct icon. */

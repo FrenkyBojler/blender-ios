@@ -513,7 +513,7 @@ ModifierTypeInfo modifierType_GreasePencilDash = {
     /*name*/ N_("Dot Dash"),
     /*struct_name*/ "GreasePencilDashModifierData",
     /*struct_size*/ sizeof(GreasePencilDashModifierData),
-    /*srna*/ RNA_GreasePencilDashModifierData,
+    /*srna*/ &RNA_GreasePencilDashModifierData,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

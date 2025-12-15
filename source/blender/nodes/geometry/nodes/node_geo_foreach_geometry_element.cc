@@ -151,7 +151,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           ForeachGeometryElementInputItemsAccessor::socket_identifier_for_item(item);
       b.add_input(socket_type, name, identifier)
           .socket_name_ptr(
-              &tree->id, ForeachGeometryElementInputItemsAccessor::item_srna, &item, "name")
+              &tree->id, *ForeachGeometryElementInputItemsAccessor::item_srna, &item, "name")
           .description("Field that is evaluated on the iteration domain")
           .field_on_all();
       b.add_output(socket_type, name, identifier)
@@ -258,7 +258,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           item);
       b.add_input(socket_type, name, identifier)
           .socket_name_ptr(
-              &tree->id, ForeachGeometryElementMainItemsAccessor::item_srna, &item, "name")
+              &tree->id, *ForeachGeometryElementMainItemsAccessor::item_srna, &item, "name")
           .description(
               "Attribute value that will be stored for the current element on the main geometry");
       b.add_output(socket_type, name, identifier)
@@ -285,7 +285,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       auto &input_decl = panel.add_input(socket_type, name, identifier)
                              .socket_name_ptr(
                                  &tree->id,
-                                 ForeachGeometryElementGenerationItemsAccessor::item_srna,
+                                 *ForeachGeometryElementGenerationItemsAccessor::item_srna,
                                  &item,
                                  "name");
       auto &output_decl = panel.add_output(socket_type, name, identifier).align_with_previous();
@@ -476,8 +476,8 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *ForeachGeometryElementInputItemsAccessor::item_srna =
-    RNA_ForeachGeometryElementInputItem;
+StructRNA **ForeachGeometryElementInputItemsAccessor::item_srna =
+    &RNA_ForeachGeometryElementInputItem;
 
 void ForeachGeometryElementInputItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                 const ItemT &item)
@@ -491,7 +491,8 @@ void ForeachGeometryElementInputItemsAccessor::blend_read_data_item(BlendDataRea
   BLO_read_string(reader, &item.name);
 }
 
-StructRNA *ForeachGeometryElementMainItemsAccessor::item_srna = RNA_ForeachGeometryElementMainItem;
+StructRNA **ForeachGeometryElementMainItemsAccessor::item_srna =
+    &RNA_ForeachGeometryElementMainItem;
 
 void ForeachGeometryElementMainItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                const ItemT &item)
@@ -505,8 +506,8 @@ void ForeachGeometryElementMainItemsAccessor::blend_read_data_item(BlendDataRead
   BLO_read_string(reader, &item.name);
 }
 
-StructRNA *ForeachGeometryElementGenerationItemsAccessor::item_srna =
-    RNA_ForeachGeometryElementGenerationItem;
+StructRNA **ForeachGeometryElementGenerationItemsAccessor::item_srna =
+    &RNA_ForeachGeometryElementGenerationItem;
 
 void ForeachGeometryElementGenerationItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                      const ItemT &item)

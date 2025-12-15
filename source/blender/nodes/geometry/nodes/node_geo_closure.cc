@@ -295,7 +295,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *ClosureInputItemsAccessor::item_srna = RNA_NodeClosureInputItem;
+StructRNA **ClosureInputItemsAccessor::item_srna = &RNA_NodeClosureInputItem;
 
 void ClosureInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -307,7 +307,7 @@ void ClosureInputItemsAccessor::blend_read_data_item(BlendDataReader *reader, It
   BLO_read_string(reader, &item.name);
 }
 
-StructRNA *ClosureOutputItemsAccessor::item_srna = RNA_NodeClosureOutputItem;
+StructRNA **ClosureOutputItemsAccessor::item_srna = &RNA_NodeClosureOutputItem;
 
 void ClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

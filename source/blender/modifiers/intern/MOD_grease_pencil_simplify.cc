@@ -242,7 +242,7 @@ ModifierTypeInfo modifierType_GreasePencilSimplify = {
     /*name*/ N_("Simplify"),
     /*struct_name*/ "GreasePencilSimplifyModifierData",
     /*struct_size*/ sizeof(GreasePencilSimplifyModifierData),
-    /*srna*/ RNA_GreasePencilSimplifyModifier,
+    /*srna*/ &RNA_GreasePencilSimplifyModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/
     eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |

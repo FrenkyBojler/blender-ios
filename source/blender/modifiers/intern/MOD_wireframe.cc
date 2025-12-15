@@ -160,7 +160,7 @@ ModifierTypeInfo modifierType_Wireframe = {
     /*name*/ N_("Wireframe"),
     /*struct_name*/ "WireframeModifierData",
     /*struct_size*/ sizeof(WireframeModifierData),
-    /*srna*/ RNA_WireframeModifier,
+    /*srna*/ &RNA_WireframeModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_WIREFRAME,

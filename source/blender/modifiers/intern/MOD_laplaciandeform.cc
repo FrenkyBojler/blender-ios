@@ -858,7 +858,7 @@ ModifierTypeInfo modifierType_LaplacianDeform = {
     /*name*/ N_("LaplacianDeform"),
     /*struct_name*/ "LaplacianDeformModifierData",
     /*struct_size*/ sizeof(LaplacianDeformModifierData),
-    /*srna*/ RNA_LaplacianDeformModifier,
+    /*srna*/ &RNA_LaplacianDeformModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_MESHDEFORM,

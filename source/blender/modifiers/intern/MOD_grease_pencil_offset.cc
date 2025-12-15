@@ -472,7 +472,7 @@ ModifierTypeInfo modifierType_GreasePencilOffset = {
     /*name*/ N_("Offset"),
     /*struct_name*/ "GreasePencilOffsetModifierData",
     /*struct_size*/ sizeof(GreasePencilOffsetModifierData),
-    /*srna*/ RNA_GreasePencilOffsetModifier,
+    /*srna*/ &RNA_GreasePencilOffsetModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

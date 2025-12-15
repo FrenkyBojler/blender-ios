@@ -99,7 +99,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
     declaration->structure_type(StructureType::Dynamic)
         .compositor_realization_mode(realization_mode)
-        .socket_name_ptr(&node_tree->id, FileOutputItemsAccessor::item_srna, &item, "name");
+        .socket_name_ptr(&node_tree->id, *FileOutputItemsAccessor::item_srna, &item, "name");
   }
 
   b.add_input<decl::Extend>("", "__extend__");
@@ -893,7 +893,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *FileOutputItemsAccessor::item_srna = RNA_NodeCompositorFileOutputItem;
+StructRNA **FileOutputItemsAccessor::item_srna = &RNA_NodeCompositorFileOutputItem;
 
 void FileOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

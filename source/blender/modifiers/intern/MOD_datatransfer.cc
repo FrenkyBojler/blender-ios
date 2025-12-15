@@ -454,7 +454,7 @@ ModifierTypeInfo modifierType_DataTransfer = {
     /*name*/ N_("DataTransfer"),
     /*struct_name*/ "DataTransferModifierData",
     /*struct_size*/ sizeof(DataTransferModifierData),
-    /*srna*/ RNA_DataTransferModifier,
+    /*srna*/ &RNA_DataTransferModifier,
     /*type*/ ModifierTypeType::NonGeometrical,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode,

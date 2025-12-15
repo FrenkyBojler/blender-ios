@@ -354,7 +354,7 @@ ModifierTypeInfo modifierType_GreasePencilArray = {
     /*name*/ N_("Array"),
     /*struct_name*/ "GreasePencilArrayModifierData",
     /*struct_size*/ sizeof(GreasePencilArrayModifierData),
-    /*srna*/ RNA_GreasePencilArrayModifier,
+    /*srna*/ &RNA_GreasePencilArrayModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

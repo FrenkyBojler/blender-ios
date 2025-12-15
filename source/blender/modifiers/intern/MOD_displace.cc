@@ -406,7 +406,7 @@ ModifierTypeInfo modifierType_Displace = {
     /*name*/ N_("Displace"),
     /*struct_name*/ "DisplaceModifierData",
     /*struct_size*/ sizeof(DisplaceModifierData),
-    /*srna*/ RNA_DisplaceModifier,
+    /*srna*/ &RNA_DisplaceModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_DISPLACE,

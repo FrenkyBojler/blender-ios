@@ -648,7 +648,7 @@ ModifierTypeInfo modifierType_ParticleInstance = {
     /*name*/ N_("ParticleInstance"),
     /*struct_name*/ "ParticleInstanceModifierData",
     /*struct_size*/ sizeof(ParticleInstanceModifierData),
-    /*srna*/ RNA_ParticleInstanceModifier,
+    /*srna*/ &RNA_ParticleInstanceModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,

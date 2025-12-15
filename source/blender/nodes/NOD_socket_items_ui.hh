@@ -116,7 +116,7 @@ static void draw_active_item_props(const bNodeTree &tree,
 
   ItemT &item = (*ref.items)[*ref.active_index];
   PointerRNA item_ptr = RNA_pointer_create_discrete(
-      const_cast<ID *>(&tree.id), Accessor::item_srna, &item);
+      const_cast<ID *>(&tree.id), *Accessor::item_srna, &item);
   draw_item(&item_ptr);
 }
 

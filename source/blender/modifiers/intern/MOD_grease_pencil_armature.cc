@@ -311,7 +311,7 @@ ModifierTypeInfo modifierType_GreasePencilArmature = {
     /*name*/ N_("Armature"),
     /*struct_name*/ "GreasePencilArmatureModifierData",
     /*struct_size*/ sizeof(GreasePencilArmatureModifierData),
-    /*srna*/ RNA_GreasePencilArmatureModifier,
+    /*srna*/ &RNA_GreasePencilArmatureModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

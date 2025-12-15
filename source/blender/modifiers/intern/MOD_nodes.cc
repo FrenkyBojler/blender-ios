@@ -2313,7 +2313,7 @@ ModifierTypeInfo modifierType_Nodes = {
     /*name*/ N_("GeometryNodes"),
     /*struct_name*/ "NodesModifierData",
     /*struct_size*/ sizeof(NodesModifierData),
-    /*srna*/ RNA_NodesModifier,
+    /*srna*/ &RNA_NodesModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/
     (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |

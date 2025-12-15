@@ -668,7 +668,7 @@ ModifierTypeInfo modifierType_MeshDeform = {
     /*name*/ N_("MeshDeform"),
     /*struct_name*/ "MeshDeformModifierData",
     /*struct_size*/ sizeof(MeshDeformModifierData),
-    /*srna*/ RNA_MeshDeformModifier,
+    /*srna*/ &RNA_MeshDeformModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,

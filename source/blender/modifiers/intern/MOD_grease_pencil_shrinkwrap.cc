@@ -331,7 +331,7 @@ ModifierTypeInfo modifierType_GreasePencilShrinkwrap = {
     /*name*/ N_("Shrinkwrap"),
     /*struct_name*/ "GreasePencilShrinkwrapModifierData",
     /*struct_size*/ sizeof(GreasePencilShrinkwrapModifierData),
-    /*srna*/ RNA_GreasePencilShrinkwrapModifier,
+    /*srna*/ &RNA_GreasePencilShrinkwrapModifier,
     /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

@@ -668,7 +668,7 @@ ModifierTypeInfo modifierType_GreasePencilTime = {
     /*name*/ N_("TimeOffset"),
     /*struct_name*/ "GreasePencilTimeModifierData",
     /*struct_size*/ sizeof(GreasePencilTimeModifierData),
-    /*srna*/ RNA_GreasePencilTimeModifier,
+    /*srna*/ &RNA_GreasePencilTimeModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

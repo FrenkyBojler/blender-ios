@@ -1121,7 +1121,7 @@ ModifierTypeInfo modifierType_Screw = {
     /*name*/ N_("Screw"),
     /*struct_name*/ "ScrewModifierData",
     /*struct_size*/ sizeof(ScrewModifierData),
-    /*srna*/ RNA_ScrewModifier,
+    /*srna*/ &RNA_ScrewModifier,
     /*type*/ ModifierTypeType::Constructive,
 
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |

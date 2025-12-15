@@ -253,7 +253,7 @@ ModifierTypeInfo modifierType_GreasePencilMirror = {
     /*name*/ N_("Mirror"),
     /*struct_name*/ "GreasePencilMirrorModifierData",
     /*struct_size*/ sizeof(GreasePencilMirrorModifierData),
-    /*srna*/ RNA_GreasePencilMirrorModifier,
+    /*srna*/ &RNA_GreasePencilMirrorModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsGreasePencil | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping,

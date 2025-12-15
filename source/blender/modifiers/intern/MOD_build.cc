@@ -286,7 +286,7 @@ ModifierTypeInfo modifierType_Build = {
     /*name*/ N_("Build"),
     /*struct_name*/ "BuildModifierData",
     /*struct_size*/ sizeof(BuildModifierData),
-    /*srna*/ RNA_BuildModifier,
+    /*srna*/ &RNA_BuildModifier,
     /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_BUILD,
