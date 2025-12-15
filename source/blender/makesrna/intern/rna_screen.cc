@@ -102,7 +102,7 @@ static bool rna_Screen_is_scrubbing_get(PointerRNA *ptr)
   return screen->scrubbing;
 }
 
-static PointerRNA rna_Screen_playing_scene_get(PointerRNA *ptr)
+static PointerRNA rna_Screen_playing_scene_get(PointerRNA * /*ptr*/)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
   if (!wm) {
