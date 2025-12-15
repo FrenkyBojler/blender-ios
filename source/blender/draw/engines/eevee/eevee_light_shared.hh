@@ -104,7 +104,7 @@ static inline bool is_local_light(eLightType type)
 
 /* Untyped local light data. Gets reinterpreted to LightSpotData and LightAreaData.
  * Allow access to local light common data without casting. */
-struct [[host_shared]] [[unchecked]] LightLocalData {
+struct [[host_shared, unchecked]] LightLocalData {
   LOCAL_LIGHT_COMMON
 
   float _pad1;
@@ -117,7 +117,7 @@ struct [[host_shared]] [[unchecked]] LightLocalData {
 BLI_STATIC_ASSERT_ALIGN(LightLocalData, 16)
 
 /* Despite the name, is also used for omni light. */
-struct [[host_shared]] [[unchecked]] LightSpotData {
+struct [[host_shared, unchecked]] LightSpotData {
   LOCAL_LIGHT_COMMON
 
   float _pad1;
@@ -132,7 +132,7 @@ struct [[host_shared]] [[unchecked]] LightSpotData {
 };
 BLI_STATIC_ASSERT(sizeof(LightSpotData) == sizeof(LightLocalData), "Data size must match")
 
-struct [[host_shared]] [[unchecked]] LightAreaData {
+struct [[host_shared, unchecked]] LightAreaData {
   LOCAL_LIGHT_COMMON
 
   float _pad2;
@@ -146,7 +146,7 @@ struct [[host_shared]] [[unchecked]] LightAreaData {
 };
 BLI_STATIC_ASSERT(sizeof(LightAreaData) == sizeof(LightLocalData), "Data size must match")
 
-struct [[host_shared]] [[unchecked]] LightSunData {
+struct [[host_shared, unchecked]] LightSunData {
   /* Sun direction for shading. Use object_to_world for getting into shadow space. */
   packed_float3 direction;
   /* Radius of the sun disk, one unit away from a shading point. */
@@ -185,7 +185,7 @@ BLI_STATIC_ASSERT(sizeof(LightSunData) == sizeof(LightLocalData), "Data size mus
 #  define USE_LIGHT_UNION 0
 #endif
 
-struct [[host_shared]] [[unchecked]] LightData {
+struct [[host_shared, unchecked]] LightData {
   /**
    * Normalized object to world matrix. Stored transposed for compactness.
    * Used for shading and shadowing local lights, or shadowing sun lights.

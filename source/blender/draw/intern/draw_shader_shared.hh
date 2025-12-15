@@ -296,7 +296,7 @@ BLI_STATIC_ASSERT_ALIGN(LayerAttribute, 32)
 /** \name Indirect commands structures.
  * \{ */
 
-struct [[host_shared]] [[unchecked]] DrawCommand {
+struct [[host_shared, unchecked]] DrawCommand {
   /* TODO(fclem): Rename */
   uint vertex_len;
   uint instance_len;
