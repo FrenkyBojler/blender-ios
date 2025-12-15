@@ -510,7 +510,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
           if (sl->spacetype == SPACE_IMAGE) {
             SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
-            sima->uv_edge_opacity = 1.0f;
+            sima->uv_edge_opacity = sima->uv_opacity;
           }
         }
       }
