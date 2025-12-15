@@ -327,6 +327,7 @@ CachedImage::CachedImage(Context &context,
       });
     }
     else if (buffer_result.type() == ResultType::Float3 && result.type() == ResultType::Color) {
+      /* Color passes with no alpha could be stored in a Float3 type. */
       parallel_for(size, [&](const int2 texel) {
         this->result.store_pixel(texel,
                                  Color(float4(buffer_result.load_pixel<float3>(texel), 1.0f)));
