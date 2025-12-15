@@ -85,14 +85,11 @@ bool is_occluded_by_higher_level(LineData line, uint level)
 {
   if (flag_test(grid_flag, SHOW_GRID) && !flag_test(grid_flag, GRID_SIMA)) {
     if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
-      float step_size_curr = grid_buf.steps[level][line.axis];
-      float step_size_next = grid_buf.steps[level + 1][line.axis];
-
-      float2 step_offs_curr = round(grid_buf.offset / step_size_curr) * step_size_curr;
-      float2 step_offs_next = round(step_offs_curr / step_size_next) * step_size_next;
-      float2 diff = step_offs_next + (line.P - step_offs_next) / step_size_next;
-
-      if (is_equal(fract(diff[1 - line.axis]), 0.0f, 1e-4)) {
+      /* To determine if a higher up line occludes the current line; we solve the following:
+       * given scalars s1, s2 and integer i, is there an integer j : i*s1 = j*s2. The value in
+       * `line.P` holds i*s1, so we compute j = i*s1/s2 and verify if it is an integer.  */
+      float j = abs(line.P[1 - line.axis]) / grid_buf.steps[level + 1][line.axis];
+      if (is_equal(float(int(j)), j, 1e-4f)) {
         return true;
       }
     }
@@ -198,7 +195,7 @@ void main()
 
   /* Additional culling steps to discard occluded lines. */
   if (is_occluded_by_axis(vertex_out.pos) || is_occluded_by_higher_level(line, level)) {
-    return;
+    return; /* Discard line. */
   }
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
