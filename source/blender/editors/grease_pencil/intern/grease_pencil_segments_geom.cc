@@ -26,7 +26,7 @@
 #include "ED_grease_pencil.hh"
 #include "ED_view3d.hh"
 
-namespace blender::ed::greasepencil::trim {
+namespace blender::ed::greasepencil {
 
 enum Side : uint8_t { Start = 0, End = 1 };
 
@@ -852,6 +852,8 @@ static void create_connections_from_curves(const OffsetIndices<int> segments_by_
   });
 }
 
+namespace trim {
+
 static void follow_segment_connections(const Span<Segment> all_segments,
                                        const Span<bool> segments_to_keep,
                                        const Span<SegmentConnections> segment_connections,
@@ -1301,7 +1303,9 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   return dst;
 }
 
-}  // namespace blender::ed::greasepencil::trim
+}  // namespace trim
+
+namespace carver {
 
 /**
  * This is a heavily modified implementation of the Greiner-Hormann clipping algorithm.
@@ -1324,17 +1328,6 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
  *  2: Remove all segments that are not contributing.
  *  3: Follow each segment until it loops or terminates.
  *  4: Repeat for every `subject` shape.
- */
-
-namespace blender::ed::greasepencil::carver {
-
-using Segment = ed::greasepencil::trim::Segment;
-using Side = ed::greasepencil::trim::Side;
-using IntersectionPoint = ed::greasepencil::trim::IntersectionPoint;
-using EncodedConnection = ed::greasepencil::trim::EncodedConnection;
-
-/**
- * -----------------------------------
  */
 
 static int intersect(const float2 &P1,
@@ -1698,7 +1691,7 @@ static void find_intersections_between_curves(const Span<float2> points_i,
       if (val == ISECT_LINE_LINE_CROSS || val == ISECT_LINE_LINE_EXACT) {
         r_inters_per_curves[curve_i].append(r_intersections.size());
         r_inters_per_curves[curve_j].append(r_intersections.size());
-        r_intersections.append(ed::greasepencil::trim::create_intersection(
+        r_intersections.append(create_intersection(
             i + point_offset_i, j + point_offset_j, alpha_a, alpha_b, curve_i, curve_j));
       }
     }
@@ -1888,7 +1881,7 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
         return;
       }
       /* Check if the last segment can be joined with this one. */
-      if (!ed::greasepencil::trim::check_and_join_segments(segments.last(), current_segment)) {
+      if (!check_and_join_segments(segments.last(), current_segment)) {
         segments.append(current_segment);
         segment_reversed.append(current_backwards);
       }
@@ -1899,7 +1892,7 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
         return;
       }
       /* Check if the last segment can be joined to the first one. */
-      if (ed::greasepencil::trim::check_and_join_segments(segments.first(), segments.last())) {
+      if (check_and_join_segments(segments.first(), segments.last())) {
         segments.remove_last();
         segment_reversed.remove_last();
       }
@@ -1913,13 +1906,13 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
       const int next_encoded =
           segment_connections[current_i][current_backwards ? Side::Start : Side::End];
 
-      if (next_encoded == ed::greasepencil::trim::SEGMENT_CONNECTION_NULL) {
+      if (next_encoded == SEGMENT_CONNECTION_NULL) {
         PolygonDone = true;
         break;
       }
 
-      const int next_segment = ed::greasepencil::trim::decode_index(next_encoded);
-      const Side next_side = ed::greasepencil::trim::decode_side(next_encoded);
+      const int next_segment = decode_index(next_encoded);
+      const Side next_side = decode_side(next_encoded);
 
       current_i = next_segment;
       current_backwards = next_side == Side::End;
@@ -1950,14 +1943,14 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
       const int next_encoded =
           segment_connections[current_i][current_backwards ? Side::Start : Side::End];
 
-      if (next_encoded == ed::greasepencil::trim::SEGMENT_CONNECTION_NULL) {
+      if (next_encoded == SEGMENT_CONNECTION_NULL) {
         PolygonDone = true;
         PolygonClosed = current_segment.is_loop();
         break;
       }
 
-      const int next_segment = ed::greasepencil::trim::decode_index(next_encoded);
-      const Side next_side = ed::greasepencil::trim::decode_side(next_encoded);
+      const int next_segment = decode_index(next_encoded);
+      const Side next_side = decode_side(next_encoded);
 
       if (next_segment == first_segment) {
         PolygonDone = true;
@@ -1998,8 +1991,6 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                                             const VArray<bool> &is_fill,
                                             const VArray<bool> &cyclic)
 {
-  using namespace ed::greasepencil::trim;
-
   const IndexMask &curves_i = shapes[subj_shape_id];
 
   Vector<IntersectionPoint> intersections;
@@ -2111,8 +2102,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
 
   /* -------------------- */
 
-  Array<int2> segment_connections(all_segments.size(),
-                                  int2(ed::greasepencil::trim::SEGMENT_CONNECTION_NULL));
+  Array<int2> segment_connections(all_segments.size(), int2(SEGMENT_CONNECTION_NULL));
 
   for (const int inter_id : intersections.index_range()) {
     const IntersectionPoint &inter = intersections[inter_id];
@@ -2629,4 +2619,6 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
   return dst_curves;
 }
 
-}  // namespace blender::ed::greasepencil::carver
+}  // namespace carver
+
+}  // namespace blender::ed::greasepencil
