@@ -77,9 +77,9 @@ struct WorkSpace;
  * Context logging control flags.
  */
 enum class CTX_LogFlags : uint8_t {
-  /* Enable logging of context member access. */
+  /** Enable logging of context member access. */
   Access = (1 << 0),
-  /* Hide missing/None values from logging. */
+  /** Hide missing/None values from logging. */
   HideMissing = (1 << 1),
 };
 ENUM_OPERATORS(CTX_LogFlags);
