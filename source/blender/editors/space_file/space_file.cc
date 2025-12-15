@@ -123,10 +123,8 @@ static void file_free(SpaceLink *sl)
   folder_history_list_free(sfile);
 
   if (sfile->params) {
-    if (sfile->params->runtime) {
-      MEM_delete(sfile->params->runtime);
-      sfile->params->runtime = nullptr;
-    }
+    MEM_delete(sfile->params->runtime);
+    sfile->params->runtime = nullptr;
   }
 
   MEM_SAFE_FREE(sfile->params);
