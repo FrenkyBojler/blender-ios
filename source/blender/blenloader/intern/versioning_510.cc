@@ -503,6 +503,22 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 14)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+          if (STREQ(workspace_name, "UV Editing")) {
+            sima->uv_edge_opacity = 1.0f;
+          }
+          else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
+            sima->uv_edge_opacity = 0.0f;
+          }
+        }
+      }
+    }
+  }
+
   /* This has no version check and always runs for all versions because there is forward
    * compatibility code at write time that reallocates the storage, so we need to free it
    * regardless of the version. */
