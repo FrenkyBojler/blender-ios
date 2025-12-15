@@ -2827,12 +2827,12 @@ static void read_undo_tag_all_noundo_ids(FileData *fd)
       }
 
       if (old_bmain_iter->curlib) {
-        BLO_readfile_id_runtime_tags_for_write(old_bmain_iter->curlib->id)
-            .undo_is_dependency_of_no_undo_id = true;
+        BLO_readfile_id_runtime_tags_for_write(old_bmain_iter->curlib->id).used_by_no_undo_id =
+            true;
       }
       ID *id_iter;
       FOREACH_MAIN_LISTBASE_ID_BEGIN (lbarray[i], id_iter) {
-        BLO_readfile_id_runtime_tags_for_write(*id_iter).undo_is_dependency_of_no_undo_id = true;
+        BLO_readfile_id_runtime_tags_for_write(*id_iter).used_by_no_undo_id = true;
         no_undo_ids.push_back(id_iter);
       }
       FOREACH_MAIN_LISTBASE_ID_END;
@@ -2850,8 +2850,8 @@ static void read_undo_tag_all_noundo_ids(FileData *fd)
           ID *id_owner = cb_data->owner_id;
           ID *id = *cb_data->id_pointer;
 
-          BLI_assert(BLO_readfile_id_runtime_tags(*id_owner).undo_is_dependency_of_no_undo_id);
-          if (!id || BLO_readfile_id_runtime_tags(*id).undo_is_dependency_of_no_undo_id) {
+          BLI_assert(BLO_readfile_id_runtime_tags(*id_owner).used_by_no_undo_id);
+          if (!id || BLO_readfile_id_runtime_tags(*id).used_by_no_undo_id) {
             return IDWALK_RET_NOP;
           }
 
@@ -2861,11 +2861,10 @@ static void read_undo_tag_all_noundo_ids(FileData *fd)
             return IDWALK_RET_NOP;
           }
 
-          BLO_readfile_id_runtime_tags_for_write(*id).undo_is_dependency_of_no_undo_id = true;
+          BLO_readfile_id_runtime_tags_for_write(*id).used_by_no_undo_id = true;
           no_undo_ids.push_back(id);
           if (ID_IS_LINKED(id)) {
-            BLO_readfile_id_runtime_tags_for_write(id->lib->id).undo_is_dependency_of_no_undo_id =
-                true;
+            BLO_readfile_id_runtime_tags_for_write(id->lib->id).used_by_no_undo_id = true;
           }
           return IDWALK_RET_NOP;
         },
@@ -2959,7 +2958,7 @@ static void read_undo_move_libmain_data(FileData *fd, Main *libmain, BHead *bhea
     if (id_type->flags & IDTYPE_FLAGS_NO_MEMFILE_UNDO) {
       id_iter->tag |= ID_TAG_UNDO_OLD_ID_REUSED_NOUNDO;
     }
-    else if (!BLO_readfile_id_runtime_tags(*id_iter).undo_is_dependency_of_no_undo_id) {
+    else if (!BLO_readfile_id_runtime_tags(*id_iter).used_by_no_undo_id) {
       curlib->runtime->unused_ids_on_undo.add_new(id_iter);
     }
   }
@@ -3030,7 +3029,7 @@ static void read_undo_libraries_preserve_never_undo_libraries(FileData *fd)
       old_bmain->split_mains->as_span().drop_front(1)};
   for (Main *lib_bmain : old_bmain_split_mains) {
     BLI_assert(lib_bmain->curlib);
-    if (BLO_readfile_id_runtime_tags(lib_bmain->curlib->id).undo_is_dependency_of_no_undo_id) {
+    if (BLO_readfile_id_runtime_tags(lib_bmain->curlib->id).used_by_no_undo_id) {
       read_undo_move_libmain_data(fd, lib_bmain, nullptr);
     }
   }
