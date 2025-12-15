@@ -32,72 +32,118 @@ struct LoopData {
   BMVert *center_vert = nullptr;
 };
 
+/* Detect whether an edge should be considered a valid boundary
+ * edge for circularization. */
 static bool is_valid_boundary_edge(BMEdge *e)
 {
-  if (!BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-    return false;
-  }
-  if (BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
+  if (!BM_elem_flag_test(e, BM_ELEM_SELECT) || BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
     return false;
   }
 
+  /* If edge has 2 selected faces, it's interior, not boundary. */
   if (e->l && e->l->radial_next != e->l) {
-    bool f1_sel = BM_elem_flag_test(e->l->f, BM_ELEM_SELECT);
-    bool f2_sel = BM_elem_flag_test(e->l->radial_next->f, BM_ELEM_SELECT);
-
-    if (f1_sel && f2_sel) {
+    if (BM_elem_flag_test(e->l->f, BM_ELEM_SELECT) &&
+        BM_elem_flag_test(e->l->radial_next->f, BM_ELEM_SELECT))
+    {
       return false;
     }
   }
+
+  /* Mirror axis check.
+   * Not using exacly 0 to allow for a small margin of error. */
+  const float limit = 0.001f;
+
+  /* If the coordinate of vertex 1 is close to zero and that of vertex 2
+   * is also close to zero, the entire edge lies on the X or Y or Z = 0
+   * mirror plane. An edge on the mirror plane is an invalid boundary edge. */
+
+  /* X-Axis */
+  if (fabsf(e->v1->co[0]) < limit && fabsf(e->v2->co[0]) < limit)
+    return false;
+  /* Y-Axis */
+  if (fabsf(e->v1->co[1]) < limit && fabsf(e->v2->co[1]) < limit)
+    return false;
+  /* Z-Axis */
+  if (fabsf(e->v1->co[2]) < limit && fabsf(e->v2->co[2]) < limit)
+    return false;
+
   return true;
 }
 
+/**
+ * Traverses a connected path of boundary edges to form a continuous sequence of vertices.
+ *
+ * This function handles two cases:
+ * 1. Closed loops: walks until the traversal returns to the start vertex.
+ * 2. Open chains: walks in one direction until a ded end, then walks in the
+ *    opposite direction from the start edge and merges the results.
+ */
 static bool walk_boundary_loop(BMesh * /*bm*/,
                                BMEdge *start_edge,
                                Set<BMEdge *> &visited,
                                Vector<BMVert *> &r_loop)
 {
-  BMVert *v_curr = start_edge->v1;
-  BMEdge *e_curr = start_edge;
-
-  r_loop.append(v_curr);
-  visited.add(e_curr);
-
-  bool is_closed = false;
-  bool found_next = true;
-
-  while (found_next) {
-    found_next = false;
-
-    BMVert *v_next = BM_edge_other_vert(e_curr, v_curr);
-
-    if (!r_loop.is_empty() && v_next == r_loop[0]) {
-      is_closed = true;
-      break;
-    }
-
-    r_loop.append(v_next);
-    v_curr = v_next;
-
+  /* Finds the next valid boundary edge that isn't visited. */
+  auto get_next_edge = [&](BMVert *v, BMEdge *exclude_e) -> BMEdge * {
     BMIter eiter;
     BMEdge *e_next;
-    BM_ITER_ELEM (e_next, &eiter, v_curr, BM_EDGES_OF_VERT) {
-      if (e_next == e_curr) {
-        continue;
-      }
-      if (visited.contains(e_next)) {
-        continue;
-      }
-
-      if (is_valid_boundary_edge(e_next)) {
-        e_curr = e_next;
-        visited.add(e_curr);
-        found_next = true;
-        break;
+    BM_ITER_ELEM (e_next, &eiter, v, BM_EDGES_OF_VERT) {
+      if (e_next != exclude_e && !visited.contains(e_next)) {
+        if (is_valid_boundary_edge(e_next)) {
+          return e_next;
+        }
       }
     }
+    return nullptr;
+  };
+
+  /* Walks in one direction until a dead end. */
+  auto walk = [&](BMVert *curr_v, BMEdge *curr_e, Vector<BMVert *> &list) {
+    while (true) {
+      BMEdge *next_e = get_next_edge(curr_v, curr_e);
+      if (!next_e) {
+        break;
+      }
+
+      /* Move to next vertex. */
+      curr_v = BM_edge_other_vert(next_e, curr_v);
+      curr_e = next_e;
+
+      list.append(curr_v);
+      visited.add(curr_e);
+    }
+  };
+
+  r_loop.append(start_edge->v1);
+  r_loop.append(start_edge->v2);
+  visited.add(start_edge);
+
+  walk(start_edge->v2, start_edge, r_loop);
+
+  /* If the traversal forms a closed loop, the last vertex will match the first.
+   * Remove the duplicate end vertex. */
+  if (r_loop.size() > 2 && r_loop.first() == r_loop.last()) {
+    r_loop.remove_last();
+    return true;
   }
-  return is_closed;
+
+  /* If we are here, the loop is open.
+   * We need to check the other direction from the start vertex. */
+  Vector<BMVert *> pre_loop;
+  walk(start_edge->v1, start_edge, pre_loop);
+
+  if (!pre_loop.is_empty()) {
+    std::reverse(pre_loop.begin(), pre_loop.end());
+
+    Vector<BMVert *> full_loop;
+    full_loop.reserve(pre_loop.size() + r_loop.size());
+    full_loop.extend(pre_loop);
+    full_loop.extend(r_loop);
+
+    r_loop = full_loop;
+  }
+
+  return false;
 }
 
 static void sort_fan_edges(const Set<BMEdge *> &edges, Vector<BMVert *> &r_loop)
@@ -406,17 +452,44 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     float center_3d[3], normal[3], p[3], q[3];
     calculate_plane_basis(loop, center_3d, normal, p, q);
 
+    /* For open loops, force the center to the midpoint of the endpoints to
+     * keep the circle aligned with the mirror plane. */
+    if (!loop_data.is_closed) {
+      BMVert *v_start = loop.first();
+      BMVert *v_end = loop.last();
+
+      mid_v3_v3v3(center_3d, v_start->co, v_end->co);
+      sub_v3_v3v3(p, v_start->co, center_3d);
+      normalize_v3(p);
+
+      cross_v3_v3v3(q, normal, p);
+      normalize_v3(q);
+    }
+
     Vector<CircleVert> circle_verts;
     project_loop_to_2d(loop, center_3d, p, q, circle_verts);
 
     float circle_center_2d[2];
     float radius;
 
-    if (fit_method == 1) {
-      calculate_circle_inside_fit(circle_verts, circle_center_2d, &radius);
+    if (!loop_data.is_closed) {
+      /* Calculate the radius as the average distance from the origin
+       * for open loops. */
+      zero_v2(circle_center_2d);
+
+      radius = 0.0f;
+      for (const CircleVert &cv : circle_verts) {
+        radius += len_v2(cv.co_2d);
+      }
+      radius /= circle_verts.size();
     }
     else {
-      calculate_circle_best_fit(circle_verts, circle_center_2d, &radius);
+      if (fit_method == 1) {
+        calculate_circle_inside_fit(circle_verts, circle_center_2d, &radius);
+      }
+      else {
+        calculate_circle_best_fit(circle_verts, circle_center_2d, &radius);
+      }
     }
 
     if (custom_radius > 0.0f) {
