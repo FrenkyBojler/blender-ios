@@ -972,12 +972,13 @@ struct CurveBooleanOpParameters {
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
-                                  const Span<float4> normal_planes,
+                                  const std::optional<GroupedSpan<int>> shapes,
+                                  Span<float4> normal_planes,
                                   const IndexMask &mask_shapes,
                                   const IndexMask &clipping_shapes,
                                   const float4x4 &layer_to_world,
                                   const ARegion &region,
-                                  const bool keep_caps);
+                                  bool keep_caps);
 
 }  // namespace carver
 
