@@ -185,7 +185,7 @@ BLI_STATIC_ASSERT(sizeof(LightSunData) == sizeof(LightLocalData), "Data size mus
 #  define USE_LIGHT_UNION 0
 #endif
 
-struct LightData {
+struct [[host_shared]] [[unchecked]] LightData {
   /**
    * Normalized object to world matrix. Stored transposed for compactness.
    * Used for shading and shadowing local lights, or shadowing sun lights.
@@ -499,7 +499,7 @@ static inline int light_local_tilemap_count(LightData light)
 /* Max tile map resolution per axes. */
 #define CULLING_TILE_RES 16
 
-struct LightCullingData {
+struct [[host_shared]] LightCullingData {
   /** Scale applied to tile pixel coordinates to get target UV coordinate. */
   float2 tile_to_uv_fac;
   /** Scale and bias applied to linear Z to get zbin. */
@@ -526,7 +526,6 @@ struct LightCullingData {
   uint _pad1;
   uint _pad2;
 };
-BLI_STATIC_ASSERT_ALIGN(LightCullingData, 16)
 
 /** \} */
 

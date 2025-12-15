@@ -115,6 +115,10 @@ using blender::float2x4;
 using blender::float3x4;
 using blender::float4x4;
 
+/* Avoid warning about unknown attribute. These are parsed by our shader translation tool. */
+#    define host_shared
+#    define unchecked
+
 #  endif
 
 /* For assert support. */
