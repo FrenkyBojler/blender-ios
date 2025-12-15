@@ -433,11 +433,11 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
 void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 {
   const float influence = BMO_slot_float_get(op->slots_in, "influence");
-
-  const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
-  const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
   const float custom_radius = BMO_slot_float_get(op->slots_in, "custom_radius");
   const float angle = BMO_slot_float_get(op->slots_in, "angle");
+  const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
+  const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
+
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
   const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");

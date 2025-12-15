@@ -93,23 +93,6 @@ void MESH_OT_circularize(wmOperatorType *ot)
 
   prop = RNA_def_float_factor(
       ot->srna, "influence", 1.0f, 0.0f, 1.0f, "Influence", "Force of the tool", 0.0f, 1.0f);
-
-  RNA_def_boolean(ot->srna,
-                  "flatten",
-                  true,
-                  "Flatten",
-                  "Flatten the circle, instead of projecting it on the mesh");
-  RNA_def_boolean(ot->srna,
-                  "regular",
-                  true,
-                  "Regular",
-                  "Distribute vertices at constant distances along the circle");
-  RNA_def_enum(ot->srna,
-               "fit_method",
-               prop_fit_method_items,
-               0,
-               "Fit Method",
-               "Method used for fitting a circle to the vertices");
   RNA_def_float(ot->srna,
                 "custom_radius",
                 0.0f,
@@ -119,7 +102,6 @@ void MESH_OT_circularize(wmOperatorType *ot)
                 "Custom radius for circle",
                 0.0f,
                 1000.0f);
-
   prop = RNA_def_float(ot->srna,
                        "angle",
                        0.0f,
@@ -130,6 +112,22 @@ void MESH_OT_circularize(wmOperatorType *ot)
                        -M_PI * 2.0f,
                        M_PI * 2.0f);
   RNA_def_property_subtype(prop, PROP_ANGLE);
+  RNA_def_enum(ot->srna,
+               "fit_method",
+               prop_fit_method_items,
+               0,
+               "Fit Method",
+               "Method used for fitting a circle to the vertices");
+  RNA_def_boolean(ot->srna,
+                  "flatten",
+                  true,
+                  "Flatten",
+                  "Flatten the circle, instead of projecting it on the mesh");
+  RNA_def_boolean(ot->srna,
+                  "regular",
+                  true,
+                  "Regular",
+                  "Distribute vertices at constant distances along the circle");
   RNA_def_boolean(ot->srna, "lock_x", false, "Lock X", "Lock editing of the X-coordinate");
   RNA_def_boolean(ot->srna, "lock_y", false, "Lock Y", "Lock editing of the Y-coordinate");
   RNA_def_boolean(ot->srna, "lock_z", false, "Lock Z", "Lock editing of the Z-coordinate");
