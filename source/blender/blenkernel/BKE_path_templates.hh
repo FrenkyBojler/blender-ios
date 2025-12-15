@@ -483,8 +483,10 @@ void nav_handle_browse(FileSelectParams *params,
  * \param params: FileSelectParams with dir containing cleaned resolved path and
  *                dir_template containing the original template path to sync.
  * \param variables: Variable map for template resolution (must be valid).
+ *
+ * \return true if synchronization succeeded, false if current path is outside template bounds.
  */
-void nav_sync_template_to_resolved(FileSelectParams *params,
+bool nav_sync_template_to_resolved(FileSelectParams *params,
                                    const blender::bke::path_templates::VariableMap &variables);
 
 }  // namespace blender::bke::path_templates

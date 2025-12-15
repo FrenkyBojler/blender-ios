@@ -194,7 +194,8 @@ void nav_handle_browse(FileSelectParams *params,
   BLI_strncpy(params->dir, new_directory, sizeof(params->dir));
 }
 
-void nav_sync_template_to_resolved(FileSelectParams *params, const VariableMap &variables)
+/* May fail if the current path has moved outside template bounds. */
+bool nav_sync_template_to_resolved(FileSelectParams *params, const VariableMap &variables)
 {
   char updated_template[FILE_MAX];
   if (update_template_on_navigation(params->dir_template,
@@ -204,7 +205,9 @@ void nav_sync_template_to_resolved(FileSelectParams *params, const VariableMap &
                                     variables))
   {
     BLI_strncpy(params->dir_template, updated_template, sizeof(params->dir_template));
+    return true;
   }
+  return false;
 }
 
 /** \} */
