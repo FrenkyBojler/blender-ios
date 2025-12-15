@@ -412,12 +412,21 @@ class RenderLayerOperation : public NodeOperation {
       parallel_for(result.domain().data_size, [&](const int2 texel) {
         result.store_pixel(texel, pass.load_pixel<Color>(texel + lower_bound).a);
       });
+      return;
     }
-    else {
-      parallel_for(result.domain().data_size, [&](const int2 texel) {
-        result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
-      });
-    }
+
+    pass.get_cpp_type().to_static_type_tag<float, float3, float4, Color>([&](auto type_tag) {
+      using T = typename decltype(type_tag)::type;
+      if constexpr (std::is_same_v<T, void>) {
+        /* Unsupported type. */
+        BLI_assert_unreachable();
+      }
+      else {
+        parallel_for(result.domain().data_size, [&](const int2 texel) {
+          result.store_pixel(texel, pass.load_pixel<T>(texel + lower_bound));
+        });
+      }
+    });
   }
 };
 
