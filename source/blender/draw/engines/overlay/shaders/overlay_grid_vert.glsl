@@ -89,7 +89,7 @@ bool is_occluded_by_higher_level(LineData line, uint level)
        * given scalars s1, s2 and integer i, is there an integer j : i*s1 = j*s2. The value in
        * `line.P` holds i*s1, so we compute j = i*s1/s2 and verify if it is an integer.  */
       float j = abs(line.P[1 - line.axis]) / grid_buf.steps[level + 1][line.axis];
-      if (is_equal(float(int(j)), j, 1e-4f)) {
+      if (is_equal(floor(j), j, 1e-4f)) {
         return true;
       }
     }
