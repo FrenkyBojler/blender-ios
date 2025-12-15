@@ -19,7 +19,12 @@
 #include "mesh_intern.hh" /* own include */
 
 static const EnumPropertyItem prop_fit_method_items[] = {
-    {0, "BEST", 0, "Best Fit", "Non-linear least squares"},
+    {0,
+     "BEST",
+     0,
+     "Best Fit",
+     "Uses the centroid of the vertices as the circle center and the mean distance as the "
+     "radius."},
     {1, "INSIDE", 0, "Fit Inside", "Only move vertices towards the center"},
     {0, nullptr},
 };
