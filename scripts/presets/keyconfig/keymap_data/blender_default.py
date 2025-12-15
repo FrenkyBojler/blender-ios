@@ -5247,7 +5247,7 @@ def km_sculpt(params):
         ("object.voxel_remesh", {"type": 'R', "value": 'PRESS', "ctrl": True}, None),
         ("object.voxel_size_edit", {"type": 'R', "value": 'PRESS'}, None),
         # Color
-        ("sculpt.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, None),
+        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, None),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS', }, None),
         # Brush properties
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
