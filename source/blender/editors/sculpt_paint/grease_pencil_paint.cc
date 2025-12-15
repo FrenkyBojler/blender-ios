@@ -257,9 +257,6 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /** Set to true when the paint operation is used to draw fill guides. */
   bool do_fill_guides_;
 
-  /** Straight line settings. */
-  bool mat_line_mode_;
-
   friend struct PaintOperationExecutor;
 
   Brush *saved_active_brush_;
@@ -1574,9 +1571,6 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
       CTX_data_main(&C), object_, brush);
   const int material_index = BKE_object_material_index_get(object_, material);
   const bool use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
-
-  /* Straight line. */
-  mat_line_mode_ = material->gp_style->mode == eMaterialGPencilStyle_Mode(GP_MATERIAL_MODE_LINE);
 
   frame_number_ = scene_->r.cfra;
   drawing_ = grease_pencil->get_editable_drawing_at(layer, frame_number_);
