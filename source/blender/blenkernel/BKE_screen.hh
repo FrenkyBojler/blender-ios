@@ -33,6 +33,7 @@ class AssetRepresentation;
 
 namespace blender::ui {
 struct Layout;
+struct Block;
 }  // namespace blender::ui
 
 struct ARegion;
@@ -58,7 +59,6 @@ struct View3DShading;
 struct WorkSpace;
 struct bContext;
 struct bScreen;
-struct uiBlock;
 struct uiList;
 struct wmDrawBuffer;
 struct wmGizmoMap;
@@ -321,7 +321,7 @@ struct ARegionType {
    * Set as bitflag value in #ARegionDrawLockFlags.
    */
   short do_lock, lock;
-  /** Don't handle gizmos events behind #uiBlock's with #UI_BLOCK_CLIP_EVENTS flag set. */
+  /** Don't handle gizmos events behind #ui::Block's with #BLOCK_CLIP_EVENTS flag set. */
   bool clip_gizmo_events_by_ui;
   /** Call cursor function on each move event. */
   short event_cursor;
@@ -462,10 +462,10 @@ struct Panel_Runtime {
   PointerRNA *custom_data_ptr = nullptr;
 
   /**
-   * Pointer to the panel's block. Useful when changes to panel #uiBlocks
+   * Pointer to the panel's block. Useful when changes to panel #ui::Blocks
    * need some context from traversal of the panel "tree".
    */
-  uiBlock *block = nullptr;
+  blender::ui::Block *block = nullptr;
 
   /** Non-owning pointer. The context is stored in the block. */
   bContextStore *context = nullptr;
@@ -501,9 +501,9 @@ struct ARegionRuntime {
   /** Panel category to use between 'layout' and 'draw'. */
   const char *category = nullptr;
 
-  /** Maps #uiBlock::name to uiBlock for faster lookups. */
-  Map<std::string, uiBlock *> block_name_map;
-  /** #uiBlock. */
+  /** Maps #ui::Block::name to ui::Block for faster lookups. */
+  Map<std::string, blender::ui::Block *> block_name_map;
+  /** #ui::Block. */
   ListBase uiblocks = {};
 
   /** #wmEventHandler. */
@@ -543,7 +543,7 @@ struct ARegionRuntime {
 /** Draw an item in the `ui_list`. */
 using uiListDrawItemFunc = void (*)(uiList *ui_list,
                                     const bContext *C,
-                                    blender::ui::Layout *layout,
+                                    blender::ui::Layout &layout,
                                     PointerRNA *dataptr,
                                     PointerRNA *itemptr,
                                     int icon,
@@ -555,7 +555,7 @@ using uiListDrawItemFunc = void (*)(uiList *ui_list,
 /** Draw the filtering part of an uiList. */
 using uiListDrawFilterFunc = void (*)(uiList *ui_list,
                                       const bContext *C,
-                                      blender::ui::Layout *layout);
+                                      blender::ui::Layout &layout);
 
 /** Filter items of an uiList. */
 using uiListFilterItemsFunc = void (*)(uiList *ui_list,
@@ -716,7 +716,7 @@ struct AssetShelfType {
   void (*draw_context_menu)(const bContext *C,
                             const AssetShelfType *shelf_type,
                             const blender::asset_system::AssetRepresentation *asset,
-                            blender::ui::Layout *layout);
+                            blender::ui::Layout &layout);
 
   const AssetWeakReference *(*get_active_asset)(const AssetShelfType *shelf_type);
 
