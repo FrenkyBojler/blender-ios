@@ -2705,8 +2705,8 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   });
 
   Array<float2> cut_pos2d(mcoords.size());
-  threading::parallel_for(mcoords.index_range(), 4096, [&](const IndexRange i_indexrange) {
-    for (const int i : i_indexrange) {
+  threading::parallel_for(mcoords.index_range(), 4096, [&](const IndexRange i_range) {
+    for (const int i : i_range) {
       cut_pos2d[i] = float2(mcoords[i]);
     }
   });
