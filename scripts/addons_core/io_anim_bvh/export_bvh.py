@@ -13,6 +13,7 @@ def write_armature(
         global_scale=1.0,
         rotate_mode='NATIVE',
         root_transform_only=False,
+        sort_child_names=False,
 ):
 
     def ensure_rot_order(rot_order_str):
@@ -36,10 +37,13 @@ def write_armature(
     for bone in arm.bones:
         children[bone.name] = []
 
-    # Keep bone order from armature, no sorting, not essential but means
+    # keep bone order from armature, not essential but means
     # we can maintain order from import -> export which second-life incorrectly expects.
     for bone in arm.bones:
         children[getattr(bone.parent, "name", None)].append(bone.name)
+    if sort_child_names:
+        for key in children:
+            children[key].sort()
 
     # bone name list in the order that the bones are written
     serialized_names = []
@@ -281,6 +285,7 @@ def save(
         global_scale=1.0,
         rotate_mode="NATIVE",
         root_transform_only=False,
+        sort_child_names=False,
 ):
     write_armature(
         context, filepath,
@@ -289,6 +294,8 @@ def save(
         global_scale=global_scale,
         rotate_mode=rotate_mode,
         root_transform_only=root_transform_only,
+        sort_child_names=sort_child_names,
     )
 
     return {'FINISHED'}
+

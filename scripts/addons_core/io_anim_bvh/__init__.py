@@ -266,6 +266,11 @@ class ExportBVH(bpy.types.Operator, ExportHelper):
         description="Only write out translation channels for the root bone",
         default=False,
     )
+    sort_child_names: BoolProperty(
+        name="Sort Child Names",
+        description="Sort the name ordering of children for each bone alphabetically",
+        default=False,
+    )
 
     @classmethod
     def poll(cls, context):
@@ -330,6 +335,7 @@ class BVH_PT_export_transform(bpy.types.Panel):
         layout.prop(operator, "global_scale")
         layout.prop(operator, "rotate_mode")
         layout.prop(operator, "root_transform_only")
+        layout.prop(operator, "sort_child_names")
 
 
 class BVH_PT_export_animation(bpy.types.Panel):
@@ -395,3 +401,4 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+
