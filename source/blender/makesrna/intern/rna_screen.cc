@@ -102,6 +102,21 @@ static bool rna_Screen_is_scrubbing_get(PointerRNA *ptr)
   return screen->scrubbing;
 }
 
+static PointerRNA rna_Screen_playing_scene_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+  if (!wm) {
+    return PointerRNA_NULL;
+  }
+  bScreen *screen = ED_screen_animation_playing(wm);
+  if (!screen || !screen->animtimer) {
+    return PointerRNA_NULL;
+  }
+  wmTimer *wt = screen->animtimer;
+  ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
+  return RNA_id_pointer_create(&sad->scene->id);
+}
+
 static int rna_Region_alignment_get(PointerRNA *ptr)
 {
   ARegion *region = static_cast<ARegion *>(ptr->data);
@@ -715,6 +730,12 @@ static void rna_def_screen(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(prop, "rna_Screen_is_animation_playing_get", nullptr);
   RNA_def_property_ui_text(prop, "Animation Playing", "Animation playback is active");
+
+  prop = RNA_def_property(srna, "playing_scene", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_funcs(prop, "rna_Screen_playing_scene_get", nullptr, nullptr, nullptr);
+  RNA_def_property_struct_type(prop, "Scene");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Playing Scene", "The scene that is currently playing back");
 
   prop = RNA_def_property(srna, "is_scrubbing", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
