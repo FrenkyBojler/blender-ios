@@ -462,9 +462,6 @@ void nav_handle_text_input(FileSelectParams *params,
  * Called when the file browser navigates to a new directory. Attempts to maintain template
  * variable syntax when navigating within template-based directory structures.
  *
- * NOTE: Caller must ensure variables is valid (non-null). Only call when template
- * variables are available.
- *
  * \param params: FileSelectParams structure to update with new navigation state.
  * \param new_directory: Target directory path after navigation.
  * \param variables: Variable map for template resolution (must be valid).
