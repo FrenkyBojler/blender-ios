@@ -14,6 +14,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_sort.hh"
@@ -1301,24 +1302,6 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 }
 
 }  // namespace blender::ed::greasepencil::trim
-
-/* try to remove: */
-
-#include "BLI_enumerable_thread_specific.hh"
-#include "BLI_map.hh"
-#include "BLI_math_geom.h"
-
-#include "BKE_brush.hh"
-#include "BKE_context.hh"
-#include "BKE_crazyspace.hh"
-#include "BKE_material.hh"
-#include "BKE_paint.hh"
-#include "BKE_report.hh"
-
-#include "DEG_depsgraph_query.hh"
-
-#include "DNA_brush_types.h"
-#include "DNA_material_types.h"
 
 /**
  * This is a heavily modified implementation of the Greiner-Hormann clipping algorithm.
