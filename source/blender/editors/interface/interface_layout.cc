@@ -5249,8 +5249,7 @@ void Layout::estimate()
 
 static void ui_item_align(Layout *litem, short nr)
 {
-  for (auto riter = litem->items().rbegin(); riter != litem->items().rend(); riter++) {
-    Item *item = *riter;
+  for (Item *item : litem->items()) {
     if (item->type() == ItemType::Button) {
       ButtonItem *bitem = static_cast<ButtonItem *>(item);
       if (!bitem->but->alignnr) {
