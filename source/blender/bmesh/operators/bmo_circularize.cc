@@ -288,7 +288,7 @@ static void calculate_plane_basis(
   }
   mul_v3_fl(r_center, 1.0f / loop.size());
 
-  for (int i = 0; i < loop.size(); i++) {
+  for (const int i : loop.index_range()) {
     BMVert *curr = loop[i];
     BMVert *next = loop[(i + 1) % loop.size()];
 
@@ -399,19 +399,19 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
 
   float step = total_angle / divisions;
 
-  for (int i = 0; i < verts.size(); i++) {
+  for (const int i : verts.index_range()) {
     float angle;
 
     if (is_regular) {
-      angle = start_angle + (step * i) + rotation_angle;
+      angle = start_angle + step * i + rotation_angle;
     }
     else {
       sub_v2_v2v2(vec, verts[i].co_2d, center);
       angle = atan2f(vec[1], vec[0]) + rotation_angle;
     }
 
-    verts[i].target_2d[0] = center[0] + (cosf(angle) * radius);
-    verts[i].target_2d[1] = center[1] + (sinf(angle) * radius);
+    verts[i].target_2d[0] = center[0] + cosf(angle) * radius;
+    verts[i].target_2d[1] = center[1] + sinf(angle) * radius;
   }
 }
 
