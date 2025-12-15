@@ -75,7 +75,7 @@ static bool is_valid_boundary_edge(BMEdge *e)
  *
  * This function handles two cases:
  * 1. Closed loops: walks until the traversal returns to the start vertex.
- * 2. Open chains: walks in one direction until a ded end, then walks in the
+ * 2. Open chains: walks in one direction until a dead end, then walks in the
  *    opposite direction from the start edge and merges the results.
  */
 static bool walk_boundary_loop(BMesh * /*bm*/,
