@@ -53,19 +53,22 @@ static bool is_valid_boundary_edge(BMEdge *e)
    * Not using exacly 0 to allow for a small margin of error. */
   const float limit = 0.001f;
 
-  /* If the coordinate of vertex 1 is close to zero and that of vertex 2
-   * is also close to zero, the entire edge lies on the X or Y or Z = 0
-   * mirror plane. An edge on the mirror plane is an invalid boundary edge. */
+  /* If both vertices of an edge lie close to the same coordinate plane
+   * (X = 0, Y = 0, or Z = 0), the edge lies on a mirror plane and is not
+   * considered a valid boundary edge. */
 
-  /* X-Axis */
-  if (fabsf(e->v1->co[0]) < limit && fabsf(e->v2->co[0]) < limit)
+  /* YZ Plane */
+  if (fabsf(e->v1->co[0]) < limit && fabsf(e->v2->co[0]) < limit) {
     return false;
-  /* Y-Axis */
-  if (fabsf(e->v1->co[1]) < limit && fabsf(e->v2->co[1]) < limit)
+  }
+  /* XZ Plane */
+  if (fabsf(e->v1->co[1]) < limit && fabsf(e->v2->co[1]) < limit) {
     return false;
-  /* Z-Axis */
-  if (fabsf(e->v1->co[2]) < limit && fabsf(e->v2->co[2]) < limit)
+  }
+  /* XY Plane */
+  if (fabsf(e->v1->co[2]) < limit && fabsf(e->v2->co[2]) < limit) {
     return false;
+  }
 
   return true;
 }
