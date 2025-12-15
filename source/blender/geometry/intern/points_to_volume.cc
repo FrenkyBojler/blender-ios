@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_math_base.hh"
+#include "BLI_lazy_threading.hh"
 
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
@@ -61,6 +62,8 @@ static openvdb::FloatGrid::Ptr points_to_sdf_grid_impl(const Span<float3> positi
   if (!BKE_volume_voxel_size_valid(float3(voxel_size))) {
     return nullptr;
   }
+
+  lazy_threading::send_hint();
 
   /* Create a new grid that will be filled. #ParticlesToLevelSet requires
    * the background value to be positive */

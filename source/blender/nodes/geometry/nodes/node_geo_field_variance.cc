@@ -7,6 +7,7 @@
 #include "BLI_array.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_virtual_array.hh"
+#include "BLI_lazy_threading.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
@@ -155,6 +156,10 @@ class FieldVarianceInput final : public bke::GeometryFieldInput {
     const VArray<int> group_indices = evaluator.get_evaluated<int>(1);
 
     GVArray g_outputs;
+    
+    if (domain_size > 1024) {
+      lazy_threading::send_hint();
+    }
 
     bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
       using T = decltype(dummy);

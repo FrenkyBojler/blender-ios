@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_lazy_threading.hh"
+
 #include "BKE_curves.hh"
 
 #include "DNA_mesh_types.h"
@@ -28,6 +30,8 @@ static Curves *edge_paths_to_curves_convert(const Mesh &mesh,
                                             const Span<int> next_indices,
                                             const AttributeFilter &attribute_filter)
 {
+  lazy_threading::send_hint();
+
   Vector<int> vert_indices;
   Vector<int> curve_offsets;
   Array<bool> visited(mesh.verts_num, false);

@@ -7,6 +7,7 @@
 #include "BLI_array.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_virtual_array.hh"
+#include "BLI_lazy_threading.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
@@ -209,6 +210,10 @@ class AccumulateFieldInput final : public bke::GeometryFieldInput {
     const GVArray g_values = evaluator.get_evaluated(0);
     const VArray<int> group_indices = evaluator.get_evaluated<int>(1);
 
+    if (domain_size > 1024) {
+      lazy_threading::send_hint();
+    }
+
     GVArray g_output;
 
     bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
@@ -321,6 +326,10 @@ class TotalFieldInput final : public bke::GeometryFieldInput {
     evaluator.evaluate();
     const GVArray g_values = evaluator.get_evaluated(0);
     const VArray<int> group_indices = evaluator.get_evaluated<int>(1);
+
+    if (domain_size > 1024) {
+      lazy_threading::send_hint();
+    }
 
     GVArray g_outputs;
 

@@ -6,6 +6,7 @@
 #include "BLI_kdtree.hh"
 #include "BLI_map.hh"
 #include "BLI_task.hh"
+#include "BLI_lazy_threading.hh"
 
 #include "node_geometry_util.hh"
 
@@ -112,6 +113,10 @@ class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
     else {
       IndexMask::from_groups<int>(mask, mask_memory, get_group_index, lookup_indices_by_group_id);
       result.reinitialize(mask.min_array_size());
+    }
+
+    if (groups_num == 1 && all_indices_by_group_id.first().size() > 1024) {
+      lazy_threading::send_hint();
     }
 
     /* The grain size should be larger as each tree gets smaller. */

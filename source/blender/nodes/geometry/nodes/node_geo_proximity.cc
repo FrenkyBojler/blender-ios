@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_task.hh"
+#include "BLI_lazy_threading.hh"
 
 #include "BKE_bvhutils.hh"
 #include "BKE_geometry_set.hh"
@@ -114,6 +115,10 @@ class ProximityFunction : public mf::MultiFunction {
     Vector<IndexMask> group_masks = IndexMask::from_group_ids(group_ids, memory, group_indices_);
     const int groups_num = group_masks.size();
 
+    if (groups_num == 1 && group_masks.first().size() > 1024) {
+      lazy_threading::send_hint();
+    }
+
     /* Construct BVH tree for each group. */
     bvh_trees_.resize(groups_num);
     threading::parallel_for(
@@ -147,6 +152,10 @@ class ProximityFunction : public mf::MultiFunction {
     IndexMaskMemory memory;
     Vector<IndexMask> group_masks = IndexMask::from_group_ids(group_ids, memory, group_indices_);
     const int groups_num = group_masks.size();
+
+    if (groups_num == 1 && group_masks.first().size() > 1024) {
+      lazy_threading::send_hint();
+    }
 
     /* Construct BVH tree for each group. */
     bvh_trees_.resize(groups_num);

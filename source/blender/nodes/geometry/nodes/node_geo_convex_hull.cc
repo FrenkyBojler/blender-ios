@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_lazy_threading.hh"
+
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_curves.hh"
@@ -31,6 +33,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static Mesh *hull_from_bullet(const Mesh *mesh, Span<float3> coords)
 {
+  if (coords.size() > 1024) {
+    lazy_threading::send_hint();
+  }
+  
   plConvexHull hull = plConvexHullCompute((float (*)[3])coords.data(), coords.size());
 
   const int verts_num = plConvexHullNumVertices(hull);

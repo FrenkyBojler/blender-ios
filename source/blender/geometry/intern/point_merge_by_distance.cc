@@ -6,6 +6,7 @@
 #include "BLI_kdtree.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
+#include "BLI_lazy_threading.hh"
 
 #include "DNA_pointcloud_types.h"
 
@@ -22,6 +23,8 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const IndexMask &selection,
                                     const bke::AttributeFilter &attribute_filter)
 {
+  lazy_threading::send_hint();
+
   const bke::AttributeAccessor src_attributes = src_points.attributes();
   const Span<float3> positions = src_points.positions();
   const int src_size = positions.size();

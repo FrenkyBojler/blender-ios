@@ -4,6 +4,7 @@
 
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
+#include "BLI_lazy_threading.hh"
 
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
@@ -122,6 +123,8 @@ static openvdb::FloatGrid::Ptr mesh_to_density_grid_impl(
   if (!BKE_volume_voxel_size_valid(float3(voxel_size))) {
     return nullptr;
   }
+  
+  lazy_threading::send_hint();
 
   float4x4 mesh_to_index_space_transform = math::from_scale<float4x4>(float3(1.0f / voxel_size));
   mesh_to_index_space_transform *= mesh_to_volume_space_transform;

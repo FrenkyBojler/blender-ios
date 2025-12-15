@@ -4,6 +4,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_lazy_threading.hh"
 
 #include "DNA_collection_types.h"
 
@@ -91,6 +92,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const bool separate_children = params.extract_input<bool>("Separate Children");
   if (separate_children) {
+    lazy_threading::send_hint();
     const bool reset_children = params.extract_input<bool>("Reset Children");
     Vector<Collection *> children_collections;
     LISTBASE_FOREACH (CollectionChild *, collection_child, &collection->children) {

@@ -9,6 +9,7 @@
 #include "BLI_index_mask.hh"
 #include "BLI_memory_counter.hh"
 #include "BLI_task.hh"
+#include "BLI_lazy_threading.hh"
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/Grid.h>
@@ -310,6 +311,9 @@ void VolumeGridData::ensure_grid_loaded() const
   if (tree_loaded_ && transform_loaded_ && meta_data_loaded_) {
     return;
   }
+  /* Parallelized user code deal with grids currently is an exception. Usually all this code is single threaded. */
+  lazy_threading::send_hint();
+  
   BLI_assert(lazy_load_grid_);
   LazyLoadedGrid loaded_grid;
   /* Isolate because the a mutex is locked. */
