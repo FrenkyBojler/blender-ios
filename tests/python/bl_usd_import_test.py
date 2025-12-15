@@ -8,7 +8,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
-from pxr import Ar, Sdf, Usd, UsdGeom, UsdShade, UsdUI
+from pxr import Ar, Gf, Sdf, Usd, UsdGeom, UsdShade, UsdUI
 
 import bpy
 
@@ -1059,110 +1059,6 @@ class USDImportTest(AbstractUSDTest):
                 # Do a quick check to ensure radius has been set at all
                 self.assertEqual(True, all([r > 0 and r < 1 for r in blender_radius]))
 
-    def test_import_curves_linear(self):
-        """Test importing linear curve variations."""
-
-        infile = str(self.testdir / "usd_curve_linear_all.usda")
-        res = bpy.ops.wm.usd_import(filepath=infile)
-        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
-
-        curves = [o for o in bpy.data.objects if o.type == 'CURVES']
-        self.assertEqual(8, len(curves), f"Test scene {infile} should have 8 curves; found {len(curves)}")
-
-        stage = Usd.Stage.Open(infile)
-
-        blender_curve = bpy.data.objects["linear_nonperiodic_single_constant"].data
-        usd_prim = stage.GetPrimAtPath("/root/linear_nonperiodic/single/linear_nonperiodic_single_constant")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["linear_nonperiodic_single_varying"].data
-        usd_prim = stage.GetPrimAtPath("/root/linear_nonperiodic/single/linear_nonperiodic_single_varying")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["linear_nonperiodic_multiple_constant"].data
-        usd_prim = stage.GetPrimAtPath("/root/linear_nonperiodic/multiple/linear_nonperiodic_multiple_constant")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["linear_nonperiodic_multiple_varying"].data
-        usd_prim = stage.GetPrimAtPath("/root/linear_nonperiodic/multiple/linear_nonperiodic_multiple_varying")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["linear_periodic_single_constant"].data
-        usd_prim = stage.GetPrimAtPath("/root/linear_periodic/single/linear_periodic_single_constant")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["linear_periodic_single_varying"].data
-        usd_prim = stage.GetPrimAtPath("/root/linear_periodic/single/linear_periodic_single_varying")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["linear_periodic_multiple_constant"].data
-        usd_prim = stage.GetPrimAtPath("/root/linear_periodic/multiple/linear_periodic_multiple_constant")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["linear_periodic_multiple_varying"].data
-        usd_prim = stage.GetPrimAtPath("/root/linear_periodic/multiple/linear_periodic_multiple_varying")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-    def test_import_curves_bezier(self):
-        """Test importing bezier curve variations."""
-
-        infile = str(self.testdir / "usd_curve_bezier_all.usda")
-        res = bpy.ops.wm.usd_import(filepath=infile)
-        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
-
-        curves = [o for o in bpy.data.objects if o.type == 'CURVES']
-        self.assertEqual(12, len(curves), f"Test scene {infile} should have 12 curves; found {len(curves)}")
-
-        stage = Usd.Stage.Open(infile)
-
-        blender_curve = bpy.data.objects["bezier_nonperiodic_single_constant"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_nonperiodic/single/bezier_nonperiodic_single_constant")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_nonperiodic_single_varying"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_nonperiodic/single/bezier_nonperiodic_single_varying")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_nonperiodic_single_vertex"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_nonperiodic/single/bezier_nonperiodic_single_vertex")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_nonperiodic_multiple_constant"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_nonperiodic/multiple/bezier_nonperiodic_multiple_constant")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_nonperiodic_multiple_varying"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_nonperiodic/multiple/bezier_nonperiodic_multiple_varying")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_nonperiodic_multiple_vertex"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_nonperiodic/multiple/bezier_nonperiodic_multiple_vertex")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_periodic_single_constant"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_periodic/single/bezier_periodic_single_constant")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_periodic_single_varying"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_periodic/single/bezier_periodic_single_varying")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_periodic_single_vertex"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_periodic/single/bezier_periodic_single_vertex")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_periodic_multiple_constant"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_periodic/multiple/bezier_periodic_multiple_constant")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_periodic_multiple_varying"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_periodic/multiple/bezier_periodic_multiple_varying")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
-        blender_curve = bpy.data.objects["bezier_periodic_multiple_vertex"].data
-        usd_prim = stage.GetPrimAtPath("/root/bezier_periodic/multiple/bezier_periodic_multiple_vertex")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
     def test_import_curves_bspline(self):
         """Test importing bspline curve variations."""
 
@@ -2004,7 +1900,7 @@ class USDImportTest(AbstractUSDTest):
     def test_import_unit_scale(self):
         """Test importing a USD with 0.01 meters per unit."""
 
-        infile = str(self.testdir / "usd_curve_bezier_all.usda")
+        infile = str(self.testdir / "usd_shapes_test.usda")
         res = bpy.ops.wm.usd_import(filepath=infile, apply_unit_conversion_scale=True)
         self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
 
@@ -2015,7 +1911,7 @@ class USDImportTest(AbstractUSDTest):
         # Reimport with unit conversion scale off.
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
 
-        infile = str(self.testdir / "usd_curve_bezier_all.usda")
+        infile = str(self.testdir / "usd_shapes_test.usda")
         res = bpy.ops.wm.usd_import(filepath=infile, apply_unit_conversion_scale=False)
         self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
 
@@ -2201,11 +2097,21 @@ class USDImportComparisonTest(unittest.TestCase):
             io_report.Report.side_to_print_multi_line = 3
 
             CompareTestSupportHook.reset_config()
-            if input_file_path.name in ("usd_curve_bspline_all.usda"):
-                CompareTestSupportHook.do_curve_rename = False
+
+            VERBOSE_TESTS = (
+                "usd_curve_linear_all.usda",
+                "usd_curve_bezier_all.usda",
+                "usd_curve_bspline_all.usda"
+            )
+            VERBOSE_TESTS_HOOK_RENAME = (
+                "nurbs-gen-single.usda",
+                "nurbs-gen-multiple.usda",
+                "nurbs-custom.usda"
+            )
+            if input_file_path.name in VERBOSE_TESTS:
                 io_report.Report.side_to_print_single_line = 10
                 io_report.Report.side_to_print_multi_line = 10
-            if input_file_path.name in ("nurbs-gen-single.usda", "nurbs-gen-multiple.usda", "nurbs-custom.usda"):
+            if input_file_path.name in VERBOSE_TESTS_HOOK_RENAME:
                 CompareTestSupportHook.do_curve_rename = True
                 io_report.Report.side_to_print_single_line = 10
                 io_report.Report.side_to_print_multi_line = 10
