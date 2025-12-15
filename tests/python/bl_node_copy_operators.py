@@ -145,9 +145,35 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "node_copy_operators.blend"))
         self.assertEqual(bpy.data.version, (5, 1, 12))
 
+    def compare_value(self, type, value_a, value_b):
+        if type in {'VECTOR', 'ROTATION', 'MATRIX', 'RGBA'}:
+            for comp_a, comp_b in zip(value_a, value_b):
+                self.assertEqual(comp_a, comp_b)
+        else:
+            self.assertEqual(value_a, value_b)
+
+    def compare_socket(self, test_socket, expected_socket):
+        with self.subTest(test_socket=test_socket.name, expected_socket=expected_socket.name):
+            self.assertEqual(test_socket.name, expected_socket.name)
+            self.assertEqual(test_socket.bl_idname, expected_socket.bl_idname)
+            self.assertEqual(test_socket.type, expected_socket.type)
+            self.assertEqual(test_socket.description, expected_socket.description)
+            self.assertEqual(test_socket.is_output, expected_socket.is_output)
+            if not expected_socket.is_output:
+                self.assertEqual(test_socket.hide_value, expected_socket.hide_value)
+                test_has_value = hasattr(test_socket, "default_value")
+                expected_has_value = hasattr(expected_socket, "default_value")
+                self.assertEqual(test_has_value, expected_has_value)
+                if test_has_value and expected_has_value:
+                    self.compare_value(expected_socket.type, test_socket.default_value, expected_socket.default_value)
+
     def compare_nodes(self, test_node, expected_node):
         self.assertEqual(len(test_node.inputs), len(expected_node.inputs))
         self.assertEqual(len(test_node.outputs), len(expected_node.outputs))
+        for test_socket, expected_socket in zip(test_node.inputs, expected_node.inputs):
+            self.compare_socket(test_socket, expected_socket)
+        for test_socket, expected_socket in zip(test_node.outputs, expected_node.outputs):
+            self.compare_socket(test_socket, expected_socket)
 
     def compare_tree_interface(self, test_tree, expected_tree):
         test_items = test_tree.interface.items_tree
@@ -159,16 +185,16 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
             # print(f"{te.item_type}|{ex.item_type}, {te_io}|{ex_io}, {te.name}|{ex.name}")
 
     def make_node_group_single(self, test_node, expected_node):
-        tree = test_node.id_data
+        with self.subTest(test_node=test_node.name, expected_node=expected_node.name):
+            tree = test_node.id_data
+            with node_editor_context_override(selected_nodes=[test_node]):
+                bpy.ops.node.group_make()
+            group_node = tree.nodes.active
 
-        with node_editor_context_override(selected_nodes=[test_node]):
-            bpy.ops.node.group_make()
-        group_node = tree.nodes.active
-
-        # Compare generated group node to expected node.
-        self.compare_nodes(group_node, expected_node)
-        # Compare generated group tree interface to expected tree.
-        self.compare_tree_interface(group_node.node_tree, expected_node.node_tree)
+            # Compare generated group node to expected node.
+            self.compare_nodes(group_node, expected_node)
+            # Compare generated group tree interface to expected tree.
+            self.compare_tree_interface(group_node.node_tree, expected_node.node_tree)
 
     def test_make_node_group_single(self):
         self.open_file()
