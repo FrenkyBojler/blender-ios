@@ -141,7 +141,7 @@ struct BPyContextTempOverride {
      */
     bScreen *screen;
     /** Original logging flags to restore on exit. */
-    CTX_LogFlags logging_flags;
+    CTX_LogFlags log_flags;
   } ctx_temp_orig;
 
   /** Bypass Python overrides set when calling an operator from Python. */
@@ -512,7 +512,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   }
 
   /* Restore the original logging flags. */
-  CTX_member_logging_set(C, self->ctx_temp_orig.logging_flags);
+  CTX_member_logging_set(C, self->ctx_temp_orig.log_flags);
 
   CTX_py_state_pop(C, &self->py_state);
 
@@ -819,7 +819,7 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
 
   ret->ctx_temp_orig.screen = nullptr;
   /* Store original logging flags now, before any logging_set() calls can modify them. */
-  ret->ctx_temp_orig.logging_flags = CTX_member_logging_get_flags(C);
+  ret->ctx_temp_orig.log_flags = CTX_member_logging_get_flags(C);
 
   ret->py_state_context_dict = kwds;
 
