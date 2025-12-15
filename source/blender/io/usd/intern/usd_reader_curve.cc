@@ -352,7 +352,7 @@ void USDBasisCurvesReader::read_curve_sample(Curves *curves_id, const pxr::UsdTi
         int width_offset = 0;
         for (const int i : curves.curves_range()) {
           const int radii_count = counts[i];
-          const int width_count = counts[i] >= 2 ? counts[i] - 2 : 0;
+          const int width_count = std::max(2, counts[i] - 2);
 
           Span<float> usd_curve_widths = widths.slice_safe(width_offset, width_count);
           MutableSpan<float> curve_radii = radii.slice_safe(radii_offset, radii_count);
