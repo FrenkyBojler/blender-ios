@@ -1307,10 +1307,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_map.hh"
 #include "BLI_math_geom.h"
-#include "BLI_rect.h"
 
-#include "BKE_attribute.hh"
-#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
@@ -1320,15 +1317,8 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
 #include "DEG_depsgraph_query.hh"
 
-#include "ED_curves.hh"
-
-#include "RNA_access.hh"
-#include "RNA_define.hh"
-
 #include "DNA_brush_types.h"
 #include "DNA_material_types.h"
-
-#include "WM_api.hh"
 
 /**
  * This is a heavily modified implementation of the Greiner-Hormann clipping algorithm.
