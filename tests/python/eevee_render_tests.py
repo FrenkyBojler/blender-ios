@@ -58,9 +58,6 @@ BLOCKLIST_METAL = [
 BLOCKLIST_VULKAN = [
     # Blocked due to difference in screen space tracing (to be investigated).
     "image.blend",
-    # Blocked due to difference when fast GI is on and transmittance weight < 1.
-    # Progress tracked at: https://projects.blender.org/blender/blender/issues/151445
-    "principled_bsdf_transmission.blend"
 ]
 
 BLOCKLIST_INTEL = [
