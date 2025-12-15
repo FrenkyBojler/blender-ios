@@ -15,6 +15,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -506,14 +507,12 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 14)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area->spacetype == SPACE_IMAGE) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (!ELEM(sl->spacetype, SPACE_IMAGE)) {
+            continue;
+          }
           SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
-          if (STREQ(workspace_name, "UV Editing")) {
-            sima->uv_edge_opacity = 1.0f;
-          }
-          else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
-            sima->uv_edge_opacity = 0.0f;
-          }
+          sima->uv_edge_opacity = 1.0f;
         }
       }
     }
