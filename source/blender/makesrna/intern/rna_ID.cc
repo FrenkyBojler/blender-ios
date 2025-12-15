@@ -2842,13 +2842,12 @@ const EnumPropertyItem rna_enum_idproperty_types_items[] = {
 
 #define RNA_DEF_IDPROP_UI_DATA_COMMON(srna, prop_type, sdna_func) \
   \
-  PropertyRNA *prop; \
   prop = RNA_def_property(srna, "default_value", prop_type, PROP_NONE); \
   sdna_func(prop, nullptr, "default_value"); \
   RNA_def_property_ui_text(prop, "Default Value", "Default value of this property"); \
   \
-  prop = RNA_def_property(srna, "base.description", PROP_STRING, PROP_NONE);\
-  RNA_def_property_string_sdna(prop, nullptr, "description");\
+  prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);\
+  RNA_def_property_string_sdna(prop, nullptr, "base.description");\
   RNA_def_property_ui_text(prop, "Description", "Tooltip description for this property");
 
 
@@ -2875,12 +2874,17 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_INT, RNA_def_property_int_sdna);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT, RNA_def_property_int_sdna);
 
-  // srna = RNA_def_struct(brna, "IDPropertyUIDataBool", nullptr);
-  // RNA_def_struct_ui_text(
-  //     srna, "bool IDProperty UI", "UI data for a bool ID property");
-  // RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
-  // rna_def_idpropertyui_common(brna, srna, PROP_INT);
+  srna = RNA_def_struct(brna, "IDPropertyUIDataBool", nullptr);
+  RNA_def_struct_ui_text(
+      srna, "bool IDProperty UI", "UI data for a bool ID property");
+  RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
+  RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT, RNA_def_property_int_sdna);
 
+  srna = RNA_def_struct(brna, "IDPropertyUIDataString", nullptr);
+  RNA_def_struct_ui_text(
+      srna, "string IDProperty UI", "UI data for a string ID property");
+  RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
+  RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_STRING, RNA_def_property_string_sdna);
 }
 
 void RNA_def_ID(BlenderRNA *brna)

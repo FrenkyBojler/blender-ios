@@ -104,12 +104,39 @@ void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
   if (!id->properties) {
     return;
   }
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&id->properties->data.group, id->idprop_active_index));
-  PointerRNA id_ptr = RNA_pointer_create_discrete(
-      id, &RNA_IDPropertyUIDataFloat, active_prop->ui_data);
+
+  auto get_prop_type = [&](const char type) {
+    switch (type) {
+      case IDP_INT:
+        return &RNA_IDPropertyUIDataInt;
+      case IDP_FLOAT:
+      case IDP_DOUBLE:
+        return &RNA_IDPropertyUIDataFloat;
+      case IDP_BOOLEAN:
+        return &RNA_IDPropertyUIDataBool;
+      case IDP_STRING:
+        return &RNA_IDPropertyUIDataString;
+      default:
+        BLI_assert_unreachable();
+    }
+  };
+
+  StructRNA *srna = active_prop->type == IDP_ARRAY ? get_prop_type(active_prop->subtype) :
+                                                     get_prop_type(active_prop->type);
+  PointerRNA id_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
+
+  layout->prop(&id_ptr, "default_value", UI_ITEM_NONE, "Default Value", ICON_NONE);
+  layout->prop(&id_ptr, "soft_min", UI_ITEM_NONE, "Soft Min", ICON_NONE);
+  layout->prop(&id_ptr, "soft_max", UI_ITEM_NONE, "Soft Max", ICON_NONE);
   layout->prop(&id_ptr, "min", UI_ITEM_NONE, "Hard Min", ICON_NONE);
   layout->prop(&id_ptr, "max", UI_ITEM_NONE, "Hard Max", ICON_NONE);
+  layout->prop(&id_ptr, "step", UI_ITEM_NONE, "Step", ICON_NONE);
+  layout->prop(&id_ptr, "description", UI_ITEM_NONE, "Description", ICON_NONE);
 }
 
 }  // namespace blender::ui::id_properties
