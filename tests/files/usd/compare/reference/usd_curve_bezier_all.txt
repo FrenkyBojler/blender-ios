@@ -523,7 +523,7 @@
 - Obj 'root' EMPTY
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
-  - scl 0.010, 0.010, 0.010
+  - scl 1.000, 1.000, 1.000
 - Obj 'single' EMPTY par:'bezier_nonperiodic'
   - pos 0.000, 0.000, 0.000
   - rot 0.000, 0.000, 0.000 (XYZ)
