@@ -434,8 +434,7 @@ namespace blender::bke::path_templates {
  * Sets up `dir_template` and `dir` fields based on the current directory.
  * Should be called when initializing file browser state.
  *
- * NOTE: Caller must ensure variables is valid (non-null). Only call when template
- * variables are available.
+ * NOTE: Should only be called for path properties that support path templates
  *
  * \param params: FileSelectParams structure to initialize.
  * \param variables: Variable map for template resolution (must be valid).
