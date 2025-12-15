@@ -952,6 +952,32 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                             bool keep_caps);
 };  // namespace trim
 
+namespace carver {
+
+enum class Operation : int8_t {
+  /* Intersection of the Subject and the Clipping. */
+  Intersect,
+  /* Union of Subject and Clipping. */
+  Union,
+  /* Differences of Subject with Clipping. */
+  Difference,
+};
+
+struct CurveBooleanOpParameters {
+  Operation boolean_mode;
+};
+
+bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
+                                  const bke::CurvesGeometry &curves,
+                                  const Span<float4> normal_planes,
+                                  const IndexMask &mask_shapes,
+                                  const IndexMask &clipping_shapes,
+                                  const float4x4 &layer_to_world,
+                                  const ARegion &region,
+                                  const bool keep_caps);
+
+}  // namespace carver
+
 void merge_layers(const GreasePencil &src_grease_pencil,
                   const Span<Vector<int>> src_layer_indices_by_dst_layer,
                   GreasePencil &dst_grease_pencil);
