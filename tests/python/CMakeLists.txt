@@ -1015,6 +1015,7 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/compositor/file_output/"
     --outdir "${TEST_OUT_DIR}/compositor_cpu/file_output"
+    --device "CPU"
   )
 endif()
 
@@ -1049,11 +1050,12 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     endforeach()
     add_blender_test(
       compositor_opengl_file_output
+      --gpu-backend opengl
       --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
       --
       --testdir "${TEST_SRC_DIR}/compositor/file_output/"
       --outdir "${TEST_OUT_DIR}/compositor_opengl/file_output"
-      --gpu-backend opengl
+      --device "GPU"
     )
   endif()
   if(WITH_METAL_BACKEND)
@@ -1068,11 +1070,12 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     endforeach()
     add_blender_test(
       compositor_metal_file_output
+      --gpu-backend metal
       --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
       --
       --testdir "${TEST_SRC_DIR}/compositor/file_output/"
       --outdir "${TEST_OUT_DIR}/compositor_metal/file_output"
-      --gpu-backend metal
+      --device "GPU"
     )
   endif()
   if(WITH_VULKAN_BACKEND)
@@ -1087,11 +1090,12 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     endforeach()
     add_blender_test(
       compositor_vulkan_file_output
+      --gpu-backend vulkan
       --python ${CMAKE_CURRENT_LIST_DIR}/compositor_file_output_tests.py
       --
       --testdir "${TEST_SRC_DIR}/compositor/file_output/"
       --outdir "${TEST_OUT_DIR}/compositor_vulkan/file_output"
-      --gpu-backend vulkan
+      --device "GPU"
     )
   endif()
 endif()
