@@ -1521,7 +1521,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 
   /* Handles shift-key active smooth toggling during a grease pencil stroke. */
   if (mode == PaintMode::GPencil) {
-    if (event->modifier & KM_SHIFT) {
+    if (event->modifier & KM_SHIFT && this->constrain_line == false) {
       stroke_mode_ = BRUSH_STROKE_SMOOTH;
       if (!stroke_cursor_) {
         stroke_cursor_ = WM_paint_cursor_activate(

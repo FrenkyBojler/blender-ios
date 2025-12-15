@@ -208,10 +208,14 @@ void GreasePencilPaintStroke::update_step(wmOperator *op, PointerRNA *stroke_ele
     std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(
         *this->evil_C, op);
     BLI_assert(new_operation != nullptr);
+    new_operation->straight_line_mode_ = RNA_boolean_get(op->ptr, "straight_line_mode");
+    this->constrain_line = true;
+    new_operation->constrain_line_ = RNA_boolean_get(op->ptr, "constrain_line");
     new_operation->on_stroke_begin(*this->evil_C, sample);
     mode_data_ = std::move(new_operation);
   }
   else {
+    operation->constrain_line_ = RNA_boolean_get(op->ptr, "constrain_line");
     operation->on_stroke_extended(*this->evil_C, sample);
   }
 }
@@ -309,6 +313,8 @@ static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
                                                          wmOperator *op,
                                                          const wmEvent *event)
 {
+  RNA_boolean_set(op->ptr, "straight_line_mode", (event->modifier & KM_ALT));
+  RNA_boolean_set(op->ptr, "constrain_line", (event->modifier & KM_SHIFT));
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
   const wmOperatorStatus retval = stroke->modal(C, op, event);
 
@@ -339,6 +345,12 @@ static void GREASE_PENCIL_OT_brush_stroke(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   paint_stroke_operator_properties(ot);
+
+  PropertyRNA *prop;
+  prop = RNA_def_boolean(ot->srna, "straight_line_mode", false, "Straight Line Mode", "");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  prop = RNA_def_boolean(ot->srna, "constrain_line", false, "Constrain Line", "");
+  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
 /** \} */

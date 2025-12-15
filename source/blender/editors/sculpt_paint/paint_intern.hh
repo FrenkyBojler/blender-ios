@@ -113,7 +113,8 @@ struct PaintStroke : NonCopyable, NonMovable {
   Brush *brush = nullptr;
   UnifiedPaintSettings *ups = nullptr;
 
-  /* TODO: These are only public so that cursor drawing code can use them. Find a better place.*/
+  /* TODO: These are only public so that cursor drawing code can use them. Find a better place.
+   * Note: 'constrain_line' is used to override stroke smoothing for GP paint stroke. */
   float2 last_mouse_position = float2(0.0f, 0.0f);
   bool constrain_line = false;
   float2 constrained_pos = float2(0.0f, 0.0f);
