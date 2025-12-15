@@ -70,13 +70,11 @@ static bool is_valid_boundary_edge(BMEdge *e)
   return true;
 }
 
-/**
- * Traverses a connected path of boundary edges to form a continuous sequence of vertices.
- *
+/* Traverses a connected path of boundary edges to form a continuous sequence of vertices.
  * This function handles two cases:
  * 1. Closed loops: walks until the traversal returns to the start vertex.
  * 2. Open chains: walks in one direction until a dead end, then walks in the
- *    opposite direction from the start edge and merges the results.
+ * opposite direction from the start edge and merges the results.
  */
 static bool walk_boundary_loop(BMesh * /*bm*/,
                                BMEdge *start_edge,
@@ -146,6 +144,7 @@ static bool walk_boundary_loop(BMesh * /*bm*/,
   return false;
 }
 
+/* Walks connected edges to build a vertex loop for isolated vertex face fans. */
 static void sort_fan_edges(const Set<BMEdge *> &edges, Vector<BMVert *> &r_loop)
 {
   if (edges.is_empty()) {
@@ -187,6 +186,7 @@ static void sort_fan_edges(const Set<BMEdge *> &edges, Vector<BMVert *> &r_loop)
   }
 }
 
+/* Builds closed loops from face-fan boundary edges around isolated vertices. */
 static void get_single_vertex_loops(BMesh *bm, Vector<LoopData> &r_loops)
 {
   BMIter viter;
@@ -245,6 +245,8 @@ static void get_single_vertex_loops(BMesh *bm, Vector<LoopData> &r_loops)
   }
 }
 
+/* Collects all valid boundary edge loops and isolated single-vertex loops from the current
+ * selection. */
 static void get_input_loops(BMesh *bm, Vector<LoopData> &r_loops)
 {
   Set<BMEdge *> visited;
@@ -340,33 +342,20 @@ static void calculate_circle_best_fit(const Vector<CircleVert> &verts,
   for (const CircleVert &cv : verts) {
     add_v2_v2(r_center, cv.co_2d);
   }
-  if (!verts.is_empty()) {
-    mul_v2_fl(r_center, 1.0f / verts.size());
-  }
+  mul_v2_fl(r_center, 1.0f / verts.size());
 
   double total_dist = 0.0;
   for (const CircleVert &cv : verts) {
     total_dist += len_v2v2(r_center, cv.co_2d);
   }
 
-  if (!verts.is_empty()) {
-    *r_radius = (float)(total_dist / verts.size());
-  }
-  else {
-    *r_radius = 0.0f;
-  }
+  *r_radius = float(total_dist / verts.size());
 }
 
 static void calculate_circle_inside_fit(const Vector<CircleVert> &verts,
                                         float r_center[2],
                                         float *r_radius)
 {
-  if (verts.is_empty()) {
-    zero_v2(r_center);
-    *r_radius = 0.0f;
-    return;
-  }
-
   float min_co[2], max_co[2];
   copy_v2_v2(min_co, verts[0].co_2d);
   copy_v2_v2(max_co, verts[0].co_2d);
@@ -397,10 +386,6 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
                                        const bool is_closed,
                                        const float rotation_angle)
 {
-  if (verts.is_empty()) {
-    return;
-  }
-
   float vec[2];
   sub_v2_v2v2(vec, verts[0].co_2d, center);
   float start_angle = atan2f(vec[1], vec[0]);
