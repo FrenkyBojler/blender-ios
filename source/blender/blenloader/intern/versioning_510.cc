@@ -508,11 +508,10 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (!ELEM(sl->spacetype, SPACE_IMAGE)) {
-            continue;
+          if (sl->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+            sima->uv_edge_opacity = 1.0f;
           }
-          SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
-          sima->uv_edge_opacity = 1.0f;
         }
       }
     }
