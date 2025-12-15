@@ -1833,9 +1833,9 @@ static void add_segments(const int curve_k,
   all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 }
 
-static BooleanResult follow_segment_connections(const Span<Segment> all_segments,
-                                                const Span<bool> segments_to_keep,
-                                                const Span<int2> segment_connections)
+static BooleanResult results_follow_segment_connections(const Span<Segment> all_segments,
+                                                        const Span<bool> segments_to_keep,
+                                                        const Span<int2> segment_connections)
 {
   BLI_assert(all_segments.size() == segments_to_keep.size());
   BLI_assert(all_segments.size() == segment_connections.size());
@@ -2188,7 +2188,7 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
 
   /* -------------------- */
 
-  const BooleanResult result = follow_segment_connections(
+  const BooleanResult result = results_follow_segment_connections(
       all_segments, segments_to_keep, segment_connections);
 
   return result;
