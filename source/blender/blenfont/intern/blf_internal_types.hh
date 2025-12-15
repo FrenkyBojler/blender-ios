@@ -313,6 +313,9 @@ struct FontBLF {
 #ifdef WITH_HARFBUZZ
   /* pointer to Harfbuzz font, if needed for complex shaping. */
   hb_font_t *hb_font;
+
+  /** OpenType typographic features. */
+  blender::Vector<hb_feature_t> features;
 #endif
 
   /**
@@ -376,9 +379,6 @@ struct FontBLF {
 
   /** Font options. */
   FontFlags flags;
-
-  /** OpenType typographic features. */
-  blender::Vector<hb_feature_t> features;
 
   /**
    * List of glyph caches (#GlyphCacheBLF) for this font for size, DPI, bold, italic.

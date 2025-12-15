@@ -981,11 +981,12 @@ typedef enum eTextEdit_Flags {
  * #UserDef.text_render
  */
 typedef enum eText_Draw_Options {
-  /* All text output. */
   USER_TEXT_DISABLE_AA = (1 << 0),
+
   USER_TEXT_HINTING_NONE = (1 << 1),
   USER_TEXT_HINTING_SLIGHT = (1 << 2),
   USER_TEXT_HINTING_FULL = (1 << 3),
+
   USER_TEXT_RENDER_SUBPIXELAA = (1 << 4),
   USER_TEXT_KERNING = (1 << 5),
 
@@ -996,7 +997,7 @@ typedef enum eText_Draw_Options {
   USER_TEXT_CONTEXTUAL_ALTERNATES_UI = (1 << 9),
   USER_TEXT_CONTEXTUAL_ALTERNATES_MONO = (1 << 10),
 
-  /* Inter */
+  /* Inter as UI font Only. */
   USER_TEXT_DISAMBIGUATION_INTER = (1 << 11),
   USER_TEXT_OPEN_DIGITS_INTER = (1 << 12),
 

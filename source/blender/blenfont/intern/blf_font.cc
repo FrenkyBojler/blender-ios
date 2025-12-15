@@ -607,7 +607,6 @@ static bool blf_font_feature_supported(FontBLF *font, const char tag[4])
   unsigned int feature_index;
   blf_ensure_face(font);
   hb_face_t *hb_face = hb_ft_face_create_cached(font->face);
-
   if (hb_ot_layout_language_find_feature(hb_face,
                                          HB_OT_TAG_GSUB,
                                          0,
@@ -617,7 +616,6 @@ static bool blf_font_feature_supported(FontBLF *font, const char tag[4])
   {
     return true;
   }
-
   if (hb_ot_layout_language_find_feature(hb_face,
                                          HB_OT_TAG_GPOS,
                                          0,
@@ -627,7 +625,6 @@ static bool blf_font_feature_supported(FontBLF *font, const char tag[4])
   {
     return true;
   }
-
   return false;
 }
 
