@@ -77,7 +77,7 @@ class SQLiteBackend:
         if _DEBUG_QUERIES:
             def callback_rw(query: str) -> None:
                 query = query.replace("\n", "\n    ")
-                print(f"SQL/\033[95mRW: {query}\033[0m")
+                print(f"SQL/RW: {query}")
             self.db_conn_rw.set_trace_callback(callback_rw)
         self._execute_pragmas_on_connect(self.db_conn_rw)
 
@@ -88,7 +88,7 @@ class SQLiteBackend:
         if _DEBUG_QUERIES:
             def callback_ro(query: str) -> None:
                 query = query.replace("\n", "\n    ")
-                print(f"SQL/\033[96mRO: {query}\033[0m")
+                print(f"SQL/RO: {query}")
             self.db_conn_ro.set_trace_callback(callback_ro)
         self._execute_pragmas_on_connect(self.db_conn_ro)
 
