@@ -23,14 +23,14 @@ namespace blender::bke::path_templates {
 /** \name Internal Helper Functions
  * \{ */
 
-/* Helper to normalize a path in place */
+/* Helper to normalize a path in place. */
 static void normalize_path(char *path)
 {
   BLI_path_normalize(path);
   BLI_path_slash_rstrip(path);
 }
 
-/* Helper to resolve and normalize paths for comparison */
+/* Helper to resolve and normalize paths for comparison. */
 static void resolve_and_normalize_paths(const char *template_path,
                                         const char *current_path,
                                         char *resolved_template,
@@ -70,7 +70,7 @@ static bool is_within_template_bounds(const char *template_path,
     return STREQ(normalized_current, resolved_template);
   }
 
-  /* Check if one path is prefix of the other (parent/child relationship) */
+  /* Check if one path is prefix of the other (parent/child relationship). */
   if (resolved_len < current_len) {
     return STREQLEN(resolved_template, normalized_current, resolved_len) &&
            normalized_current[resolved_len] == '/';
@@ -85,9 +85,9 @@ static bool is_within_template_bounds(const char *template_path,
  *
  * Algorithm: Compares resolved template with current path to determine if navigation
  * stayed within template bounds, then reconstructs appropriate template syntax:
- * - Exact match: Return original template unchanged
- * - Going deeper: Append extra path components to template
- * - Going up: Remove directory level from template path (only one level up supported)
+ * - Exact match: Return original template unchanged.
+ * - Going deeper: Append extra path components to template.
+ * - Going up: Remove directory level from template path (only one level up supported).
  *
  * NOTE: This is called when browsing the directory via UI, changes occur one level at a
  * time. Therefore jumping multiple levels is only handled by `nav_handle_text_input`.
@@ -109,13 +109,13 @@ static bool update_template_on_navigation(const char *original_template,
   const size_t resolved_len = strlen(resolved_template);
   const size_t current_len = strlen(normalized_current);
 
-  /* Case 1: Exact match */
+  /* Case 1: Exact match. */
   if (current_len == resolved_len && STREQ(normalized_current, resolved_template)) {
     BLI_strncpy(result, original_template, result_maxlen);
     return true;
   }
 
-  /* Case 2: Going deeper into template directory */
+  /* Case 2: Going deeper into template directory. */
   if (current_len > resolved_len &&
       STREQLEN(normalized_current, resolved_template, resolved_len) &&
       normalized_current[resolved_len] == '/')
@@ -129,11 +129,11 @@ static bool update_template_on_navigation(const char *original_template,
     return true;
   }
 
-  /* Case 3: Going up from template directory */
+  /* Case 3: Going up from template directory. */
   if (resolved_len > current_len && STREQLEN(resolved_template, normalized_current, current_len) &&
       (current_len == 0 || resolved_template[current_len] == '/'))
   {
-    /* Go up from template path */
+    /* Go up from template path. */
     BLI_strncpy(result, original_template, result_maxlen);
     BLI_path_slash_rstrip(result);
 
@@ -153,7 +153,7 @@ static bool update_template_on_navigation(const char *original_template,
 
 void nav_initialize(FileSelectParams *params, const VariableMap &variables)
 {
-  /* Store original path as template */
+  /* Store original path as template. */
   BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
   BKE_path_apply_template(params->dir, sizeof(params->dir), variables);
 }
@@ -162,7 +162,7 @@ void nav_handle_text_input(FileSelectParams *params,
                            const char *input_path,
                            const VariableMap &variables)
 {
-  /* Store original input with template variables */
+  /* Store original input with template variables. */
   BLI_strncpy(params->dir_template, input_path, sizeof(params->dir_template));
   BLI_strncpy(params->dir, input_path, sizeof(params->dir));
   BKE_path_apply_template(params->dir, sizeof(params->dir), variables);
@@ -172,7 +172,7 @@ void nav_handle_browse(FileSelectParams *params,
                        const char *new_directory,
                        const VariableMap &variables)
 {
-  /* Try to preserve template if we were using one */
+  /* Try to preserve template if we were using one. */
   if (is_within_template_bounds(params->dir_template, new_directory, variables)) {
     char updated_template[FILE_MAX];
     if (update_template_on_navigation(params->dir_template,
@@ -181,7 +181,7 @@ void nav_handle_browse(FileSelectParams *params,
                                       sizeof(updated_template),
                                       variables))
     {
-      /* Store updated template */
+      /* Store updated template. */
       BLI_strncpy(params->dir_template, updated_template, sizeof(params->dir_template));
       BLI_strncpy(params->dir, updated_template, sizeof(params->dir));
       BKE_path_apply_template(params->dir, sizeof(params->dir), variables);
@@ -189,7 +189,7 @@ void nav_handle_browse(FileSelectParams *params,
     }
   }
 
-  /* Template not preserved - set both paths to the new directory */
+  /* Template not preserved - set both paths to the new directory. */
   BLI_strncpy(params->dir_template, new_directory, sizeof(params->dir_template));
   BLI_strncpy(params->dir, new_directory, sizeof(params->dir));
 }

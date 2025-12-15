@@ -3132,7 +3132,7 @@ static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *valu
     blender::bke::path_templates::nav_handle_text_input(params, value, *template_vars);
   }
   else {
-    /* No templates - simple path assignment */
+    /* No templates - simple path assignment. */
     BLI_strncpy(params->dir_template, value, sizeof(params->dir_template));
     BLI_strncpy(params->dir, value, sizeof(params->dir));
   }

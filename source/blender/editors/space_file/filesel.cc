@@ -152,7 +152,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   /* create new parameters if necessary */
   if (!sfile->params) {
     sfile->params = MEM_callocN<FileSelectParams>("fileselparams");
-    /* Initialize runtime data */
+    /* Initialize runtime data. */
     sfile->params->runtime = MEM_new<FileSelectParams_Runtime>(__func__);
     /* set path to most recently opened .blend */
     BLI_path_split_dir_file(blendfile_path,
@@ -167,7 +167,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
 
-    /* Clear path with template variables - will be set during operator processing */
+    /* Clear path with template variables - will be set during operator processing. */
     sfile->params->dir_template[0] = '\0';
   }
 
@@ -200,20 +200,20 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
         params->file[0] = '\0';
       }
       else {
-        /* Check if we have template variables before special handling */
+        /* Check if we have template variables before special handling. */
         const blender::bke::path_templates::VariableMap *template_vars =
             ED_fileselect_params_get_template_vars(params);
         if (template_vars) {
-          /* Split filepath while preserving template variables */
+          /* Split filepath while preserving template variables. */
           char template_dir[FILE_MAX];
           char template_file[FILE_MAX];
           BLI_path_split_dir_file(
               filepath, template_dir, sizeof(template_dir), template_file, sizeof(template_file));
 
-          /* Store filename */
+          /* Store filename. */
           STRNCPY(params->file, template_file);
 
-          /* Use centralized template handling for directory paths */
+          /* Use centralized template handling for directory paths. */
           blender::bke::path_templates::nav_handle_text_input(
               params, template_dir, *template_vars);
         }
@@ -390,7 +390,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     blender::bke::path_templates::nav_initialize(params, *template_vars);
   }
   else {
-    /* No templates - initialize with simple copy */
+    /* No templates - initialize with simple copy. */
     if (params->dir_template[0] == '\0') {
       BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
     }
@@ -455,7 +455,7 @@ void ED_fileselect_params_set_template_vars(FileSelectParams *params,
     return;
   }
 
-  /* Set the optional template vars */
+  /* Set the optional template vars. */
   if (vars) {
     params->runtime->template_vars = *vars;
   }
@@ -1244,14 +1244,14 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
       /* could return but just refresh the current dir */
     }
 
-    /* Update template paths when directory changes */
+    /* Update template paths when directory changes. */
     const blender::bke::path_templates::VariableMap *template_vars =
         ED_fileselect_params_get_template_vars(params);
     if (template_vars) {
       blender::bke::path_templates::nav_handle_browse(params, params->dir, *template_vars);
     }
     else {
-      /* No templates - simple path assignment */
+      /* No templates - simple path assignment. */
       BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
     }
 

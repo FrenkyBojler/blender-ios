@@ -1601,7 +1601,7 @@ void file_sfile_to_operator_ex(
   PropertyRNA *prop;
   char dir[FILE_MAX];
 
-  /* Use template version if available (when template_vars exists), otherwise resolved version */
+  /* Use template version if available (when template_vars exists), otherwise resolved version. */
   const blender::bke::path_templates::VariableMap *template_vars =
       ED_fileselect_params_get_template_vars(params);
   STRNCPY(dir, template_vars ? params->dir_template : params->dir);
