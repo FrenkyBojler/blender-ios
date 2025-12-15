@@ -216,6 +216,51 @@ class DiskFileHashServiceTest(unittest.TestCase):
         updated_hash = self.service.get_hash(self.filepath, "sha256")
         self.assertEqual("49a02e79cb4c68a5f1626d34a05a021b60cbd0b22f9485dcd4026ab3e9201b5a", updated_hash)
 
+    def test_store_hash_callback(self) -> None:
+        # Construct another file, that mimicks a just-downloaded file that was
+        # saved to a temp location and about to be moved to its final location
+        # (self.filepath).
+        other_path = self.filepath.with_stem("temp-download-file")
+        other_path.write_text("New Content 😿")
+        other_path_stat = other_path.stat()
+
+        # Construct the hash info that is NOT valid currently, but will be when the callback returns.
+        hash_info = types.FileHashInfo(
+            hexhash="49a02e79cb4c68a5f1626d34a05a021b60cbd0b22f9485dcd4026ab3e9201b5a",
+            file_size_bytes=other_path_stat.st_size,
+            file_stat_mtime=other_path_stat.st_mtime,
+        )
+
+        # Calling the store_hash function without callback should raise an
+        # exception, as the hash info is not valid.
+        with self.assertRaises(ValueError):
+            self.service.store_hash(self.filepath, 'sha256', hash_info)
+        self.assertIsNone(self.backend.fetch_hash(self.filepath, "sha256"))
+
+        # Provide a callback that raises an exception. This should prevent the
+        # hash from being stored.
+        class SpecificError(BaseException):
+            pass
+
+        def errorring_callback() -> None:
+            raise SpecificError()
+
+        with self.assertRaises(SpecificError):
+            self.service.store_hash(self.filepath, 'sha256', hash_info, errorring_callback)
+        self.assertIsNone(self.backend.fetch_hash(self.filepath, "sha256"))
+
+        def pre_write_callback() -> None:
+            # Move the 'other' path to the actually-hashed path.
+            self.filepath.unlink()
+            other_path.rename(self.filepath)
+
+        self.service.store_hash(self.filepath, 'sha256', hash_info, pre_write_callback)
+
+        # Check that the back-end now has the hash stored.
+        backend_info = self.backend.fetch_hash(self.filepath, "sha256")
+        assert backend_info is not None
+        self.assertEqual(hash_info, backend_info)
+
     def test_file_matches(self) -> None:
         # Tell the back-end to store a fake hash, so that we get a different
         # result (the actual file hash) when the file is re-hashed.

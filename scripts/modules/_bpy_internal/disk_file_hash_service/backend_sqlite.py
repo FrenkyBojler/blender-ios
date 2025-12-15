@@ -12,7 +12,7 @@ import contextlib
 import datetime
 import sqlite3
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Callable
 
 from . import types
 
@@ -143,11 +143,16 @@ class SQLiteBackend:
             self,
             filepath: Path,
             hash_algorithm: str,
-            hash_info: types.FileHashInfo) -> None:
+            hash_info: types.FileHashInfo,
+            pre_write_callback: Callable[[], None] | None = None,
+    ) -> None:
         """Store a pre-computed hash for the given file path. The path has to exist."""
         now = self._now_string()
 
         with self._transaction_rw() as db:
+            if pre_write_callback is not None:
+                pre_write_callback()
+
             # The 'RETURNING file_id' ensures that we know which file ID was
             # referenced. We can't rely on last_insert_rowid() or
             # cursor.lastrowid, as that only works on actual INSERT and not on

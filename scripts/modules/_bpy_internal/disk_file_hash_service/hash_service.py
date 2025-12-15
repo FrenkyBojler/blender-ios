@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Callable
 
 from . import types
 
@@ -64,20 +65,51 @@ class DiskFileHashService:
         self.backend.store_hash(filepath, hash_algorithm, fresh_info)
         return fresh_info.hexhash
 
-    def store_hash(self, filepath: Path, hash_algorithm: str, hexhash: str) -> None:
+    def store_hash(
+            self,
+            filepath: Path,
+            hash_algorithm: str,
+            hash_info: types.FileHashInfo,
+            pre_write_callback: Callable[[], None] | None = None,
+    ) -> None:
         """Store a pre-computed hash for the given file path.
 
-        The file should exist on disk, to obtain its size and last-modified
-        timestamp. Its contents are not accessed. The caller is trusted to
-        provide the correct hash.
+        :param filepath: the file whose hash should be stored. It does not have
+            to exist on disk yet at the moment of calling this function. If the
+            file does not exist, a pre_write_callback function should be given
+            that ensures the file does exist after it has been called.
+
+        :param hash_info: the file's hash, size in bytes, and last-modified
+            timestamp. When pre_write_callback is not None, the caller is
+            trusted to provide the correct information. Otherwise the file size
+            and last-modification timestamp are checked against the file on
+            disk. If they mis-match, a ValueError is raised.
+
+        :param pre_write_callback: if given, the function is called after any
+            lock on the storage back-end has been obtained, and before it is
+            updated. Any exception raised by this callback will abort the
+            storage of the hash.
+
+            This callback function can be used to implement the following:
+
+            - Download a file to a temp location.
+            - Compute its hash while downloading.
+            - After downloading is complete, get the file size & modification time.
+            - Store the hash.
+            - In the pre-write callback function, move the file to its final location.
+            - The Disk File Hashing Service unlocks the back-end.
+
+            This ensures the hash and file on disk are consistent.
         """
-        stat = filepath.stat()
-        hash_info = types.FileHashInfo(
-            hexhash=hexhash,
-            file_size_bytes=stat.st_size,
-            file_stat_mtime=stat.st_mtime,
-        )
-        self.backend.store_hash(filepath, hash_algorithm, hash_info)
+        # Sanity check: this function accepts not-currently-valid values, but
+        # only if the callback ensures that they become valid.
+        if pre_write_callback is None and not self._file_stat_matches(
+                filepath, hash_info.file_size_bytes, hash_info.file_stat_mtime):
+            raise ValueError(
+                "to store a hash that does NOT match the file on disk, a pre_write_callback function " +
+                "that ensures the file matches the to-be-stored info, MUST be passed")
+
+        self.backend.store_hash(filepath, hash_algorithm, hash_info, pre_write_callback)
 
     def file_matches(self, filepath: Path, hash_algorithm: str, hexhash: str, size_in_byes: int) -> bool:
         """Check the file on disk, to see if it matches the given properties."""

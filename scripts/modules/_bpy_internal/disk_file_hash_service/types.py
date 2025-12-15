@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Callable
 import dataclasses
 
 
@@ -36,8 +36,17 @@ class DiskFileHashBackend(Protocol):
         If no info is cached for this path/algorithm combo, returns None.
         """
 
-    def store_hash(self, filepath: Path, hash_algorithm: str, hash_info: FileHashInfo) -> None:
-        """Store a pre-computed hash for the given file path."""
+    def store_hash(
+        self,
+        filepath: Path,
+        hash_algorithm: str,
+        hash_info: FileHashInfo,
+        pre_write_callback: Callable[[], None] | None = None,
+    ) -> None:
+        """Store a pre-computed hash for the given file path.
+
+        See DiskFileHashService.store_hash() for an explanation of the parameters.
+        """
 
     def mark_hash_as_fresh(self, filepath: Path, hash_algorithm: str) -> None:
         """Store that the hash is still considered 'fresh'.
