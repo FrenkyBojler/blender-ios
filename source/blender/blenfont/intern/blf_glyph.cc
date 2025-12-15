@@ -805,11 +805,10 @@ FontBLF *blf_font_script_ensure(FontBLF *font, const uint charcode)
   }
   if (ideal != font) {
     blf_ensure_face(ideal);
+    /* Font has changed so the new one must match the original. No need to
+     * reset after as it will get correct size and color when it is primary. */
     blf_font_size(ideal, font->size);
-    ideal->color[0] = font->color[0];
-    ideal->color[1] = font->color[1];
-    ideal->color[2] = font->color[2];
-    ideal->color[3] = font->color[3];
+    copy_v4_v4_uchar(ideal->color, font->color);
   }
   return ideal;
 }

@@ -168,7 +168,11 @@ const UserDef U_default = {
     .key_insert_channels = (USER_ANIM_KEY_CHANNEL_LOCATION | USER_ANIM_KEY_CHANNEL_ROTATION |
                             USER_ANIM_KEY_CHANNEL_SCALE | USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES),
     .animation_flag = USER_ANIM_HIGH_QUALITY_DRAWING,
-    .text_render = 0,
+    .text_render = (USER_TEXT_HINTING_SLIGHT | USER_TEXT_RENDER_SUBPIXELAA | USER_TEXT_KERNING |
+                    USER_TEXT_SLASHED_ZERO_UI | USER_TEXT_DISAMBIGUATION_INTER |
+                    USER_TEXT_OPEN_DIGITS_INTER | USER_TEXT_DISCRETIONARY_LIGATURES_UI |
+                    USER_TEXT_TABULAR_NUMBERS_UI | USER_TEXT_CONTEXTUAL_ALTERNATES_UI |
+                    USER_TEXT_CONTEXTUAL_ALTERNATES_MONO),
     .navigation_mode = VIEW_NAVIGATION_WALK,
     .view_rotate_sensitivity_turntable = DEG2RAD(0.4),
     .view_rotate_sensitivity_trackball = 1.0f,

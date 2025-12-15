@@ -1742,12 +1742,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(501, 100)) {
-    userdef->text_render = (USER_TEXT_HINTING_SLIGHT | USER_TEXT_RENDER_SUBPIXELAA |
-                            USER_TEXT_KERNING | USER_TEXT_SLASHED_ZERO_UI |
-                            USER_TEXT_DISAMBIGUATION_INTER | USER_TEXT_OPEN_DIGITS_INTER |
-                            USER_TEXT_DISCRETIONARY_LIGATURES_UI | USER_TEXT_TABULAR_NUMBERS_UI |
-                            USER_TEXT_CONTEXTUAL_ALTERNATES_UI |
-                            USER_TEXT_CONTEXTUAL_ALTERNATES_MONO);
+    userdef->text_render = U_default.text_render;
   }
 
   /**

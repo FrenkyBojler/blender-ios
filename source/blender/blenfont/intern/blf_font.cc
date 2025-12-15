@@ -538,11 +538,14 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
                                                           &this->segment.glyph_count);
   this->segment.glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, nullptr);
+
+  /* Unlikely. Drawing monospaced but changed mid-string to a proportional font. */
   bool set_mono = this->segment.font != font && font->flags & BLF_MONOSPACED &&
                   !(this->segment.font->flags & BLF_MONOSPACED);
   if (set_mono) {
     this->segment.font->flags |= BLF_MONOSPACED;
   }
+
   this->segment.glyphs.resize(this->segment.glyph_count);
   int cwidth = std::max(gc->fixed_width, 1);
   int pen_x = ft_pix_from_int(this->width);
@@ -580,7 +583,7 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   this->width = ft_pix_to_int(max_width);
   this->height += ft_pix_to_int(height);
   if (set_mono) {
-    font->flags &= ~BLF_MONOSPACED;
+    this->segment.font->flags &= ~BLF_MONOSPACED;
   }
   if (!gc || this->segment.font != font) {
     blf_glyph_cache_release(this->segment.font);
@@ -2241,6 +2244,7 @@ static FontBLF *blf_font_new_impl(const char *filepath,
 
   font->ft_lib = ft_library ? (FT_Library)ft_library : ft_lib;
 
+  /* Defaults for consistent behavior. Some often overwritten by user preferences. */
   blf_font_feature(font, "kern", 1); /* Kerning. */
   blf_font_feature(font, "locl", 1); /* Localized Forms. */
   blf_font_feature(font, "liga", 1); /* Standard Ligatures. */
