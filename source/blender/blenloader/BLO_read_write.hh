@@ -96,6 +96,15 @@ void BLO_write_struct_by_id(BlendWriter *writer, int struct_id, const void *data
 #define BLO_write_struct(writer, struct_name, data_ptr) \
   BLO_write_struct_by_id(writer, blender::dna::sdna_struct_id_get<struct_name>(), data_ptr)
 
+struct BlendWriter {
+  void *writedata_handle = nullptr;
+
+  template<typename T> void write_struct(const T *data)
+  {
+    BLO_write_struct_by_id(this, blender::dna::sdna_struct_id_get<T>(), data);
+  }
+};
+
 /**
  * Write single struct at address.
  */

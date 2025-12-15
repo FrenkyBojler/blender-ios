@@ -414,9 +414,15 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 /** \name Write Data Type & Functions
  * \{ */
 
-struct BlendWriter {
-  WriteData *wd;
-};
+static WriteData &get_writedata(BlendWriter &writer)
+{
+  return *static_cast<WriteData *>(writer.writedata_handle);
+}
+
+static const WriteData &get_writedata(const BlendWriter &writer)
+{
+  return *static_cast<const WriteData *>(writer.writedata_handle);
+}
 
 static WriteData *writedata_new(WriteWrap *ww)
 {
@@ -1147,7 +1153,7 @@ static void write_keymapitem(BlendWriter *writer, const wmKeyMapItem *kmi)
 
 static void write_userdef(BlendWriter *writer, const UserDef *userdef)
 {
-  writestruct(writer->wd, BLO_CODE_USER, UserDef, 1, userdef);
+  writestruct(&get_writedata(*writer), BLO_CODE_USER, UserDef, 1, userdef);
 
   LISTBASE_FOREACH (const bTheme *, btheme, &userdef->themes) {
     BLO_write_struct(writer, bTheme, btheme);
@@ -2146,7 +2152,7 @@ bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, const
 
 void BLO_write_raw(BlendWriter *writer, const size_t size_in_bytes, const void *data_ptr)
 {
-  writedata(writer->wd, BLO_CODE_DATA, size_in_bytes, data_ptr);
+  writedata(&get_writedata(*writer), BLO_CODE_DATA, size_in_bytes, data_ptr);
 }
 
 void BLO_write_struct_by_name(BlendWriter *writer, const char *struct_name, const void *data_ptr)
@@ -2169,7 +2175,7 @@ void BLO_write_struct_array_by_name(BlendWriter *writer,
 
 void BLO_write_struct_by_id(BlendWriter *writer, const int struct_id, const void *data_ptr)
 {
-  writestruct_nr(writer->wd, BLO_CODE_DATA, struct_id, 1, data_ptr);
+  writestruct_nr(&get_writedata(*writer), BLO_CODE_DATA, struct_id, 1, data_ptr);
 }
 
 void BLO_write_struct_at_address_by_id(BlendWriter *writer,
@@ -2187,7 +2193,7 @@ void BLO_write_struct_at_address_by_id_with_filecode(BlendWriter *writer,
                                                      const void *address,
                                                      const void *data_ptr)
 {
-  writestruct_at_address_nr(writer->wd, filecode, struct_id, 1, address, data_ptr);
+  writestruct_at_address_nr(&get_writedata(*writer), filecode, struct_id, 1, address, data_ptr);
 }
 
 void BLO_write_struct_array_by_id(BlendWriter *writer,
@@ -2195,7 +2201,7 @@ void BLO_write_struct_array_by_id(BlendWriter *writer,
                                   const int64_t array_size,
                                   const void *data_ptr)
 {
-  writestruct_nr(writer->wd, BLO_CODE_DATA, struct_id, array_size, data_ptr);
+  writestruct_nr(&get_writedata(*writer), BLO_CODE_DATA, struct_id, array_size, data_ptr);
 }
 
 void BLO_write_struct_array_at_address_by_id(BlendWriter *writer,
@@ -2204,12 +2210,13 @@ void BLO_write_struct_array_at_address_by_id(BlendWriter *writer,
                                              const void *address,
                                              const void *data_ptr)
 {
-  writestruct_at_address_nr(writer->wd, BLO_CODE_DATA, struct_id, array_size, address, data_ptr);
+  writestruct_at_address_nr(
+      &get_writedata(*writer), BLO_CODE_DATA, struct_id, array_size, address, data_ptr);
 }
 
 void BLO_write_struct_list_by_id(BlendWriter *writer, const int struct_id, const ListBase *list)
 {
-  writelist_nr(writer->wd, BLO_CODE_DATA, struct_id, list);
+  writelist_nr(&get_writedata(*writer), BLO_CODE_DATA, struct_id, list);
 }
 
 void BLO_write_struct_list_by_name(BlendWriter *writer, const char *struct_name, ListBase *list)
@@ -2227,12 +2234,12 @@ void blo_write_id_struct(BlendWriter *writer,
                          const void *id_address,
                          const ID *id)
 {
-  writestruct_at_address_nr(writer->wd, GS(id->name), struct_id, 1, id_address, id);
+  writestruct_at_address_nr(&get_writedata(*writer), GS(id->name), struct_id, 1, id_address, id);
 }
 
 int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name)
 {
-  int struct_id = DNA_struct_find_with_alias(writer->wd->sdna, struct_name);
+  int struct_id = DNA_struct_find_with_alias(get_writedata(*writer).sdna, struct_name);
   return struct_id;
 }
 
@@ -2283,10 +2290,14 @@ void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void 
   blender::Array<const void *, 32> data = blender::Span<const void *>(
       reinterpret_cast<const void *const *>(data_ptr), num);
   for (const int64_t i : data.index_range()) {
-    data[i] = get_address_id(*writer->wd, data[i]);
+    data[i] = get_address_id(*&get_writedata(*writer), data[i]);
   }
 
-  writedata(writer->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
+  writedata(&get_writedata(*writer),
+            BLO_CODE_DATA,
+            data.data(),
+            data.as_span().size_in_bytes(),
+            data_ptr);
 }
 
 void BLO_write_float3_array(BlendWriter *writer, const int64_t num, const float *data_ptr)
@@ -2320,13 +2331,13 @@ void BLO_write_shared_tag(BlendWriter *writer, const void *data)
    * re-inserted. */
 #ifndef NDEBUG
   {
-    const uint64_t existing_address_id = writer->wd->stable_address_ids.pointer_map.lookup_default(
-        data, address_id);
+    const uint64_t existing_address_id =
+        get_writedata(*writer).stable_address_ids.pointer_map.lookup_default(data, address_id);
     BLI_assert(existing_address_id == address_id ||
                (existing_address_id & implicit_sharing_address_id_flag) == 0);
   }
 #endif
-  writer->wd->stable_address_ids.pointer_map.add_overwrite(data, address_id);
+  get_writedata(*writer).stable_address_ids.pointer_map.add_overwrite(data, address_id);
 }
 
 void BLO_write_shared(BlendWriter *writer,
@@ -2341,9 +2352,9 @@ void BLO_write_shared(BlendWriter *writer,
   if (sharing_info) {
     BLO_write_shared_tag(writer, data);
   }
-  const uint64_t address_id = get_address_id_int(*writer->wd, data);
+  const uint64_t address_id = get_address_id_int(*&get_writedata(*writer), data);
   if (BLO_write_is_undo(writer)) {
-    MemFile &memfile = *writer->wd->mem.written_memfile;
+    MemFile &memfile = *get_writedata(*writer).mem.written_memfile;
     if (sharing_info != nullptr) {
       if (memfile.shared_storage == nullptr) {
         memfile.shared_storage = MEM_new<MemFileSharedStorage>(__func__);
@@ -2359,7 +2370,7 @@ void BLO_write_shared(BlendWriter *writer,
     }
   }
   if (sharing_info != nullptr) {
-    if (!writer->wd->per_id_written_shared_addresses.add(data)) {
+    if (!get_writedata(*writer).per_id_written_shared_addresses.add(data)) {
       /* Was written already. */
       return;
     }
@@ -2369,7 +2380,7 @@ void BLO_write_shared(BlendWriter *writer,
 
 bool BLO_write_is_undo(BlendWriter *writer)
 {
-  return writer->wd->use_memfile;
+  return get_writedata(*writer).use_memfile;
 }
 
 /** \} */

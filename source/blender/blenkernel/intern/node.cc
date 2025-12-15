@@ -1102,7 +1102,7 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
 
 static void write_node_socket(BlendWriter *writer, const bNodeSocket *sock)
 {
-  BLO_write_struct(writer, bNodeSocket, sock);
+  writer->write_struct(sock);
 
   if (sock->prop) {
     IDP_BlendWrite(writer, sock->prop);
