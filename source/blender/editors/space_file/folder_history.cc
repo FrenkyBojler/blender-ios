@@ -48,7 +48,6 @@ void folderlist_popdir(ListBase *folderlist, char *dir, char *dir_template)
     BLI_freelinkN(folderlist, folder);
 
     folder = static_cast<FolderList *>(folderlist->last);
-
     if (folder) {
       prev_dir = folder->foldername;
       BLI_strncpy(dir, prev_dir, FILE_MAXDIR);
