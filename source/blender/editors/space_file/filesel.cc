@@ -213,7 +213,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
           /* Store filename. */
           STRNCPY(params->file, template_file);
 
-          /* Use centralized template handling for directory paths. */
+          /* Use template navigation system to handle directory path. */
           blender::bke::path_templates::nav_handle_text_input(
               params, template_dir, *template_vars);
         }
