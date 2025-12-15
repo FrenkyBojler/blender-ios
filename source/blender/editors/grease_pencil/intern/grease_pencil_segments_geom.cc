@@ -2336,18 +2336,23 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
 {
   Array<bool> unchanged_curves(segment_offsets.size(), false);
 
-  for (const int curve_i : segment_offsets.index_range()) {
-    const IndexRange segment_range = segment_offsets[curve_i];
+  for (const int dst_curve_i : segment_offsets.index_range()) {
+    const IndexRange segment_range = segment_offsets[dst_curve_i];
     if (segment_range.size() != 1) {
       continue;
     }
 
-    const Segment &segment = segments[segment_range.first()];
+    const int segment_i = segment_range.first();
+    const Segment &segment = segments[segment_i];
     if (segment.has_intersection(Side::Start) || segment.has_intersection(Side::End)) {
       continue;
     }
 
-    unchanged_curves[curve_i] = true;
+    if (is_segments_clipping[segment_i]) {
+      continue;
+    }
+
+    unchanged_curves[dst_curve_i] = true;
   }
 
   IndexMaskMemory memory;
@@ -2607,7 +2612,8 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
   Array<int> dst_to_src_curves(dst_segments_by_curve.size());
   for (const int i : dst_segments_by_curve.index_range()) {
     const IndexRange segment_range = dst_segments_by_curve[i];
-    dst_to_src_curves[i] = result.segments[segment_range.first()].curve;
+    const int shape_id = result.shape_ids[i];
+    dst_to_src_curves[i] = shape_id;
 
     /* Prioritize non-clipping curves. */
     for (const int seg_i : segment_range) {
