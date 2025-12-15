@@ -1202,7 +1202,6 @@ class MetadataProviderFilesystem(MetadataProvider):
         else:
             raise RuntimeError("could not open & lock file {!s}".format(meta_path))
 
-
         # Write the JSON to the file & unlock it.
         try:
             meta_file.write(meta_json)
