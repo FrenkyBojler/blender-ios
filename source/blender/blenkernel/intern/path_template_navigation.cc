@@ -91,8 +91,6 @@ static bool is_within_template_bounds(const char *template_path,
  *
  * \return true if the update was successful and the template was preserved,
  *         false if navigation went outside template bounds.
- *
- * NOTE: Assumes variables is non-null - caller must check before calling.
  */
 static bool update_template_on_navigation(const char *original_template,
                                           const char *current_path,
