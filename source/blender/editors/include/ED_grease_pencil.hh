@@ -413,6 +413,9 @@ IndexMask retrieve_visible_strokes(Object &grease_pencil_object,
 IndexMask retrieve_visible_points(Object &object,
                                   const bke::greasepencil::Drawing &drawing,
                                   IndexMaskMemory &memory);
+IndexMask retrieve_visible_shapes(Object &object,
+                                  const bke::greasepencil::Drawing &drawing,
+                                  IndexMaskMemory &memory);
 
 IndexMask retrieve_visible_bezier_strokes(Object &object,
                                           const bke::greasepencil::Drawing &drawing,
