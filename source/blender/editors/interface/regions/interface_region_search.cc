@@ -417,6 +417,16 @@ bool searchbox_event(
     data->mmb_panning = val == KM_PRESS;
     data->mmb_panning_last_y = event->xy[1];
     handled = true;
+    if (data->mmb_panning) {
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      if (U.uiflag & USER_CONTINUOUS_MOUSE) {
+        WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &region->winrct, false);
+      }
+    }
+    else {
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
+      WM_cursor_grab_disable(CTX_wm_window(C), nullptr);
+    }
   }
   else if (data->mmb_panning && type == MOUSEMOVE) {
     const int delta = (data->mmb_panning_last_y - event->xy[1]) / UI_UNIT_Y *
@@ -1200,6 +1210,11 @@ ARegion *searchbox_create_operator(bContext *C, ARegion *butregion, ButtonSearch
 
 void searchbox_free(bContext *C, ARegion *region)
 {
+  uiSearchboxData *data = static_cast<uiSearchboxData *>(region->regiondata);
+  if (data->mmb_panning) {
+    WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
+    WM_cursor_grab_disable(CTX_wm_window(C), nullptr);
+  }
   region_temp_remove(C, CTX_wm_screen(C), region);
 }
 
