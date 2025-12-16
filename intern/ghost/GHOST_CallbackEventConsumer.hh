@@ -9,15 +9,16 @@
 
 #pragma once
 
-#include "GHOST_Types.hh"
 #include "GHOST_IEventConsumer.hh"
+#include "GHOST_Types.hh"
 
 /**
  * Definition of a callback routine that receives events.
  * \param event: The event received.
  * \param user_data: The callback's user data, supplied to #GHOST_CreateSystem.
  */
-using GHOST_EventCallbackProcPtr = bool (*)(const GHOST_IEvent *event, GHOST_TUserDataPtr user_data);
+using GHOST_EventCallbackProcPtr = bool (*)(const GHOST_IEvent *event,
+                                            GHOST_TUserDataPtr user_data);
 
 /**
  * Event consumer that will forward events to a call-back routine.

@@ -2842,8 +2842,7 @@ void wm_window_raise(wmWindow *win)
 {
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
   /* Restore window if minimized. */
-  if (ghost_window->getState() == GHOST_kWindowStateMinimized)
-  {
+  if (ghost_window->getState() == GHOST_kWindowStateMinimized) {
     ghost_window->setState(GHOST_kWindowStateNormal);
   }
   ghost_window->setOrder(GHOST_kWindowOrderTop);

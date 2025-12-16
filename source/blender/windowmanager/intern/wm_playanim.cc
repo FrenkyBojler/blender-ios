@@ -763,7 +763,6 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
   ghost_data.window->activateDrawingContext();
   GPU_render_begin();
 
-
   ghost_data.window->swapBufferAcquire();
   GPUContext *restore_context = GPU_context_active_get();
 

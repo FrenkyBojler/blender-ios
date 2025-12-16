@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 
 #ifdef WITH_VULKAN_BACKEND
@@ -233,11 +233,7 @@ static const GHOST_TabletData GHOST_TABLET_DATA_NONE = {
     0.0f,                  /* Xtilt */
     0.0f};                 /* Ytilt */
 
-enum GHOST_TVisibility {
-  GHOST_kNotVisible = 0,
-  GHOST_kPartiallyVisible,
-  GHOST_kFullyVisible
-};
+enum GHOST_TVisibility { GHOST_kNotVisible = 0, GHOST_kPartiallyVisible, GHOST_kFullyVisible };
 
 enum GHOST_TFireTimeConstant { GHOST_kFireTimeNever = 0xFFFFFFFF };
 
@@ -978,7 +974,6 @@ struct GHOST_VulkanOpenXRData {
       VkDeviceSize memory_offset;
     } gpu;
   };
-
 };
 
 /**
@@ -1123,17 +1118,18 @@ enum GHOST_TXrGraphicsBinding {
   //  GHOST_kXrGraphicsVulkan,
 };
 
-using GHOST_XrErrorHandlerFn = void (*)(const struct GHOST_XrError*);
+using GHOST_XrErrorHandlerFn = void (*)(const struct GHOST_XrError *);
 
 using GHOST_XrSessionCreateFn = void (*)();
 using GHOST_XrSessionExitFn = void (*)(void *customdata);
 using GHOST_XrCustomdataFreeFn = void (*)(void *customdata);
 
-using GHOST_XrGraphicsContextBindFn = void* (*)();
+using GHOST_XrGraphicsContextBindFn = void *(*)();
 using GHOST_XrGraphicsContextUnbindFn = void (*)(GHOST_ContextHandle graphics_context);
-using GHOST_XrDrawViewFn = void (*)(const struct GHOST_XrDrawViewInfo *draw_view, void *customdata);
-using GHOST_XrPassthroughEnabledFn = bool (*)(void* customdata);
-using GHOST_XrDisablePassthroughFn = void (*)(void* customdata);
+using GHOST_XrDrawViewFn = void (*)(const struct GHOST_XrDrawViewInfo *draw_view,
+                                    void *customdata);
+using GHOST_XrPassthroughEnabledFn = bool (*)(void *customdata);
+using GHOST_XrDisablePassthroughFn = void (*)(void *customdata);
 
 /**
  * An array of #GHOST_TXrGraphicsBinding items defining the candidate bindings to use.
