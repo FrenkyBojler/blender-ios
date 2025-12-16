@@ -136,14 +136,6 @@ def node_editor_context_override(context=None, selected_nodes=[], active_node=No
     return context.temp_override(**context_override)
 
 
-# Iterator for all nodes inside a frame node.
-def node_frame_children(frame_node):
-    tree = frame_node.id_data
-    for node in tree.nodes:
-        if node.parent == frame_node:
-            yield node
-
-
 class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
     test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
     group_nodes_single = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
@@ -152,22 +144,112 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
     def test_make_node_group_single(self):
         test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
         expected_group_nodes = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
-        # Frame nodes containing linked reroutes to test operator handling of node links.
-        test_inputs = [None, None, "TestInputs"]
-        test_outputs = [None, None, "TestOutputs"]
-        expected_inputs = [None, None, "TestInputs.001"]
-        expected_outputs = [None, None, "TestOutputs.001"]
-        for test_node_name, expected_group_node_name, test_inputs_name, test_outputs_name, expected_inputs_name, expected_outputs_name in zip(
-            test_nodes, expected_group_nodes, test_inputs, test_outputs, expected_inputs, expected_outputs):
+        # Reroute nodes with links to the test node.
+        test_links = [
+            "InputLink.Geometry",
+            "InputLink.Float",
+            "InputLink.Int",
+            "InputLink.Bool",
+            "InputLink.Vector",
+            "InputLink.Color",
+            "InputLink.Matrix",
+            "InputLink.String",
+            "InputLink.MenuUndefined",
+            "InputLink.MenuDefined",
+            "InputLink.MenuConflict",
+            "InputLink.Object", 
+            "InputLink.Collection",
+            "InputLink.Image",
+            "InputLink.Material",
+            "InputLink.OptLabel",
+            "InputLink.HideValue",
+            "InputLink.HideInModifier",
+            "InputLink.LayerSelect",
+            "InputLink.Expanded",
+            "InputLink.Dynamic",
+            "InputLink.Field",
+            "InputLink.Grid",
+            "InputLink.List",
+            "InputLink.Single",
+            "InputLink.Dim2",
+            "InputLink.DefaultNormal",
+            "InputLink.Panel",
+            "InputLink.Panel Socket",
+            "InputLink.PanelClosed Socket",
+
+            "OutputLink.Geometry",
+            "OutputLink.Float",
+            "OutputLink.Int",
+            "OutputLink.Bool",
+            "OutputLink.Vector",
+            "OutputLink.Color",
+            "OutputLink.Matrix",
+            "OutputLink.String",
+            "OutputLink.Menu",
+            "OutputLink.Object",
+            "OutputLink.Collection",
+            "OutputLink.Image",
+            "OutputLink.Material",
+            "OutputLink.Panel",
+            "OutputLink.Panel Socket",
+            "OutputLink.PanelClosed Socket",
+        ]
+        # Reroute nodes with links to the expected node.
+        expected_links = [
+            "InputLink.Geometry.001",
+            "InputLink.Float.001",
+            "InputLink.Int.001",
+            "InputLink.Bool.001",
+            "InputLink.Vector.001",
+            "InputLink.Color.001",
+            "InputLink.Matrix.001",
+            "InputLink.String.001",
+            "InputLink.MenuUndefined.001",
+            "InputLink.MenuDefined.001",
+            "InputLink.MenuConflict.001",
+            "InputLink.Object.001",
+            "InputLink.Collection.001",
+            "InputLink.Image.001",
+            "InputLink.Material.001",
+            "InputLink.OptLabel.001",
+            "InputLink.HideValue.001",
+            "InputLink.HideInModifier.001",
+            "InputLink.LayerSelect.001",
+            "InputLink.Expanded.001",
+            "InputLink.Dynamic.001",
+            "InputLink.Field.001",
+            "InputLink.Grid.001",
+            "InputLink.List.001",
+            "InputLink.Single.001",
+            "InputLink.Dim2.001",
+            "InputLink.DefaultNormal.001",
+            "InputLink.Panel.001",
+            "InputLink.Panel Socket.001",
+            "InputLink.PanelClosed Socket.001",
+
+            "OutputLink.Geometry.001",
+            "OutputLink.Float.001",
+            "OutputLink.Int.001",
+            "OutputLink.Bool.001",
+            "OutputLink.Vector.001",
+            "OutputLink.Color.001",
+            "OutputLink.Matrix.001",
+            "OutputLink.String.001",
+            "OutputLink.Menu.001",
+            "OutputLink.Object.001",
+            "OutputLink.Collection.001",
+            "OutputLink.Image.001",
+            "OutputLink.Material.001",
+            "OutputLink.Panel.001",
+            "OutputLink.Panel Socket.001",
+            "OutputLink.PanelClosed Socket.001",
+        ]
+        for test_node_name, expected_group_node_name in zip(test_nodes, expected_group_nodes):
             with self.subTest(test_node=test_node_name, expected_group_node=expected_group_node_name):
                 self.open_file()
                 tree = bpy.data.node_groups['Geometry Nodes']
                 test_node = tree.nodes[test_node_name]
                 expected_group_node = tree.nodes[expected_group_node_name]
-                test_inputs = tree.nodes[test_inputs_name] if test_inputs_name else None
-                test_outputs = tree.nodes[test_outputs_name] if test_outputs_name else None
-                expected_inputs = tree.nodes[expected_inputs_name] if expected_inputs_name else None
-                expected_outputs = tree.nodes[expected_outputs_name] if expected_outputs_name else None
 
                 with node_editor_context_override(selected_nodes=[test_node]):
                     bpy.ops.node.group_make()
@@ -176,12 +258,9 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 # Map operator result to expected nodes.
                 node_map = dict()
                 node_map[group_node] = expected_group_node
-                if expected_inputs:
-                    for test_input, expected_input in zip(node_frame_children(test_inputs), node_frame_children(expected_inputs)):
-                        node_map[test_input] = expected_input
-                if expected_outputs:
-                    for test_output, expected_output in zip(node_frame_children(test_outputs), node_frame_children(expected_outputs)):
-                        node_map[test_output] = expected_output
+                # Linked reroute nodes are gathered in frame nodes for convenience, map frame children in the same order.
+                for test_link_name, expected_link_name in zip(test_links, expected_links):
+                    node_map[tree.nodes[test_link_name]] = tree.nodes[expected_link_name]
                 socket_map = self.build_socket_map(node_map)
 
                 # Compare generated group node to expected node.
