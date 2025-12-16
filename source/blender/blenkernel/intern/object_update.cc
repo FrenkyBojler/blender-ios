@@ -215,7 +215,12 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
 
   /* Cache the contained geometry types of the #geometry_set_eval. */
   if (ob->runtime->geometry_set_eval) {
-    ob->runtime->geometry_types_eval = ob->runtime->geometry_set_eval->gather_component_types();
+    for (const blender::bke::GeometryComponent::Type type :
+         ob->runtime->geometry_set_eval->gather_component_types())
+    {
+      const size_t component_index = int(type);
+      ob->runtime->contained_geometry_types |= uint32_t(1 << component_index);
+    }
   }
 
   if (DEG_is_active(depsgraph)) {

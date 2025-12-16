@@ -10,8 +10,6 @@
 
 #include <optional>
 
-#include "BKE_geometry_set.hh"
-
 #include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_math_matrix_types.hh"
@@ -26,6 +24,8 @@ struct Mesh;
 struct PoseBackup;
 
 namespace blender::bke {
+
+struct GeometrySet;
 
 struct ObjectRuntime {
   /** Final transformation matrices with constraints & animsys applied. */
@@ -85,10 +85,10 @@ struct ObjectRuntime {
   GeometrySet *geometry_set_eval = nullptr;
 
   /**
-   * Contains all the geometry component types (including all types of instanced references) of
-   * #geometry_set_eval. Each type is only added once. See #GeometrySet::gather_component_types.
+   * Bitflag where each bit at an index corresponds to a `GeometryComponent::Type`. When a bit is
+   * set, the geometry type is contained within #geometry_set_eval.
    */
-  Vector<GeometryComponent::Type> geometry_types_eval;
+  uint32_t contained_geometry_types;
 
   /**
    * Mesh structure created during object evaluation.
@@ -139,5 +139,7 @@ struct ObjectRuntime {
   uint64_t last_update_geometry = 0;
   uint64_t last_update_shading = 0;
 };
+
+static_assert(sizeof(ObjectRuntime::contained_geometry_types) * 8 >= GEO_COMPONENT_TYPE_ENUM_SIZE);
 
 }  // namespace blender::bke

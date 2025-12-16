@@ -1595,6 +1595,7 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
 
 static bool depsgraph_contains_visible_grease_pencil_geometry(Depsgraph *depsgraph)
 {
+  using namespace blender::bke;
   bool found = false;
   DEG_foreach_ID(depsgraph, [&](const ID *id) {
     const ID *id_eval = DEG_get_evaluated_id(depsgraph, id);
@@ -1603,12 +1604,11 @@ static bool depsgraph_contains_visible_grease_pencil_geometry(Depsgraph *depsgra
     }
     if (GS(id_eval->name) == ID_OB) {
       const Object *ob = reinterpret_cast<const Object *>(id_eval);
-      if (BKE_object_visibility(ob, DAG_EVAL_RENDER) & OB_VISIBLE_SELF) {
-        if (ob->runtime->geometry_types_eval.contains(
-                blender::bke::GeometryComponent::Type::GreasePencil))
-        {
-          found = true;
-        }
+      const bool is_self_visible = BKE_object_visibility(ob, DAG_EVAL_RENDER) & OB_VISIBLE_SELF;
+      const bool contains_grease_pencil_geometry = ob->runtime->contained_geometry_types &
+                                                   int(GeometryComponent::Type::GreasePencil);
+      if (is_self_visible && contains_grease_pencil_geometry) {
+        found = true;
       }
     }
   });
