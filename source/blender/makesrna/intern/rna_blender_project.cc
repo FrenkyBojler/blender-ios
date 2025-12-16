@@ -172,7 +172,7 @@ void rna_def_blender_project_data(BlenderRNA *brna)
                                 "rna_BlenderProjectData_root_path_get",
                                 "rna_BlenderProjectData_root_path_length",
                                 nullptr);
-  RNA_def_property_ui_text(prop, "Location", "The location of the project on disk");
+  RNA_def_property_ui_text(prop, "Root Folder", "The path to the root folder of the project");
 }
 
 void rna_def_blender_project(BlenderRNA *brna)
