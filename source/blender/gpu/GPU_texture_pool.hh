@@ -21,23 +21,20 @@ class TexturePool {
  private:
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
-  static constexpr int init_pool_cycles = 0;
-  static constexpr int max_pool_cycles = 8;
-  /* On `retain`, a texture remains acquired for enough cycles that it can survive the 
-   * multiple resets until the next frame. It is invalidated if not retained again. */
-  static constexpr int init_acquire_cycles = -1;
-  static constexpr int max_acquire_cycles = 4;
+  static constexpr int max_unused_cycles = 8;
 
   /* Textures are stored with a counter, counting down the number of `reset` calls
    * since last use. Depending on the context:
    * - For `pool_` handles, the texture is deallocated once it reaches `max_pool_cycles`.
    * - For `acquired_` handles, the texture is released if it reaches `max_acquire_cycles`.
    * - For `acquired_` handles, an error is thrown if it equals -1, as
-   *   a texture was not explicitly retained/released, causing a memory leak. 
+   *   a texture was not explicitly retained/released, causing a memory leak.
    */
+
+  // TODO(not_mark): rewrite
   struct TextureHandle {
     Texture *texture;
-    int remaining_cycles;
+    int counter;
   };
 
   /* Pool of textures ready to be reused. */
@@ -58,25 +55,21 @@ class TexturePool {
                            TextureFormat format,
                            eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL);
 
-  /* Check if a pointer is associated with an acquired texture. */
-  bool is_texture_acquired(Texture *tex) const;
-
   /* Release the texture back into the pool so it can be reused. */
   void release_texture(Texture *tex);
-
-  /* Indicate that the texture should survive into the next `max_acquire_cycles` cycles. */
-  void retain_texture(Texture *tex);
 
   /* Decrease acquired texture counters and release/invalidate unused textures.
    * If `force_free` is true, free all the texture memory inside the pool.
    * Otherwise, only unused textures will be freed. */
   void reset(bool force_free = false);
-  
-  /* Swap lifetime counters of two acquired textures, enabling e.g. a single-frame
-   * texture and retained texture to exchange values. */
-  void swap_texture_counters(Texture *a, Texture *b);
 
-  void report(Texture *tex);
+  /* Check if the texture pointer refers to an acquired texture. */
+  bool is_texture_acquired(Texture *tex) const;
+
+  /* Reference the internal counter of an acquired texture.
+   * Used by `TextureFromPool` in `DRW_gpu_wrapper.hh`. */
+  int &get_texture_counter(Texture *tex);
+  void swap_texture_counters(Texture *tex_a, Texture *tex_b);
 };
 
 }  // namespace blender::gpu

@@ -43,11 +43,12 @@ Texture *TexturePool::acquire_texture(int width,
     }
   }
 
-  /* If compatible released texture was found, acquire and return it. */
+  /* If compatible pool texture was found, acquire and return it. */
   if (match_index != -1) {
     Texture *tex = pool_[match_index].texture;
-    acquired_.append({tex, init_acquire_cycles});
+    acquired_.append({tex, 1}); /* Internal counter set to 1 on acquire. */
     pool_.remove_and_reorder(match_index);
+    std::printf("ACQUIRE %p\n", tex);
     return tex;
   }
 
@@ -59,21 +60,9 @@ Texture *TexturePool::acquire_texture(int width,
     SNPRINTF(name, "TexFromPool_%d", texture_id);
   }
   Texture *tex = GPU_texture_create_2d(name, width, height, 1, format, usage, nullptr);
-  acquired_.append({tex, init_acquire_cycles});
-
-  std::printf("Allocated %d\n", pool_.size() + acquired_.size());
-
+  acquired_.append({tex, 1}); /* Internal counter set to 1 on acquire. */
+  
   return tex;
-}
-
-bool TexturePool::is_texture_acquired(Texture *tex) const
-{
-  for (const auto &handle : acquired_) {
-    if (handle.texture == tex) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void TexturePool::release_texture(Texture *tex)
@@ -87,16 +76,18 @@ void TexturePool::release_texture(Texture *tex)
     }
   }
 
-  /* ::release_texture() is safe, as textures are sometimes released multiple 
-   * times or were already released by the pool prematurely. */
-  if (index != -1) {
-    /* Move texture from acquired to pool. */
-    pool_.append({tex, init_pool_cycles});
-    acquired_.remove_and_reorder(index);
+  if (index == -1) {
+    return;
   }
+  // BLI_assert_msg(index != -1, 
+  //                "Unacquired texture passed to TexturePool::release_texture()");
+
+  /* Move texture from acquired to pool. */
+  pool_.append({tex, 0});
+  acquired_.remove_and_reorder(index);
 }
 
-void TexturePool::retain_texture(Texture *tex)
+bool TexturePool::is_texture_acquired(Texture *tex) const
 {
   /* Search for matching index of texture. */
   int64_t index = -1;
@@ -107,13 +98,10 @@ void TexturePool::retain_texture(Texture *tex)
     }
   }
 
-  BLI_assert_msg(index != -1, "Unacquired texture retain in TexturePool.retain_texture()");
-  
-  /* `::reset()` will release when `remaining_cycles` reaches `max_acquire_cycles`. */
-  acquired_[index].remaining_cycles = 0; 
+  return index != -1;
 }
 
-void TexturePool::report(Texture *tex)
+int &TexturePool::get_texture_counter(Texture *tex)
 {
   /* Search for matching index of texture. */
   int64_t index = -1;
@@ -123,48 +111,11 @@ void TexturePool::report(Texture *tex)
       break;
     }
   }
-  BLI_assert_msg(index != -1, "Unacquired texture report in TexturePool.report()");
 
-  std::printf("tex %d has counter %d\n", index, acquired_[index].remaining_cycles);
-}
+  BLI_assert_msg(index != -1,
+                 "Unacquired texture passed to TexturePool::get_texture_counter()");
 
-void TexturePool::reset(bool force_free)
-{
-  std::printf("Reset pre (pool=%d, acquired=%d)\n", pool_.size(), acquired_.size());
-
-  /* Reverse iterate pool textures, to make sure we only reorder known good handles. */
-  for (int i = pool_.size() - 1; i >= 0; i--) {
-    TextureHandle &tex = pool_[i];
-    if (tex.remaining_cycles >= max_pool_cycles || force_free) {
-      GPU_texture_free(tex.texture);
-      pool_.remove_and_reorder(i);
-    }
-    else {
-      tex.remaining_cycles++;
-    }
-  }
-
-  /* Reverse iterate acquired textures, to make sure we only reorder known good handles.
-   * Check to release textures that have not been retained for several cycles, and assert
-   * on memory leaks. */
-  for (int i = acquired_.size() - 1; i >= 0; i--) {
-    TextureHandle &tex = acquired_[i];
-
-    BLI_assert_msg(tex.remaining_cycles != -1,
-                   "Missing texture release/retain. Either TextureFromPool.release() or "
-                   "TexturePool.release_texture()");
-                   
-    if (tex.remaining_cycles >= max_acquire_cycles || force_free) {
-      pool_.append({tex.texture, init_pool_cycles});
-      acquired_.remove_and_reorder(i);
-      std::printf("Release persistent texture=%d\n", i);
-    }
-    else {
-      tex.remaining_cycles++;
-    }
-  }
-
-  std::printf("Reset post (pool=%d, acquired=%d)\n", pool_.size(), acquired_.size());
+  return acquired_[index].counter;
 }
 
 void TexturePool::swap_texture_counters(Texture *a, Texture *b)
@@ -185,7 +136,40 @@ void TexturePool::swap_texture_counters(Texture *a, Texture *b)
   BLI_assert_msg(index_b != -1, "Unacquired texture `b` in TexturePool.swap_texture_counters()");
 
   /* Swap internal counters only. */
-  std::swap(acquired_[index_a].remaining_cycles, acquired_[index_b].remaining_cycles);
+  // std::printf("Swapping counters: %d - %d\n", acquired_[index_a].counter, acquired_[index_b].counter);
+  std::swap(acquired_[index_a].counter, acquired_[index_b].counter);
+}
+
+void TexturePool::reset(bool force_free)
+{
+  /* Iterate acquired textures, and ensure `TextureHandle::counter` equals 0; otherwise
+   * this indicates a missing `::retain()` or `::release()` of a texture. */
+  for (int i = acquired_.size() - 1; i >= 0; i--) {
+    TextureHandle &tex = acquired_[i];
+
+    BLI_assert_msg(tex.counter == 0,
+                   "Missing texture release/retain. Likely TextureFromPool::release(), "
+                   "TextureFromPool::retain() or TexturePool::release_texture().");
+
+    // /* On `force_free`, acquired textures are forcibly invalidated. */
+    // if (force_free) {
+    //   pool_.append({tex.texture, 0});
+    //   acquired_.remove_and_reorder(i);
+    //   std::printf("remove_and_reorder on acquired texture\n");
+    // }
+  }
+
+  /* Reverse iterate pool textures, to make sure we only reorder known good handles. */
+  for (int i = pool_.size() - 1; i >= 0; i--) {
+    TextureHandle &tex = pool_[i];
+    if (tex.counter >= max_unused_cycles || force_free) {
+      GPU_texture_free(tex.texture);
+      pool_.remove_and_reorder(i);
+    }
+    else {
+      tex.counter++;
+    }
+  }
 }
 
 TexturePool &TexturePool::get()

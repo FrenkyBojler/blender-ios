@@ -1068,21 +1068,39 @@ class Texture : NonCopyable {
 struct TextureFromPool : public Texture, NonMovable {
   TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
 
-  /* Always use `release()` or `retain()` after rendering with a texture. */
+  ~TextureFromPool()
+  {
+    std::printf("DESTRUCTOR pool=%p tx=%p name=%s\n",  &gpu::TexturePool::get(), tx_, name_);
+    
+    release();
+  }
+
+  /* Always use `::release()` or `::retain()` after rendering with a texture. */
   bool acquire(int2 extent,
                gpu::TextureFormat format,
                eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
   {
-    if (tx_ == nullptr || !gpu::TexturePool::get().is_texture_acquired(tx_)) {
-      tx_ = gpu::TexturePool::get().acquire_texture(UNPACK2(extent), format, usage);
+    /* The texture may have been invalidated by the pool on a forced reset. */
+    if (tx_ != nullptr && !gpu::TexturePool::get().is_texture_acquired(tx_)) {
+      std::printf("TextureFromPool::acquire() invalidated its own pointer\n");
+      tx_ = nullptr;
+    }
 
+    if (tx_ == nullptr) {
+      tx_ = gpu::TexturePool::get().acquire_texture(UNPACK2(extent), format, usage);
       if (G.debug & G_DEBUG_GPU) {
         debug_clear();
       }
 
+      std::printf("ACQUIRE (new) pool=%p tx=%p name=%s\n", &gpu::TexturePool::get(), tx_, name_);
       return true;
     }
-    return false;
+    else {
+      gpu::TexturePool::get().get_texture_counter(tx_)++;
+
+      std::printf("ACQUIRE (old) pool=%p tx=%p name=%s\n", &gpu::TexturePool::get(), tx_, name_);
+      return false;
+    }
   }
 
   /* Invalidate the acquired `TextureFromPool` for this frame.
@@ -1092,6 +1110,8 @@ struct TextureFromPool : public Texture, NonMovable {
     if (tx_ == nullptr) {
       return;
     }
+    std::printf("RELEASE pool=%p tx=%p name=%s\n", &gpu::TexturePool::get(), tx_, name_);
+
     gpu::TexturePool::get().release_texture(tx_);
     tx_ = nullptr;
   }
@@ -1100,28 +1120,24 @@ struct TextureFromPool : public Texture, NonMovable {
    * Multiple retains can be done safely. */
   void retain()
   {
-    gpu::TexturePool::get().retain_texture(tx_);
+    std::printf("RETAIN pool=%p tx=%p name=%s\n",  &gpu::TexturePool::get(), tx_, name_);
+    gpu::TexturePool::get().get_texture_counter(tx_)--;
   }
 
-  /* Swap the contents of the two textures, and account for internal
-   * texture pool data as well. */
+  /* Swap the contents of the two textures, as well as their
+   * internal counter state in TexturePool`. */
   static void swap(TextureFromPool &a, TextureFromPool &b)
   {
     Texture::swap(a, b);
-    if (a.tx_ != nullptr && b.tx_ != nullptr) {
-      gpu::TexturePool::get().swap_texture_counters(a, b);
-    }
+    // if (a.tx_ != nullptr && b.tx_ != nullptr) {
+    //   gpu::TexturePool::get().swap_texture_counters(a, b);
+    // }
   }
 
   /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
   TextureFromPool *ptr()
   {
     return this;
-  }
-
-  void report()
-  {
-    gpu::TexturePool::get().report(tx_);
   }
 
   /* Strip forbidden methods from TextureFromPool. */
