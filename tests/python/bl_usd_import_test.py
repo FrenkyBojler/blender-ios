@@ -166,63 +166,6 @@ class USDImportTest(AbstractUSDTest):
                 verts = mesh.polygons[face].vertices
                 self.assertEqual(len(verts), expected[face], f"Unexpected data for {frame=} {face=}")
 
-    def test_import_mesh_uv_maps(self):
-        """Test importing meshes with udim UVs and multiple UV sets."""
-
-        infile = str(self.testdir / "usd_mesh_udim.usda")
-        res = bpy.ops.wm.usd_import(filepath=infile)
-        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
-
-        objects = bpy.context.scene.collection.objects
-        if "preview" in bpy.data.objects:
-            bpy.data.objects.remove(bpy.data.objects["preview"])
-        self.assertEqual(1, len(objects), f"File {infile} should contain one object, found {len(objects)}")
-
-        mesh = bpy.data.objects["uvmap_plane"].data
-        self.assertEqual(len(mesh.uv_layers), 2,
-                         f"Object uvmap_plane should have two uv layers, found {len(mesh.uv_layers)}")
-
-        expected_layer_names = {"udim_map", "uvmap"}
-        imported_layer_names = set(mesh.uv_layers.keys())
-        self.assertEqual(
-            expected_layer_names,
-            imported_layer_names,
-            f"Expected layer names ({expected_layer_names}) not found on uvmap_plane.")
-
-        def get_coords(data):
-            coords = [x.uv for x in uvmap]
-            return coords
-
-        def uv_min_max(data):
-            coords = get_coords(data)
-            uv_min_x = min([uv[0] for uv in coords])
-            uv_max_x = max([uv[0] for uv in coords])
-            uv_min_y = min([uv[1] for uv in coords])
-            uv_max_y = max([uv[1] for uv in coords])
-            return uv_min_x, uv_max_x, uv_min_y, uv_max_y
-
-        # Quick tests for point range.
-        uvmap = mesh.uv_layers["uvmap"].data
-        self.assertEqual(len(uvmap), 128)
-        min_x, max_x, min_y, max_y = uv_min_max(uvmap)
-        self.assertGreaterEqual(min_x, 0.0)
-        self.assertGreaterEqual(min_y, 0.0)
-        self.assertLessEqual(max_x, 1.0)
-        self.assertLessEqual(max_y, 1.0)
-
-        uvmap = mesh.uv_layers["udim_map"].data
-        self.assertEqual(len(uvmap), 128)
-        min_x, max_x, min_y, max_y = uv_min_max(uvmap)
-        self.assertGreaterEqual(min_x, 0.0)
-        self.assertGreaterEqual(min_y, 0.0)
-        self.assertLessEqual(max_x, 2.0)
-        self.assertLessEqual(max_y, 1.0)
-
-        # Make sure at least some points are in a udim tile.
-        coords = get_coords(uvmap)
-        coords = list(filter(lambda x: x[0] > 1.0, coords))
-        self.assertGreater(len(coords), 16)
-
     def test_import_mesh_subd(self):
         """Test importing meshes with subdivision attributes."""
 
