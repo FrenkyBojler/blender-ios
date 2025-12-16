@@ -3361,7 +3361,7 @@ static bool ui_textedit_insert_ascii(Button *but, HandleButtonData *data, const 
 #endif
 
 /**
- * Moves te cursor in the textbox one line up/ and tries to maintain the horizontal offset in
+ * Moves te cursor in the textbox one line up/down and tries to maintain the horizontal offset in
  * pixels from the current line.
  */
 static void textbox_jump_line(ARegion *region,
