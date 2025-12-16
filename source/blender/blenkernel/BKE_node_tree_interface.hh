@@ -243,6 +243,11 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketMenu", "NodeTreeInterfaceSocketMenu", SOCK_MENU, PROP_NONE},
     {"NodeSocketBundle", "NodeTreeInterfaceSocketBundle", SOCK_BUNDLE, PROP_NONE},
     {"NodeSocketClosure", "NodeTreeInterfaceSocketClosure", SOCK_CLOSURE, PROP_NONE},
+    {"NodeSocketFont", "NodeTreeInterfaceSocketFont", SOCK_FONT, PROP_NONE},
+    {"NodeSocketScene", "NodeTreeInterfaceSocketScene", SOCK_SCENE, PROP_NONE},
+    {"NodeSocketText", "NodeTreeInterfaceSocketText", SOCK_TEXT_ID, PROP_NONE},
+    {"NodeSocketMask", "NodeTreeInterfaceSocketMask", SOCK_MASK, PROP_NONE},
+    {"NodeSocketSound", "NodeTreeInterfaceSocketSound", SOCK_SOUND, PROP_NONE},
 };
 
 template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype type, const Fn &fn)
@@ -283,6 +288,21 @@ template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype 
       return true;
     case SOCK_MATERIAL:
       fn.template operator()<bNodeSocketValueMaterial>();
+      return true;
+    case SOCK_FONT:
+      fn.template operator()<bNodeSocketValueFont>();
+      return true;
+    case SOCK_SCENE:
+      fn.template operator()<bNodeSocketValueScene>();
+      return true;
+    case SOCK_TEXT_ID:
+      fn.template operator()<bNodeSocketValueText>();
+      return true;
+    case SOCK_MASK:
+      fn.template operator()<bNodeSocketValueMask>();
+      return true;
+    case SOCK_SOUND:
+      fn.template operator()<bNodeSocketValueSound>();
       return true;
     case SOCK_MENU:
       fn.template operator()<bNodeSocketValueMenu>();
@@ -366,7 +386,8 @@ inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree
                                                                 const bNodeSocket &from_sock,
                                                                 const StringRef socket_type)
 {
-  return add_interface_socket_from_node(ntree, from_node, from_sock, socket_type, from_sock.name);
+  return add_interface_socket_from_node(
+      ntree, from_node, from_sock, socket_type, node_socket_label(from_sock));
 }
 
 inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
@@ -374,7 +395,7 @@ inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree
                                                                 const bNodeSocket &from_sock)
 {
   return add_interface_socket_from_node(
-      ntree, from_node, from_sock, from_sock.typeinfo->idname, from_sock.name);
+      ntree, from_node, from_sock, from_sock.typeinfo->idname, node_socket_label(from_sock));
 }
 
 /**

@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_lib_id.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLI_listbase.h"
@@ -18,6 +18,7 @@
 #include "BKE_curves.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -169,11 +170,17 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
         break;
       }
       case bke::GeometryComponent::Type::Volume: {
+#ifdef WITH_OPENVDB
         const auto &volume_component = *static_cast<const bke::VolumeComponent *>(component);
         if (const Volume *volume = volume_component.get()) {
           VolumeInfo &info = this->volume_info.emplace();
-          info.grids_num = BKE_volume_num_grids(volume);
+          info.grids.resize(BKE_volume_num_grids(volume));
+          for (const int i : IndexRange(BKE_volume_num_grids(volume))) {
+            const bke::VolumeGridData *grid = BKE_volume_grid_get(volume, i);
+            info.grids[i] = {grid->name(), bke::volume_grid::get_type(*grid)};
+          }
         }
+#endif /* WITH_OPENVDB */
         break;
       }
       case bke::GeometryComponent::Type::GreasePencil: {
@@ -331,7 +338,7 @@ void GeoTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, cons
     else if (value_variant.valid_for_socket(SOCK_BUNDLE)) {
       Vector<BundleValueLog::Item> items;
       if (const BundlePtr bundle = value_variant.extract<BundlePtr>()) {
-        for (const Bundle::StoredItem &item : bundle->items()) {
+        for (const auto &item : bundle->items()) {
           if (const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
                   &item.value.value))
           {
@@ -386,6 +393,7 @@ const bke::GeometrySet *ViewerNodeLog::main_geometry() const
 {
   main_geometry_cache_mutex_.ensure([&]() {
     for (const Item &item : this->items) {
+#ifdef WITH_OPENVDB
       if (item.value.is_volume_grid()) {
         const bke::GVolumeGrid grid = item.value.get<bke::GVolumeGrid>();
         Volume *volume = BKE_id_new_nomain<Volume>(nullptr);
@@ -394,6 +402,7 @@ const bke::GeometrySet *ViewerNodeLog::main_geometry() const
         main_geometry_cache_ = bke::GeometrySet::from_volume(volume);
         return;
       }
+#endif
       if (item.value.is_single() && item.value.get_single_ptr().is_type<bke::GeometrySet>()) {
         main_geometry_cache_ = *item.value.get_single_ptr().get<bke::GeometrySet>();
         return;
@@ -854,8 +863,9 @@ GeoTreeLogger &GeoNodesLog::get_local_tree_logger(const ComputeContext &compute_
     const std::optional<nodes::ClosureSourceLocation> &location =
         context->closure_source_location();
     if (location.has_value()) {
-      BLI_assert(DEG_is_evaluated(location->tree));
-      tree_logger.tree_orig_session_uid = DEG_get_original_id(&location->tree->id)->session_uid;
+      tree_logger.tree_orig_session_uid =
+          location->tree->runtime->self_geometry_nodes_lazy_function_graph_info
+              ->original_tree_session_uid;
     }
   }
   else if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(
@@ -932,6 +942,10 @@ Map<const bNodeTreeZone *, ComputeContextHash> GeoNodesLog::
 
 static GeoNodesLog *get_root_log(const SpaceNode &snode)
 {
+  if (!ED_node_is_geometry(&snode)) {
+    return nullptr;
+  }
+
   switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
     case SNODE_GEOMETRY_MODIFIER: {
       std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =

@@ -221,6 +221,58 @@ void NODE_OT_group_edit(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Enter group at cursor, or exit when not hovering any node.
+ * \{ */
+
+static wmOperatorStatus node_group_enter_exit_invoke(bContext *C,
+                                                     wmOperator * /*op*/,
+                                                     const wmEvent *event)
+{
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  ARegion &region = *CTX_wm_region(C);
+
+  /* Don't interfere when the mouse is interacting with some button. See #147282. */
+  if (ISMOUSE_BUTTON(event->type) && ui::but_find_mouse_over(&region, event)) {
+    return OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED;
+  }
+
+  float2 cursor;
+  ui::view2d_region_to_view(&region.v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
+  bNode *node = node_under_mouse_get(snode, cursor);
+
+  if (!node || node->is_frame()) {
+    ED_node_tree_pop(&region, &snode);
+    return OPERATOR_FINISHED;
+  }
+  if (!node->is_group()) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  if (node->is_custom_group()) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  bNodeTree *group = id_cast<bNodeTree *>(node->id);
+  if (!group || ID_MISSING(group)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  ED_node_tree_push(&region, &snode, group, node);
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_group_enter_exit(wmOperatorType *ot)
+{
+  ot->name = "Enter/Exit Group";
+  ot->description = "Enter or exit node group based on cursor location";
+  ot->idname = "NODE_OT_group_enter_exit";
+
+  ot->invoke = node_group_enter_exit_invoke;
+  ot->poll = node_group_operator_active_poll;
+
+  ot->flag = OPTYPE_REGISTER;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Ungroup Operator
  * \{ */
 
@@ -529,6 +581,12 @@ static bool node_group_separate_selected(
       [](const bNode *node) { return node->is_group_input() || node->is_group_output(); });
 
   for (bNode *node : nodes_to_move) {
+    std::string old_basepath;
+    if (ngroup.adt) {
+      PointerRNA ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, node);
+      old_basepath = *RNA_path_from_ID_to_struct(&ptr);
+    }
+
     bNode *newnode;
     if (make_copy) {
       newnode = bke::node_copy_with_mapping(
@@ -550,9 +608,8 @@ static bool node_group_separate_selected(
      * if the old node-tree has animation data which potentially covers this node. */
     if (ngroup.adt) {
       PointerRNA ptr = RNA_pointer_create_discrete(&ngroup.id, &RNA_Node, newnode);
-      if (const std::optional<std::string> path = RNA_path_from_ID_to_struct(&ptr)) {
-        BLI_addtail(&anim_basepaths, animation_basepath_change_new(*path, *path));
-      }
+      const std::string new_basepath = *RNA_path_from_ID_to_struct(&ptr);
+      BLI_addtail(&anim_basepaths, animation_basepath_change_new(old_basepath, new_basepath));
     }
 
     /* ensure valid parent pointers, detach if parent stays inside the group */
@@ -617,6 +674,8 @@ static bool node_group_separate_selected(
     BKE_ntree_update_tag_all(&ngroup);
   }
 
+  DEG_relations_tag_update(&bmain);
+
   return true;
 }
 
@@ -678,9 +737,9 @@ static wmOperatorStatus node_group_separate_invoke(bContext *C,
                                                    wmOperator * /*op*/,
                                                    const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup = UI_popup_menu_begin(
+  ui::PopupMenu *pup = ui::popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Separate"), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  ui::Layout *layout = popup_menu_layout(pup);
 
   layout->operator_context_set(wm::OpCallContext::ExecDefault);
   PointerRNA op_ptr = layout->op("NODE_OT_group_separate", IFACE_("Copy"), ICON_NONE);
@@ -688,7 +747,7 @@ static wmOperatorStatus node_group_separate_invoke(bContext *C,
   op_ptr = layout->op("NODE_OT_group_separate", IFACE_("Move"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", NODE_GS_MOVE);
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1091,25 +1150,16 @@ static void node_group_make_insert_selected(const bContext &C,
     }
   }
 
-  /* Move animation data from the parent tree to the group. */
-  if (ntree.adt) {
-    ListBase anim_basepaths = {nullptr, nullptr};
-    for (bNode *node : nodes_to_move) {
-      PointerRNA ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, node);
-      if (const std::optional<std::string> path = RNA_path_from_ID_to_struct(&ptr)) {
-        BLI_addtail(&anim_basepaths, animation_basepath_change_new(*path, *path));
-      }
-    }
-    BKE_animdata_transfer_by_basepath(bmain, &ntree.id, &group.id, &anim_basepaths);
-
-    LISTBASE_FOREACH_MUTABLE (AnimationBasePathChange *, basepath_change, &anim_basepaths) {
-      animation_basepath_change_free(basepath_change);
-    }
-  }
-
   /* Move nodes into the group. */
+  ListBase anim_basepaths = {nullptr, nullptr};
   for (bNode *node : nodes_to_move) {
     const int32_t old_identifier = node->identifier;
+
+    std::string old_basepath;
+    if (ntree.adt) {
+      PointerRNA ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, node);
+      old_basepath = *RNA_path_from_ID_to_struct(&ptr);
+    }
 
     BLI_remlink(&ntree.nodes, node);
     BLI_addtail(&group.nodes, node);
@@ -1117,6 +1167,12 @@ static void node_group_make_insert_selected(const bContext &C,
     bke::node_unique_name(group, *node);
 
     node_identifier_map.add(old_identifier, node->identifier);
+
+    if (ntree.adt) {
+      PointerRNA ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, node);
+      const std::string new_basepath = *RNA_path_from_ID_to_struct(&ptr);
+      BLI_addtail(&anim_basepaths, animation_basepath_change_new(old_basepath, new_basepath));
+    }
 
     BKE_ntree_update_tag_node_removed(&ntree);
     BKE_ntree_update_tag_node_new(&group, node);
@@ -1131,6 +1187,13 @@ static void node_group_make_insert_selected(const bContext &C,
   for (bNode *node : nodes_to_move) {
     node->location[0] -= center[0];
     node->location[1] -= center[1];
+  }
+
+  if (ntree.adt) {
+    BKE_animdata_transfer_by_basepath(bmain, &ntree.id, &group.id, &anim_basepaths);
+    LISTBASE_FOREACH_MUTABLE (AnimationBasePathChange *, basepath_change, &anim_basepaths) {
+      animation_basepath_change_free(basepath_change);
+    }
   }
 
   for (bNodeLink *link : internal_links_to_move) {
@@ -1189,7 +1252,7 @@ static void node_group_make_insert_selected(const bContext &C,
   }
 
   if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
-    bke::node_structure_type_inferencing::update_structure_type_interface(group);
+    BKE_ntree_update(*bmain, Span<bNodeTree *>{&group});
   }
 
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
@@ -1383,6 +1446,19 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
                        *group_outputs[i]);
   }
 
+  ListBase anim_basepaths = {nullptr, nullptr};
+  PointerRNA src_node_ptr = RNA_pointer_create_discrete(
+      const_cast<ID *>(&src_tree.id), &RNA_Node, const_cast<bNode *>(&src_node));
+  PointerRNA dst_node_ptr = RNA_pointer_create_discrete(&dst_group->id, &RNA_Node, &inner_node);
+  const std::string src_basepath = *RNA_path_from_ID_to_struct(&src_node_ptr);
+  const std::string dst_basepath = *RNA_path_from_ID_to_struct(&dst_node_ptr);
+  BLI_addtail(&anim_basepaths, animation_basepath_change_new(src_basepath, dst_basepath));
+  BKE_animdata_transfer_by_basepath(
+      &bmain, const_cast<ID *>(&src_tree.id), &dst_group->id, &anim_basepaths);
+  LISTBASE_FOREACH_MUTABLE (AnimationBasePathChange *, basepath_change, &anim_basepaths) {
+    animation_basepath_change_free(basepath_change);
+  }
+
   BKE_main_ensure_invariants(bmain, dst_group->id);
   return dst_group;
 }
@@ -1464,8 +1540,11 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
     }
   }
 
-  /* Remove the old node because it has been replaced. */
-  bke::node_remove_node(&bmain, ntree, src_node, true);
+  /* Remove the old node because it has been replaced. Use the name of the removed node for the new
+   * group node. This also keeps animation data working. */
+  std::string old_node_name = src_node.name;
+  bke::node_remove_node(&bmain, ntree, src_node, true, false);
+  STRNCPY(gnode->name, old_node_name.c_str());
 
   BKE_ntree_update_tag_node_property(&ntree, gnode);
   BKE_main_ensure_invariants(bmain);

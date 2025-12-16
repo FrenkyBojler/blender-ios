@@ -12,7 +12,8 @@
 
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_subdiv_modifier.hh"
@@ -523,7 +524,7 @@ class MeshUVs : Overlay {
   /** Paint Mask overlay. */
   /* TODO(fclem): Maybe should be its own Overlay?. */
   bool show_mask_ = false;
-  eMaskOverlayMode mask_mode_ = MASK_OVERLAY_ALPHACHANNEL;
+  MaskOverlayMode mask_mode_ = MASK_OVERLAY_ALPHACHANNEL;
   Mask *mask_id_ = nullptr;
   Texture mask_texture_ = {"mask_texture_"};
 
@@ -571,7 +572,7 @@ class MeshUVs : Overlay {
       show_mask_ = space_mode_is_mask && space_image->mask_info.mask &&
                    space_image->mask_info.draw_flag & MASK_DRAWFLAG_OVERLAY;
       if (show_mask_) {
-        mask_mode_ = eMaskOverlayMode(space_image->mask_info.overlay_mode);
+        mask_mode_ = MaskOverlayMode(space_image->mask_info.overlay_mode);
         mask_id_ = DEG_get_evaluated(state.depsgraph, space_image->mask_info.mask);
       }
       else {
@@ -604,9 +605,11 @@ class MeshUVs : Overlay {
         const bool hide_faces = space_image->flag & SI_NO_DRAWFACES;
         select_face_ = !show_mesh_analysis_ && !hide_faces;
 
-        if (tool_setting->uv_flag & UV_FLAG_SYNC_SELECT) {
+        /* FIXME: Always showing verts in edge mode when `uv_select_sync_valid`.
+         * needs investigation. */
+        if (tool_setting->uv_flag & UV_FLAG_SELECT_SYNC) {
           const char sel_mode_3d = tool_setting->selectmode;
-          if (tool_setting->uv_sticky == SI_STICKY_VERTEX) {
+          if (tool_setting->uv_sticky == UV_STICKY_VERT) {
             /* NOTE: Ignore #SCE_SELECT_VERTEX because a single selected edge
              * on the mesh may cause single UV vertices to be selected. */
             select_vert_ = true;
@@ -674,7 +677,7 @@ class MeshUVs : Overlay {
       pass.shader_set(res.shaders->uv_wireframe.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-      pass.push_constant("alpha", space_image->uv_opacity);
+      pass.push_constant("alpha", space_image->uv_edge_opacity);
       pass.push_constant("do_smooth_wire", do_smooth_wire);
     }
 
@@ -704,9 +707,9 @@ class MeshUVs : Overlay {
     }
 
     if (select_vert_) {
-      const float dot_size = UI_GetThemeValuef(TH_VERTEX_SIZE) * UI_SCALE_FAC;
+      const float dot_size = ui::theme::get_value_f(TH_VERTEX_SIZE) * UI_SCALE_FAC;
       float4 theme_color;
-      UI_GetThemeColor4fv(TH_VERTEX, theme_color);
+      ui::theme::get_color_4fv(TH_VERTEX, theme_color);
       srgb_to_linearrgb_v4(theme_color, theme_color);
 
       auto &pass = verts_ps_;
@@ -722,7 +725,7 @@ class MeshUVs : Overlay {
     }
 
     if (select_face_dots_) {
-      const float dot_size = UI_GetThemeValuef(TH_FACEDOT_SIZE) * UI_SCALE_FAC;
+      const float dot_size = ui::theme::get_value_f(TH_FACEDOT_SIZE) * UI_SCALE_FAC;
 
       auto &pass = facedots_ps_;
       pass.init();
@@ -781,8 +784,11 @@ class MeshUVs : Overlay {
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
-    const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
-                                                                     CD_PROP_FLOAT2) != -1;
+    const StringRef active_uv_map = mesh.active_uv_map_name();
+    const bke::AttributeAccessor attributes = mesh.attributes();
+    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+        active_uv_map);
+    const bool has_active_object_uvmap = bke::mesh::is_uv_map(meta_data);
 
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
@@ -819,11 +825,16 @@ class MeshUVs : Overlay {
         state.ctx_mode, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
     const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
     const bool is_face_selectable = (is_edit_object || (is_paint_mode && use_face_selection));
-    const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
-                                                                     CD_PROP_FLOAT2) != -1;
-    const bool has_active_edit_uvmap = is_edit_object && (CustomData_get_active_layer(
-                                                              &mesh.runtime->edit_mesh->bm->ldata,
-                                                              CD_PROP_FLOAT2) != -1);
+    const StringRef active_uv_map = mesh.active_uv_map_name();
+    const bke::AttributeAccessor attributes = mesh.attributes();
+    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+        active_uv_map);
+    const bool has_active_object_uvmap = bke::mesh::is_uv_map(meta_data);
+
+    const bool has_active_edit_uvmap = is_edit_object && CustomData_has_layer_named(
+                                                             &mesh.runtime->edit_mesh->bm->ldata,
+                                                             CD_PROP_FLOAT2,
+                                                             active_uv_map);
 
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
@@ -924,9 +935,9 @@ class MeshUVs : Overlay {
       uchar4 text_color;
       /* Color Management: Exception here as texts are drawn in sRGB space directly. No conversion
        * required. */
-      UI_GetThemeColorShade4ubv(TH_BACK, 60, text_color);
-      UI_GetThemeColorShade4fv(TH_BACK, 60, theme_color);
-      UI_GetThemeColor4fv(TH_FACE_SELECT, selected_color);
+      ui::theme::get_color_shade_4ubv(TH_BACK, 60, text_color);
+      ui::theme::get_color_shade_4fv(TH_BACK, 60, theme_color);
+      ui::theme::get_color_4fv(TH_FACE_SELECT, selected_color);
       srgb_to_linearrgb_v4(theme_color, theme_color);
       srgb_to_linearrgb_v4(selected_color, selected_color);
 

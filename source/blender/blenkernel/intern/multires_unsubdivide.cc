@@ -650,7 +650,7 @@ static void store_grid_data(MultiresUnsubdivideContext *context,
   const int grid_size = CCG_grid_size(context->num_original_levels);
   const int face_grid_size = CCG_grid_size(context->num_original_levels + 1);
   const int face_grid_area = face_grid_size * face_grid_size;
-  float(*face_grid)[3] = MEM_calloc_arrayN<float[3]>(face_grid_area, "face_grid");
+  float (*face_grid)[3] = MEM_calloc_arrayN<float[3]>(face_grid_area, "face_grid");
 
   for (int i = 0; i < face.size(); i++) {
     const int loop_index = face[i];
@@ -1005,8 +1005,8 @@ static void multires_unsubdivide_extract_grids(MultiresUnsubdivideContext *conte
   const int base_l_offset = CustomData_get_offset_named(
       &bm_base_mesh->ldata, CD_PROP_INT32, lname);
 
-  const blender::OffsetIndices faces = base_mesh->faces();
-  const blender::Span<int> corner_verts = base_mesh->corner_verts();
+  const OffsetIndices faces = base_mesh->faces();
+  const Span<int> corner_verts = base_mesh->corner_verts();
 
   /* Main loop for extracting the grids. Iterates over the base mesh vertices. */
   BM_ITER_MESH (v, &iter, bm_base_mesh, BM_VERTS_OF_MESH) {
@@ -1178,7 +1178,7 @@ static void multires_create_grids_in_unsubdivided_base_mesh(MultiresUnsubdivideC
 
   /* Allocate the MDISPS grids and copy the extracted data from context. */
   for (int i = 0; i < totloop; i++) {
-    float(*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, __func__);
+    float (*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, __func__);
 
     if (mdisps[i].disps) {
       MEM_freeN(mdisps[i].disps);

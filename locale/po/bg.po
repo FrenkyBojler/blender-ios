@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'fb3904ce45c6')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-22 08:45+0000\n"
+"POT-Creation-Date: 2025-12-16 11:27+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Just Adam <adam.abbas2009@gmail.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
@@ -164,6 +164,46 @@ msgid "Space Type"
 msgstr "Тип на Пространството"
 
 
+msgid "Cache Files"
+msgstr "Кешови файлове"
+
+
+msgid "Palettes"
+msgstr "Палитри"
+
+
+msgid "Scenes"
+msgstr "Сцени"
+
+
+msgid "Sounds"
+msgstr "Звуци"
+
+
+msgid "Speakers"
+msgstr "Високоговорители"
+
+
+msgid "Texts"
+msgstr "Текстове"
+
+
+msgid "Textures"
+msgstr "Текстури"
+
+
+msgid "Volumes"
+msgstr "Обеми"
+
+
+msgid "Workspaces"
+msgstr "Работни пространства"
+
+
+msgid "Worlds"
+msgstr "Светове"
+
+
 msgid "Point"
 msgstr "Точка"
 
@@ -192,14 +232,6 @@ msgid "Tilt"
 msgstr "Наклон"
 
 
-msgid "Cache Files"
-msgstr "Кешови файлове"
-
-
-msgid "Palettes"
-msgstr "Палитри"
-
-
 msgid "Palette data-blocks"
 msgstr "Блокове данни на палитрите"
 
@@ -210,10 +242,6 @@ msgstr "Частици"
 
 msgid "Particle data-blocks"
 msgstr "Блокове данни на частиците"
-
-
-msgid "Scenes"
-msgstr "Сцени"
 
 
 msgid "Scene data-blocks"
@@ -228,32 +256,16 @@ msgid "Screen data-blocks"
 msgstr "Блокове данни на екраните"
 
 
-msgid "Sounds"
-msgstr "Звуци"
-
-
 msgid "Sound data-blocks"
 msgstr "Блокове данни на звуците"
-
-
-msgid "Speakers"
-msgstr "Високоговорители"
 
 
 msgid "Speaker data-blocks"
 msgstr "Блокове данни на високоговорителите"
 
 
-msgid "Texts"
-msgstr "Текстове"
-
-
 msgid "Text data-blocks"
 msgstr "Блокове данни на текстовете"
-
-
-msgid "Textures"
-msgstr "Текстури"
 
 
 msgid "Texture data-blocks"
@@ -272,10 +284,6 @@ msgid "File format version the .blend file was saved with"
 msgstr "Версия на файлов формат, в който .blend файла е бил запазен"
 
 
-msgid "Volumes"
-msgstr "Обеми"
-
-
 msgid "Volume data-blocks"
 msgstr "Блокове данни на обемите"
 
@@ -288,16 +296,8 @@ msgid "Window manager data-blocks"
 msgstr "Блокове данни на оправителите на прозорци"
 
 
-msgid "Workspaces"
-msgstr "Работни пространства"
-
-
 msgid "Workspace data-blocks"
 msgstr "Блокове данни на работните пространства"
-
-
-msgid "Worlds"
-msgstr "Светове"
 
 
 msgid "World data-blocks"
@@ -832,6 +832,10 @@ msgid "Append"
 msgstr "Добави"
 
 
+msgid "Pack"
+msgstr "Пакетирай"
+
+
 msgid "End"
 msgstr "Край"
 
@@ -866,6 +870,22 @@ msgstr "Плътност"
 
 msgid "Collection"
 msgstr "Колекция"
+
+
+msgid "Font"
+msgstr "Шрифт"
+
+
+msgid "Text"
+msgstr "Текст"
+
+
+msgid "Mask"
+msgstr "Маскиране"
+
+
+msgid "Sound"
+msgstr "Звук"
 
 
 msgid "Exclusive"
@@ -922,10 +942,6 @@ msgstr "Ортографиране"
 
 msgid "Extrude"
 msgstr "Изтегляне"
-
-
-msgid "Font"
-msgstr "Шрифт"
 
 
 msgid "Small Caps"
@@ -1006,10 +1022,6 @@ msgstr "Неродени"
 
 msgid "3D Cursor"
 msgstr "3D Курсор"
-
-
-msgid "Sound"
-msgstr "Звук"
 
 
 msgid "Blend"
@@ -1132,18 +1144,6 @@ msgid "ID Type"
 msgstr "ID тип"
 
 
-msgid "Mask"
-msgstr "Маскиране"
-
-
-msgid "Merge"
-msgstr "Слей"
-
-
-msgid "Text"
-msgstr "Текст"
-
-
 msgid "UV Mapping"
 msgstr "UV Картиране"
 
@@ -1172,8 +1172,12 @@ msgid "In-Betweens"
 msgstr "Междинни Кадри"
 
 
-msgid "Languages..."
-msgstr "Езици..."
+msgid "Merge"
+msgstr "Слей"
+
+
+msgid "Import"
+msgstr "Внеси"
 
 
 msgid "Cache"
@@ -1182,10 +1186,6 @@ msgstr "Кеш"
 
 msgid "Key"
 msgstr "Клавиш"
-
-
-msgid "Import"
-msgstr "Внеси"
 
 
 msgid "System"
@@ -1254,6 +1254,10 @@ msgstr "Свят"
 
 msgid "Even"
 msgstr "Равн"
+
+
+msgid "Edge Length"
+msgstr "Дължина на ръба"
 
 
 msgid "Lines"
@@ -1395,10 +1399,6 @@ msgstr "Филтрирай .blend файловете"
 
 msgid "Filter text files"
 msgstr "Филтрирай текстовите файлове"
-
-
-msgid "Set brush shape"
-msgstr "Задай форма на четка"
 
 
 msgctxt "Operator"
@@ -1679,10 +1679,6 @@ msgstr "Събери като Форми"
 
 msgid "Origin to Geometry"
 msgstr "Начало към Геометрия"
-
-
-msgid "Edge Length"
-msgstr "Дължина на ръба"
 
 
 msgid "Maximum scale randomization over each axis"
@@ -2294,10 +2290,6 @@ msgstr "Кешът е изключен докато файла не бъде з�
 
 msgid "Unpack"
 msgstr "Разпакетирай"
-
-
-msgid "Pack"
-msgstr "Пакетирай"
 
 
 msgid "Minimum Grid Spacing"

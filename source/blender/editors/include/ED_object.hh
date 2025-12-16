@@ -39,11 +39,14 @@ struct ViewLayer;
 struct bConstraint;
 struct bContext;
 struct bPoseChannel;
-struct uiLayout;
 struct wmKeyConfig;
 struct wmOperator;
 struct wmOperatorType;
 enum eReportType : uint16_t;
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
 
 namespace blender::ed::object {
 
@@ -58,7 +61,7 @@ Object *context_object(const bContext *C);
  * \note context can be NULL when called from a enum with #PROP_ENUM_NO_CONTEXT.
  */
 Object *context_active_object(const bContext *C);
-void collection_hide_menu_draw(const bContext *C, uiLayout *layout);
+void collection_hide_menu_draw(const bContext *C, ui::Layout &layout);
 
 /**
  * Return an array of objects:
@@ -68,8 +71,9 @@ void collection_hide_menu_draw(const bContext *C, uiLayout *layout);
  *   the callers \a filter_fn needs to check of they are editable
  *   (assuming they need to be modified).
  */
-blender::Vector<Object *> objects_in_mode_or_selected(
-    bContext *C, bool (*filter_fn)(const Object *ob, void *user_data), void *filter_user_data);
+Vector<Object *> objects_in_mode_or_selected(bContext *C,
+                                             bool (*filter_fn)(const Object *ob, void *user_data),
+                                             void *filter_user_data);
 
 /**
  * Set the active material by index.
@@ -609,6 +613,8 @@ void data_xform_by_mat4(XFormObjectData &xod, const float4x4 &transform);
 void data_xform_restore(XFormObjectData &xod);
 void data_xform_tag_update(XFormObjectData &xod);
 
-void ui_template_modifier_asset_menu_items(uiLayout &layout, StringRef catalog_path);
+void ui_template_modifier_asset_menu_items(ui::Layout &layout,
+                                           StringRef catalog_path,
+                                           bool skip_essentials);
 
 }  // namespace blender::ed::object

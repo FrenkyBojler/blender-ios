@@ -40,42 +40,47 @@ static const EnumPropertyItem prefilter_items[] = {
     {CMP_NODE_DENOISE_PREFILTER_NONE,
      "NONE",
      0,
-     "None",
-     "No prefiltering, use when guiding passes are noise-free"},
+     N_("None"),
+     N_("No prefiltering, use when guiding passes are noise-free")},
     {CMP_NODE_DENOISE_PREFILTER_FAST,
      "FAST",
      0,
-     "Fast",
-     "Denoise image and guiding passes together. Improves quality when guiding passes are noisy "
-     "using least amount of extra processing time."},
+     N_("Fast"),
+     N_("Denoise image and guiding passes together. Improves quality when guiding passes are "
+        "noisy using least amount of extra processing time.")},
     {CMP_NODE_DENOISE_PREFILTER_ACCURATE,
      "ACCURATE",
      0,
-     "Accurate",
-     "Prefilter noisy guiding passes before denoising image. Improves quality when guiding "
-     "passes are noisy using extra processing time."},
+     N_("Accurate"),
+     N_("Prefilter noisy guiding passes before denoising image. Improves quality when guiding "
+        "passes are noisy using extra processing time.")},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static const EnumPropertyItem quality_items[] = {
     {CMP_NODE_DENOISE_QUALITY_SCENE,
      "FOLLOW_SCENE",
      0,
-     "Follow Scene",
-     "Use the scene's denoising quality setting"},
+     N_("Follow Scene"),
+     N_("Use the scene's denoising quality setting")},
     {CMP_NODE_DENOISE_QUALITY_HIGH, "HIGH", 0, "High", "High quality"},
     {CMP_NODE_DENOISE_QUALITY_BALANCED,
      "BALANCED",
      0,
-     "Balanced",
-     "Balanced between performance and quality"},
+     N_("Balanced"),
+     N_("Balanced between performance and quality")},
     {CMP_NODE_DENOISE_QUALITY_FAST, "FAST", 0, "Fast", "High performance"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Color>("Albedo")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .hide_value()
@@ -89,12 +94,12 @@ static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("HDR").default_value(true);
   b.add_input<decl::Menu>("Prefilter")
       .default_value(CMP_NODE_DENOISE_PREFILTER_ACCURATE)
-      .static_items(prefilter_items);
+      .static_items(prefilter_items)
+      .optional_label();
   b.add_input<decl::Menu>("Quality")
       .default_value(CMP_NODE_DENOISE_QUALITY_SCENE)
-      .static_items(quality_items);
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+      .static_items(quality_items)
+      .optional_label();
 }
 
 static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
@@ -121,13 +126,13 @@ static bool is_oidn_supported()
 #endif
 }
 
-static void node_composit_buts_denoise(uiLayout *layout, bContext * /*C*/, PointerRNA * /*ptr*/)
+static void node_composit_buts_denoise(ui::Layout &layout, bContext * /*C*/, PointerRNA * /*ptr*/)
 {
 #ifndef WITH_OPENIMAGEDENOISE
-  layout->label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
+  layout.label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
 #else
   if (!is_oidn_supported()) {
-    layout->label(RPT_("Disabled. Platform not supported"), ICON_ERROR);
+    layout.label(RPT_("Disabled. Platform not supported"), ICON_ERROR);
   }
 #endif
 }
@@ -166,8 +171,8 @@ class DenoiseOperation : public NodeOperation {
     device.set("setAffinity", false);
     device.commit();
 
-    const int width = input_image.domain().size.x;
-    const int height = input_image.domain().size.y;
+    const int width = input_image.domain().data_size.x;
+    const int height = input_image.domain().data_size.y;
     const int pixel_stride = sizeof(float) * 4;
     const eGPUDataFormat data_format = GPU_DATA_FLOAT;
 
@@ -288,9 +293,9 @@ class DenoiseOperation : public NodeOperation {
       /* OIDN already wrote to the output directly, however, OIDN skips the alpha channel, so we
        * need to restore it. */
       parallel_for(int2(width, height), [&](const int2 texel) {
-        const float alpha = input_image.load_pixel<float4>(texel).w;
-        output_image.store_pixel(texel,
-                                 float4(output_image.load_pixel<float4>(texel).xyz(), alpha));
+        const float alpha = input_image.load_pixel<Color>(texel).a;
+        output_image.store_pixel(
+            texel, Color(float4(float4(output_image.load_pixel<Color>(texel)).xyz(), alpha)));
       });
     }
 

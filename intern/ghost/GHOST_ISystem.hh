@@ -150,6 +150,9 @@ class GHOST_ISystem {
   static GHOST_TBacktraceFn getBacktraceFn();
   static void setBacktraceFn(GHOST_TBacktraceFn backtrace_fn);
 
+  static bool getUseWindowFrame();
+  static void setUseWindowFrame(bool use_window_frame);
+
  protected:
   /**
    * Constructor.
@@ -486,6 +489,13 @@ class GHOST_ISystem {
   virtual GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const = 0;
 
   /***************************************************************************************
+   * Window "Client Side Decorations" (CSD)
+   ***************************************************************************************/
+
+  virtual void setWindowCSD(const GHOST_CSD_Params &params) = 0;
+  virtual const GHOST_CSD_Layout &getWindowCSD_Layout() const = 0;
+
+  /***************************************************************************************
    * System Message Box.
    ***************************************************************************************/
 
@@ -540,6 +550,11 @@ class GHOST_ISystem {
 
   /** Function to call that sets the back-trace. */
   static GHOST_TBacktraceFn backtrace_fn_;
+
+  /**
+   * When false, don't use window frame.
+   */
+  static bool use_window_frame_;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystem")
 };

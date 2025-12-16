@@ -82,9 +82,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 };
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 class SocketSearchOp {
@@ -143,8 +143,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
       "Or", [](int a, int b) { return a | b; }, exec_preset);
   static auto xor_fn = mf::build::SI2_SO<int, int, int>(
       "Xor", [](int a, int b) { return a ^ b; }, exec_preset);
-  static auto not_fn = mf::build::SI1_SO<int, int>(
-      "Not", [](int a) { return ~a; }, exec_preset);
+  static auto not_fn = mf::build::SI1_SO<int, int>("Not", [](int a) { return ~a; }, exec_preset);
   static auto shift_fn = mf::build::SI2_SO<int, int, int>(
       "Shift",
       [](int a, int b) {

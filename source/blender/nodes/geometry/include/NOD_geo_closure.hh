@@ -8,41 +8,14 @@
 
 #include "NOD_socket_items.hh"
 
+#include "BKE_node.hh"
+
 namespace blender::nodes {
 
 inline bool socket_type_supported_in_closure(const eNodeSocketDatatype socket_type,
                                              const int ntree_type)
 {
-  switch (ntree_type) {
-    case NTREE_GEOMETRY:
-      return ELEM(socket_type,
-                  SOCK_FLOAT,
-                  SOCK_VECTOR,
-                  SOCK_RGBA,
-                  SOCK_BOOLEAN,
-                  SOCK_ROTATION,
-                  SOCK_MATRIX,
-                  SOCK_INT,
-                  SOCK_STRING,
-                  SOCK_GEOMETRY,
-                  SOCK_OBJECT,
-                  SOCK_MATERIAL,
-                  SOCK_IMAGE,
-                  SOCK_COLLECTION,
-                  SOCK_BUNDLE,
-                  SOCK_CLOSURE);
-    case NTREE_SHADER:
-      return ELEM(socket_type,
-                  SOCK_FLOAT,
-                  SOCK_VECTOR,
-                  SOCK_RGBA,
-                  SOCK_SHADER,
-                  SOCK_BUNDLE,
-                  SOCK_CLOSURE,
-                  SOCK_INT);
-    default:
-      return false;
-  }
+  return bke::node_tree_type_supports_socket_type_static(ntree_type, socket_type);
 }
 
 struct ClosureInputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
@@ -258,7 +231,6 @@ struct EvaluateClosureInputItemsAccessor : public socket_items::SocketItemsAcces
     auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->input_items.next_identifier++;
-    item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
     socket_items::set_item_name_and_make_unique<EvaluateClosureInputItemsAccessor>(
         node, item, name);
   }
@@ -334,7 +306,6 @@ struct EvaluateClosureOutputItemsAccessor : public socket_items::SocketItemsAcce
     auto *storage = static_cast<NodeEvaluateClosure *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->output_items.next_identifier++;
-    item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
     socket_items::set_item_name_and_make_unique<EvaluateClosureOutputItemsAccessor>(
         node, item, name);
   }

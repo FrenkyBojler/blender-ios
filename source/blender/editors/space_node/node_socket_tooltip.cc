@@ -25,6 +25,8 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
+#include "ED_node.hh"
+
 #include "node_intern.hh"
 
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -33,11 +35,11 @@ namespace blender::ed::space_node {
 
 class SocketTooltipBuilder {
  private:
-  uiTooltipData &tip_data_;
+  ui::TooltipData &tip_data_;
   const bNodeTree &tree_;
   const bNode &node_;
   const bNodeSocket &socket_;
-  uiBut *but_ = nullptr;
+  ui::Button *but_ = nullptr;
   bContext &C_;
   int indentation_ = 0;
 
@@ -51,11 +53,11 @@ class SocketTooltipBuilder {
   std::optional<TooltipBlockType> last_block_type_;
 
  public:
-  SocketTooltipBuilder(uiTooltipData &tip_data,
+  SocketTooltipBuilder(ui::TooltipData &tip_data,
                        const bNodeTree &tree,
                        const bNodeSocket &socket,
                        bContext &C,
-                       uiBut *but)
+                       ui::Button *but)
       : tip_data_(tip_data),
         tree_(tree),
         node_(socket.owner_node()),
@@ -95,7 +97,7 @@ class SocketTooltipBuilder {
 
   void build_tooltip_dangling_reroute()
   {
-    this->add_text_field(TIP_("Dangling reroute nodes are ignored."), UI_TIP_LC_ALERT);
+    this->add_text_field(TIP_("Dangling reroute nodes are ignored."), ui::TIP_LC_ALERT);
   }
 
   bool should_show_label()
@@ -110,7 +112,7 @@ class SocketTooltipBuilder {
     if (socket_.type == SOCK_MENU) {
       return true;
     }
-    if (socket_.flag & SOCK_HIDE_LABEL) {
+    if (socket_.runtime->declaration && socket_.runtime->declaration->optional_label) {
       return true;
     }
     return false;
@@ -226,6 +228,11 @@ class SocketTooltipBuilder {
     if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
       this->start_block(TooltipBlockType::Value);
       build_tooltip_value_implicit_default(socket_decl->default_input_type);
+      return;
+    }
+    if (socket_decl && socket_decl->structure_type == nodes::StructureType::Grid) {
+      this->start_block(TooltipBlockType::Value);
+      this->build_tooltip_value_and_type_oneline(TIP_("Empty Grid"), TIP_("Volume Grid"));
       return;
     }
     if (socket_.typeinfo->base_cpp_type == nullptr) {
@@ -376,7 +383,7 @@ class SocketTooltipBuilder {
       return;
     }
     if (!enum_item->description.empty()) {
-      this->add_text_field(TIP_(enum_item->description), UI_TIP_LC_VALUE);
+      this->add_text_field(TIP_(enum_item->description), ui::TIP_LC_VALUE);
       this->add_space();
     }
     this->build_tooltip_value_and_type_oneline(TIP_(enum_item->name), TIP_("Menu"));
@@ -419,10 +426,11 @@ class SocketTooltipBuilder {
     bool is_gamma = false;
     const ColorManagedDisplay *display = nullptr;
     if (but_) {
-      is_gamma = UI_but_is_color_gamma(*but_);
-      display = UI_but_cm_display_get(*but_);
+      is_gamma = button_is_color_gamma(*but_);
+      display = button_cm_display_get(*but_);
     }
-    UI_tooltip_color_field_add(tip_data_, float4(value), true, is_gamma, display, UI_TIP_LC_VALUE);
+    ui::tooltip_color_field_add(
+        tip_data_, float4(value), true, is_gamma, display, ui::TIP_LC_VALUE);
   }
 
   void build_tooltip_value_quaternion(const math::Quaternion &value)
@@ -638,7 +646,7 @@ class SocketTooltipBuilder {
         case bke::GeometryComponent::Type::Volume: {
           const geo_log::GeometryInfoLog::VolumeInfo &info = *geometry_log.volume_info;
           component_str = fmt::format(fmt::runtime(TIP_("Volume: {} grids")),
-                                      this->count_to_string(info.grids_num));
+                                      this->count_to_string(info.grids.size()));
           break;
         }
         case bke::GeometryComponent::Type::Curve: {
@@ -849,7 +857,7 @@ class SocketTooltipBuilder {
     if (!but_) {
       return;
     }
-    UI_tooltip_uibut_python_add(tip_data_, C_, *but_, nullptr);
+    ui::tooltip_uibut_python_add(tip_data_, C_, *but_, nullptr);
   }
 
   void start_block(const TooltipBlockType new_block_type)
@@ -862,24 +870,24 @@ class SocketTooltipBuilder {
 
   void add_text_field_header(std::string text)
   {
-    UI_tooltip_text_field_add(
-        tip_data_, this->indent(text), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
+    ui::tooltip_text_field_add(
+        tip_data_, this->indent(text), {}, ui::TIP_STYLE_HEADER, ui::TIP_LC_MAIN);
   }
 
-  void add_text_field(std::string text, const uiTooltipColorID color_id = UI_TIP_LC_NORMAL)
+  void add_text_field(std::string text, const ui::TooltipColorID color_id = ui::TIP_LC_NORMAL)
   {
-    UI_tooltip_text_field_add(tip_data_, this->indent(text), {}, UI_TIP_STYLE_NORMAL, color_id);
+    ui::tooltip_text_field_add(tip_data_, this->indent(text), {}, ui::TIP_STYLE_NORMAL, color_id);
   }
 
-  void add_text_field_mono(std::string text, const uiTooltipColorID color_id = UI_TIP_LC_VALUE)
+  void add_text_field_mono(std::string text, const ui::TooltipColorID color_id = ui::TIP_LC_VALUE)
   {
-    UI_tooltip_text_field_add(tip_data_, this->indent(text), {}, UI_TIP_STYLE_MONO, color_id);
+    ui::tooltip_text_field_add(tip_data_, this->indent(text), {}, ui::TIP_STYLE_MONO, color_id);
   }
 
   void add_space(const int amount = 1)
   {
     for ([[maybe_unused]] const int i : IndexRange(amount)) {
-      UI_tooltip_text_field_add(tip_data_, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+      ui::tooltip_text_field_add(tip_data_, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL);
     }
   }
 
@@ -892,9 +900,9 @@ class SocketTooltipBuilder {
   }
 };
 
-void build_socket_tooltip(uiTooltipData &tip_data,
+void build_socket_tooltip(ui::TooltipData &tip_data,
                           bContext &C,
-                          uiBut *but,
+                          ui::Button *but,
                           const bNodeTree &tree,
                           const bNodeSocket &socket)
 {

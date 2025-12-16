@@ -129,7 +129,7 @@ const EnumPropertyItem rna_enum_mesh_select_mode_items[] = {
 };
 
 const EnumPropertyItem rna_enum_mesh_select_mode_uv_items[] = {
-    {UV_SELECT_VERTEX, "VERTEX", ICON_UV_VERTEXSEL, "Vertex", "Vertex selection mode"},
+    {UV_SELECT_VERT, "VERTEX", ICON_UV_VERTEXSEL, "Vertex", "Vertex selection mode"},
     {UV_SELECT_EDGE, "EDGE", ICON_UV_EDGESEL, "Edge", "Edge selection mode"},
     {UV_SELECT_FACE, "FACE", ICON_UV_FACESEL, "Face", "Face selection mode"},
     {0, nullptr, 0, nullptr, nullptr},
@@ -144,7 +144,8 @@ const EnumPropertyItem rna_enum_mesh_select_mode_uv_items[] = {
   {SCE_SNAP_TO_FACE, "FACE", ICON_SNAP_FACE, "Face", "Snap by projecting onto faces"}, \
   {SCE_SNAP_TO_VOLUME, "VOLUME", ICON_SNAP_VOLUME, "Volume", "Snap to volume"}, \
   {SCE_SNAP_TO_EDGE_MIDPOINT, "EDGE_MIDPOINT", ICON_SNAP_MIDPOINT, "Edge Center", "Snap to the middle of edges"}, \
-  {SCE_SNAP_TO_EDGE_PERPENDICULAR, "EDGE_PERPENDICULAR", ICON_SNAP_PERPENDICULAR, "Edge Perpendicular", "Snap to the nearest point on an edge"}
+  {SCE_SNAP_TO_EDGE_PERPENDICULAR, "EDGE_PERPENDICULAR", ICON_SNAP_PERPENDICULAR, "Edge Perpendicular", "Snap to the nearest point on an edge"}, \
+  {SCE_SNAP_TO_FACE_MIDPOINT, "FACE_MIDPOINT", ICON_SNAP_FACE_CENTER,"Face Center","Snap to the middle of faces"}
 /* clang-format on */
 
 const EnumPropertyItem rna_enum_snap_element_items[] = {
@@ -255,18 +256,10 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#define MEDIA_TYPE_ENUM_IMAGE \
-  { \
-    MEDIA_TYPE_IMAGE, "IMAGE", ICON_NONE, "Image", "" \
-  }
+#define MEDIA_TYPE_ENUM_IMAGE {MEDIA_TYPE_IMAGE, "IMAGE", ICON_NONE, "Image", ""}
 #define MEDIA_TYPE_ENUM_MULTI_LAYER_IMAGE \
-  { \
-    MEDIA_TYPE_MULTI_LAYER_IMAGE, "MULTI_LAYER_IMAGE", ICON_NONE, "Multi-Layer EXR", "" \
-  }
-#define MEDIA_TYPE_ENUM_VIDEO \
-  { \
-    MEDIA_TYPE_VIDEO, "VIDEO", ICON_NONE, "Video", "" \
-  }
+  {MEDIA_TYPE_MULTI_LAYER_IMAGE, "MULTI_LAYER_IMAGE", ICON_NONE, "Multi-Layer EXR", ""}
+#define MEDIA_TYPE_ENUM_VIDEO {MEDIA_TYPE_VIDEO, "VIDEO", ICON_NONE, "Video", ""}
 
 static const EnumPropertyItem rna_enum_media_type_all_items[] = {
     MEDIA_TYPE_ENUM_IMAGE,
@@ -1910,15 +1903,14 @@ void rna_Scene_freestyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-void rna_Scene_use_freestyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+void rna_Scene_use_freestyle_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 }
 
 void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -1997,9 +1989,8 @@ void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr)
     }
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   rna_Scene_render_update(bmain, activescene, ptr);
 }
@@ -2157,6 +2148,11 @@ static void rna_Scene_uv_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
   /* Makes sure that the UV selection states are consistent with the current UV select mode and
    * sticky mode. */
   ED_uvedit_selectmode_clean_multi(C);
+}
+
+static void rna_Scene_uv_select_sync_update(bContext *C, PointerRNA * /*ptr*/)
+{
+  ED_uvedit_select_sync_multi(C);
 }
 
 static void rna_Scene_uv_sticky_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
@@ -2391,14 +2387,14 @@ static void rna_View3DCursor_rotation_axis_angle_set(PointerRNA *ptr, const floa
 static void rna_View3DCursor_matrix_get(PointerRNA *ptr, float *values)
 {
   const View3DCursor *cursor = static_cast<const View3DCursor *>(ptr->data);
-  copy_m4_m4((float(*)[4])values, cursor->matrix<blender::float4x4>().ptr());
+  copy_m4_m4((float (*)[4])values, cursor->matrix<blender::float4x4>().ptr());
 }
 
 static void rna_View3DCursor_matrix_set(PointerRNA *ptr, const float *values)
 {
   View3DCursor *cursor = static_cast<View3DCursor *>(ptr->data);
   float unit_mat[4][4];
-  normalize_m4_m4(unit_mat, (const float(*)[4])values);
+  normalize_m4_m4(unit_mat, (const float (*)[4])values);
   cursor->set_matrix(blender::float4x4(unit_mat), false);
 }
 
@@ -2547,7 +2543,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
   Scene *scene = (Scene *)ptr->owner_id;
   Object *camera = scene->camera;
 
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
 
   if (camera && (camera->type == OB_CAMERA)) {
     DEG_id_tag_update(&camera->id, ID_RECALC_GEOMETRY);
@@ -2556,7 +2552,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
 static void rna_SceneSequencer_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  blender::seq::cache_cleanup((Scene *)ptr->owner_id);
+  blender::seq::cache_cleanup((Scene *)ptr->owner_id, blender::seq::CacheCleanup::FinalAndIntra);
 }
 
 static std::optional<std::string> rna_ToolSettings_path(const PointerRNA * /*ptr*/)
@@ -3300,17 +3296,17 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem uv_sticky_mode_items[] = {
-      {SI_STICKY_DISABLE,
+      {UV_STICKY_DISABLE,
        "DISABLED",
        ICON_STICKY_UVS_DISABLE,
        "Disabled",
        "Sticky vertex selection disabled"},
-      {SI_STICKY_LOC,
+      {UV_STICKY_LOCATION,
        "SHARED_LOCATION",
        ICON_STICKY_UVS_LOC,
        "Shared Location",
        "Select UVs that are at the same location and share a mesh vertex"},
-      {SI_STICKY_VERTEX,
+      {UV_STICKY_VERT,
        "SHARED_VERTEX",
        ICON_STICKY_UVS_VERT,
        "Shared Vertex",
@@ -4197,6 +4193,42 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, "New Keyframe Type", "Type of keyframes to create when inserting keyframes");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
 
+  /* Animation */
+  prop = RNA_def_property(srna, "anim_mirror_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop,
+                           "Mirror Object",
+                           "Object to mirror over. Leave empty and name a bone to always mirror "
+                           "over that bone of the active armature");
+
+  prop = RNA_def_property(srna, "anim_mirror_bone", PROP_STRING, PROP_NONE);
+  RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_ui_text(prop, "Mirror Bone", "Bone to use for the mirroring");
+
+  prop = RNA_def_property(srna, "anim_relative_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Relative Object", "Object to which matrices are made relative");
+
+  prop = RNA_def_property(srna, "anim_fix_to_cam_use_loc", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_LOC);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(
+      prop, "Use Location for Camera Fix", "Create location keys when fixing to the scene camera");
+
+  prop = RNA_def_property(srna, "anim_fix_to_cam_use_rot", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_ROT);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(
+      prop, "Use Rotation for Camera Fix", "Create rotation keys when fixing to the scene camera");
+
+  prop = RNA_def_property(srna, "anim_fix_to_cam_use_scale", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "fix_to_cam_flag", FIX_TO_CAM_FLAG_USE_SCALE);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(
+      prop, "Use Scale for Camera Fix", "Create scale keys when fixing to the scene camera");
+
   /* UV */
   prop = RNA_def_property(srna, "uv_select_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "uv_selectmode");
@@ -4217,15 +4249,16 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_sticky_select_mode_update");
 
   prop = RNA_def_property(srna, "use_uv_select_sync", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SYNC_SELECT);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SELECT_SYNC);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "UV Sync Selection", "Keep UV and edit mode mesh selection in sync");
   RNA_def_property_ui_icon(prop, ICON_UV_SYNC_SELECT, 0);
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_select_sync_update");
 
   prop = RNA_def_property(srna, "use_uv_select_island", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_ISLAND_SELECT);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SELECT_ISLAND);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(prop, "UV Island Selection", "Island selection");
   RNA_def_property_ui_icon(prop, ICON_UV_ISLANDSEL, 0);
@@ -5189,7 +5222,7 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
 
   prop = RNA_def_property(srna, "use_pass_emit", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_EMIT);
-  RNA_def_property_ui_text(prop, "Emit", "Deliver emission pass");
+  RNA_def_property_ui_text(prop, "Emission", "Deliver emission pass");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
   }
@@ -6027,7 +6060,7 @@ static void rna_def_bake_data(BlenderRNA *brna)
   /* custom passes flags */
   prop = RNA_def_property(srna, "use_pass_emit", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "pass_filter", R_BAKE_PASS_FILTER_EMIT);
-  RNA_def_property_ui_text(prop, "Emit", "Add emission contribution");
+  RNA_def_property_ui_text(prop, "Emission", "Add emission contribution");
 
   prop = RNA_def_property(srna, "use_pass_direct", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "pass_filter", R_BAKE_PASS_FILTER_DIRECT);
@@ -6391,6 +6424,15 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ImageFormatSettings_exr_codec_itemf");
   RNA_def_property_ui_text(prop, "Codec", "Compression codec settings for OpenEXR");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "use_exr_interleave", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "exr_flag", R_IMF_EXR_FLAG_MULTIPART);
+  RNA_def_property_ui_text(
+      prop,
+      "Interleave",
+      "Use legacy interleaved storage of views, layers and passes for compatibility with "
+      "applications that do not support more efficient multi-part OpenEXR files.");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 #  endif
 
 #  ifdef WITH_IMAGE_OPENJPEG
@@ -6583,6 +6625,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
       {FFM_CRF_LOW, "LOW", 0, "Low Quality", ""},
       {FFM_CRF_VERYLOW, "VERYLOW", 0, "Very Low Quality", ""},
       {FFM_CRF_LOWEST, "LOWEST", 0, "Lowest Quality", ""},
+      {FFM_CRF_CUSTOM, "CUSTOM", 0, "Custom Quality", "Set a custom Constant Rate Factor (CRF)."},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6719,6 +6762,17 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
       "Constant Rate Factor (CRF); tradeoff between video quality and file size");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  prop = RNA_def_property(srna, "custom_constant_rate_factor", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom_constant_rate_factor");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_range(prop, 0, 63);
+  RNA_def_property_ui_text(
+      prop,
+      "CRF",
+      "A smaller Constant Rate Factor (CRF) results in better video quality but larger file size. "
+      "The range of allowed CRF values is dependent on the codec.");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
   prop = RNA_def_property(srna, "ffmpeg_preset", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ffmpeg_preset");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -6760,7 +6814,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "audio_bitrate", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "audio_bitrate");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 32, 384);
+  RNA_def_property_range(prop, 32, 2048);
   RNA_def_property_ui_text(prop, "Bitrate", "Audio bitrate (kb/s)");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
@@ -8620,6 +8674,12 @@ void RNA_def_scene(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem time_jump_unit_items[] = {
+      {SCE_TIME_JUMP_FRAME, "FRAME", 0, "Frame", "Jump by frames"},
+      {SCE_TIME_JUMP_SECOND, "SECOND", 0, "Second", "Jump by seconds"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   /* Struct definition */
   srna = RNA_def_struct(brna, "Scene", "ID");
   RNA_def_struct_ui_text(srna,
@@ -8723,6 +8783,23 @@ void RNA_def_scene(BlenderRNA *brna)
       "Frame Step",
       "Number of frames to skip forward while rendering/playing back each frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
+
+  prop = RNA_def_property(srna, "time_jump_unit", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "r.time_jump_unit");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, time_jump_unit_items);
+  RNA_def_property_ui_text(
+      prop, "Time Jump Unit", "Which unit to use for time jumps in the timeline");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
+
+  prop = RNA_def_property(srna, "time_jump_delta", PROP_FLOAT, PROP_TIME);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_float_sdna(prop, nullptr, "r.time_jump_delta");
+  RNA_def_property_range(prop, 0.1f, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop, "Time Jump Delta", "Number of frames or seconds to jump forward or backward");
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
 
   prop = RNA_def_property(srna, "frame_current_final", PROP_FLOAT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);

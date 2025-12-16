@@ -467,6 +467,16 @@ void pyrna_write_set(bool val)
 
   rna_disallow_writes = !val;
 }
+
+void pyrna_context_init(bContext *C)
+{
+  CTX_rna_disallow_write_set_p(C, &rna_disallow_writes);
+}
+
+void pyrna_context_clear(bContext *C)
+{
+  CTX_rna_disallow_write_set_p(C, nullptr);
+}
 #else  /* USE_PEDANTIC_WRITE */
 bool pyrna_write_check()
 {
@@ -480,6 +490,8 @@ void pyrna_write_set(bool /*val*/)
 
   /* pass */
 }
+void pyrna_context_init(bContext * /*C*/) {}
+void pyrna_context_clear(bContext * /*C*/) {}
 #endif /* USE_PEDANTIC_WRITE */
 
 static Py_ssize_t pyrna_prop_collection_length(BPy_PropertyRNA *self);
@@ -2053,7 +2065,7 @@ static int pyrna_py_to_prop(
           /* Data == nullptr, assign to RNA. */
           if ((param == nullptr) || RNA_struct_is_a(param->ptr->type, ptr_type)) {
             ReportList reports;
-            BKE_reports_init(&reports, RPT_STORE);
+            BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
             RNA_property_pointer_set(
                 ptr, prop, (param == nullptr) ? PointerRNA_NULL : *param->ptr, &reports);
             const int err = BPy_reports_to_error(&reports, PyExc_RuntimeError, true);
@@ -3991,6 +4003,138 @@ static PyObject *pyrna_struct_path_resolve(BPy_StructRNA *self, PyObject *args)
                RNA_struct_identifier(self->ptr->type),
                path);
   return nullptr;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_struct_path_from_module_doc,
+    ".. method:: path_from_module(property=\"\", index=-1, /)\n"
+    "\n"
+    "   Returns the full data path to this struct (as a string) from the bpy module.\n"
+    "\n"
+    "   :arg property: Optional property name to get the full path from\n"
+    "   :type property: str\n"
+    "   :arg index: Optional index of the property.\n"
+    "      \"-1\" means that the property has no indices.\n"
+    "   :type index: int\n"
+    "   :return: The full path to the data.\n"
+    "   :rtype: str\n"
+    "\n"
+    "   :raises ValueError:\n"
+    "      if the input data cannot be converted into a full data path.\n"
+    "\n"
+    "      .. note:: Even if all input data is correct, this function might\n"
+    "         error out because Blender cannot derive a valid path.\n"
+    "         The incomplete path will be printed in the error message.\n");
+static PyObject *pyrna_struct_path_from_module(BPy_StructRNA *self, PyObject *args)
+{
+  const char *error_prefix = "path_from_module(...)";
+  const char *name = nullptr;
+  PropertyRNA *prop;
+  int index = -1;
+
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
+  if (!PyArg_ParseTuple(args, "|si:path_from_module", &name, &index)) {
+    return nullptr;
+  }
+  if (index < -1) {
+    PyErr_Format(PyExc_ValueError, "%s: indices below -1 are not supported", error_prefix);
+    return nullptr;
+  }
+
+  std::optional<std::string> path;
+  if (name) {
+    prop = RNA_struct_find_property(&self->ptr.value(), name);
+    if (prop == nullptr) {
+      PyErr_Format(PyExc_AttributeError,
+                   "%.200s.path_from_module(\"%.200s\") not found",
+                   RNA_struct_identifier(self->ptr->type),
+                   name);
+      return nullptr;
+    }
+    path = RNA_path_full_property_py_ex(&self->ptr.value(), prop, index, true);
+  }
+  else {
+    if (RNA_struct_is_ID(self->ptr->type)) {
+      path = RNA_path_full_ID_py(self->ptr->owner_id);
+    }
+    else {
+      path = RNA_path_full_struct_py(&self->ptr.value());
+    }
+  }
+
+  if (!path) {
+    if (name) {
+      PyErr_Format(PyExc_ValueError,
+                   "%.200s.path_from_module(\"%s\", %d) found, but does not support path creation",
+                   RNA_struct_identifier(self->ptr->type),
+                   name,
+                   index);
+    }
+    else {
+      PyErr_Format(PyExc_ValueError,
+                   "%.200s.path_from_module() does not support path creation for this type",
+                   RNA_struct_identifier(self->ptr->type));
+    }
+    return nullptr;
+  }
+
+  if (path.value().back() == '.') {
+    PyErr_Format(PyExc_ValueError,
+                 "%.200s.path_from_module() could not derive a complete path for this type.\n"
+                 "Only got \"%.200s\" as an incomplete path",
+                 RNA_struct_identifier(self->ptr->type),
+                 path.value().c_str());
+    return nullptr;
+  }
+
+  return PyC_UnicodeFromStdStr(path.value());
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_path_from_module_doc,
+    ".. method:: path_from_module()\n"
+    "\n"
+    "   Returns the full data path to this struct (as a string) from the bpy module.\n"
+    "\n"
+    "   :return: The full path to the data.\n"
+    "   :rtype: str\n"
+    "\n"
+    "   :raises ValueError:\n"
+    "      if the input data cannot be converted into a full data path.\n"
+    "\n"
+    "      .. note:: Even if all input data is correct, this function might\n"
+    "         error out because Blender cannot derive a valid path.\n"
+    "         The incomplete path will be printed in the error message.\n");
+static PyObject *pyrna_prop_path_from_module(BPy_PropertyRNA *self)
+{
+  PropertyRNA *prop = self->prop;
+
+  const std::optional<std::string> path = RNA_path_full_property_py_ex(
+      &self->ptr.value(), prop, -1, true);
+
+  if (!path) {
+    PyErr_Format(PyExc_ValueError,
+                 "%.200s.%.200s.path_from_module() does not support path creation for this type",
+                 RNA_struct_identifier(self->ptr->type),
+                 RNA_property_identifier(prop));
+    return nullptr;
+  }
+
+  if (path.value().back() == '.') {
+    PyErr_Format(
+        PyExc_ValueError,
+        "%.200s.%.200s.path_from_module() could not derive a complete path for this type.\n"
+        "Only got \"%.200s\" as an incomplete path",
+        RNA_struct_identifier(self->ptr->type),
+        RNA_property_identifier(prop),
+        path.value().c_str());
+    return nullptr;
+  }
+
+  return PyC_UnicodeFromStdStr(path.value());
 }
 
 PyDoc_STRVAR(
@@ -6238,6 +6382,10 @@ static PyMethodDef pyrna_struct_methods[] = {
      (PyCFunction)pyrna_struct_path_from_id,
      METH_VARARGS,
      pyrna_struct_path_from_id_doc},
+    {"path_from_module",
+     (PyCFunction)pyrna_struct_path_from_module,
+     METH_VARARGS,
+     pyrna_struct_path_from_module_doc},
     {"type_recast",
      (PyCFunction)pyrna_struct_type_recast,
      METH_NOARGS,
@@ -6291,6 +6439,10 @@ static PyMethodDef pyrna_prop_methods[] = {
      (PyCFunction)pyrna_prop_path_from_id,
      METH_NOARGS,
      pyrna_prop_path_from_id_doc},
+    {"path_from_module",
+     (PyCFunction)pyrna_prop_path_from_module,
+     METH_NOARGS,
+     pyrna_prop_path_from_module_doc},
     {"as_bytes", (PyCFunction)pyrna_prop_as_bytes, METH_NOARGS, pyrna_prop_as_bytes_doc},
     {"update", (PyCFunction)pyrna_prop_update, METH_NOARGS, pyrna_prop_update_doc},
     {"__dir__", (PyCFunction)pyrna_prop_dir, METH_NOARGS, nullptr},
@@ -6856,7 +7008,9 @@ static PyObject *pyrna_func_vectorcall(PyObject *callable,
     ReportList reports;
     bContext *C = BPY_context_get();
 
-    BKE_reports_init(&reports, RPT_STORE);
+    /* No need to print any reports. We will turn errors into Python exceptions, and
+     * Python API calls should be silent and not print info or warning messages. */
+    BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
     RNA_function_call(C, &reports, self_ptr, self_func, &parms);
 
     err = BPy_reports_to_error(&reports, PyExc_RuntimeError, true);
@@ -6954,7 +7108,7 @@ PyTypeObject pyrna_struct_meta_idprop_Type = {
     /*tp_hash*/ nullptr,
     /*tp_call*/ nullptr,
     /*tp_str*/ nullptr,
-    /*tp_getattro*/ nullptr, /* Sub-classed: #pyrna_struct_meta_idprop_getattro. */
+    /*tp_getattro*/ nullptr, /* Subclassed: #pyrna_struct_meta_idprop_getattro. */
     /*tp_setattro*/ (setattrofunc)pyrna_struct_meta_idprop_setattro,
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -7356,7 +7510,7 @@ PyTypeObject pyrna_prop_array_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_array_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /* Sub-classed: #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -7388,7 +7542,7 @@ PyTypeObject pyrna_prop_collection_Type = {
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
-    /*tp_repr*/ nullptr, /* Sub-classed, no need to define. */
+    /*tp_repr*/ nullptr, /* Subclassed, no need to define. */
     /*tp_as_number*/ &pyrna_prop_collection_as_number,
     /*tp_as_sequence*/ &pyrna_prop_collection_as_sequence,
     /*tp_as_mapping*/ &pyrna_prop_collection_as_mapping,
@@ -7412,7 +7566,7 @@ PyTypeObject pyrna_prop_collection_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_collection_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /*Sub-classed: see #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: see #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -7445,7 +7599,7 @@ static PyTypeObject pyrna_prop_collection_idprop_Type = {
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_compare*/ nullptr, /* DEPRECATED. */
-    /*tp_repr*/ nullptr,    /* Sub-classed, no need to define. */
+    /*tp_repr*/ nullptr,    /* Subclassed, no need to define. */
     /*tp_as_number*/ nullptr,
     /*tp_as_sequence*/ nullptr,
     /*tp_as_mapping*/ nullptr,
@@ -7469,7 +7623,7 @@ static PyTypeObject pyrna_prop_collection_idprop_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_collection_idprop_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /* Sub-classed: #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_collection_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -8158,7 +8312,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
   /* Stupid/simple case. */
   if (srna == nullptr) {
     newclass = nullptr; /* Nothing to do. */
-  }                     /* The class may have already been declared & allocated. */
+  } /* The class may have already been declared & allocated. */
   else if ((newclass = static_cast<PyObject *>(RNA_struct_py_type_get(srna)))) {
     /* Add a reference for the return value. */
     Py_INCREF(newclass);
@@ -10116,7 +10270,7 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
   C = BPY_context_get();
 
   /* Call the register callback with reports & identifier. */
-  BKE_reports_init(&reports, RPT_STORE);
+  BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
 
   identifier = ((PyTypeObject *)py_class)->tp_name;
 

@@ -22,6 +22,7 @@
 #include "DNA_view3d_types.h"
 
 #include "ED_image.hh"
+#include "ED_render.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
@@ -162,10 +163,14 @@ class Prepass {
         geom_single = pointcloud_sub_pass_setup(*pointcloud_ps_, ob_ref.object);
         pass = pointcloud_ps_;
         break;
-      case OB_CURVES:
-        geom_single = curves_sub_pass_setup(*curves_ps_, draw_ctx.scene, ob_ref.object);
+      case OB_CURVES: {
+        const char *error = nullptr;
+        /* We choose to ignore the error here as the external engine can display them properly.
+         * The overlays can still be broken but it should be detected in solid mode. */
+        geom_single = curves_sub_pass_setup(*curves_ps_, draw_ctx.scene, ob_ref.object, error);
         pass = curves_ps_;
         break;
+      }
       default:
         break;
     }
@@ -195,7 +200,7 @@ class Instance : public DrawEngine {
    * This is only needed for GPencil integration. */
   bool do_prepass = false;
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "External";
   }
@@ -203,7 +208,7 @@ class Instance : public DrawEngine {
   void init() final
   {
     draw_ctx = DRW_context_get();
-    do_prepass = DRW_gpencil_engine_needed_viewport(draw_ctx->depsgraph, draw_ctx->v3d);
+    do_prepass = DRW_render_check_grease_pencil(draw_ctx->depsgraph, draw_ctx->v3d);
   }
 
   void begin_sync() final
@@ -319,7 +324,13 @@ class Instance : public DrawEngine {
 
   void draw_scene_do_image()
   {
-    Scene *scene = draw_ctx->scene;
+    /* Get scene from the render job, to show progress for scenes render as part
+     * of compositor or sequencer. */
+    Scene *scene = ED_render_job_get_current_scene(draw_ctx->evil_C);
+    if (scene == nullptr) {
+      scene = draw_ctx->scene;
+    }
+
     Render *re = RE_GetSceneRender(scene);
     RenderEngine *engine = RE_engine_get(re);
 
@@ -451,9 +462,14 @@ RenderEngineType DRW_engine_viewport_external_type = {
 
 bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx, bool &r_draw_previous)
 {
-  const SpaceLink *space_data = draw_ctx->space_data;
-  Scene *scene = draw_ctx->scene;
+  /* Get scene from the render job, to show progress for scenes render as part
+   * of compositor or sequencer. */
+  Scene *scene = ED_render_job_get_current_scene(draw_ctx->evil_C);
+  if (scene == nullptr) {
+    scene = draw_ctx->scene;
+  }
 
+  const SpaceLink *space_data = draw_ctx->space_data;
   if (space_data == nullptr) {
     return false;
   }

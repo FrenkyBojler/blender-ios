@@ -64,6 +64,16 @@ static void brush_init_data(ID *id)
 
   /* the default alpha falloff curve */
   BKE_brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
+
+  brush->automasking_cavity_curve = BKE_paint_default_curve();
+
+  brush->curve_rand_hue = BKE_paint_default_curve();
+  brush->curve_rand_saturation = BKE_paint_default_curve();
+  brush->curve_rand_value = BKE_paint_default_curve();
+
+  brush->curve_size = BKE_paint_default_curve();
+  brush->curve_strength = BKE_paint_default_curve();
+  brush->curve_jitter = BKE_paint_default_curve();
 }
 
 static void brush_copy_data(Main * /*bmain*/,
@@ -886,7 +896,7 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
   cumap->preset = preset;
 
   cuma = b->curve_distance_falloff->cm;
-  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_NEGATIVE);
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Negative);
   BKE_curvemapping_changed(cumap, false);
   BKE_brush_tag_unsaved_changes(b);
 }
@@ -1569,6 +1579,9 @@ float BKE_brush_curve_strength(const eBrushCurvePreset preset,
                                const float distance,
                                const float brush_radius)
 {
+  BLI_assert(distance >= 0.0f);
+  BLI_assert(brush_radius >= 0.0f);
+
   float p = distance;
   float strength = 1.0f;
 
@@ -1772,7 +1785,7 @@ bool supports_topology_rake(const Brush &brush)
 }
 bool supports_auto_smooth(const Brush &brush)
 {
-  /* TODO: Should this support Face Sets...? */
+  /* TODO: Should this support face sets...? */
   return !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_MASK,
                SCULPT_BRUSH_TYPE_SMOOTH,
@@ -1885,9 +1898,41 @@ bool supports_space_attenuation(const Brush &brush)
                SCULPT_BRUSH_TYPE_SMOOTH,
                SCULPT_BRUSH_TYPE_SNAKE_HOOK);
 }
+
+/**
+ * A helper method for classifying a certain subset of brush types.
+ *
+ * Certain sculpt deformations are 'grab-like' in that they behave as if they have an anchored
+ * start point.
+ */
+static bool is_grab_tool(const Brush &brush)
+{
+  return (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH &&
+          brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) ||
+         ELEM(brush.sculpt_brush_type,
+              SCULPT_BRUSH_TYPE_GRAB,
+              SCULPT_BRUSH_TYPE_SNAKE_HOOK,
+              SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
+              SCULPT_BRUSH_TYPE_POSE,
+              SCULPT_BRUSH_TYPE_BOUNDARY,
+              SCULPT_BRUSH_TYPE_THUMB,
+              SCULPT_BRUSH_TYPE_ROTATE);
+}
 bool supports_strength_pressure(const Brush &brush)
 {
-  return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_SNAKE_HOOK);
+  return !is_grab_tool(brush);
+}
+bool supports_size_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
+}
+bool supports_auto_smooth_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
+}
+bool supports_hardness_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
 }
 bool supports_inverted_direction(const Brush &brush)
 {

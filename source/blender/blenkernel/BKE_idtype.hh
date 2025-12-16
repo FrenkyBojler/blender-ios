@@ -50,8 +50,6 @@ enum {
   /**
    * Indicates that the given IDType is not handled through memfile (aka global) undo.
    *
-   * \note This currently only affect local data-blocks.
-   *
    * \note Current readfile undo code expects these data-blocks to not be used by any 'regular'
    * data-blocks.
    */
@@ -133,7 +131,7 @@ using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunc
  * fully valid, and can be asserted on. But in some cases, they are not (fully) valid, e.g when
  * copying an ID and all of its embedded data.
  */
-using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID *id, bool debug_relationship_assert);
+using IDTypeEmbeddedOwnerPointerGetFunction = ID **(*)(ID * id, bool debug_relationship_assert);
 
 using IDTypeBlendWriteFunction = void (*)(BlendWriter *writer, ID *id, const void *id_address);
 using IDTypeBlendReadDataFunction = void (*)(BlendDataReader *reader, ID *id);

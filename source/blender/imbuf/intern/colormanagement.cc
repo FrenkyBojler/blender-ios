@@ -102,7 +102,6 @@ static char global_role_aces_interchange[MAX_COLORSPACE_NAME];
 
 /* Defaults from the config that never change with working space. */
 static char global_role_scene_linear_default[MAX_COLORSPACE_NAME];
-static char global_role_default_float_default[MAX_COLORSPACE_NAME];
 
 float3x3 global_scene_linear_to_xyz_default = float3x3::zero();
 
@@ -603,7 +602,6 @@ static bool colormanage_load_config(ocio::Config &config)
 
   /* Defaults that don't change with file working space. */
   STRNCPY(global_role_scene_linear_default, global_role_scene_linear);
-  STRNCPY(global_role_default_float_default, global_role_default_float);
   global_scene_linear_to_xyz_default = blender::colorspace::scene_linear_to_xyz;
 
   return ok;
@@ -629,7 +627,8 @@ void colormanagement_init()
   if (ocio_env && ocio_env[0] != '\0') {
     g_config = ocio::Config::create_from_environment();
     if (g_config != nullptr) {
-      CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", ocio_env);
+      CLOG_INFO_NOCHECK(
+          &LOG, "Using %s=%s", (blender_ocio_env) ? "BLENDER_OCIO" : "OCIO", ocio_env);
       const bool ok = colormanage_load_config(*g_config);
 
       if (ok) {
@@ -725,7 +724,7 @@ static bool colormanage_compatible_look(const ocio::Look *look, StringRef view_f
 
   /* Skip looks only relevant to specific view transforms.
    * If the view transform has view-specific look ignore non-specific looks. */
-  return (view_filter.is_empty()) ? look->view().is_empty() : look->view() == view_filter;
+  return view_filter.is_empty() ? look->view().is_empty() : look->view() == view_filter;
 }
 
 static bool colormanage_compatible_look(const ocio::Look *look, const char *view_name)
@@ -737,7 +736,7 @@ static bool colormanage_compatible_look(const ocio::Look *look, const char *view
 static bool colormanage_use_look(const char *look_name, const char *view_name)
 {
   const ocio::Look *look = g_config->get_look_by_name(look_name);
-  return (look->is_noop == false && colormanage_compatible_look(look, view_name));
+  return (look && look->is_noop == false && colormanage_compatible_look(look, view_name));
 }
 
 void colormanage_cache_free(ImBuf *ibuf)
@@ -780,6 +779,18 @@ void IMB_colormanagement_display_settings_from_ctx(
   }
 }
 
+static bool get_display_emulation(const ColorManagedDisplaySettings &display_settings)
+{
+  switch (display_settings.emulation) {
+    case COLORMANAGE_DISPLAY_EMULATION_OFF:
+      return false;
+    case COLORMANAGE_DISPLAY_EMULATION_AUTO:
+      return true;
+  }
+
+  return true;
+}
+
 static std::shared_ptr<const ocio::CPUProcessor> get_display_buffer_processor(
     const ColorManagedDisplaySettings &display_settings,
     const char *look,
@@ -797,7 +808,7 @@ static std::shared_ptr<const ocio::CPUProcessor> get_display_buffer_processor(
   display_parameters.from_colorspace = from_colorspace;
   display_parameters.view = view_transform;
   display_parameters.display = display_settings.display_device;
-  display_parameters.look = (colormanage_use_look(look, view_transform)) ? look : "";
+  display_parameters.look = colormanage_use_look(look, view_transform) ? look : "";
   display_parameters.scale = (exposure == 0.0f) ? 1.0f : powf(2.0f, exposure);
   display_parameters.exponent = (gamma == 1.0f) ? 1.0f : 1.0f / max_ff(FLT_EPSILON, gamma);
   display_parameters.temperature = temperature;
@@ -807,7 +818,10 @@ static std::shared_ptr<const ocio::CPUProcessor> get_display_buffer_processor(
   display_parameters.use_hdr_buffer = GPU_hdr_support();
   display_parameters.use_hdr_display = IMB_colormanagement_display_is_hdr(&display_settings,
                                                                           view_transform);
-  display_parameters.use_display_emulation = target == DISPLAY_SPACE_DRAW;
+  display_parameters.is_image_output = (target == DISPLAY_SPACE_IMAGE_OUTPUT);
+  display_parameters.use_display_emulation = (target == DISPLAY_SPACE_DRAW) ?
+                                                 get_display_emulation(display_settings) :
+                                                 false;
 
   return g_config->get_display_cpu_processor(display_parameters);
 }
@@ -856,7 +870,9 @@ void colormanage_imbuf_set_default_spaces(ImBuf *ibuf)
   ibuf->byte_buffer.colorspace = g_config->get_color_space(global_role_default_byte);
 }
 
-void colormanage_imbuf_make_linear(ImBuf *ibuf, const char *from_colorspace)
+void colormanage_imbuf_make_linear(ImBuf *ibuf,
+                                   const char *from_colorspace,
+                                   const ColorManagedFileOutput output)
 {
   const ColorSpace *colorspace = g_config->get_color_space(from_colorspace);
 
@@ -871,6 +887,14 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf, const char *from_colorspace)
 
     if (ibuf->byte_buffer.data) {
       IMB_free_byte_pixels(ibuf);
+    }
+
+    if (output != ColorManagedFileOutput::Video) {
+      const ColorSpace *image_colorspace = g_config->get_color_space_for_hdr_image(
+          from_colorspace);
+      if (image_colorspace) {
+        from_colorspace = image_colorspace->name().c_str();
+      }
     }
 
     IMB_colormanagement_transform_float(ibuf->float_buffer.data,
@@ -1088,6 +1112,11 @@ void IMB_colormanagement_check_file_config(Main *bmain)
     ok &= colormanage_check_view_settings(
         &scene->display_settings, &scene->view_settings, "scene");
 
+    ok &= colormanage_check_display_settings(
+        &scene->r.im_format.display_settings, "scene output", default_display);
+    ok &= colormanage_check_view_settings(
+        &scene->r.im_format.display_settings, &scene->r.im_format.view_settings, "scene output");
+
     sequencer_colorspace_settings = &scene->sequencer_colorspace_settings;
 
     ok &= colormanage_check_colorspace_settings(sequencer_colorspace_settings, "sequencer");
@@ -1098,7 +1127,7 @@ void IMB_colormanagement_check_file_config(Main *bmain)
 
     /* Check sequencer strip input colorspace. */
     if (scene->ed != nullptr) {
-      blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) {
+      blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) {
         if (strip->data) {
           ok &= colormanage_check_colorspace_settings(&strip->data->colorspace_settings,
                                                       "sequencer strip");
@@ -1411,7 +1440,7 @@ static const int CICP_MATRIX_REC2020_NCL = 9;
 static const int CICP_RANGE_FULL = 1;
 
 bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
-                                       const bool video,
+                                       const ColorManagedFileOutput output,
                                        const bool rgb_matrix,
                                        int cicp[4])
 {
@@ -1463,7 +1492,7 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
     return true;
   }
   if (interop_id == "g24_rec2020_display") {
-    /* There is no gamma 2.4 trc, but BT.709 is close. */
+    /* There is no gamma 2.4 TRC, but BT.709 is close. */
     cicp[0] = CICP_PRI_REC2020;
     cicp[1] = CICP_TRC_BT709;
     cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_REC2020_NCL;
@@ -1471,19 +1500,19 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
     return true;
   }
   if (interop_id == "g24_rec709_display") {
-    /* There is no gamma 2.4 trc, but BT.709 is close. */
+    /* There is no gamma 2.4 TRC, but BT.709 is close. */
     cicp[0] = CICP_PRI_REC709;
     cicp[1] = CICP_TRC_BT709;
     cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_BT709;
     cicp[3] = CICP_RANGE_FULL;
     return true;
   }
-  if (interop_id == "srgb_p3d65_display" || interop_id == "srgbx_p3d65_display") {
+  if (ELEM(interop_id, "srgb_p3d65_display", "srgbe_p3d65_display")) {
     /* For video we use BT.709 to match default sRGB writing, even though it is wrong.
      * But we have been writing sRGB like this forever, and there is the so called
      * "Quicktime gamma shift bug" that complicates things. */
     cicp[0] = CICP_PRI_P3D65;
-    cicp[1] = (video) ? CICP_TRC_BT709 : CICP_TRC_SRGB;
+    cicp[1] = (output == ColorManagedFileOutput::Video) ? CICP_TRC_BT709 : CICP_TRC_SRGB;
     cicp[2] = (rgb_matrix) ? CICP_MATRIX_RGB : CICP_MATRIX_BT709;
     cicp[3] = CICP_RANGE_FULL;
     return true;
@@ -1497,7 +1526,8 @@ bool IMB_colormanagement_space_to_cicp(const ColorSpace *colorspace,
   return false;
 }
 
-const ColorSpace *IMB_colormanagement_space_from_cicp(const int cicp[4], const bool video)
+const ColorSpace *IMB_colormanagement_space_from_cicp(const int cicp[4],
+                                                      const ColorManagedFileOutput output)
 {
   StringRefNull interop_id;
 
@@ -1522,7 +1552,7 @@ const ColorSpace *IMB_colormanagement_space_from_cicp(const int cicp[4], const b
     interop_id = "g24_rec2020_display";
   }
   else if (cicp[0] == CICP_PRI_REC709 && cicp[1] == CICP_TRC_BT709) {
-    if (video) {
+    if (output == ColorManagedFileOutput::Video) {
       /* Arguably this should be g24_rec709_display, but we write sRGB like this.
        * So there is an exception for now. */
       interop_id = "srgb_rec709_display";
@@ -1531,14 +1561,14 @@ const ColorSpace *IMB_colormanagement_space_from_cicp(const int cicp[4], const b
       interop_id = "g24_rec709_display";
     }
   }
-  else if (cicp[0] == CICP_PRI_P3D65 && (cicp[1] == CICP_TRC_SRGB || cicp[1] == CICP_TRC_BT709)) {
+  else if (cicp[0] == CICP_PRI_P3D65 && ELEM(cicp[1], CICP_TRC_SRGB, CICP_TRC_BT709)) {
     interop_id = "srgb_p3d65_display";
   }
   else if (cicp[0] == CICP_PRI_REC709 && cicp[1] == CICP_TRC_SRGB) {
     interop_id = "srgb_rec709_display";
   }
 
-  return (interop_id.is_empty()) ? nullptr : g_config->get_color_space_by_interop_id(interop_id);
+  return interop_id.is_empty() ? nullptr : g_config->get_color_space_by_interop_id(interop_id);
 }
 
 StringRefNull IMB_colormanagement_space_get_interop_id(const ColorSpace *colorspace)
@@ -2706,7 +2736,9 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
     colormanagement_imbuf_make_display_space(colormanaged_ibuf,
                                              &image_format->view_settings,
                                              &image_format->display_settings,
-                                             DISPLAY_SPACE_FILE_OUTPUT,
+                                             image_format->media_type == MEDIA_TYPE_VIDEO ?
+                                                 DISPLAY_SPACE_VIDEO_OUTPUT :
+                                                 DISPLAY_SPACE_IMAGE_OUTPUT,
                                              byte_output);
 
     if (colormanaged_ibuf->float_buffer.data) {
@@ -2736,6 +2768,14 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
                                       global_role_default_byte;
 
     const char *to_colorspace = image_format->linear_colorspace_settings.name;
+
+    /* to_colorspace may need to modified to compensate for 100 vs 203 nits conventions. */
+    if (image_format->media_type != MEDIA_TYPE_VIDEO) {
+      const ColorSpace *image_colorspace = g_config->get_color_space_for_hdr_image(to_colorspace);
+      if (image_colorspace) {
+        to_colorspace = image_colorspace->name().c_str();
+      }
+    }
 
     /* TODO: can we check with OCIO if color spaces are the same but have different names? */
     if (to_colorspace[0] == '\0' || STREQ(from_colorspace, to_colorspace)) {
@@ -3056,6 +3096,17 @@ bool IMB_colormanagement_display_is_wide_gamut(const ColorManagedDisplaySettings
   return (view) ? view->gamut() != ocio::Gamut::Rec709 : false;
 }
 
+bool IMB_colormanagement_display_support_emulation(
+    const ColorManagedDisplaySettings *display_settings, const char *view_name)
+{
+  const ocio::Display *display = g_config->get_display_by_name(display_settings->display_device);
+  if (display == nullptr) {
+    return false;
+  }
+  const ocio::View *view = display->get_view_by_name(view_name);
+  return (view) ? view->support_emulation() : false;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -3323,14 +3374,6 @@ bool IMB_colormanagement_working_space_set_from_name(const char *name)
 
   CLOG_DEBUG(&LOG, "Setting blend file working color space to '%s'", name);
 
-  /* Change default float along with working space for convenience, if it was the same. */
-  if (STREQ(global_role_default_float_default, global_role_scene_linear_default)) {
-    STRNCPY(global_role_default_float, name);
-  }
-  else {
-    STRNCPY(global_role_default_float, global_role_default_float_default);
-  }
-
   STRNCPY(global_role_scene_linear, name);
   g_config->set_scene_linear_role(name);
 
@@ -3482,7 +3525,7 @@ void IMB_colormanagement_working_space_convert(
 {
   using namespace blender;
   /* If unknown, assume it's the OpenColorIO config scene linear space. */
-  float3x3 bmain_scene_linear_to_xyz = (math::is_zero(current_scene_linear_to_xyz)) ?
+  float3x3 bmain_scene_linear_to_xyz = math::is_zero(current_scene_linear_to_xyz) ?
                                            global_scene_linear_to_xyz_default :
                                            current_scene_linear_to_xyz;
 
@@ -4432,7 +4475,7 @@ bool IMB_colormanagement_setup_glsl_draw_from_space(
   display_parameters.use_hdr_buffer = GPU_hdr_support();
   display_parameters.use_hdr_display = IMB_colormanagement_display_is_hdr(
       display_settings, display_parameters.view.c_str());
-  display_parameters.use_display_emulation = true;
+  display_parameters.use_display_emulation = get_display_emulation(*display_settings);
 
   /* Bind shader. Internally GPU shaders are created and cached on demand. */
   global_gpu_state.gpu_shader_bound = g_config->get_gpu_shader_binder().display_bind(

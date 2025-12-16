@@ -12,7 +12,9 @@
 #  include "gpu_index_load_infos.hh"
 
 #  include "overlay_shader_shared.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define CURVES_SHADER
 #  define DRW_HAIR_INFO
 
@@ -71,7 +73,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_depth)
+CREATE_INFO_VARIANT(overlay_edit_mesh_depth_clipped, overlay_edit_mesh_depth, drw_clipped)
 
 GPU_SHADER_INTERFACE_INFO(overlay_edit_mesh_vert_iface)
 SMOOTH(float4, final_color)
@@ -94,7 +96,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_vert)
+CREATE_INFO_VARIANT(overlay_edit_mesh_vert_clipped, overlay_edit_mesh_vert, drw_clipped)
 
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_edit_mesh_edge_geom_iface, geometry_out)
 SMOOTH(float4, final_color)
@@ -130,7 +132,7 @@ ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(overlay_edit_mesh_common)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_edge)
+CREATE_INFO_VARIANT(overlay_edit_mesh_edge_clipped, overlay_edit_mesh_edge, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_face)
 DO_STATIC_COMPILATION()
@@ -146,7 +148,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_face)
+CREATE_INFO_VARIANT(overlay_edit_mesh_face_clipped, overlay_edit_mesh_face, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_facedot)
 DO_STATIC_COMPILATION()
@@ -162,7 +164,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(overlay_edit_mesh_common)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_facedot)
+CREATE_INFO_VARIANT(overlay_edit_mesh_facedot_clipped, overlay_edit_mesh_facedot, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_normal)
 PUSH_CONSTANT(int2, gpu_attr_0)
@@ -193,7 +195,7 @@ PUSH_CONSTANT(bool, hq_normals)
 STORAGE_BUF_FREQ(0, read, uint, norAndFlag[], GEOMETRY)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_mesh_face_normal)
+CREATE_INFO_VARIANT(overlay_mesh_face_normal_clipped, overlay_mesh_face_normal, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_mesh_face_normal_subdiv)
 DO_STATIC_COMPILATION()
@@ -208,7 +210,9 @@ DEFINE("FLOAT_NORMAL")
 STORAGE_BUF_FREQ(0, read, float4, norAndFlag[], GEOMETRY)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_mesh_face_normal_subdiv)
+CREATE_INFO_VARIANT(overlay_mesh_face_normal_subdiv_clipped,
+                    overlay_mesh_face_normal_subdiv,
+                    drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_mesh_loop_normal)
 DO_STATIC_COMPILATION()
@@ -223,7 +227,7 @@ PUSH_CONSTANT(bool, hq_normals)
 STORAGE_BUF_FREQ(0, read, uint, lnor[], GEOMETRY)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_mesh_loop_normal)
+CREATE_INFO_VARIANT(overlay_mesh_loop_normal_clipped, overlay_mesh_loop_normal, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_mesh_loop_normal_subdiv)
 DO_STATIC_COMPILATION()
@@ -238,7 +242,9 @@ DEFINE("FLOAT_NORMAL")
 STORAGE_BUF_FREQ(0, read, float4, lnor[], GEOMETRY)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_mesh_loop_normal_subdiv)
+CREATE_INFO_VARIANT(overlay_mesh_loop_normal_subdiv_clipped,
+                    overlay_mesh_loop_normal_subdiv,
+                    drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_mesh_vert_normal)
 DO_STATIC_COMPILATION()
@@ -252,7 +258,7 @@ DEFINE("VERT_NORMAL")
 STORAGE_BUF_FREQ(0, read, uint, vnor[], GEOMETRY)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_mesh_vert_normal)
+CREATE_INFO_VARIANT(overlay_mesh_vert_normal_clipped, overlay_mesh_vert_normal, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_mesh_vert_normal_subdiv)
 DO_STATIC_COMPILATION()
@@ -267,7 +273,9 @@ DEFINE("FLOAT_NORMAL")
 STORAGE_BUF_FREQ(0, read, float, vnor[], GEOMETRY)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_mesh_vert_normal_subdiv)
+CREATE_INFO_VARIANT(overlay_mesh_vert_normal_subdiv_clipped,
+                    overlay_mesh_vert_normal_subdiv,
+                    drw_clipped)
 
 GPU_SHADER_INTERFACE_INFO(overlay_edit_mesh_analysis_iface)
 SMOOTH(float4, weight_color)
@@ -288,7 +296,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_analysis)
+CREATE_INFO_VARIANT(overlay_edit_mesh_analysis_clipped, overlay_edit_mesh_analysis, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_mesh_skin_root)
 DO_STATIC_COMPILATION()
@@ -304,7 +312,7 @@ STORAGE_BUF_FREQ(0, read, float, size[], GEOMETRY)
 DEFINE("VERTEX_PULL")
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_mesh_skin_root)
+CREATE_INFO_VARIANT(overlay_edit_mesh_skin_root_clipped, overlay_edit_mesh_skin_root, drw_clipped)
 
 /** \} */
 
@@ -507,7 +515,7 @@ ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curve_handle)
+CREATE_INFO_VARIANT(overlay_edit_curve_handle_clipped, overlay_edit_curve_handle, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_curve_point)
 DO_STATIC_COMPILATION()
@@ -527,7 +535,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curve_point)
+CREATE_INFO_VARIANT(overlay_edit_curve_point_clipped, overlay_edit_curve_point, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_curve_wire)
 DO_STATIC_COMPILATION()
@@ -547,7 +555,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curve_wire)
+CREATE_INFO_VARIANT(overlay_edit_curve_wire_clipped, overlay_edit_curve_wire, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_curve_normals)
 DO_STATIC_COMPILATION()
@@ -573,7 +581,7 @@ ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curve_normals)
+CREATE_INFO_VARIANT(overlay_edit_curve_normals_clipped, overlay_edit_curve_normals, drw_clipped)
 
 /** \} */
 
@@ -601,7 +609,7 @@ ADDITIONAL_INFO(gpu_index_buffer_load)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curves_handle)
+CREATE_INFO_VARIANT(overlay_edit_curves_handle_clipped, overlay_edit_curves_handle, drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_curves_point)
 DO_STATIC_COMPILATION()
@@ -628,7 +636,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curves_point)
+CREATE_INFO_VARIANT(overlay_edit_curves_point_clipped, overlay_edit_curves_point, drw_clipped)
 
 /** \} */
 
@@ -636,7 +644,7 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curves_point)
 /** \name Edit Lattice
  * \{ */
 
-GPU_SHADER_CREATE_INFO(overlay_edit_lattice_point_base)
+GPU_SHADER_CREATE_INFO(overlay_edit_lattice_point)
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, uint, data)
 VERTEX_OUT(overlay_edit_flat_color_iface)
@@ -647,11 +655,13 @@ VERTEX_SOURCE("overlay_edit_lattice_point_vert.glsl")
 FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_modelmat)
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_edit_lattice_point, overlay_edit_lattice_point_base)
+CREATE_INFO_VARIANT(overlay_edit_lattice_point_clipped, overlay_edit_lattice_point, drw_clipped)
 
-GPU_SHADER_CREATE_INFO(overlay_edit_lattice_wire_base)
+GPU_SHADER_CREATE_INFO(overlay_edit_lattice_wire)
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float, weight)
 SAMPLER(0, sampler1D, weight_tx)
@@ -663,9 +673,11 @@ VERTEX_SOURCE("overlay_edit_lattice_wire_vert.glsl")
 FRAGMENT_SOURCE("overlay_varying_color.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_modelmat)
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_edit_lattice_wire, overlay_edit_lattice_wire_base)
+CREATE_INFO_VARIANT(overlay_edit_lattice_wire_clipped, overlay_edit_lattice_wire, drw_clipped)
 
 /** \} */
 
@@ -691,7 +703,9 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_particle_strand)
+CREATE_INFO_VARIANT(overlay_edit_particle_strand_clipped,
+                    overlay_edit_particle_strand,
+                    drw_clipped)
 
 GPU_SHADER_CREATE_INFO(overlay_edit_particle_point)
 DO_STATIC_COMPILATION()
@@ -717,7 +731,7 @@ ADDITIONAL_INFO(draw_modelmat)
 ADDITIONAL_INFO(draw_globals)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_edit_particle_point)
+CREATE_INFO_VARIANT(overlay_edit_particle_point_clipped, overlay_edit_particle_point, drw_clipped)
 
 /** \} */
 
@@ -725,7 +739,7 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_edit_particle_point)
 /** \name Edit PointCloud
  * \{ */
 
-GPU_SHADER_CREATE_INFO(overlay_edit_pointcloud_base)
+GPU_SHADER_CREATE_INFO(overlay_edit_pointcloud)
 VERTEX_IN(0, float4, pos_rad)
 VERTEX_OUT(overlay_edit_flat_color_iface)
 DEFINE("LINE_OUTPUT")
@@ -735,9 +749,11 @@ VERTEX_SOURCE("overlay_edit_pointcloud_vert.glsl")
 FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_modelmat)
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_edit_pointcloud, overlay_edit_pointcloud_base)
+CREATE_INFO_VARIANT(overlay_edit_pointcloud_clipped, overlay_edit_pointcloud, drw_clipped)
 
 /** \} */
 
@@ -755,7 +771,12 @@ ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_mesh, overlay_depth_mesh_base)
+/* clang-format off */
+CREATE_INFO_VARIANT(overlay_depth_mesh, overlay_depth_mesh_base, draw_modelmat)
+CREATE_INFO_VARIANT(overlay_depth_mesh_selectable, overlay_depth_mesh_base, draw_modelmat_with_custom_id, overlay_select)
+CREATE_INFO_VARIANT(overlay_depth_mesh_clipped, overlay_depth_mesh, drw_clipped)
+CREATE_INFO_VARIANT(overlay_depth_mesh_selectable_clipped, overlay_depth_mesh_selectable, drw_clipped)
+/* clang-format on */
 
 GPU_SHADER_CREATE_INFO(overlay_depth_mesh_conservative_base)
 STORAGE_BUF_FREQ(0, read, float, pos[], GEOMETRY)
@@ -767,16 +788,21 @@ ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(gpu_index_buffer_load)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_mesh_conservative,
-                                 overlay_depth_mesh_conservative_base)
+/* clang-format off */
+CREATE_INFO_VARIANT(overlay_depth_mesh_conservative, overlay_depth_mesh_conservative_base, draw_modelmat)
+CREATE_INFO_VARIANT(overlay_depth_mesh_conservative_selectable, overlay_depth_mesh_conservative_base, draw_modelmat_with_custom_id, overlay_select)
+CREATE_INFO_VARIANT(overlay_depth_mesh_conservative_clipped, overlay_depth_mesh_conservative, drw_clipped)
+CREATE_INFO_VARIANT(overlay_depth_mesh_conservative_selectable_clipped, overlay_depth_mesh_conservative_selectable, drw_clipped)
+/* clang-format on */
 
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_depth_only_gpencil_flat_iface, gp_interp_flat)
 FLAT(float2, aspect)
 FLAT(float4, sspos)
+FLAT(float4, sspos_adj)
 GPU_SHADER_NAMED_INTERFACE_END(gp_interp_flat)
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_depth_only_gpencil_noperspective_iface,
                                 gp_interp_noperspective)
-NO_PERSPECTIVE(float2, thickness)
+NO_PERSPECTIVE(float4, thickness)
 NO_PERSPECTIVE(float, hardness)
 GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 
@@ -795,7 +821,12 @@ ADDITIONAL_INFO(draw_gpencil)
 ADDITIONAL_INFO(draw_object_infos)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_gpencil, overlay_depth_gpencil_base)
+/* clang-format off */
+CREATE_INFO_VARIANT(overlay_depth_gpencil, overlay_depth_gpencil_base, draw_modelmat)
+CREATE_INFO_VARIANT(overlay_depth_gpencil_selectable, overlay_depth_gpencil_base, draw_modelmat_with_custom_id, overlay_select)
+CREATE_INFO_VARIANT(overlay_depth_gpencil_clipped, overlay_depth_gpencil, drw_clipped)
+CREATE_INFO_VARIANT(overlay_depth_gpencil_selectable_clipped, overlay_depth_gpencil_selectable, drw_clipped)
+/* clang-format on */
 
 GPU_SHADER_CREATE_INFO(overlay_depth_pointcloud_base)
 VERTEX_SOURCE("overlay_depth_only_pointcloud_vert.glsl")
@@ -805,7 +836,12 @@ ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_pointcloud, overlay_depth_pointcloud_base)
+/* clang-format off */
+CREATE_INFO_VARIANT(overlay_depth_pointcloud, overlay_depth_pointcloud_base, draw_modelmat)
+CREATE_INFO_VARIANT(overlay_depth_pointcloud_selectable, overlay_depth_pointcloud_base, draw_modelmat_with_custom_id, overlay_select)
+CREATE_INFO_VARIANT(overlay_depth_pointcloud_clipped, overlay_depth_pointcloud, drw_clipped)
+CREATE_INFO_VARIANT(overlay_depth_pointcloud_selectable_clipped, overlay_depth_pointcloud_selectable, drw_clipped)
+/* clang-format on */
 
 GPU_SHADER_CREATE_INFO(overlay_depth_curves_base)
 VERTEX_SOURCE("overlay_depth_only_curves_vert.glsl")
@@ -816,7 +852,12 @@ ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_depth_curves, overlay_depth_curves_base)
+/* clang-format off */
+CREATE_INFO_VARIANT(overlay_depth_curves, overlay_depth_curves_base, draw_modelmat)
+CREATE_INFO_VARIANT(overlay_depth_curves_selectable, overlay_depth_curves_base, draw_modelmat_with_custom_id, overlay_select)
+CREATE_INFO_VARIANT(overlay_depth_curves_clipped, overlay_depth_curves, drw_clipped)
+CREATE_INFO_VARIANT(overlay_depth_curves_selectable_clipped, overlay_depth_curves_selectable, drw_clipped)
+/* clang-format on */
 
 /** \} */
 
@@ -838,6 +879,6 @@ ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(draw_modelmat)
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_CLIP_VARIATION(overlay_uniform_color)
+CREATE_INFO_VARIANT(overlay_uniform_color_clipped, overlay_uniform_color, drw_clipped)
 
 /** \} */

@@ -31,6 +31,8 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "NOD_common.hh"
+
 #include "rna_internal.hh"
 #include "rna_internal_types.hh"
 
@@ -61,6 +63,11 @@ const EnumPropertyItem rna_enum_node_socket_data_type_items[] = {
     {SOCK_MATERIAL, "MATERIAL", ICON_NODE_SOCKET_MATERIAL, "Material", ""},
     {SOCK_BUNDLE, "BUNDLE", ICON_NODE_SOCKET_BUNDLE, "Bundle", ""},
     {SOCK_CLOSURE, "CLOSURE", ICON_NODE_SOCKET_CLOSURE, "Closure", ""},
+    {SOCK_FONT, "FONT", ICON_NODE_SOCKET_FONT, "Font", ""},
+    {SOCK_SCENE, "SCENE", ICON_NODE_SOCKET_SCENE, "Scene", ""},
+    {SOCK_TEXT_ID, "TEXT", ICON_NODE_SOCKET_TEXT, "Text", ""},
+    {SOCK_MASK, "MASK", ICON_NODE_SOCKET_MASK, "Mask", ""},
+    {SOCK_SOUND, "SOUND", ICON_NODE_SOCKET_SOUND, "Sound", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -283,36 +290,6 @@ const EnumPropertyItem rna_enum_node_boolean_math_items[] = {
      0,
      "Subtract",
      "True when the first input is true and the second is false (not imply)"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
-const EnumPropertyItem rna_enum_node_float_compare_items[] = {
-    {NODE_COMPARE_LESS_THAN,
-     "LESS_THAN",
-     0,
-     "Less Than",
-     "True when the first input is smaller than second input"},
-    {NODE_COMPARE_LESS_EQUAL,
-     "LESS_EQUAL",
-     0,
-     "Less Than or Equal",
-     "True when the first input is smaller than the second input or equal"},
-    {NODE_COMPARE_GREATER_THAN,
-     "GREATER_THAN",
-     0,
-     "Greater Than",
-     "True when the first input is greater than the second input"},
-    {NODE_COMPARE_GREATER_EQUAL,
-     "GREATER_EQUAL",
-     0,
-     "Greater Than or Equal",
-     "True when the first input is greater than the second input or equal"},
-    {NODE_COMPARE_EQUAL, "EQUAL", 0, "Equal", "True when both inputs are approximately equal"},
-    {NODE_COMPARE_NOT_EQUAL,
-     "NOT_EQUAL",
-     0,
-     "Not Equal",
-     "True when both inputs are not approximately equal"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -562,30 +539,38 @@ const EnumPropertyItem rna_enum_node_compositor_extension_items[] = {
     {CMP_NODE_EXTENSION_MODE_CLIP,
      "CLIP",
      0,
-     "Clip",
-     "Areas outside of the image are filled with zero"},
+     N_("Clip"),
+     N_("Areas outside of the image are filled with zero")},
     {CMP_NODE_EXTENSION_MODE_EXTEND,
      "EXTEND",
      0,
-     "Extend",
-     "Areas outside of the image are filled with the closest boundary pixel in the image"},
+     N_("Extend"),
+     N_("Areas outside of the image are filled with the closest boundary pixel in the image")},
     {CMP_NODE_EXTENSION_MODE_REPEAT,
      "REPEAT",
      0,
-     "Repeat",
-     "Areas outside of the image are filled with repetitions of the image"},
+     N_("Repeat"),
+     N_("Areas outside of the image are filled with repetitions of the image")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 const EnumPropertyItem rna_enum_node_compositor_interpolation_items[] = {
-    {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, "Nearest", "Use Nearest interpolation"},
-    {CMP_NODE_INTERPOLATION_BILINEAR, "BILINEAR", 0, "Bilinear", "Use Bilinear interpolation"},
-    {CMP_NODE_INTERPOLATION_BICUBIC, "BICUBIC", 0, "Bicubic", "Use Cubic B-Spline interpolation"},
+    {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, N_("Nearest"), N_("Use Nearest interpolation")},
+    {CMP_NODE_INTERPOLATION_BILINEAR,
+     "BILINEAR",
+     0,
+     N_("Bilinear"),
+     N_("Use Bilinear interpolation")},
+    {CMP_NODE_INTERPOLATION_BICUBIC,
+     "BICUBIC",
+     0,
+     N_("Bicubic"),
+     N_("Use Cubic B-Spline interpolation")},
     {CMP_NODE_INTERPOLATION_ANISOTROPIC,
      "ANISOTROPIC",
      0,
-     "Anisotropic",
-     "Use Anisotropic interpolation"},
+     N_("Anisotropic"),
+     N_("Use Anisotropic interpolation")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -651,6 +636,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_bundle.hh"
 #  include "NOD_geo_capture_attribute.hh"
 #  include "NOD_geo_closure.hh"
+#  include "NOD_geo_field_to_grid.hh"
 #  include "NOD_geo_foreach_geometry_element.hh"
 #  include "NOD_geo_index_switch.hh"
 #  include "NOD_geo_menu_switch.hh"
@@ -659,6 +645,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_viewer.hh"
 #  include "NOD_geometry.hh"
 #  include "NOD_geometry_nodes_lazy_function.hh"
+#  include "NOD_rna_define.hh"
 #  include "NOD_shader.h"
 #  include "NOD_socket.hh"
 #  include "NOD_socket_items.hh"
@@ -683,6 +670,7 @@ using blender::nodes::ClosureOutputItemsAccessor;
 using blender::nodes::CombineBundleItemsAccessor;
 using blender::nodes::EvaluateClosureInputItemsAccessor;
 using blender::nodes::EvaluateClosureOutputItemsAccessor;
+using blender::nodes::FieldToGridItemsAccessor;
 using blender::nodes::FileOutputItemsAccessor;
 using blender::nodes::ForeachGeometryElementGenerationItemsAccessor;
 using blender::nodes::ForeachGeometryElementInputItemsAccessor;
@@ -1070,7 +1058,7 @@ static bool rna_NodeTree_unregister(Main *bmain, StructRNA *type)
   }
 
   RNA_struct_free_extension(type, &nt->rna_ext);
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   blender::bke::node_tree_type_free_link(*nt);
 
@@ -1137,7 +1125,7 @@ static StructRNA *rna_NodeTree_register(Main *bmain,
 
   nt->type = NTREE_CUSTOM;
 
-  nt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, nt->idname.c_str(), &RNA_NodeTree);
+  nt->rna_ext.srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), nt->idname.c_str(), &RNA_NodeTree);
   nt->rna_ext.data = data;
   nt->rna_ext.call = call;
   nt->rna_ext.free = free;
@@ -1620,9 +1608,8 @@ static void rna_NodeTree_debug_lazy_function_graph(bNodeTree *tree,
     /* The graph is only stored on the evaluated data. */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
-  }
-  std::lock_guard lock{tree->runtime->geometry_nodes_lazy_function_graph_info_mutex};
-  if (!tree->runtime->geometry_nodes_lazy_function_graph_info) {
+  };
+  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
     return;
   }
   std::string dot_str = tree->runtime->geometry_nodes_lazy_function_graph_info->graph.to_dot();
@@ -1641,8 +1628,7 @@ static void rna_NodeTree_debug_zone_body_lazy_function_graph(
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
   }
-  std::lock_guard lock{tree->runtime->geometry_nodes_lazy_function_graph_info_mutex};
-  if (!tree->runtime->geometry_nodes_lazy_function_graph_info) {
+  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
     return;
   }
   const auto *graph = tree->runtime->geometry_nodes_lazy_function_graph_info
@@ -1908,7 +1894,7 @@ static void rna_Node_free(PointerRNA *ptr)
   RNA_parameter_list_free(&list);
 }
 
-static void rna_Node_draw_buttons(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void rna_Node_draw_buttons(blender::ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = ptr->data_as<bNode>();
   ParameterList list;
@@ -1918,23 +1904,26 @@ static void rna_Node_draw_buttons(uiLayout *layout, bContext *C, PointerRNA *ptr
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  RNA_parameter_set_lookup(&list, "layout", &layout);
+  blender::ui::Layout *layout_ptr = &layout;
+  RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   node->typeinfo->rna_ext.call(C, ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
 
-static void rna_Node_draw_buttons_ext(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void rna_Node_draw_buttons_ext(blender::ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = ptr->data_as<bNode>();
   ParameterList list;
   FunctionRNA *func;
 
-  func = &rna_Node_draw_buttons_ext_func; /* RNA_struct_find_function(&ptr, "draw_buttons_ext"); */
+  func = &rna_Node_draw_buttons_ext_func; /* RNA_struct_find_function(&ptr,
+                                                "draw_buttons_ext"); */
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  RNA_parameter_set_lookup(&list, "layout", &layout);
+  blender::ui::Layout *layout_ptr = &layout;
+  RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   node->typeinfo->rna_ext.call(C, ptr, func, &list);
 
   RNA_parameter_list_free(&list);
@@ -1997,7 +1986,7 @@ static bool rna_Node_unregister(Main *bmain, StructRNA *type)
   }
 
   RNA_struct_free_extension(type, &nt->rna_ext);
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   /* this also frees the allocated nt pointer, no MEM_free call needed! */
   blender::bke::node_unregister_type(*nt);
@@ -2083,7 +2072,7 @@ static blender::bke::bNodeType *rna_Node_register_base(Main *bmain,
   nt = MEM_new<blender::bke::bNodeType>(__func__, dummy_nt);
   nt->free_self = [](blender::bke::bNodeType *type) { MEM_delete(type); };
 
-  nt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, nt->idname.c_str(), basetype);
+  nt->rna_ext.srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), nt->idname.c_str(), basetype);
   nt->rna_ext.data = data;
   nt->rna_ext.call = call;
   nt->rna_ext.free = free;
@@ -2173,6 +2162,44 @@ static bool geometry_node_asset_trait_flag_get(PointerRNA *ptr,
     return false;
   }
   return ntree->geometry_node_asset_traits->flag & flag;
+}
+
+static void rna_GeometryNodeTree_node_tool_idname_get(PointerRNA *ptr, char *value)
+{
+  bNodeTree *ntree = ptr->data_as<bNodeTree>();
+  if (!ntree->geometry_node_asset_traits) {
+    strcpy(value, "");
+    return;
+  }
+  const char *idname = ntree->geometry_node_asset_traits->node_tool_idname;
+  strcpy(value, idname ? idname : "");
+}
+
+static int rna_GeometryNodeTree_node_tool_idname_length(PointerRNA *ptr)
+{
+  bNodeTree *ntree = ptr->data_as<bNodeTree>();
+  if (!ntree->geometry_node_asset_traits) {
+    return 0;
+  }
+  const char *idname = ntree->geometry_node_asset_traits->node_tool_idname;
+  return idname ? strlen(idname) : 0;
+}
+
+static void rna_GeometryNodeTree_node_tool_idname_set(PointerRNA *ptr, const char *value)
+{
+  bNodeTree *ntree = ptr->data_as<bNodeTree>();
+  if (!ntree->geometry_node_asset_traits) {
+    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+  }
+  if (ntree->geometry_node_asset_traits->node_tool_idname) {
+    MEM_freeN(ntree->geometry_node_asset_traits->node_tool_idname);
+  }
+  if (value && value[0]) {
+    ntree->geometry_node_asset_traits->node_tool_idname = BLI_strdup(value);
+  }
+  else {
+    ntree->geometry_node_asset_traits->node_tool_idname = nullptr;
+  }
 }
 
 static void geometry_node_asset_trait_flag_set(PointerRNA *ptr,
@@ -2351,26 +2378,6 @@ static const EnumPropertyItem *rna_GeometryNodeAttributeDomain_attribute_domain_
 
   *r_free = true;
   return item_array;
-}
-
-static const EnumPropertyItem *rna_structure_type_no_auto_itemf(bContext * /*C*/,
-                                                                PointerRNA * /*ptr*/,
-                                                                PropertyRNA * /*prop*/,
-                                                                bool *r_free)
-{
-  EnumPropertyItem *items = nullptr;
-  int items_len = 0;
-  for (const EnumPropertyItem *item = rna_enum_node_socket_structure_type_items; item->identifier;
-       item++)
-  {
-    if (item->value != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-      RNA_enum_item_add(&items, &items_len, item);
-    }
-  }
-  RNA_enum_item_end(&items, &items_len);
-
-  *r_free = true;
-  return items;
 }
 
 static StructRNA *rna_ShaderNode_register(Main *bmain,
@@ -2634,6 +2641,14 @@ static void rna_Node_select_set(PointerRNA *ptr, bool value)
 {
   bNode *node = ptr->data_as<bNode>();
   blender::bke::node_set_selected(*node, value);
+}
+
+static void rna_Node_mute_set(PointerRNA *ptr, bool value)
+{
+  bNode *node = ptr->data_as<bNode>();
+  if (!node->typeinfo->no_muting) {
+    SET_FLAG_FROM_TEST(node->flag, value, NODE_MUTED);
+  }
 }
 
 static void rna_Node_name_set(PointerRNA *ptr, const char *value)
@@ -3010,23 +3025,29 @@ static void rna_NodeInternal_update(ID *id, bNode *node, Main *bmain)
   BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
-static void rna_NodeInternal_draw_buttons(ID *id, bNode *node, bContext *C, uiLayout *layout)
+static void rna_NodeInternal_draw_buttons(ID *id,
+                                          bNode *node,
+                                          bContext *C,
+                                          blender::ui::Layout *layout)
 {
   if (node->typeinfo->draw_buttons) {
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
-    node->typeinfo->draw_buttons(layout, C, &ptr);
+    node->typeinfo->draw_buttons(*layout, C, &ptr);
   }
 }
 
-static void rna_NodeInternal_draw_buttons_ext(ID *id, bNode *node, bContext *C, uiLayout *layout)
+static void rna_NodeInternal_draw_buttons_ext(ID *id,
+                                              bNode *node,
+                                              bContext *C,
+                                              blender::ui::Layout *layout)
 {
   if (node->typeinfo->draw_buttons_ex) {
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
-    node->typeinfo->draw_buttons_ex(layout, C, &ptr);
+    node->typeinfo->draw_buttons_ex(*layout, C, &ptr);
   }
   else if (node->typeinfo->draw_buttons) {
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
-    node->typeinfo->draw_buttons(layout, C, &ptr);
+    node->typeinfo->draw_buttons(*layout, C, &ptr);
   }
 }
 
@@ -3068,6 +3089,7 @@ static StructRNA *rna_GeometryNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_geo_custom_group(nt);
 
@@ -3096,6 +3118,7 @@ static StructRNA *rna_ShaderNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_sh_custom_group(nt);
 
@@ -3121,6 +3144,7 @@ static StructRNA *rna_CompositorNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_cmp_custom_group(nt);
 
@@ -3222,10 +3246,6 @@ static void rna_Node_image_layer_update(Main *bmain, Scene *scene, PointerRNA *p
   BKE_image_signal(bmain, ima, iuser, IMA_SIGNAL_SRC_CHANGE);
 
   rna_Node_update(bmain, scene, ptr);
-
-  if (scene != nullptr && scene->compositing_node_group != nullptr) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
 }
 
 static const EnumPropertyItem *renderresult_layers_add_enum(RenderLayer *rl)
@@ -3419,14 +3439,6 @@ static const EnumPropertyItem *rna_Node_view_layer_itemf(bContext * /*C*/,
   *r_free = true;
 
   return item;
-}
-
-static void rna_Node_view_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-  rna_Node_update_relations(bmain, scene, ptr);
-  if (scene != nullptr && scene->compositing_node_group != nullptr) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
 }
 
 static void rna_Image_Node_update_id(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -3837,6 +3849,20 @@ typename Accessor::ItemT *rna_Node_ItemArray_new_with_socket_and_name(
   return new_item;
 }
 
+template<typename Accessor>
+static const EnumPropertyItem *rna_Node_ItemArray_structure_type_itemf(bContext * /*C*/,
+                                                                       PointerRNA *ptr,
+                                                                       PropertyRNA * /*prop*/,
+                                                                       bool *r_free)
+{
+  using ItemT = typename Accessor::ItemT;
+
+  const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
+  const ItemT &item = *static_cast<const ItemT *>(ptr->data);
+  const eNodeSocketDatatype socket_type = Accessor::get_socket_type(item);
+  return rna_NodeSocket_structure_type_item_filter(ntree, socket_type, r_free);
+}
+
 static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *bmain)
 {
   IndexSwitchItem *new_item = blender::nodes::socket_items::add_item<IndexSwitchItemsAccessor>(
@@ -3848,6 +3874,19 @@ static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
   return new_item;
+}
+
+/* The same as #grid_socket_type_items_filter_fn. */
+static const EnumPropertyItem *rna_NodeFieldToGridItem_data_type_itemf(bContext * /*C*/,
+                                                                       PointerRNA * /*ptr*/,
+                                                                       PropertyRNA * /*prop*/,
+                                                                       bool *r_free)
+{
+  *r_free = true;
+  return itemf_function_check(
+      rna_enum_node_socket_data_type_items, [](const EnumPropertyItem *item) {
+        return blender::nodes::socket_type_supports_grids(eNodeSocketDatatype(item->value));
+      });
 }
 
 static const EnumPropertyItem *rna_NodeGeometryCaptureAttributeItem_data_type_itemf(
@@ -3890,7 +3929,8 @@ static void rna_ShaderNodeTexIES_mode_set(PointerRNA *ptr, int value)
 
       if (value == NODE_IES_EXTERNAL && text->filepath) {
         STRNCPY(nss->filepath, text->filepath);
-        BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id));
       }
 
       id_us_min(node->id);
@@ -3915,7 +3955,8 @@ static void rna_ShaderNodeScript_mode_set(PointerRNA *ptr, int value)
 
       if (value == NODE_SCRIPT_EXTERNAL && text->filepath) {
         STRNCPY(nss->filepath, text->filepath);
-        BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id));
       }
 
       id_us_min(node->id);
@@ -5038,7 +5079,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 
   prop = RNA_def_property(srna, "sun_elevation", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_ui_text(prop, "Sun Elevation", "Sun angle from horizon");
-  RNA_def_property_float_default(prop, M_PI_2);
+  RNA_def_property_float_default(prop, DEG2RADF(15.0f));
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "sun_rotation", PROP_FLOAT, PROP_ANGLE);
@@ -5953,7 +5994,7 @@ static void def_sh_radial_tiling(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_struct_sdna_from(srna, "NodeRadialTiling", "storage");
 
   prop = RNA_def_property(srna, "normalize", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "normalize", 0);
+  RNA_def_property_boolean_sdna(prop, nullptr, "normalize", 0);
   RNA_def_property_ui_text(
       prop,
       "Normalize",
@@ -6141,31 +6182,12 @@ static void def_sh_output_aov(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_sh_combsep_color(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  static const EnumPropertyItem type_items[] = {
-      {NODE_COMBSEP_COLOR_RGB,
-       "RGB",
-       ICON_NONE,
-       "RGB",
-       "Use RGB (Red, Green, Blue) color processing"},
-      {NODE_COMBSEP_COLOR_HSV,
-       "HSV",
-       ICON_NONE,
-       "HSV",
-       "Use HSV (Hue, Saturation, Value) color processing"},
-      {NODE_COMBSEP_COLOR_HSL,
-       "HSL",
-       ICON_NONE,
-       "HSL",
-       "Use HSL (Hue, Saturation, Lightness) color processing"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   PropertyRNA *prop;
 
   RNA_def_struct_sdna_from(srna, "NodeCombSepColor", "storage");
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, type_items);
+  RNA_def_property_enum_items(prop, rna_enum_node_combsep_color_items);
   RNA_def_property_ui_text(prop, "Mode", "Mode of color processing");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
@@ -6346,7 +6368,7 @@ static void def_cmp_render_layers(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Scene", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_view_layer_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
 
   prop = RNA_def_property(srna, "layer", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
@@ -6354,7 +6376,7 @@ static void def_cmp_render_layers(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Node_view_layer_itemf");
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   RNA_def_property_ui_text(prop, "Layer", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_view_layer_update");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
 }
 
 static void rna_def_cmp_file_output_item(BlenderRNA *brna)
@@ -7301,7 +7323,8 @@ static void rna_def_geo_viewer_item(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Auto Remove", "Remove the item automatically when it is unlinked");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<GeoViewerItemsAccessor>");
 }
 
 static void rna_def_geo_viewer_items(BlenderRNA *brna)
@@ -7530,6 +7553,11 @@ static void rna_def_closure_input_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<ClosureInputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7552,11 +7580,27 @@ static void rna_def_closure_input_items(BlenderRNA *brna)
 
 static void rna_def_closure_output_item(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
   StructRNA *srna = RNA_def_struct(brna, "NodeClosureOutputItem", nullptr);
   RNA_def_struct_ui_text(srna, "Closure Output Item", "");
   RNA_def_struct_sdna(srna, "NodeClosureOutputItem");
 
   rna_def_node_item_array_socket_item_common(srna, "ClosureOutputItemsAccessor", true);
+
+  prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<ClosureOutputItemsAccessor>");
+  RNA_def_property_ui_text(
+      prop,
+      "Structure Type",
+      "What kind of higher order types are expected to flow through this socket");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<ClosureOutputItemsAccessor>");
 }
 
 static void rna_def_closure_output_items(BlenderRNA *brna)
@@ -7606,6 +7650,16 @@ static void def_closure_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "define_signature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_CLOSURE_FLAG_DEFINE_SIGNATURE);
+  RNA_def_property_ui_text(
+      prop,
+      "Define Signature",
+      "This zone defines a closure signature that should be used by other nodes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_geo_capture_attribute_item(BlenderRNA *brna)
@@ -7690,7 +7744,11 @@ static void rna_def_evaluate_closure_input_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_structure_type_no_auto_itemf");
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<EvaluateClosureInputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7726,7 +7784,11 @@ static void rna_def_evaluate_closure_output_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_structure_type_no_auto_itemf");
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<EvaluateClosureOutputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7787,6 +7849,17 @@ static void def_evaluate_closure(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "define_signature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "flag", NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE);
+  RNA_def_property_ui_text(
+      prop,
+      "Define Signature",
+      "This node defines a closure signature that should be used by other nodes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_geo_bake_item(BlenderRNA *brna)
@@ -7866,10 +7939,26 @@ static void rna_def_geo_bake(BlenderRNA *brna, StructRNA *srna)
 
 static void rna_def_combine_bundle_item(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
   StructRNA *srna = RNA_def_struct(brna, "NodeCombineBundleItem", nullptr);
   RNA_def_struct_ui_text(srna, "Combine Bundle Item", "");
 
   rna_def_node_item_array_socket_item_common(srna, "CombineBundleItemsAccessor", true);
+
+  prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<CombineBundleItemsAccessor>");
+  RNA_def_property_ui_text(
+      prop,
+      "Structure Type",
+      "What kind of higher order types are expected to flow through this socket");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<CombineBundleItemsAccessor>");
 }
 
 static void rna_def_combine_bundle_items(BlenderRNA *brna)
@@ -7905,14 +7994,40 @@ static void def_combine_bundle(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "define_signature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_COMBINE_BUNDLE_FLAG_DEFINE_SIGNATURE);
+  RNA_def_property_ui_text(
+      prop,
+      "Define Signature",
+      "This node defines a bundle signature that should be used by other nodes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_separate_bundle_item(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
   StructRNA *srna = RNA_def_struct(brna, "NodeSeparateBundleItem", nullptr);
   RNA_def_struct_ui_text(srna, "Separate Bundle Item", "");
 
   rna_def_node_item_array_socket_item_common(srna, "SeparateBundleItemsAccessor", true);
+
+  prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<SeparateBundleItemsAccessor>");
+  RNA_def_property_ui_text(
+      prop,
+      "Structure Type",
+      "What kind of higher order types are expected to flow through this socket");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<SeparateBundleItemsAccessor>");
 }
 
 static void rna_def_separate_bundle_items(BlenderRNA *brna)
@@ -7948,6 +8063,16 @@ static void def_separate_bundle(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "define_signature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_SEPARATE_BUNDLE_FLAG_DEFINE_SIGNATURE);
+  RNA_def_property_ui_text(
+      prop,
+      "Define Signature",
+      "This node defines a bundle signature that should be used by other nodes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_index_switch_item(BlenderRNA *brna)
@@ -7999,6 +8124,80 @@ static void def_geo_index_switch(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_struct_type(prop, "IndexSwitchItem");
   RNA_def_property_ui_text(prop, "Items", "");
   RNA_def_property_srna(prop, "NodeIndexSwitchItems");
+}
+
+static void rna_def_geo_field_to_grid_item(BlenderRNA *brna)
+{
+  PropertyRNA *prop;
+
+  StructRNA *srna = RNA_def_struct(brna, "GeometryNodeFieldToGridItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Field to Grid Item", "");
+  RNA_def_struct_sdna(srna, "GeometryNodeFieldToGridItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "FieldToGridItemsAccessor", false);
+  prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_data_type_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeFieldToGridItem_data_type_itemf");
+  RNA_def_property_ui_text(prop, "Data Type", "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<FieldToGridItemsAccessor>");
+
+  prop = RNA_def_property(srna, "identifier", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+}
+
+static void rna_def_geo_field_to_grid_items(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "GeometryNodeFieldToGridItems", nullptr);
+  RNA_def_struct_ui_text(srna, "Items", "Collection of field to grid items");
+  RNA_def_struct_sdna(srna, "bNode");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "GeometryNodeFieldToGridItem", "FieldToGridItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "GeometryNodeFieldToGridItem", "FieldToGridItemsAccessor");
+}
+
+static void def_geo_field_to_grid(BlenderRNA *brna, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  rna_def_geo_field_to_grid_item(brna);
+  rna_def_geo_field_to_grid_items(brna);
+
+  RNA_def_struct_sdna_from(srna, "GeometryNodeFieldToGrid", "storage");
+
+  prop = RNA_def_property(srna, "grid_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
+  RNA_def_property_struct_type(prop, "GeometryNodeFieldToGridItem");
+  RNA_def_property_ui_text(prop, "Items", "");
+  RNA_def_property_srna(prop, "GeometryNodeFieldToGridItems");
+
+  prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "active_index");
+  RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "active_item", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "RepeatItem");
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_Node_ItemArray_active_get<FieldToGridItemsAccessor>",
+                                 "rna_Node_ItemArray_active_set<FieldToGridItemsAccessor>",
+                                 nullptr,
+                                 nullptr);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NO_DEG_UPDATE);
+  RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_data_type_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_NodeFieldToGridItem_data_type_itemf");
+  RNA_def_property_ui_text(prop, "Data Type", "Data type for topology grid");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
 static void rna_def_fn_format_string_item(BlenderRNA *brna)
@@ -8749,6 +8948,7 @@ static void rna_def_node(BlenderRNA *brna)
                                     "rna_NodeInputs_lookup_string",
                                     nullptr);
   RNA_def_property_struct_type(prop, "NodeSocket");
+  RNA_def_property_flag_hide_from_ui_workaround(prop);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Inputs", "");
   rna_def_node_sockets_api(brna, prop, SOCK_IN);
@@ -8765,6 +8965,7 @@ static void rna_def_node(BlenderRNA *brna)
                                     "rna_NodeOutputs_lookup_string",
                                     nullptr);
   RNA_def_property_struct_type(prop, "NodeSocket");
+  RNA_def_property_flag_hide_from_ui_workaround(prop);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Outputs", "");
   rna_def_node_sockets_api(brna, prop, SOCK_OUT);
@@ -8842,6 +9043,7 @@ static void rna_def_node(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_MUTED);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_Node_mute_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Mute", "");
   RNA_def_property_update(prop, 0, "rna_Node_update");
@@ -9249,11 +9451,12 @@ static void rna_def_nodetree(BlenderRNA *brna)
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_sdna(prop, nullptr, "view_center");
   RNA_def_property_ui_text(
-      prop, "", "The current location (offset) of the view for this Node Tree");
+      prop, "View Center", "The current location (offset) of the view for this Node Tree");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "Description", "Description of the node tree");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
   /* AnimData */
   rna_def_animdata_common(srna);
@@ -9471,6 +9674,16 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
       prop, "rna_GeometryNodeTree_is_tool_get", "rna_GeometryNodeTree_is_tool_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
+  prop = RNA_def_property(srna, "node_tool_idname", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Node Tool Identifier", "Unique operator identifier for the node tool");
+  RNA_def_property_string_funcs(prop,
+                                "rna_GeometryNodeTree_node_tool_idname_get",
+                                "rna_GeometryNodeTree_node_tool_idname_length",
+                                "rna_GeometryNodeTree_node_tool_idname_set");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
+
   prop = RNA_def_property(srna, "is_modifier", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Modifier", "The node group is used as a geometry modifier");
@@ -9644,7 +9857,9 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeClosureInput", def_closure_input);
   define("NodeInternal", "NodeClosureOutput", def_closure_output);
   define("NodeInternal", "NodeCombineBundle", def_combine_bundle);
+  define("NodeInternal", "NodeEnableOutput");
   define("NodeInternal", "NodeEvaluateClosure", def_evaluate_closure);
+  define("NodeInternal", "NodeJoinBundle");
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
 
   define("ShaderNode", "ShaderNodeAddShader");
@@ -9819,6 +10034,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeSetAlpha");
   define("CompositorNode", "CompositorNodeSplit");
   define("CompositorNode", "CompositorNodeStabilize", def_cmp_stabilize2d);
+  define("CompositorNode", "CompositorNodeSequencerStripInfo");
   define("CompositorNode", "CompositorNodeSwitch");
   define("CompositorNode", "CompositorNodeSwitchView");
   define("CompositorNode", "CompositorNodeTime", def_time);
@@ -9920,6 +10136,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeAttributeStatistic");
   define("GeometryNode", "GeometryNodeBake", rna_def_geo_bake);
   define("GeometryNode", "GeometryNodeBlurAttribute");
+  define("GeometryNode", "GeometryNodeBoneInfo");
   define("GeometryNode", "GeometryNodeBoundBox");
   define("GeometryNode", "GeometryNodeCameraInfo");
   define("GeometryNode", "GeometryNodeCaptureAttribute", rna_def_geo_capture_attribute);
@@ -9964,6 +10181,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeFieldAverage");
   define("GeometryNode", "GeometryNodeFieldMinAndMax");
   define("GeometryNode", "GeometryNodeFieldOnDomain");
+  define("GeometryNode", "GeometryNodeFieldToGrid", def_geo_field_to_grid);
   define("GeometryNode", "GeometryNodeFieldVariance");
   define("GeometryNode", "GeometryNodeFillCurve");
   define("GeometryNode", "GeometryNodeFilletCurve");
@@ -9976,8 +10194,15 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGizmoLinear");
   define("GeometryNode", "GeometryNodeGizmoTransform", rna_def_geo_gizmo_transform);
   define("GeometryNode", "GeometryNodeGreasePencilToCurves");
+  define("GeometryNode", "GeometryNodeGridAdvect");
+  define("GeometryNode", "GeometryNodeGridCurl");
+  define("GeometryNode", "GeometryNodeGridDivergence");
+  define("GeometryNode", "GeometryNodeGridGradient");
   define("GeometryNode", "GeometryNodeGridInfo");
+  define("GeometryNode", "GeometryNodeGridLaplacian");
+  define("GeometryNode", "GeometryNodeGridPrune");
   define("GeometryNode", "GeometryNodeGridToMesh");
+  define("GeometryNode", "GeometryNodeGridVoxelize");
   define("GeometryNode", "GeometryNodeImageInfo");
   define("GeometryNode", "GeometryNodeImageTexture", def_geo_image_texture);
   define("GeometryNode", "GeometryNodeImportCSV");
@@ -10021,6 +10246,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeInputSplineCyclic");
   define("GeometryNode", "GeometryNodeInputSplineResolution");
   define("GeometryNode", "GeometryNodeInputTangent");
+  define("GeometryNode", "GeometryNodeInputVoxelIndex");
   define("GeometryNode", "GeometryNodeInstanceOnPoints");
   define("GeometryNode", "GeometryNodeInstancesToPoints");
   define("GeometryNode", "GeometryNodeInstanceTransform");
@@ -10078,6 +10304,12 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeScaleElements");
   define("GeometryNode", "GeometryNodeScaleInstances");
   define("GeometryNode", "GeometryNodeSDFGridBoolean");
+  define("GeometryNode", "GeometryNodeSDFGridFillet");
+  define("GeometryNode", "GeometryNodeSDFGridLaplacian");
+  define("GeometryNode", "GeometryNodeSDFGridMean");
+  define("GeometryNode", "GeometryNodeSDFGridMeanCurvature");
+  define("GeometryNode", "GeometryNodeSDFGridMedian");
+  define("GeometryNode", "GeometryNodeSDFGridOffset");
   define("GeometryNode", "GeometryNodeSelfObject");
   define("GeometryNode", "GeometryNodeSeparateComponents");
   define("GeometryNode", "GeometryNodeSeparateGeometry");
@@ -10089,6 +10321,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSetGreasePencilColor");
   define("GeometryNode", "GeometryNodeSetGreasePencilDepth");
   define("GeometryNode", "GeometryNodeSetGreasePencilSoftness");
+  define("GeometryNode", "GeometryNodeSetGridBackground");
+  define("GeometryNode", "GeometryNodeSetGridTransform");
   define("GeometryNode", "GeometryNodeSetID");
   define("GeometryNode", "GeometryNodeSetInstanceTransform");
   define("GeometryNode", "GeometryNodeSetMaterial");
@@ -10126,6 +10360,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeTriangulate");
   define("GeometryNode", "GeometryNodeTrimCurve");
   define("GeometryNode", "GeometryNodeUVPackIslands");
+  define("GeometryNode", "GeometryNodeUVTangent");
   define("GeometryNode", "GeometryNodeUVUnwrap");
   define("GeometryNode", "GeometryNodeVertexOfCorner");
   define("GeometryNode", "GeometryNodeViewer", rna_def_geo_viewer);

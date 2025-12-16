@@ -318,25 +318,45 @@ set(GLSL_SRC
   intern/shaders/draw_object_infos_infos.hh
   intern/shaders/draw_view_infos.hh
   intern/shaders/subdiv_infos.hh
+  intern/shaders/subdiv_patch_eval_infos.hh
 
   engines/eevee/shaders/infos/eevee_ambient_occlusion_infos.hh
   engines/eevee/shaders/infos/eevee_common_infos.hh
   engines/eevee/shaders/infos/eevee_deferred_infos.hh
   engines/eevee/shaders/infos/eevee_depth_of_field_infos.hh
   engines/eevee/shaders/infos/eevee_film_infos.hh
+  engines/eevee/shaders/infos/eevee_forward_infos.hh
+  engines/eevee/shaders/infos/eevee_fullscreen_infos.hh
+  engines/eevee/shaders/infos/eevee_geom_infos.hh
   engines/eevee/shaders/infos/eevee_hiz_infos.hh
   engines/eevee/shaders/infos/eevee_light_culling_infos.hh
+  engines/eevee/shaders/infos/eevee_light_infos.hh
+  engines/eevee/shaders/infos/eevee_lightprobe_infos.hh
   engines/eevee/shaders/infos/eevee_lightprobe_sphere_infos.hh
   engines/eevee/shaders/infos/eevee_lightprobe_volume_infos.hh
   engines/eevee/shaders/infos/eevee_lookdev_infos.hh
   engines/eevee/shaders/infos/eevee_lut_infos.hh
   engines/eevee/shaders/infos/eevee_material_infos.hh
   engines/eevee/shaders/infos/eevee_motion_blur_infos.hh
+  engines/eevee/shaders/infos/eevee_nodetree_infos.hh
+  engines/eevee/shaders/infos/eevee_sampling_infos.hh
   engines/eevee/shaders/infos/eevee_shadow_infos.hh
+  engines/eevee/shaders/infos/eevee_shadow_pipeline_infos.hh
   engines/eevee/shaders/infos/eevee_subsurface_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_capture_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_deferred_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_depth_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_forward_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_hybrid_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_shadow_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_volume_infos.hh
+  engines/eevee/shaders/infos/eevee_surf_world_infos.hh
+  engines/eevee/shaders/infos/eevee_tests_infos.hh
   engines/eevee/shaders/infos/eevee_tracing_infos.hh
+  engines/eevee/shaders/infos/eevee_uniform_infos.hh
   engines/eevee/shaders/infos/eevee_velocity_infos.hh
   engines/eevee/shaders/infos/eevee_volume_infos.hh
+  engines/eevee/shaders/infos/eevee_volume_resolved_infos.hh
 
   engines/image/shaders/infos/engine_image_infos.hh
 
@@ -350,6 +370,7 @@ set(GLSL_SRC
   engines/overlay/shaders/infos/overlay_edit_mode_infos.hh
   engines/overlay/shaders/infos/overlay_extra_infos.hh
   engines/overlay/shaders/infos/overlay_facing_infos.hh
+  engines/overlay/shaders/infos/overlay_fullscreen_infos.hh
   engines/overlay/shaders/infos/overlay_grid_infos.hh
   engines/overlay/shaders/infos/overlay_outline_infos.hh
   engines/overlay/shaders/infos/overlay_paint_infos.hh
@@ -427,6 +448,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_film_pass_convert_comp.glsl
   engines/eevee/shaders/eevee_filter_lib.glsl
   engines/eevee/shaders/eevee_forward_lib.glsl
+  engines/eevee/shaders/eevee_fullscreen_vert.glsl
   engines/eevee/shaders/eevee_gbuffer_closure_test.glsl
   engines/eevee/shaders/eevee_gbuffer_lib.glsl
   engines/eevee/shaders/eevee_gbuffer_normal_test.glsl
@@ -464,6 +486,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_lightprobe_volume_world_comp.glsl
   engines/eevee/shaders/eevee_lightprobe_lib.glsl
   engines/eevee/shaders/eevee_lightprobe_volume_eval_lib.glsl
+  engines/eevee/shaders/eevee_lookdev_copy_world_comp.glsl
   engines/eevee/shaders/eevee_lookdev_display_frag.glsl
   engines/eevee/shaders/eevee_lookdev_display_vert.glsl
   engines/eevee/shaders/eevee_ltc_lib.glsl
@@ -472,8 +495,10 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_motion_blur_flatten_comp.glsl
   engines/eevee/shaders/eevee_motion_blur_gather_comp.glsl
   engines/eevee/shaders/eevee_motion_blur_lib.glsl
+  engines/eevee/shaders/eevee_nodetree_closures_lib.glsl
   engines/eevee/shaders/eevee_nodetree_frag_lib.glsl
   engines/eevee/shaders/eevee_nodetree_lib.glsl
+  engines/eevee/shaders/eevee_nodetree_type_lib.glsl
   engines/eevee/shaders/eevee_nodetree_vert_lib.glsl
   engines/eevee/shaders/eevee_occupancy_convert_frag.glsl
   engines/eevee/shaders/eevee_occupancy_lib.glsl
@@ -547,11 +572,15 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surfel_cluster_build_comp.glsl
   engines/eevee/shaders/eevee_surfel_light_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_build_comp.glsl
+  engines/eevee/shaders/eevee_surfel_list_flatten_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_lib.glsl
+  engines/eevee/shaders/eevee_surfel_list_prefix_comp.glsl
+  engines/eevee/shaders/eevee_surfel_list_prepare_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_sort_comp.glsl
   engines/eevee/shaders/eevee_surfel_ray_comp.glsl
   engines/eevee/shaders/eevee_thickness_lib.glsl
   engines/eevee/shaders/eevee_transparency_lib.glsl
+  engines/eevee/shaders/eevee_transparency_resolve_frag.glsl
   engines/eevee/shaders/eevee_utility_tx_lib.glsl
   engines/eevee/shaders/eevee_velocity_lib.glsl
   engines/eevee/shaders/eevee_vertex_copy_comp.glsl
@@ -561,8 +590,8 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_volume_scatter_comp.glsl
 
   engines/eevee/eevee_camera_shared.hh
-  engines/eevee/eevee_defines.hh
   engines/eevee/eevee_debug_shared.hh
+  engines/eevee/eevee_defines.hh
   engines/eevee/eevee_depth_of_field_shared.hh
   engines/eevee/eevee_film_shared.hh
   engines/eevee/eevee_hizbuffer_shared.hh
@@ -594,6 +623,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_effect_smaa_frag.glsl
   engines/workbench/shaders/workbench_effect_smaa_vert.glsl
   engines/workbench/shaders/workbench_effect_taa_frag.glsl
+  engines/workbench/shaders/workbench_fullscreen_vert.glsl
   engines/workbench/shaders/workbench_image_lib.glsl
   engines/workbench/shaders/workbench_matcap_lib.glsl
   engines/workbench/shaders/workbench_material_lib.glsl
@@ -605,6 +635,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_prepass_vert.glsl
   engines/workbench/shaders/workbench_shadow_caps_vert.glsl
   engines/workbench/shaders/workbench_shadow_debug_frag.glsl
+  engines/workbench/shaders/workbench_shadow_frag.glsl
   engines/workbench/shaders/workbench_shadow_lib.glsl
   engines/workbench/shaders/workbench_shadow_vert.glsl
   engines/workbench/shaders/workbench_shadow_visibility_comp.glsl
@@ -614,8 +645,10 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_volume_vert.glsl
   engines/workbench/shaders/workbench_world_light_lib.glsl
 
+  engines/workbench/workbench_defines.hh
   engines/workbench/workbench_shader_shared.hh
 
+  intern/shaders/osd_patch_basis.glsl
   intern/shaders/subdiv_custom_data_interp_comp.glsl
   intern/shaders/subdiv_ibo_lines_comp.glsl
   intern/shaders/subdiv_ibo_tris_comp.glsl
@@ -670,6 +703,7 @@ set(GLSL_SRC
   engines/gpencil/shaders/gpencil_antialiasing_frag.glsl
   engines/gpencil/shaders/gpencil_antialiasing_vert.glsl
   engines/gpencil/shaders/gpencil_common_lib.glsl
+  engines/gpencil/shaders/gpencil_fullscreen_vert.glsl
   engines/gpencil/shaders/gpencil_layer_blend_frag.glsl
   engines/gpencil/shaders/gpencil_mask_invert_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_frag.glsl
@@ -684,6 +718,7 @@ set(GLSL_SRC
   engines/select/shaders/select_lib.glsl
   engines/select/shaders/select_debug_frag.glsl
 
+  engines/select/select_defines.hh
   engines/select/select_shader_shared.hh
 
   engines/overlay/shaders/overlay_antialiasing_frag.glsl
@@ -757,7 +792,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_extra_wire_vert.glsl
   engines/overlay/shaders/overlay_facing_frag.glsl
   engines/overlay/shaders/overlay_facing_vert.glsl
-  engines/overlay/shaders/overlay_grid_background_frag.glsl
+  engines/overlay/shaders/overlay_fullscreen_vert.glsl
   engines/overlay/shaders/overlay_grid_frag.glsl
   engines/overlay/shaders/overlay_grid_vert.glsl
   engines/overlay/shaders/overlay_image_frag.glsl
@@ -918,18 +953,29 @@ if(WITH_GTESTS)
     set(TEST_SRC
       tests/draw_curves_test.cc
       tests/draw_pass_test.cc
-      tests/draw_testing.cc
       tests/eevee_test.cc
 
       tests/draw_testing.hh
     )
     set(TEST_INC
+      ${INC}
       ../../../intern/ghost
       ../gpu/tests
     )
     set(TEST_LIB
-      gpu_tests
+      ${LIB}
     )
-    blender_add_test_suite_lib(draw "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+    set(TEST_COMMON_SRC
+      tests/draw_testing.cc
+    )
+    if(NOT WITH_TESTS_SINGLE_BINARY)
+      list(APPEND TEST_COMMON_SRC
+        ../gpu/tests/gpu_testing.cc
+        ../gpu/tests/gpu_testing.hh
+      )
+    else()
+      list(APPEND TEST_LIB gpu_tests)
+    endif()
+    blender_add_test_suite_lib(draw "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}" "${TEST_COMMON_SRC}")
   endif()
 endif()

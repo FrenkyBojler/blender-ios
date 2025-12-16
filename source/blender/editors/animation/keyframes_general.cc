@@ -1566,7 +1566,7 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 
 namespace blender::ed::animation {
 
-std::optional<std::string> flip_names(const blender::StringRefNull rna_path)
+std::optional<std::string> flip_names(const StringRefNull rna_path)
 {
   int ofs_start, ofs_end;
   if (!BLI_str_quoted_substr_range(rna_path.c_str(), "pose.bones[", &ofs_start, &ofs_end)) {
@@ -1711,7 +1711,7 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
     BLI_assert(ale_slot);
   }
 
-  /* NASTYNESS: this code shouldn't have to care about which slots are currently visible in
+  /* NASTINESS: this code shouldn't have to care about which slots are currently visible in
    * the channel list. But since selection state is only relevant when they CAN actually be
    * selected, it does matter. This code assumes:
    *   1. because SELECTION or SELECTION_AND_IDENTIFIER was returned, slot selection is a
@@ -1867,7 +1867,7 @@ bool pastebuf_match_path_property(Main *bmain,
 
   const char *identifier = RNA_property_identifier(prop);
   /* NOTE: paths which end with "] will fail with this test - Animated ID Props. */
-  return blender::StringRef(fcurve_to_match.rna_path).endswith(identifier);
+  return StringRef(fcurve_to_match.rna_path).endswith(identifier);
 }
 
 bool pastebuf_match_index_only(Main * /*bmain*/,

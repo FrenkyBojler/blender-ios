@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #include "DNA_asset_types.h"
 #include "DNA_defs.h"
@@ -25,8 +25,6 @@ struct PointerRNA;
 struct Scene;
 struct SpaceLink;
 struct SpaceType;
-struct uiBlock;
-struct uiLayout;
 struct uiList;
 struct uiListType;
 struct wmDrawBuffer;
@@ -40,9 +38,15 @@ struct FileHandlerType;
 }  // namespace blender::bke
 using ARegionRuntimeHandle = blender::bke::ARegionRuntime;
 using FileHandlerTypeHandle = blender::bke::FileHandlerType;
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
+using uiLayoutHandle = blender::ui::Layout;
 #else
 typedef struct ARegionRuntimeHandle ARegionRuntimeHandle;
 typedef struct FileHandlerTypeHandle FileHandlerTypeHandle;
+typedef struct uiLayoutHandle uiLayoutHandle;
 #endif
 
 /* TODO: Doing this is quite ugly :)
@@ -160,14 +164,13 @@ enum LayoutPanelStateFlag {
   LAYOUT_PANEL_STATE_FLAG_OPEN = (1 << 0),
 };
 
-/** The part from uiBlock that needs saved in file. */
 typedef struct Panel {
   struct Panel *next, *prev;
 
   /** Runtime. */
   struct PanelType *type;
   /** Runtime for drawing. */
-  struct uiLayout *layout;
+  uiLayoutHandle *layout;
 
   char panelname[/*BKE_ST_MAXNAME*/ 64];
   /** Panel name is identifier for restoring location. */
@@ -191,7 +194,7 @@ typedef struct Panel {
   /**
    * List of #LayoutPanelState. This stores the open-close-state of layout-panels created with
    * `layout.panel(...)` in Python. For more information on layout-panels, see
-   * `uiLayout::panel_prop`.
+   * `blender::ui::Layout::panel_prop`.
    */
   ListBase layout_panel_states;
   /**
@@ -280,9 +283,6 @@ typedef struct uiListDyn {
   /** Minimal visual height of the list (in rows). */
   int visual_height_min;
 
-  /** Number of columns drawn for grid layouts. */
-  int columns;
-
   /** Number of items in collection. */
   int items_len;
   /** Number of items actually visible after filtering. */
@@ -339,6 +339,10 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   uiListDyn *dyn_data;
 } uiList;
 
+typedef enum uiViewStateFlag {
+  UI_VIEW_SHOW_FILTER_OPTIONS = (1 << 0),
+} uiViewStateFlag;
+
 /** See #uiViewStateLink. */
 typedef struct uiViewState {
   /**
@@ -352,6 +356,10 @@ typedef struct uiViewState {
    *   scrolled out of view).
    */
   int scroll_offset;
+  uint16_t flag; /* #uiViewStateFlag */
+  char _pad[6];
+
+  char search_string[/*UI_MAX_NAME_STR*/ 256];
 } uiViewState;
 
 /**
@@ -475,6 +483,8 @@ typedef struct ScrArea {
 
   /** Non-NULL if this area is global. */
   ScrGlobalAreaData *global;
+
+  float quadview_ratio[2];
 
   /**
    * #SpaceLink.
@@ -648,8 +658,6 @@ enum {
 enum {
   UILST_LAYOUT_DEFAULT = 0,
   UILST_LAYOUT_COMPACT = 1,
-  UILST_LAYOUT_GRID = 2,
-  UILST_LAYOUT_BIG_PREVIEW_GRID = 3,
 };
 
 /** #uiList.flag */
@@ -729,9 +737,6 @@ typedef enum eRegion_Type {
 
 /** Use for function args. */
 #define RGN_TYPE_ANY -1
-
-/** Region supports panel tabs (categories). */
-#define RGN_TYPE_HAS_CATEGORY_MASK (1 << RGN_TYPE_UI)
 
 /** Check for any kind of header region. */
 #define RGN_TYPE_IS_HEADER_ANY(regiontype) \
@@ -895,7 +900,7 @@ typedef struct RegionAssetShelf {
 typedef enum AssetShelfSettings_DisplayFlag {
   ASSETSHELF_SHOW_NAMES = (1 << 0),
 } AssetShelfSettings_DisplayFlag;
-ENUM_OPERATORS(AssetShelfSettings_DisplayFlag, ASSETSHELF_SHOW_NAMES);
+ENUM_OPERATORS(AssetShelfSettings_DisplayFlag);
 
 /* #AssetShelfSettings.instance_flag */
 typedef enum AssetShelf_InstanceFlag {
@@ -906,7 +911,7 @@ typedef enum AssetShelf_InstanceFlag {
    */
   ASSETSHELF_REGION_IS_HIDDEN = (1 << 0),
 } AssetShelf_InstanceFlag;
-ENUM_OPERATORS(AssetShelf_InstanceFlag, ASSETSHELF_REGION_IS_HIDDEN);
+ENUM_OPERATORS(AssetShelf_InstanceFlag);
 
 typedef struct FileHandler {
   DNA_DEFINE_CXX_METHODS(FileHandler)

@@ -66,17 +66,22 @@
 #include "BKE_multires.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_report.hh"
 
 #include "IMB_imbuf_enums.h"
 #include "MEM_guardedalloc.h"
 
 #include "SEQ_proxy.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 
+#include "BLO_read_write.hh"
 #include "BLO_readfile.hh"
 #include "readfile.hh"
 #include "versioning_common.hh"
+
+#include "BLT_translation.hh"
+
+#include <fmt/format.h>
 
 /* Make preferences read-only, use `versioning_userdef.cc`. */
 #define U (*((const UserDef *)&U))
@@ -263,7 +268,7 @@ static void strip_convert_transform_crop_lb(const Scene *scene,
 {
 
   LISTBASE_FOREACH (Strip *, strip, lb) {
-    if (!ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD)) {
+    if (!ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD)) {
       strip_convert_transform_crop(scene, strip, render_size);
     }
     if (strip->type == STRIP_TYPE_META) {
@@ -349,7 +354,7 @@ static void strip_convert_transform_crop_lb_2(const Scene *scene,
 {
 
   LISTBASE_FOREACH (Strip *, strip, lb) {
-    if (!ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD)) {
+    if (!ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD)) {
       strip_convert_transform_crop_2(scene, strip, render_size);
     }
     if (strip->type == STRIP_TYPE_META) {
@@ -369,13 +374,13 @@ static void seq_update_meta_disp_range(Scene *scene)
   LISTBASE_FOREACH_BACKWARD (MetaStack *, ms, &ed->metastack) {
     /* Update ms->disp_range from meta. */
     if (ms->disp_range[0] == ms->disp_range[1]) {
-      ms->disp_range[0] = blender::seq::time_left_handle_frame_get(scene, ms->parent_strip);
-      ms->disp_range[1] = blender::seq::time_right_handle_frame_get(scene, ms->parent_strip);
+      ms->disp_range[0] = ms->parent_strip->left_handle();
+      ms->disp_range[1] = ms->parent_strip->right_handle(scene);
     }
 
     /* Update meta strip endpoints. */
-    blender::seq::time_left_handle_frame_set(scene, ms->parent_strip, ms->disp_range[0]);
-    blender::seq::time_right_handle_frame_set(scene, ms->parent_strip, ms->disp_range[1]);
+    ms->parent_strip->left_handle_set(scene, ms->disp_range[0]);
+    ms->parent_strip->right_handle_set(scene, ms->disp_range[1]);
 
     /* Recalculate effects using meta strip. */
     ListBase *old_seqbasep = ms->old_strip ? &ms->old_strip->seqbase : &ed->seqbase;
@@ -818,27 +823,12 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
           CustomData_get_layer(&me->face_data, CD_MPOLY));
       for (const int i : blender::IndexRange(me->faces_num)) {
         if (polys[i].totloop == 2) {
-          bool changed;
-          BKE_mesh_legacy_convert_loops_to_corners(me);
-          BKE_mesh_legacy_convert_polys_to_offsets(me);
-          BKE_mesh_validate_arrays(
-              me,
-              reinterpret_cast<float(*)[3]>(me->vert_positions_for_write().data()),
-              me->verts_num,
-              me->edges_for_write().data(),
-              me->edges_num,
-              (MFace *)CustomData_get_layer_for_write(
-                  &me->fdata_legacy, CD_MFACE, me->totface_legacy),
-              me->totface_legacy,
-              me->corner_verts().data(),
-              me->corner_edges_for_write().data(),
-              me->corners_num,
-              me->face_offsets().data(),
-              me->faces_num,
-              me->deform_verts_for_write().data(),
-              false,
-              true,
-              &changed);
+          std::string message = fmt::format(
+              fmt::runtime(RPT_("Mesh %s has invalid faces, likely caused by the manifold extrude "
+                                "tool in version 2.90.0. Opening and saving the file in a version "
+                                "prior to 5.1 should resolve the issue\n")),
+              me->id.name + 2);
+          BLO_read_invalidate_message((BlendHandle *)fd, bmain, message.c_str());
           break;
         }
       }
@@ -1424,7 +1414,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (MovieClip *, clip, &bmain->movieclips) {
         MovieTracking *tracking = &clip->tracking;
         MovieTrackingSettings *settings = &tracking->settings;
-        int new_refine_camera_intrinsics = 0;
+        TrackingRefineCameraFlag new_refine_camera_intrinsics = REFINE_NO_INTRINSICS;
 
         if (settings->refine_camera_intrinsics & REFINE_FOCAL_LENGTH) {
           new_refine_camera_intrinsics |= REFINE_FOCAL_LENGTH;

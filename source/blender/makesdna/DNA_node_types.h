@@ -16,6 +16,8 @@
 #include "DNA_texture_types.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
+#include "BLI_enum_flags.hh"
+
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
 #  include <string>
@@ -167,7 +169,6 @@ typedef struct bNodeSocket {
 
   /** Custom dynamic defined label. */
   char label[/*MAX_NAME*/ 64];
-  char short_label[/*MAX_NAME*/ 64];
   char description[/*MAX_NAME*/ 64];
 
   /**
@@ -236,11 +237,13 @@ typedef struct bNodeSocket {
    */
   bool affects_node_output() const;
   /**
-   * This becomes false when it is detected that the input socket is currently not used and its
-   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whose
-   * visibility is controlled by a menu should be hidden.
+   * This becomes false when it is detected that the socket is unused and should be hidden.
+   * Inputs: An input should be hidden if it's unused and its usage depends on a menu input (as
+   *   opposed to e.g. a boolean input).
+   * Outputs: An output is unused if it outputs the socket types fallback value as a constant given
+   *   the current set of menu inputs and its value depends on a menu input.
    */
-  bool inferred_input_socket_visibility() const;
+  bool inferred_socket_visibility() const;
   /**
    * True when the value of this socket may be a field. This is inferred during structure type
    * inferencing.
@@ -317,6 +320,12 @@ typedef enum eNodeSocketDatatype {
   SOCK_MATRIX = 16,
   SOCK_BUNDLE = 17,
   SOCK_CLOSURE = 18,
+  SOCK_FONT = 19,
+  SOCK_SCENE = 20,
+  /** Has _ID suffix to avoid using it instead of SOCK_STRING accidentally. */
+  SOCK_TEXT_ID = 21,
+  SOCK_MASK = 22,
+  SOCK_SOUND = 23,
 } eNodeSocketDatatype;
 
 /** Socket shape. */
@@ -337,7 +346,7 @@ typedef enum eNodeSocketInOut {
   SOCK_IN = 1 << 0,
   SOCK_OUT = 1 << 1,
 } eNodeSocketInOut;
-ENUM_OPERATORS(eNodeSocketInOut, SOCK_OUT);
+ENUM_OPERATORS(eNodeSocketInOut);
 
 /** #bNodeSocket.flag, first bit is selection. */
 typedef enum eNodeSocketFlag {
@@ -356,16 +365,14 @@ typedef enum eNodeSocketFlag {
   SOCK_HIDE_VALUE = (1 << 7),
   /** Socket hidden automatically, to distinguish from manually hidden. */
   SOCK_AUTO_HIDDEN__DEPRECATED = (1 << 8),
-  SOCK_NO_INTERNAL_LINK = (1 << 9),
-  /** Draw socket in a more compact form. */
-  SOCK_COMPACT = (1 << 10),
+  /** Not used anymore but may still be set in files. */
+  SOCK_NO_INTERNAL_LINK_LEGACY = (1 << 9),
+  /** Not used anymore but may still be set in files. */
+  SOCK_COMPACT_LEGACY = (1 << 10),
   /** Make the input socket accept multiple incoming links in the UI. */
   SOCK_MULTI_INPUT = (1 << 11),
-  /**
-   * Don't show the socket's label in the interface, for situations where the
-   * type is obvious and the name takes up too much space.
-   */
-  SOCK_HIDE_LABEL = (1 << 12),
+  /** Not used anymore but may still be set in files. */
+  SOCK_HIDE_LABEL_LEGACY = (1 << 12),
   /**
    * Only used for geometry nodes. Don't show the socket value in the modifier interface.
    */
@@ -1038,6 +1045,26 @@ typedef struct bNodeSocketValueMaterial {
   struct Material *value;
 } bNodeSocketValueMaterial;
 
+typedef struct bNodeSocketValueFont {
+  struct VFont *value;
+} bNodeSocketValueFont;
+
+typedef struct bNodeSocketValueScene {
+  struct Scene *value;
+} bNodeSocketValueScene;
+
+typedef struct bNodeSocketValueText {
+  struct Text *value;
+} bNodeSocketValueText;
+
+typedef struct bNodeSocketValueMask {
+  struct Mask *value;
+} bNodeSocketValueMask;
+
+typedef struct bNodeSocketValueSound {
+  struct bSound *value;
+} bNodeSocketValueSound;
+
 typedef struct bNodeSocketValueMenu {
   /* Default input enum identifier. */
   int value;
@@ -1053,6 +1080,8 @@ typedef struct bNodeSocketValueMenu {
 
 typedef struct GeometryNodeAssetTraits {
   int flag;
+  char _pad[4];
+  char *node_tool_idname;
 } GeometryNodeAssetTraits;
 
 typedef enum GeometryNodeAssetTraitFlag {
@@ -1070,7 +1099,7 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_PAINT = (1 << 10),
   GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL = (1 << 11),
 } GeometryNodeAssetTraitFlag;
-ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL);
+ENUM_OPERATORS(GeometryNodeAssetTraitFlag);
 
 /* Data structs, for `node->storage`. */
 
@@ -2305,7 +2334,9 @@ typedef struct NodeClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type;
+  char _pad[1];
   int identifier;
 } NodeClosureOutputItem;
 
@@ -2325,9 +2356,16 @@ typedef struct NodeClosureOutputItems {
   char _pad[4];
 } NodeClosureOutputItems;
 
+typedef enum NodeClosureFlag {
+  NODE_CLOSURE_FLAG_DEFINE_SIGNATURE = (1 << 0),
+} NodeClosureFlag;
+
 typedef struct NodeClosureOutput {
   NodeClosureInputItems input_items;
   NodeClosureOutputItems output_items;
+  /** #NodeClosureFlag. */
+  uint8_t flag;
+  char _pad[7];
 } NodeClosureOutput;
 
 typedef struct NodeEvaluateClosureInputItem {
@@ -2350,6 +2388,10 @@ typedef struct NodeEvaluateClosureOutputItem {
   int identifier;
 } NodeEvaluateClosureOutputItem;
 
+typedef enum NodeEvaluateClosureFlag {
+  NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE = (1 << 0),
+} NodeEvaluateClosureFlag;
+
 typedef struct NodeEvaluateClosureInputItems {
   NodeEvaluateClosureInputItem *items;
   int items_num;
@@ -2369,6 +2411,9 @@ typedef struct NodeEvaluateClosureOutputItems {
 typedef struct NodeEvaluateClosure {
   NodeEvaluateClosureInputItems input_items;
   NodeEvaluateClosureOutputItems output_items;
+  /** #NodeEvaluateClosureFlag. */
+  uint8_t flag;
+  char _pad[7];
 } NodeEvaluateClosure;
 
 typedef struct IndexSwitchItem {
@@ -2391,6 +2436,24 @@ typedef struct NodeIndexSwitch {
   blender::MutableSpan<IndexSwitchItem> items_span();
 #endif
 } NodeIndexSwitch;
+
+typedef struct GeometryNodeFieldToGridItem {
+  /** #eNodeSocketDatatype. */
+  int8_t data_type;
+  char _pad[3];
+  int identifier;
+  char *name;
+} GeometryNodeFieldToGridItem;
+
+typedef struct GeometryNodeFieldToGrid {
+  /** #eNodeSocketDatatype. */
+  int8_t data_type;
+  char _pad[3];
+  int next_identifier;
+  GeometryNodeFieldToGridItem *items;
+  int items_num;
+  int active_index;
+} GeometryNodeFieldToGrid;
 
 typedef struct NodeGeometryDistributePointsInVolume {
   /** #GeometryNodePointDistributeVolumeMode. */
@@ -2489,30 +2552,46 @@ typedef struct NodeCombineBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type;
+  char _pad[1];
 } NodeCombineBundleItem;
+
+typedef enum NodeCombineBundleFlag {
+  NODE_COMBINE_BUNDLE_FLAG_DEFINE_SIGNATURE = (1 << 0),
+} NodeCombineBundleFlag;
 
 typedef struct NodeCombineBundle {
   NodeCombineBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  char _pad[4];
+  /** #NodeCombineBundleFlag. */
+  uint8_t flag;
+  char _pad[3];
 } NodeCombineBundle;
 
 typedef struct NodeSeparateBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type;
+  char _pad[1];
 } NodeSeparateBundleItem;
+
+typedef enum NodeSeparateBundleFlag {
+  NODE_SEPARATE_BUNDLE_FLAG_DEFINE_SIGNATURE = (1 << 0),
+} NodeSeparateBundleFlag;
 
 typedef struct NodeSeparateBundle {
   NodeSeparateBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  char _pad[4];
+  /** #NodeSeparateBundleFlag. */
+  uint8_t flag;
+  char _pad[3];
 } NodeSeparateBundle;
 
 typedef struct NodeFunctionFormatStringItem {
@@ -3309,7 +3388,12 @@ typedef enum GeometryNodeMergeByDistanceMode {
 typedef enum GeometryNodeUVUnwrapMethod {
   GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED = 0,
   GEO_NODE_UV_UNWRAP_METHOD_CONFORMAL = 1,
+  GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH = 2,
 } GeometryNodeUVUnwrapMethod;
+
+typedef enum GeometryNodeRealizeInstanceFlag {
+  GEO_NODE_REALIZE_TO_POINT_DOMAIN = (1 << 0),
+} GeometryNodeRealizeInstanceFlag;
 
 typedef enum GeometryNodeMeshLineMode {
   GEO_NODE_MESH_LINE_MODE_END_POINTS = 0,
