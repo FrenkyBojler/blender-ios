@@ -198,7 +198,7 @@ static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event
 
 #define BUTTON_FLASH_DELAY 0.020
 #define MENU_SCROLL_INTERVAL 0.1
-static constexpr double MENU_KEEP_ALIVE_INTERVAL = 2.0;
+static constexpr double MENU_KEEP_ALIVE_THRESH = 1.25;
 #define PIE_MENU_INTERVAL 0.01
 #define BUTTON_AUTO_OPEN_THRESH 0.2
 #define BUTTON_MOUSE_TOWARDS_THRESH 1.0
@@ -10796,12 +10796,14 @@ static int ui_handle_menu_event(bContext *C,
   }
 #endif
 
+  /* Remove the #menu::keep_alive_timer once the mouse is withing the popup.  */
   if (!menu->mmd_panning && inside) {
     if (menu->keep_alive_timer) {
       WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_alive_timer);
       menu->keep_alive_timer = nullptr;
     }
   }
+  /* Once #menu::keep_alive_timer ticks the menu can be closed automatically.  */
   if (event->type == TIMER && event->customdata == menu->keep_alive_timer) {
     WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_alive_timer);
     menu->keep_alive_timer = nullptr;
@@ -10813,10 +10815,13 @@ static int ui_handle_menu_event(bContext *C,
     WM_cursor_grab_disable(win, nullptr);
     menu->mmd_panning = false;
     if (!inside) {
+      /* Set the threshold to prevent from closing the menu when middle mouse button panning
+       * finished outside the menu bounds. */
       menu->keep_alive_timer = WM_event_timer_add(
-          CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_KEEP_ALIVE_INTERVAL);
+          CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_KEEP_ALIVE_THRESH);
     }
   }
+  /* Handle middle mouse panning. */
   else if (menu->mmd_panning && event->type == MOUSEMOVE) {
     const int delta = (menu->mmd_panning_last_y - event->xy[1]) *
                       (event->flag & WM_EVENT_SCROLL_INVERT ? 1 : -1);
@@ -10837,12 +10842,15 @@ static int ui_handle_menu_event(bContext *C,
       ui_mouse_motion_towards_reinit(menu, event->xy);
     }
   }
+  /* Don't auto-scroll while panning with the middle mouse button. */
   else if (event->type == TIMER && !menu->mmd_panning && !menu->keep_alive_timer) {
     if (event->customdata == menu->scrolltimer) {
       ui_menu_scroll_to_y(region, block, my);
     }
   }
   else if (event->type == MIDDLEMOUSE && (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM))) {
+    /* Let parent menus to handle middle mouse panning if the mouse is not withing the current
+     * menu. */
     if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0)) {
     }
     else {
@@ -10862,7 +10870,9 @@ static int ui_handle_menu_event(bContext *C,
         rcti bounds;
         BLI_rcti_rctf_copy(&bounds, &rectf);
         WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
-        WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &bounds, false);
+        if (U.uiflag & USER_CONTINUOUS_MOUSE) {
+          WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &bounds, false);
+        }
       }
       retval = WM_UI_HANDLER_BREAK;
     }
@@ -12144,6 +12154,8 @@ static bool ui_can_activate_other_menu(Button *but, Button *but_other, const wmE
     return false;
   }
 
+  /* Prevent menus from being closed while middle mouse button panning is performed or have just
+   * finished and is withing the a threshold. */
   if (data->menu && data->menu->region) {
     PopupBlockHandle *submenu = data->menu;
     while (submenu) {
