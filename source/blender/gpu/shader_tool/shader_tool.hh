@@ -453,6 +453,8 @@ class Preprocessor {
 
   /* Cannot use `__` because of some compilers complaining about reserved symbols. */
   static constexpr const char *namespace_separator = "_";
+  /* Add a prefix to all member functions so that they are not clashing with local variables. */
+  static constexpr const char *method_call_prefix = "_";
 
   static SourceLanguage language_from_filename(const std::string &filename)
   {
@@ -2536,6 +2538,9 @@ class Preprocessor {
               const char *suffix = (has_no_args ? "" : ", ");
               const string prefix = (is_resource_table ? "[[resource_table]] " : "");
 
+              /* Add a prefix to all member functions. */
+              parser.insert_before(fn_name, method_call_prefix);
+
               if (is_const && !is_resource_table) {
                 parser.erase(const_tok);
                 parser.insert_after(fn_args.start(),
@@ -2661,9 +2666,9 @@ class Preprocessor {
             break;
           }
           string this_str = parser.substr_range_inclusive(start_of_this, end_of_this);
-          string func_str = func.str();
+          string func_str = method_call_prefix + func.str();
           const bool has_no_arg = par_open.next() == ')';
-          /* `a.fn(b)` -> `fn(a, b)` */
+          /* `a.fn(b)` -> `_fn(a, b)` */
           parser.replace_try(
               start_of_this, par_open, func_str + "(" + this_str + (has_no_arg ? "" : ", "));
         });
