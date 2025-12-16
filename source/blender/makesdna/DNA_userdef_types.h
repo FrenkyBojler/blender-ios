@@ -626,9 +626,6 @@ typedef struct UserDef {
   char file_preview_type; /* eUserpref_File_Preview_Type */
   char statusbar_flag;    /* eUserpref_StatusBar_Flag */
 
-  char save_modified_images; /* eUserpref_Save_Modified_Images */
-  char _pad19[7];
-
   struct WalkNavigation walk_navigation;
   struct XrNavigation xr_navigation;
 
@@ -720,13 +717,6 @@ typedef enum eUserPref_Flag {
 typedef enum eUserPref_ExtensionFlag {
   USER_EXTENSION_FLAG_ONLINE_ACCESS_HANDLED = 1 << 0,
 } eUserPref_ExtensionFlag;
-
-/** #UserDef.save_modified_images */
-typedef enum eUserpref_Save_Modified_Images {
-  USER_SAVE_MODIFIED_IMAGES_ASK = 0,
-  USER_SAVE_MODIFIED_IMAGES_ALWAYS,
-  USER_SAVE_MODIFIED_IMAGES_NEVER,
-} eUserpref_Save_Modified_Images;
 
 /** #UserDef.file_preview_type */
 typedef enum eUserpref_File_Preview_Type {
