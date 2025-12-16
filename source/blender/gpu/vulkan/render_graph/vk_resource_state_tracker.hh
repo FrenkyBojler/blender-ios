@@ -194,7 +194,7 @@ class VKResourceStateTracker {
   /**
    * \brief Update the layout of an image that has been externally modified.
    *
-   * 'vkTransitionImageLayout' changes the image layout. When used the the image layout needs to be
+   * 'vkTransitionImageLayout' changes the image layout. When used the image layout needs to be
    * updated to match the current layout, ensuring correct generation of pipeline barriers.
    *
    * \name vk_image:        VkImage handle to update the image layout for.
