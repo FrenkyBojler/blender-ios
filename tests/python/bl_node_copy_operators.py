@@ -136,6 +136,13 @@ def node_editor_context_override(context=None, selected_nodes=[], active_node=No
     return context.temp_override(**context_override)
 
 
+def node_frame_children(frame_node):
+    tree = frame_node.id_data
+    for node in tree.nodes:
+        if node.parent == frame_node:
+            yield node
+
+
 class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
     test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
     group_nodes_single = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
@@ -143,7 +150,7 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
 
     def open_file(self):
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "node_copy_operators.blend"))
-        self.assertEqual(bpy.data.version, (5, 1, 12))
+        self.assertEqual(bpy.data.version, (5, 1, 14))
 
     def compare_value(self, type, value_a, value_b):
         if type in {'VECTOR', 'ROTATION', 'MATRIX', 'RGBA'}:
@@ -152,13 +159,16 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         else:
             self.assertEqual(value_a, value_b)
 
-    def compare_socket(self, test_socket, expected_socket):
+    def compare_socket(self, test_socket, node_map, socket_map):
+        expected_socket = socket_map[test_socket]
         with self.subTest(test_socket=test_socket.name, expected_socket=expected_socket.name):
+            # Generic socket properties
             self.assertEqual(test_socket.name, expected_socket.name)
             self.assertEqual(test_socket.bl_idname, expected_socket.bl_idname)
             self.assertEqual(test_socket.type, expected_socket.type)
             self.assertEqual(test_socket.description, expected_socket.description)
             self.assertEqual(test_socket.is_output, expected_socket.is_output)
+            # Input value
             if not expected_socket.is_output:
                 self.assertEqual(test_socket.hide_value, expected_socket.hide_value)
                 test_has_value = hasattr(test_socket, "default_value")
@@ -166,14 +176,27 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 self.assertEqual(test_has_value, expected_has_value)
                 if test_has_value and expected_has_value:
                     self.compare_value(expected_socket.type, test_socket.default_value, expected_socket.default_value)
+            # Links
+            self.assertEqual(test_socket.is_linked, expected_socket.is_linked)
+            if expected_socket.is_linked:
+                self.assertEqual(len(test_socket.links), len(expected_socket.links))
+                for test_link, expected_link in zip(test_socket.links, expected_socket.links):
+                    if expected_socket.is_output:
+                        self.assertEqual(node_map[test_link.to_node], expected_link.to_node)
+                        self.assertEqual(socket_map[test_link.to_socket], expected_link.to_socket)
+                    else:
+                        self.assertEqual(node_map[test_link.from_node], expected_link.from_node)
+                        self.assertEqual(socket_map[test_link.from_socket], expected_link.from_socket)
 
-    def compare_nodes(self, test_node, expected_node):
+    def compare_nodes(self, test_node, node_map, socket_map):
+        expected_node = node_map[test_node]
+
         self.assertEqual(len(test_node.inputs), len(expected_node.inputs))
         self.assertEqual(len(test_node.outputs), len(expected_node.outputs))
-        for test_socket, expected_socket in zip(test_node.inputs, expected_node.inputs):
-            self.compare_socket(test_socket, expected_socket)
-        for test_socket, expected_socket in zip(test_node.outputs, expected_node.outputs):
-            self.compare_socket(test_socket, expected_socket)
+        for test_socket in test_node.inputs:
+            self.compare_socket(test_socket, node_map, socket_map)
+        for test_socket in test_node.outputs:
+            self.compare_socket(test_socket, node_map, socket_map)
 
     def compare_tree_interface(self, test_tree, expected_tree):
         test_items = test_tree.interface.items_tree
@@ -184,24 +207,55 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
             ex_io = getattr(ex, "in_out", None)
             # print(f"{te.item_type}|{ex.item_type}, {te_io}|{ex_io}, {te.name}|{ex.name}")
 
-    def make_node_group_single(self, test_node, expected_node):
-        with self.subTest(test_node=test_node.name, expected_node=expected_node.name):
-            tree = test_node.id_data
-            with node_editor_context_override(selected_nodes=[test_node]):
-                bpy.ops.node.group_make()
-            group_node = tree.nodes.active
-
-            # Compare generated group node to expected node.
-            self.compare_nodes(group_node, expected_node)
-            # Compare generated group tree interface to expected tree.
-            self.compare_tree_interface(group_node.node_tree, expected_node.node_tree)
+    @staticmethod
+    def build_socket_map(node_map):
+        socket_map = dict()
+        for test_node, expected_node in node_map.items():
+            for test_socket, expected_socket in zip(test_node.inputs, expected_node.inputs):
+                socket_map[test_socket] = expected_socket
+            for test_socket, expected_socket in zip(test_node.outputs, expected_node.outputs):
+                socket_map[test_socket] = expected_socket
+        return socket_map
 
     def test_make_node_group_single(self):
-        self.open_file()
-        tree = bpy.data.node_groups['Geometry Nodes']
-        self.make_node_group_single(tree.nodes["TestNode.Defaults"], tree.nodes["GroupNode.Defaults"])
-        self.make_node_group_single(tree.nodes["TestNode.InputValues"], tree.nodes["GroupNode.InputValues"])
-        self.make_node_group_single(tree.nodes["TestNode.Links"], tree.nodes["GroupNode.Links"])
+        test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
+        expected_group_nodes = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
+        # Frame nodes containing linked reroutes to test operator handling of node links.
+        test_inputs = [None, None, "TestInputs"]
+        test_outputs = [None, None, "TestOutputs"]
+        expected_inputs = [None, None, "TestInputs.001"]
+        expected_outputs = [None, None, "TestOutputs.001"]
+        for test_node_name, expected_group_node_name, test_inputs_name, test_outputs_name, expected_inputs_name, expected_outputs_name in zip(
+            test_nodes, expected_group_nodes, test_inputs, test_outputs, expected_inputs, expected_outputs):
+            with self.subTest(test_node=test_node_name, expected_group_node=expected_group_node_name):
+                self.open_file()
+                tree = bpy.data.node_groups['Geometry Nodes']
+                test_node = tree.nodes[test_node_name]
+                expected_group_node = tree.nodes[expected_group_node_name]
+                test_inputs = tree.nodes[test_inputs_name] if test_inputs_name else None
+                test_outputs = tree.nodes[test_outputs_name] if test_outputs_name else None
+                expected_inputs = tree.nodes[expected_inputs_name] if expected_inputs_name else None
+                expected_outputs = tree.nodes[expected_outputs_name] if expected_outputs_name else None
+
+                with node_editor_context_override(selected_nodes=[test_node]):
+                    bpy.ops.node.group_make()
+                group_node = tree.nodes.active
+
+                # Map operator result to expected nodes.
+                node_map = dict()
+                node_map[group_node] = expected_group_node
+                if expected_inputs:
+                    for test_input, expected_input in zip(node_frame_children(test_inputs), node_frame_children(expected_inputs)):
+                        node_map[test_input] = expected_input
+                if expected_outputs:
+                    for test_output, expected_output in zip(node_frame_children(test_outputs), node_frame_children(expected_outputs)):
+                        node_map[test_output] = expected_output
+                socket_map = self.build_socket_map(node_map)
+
+                # Compare generated group node to expected node.
+                self.compare_nodes(group_node, node_map, socket_map)
+                # Compare generated group tree interface to expected tree.
+                self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
 
 def main():
