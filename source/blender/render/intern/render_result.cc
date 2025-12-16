@@ -783,10 +783,20 @@ void render_result_views_new(RenderResult *rr, const RenderData *rd)
 }
 
 /** \} */
-
 /* -------------------------------------------------------------------- */
 /** \name Merge
  * \{ */
+
+static void crop_image(float *image, rcti size_from, rcti size_to, int pixsize)
+{
+  for (int line_num = size_to.ymin; line_num < size_to.ymax; line_num++) {
+    int from = ((size_to.xmin) + (size_from.xmax - size_from.xmin) * line_num) * pixsize;
+    int to = (size_to.xmax - size_to.xmin) * pixsize * (line_num - size_to.ymin);
+    int copylen = (size_to.xmax - size_to.xmin) * pixsize * sizeof(float);
+
+    memmove(image + to, image + from, copylen);
+  }
+}
 
 static void do_merge_tile(
     RenderResult *rr, RenderResult *rrpart, float *target, float *tile, int pixsize)
@@ -794,23 +804,17 @@ static void do_merge_tile(
   int y, tilex, tiley;
   size_t ofs, copylen;
 
-  // bool is_border_render = rrpart->tilerect.xmin != 0 && rrpart->tilerect.ymin != 0 &&
-  //                         rrpart->tilerect.xmax != rrpart->rectx &&
-  //                         rrpart->tilerect.ymax != rrpart->recty;
-
-  bool already_uncroped = rr->rectx == rrpart->rectx && rr->recty == rrpart->recty;
   // Used by eevee, since in cases of border overlay the result comes already with a size of the
   // full render size.
-  if (already_uncroped) {
-    copylen = tilex = rrpart->rectx;
-    tiley = rrpart->recty;
-    ofs = 0;
+  bool is_uncropped_result = rr->rectx == rrpart->rectx && rr->recty == rrpart->recty;
+  if (is_uncropped_result) {
+    crop_image(tile, rr->tilerect, rrpart->tilerect, pixsize);
   }
   else {
-    copylen = tilex = rrpart->tilerect.xmax - rrpart->tilerect.xmin;
-    tiley = rrpart->tilerect.ymax - rrpart->tilerect.ymin;
-    ofs = (size_t(rrpart->tilerect.ymin) * rr->rectx + rrpart->tilerect.xmin);
   }
+  copylen = tilex = rrpart->tilerect.xmax - rrpart->tilerect.xmin;
+  tiley = rrpart->tilerect.ymax - rrpart->tilerect.ymin;
+  ofs = (size_t(rrpart->tilerect.ymin) * rr->rectx + rrpart->tilerect.xmin);
 
   target += pixsize * ofs;
 
