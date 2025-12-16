@@ -2222,6 +2222,27 @@ static wmOperatorStatus search_enum_invoke(bContext *C, wmOperator *op, const wm
 
 static wmOperatorStatus search_enum_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
+
+  const int value = RNA_enum_get(op->ptr, "enum");
+
+  std::string rna_path = RNA_string_get(op->ptr, "rna_path");
+  int owner_session_uid = RNA_int_get(op->ptr, "owner_session_uid");
+  ID *owner_id = owner_session_uid >= 0 ? BKE_libblock_find_session_uid(bmain, owner_session_uid) :
+                                          nullptr;
+
+  PointerRNA search_prop_owner;
+  PropertyRNA *search_prop = nullptr;
+  int index = 0;
+  PointerRNA id_ptr = RNA_id_pointer_create(owner_id);
+  if (!RNA_path_resolve_property_full(
+          &id_ptr, rna_path.c_str(), &search_prop_owner, &search_prop, &index))
+  {
+    return OPERATOR_CANCELLED;
+  }
+
+  RNA_property_enum_set(&search_prop_owner, search_prop, value);
+  RNA_property_update(C, &search_prop_owner, search_prop);
   return OPERATOR_FINISHED;
 }
 
@@ -2238,11 +2259,10 @@ static const EnumPropertyItem *search_enum_items(bContext *C,
   ID *owner_id = owner_session_uid >= 0 ? BKE_libblock_find_session_uid(bmain, owner_session_uid) :
                                           nullptr;
 
-  PointerRNA id_ptr = RNA_id_pointer_create(owner_id);
-
   PointerRNA search_prop_owner;
   PropertyRNA *search_prop = nullptr;
   int index = 0;
+  PointerRNA id_ptr = RNA_id_pointer_create(owner_id);
   if (!RNA_path_resolve_property_full(
           &id_ptr, rna_path.c_str(), &search_prop_owner, &search_prop, &index))
   {
