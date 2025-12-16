@@ -669,6 +669,8 @@ static bool node_group_separate_selected(
     BKE_ntree_update_tag_all(&ngroup);
   }
 
+  DEG_relations_tag_update(&bmain);
+
   return true;
 }
 
@@ -1241,7 +1243,7 @@ static void node_group_make_insert_selected(const bContext &C,
   }
 
   if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
-    bke::node_structure_type_inferencing::update_structure_type_interface(group);
+    BKE_ntree_update(*bmain, Span<bNodeTree *>{&group});
   }
 
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
