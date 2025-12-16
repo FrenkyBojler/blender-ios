@@ -121,7 +121,9 @@ using blender::float4x4;
  * See gpu_shader_compat_cxx.hh for the C++ stub implementation.
  * This implementation needs to have the correct base type and can safely cast to it.
  */
-template<typename T> struct union_t : public T {
+template<typename T> struct union_t {
+  T data;
+
   const T &operator()() const
   {
     return *reinterpret_cast<const T *>(this);
