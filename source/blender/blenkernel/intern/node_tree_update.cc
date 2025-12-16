@@ -1992,6 +1992,7 @@ class NodeTreeMainUpdater {
     ntree.runtime->changed_flag = NTREE_CHANGED_NOTHING;
     for (bNode *node : ntree.all_nodes()) {
       node->runtime->changed_flag = NTREE_CHANGED_NOTHING;
+      node->runtime->update = 0;
       LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
         socket->runtime->changed_flag = NTREE_CHANGED_NOTHING;
       }
@@ -2129,6 +2130,7 @@ void BKE_ntree_update_tag_id_changed(Main *bmain, ID *id)
   FOREACH_NODETREE_BEGIN (bmain, ntree, ntree_id) {
     for (bNode *node : ntree->all_nodes()) {
       if (node->id == id) {
+        node->runtime->update |= NODE_UPDATE_ID;
         add_node_tag(ntree, node, NTREE_CHANGED_NODE_PROPERTY);
       }
     }

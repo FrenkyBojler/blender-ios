@@ -5073,6 +5073,11 @@ float2 node_dimensions_get(const bNode &node)
          float2(node.runtime->draw_bounds.xmin, node.runtime->draw_bounds.ymin);
 }
 
+void node_tag_update_id(bNode &node)
+{
+  node.runtime->update |= NODE_UPDATE_ID;
+}
+
 void node_internal_links(bNode &node, bNodeLink **r_links, int *r_len)
 {
   *r_links = node.runtime->internal_links.data();

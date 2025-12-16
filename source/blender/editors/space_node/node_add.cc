@@ -981,6 +981,7 @@ static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
     }
     else {
       node->id = (ID *)image;
+      blender::bke::node_tag_update_id(*node);
     }
     BKE_ntree_update_tag_node_property(&node_tree, node);
     nodes.append(node);

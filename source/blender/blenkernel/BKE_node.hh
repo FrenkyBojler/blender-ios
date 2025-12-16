@@ -706,6 +706,7 @@ void node_remove_node(
     Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user, bool remove_animation = true);
 
 float2 node_dimensions_get(const bNode &node);
+void node_tag_update_id(bNode &node);
 void node_internal_links(bNode &node, bNodeLink **r_links, int *r_len);
 
 /**

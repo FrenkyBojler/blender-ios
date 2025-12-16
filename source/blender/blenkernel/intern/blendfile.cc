@@ -49,7 +49,6 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
-#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
@@ -1152,26 +1151,11 @@ static void setup_app_data(bContext *C,
 
   BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
-  const bool file_path_changed = !STREQ(BKE_main_blendfile_path(G_MAIN),
-                                        BKE_main_blendfile_path(bfd->main));
-
   /* This frees the `old_bmain`. */
   BKE_blender_globals_main_replace(bfd->main);
   bmain = G_MAIN;
   bfd->main = nullptr;
   CTX_data_main_set(C, bmain);
-
-  /* If the file path of the current main is different from that of the new main, then images that
-   * use relative paths need a source change signal, because file loading code might have loaded an
-   * image with the old file path, which most likely failed, so relevant image users need to be
-   * updated again. */
-  if (file_path_changed) {
-    LISTBASE_FOREACH (Image *, image, &bmain->images) {
-      if (BLI_path_is_rel(image->filepath)) {
-        BKE_image_signal(bmain, image, nullptr, IMA_SIGNAL_SRC_CHANGE);
-      }
-    }
-  }
 
   BLI_assert(BKE_main_namemap_validate(*bmain));
 

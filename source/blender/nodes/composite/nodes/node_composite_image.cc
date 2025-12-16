@@ -46,17 +46,20 @@ static BaseSocketDeclarationBuilder &declare_existing_output(NodeDeclarationBuil
     const int dimensions = output->default_value_typed<bNodeSocketValueVector>()->dimensions;
     return b.add_output<decl::Vector>(output->name)
         .dimensions(dimensions)
-        .structure_type(StructureType::Dynamic);
+        .structure_type(StructureType::Dynamic)
+        .available(output->is_available());
   }
   return b.add_output(eNodeSocketDatatype(output->type), output->name)
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .available(output->is_available());
 }
 
 /* Declares the already existing outputs. This is done in cases where the passes can not be read
  * due to an invalid image to retain the links and give the user the opportunity to update the
  * image such that becomes valid again. */
-static void declare_existing(NodeDeclarationBuilder &b, const bNode *node)
+static void declare_existing(NodeDeclarationBuilder &b)
 {
+  const bNode *node = b.node_or_null();
   LISTBASE_FOREACH (const bNodeSocket *, output, &node->outputs) {
     declare_existing_output(b, output);
   }
@@ -101,21 +104,20 @@ static void declare_pass(NodeDeclarationBuilder &b, const RenderPass &pass)
 
 static void node_declare_multi_layer(NodeDeclarationBuilder &b,
                                      Image *image,
-                                     const ImageUser *image_user,
-                                     const bNode *node)
+                                     const ImageUser *image_user)
 {
   RenderResult *render_result = BKE_image_acquire_renderresult(nullptr, image);
   BLI_SCOPED_DEFER([&]() { BKE_image_release_renderresult(nullptr, image, render_result); });
 
   if (!render_result) {
-    declare_existing(b, node);
+    declare_existing(b);
     return;
   }
 
   RenderLayer *render_layer = static_cast<RenderLayer *>(
       BLI_findlink(&render_result->layers, image_user->layer));
   if (!render_layer) {
-    declare_existing(b, node);
+    declare_existing(b);
     return;
   }
 
@@ -181,6 +183,12 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
+  /* Avoid unnecessary updates, only changes to the Image/Image User data are of interest. */
+  if (!(node->runtime->update & NODE_UPDATE_ID)) {
+    declare_existing(b);
+    return;
+  }
+
   BLI_SCOPED_DEFER([&]() { declare_old_linked_outputs(b); });
 
   Image *image = reinterpret_cast<Image *>(node->id);
@@ -197,7 +205,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  node_declare_multi_layer(b, image, image_user, node);
+  node_declare_multi_layer(b, image, image_user);
 }
 
 static void node_init(bNodeTree * /*node_tree*/, bNode *node)

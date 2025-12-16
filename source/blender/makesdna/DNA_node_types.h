@@ -648,6 +648,12 @@ enum {
   NODE_ACTIVE_PAINT_CANVAS = 1 << 19,
 };
 
+/** bNode::update */
+enum {
+  /** Associated id data block has changed. */
+  NODE_UPDATE_ID = 1,
+};
+
 /**
  * Unique hash key for identifying node instances
  * Defined as a struct because DNA does not support other typedefs.
