@@ -534,6 +534,7 @@ class Preprocessor {
         parser.apply_mutations();
 
         /* Linting phase. Detect valid syntax with invalid usage. */
+        lint_host_shared_structures(parser, report_error);
         lint_unbraced_statements(parser, report_error);
         lint_reserved_tokens(parser, report_error);
         lint_attributes(parser, report_error);
@@ -541,6 +542,8 @@ class Preprocessor {
         if (do_small_type_linting) {
           lint_small_types_in_structs(parser, report_error);
         }
+
+        parser.apply_mutations();
 
         /* Lint and remove SRT accessor templates before lowering template. */
         lower_srt_accessor_templates(parser, report_error);
@@ -574,6 +577,10 @@ class Preprocessor {
         lower_strings(parser, report_error);
         lower_printf(parser, report_error);
         /* Lower other C++ constructs. */
+        lower_implicit_return_types(parser, report_error);
+        lower_initializer_implicit_types(parser, report_error);
+        lower_designated_initializers(parser, report_error);
+        lower_aggregate_initializers(parser, report_error);
         lower_array_initializations(parser, report_error);
         lower_scope_resolution_operators(parser, report_error);
         /* Lower references. */
@@ -1584,7 +1591,8 @@ class Preprocessor {
         processed_functions.emplace(fn_name.str());
         process_symbol(fn_name);
       });
-      scope.foreach_struct([&](Token, Token struct_name, Scope) { process_symbol(struct_name); });
+      scope.foreach_struct(
+          [&](Token, Scope, Token struct_name, Scope) { process_symbol(struct_name); });
 
       /* Pipeline declarations. */
       scope.foreach_match("ww(w", [&](vector<Token> toks) {
@@ -2168,7 +2176,7 @@ class Preprocessor {
       return (type == "frag_color" || type == "frag_depth" || type == "frag_stencil_ref");
     };
 
-    parser().foreach_struct([&](Token struct_tok, Token struct_name, Scope body) {
+    parser().foreach_struct([&](Token struct_tok, Scope, Token struct_name, Scope body) {
       SrtType srt_type = SrtType::undefined;
       bool has_srt_members = false;
 
@@ -2406,7 +2414,7 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    parser().foreach_struct([&](Token, Token, Scope body) {
+    parser().foreach_struct([&](Token, Scope, Token, Scope body) {
       vector<Token> members_tokens;
       vector<Token> methods_tokens;
 
@@ -2499,6 +2507,7 @@ class Preprocessor {
 
     /* Add `this` parameter and fold static keywords into function name. */
     parser().foreach_struct([&](Token struct_tok,
+                                Scope,
                                 const Token struct_name,
                                 const Scope struct_scope) {
       const Scope attributes = struct_tok.prev().scope();
@@ -2549,7 +2558,7 @@ class Preprocessor {
     parser.apply_mutations();
 
     /* Copy method functions outside of struct scope. */
-    parser().foreach_struct([&](Token, const Token, const Scope struct_scope) {
+    parser().foreach_struct([&](Token, Scope, const Token, const Scope struct_scope) {
       const Token struct_end = struct_scope.end().next();
 
       bool has_methods = false;
@@ -2992,6 +3001,133 @@ class Preprocessor {
     } while (parser.apply_mutations());
   }
 
+  void lint_host_shared_structures(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_struct([&](Token, Scope attributes, Token struct_name, Scope body) {
+      if (attributes.is_invalid()) {
+        return;
+      }
+      parser.erase(attributes.scope());
+      bool is_shared = false;
+      bool unchecked = false;
+      attributes.foreach_attribute([&](Token attr, Scope) {
+        if (attr.str() == "host_shared") {
+          is_shared = true;
+        }
+        else if (attr.str() == "unchecked") {
+          unchecked = true;
+        }
+      });
+      if (!is_shared || unchecked) {
+        return;
+      }
+
+      Token comma = body.find_token(',');
+      if (comma.is_valid()) {
+        report_error(
+            ERROR_TOK(comma),
+            "comma declaration is not supported in shared struct, expand to multiple definition");
+        return;
+      }
+
+      struct Type {
+        size_t size;
+        size_t alignment;
+      };
+      unordered_map<string, Type> sizeof_types = {
+          {"float", {4, 4}},
+          {"float2", {8, 8}},
+          {"float4", {16, 16}},
+          {"float2x4", {16 * 2, 16}},
+          {"float3x4", {16 * 3, 16}},
+          {"float4x4", {16 * 4, 16}},
+          {"bool32_t", {4, 4}},
+          {"int", {4, 4}},
+          {"int2", {8, 8}},
+          {"int4", {16, 16}},
+          {"uint", {4, 4}},
+          {"uint2", {8, 8}},
+          {"uint4", {16, 16}},
+          {"string_t", {4, 4}},
+          {"packed_float3", {12, 16}},
+          {"packed_int3", {12, 16}},
+          {"packed_uint3", {12, 16}},
+      };
+
+      size_t offset = 0;
+      body.foreach_declaration([&](Scope, Token, Token type, Scope, Token, Scope, Token) {
+        string type_str = type.str();
+        if (type_str == "float3") {
+          report_error(ERROR_TOK(type), "use packed_float3 instead of float3 in shared structure");
+        }
+        else if (type_str == "uint3") {
+          report_error(ERROR_TOK(type), "use packed_uint3 instead of uint3 in shared structure");
+        }
+        else if (type_str == "int3") {
+          report_error(ERROR_TOK(type), "use packed_int3 instead of int3 in shared structure");
+        }
+        else if (type_str == "bool") {
+          report_error(ERROR_TOK(type), "bool is not allowed in shared structure, use bool32_t");
+        }
+        else if (type_str == "float4x3") {
+          report_error(ERROR_TOK(type), "float4x3 is not allowed in shared structure");
+        }
+        else if (type_str == "float3x3") {
+          report_error(ERROR_TOK(type), "float3x3 is not allowed in shared structure");
+        }
+        else if (type_str == "float2x3") {
+          report_error(ERROR_TOK(type), "float2x3 is not allowed in shared structure");
+        }
+        else if (type_str == "float4x2") {
+          report_error(ERROR_TOK(type), "float4x2 is not allowed in shared structure");
+        }
+        else if (type_str == "float3x2") {
+          report_error(ERROR_TOK(type), "float3x2 is not allowed in shared structure");
+        }
+        else if (type_str == "float2x2") {
+          report_error(ERROR_TOK(type), "float2x2 is not allowed in shared structure");
+        }
+
+        auto sz = sizeof_types.find(type_str);
+
+        Type type_info{16, 16};
+        if (sz != sizeof_types.end()) {
+          type_info = sz->second;
+        }
+        else if (type.prev() == Enum) {
+          /* Only 4 bytes enums are allowed. */
+          type_info = {4, 4};
+          parser.erase(type.prev());
+        }
+        else if (type.prev() == Struct) {
+          /* Only 4 bytes enums are allowed. */
+          type_info = {16, 16};
+          parser.erase(type.prev());
+        }
+        else {
+          report_error(ERROR_TOK(type),
+                       "Unknown type, add 'enum' or 'struct' keyword before the type name");
+          return;
+        }
+
+        size_t align = type_info.alignment - (offset % type_info.alignment);
+        if (align != type_info.alignment) {
+          string err = "Misaligned member, missing " + to_string(align) + " padding bytes";
+          report_error(ERROR_TOK(type), err.c_str());
+        }
+        offset += type_info.size;
+      });
+      if (offset % 16 != 0) {
+        string err = "Alignment issue, missing " + to_string(16 - (offset % 16)) +
+                     " padding bytes";
+        report_error(ERROR_TOK(struct_name), err.c_str());
+      }
+    });
+  }
+
   void lint_unbraced_statements(Parser &parser, report_callback report_error)
   {
     using namespace std;
@@ -3094,6 +3230,15 @@ class Preprocessor {
             invalid = true;
           }
         }
+        else if (attr_str == "host_shared" || attr_str == "unchecked") {
+          if (attributes.start().prev().prev() != Struct) {
+            report_error(ERROR_TOK(attr),
+                         "host_shared attributes must be placed after a struct keyword");
+            invalid = true;
+          }
+          /* Placement already checked. */
+          return;
+        }
         else if (attr_str == "gpu") {
           Token second_tok = attr.next().next().next();
           string second_part = second_tok.str();
@@ -3181,6 +3326,144 @@ class Preprocessor {
     };
     parser().foreach_token(Private, process_access);
     parser().foreach_token(Public, process_access);
+  }
+
+  void lower_implicit_return_types(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_function([&](bool, Token type, Token, Scope, bool, Scope fn_body) {
+      fn_body.foreach_match("rw?{..};", [&](Tokens toks) {
+        Scope list = toks[3].scope();
+        if (list.start().next() == '.') {
+          /* `return {1, 2};` > `T tmp = T{1, 2}; return tmp;`
+           * This syntax allow to support designated initializer. */
+          parser.insert_before(toks[0],
+                               "{" + type.str() + " _tmp = " + type.str() + list.str() + "; ");
+          parser.replace(list, "_tmp;}");
+        }
+        else if (toks[1].is_invalid()) {
+          /* Regular initializer list. Keep it simple. */
+          parser.insert_after(toks[0], type.str());
+        }
+      });
+    });
+  }
+
+  void lower_initializer_implicit_types(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    auto process_scope = [&](Scope s) {
+      /* Auto insert equal. */
+      s.foreach_match("ww{..}", [&](Tokens t) { parser.insert_before(t[2], " = " + t[0].str()); });
+      /* Auto insert type. */
+      s.foreach_match("ww={..}", [&](Tokens t) { parser.insert_before(t[3], t[0].str()); });
+    };
+
+    parser().foreach_scope(ScopeType::FunctionArg, process_scope);
+    parser().foreach_scope(ScopeType::Function, process_scope);
+    parser.apply_mutations();
+  }
+
+  void lower_designated_initializers(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    /* Transform to compatibility macro. */
+    parser().foreach_match("w{.w=", [&](Tokens t) {
+      if (t[0].prev() != '=' || t[0].prev().prev() != 'w') {
+        report_error(ERROR_TOK(t[0]), "Designated initializers are only supported in assignments");
+        return;
+      }
+      /* Lint for nested aggregates. */
+      Token nested_aggregate_end = t[0].scope().find_token(BracketClose);
+      if (nested_aggregate_end != t[3]) {
+        Token nested_aggregate_start = nested_aggregate_end.scope().start();
+        if (nested_aggregate_start.prev() != Word) {
+          report_error(ERROR_TOK(nested_aggregate_start),
+                       "Nested anonymous aggregate is not supported");
+          return;
+        }
+      }
+      Token assign_tok = t[0].prev();
+      Token var = t[0].prev().prev();
+      Scope aggrega = t[2].scope();
+
+      parser.insert_before(assign_tok, ";");
+      parser.erase(assign_tok, t[1]);
+      aggrega.foreach_match(".w=", [&](Tokens t) {
+        if (t[0].scope() != aggrega) {
+          report_error(ERROR_TOK(t[0]), "Nested initializer lists are not supported");
+          return;
+        }
+        parser.insert_before(t[0], var.str());
+        Token value_end = t[2].scope().end();
+        parser.insert_after(value_end, ";");
+        if (value_end.next() == ',') {
+          parser.erase(value_end.next());
+        }
+      });
+      parser.erase(aggrega.end(), aggrega.end().next());
+
+      /* TODO: Lint for vector/matrix type (unsafe aggregate). */
+    });
+
+    parser.apply_mutations();
+  }
+
+  /* Support for **full** aggregate initialization.
+   * They are converted to default constructor for GLSL. */
+  void lower_aggregate_initializers(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    std::unordered_set<string> builtin_types = {
+        "float2",   "float3",   "float4",   "float2x2", "float2x3", "float2x4",
+        "float3x2", "float3x3", "float3x4", "float4x2", "float4x3", "float4x4",
+        "float2x2", "float3x3", "float4x4", "int2",     "int3",     "int4",
+        "uint2",    "uint3",    "uint4",    "bool2",    "bool3",    "bool4",
+    };
+
+    do {
+      /* Transform to compatibility macro. */
+      parser().foreach_match("w{..}", [&](Tokens t) {
+        if (t[0].prev() == Struct) {
+          return;
+        }
+        if (t[1].scope().token_count() == 2) {
+          report_error(ERROR_TOK(t[0]), "Empty brace initializer is not supported");
+        }
+        if (builtin_types.find(t[0].str()) != builtin_types.end()) {
+          report_error(ERROR_TOK(t[0]),
+                       "Aggregate is error prone for built-in vector and matrix types, use "
+                       "constructors instead");
+        }
+        /* Lint for nested aggregates. */
+        Token nested_aggregate_end = t[1].scope().find_token(BracketClose);
+        if (nested_aggregate_end != t[4]) {
+          Token nested_aggregate_start = nested_aggregate_end.scope().start();
+          if (nested_aggregate_start.prev() != Word) {
+            report_error(ERROR_TOK(nested_aggregate_start),
+                         "Nested anonymous aggregate is not supported");
+          }
+        }
+        parser.insert_before(t[0], "_ctor(");
+        parser.insert_before(t[1], ")");
+        parser.erase(t[1]);
+        if (t[4].prev() == ',') {
+          parser.erase(t[4].prev());
+        }
+        parser.insert_before(t[4], " _rotc()");
+        parser.erase(t[4]);
+
+        /* TODO: Lint for vector/matrix type (unsafe aggregate). */
+      });
+    } while (parser.apply_mutations());
   }
 
   /* Auto detect array length, and lower to GLSL compatible syntax.
@@ -3314,6 +3597,9 @@ class Preprocessor {
     using namespace shader::parser;
 
     parser().foreach_match("#w0\n", [&](vector<Token> toks) {
+      if (toks[1].str() != "line") {
+        return;
+      }
       /* Workaround the foreach_match not matching overlapping patterns. */
       if (toks.back().next() == '#' && toks.back().next().next() == 'w' &&
           toks.back().next().next().next() == '0' &&
@@ -3325,6 +3611,9 @@ class Preprocessor {
     parser.apply_mutations();
 
     parser().foreach_match("#w0\n#w\n", [&](vector<Token> toks) {
+      if (toks[1].str() != "line") {
+        return;
+      }
       /* Workaround the foreach_match not matching overlapping patterns. */
       if (toks.back().next() == '#' && toks.back().next().next() == 'w' &&
           toks.back().next().next().next() == '0' &&
@@ -3336,6 +3625,9 @@ class Preprocessor {
     parser.apply_mutations();
 
     parser().foreach_match("#w0\n", [&](vector<Token> toks) {
+      if (toks[1].str() != "line") {
+        return;
+      }
       /* True if directive is noop. */
       if (toks[0].line_number() == stol(toks[2].str())) {
         parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
@@ -3435,7 +3727,7 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    parser().foreach_struct([&](Token, Token, Scope body) {
+    parser().foreach_struct([&](Token, Scope, Token, Scope body) {
       body.foreach_declaration([&](Scope attributes,
                                    Token,
                                    Token type,
