@@ -201,6 +201,31 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+enum idpropertyui_types {
+  IDP_UI_DATA_FLOAT = 0,
+  IDP_UI_DATA_FLOAT_ARRAY,
+  IDP_UI_DATA_INT,
+  IDP_UI_DATA_INT_ARRAY,
+  IDP_UI_DATA_BOOL,
+  IDP_UI_DATA_BOOL_ARRAY,
+  IDP_UI_DATA_STRING,
+  IDP_UI_DATA_DATABLOCK,
+  IDP_UI_DATA_PYTHON,
+};
+
+const EnumPropertyItem rna_enum_idproperty_types_items[] = {
+    {IDP_UI_DATA_FLOAT, "FLOAT", 0, "Float", "A single floating-point value"},
+    {IDP_UI_DATA_FLOAT_ARRAY, "FLOAT_ARRAY", 0, "Float Array", "An array of floating-point values"},
+    {IDP_UI_DATA_INT, "INT", 0, "Integer", "A single integer"},
+    {IDP_UI_DATA_INT_ARRAY, "INT_ARRAY", 0, "Integer Array", "An array of integers"},
+    {IDP_UI_DATA_BOOL, "BOOL", 0, "Boolean", "A true or false value"},
+    {IDP_UI_DATA_BOOL_ARRAY, "BOOL_ARRAY", 0, "Boolean Array", "An array of true or false values"},
+    {IDP_UI_DATA_STRING, "STRING", 0, "String", "A string value"},
+    {IDP_UI_DATA_DATABLOCK, "DATA_BLOCK", 0, "Data-Block", "A data-block value"},
+    {IDP_UI_DATA_PYTHON, "PYTHON", 0, "Python", "Edit a Python value directly, for unsupported property types"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #ifdef RNA_RUNTIME
 
 #  include "DNA_anim_types.h"
@@ -1611,6 +1636,45 @@ static void rna_Library_reload(Library *lib, bContext *C, ReportList *reports)
 #  endif
 }
 
+static int idproperty_type_get(IDProperty *prop)
+{
+  switch (prop->type) {
+    case IDP_INT:
+      return IDP_UI_DATA_INT;
+    case IDP_FLOAT:
+    case IDP_DOUBLE:
+      return IDP_UI_DATA_FLOAT;
+    case IDP_BOOLEAN:
+      return IDP_UI_DATA_BOOL;
+    case IDP_STRING:
+      return IDP_UI_DATA_STRING;
+    case IDP_ARRAY:
+      switch (prop->subtype) {
+        case IDP_INT:
+          return IDP_UI_DATA_INT_ARRAY;
+        case IDP_FLOAT:
+        case IDP_DOUBLE:
+          return IDP_UI_DATA_FLOAT_ARRAY;
+        case IDP_BOOLEAN:
+          return IDP_UI_DATA_BOOL_ARRAY;
+        default:
+          BLI_assert_unreachable();
+          return -1;
+      }
+    default:
+      BLI_assert_unreachable();
+      return -1;}
+}
+
+static int rna_IDProperty_type_get(PointerRNA *ptr)
+{
+  IDProperty *prop = (IDProperty *)ptr->data;
+  if (prop) {
+    return idproperty_type_get(prop);
+  }
+  return -1;
+}
+
 #else
 
 static void rna_def_ID_properties(BlenderRNA *brna)
@@ -2807,17 +2871,6 @@ static void rna_def_idproperty_wrap_ptr(BlenderRNA *brna)
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
 }
 
-const EnumPropertyItem rna_enum_idproperty_types_items[] = {
-    {IDP_INT, "INT", 0, "Integer", "Integer property"},
-    {IDP_FLOAT, "FLOAT", 0, "Float", "Float property"},
-    {IDP_STRING, "STRING", 0, "String", "String property"},
-    {IDP_ARRAY, "ARRAY", 0, "Array", "Array property"},
-    {IDP_GROUP, "GROUP", 0, "Group", "Group property"},
-    {IDP_ID, "ID", 0, "ID", "ID property"},
-    {IDP_DOUBLE, "DOUBLE", 0, "Double", "Double property"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 #define RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, prop_type, sdna_func) \
   prop = RNA_def_property(srna, "min", prop_type, PROP_NONE); \
   sdna_func(prop, nullptr, "min"); \
@@ -2850,11 +2903,18 @@ const EnumPropertyItem rna_enum_idproperty_types_items[] = {
   RNA_def_property_string_sdna(prop, nullptr, "base.description");\
   RNA_def_property_ui_text(prop, "Description", "Tooltip description for this property");
 
-
 static void rna_def_idproperty_ui(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "IDProperty", nullptr);
+  RNA_def_struct_ui_text(srna, "IDProperty", "ID property");
+
+  prop = RNA_def_enum(
+      srna, "type", rna_enum_idproperty_types_items, IDP_UI_DATA_FLOAT, "", "Change ID property type");
+  RNA_def_property_enum_funcs(prop, "rna_IDProperty_type_get", nullptr, nullptr);
+
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
   RNA_def_struct_ui_text(

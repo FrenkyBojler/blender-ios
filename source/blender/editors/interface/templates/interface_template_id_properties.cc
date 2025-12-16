@@ -128,15 +128,18 @@ void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
 
   StructRNA *srna = active_prop->type == IDP_ARRAY ? get_prop_type(active_prop->subtype) :
                                                      get_prop_type(active_prop->type);
-  PointerRNA id_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
 
-  layout->prop(&id_ptr, "default_value", UI_ITEM_NONE, "Default Value", ICON_NONE);
-  layout->prop(&id_ptr, "soft_min", UI_ITEM_NONE, "Soft Min", ICON_NONE);
-  layout->prop(&id_ptr, "soft_max", UI_ITEM_NONE, "Soft Max", ICON_NONE);
-  layout->prop(&id_ptr, "min", UI_ITEM_NONE, "Hard Min", ICON_NONE);
-  layout->prop(&id_ptr, "max", UI_ITEM_NONE, "Hard Max", ICON_NONE);
-  layout->prop(&id_ptr, "step", UI_ITEM_NONE, "Step", ICON_NONE);
-  layout->prop(&id_ptr, "description", UI_ITEM_NONE, "Description", ICON_NONE);
+  PointerRNA prop_ptr = RNA_pointer_create_discrete(id, &RNA_IDProperty, active_prop);
+  layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
+
+  PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
+  layout->prop(&propui_ptr, "default_value", UI_ITEM_NONE, "Default Value", ICON_NONE);
+  layout->prop(&propui_ptr, "soft_min", UI_ITEM_NONE, "Soft Min", ICON_NONE);
+  layout->prop(&propui_ptr, "soft_max", UI_ITEM_NONE, "Soft Max", ICON_NONE);
+  layout->prop(&propui_ptr, "min", UI_ITEM_NONE, "Hard Min", ICON_NONE);
+  layout->prop(&propui_ptr, "max", UI_ITEM_NONE, "Hard Max", ICON_NONE);
+  layout->prop(&propui_ptr, "step", UI_ITEM_NONE, "Step", ICON_NONE);
+  layout->prop(&propui_ptr, "description", UI_ITEM_NONE, "Description", ICON_NONE);
 }
 
 }  // namespace blender::ui::id_properties
