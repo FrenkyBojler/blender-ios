@@ -5184,7 +5184,6 @@ static wmOperatorStatus grease_pencil_separate_shapes_exec(bContext *C, wmOperat
     }
 
     shape_ids.finish();
-
     info.drawing.tag_topology_changed();
 
     changed = true;
@@ -5213,9 +5212,9 @@ static void GREASE_PENCIL_OT_separate_shapes(wmOperatorType *ot)
       ot->srna, "individual", false, "Individual", "Create a separate shape for each stroke");
 }
 
-}  // namespace blender::ed::greasepencil
-
 /** \} */
+
+}  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
 {
