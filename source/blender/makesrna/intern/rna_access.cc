@@ -88,6 +88,7 @@ extern const PointerRNA PointerRNA_NULL = {};
 void RNA_init()
 {
   BlenderRNA &brna = RNA_blender_rna_get();
+  brna = rna_blender_rna_create();
 
   brna.structs_map.reserve(2048);
 

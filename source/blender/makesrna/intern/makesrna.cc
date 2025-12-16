@@ -3730,7 +3730,7 @@ static void rna_generate_struct_register_prototypes(BlenderRNA *brna, FILE *f)
 static void rna_generate_blender(BlenderRNA *brna, FILE *f)
 {
   fprintf(f,
-          "static BlenderRNA blender_rna_create()\n"
+          "BlenderRNA rna_blender_rna_create()\n"
           "{\n"
           "\tBlenderRNA brna{};\n");
   for (StructRNA *srna : brna->structs) {
@@ -3745,7 +3745,7 @@ static void rna_generate_blender(BlenderRNA *brna, FILE *f)
   fprintf(f,
           "BlenderRNA &RNA_blender_rna_get()\n"
           "{\n"
-          "\tstatic BlenderRNA BLENDER_RNA = blender_rna_create();\n");
+          "\tstatic BlenderRNA BLENDER_RNA;\n");
   /* structs_map is created by RNA_init(). */
   fprintf(f,
           "\treturn BLENDER_RNA;\n"
