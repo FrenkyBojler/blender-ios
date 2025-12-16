@@ -96,7 +96,8 @@ static void draw_frame_line(const float subframe_x,
   line_rect.xmax = ceil(subframe_x + line_width / 2);
   line_rect.ymin = -UI_SCALE_FAC;
   line_rect.ymax = ceil(region_height);
-  UI_draw_roundbox_4fv_ex(&line_rect, fg_color, nullptr, 1.0f, bg_color, UI_SCALE_FAC, 0.0f);
+  blender::ui::draw_roundbox_4fv_ex(
+      &line_rect, fg_color, nullptr, 1.0f, bg_color, UI_SCALE_FAC, 0.0f);
 }
 
 static void draw_current_frame(const Scene *scene,
@@ -233,11 +234,12 @@ void ED_time_scrub_draw_current_frame_line(const ARegion *region, const Scene *s
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
 
   float fg_color[4];
-  UI_GetThemeColor4fv(TH_CFRAME, fg_color);
+  blender::ui::theme::get_color_4fv(TH_CFRAME, fg_color);
   float bg_color[4];
-  UI_GetThemeColorShade4fv(TH_BACK, -20, bg_color);
+  blender::ui::theme::get_color_shade_4fv(TH_BACK, -20, bg_color);
 
-  const float subframe_x = UI_view2d_view_to_region_x(&region->v2d, BKE_scene_ctime_get(scene));
+  const float subframe_x = blender::ui::view2d_view_to_region_x(&region->v2d,
+                                                                BKE_scene_ctime_get(scene));
   draw_frame_line(subframe_x, scrub_region_rect.ymax, fg_color, bg_color);
 
   GPU_matrix_pop_projection();
