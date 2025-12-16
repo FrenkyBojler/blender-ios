@@ -4986,7 +4986,7 @@ static void GREASE_PENCIL_OT_separate_shapes(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_boolean(
-      ot->srna, "individual", false, "Individual", "Create a separate shape for each stroke");
+      ot->srna, "individual", true, "Individual", "Create a separate shape for each stroke");
 }
 
 /** \} */
