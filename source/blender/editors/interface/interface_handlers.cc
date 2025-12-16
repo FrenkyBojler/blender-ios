@@ -10718,6 +10718,17 @@ static int ui_handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEv
   return WM_UI_HANDLER_CONTINUE;
 }
 
+static int ui_handle_enum_letter_press_search(PopupBlockHandle *menu, const wmEvent *event)
+{
+  AfterFunc *after = ui_afterfunc_new();
+  wmOperatorType *ot = WM_operatortype_find("WM_OT_search_enum", false);
+  after->optype = ot;
+  after->opcontext = wm::OpCallContext::InvokeDefault;
+  after->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
+  menu->menuretval = RETURN_OUT;
+  return WM_UI_HANDLER_BREAK;
+}
+
 static int ui_handle_menu_event(bContext *C,
                                 const wmEvent *event,
                                 PopupBlockHandle *menu,
@@ -11189,8 +11200,8 @@ static int ui_handle_menu_event(bContext *C,
 
             /* Menu search if space-bar or #MenuTypeFlag::SearchOnKeyPress. */
             MenuType *mt = WM_menutype_find(menu->menu_idname, true);
-            if ((mt && flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress)) ||
-                event->type == EVT_SPACEKEY)
+            if (mt && (flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress) ||
+                       event->type == EVT_SPACEKEY))
             {
               if ((level != 0) && (but == nullptr || !menu->menu_idname[0])) {
                 /* Search parent if the child is open but not activated or not searchable. */
@@ -11200,6 +11211,14 @@ static int ui_handle_menu_event(bContext *C,
                 retval = ui_handle_menu_letter_press_search(menu, event);
               }
               break;
+            }
+            if (Button *pop_create_but = menu->popup_create_vars.but) {
+              if (pop_create_but->rnapoin.data && pop_create_but->rnaprop) {
+                if (RNA_property_type(pop_create_but->rnaprop) == PROP_ENUM) {
+                  retval = ui_handle_enum_letter_press_search(menu, event);
+                  break;
+                }
+              }
             }
 
             if (ui_menu_pass_event_to_parent_if_nonactive(

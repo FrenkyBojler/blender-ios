@@ -2195,6 +2195,25 @@ static void WM_OT_search_single_menu(wmOperatorType *ot)
                  "Query to insert into the search box");
 }
 
+static wmOperatorStatus search_menu_exec(bContext *C, wmOperator *op)
+{
+  return OPERATOR_FINISHED;
+}
+
+static void WM_OT_search_enum(wmOperatorType *ot)
+{
+  ot->name = "Search Enum";
+  ot->idname = "WM_OT_search_enum";
+  ot->description = "Pop-up a search for a drop-down menu";
+
+  ot->invoke = WM_enum_search_invoke;
+  ot->exec = search_menu_exec;
+
+  PropertyRNA *prop;
+  prop = RNA_def_enum(ot->srna, "enum", rna_enum_dummy_DEFAULT_items, 0, "Enum", "");
+  ot->prop = prop;
+}
+
 static wmOperatorStatus wm_call_menu_exec(bContext *C, wmOperator *op)
 {
   char idname[BKE_ST_MAXNAME];
@@ -4285,6 +4304,7 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_search_menu);
   WM_operatortype_append(WM_OT_search_operator);
   WM_operatortype_append(WM_OT_search_single_menu);
+  WM_operatortype_append(WM_OT_search_enum);
   WM_operatortype_append(WM_OT_call_menu);
   WM_operatortype_append(WM_OT_call_menu_pie);
   WM_operatortype_append(WM_OT_call_panel);
