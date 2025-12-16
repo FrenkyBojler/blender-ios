@@ -160,15 +160,15 @@ struct                 T {
 #line 41
 };
 #ifndef GPU_METAL
-uint _a(_ref(T ,this_));
+uint _a(const T this_);
 void _a_set_(_ref(T ,this_), uint value);
-int _b(_ref(T ,this_));
+int _b(const T this_);
 void _b_set_(_ref(T ,this_), int value);
-float _c(_ref(T ,this_));
+float _c(const T this_);
 void _c_set_(_ref(T ,this_), float value);
 #endif
 #line 12
-uint _a(_ref(T ,this_)) {
+uint _a(const T this_)       {
   uint val;
   val = floatBitsToUint(this_.union0.data0);
   return val;
@@ -178,7 +178,7 @@ void _a_set_(_ref(T ,this_), uint value) {
   this_.union0.data0 = uintBitsToFloat(value);
 }
 #line 22
-int _b(_ref(T ,this_)) {
+int _b(const T this_)       {
   int val;
   val = floatBitsToInt(this_.union0.data0);
   return val;
@@ -188,7 +188,7 @@ void _b_set_(_ref(T ,this_), int value) {
   this_.union0.data0 = intBitsToFloat(value);
 }
 #line 32
-float _c(_ref(T ,this_)) {
+float _c(const T this_)       {
   float val;
   val = this_.union0.data0;
   return val;
@@ -239,13 +239,13 @@ struct                 T {
 #line 31
 };
 #ifndef GPU_METAL
-uint _a(_ref(T ,this_));
+uint _a(const T this_);
 void _a_set_(_ref(T ,this_), uint value);
-uint _b(_ref(T ,this_));
+uint _b(const T this_);
 void _b_set_(_ref(T ,this_), uint value);
 #endif
 #line 12
-uint _a(_ref(T ,this_)) {
+uint _a(const T this_)       {
   uint val;
   val = floatBitsToUint(this_.union0.data0);
   return val;
@@ -255,7 +255,7 @@ void _a_set_(_ref(T ,this_), uint value) {
   this_.union0.data0 = uintBitsToFloat(value);
 }
 #line 22
-uint _b(_ref(T ,this_)) {
+uint _b(const T this_)       {
   uint val;
   val = floatBitsToUint(this_.union1.data0);
   return val;

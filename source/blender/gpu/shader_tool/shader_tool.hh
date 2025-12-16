@@ -4000,7 +4000,7 @@ class Preprocessor {
       fn_body += "  return val;\n";
       fn_body += "}\n";
 
-      return "\n" + union_member.type + " " + union_member.name + "() " + fn_body;
+      return "\n" + union_member.type + " " + union_member.name + "() const " + fn_body;
     };
 
     auto create_setter = [&](/* Tokens of the union declaration inside the struct. */
