@@ -128,6 +128,10 @@ struct UndoType {
   void (*step_encode_init)(bContext *C, UndoStep *us);
 
   bool (*step_encode)(bContext *C, Main *bmain, UndoStep *us);
+
+  /**
+   * \param is_final whether the step being decoded is the target undo step being undone to.
+   */
   void (*step_decode)(bContext *C, Main *bmain, UndoStep *us, eUndoStepDir dir, bool is_final);
 
   /**
@@ -137,6 +141,12 @@ struct UndoType {
    */
   void (*step_free)(UndoStep *us);
 
+  /**
+   * If defined, the most recently memfile step in undo history is loaded when necessary.
+   *
+   * Primarily used to allow comparisons based on datablock name and convert to and from undo
+   * data structures for edit mode implementations.
+   */
   void (*step_foreach_ID_ref)(UndoStep *us,
                               UndoTypeForEachIDRefFn foreach_ID_ref_fn,
                               void *user_data);
