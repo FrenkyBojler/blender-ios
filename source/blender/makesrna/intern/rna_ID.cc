@@ -11,9 +11,9 @@
 #include "DNA_ID.h"
 #include "DNA_material_types.h"
 
+#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
-#include "BKE_idprop.hh"
 
 #include "BLT_translation.hh"
 
@@ -216,14 +216,22 @@ enum idpropertyui_types {
 
 const EnumPropertyItem rna_enum_idproperty_types_items[] = {
     {IDP_UI_DATA_FLOAT, "FLOAT", 0, "Float", "A single floating-point value"},
-    {IDP_UI_DATA_FLOAT_ARRAY, "FLOAT_ARRAY", 0, "Float Array", "An array of floating-point values"},
+    {IDP_UI_DATA_FLOAT_ARRAY,
+     "FLOAT_ARRAY",
+     0,
+     "Float Array",
+     "An array of floating-point values"},
     {IDP_UI_DATA_INT, "INT", 0, "Integer", "A single integer"},
     {IDP_UI_DATA_INT_ARRAY, "INT_ARRAY", 0, "Integer Array", "An array of integers"},
     {IDP_UI_DATA_BOOL, "BOOL", 0, "Boolean", "A true or false value"},
     {IDP_UI_DATA_BOOL_ARRAY, "BOOL_ARRAY", 0, "Boolean Array", "An array of true or false values"},
     {IDP_UI_DATA_STRING, "STRING", 0, "String", "A string value"},
     {IDP_UI_DATA_DATABLOCK, "DATA_BLOCK", 0, "Data-Block", "A data-block value"},
-    {IDP_UI_DATA_PYTHON, "PYTHON", 0, "Python", "Edit a Python value directly, for unsupported property types"},
+    {IDP_UI_DATA_PYTHON,
+     "PYTHON",
+     0,
+     "Python",
+     "Edit a Python value directly, for unsupported property types"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1664,7 +1672,8 @@ static int idproperty_type_get(IDProperty *prop)
       }
     default:
       BLI_assert_unreachable();
-      return -1;}
+      return -1;
+  }
 }
 
 static int rna_IDProperty_type_get(PointerRNA *ptr)
@@ -1679,8 +1688,49 @@ static int rna_IDProperty_type_get(PointerRNA *ptr)
 static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
 {
   IDProperty *prop = (IDProperty *)ptr->data;
-  prop->ui_data = IDP_TryConvertUIData(prop->ui_data, IDP_ui_data_type(prop), IDP_UI_DATA_TYPE_INT);
-  prop->type = IDP_INT;
+  int type = -1, subtype = 0;
+  eIDPropertyUIDataType ui_data_type = IDP_UI_DATA_TYPE_FLOAT;
+
+  switch (value) {
+    case IDP_UI_DATA_INT:
+      type = IDP_INT;
+      ui_data_type = IDP_UI_DATA_TYPE_INT;
+      break;
+    case IDP_UI_DATA_FLOAT:
+      type = IDP_FLOAT;
+      ui_data_type = IDP_UI_DATA_TYPE_FLOAT;
+      break;
+    case IDP_UI_DATA_BOOL:
+      type = IDP_BOOLEAN;
+      ui_data_type = IDP_UI_DATA_TYPE_BOOLEAN;
+      break;
+    case IDP_UI_DATA_STRING:
+      type = IDP_STRING;
+      ui_data_type = IDP_UI_DATA_TYPE_STRING;
+      break;
+    case IDP_UI_DATA_INT_ARRAY:
+      type = IDP_ARRAY;
+      subtype = IDP_INT;
+      ui_data_type = IDP_UI_DATA_TYPE_INT;
+      break;
+    case IDP_UI_DATA_FLOAT_ARRAY:
+      type = IDP_ARRAY;
+      subtype = IDP_FLOAT;
+      ui_data_type = IDP_UI_DATA_TYPE_FLOAT;
+      break;
+    case IDP_UI_DATA_BOOL_ARRAY:
+      type = IDP_ARRAY;
+      subtype = IDP_BOOLEAN;
+      ui_data_type = IDP_UI_DATA_TYPE_BOOLEAN;
+      break;
+    default:
+      BLI_assert_unreachable();
+      return;
+  }
+
+  prop->ui_data = IDP_TryConvertUIData(prop->ui_data, IDP_ui_data_type(prop), ui_data_type);
+  prop->type = type;
+  prop->subtype = subtype;
 }
 
 #else
@@ -2879,37 +2929,36 @@ static void rna_def_idproperty_wrap_ptr(BlenderRNA *brna)
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
 }
 
-#define RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, prop_type, sdna_func) \
-  prop = RNA_def_property(srna, "min", prop_type, PROP_NONE); \
-  sdna_func(prop, nullptr, "min"); \
-  RNA_def_property_ui_text(prop, "Min", "Minimum value"); \
-  \
-  prop = RNA_def_property(srna, "max", prop_type, PROP_NONE); \
-  sdna_func(prop, nullptr, "max"); \
-  RNA_def_property_ui_text(prop, "Max", "Maximum value"); \
-  \
-  prop = RNA_def_property(srna, "soft_min", prop_type, PROP_NONE); \
-  sdna_func(prop, nullptr, "soft_min"); \
-  RNA_def_property_ui_text(prop, "Soft Min", "Soft minimum value in the UI"); \
-  \
-  prop = RNA_def_property(srna, "soft_max", prop_type, PROP_NONE); \
-  sdna_func(prop, nullptr, "soft_max"); \
-  RNA_def_property_ui_text(prop, "Soft Max", "Soft maximum value in the UI"); \
-  \
-  prop = RNA_def_property(srna, "step", prop_type, PROP_NONE); \
-  sdna_func(prop, nullptr, "step"); \
-  RNA_def_property_ui_text(prop, "Step", "Step size");
+#  define RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, prop_type, sdna_func) \
+    prop = RNA_def_property(srna, "min", prop_type, PROP_NONE); \
+    sdna_func(prop, nullptr, "min"); \
+    RNA_def_property_ui_text(prop, "Min", "Minimum value"); \
+\
+    prop = RNA_def_property(srna, "max", prop_type, PROP_NONE); \
+    sdna_func(prop, nullptr, "max"); \
+    RNA_def_property_ui_text(prop, "Max", "Maximum value"); \
+\
+    prop = RNA_def_property(srna, "soft_min", prop_type, PROP_NONE); \
+    sdna_func(prop, nullptr, "soft_min"); \
+    RNA_def_property_ui_text(prop, "Soft Min", "Soft minimum value in the UI"); \
+\
+    prop = RNA_def_property(srna, "soft_max", prop_type, PROP_NONE); \
+    sdna_func(prop, nullptr, "soft_max"); \
+    RNA_def_property_ui_text(prop, "Soft Max", "Soft maximum value in the UI"); \
+\
+    prop = RNA_def_property(srna, "step", prop_type, PROP_NONE); \
+    sdna_func(prop, nullptr, "step"); \
+    RNA_def_property_ui_text(prop, "Step", "Step size");
 
-
-#define RNA_DEF_IDPROP_UI_DATA_COMMON(srna, prop_type, sdna_func) \
-  \
-  prop = RNA_def_property(srna, "default_value", prop_type, PROP_NONE); \
-  sdna_func(prop, nullptr, "default_value"); \
-  RNA_def_property_ui_text(prop, "Default Value", "Default value of this property"); \
-  \
-  prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);\
-  RNA_def_property_string_sdna(prop, nullptr, "base.description");\
-  RNA_def_property_ui_text(prop, "Description", "Tooltip description for this property");
+#  define RNA_DEF_IDPROP_UI_DATA_COMMON(srna, prop_type, sdna_func) \
+\
+    prop = RNA_def_property(srna, "default_value", prop_type, PROP_NONE); \
+    sdna_func(prop, nullptr, "default_value"); \
+    RNA_def_property_ui_text(prop, "Default Value", "Default value of this property"); \
+\
+    prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE); \
+    RNA_def_property_string_sdna(prop, nullptr, "base.description"); \
+    RNA_def_property_ui_text(prop, "Description", "Tooltip description for this property");
 
 static void rna_def_idproperty_ui(BlenderRNA *brna)
 {
@@ -2919,38 +2968,37 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "IDProperty", nullptr);
   RNA_def_struct_ui_text(srna, "IDProperty", "ID property");
 
-  prop = RNA_def_enum(
-      srna, "type", rna_enum_idproperty_types_items, IDP_UI_DATA_FLOAT, "", "Change ID property type");
+  prop = RNA_def_enum(srna,
+                      "type",
+                      rna_enum_idproperty_types_items,
+                      IDP_UI_DATA_FLOAT,
+                      "",
+                      "Change ID property type");
   RNA_def_property_enum_funcs(prop, "rna_IDProperty_type_get", "rna_IDProperty_type_set", nullptr);
 
-
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
-  RNA_def_struct_ui_text(
-      srna, "float IDProperty UI", "UI data for a float ID property");
+  RNA_def_struct_ui_text(srna, "float IDProperty UI", "UI data for a float ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_FLOAT, RNA_def_property_float_sdna);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_FLOAT, RNA_def_property_float_sdna);
 
-  prop = RNA_def_property(srna, "precision", PROP_INT, PROP_NONE); \
-  RNA_def_property_int_sdna(prop, nullptr, "precision"); \
-  RNA_def_property_ui_text(prop, "Precision", "Number of decimal places to display"); \
+  prop = RNA_def_property(srna, "precision", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "precision");
+  RNA_def_property_ui_text(prop, "Precision", "Number of decimal places to display");
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataInt", nullptr);
-  RNA_def_struct_ui_text(
-      srna, "int IDProperty UI", "UI data for an int ID property");
+  RNA_def_struct_ui_text(srna, "int IDProperty UI", "UI data for an int ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_INT, RNA_def_property_int_sdna);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT, RNA_def_property_int_sdna);
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataBool", nullptr);
-  RNA_def_struct_ui_text(
-      srna, "bool IDProperty UI", "UI data for a bool ID property");
+  RNA_def_struct_ui_text(srna, "bool IDProperty UI", "UI data for a bool ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT, RNA_def_property_int_sdna);
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataString", nullptr);
-  RNA_def_struct_ui_text(
-      srna, "string IDProperty UI", "UI data for a string ID property");
+  RNA_def_struct_ui_text(srna, "string IDProperty UI", "UI data for a string ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_STRING, RNA_def_property_string_sdna);
 }

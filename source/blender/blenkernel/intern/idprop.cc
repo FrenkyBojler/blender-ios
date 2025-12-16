@@ -1931,7 +1931,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           dst->max = clamp_double_to_int(src_float->max);
           dst->soft_min = clamp_double_to_int(src_float->soft_min);
           dst->soft_max = clamp_double_to_int(src_float->soft_max);
-          dst->step = clamp_double_to_int(src_float->step);
+          dst->step = std::max(1, clamp_double_to_int(src_float->step));
           dst->default_value = clamp_double_to_int(src_float->default_value);
           if (src_float->default_array) {
             dst->default_array = MEM_malloc_arrayN<int>(size_t(src_float->default_array_len),
