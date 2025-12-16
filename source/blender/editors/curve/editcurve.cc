@@ -602,8 +602,14 @@ static void calc_keyHandles(ListBase *nurb, float *key)
         prevfp = nullptr;
       }
 
-      nextp = bezt + 1;
-      nextfp = fp + KEYELEM_FLOAT_LEN_BEZTRIPLE;
+      if (nu->pntsu > 1) {
+        nextp = bezt + 1;
+        nextfp = fp + KEYELEM_FLOAT_LEN_BEZTRIPLE;
+      }
+      else {
+        nextp = nullptr;
+        nextfp = nullptr;
+      }
 
       while (a--) {
         key_to_bezt(fp, bezt, &cur);
@@ -5965,10 +5971,11 @@ static wmOperatorStatus toggle_cyclic_invoke(bContext *C,
     LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (nu->pntsu > 1 || nu->pntsv > 1) {
         if (nu->type == CU_NURBS) {
-          uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Direction"), ICON_NONE);
-          blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+          blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
+              C, IFACE_("Direction"), ICON_NONE);
+          blender::ui::Layout &layout = *popup_menu_layout(pup);
           layout.op_enum(op->type->idname, "direction");
-          UI_popup_menu_end(C, pup);
+          popup_menu_end(C, pup);
           return OPERATOR_INTERFACE;
         }
       }
