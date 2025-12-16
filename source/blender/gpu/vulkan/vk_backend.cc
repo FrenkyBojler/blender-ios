@@ -485,6 +485,12 @@ void VKBackend::detect_workarounds(VKDevice &device)
     workarounds.not_aligned_pixel_formats = true;
   }
 
+  /* AMD Driver uploads incorrect data, showing tiling artifacts and incorrect data format
+   * conversion on all textures. */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+    extensions.host_image_copy = false;
+  }
+
   /* During testing graphics pipeline library feature it was detected that it would crash on
    * official AMD drivers.
    */

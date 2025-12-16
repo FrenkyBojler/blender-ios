@@ -476,7 +476,7 @@ void VKTexture::update_sub(int mip,
   VKDevice &device = VKBackend::get().device;
   const bool needs_data_conversion = needs_conversion(format, format_, device_format_);
   const bool use_host_image_copy = !has_data_ && data != nullptr && allow_host_image_copy_ &&
-                                   (unpack_row_length == 0 || !needs_data_conversion);
+                                   (unpack_row_length == 0);
   if (use_host_image_copy) {
     Vector<uint8_t> device_compatible_data;
 
@@ -667,21 +667,30 @@ bool VKTexture::init_internal()
 
   if (extensions.host_image_copy) {
     VkFormat vk_format = to_vk_format(device_format_);
-    VkImageType vk_image_type = to_vk_image_type(type_);
-    VkImageUsageFlags vk_image_usage_flags = to_vk_image_usage(
-        gpu_image_usage_flags_, format_flag_, true);
-    VkImageCreateFlags vk_image_create_flags = to_vk_image_create(
-        type_, format_flag_, usage_get());
+    VkFormatProperties3 vk_format_properties3 = {VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_3};
+    VkFormatProperties2 vk_format_properties2 = {VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
+                                                 &vk_format_properties3};
+    vkGetPhysicalDeviceFormatProperties2(
+        device.physical_device_get(), vk_format, &vk_format_properties2);
+    if (bool(vk_format_properties3.optimalTilingFeatures &
+             VK_FORMAT_FEATURE_2_HOST_IMAGE_TRANSFER_BIT_EXT))
+    {
+      VkImageType vk_image_type = to_vk_image_type(type_);
+      VkImageUsageFlags vk_image_usage_flags = to_vk_image_usage(
+          gpu_image_usage_flags_, format_flag_, true);
+      VkImageCreateFlags vk_image_create_flags = to_vk_image_create(
+          type_, format_flag_, usage_get());
 
-    VkImageFormatProperties image_format = {};
-    VkResult result = vkGetPhysicalDeviceImageFormatProperties(device.physical_device_get(),
-                                                               vk_format,
-                                                               vk_image_type,
-                                                               VK_IMAGE_TILING_OPTIMAL,
-                                                               vk_image_usage_flags,
-                                                               vk_image_create_flags,
-                                                               &image_format);
-    allow_host_image_copy_ = result == VK_SUCCESS;
+      VkImageFormatProperties image_format = {};
+      VkResult result = vkGetPhysicalDeviceImageFormatProperties(device.physical_device_get(),
+                                                                 vk_format,
+                                                                 vk_image_type,
+                                                                 VK_IMAGE_TILING_OPTIMAL,
+                                                                 vk_image_usage_flags,
+                                                                 vk_image_create_flags,
+                                                                 &image_format);
+      allow_host_image_copy_ = result == VK_SUCCESS;
+    }
   }
 
   if (!allocate()) {
