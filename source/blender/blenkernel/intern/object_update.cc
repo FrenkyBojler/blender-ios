@@ -218,8 +218,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
     for (const blender::bke::GeometryComponent::Type type :
          ob->runtime->geometry_set_eval->gather_component_types())
     {
-      const size_t component_index = int(type);
-      ob->runtime->contained_geometry_types |= uint32_t(1 << component_index);
+      ob->runtime->contained_geometry_types |= uint16_t(1 << size_t(type));
     }
   }
 

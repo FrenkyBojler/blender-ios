@@ -10,6 +10,8 @@
 
 #include <optional>
 
+#include "BKE_geometry_set.hh"
+
 #include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_math_matrix_types.hh"
@@ -88,7 +90,7 @@ struct ObjectRuntime {
    * Bitflag where each bit at an index corresponds to a `GeometryComponent::Type`. When a bit is
    * set, the geometry type is contained within #geometry_set_eval.
    */
-  uint32_t contained_geometry_types;
+  uint16_t contained_geometry_types;
 
   /**
    * Mesh structure created during object evaluation.
