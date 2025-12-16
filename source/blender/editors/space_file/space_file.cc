@@ -187,8 +187,11 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 
   if (sfileo->params) {
     sfilen->params = static_cast<FileSelectParams *>(MEM_dupallocN(sfileo->params));
-    /* Initialize runtime data for the new params. */
-    sfilen->params->runtime = MEM_new<FileSelectParams_Runtime>(__func__);
+    /* Duplicate runtime data for the new params. */
+    if (sfileo->params->runtime) {
+      sfilen->params->runtime = static_cast<FileSelectParams_Runtime *>(
+          MEM_dupallocN(sfileo->params->runtime));
+    }
   }
   if (sfileo->asset_params) {
     sfilen->asset_params = static_cast<FileAssetSelectParams *>(
