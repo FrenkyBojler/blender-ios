@@ -2557,7 +2557,7 @@ def rna2sphinx(basepath):
     write_rst_bpy(basepath)                 # `bpy`, disabled by default
     write_rst_types_index(basepath)         # `bpy.types`.
     write_rst_ops_index(basepath)           # `bpy.ops`.
-    write_rst_msgbus(basepath)  # `bpy.msgbus`.
+    write_rst_msgbus(basepath)              # `bpy.msgbus`.
     write_rst_geometry_set(basepath)        # `bpy.types.GeometrySet`.
     write_rst_inline_shader_nodes(basepath)  # `bpy.types.InlineShaderNodes`.
     pyrna2sphinx(basepath)                  # `bpy.types.*` & `bpy.ops.*`.
