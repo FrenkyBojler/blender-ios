@@ -13,6 +13,7 @@
 
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
+#include "BKE_idprop.hh"
 
 #include "BLT_translation.hh"
 
@@ -1675,6 +1676,13 @@ static int rna_IDProperty_type_get(PointerRNA *ptr)
   return -1;
 }
 
+static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
+{
+  IDProperty *prop = (IDProperty *)ptr->data;
+  prop->ui_data = IDP_TryConvertUIData(prop->ui_data, IDP_ui_data_type(prop), IDP_UI_DATA_TYPE_INT);
+  prop->type = IDP_INT;
+}
+
 #else
 
 static void rna_def_ID_properties(BlenderRNA *brna)
@@ -2913,7 +2921,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
 
   prop = RNA_def_enum(
       srna, "type", rna_enum_idproperty_types_items, IDP_UI_DATA_FLOAT, "", "Change ID property type");
-  RNA_def_property_enum_funcs(prop, "rna_IDProperty_type_get", nullptr, nullptr);
+  RNA_def_property_enum_funcs(prop, "rna_IDProperty_type_get", "rna_IDProperty_type_set", nullptr);
 
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
