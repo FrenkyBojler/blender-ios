@@ -3807,9 +3807,6 @@ class Preprocessor {
         {"float", {{"", "", 0, 4}}},
         {"float2", {{"", "", 0, 8}}},
         {"float4", {{"", "", 0, 16}}},
-        {"float2x4", {{"", "", 0, 16 * 2}}},
-        {"float3x4", {{"", "", 0, 16 * 3}}},
-        {"float4x4", {{"", "", 0, 16 * 4}}},
         {"bool32_t", {{"", "", 0, 4}}},
         {"int", {{"", "", 0, 4}}},
         {"int2", {{"", "", 0, 8}}},
@@ -3821,6 +3818,10 @@ class Preprocessor {
         {"packed_float3", {{"", "", 0, 12}}},
         {"packed_int3", {{"", "", 0, 12}}},
         {"packed_uint3", {{"", "", 0, 12}}},
+        {"float2x4", {{"", "[0]", 0, 16}, {"", "[1]", 0, 16}}},
+        {"float3x4", {{"", "[0]", 0, 16}, {"", "[1]", 0, 16}, {"", "[2]", 0, 16}}},
+        {"float4x4",
+         {{"", "[0]", 0, 16}, {"", "[1]", 0, 16}, {"", "[2]", 0, 16}, {"", "[3]", 0, 16}}},
     };
 
     auto type_size_get = [&](Token type) -> size_t {
@@ -4069,6 +4070,7 @@ class Preprocessor {
 
     parser.apply_mutations();
   }
+
   /**
    * For safety reason, union members need to be declared with the union_t template.
    * This avoid raw member access which we cannot emulate. Instead this forces the use of the `()`

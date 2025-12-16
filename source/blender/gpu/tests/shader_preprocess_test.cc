@@ -127,6 +127,166 @@ static void test_preprocess_include()
 }
 GPU_TEST(preprocess_include);
 
+static void test_preprocess_union()
+{
+  using namespace shader;
+  using namespace std;
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  float foo;
+  float bar;
+  float baz;
+  union {
+    union_t<uint> a;
+    union_t<int> b;
+    union_t<float> c;
+  };
+};
+)";
+    string expect =
+        R"(
+#line 6
+struct                 T_union0 {
+  float data0;
+
+};
+#line 2
+struct                 T {
+  float foo;
+  float bar;
+  float baz;
+         T_union0 union0;
+#line 41
+};
+#ifndef GPU_METAL
+uint a(_ref(T ,this_));
+void a_set_(_ref(T ,this_), uint value);
+int b(_ref(T ,this_));
+void b_set_(_ref(T ,this_), int value);
+float c(_ref(T ,this_));
+void c_set_(_ref(T ,this_), float value);
+#endif
+#line 12
+uint a(_ref(T ,this_)) {
+  uint val;
+  val = floatBitsToUint(this_.union0.data0);
+  return val;
+}
+#line 18
+void a_set_(_ref(T ,this_), uint value) {
+  this_.union0.data0 = uintBitsToFloat(value);
+}
+#line 22
+int b(_ref(T ,this_)) {
+  int val;
+  val = floatBitsToInt(this_.union0.data0);
+  return val;
+}
+#line 28
+void b_set_(_ref(T ,this_), int value) {
+  this_.union0.data0 = intBitsToFloat(value);
+}
+#line 32
+float c(_ref(T ,this_)) {
+  float val;
+  val = this_.union0.data0;
+  return val;
+}
+#line 38
+void c_set_(_ref(T ,this_), float value) {
+  this_.union0.data0 = value;
+}
+#line 42
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  float foo;
+  float bar;
+  union {
+    union_t<uint> a;
+  };
+  union {
+    union_t<uint> b;
+  };
+};
+)";
+    string expect =
+        R"(
+#line 5
+struct                 T_union0 {
+  float data0;
+
+};
+#line 8
+struct                 T_union1 {
+  float data0;
+
+};
+#line 2
+struct                 T {
+  float foo;
+  float bar;
+         T_union0 union0;
+#line 8
+         T_union1 union1;
+#line 31
+};
+#ifndef GPU_METAL
+uint a(_ref(T ,this_));
+void a_set_(_ref(T ,this_), uint value);
+uint b(_ref(T ,this_));
+void b_set_(_ref(T ,this_), uint value);
+#endif
+#line 12
+uint a(_ref(T ,this_)) {
+  uint val;
+  val = floatBitsToUint(this_.union0.data0);
+  return val;
+}
+#line 18
+void a_set_(_ref(T ,this_), uint value) {
+  this_.union0.data0 = uintBitsToFloat(value);
+}
+#line 22
+uint b(_ref(T ,this_)) {
+  uint val;
+  val = floatBitsToUint(this_.union1.data0);
+  return val;
+}
+#line 28
+void b_set_(_ref(T ,this_), uint value) {
+  this_.union1.data0 = uintBitsToFloat(value);
+}
+#line 32
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  union {
+    uint a;
+  };
+};
+)";
+    string error;
+    process_test_string(input, error);
+    EXPECT_EQ(error,
+              "All union members must have their type wrapped using the union_t<T> template.");
+  }
+}
+GPU_TEST(preprocess_union);
+
 static void test_preprocess_unroll()
 {
   using namespace shader;
