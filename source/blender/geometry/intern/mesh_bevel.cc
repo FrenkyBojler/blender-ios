@@ -3495,7 +3495,8 @@ static void find_over_faces(const float3 &pos,
 
     float3 projected_pos;
     closest_to_plane_normalized_v3(projected_pos, plane, pos);
-    fmt::println("    projected_pos=({},{},{})", projected_pos[0], projected_pos[1], projected_pos[2]);
+    fmt::println(
+        "    projected_pos=({},{},{})", projected_pos[0], projected_pos[1], projected_pos[2]);
 
     float3x3 axis_mat;
     axis_dominant_v3_to_m3(axis_mat.ptr(), face_no);
@@ -4191,10 +4192,10 @@ AdjVertKind MeshPattern::adj_vert_kind(const int v, const int anchor) const
 int2 MeshPattern::face_anchor_owner(const int f) const
 {
   if (kind != MeshKind::Adj) {
-    return int2(-1. -1);
+    return int2(-1. - 1);
   }
   int3 rao = adj::f_ring_anchor_offset(f, num_anchors, num_segs);
-  const int r= rao[0];
+  const int r = rao[0];
   const int a = rao[1];
   const int offset = rao[2];
   const int ring_side = adj::f_ringlen(r, num_anchors, num_segs) / num_anchors + 1;
@@ -4212,8 +4213,12 @@ int2 MeshPattern::face_anchor_owner(const int f) const
 }
 
 /** Return an array of the faces that go between the first and last edges at \a anchor.
- * If \a include_prev_and_next is true, also include the faces just before and just after the anchor. */
-static SmallIntArray faces_to_next_anchor(const int bv, const int anchor, const bool include_prev_and_next, const BevelState &bs)
+ * If \a include_prev_and_next is true, also include the faces just before and just after the
+ * anchor. */
+static SmallIntArray faces_to_next_anchor(const int bv,
+                                          const int anchor,
+                                          const bool include_prev_and_next,
+                                          const BevelState &bs)
 {
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
   const int next_anchor = pat.next_anchor(anchor);
@@ -4222,7 +4227,28 @@ static SmallIntArray faces_to_next_anchor(const int bv, const int anchor, const 
   const int2 edge_poses_prev = bs.anchor_bevedge_positions(bv, prev_anchor);
   const int2 edge_poses_next = bs.anchor_bevedge_positions(bv, next_anchor);
   Vector<int, 20> faces;
-  
+  if (include_prev_and_next) {
+    const int f = bs.face_prev(bv, edge_poses_prev[1]);
+    if (f != -1) {
+      faces.append(f);
+    }
+  }
+  int pos = edge_poses[0];
+  do {
+    const int f = bs.face_next(bv, pos);
+    if (f != -1) {
+      faces.append(f);
+    }
+    pos = bs.next_edge_pos(bv, pos);
+  } while (pos != edge_poses_next[1]);
+  if (include_prev_and_next) {
+    const int f = bs.face_next(bv, edge_poses_next[1]);
+    if (f != -1) {
+      faces.append(f);
+    }
+  }
+  SmallIntArray ans(faces.as_span());
+  return ans;
 }
 
 /** Return a 4-tuple with the number of vertices, edges, faces, corners needed for edge mesh. */
