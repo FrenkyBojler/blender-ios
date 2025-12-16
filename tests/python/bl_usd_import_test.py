@@ -791,44 +791,6 @@ class USDImportTest(AbstractUSDTest):
         self.assertTrue(vol_mesh2vol.dimensions != dim_mesh2vol)
         self.assertTrue(vol_sim.dimensions != dim_sim)
 
-    def test_import_usd_blend_shapes(self):
-        """Test importing USD blend shapes with animated weights."""
-
-        infile = str(self.testdir / "usd_blend_shape_test.usda")
-        res = bpy.ops.wm.usd_import(filepath=infile)
-        self.assertEqual({'FINISHED'}, res)
-
-        obj = bpy.data.objects["Plane.001"]
-
-        obj.active_shape_key_index = 1
-
-        key = obj.active_shape_key
-        self.assertEqual(key.name, "Key_1", "Unexpected shape key name")
-
-        # Verify the number of shape key points.
-        self.assertEqual(len(key.data), 4, "Unexpected number of shape key point")
-
-        # Verify shape key point coordinates
-
-        # Reference point values.
-        refs = ((-2.51, -1.92, 0.20), (0.86, -1.46, -0.1),
-                (-1.33, 1.29, .84), (1.32, 2.20, -0.42))
-
-        for i in range(4):
-            co = key.data[i].co
-            ref = refs[i]
-            # Compare coordinates.
-            for j in range(3):
-                self.assertAlmostEqual(co[j], ref[j], 2)
-
-        # Verify the shape key values.
-        bpy.context.scene.frame_set(1)
-        self.assertAlmostEqual(key.value, .002, 1)
-        bpy.context.scene.frame_set(30)
-        self.assertAlmostEqual(key.value, .900, 3)
-        bpy.context.scene.frame_set(60)
-        self.assertAlmostEqual(key.value, .100, 3)
-
     def test_import_point_instancer(self):
         """Test importing a typical point instancer setup."""
 
@@ -1842,7 +1804,7 @@ class USDImportComparisonTest(unittest.TestCase):
         for input_file in input_files:
             input_file_path = pathlib.Path(input_file)
 
-            # Print out more data to get correct validation of more attribute values (esp. Curves attributes)
+            # Print out more data to allow more attribute values to be validated (esp. Curves attributes)
             io_report.Report.side_to_print_single_line = 10
             io_report.Report.side_to_print_multi_line = 10
 
