@@ -229,14 +229,15 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
         }
       }
     }
+    else {
+      if (is_directory && RNA_struct_property_is_set_ex(op->ptr, "directory", false)) {
+        RNA_string_get(op->ptr, "directory", params->dir);
+        params->file[0] = '\0';
+      }
 
-    if (is_directory && RNA_struct_property_is_set_ex(op->ptr, "directory", false)) {
-      RNA_string_get(op->ptr, "directory", params->dir);
-      params->file[0] = '\0';
-    }
-
-    if (is_filename && RNA_struct_property_is_set_ex(op->ptr, "filename", false)) {
-      RNA_string_get(op->ptr, "filename", params->file);
+      if (is_filename && RNA_struct_property_is_set_ex(op->ptr, "filename", false)) {
+        RNA_string_get(op->ptr, "filename", params->file);
+      }
     }
 
     if (params->dir[0]) {
