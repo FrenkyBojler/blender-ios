@@ -133,10 +133,9 @@ void folderlist_free(ListBase *folderlist)
   if (folderlist) {
     LISTBASE_FOREACH_MUTABLE (FolderList *, folder, folderlist) {
       MEM_freeN(folder->foldername);
-      if (folder->foldertemplate) {
-        MEM_freeN(folder->foldertemplate);
-      }
-      MEM_freeN(folder);
+      MEM_delete(folder);
+      /* Can be null so remove safely. */
+      MEM_SAFE_FREE(folder->foldertemplate);
     }
     BLI_listbase_clear(folderlist);
   }
