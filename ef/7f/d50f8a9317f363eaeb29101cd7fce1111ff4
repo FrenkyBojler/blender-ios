@@ -1,1 +1,2 @@
 Referenced by issue #71193, Save after Render: 'nested' full screen windows don't close properly
+Referenced by commit 0b9b8fa0736a85a3e7b9b79f44f489ba63a8e138, Tests: UI: Add more UI tests for stacked fullscreens
