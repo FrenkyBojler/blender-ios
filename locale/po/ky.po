@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"POT-Creation-Date: 2025-12-08 10:32+0000\n"
 "PO-Revision-Date: 2025-07-23 15:20+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Kyrgyz <https://translate.blender.org/projects/blender-ui/ui/ky/>\n"
@@ -1294,10 +1294,6 @@ msgid "Tracking"
 msgstr "Трекинг"
 
 
-msgid "Mirror"
-msgstr "Чагылтуу"
-
-
 msgid "Text"
 msgstr "Текст"
 
@@ -1308,6 +1304,10 @@ msgstr "Импорттоо"
 
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Mirror"
+msgstr "Чагылтуу"
 
 
 msgctxt "MovieClip"
@@ -1327,8 +1327,8 @@ msgid "Console"
 msgstr "Консоль"
 
 
-msgid "Languages..."
-msgstr "Тилдер..."
+msgid "Languages"
+msgstr "Тилдер"
 
 
 msgid "Cache"
@@ -2700,10 +2700,6 @@ msgid "Language ID"
 msgstr "Тил ID'си"
 
 
-msgid "Languages"
-msgstr "Тилдер"
-
-
 msgid "Sky"
 msgstr "Асман"
 
@@ -3134,11 +3130,6 @@ msgstr "Каптал"
 msgctxt "Operator"
 msgid "Sound"
 msgstr "Үн"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "Тасма"
 
 
 msgctxt "Operator"
