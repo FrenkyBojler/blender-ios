@@ -4111,11 +4111,6 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
   Render *re = RE_GetSceneRender(scene);
   SpaceImage *sima = CTX_wm_space_image(C);
 
-  // if (re == nullptr) {
-  //   /* Shouldn't happen, but better be safe close to the release. */
-  //   return OPERATOR_CANCELLED;
-  // }
-
   /* Get information about the previous render, or current scene if no render yet. */
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);

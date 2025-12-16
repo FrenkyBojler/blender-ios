@@ -324,7 +324,6 @@ RenderResult *RE_engine_begin_result(
 
   Render *re = engine->re;
   if ((re->result) && (re->r.mode & R_BORDER) && (re->r.mode & R_BORDER_OVERLAY)) {
-    // return re->result;
   }
 
   RenderResult *result;
@@ -461,12 +460,6 @@ void RE_engine_end_result(
     }
   }
 
-  /* free */
-  if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_OVERLAY)) {
-    /* In border stamp mode, keep the result for next tile. */
-    // engine->re->result = result;
-    // return;
-  }
   BLI_remlink(&engine->fullresult, result);
   render_result_free(result);
 }
