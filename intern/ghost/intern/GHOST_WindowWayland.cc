@@ -1418,7 +1418,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
    * So leave the buffer scaled up because there is no *guarantee* the fractional scaling support
    * will run which could result in an incorrect buffer scale. */
   int scale_fractional_from_output;
-  int buffer_scale_from_output = outputs_uniform_scale_or_default(
+  const int buffer_scale_from_output = outputs_uniform_scale_or_default(
       system_->outputs_get(), 0, &scale_fractional_from_output);
 
   window_->frame.size[0] = int32_t(width);
