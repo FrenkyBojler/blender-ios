@@ -3593,6 +3593,33 @@ void WM_OT_recover_auto_save(wmOperatorType *ot)
 
 static char should_show_save_image_dialog = true;
 
+static void wm_save_as_mainfile_after_dialog_callback(bContext *C, void *user_data)
+{
+  WM_operator_name_call_with_properties(C,
+                                        "WM_OT_save_as_mainfile",
+                                        blender::wm::OpCallContext::InvokeDefault,
+                                        (IDProperty *)user_data,
+                                        nullptr);
+}
+
+static void wm_execute_save_mainfile_after_dialog_callback(bContext *C, void *user_data)
+{
+  WM_operator_name_call_with_properties(C,
+                                        "WM_OT_save_mainfile",
+                                        blender::wm::OpCallContext::ExecDefault,
+                                        (IDProperty *)user_data,
+                                        nullptr);
+}
+
+static void wm_invoke_save_mainfile_after_dialog_callback(bContext *C, void *user_data)
+{
+  WM_operator_name_call_with_properties(C,
+                                        "WM_OT_save_mainfile",
+                                        blender::wm::OpCallContext::InvokeDefault,
+                                        (IDProperty *)user_data,
+                                        nullptr);
+}
+
 static void wm_filepath_default(const Main *bmain, char *filepath)
 {
   if (bmain->filepath[0] == '\0') {
@@ -3659,7 +3686,7 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
 {
   int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (modified_images_count > 0 && should_show_save_image_dialog) {
-    wm_save_modified_images_dialog(C, op);
+    wm_operator_save_modified_images_dialog(C, op, wm_save_as_mainfile_after_dialog_callback);
     return OPERATOR_INTERFACE;
   }
 
@@ -3700,7 +3727,8 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     // 'Save As' and 'Save Copy' should not show this dialog since it's shown in the invoke
     // function for those options.
     if (!is_save_as && should_show_save_image_dialog) {
-      wm_save_modified_images_dialog(C, op);
+      wm_operator_save_modified_images_dialog(
+          C, op, wm_execute_save_mainfile_after_dialog_callback);
       return OPERATOR_INTERFACE;
     }
   }
@@ -3893,7 +3921,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
 
   int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
   if (modified_images_count > 0 && should_show_save_image_dialog) {
-    wm_save_modified_images_dialog(C, op);
+    wm_operator_save_modified_images_dialog(C, op, wm_invoke_save_mainfile_after_dialog_callback);
     return OPERATOR_INTERFACE;
   }
 
@@ -4630,7 +4658,6 @@ static void wm_block_file_close_discard(bContext *C, void *arg_block, void *arg_
   WM_generic_callback_free(callback);
 }
 
-// RHEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_data)
 {
   const Main *bmain = CTX_data_main(C);
@@ -4979,23 +5006,20 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 
-  // Save all images
-  if (save_modified_images_when_file_is_saved) {
-    if (ED_image_should_save_modified(bmain)) {
-      ReportList *reports = CTX_wm_reports(C);
-      ED_image_save_all_modified(C, reports);
-      WM_report_banner_show(wm, win);
-    }
+  if (save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain)) {
+    ReportList *reports = CTX_wm_reports(C);
+    ED_image_save_all_modified(C, reports);
+    WM_report_banner_show(wm, win);
   }
 
   should_show_save_image_dialog = false;
   callback->exec(C, callback->user_data);
-  WM_generic_callback_free(callback);
   should_show_save_image_dialog = true;
+  WM_generic_callback_free(callback);
 }
 
 static void wm_block_save_modified_images_cancel_button(blender::ui::Block *block,
-                                                        void *post_action)
+                                                        wmGenericCallback *post_action)
 {
   blender::ui::Button *but = uiDefIconTextBut(block,
                                               blender::ui::ButtonType::But,
@@ -5081,22 +5105,20 @@ static blender::ui::Block *block_create_save_modified_images_dialog(bContext *C,
   }
 
   /* Modified Images Checkbox. */
-  if (modified_images_count > 0) {
-    char message[64];
-    SNPRINTF(message, RPT_("Save %u modified image(s)"), modified_images_count);
-    layout.separator();
-    uiDefButC(block,
-              blender::ui::ButtonType::Checkbox,
-              message,
-              0,
-              0,
-              0,
-              UI_UNIT_Y,
-              &save_modified_images_when_file_is_saved,
-              0,
-              0,
-              "");
-  }
+  char message[64];
+  SNPRINTF(message, RPT_("Save %u modified image(s)"), modified_images_count);
+  layout.separator();
+  uiDefButC(block,
+            blender::ui::ButtonType::Checkbox,
+            message,
+            0,
+            0,
+            0,
+            UI_UNIT_Y,
+            &save_modified_images_when_file_is_saved,
+            0,
+            0,
+            "");
 
   BKE_reports_free(&reports);
 
@@ -5149,57 +5171,26 @@ static blender::ui::Block *block_create_save_modified_images_dialog(bContext *C,
   return block;
 }
 
-static void wm_save_as_mainfile_after_dialog_callback(bContext *C, void *user_data)
-{
-  WM_operator_name_call_with_properties(C,
-                                        "WM_OT_save_as_mainfile",
-                                        blender::wm::OpCallContext::InvokeDefault,
-                                        (IDProperty *)user_data,
-                                        nullptr);
-}
-
-static void wm_execute_save_mainfile_after_dialog_callback(bContext *C, void *user_data)
-{
-  WM_operator_name_call_with_properties(C,
-                                        "WM_OT_save_mainfile",
-                                        blender::wm::OpCallContext::ExecDefault,
-                                        (IDProperty *)user_data,
-                                        nullptr);
-}
-
-static void wm_invoke_save_mainfile_after_dialog_callback(bContext *C, void *user_data)
-{
-  WM_operator_name_call_with_properties(C,
-                                        "WM_OT_save_mainfile",
-                                        blender::wm::OpCallContext::InvokeDefault,
-                                        (IDProperty *)user_data,
-                                        nullptr);
-}
-
-void wm_save_modified_images_dialog(bContext *C, wmOperator *op)
+void wm_save_modified_images_dialog(bContext *C, wmGenericCallback *post_action)
 {
   if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), save_modified_images_dialog_name)) {
-    const Main *bmain = CTX_data_main(C);
-    const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
-    bool file_has_been_saved_before = BKE_main_blendfile_path(bmain)[0] != '\0';
-
-    wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
-    if (is_save_as || bmain->has_forward_compatibility_issues ||
-        bmain->colorspace.is_missing_opencolorio_config)
-    {
-      callback->exec = wm_save_as_mainfile_after_dialog_callback;
-    }
-    else if (!file_has_been_saved_before) {
-      callback->exec = wm_invoke_save_mainfile_after_dialog_callback;
-    }
-    else {
-      callback->exec = wm_execute_save_mainfile_after_dialog_callback;
-    }
-    callback->user_data = IDP_CopyProperty(op->properties);
-    callback->free_user_data = wm_free_operator_properties_callback;
     blender::ui::popup_block_invoke(
-        C, block_create_save_modified_images_dialog, callback, free_post_file_close_action);
+        C, block_create_save_modified_images_dialog, post_action, free_post_file_close_action);
   }
+  else {
+    WM_generic_callback_free(post_action);
+  }
+}
+
+void wm_operator_save_modified_images_dialog(bContext *C,
+                                             wmOperator *op,
+                                             wmGenericCallbackFn post_action_fn)
+{
+  wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
+  callback->exec = post_action_fn;
+  callback->user_data = IDP_CopyProperty(op->properties);
+  callback->free_user_data = wm_free_operator_properties_callback;
+  wm_save_modified_images_dialog(C, callback);
 }
 
 /** \} */
