@@ -1847,8 +1847,8 @@ class USDExportTest(AbstractUSDTest):
              'total_instances': 16,
              'total_prototypes': 1,
              'extent': {
-                 "/root/Plane/Mesh": [Gf.Vec3f(-1.0999999, -1.0999999, -0.1),
-                                      Gf.Vec3f(1.1, 1.1, 0.1)]}},
+                 "/root/Plane/Plane": [Gf.Vec3f(-1.0999999, -1.0999999, -0.1),
+                                       Gf.Vec3f(1.1, 1.1, 0.1)]}},
             # collection reference from single point instancer
             {'input_file': str(self.testdir / "usd_point_instancer_collection_ref.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_collection_ref.usda",
@@ -1857,8 +1857,8 @@ class USDExportTest(AbstractUSDTest):
              'total_instances': 32,
              'total_prototypes': 2,
              'extent': {
-                 "/root/Plane/Mesh": [Gf.Vec3f(-1.1758227, -1.1, -0.1),
-                                      Gf.Vec3f(1.1, 1.1526861, 0.14081651)]}},
+                 "/root/Plane/Plane": [Gf.Vec3f(-1.1758227, -1.1, -0.1),
+                                       Gf.Vec3f(1.1, 1.1526861, 0.14081651)]}},
             # collection references in nested point instancer
             {'input_file': str(self.testdir / "usd_point_instancer_nested.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_nested.usda",
