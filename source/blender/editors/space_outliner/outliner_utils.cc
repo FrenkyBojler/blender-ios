@@ -190,12 +190,12 @@ TreeElement *outliner_find_parent_element(ListBase *lb,
 TreeElement *outliner_find_id(SpaceOutliner *space_outliner,
                               ListBase *lb,
                               const ID *id,
-                              const short skip_flags)
+                              TreeElementFlag exclude_flags)
 {
   LISTBASE_FOREACH (TreeElement *, te, lb) {
     TreeStoreElem *tselem = TREESTORE(te);
     if (tselem->type == TSE_SOME_ID) {
-      if (tselem->id == id && !(te->flag & skip_flags)) {
+      if (tselem->id == id && !(te->flag & exclude_flags)) {
         return te;
       }
     }
@@ -206,14 +206,14 @@ TreeElement *outliner_find_id(SpaceOutliner *space_outliner,
       if (te_rna_struct) {
         const PointerRNA &ptr = te_rna_struct->get_pointer_rna();
         if (RNA_struct_is_ID(ptr.type)) {
-          if (static_cast<ID *>(ptr.data) == id && !(te->flag & skip_flags)) {
+          if (static_cast<ID *>(ptr.data) == id && !(te->flag & exclude_flags)) {
             return te;
           }
         }
       }
     }
 
-    TreeElement *tes = outliner_find_id(space_outliner, &te->subtree, id, skip_flags);
+    TreeElement *tes = outliner_find_id(space_outliner, &te->subtree, id, exclude_flags);
     if (tes) {
       return tes;
     }
