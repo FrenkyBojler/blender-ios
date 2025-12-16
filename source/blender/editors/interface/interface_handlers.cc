@@ -198,6 +198,7 @@ static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event
 
 #define BUTTON_FLASH_DELAY 0.020
 #define MENU_SCROLL_INTERVAL 0.1
+static constexpr double MENU_KEEP_ALIVE_INTERVAL = 2.0;
 #define PIE_MENU_INTERVAL 0.01
 #define BUTTON_AUTO_OPEN_THRESH 0.2
 #define BUTTON_MOUSE_TOWARDS_THRESH 1.0
@@ -10795,7 +10796,40 @@ static int ui_handle_menu_event(bContext *C,
   }
 #endif
 
-  if (but && button_modal_state(but->active->state)) {
+  if (!menu->mmd_panning && inside) {
+    if (menu->keep_alive_timer) {
+      WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_alive_timer);
+      menu->keep_alive_timer = nullptr;
+    }
+  }
+  if (event->type == TIMER && event->customdata == menu->keep_alive_timer) {
+    WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_alive_timer);
+    menu->keep_alive_timer = nullptr;
+    retval = WM_UI_HANDLER_BREAK;
+  }
+
+  if (menu->mmd_panning && event->type == MIDDLEMOUSE && event->val == KM_RELEASE) {
+    WM_cursor_set(win, WM_CURSOR_DEFAULT);
+    WM_cursor_grab_disable(win, nullptr);
+    menu->mmd_panning = false;
+    if (!inside) {
+      menu->keep_alive_timer = WM_event_timer_add(
+          CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_KEEP_ALIVE_INTERVAL);
+    }
+  }
+  else if (menu->mmd_panning && event->type == MOUSEMOVE) {
+    const int delta = (menu->mmd_panning_last_y - event->xy[1]) *
+                      (event->flag & WM_EVENT_SCROLL_INVERT ? 1 : -1);
+    if (delta) {
+      ui_menu_scroll_apply_offset_y(region, block, delta);
+      menu->mmd_panning_last_y = event->xy[1];
+    }
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  else if (event->type == MOUSEMOVE && !inside && menu->keep_alive_timer) {
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  else if (but && button_modal_state(but->active->state)) {
     if (block->flag & (BLOCK_MOVEMOUSE_QUIT | BLOCK_POPOVER)) {
       /* if a button is activated modal, always reset the start mouse
        * position of the towards mechanism to avoid losing focus,
@@ -10803,9 +10837,34 @@ static int ui_handle_menu_event(bContext *C,
       ui_mouse_motion_towards_reinit(menu, event->xy);
     }
   }
-  else if (event->type == TIMER) {
+  else if (event->type == TIMER && !menu->mmd_panning && !menu->keep_alive_timer) {
     if (event->customdata == menu->scrolltimer) {
       ui_menu_scroll_to_y(region, block, my);
+    }
+  }
+  else if (event->type == MIDDLEMOUSE && (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM))) {
+    if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0)) {
+    }
+    else {
+      menu->mmd_panning = event->val == KM_PRESS;
+      if (menu->mmd_panning) {
+        but = region_find_active_but(region);
+        if (but) {
+          but->active->cancel = true;
+          button_activate_exit(C, but, but->active, false, false);
+        }
+      }
+      menu->mmd_panning_last_y = event->xy[1];
+      menu->retvalue = 0;
+      if (menu->mmd_panning) {
+        rctf rectf;
+        block_to_window_rctf(menu->region, block, &rectf, &block->rect);
+        rcti bounds;
+        BLI_rcti_rctf_copy(&bounds, &rectf);
+        WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+        WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &bounds, false);
+      }
+      retval = WM_UI_HANDLER_BREAK;
     }
   }
   else {
@@ -12083,6 +12142,18 @@ static bool ui_can_activate_other_menu(Button *but, Button *but_other, const wmE
   {
     /* If the open menu is super wide then don't switch to any neighbors. */
     return false;
+  }
+
+  if (data->menu && data->menu->region) {
+    PopupBlockHandle *submenu = data->menu;
+    while (submenu) {
+      if (submenu->mmd_panning || submenu->keep_alive_timer) {
+        return false;
+      }
+      Button *but = region_find_active_but(submenu->region);
+      HandleButtonData *data = (but) ? but->active : nullptr;
+      submenu = (data) ? data->menu : nullptr;
+    }
   }
 
   float safety = 4.0f * UI_SCALE_FAC;
