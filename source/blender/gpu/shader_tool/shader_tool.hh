@@ -2546,12 +2546,12 @@ class Preprocessor {
                                     prefix + struct_name.str() + " &this_" + suffix);
               }
 
-              if (fn_name.str().find_first_not_of("xyzw") == string::npos ||
-                  fn_name.str().find_first_not_of("rgba") == string::npos)
+              if (fn_name.str().length() > 1 &&
+                  (fn_name.str().find_first_not_of("xyzw") == string::npos ||
+                   fn_name.str().find_first_not_of("rgba") == string::npos))
               {
                 report_error(ERROR_TOK(fn_name),
-                             "Method name matching swizzles and vector component "
-                             "accessor are forbidden.");
+                             "Method name matching swizzles accessor are forbidden.");
               }
             }
           });

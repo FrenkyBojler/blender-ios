@@ -1699,9 +1699,7 @@ class S {
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error,
-              "Method name matching swizzles and vector component "
-              "accessor are forbidden.");
+    EXPECT_EQ(error, "Method name matching swizzles accessor are forbidden.");
   }
 }
 GPU_TEST(preprocess_struct_methods);
