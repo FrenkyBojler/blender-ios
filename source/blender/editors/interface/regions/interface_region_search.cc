@@ -416,7 +416,7 @@ bool searchbox_event(
   else if (type == MIDDLEMOUSE) {
     data->mmb_panning = val == KM_PRESS;
     data->mmb_panning_last_y = event->xy[1];
-    return true;
+    handled = true;
   }
   else if (data->mmb_panning && type == MOUSEMOVE) {
     const int delta = (data->mmb_panning_last_y - event->xy[1]) / UI_UNIT_Y *
@@ -425,6 +425,11 @@ bool searchbox_event(
       searchbox_select(C, region, but, delta);
       data->mmb_panning_last_y = event->xy[1];
     }
+    handled = true;
+  }
+  if (handled) {
+    wmWindow *win = CTX_wm_window(C);
+    WM_tooltip_clear(C, win);
     return true;
   }
 
