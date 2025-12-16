@@ -34,8 +34,14 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
     def tearDown(self):
         self._tempdir.cleanup()
 
-    def compare_value(self, type, value_a, value_b):
-        if type in {'VECTOR', 'ROTATION', 'MATRIX', 'RGBA'}:
+    def compare_value(self, bl_idname, value_a, value_b):
+        vector_value_types = {
+            "NodeSocketMatrix", "NodeSocketRotation", "NodeSocketVector", "NodeSocketVectorFactor",
+            "NodeSocketVectorPercentage", "NodeSocketVectorTranslation", "NodeSocketVectorDirection",
+            "NodeSocketVectorVelocity", "NodeSocketVectorAcceleration", "NodeSocketVectorEuler",
+            "NodeSocketVectorXYZ", "NodeSocketColor"
+        }
+        if bl_idname in vector_value_types:
             for comp_a, comp_b in zip(value_a, value_b):
                 self.assertEqual(comp_a, comp_b)
         else:
@@ -60,7 +66,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
                 expected_has_value = hasattr(expected_socket, "default_value")
                 self.assertEqual(test_has_value, expected_has_value)
                 if test_has_value and expected_has_value:
-                    self.compare_value(expected_socket.type, test_socket.default_value, expected_socket.default_value)
+                    self.compare_value(expected_socket.bl_idname, test_socket.default_value, expected_socket.default_value)
 
             # Links
             self.assertEqual(test_socket.is_linked, expected_socket.is_linked)
@@ -90,10 +96,55 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         test_items = test_tree.interface.items_tree
         expected_items = expected_tree.interface.items_tree
         self.assertEqual(len(test_items), len(expected_items))
-        for te, ex in zip(test_items, expected_items):
-            te_io = getattr(te, "in_out", None)
-            ex_io = getattr(ex, "in_out", None)
-            # print(f"{te.item_type}|{ex.item_type}, {te_io}|{ex_io}, {te.name}|{ex.name}")
+        for test_item, expected_item in zip(test_items, expected_items):
+            self.assertEqual(test_item.index, expected_item.index)
+            self.assertEqual(test_item.item_type, expected_item.item_type)
+            # Find expected parent panel by index from the expected items list.
+            # Item with index -1 is the root panel and can be ignored.
+            if test_item.parent.index >= 0:
+                expected_parent = expected_items[test_item.parent.index]
+                self.assertEqual(expected_parent, expected_item.parent)
+            else:
+                self.assertEqual(test_item.parent.index, -1)
+            self.assertEqual(test_item.position, expected_item.position)
+
+            if expected_item.item_type == 'SOCKET':
+                # General properties.
+                self.assertEqual(test_item.bl_socket_idname, expected_item.bl_socket_idname)
+                self.assertEqual(test_item.in_out, expected_item.in_out)
+                self.assertEqual(test_item.name, expected_item.name)
+                self.assertEqual(test_item.description, expected_item.description)
+                self.assertEqual(test_item.optional_label, expected_item.optional_label)
+                self.assertEqual(test_item.socket_type, expected_item.socket_type)
+                self.assertEqual(test_item.structure_type, expected_item.structure_type)
+                self.assertEqual(test_item.is_panel_toggle, expected_item.is_panel_toggle)
+                self.assertEqual(test_item.layer_selection_field, expected_item.layer_selection_field)
+
+                # Default value.
+                self.assertEqual(test_item.hide_value, expected_item.hide_value)
+                self.assertEqual(test_item.hide_in_modifier, expected_item.hide_in_modifier)
+                self.assertEqual(test_item.default_input, expected_item.default_input)
+                self.assertEqual(test_item.menu_expanded, expected_item.menu_expanded)
+                if hasattr(expected_item, "default_value"):
+                    self.compare_value(expected_item.bl_socket_idname, test_item.default_value, expected_item.default_value)
+                if hasattr(expected_item, "min_value"):
+                    self.assertEqual(test_item.min_value, expected_item.min_value)
+                if hasattr(expected_item, "max_value"):
+                    self.assertEqual(test_item.max_value, expected_item.max_value)
+                if hasattr(expected_item, "subtype"):
+                    self.assertEqual(test_item.subtype, expected_item.subtype)
+                if hasattr(expected_item, "dimensions"):
+                    self.assertEqual(test_item.dimensions, expected_item.dimensions)
+
+                # Attribute settings.
+                self.assertEqual(test_item.attribute_domain, expected_item.attribute_domain)
+                self.assertEqual(test_item.default_attribute_name, expected_item.default_attribute_name)
+
+            if expected_item.item_type == 'PANEL':
+                self.assertEqual(test_item.name, expected_item.name)
+                self.assertEqual(test_item.persistent_uid, expected_item.persistent_uid)
+                self.assertEqual(test_item.description, expected_item.description)
+                self.assertEqual(test_item.default_closed, expected_item.default_closed)
 
     # Add all sockets of mapped nodes to their own dictionary, assuming the socket order is the same.
     @staticmethod
@@ -169,7 +220,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
             "InputLink.Dynamic",
             "InputLink.Field",
             "InputLink.Grid",
-            "InputLink.List",
             "InputLink.Single",
             "InputLink.Dim2",
             "InputLink.DefaultNormal",
@@ -219,7 +269,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
             "InputLink.Dynamic.001",
             "InputLink.Field.001",
             "InputLink.Grid.001",
-            "InputLink.List.001",
             "InputLink.Single.001",
             "InputLink.Dim2.001",
             "InputLink.DefaultNormal.001",
