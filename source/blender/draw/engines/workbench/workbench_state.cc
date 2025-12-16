@@ -331,18 +331,20 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
 
       /* Override object shading to show current image texture if using experimental texture paint
        * and the canvas selector is set to image mode. */
-      const bool is_paint_mode = is_active && color_type == V3D_SHADING_TEXTURE_COLOR;
-      if (is_paint_mode && has_uv()) {
+      const bool override_material = is_active && color_type == V3D_SHADING_TEXTURE_COLOR &&
+                                     paint_mode->canvas_source == PAINT_CANVAS_SOURCE_IMAGE;
+      if (override_material && has_uv()) {
         show_missing_texture = true;
-        if (paint_mode->canvas_source == PAINT_CANVAS_SOURCE_IMAGE) {
-          if (paint_mode->canvas_image) {
-            image_paint_override = MaterialTexture(paint_mode->canvas_image);
-            image_paint_override.sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-            image_paint_override.sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-          }
-          else {
-            image_paint_override = resources.missing_texture;
-          }
+        if (paint_mode->canvas_image) {
+          image_paint_override = MaterialTexture(paint_mode->canvas_image);
+          image_paint_override.sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          image_paint_override.sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          // TODO: Add an image texture interpolation variable to PaintModeSettings, similar to
+          // ImagePaintSetting's interp variable, and make the material override apply the
+          // interpolation filter to achieve feature parity with legacy texture painting mode.
+        }
+        else {
+          image_paint_override = resources.missing_texture;
         }
       }
     }
