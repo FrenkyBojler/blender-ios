@@ -669,6 +669,8 @@ static bool node_group_separate_selected(
     BKE_ntree_update_tag_all(&ngroup);
   }
 
+  DEG_relations_tag_update(&bmain);
+
   return true;
 }
 
@@ -1241,7 +1243,7 @@ static void node_group_make_insert_selected(const bContext &C,
   }
 
   if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
-    bke::node_structure_type_inferencing::update_structure_type_interface(group);
+    BKE_ntree_update(*bmain, Span<bNodeTree *>{&group});
   }
 
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
@@ -1433,6 +1435,19 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
                        *inner_outputs[r_mapping.exposed_output_indices[i]],
                        output_node,
                        *group_outputs[i]);
+  }
+
+  ListBase anim_basepaths = {nullptr, nullptr};
+  PointerRNA src_node_ptr = RNA_pointer_create_discrete(
+      const_cast<ID *>(&src_tree.id), &RNA_Node, const_cast<bNode *>(&src_node));
+  PointerRNA dst_node_ptr = RNA_pointer_create_discrete(&dst_group->id, &RNA_Node, &inner_node);
+  const std::string src_basepath = *RNA_path_from_ID_to_struct(&src_node_ptr);
+  const std::string dst_basepath = *RNA_path_from_ID_to_struct(&dst_node_ptr);
+  BLI_addtail(&anim_basepaths, animation_basepath_change_new(src_basepath, dst_basepath));
+  BKE_animdata_transfer_by_basepath(
+      &bmain, const_cast<ID *>(&src_tree.id), &dst_group->id, &anim_basepaths);
+  LISTBASE_FOREACH_MUTABLE (AnimationBasePathChange *, basepath_change, &anim_basepaths) {
+    animation_basepath_change_free(basepath_change);
   }
 
   BKE_main_ensure_invariants(bmain, dst_group->id);

@@ -145,6 +145,11 @@ void transform_snap_flag_from_modifiers_set(TransInfo *t)
                      (((t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP) ||
                       ((t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP_INVERT)),
                      SCE_SNAP);
+
+  /* Clear stale snap flags when snapping is disabled. */
+  if (!(t->tsnap.flag & SCE_SNAP)) {
+    t->tsnap.status &= ~(SNAP_TARGET_FOUND | SNAP_SOURCE_FOUND);
+  }
 }
 
 bool transform_snap_is_active(const TransInfo *t)
@@ -552,8 +557,9 @@ static bool transform_snap_mixed_is_active(const TransInfo *t)
   }
 
   return (t->tsnap.mode &
-          (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_VOLUME |
-           SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_TO_GRID)) != 0;
+          (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT |
+           SCE_SNAP_TO_VOLUME | SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR |
+           SCE_SNAP_TO_GRID)) != 0;
 }
 
 void transform_snap_mixed_apply(TransInfo *t, float *vec)
