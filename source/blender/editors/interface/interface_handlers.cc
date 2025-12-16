@@ -3163,21 +3163,21 @@ static void textbox_scroll_to_cursor(const ARegion *region, ButtonTextBox *textb
     }
     line_cursor++;
   }
-  int visible_bouds[] = {textbox->line_scroll, textbox->line_scroll + textbox->visible_lines};
-  if (visible_bouds[0] <= line_cursor && line_cursor < visible_bouds[1]) {
+  int visible_bounds[] = {textbox->line_scroll, textbox->line_scroll + textbox->visible_lines};
+  if (visible_bounds[0] <= line_cursor && line_cursor < visible_bounds[1]) {
     return;
   }
-  if (visible_bouds[0] > line_cursor) {
-    textbox_add_scroll(region, textbox, line_cursor - visible_bouds[0]);
+  if (visible_bounds[0] > line_cursor) {
+    textbox_add_scroll(region, textbox, line_cursor - visible_bounds[0]);
   }
   else {
-    textbox_add_scroll(region, textbox, line_cursor - visible_bouds[1] + 1);
+    textbox_add_scroll(region, textbox, line_cursor - visible_bounds[1] + 1);
   }
 }
 
 static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *region, const float2 xy)
 {
-  BLI_assert(but->type == ButtonType::TextBox);
+  BLI_assert(button->type == ButtonType::TextBox);
   ButtonTextBox *textbox = static_cast<ButtonTextBox *>(button);
 
   uiFontStyle fstyle = style_get()->widget;

@@ -2337,7 +2337,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     return;
   }
   /* Draw scrollbar. */
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
 
   rcti scroll_rect = *button_rect;
   BLI_rcti_pad(&scroll_rect, -scrollbar_pad, -scrollbar_pad);
