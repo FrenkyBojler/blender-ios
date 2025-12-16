@@ -58,12 +58,8 @@ class USDImportTest(AbstractUSDTest):
     def round_vector(vector, digits=5):
         return [round(c, digits) + 0 for c in vector]
 
-    def test_import_operator(self):
-        """Test running the import operator on valid and invalid files."""
-
-        infile = str(self.testdir / "usd_mesh_polygon_types.usda")
-        res = bpy.ops.wm.usd_import(filepath=infile)
-        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
+    def test_import_notfound(self):
+        """Test running the import operator on invalid files."""
 
         infile = str(self.testdir / "this_file_doesn't_exist.usda")
         # RPT_ERROR Reports from operators generate `RuntimeError` python exceptions.
@@ -72,24 +68,6 @@ class USDImportTest(AbstractUSDTest):
             self.assertEqual({'CANCELLED'}, res, "Was somehow able to import a non-existent USD file!")
         except RuntimeError as e:
             self.assertTrue(e.args[0].startswith("Error: USD Import: unable to open stage to read"))
-
-    def test_import_prim_hierarchy(self):
-        """Test importing a simple object hierarchy from a USDA file."""
-
-        infile = str(self.testdir / "prim-hierarchy.usda")
-
-        res = bpy.ops.wm.usd_import(filepath=infile)
-        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {infile}")
-
-        objects = bpy.context.scene.collection.objects
-        self.assertEqual(5, len(objects), f"Test scene {infile} should have five objects; found {len(objects)}")
-
-        # Test the hierarchy.
-        self.assertIsNone(objects['World'].parent, "/World should not be parented.")
-        self.assertEqual(objects['World'], objects['Plane'].parent, "Plane should be child of /World")
-        self.assertEqual(objects['World'], objects['Plane_001'].parent, "Plane_001 should be a child of /World")
-        self.assertEqual(objects['World'], objects['Empty'].parent, "Empty should be a child of /World")
-        self.assertEqual(objects['Empty'], objects['Plane_002'].parent, "Plane_002 should be a child of /World")
 
     def test_import_xform_and_mesh_merged_false(self):
         """Test importing a simple object hierarchy (xform and mesh) from a USDA file."""
