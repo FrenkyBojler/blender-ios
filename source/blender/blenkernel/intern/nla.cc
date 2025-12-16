@@ -20,6 +20,7 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -37,7 +38,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_nla.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "BLO_read_write.hh"
 
@@ -48,7 +49,7 @@
 
 #include "nla_private.h"
 
-static CLG_LogRef LOG = {"bke.nla"};
+static CLG_LogRef LOG = {"anim.nla"};
 
 using namespace blender;
 
@@ -371,7 +372,7 @@ void BKE_nlatrack_insert_before(ListBase *nla_tracks,
   new_track->index = BLI_findindex(nla_tracks, new_track);
 
   /* Must have unique name, but we need to seed this. */
-  STRNCPY(new_track->name, "NlaTrack");
+  STRNCPY_UTF8(new_track->name, "NlaTrack");
 
   BLI_uniquename(nla_tracks,
                  new_track,
@@ -594,7 +595,7 @@ NlaStrip *BKE_nlastack_add_strip(const OwnedAnimData owned_adt, const bool is_li
     nlt = BKE_nlatrack_new_tail(&adt->nla_tracks, is_liboverride);
     BKE_nlatrack_set_active(&adt->nla_tracks, nlt);
     BKE_nlatrack_add_strip(nlt, strip, is_liboverride);
-    STRNCPY(nlt->name, adt->action->id.name + 2);
+    STRNCPY_UTF8(nlt->name, adt->action->id.name + 2);
   }
 
   /* automatically name it too */
@@ -615,7 +616,7 @@ NlaStrip *BKE_nla_add_soundstrip(Main *bmain, Scene *scene, Speaker *speaker)
   if (speaker->sound) {
     SoundInfo info;
     if (BKE_sound_info_get(bmain, speaker->sound, &info)) {
-      strip->end = float(ceil(double(info.length) * FPS));
+      strip->end = float(ceil(double(info.length) * scene->frames_per_second()));
     }
   }
   else
@@ -1861,6 +1862,23 @@ void BKE_nlastrip_validate_fcurves(NlaStrip *strip)
   }
 }
 
+bool BKE_nlastrip_controlcurve_remove(NlaStrip *strip, FCurve *fcurve)
+{
+  if (STREQ(fcurve->rna_path, "strip_time")) {
+    strip->flag &= ~NLASTRIP_FLAG_USR_TIME;
+  }
+  else if (STREQ(fcurve->rna_path, "influence")) {
+    strip->flag &= ~NLASTRIP_FLAG_USR_INFLUENCE;
+  }
+  else {
+    return false;
+  }
+
+  BLI_remlink(&strip->fcurves, fcurve);
+  BKE_fcurve_free(fcurve);
+  return true;
+}
+
 bool BKE_nlastrip_has_curves_for_property(const PointerRNA *ptr, const PropertyRNA *prop)
 {
   /* sanity checks */
@@ -1908,16 +1926,16 @@ void BKE_nlastrip_validate_name(AnimData *adt, NlaStrip *strip)
   if (strip->name[0] == 0) {
     switch (strip->type) {
       case NLASTRIP_TYPE_CLIP: /* act-clip */
-        STRNCPY(strip->name, (strip->act) ? (strip->act->id.name + 2) : DATA_("<No Action>"));
+        STRNCPY_UTF8(strip->name, (strip->act) ? (strip->act->id.name + 2) : DATA_("<No Action>"));
         break;
       case NLASTRIP_TYPE_TRANSITION: /* transition */
-        STRNCPY(strip->name, DATA_("Transition"));
+        STRNCPY_UTF8(strip->name, DATA_("Transition"));
         break;
       case NLASTRIP_TYPE_META: /* meta */
-        STRNCPY(strip->name, DATA_("Meta"));
+        STRNCPY_UTF8(strip->name, CTX_DATA_(BLT_I18NCONTEXT_ID_ACTION, "Meta"));
         break;
       default:
-        STRNCPY(strip->name, DATA_("NLA Strip"));
+        STRNCPY_UTF8(strip->name, DATA_("NLA Strip"));
         break;
     }
   }
@@ -1946,9 +1964,7 @@ void BKE_nlastrip_validate_name(AnimData *adt, NlaStrip *strip)
    *   but then everything else in Blender would fail too :).
    */
   BLI_uniquename_cb(
-      [&](const blender::StringRefNull check_name) {
-        return BLI_ghash_haskey(gh, check_name.c_str());
-      },
+      [&](const StringRefNull check_name) { return BLI_ghash_haskey(gh, check_name.c_str()); },
       DATA_("NlaStrip"),
       '.',
       strip->name,
@@ -2174,7 +2190,7 @@ bool BKE_nla_action_stash(const OwnedAnimData owned_adt, const bool is_liboverri
     BLI_addhead(&adt->nla_tracks, nlt);
   }
 
-  STRNCPY(nlt->name, STASH_TRACK_NAME);
+  STRNCPY_UTF8(nlt->name, STASH_TRACK_NAME);
   BLI_uniquename(
       &adt->nla_tracks, nlt, STASH_TRACK_NAME, '.', offsetof(NlaTrack, name), sizeof(nlt->name));
 
@@ -2465,7 +2481,7 @@ static void nla_tweakmode_exit_nofollowptr(AnimData *adt)
 
   adt->tmpact = nullptr;
   adt->tmp_slot_handle = animrig::Slot::unassigned;
-  STRNCPY(adt->last_slot_identifier, adt->tmp_last_slot_identifier);
+  STRNCPY_UTF8(adt->last_slot_identifier, adt->tmp_last_slot_identifier);
 
   adt->act_track = nullptr;
   adt->actstrip = nullptr;
@@ -2761,7 +2777,7 @@ void BKE_nla_liboverride_post_process(ID *id, AnimData *adt)
 
   /* In tweak mode, with tracks, so ensure that the active track/strip pointers are correct. Since
    * these pointers may come from a library, but the override may have added other tracks and
-   * strips (one of which is in tweak mode), always look up the current pointer values.  */
+   * strips (one of which is in tweak mode), always look up the current pointer values. */
   nla_tweakmode_find_active(&adt->nla_tracks, &adt->act_track, &adt->actstrip);
   if (!adt->act_track || !adt->actstrip) {
     /* Could not find the active track/strip, so better to exit tweak mode. */
@@ -2769,7 +2785,7 @@ void BKE_nla_liboverride_post_process(ID *id, AnimData *adt)
   }
 }
 
-static bool visit_strip(NlaStrip *strip, blender::FunctionRef<bool(NlaStrip *)> callback)
+static bool visit_strip(NlaStrip *strip, FunctionRef<bool(NlaStrip *)> callback)
 {
   if (!callback(strip)) {
     return false;
@@ -2786,7 +2802,7 @@ static bool visit_strip(NlaStrip *strip, blender::FunctionRef<bool(NlaStrip *)> 
 
 namespace blender::bke::nla {
 
-bool foreach_strip(ID *id, blender::FunctionRef<bool(NlaStrip *)> callback)
+bool foreach_strip(ID *id, FunctionRef<bool(NlaStrip *)> callback)
 {
   const AnimData *adt = BKE_animdata_from_id(id);
   if (!adt) {
@@ -2796,7 +2812,7 @@ bool foreach_strip(ID *id, blender::FunctionRef<bool(NlaStrip *)> callback)
   return foreach_strip_adt(*adt, callback);
 }
 
-bool foreach_strip_adt(const AnimData &adt, blender::FunctionRef<bool(NlaStrip *)> callback)
+bool foreach_strip_adt(const AnimData &adt, FunctionRef<bool(NlaStrip *)> callback)
 {
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt.nla_tracks) {
     LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {

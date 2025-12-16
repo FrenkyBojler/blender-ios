@@ -9,19 +9,19 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_rect.h"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
 #include "GPU_state.hh"
 
 #include "ED_clip.hh"
-#include "ED_gpencil_legacy.hh"
 #include "ED_image.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -78,7 +78,8 @@ bool transdata_check_local_islands(TransInfo *t, short around)
   if (t->options & (CTX_CURSOR | CTX_TEXTURE_SPACE)) {
     return false;
   }
-  return ((around == V3D_AROUND_LOCAL_ORIGINS) && ELEM(t->obedit_type, OB_MESH));
+  return ((around == V3D_AROUND_LOCAL_ORIGINS) &&
+          ELEM(t->obedit_type, OB_MESH, OB_GREASE_PENCIL, OB_CURVES));
 }
 
 /** \} */
@@ -126,7 +127,8 @@ void setTransformViewAspect(TransInfo *t, float r_aspect[3])
   }
   else if (t->spacetype == SPACE_SEQ) {
     if (t->options & CTX_CURSOR) {
-      const float2 aspect = seq::image_preview_unit_to_px(t->scene, r_aspect);
+      Scene *scene = CTX_data_sequencer_scene(t->context);
+      const float2 aspect = seq::image_preview_unit_to_px(scene, r_aspect);
       copy_v2_v2(r_aspect, aspect);
     }
   }
@@ -230,6 +232,56 @@ void convertViewVec(TransInfo *t, float r_vec[3], double dx, double dy)
   }
 }
 
+void projectFloatViewCenterFallback(TransInfo *t, float adr[2])
+{
+  const ARegion *region = t->region;
+
+  if (UNLIKELY(region == nullptr)) {
+    /* While this function probably wont be calved without a region.
+     * Doing so shouldn't cause errors. */
+    adr[0] = 0.0f;
+    adr[1] = 0.0f;
+    return;
+  }
+
+  bool changed = false;
+  switch (t->spacetype) {
+    case SPACE_VIEW3D: {
+      if (region->regiontype == RGN_TYPE_WINDOW) {
+        /* NOTE(@ideasman42): When picking a fallback there isn't a "correct" location.
+         * By default the region center is the fallback, use this unless there is a reason not to.
+         *
+         * One exception is when transforming the camera from the camera viewpoint.
+         * In this case it's logical to use the camera frames center, see: #141663. */
+        if (t->options & CTX_CAMERA) {
+          const View3D *v3d = static_cast<View3D *>(t->view);
+          const RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+          if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
+            /* Exclude any camera "shift" because the un-shifted point is the pivot.
+             *
+             * This may not be the case when transforming a cameras parent however
+             * in these situations it's not practical to find a screen space location
+             * for a 3D point that couldn't be projected. */
+            const bool no_shift = true;
+            rctf viewborder = {0};
+            ED_view3d_calc_camera_border(
+                t->scene, t->depsgraph, region, v3d, rv3d, no_shift, &viewborder);
+            adr[0] = BLI_rctf_cent_x(&viewborder);
+            adr[1] = BLI_rctf_cent_y(&viewborder);
+            changed = true;
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  if (changed == false) {
+    adr[0] = region->winx / 2.0f;
+    adr[1] = region->winy / 2.0f;
+  }
+}
+
 void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DProjTest flag)
 {
   if (t->spacetype == SPACE_VIEW3D) {
@@ -267,7 +319,8 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
       v[0] = vec[0] / t->aspect[0];
       v[1] = vec[1] / t->aspect[1];
 
-      UI_view2d_view_to_region(static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
+      blender::ui::view2d_view_to_region(
+          static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
     }
   }
   else if (t->spacetype == SPACE_ACTION) {
@@ -278,12 +331,12 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
     if (sact->flag & SACTION_DRAWTIME) {
       // vec[0] = vec[0] / ((t->scene->r.frs_sec / t->scene->r.frs_sec_base));
       /* Same as below. */
-      UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+      blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     }
     else
 #endif
     {
-      UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+      blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     }
 
     adr[0] = out[0];
@@ -292,14 +345,14 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
   else if (ELEM(t->spacetype, SPACE_GRAPH, SPACE_NLA)) {
     int out[2] = {0, 0};
 
-    UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     adr[0] = out[0];
     adr[1] = out[1];
   }
   else if (t->spacetype == SPACE_SEQ) { /* XXX not tested yet, but should work. */
     int out[2] = {0, 0};
 
-    UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     adr[0] = out[0];
     adr[1] = out[1];
   }
@@ -333,14 +386,15 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
       v[0] = vec[0] / t->aspect[0];
       v[1] = vec[1] / t->aspect[1];
 
-      UI_view2d_view_to_region(static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
+      blender::ui::view2d_view_to_region(
+          static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
     }
     else {
       BLI_assert(0);
     }
   }
   else if (t->spacetype == SPACE_NODE) {
-    UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &adr[0], &adr[1]);
+    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &adr[0], &adr[1]);
   }
 }
 void projectIntView(TransInfo *t, const float vec[3], int adr[2])
@@ -360,8 +414,7 @@ void projectFloatViewEx(TransInfo *t, const float vec[3], float adr[2], const eV
         /* Allow points behind the view #33643. */
         if (ED_view3d_project_float_global(t->region, vec, adr, flag) != V3D_PROJ_RET_OK) {
           /* XXX, 2.64 and prior did this, weak! */
-          adr[0] = t->region->winx / 2.0f;
-          adr[1] = t->region->winy / 2.0f;
+          projectFloatViewCenterFallback(t, adr);
         }
         return;
       }
@@ -587,9 +640,6 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
       if (t->spacetype != SPACE_VIEW3D) {
         return false;
       }
-      if ((t->tsnap.mode & ~(SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID)) == 0) {
-        return false;
-      }
       if (value == TFM_MODAL_ADD_SNAP) {
         if (!(t->tsnap.status & SNAP_TARGET_FOUND)) {
           return false;
@@ -626,7 +676,8 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
     }
     case TFM_MODAL_INSERTOFS_TOGGLE_DIR:
     case TFM_MODAL_NODE_ATTACH_ON:
-    case TFM_MODAL_NODE_ATTACH_OFF: {
+    case TFM_MODAL_NODE_ATTACH_OFF:
+    case TFM_MODAL_NODE_FRAME: {
       if (t->spacetype != SPACE_NODE) {
         return false;
       }
@@ -722,6 +773,11 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
         return false;
       }
       return t->vod != nullptr;
+    case TFM_MODAL_STRIP_CLAMP:
+      if (t->spacetype != SPACE_SEQ) {
+        return false;
+      }
+      break;
   }
   return true;
 }
@@ -770,13 +826,15 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {TFM_MODAL_TRANSLATE, "TRANSLATE", 0, "Move", ""},
       {TFM_MODAL_VERT_EDGE_SLIDE, "VERT_EDGE_SLIDE", 0, "Vert/Edge Slide", ""},
       {TFM_MODAL_ROTATE, "ROTATE", 0, "Rotate", ""},
-      {TFM_MODAL_TRACKBALL, "TRACKBALL", 0, "TrackBall", ""},
+      {TFM_MODAL_TRACKBALL, "TRACKBALL", 0, "Trackball", ""},
       {TFM_MODAL_RESIZE, "RESIZE", 0, "Resize", ""},
       {TFM_MODAL_ROTATE_NORMALS, "ROTATE_NORMALS", 0, "Rotate Normals", ""},
       {TFM_MODAL_AUTOCONSTRAINT, "AUTOCONSTRAIN", 0, "Automatic Constraint", ""},
       {TFM_MODAL_AUTOCONSTRAINTPLANE, "AUTOCONSTRAINPLANE", 0, "Automatic Constraint Plane", ""},
       {TFM_MODAL_PRECISION, "PRECISION", 0, "Precision Mode", ""},
       {TFM_MODAL_PASSTHROUGH_NAVIGATE, "PASSTHROUGH_NAVIGATE", 0, "Navigate", ""},
+      {TFM_MODAL_NODE_FRAME, "NODE_FRAME", 0, "Attach/Detach Frame", ""},
+      {TFM_MODAL_STRIP_CLAMP, "STRIP_CLAMP_TOGGLE", 0, "Clamp Strips", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -975,6 +1033,23 @@ static bool transform_event_modal_constraint(TransInfo *t, short modal_type)
   return true;
 }
 
+static void tool_settings_update_snap_toggle(TransInfo *t)
+{
+  bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
+
+  /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
+  short *snap_flag_ptr;
+
+  wmMsgParams_RNA msg_key_params = {{}};
+  msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, &RNA_ToolSettings, t->settings);
+  if ((snap_flag_ptr = transform_snap_flag_from_spacetype_ptr(t, &msg_key_params.prop)) &&
+      (is_snap_enabled != bool(*snap_flag_ptr & SCE_SNAP)))
+  {
+    SET_FLAG_FROM_TEST(*snap_flag_ptr, is_snap_enabled, SCE_SNAP);
+    WM_msg_publish_rna_params(t->mbus, &msg_key_params);
+  }
+}
+
 wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
 {
   bool is_navigating = t->vod ? ((RegionView3D *)t->region->regiondata)->rflag & RV3D_NAVIGATING :
@@ -1027,7 +1102,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
       case TFM_MODAL_TRACKBALL:
       case TFM_MODAL_ROTATE_NORMALS:
       case TFM_MODAL_VERT_EDGE_SLIDE:
-        /* Only switch when. */
+        /* Only switch when supported. */
         if (!transform_mode_is_changeable(t->mode)) {
           break;
         }
@@ -1087,7 +1162,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
           if (t->state == TRANS_CANCEL) {
             resetTransModal(t);
             t->state = TRANS_STARTING;
-            transform_mode_init(t, nullptr, TFM_VERT_SLIDE);
+            transform_mode_init(t, op, TFM_VERT_SLIDE);
           }
           /* Vert Slide can fail on unconnected vertices (rare but possible). */
           if (t->state == TRANS_CANCEL) {
@@ -1099,7 +1174,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         }
 
         /* Need to reinitialize after mode change. */
-        initSnapping(t, nullptr);
+        transform_snap_reset_from_mode(t, op);
         applyMouseInput(t, &t->mouse, t->mval, t->values);
         t->redraw |= TREDRAW_HARD;
         break;
@@ -1121,6 +1196,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
       case TFM_MODAL_SNAP_TOGGLE:
         t->modifiers ^= MOD_SNAP;
         transform_snap_flag_from_modifiers_set(t);
+        tool_settings_update_snap_toggle(t);
         t->redraw |= TREDRAW_HARD;
         break;
       case TFM_MODAL_AXIS_X:
@@ -1223,6 +1299,10 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         t->modifiers &= ~MOD_NODE_ATTACH;
         t->redraw |= TREDRAW_HARD;
         break;
+      case TFM_MODAL_NODE_FRAME:
+        t->modifiers |= MOD_NODE_FRAME;
+        t->redraw |= TREDRAW_HARD;
+        break;
 
       case TFM_MODAL_AUTOCONSTRAINT:
       case TFM_MODAL_AUTOCONSTRAINTPLANE:
@@ -1300,6 +1380,10 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
           transform_mode_snap_source_init(t, nullptr);
           t->redraw |= TREDRAW_HARD;
         }
+        break;
+      case TFM_MODAL_STRIP_CLAMP:
+        t->modifiers ^= MOD_STRIP_CLAMP_HOLDS;
+        t->redraw |= TREDRAW_HARD;
         break;
       default:
         break;
@@ -1463,19 +1547,35 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
 static bool transinfo_show_overlay(TransInfo *t, ARegion *region)
 {
   /* Don't show overlays when not the active view and when overlay is disabled: #57139 */
-  bool ok = false;
-  if (region == t->region) {
-    ok = true;
+  if (region != t->region) {
+    return false;
   }
-  else {
-    if (t->spacetype == SPACE_VIEW3D) {
-      View3D *v3d = static_cast<View3D *>(t->view);
-      if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
-        ok = true;
-      }
+
+  switch (t->spacetype) {
+    case SPACE_VIEW3D: {
+      const View3D *v3d = static_cast<const View3D *>(t->view);
+      return (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
+    }
+    case SPACE_IMAGE: {
+      const SpaceImage *sima = static_cast<const SpaceImage *>(t->area->spacedata.first);
+      return (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS) != 0;
+    }
+    case SPACE_SEQ: {
+      const SpaceSeq *sseq = static_cast<const SpaceSeq *>(t->area->spacedata.first);
+      return (sseq->flag & SEQ_SHOW_OVERLAY) != 0;
+    }
+    case SPACE_ACTION: {
+      const SpaceAction *sact = static_cast<const SpaceAction *>(t->area->spacedata.first);
+      return (sact->overlays.flag & ADS_OVERLAY_SHOW_OVERLAYS) != 0;
+    }
+
+    case SPACE_GRAPH: {
+      /* There is no overlay flag defined yet for the Graph Editor. But there is the proportional
+       * editing drawing that will not happen if we return false here. */
+      return true;
     }
   }
-  return ok;
+  return false;
 }
 
 static void drawTransformView(const bContext * /*C*/, ARegion *region, void *arg)
@@ -1569,8 +1669,8 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
     ED_view3d_text_colors_get(scene, v3d, text_color, shadow_color);
   }
   else {
-    UI_GetThemeColor4fv(TH_TEXT_HI, text_color);
-    UI_GetThemeColor4fv(TH_BACK, text_color);
+    ui::theme::get_color_4fv(TH_TEXT_HI, text_color);
+    ui::theme::get_color_4fv(TH_BACK, text_color);
   }
   BLF_color4fv(BLF_default(), text_color);
   BLF_shadow(BLF_default(), FontShadowType::Outline, shadow_color);
@@ -1582,7 +1682,7 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
   xco -= U.widget_unit;
   yco -= int(printable_size[1]) / 2;
 
-  UI_icon_draw(xco, yco, ICON_REC);
+  blender::ui::icon_draw(xco, yco, ICON_REC);
 
   GPU_blend(GPU_BLEND_NONE);
 }
@@ -1595,24 +1695,24 @@ static void drawTransformPixel(const bContext * /*C*/, ARegion *region, void *ar
     return;
   }
 
-  if (region == t->region) {
-    Scene *scene = t->scene;
-    ViewLayer *view_layer = t->view_layer;
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    Object *ob = BKE_view_layer_active_object_get(view_layer);
+  if (region != t->region) {
+    return;
+  }
 
-    /* Draw auto-key-framing hint in the corner
-     * - only draw if enabled (advanced users may be distracted/annoyed),
-     *   for objects that will be auto-keyframed (no point otherwise),
-     *   AND only for the active region (as showing all is too overwhelming)
-     */
-    if ((U.keying_flag & AUTOKEY_FLAG_NOWARNING) == 0) {
-      if (region == t->region) {
-        if (t->options & (CTX_OBJECT | CTX_POSE_BONE)) {
-          if (ob && animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
-            drawAutoKeyWarning(t, region);
-          }
-        }
+  /* Draw auto-key-framing hint in the corner
+   * - only draw if enabled (advanced users may be distracted/annoyed),
+   *   for objects that will be auto-keyframed (no point otherwise),
+   *   AND only for the active region (as showing all is too overwhelming)
+   */
+  if ((U.keying_flag & AUTOKEY_FLAG_NOWARNING) == 0) {
+    if (t->options & (CTX_OBJECT | CTX_POSE_BONE)) {
+      Scene *scene = t->scene;
+      ViewLayer *view_layer = t->view_layer;
+      BKE_view_layer_synced_ensure(scene, view_layer);
+      Object *ob = BKE_view_layer_active_object_get(view_layer);
+
+      if (ob && animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
+        drawAutoKeyWarning(t, region);
       }
     }
   }
@@ -1651,6 +1751,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
       {
         BKE_view_layer_synced_ensure(t->scene, t->view_layer);
         const Object *obact = BKE_view_layer_active_object_get(t->view_layer);
+        const eObjectMode object_mode = eObjectMode(obact ? obact->mode : OB_MODE_OBJECT);
 
         if (t->spacetype == SPACE_GRAPH) {
           ts->proportional_fcurve = use_prop_edit;
@@ -1661,7 +1762,9 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         else if (t->options & CTX_MASK) {
           ts->proportional_mask = use_prop_edit;
         }
-        else if (obact && obact->mode == OB_MODE_OBJECT) {
+        else if (object_mode == OB_MODE_OBJECT) {
+          /* No active object means #TransConvertType_Object [see #convert_type_get()],
+           * so use tool-setting for *object*. */
           ts->proportional_objects = use_prop_edit;
         }
         else {
@@ -1718,9 +1821,15 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
     }
   }
 
+  /* Shear uses offset internally, but the operator property is angle.
+   * Convert offset to angle before saving. */
+  if (t->mode == TFM_SHEAR) {
+    const float angle_rad = atanf(t->values_final[0]);
+    RNA_float_set(op->ptr, "angle", angle_rad);
+  }
+
   /* Save snapping settings. */
   if ((prop = RNA_struct_find_property(op->ptr, "snap"))) {
-    bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
 
     /* Update the snap toggle in `ToolSettings`. */
     if (
@@ -1733,19 +1842,10 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         /* Skip updating the snap toggle if snapping was enabled via operator properties. */
         !RNA_property_is_set(op->ptr, prop))
     {
-      /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
-      short *snap_flag_ptr;
-
-      wmMsgParams_RNA msg_key_params = {{}};
-      msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, &RNA_ToolSettings, ts);
-      if ((snap_flag_ptr = transform_snap_flag_from_spacetype_ptr(t, &msg_key_params.prop)) &&
-          (is_snap_enabled != bool(*snap_flag_ptr & SCE_SNAP)))
-      {
-        SET_FLAG_FROM_TEST(*snap_flag_ptr, is_snap_enabled, SCE_SNAP);
-        WM_msg_publish_rna_params(t->mbus, &msg_key_params);
-      }
+      tool_settings_update_snap_toggle(t);
     }
 
+    bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
     RNA_property_boolean_set(op->ptr, prop, is_snap_enabled);
 
     if ((prop = RNA_struct_find_property(op->ptr, "snap_elements"))) {
@@ -1773,6 +1873,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         int orient_axis = constraintModeToIndex(t);
         if (orient_axis != -1) {
           RNA_property_enum_set(op->ptr, prop, orient_axis);
+          t->con.mode &= ~CON_APPLY;
         }
       }
       else {
@@ -1895,7 +1996,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   /* Needed to translate tweak events to mouse buttons. */
   t->launch_event = event ? WM_userdef_event_type_from_keymap_type(event->type) : -1;
-  t->is_launch_event_drag = event ? (event->val == KM_CLICK_DRAG) : false;
+  t->is_launch_event_drag = event ? (event->val == KM_PRESS_DRAG) : false;
 
   unit_m3(t->spacemtx);
 
@@ -1941,7 +2042,20 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   if (t->flag & T_PROP_EDIT) {
     bool has_selected_any = false;
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-      if (tc->data->flag & TD_SELECTED) {
+      if (tc->data_len == 0) {
+        continue;
+      }
+
+      if (!tc->sorted_index_map) {
+        BLI_assert_msg(tc->data[0].flag & TD_SELECTED,
+                       "Without sorted_index_map, all items are expected to be selected");
+        has_selected_any = true;
+        break;
+      }
+
+      const int first_selected_index = tc->sorted_index_map[0];
+      TransData *td = &tc->data[first_selected_index];
+      if (td->flag & TD_SELECTED) {
         has_selected_any = true;
         break;
       }
@@ -2199,6 +2313,17 @@ bool transform_apply_matrix(TransInfo *t, float mat[4][4])
 void transform_final_value_get(const TransInfo *t, float *value, const int value_num)
 {
   memcpy(value, t->values_final, sizeof(float) * value_num);
+}
+
+void view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3])
+{
+  if (t->persp != RV3D_ORTHO) {
+    sub_v3_v3v3(r_vec, t->viewinv[3], focus);
+  }
+  else {
+    copy_v3_v3(r_vec, t->viewinv[2]);
+  }
+  normalize_v3(r_vec);
 }
 
 }  // namespace blender::ed::transform

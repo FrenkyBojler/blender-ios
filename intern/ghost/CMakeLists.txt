@@ -88,16 +88,6 @@ if(WITH_OPENGL_BACKEND)
 endif()
 
 if(WITH_VULKAN_BACKEND)
-  if(WITH_VULKAN_MOLTENVK)
-    list(APPEND INC_SYS
-      PUBLIC ${MOLTENVK_INCLUDE_DIRS}
-    )
-
-    list(APPEND LIB
-      ${MOLTENVK_LIBRARIES}
-    )
-  endif()
-
   list(APPEND SRC
     intern/GHOST_ContextVK.cc
 
@@ -136,12 +126,17 @@ if(WITH_INPUT_NDOF)
     intern/GHOST_NDOFManager.hh
   )
 
-  list(APPEND INC_SYS
-    ${NDOF_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${NDOF_LIBRARIES}
-  )
+  # Only some platforms define this.
+  if(DEFINED NDOF_INCLUDE_DIRS)
+    list(APPEND INC_SYS
+      ${NDOF_INCLUDE_DIRS}
+    )
+  endif()
+  if(DEFINED NDOF_LIBRARIES)
+    list(APPEND LIB
+      ${NDOF_LIBRARIES}
+    )
+  endif()
 endif()
 
 list(APPEND SRC
@@ -290,15 +285,13 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       )
     endif()
 
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      list(APPEND INC_SYS
-        ${libdecor_INCLUDE_DIRS}
+    if(WITH_GHOST_CSD)
+      list(APPEND SRC
+        intern/GHOST_WindowWaylandCSD.cc
+
+        intern/GHOST_WindowWaylandCSD.hh
       )
-      if(NOT WITH_GHOST_WAYLAND_DYNLOAD)
-        list(APPEND LIB
-          ${libdecor_LIBRARIES}
-        )
-      endif()
+      add_definitions(-DWITH_GHOST_CSD)
     endif()
 
     include(CheckSymbolExists)
@@ -312,14 +305,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     check_symbol_exists(poll "poll.h" HAVE_POLL)
     if(HAVE_POLL)
       add_definitions(-DHAVE_POLL)
-    endif()
-
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      # See code-comment for `USE_LIBDECOR_CONFIG_COPY_WORKAROUND`.
-      check_symbol_exists(malloc_usable_size "malloc.h" HAVE_MALLOC_USABLE_SIZE)
-      if(HAVE_MALLOC_USABLE_SIZE)
-        add_definitions(-DHAVE_MALLOC_USABLE_SIZE)
-      endif()
     endif()
 
     list(APPEND SRC
@@ -368,7 +353,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       ${INC_DST}
     )
 
-    # Used when: LIBDECOR is not needed.
     # `xdg-shell`.
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml"
@@ -377,8 +361,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml"
     )
-    # End LIBDECOR alternative.
-
     # `xdg-output`.
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/unstable/xdg-output/xdg-output-unstable-v1.xml"
@@ -391,7 +373,7 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/staging/fractional-scale/fractional-scale-v1.xml"
     )
-    # Viewport (only required when fractional scale is in use).
+    # ViewPorter (only required when fractional scale is in use).
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/stable/viewporter/viewporter.xml"
     )
@@ -420,6 +402,10 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
         "${WAYLAND_PROTOCOLS_DIR}/unstable/text-input/text-input-unstable-v3.xml"
       )
     endif()
+    # Desktop compositor controlled cursor rendering.
+    generate_protocol_bindings(
+      "${WAYLAND_PROTOCOLS_DIR}/staging/cursor-shape/cursor-shape-v1.xml"
+    )
 
     unset(INC_DST)
 
@@ -506,9 +492,9 @@ endif()
 if(APPLE)
   if(WITH_METAL_BACKEND)
     list(APPEND SRC
-      intern/GHOST_ContextCGL.mm
+      intern/GHOST_ContextMTL.mm
 
-      intern/GHOST_ContextCGL.hh
+      intern/GHOST_ContextMTL.hh
     )
   endif()
 endif()
@@ -566,6 +552,14 @@ if(WITH_XR_OPENXR)
     # Header only library.
     ../../extern/tinygltf/tiny_gltf.h
   )
+  if(APPLE)
+    list(APPEND SRC
+      intern/GHOST_XrGraphicsBindingMetal.mm
+
+      intern/GHOST_XrGraphicsBindingMetal.hh
+    )
+  endif()
+
   if(WIN32)
     list(APPEND SRC
       intern/GHOST_XrGraphicsBindingD3D.cc
@@ -598,6 +592,9 @@ if(WITH_XR_OPENXR)
 
       intern/GHOST_XrGraphicsBindingVulkan.hh
     )
+  endif()
+  if(WITH_METAL_BACKEND)
+    list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_METAL)
   endif()
 
   # Add compiler defines as required by the OpenXR specification.

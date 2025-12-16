@@ -17,13 +17,14 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "NOD_common.hh"
 #include "NOD_geo_bake.hh"
 #include "NOD_geo_simulation.hh"
 #include "NOD_node_extra_info.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
@@ -47,19 +48,6 @@
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_simulation_cc {
-
-static const CPPType &get_simulation_item_cpp_type(const eNodeSocketDatatype socket_type)
-{
-  const bke::bNodeSocketType *typeinfo = bke::node_socket_type_find_static(socket_type);
-  BLI_assert(typeinfo);
-  BLI_assert(typeinfo->geometry_nodes_cpp_type);
-  return *typeinfo->geometry_nodes_cpp_type;
-}
-
-static const CPPType &get_simulation_item_cpp_type(const NodeSimulationItem &item)
-{
-  return get_simulation_item_cpp_type(eNodeSocketDatatype(item.socket_type));
-}
 
 static bke::bake::BakeSocketConfig make_bake_socket_config(
     const Span<NodeSimulationItem> node_simulation_items)
@@ -102,13 +90,13 @@ static std::shared_ptr<AttributeFieldInput> make_attribute_field(
       std::move(attribute_name), type, std::move(socket_inspection_name));
 }
 
-static void move_simulation_state_to_values(const Span<NodeSimulationItem> node_simulation_items,
-                                            bke::bake::BakeState zone_state,
-                                            const Object &self_object,
-                                            const ComputeContext &compute_context,
-                                            const bNode &node,
-                                            bke::bake::BakeDataBlockMap *data_block_map,
-                                            Span<void *> r_output_values)
+static Vector<SocketValueVariant> move_simulation_state_to_values(
+    const Span<NodeSimulationItem> node_simulation_items,
+    bke::bake::BakeState zone_state,
+    const Object &self_object,
+    const ComputeContext &compute_context,
+    const bNode &node,
+    bke::bake::BakeDataBlockMap *data_block_map)
 {
   const bke::bake::BakeSocketConfig config = make_bake_socket_config(node_simulation_items);
   Vector<bke::bake::BakeItem *> bake_items;
@@ -118,24 +106,20 @@ static void move_simulation_state_to_values(const Span<NodeSimulationItem> node_
     bake_items.append(bake_item ? bake_item->get() : nullptr);
   }
 
-  bke::bake::move_bake_items_to_socket_values(
-      bake_items,
-      config,
-      data_block_map,
-      [&](const int i, const CPPType &type) {
+  return bke::bake::move_bake_items_to_socket_values(
+      bake_items, config, data_block_map, [&](const int i, const CPPType &type) {
         return make_attribute_field(
             self_object, compute_context, node, node_simulation_items[i], type);
-      },
-      r_output_values);
+      });
 }
 
-static void copy_simulation_state_to_values(const Span<NodeSimulationItem> node_simulation_items,
-                                            const bke::bake::BakeStateRef &zone_state,
-                                            const Object &self_object,
-                                            const ComputeContext &compute_context,
-                                            const bNode &node,
-                                            bke::bake::BakeDataBlockMap *data_block_map,
-                                            Span<void *> r_output_values)
+static Vector<SocketValueVariant> copy_simulation_state_to_values(
+    const Span<NodeSimulationItem> node_simulation_items,
+    const bke::bake::BakeStateRef &zone_state,
+    const Object &self_object,
+    const ComputeContext &compute_context,
+    const bNode &node,
+    bke::bake::BakeDataBlockMap *data_block_map)
 {
   const bke::bake::BakeSocketConfig config = make_bake_socket_config(node_simulation_items);
   Vector<const bke::bake::BakeItem *> bake_items;
@@ -145,20 +129,16 @@ static void copy_simulation_state_to_values(const Span<NodeSimulationItem> node_
     bake_items.append(bake_item ? *bake_item : nullptr);
   }
 
-  bke::bake::copy_bake_items_to_socket_values(
-      bake_items,
-      config,
-      data_block_map,
-      [&](const int i, const CPPType &type) {
+  return bke::bake::copy_bake_items_to_socket_values(
+      bake_items, config, data_block_map, [&](const int i, const CPPType &type) {
         return make_attribute_field(
             self_object, compute_context, node, node_simulation_items[i], type);
-      },
-      r_output_values);
+      });
 }
 
 static bke::bake::BakeState move_values_to_simulation_state(
     const Span<NodeSimulationItem> node_simulation_items,
-    const Span<void *> input_values,
+    MutableSpan<SocketValueVariant> input_values,
     bke::bake::BakeDataBlockMap *data_block_map)
 {
   const bke::bake::BakeSocketConfig config = make_bake_socket_config(node_simulation_items);
@@ -178,11 +158,11 @@ static bke::bake::BakeState move_values_to_simulation_state(
 }
 
 static void draw_simulation_state(const bContext *C,
-                                  uiLayout *layout,
+                                  ui::Layout &layout,
                                   bNodeTree &ntree,
                                   bNode &output_node)
 {
-  if (uiLayout *panel = layout->panel(
+  if (ui::Layout *panel = layout.panel(
           C, "simulation_state_items", false, IFACE_("Simulation State")))
   {
     socket_items::ui::draw_items_list_with_operators<SimulationItemsAccessor>(
@@ -191,8 +171,8 @@ static void draw_simulation_state(const bContext *C,
     socket_items::ui::draw_active_item_props<SimulationItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
           NodeSimulationItem &active_item = storage.items[storage.active_index];
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
             panel->prop(item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -202,7 +182,7 @@ static void draw_simulation_state(const bContext *C,
 }
 
 /** Shared for simulation input and output node. */
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_node_ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_node_ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(current_node_ptr->owner_id);
   bNode *current_node = static_cast<bNode *>(current_node_ptr->data);
@@ -215,29 +195,30 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone) {
     return;
   }
-  if (!zone->output_node) {
+  if (!zone->output_node_id) {
     return;
   }
-  bNode &output_node = const_cast<bNode &>(*zone->output_node);
+  bNode &output_node = const_cast<bNode &>(*zone->output_node());
 
   BakeDrawContext ctx;
   if (!get_bake_draw_context(C, output_node, ctx)) {
     return;
   }
+  layout.active_set(ctx.is_bakeable_in_current_context);
 
   draw_simulation_state(C, layout, ntree, output_node);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  uiLayoutSetEnabled(layout, ID_IS_EDITABLE(ctx.object));
+  layout.enabled_set(ID_IS_EDITABLE(ctx.object));
 
   {
-    uiLayout *col = &layout->column(false);
+    ui::Layout &col = layout.column(false);
     draw_bake_button_row(ctx, col, true);
     if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
-      uiLayout *row = &col->row(true);
-      row->label(*bake_state_str, ICON_NONE);
+      ui::Layout &row = col.row(true);
+      row.label(*bake_state_str, ICON_NONE);
     }
   }
   draw_common_bake_settings(C, ctx, layout);
@@ -275,19 +256,16 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
       const bNodeSocket &input_bsocket = node.input_socket(i);
       const bNodeSocket &output_bsocket = node.output_socket(i + 1);
 
-      const CPPType &type = get_simulation_item_cpp_type(item);
-
       lf_index_by_bsocket[input_bsocket.index_in_tree()] = inputs_.append_and_get_index_as(
-          item.name, type, lf::ValueUsage::Maybe);
+          item.name, CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
       lf_index_by_bsocket[output_bsocket.index_in_tree()] = outputs_.append_and_get_index_as(
-          item.name, type);
+          item.name, CPPType::get<SocketValueVariant>());
     }
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const final
   {
-    const GeoNodesLFUserData &user_data = *static_cast<const GeoNodesLFUserData *>(
-        context.user_data);
+    const GeoNodesUserData &user_data = *static_cast<const GeoNodesUserData *>(context.user_data);
     if (!user_data.call_data->simulation_params) {
       this->set_default_outputs(params);
       return;
@@ -342,59 +320,56 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
   }
 
   void output_simulation_state_copy(lf::Params &params,
-                                    const GeoNodesLFUserData &user_data,
+                                    const GeoNodesUserData &user_data,
                                     bke::bake::BakeDataBlockMap *data_block_map,
                                     const bke::bake::BakeStateRef &zone_state) const
   {
-    Array<void *> outputs(simulation_items_.size());
+    Vector<SocketValueVariant> output_values = copy_simulation_state_to_values(
+        simulation_items_,
+        zone_state,
+        *user_data.call_data->self_object(),
+        *user_data.compute_context,
+        node_,
+        data_block_map);
     for (const int i : simulation_items_.index_range()) {
-      outputs[i] = params.get_output_data_ptr(i + 1);
-    }
-    copy_simulation_state_to_values(simulation_items_,
-                                    zone_state,
-                                    *user_data.call_data->self_object(),
-                                    *user_data.compute_context,
-                                    node_,
-                                    data_block_map,
-                                    outputs);
-    for (const int i : simulation_items_.index_range()) {
-      params.output_set(i + 1);
+      params.set_output(i + 1, std::move(output_values[i]));
     }
   }
 
   void output_simulation_state_move(lf::Params &params,
-                                    const GeoNodesLFUserData &user_data,
+                                    const GeoNodesUserData &user_data,
                                     bke::bake::BakeDataBlockMap *data_block_map,
                                     bke::bake::BakeState zone_state) const
   {
-    Array<void *> outputs(simulation_items_.size());
+    Vector<SocketValueVariant> output_values = move_simulation_state_to_values(
+        simulation_items_,
+        std::move(zone_state),
+        *user_data.call_data->self_object(),
+        *user_data.compute_context,
+        node_,
+        data_block_map);
     for (const int i : simulation_items_.index_range()) {
-      outputs[i] = params.get_output_data_ptr(i + 1);
-    }
-    move_simulation_state_to_values(simulation_items_,
-                                    std::move(zone_state),
-                                    *user_data.call_data->self_object(),
-                                    *user_data.compute_context,
-                                    node_,
-                                    data_block_map,
-                                    outputs);
-    for (const int i : simulation_items_.index_range()) {
-      params.output_set(i + 1);
+      params.set_output(i + 1, std::move(output_values[i]));
     }
   }
 
   void pass_through(lf::Params &params,
-                    const GeoNodesLFUserData &user_data,
+                    const GeoNodesUserData &user_data,
                     bke::bake::BakeDataBlockMap *data_block_map) const
   {
-    Array<void *> input_values(inputs_.size());
+    Array<SocketValueVariant *> input_value_pointers(inputs_.size());
     for (const int i : inputs_.index_range()) {
-      input_values[i] = params.try_get_input_data_ptr_or_request(i);
+      input_value_pointers[i] = params.try_get_input_data_ptr_or_request<SocketValueVariant>(i);
     }
-    if (input_values.as_span().contains(nullptr)) {
+    if (input_value_pointers.as_span().contains(nullptr)) {
       /* Wait for inputs to be computed. */
       return;
     }
+    Array<SocketValueVariant> input_values(inputs_.size());
+    for (const int i : inputs_.index_range()) {
+      input_values[i] = std::move(*input_value_pointers[i]);
+    }
+
     /* Instead of outputting the initial values directly, convert them to a simulation state and
      * then back. This ensures that some geometry processing happens on the data consistently (e.g.
      * removing anonymous attributes). */
@@ -436,12 +411,15 @@ static void node_declare(NodeDeclarationBuilder &b)
                                &node_tree->id, SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type)) {
-      input_decl.supports_field();
+      /* If it's below a geometry input it may be a field evaluated on that geometry. */
+      input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -457,17 +435,17 @@ static void node_label(const bNodeTree * /*ntree*/,
                        char *label,
                        const int label_maxncpy)
 {
-  BLI_strncpy_utf8(label, IFACE_("Simulation"), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Simulation"), label_maxncpy);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  bNode *output_node = ntree->node_by_id(node_storage(*node).output_node_id);
+  bNode *output_node = params.ntree.node_by_id(node_storage(params.node).output_node_id);
   if (!output_node) {
     return true;
   }
   return socket_items::try_add_item_via_any_extend_socket<SimulationItemsAccessor>(
-      *ntree, *node, *output_node, *link);
+      params.ntree, params.node, *output_node, params.link);
 }
 
 static void node_register()
@@ -528,7 +506,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
 
     const bNodeSocket &skip_bsocket = node.input_socket(0);
     skip_input_index_ = inputs_.append_and_get_index_as(
-        "Skip", *skip_bsocket.typeinfo->geometry_nodes_cpp_type, lf::ValueUsage::Maybe);
+        "Skip", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
     lf_index_by_bsocket[skip_bsocket.index_in_tree()] = skip_input_index_;
 
     skip_inputs_offset_ = inputs_.size();
@@ -536,8 +514,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
     /* Add the skip inputs that are linked to the simulation input node. */
     for (const int i : simulation_items_.index_range()) {
       const NodeSimulationItem &item = simulation_items_[i];
-      const CPPType &type = get_simulation_item_cpp_type(item);
-      inputs_.append_as(item.name, type, lf::ValueUsage::Maybe);
+      inputs_.append_as(item.name, CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
     }
 
     solve_inputs_offset_ = inputs_.size();
@@ -548,24 +525,32 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       const bNodeSocket &input_bsocket = node.input_socket(i + 1);
       const bNodeSocket &output_bsocket = node.output_socket(i);
 
-      const CPPType &type = get_simulation_item_cpp_type(item);
-
       lf_index_by_bsocket[input_bsocket.index_in_tree()] = inputs_.append_and_get_index_as(
-          item.name, type, lf::ValueUsage::Maybe);
+          item.name, CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
       lf_index_by_bsocket[output_bsocket.index_in_tree()] = outputs_.append_and_get_index_as(
-          item.name, type);
+          item.name, CPPType::get<SocketValueVariant>());
     }
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const final
   {
-    GeoNodesLFUserData &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
+    GeoNodesUserData &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    GeoNodesLocalUserData &local_user_data = *static_cast<GeoNodesLocalUserData *>(
+        context.local_user_data);
     if (!user_data.call_data->self_object()) {
       /* The self object is currently required for generating anonymous attribute names. */
       this->set_default_outputs(params);
       return;
     }
     if (!user_data.call_data->simulation_params) {
+      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+              user_data))
+      {
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator,
+            {node_.identifier,
+             {NodeWarningType::Error, TIP_("Simulation zone is not supported")}});
+      }
       this->set_default_outputs(params);
       return;
     }
@@ -575,6 +560,13 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       return;
     }
     if (found_id->is_in_loop || found_id->is_in_closure) {
+      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+              user_data))
+      {
+        const StringRefNull message = TIP_("Simulation must not be in a loop or closure");
+        tree_logger->node_warnings.append(*tree_logger->allocator,
+                                          {node_.identifier, {NodeWarningType::Error, message}});
+      }
       this->set_default_outputs(params);
       return;
     }
@@ -614,23 +606,19 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
   }
 
   void output_cached_state(lf::Params &params,
-                           GeoNodesLFUserData &user_data,
+                           GeoNodesUserData &user_data,
                            bke::bake::BakeDataBlockMap *data_block_map,
                            const bke::bake::BakeStateRef &state) const
   {
-    Array<void *> output_values(simulation_items_.size());
+    Vector<SocketValueVariant> output_values = copy_simulation_state_to_values(
+        simulation_items_,
+        state,
+        *user_data.call_data->self_object(),
+        *user_data.compute_context,
+        node_,
+        data_block_map);
     for (const int i : simulation_items_.index_range()) {
-      output_values[i] = params.get_output_data_ptr(i);
-    }
-    copy_simulation_state_to_values(simulation_items_,
-                                    state,
-                                    *user_data.call_data->self_object(),
-                                    *user_data.compute_context,
-                                    node_,
-                                    data_block_map,
-                                    output_values);
-    for (const int i : simulation_items_.index_range()) {
-      params.output_set(i);
+      params.set_output(i, std::move(output_values[i]));
     }
   }
 
@@ -642,51 +630,24 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
                                  const bke::bake::BakeStateRef &next_state,
                                  const float mix_factor) const
   {
-    Array<void *> output_values(simulation_items_.size());
-    for (const int i : simulation_items_.index_range()) {
-      output_values[i] = params.get_output_data_ptr(i);
-    }
-    copy_simulation_state_to_values(simulation_items_,
-                                    prev_state,
-                                    self_object,
-                                    compute_context,
-                                    node_,
-                                    data_block_map,
-                                    output_values);
+    Vector<SocketValueVariant> output_values = copy_simulation_state_to_values(
+        simulation_items_, prev_state, self_object, compute_context, node_, data_block_map);
 
-    Array<void *> next_values(simulation_items_.size());
-    LinearAllocator<> allocator;
-    for (const int i : simulation_items_.index_range()) {
-      const CPPType &type = *outputs_[i].type;
-      next_values[i] = allocator.allocate(type);
-    }
-    copy_simulation_state_to_values(simulation_items_,
-                                    next_state,
-                                    self_object,
-                                    compute_context,
-                                    node_,
-                                    data_block_map,
-                                    next_values);
-
+    Vector<SocketValueVariant> next_values = copy_simulation_state_to_values(
+        simulation_items_, next_state, self_object, compute_context, node_, data_block_map);
     for (const int i : simulation_items_.index_range()) {
       mix_baked_data_item(eNodeSocketDatatype(simulation_items_[i].socket_type),
                           output_values[i],
                           next_values[i],
                           mix_factor);
     }
-
     for (const int i : simulation_items_.index_range()) {
-      const CPPType &type = *outputs_[i].type;
-      type.destruct(next_values[i]);
-    }
-
-    for (const int i : simulation_items_.index_range()) {
-      params.output_set(i);
+      params.set_output(i, std::move(output_values[i]));
     }
   }
 
   void pass_through(lf::Params &params,
-                    GeoNodesLFUserData &user_data,
+                    GeoNodesUserData &user_data,
                     bke::bake::BakeDataBlockMap *data_block_map) const
   {
     std::optional<bke::bake::BakeState> bake_state = this->get_bake_state_from_inputs(
@@ -695,25 +656,20 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       /* Wait for inputs to be computed. */
       return;
     }
-
-    Array<void *> output_values(simulation_items_.size());
+    Vector<SocketValueVariant> output_values = move_simulation_state_to_values(
+        simulation_items_,
+        std::move(*bake_state),
+        *user_data.call_data->self_object(),
+        *user_data.compute_context,
+        node_,
+        data_block_map);
     for (const int i : simulation_items_.index_range()) {
-      output_values[i] = params.get_output_data_ptr(i);
-    }
-    move_simulation_state_to_values(simulation_items_,
-                                    std::move(*bake_state),
-                                    *user_data.call_data->self_object(),
-                                    *user_data.compute_context,
-                                    node_,
-                                    data_block_map,
-                                    output_values);
-    for (const int i : simulation_items_.index_range()) {
-      params.output_set(i);
+      params.set_output(i, std::move(output_values[i]));
     }
   }
 
   void store_new_state(lf::Params &params,
-                       GeoNodesLFUserData &user_data,
+                       GeoNodesUserData &user_data,
                        bke::bake::BakeDataBlockMap *data_block_map,
                        const sim_output::StoreNewState &info) const
   {
@@ -743,13 +699,19 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
   {
     /* Choose which set of input parameters to use. The others are ignored. */
     const int params_offset = skip ? skip_inputs_offset_ : solve_inputs_offset_;
-    Array<void *> input_values(simulation_items_.size());
+    Array<SocketValueVariant *> input_value_pointers(simulation_items_.size());
     for (const int i : simulation_items_.index_range()) {
-      input_values[i] = params.try_get_input_data_ptr_or_request(i + params_offset);
+      input_value_pointers[i] = params.try_get_input_data_ptr_or_request<SocketValueVariant>(
+          i + params_offset);
     }
-    if (input_values.as_span().contains(nullptr)) {
+    if (input_value_pointers.as_span().contains(nullptr)) {
       /* Wait for inputs to be computed. */
       return std::nullopt;
+    }
+
+    Array<SocketValueVariant> input_values(simulation_items_.size());
+    for (const int i : simulation_items_.index_range()) {
+      input_values[i] = std::move(*input_value_pointers[i]);
     }
 
     return move_values_to_simulation_state(simulation_items_, input_values, data_block_map);
@@ -785,12 +747,15 @@ static void node_declare(NodeDeclarationBuilder &b)
                                &tree->id, SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type)) {
-      input_decl.supports_field();
+      /* If it's below a geometry input it may be a field evaluated on that geometry. */
+      input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -828,10 +793,10 @@ static void node_operators()
   socket_items::ops::make_common_operators<SimulationItemsAccessor>();
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<SimulationItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_extra_info(NodeExtraInfoParams &params)
@@ -839,6 +804,12 @@ static void node_extra_info(NodeExtraInfoParams &params)
   BakeDrawContext ctx;
   if (!get_bake_draw_context(&params.C, params.node, ctx)) {
     return;
+  }
+  if (!ctx.is_bakeable_in_current_context) {
+    NodeExtraInfoRow row;
+    row.text = TIP_("Cannot bake in zone");
+    row.icon = ICON_ERROR;
+    params.rows.append(std::move(row));
   }
   if (ctx.is_baked) {
     NodeExtraInfoRow row;
@@ -850,7 +821,9 @@ static void node_extra_info(NodeExtraInfoParams &params)
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
-  if (!SimulationItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type))) {
+  if (!SimulationItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type),
+                                                     params.node_tree().type))
+  {
     return;
   }
   params.add_item_full_name(IFACE_("Simulation"), [](LinkSearchOpParams &params) {
@@ -863,7 +836,10 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
     socket_items::clear<SimulationItemsAccessor>(output_node);
     socket_items::add_item_with_socket_type_and_name<SimulationItemsAccessor>(
-        output_node, eNodeSocketDatatype(params.socket.type), params.socket.name);
+        params.node_tree,
+        output_node,
+        eNodeSocketDatatype(params.socket.type),
+        params.socket.name);
     update_node_declaration_and_sockets(params.node_tree, input_node);
     update_node_declaration_and_sockets(params.node_tree, output_node);
     if (params.socket.in_out == SOCK_IN) {
@@ -879,6 +855,16 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
                        output_node,
                        output_node.input_socket(1));
   });
+}
+
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<SimulationItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<SimulationItemsAccessor>(&reader, node);
 }
 
 static void node_register()
@@ -899,6 +885,8 @@ static void node_register()
   ntype.no_muting = true;
   ntype.register_operators = node_operators;
   ntype.get_extra_info = node_extra_info;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_type_storage(
       ntype, "NodeGeometrySimulationOutput", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
@@ -932,14 +920,14 @@ std::unique_ptr<LazyFunction> get_simulation_output_lazy_function(
 }
 
 void mix_baked_data_item(const eNodeSocketDatatype socket_type,
-                         void *prev,
-                         const void *next,
+                         SocketValueVariant &prev,
+                         const SocketValueVariant &next,
                          const float factor)
 {
   switch (socket_type) {
     case SOCK_GEOMETRY: {
-      GeometrySet &prev_geo = *static_cast<GeometrySet *>(prev);
-      const GeometrySet &next_geo = *static_cast<const GeometrySet *>(next);
+      GeometrySet &prev_geo = *prev.get_single_ptr().get<GeometrySet>();
+      const GeometrySet &next_geo = *next.get_single_ptr().get<GeometrySet>();
       prev_geo = geometry::mix_geometries(std::move(prev_geo), next_geo, factor);
       break;
     }
@@ -951,20 +939,18 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
     case SOCK_RGBA:
     case SOCK_MATRIX: {
       const CPPType &type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
-      SocketValueVariant prev_value_variant = *static_cast<const SocketValueVariant *>(prev);
-      SocketValueVariant next_value_variant = *static_cast<const SocketValueVariant *>(next);
-      if (prev_value_variant.is_context_dependent_field() ||
-          next_value_variant.is_context_dependent_field())
-      {
+      if (!prev.is_single() || !next.is_single()) {
         /* Fields are evaluated on geometries and are mixed there. */
         break;
       }
 
-      prev_value_variant.convert_to_single();
-      next_value_variant.convert_to_single();
+      prev.convert_to_single();
 
-      void *prev_value = prev_value_variant.get_single_ptr().get();
-      const void *next_value = next_value_variant.get_single_ptr().get();
+      SocketValueVariant next_copy = next;
+      next_copy.convert_to_single();
+
+      void *prev_value = prev.get_single_ptr().get();
+      const void *next_value = next_copy.get_single_ptr().get();
 
       bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
         using T = decltype(dummy);
@@ -979,8 +965,6 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
 }
 
 StructRNA *SimulationItemsAccessor::item_srna = &RNA_SimulationStateItem;
-int SimulationItemsAccessor::node_type = GEO_NODE_SIMULATION_OUTPUT;
-int SimulationItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(NodeSimulationItem);
 
 void SimulationItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

@@ -10,7 +10,6 @@
  */
 
 #include "BKE_paint.hh"
-#include "DNA_particle_types.h"
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
@@ -18,10 +17,12 @@
 
 #include "BLT_translation.hh"
 
+#include "DNA_particle_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
 #include "ED_image.hh"
+#include "ED_render.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
@@ -98,7 +99,7 @@ class Prepass {
   {
     Object *ob = ob_ref.object;
 
-    ResourceHandle handle = {0};
+    ResourceHandleRange handle = {};
 
     LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {
@@ -110,9 +111,8 @@ class Prepass {
       if (draw_as == PART_DRAW_PATH && part->draw_as == PART_DRAW_REND) {
         /* Case where the render engine should have rendered it, but we need to draw it for
          * selection purpose. */
-        if (handle.raw == 0u) {
-          handle = manager.resource_handle_for_psys(ob_ref,
-                                                    DRW_particles_dupli_matrix_get(ob_ref));
+        if (!handle.is_valid()) {
+          handle = manager.resource_handle_for_psys(ob_ref, ob_ref.particles_matrix());
         }
 
         gpu::Batch *geom = DRW_cache_particles_get_hair(ob, psys, nullptr);
@@ -124,7 +124,7 @@ class Prepass {
 
   void sculpt_sync(Manager &manager, const ObjectRef &ob_ref)
   {
-    ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
+    ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
 
     for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
       mesh_ps_->draw(batch.batch, handle);
@@ -162,10 +162,14 @@ class Prepass {
         geom_single = pointcloud_sub_pass_setup(*pointcloud_ps_, ob_ref.object);
         pass = pointcloud_ps_;
         break;
-      case OB_CURVES:
-        geom_single = curves_sub_pass_setup(*curves_ps_, draw_ctx.scene, ob_ref.object);
+      case OB_CURVES: {
+        const char *error = nullptr;
+        /* We choose to ignore the error here as the external engine can display them properly.
+         * The overlays can still be broken but it should be detected in solid mode. */
+        geom_single = curves_sub_pass_setup(*curves_ps_, draw_ctx.scene, ob_ref.object, error);
         pass = curves_ps_;
         break;
+      }
       default:
         break;
     }
@@ -174,7 +178,7 @@ class Prepass {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     for (int material_id : geom_list.index_range()) {
       pass->draw(geom_list[material_id], res_handle);
@@ -195,7 +199,7 @@ class Instance : public DrawEngine {
    * This is only needed for GPencil integration. */
   bool do_prepass = false;
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "External";
   }
@@ -203,7 +207,7 @@ class Instance : public DrawEngine {
   void init() final
   {
     draw_ctx = DRW_context_get();
-    do_prepass = DRW_gpencil_engine_needed_viewport(draw_ctx->depsgraph, draw_ctx->v3d);
+    do_prepass = DRW_render_check_grease_pencil(draw_ctx->depsgraph, draw_ctx->v3d);
   }
 
   void begin_sync() final
@@ -259,8 +263,6 @@ class Instance : public DrawEngine {
     /* Render result draw. */
     const RenderEngineType *type = render_engine->type;
     type->view_draw(render_engine, draw_ctx->evil_C, draw_ctx->depsgraph);
-
-    GPU_bgl_end();
 
     GPU_matrix_pop();
     GPU_matrix_pop_projection();
@@ -321,7 +323,13 @@ class Instance : public DrawEngine {
 
   void draw_scene_do_image()
   {
-    Scene *scene = draw_ctx->scene;
+    /* Get scene from the render job, to show progress for scenes render as part
+     * of compositor or sequencer. */
+    Scene *scene = ED_render_job_get_current_scene(draw_ctx->evil_C);
+    if (scene == nullptr) {
+      scene = draw_ctx->scene;
+    }
+
     Render *re = RE_GetSceneRender(scene);
     RenderEngine *engine = RE_engine_get(re);
 
@@ -363,7 +371,6 @@ class Instance : public DrawEngine {
     GPU_matrix_pop_projection();
 
     blender::draw::command::StateSet::set();
-    GPU_bgl_end();
 
     RE_engine_draw_release(re);
   }
@@ -449,9 +456,14 @@ RenderEngineType DRW_engine_viewport_external_type = {
 
 bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx)
 {
-  const SpaceLink *space_data = draw_ctx->space_data;
-  Scene *scene = draw_ctx->scene;
+  /* Get scene from the render job, to show progress for scenes render as part
+   * of compositor or sequencer. */
+  Scene *scene = ED_render_job_get_current_scene(draw_ctx->evil_C);
+  if (scene == nullptr) {
+    scene = draw_ctx->scene;
+  }
 
+  const SpaceLink *space_data = draw_ctx->space_data;
   if (space_data == nullptr) {
     return false;
   }
@@ -486,9 +498,14 @@ void DRW_engine_external_free(RegionView3D *rv3d)
   if (rv3d->view_render) {
     /* Free engine with DRW context enabled, as this may clean up per-context
      * resources like VAOs. */
-    DRW_gpu_context_enable_ex(true);
+    bool swap_context = !DRW_gpu_context_is_enabled();
+    if (swap_context) {
+      DRW_gpu_context_enable_ex(true);
+    }
     RE_FreeViewRender(rv3d->view_render);
     rv3d->view_render = nullptr;
-    DRW_gpu_context_disable_ex(true);
+    if (swap_context) {
+      DRW_gpu_context_disable_ex(true);
+    }
   }
 }

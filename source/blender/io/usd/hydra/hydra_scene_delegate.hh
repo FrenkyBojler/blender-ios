@@ -7,8 +7,6 @@
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/imaging/hd/sceneDelegate.h>
 
-#include "DEG_depsgraph.hh"
-
 #include "CLG_log.h"
 
 #include "curves.hh"
@@ -20,7 +18,11 @@
 #include "world.hh"
 
 struct Depsgraph;
+struct ID;
 struct Main;
+struct Material;
+struct Object;
+struct ParticleSystem;
 struct Scene;
 struct View3D;
 
@@ -29,6 +31,7 @@ namespace blender::io::hydra {
 extern struct CLG_LogRef *LOG_HYDRA_SCENE;
 
 class Engine;
+class CameraDelegate;
 
 class HydraSceneDelegate : public pxr::HdSceneDelegate {
   friend ObjectData;   /* has access to materials */
@@ -59,9 +62,12 @@ class HydraSceneDelegate : public pxr::HdSceneDelegate {
   std::unique_ptr<InstancerData> instancer_data_;
   std::unique_ptr<WorldData> world_data_;
 
+  CameraDelegate *camera_delegate_ = nullptr;
+
  public:
   HydraSceneDelegate(pxr::HdRenderIndex *parent_index,
                      pxr::SdfPath const &delegate_id,
+                     CameraDelegate *camera_delegate,
                      bool use_materialx);
   ~HydraSceneDelegate() override = default;
 

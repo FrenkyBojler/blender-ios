@@ -88,13 +88,12 @@ static void add_reroute_node_fn(nodes::LinkSearchOpParams &params)
 static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
 {
   /* Add a group input based on the connected socket, and add a new group input node. */
-  bNodeTreeInterfaceSocket *socket_iface = params.node_tree.tree_interface.add_socket(
-      params.socket.name,
-      params.socket.description,
+  bNodeTreeInterfaceSocket *socket_iface = bke::node_interface::add_interface_socket_from_node(
+      params.node_tree,
+      params.node,
+      params.socket,
       params.socket.typeinfo->idname,
-      NODE_INTERFACE_SOCKET_INPUT,
-      nullptr);
-  socket_iface->init_from_socket_instance(&params.socket);
+      params.socket.name);
   params.node_tree.tree_interface.active_item_set(&socket_iface->item);
 
   bNode &group_input = params.add_node("NodeGroupInput");
@@ -162,7 +161,7 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
 {
   const AssetMetaData &asset_data = asset.get_metadata();
   const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&asset_data, "type");
-  if (tree_type == nullptr || IDP_Int(tree_type) != node_tree.type) {
+  if (tree_type == nullptr || IDP_int_get(tree_type) != node_tree.type) {
     return;
   }
 
@@ -178,13 +177,13 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
     if (socket_property->type != IDP_STRING) {
       continue;
     }
-    const char *socket_idname = IDP_String(socket_property);
+    const char *socket_idname = IDP_string_get(socket_property);
     const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(socket_idname);
     if (socket_type == nullptr) {
       continue;
     }
-    eNodeSocketDatatype from = (eNodeSocketDatatype)socket.type;
-    eNodeSocketDatatype to = (eNodeSocketDatatype)socket_type->type;
+    eNodeSocketDatatype from = eNodeSocketDatatype(socket.type);
+    eNodeSocketDatatype to = socket_type->type;
     if (socket.in_out == SOCK_OUT) {
       std::swap(from, to);
     }
@@ -204,10 +203,12 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
          [&asset, socket_property, in_out](nodes::LinkSearchOpParams &params) {
            Main &bmain = *CTX_data_main(&params.C);
 
-           bNode &node = params.add_node(params.node_tree.typeinfo->group_idname);
-
            bNodeTree *group = reinterpret_cast<bNodeTree *>(
                asset::asset_local_id_ensure_imported(bmain, asset));
+           if (!group) {
+             return;
+           }
+           bNode &node = params.add_node(params.node_tree.typeinfo->group_idname);
            node.id = &group->id;
            id_us_plus(node.id);
            BKE_ntree_update_tag_node_property(&params.node_tree, &node);
@@ -295,12 +296,14 @@ static void gather_socket_link_operations(const bContext &C,
       }
       const bNodeTreeInterfaceSocket &interface_socket =
           reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
+      if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
+        return true;
+      }
       {
         const bke::bNodeSocketType *from_typeinfo = bke::node_socket_type_find(
             interface_socket.socket_type);
-        const eNodeSocketDatatype from = from_typeinfo ? eNodeSocketDatatype(from_typeinfo->type) :
-                                                         SOCK_CUSTOM;
-        const eNodeSocketDatatype to = eNodeSocketDatatype(socket.typeinfo->type);
+        const eNodeSocketDatatype from = from_typeinfo ? from_typeinfo->type : SOCK_CUSTOM;
+        const eNodeSocketDatatype to = socket.typeinfo->type;
         if (node_tree.typeinfo->validate_link && !node_tree.typeinfo->validate_link(from, to)) {
           return true;
         }
@@ -320,7 +323,7 @@ static void gather_socket_link_operations(const bContext &C,
 }
 
 static void link_drag_search_update_fn(
-    const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
+    const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
   LinkDragSearchStorage &storage = *static_cast<LinkDragSearchStorage *>(arg);
   if (storage.update_items_tag) {
@@ -343,7 +346,7 @@ static void link_drag_search_update_fn(
   const Vector<SocketLinkOperation *> filtered_items = search.query(string);
 
   for (SocketLinkOperation *item : filtered_items) {
-    if (!UI_search_item_add(items, item->name, item, ICON_NONE, 0, 0)) {
+    if (!search_item_add(items, item->name, item, ICON_NONE, 0, 0)) {
       break;
     }
   }
@@ -412,9 +415,8 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   /* Start translation operator with the new node. */
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_translate_attach_remove_on_cancel", true);
   BLI_assert(ot);
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 
@@ -424,27 +426,26 @@ static void link_drag_search_free_fn(void *arg)
   delete storage;
 }
 
-static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *arg_op)
+static ui::Block *create_search_popup_block(bContext *C, ARegion *region, void *arg_op)
 {
   LinkDragSearchStorage &storage = *(LinkDragSearchStorage *)arg_op;
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  ui::Block *block = block_begin(C, region, "_popup", ui::EmbossType::Emboss);
+  block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_SEARCH_MENU);
+  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
-  uiBut *but = uiDefSearchBut(block,
-                              storage.search,
-                              0,
-                              ICON_VIEWZOOM,
-                              sizeof(storage.search),
-                              storage.in_out() == SOCK_OUT ? 10 : 10 - UI_searchbox_size_x(),
-                              0,
-                              UI_searchbox_size_x(),
-                              UI_UNIT_Y,
-                              "");
-  UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
-  UI_but_func_search_set_listen(but, link_drag_search_listen_fn);
-  UI_but_func_search_set(but,
+  ui::Button *but = uiDefSearchBut(block,
+                                   storage.search,
+                                   ICON_VIEWZOOM,
+                                   sizeof(storage.search),
+                                   storage.in_out() == SOCK_OUT ? 10 : 10 - ui::searchbox_size_x(),
+                                   0,
+                                   ui::searchbox_size_x(),
+                                   UI_UNIT_Y,
+                                   "");
+  button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  button_func_search_set_listen(but, link_drag_search_listen_fn);
+  button_func_search_set(but,
                          nullptr,
                          link_drag_search_update_fn,
                          &storage,
@@ -452,24 +453,23 @@ static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *ar
                          link_drag_search_free_fn,
                          link_drag_search_exec_fn,
                          nullptr);
-  UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
+  button_flag_enable(but, ui::BUT_ACTIVATE_ON_INIT);
 
   /* Fake button to hold space for the search items. */
   uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
+           ui::ButtonType::Label,
            "",
-           storage.in_out() == SOCK_OUT ? 10 : 10 - UI_searchbox_size_x(),
-           10 - UI_searchbox_size_y(),
-           UI_searchbox_size_x(),
-           UI_searchbox_size_y(),
+           storage.in_out() == SOCK_OUT ? 10 : 10 - ui::searchbox_size_x(),
+           10 - ui::searchbox_size_y(),
+           ui::searchbox_size_x(),
+           ui::searchbox_size_y(),
            nullptr,
            0,
            0,
            std::nullopt);
 
   const int2 offset = {0, -UI_UNIT_Y};
-  UI_block_bounds_set_popup(block, 0.3f * U.widget_unit, offset);
+  block_bounds_set_popup(block, 0.3f * U.widget_unit, offset);
   return block;
 }
 
@@ -480,7 +480,7 @@ void invoke_node_link_drag_add_menu(bContext &C,
 {
   LinkDragSearchStorage *storage = new LinkDragSearchStorage{node, socket, cursor};
   /* Use the "_ex" variant with `can_refresh` false to avoid a double free when closing Blender. */
-  UI_popup_block_invoke_ex(&C, create_search_popup_block, storage, nullptr, false);
+  popup_block_invoke_ex(&C, create_search_popup_block, storage, nullptr, false);
 }
 
 }  // namespace blender::ed::space_node

@@ -74,7 +74,7 @@ bool snap_selected_frames(GreasePencil &grease_pencil,
                           const eEditKeyframes_Snap mode)
 {
   bool changed = false;
-  blender::Map<int, int> frame_number_destinations;
+  Map<int, int> frame_number_destinations;
   for (auto [frame_number, frame] : layer.frames().items()) {
     if (!frame.is_selected()) {
       continue;
@@ -578,7 +578,7 @@ static void GREASE_PENCIL_OT_insert_blank_frame(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = insert_blank_frame_exec;
-  ot->poll = active_grease_pencil_poll;
+  ot->poll = editable_grease_pencil_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -600,7 +600,7 @@ static void GREASE_PENCIL_OT_frame_clean_duplicate(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = frame_clean_duplicate_exec;
-  ot->poll = active_grease_pencil_poll;
+  ot->poll = editable_grease_pencil_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -848,7 +848,7 @@ static void GREASE_PENCIL_OT_frame_duplicate(wmOperatorType *ot)
 
   /* callback */
   ot->exec = grease_pencil_frame_duplicate_exec;
-  ot->poll = active_grease_pencil_poll;
+  ot->poll = editable_grease_pencil_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -906,7 +906,7 @@ static void GREASE_PENCIL_OT_active_frame_delete(wmOperatorType *ot)
 
   /* callback */
   ot->exec = grease_pencil_active_frame_delete_exec;
-  ot->poll = active_grease_pencil_poll;
+  ot->poll = editable_grease_pencil_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

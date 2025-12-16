@@ -14,6 +14,7 @@
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_object.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 
 #include "ED_view3d.hh"
@@ -345,12 +346,12 @@ Vector<float4x4> get_symmetry_brush_transforms(const eCurvesSymmetryType symmetr
   return matrices;
 }
 
-void remember_stroke_position(Scene &scene, const float3 &brush_position_wo)
+void remember_stroke_position(CurvesSculpt &curves_sculpt, const float3 &brush_position_wo)
 {
-  UnifiedPaintSettings &ups = scene.toolsettings->unified_paint_settings;
-  copy_v3_v3(ups.average_stroke_accum, brush_position_wo);
-  ups.average_stroke_counter = 1;
-  ups.last_stroke_valid = true;
+  bke::PaintRuntime &paint_runtime = *curves_sculpt.paint.runtime;
+  copy_v3_v3(paint_runtime.average_stroke_accum, brush_position_wo);
+  paint_runtime.average_stroke_counter = 1;
+  paint_runtime.last_stroke_valid = true;
 }
 
 float transform_brush_radius(const float4x4 &transform,
@@ -397,13 +398,14 @@ void move_last_point_and_resample(MoveAndResampleBuffers &buffer,
   positions.last() = new_last_position;
 }
 
-CurvesSculptCommonContext::CurvesSculptCommonContext(const bContext &C)
+CurvesSculptCommonContext::CurvesSculptCommonContext(const PaintStroke &stroke)
 {
-  this->depsgraph = CTX_data_depsgraph_pointer(&C);
-  this->scene = CTX_data_scene(&C);
-  this->region = CTX_wm_region(&C);
-  this->v3d = CTX_wm_view3d(&C);
-  this->rv3d = CTX_wm_region_view3d(&C);
+  this->depsgraph = stroke.vc.depsgraph;
+  this->scene = stroke.vc.scene;
+  this->region = stroke.vc.region;
+  this->v3d = stroke.vc.v3d;
+  this->rv3d = stroke.vc.rv3d;
+  this->object = stroke.object;
 }
 
 void report_empty_original_surface(ReportList *reports)

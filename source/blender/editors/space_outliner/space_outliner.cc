@@ -9,13 +9,14 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
+#include <cfloat>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_mempool.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -61,6 +62,8 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   ListBase *lb;
   wmKeyMap *keymap;
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* make sure we keep the hide flags */
   region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
   region->v2d.scroll &= ~(V2D_SCROLL_LEFT | V2D_SCROLL_TOP); /* prevent any noise of past */
@@ -72,10 +75,10 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.keeptot = V2D_KEEPTOT_STRICT;
   region->v2d.minzoom = region->v2d.maxzoom = 1.0f;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* Add dropboxes */
@@ -91,23 +94,25 @@ static void outliner_main_region_draw(const bContext *C, ARegion *region)
   const rctf v2d_cur_prev = v2d->cur;
 #endif
 
-  UI_ThemeClearColor(TH_BACK);
+  ui::theme::frame_buffer_clear(TH_BACK);
   draw_outliner(C, true);
 
 #ifdef USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK
   /* This happens when scrolling is clamped & occasionally when resizing the area.
    * In practice this isn't often which is important as that would hurt performance. */
   if (!BLI_rctf_compare(&v2d->cur, &v2d_cur_prev, FLT_EPSILON)) {
-    UI_ThemeClearColor(TH_BACK);
+    ui::theme::frame_buffer_clear(TH_BACK);
     draw_outliner(C, false);
   }
 #endif
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  ui::view2d_view_restore(C);
+
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  ui::view2d_scrollers_draw(v2d, nullptr);
 }
 
 static void outliner_main_region_free(ARegion * /*region*/) {}
@@ -380,6 +385,7 @@ static SpaceLink *outliner_create(const ScrArea * /*area*/, const Scene * /*scen
   SpaceOutliner *space_outliner;
 
   space_outliner = MEM_callocN<SpaceOutliner>("initoutliner");
+  space_outliner->runtime = MEM_new<SpaceOutliner_Runtime>(__func__);
   space_outliner->spacetype = SPACE_OUTLINER;
   space_outliner->filter_id_type = ID_GR;
   space_outliner->show_restrict_flags = SO_RESTRICT_ENABLE | SO_RESTRICT_HIDE | SO_RESTRICT_RENDER;
@@ -418,30 +424,18 @@ static void outliner_free(SpaceLink *sl)
 }
 
 /* spacetype; init callback */
-static void outliner_init(wmWindowManager * /*wm*/, ScrArea *area)
-{
-  SpaceOutliner *space_outliner = static_cast<SpaceOutliner *>(area->spacedata.first);
-
-  if (space_outliner->runtime == nullptr) {
-    space_outliner->runtime = MEM_new<SpaceOutliner_Runtime>("SpaceOutliner_Runtime");
-  }
-}
+static void outliner_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *outliner_duplicate(SpaceLink *sl)
 {
   SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
   SpaceOutliner *space_outliner_new = MEM_dupallocN<SpaceOutliner>(__func__, *space_outliner);
+  space_outliner_new->runtime = MEM_new<SpaceOutliner_Runtime>(__func__, *space_outliner->runtime);
 
   BLI_listbase_clear(&space_outliner_new->tree);
   space_outliner_new->treestore = nullptr;
 
   space_outliner_new->sync_select_dirty = WM_OUTLINER_SYNC_SELECT_FROM_ALL;
-
-  if (space_outliner->runtime) {
-    /* Copy constructor handles details. */
-    space_outliner_new->runtime = MEM_new<SpaceOutliner_Runtime>("SpaceOutliner_runtime dup",
-                                                                 *space_outliner->runtime);
-  }
 
   return (SpaceLink *)space_outliner_new;
 }
@@ -509,13 +503,13 @@ static void outliner_foreach_id(SpaceLink *space_link, LibraryForeachIDData *dat
     /* Do not try to restore non-ID pointers (drivers/sequence/etc.). */
     if (TSE_IS_REAL_ID(tselem)) {
       /* NOTE: Outliner ID pointers are never `IDWALK_CB_DIRECT_WEAK_LINK`, they should never
-       * enforce keeping a reference to some linked data. */
-      const LibraryForeachIDCallbackFlag cb_flag = (tselem->id != nullptr &&
-                                                    allow_pointer_access &&
-                                                    (tselem->id->flag & ID_FLAG_EMBEDDED_DATA) !=
-                                                        0) ?
-                                                       IDWALK_CB_EMBEDDED_NOT_OWNING :
-                                                       IDWALK_CB_NOP;
+       * enforce keeping a reference to some linked data. They do need to be explicitly ignored by
+       * writefile code though. */
+      const LibraryForeachIDCallbackFlag cb_flag =
+          IDWALK_CB_WRITEFILE_IGNORE | ((tselem->id != nullptr && allow_pointer_access &&
+                                         (tselem->id->flag & ID_FLAG_EMBEDDED_DATA) != 0) ?
+                                            IDWALK_CB_EMBEDDED_NOT_OWNING :
+                                            IDWALK_CB_NOP);
       BKE_LIB_FOREACHID_PROCESS_ID(data, tselem->id, cb_flag);
     }
     else if (!is_readonly) {
@@ -539,6 +533,7 @@ static void outliner_deactivate(ScrArea *area)
 static void outliner_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
+  space_outliner->runtime = MEM_new<SpaceOutliner_Runtime>(__func__);
 
   /* use #BLO_read_get_new_data_address_no_us and do not free old memory avoiding double
    * frees and use of freed memory. this could happen because of a
@@ -564,7 +559,6 @@ static void outliner_space_blend_read_data(BlendDataReader *reader, SpaceLink *s
     space_outliner->storeflag |= SO_TREESTORE_CLEANUP; /* at first draw */
   }
   BLI_listbase_clear(&space_outliner->tree);
-  space_outliner->runtime = nullptr;
 }
 
 static void outliner_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
@@ -659,7 +653,7 @@ void ED_spacetype_outliner()
   ARegionType *art;
 
   st->spaceid = SPACE_OUTLINER;
-  STRNCPY(st->name, "Outliner");
+  STRNCPY_UTF8(st->name, "Outliner");
 
   st->create = outliner_create;
   st->free = outliner_free;

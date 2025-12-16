@@ -40,11 +40,10 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include <cmath>
-#include <cstdlib>
 
 namespace blender::ed::sculpt_paint::color {
 
@@ -381,7 +380,6 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
   float fill_color[3];
 
   RNA_float_get_array(op->ptr, "fill_color", fill_color);
-  IMB_colormanagement_srgb_to_scene_linear_v3(fill_color, fill_color);
 
   Mesh &mesh = *static_cast<Mesh *>(ob.data);
   if (filter_strength < 0.0 && ss.filter_cache->pre_smoothed_color.is_empty()) {
@@ -461,7 +459,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   View3D *v3d = CTX_wm_view3d(C);
 
   const Base *base = CTX_data_active_base(C);
@@ -478,8 +476,8 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
     if (v3d) {
       /* Update the active face set manually as the paint cursor is not enabled when using the Mesh
        * Filter Tool. */
-      SculptCursorGeometryInfo sgi;
-      SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+      CursorGeometryInfo cgi;
+      cursor_geometry_info_update(C, &cgi, mval_fl, false);
     }
   }
 
@@ -509,7 +507,9 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   const SculptSession &ss = *ob.sculpt;
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  }
 
   return OPERATOR_PASS_THROUGH;
 }
@@ -544,7 +544,7 @@ static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  ED_image_paint_brush_type_update_sticky_shading_color(C, &ob);
+  ED_paint_brush_type_update_sticky_shading_color(C, &ob);
 
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
@@ -562,12 +562,12 @@ static std::string sculpt_color_filter_get_name(wmOperatorType * /*ot*/, Pointer
 
 static void sculpt_color_filter_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill) {
-    layout->prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -578,7 +578,7 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
   ot->idname = "SCULPT_OT_color_filter";
   ot->description = "Applies a filter to modify the active color attribute";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = sculpt_color_filter_invoke;
   ot->exec = sculpt_color_filter_exec;
   ot->modal = sculpt_color_filter_modal;
@@ -605,7 +605,7 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
                                           0.0f,
                                           1.0f);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
-  RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
+  RNA_def_property_subtype(prop, PROP_COLOR);
 }
 
 }  // namespace blender::ed::sculpt_paint::color

@@ -21,8 +21,9 @@ namespace blender::seq {
 
 bool transform_strip_can_be_translated(const Strip *strip);
 /**
- * Used so we can do a quick check for single image strip
- * since they work a bit differently to normal image strips (during transform).
+ * Checks whether the strip functions as a single static display,
+ * which means it has only one unique frame of content and does not draw holds.
+ * This includes non-sequence image strips and all effect strips with no inputs (e.g. color, text).
  */
 bool transform_single_image_check(const Strip *strip);
 bool transform_test_overlap(const Scene *scene, ListBase *seqbasep, Strip *test);
@@ -36,13 +37,13 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
                                   Scene *evil_scene,
                                   int channel_delta);
 bool transform_seqbase_shuffle(ListBase *seqbasep, Strip *test, Scene *evil_scene);
-bool transform_seqbase_shuffle_time(blender::Span<Strip *> strips_to_shuffle,
-                                    blender::Span<Strip *> time_dependent_strips,
+bool transform_seqbase_shuffle_time(Span<Strip *> strips_to_shuffle,
+                                    Span<Strip *> time_dependent_strips,
                                     ListBase *seqbasep,
                                     Scene *evil_scene,
                                     ListBase *markers,
                                     bool use_sync_markers);
-bool transform_seqbase_shuffle_time(blender::Span<Strip *> strips_to_shuffle,
+bool transform_seqbase_shuffle_time(Span<Strip *> strips_to_shuffle,
                                     ListBase *seqbasep,
                                     Scene *evil_scene,
                                     ListBase *markers,
@@ -50,12 +51,12 @@ bool transform_seqbase_shuffle_time(blender::Span<Strip *> strips_to_shuffle,
 
 void transform_handle_overlap(Scene *scene,
                               ListBase *seqbasep,
-                              blender::Span<Strip *> transformed_strips,
-                              blender::Span<Strip *> time_dependent_strips,
+                              Span<Strip *> transformed_strips,
+                              Span<Strip *> time_dependent_strips,
                               bool use_sync_markers);
 void transform_handle_overlap(Scene *scene,
                               ListBase *seqbasep,
-                              blender::Span<Strip *> transformed_strips,
+                              Span<Strip *> transformed_strips,
                               bool use_sync_markers);
 /**
  * Set strip channel. This value is clamped to valid values.
@@ -75,11 +76,11 @@ void transform_offset_after_frame(Scene *scene, ListBase *seqbase, int delta, in
  * Check if `strip` can be moved.
  * This function also checks `SeqTimelineChannel` flag.
  */
-bool transform_is_locked(ListBase *channels, const Strip *strip);
+bool transform_is_locked(const ListBase *channels, const Strip *strip);
 
 /* Image transformation. */
 
-blender::float2 image_transform_mirror_factor_get(const Strip *strip);
+float2 image_transform_mirror_factor_get(const Strip *strip);
 /**
  * Get strip transform origin offset from image center
  * NOTE: This function does not apply axis mirror.
@@ -87,8 +88,25 @@ blender::float2 image_transform_mirror_factor_get(const Strip *strip);
  * \param scene: Scene in which strips are located
  * \param strip: Strip to calculate image transform origin
  */
-blender::float2 image_transform_origin_offset_pixelspace_get(const Scene *scene,
-                                                             const Strip *strip);
+float2 image_transform_origin_offset_pixelspace_get(const Scene *scene, const Strip *strip);
+
+/**
+ * Get strip transform origin relative value. This function is mainly needed to
+ * recalculate text strip origin position.
+ *
+ * \param render_size: Size of image canvas in pixels
+ * \param strip: Strip to calculate origin for
+ */
+float2 image_transform_origin_get(const Scene *scene, const Strip *strip);
+
+/**
+ * Get size of the image, which is produced by strip without any transformation.
+ *
+ * \param render_size: Size of image canvas in pixels
+ * \param strip: Strip to calculate origin for
+ */
+float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip);
+
 /**
  * Get 4 corner points of strip image, optionally without rotation component applied.
  * Corner vectors are in viewport space.
@@ -98,9 +116,9 @@ blender::float2 image_transform_origin_offset_pixelspace_get(const Scene *scene,
  * \param apply_rotation: Apply strip rotation transform to the quad
  * \return array of 4 2D vectors
  */
-blender::Array<blender::float2> image_transform_quad_get(const Scene *scene,
-                                                         const Strip *strip,
-                                                         bool apply_rotation);
+Array<float2> image_transform_quad_get(const Scene *scene,
+                                       const Strip *strip,
+                                       bool apply_rotation);
 /**
  * Get 4 corner points of strip image. Corner vectors are in viewport space.
  * Indices correspond to following corners (assuming no rotation):
@@ -112,11 +130,10 @@ blender::Array<blender::float2> image_transform_quad_get(const Scene *scene,
  * \param strip: Strip to calculate transformed image quad
  * \return array of 4 2D vectors
  */
-blender::Array<blender::float2> image_transform_final_quad_get(const Scene *scene,
-                                                               const Strip *strip);
+Array<float2> image_transform_final_quad_get(const Scene *scene, const Strip *strip);
 
-blender::float2 image_preview_unit_to_px(const Scene *scene, blender::float2 co_src);
-blender::float2 image_preview_unit_from_px(const Scene *scene, blender::float2 co_src);
+float2 image_preview_unit_to_px(const Scene *scene, float2 co_src);
+float2 image_preview_unit_from_px(const Scene *scene, float2 co_src);
 
 /**
  * Get viewport axis aligned bounding box from a collection of sequences.
@@ -128,8 +145,9 @@ blender::float2 image_preview_unit_from_px(const Scene *scene, blender::float2 c
  * \param r_min: Minimum x and y values
  * \param r_max: Maximum x and y values
  */
-blender::Bounds<blender::float2> image_transform_bounding_box_from_collection(
-    Scene *scene, blender::Span<Strip *> strips, bool apply_rotation);
+Bounds<float2> image_transform_bounding_box_from_collection(Scene *scene,
+                                                            Span<Strip *> strips,
+                                                            bool apply_rotation);
 
 /**
  * Get strip image transformation matrix. Pivot point is set to correspond with viewport coordinate
@@ -138,6 +156,6 @@ blender::Bounds<blender::float2> image_transform_bounding_box_from_collection(
  * \param scene: Scene in which strips are located
  * \param strip: Strip that is used to construct the matrix
  */
-blender::float3x3 image_transform_matrix_get(const Scene *scene, const Strip *strip);
+float3x3 image_transform_matrix_get(const Scene *scene, const Strip *strip);
 
 }  // namespace blender::seq

@@ -16,6 +16,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
@@ -29,7 +30,8 @@
 
 #include <fmt/format.h>
 
-namespace blender::ui::greasepencil {
+namespace blender::ui {
+namespace greasepencil {
 
 using namespace blender::bke::greasepencil;
 
@@ -147,7 +149,7 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
       WM_msg_publish_rna_prop(
           CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layers);
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
     }
     else if (drag_node.is_group()) {
       WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
@@ -156,7 +158,7 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
                               GreasePencilv3LayerGroup,
                               active);
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layer_groups);
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
     }
 
     ED_undo_push(C, "Reorder Layers");
@@ -181,7 +183,7 @@ class LayerViewItemDragController : public AbstractViewItemDragController {
   {
   }
 
-  eWM_DragDataType get_drag_type() const override
+  std::optional<eWM_DragDataType> get_drag_type() const override
   {
     if (dragged_node_.wrap().is_layer()) {
       return WM_DRAG_GREASE_PENCIL_LAYER;
@@ -197,7 +199,7 @@ class LayerViewItemDragController : public AbstractViewItemDragController {
     return drag_data;
   }
 
-  void on_drag_start() override
+  void on_drag_start(bContext & /*C*/) override
   {
     grease_pencil_.set_active_node(&dragged_node_);
   }
@@ -211,14 +213,14 @@ class LayerViewItem : public AbstractTreeViewItem {
     this->label_ = layer.name();
   }
 
-  void build_row(uiLayout &row) override
+  void build_row(Layout &row) override
   {
     build_layer_name(row);
 
-    uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    Layout &sub = row.row(true);
+    sub.use_property_decorate_set(false);
 
-    build_layer_buttons(*sub);
+    build_layer_buttons(sub);
   }
 
   bool supports_collapsing() const override
@@ -283,6 +285,14 @@ class LayerViewItem : public AbstractTreeViewItem {
     return layer_.name();
   }
 
+  void delete_item(bContext *C) override
+  {
+    grease_pencil_.remove_layer(layer_);
+    DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(C, "Delete Grease Pencil Layer");
+  }
+
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<LayerViewItemDragController>(
@@ -298,36 +308,39 @@ class LayerViewItem : public AbstractTreeViewItem {
   GreasePencil &grease_pencil_;
   Layer &layer_;
 
-  void build_layer_name(uiLayout &row)
+  void build_layer_name(Layout &row)
   {
-    uiBut *but = uiItemL_ex(
+    Button *but = uiItemL_ex(
         &row, layer_.name().c_str(), ICON_OUTLINER_DATA_GP_LAYER, false, false);
-    if (!layer_.is_editable()) {
-      UI_but_disable(but, "Layer is locked or not visible");
+
+    if (ID_IS_LINKED(&grease_pencil_)) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
+    else if (!layer_.is_editable()) {
+      button_disable(but, "Layer is locked or not visible");
     }
   }
 
-  void build_layer_buttons(uiLayout &row)
+  void build_layer_buttons(Layout &row)
   {
-    uiLayout *sub;
     PointerRNA layer_ptr = RNA_pointer_create_discrete(
         &grease_pencil_.id, &RNA_GreasePencilLayer, &layer_);
 
-    sub = &row.row(true);
-    uiLayoutSetActive(sub, layer_.parent_group().use_masks());
-    sub->prop(&layer_ptr, "use_masks", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    Layout *sub = &row.row(true);
+    sub->active_set(layer_.parent_group().use_masks());
+    sub->prop(&layer_ptr, "use_masks", ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
-    uiLayoutSetActive(sub, layer_.parent_group().use_onion_skinning());
-    sub->prop(&layer_ptr, "use_onion_skinning", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->active_set(layer_.parent_group().use_onion_skinning());
+    sub->prop(&layer_ptr, "use_onion_skinning", ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
-    uiLayoutSetActive(sub, layer_.parent_group().is_visible());
-    sub->prop(&layer_ptr, "hide", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->active_set(layer_.parent_group().is_visible());
+    sub->prop(&layer_ptr, "hide", ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
-    uiLayoutSetActive(sub, !layer_.parent_group().is_locked());
-    sub->prop(&layer_ptr, "lock", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->active_set(!layer_.parent_group().is_locked());
+    sub->prop(&layer_ptr, "lock", ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
   }
 };
 
@@ -368,14 +381,14 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     RNA_property_update(&C, &group_ptr, prop);
   }
 
-  void build_row(uiLayout &row) override
+  void build_row(Layout &row) override
   {
     build_layer_group_name(row);
 
-    uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    Layout &sub = row.row(true);
+    sub.use_property_decorate_set(false);
 
-    build_layer_group_buttons(*sub);
+    build_layer_group_buttons(sub);
   }
 
   std::optional<bool> should_be_active() const override
@@ -386,13 +399,13 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     return {};
   }
 
-  void build_context_menu(bContext &C, uiLayout &layout) const override
+  void build_context_menu(bContext &C, Layout &layout) const override
   {
     MenuType *mt = WM_menutype_find("GREASE_PENCIL_MT_group_context_menu", true);
     if (!mt) {
       return;
     }
-    UI_menutype_draw(&C, mt, &layout);
+    menutype_draw(&C, mt, &layout);
   }
 
   void on_activate(bContext &C) override
@@ -441,6 +454,14 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     return group_.name();
   }
 
+  void delete_item(bContext *C) override
+  {
+    grease_pencil_.remove_group(group_);
+    DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(C, "Delete Grease Pencil Group");
+  }
+
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<LayerViewItemDragController>(
@@ -457,48 +478,50 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
   GreasePencil &grease_pencil_;
   LayerGroup &group_;
 
-  void build_layer_group_name(uiLayout &row)
+  void build_layer_group_name(Layout &row)
   {
     short icon = ICON_GREASEPENCIL_LAYER_GROUP;
     if (group_.color_tag != LAYERGROUP_COLOR_NONE) {
       icon = ICON_LAYERGROUP_COLOR_01 + group_.color_tag;
     }
 
-    uiBut *but = uiItemL_ex(&row, group_.name(), icon, false, false);
-    if (!group_.is_editable()) {
-      UI_but_disable(but, "Layer Group is locked or not visible");
+    Button *but = uiItemL_ex(&row, group_.name(), icon, false, false);
+    if (ID_IS_LINKED(&grease_pencil_)) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
+    else if (!group_.is_editable()) {
+      button_disable(but, "Layer Group is locked or not visible");
     }
   }
 
-  void build_layer_group_buttons(uiLayout &row)
+  void build_layer_group_buttons(Layout &row)
   {
-    uiLayout *sub;
     PointerRNA group_ptr = RNA_pointer_create_discrete(
         &grease_pencil_.id, &RNA_GreasePencilLayerGroup, &group_);
 
-    sub = &row.row(true);
+    Layout *sub = &row.row(true);
     if (group_.as_node().parent_group()) {
-      uiLayoutSetActive(sub, group_.as_node().parent_group()->use_masks());
+      sub->active_set(group_.as_node().parent_group()->use_masks());
     }
-    sub->prop(&group_ptr, "use_masks", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->prop(&group_ptr, "use_masks", ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
     if (group_.as_node().parent_group()) {
-      uiLayoutSetActive(sub, group_.as_node().parent_group()->use_onion_skinning());
+      sub->active_set(group_.as_node().parent_group()->use_onion_skinning());
     }
-    sub->prop(&group_ptr, "use_onion_skinning", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->prop(&group_ptr, "use_onion_skinning", ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
     if (group_.as_node().parent_group()) {
-      uiLayoutSetActive(sub, group_.as_node().parent_group()->is_visible());
+      sub->active_set(group_.as_node().parent_group()->is_visible());
     }
-    sub->prop(&group_ptr, "hide", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->prop(&group_ptr, "hide", ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
     sub = &row.row(true);
     if (group_.as_node().parent_group()) {
-      uiLayoutSetActive(sub, !group_.as_node().parent_group()->is_locked());
+      sub->active_set(!group_.as_node().parent_group()->is_locked());
     }
-    sub->prop(&group_ptr, "lock", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub->prop(&group_ptr, "lock", ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
   }
 };
 
@@ -526,27 +549,26 @@ void LayerTreeView::build_tree()
     this->build_tree_node_recursive(*this, node->wrap());
   }
 }
+}  // namespace greasepencil
 
-}  // namespace blender::ui::greasepencil
-
-void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C)
+void template_grease_pencil_layer_tree(Layout *layout, bContext *C)
 {
-  using namespace blender;
-
   GreasePencil *grease_pencil = blender::ed::greasepencil::from_context(*C);
 
   if (grease_pencil == nullptr) {
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  Block *block = layout->block();
 
-  ui::AbstractTreeView *tree_view = UI_block_add_view(
+  AbstractTreeView *tree_view = block_add_view(
       *block,
       "Grease Pencil Layer Tree View",
-      std::make_unique<blender::ui::greasepencil::LayerTreeView>(*grease_pencil));
+      std::make_unique<greasepencil::LayerTreeView>(*grease_pencil));
   tree_view->set_context_menu_title("Grease Pencil Layer");
   tree_view->set_default_rows(6);
 
-  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
+  TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
+
+}  // namespace blender::ui

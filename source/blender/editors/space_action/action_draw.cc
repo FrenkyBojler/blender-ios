@@ -61,7 +61,7 @@ void draw_channel_names(bContext *C,
   bAnimListElem *ale;
   View2D *v2d = &region->v2d;
   /* need to do a view-sync here, so that the keys area doesn't jump around (it must copy this) */
-  UI_view2d_sync(nullptr, ac->area, v2d, V2D_LOCK_COPY);
+  blender::ui::view2d_sync(nullptr, ac->area, v2d, V2D_LOCK_COPY);
 
   const float channel_step = ANIM_UI_get_channel_step();
   /* Loop through channels, and set up drawing depending on their type. */
@@ -84,7 +84,7 @@ void draw_channel_names(bContext *C,
     }
   }
   { /* second pass: widgets */
-    uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t channel_index = 0;
     float ymax = ANIM_UI_get_first_channel_top(v2d);
 
@@ -104,8 +104,8 @@ void draw_channel_names(bContext *C,
       }
     }
 
-    UI_block_end(C, block);
-    UI_block_draw(C, block);
+    block_end(C, block);
+    block_draw(C, block);
   }
 }
 
@@ -177,15 +177,15 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
   uchar col_summary[4];
 
   /* get theme colors */
-  UI_GetThemeColor4ubv(TH_SHADE2, col2);
-  UI_GetThemeColor4ubv(TH_HILITE, col1);
-  UI_GetThemeColor4ubv(TH_ANIM_ACTIVE, col_summary);
+  ui::theme::get_color_4ubv(TH_CHANNEL, col2);
+  ui::theme::get_color_4ubv(TH_CHANNEL_SELECT, col1);
+  ui::theme::get_color_4ubv(TH_ANIM_ACTIVE, col_summary);
 
-  UI_GetThemeColor4ubv(TH_GROUP, col2a);
-  UI_GetThemeColor4ubv(TH_GROUP_ACTIVE, col1a);
+  ui::theme::get_color_4ubv(TH_GROUP, col2a);
+  ui::theme::get_color_4ubv(TH_GROUP_ACTIVE, col1a);
 
-  UI_GetThemeColor4ubv(TH_DOPESHEET_CHANNELOB, col1b);
-  UI_GetThemeColor4ubv(TH_DOPESHEET_CHANNELSUBOB, col2b);
+  ui::theme::get_color_4ubv(TH_DOPESHEET_CHANNELOB, col1b);
+  ui::theme::get_color_4ubv(TH_DOPESHEET_CHANNELSUBOB, col2b);
 
   float ymax = ANIM_UI_get_first_channel_top(v2d);
   const float channel_step = ANIM_UI_get_channel_step();
@@ -216,7 +216,12 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
     if (ELEM(ac->datatype, ANIMCONT_ACTION, ANIMCONT_DOPESHEET, ANIMCONT_SHAPEKEY)) {
       switch (ale->type) {
         case ANIMTYPE_SUMMARY: {
-          /* reddish color from NLA */
+          if (!ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND)) {
+            /* Only draw the summary line backdrop when it is expanded. If the entire dope sheet is
+             * just one line, there is no need for any distinction between lines, and the red-ish
+             * color is only going to be a distraction. */
+            continue;
+          }
           immUniformThemeColor(TH_ANIM_ACTIVE);
           break;
         }
@@ -320,7 +325,7 @@ static void draw_keyframes(bAnimContext *ac,
   bDopeSheet *ads = &saction->ads;
 
   if (saction->mode == SACTCONT_TIMELINE) {
-    action_flag &= ~(SACTION_SHOW_INTERPOLATION | SACTION_SHOW_EXTREMES);
+    action_flag &= ~SACTION_SHOW_INTERPOLATION;
   }
 
   const float channel_step = ANIM_UI_get_channel_step();
@@ -483,7 +488,7 @@ void draw_channel_strips(bAnimContext *ac,
 
   /* Draw the background strips. */
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -701,7 +706,7 @@ static void timeline_cache_draw_single(PTCacheID *pid, float y_offset, float hei
 
   /* Mix in the background color to tone it down a bit. */
   blender::ColorTheme4f background;
-  UI_GetThemeColor4fv(TH_BACK, background);
+  ui::theme::get_color_4fv(TH_BACK, background);
 
   interp_v3_v3v3(color, color, background, 0.6f);
 
@@ -725,11 +730,11 @@ static void timeline_cache_draw_single(PTCacheID *pid, float y_offset, float hei
 }
 
 struct CacheRange {
-  blender::IndexRange frames;
+  IndexRange frames;
   blender::bke::bake::CacheStatus status;
 };
 
-static void timeline_cache_draw_geometry_nodes(const blender::Span<CacheRange> cache_ranges,
+static void timeline_cache_draw_geometry_nodes(const Span<CacheRange> cache_ranges,
                                                const bool all_simulations_baked,
                                                float *y_offset,
                                                const float line_height,
@@ -752,22 +757,22 @@ static void timeline_cache_draw_geometry_nodes(const blender::Span<CacheRange> c
     }
   }
 
-  blender::Set<int> status_change_frames_set;
+  Set<int> status_change_frames_set;
   for (const CacheRange &sim_range : cache_ranges) {
     status_change_frames_set.add(sim_range.frames.first());
     status_change_frames_set.add(sim_range.frames.one_after_last());
   }
-  blender::Vector<int> status_change_frames;
+  Vector<int> status_change_frames;
   status_change_frames.extend(status_change_frames_set.begin(), status_change_frames_set.end());
   std::sort(status_change_frames.begin(), status_change_frames.end());
-  const blender::OffsetIndices<int> frame_ranges = status_change_frames.as_span();
+  const OffsetIndices<int> frame_ranges = status_change_frames.as_span();
 
   GPU_matrix_push();
   GPU_matrix_translate_2f(0.0, float(V2D_SCROLL_HANDLE_HEIGHT) + *y_offset);
   GPU_matrix_scale_2f(1.0, line_height);
 
   blender::ColorTheme4f base_color;
-  UI_GetThemeColor4fv(TH_SIMULATED_FRAMES, base_color);
+  ui::theme::get_color_4fv(TH_SIMULATED_FRAMES, base_color);
   blender::ColorTheme4f invalid_color = base_color;
   mul_v3_fl(invalid_color, 0.5f);
   invalid_color.a *= 0.7f;
@@ -777,7 +782,7 @@ static void timeline_cache_draw_geometry_nodes(const blender::Span<CacheRange> c
 
   float max_used_height = 1.0f;
   for (const int range_i : frame_ranges.index_range()) {
-    const blender::IndexRange frame_range = frame_ranges[range_i];
+    const IndexRange frame_range = frame_ranges[range_i];
     const int start_frame = frame_range.first();
     const int end_frame = frame_range.last();
 
@@ -844,7 +849,7 @@ void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Sce
   BKE_ptcache_ids_from_object(&pidlist, const_cast<Object *>(ob), const_cast<Scene *>(scene), 0);
 
   uint pos_id = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_2D_DIAG_STRIPES);
 
   GPU_blend(GPU_BLEND_ALPHA);
@@ -870,7 +875,7 @@ void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Sce
     y_offset += cache_draw_height;
   }
   if (saction->cache_display & TIME_CACHE_SIMULATION_NODES) {
-    blender::Vector<CacheRange> cache_ranges;
+    Vector<CacheRange> cache_ranges;
     bool all_simulations_baked = true;
     LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
       if (md->type != eModifierType_Nodes) {

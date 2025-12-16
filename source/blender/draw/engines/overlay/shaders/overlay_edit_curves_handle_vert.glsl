@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_edit_curves_handle)
 
@@ -11,7 +11,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_curves_handle)
 #include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
-#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 #define M_TAN_PI_BY_8 tan(M_PI / 8)
@@ -162,7 +162,7 @@ void geometry_main(VertOut geom_in[2],
   }
 
   /* Minimize active color bleeding on inner_color. */
-  float4 active_color = mix(theme.colors.active_spline, inner_color, 0.25f);
+  float4 active_color = mix(float4(0.0, 0.0, 0.0, 1.0), inner_color, 0.25f);
   float4 outer_color = is_active ? active_color : float4(inner_color.rgb, 0.0f);
 
   float2 v1_2 = (v2.xy / v2.w - v1.xy / v1.w);
@@ -178,7 +178,7 @@ void geometry_main(VertOut geom_in[2],
     offset.x = 0.0f;
   }
 
-  float4 border_color = float4(theme.colors.active_spline.rgb, 0.0f);
+  float4 border_color = float4(0.0, 0.0, 0.0, 0.0);
   /* Draw the transparent border (AA). */
   if (is_active) {
     offset *= 0.75f; /* Don't make the active "halo" appear very thick. */
@@ -201,22 +201,22 @@ void main()
   /* Line list primitive. */
   constexpr uint input_primitive_vertex_count = 2u;
   /* Triangle list primitive (emulating triangle strip). */
-  constexpr uint ouput_primitive_vertex_count = 3u;
-  constexpr uint ouput_primitive_count = 8u;
-  constexpr uint ouput_invocation_count = 1u;
-  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                      ouput_primitive_vertex_count;
+  constexpr uint output_primitive_vertex_count = 3u;
+  constexpr uint output_primitive_count = 8u;
+  constexpr uint output_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = output_primitive_count *
+                                                      output_primitive_vertex_count;
   constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                           ouput_invocation_count;
+                                                           output_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
 
-  uint out_vertex_id = uint(gl_VertexID) % ouput_primitive_vertex_count;
-  uint out_primitive_id = (uint(gl_VertexID) / ouput_primitive_vertex_count) %
-                          ouput_primitive_count;
+  uint out_vertex_id = uint(gl_VertexID) % output_primitive_vertex_count;
+  uint out_primitive_id = (uint(gl_VertexID) / output_primitive_vertex_count) %
+                          output_primitive_count;
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
-                           ouput_invocation_count;
+                           output_invocation_count;
 
   VertIn vert_in[input_primitive_vertex_count];
   vert_in[0] = input_assembly(in_primitive_first_vertex + 0u);

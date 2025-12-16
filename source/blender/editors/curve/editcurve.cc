@@ -25,6 +25,7 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -69,6 +70,7 @@ extern "C" {
 }
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -160,7 +162,6 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
 {
   Nurb *nu = static_cast<Nurb *>(editnurb->nurbs.first);
   Nurb *orignu = static_cast<Nurb *>(origBase->first);
-  GHash *gh;
   BezTriple *bezt, *origbezt;
   BPoint *bp, *origbp;
   CVKeyIndex *keyIndex;
@@ -170,7 +171,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
     return;
   }
 
-  gh = BLI_ghash_ptr_new("editNurb keyIndex");
+  auto *gh = MEM_new<CVKeyIndexMap>("editNurb keyIndex");
 
   while (orignu) {
     if (orignu->bezt) {
@@ -187,7 +188,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
             MEM_mallocN(sizeof(*origbezt), __func__));
         *origbezt_cpy = *origbezt;
         keyIndex = init_cvKeyIndex(origbezt_cpy, key_index, nu_index, pt_index, vertex_index);
-        BLI_ghash_insert(gh, bezt, keyIndex);
+        gh->add(bezt, keyIndex);
         key_index += KEYELEM_FLOAT_LEN_BEZTRIPLE;
         vertex_index += 3;
         bezt++;
@@ -208,7 +209,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
         BPoint *origbp_cpy = MEM_mallocN<BPoint>(__func__);
         *origbp_cpy = *origbp;
         keyIndex = init_cvKeyIndex(origbp_cpy, key_index, nu_index, pt_index, vertex_index);
-        BLI_ghash_insert(gh, bp, keyIndex);
+        gh->add(bp, keyIndex);
         key_index += KEYELEM_FLOAT_LEN_BPOINT;
         bp++;
         origbp++;
@@ -227,12 +228,12 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
 
 static CVKeyIndex *getCVKeyIndex(EditNurb *editnurb, const void *cv)
 {
-  return static_cast<CVKeyIndex *>(BLI_ghash_lookup(editnurb->keyindex, cv));
+  return editnurb->keyindex->lookup_default(cv, nullptr);
 }
 
 static CVKeyIndex *popCVKeyIndex(EditNurb *editnurb, const void *cv)
 {
-  return static_cast<CVKeyIndex *>(BLI_ghash_popkey(editnurb->keyindex, cv, nullptr));
+  return editnurb->keyindex->pop_default(cv, nullptr);
 }
 
 static BezTriple *getKeyIndexOrig_bezt(EditNurb *editnurb, const BezTriple *bezt)
@@ -335,7 +336,7 @@ static void keyIndex_updateCV(EditNurb *editnurb, char *cv, char *newcv, int cou
     index = popCVKeyIndex(editnurb, cv);
 
     if (index) {
-      BLI_ghash_insert(editnurb->keyindex, newcv, index);
+      editnurb->keyindex->add(newcv, index);
     }
 
     newcv += size;
@@ -369,10 +370,10 @@ static void keyIndex_swap(EditNurb *editnurb, void *a, void *b)
   CVKeyIndex *index2 = popCVKeyIndex(editnurb, b);
 
   if (index2) {
-    BLI_ghash_insert(editnurb->keyindex, a, index2);
+    editnurb->keyindex->add(a, index2);
   }
   if (index1) {
-    BLI_ghash_insert(editnurb->keyindex, b, index1);
+    editnurb->keyindex->add(b, index1);
   }
 }
 
@@ -542,22 +543,20 @@ static void keyData_switchDirectionNurb(Curve *cu, Nurb *nu)
   }
 }
 
-GHash *ED_curve_keyindex_hash_duplicate(GHash *keyindex)
+CVKeyIndexMap *ED_curve_keyindex_hash_duplicate(CVKeyIndexMap *keyindex)
 {
-  GHash *gh;
-  GHashIterator gh_iter;
+  CVKeyIndexMap *gh = MEM_new<CVKeyIndexMap>("dupli_keyIndex gh");
+  gh->reserve(keyindex->size());
 
-  gh = BLI_ghash_ptr_new_ex("dupli_keyIndex gh", BLI_ghash_len(keyindex));
-
-  GHASH_ITER (gh_iter, keyindex) {
-    void *cv = BLI_ghashIterator_getKey(&gh_iter);
-    CVKeyIndex *index = static_cast<CVKeyIndex *>(BLI_ghashIterator_getValue(&gh_iter));
+  for (const auto &item : keyindex->items()) {
+    const void *cv = item.key;
+    CVKeyIndex *index = item.value;
     CVKeyIndex *newIndex = MEM_mallocN<CVKeyIndex>("dupli_keyIndexHash index");
 
     memcpy(newIndex, index, sizeof(CVKeyIndex));
     newIndex->orig_cv = MEM_dupallocN(index->orig_cv);
 
-    BLI_ghash_insert(gh, cv, newIndex);
+    gh->add(cv, newIndex);
   }
 
   return gh;
@@ -603,8 +602,14 @@ static void calc_keyHandles(ListBase *nurb, float *key)
         prevfp = nullptr;
       }
 
-      nextp = bezt + 1;
-      nextfp = fp + KEYELEM_FLOAT_LEN_BEZTRIPLE;
+      if (nu->pntsu > 1) {
+        nextp = bezt + 1;
+        nextfp = fp + KEYELEM_FLOAT_LEN_BEZTRIPLE;
+      }
+      else {
+        nextp = nullptr;
+        nextfp = nullptr;
+      }
 
       while (a--) {
         key_to_bezt(fp, bezt, &cur);
@@ -663,7 +668,7 @@ static void calc_shapeKeys(Object *obedit, ListBase *newnurbs)
   Nurb *newnu;
   int totvert = BKE_keyblock_curve_element_count(&editnurb->nurbs);
 
-  float(*ofs)[3] = nullptr;
+  float (*ofs)[3] = nullptr;
   std::optional<blender::Array<bool>> dependent;
   const float *oldkey, *ofp;
   float *newkey;
@@ -967,23 +972,23 @@ static void fcurve_path_rename(const char *orig_rna_path,
       pt_index = 0;
 
       while (a--) {
-        SNPRINTF(rna_path, "splines[%d].bezier_points[%d]", nu_index, pt_index);
+        SNPRINTF_UTF8(rna_path, "splines[%d].bezier_points[%d]", nu_index, pt_index);
 
         keyIndex = getCVKeyIndex(editnurb, bezt);
         if (keyIndex) {
-          SNPRINTF(orig_rna_path,
-                   "splines[%d].bezier_points[%d]",
-                   keyIndex->nu_index,
-                   keyIndex->pt_index);
+          SNPRINTF_UTF8(orig_rna_path,
+                        "splines[%d].bezier_points[%d]",
+                        keyIndex->nu_index,
+                        keyIndex->pt_index);
 
           if (keyIndex->switched) {
             char handle_path[64], orig_handle_path[64];
-            SNPRINTF(orig_handle_path, "%s.handle_left", orig_rna_path);
-            SNPRINTF(handle_path, "%s.handle_right", rna_path);
+            SNPRINTF_UTF8(orig_handle_path, "%s.handle_left", orig_rna_path);
+            SNPRINTF_UTF8(handle_path, "%s.handle_right", rna_path);
             fcurve_path_rename(orig_handle_path, handle_path, orig_curves, processed_fcurves);
 
-            SNPRINTF(orig_handle_path, "%s.handle_right", orig_rna_path);
-            SNPRINTF(handle_path, "%s.handle_left", rna_path);
+            SNPRINTF_UTF8(orig_handle_path, "%s.handle_right", orig_rna_path);
+            SNPRINTF_UTF8(handle_path, "%s.handle_left", rna_path);
             fcurve_path_rename(orig_handle_path, handle_path, orig_curves, processed_fcurves);
           }
 
@@ -1013,11 +1018,11 @@ static void fcurve_path_rename(const char *orig_rna_path,
       pt_index = 0;
 
       while (a--) {
-        SNPRINTF(rna_path, "splines[%d].points[%d]", nu_index, pt_index);
+        SNPRINTF_UTF8(rna_path, "splines[%d].points[%d]", nu_index, pt_index);
 
         keyIndex = getCVKeyIndex(editnurb, bp);
         if (keyIndex) {
-          SNPRINTF(
+          SNPRINTF_UTF8(
               orig_rna_path, "splines[%d].points[%d]", keyIndex->nu_index, keyIndex->pt_index);
           fcurve_path_rename(orig_rna_path, rna_path, orig_curves, processed_fcurves);
 
@@ -1071,8 +1076,8 @@ static void fcurve_path_rename(const char *orig_rna_path,
     }
 
     if (keyIndex) {
-      SNPRINTF(rna_path, "splines[%d]", nu_index);
-      SNPRINTF(orig_rna_path, "splines[%d]", keyIndex->nu_index);
+      SNPRINTF_UTF8(rna_path, "splines[%d]", nu_index);
+      SNPRINTF_UTF8(orig_rna_path, "splines[%d]", keyIndex->nu_index);
       fcurve_path_rename(orig_rna_path, rna_path, orig_curves, processed_fcurves);
     }
   }
@@ -1506,7 +1511,7 @@ void CURVE_OT_separate(wmOperatorType *ot)
   ot->idname = "CURVE_OT_separate";
   ot->description = "Separate selected points from connected unselected points into a new object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = separate_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -1579,7 +1584,7 @@ void CURVE_OT_split(wmOperatorType *ot)
   ot->idname = "CURVE_OT_split";
   ot->description = "Split off selected points from connected unselected points";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_split_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -2647,7 +2652,7 @@ void CURVE_OT_switch_direction(wmOperatorType *ot)
   ot->description = "Switch direction of selected splines";
   ot->idname = "CURVE_OT_switch_direction";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = switch_direction_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -2706,7 +2711,7 @@ void CURVE_OT_spline_weight_set(wmOperatorType *ot)
   ot->description = "Set softbody goal weight for selected points";
   ot->idname = "CURVE_OT_spline_weight_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = set_goal_weight_exec;
   ot->invoke = WM_operator_props_popup;
   ot->poll = ED_operator_editsurfcurve;
@@ -2778,7 +2783,7 @@ void CURVE_OT_radius_set(wmOperatorType *ot)
   ot->description = "Set per-point radius which is used for bevel tapering";
   ot->idname = "CURVE_OT_radius_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = set_radius_exec;
   ot->invoke = WM_operator_props_popup;
   ot->poll = ED_operator_editsurfcurve;
@@ -2942,7 +2947,7 @@ void CURVE_OT_smooth(wmOperatorType *ot)
   ot->description = "Flatten angles of selected points";
   ot->idname = "CURVE_OT_smooth";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = smooth_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -3168,7 +3173,7 @@ void CURVE_OT_smooth_weight(wmOperatorType *ot)
   ot->description = "Interpolate weight of selected points";
   ot->idname = "CURVE_OT_smooth_weight";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_smooth_weight_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -3218,7 +3223,7 @@ void CURVE_OT_smooth_radius(wmOperatorType *ot)
   ot->description = "Interpolate radii of selected points";
   ot->idname = "CURVE_OT_smooth_radius";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_smooth_radius_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -3267,7 +3272,7 @@ void CURVE_OT_smooth_tilt(wmOperatorType *ot)
   ot->description = "Interpolate tilt of selected points";
   ot->idname = "CURVE_OT_smooth_tilt";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_smooth_tilt_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -3364,7 +3369,7 @@ void CURVE_OT_hide(wmOperatorType *ot)
   ot->idname = "CURVE_OT_hide";
   ot->description = "Hide (un)selected control points";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = hide_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -3443,7 +3448,7 @@ void CURVE_OT_reveal(wmOperatorType *ot)
   ot->idname = "CURVE_OT_reveal";
   ot->description = "Reveal hidden control points";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = reveal_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -3458,6 +3463,17 @@ void CURVE_OT_reveal(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Subdivide Operator
  * \{ */
+
+static void interp_bpoint(BPoint *bp_target,
+                          const BPoint *bp_a,
+                          const BPoint *bp_b,
+                          const float factor)
+{
+  interp_v4_v4v4(bp_target->vec, bp_a->vec, bp_b->vec, factor);
+  bp_target->tilt = interpf(bp_a->tilt, bp_b->tilt, factor);
+  bp_target->weight = interpf(bp_a->weight, bp_b->weight, factor);
+  bp_target->radius = interpf(bp_a->radius, bp_b->radius, factor);
+}
 
 /**
  * Divide the line segments associated with the currently selected
@@ -3522,6 +3538,9 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
               BEZT_ISSEL_ANY_HIDDENHANDLES(v3d, nextbezt))
           {
             float prevvec[3][3];
+            float prev_tilt = bezt->tilt;
+            float prev_radius = bezt->radius;
+            float prev_weight = bezt->weight;
 
             memcpy(prevvec, bezt->vec, sizeof(float[9]));
 
@@ -3552,10 +3571,12 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
                 copy_v3_v3(nextbezt->vec[0], vec + 6);
               }
 
-              beztn->radius = (bezt->radius + nextbezt->radius) / 2;
-              beztn->weight = (bezt->weight + nextbezt->weight) / 2;
+              beztn->tilt = prev_tilt = interpf(nextbezt->tilt, prev_tilt, factor);
+              beztn->radius = prev_radius = interpf(nextbezt->radius, prev_radius, factor);
+              beztn->weight = prev_weight = interpf(nextbezt->weight, prev_weight, factor);
 
               memcpy(prevvec, beztn->vec, sizeof(float[9]));
+
               beztn++;
             }
           }
@@ -3617,8 +3638,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
               factor = float(i + 1) / (number_cuts + 1);
 
               memcpy(bpn, nextbp, sizeof(BPoint));
-              interp_v4_v4v4(bpn->vec, bp->vec, nextbp->vec, factor);
-              bpn->radius = interpf(bp->radius, nextbp->radius, factor);
+              interp_bpoint(bpn, bp, nextbp, factor);
               bpn++;
             }
           }
@@ -3718,7 +3738,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
               for (int i = 0; i < number_cuts; i++) {
                 factor = float(i + 1) / (number_cuts + 1);
                 *bpn = *bp;
-                interp_v4_v4v4(bpn->vec, prevbp->vec, bp->vec, factor);
+                interp_bpoint(bpn, prevbp, bp, factor);
                 bpn++;
               }
             }
@@ -3736,7 +3756,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
             for (int i = 0; i < number_cuts; i++) {
               factor = float(i + 1) / (number_cuts + 1);
               *tmp = *bp;
-              interp_v4_v4v4(tmp->vec, prevbp->vec, bp->vec, factor);
+              interp_bpoint(tmp, prevbp, bp, factor);
               tmp += countu;
             }
             bp++;
@@ -3786,7 +3806,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
                    * node. (is it?)
                    */
                   *bpn = *prevbp;
-                  interp_v4_v4v4(bpn->vec, prevbp->vec, bp->vec, factor);
+                  interp_bpoint(bpn, prevbp, bp, factor);
                   bpn++;
 
                   prevbp++;
@@ -3834,7 +3854,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
                     factor = float(i + 1) / (number_cuts + 1);
                     prevbp = bp - 1;
                     *bpn = *prevbp;
-                    interp_v4_v4v4(bpn->vec, prevbp->vec, bp->vec, factor);
+                    interp_bpoint(bpn, prevbp, bp, factor);
                     bpn++;
                   }
                 }
@@ -3894,7 +3914,7 @@ void CURVE_OT_subdivide(wmOperatorType *ot)
   ot->description = "Subdivide selected segments";
   ot->idname = "CURVE_OT_subdivide";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = subdivide_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -3980,7 +4000,7 @@ void CURVE_OT_spline_type_set(wmOperatorType *ot)
   ot->description = "Set type of active spline";
   ot->idname = "CURVE_OT_spline_type_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = set_spline_type_exec;
   ot->invoke = WM_menu_invoke;
   ot->poll = ED_operator_editcurve;
@@ -4035,10 +4055,10 @@ void CURVE_OT_handle_type_set(wmOperatorType *ot)
 {
   /* keep in sync with graphkeys_handle_type_items */
   static const EnumPropertyItem editcurve_handle_type_items[] = {
-      {HD_AUTO, "AUTOMATIC", 0, "Automatic", ""},
-      {HD_VECT, "VECTOR", 0, "Vector", ""},
-      {5, "ALIGNED", 0, "Aligned", ""},
-      {6, "FREE_ALIGN", 0, "Free", ""},
+      {HD_AUTO, "AUTOMATIC", ICON_HANDLE_AUTO, "Automatic", ""},
+      {HD_VECT, "VECTOR", ICON_HANDLE_VECTOR, "Vector", ""},
+      {5, "ALIGNED", ICON_HANDLE_ALIGNED, "Aligned", ""},
+      {6, "FREE_ALIGN", ICON_HANDLE_FREE, "Free", ""},
       {3, "TOGGLE_FREE_ALIGN", 0, "Toggle Free/Align", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -4048,7 +4068,7 @@ void CURVE_OT_handle_type_set(wmOperatorType *ot)
   ot->description = "Set type of handles for selected control points";
   ot->idname = "CURVE_OT_handle_type_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = set_handle_type_exec;
   ot->poll = ED_operator_editcurve;
@@ -4108,7 +4128,7 @@ void CURVE_OT_normals_make_consistent(wmOperatorType *ot)
   ot->description = "Recalculate the direction of selected handles";
   ot->idname = "CURVE_OT_normals_make_consistent";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_normals_make_consistent_exec;
   ot->poll = ED_operator_editcurve;
 
@@ -4805,7 +4825,7 @@ void CURVE_OT_make_segment(wmOperatorType *ot)
   ot->idname = "CURVE_OT_make_segment";
   ot->description = "Join two curves by their selected ends";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = make_segment_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -5007,10 +5027,7 @@ bool ED_curve_editnurb_select_pick(bContext *C,
     }
 
     /* Change active material on object. */
-    if (nu->mat_nr != obedit->actcol - 1) {
-      obedit->actcol = nu->mat_nr + 1;
-      WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, nullptr);
-    }
+    blender::ed::object::material_active_index_set(obedit, nu->mat_nr);
 
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
@@ -5190,7 +5207,7 @@ void CURVE_OT_spin(wmOperatorType *ot)
   ot->idname = "CURVE_OT_spin";
   ot->description = "Extrude selected boundary row around pivot point and current view axis";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = spin_exec;
   ot->invoke = spin_invoke;
   ot->poll = ED_operator_editsurf;
@@ -5744,7 +5761,7 @@ void CURVE_OT_vertex_add(wmOperatorType *ot)
   ot->idname = "CURVE_OT_vertex_add";
   ot->description = "Add a new control point (linked to only selected end-curve one, if any)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = add_vertex_exec;
   ot->invoke = add_vertex_invoke;
   ot->poll = ED_operator_editcurve;
@@ -5815,7 +5832,7 @@ void CURVE_OT_extrude(wmOperatorType *ot)
   ot->description = "Extrude selected control point(s)";
   ot->idname = "CURVE_OT_extrude";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_extrude_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -5949,17 +5966,16 @@ static wmOperatorStatus toggle_cyclic_invoke(bContext *C,
 {
   Object *obedit = CTX_data_edit_object(C);
   ListBase *editnurb = object_editcurve_get(obedit);
-  uiPopupMenu *pup;
-  uiLayout *layout;
 
   if (obedit->type == OB_SURF) {
     LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (nu->pntsu > 1 || nu->pntsv > 1) {
         if (nu->type == CU_NURBS) {
-          pup = UI_popup_menu_begin(C, IFACE_("Direction"), ICON_NONE);
-          layout = UI_popup_menu_layout(pup);
-          uiItemsEnumO(layout, op->type->idname, "direction");
-          UI_popup_menu_end(C, pup);
+          blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
+              C, IFACE_("Direction"), ICON_NONE);
+          blender::ui::Layout &layout = *popup_menu_layout(pup);
+          layout.op_enum(op->type->idname, "direction");
+          popup_menu_end(C, pup);
           return OPERATOR_INTERFACE;
         }
       }
@@ -5982,7 +5998,7 @@ void CURVE_OT_cyclic_toggle(wmOperatorType *ot)
   ot->description = "Make active spline closed/opened loop";
   ot->idname = "CURVE_OT_cyclic_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = toggle_cyclic_exec;
   ot->invoke = toggle_cyclic_invoke;
   ot->poll = ED_operator_editsurfcurve;
@@ -6053,7 +6069,7 @@ void CURVE_OT_duplicate(wmOperatorType *ot)
   ot->description = "Duplicate selected control points";
   ot->idname = "CURVE_OT_duplicate";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = duplicate_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -6594,7 +6610,7 @@ void CURVE_OT_delete(wmOperatorType *ot)
   ot->description = "Delete selected control points or segments";
   ot->idname = "CURVE_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_delete_exec;
   ot->invoke = WM_menu_invoke;
   ot->poll = ED_operator_editsurfcurve;
@@ -6748,7 +6764,7 @@ void CURVE_OT_dissolve_verts(wmOperatorType *ot)
   ot->description = "Delete selected control points, correcting surrounding handles";
   ot->idname = "CURVE_OT_dissolve_verts";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_dissolve_exec;
   ot->poll = ED_operator_editcurve;
 
@@ -6840,7 +6856,7 @@ void CURVE_OT_decimate(wmOperatorType *ot)
   ot->description = "Simplify selected curves";
   ot->idname = "CURVE_OT_decimate";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_decimate_exec;
   ot->poll = ED_operator_editcurve;
 
@@ -6900,7 +6916,7 @@ void CURVE_OT_shade_smooth(wmOperatorType *ot)
   ot->idname = "CURVE_OT_shade_smooth";
   ot->description = "Set shading to smooth";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = shade_smooth_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -6915,7 +6931,7 @@ void CURVE_OT_shade_flat(wmOperatorType *ot)
   ot->idname = "CURVE_OT_shade_flat";
   ot->description = "Set shading to flat";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = shade_smooth_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -7114,7 +7130,7 @@ void CURVE_OT_tilt_clear(wmOperatorType *ot)
   ot->idname = "CURVE_OT_tilt_clear";
   ot->description = "Clear the tilt of selected control points";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clear_tilt_exec;
   ot->poll = ED_operator_editcurve;
 
@@ -7201,7 +7217,7 @@ void CURVE_OT_match_texture_space(wmOperatorType *ot)
   ot->idname = "CURVE_OT_match_texture_space";
   ot->description = "Match texture space to object's bounding box";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = match_texture_space_exec;
   ot->poll = match_texture_space_poll;
 

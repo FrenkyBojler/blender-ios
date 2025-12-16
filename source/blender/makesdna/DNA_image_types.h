@@ -21,7 +21,6 @@ using ImageRuntimeHandle = blender::bke::ImageRuntime;
 typedef struct ImageRuntimeHandle ImageRuntimeHandle;
 #endif
 
-struct GPUTexture;
 struct MovieReader;
 struct MovieCache;
 struct PackedFile;
@@ -63,10 +62,8 @@ typedef struct ImageAnim {
 
 typedef struct ImageView {
   struct ImageView *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char name[/*MAX_NAME*/ 64];
+  char filepath[/*FILE_MAX*/ 1024];
 } ImageView;
 
 typedef struct ImagePackedFile {
@@ -77,14 +74,12 @@ typedef struct ImagePackedFile {
    * respectively when creating their ImagePackedFile. Must be provided for each packed image. */
   int view;
   int tile_number;
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 } ImagePackedFile;
 
 typedef struct RenderSlot {
   struct RenderSlot *next, *prev;
-  /** 64 = MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   struct RenderResult *render;
 } RenderSlot;
 
@@ -114,7 +109,7 @@ typedef struct ImageTile {
 /** #ImageUser::flag */
 enum {
   IMA_ANIM_ALWAYS = 1 << 0,
-  // IMA_UNUSED_1 = 1 << 1,
+  IMA_SHOW_SEQUENCER_SCENE = 1 << 1,
   // IMA_UNUSED_2 = 1 << 2,
   IMA_NEED_FRAME_RECALC = 1 << 3,
   IMA_SHOW_STEREO = 1 << 4,
@@ -124,9 +119,9 @@ enum {
 /* Used to get the correct gpu texture from an Image datablock. */
 typedef enum eGPUTextureTarget {
   TEXTARGET_2D = 0,
-  TEXTARGET_2D_ARRAY,
-  TEXTARGET_TILE_MAPPING,
-  TEXTARGET_COUNT,
+  TEXTARGET_2D_ARRAY = 1,
+  TEXTARGET_TILE_MAPPING = 2,
+  TEXTARGET_COUNT = 3,
 } eGPUTextureTarget;
 
 typedef struct Image {
@@ -138,13 +133,8 @@ typedef struct Image {
   ID id;
   struct AnimData *adt;
 
-  /** File path, 1024 = FILE_MAX. */
-  char filepath[1024];
-
-  /** Not written in file. */
-  struct MovieCache *cache;
-  /** Not written in file 3 = TEXTARGET_COUNT, 2 = stereo eyes. */
-  struct GPUTexture *gputexture[3][2];
+  /** File path. */
+  char filepath[/*FILE_MAX*/ 1024];
 
   /* sources from: */
   ListBase anims;
@@ -157,24 +147,17 @@ typedef struct Image {
   short source, type;
   int lastframe;
 
-  /* GPU texture flag. */
-  int gpuframenr;
-  short gpuflag;
-  short gpu_pass;
-  short gpu_layer;
-  short gpu_view;
-
   /* Number of iterations to perform when extracting mask for uv seam fixing. */
   short seam_margin;
 
-  char _pad2[2];
+  char _pad2[6];
 
   /** Deprecated. */
   struct PackedFile *packedfile DNA_DEPRECATED;
   struct ListBase packedfiles;
   struct PreviewImage *preview;
 
-  int lastused;
+  char _pad3[4];
 
   /* for generated images */
   int gen_x DNA_DEPRECATED, gen_y DNA_DEPRECATED;
@@ -283,9 +266,3 @@ enum {
   IMA_ALPHA_CHANNEL_PACKED = 2,
   IMA_ALPHA_IGNORE = 3,
 };
-
-/* Image gpu runtime defaults */
-#define IMAGE_GPU_FRAME_NONE INT_MAX
-#define IMAGE_GPU_PASS_NONE SHRT_MAX
-#define IMAGE_GPU_LAYER_NONE SHRT_MAX
-#define IMAGE_GPU_VIEW_NONE SHRT_MAX

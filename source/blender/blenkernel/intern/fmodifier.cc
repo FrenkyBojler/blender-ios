@@ -29,7 +29,7 @@
 
 #include "BKE_fcurve.hh"
 
-static CLG_LogRef LOG = {"bke.fmodifier"};
+static CLG_LogRef LOG = {"anim.fmodifier"};
 
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Modifier Types
@@ -1000,7 +1000,7 @@ static FModifierTypeInfo FMI_STEPPED = {
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Modifier Type API
  *
- * all of the f-curve modifier api functions use #fmodifiertypeinfo structs to carry out
+ * all of the f-curve modifier API functions use #fmodifiertypeinfo structs to carry out
  * and operations that involve f-curve modifier specific code.
  * \{ */
 

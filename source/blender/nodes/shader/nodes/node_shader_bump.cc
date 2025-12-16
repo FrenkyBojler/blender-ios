@@ -8,7 +8,7 @@
 
 #include "node_shader_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 /* **************** BUMP ******************** */
@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .translation_context(BLT_I18NCONTEXT_AMOUNT);
 #define SOCK_DISTANCE_ID 1
   b.add_input<decl::Float>("Distance")
-      .default_value(1.0f)
+      .default_value(0.001f)
       .min(0.0f)
       .max(1000.0f)
       .description(
@@ -56,9 +56,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Normal");
 }
 
-static void node_shader_buts_bump(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_bump(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "invert", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "invert", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static int gpu_shader_bump(GPUMaterial *mat,

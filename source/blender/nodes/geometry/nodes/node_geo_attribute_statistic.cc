@@ -7,7 +7,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLI_array_utils.hh"
@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Geometry to get the statistics from");
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
 
   if (node != nullptr) {
@@ -32,7 +32,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_input(data_type, "Attribute").hide_value().field_on_all();
 
     b.add_output(data_type, N_("Mean"));
-    b.add_output(data_type, N_("Median"));
+    b.add_output(data_type, CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Median"))
+        .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
     b.add_output(data_type, N_("Sum"));
     b.add_output(data_type, N_("Min"));
     b.add_output(data_type, N_("Max"));
@@ -42,10 +43,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -99,29 +100,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       });
     }
   }
-}
-
-template<typename T> static T compute_sum(const Span<T> data)
-{
-  /* Explicitly splitting work into chunks for a couple of reasons:
-   * - Improve numerical stability. While there are even more stable algorithms (e.g. Kahan
-   *   summation), they also add more complexity to the hot code path. So far, this simple approach
-   *   seems to solve the common issues people run into.
-   * - Support computing the sum using multiple threads.
-   * - Ensure deterministic results even with floating point numbers.
-   */
-  constexpr int64_t chunk_size = 1024;
-  const int64_t chunks_num = divide_ceil_ul(data.size(), chunk_size);
-  Array<T> partial_sums(chunks_num);
-  threading::parallel_for(partial_sums.index_range(), 1, [&](const IndexRange range) {
-    for (const int64_t i : range) {
-      const int64_t start = i * chunk_size;
-      const Span<T> chunk = data.slice_safe(start, chunk_size);
-      const T partial_sum = std::accumulate(chunk.begin(), chunk.end(), T());
-      partial_sums[i] = partial_sum;
-    }
-  });
-  return std::accumulate(partial_sums.begin(), partial_sums.end(), T());
 }
 
 static float compute_variance(const Span<float> data, const float mean)
@@ -217,7 +195,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           range = max - min;
         }
         if (sum_required || variance_required) {
-          sum = compute_sum<float>(data);
+          sum = blender::array_utils::compute_sum<float>(data);
           mean = sum / data.size();
 
           if (variance_required) {
@@ -315,7 +293,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           range = max - min;
         }
         if (sum_required || variance_required) {
-          sum = compute_sum(data.as_span());
+          sum = blender::array_utils::compute_sum(data.as_span());
           mean = sum / data.size();
 
           if (variance_required) {

@@ -25,13 +25,13 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "tracking_private.h"
+#include "tracking_private.hh"
 
 #include "libmv-capi.h"
 
@@ -58,7 +58,7 @@ TracksMap *tracks_map_new(const char *object_name, int num_tracks)
 
   map->tracks = MEM_calloc_arrayN<MovieTrackingTrack>(num_tracks, "TrackingsMap tracks");
 
-  map->hash = BLI_ghash_ptr_new("TracksMap hash");
+  map->hash = MEM_new<blender::Map<MovieTrackingTrack *, MovieTrackingTrack *>>("TracksMap hash");
 
   BLI_spin_init(&map->spin_lock);
 
@@ -78,7 +78,7 @@ void tracks_map_insert(TracksMap *map, MovieTrackingTrack *track)
 
   map->tracks[map->ptr] = new_track;
 
-  BLI_ghash_insert(map->hash, &map->tracks[map->ptr], track);
+  map->hash->add(&map->tracks[map->ptr], track);
 
   map->ptr++;
 }
@@ -108,7 +108,7 @@ void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
     track = &map->tracks[a];
 
     /* find original of operating track in list of previously displayed tracks */
-    old_track = static_cast<MovieTrackingTrack *>(BLI_ghash_lookup(map->hash, track));
+    old_track = map->hash->lookup_default(track, nullptr);
     if (old_track) {
       if (BLI_findindex(old_tracks, old_track) != -1) {
         BLI_remlink(old_tracks, old_track);
@@ -137,7 +137,7 @@ void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
       MovieTrackingTrack *new_track = BKE_tracking_track_duplicate(track);
 
       /* Update old-new track mapping */
-      BLI_ghash_reinsert(map->hash, track, new_track, nullptr, nullptr);
+      map->hash->add(track, new_track);
 
       BLI_addtail(&tracks, new_track);
     }
@@ -176,7 +176,7 @@ void tracks_map_merge(TracksMap *map, MovieTracking *tracking)
 
 void tracks_map_free(TracksMap *map)
 {
-  BLI_ghash_free(map->hash, nullptr, nullptr);
+  MEM_delete(map->hash);
 
   for (int i = 0; i < map->num_tracks; i++) {
     BKE_tracking_track_free(&map->tracks[i]);
@@ -420,6 +420,8 @@ static void distortion_model_parameters_from_tracking(
       camera_intrinsics_options->distortion_model = LIBMV_DISTORTION_MODEL_NUKE;
       camera_intrinsics_options->nuke_k1 = camera->nuke_k1;
       camera_intrinsics_options->nuke_k2 = camera->nuke_k2;
+      camera_intrinsics_options->nuke_p1 = camera->nuke_p1;
+      camera_intrinsics_options->nuke_p2 = camera->nuke_p2;
       return;
     case TRACKING_DISTORTION_MODEL_BROWN:
       camera_intrinsics_options->distortion_model = LIBMV_DISTORTION_MODEL_BROWN;
@@ -433,7 +435,7 @@ static void distortion_model_parameters_from_tracking(
   }
 
   /* Unknown distortion model, which might be due to opening newer file in older Blender.
-   * Fallback to a known and supported model with 0 distortion. */
+   * Fall back to a known and supported model with 0 distortion. */
   camera_intrinsics_options->distortion_model = LIBMV_DISTORTION_MODEL_POLYNOMIAL;
   camera_intrinsics_options->polynomial_k1 = 0.0;
   camera_intrinsics_options->polynomial_k2 = 0.0;
@@ -463,6 +465,8 @@ static void distortion_model_parameters_from_options(
       camera->distortion_model = TRACKING_DISTORTION_MODEL_NUKE;
       camera->nuke_k1 = camera_intrinsics_options->nuke_k1;
       camera->nuke_k2 = camera_intrinsics_options->nuke_k2;
+      camera->nuke_p1 = camera_intrinsics_options->nuke_p1;
+      camera->nuke_p2 = camera_intrinsics_options->nuke_p2;
       return;
     case LIBMV_DISTORTION_MODEL_BROWN:
       camera->distortion_model = TRACKING_DISTORTION_MODEL_BROWN;
@@ -544,16 +548,14 @@ MovieTrackingMarker *tracking_get_keyframed_marker(MovieTrackingTrack *track,
 
     if ((cur_marker->flag & MARKER_DISABLED) == 0) {
       /* If it'll happen so we didn't find a real keyframe marker,
-       * fallback to the first marker in current tracked segment
-       * as a keyframe.
-       */
+       * fall back to the first marker in current tracked segment
+       * as a keyframe. */
       if (next_marker == nullptr) {
         /* Could happen when trying to get reference marker for the fist
          * one on the segment which isn't surrounded by disabled markers.
          *
          * There's no really good choice here, just use the reference
-         * marker which looks correct..
-         */
+         * marker which looks correct.. */
         if (marker_keyed_fallback == nullptr) {
           marker_keyed_fallback = cur_marker;
         }

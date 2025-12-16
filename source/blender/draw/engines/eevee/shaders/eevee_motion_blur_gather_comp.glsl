@@ -13,14 +13,16 @@
  * by Jorge Jimenez
  */
 
-#include "infos/eevee_motion_blur_info.hh"
+#include "infos/eevee_motion_blur_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_motion_blur_gather)
 
 #include "draw_view_lib.glsl"
 #include "eevee_motion_blur_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_velocity_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 #define gather_sample_count 8
 
@@ -86,7 +88,7 @@ void gather_sample(float2 screen_uv,
   float4 sample_vectors = motion_blur_sample_velocity(velocity_tx, sample_uv);
   float2 sample_motion = (next) ? sample_vectors.zw : sample_vectors.xy;
   float sample_motion_len = length(sample_motion);
-  float sample_depth = texture(depth_tx, sample_uv).r;
+  float sample_depth = reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r);
   float4 sample_color = textureLod(in_color_tx, sample_uv, 0.0f);
 
   sample_depth = drw_depth_screen_to_view(sample_depth);
@@ -164,7 +166,8 @@ void main()
   }
 
   /* Data of the center pixel of the gather (target). */
-  float center_depth = drw_depth_screen_to_view(texelFetch(depth_tx, texel, 0).r);
+  float center_depth = reverse_z::read(texelFetch(depth_tx, texel, 0).r);
+  center_depth = drw_depth_screen_to_view(center_depth);
   float4 center_motion = motion_blur_sample_velocity(velocity_tx, uv);
 
   float4 center_color = textureLod(in_color_tx, uv, 0.0f);
@@ -172,13 +175,13 @@ void main()
   float noise_offset = sampling_rng_1D_get(SAMPLING_TIME);
   /** TODO(fclem) Blue noise. */
   float2 rand = float2(
-      interlieved_gradient_noise(float2(gl_GlobalInvocationID.xy), 0, noise_offset),
-      interlieved_gradient_noise(float2(gl_GlobalInvocationID.xy), 1, noise_offset));
+      interleaved_gradient_noise(float2(gl_GlobalInvocationID.xy), 0, noise_offset),
+      interleaved_gradient_noise(float2(gl_GlobalInvocationID.xy), 1, noise_offset));
 
   /* Randomize tile boundary to avoid ugly discontinuities. Randomize 1/4th of the tile.
    * Note this randomize only in one direction but in practice it's enough. */
   rand.x = rand.x * 2.0f - 1.0f;
-  int2 tile = (texel + int2(rand.x * float(MOTION_BLUR_TILE_SIZE) * 0.25f)) /
+  int2 tile = (texel + int2(int(rand.x * float(MOTION_BLUR_TILE_SIZE) * 0.25f))) /
               MOTION_BLUR_TILE_SIZE;
   tile = clamp(tile, int2(0), imageSize(in_tiles_img) - 1);
   /* NOTE: Tile velocity is already in pixel space and with correct zw sign. */

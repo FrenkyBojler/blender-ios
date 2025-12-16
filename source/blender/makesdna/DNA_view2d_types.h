@@ -10,28 +10,46 @@
 
 #include "DNA_vec_types.h"
 
+#ifdef __cplusplus
+namespace blender::ui {
+struct SmoothView2DStore;
+}
+using SmoothView2DStore = blender::ui::SmoothView2DStore;
+#else
+typedef struct SmoothView2DStore SmoothView2DStore;
+#endif
+
 /* ---------------------------------- */
 
 /** View 2D data - stored per region. */
 typedef struct View2D {
-  /** Tot - area that data can be drawn in; cur - region of tot that is visible in viewport. */
-  rctf tot, cur;
-  /** Vert - vertical scroll-bar region; hor - horizontal scroll-bar region. */
-  rcti vert, hor;
-  /** Mask - region (in screen-space) within which 'cur' can be viewed. */
+  /** Total area that data can be drawn in. */
+  rctf tot;
+  /** Current region of tot that is visible in viewport. */
+  rctf cur;
+  /** Vertical scroll-bar region. */
+  rcti vert;
+  /** Horizontal scroll-bar region. */
+  rcti hor;
+  /**
+   * Mask region (in screen-space) within which `cur` can be viewed.
+   *
+   * Note that the coordinates are inclusive; to get pixel size you need to use
+   * `BLI_rcti_size_x(mask) + 1` (same for the Y axis).
+   */
   rcti mask;
 
-  /** Min/max sizes of 'cur' rect (only when keepzoom not set). */
+  /** Min/max sizes of `cur` rect (only when keepzoom not set). */
   float min[2], max[2];
   /** Allowable zoom factor range (only when (keepzoom & V2D_LIMITZOOM)) is set. */
   float minzoom, maxzoom;
 
-  /** Scroll - scroll-bars to display (bit-flag). */
+  /** Scroll-bars to display (bit-flag). */
   short scroll;
-  /** Scroll_ui - temp settings used for UI drawing of scrollers. */
+  /** Temporary settings used for UI drawing of scroll-bars. */
   short scroll_ui;
 
-  /** Keeptot - 'cur' rect cannot move outside the 'tot' rect? */
+  /** Keeptot - `cur` rect cannot move outside the `tot` rect? */
   short keeptot;
   /** Keepzoom - axes that zooming cannot occur on, and also clamp within zoom-limits. */
   short keepzoom;
@@ -43,10 +61,10 @@ typedef struct View2D {
   /** Alignment of content in totrect. */
   short align;
 
-  /** Storage of current winx/winy values, set in UI_view2d_size_update. */
+  /** Storage of current winx/winy values, set in view2d_size_update. */
   short winx, winy;
   /**
-   * Storage of previous winx/winy values encountered by #UI_view2d_curRect_validate(),
+   * Storage of previous winx/winy values encountered by #view2d_curRect_validate(),
    * for V2D_KEEPZOOM and V2D_KEEPASPECT.
    */
   short oldwinx, oldwiny;
@@ -59,12 +77,14 @@ typedef struct View2D {
   char alpha_vert, alpha_hor;
 
   char _pad[2];
-  /** When set (not 0), determines how many pixels to scroll when scrolling an entire page.
-   * Otherwise the height of #View2D.mask is used. */
+  /**
+   * When set (not 0), determines how many pixels to scroll when scrolling an entire page.
+   * Otherwise the height of #View2D.mask is used.
+   */
   float page_size_y;
 
   /* animated smooth view */
-  struct SmoothView2DStore *sms;
+  SmoothView2DStore *sms;
   struct wmTimer *smooth_timer;
 } View2D;
 

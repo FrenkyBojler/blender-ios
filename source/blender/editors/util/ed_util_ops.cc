@@ -78,13 +78,13 @@ static bool lib_id_preview_editing_poll_ex(const ID *id, const char **r_disabled
   }
   if (!ID_IS_EDITABLE(id)) {
     if (r_disabled_hint) {
-      *r_disabled_hint = "Can't edit external library data";
+      *r_disabled_hint = "Cannot edit external library data";
     }
     return false;
   }
   if (ID_IS_OVERRIDE_LIBRARY(id)) {
     if (r_disabled_hint) {
-      *r_disabled_hint = "Can't edit previews of overridden library data";
+      *r_disabled_hint = "Cannot edit previews of overridden library data";
     }
     return false;
   }
@@ -169,7 +169,7 @@ static void ED_OT_lib_id_load_custom_preview(wmOperatorType *ot)
   ot->description = "Choose an image to help identify the data-block visually";
   ot->idname = "ED_OT_lib_id_load_custom_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_preview_editing_poll;
   ot->exec = lib_id_load_custom_preview_exec;
   ot->invoke = lib_id_load_custom_preview_invoke;
@@ -272,7 +272,7 @@ static wmOperatorStatus lib_id_generate_preview_exec(bContext *C, wmOperator * /
         BKE_previewimg_clear(preview);
       }
 
-      UI_icon_render_id(C, nullptr, id, ICON_SIZE_PREVIEW, true);
+      blender::ui::icon_render_id(C, nullptr, id, ICON_SIZE_PREVIEW, true);
     }
   });
 
@@ -288,7 +288,7 @@ static void ED_OT_lib_id_generate_preview(wmOperatorType *ot)
   ot->description = "Create an automatic preview for the selected data-block";
   ot->idname = "ED_OT_lib_id_generate_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_generate_preview_poll;
   ot->exec = lib_id_generate_preview_exec;
 
@@ -331,7 +331,7 @@ static wmOperatorStatus lib_id_generate_preview_from_object_exec(bContext *C, wm
     BKE_previewimg_id_free(id);
 
     PreviewImage *preview_image = BKE_previewimg_id_ensure(id);
-    UI_icon_render_id_ex(
+    blender::ui::icon_render_id_ex(
         C, nullptr, &object_to_render->id, ICON_SIZE_PREVIEW, true, preview_image);
   });
 
@@ -347,7 +347,7 @@ static void ED_OT_lib_id_generate_preview_from_object(wmOperatorType *ot)
   ot->description = "Create a preview for this asset by rendering the active object";
   ot->idname = "ED_OT_lib_id_generate_preview_from_object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_generate_preview_from_object_poll;
   ot->exec = lib_id_generate_preview_from_object_exec;
 
@@ -392,7 +392,7 @@ static void ED_OT_lib_id_remove_preview(wmOperatorType *ot)
   ot->description = "Remove the preview of this data-block";
   ot->idname = "ED_OT_lib_id_remove_preview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_remove_preview_poll;
   ot->exec = lib_id_remove_preview_exec;
 
@@ -411,7 +411,7 @@ static wmOperatorStatus lib_id_fake_user_toggle_exec(bContext *C, wmOperator *op
   PropertyPointerRNA pprop;
   PointerRNA idptr = PointerRNA_NULL;
 
-  UI_context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop) {
     idptr = RNA_property_pointer_get(&pprop.ptr, pprop.prop);
@@ -449,7 +449,7 @@ static void ED_OT_lib_id_fake_user_toggle(wmOperatorType *ot)
   ot->description = "Save this data-block even if it has no users";
   ot->idname = "ED_OT_lib_id_fake_user_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lib_id_fake_user_toggle_exec;
 
   /* flags */
@@ -461,7 +461,7 @@ static wmOperatorStatus lib_id_unlink_exec(bContext *C, wmOperator *op)
   PropertyPointerRNA pprop;
   PointerRNA idptr;
 
-  UI_context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop) {
     idptr = RNA_property_pointer_get(&pprop.ptr, pprop.prop);
@@ -487,7 +487,7 @@ static void ED_OT_lib_id_unlink(wmOperatorType *ot)
   ot->description = "Remove a usage of a data-block, clearing the assignment";
   ot->idname = "ED_OT_lib_id_unlink";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lib_id_unlink_exec;
 
   /* flags */
@@ -533,7 +533,7 @@ static void ED_OT_lib_id_override_editable_toggle(wmOperatorType *ot)
   ot->description = "Set if this library override data-block can be edited";
   ot->idname = "ED_OT_lib_id_override_editable_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = lib_id_override_editable_toggle_poll;
   ot->exec = lib_id_override_editable_toggle_exec;
 
@@ -561,7 +561,7 @@ static void ED_OT_flush_edits(wmOperatorType *ot)
   ot->description = "Flush edit data from active editing modes";
   ot->idname = "ED_OT_flush_edits";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_flush_edits_exec;
 
   /* flags */

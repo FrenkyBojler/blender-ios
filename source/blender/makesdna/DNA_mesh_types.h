@@ -21,6 +21,7 @@
 
 #  include "BLI_math_vector_types.hh"
 #  include "BLI_memory_counter_fwd.hh"
+#  include "BLI_vector_set.hh"
 
 namespace blender {
 template<typename T> struct Bounds;
@@ -48,7 +49,6 @@ typedef struct MeshRuntimeHandle MeshRuntimeHandle;
 #endif
 
 struct AnimData;
-struct Ipo;
 struct Key;
 struct MCol;
 struct MEdge;
@@ -66,8 +66,6 @@ typedef struct Mesh {
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
 
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
   struct Key *key;
 
   /**
@@ -178,6 +176,23 @@ typedef struct Mesh {
   char *default_color_attribute;
 
   /**
+   * The UV map currently selected in the list and edited by a user.
+   * \note While the edit BMesh (`edit_mesh.bm`) is non null, that is the source of truth instead.
+   * Typical access should be through #Mesh::active_uv_map_name() rather than direct.
+   */
+  char *active_uv_map_attribute;
+  /**
+   * The UV map used by default (i.e. for rendering) if no name is given explicitly.
+   * \note While the edit BMesh (`edit_mesh.bm`) is non null, that is the source of truth instead.
+   * Typical access should be through #Mesh::default_uv_map_name() rather than direct.
+   */
+  char *default_uv_map_attribute;
+  /** UV map selection used for texture paint masking. */
+  char *stencil_uv_map_attribute;
+  /** UV map selection used for texture paint clone brush. */
+  char *clone_uv_map_attribute;
+
+  /**
    * User-defined symmetry flag (#eMeshSymmetryType) that causes editing operations to maintain
    * symmetrical geometry. Supported by operations such as transform and weight-painting.
    */
@@ -229,7 +244,8 @@ typedef struct Mesh {
   /* Deprecated size of #fdata. */
   int totface_legacy;
 
-  char _pad1[4];
+  char _pad1;
+  int8_t radial_symmetry[3];
 
   /**
    * Data that isn't saved in files, including caches of derived data, temporary data to improve
@@ -270,7 +286,7 @@ typedef struct Mesh {
   blender::MutableSpan<int> face_offsets_for_write();
 
   /**
-   * Array of vertices for every face corner,  stored in the ".corner_vert" integer attribute.
+   * Array of vertices for every face corner, stored in the ".corner_vert" integer attribute.
    * For example, the vertices in a face can be retrieved with the #slice method:
    * \code{.cc}
    * const Span<int> face_verts = corner_verts.slice(face);
@@ -293,6 +309,22 @@ typedef struct Mesh {
 
   blender::bke::AttributeAccessor attributes() const;
   blender::bke::MutableAttributeAccessor attributes_for_write();
+
+  /**
+   * The names of all UV map attributes, in the order of the internal storage.
+   * This is useful when UV maps are referenced by index.
+   *
+   * \warning Adding or removing attributes will invalidate the referenced memory.
+   */
+  blender::VectorSet<blender::StringRefNull> uv_map_names() const;
+
+  /** The name of the active UV map attribute, if any. */
+  blender::StringRefNull active_uv_map_name() const;
+  /** The name of the default UV map (e.g. for rendering) attribute, if any. */
+  blender::StringRefNull default_uv_map_name() const;
+
+  void uv_maps_active_set(blender::StringRef name);
+  void uv_maps_default_set(blender::StringRef name);
 
   /**
    * Vertex group data, encoded as an array of indices and weights for every vertex.
@@ -322,6 +354,9 @@ typedef struct Mesh {
 
   /** Get the largest material index used by the mesh or `nullopt` if it has no faces. */
   std::optional<int> material_index_max() const;
+
+  /** Get all the material indices actually used by the mesh. */
+  const blender::VectorSet<int> &material_indices_used() const;
 
   /**
    * Cached map containing the index of the face using each face corner.
@@ -501,7 +536,11 @@ enum {
   ME_FLAG_UNUSED_0 = 1 << 0,     /* cleared */
   ME_FLAG_UNUSED_1 = 1 << 1,     /* cleared */
   ME_FLAG_DEPRECATED_2 = 1 << 2, /* deprecated */
-  ME_FLAG_UNUSED_3 = 1 << 3,     /* cleared */
+  /**
+   * The UV selection is marked as synchronized.
+   * See #BMesh::uv_select_sync_valid for details.
+   */
+  ME_FLAG_UV_SELECT_SYNC_VALID = 1 << 3,
   ME_FLAG_UNUSED_4 = 1 << 4,     /* cleared */
   ME_AUTOSMOOTH_LEGACY = 1 << 5, /* deprecated */
   ME_FLAG_UNUSED_6 = 1 << 6,     /* cleared */
@@ -538,10 +577,10 @@ enum {
 };
 
 /** #SubsurfModifierData.subdivType */
-enum {
+typedef enum MeshSubdivType {
   ME_CC_SUBSURF = 0,
   ME_SIMPLE_SUBSURF = 1,
-};
+} MeshSubdivType;
 
 /** #Mesh.symmetry */
 typedef enum eMeshSymmetryType {

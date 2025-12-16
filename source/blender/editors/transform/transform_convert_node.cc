@@ -35,12 +35,14 @@
 namespace blender::ed::transform {
 
 struct TransCustomDataNode {
-  View2DEdgePanData edgepan_data{};
+  ui::View2DEdgePanData edgepan_data{};
 
   /* Compare if the view has changed so we can update with `transformViewUpdate`. */
   rctf viewrect_prev{};
 
   bool is_new_node = false;
+
+  Map<bNode *, bNode *> old_parent_by_detached_node;
 };
 
 /* -------------------------------------------------------------------- */
@@ -72,7 +74,6 @@ static void create_transform_data_for_node(TransData &td,
   memset(td.axismtx, 0, sizeof(td.axismtx));
   td.axismtx[2][2] = 1.0f;
 
-  td.ext = nullptr;
   td.val = nullptr;
 
   td.flag = TD_SELECTED;
@@ -106,7 +107,7 @@ static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transfo
   if (node->is_frame()) {
     const NodeFrame *data = static_cast<const NodeFrame *>(node->storage);
     const bool shrinking = data->flag & NODE_FRAME_SHRINK;
-    const bool is_parent = !(node->direct_children_in_frame().is_empty());
+    const bool is_parent = !node->direct_children_in_frame().is_empty();
 
     if (is_parent && shrinking) {
       return true;
@@ -154,14 +155,14 @@ static void createTransNodeData(bContext *C, TransInfo *t)
 
   /* Custom data to enable edge panning during the node transform. */
   TransCustomDataNode *customdata = MEM_new<TransCustomDataNode>(__func__);
-  UI_view2d_edge_pan_init(t->context,
-                          &customdata->edgepan_data,
-                          NODE_EDGE_PAN_INSIDE_PAD,
-                          NODE_EDGE_PAN_OUTSIDE_PAD,
-                          NODE_EDGE_PAN_SPEED_RAMP,
-                          NODE_EDGE_PAN_MAX_SPEED,
-                          NODE_EDGE_PAN_DELAY,
-                          NODE_EDGE_PAN_ZOOM_INFLUENCE);
+  view2d_edge_pan_init(t->context,
+                       &customdata->edgepan_data,
+                       NODE_EDGE_PAN_INSIDE_PAD,
+                       NODE_EDGE_PAN_OUTSIDE_PAD,
+                       NODE_EDGE_PAN_SPEED_RAMP,
+                       NODE_EDGE_PAN_MAX_SPEED,
+                       NODE_EDGE_PAN_DELAY,
+                       NODE_EDGE_PAN_ZOOM_INFLUENCE);
   customdata->viewrect_prev = customdata->edgepan_data.initial_rect;
   customdata->is_new_node = t->remove_on_cancel;
 
@@ -230,8 +231,9 @@ static void node_snap_grid_apply(TransInfo *t)
         continue;
       }
 
-      /* Nodes are snapped to the grid by first aligning their inital position to the grid and then
-       * offsetting them in grid increments.
+      /* Nodes are snapped to the grid by first aligning their initial position to the grid and
+       * then offsetting them in grid increments.
+       *
        * This ensures that multiple unsnapped nodes snap to the grid in sync while moving.
        */
 
@@ -259,6 +261,16 @@ static void move_child_nodes(bNode &node, const float2 &delta)
   }
 }
 
+static bool has_selected_parent(const bNode &node)
+{
+  for (bNode *parent = node.parent; parent; parent = parent->parent) {
+    if (parent->flag & NODE_SELECT) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void flushTransNodes(TransInfo *t)
 {
   const float dpi_fac = UI_SCALE_FAC;
@@ -268,7 +280,7 @@ static void flushTransNodes(TransInfo *t)
 
   if (t->options & CTX_VIEW2D_EDGE_PAN) {
     if (t->state == TRANS_CANCEL) {
-      UI_view2d_edge_pan_cancel(t->context, &customdata->edgepan_data);
+      view2d_edge_pan_cancel(t->context, &customdata->edgepan_data);
     }
     else {
       /* Edge panning functions expect window coordinates, mval is relative to region. */
@@ -276,7 +288,7 @@ static void flushTransNodes(TransInfo *t)
           t->region->winrct.xmin + int(t->mval[0]),
           t->region->winrct.ymin + int(t->mval[1]),
       };
-      UI_view2d_edge_pan_apply(t->context, &customdata->edgepan_data, xy);
+      ui::view2d_edge_pan_apply(t->context, &customdata->edgepan_data, xy);
     }
   }
 
@@ -287,6 +299,33 @@ static void flushTransNodes(TransInfo *t)
       BLI_rctf_transform_pt_v(&t->region->v2d.cur, &customdata->viewrect_prev, offset, offset);
       transformViewUpdate(t);
       customdata->viewrect_prev = t->region->v2d.cur;
+    }
+  }
+
+  if (t->modifiers & MOD_NODE_FRAME) {
+    t->modifiers &= ~MOD_NODE_FRAME;
+    Vector<bNode *> nodes_to_detach;
+    for (bNode *node : snode->edittree->all_nodes()) {
+      if (!(node->flag & NODE_SELECT)) {
+        continue;
+      }
+      if (has_selected_parent(*node)) {
+        continue;
+      }
+      if (!node->parent) {
+        continue;
+      }
+      customdata->old_parent_by_detached_node.add(node, node->parent);
+      nodes_to_detach.append(node);
+    }
+    if (nodes_to_detach.is_empty()) {
+      WM_operator_name_call(
+          t->context, "NODE_OT_attach", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+    }
+    else {
+      for (bNode *node : nodes_to_detach) {
+        bke::node_detach_node(*snode->edittree, *node);
+      }
     }
   }
 
@@ -333,9 +372,15 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = (SpaceNode *)t->area->spacedata.first;
   bNodeTree *ntree = snode->edittree;
+  const TransCustomDataNode &customdata = *(TransCustomDataNode *)t->custom.type.data;
 
   const bool canceled = (t->state == TRANS_CANCEL);
 
+  if (canceled) {
+    for (auto &&[node, parent] : customdata.old_parent_by_detached_node.items()) {
+      bke::node_attach_node(*ntree, *node, *parent);
+    }
+  }
   if (canceled && t->remove_on_cancel) {
     /* Remove selected nodes on cancel. */
     if (ntree) {
@@ -351,7 +396,6 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   if (!canceled) {
     ED_node_post_apply_transform(C, snode->edittree);
     if (t->modifiers & MOD_NODE_ATTACH) {
-      const TransCustomDataNode &customdata = *(TransCustomDataNode *)t->custom.type.data;
       space_node::node_insert_on_link_flags(*bmain, *snode, customdata.is_new_node);
     }
   }
@@ -361,9 +405,8 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
 
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_insert_offset", true);
   BLI_assert(ot);
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 

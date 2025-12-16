@@ -25,6 +25,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -42,6 +43,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_undo_system.hh"
 
 #include "DEG_depsgraph.hh"
@@ -53,7 +55,7 @@
 
 #include "WM_api.hh"
 
-static CLG_LogRef LOG = {"ed.image.undo"};
+static CLG_LogRef LOG = {"undo.image"};
 
 /* -------------------------------------------------------------------- */
 /** \name Thread Locking
@@ -349,9 +351,6 @@ static void ptile_restore_runtime_map(PaintTileMap *paint_tile_map)
     if (ibuf->float_buffer.data) {
       ibuf->userflags |= IB_RECT_INVALID; /* force recreate of char rect */
     }
-    if (ibuf->mipmap[0]) {
-      ibuf->userflags |= IB_MIPMAP_INVALID; /* Force MIP-MAP recreation. */
-    }
     ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
 
     BKE_image_release_ibuf(image, ibuf, nullptr);
@@ -467,6 +466,7 @@ struct UndoImageBuf {
   UndoImageBuf *post;
 
   char ibuf_filepath[IMB_FILEPATH_SIZE];
+  int ibuf_fileframe;
 
   UndoImageTile **tiles;
 
@@ -498,6 +498,7 @@ static UndoImageBuf *ubuf_from_image_no_tiles(Image *image, const ImBuf *ibuf)
       MEM_callocN(sizeof(*ubuf->tiles) * ubuf->tiles_len, __func__));
 
   STRNCPY(ubuf->ibuf_filepath, ibuf->filepath);
+  ubuf->ibuf_fileframe = ibuf->fileframe;
   ubuf->image_state.source = image->source;
   ubuf->image_state.use_float = ibuf->float_buffer.data != nullptr;
 
@@ -633,9 +634,6 @@ static void uhandle_restore_list(ListBase *undo_handles, bool use_init)
       if (ibuf->float_buffer.data) {
         ibuf->userflags |= IB_RECT_INVALID; /* Force recreate of char `rect` */
       }
-      if (ibuf->mipmap[0]) {
-        ibuf->userflags |= IB_MIPMAP_INVALID; /* Force MIP-MAP recreation. */
-      }
       ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
 
       DEG_id_tag_update(&image->id, 0);
@@ -667,10 +665,11 @@ static void uhandle_free_list(ListBase *undo_handles)
 
 static UndoImageBuf *uhandle_lookup_ubuf(UndoImageHandle *uh,
                                          const Image * /*image*/,
-                                         const char *ibuf_filepath)
+                                         const char *ibuf_filepath,
+                                         const int ibuf_fileframe)
 {
   LISTBASE_FOREACH (UndoImageBuf *, ubuf, &uh->buffers) {
-    if (STREQ(ubuf->ibuf_filepath, ibuf_filepath)) {
+    if (STREQ(ubuf->ibuf_filepath, ibuf_filepath) && ubuf->ibuf_fileframe == ibuf_fileframe) {
       return ubuf;
     }
   }
@@ -679,7 +678,7 @@ static UndoImageBuf *uhandle_lookup_ubuf(UndoImageHandle *uh,
 
 static UndoImageBuf *uhandle_add_ubuf(UndoImageHandle *uh, Image *image, ImBuf *ibuf)
 {
-  BLI_assert(uhandle_lookup_ubuf(uh, image, ibuf->filepath) == nullptr);
+  BLI_assert(uhandle_lookup_ubuf(uh, image, ibuf->filepath, ibuf->fileframe) == nullptr);
   UndoImageBuf *ubuf = ubuf_from_image_no_tiles(image, ibuf);
   BLI_addtail(&uh->buffers, ubuf);
 
@@ -690,7 +689,7 @@ static UndoImageBuf *uhandle_add_ubuf(UndoImageHandle *uh, Image *image, ImBuf *
 
 static UndoImageBuf *uhandle_ensure_ubuf(UndoImageHandle *uh, Image *image, ImBuf *ibuf)
 {
-  UndoImageBuf *ubuf = uhandle_lookup_ubuf(uh, image, ibuf->filepath);
+  UndoImageBuf *ubuf = uhandle_lookup_ubuf(uh, image, ibuf->filepath, ibuf->fileframe);
   if (ubuf == nullptr) {
     ubuf = uhandle_add_ubuf(uh, image, ibuf);
   }
@@ -773,7 +772,8 @@ static UndoImageBuf *ubuf_lookup_from_reference(ImageUndoStep *us_prev,
   /* Use name lookup because the pointer is cleared for previous steps. */
   UndoImageHandle *uh_prev = uhandle_lookup_by_name(&us_prev->handles, image, tile_number);
   if (uh_prev != nullptr) {
-    UndoImageBuf *ubuf_reference = uhandle_lookup_ubuf(uh_prev, image, ubuf->ibuf_filepath);
+    UndoImageBuf *ubuf_reference = uhandle_lookup_ubuf(
+        uh_prev, image, ubuf->ibuf_filepath, ubuf->ibuf_fileframe);
     if (ubuf_reference) {
       ubuf_reference = ubuf_reference->post;
       if ((ubuf_reference->image_dims[0] == ubuf->image_dims[0]) &&
@@ -1026,6 +1026,17 @@ static void image_undosys_step_decode(
     blender::ed::object::mode_set_ex(C, OB_MODE_TEXTURE_PAINT, false, nullptr);
   }
 
+  /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this paint
+   * mode, however, because the image isn't connected as part of the shader nodes, the draw code
+   * is unaware of the corresponding image tag. See #150957 for more details. */
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  if (object && object->type == OB_MESH && scene &&
+      scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_IMAGE)
+  {
+    DEG_id_tag_update(&object->id, ID_RECALC_SHADING);
+  }
+
   /* Refresh texture slots. */
   ED_editors_init_for_undo(bmain);
 }
@@ -1145,7 +1156,7 @@ void ED_image_undo_push_begin_with_image_all_udims(const char *name,
 
     ED_image_undo_push(image, ibuf, iuser, us);
 
-    // Release the image buffer to avoid leaking memory
+    /* Release the image buffer to avoid leaking memory. */
     BKE_image_release_ibuf(image, ibuf, nullptr);
   }
 }

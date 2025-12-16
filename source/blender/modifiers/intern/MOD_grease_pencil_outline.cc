@@ -36,7 +36,7 @@
 
 #include "GEO_resample_curves.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -221,8 +221,8 @@ static void modify_drawing(const GreasePencilOutlineModifierData &omd,
 
   /* Resampling feature. */
   if (omd.sample_length > 0.0f) {
-    VArray<float> sample_lengths = VArray<float>::ForSingle(omd.sample_length,
-                                                            curves.curves_num());
+    VArray<float> sample_lengths = VArray<float>::from_single(omd.sample_length,
+                                                              curves.curves_num());
     curves = geometry::resample_to_length(curves, curves.curves_range(), sample_lengths);
   }
 
@@ -267,33 +267,33 @@ static void modify_geometry_set(ModifierData *md,
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "use_keep_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "sample_length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "outline_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_keep_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "sample_length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "outline_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   Scene *scene = CTX_data_scene(C);
   if (scene->camera == nullptr) {
-    layout->label(RPT_("Outline requires an active camera"), ICON_ERROR);
+    layout.label(RPT_("Outline requires an active camera"), ICON_ERROR);
   }
 
-  if (uiLayout *influence_panel = layout->panel_prop(
+  if (ui::Layout *influence_panel = layout.panel_prop(
           C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
-    modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
+    modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

@@ -69,7 +69,10 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.anim_sys"};
+static CLG_LogRef LOG_ANIM_DRIVER = {"anim.driver"};
+static CLG_LogRef LOG_ANIM_FCURVE = {"anim.fcurve"};
+static CLG_LogRef LOG_ANIM_KEYINGSET = {"anim.keyingset"};
+static CLG_LogRef LOG_ANIM_NLA = {"anim.nla"};
 
 using namespace blender;
 
@@ -170,20 +173,20 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks,
 
   /* sanity checks */
   if (ELEM(nullptr, ks, rna_path)) {
-    CLOG_ERROR(&LOG, "no Keying Set and/or RNA Path to add path with");
+    CLOG_ERROR(&LOG_ANIM_KEYINGSET, "no Keying Set and/or RNA Path to add path with");
     return nullptr;
   }
 
   /* ID is required for all types of KeyingSets */
   if (id == nullptr) {
-    CLOG_ERROR(&LOG, "No ID provided for Keying Set Path");
+    CLOG_ERROR(&LOG_ANIM_KEYINGSET, "No ID provided for Keying Set Path");
     return nullptr;
   }
 
   /* don't add if there is already a matching KS_Path in the KeyingSet */
   if (BKE_keyingset_find_path(ks, id, group_name, rna_path, array_index, groupmode)) {
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG, "destination already exists in Keying Set");
+      CLOG_ERROR(&LOG_ANIM_KEYINGSET, "destination already exists in Keying Set");
     }
     return nullptr;
   }
@@ -360,8 +363,8 @@ bool BKE_animsys_rna_path_resolve(
     /* XXX don't tag as failed yet though, as there are some legit situations (Action Constraint)
      * where some channels will not exist, but shouldn't lock up Action */
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG,
-                "Animato: Invalid path. ID = '%s',  '%s[%d]'",
+      CLOG_WARN(&LOG_ANIM_FCURVE,
+                "Invalid path. ID = '%s',  '%s[%d]'",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
                 path,
                 array_index);
@@ -376,8 +379,8 @@ bool BKE_animsys_rna_path_resolve(
   int array_len = RNA_property_array_length(&r_result->ptr, r_result->prop);
   if (array_len && array_index >= array_len) {
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG,
-                "Animato: Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
+      CLOG_WARN(&LOG_ANIM_FCURVE,
+                "Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
                 path,
                 array_index,
@@ -1179,24 +1182,6 @@ static void nlavalidmask_free(NlaValidMask *mask)
 
 /* ---------------------- */
 
-/* Hashing functions for NlaEvalChannelKey. */
-static uint nlaevalchan_keyhash(const void *ptr)
-{
-  const NlaEvalChannelKey *key = static_cast<const NlaEvalChannelKey *>(ptr);
-  uint hash = BLI_ghashutil_ptrhash(key->ptr.data);
-  return hash ^ BLI_ghashutil_ptrhash(key->prop);
-}
-
-static bool nlaevalchan_keycmp(const void *a, const void *b)
-{
-  const NlaEvalChannelKey *A = static_cast<const NlaEvalChannelKey *>(a);
-  const NlaEvalChannelKey *B = static_cast<const NlaEvalChannelKey *>(b);
-
-  return ((A->ptr.data != B->ptr.data) || (A->prop != B->prop));
-}
-
-/* ---------------------- */
-
 /* Allocate a new blending value snapshot for the channel. */
 static NlaEvalChannelSnapshot *nlaevalchan_snapshot_new(NlaEvalChannel *nec)
 {
@@ -1344,8 +1329,7 @@ static void nlaeval_init(NlaEvalData *nlaeval)
   memset(nlaeval, 0, sizeof(*nlaeval));
 
   nlaeval->path_hash = BLI_ghash_str_new("NlaEvalData::path_hash");
-  nlaeval->key_hash = BLI_ghash_new(
-      nlaevalchan_keyhash, nlaevalchan_keycmp, "NlaEvalData::key_hash");
+  nlaeval->key_hash = MEM_new<Map<NlaEvalChannelKey, NlaEvalChannel *>>("NlaEvalData::key_hash");
 }
 
 static void nlaeval_free(NlaEvalData *nlaeval)
@@ -1363,7 +1347,7 @@ static void nlaeval_free(NlaEvalData *nlaeval)
 
   BLI_freelistN(&nlaeval->channels);
   BLI_ghash_free(nlaeval->path_hash, nullptr, nullptr);
-  BLI_ghash_free(nlaeval->key_hash, nullptr, nullptr);
+  MEM_delete(nlaeval->key_hash);
 }
 
 /* ---------------------- */
@@ -1389,7 +1373,7 @@ static bool nlaevalchan_validate_index_ex(const NlaEvalChannel *nec, const int a
   if (index < 0) {
     if (G.debug & G_DEBUG) {
       ID *id = nec->key.ptr.owner_id;
-      CLOG_WARN(&LOG,
+      CLOG_WARN(&LOG_ANIM_NLA,
                 "Animation: Invalid array index. ID = '%s',  '%s[%d]', array length is %d",
                 id ? (id->name + 2) : "<No ID>",
                 nec->rna_path,
@@ -1505,50 +1489,39 @@ static NlaEvalChannel *nlaevalchan_verify_key(NlaEvalData *nlaeval,
                                               const char *path,
                                               NlaEvalChannelKey *key)
 {
-  /* Look it up in the key hash. */
-  NlaEvalChannel **p_key_nec;
-  NlaEvalChannelKey **p_key;
-  bool found_key = BLI_ghash_ensure_p_ex(
-      nlaeval->key_hash, key, (void ***)&p_key, (void ***)&p_key_nec);
+  return nlaeval->key_hash->lookup_or_add_cb(*key, [&]() {
+    /* Create the channel. */
+    bool is_array = RNA_property_array_check(key->prop);
+    int length = is_array ? RNA_property_array_length(&key->ptr, key->prop) : 1;
 
-  if (found_key) {
-    return *p_key_nec;
-  }
+    NlaEvalChannel *nec = static_cast<NlaEvalChannel *>(
+        MEM_callocN(sizeof(NlaEvalChannel) + sizeof(float) * length, "NlaEvalChannel"));
 
-  /* Create the channel. */
-  bool is_array = RNA_property_array_check(key->prop);
-  int length = is_array ? RNA_property_array_length(&key->ptr, key->prop) : 1;
+    /* Initialize the channel. */
+    nec->rna_path = path;
+    new (&nec->key) NlaEvalChannelKey(*key);
 
-  NlaEvalChannel *nec = static_cast<NlaEvalChannel *>(
-      MEM_callocN(sizeof(NlaEvalChannel) + sizeof(float) * length, "NlaEvalChannel"));
+    nec->owner = nlaeval;
+    nec->index = nlaeval->num_channels++;
+    nec->is_array = is_array;
 
-  /* Initialize the channel. */
-  nec->rna_path = path;
-  new (&nec->key) NlaEvalChannelKey(*key);
+    nec->mix_mode = nlaevalchan_detect_mix_mode(key, length);
 
-  nec->owner = nlaeval;
-  nec->index = nlaeval->num_channels++;
-  nec->is_array = is_array;
+    nlavalidmask_init(&nec->domain, length);
 
-  nec->mix_mode = nlaevalchan_detect_mix_mode(key, length);
+    nec->base_snapshot.channel = nec;
+    nec->base_snapshot.length = length;
+    nec->base_snapshot.is_base = true;
 
-  nlavalidmask_init(&nec->domain, length);
+    nlaevalchan_get_default_values(nec, nec->base_snapshot.values);
 
-  nec->base_snapshot.channel = nec;
-  nec->base_snapshot.length = length;
-  nec->base_snapshot.is_base = true;
+    /* Store channel in data structures. */
+    BLI_addtail(&nlaeval->channels, nec);
 
-  nlaevalchan_get_default_values(nec, nec->base_snapshot.values);
+    *nlaeval_snapshot_ensure_slot(&nlaeval->base_snapshot, nec) = &nec->base_snapshot;
 
-  /* Store channel in data structures. */
-  BLI_addtail(&nlaeval->channels, nec);
-
-  *nlaeval_snapshot_ensure_slot(&nlaeval->base_snapshot, nec) = &nec->base_snapshot;
-
-  *p_key_nec = nec;
-  *p_key = &nec->key;
-
-  return nec;
+    return nec;
+  });
 }
 
 /* Verify that an appropriate NlaEvalChannel for this path exists. */
@@ -1575,8 +1548,8 @@ static NlaEvalChannel *nlaevalchan_verify(PointerRNA *ptr, NlaEvalData *nlaeval,
   if (!RNA_path_resolve_property(ptr, path, &key.ptr, &key.prop)) {
     /* Report failure to resolve the path. */
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG,
-                "Animato: Invalid path. ID = '%s',  '%s'",
+      CLOG_WARN(&LOG_ANIM_NLA,
+                "Invalid path. ID = '%s',  '%s'",
                 (ptr->owner_id) ? (ptr->owner_id->name + 2) : "<No ID>",
                 path);
     }
@@ -2705,7 +2678,7 @@ static void nlastrip_evaluate_actionclip(const int evaluation_mode,
   }
 
   if (strip->act == nullptr) {
-    CLOG_ERROR(&LOG, "NLA-Strip Eval Error: Strip '%s' has no Action", strip->name);
+    CLOG_ERROR(&LOG_ANIM_NLA, "NLA-Strip Eval Error: Strip '%s' has no Action", strip->name);
     return;
   }
 
@@ -3760,7 +3733,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
                                            PointerRNA *prop_ptr,
                                            PropertyRNA *prop,
-                                           const blender::MutableSpan<float> values,
+                                           const MutableSpan<float> values,
                                            int index,
                                            const AnimationEvalContext *anim_eval_context,
                                            bool *r_force_all,
@@ -4145,9 +4118,6 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
 
   /* worlds */
   EVAL_ANIM_NODETREE_IDS(main->worlds.first, World, ADT_RECALC_ANIM);
-
-  /* scenes */
-  EVAL_ANIM_NODETREE_IDS(main->scenes.first, Scene, ADT_RECALC_ANIM);
 }
 
 /* ***************************************** */
@@ -4238,6 +4208,13 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
     fcu = static_cast<FCurve *>(BLI_findlink(&adt->drivers, driver_index));
   }
 
+  if (!fcu) {
+    /* Trying to evaluate a driver that does no longer exist. Potentially missing a call to
+     * DEG_relations_tag_update. */
+    BLI_assert_unreachable();
+    return;
+  }
+
   DEG_debug_print_eval_subdata_index(
       depsgraph, __func__, id->name, id, "fcu", fcu->rna_path, fcu, fcu->array_index);
 
@@ -4289,7 +4266,7 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
 
       /* set error-flag if evaluation failed */
       if (ok == 0) {
-        CLOG_WARN(&LOG, "invalid driver - %s[%d]", fcu->rna_path, fcu->array_index);
+        CLOG_WARN(&LOG_ANIM_DRIVER, "Invalid driver - %s[%d]", fcu->rna_path, fcu->array_index);
         driver_orig->flag |= DRIVER_FLAG_INVALID;
       }
     }

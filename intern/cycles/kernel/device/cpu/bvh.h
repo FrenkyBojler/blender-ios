@@ -33,6 +33,16 @@ using numhit_t = uint16_t;
 using numhit_t = uint32_t;
 #endif
 
+/* Before Embree 4.4, the so-called Traversable functionality was exposed through Scene API.
+ * So, in order to simplify code between different versions, we are defining the traversable class
+ * and calls for older Embree versions as well. */
+#if RTC_VERSION < 40400
+#  define RTCTraversable RTCScene
+#  define rtcGetGeometryUserDataFromTraversable rtcGetGeometryUserDataFromScene
+#  define rtcTraversableIntersect1 rtcIntersect1
+#  define rtcTraversableOccluded1 rtcOccluded1
+#endif
+
 #ifdef __KERNEL_ONEAPI__
 #  define CYCLES_EMBREE_USED_FEATURES \
     (kernel_handler.get_specialization_constant<oneapi_embree_features>())
@@ -41,7 +51,8 @@ using numhit_t = uint32_t;
     (RTCFeatureFlags)(RTC_FEATURE_FLAG_TRIANGLE | RTC_FEATURE_FLAG_INSTANCE | \
                       RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS | RTC_FEATURE_FLAG_POINT | \
                       RTC_FEATURE_FLAG_MOTION_BLUR | RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE | \
-                      RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE)
+                      RTC_FEATURE_FLAG_FLAT_CATMULL_ROM_CURVE | \
+                      RTC_FEATURE_FLAG_ROUND_LINEAR_CURVE)
 #endif
 
 #define EMBREE_IS_HAIR(x) (x & 1)
@@ -173,12 +184,13 @@ ccl_device_inline void kernel_embree_convert_hit(KernelGlobals kg,
 {
   intptr_t prim_offset;
   if (hit->instID[0] != RTC_INVALID_GEOMETRY_ID) {
-    RTCScene inst_scene = (RTCScene)rtcGetGeometryUserDataFromScene(kernel_data.device_bvh,
-                                                                    hit->instID[0]);
-    prim_offset = intptr_t(rtcGetGeometryUserDataFromScene(inst_scene, hit->geomID));
+    RTCTraversable inst_scene = (RTCTraversable)rtcGetGeometryUserDataFromTraversable(
+        kernel_data.device_bvh, hit->instID[0]);
+    prim_offset = intptr_t(rtcGetGeometryUserDataFromTraversable(inst_scene, hit->geomID));
   }
   else {
-    prim_offset = intptr_t(rtcGetGeometryUserDataFromScene(kernel_data.device_bvh, hit->geomID));
+    prim_offset = intptr_t(
+        rtcGetGeometryUserDataFromTraversable(kernel_data.device_bvh, hit->geomID));
   }
   kernel_embree_convert_hit(kg, ray, hit, isect, prim_offset);
 }
@@ -278,7 +290,7 @@ ccl_device_forceinline void kernel_embree_filter_occluded_shadow_all_func_impl(
   }
 
   if (intersection_skip_shadow_already_recoded(
-          kg, ctx->isect_s, current_isect.object, current_isect.prim, ctx->num_recorded_hits))
+          ctx->isect_s, current_isect.object, current_isect.prim, ctx->num_recorded_hits))
   {
     *args->valid = 0;
     return;
@@ -493,9 +505,7 @@ ccl_device_forceinline void kernel_embree_filter_occluded_volume_all_func_impl(
     ++ctx->num_hits;
     *isect = current_isect;
     /* Only primitives from volume object. */
-    uint tri_object = isect->object;
-    int object_flag = kernel_data_fetch(object_flag, tri_object);
-    if ((object_flag & SD_OBJECT_HAS_VOLUME) == 0) {
+    if ((intersection_get_shader_flags(kg, isect->prim, isect->type) & SD_HAS_VOLUME) == 0) {
       --ctx->num_hits;
 #ifndef __VOLUME_RECORD_ALL__
       /* Without __VOLUME_RECORD_ALL__ we need only a first counted hit, so we will
@@ -594,7 +604,7 @@ ccl_device_intersect bool kernel_embree_intersect(KernelGlobals kg,
   args.filter = reinterpret_cast<RTCFilterFunctionN>(kernel_embree_filter_intersection_func);
   args.feature_mask = CYCLES_EMBREE_USED_FEATURES;
   args.context = &ctx;
-  rtcIntersect1(kernel_data.device_bvh, &ray_hit, &args);
+  rtcTraversableIntersect1(kernel_data.device_bvh, &ray_hit, &args);
   if (ray_hit.hit.geomID == RTC_INVALID_GEOMETRY_ID ||
       ray_hit.hit.primID == RTC_INVALID_GEOMETRY_ID)
   {
@@ -663,15 +673,15 @@ ccl_device_intersect bool kernel_embree_intersect_local(KernelGlobals kg,
     rtc_ray.dir_z = dir.z;
     rtc_ray.tnear = ray->tmin;
     rtc_ray.tfar = ray->tmax;
-    RTCScene scene = (RTCScene)rtcGetGeometryUserDataFromScene(kernel_data.device_bvh,
-                                                               local_object * 2);
+    RTCTraversable scene = (RTCTraversable)rtcGetGeometryUserDataFromTraversable(
+        kernel_data.device_bvh, local_object * 2);
     kernel_assert(scene);
     if (scene) {
-      rtcOccluded1(scene, &rtc_ray, &args);
+      rtcTraversableOccluded1(scene, &rtc_ray, &args);
     }
   }
   else {
-    rtcOccluded1(kernel_data.device_bvh, &rtc_ray, &args);
+    rtcTraversableOccluded1(kernel_data.device_bvh, &rtc_ray, &args);
   }
 
   /* rtcOccluded1 sets tfar to -inf if a hit was found. */
@@ -679,7 +689,7 @@ ccl_device_intersect bool kernel_embree_intersect_local(KernelGlobals kg,
 }
 #endif
 
-#ifdef __SHADOW_RECORD_ALL__
+#ifdef __TRANSPARENT_SHADOWS__
 ccl_device_intersect bool kernel_embree_intersect_shadow_all(KernelGlobals kg,
                                                              IntegratorShadowState state,
                                                              const ccl_private Ray *ray,
@@ -714,7 +724,7 @@ ccl_device_intersect bool kernel_embree_intersect_shadow_all(KernelGlobals kg,
       kernel_embree_filter_occluded_shadow_all_func);
   args.feature_mask = CYCLES_EMBREE_USED_FEATURES;
   args.context = &ctx;
-  rtcOccluded1(kernel_data.device_bvh, &rtc_ray, &args);
+  rtcTraversableOccluded1(kernel_data.device_bvh, &rtc_ray, &args);
 
   *num_recorded_hits = ctx.num_recorded_hits;
   *throughput = ctx.throughput;
@@ -756,7 +766,7 @@ ccl_device_intersect uint kernel_embree_intersect_volume(KernelGlobals kg,
       kernel_embree_filter_occluded_volume_all_func);
   args.feature_mask = CYCLES_EMBREE_USED_FEATURES;
   args.context = &ctx;
-  rtcOccluded1(kernel_data.device_bvh, &rtc_ray, &args);
+  rtcTraversableOccluded1(kernel_data.device_bvh, &rtc_ray, &args);
   return ctx.num_hits;
 }
 #endif

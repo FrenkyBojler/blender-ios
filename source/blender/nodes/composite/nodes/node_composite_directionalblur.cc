@@ -9,7 +9,6 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -24,39 +23,34 @@ namespace blender::nodes::node_composite_directionalblur_cc {
 static void cmp_node_directional_blur_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
-  b.add_output<decl::Color>("Image");
+  b.add_input<decl::Color>("Image")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
 
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Int>("Samples")
-      .default_value(1)
-      .min(1)
-      .max(32)
-      .description(
-          "The number of samples used to compute the blur. The more samples the smoother the "
-          "result, but at the expense of more compute time. The actual number of samples is two "
-          "to the power of this input, so it increases exponentially")
-      .compositor_expects_single_value();
+  b.add_input<decl::Int>("Samples").default_value(1).min(1).max(29).description(
+      "The number of samples used to compute the blur. The more samples the smoother the "
+      "result, but at the expense of more compute time. The actual number of samples is two "
+      "to the power of this input, so it increases exponentially");
   b.add_input<decl::Vector>("Center")
-      .default_value({0.5f, 0.5f, 0.0f})
       .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({0.5f, 0.5f})
       .min(0.0f)
       .max(1.0f)
       .description(
           "The position at which the transformations pivot around. Defined in normalized "
-          "coordinates, so 0 means lower left corner and 1 means upper right corner of the image")
-      .compositor_expects_single_value();
+          "coordinates, so 0 means lower left corner and 1 means upper right corner of the image");
 
   b.add_input<decl::Float>("Rotation")
       .default_value(0.0f)
       .subtype(PROP_ANGLE)
-      .description("The amount of rotation that the blur spans")
-      .compositor_expects_single_value();
-  b.add_input<decl::Float>("Scale")
-      .default_value(1.0f)
-      .min(0.0f)
-      .description("The amount of scaling that the blur spans")
-      .compositor_expects_single_value();
+      .description("The amount of rotation that the blur spans");
+  b.add_input<decl::Float>("Scale").default_value(1.0f).min(0.0f).description(
+      "The amount of scaling that the blur spans");
 
   PanelDeclarationBuilder &translation_panel = b.add_panel("Translation").default_closed(false);
   translation_panel.add_input<decl::Float>("Amount", "Translation Amount")
@@ -66,21 +60,11 @@ static void cmp_node_directional_blur_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .description(
           "The amount of translation that the blur spans in the specified direction relative to "
-          "the size of the image. Negative values indicate translation in the opposite direction")
-      .compositor_expects_single_value();
+          "the size of the image. Negative values indicate translation in the opposite direction");
   translation_panel.add_input<decl::Float>("Direction", "Translation Direction")
       .default_value(0.0f)
       .subtype(PROP_ANGLE)
-      .description("The angle that defines the direction of the translation")
-      .compositor_expects_single_value();
-}
-
-static void node_composit_init_dblur(bNodeTree * /*ntree*/, bNode *node)
-{
-  /* All members are deprecated and needn't be set, but the data is still allocated for forward
-   * compatibility. */
-  NodeDBlurData *ndbd = MEM_callocN<NodeDBlurData>(__func__);
-  node->storage = ndbd;
+      .description("The angle that defines the direction of the translation");
 }
 
 using namespace blender::compositor;
@@ -108,7 +92,7 @@ class DirectionalBlurOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_directional_blur");
+    gpu::Shader *shader = context().get_shader("compositor_directional_blur");
     GPU_shader_bind(shader);
 
     /* The number of iterations does not cover the original image, that is, the image with no
@@ -131,7 +115,7 @@ class DirectionalBlurOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -156,7 +140,7 @@ class DirectionalBlurOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     parallel_for(size, [&](const int2 texel) {
       float2 coordinates = float2(texel) + float2(0.5f);
 
@@ -193,7 +177,7 @@ class DirectionalBlurOperation : public NodeOperation {
         current_sin = new_sin;
       }
 
-      output.store_pixel(texel, accumulated_color / iterations);
+      output.store_pixel(texel, Color(accumulated_color / iterations));
     });
   }
 
@@ -202,7 +186,7 @@ class DirectionalBlurOperation : public NodeOperation {
    * rotation and translation vector. */
   float2 get_delta_translation()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
+    const float2 input_size = float2(get_input("Image").domain().data_size);
     const float diagonal_length = math::length(input_size);
     const float translation_amount = diagonal_length * this->get_translation_amount();
     const float2x2 rotation = math::from_rotation<float2x2>(
@@ -226,7 +210,7 @@ class DirectionalBlurOperation : public NodeOperation {
 
   float2 get_origin()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
+    const float2 input_size = float2(get_input("Image").domain().data_size);
     return this->get_center() * input_size;
   }
 
@@ -236,7 +220,8 @@ class DirectionalBlurOperation : public NodeOperation {
   int get_iterations()
   {
     const int iterations = 2 << (this->get_samples() - 1);
-    const int upper_limit = math::ceil(math::length(float2(get_input("Image").domain().size)));
+    const int upper_limit = math::ceil(
+        math::length(float2(get_input("Image").domain().data_size)));
     return math::min(iterations, upper_limit);
   }
 
@@ -264,15 +249,14 @@ class DirectionalBlurOperation : public NodeOperation {
 
   int get_samples()
   {
-    return math::clamp(this->get_input("Samples").get_single_value_default(1), 1, 32);
+    return math::clamp(this->get_input("Samples").get_single_value_default(1), 1, 29);
   }
 
   float2 get_center()
   {
-    return math::clamp(
-        this->get_input("Center").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy(),
-        float2(0.0f),
-        float2(1.0f));
+    return math::clamp(this->get_input("Center").get_single_value_default(float2(0.5f)),
+                       float2(0.0f),
+                       float2(1.0f));
   }
 
   float get_translation_amount()
@@ -304,7 +288,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_directionalblur_cc
 
-void register_node_type_cmp_dblur()
+static void register_node_type_cmp_dblur()
 {
   namespace file_ns = blender::nodes::node_composite_directionalblur_cc;
 
@@ -316,10 +300,8 @@ void register_node_type_cmp_dblur()
   ntype.enum_name_legacy = "DBLUR";
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_directional_blur_declare;
-  ntype.initfunc = file_ns::node_composit_init_dblur;
-  blender::bke::node_type_storage(
-      ntype, "NodeDBlurData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_dblur)

@@ -12,7 +12,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_asset_types.h"
-#include "DNA_space_types.h"
+#include "DNA_space_enums.h"
 #include "DNA_userdef_types.h"
 
 #include "AS_asset_library.hh"
@@ -125,6 +125,11 @@ static std::string asset_blendfile_path_for_save(const bUserAssetLibrary &user_l
               std::min(sizeof(base_name_filesafe), size_t(base_name.size() + 1)));
   BLI_path_make_safe_filename(base_name_filesafe);
 
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * This already does not respect the FILE_MAXFILE max length of filenames for the final filepath
+   * it seems?
+   */
   {
     const std::string filepath = root_path + SEP + base_name_filesafe + BLENDER_ASSET_FILE_SUFFIX;
     if (!BLI_is_file(filepath.c_str())) {
@@ -155,11 +160,21 @@ static bool asset_write_in_library(Main &bmain,
 
   ID &id = const_cast<ID &>(id_const);
 
-  PartialWriteContext lib_write_ctx{BKE_main_blendfile_path(&bmain)};
+  /* This is not expected to ever happen currently from this code-path. */
+  BLI_assert(!ID_IS_PACKED(&id));
+
+  PartialWriteContext lib_write_ctx{bmain};
   ID *new_id = lib_write_ctx.id_add(&id,
                                     {(PartialWriteContext::IDAddOperations::MAKE_LOCAL |
                                       PartialWriteContext::IDAddOperations::SET_FAKE_USER |
                                       PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)});
+  if (!new_id) {
+    BKE_reportf(&reports,
+                RPT_ERROR,
+                "Could not create a copy of ID '%s' to write it in the library",
+                id.name);
+    return false;
+  }
 
   std::string new_name = name;
   BKE_libblock_rename(lib_write_ctx.bmain, *new_id, new_name);
@@ -267,7 +282,7 @@ std::optional<std::string> asset_edit_id_save_as(Main &global_main,
 
 bool asset_edit_id_save(Main &global_main, const ID &id, ReportList &reports)
 {
-  if (!asset_edit_id_is_editable(id)) {
+  if (!asset_edit_id_is_writable(id)) {
     return false;
   }
 
@@ -298,7 +313,7 @@ ID *asset_edit_id_revert(Main &global_main, ID &id, ReportList &reports)
 
 bool asset_edit_id_delete(Main &global_main, ID &id, ReportList &reports)
 {
-  if (asset_edit_id_is_editable(id)) {
+  if (asset_edit_id_is_writable(id)) {
     if (BLI_delete(id.lib->runtime->filepath_abs, false, false) != 0) {
       BKE_report(&reports, RPT_ERROR, "Failed to delete asset library file");
       return false;

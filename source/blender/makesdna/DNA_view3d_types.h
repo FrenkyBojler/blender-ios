@@ -22,9 +22,7 @@ struct wmTimer;
 #endif
 
 #include "DNA_defs.h"
-#include "DNA_image_types.h"
 #include "DNA_listBase.h"
-#include "DNA_movieclip_types.h"
 #include "DNA_object_types.h"
 #include "DNA_view3d_enums.h"
 #include "DNA_viewer_path_types.h"
@@ -125,7 +123,7 @@ typedef struct RegionView3D {
 
   char ndof_flag;
   /**
-   * Rotation center used for for "Auto Orbit" (see #NDOF_ORBIT_CENTER_AUTO).
+   * Rotation center used for "Auto Orbit" (see #NDOF_ORBIT_CENTER_AUTO).
    * Any modification should be followed by adjusting #RegionView3D::dist
    * to prevent problems zooming in after navigation. See: #134732.
    */
@@ -177,12 +175,9 @@ typedef struct View3DShading {
 
   char _pad;
 
-  /** FILE_MAXFILE. */
-  char studio_light[256];
-  /** FILE_MAXFILE. */
-  char lookdev_light[256];
-  /** FILE_MAXFILE. */
-  char matcap[256];
+  char studio_light[/*FILE_MAXFILE*/ 256];
+  char lookdev_light[/*FILE_MAXFILE*/ 256];
+  char matcap[/*FILE_MAXFILE*/ 256];
 
   float shadow_intensity;
   float single_color[3];
@@ -284,9 +279,18 @@ typedef struct View3D_Runtime {
   /** Runtime only flags. */
   int flag;
 
-  char _pad1[4];
+  /**
+   * The previously calculated selection center.
+   * Only use when `flag` #V3D_RUNTIME_OFS_LAST_IS_VALID is set.
+   */
+  float ofs_last_center[3];
+
   /* Only used for overlay stats while in local-view. */
   struct SceneStats *local_stats;
+
+  /* Times recorded for performance overlay. */
+  float last_sync_time;
+  float last_submission_time;
 } View3D_Runtime;
 
 /** 3D ViewPort Struct. */
@@ -328,8 +332,8 @@ typedef struct View3D {
   /** Allocated backup of itself while in local-view. */
   struct View3D *localvd;
 
-  /** Optional string for armature bone to define center, MAXBONENAME. */
-  char ob_center_bone[64];
+  /** Optional string for armature bone to define center. */
+  char ob_center_bone[/*MAXBONENAME*/ 64];
 
   unsigned short local_view_uid;
   char _pad6[2];
@@ -348,7 +352,8 @@ typedef struct View3D {
 
   float lens, grid;
   float clip_start, clip_end;
-  float ofs[3] DNA_DEPRECATED;
+  float vignette_aperture;
+  float ofs[2] DNA_DEPRECATED;
 
   char _pad[1];
 
@@ -425,6 +430,9 @@ enum {
   V3D_RUNTIME_DEPTHBUF_OVERRIDDEN = (1 << 1),
   /** Local view may have become empty, and may need to be exited. */
   V3D_RUNTIME_LOCAL_MAYBE_EMPTY = (1 << 2),
+  /** Last offset is valid. */
+  V3D_RUNTIME_OFS_LAST_CENTER_IS_VALID = (1 << 3),
+
 };
 
 /** #RegionView3D::persp */
@@ -440,12 +448,12 @@ enum {
   RV3D_NAVIGATING = 1 << 3,
   RV3D_GPULIGHT_UPDATE = 1 << 4,
   RV3D_PAINTING = 1 << 5,
-  // RV3D_IS_GAME_ENGINE = 1 << 5, /* UNUSED */
   /**
    * Disable Z-buffer offset, skip calls to #ED_view3d_polygon_offset.
    * Use when precise surface depth is needed and picking bias isn't, see #45434).
    */
   RV3D_ZOFFSET_DISABLED = 1 << 6,
+  RV3D_WAS_CAMOB = 1 << 7,
 };
 
 /** #RegionView3D.viewlock */
@@ -512,7 +520,7 @@ enum {
    *
    * The most common case is for perspective views, where orbiting around a point behind
    * the view (while possible) often seems like a bug from a user perspective.
-   * We could consider other cases invalid too (values beyond the clipping plane for e.g.),
+   * We could consider other cases invalid too (e.g. values beyond the clipping plane),
    * although in practice these cases should be fairly rare.
    */
   RV3D_NDOF_OFS_IS_VALID = (1 << 0),
@@ -642,6 +650,7 @@ enum {
   V3D_OVERLAY_SCULPT_CURVES_CAGE = (1 << 16),
   V3D_OVERLAY_SHOW_LIGHT_COLORS = (1 << 17),
   V3D_OVERLAY_VIEWER_ATTRIBUTE_TEXT = (1 << 18),
+  V3D_OVERLAY_PERFORMANCE = (1 << 19),
 };
 
 /** #View3DOverlay.edit_flag */

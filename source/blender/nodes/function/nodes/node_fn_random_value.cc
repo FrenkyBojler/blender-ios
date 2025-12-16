@@ -9,7 +9,7 @@
 
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_fn_random_value_cc {
@@ -18,35 +18,31 @@ NODE_STORAGE_FUNCS(NodeRandomValue)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Min").supports_field();
-  b.add_input<decl::Vector>("Max").default_value({1.0f, 1.0f, 1.0f}).supports_field();
-  b.add_input<decl::Float>("Min", "Min_001").supports_field();
-  b.add_input<decl::Float>("Max", "Max_001").default_value(1.0f).supports_field();
-  b.add_input<decl::Int>("Min", "Min_002").min(-100000).max(100000).supports_field();
-  b.add_input<decl::Int>("Max", "Max_002")
-      .default_value(100)
-      .min(-100000)
-      .max(100000)
-      .supports_field();
+  b.is_function_node();
+  b.add_input<decl::Vector>("Min");
+  b.add_input<decl::Vector>("Max").default_value({1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Float>("Min", "Min_001");
+  b.add_input<decl::Float>("Max", "Max_001").default_value(1.0f);
+  b.add_input<decl::Int>("Min", "Min_002").min(-100000).max(100000);
+  b.add_input<decl::Int>("Max", "Max_002").default_value(100).min(-100000).max(100000);
   b.add_input<decl::Float>("Probability")
       .min(0.0f)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .supports_field()
       .make_available([](bNode &node) { node_storage(node).data_type = CD_PROP_BOOL; });
-  b.add_input<decl::Int>("ID").implicit_field(implicit_field_inputs::id_or_index);
-  b.add_input<decl::Int>("Seed").default_value(0).min(-10000).max(10000).supports_field();
+  b.add_input<decl::Int>("ID").implicit_field(NODE_DEFAULT_INPUT_ID_INDEX_FIELD);
+  b.add_input<decl::Int>("Seed").default_value(0).min(-10000).max(10000);
 
-  b.add_output<decl::Vector>("Value").dependent_field();
-  b.add_output<decl::Float>("Value", "Value_001").dependent_field();
-  b.add_output<decl::Int>("Value", "Value_002").dependent_field();
-  b.add_output<decl::Bool>("Value", "Value_003").dependent_field();
+  b.add_output<decl::Vector>("Value");
+  b.add_output<decl::Float>("Value", "Value_001");
+  b.add_output<decl::Int>("Value", "Value_002");
+  b.add_output<decl::Bool>("Value", "Value_003");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void fn_node_random_value_init(bNodeTree * /*tree*/, bNode *node)
@@ -59,7 +55,7 @@ static void fn_node_random_value_init(bNodeTree * /*tree*/, bNode *node)
 static void fn_node_random_value_update(bNodeTree *ntree, bNode *node)
 {
   const NodeRandomValue &storage = node_storage(*node);
-  const eCustomDataType data_type = static_cast<eCustomDataType>(storage.data_type);
+  const eCustomDataType data_type = eCustomDataType(storage.data_type);
 
   bNodeSocket *sock_min_vector = (bNodeSocket *)node->inputs.first;
   bNodeSocket *sock_max_vector = sock_min_vector->next;
@@ -140,7 +136,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const NodeRandomValue &storage = node_storage(builder.node());
-  const eCustomDataType data_type = static_cast<eCustomDataType>(storage.data_type);
+  const eCustomDataType data_type = eCustomDataType(storage.data_type);
 
   switch (data_type) {
     case CD_PROP_FLOAT3: {
@@ -171,10 +167,11 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
       static auto fn = mf::build::SI4_SO<int, int, int, int, int>(
           "Random Int",
           [](int min_value, int max_value, int id, int seed) -> int {
-            const float value = noise::hash_to_float(id, seed);
-            /* Add one to the maximum and use floor to produce an even
-             * distribution for the first and last values (See #93591). */
-            return floor(value * (max_value + 1 - min_value) + min_value);
+            if (min_value > max_value) {
+              std::swap(min_value, max_value);
+            }
+            const uint32_t hash = noise::hash(id, seed);
+            return min_value + hash % (max_value - min_value + 1);
           },
           mf::build::exec_presets::SomeSpanOrSingle<2>());
       builder.set_matching_fn(fn);
@@ -203,6 +200,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeRandomValue", FN_NODE_RANDOM_VALUE);
   ntype.ui_name = "Random Value";
+  ntype.ui_description = "Output a randomized value";
   ntype.enum_name_legacy = "RANDOM_VALUE";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = fn_node_random_value_init;

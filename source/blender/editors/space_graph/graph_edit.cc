@@ -406,7 +406,7 @@ static wmOperatorStatus graphkeys_click_insert_invoke(bContext *C,
   mval[0] = (event->xy[0] - region->winrct.xmin);
   mval[1] = (event->xy[1] - region->winrct.ymin);
 
-  UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
+  blender::ui::view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
 
   RNA_float_set(op->ptr, "frame", x);
   RNA_float_set(op->ptr, "value", y);
@@ -821,7 +821,7 @@ static wmOperatorStatus graphkeys_delete_invoke(bContext *C,
                                   IFACE_("Delete selected keyframes?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return graphkeys_delete_exec(C, op);
@@ -1160,7 +1160,7 @@ static wmOperatorStatus graphkeys_sound_to_samples_exec(bContext *C, wmOperator 
                                     RNA_boolean_get(op->ptr, "use_additive"),
                                     RNA_boolean_get(op->ptr, "use_square"),
                                     RNA_float_get(op->ptr, "sthreshold"),
-                                    FPS,
+                                    scene->frames_per_second(),
                                     &sbi.length,
                                     0);
 
@@ -1423,7 +1423,7 @@ static const EnumPropertyItem prop_graphkeys_expo_types[] = {
      "MAKE_CYCLIC",
      0,
      "Make Cyclic (F-Modifier)",
-     "Add Cycles F-Modifier if one doesn't exist already"},
+     "Add Cycles F-Modifier if one does not exist already"},
     {CLEAR_CYCLIC_EXPO,
      "CLEAR_CYCLIC",
      0,
@@ -2238,7 +2238,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   BKE_report(op->reports, RPT_WARNING, "Deprecated operator, use screen.keyframe_jump instead");
   /* The op->ptr can be passed to the operator because it has an identically named property. */
   return WM_operator_name_call(
-      C, "SCREEN_OT_keyframe_jump", WM_OP_INVOKE_DEFAULT, op->ptr, nullptr);
+      C, "SCREEN_OT_keyframe_jump", blender::wm::OpCallContext::InvokeDefault, op->ptr, nullptr);
 }
 
 void GRAPH_OT_keyframe_jump(wmOperatorType *ot)

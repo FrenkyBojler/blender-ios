@@ -20,6 +20,7 @@
 #include "ED_gizmo_library.hh"
 #include "ED_gizmo_utils.hh"
 #include "ED_screen.hh"
+
 #include "WM_api.hh"
 
 #include "UI_resources.hh"
@@ -67,7 +68,7 @@ static void WIDGETGROUP_xform_shear_setup(const bContext * /*C*/, wmGizmoGroup *
 
   float axis_color[3][3];
   for (int i = 0; i < 3; i++) {
-    UI_GetThemeColor3fv(TH_AXIS_X + i, axis_color[i]);
+    ui::theme::get_color_3fv(TH_AXIS_X + i, axis_color[i]);
   }
 
   for (int i = 0; i < 3; i++) {

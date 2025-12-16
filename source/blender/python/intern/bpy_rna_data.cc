@@ -17,7 +17,7 @@
 #include <cstddef>
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BLI_string.h"
 
@@ -137,7 +137,7 @@ static PyTypeObject bpy_rna_data_context_Type = {
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_rna_data_context_load_doc,
-    ".. method:: temp_data(filepath=None)\n"
+    ".. method:: temp_data(*, filepath=None)\n"
     "\n"
     "   A context manager that temporarily creates blender file data.\n"
     "\n"
@@ -145,9 +145,8 @@ PyDoc_STRVAR(
     "When None, the path of the currently open file is used.\n"
     "   :type filepath: str | bytes | None\n"
     "\n"
-    "   :return: Blend file data which is freed once the context exists.\n"
+    "   :return: Blend file data which is freed once the context exits.\n"
     "   :rtype: :class:`bpy.types.BlendData`\n");
-
 static PyObject *bpy_rna_data_temp_data(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};
@@ -178,6 +177,8 @@ static PyObject *bpy_rna_data_temp_data(PyObject * /*self*/, PyObject *args, PyO
 static PyObject *bpy_rna_data_context_enter(BPy_DataContext *self)
 {
   Main *bmain_temp = BKE_main_new();
+  STRNCPY(bmain_temp->filepath, self->filepath);
+
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_BlendData, bmain_temp);
 
   self->data_rna = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ptr);

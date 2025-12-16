@@ -53,12 +53,17 @@
 
 #include "fsmenu.h"
 
+#ifdef __linux__
+#  include "CLG_log.h"
+static CLG_LogRef LOG = {"system.path"};
+#endif
+
 struct FSMenu;
 
 /* -------------------------------------------------------------------- */
 /** \name XDG User Directory Support (Unix)
  *
- * Generic Unix, Use XDG when available, otherwise fallback to the home directory.
+ * Generic Unix, Use XDG when available, otherwise fall back to the home directory.
  * \{ */
 
 /**
@@ -153,7 +158,7 @@ static void fsmenu_xdg_insert_entry(GHash *xdg_map,
     xdg_path = xdg_path_buf;
   }
   fsmenu_insert_entry(
-      fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, xdg_path, N_(default_path), icon, FS_INSERT_LAST);
+      fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, xdg_path, default_path, icon, FS_INSERT_LAST);
 }
 
 /** \} */
@@ -212,8 +217,23 @@ static void fsmenu_add_windows_quick_access(FSMenu *fsmenu,
     char utf_path[FILE_MAXDIR];
     conv_utf_16_to_8(path, utf_path, FILE_MAXDIR);
 
-    /* Skip library folders since they are not currently supported. */
-    if (!BLI_strcasestr(utf_path, ".library-ms")) {
+    /* Despite the above IsFolder check, Windows considers libraries and archives to be folders.
+     * However, as Blender does not support opening them, they must be filtered out. #138863. */
+    const char *ext_folderlike[] = {
+        ".library-ms",
+        ".zip",
+        ".rar",
+        ".7z",
+        ".tar",
+        ".gz",
+        ".bz2",
+        ".zst",
+        ".xz",
+        ".cab",
+        ".iso",
+        nullptr,
+    };
+    if (!BLI_path_extension_check_array(utf_path, ext_folderlike)) {
       /* Add folder to the fsmenu. */
       fsmenu_insert_entry(fsmenu, category, utf_path, NULL, ICON_FILE_FOLDER, flag);
     }
@@ -235,6 +255,53 @@ static void fsmenu_add_windows_folder(FSMenu *fsmenu,
     fsmenu_insert_entry(fsmenu, category, line, name, icon, flag);
   }
   CoTaskMemFree(pPath);
+}
+
+static int fsmenu_external_drive_icon(char drive_letter)
+{
+  bool is_removable = false; /* ZIP, JAZ, CDROM, MO, etc. instead of a HDD. */
+  bool is_hotplug = false;   /* 1394, USB, etc. */
+  bool is_usb = false;       /* USB bus. */
+  char volumeName[8] = "";
+  SNPRINTF(volumeName, "\\\\.\\%c:", drive_letter);
+  HANDLE volume = ::CreateFile(volumeName, 0, 0, NULL, OPEN_EXISTING, 0, NULL);
+
+  if (volume != INVALID_HANDLE_VALUE) {
+    STORAGE_HOTPLUG_INFO Info = {0};
+    DWORD bytesReturned = 0;
+    if (::DeviceIoControl(volume,
+                          IOCTL_STORAGE_GET_HOTPLUG_INFO,
+                          0,
+                          0,
+                          &Info,
+                          sizeof(Info),
+                          &bytesReturned,
+                          NULL))
+    {
+      is_removable = Info.MediaRemovable != 0;
+      is_hotplug = Info.DeviceHotplug != 0;
+    }
+
+    STORAGE_PROPERTY_QUERY Prop;
+    Prop.PropertyId = StorageDeviceProperty;
+    Prop.QueryType = PropertyStandardQuery;
+    Prop.AdditionalParameters[0] = 0;
+    STORAGE_DEVICE_DESCRIPTOR DevInfo = {0};
+    if (::DeviceIoControl(volume,
+                          IOCTL_STORAGE_QUERY_PROPERTY,
+                          &Prop,
+                          sizeof(Prop),
+                          &DevInfo,
+                          sizeof(DevInfo),
+                          &bytesReturned,
+                          NULL))
+    {
+      is_usb = (DevInfo.BusType == BusTypeUsb);
+    }
+    ::CloseHandle(volume);
+  }
+
+  return (is_removable && is_hotplug && is_usb) ? ICON_USB_DRIVE : ICON_EXTERNAL_DRIVE;
 }
 #endif
 
@@ -290,7 +357,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
         int icon = ICON_DISK_DRIVE;
         switch (GetDriveType(tmps)) {
           case DRIVE_REMOVABLE:
-            icon = ICON_EXTERNAL_DRIVE;
+            icon = fsmenu_external_drive_icon('A' + i);
             break;
           case DRIVE_CDROM:
             icon = ICON_DISC;
@@ -304,12 +371,8 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
             break;
         }
 
-        fsmenu_insert_entry(fsmenu,
-                            FS_CATEGORY_SYSTEM,
-                            tmps,
-                            name,
-                            icon,
-                            FSMenuInsert(FS_INSERT_SORTED | FS_INSERT_NO_VALIDATE));
+        fsmenu_insert_entry(
+            fsmenu, FS_CATEGORY_SYSTEM, tmps, name, icon, FSMenuInsert(FS_INSERT_SORTED));
       }
     }
 
@@ -577,7 +640,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 
       fp = setmntent(MOUNTED, "r");
       if (fp == nullptr) {
-        fprintf(stderr, "could not get a list of mounted file-systems\n");
+        CLOG_WARN(&LOG, "Could not get a list of mounted file-systems");
       }
       else {
 
@@ -621,7 +684,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 #    undef STRPREFIX_DIR_DELIMIT
 
         if (endmntent(fp) == 0) {
-          fprintf(stderr, "could not close the list of mounted file-systems\n");
+          CLOG_WARN(&LOG, "Could not close the list of mounted file-systems");
         }
       }
       /* Check `gvfs` shares. */
@@ -653,7 +716,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
             SNPRINTF(line, "%s%s", filepath, dirname);
             fsmenu_insert_entry(
                 fsmenu, FS_CATEGORY_SYSTEM, line, label, ICON_NETWORK_DRIVE, FS_INSERT_SORTED);
-            found = 1;
+            found = true;
           }
           BLI_filelist_free(dirs, dirs_num);
         }

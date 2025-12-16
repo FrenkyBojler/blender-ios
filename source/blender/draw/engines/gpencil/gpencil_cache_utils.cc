@@ -27,6 +27,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_memblock.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "gpencil_engine_private.hh"
 
 #include "DEG_depsgraph.hh"
@@ -146,6 +148,9 @@ static int gpencil_tobject_dist_sort(const void *a, const void *b)
 
 void gpencil_object_cache_sort(Instance *inst)
 {
+  if (inst->is_sorted) {
+    return;
+  }
   /* Sort object by distance to the camera. */
   if (inst->tobjects.first) {
     inst->tobjects.first = gpencil_tobject_sort_fn_r(inst->tobjects.first,
@@ -169,13 +174,16 @@ void gpencil_object_cache_sort(Instance *inst)
     if (inst->tobjects.last != nullptr) {
       inst->tobjects.last->next = inst->tobjects_infront.first;
       inst->tobjects.last = inst->tobjects_infront.last;
+      inst->tobjects_infront.first = inst->tobjects.last = nullptr;
     }
     else {
       /* Only in front objects. */
       inst->tobjects.first = inst->tobjects_infront.first;
       inst->tobjects.last = inst->tobjects_infront.last;
+      inst->tobjects_infront.first = inst->tobjects.last = nullptr;
     }
   }
+  inst->is_sorted = true;
 }
 
 /** \} */
@@ -227,8 +235,8 @@ static float4 grease_pencil_layer_final_tint_and_alpha_get(const Instance *inst,
       color_prev = float3(grease_pencil.onion_skinning_settings.color_before);
     }
     else {
-      UI_GetThemeColor3fv(TH_FRAME_AFTER, color_next);
-      UI_GetThemeColor3fv(TH_FRAME_BEFORE, color_prev);
+      ui::theme::get_color_3fv(TH_FRAME_AFTER, color_next);
+      ui::theme::get_color_3fv(TH_FRAME_BEFORE, color_prev);
     }
 
     const float4 onion_col_custom = use_next_col ? float4(color_next, 1.0f) :
@@ -268,6 +276,7 @@ static void grease_pencil_layer_random_color_get(const Object *ob,
   float hue = BLI_hash_int_01(ob_hash * gpl_hash);
   const float hsv[3] = {hue, hsv_saturation, hsv_value};
   hsv_to_rgb_v(hsv, r_color);
+  IMB_colormanagement_rec709_to_scene_linear(r_color, r_color);
 }
 
 tLayer *grease_pencil_layer_cache_get(tObject *tgp_ob, int layer_id, const bool skip_onion)
@@ -433,8 +442,8 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
 
     PassSimple &pass = *tgp_layer->geom_ps;
 
-    GPUTexture **depth_tex = (is_in_front) ? &inst->dummy_depth : &inst->scene_depth_tx;
-    GPUTexture **mask_tex = (is_masked) ? &inst->mask_tx : &inst->dummy_tx;
+    gpu::Texture **depth_tex = (is_in_front) ? &inst->dummy_depth : &inst->scene_depth_tx;
+    gpu::Texture **mask_tex = (is_masked) ? &inst->mask_tx : &inst->dummy_tx;
 
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ALPHA_PREMUL;
     /* For 2D mode, we render all strokes with uniform depth (increasing with stroke id). */

@@ -2,18 +2,21 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_geom_infos.hh"
+#include "infos/eevee_nodetree_infos.hh"
+#include "infos/eevee_surf_shadow_infos.hh"
 
+VERTEX_SHADER_CREATE_INFO(eevee_nodetree)
 VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 VERTEX_SHADER_CREATE_INFO(eevee_geom_pointcloud)
 
 #include "draw_model_lib.glsl"
 #include "draw_pointcloud_lib.glsl"
 #include "eevee_attributes_pointcloud_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_vert_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_surf_lib.glsl"
 #include "eevee_velocity_lib.glsl"
-#include "gpu_shader_math_rotation_lib.glsl"
 
 void main()
 {
@@ -46,7 +49,7 @@ void main()
 #endif
 
   init_globals();
-  attrib_load();
+  attrib_load(PointCloudPoint{0});
 
   interp.P += nodetree_displacement();
 
@@ -61,5 +64,5 @@ void main()
   shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
 #endif
 
-  gl_Position = drw_point_world_to_homogenous(interp.P);
+  gl_Position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
 }

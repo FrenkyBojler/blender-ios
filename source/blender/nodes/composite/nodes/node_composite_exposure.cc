@@ -16,6 +16,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
 /* **************** Exposure ******************** */
@@ -24,11 +26,13 @@ namespace blender::nodes::node_composite_exposure_cc {
 
 static void cmp_node_exposure_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_input<decl::Float>("Exposure").min(-10.0f).max(10.0f).compositor_domain_priority(1);
-  b.add_output<decl::Color>("Image");
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.is_function_node();
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
+
+  b.add_input<decl::Float>("Exposure").min(-10.0f).max(10.0f);
 }
 
 using namespace blender::compositor;
@@ -42,12 +46,19 @@ static int node_gpu_material(GPUMaterial *material,
   return GPU_stack_link(material, node, "node_composite_exposure", inputs, outputs);
 }
 
+static float4 adjust_exposure(const float4 &color, const float exposure)
+{
+  return float4(color.xyz() * std::exp2(exposure), color.w);
+}
+
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::SI2_SO<float4, float, float4>(
+  static auto function = mf::build::SI2_SO<Color, float, Color>(
       "Exposure",
-      [](const float4 &color, const float exposure) -> float4 {
-        return float4(color.xyz() * std::exp2(exposure), color.w);
+      [](const Color &color, const float exposure) -> Color {
+        return Color(adjust_exposure(float4(color), exposure));
       },
       mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(function);
@@ -55,7 +66,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_exposure_cc
 
-void register_node_type_cmp_exposure()
+static void register_node_type_cmp_exposure()
 {
   namespace file_ns = blender::nodes::node_composite_exposure_cc;
 
@@ -72,3 +83,4 @@ void register_node_type_cmp_exposure()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_exposure)

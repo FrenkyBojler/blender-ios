@@ -125,12 +125,6 @@ enum class UpdateType {
 
 }  // namespace blender::ed::sculpt_paint
 
-struct SculptCursorGeometryInfo {
-  blender::float3 location;
-  blender::float3 normal;
-  blender::float3 active_vertex_co;
-};
-
 /* Factor of brush to have rake point following behind
  * (could be configurable but this is reasonable default). */
 #define SCULPT_RAKE_BRUSH_FACTOR 0.25f
@@ -236,6 +230,9 @@ struct StrokeCache {
 
   /* The rest is temporary storage that isn't saved as a property */
 
+  /* Store initial starting points for perlin noise on the beginning of each stroke when using
+   * color jitter. */
+  std::optional<blender::float3> initial_hsv_jitter;
   /* Beginning of stroke may do some things special. */
   bool first_time = false;
 
@@ -245,6 +242,7 @@ struct StrokeCache {
   /* TODO: Clean this up! */
   ViewContext *vc = nullptr;
   const Brush *brush = nullptr;
+  const Paint *paint = nullptr;
 
   float special_rotation = 0.0f;
   float3 grab_delta = float3(0);
@@ -258,7 +256,7 @@ struct StrokeCache {
   SculptRakeData rake_data;
 
   /* The face set being painted. */
-  int paint_face_set = 0;
+  int paint_face_set = SCULPT_FACE_SET_NONE;
 
   /**
    * Symmetry index between 0 and 7 bit combo.
@@ -317,7 +315,7 @@ struct StrokeCache {
     float wet_mix = 0.0f;
     float wet_persistence = 0.0f;
 
-    float density_seed = 0.0f;
+    std::optional<float> density_seed;
     float density = 0.0f;
 
     /**
@@ -464,7 +462,7 @@ void flush_update_done(const bContext *C, Object &ob, UpdateType update_type);
 }  // namespace blender::ed::sculpt_paint
 
 /**
- * Should be used after modifying the mask or Face Sets IDs.
+ * Should be used after modifying the mask or face set IDs.
  */
 void SCULPT_tag_update_overlays(bContext *C);
 /** \} */
@@ -473,51 +471,75 @@ void SCULPT_tag_update_overlays(bContext *C);
 /** \name Stroke Functions
  * \{ */
 
+namespace blender::ed::sculpt_paint {
 /**
  * Do a ray-cast in the tree to find the 3d brush location
  * (This allows us to ignore the GL depth buffer)
- * Returns 0 if the ray doesn't hit the mesh, non-zero otherwise.
  *
- * If check_closest is true and the ray test fails a point closest
- * to the ray will be found. If limit_closest_radius is true then
- * the closest point will be tested against the active brush radius.
+ * TODO: This should be updated to return std::optional<float3>
  */
-bool SCULPT_stroke_get_location_ex(bContext *C,
-                                   float out[3],
-                                   const float mval[2],
-                                   bool force_original,
-                                   bool check_closest,
-                                   bool limit_closest_radius);
+bool stroke_get_location_bvh(bContext *C, float out[3], const float mval[2], bool force_original);
+bool stroke_get_location_bvh(Depsgraph &depsgraph,
+                             ViewContext &vc,
+                             const Sculpt &sd,
+                             const Brush *brush,
+                             float out[3],
+                             const float mval[2],
+                             bool force_original);
 
-bool SCULPT_stroke_get_location(bContext *C,
-                                float out[3],
-                                const float mval[2],
-                                bool force_original);
+struct ActiveElementInfo {
+  ActiveVert vert = {};
+  int active_face_idx = -1;
+  int active_grid_idx = -1;
+};
+
+/**
+ * Retrieve the active vertex and active grid or face index.
+ *
+ * \note This API assumes that we are only interested in the current bounds of the BVH tree. */
+std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const float2 &mval);
+
+struct CursorGeometryInfo {
+  float3 location;
+  float3 normal;
+};
+
 /**
  * Gets the normal, location and active vertex location of the geometry under the cursor. This also
  * updates the active vertex and cursor related data of the SculptSession using the mouse position
+ *
+ * TODO: This should be updated to return `std::optional<CursorGeometryInfo>`
  */
-bool SCULPT_cursor_geometry_info_update(bContext *C,
-                                        SculptCursorGeometryInfo *out,
-                                        const float mval[2],
-                                        bool use_sampled_normal);
-
-namespace blender::ed::sculpt_paint {
+bool cursor_geometry_info_update(bContext *C,
+                                 CursorGeometryInfo *out,
+                                 const float2 &mval,
+                                 bool use_sampled_normal);
+bool cursor_geometry_info_update(Depsgraph &depsgraph,
+                                 const Sculpt &sd,
+                                 ViewContext &vc,
+                                 const Base *base,
+                                 CursorGeometryInfo *out,
+                                 const float2 &mval,
+                                 bool use_sampled_normal);
 
 void geometry_preview_lines_update(Depsgraph &depsgraph,
                                    Object &object,
                                    SculptSession &ss,
                                    float radius);
 
-}
+}  // namespace blender::ed::sculpt_paint
 
-void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush &brush);
-float SCULPT_raycast_init(ViewContext *vc,
-                          const float mval[2],
-                          float ray_start[3],
-                          float ray_end[3],
-                          float ray_normal[3],
-                          bool original);
+void SCULPT_stroke_modifiers_check(
+    Depsgraph &depsgraph, RegionView3D *rv3d, const Sculpt &sd, Object &ob, const Brush *brush);
+void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush *brush);
+namespace blender::ed::sculpt_paint {
+float raycast_init(ViewContext *vc,
+                   const float2 &mval,
+                   float3 &ray_start,
+                   float3 &ray_end,
+                   float3 &ray_normal,
+                   bool original);
+}
 
 /* Symmetry */
 ePaintSymmetryFlags SCULPT_mesh_symmetry_xyz_get(const Object &object);
@@ -556,17 +578,18 @@ void sculpt_project_v3_normal_align(const SculptSession &ss,
 /** \name Sculpt mesh accessor API
  * \{ */
 
+namespace blender::ed::sculpt_paint {
 /** Ensure random access; required for blender::bke::pbvh::Type::BMesh */
-void SCULPT_vertex_random_access_ensure(Object &object);
+void vert_random_access_ensure(Object &object);
+}  // namespace blender::ed::sculpt_paint
 
 int SCULPT_vertex_count_get(const Object &object);
 
-bool SCULPT_vertex_is_occluded(const Depsgraph &depsgraph,
-                               const Object &object,
-                               const blender::float3 &position,
-                               bool original);
-
 namespace blender::ed::sculpt_paint {
+bool vertex_is_occluded(const Depsgraph &depsgraph,
+                        const Object &object,
+                        const float3 &position,
+                        bool original);
 
 /**
  * Coordinates used for manipulating the base mesh when Grab Active Vertex is enabled.
@@ -604,8 +627,6 @@ void SCULPT_fake_neighbors_free(Object &ob);
 /* -------------------------------------------------------------------- */
 /** \name Brush Utilities.
  * \{ */
-
-bool SCULPT_brush_type_needs_all_pbvh_nodes(const Brush &brush);
 
 namespace blender::ed::sculpt_paint {
 
@@ -859,11 +880,14 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
          brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
 }
 
-void ensure_valid_pivot(const Object &ob, Scene &scene);
-float sculpt_calc_radius(const ViewContext &vc,
-                         const Brush &brush,
-                         const Scene &scene,
-                         float3 location);
+void ensure_valid_pivot(const Object &ob, Paint &paint);
+
+/** Retrieve or calculate the object space radius depending on brush settings. */
+float object_space_radius_get(const ViewContext &vc,
+                              const Paint &paint,
+                              const Brush &brush,
+                              const float3 &location,
+                              float scale_factor = 1.0);
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */
@@ -883,8 +907,7 @@ bool SCULPT_paint_image_canvas_get(PaintModeSettings &paint_mode_settings,
                                    Object &ob,
                                    Image **r_image,
                                    ImageUser **r_image_user) ATTR_NONNULL();
-void SCULPT_do_paint_brush_image(const Scene &scene,
-                                 const Depsgraph &depsgraph,
+void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,

@@ -27,6 +27,7 @@
 #include "BLI_array_utils.h"
 #include "BLI_bitmap_draw_2d.h"
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -79,7 +80,7 @@ void ED_view3d_background_color_get(const Scene *scene, const View3D *v3d, float
     return;
   }
 
-  UI_GetThemeColor3fv(TH_BACK, r_color);
+  blender::ui::theme::get_color_3fv(TH_BACK, r_color);
 }
 
 void ED_view3d_text_colors_get(const Scene *scene,
@@ -93,7 +94,7 @@ void ED_view3d_text_colors_get(const Scene *scene,
 
   /* Default text color from TH_TEXT_HI. If it is too close
    * to the background color, darken or lighten it. */
-  UI_GetThemeColor3fv(TH_TEXT_HI, r_text_color);
+  blender::ui::theme::get_color_3fv(TH_TEXT_HI, r_text_color);
   float text_lightness = srgb_to_grayscale(r_text_color);
   float bg_color[3];
   ED_view3d_background_color_get(scene, v3d, bg_color);
@@ -466,7 +467,7 @@ bool ED_view3d_boundbox_clip_ex(const RegionView3D *rv3d, const BoundBox *bb, fl
     return true;
   }
 
-  mul_m4_m4m4(persmatob, (float(*)[4])rv3d->persmat, obmat);
+  mul_m4_m4m4(persmatob, (float (*)[4])rv3d->persmat, obmat);
 
   return view3d_boundbox_clip_m4(bb, persmatob);
 }

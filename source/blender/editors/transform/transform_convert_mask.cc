@@ -16,7 +16,7 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 
 #include "ED_clip.hh"
 #include "ED_image.hh"
@@ -59,7 +59,7 @@ static void MaskHandleToTransData(MaskSplinePoint *point,
                                   /*const*/ const float parent_inverse_matrix[3][3])
 {
   BezTriple *bezt = &point->bezt;
-  const bool is_sel_any = MASKPOINT_ISSEL_ANY(point);
+  const bool is_sel_any = BKE_mask_point_selected(point);
 
   tdm->point = point;
   copy_m3_m3(tdm->vec, bezt->vec);
@@ -90,7 +90,6 @@ static void MaskHandleToTransData(MaskSplinePoint *point,
   memset(td->axismtx, 0, sizeof(td->axismtx));
   td->axismtx[2][2] = 1.0f;
 
-  td->ext = nullptr;
   td->val = nullptr;
 
   if (is_sel_any) {
@@ -119,8 +118,8 @@ static void MaskPointToTransData(Scene *scene,
                                  const float asp[2])
 {
   BezTriple *bezt = &point->bezt;
-  const bool is_sel_point = MASKPOINT_ISSEL_KNOT(point);
-  const bool is_sel_any = MASKPOINT_ISSEL_ANY(point);
+  const bool is_sel_point = BKE_mask_point_selected_knot(point);
+  const bool is_sel_any = BKE_mask_point_selected(point);
   float parent_matrix[3][3], parent_inverse_matrix[3][3];
 
   BKE_mask_point_parent_matrix_get(point, scene->r.cfra, parent_matrix);
@@ -155,8 +154,6 @@ static void MaskPointToTransData(Scene *scene,
 
       memset(td->axismtx, 0, sizeof(td->axismtx));
       td->axismtx[2][2] = 1.0f;
-
-      td->ext = nullptr;
 
       if (i == 1) {
         /* Scaling weights. */
@@ -282,8 +279,8 @@ static void createTransMaskingData(bContext *C, TransInfo *t)
       for (i = 0; i < spline->tot_point; i++) {
         MaskSplinePoint *point = &spline->points[i];
 
-        if (MASKPOINT_ISSEL_ANY(point)) {
-          if (MASKPOINT_ISSEL_KNOT(point)) {
+        if (BKE_mask_point_selected(point)) {
+          if (BKE_mask_point_selected_knot(point)) {
             countsel += 3;
           }
           else {
@@ -337,10 +334,10 @@ static void createTransMaskingData(bContext *C, TransInfo *t)
       for (i = 0; i < spline->tot_point; i++) {
         MaskSplinePoint *point = &spline->points[i];
 
-        if (is_prop_edit || MASKPOINT_ISSEL_ANY(point)) {
+        if (is_prop_edit || BKE_mask_point_selected(point)) {
           MaskPointToTransData(scene, point, td, td2d, tdm, is_prop_edit, asp);
 
-          if (is_prop_edit || MASKPOINT_ISSEL_KNOT(point)) {
+          if (is_prop_edit || BKE_mask_point_selected_knot(point)) {
             td += 3;
             td2d += 3;
             tdm += 3;
@@ -450,7 +447,7 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
     BLI_assert(0);
   }
 
-  if (t->scene->nodetree) {
+  if (t->scene->compositing_node_group) {
     WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
   }
 

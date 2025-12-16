@@ -87,13 +87,12 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
     }
 
     if (!quiet) {
-      CLOG_INFO(
-          WM_LOG_OPERATORS, 0, "search for unknown operator '%s', '%s'\n", idname_bl, idname);
+      CLOG_INFO(WM_LOG_OPERATORS, "Search for unknown operator '%s', '%s'", idname_bl, idname);
     }
   }
   else {
     if (!quiet) {
-      CLOG_INFO(WM_LOG_OPERATORS, 0, "search for empty operator");
+      CLOG_INFO(WM_LOG_OPERATORS, "Search for empty operator");
     }
   }
 
@@ -106,11 +105,11 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
 
 static wmOperatorType *wm_operatortype_append__begin()
 {
-  wmOperatorType *ot = MEM_callocN<wmOperatorType>("operatortype");
+  wmOperatorType *ot = MEM_new<wmOperatorType>(__func__);
 
   BLI_assert(ot_prop_basic_count == -1);
 
-  ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", &RNA_OperatorProperties);
   RNA_def_struct_property_tags(ot->srna, rna_enum_operator_property_tag_items);
   /* Set the default i18n context now, so that opfunc can redefine it if needed! */
   RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
@@ -132,10 +131,17 @@ static void wm_operatortype_append__end(wmOperatorType *ot)
   /* XXX All ops should have a description but for now allow them not to. */
   RNA_def_struct_ui_text(
       ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-  RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
+  RNA_def_struct_identifier(&RNA_blender_rna_get(), ot->srna, ot->idname);
 
   BLI_assert(WM_operator_bl_idname_is_valid(ot->idname));
   get_operators_map().add_new(ot);
+
+  /* Needed so any operators registered after startup will have their shortcuts set,
+   * in "register" scripts for example, see: #143838.
+   *
+   * This only has run-time implications when run after startup,
+   * it's a no-op when run beforehand, see: #WM_keyconfig_update_on_startup. */
+  WM_keyconfig_update_operatortype_tag();
 }
 
 /* All ops in 1 list (for time being... needs evaluation later). */
@@ -168,7 +174,7 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
   BPY_free_srna_pytype(ot->srna);
 #endif
 
-  RNA_struct_free(&BLENDER_RNA, ot->srna);
+  RNA_struct_free(&RNA_blender_rna_get(), ot->srna);
 
   if (ot->last_properties) {
     IDP_FreeProperty(ot->last_properties);
@@ -180,9 +186,9 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 
   get_operators_map().remove(ot);
 
-  WM_keyconfig_update_operatortype();
+  WM_keyconfig_update_operatortype_tag();
 
-  MEM_freeN(ot);
+  MEM_delete(ot);
 }
 
 bool WM_operatortype_remove(const char *idname)
@@ -213,7 +219,7 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
     MEM_freeN(ot->idname);
   }
 
-  MEM_freeN(ot);
+  MEM_delete(ot);
 }
 
 void wm_operatortype_free()
@@ -234,7 +240,6 @@ void WM_operatortype_props_advanced_begin(wmOperatorType *ot)
 
 void WM_operatortype_props_advanced_end(wmOperatorType *ot)
 {
-  PointerRNA struct_ptr;
   int counter = 0;
 
   if (ot_prop_basic_count == -1) {
@@ -242,7 +247,7 @@ void WM_operatortype_props_advanced_end(wmOperatorType *ot)
     return;
   }
 
-  WM_operator_properties_create_ptr(&struct_ptr, ot);
+  PointerRNA struct_ptr = WM_operator_properties_create_ptr(ot);
 
   RNA_STRUCT_BEGIN (&struct_ptr, prop) {
     counter++;
@@ -304,10 +309,10 @@ static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
 {
   MacroData *md = static_cast<MacroData *>(op->customdata);
 
-  if (retval & OPERATOR_CANCELLED) {
+  if (retval & (OPERATOR_CANCELLED | OPERATOR_INTERFACE)) {
     if (md && (md->retval & OPERATOR_FINISHED)) {
       retval |= OPERATOR_FINISHED;
-      retval &= ~OPERATOR_CANCELLED;
+      retval &= ~(OPERATOR_CANCELLED | OPERATOR_INTERFACE);
     }
   }
 
@@ -427,9 +432,9 @@ static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEven
         wmEventHandler_Op *handler;
 
         handler = static_cast<wmEventHandler_Op *>(
-            BLI_findptr(&win->modalhandlers, op, offsetof(wmEventHandler_Op, op)));
+            BLI_findptr(&win->runtime->modalhandlers, op, offsetof(wmEventHandler_Op, op)));
         if (handler) {
-          BLI_remlink(&win->modalhandlers, handler);
+          BLI_remlink(&win->runtime->modalhandlers, handler);
           wm_event_free_handler(&handler->head);
         }
 
@@ -490,8 +495,8 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname,
     return nullptr;
   }
 
-  ot = MEM_callocN<wmOperatorType>("operatortype");
-  ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
+  ot = MEM_new<wmOperatorType>(__func__);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", &RNA_OperatorProperties);
 
   ot->idname = idname;
   ot->name = name;
@@ -509,7 +514,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname,
 
   RNA_def_struct_ui_text(
       ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-  RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
+  RNA_def_struct_identifier(&RNA_blender_rna_get(), ot->srna, ot->idname);
   /* Use i18n context from rna_ext.srna if possible (py operators). */
   i18n_context = ot->rna_ext.srna ? RNA_struct_translation_context(ot->rna_ext.srna) :
                                     BLT_I18NCONTEXT_OPERATOR_DEFAULT;
@@ -527,8 +532,8 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
 {
   wmOperatorType *ot;
 
-  ot = MEM_callocN<wmOperatorType>("operatortype");
-  ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
+  ot = MEM_new<wmOperatorType>(__func__);
+  ot->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", &RNA_OperatorProperties);
 
   ot->flag = OPTYPE_MACRO;
   ot->exec = wm_macro_exec;
@@ -547,7 +552,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
 
   RNA_def_struct_ui_text(
       ot->srna, ot->name, ot->description ? ot->description : UNDOCUMENTED_OPERATOR_TIP);
-  RNA_def_struct_identifier(&BLENDER_RNA, ot->srna, ot->idname);
+  RNA_def_struct_identifier(&RNA_blender_rna_get(), ot->srna, ot->idname);
 
   BLI_assert(WM_operator_bl_idname_is_valid(ot->idname));
   get_operators_map().add_new(ot);

@@ -87,9 +87,7 @@ if(DEFINED LIBDIR)
   # not need to be ever discovered for the Blender linking.
   list(REMOVE_ITEM LIB_SUBDIRS ${LIBDIR}/dpcpp)
 
-  # NOTE: Make sure "proper" compiled zlib comes first before the one
-  # which is a part of OpenCollada. They have different ABI, and we
-  # do need to use the official one.
+  # NOTE: Make sure "proper" compiled zlib comes first
   set(CMAKE_PREFIX_PATH ${LIBDIR}/zlib ${LIB_SUBDIRS})
 
   include(platform_old_libs_update)
@@ -300,7 +298,7 @@ if(WITH_CODEC_FFMPEG)
     # Override FFMPEG components to also include static library dependencies
     # included with precompiled libraries, and to ensure correct link order.
     set(FFMPEG_FIND_COMPONENTS
-      avformat avcodec avdevice avutil swresample swscale
+      avformat avdevice avfilter avcodec avutil swresample swscale
       sndfile
       FLAC
       mp3lame
@@ -331,15 +329,6 @@ endif()
 if(WITH_FFTW3)
   find_package_wrapper(Fftw3)
   set_and_warn_library_found("fftw3" FFTW3_FOUND WITH_FFTW3)
-endif()
-
-if(WITH_OPENCOLLADA)
-  find_package_wrapper(OpenCOLLADA)
-  if(OPENCOLLADA_FOUND)
-    find_package_wrapper(XML2)
-  else()
-    set_and_warn_library_found("OpenCollada" OPENCOLLADA_FOUND WITH_OPENCOLLADA)
-  endif()
 endif()
 
 if(WITH_MEM_JEMALLOC)
@@ -408,7 +397,7 @@ if(DEFINED LIBDIR)
     ${SYCL_ROOT_DIR}/lib/libur_*.so
     ${SYCL_ROOT_DIR}/lib/libur_*.so.*
   )
-  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX ".*\.py")
+  list(FILTER _sycl_runtime_libraries EXCLUDE REGEX "\\.py$")
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${_sycl_runtime_libraries})
   unset(_sycl_runtime_libraries)
 endif()
@@ -424,8 +413,9 @@ if(WITH_NANOVDB)
   set_and_warn_library_found("NanoVDB" NANOVDB_FOUND WITH_NANOVDB)
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
-  find_package_wrapper(sse2neon)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
+  find_package_wrapper(sse2neon REQUIRED)
 endif()
 
 if(WITH_ALEMBIC)
@@ -541,13 +531,6 @@ if(WITH_LLVM)
       find_package_wrapper(Clang)
       set_and_warn_library_found("Clang" CLANG_FOUND WITH_CLANG)
     endif()
-
-    # Symbol conflicts with same UTF library used by OpenCollada
-    if(DEFINED LIBDIR)
-      if(WITH_OPENCOLLADA AND (${LLVM_VERSION} VERSION_LESS "4.0.0"))
-        list(REMOVE_ITEM OPENCOLLADA_LIBRARIES ${OPENCOLLADA_UTF_LIBRARY})
-      endif()
-    endif()
   endif()
 endif()
 
@@ -568,6 +551,7 @@ if(WITH_TBB)
     get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
   endif()
   set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
+  mark_as_advanced(TBB_DIR)
 endif()
 add_bundled_libraries(tbb/lib)
 
@@ -597,8 +581,23 @@ if(WITH_MANIFOLD)
   else()
     # This isn't a common system library, so disable if it's not found.
     find_package(manifold)
+    if(TARGET manifold::manifold)
+      set(MANIFOLD_FOUND TRUE)
+    endif()
     set_and_warn_library_found("MANIFOLD" MANIFOLD_FOUND WITH_MANIFOLD)
   endif()
+  mark_as_advanced(manifold_DIR)
+endif()
+
+if(WITH_RUBBERBAND)
+  if(DEFINED LIBDIR)
+    find_package_wrapper(Rubberband)
+  else()
+    # Use system libs
+    find_package(PkgConfig)
+    pkg_check_modules(RUBBERBAND rubberband)
+  endif()
+  set_and_warn_library_found("Rubberband" RUBBERBAND_FOUND WITH_RUBBERBAND)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
@@ -678,13 +677,6 @@ if(WITH_SYSTEM_FREETYPE)
   check_freetype_for_brotli()
   # Quiet warning as this variable will be used after `FREETYPE_LIBRARIES`.
   set(BROTLI_LIBRARIES "")
-endif()
-
-if(WITH_LZO AND WITH_SYSTEM_LZO)
-  find_package_wrapper(LZO)
-  if(NOT LZO_FOUND)
-    message(FATAL_ERROR "Failed finding system LZO version!")
-  endif()
 endif()
 
 if(WITH_SYSTEM_EIGEN3)
@@ -786,20 +778,6 @@ if(WITH_GHOST_WAYLAND)
   set_and_warn_library_found("xkbcommon" xkbcommon_FOUND WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      if(_use_system_wayland)
-        pkg_check_modules(libdecor libdecor-0>=0.1)
-      else()
-        set(libdecor_INCLUDE_DIRS "${LIBDIR}/wayland_libdecor/include/libdecor-0")
-        set(libdecor_FOUND ON)
-      endif()
-      set_and_warn_library_found("libdecor" libdecor_FOUND WITH_GHOST_WAYLAND_LIBDECOR)
-    endif()
-
-    if(WITH_GHOST_WAYLAND_LIBDECOR)
-      add_definitions(-DWITH_GHOST_WAYLAND_LIBDECOR)
-    endif()
-
     if(DEFINED LIBDIR)
       set(WAYLAND_SCANNER "${LIBDIR}/wayland/bin/wayland-scanner")
       if(NOT (EXISTS "${WAYLAND_SCANNER}"))

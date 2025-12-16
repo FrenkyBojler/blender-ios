@@ -193,8 +193,15 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
 /**
  * Move data from a mesh outside of the main data-base into a mesh in the data-base.
  * Takes ownership of the source mesh.
+ *
+ * \param process_shape_keys: Whether to move #CD_SHAPEKEY layers to the destination mesh. If there
+ * are no such layers and the number of vertices changed, the shape key data will be lost. If this
+ * parameter is false, the caller is expected to handle shape keys itself.
  */
-void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob);
+void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
+                             Mesh *mesh_dst,
+                             Object *ob,
+                             bool process_shape_keys = true);
 void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb);
 
 /* Vertex level transformations & checks (no evaluated mesh). */
@@ -422,65 +429,6 @@ void BKE_mesh_calc_relative_deform(const int *face_offsets,
 
                                    const float (*vert_cos_org)[3],
                                    float (*vert_cos_new)[3]);
-
-/* *** mesh_validate.cc *** */
-
-/**
- * Validates and corrects a Mesh.
- *
- * \returns true if a change is made.
- */
-bool BKE_mesh_validate(Mesh *mesh, bool do_verbose, bool cddata_check_mask);
-/**
- * Checks if a Mesh is valid without any modification. This is always verbose.
- * \returns True if the mesh is valid.
- */
-bool BKE_mesh_is_valid(Mesh *mesh);
-/**
- * Check all material indices of faces are valid, invalid ones are set to 0.
- * \returns True if the material indices are valid.
- */
-bool BKE_mesh_validate_material_indices(Mesh *mesh);
-
-/**
- * Validate the mesh, \a do_fixes requires \a mesh to be non-null.
- *
- * \return false if no changes needed to be made.
- */
-bool BKE_mesh_validate_arrays(Mesh *mesh,
-                              float (*vert_positions)[3],
-                              unsigned int verts_num,
-                              blender::int2 *edges,
-                              unsigned int edges_num,
-                              MFace *legacy_faces,
-                              unsigned int legacy_faces_num,
-                              const int *corner_verts,
-                              int *corner_edges,
-                              unsigned int corners_num,
-                              const int *face_offsets,
-                              unsigned int faces_num,
-                              MDeformVert *dverts, /* assume totvert length */
-                              bool do_verbose,
-                              bool do_fixes,
-                              bool *r_change);
-
-/**
- * \returns is_valid.
- */
-bool BKE_mesh_validate_all_customdata(CustomData *vert_data,
-                                      uint verts_num,
-                                      CustomData *edge_data,
-                                      uint edges_num,
-                                      CustomData *corner_data,
-                                      uint corners_num,
-                                      CustomData *face_data,
-                                      uint faces_num,
-                                      bool check_meshmask,
-                                      bool do_verbose,
-                                      bool do_fixes,
-                                      bool *r_change);
-
-void BKE_mesh_strip_loose_faces(Mesh *mesh);
 
 /* **** Depsgraph evaluation **** */
 

@@ -50,6 +50,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -322,10 +323,10 @@ static void customdata_version_242(Mesh *mesh)
     if (layer->type == CD_MTFACE) {
       if (layer->name[0] == 0) {
         if (mtfacen == 0) {
-          STRNCPY(layer->name, "UVMap");
+          STRNCPY_UTF8(layer->name, "UVMap");
         }
         else {
-          SNPRINTF(layer->name, "UVMap.%.3d", mtfacen);
+          SNPRINTF_UTF8(layer->name, "UVMap.%.3d", mtfacen);
         }
       }
       mtfacen++;
@@ -333,10 +334,10 @@ static void customdata_version_242(Mesh *mesh)
     else if (layer->type == CD_MCOL) {
       if (layer->name[0] == 0) {
         if (mcoln == 0) {
-          STRNCPY(layer->name, "Col");
+          STRNCPY_UTF8(layer->name, "Col");
         }
         else {
-          SNPRINTF(layer->name, "Col.%.3d", mcoln);
+          SNPRINTF_UTF8(layer->name, "Col.%.3d", mcoln);
         }
       }
       mcoln++;
@@ -446,7 +447,7 @@ static bool strip_set_alpha_mode_cb(Strip *strip, void * /*user_data*/)
 
 static bool strip_set_blend_mode_cb(Strip *strip, void * /*user_data*/)
 {
-  if (strip->blend_mode == 0) {
+  if (strip->blend_mode == STRIP_BLEND_REPLACE) {
     strip->blend_opacity = 100.0f;
   }
   return true;
@@ -1190,7 +1191,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     while (sce) {
       ed = sce->ed;
       if (ed) {
-        blender::seq::for_each_callback(&sce->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
+        blender::seq::foreach_strip(&sce->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
 
       sce = static_cast<Scene *>(sce->id.next);
@@ -1455,12 +1456,12 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
         if (kb == key->refkey) {
           if (kb->name[0] == 0) {
-            STRNCPY(kb->name, "Basis");
+            STRNCPY_UTF8(kb->name, "Basis");
           }
         }
         else {
           if (kb->name[0] == 0) {
-            SNPRINTF(kb->name, "Key %d", index);
+            SNPRINTF_UTF8(kb->name, "Key %d", index);
           }
           index++;
         }
@@ -1557,7 +1558,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         if (srl->layflag & SCE_LAY_SOLID) {
           srl->layflag |= SCE_LAY_SKY;
         }
-        srl->passflag &= (SCE_PASS_COMBINED | SCE_PASS_Z | SCE_PASS_NORMAL | SCE_PASS_VECTOR);
+        srl->passflag &= (SCE_PASS_COMBINED | SCE_PASS_DEPTH | SCE_PASS_NORMAL | SCE_PASS_VECTOR);
       }
 
       /* node version changes */
@@ -1595,7 +1596,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
            ima = static_cast<Image *>(ima->id.next))
       {
         if (STREQ(ima->filepath, "Compositor")) {
-          BLI_strncpy(ima->id.name + 2, "Viewer Node", sizeof(ima->id.name) - 2);
+          BLI_strncpy_utf8(ima->id.name + 2, "Viewer Node", sizeof(ima->id.name) - 2);
           STRNCPY(ima->filepath, "Viewer Node");
         }
       }
@@ -1831,17 +1832,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         if (ma->nodetree) {
           do_version_ntree_242_2(ma->nodetree);
         }
-      }
-    }
-
-    if (bmain->subversionfile < 4) {
-      for (sce = static_cast<Scene *>(bmain->scenes.first); sce;
-           sce = static_cast<Scene *>(sce->id.next))
-      {
-        sce->r.bake_mode = 1; /* prevent to include render stuff here */
-        sce->r.bake_margin = 16;
-        sce->r.bake_margin_type = R_BAKE_ADJACENT_FACES;
-        sce->r.bake_flag = R_BAKE_CLEAR;
       }
     }
   }
@@ -2240,7 +2230,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         BLI_addtail(&ob->particlesystem, psys);
 
         md = BKE_modifier_new(eModifierType_ParticleSystem);
-        SNPRINTF(md->name, "ParticleSystem %i", BLI_listbase_count(&ob->particlesystem));
+        SNPRINTF_UTF8(md->name, "ParticleSystem %i", BLI_listbase_count(&ob->particlesystem));
         psmd = (ParticleSystemModifierData *)md;
         psmd->psys = psys;
         BLI_addtail(&ob->modifiers, md);
@@ -2369,41 +2359,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 245, 11)) {
-    Object *ob;
-
-    /* NLA-strips - scale. */
-    for (ob = static_cast<Object *>(bmain->objects.first); ob;
-         ob = static_cast<Object *>(ob->id.next))
-    {
-      LISTBASE_FOREACH (bActionStrip *, strip, &ob->nlastrips) {
-        float length, actlength, repeat;
-
-        if (strip->flag & ACTSTRIP_USESTRIDE) {
-          repeat = 1.0f;
-        }
-        else {
-          repeat = strip->repeat;
-        }
-
-        length = strip->end - strip->start;
-        if (length == 0.0f) {
-          length = 1.0f;
-        }
-        actlength = strip->actend - strip->actstart;
-
-        strip->scale = length / (repeat * actlength);
-        if (strip->scale == 0.0f) {
-          strip->scale = 1.0f;
-        }
-      }
-      if (ob->soft) {
-        ob->soft->inpush = ob->soft->inspring;
-        ob->soft->shearstiff = 1.0f;
-      }
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 245, 14)) {
     Scene *sce;
 
@@ -2411,7 +2366,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
          sce = static_cast<Scene *>(sce->id.next))
     {
       if (sce->ed) {
-        blender::seq::for_each_callback(&sce->ed->seqbase, strip_set_blend_mode_cb, nullptr);
+        blender::seq::foreach_strip(&sce->ed->seqbase, strip_set_blend_mode_cb, nullptr);
       }
     }
   }
@@ -2430,7 +2385,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     idproperties_fix_group_lengths(bmain->lattices);
     idproperties_fix_group_lengths(bmain->lights);
     idproperties_fix_group_lengths(bmain->cameras);
-    idproperties_fix_group_lengths(bmain->ipo);
     idproperties_fix_group_lengths(bmain->shapekeys);
     idproperties_fix_group_lengths(bmain->worlds);
     idproperties_fix_group_lengths(bmain->screens);
@@ -2459,8 +2413,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
         MEM_freeN(fluidmd->fss);
         fluidmd->fss = static_cast<FluidsimSettings *>(MEM_dupallocN(ob->fluidsimSettings));
-        fluidmd->fss->ipo = static_cast<Ipo *>(
-            blo_do_versions_newlibadr(fd, &ob->id, ID_IS_LINKED(ob), ob->fluidsimSettings->ipo));
         MEM_freeN(ob->fluidsimSettings);
 
         fluidmd->fss->lastgoodframe = INT_MAX;

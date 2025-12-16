@@ -32,6 +32,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -54,7 +55,7 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "bmesh.hh"
@@ -128,7 +129,7 @@ Cache::~Cache() = default;
 
 void cache_init(bContext *C,
                 Object &ob,
-                const Sculpt &sd,
+                Sculpt &sd,
                 const undo::Type undo_type,
                 const float mval_fl[2],
                 float area_normal_radius,
@@ -161,27 +162,22 @@ void cache_init(bContext *C,
     copy_m4_m4(ss.filter_cache->viewmat_inv.ptr(), vc.rv3d->viewinv);
   }
 
-  Scene *scene = CTX_data_scene(C);
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
 
   float3 co;
 
-  if (vc.rv3d && SCULPT_stroke_get_location(C, co, mval_fl, false)) {
+  if (vc.rv3d && stroke_get_location_bvh(C, co, mval_fl, false)) {
     /* Get radius from brush. */
     const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
     float radius;
     if (brush) {
-      if (BKE_brush_use_locked_size(scene, brush)) {
-        radius = paint_calc_object_space_radius(
-            vc, co, float(BKE_brush_size_get(scene, brush) * area_normal_radius));
-      }
-      else {
-        radius = BKE_brush_unprojected_radius_get(scene, brush) * area_normal_radius;
-      }
+      radius = object_space_radius_get(vc, sd.paint, *brush, co, area_normal_radius);
     }
     else {
-      radius = paint_calc_object_space_radius(vc, co, float(ups->size) * area_normal_radius);
+      radius = paint_calc_object_space_radius(
+          vc, co, float(ups->size / 2.0f) * area_normal_radius);
     }
 
     const float radius_sq = math::square(radius);
@@ -205,9 +201,9 @@ void cache_init(bContext *C,
 
     mul_m4_v3(ob.object_to_world().ptr(), co);
 
-    add_v3_v3(ups->average_stroke_accum, co);
-    ups->average_stroke_counter++;
-    ups->last_stroke_valid = true;
+    add_v3_v3(paint_runtime->average_stroke_accum, co);
+    paint_runtime->average_stroke_counter++;
+    paint_runtime->last_stroke_valid = true;
   }
   else {
     /* Use last normal. */
@@ -252,7 +248,7 @@ static EnumPropertyItem prop_mesh_filter_types[] = {
      "RELAX_FACE_SETS",
      0,
      "Relax Face Sets",
-     "Smooth the edges of all the Face Sets"},
+     "Smooth the edges of all the face sets"},
     {int(MeshFilterType::SurfaceSmooth),
      "SURFACE_SMOOTH",
      0,
@@ -375,14 +371,16 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
         scale_factors(factors, strength);
         clamp_factors(factors, -1.0f, 1.0f);
 
-        const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(faces,
-                                                                        corner_verts,
-                                                                        vert_to_face_map,
-                                                                        ss.vertex_info.boundary,
-                                                                        attribute_data.hide_poly,
-                                                                        verts,
-                                                                        tls.neighbor_offsets,
-                                                                        tls.neighbor_data);
+        const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(
+            faces,
+            corner_verts,
+            vert_to_face_map,
+            ss.boundary_info_cache->verts,
+            ss.boundary_info_cache->edges,
+            attribute_data.hide_poly,
+            verts,
+            tls.neighbor_offsets,
+            tls.neighbor_data);
 
         tls.new_positions.resize(verts.size());
         const MutableSpan<float3> new_positions = tls.new_positions;
@@ -432,8 +430,13 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
 
         tls.new_positions.resize(positions.size());
         const MutableSpan<float3> new_positions = tls.new_positions;
-        smooth::neighbor_position_average_interior_grids(
-            faces, corner_verts, ss.vertex_info.boundary, subdiv_ccg, grids, new_positions);
+        smooth::neighbor_position_average_interior_grids(faces,
+                                                         corner_verts,
+                                                         ss.boundary_info_cache->verts,
+                                                         ss.boundary_info_cache->edges,
+                                                         subdiv_ccg,
+                                                         grids,
+                                                         new_positions);
 
         tls.translations.resize(positions.size());
         const MutableSpan<float3> translations = tls.translations;
@@ -982,7 +985,8 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
                                                 faces,
                                                 corner_verts,
                                                 vert_to_face_map,
-                                                ss.vertex_info.boundary,
+                                                ss.boundary_info_cache->verts,
+                                                ss.boundary_info_cache->edges,
                                                 attribute_data.face_sets,
                                                 attribute_data.hide_poly,
                                                 false,
@@ -1032,7 +1036,8 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
                                                 corner_verts,
                                                 face_sets,
                                                 vert_to_face_map,
-                                                ss.vertex_info.boundary,
+                                                ss.boundary_info_cache->verts,
+                                                ss.boundary_info_cache->edges,
                                                 grids,
                                                 false,
                                                 factors,
@@ -1094,7 +1099,7 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
   bke::pbvh::update_normals(depsgraph, object, pbvh);
 
   /* When using the relax face sets meshes filter, each 3 iterations, do a whole mesh relax to
-   * smooth the contents of the Face Set. This produces better results as the relax operation is no
+   * smooth the contents of the face set. This produces better results as the relax operation is no
    * completely focused on the boundaries. */
   const bool relax_face_sets = !(ss.filter_cache->iteration_count % 3 == 0);
 
@@ -1137,7 +1142,8 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
                                                 faces,
                                                 corner_verts,
                                                 vert_to_face_map,
-                                                ss.vertex_info.boundary,
+                                                ss.boundary_info_cache->verts,
+                                                ss.boundary_info_cache->edges,
                                                 attribute_data.face_sets,
                                                 attribute_data.hide_poly,
                                                 relax_face_sets,
@@ -1197,7 +1203,8 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
                                                 corner_verts,
                                                 face_sets,
                                                 vert_to_face_map,
-                                                ss.vertex_info.boundary,
+                                                ss.boundary_info_cache->verts,
+                                                ss.boundary_info_cache->edges,
                                                 grids,
                                                 relax_face_sets,
                                                 factors,
@@ -1719,7 +1726,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *ss.bm;
-      BM_mesh_elem_index_ensure(&bm, BM_VERT);
+      vert_random_access_ensure(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int node_index) {
@@ -1940,6 +1947,7 @@ static void mesh_filter_surface_smooth_init(Object &object,
   filter::Cache *filter_cache = ss.filter_cache;
 
   filter_cache->surface_smooth_laplacian_disp.reinitialize(totvert);
+  filter_cache->surface_smooth_laplacian_disp.fill(float3(0.0f));
   filter_cache->surface_smooth_shape_preservation = shape_preservation;
   filter_cache->surface_smooth_current_vertex = current_vertex_displacement;
 }
@@ -2128,7 +2136,7 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay
   const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
   const float strength = RNA_float_get(op->ptr, "strength");
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   const IndexMask &node_mask = ss.filter_cache->node_mask;
   if (auto_mask::is_enabled(sd, ob, nullptr) && ss.filter_cache->automasking &&
@@ -2384,7 +2392,7 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
 
   const View3D *v3d = CTX_wm_view3d(C);
   const Base *base = CTX_data_active_base(C);
@@ -2424,11 +2432,11 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   if (use_automasking) {
     /* Update the active face set manually as the paint cursor is not enabled when using the
      * Mesh Filter Tool. */
-    SculptCursorGeometryInfo sgi;
-    SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+    CursorGeometryInfo cgi;
+    cursor_geometry_info_update(C, &cgi, mval_fl, false);
   }
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
   if (needs_topology_info) {
     boundary::ensure_boundary_info(ob);
   }
@@ -2445,7 +2453,9 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  }
 
   sculpt_filter_specific_init(*depsgraph, filter_type, op, ob);
 
@@ -2528,13 +2538,13 @@ void register_operator_props(wmOperatorType *ot)
 
 static void sculpt_mesh_ui_exec(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout = &layout->row(true);
-  layout->prop(op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &row = layout.row(true);
+  row.prop(op->ptr, "deform_axis", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void SCULPT_OT_mesh_filter(wmOperatorType *ot)

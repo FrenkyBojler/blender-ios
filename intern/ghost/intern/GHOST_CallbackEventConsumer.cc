@@ -13,13 +13,13 @@
 #include "GHOST_CallbackEventConsumer.hh"
 
 GHOST_CallbackEventConsumer::GHOST_CallbackEventConsumer(GHOST_EventCallbackProcPtr eventCallback,
-                                                         GHOST_TUserDataPtr userData)
+                                                         GHOST_TUserDataPtr user_data)
 {
-  m_eventCallback = eventCallback;
-  m_userData = userData;
+  event_callback_ = eventCallback;
+  user_data_ = user_data;
 }
 
 bool GHOST_CallbackEventConsumer::processEvent(const GHOST_IEvent *event)
 {
-  return m_eventCallback(event, m_userData);
+  return event_callback_(event, user_data_);
 }

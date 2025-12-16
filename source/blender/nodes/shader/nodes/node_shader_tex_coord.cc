@@ -6,7 +6,7 @@
 
 #include "DNA_customdata_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_coord_cc {
@@ -22,10 +22,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Reflection");
 }
 
-static void node_shader_buts_tex_coord(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_tex_coord(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "object", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "from_instancer", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "object", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "from_instancer", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static int node_shader_gpu_tex_coord(GPUMaterial *mat,
@@ -76,7 +76,7 @@ NODE_SHADER_MATERIALX_BEGIN
 {
   /* NOTE: Some outputs aren't supported by MaterialX. */
   NodeItem res = empty();
-  std::string name = socket_out_->name;
+  std::string name = socket_out_->identifier;
 
   if (ELEM(name, "Generated", "UV")) {
     res = texcoord_node();

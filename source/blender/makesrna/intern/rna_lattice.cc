@@ -20,6 +20,8 @@
 #  include <algorithm>
 #  include <fmt/format.h>
 
+#  include "BLI_string.h"
+
 #  include "DNA_curve_types.h"
 #  include "DNA_meshdata_types.h"
 #  include "DNA_scene_types.h"
@@ -27,13 +29,13 @@
 #  include "BKE_deform.hh"
 #  include "BKE_lattice.hh"
 #  include "BKE_main.hh"
-#  include "BLI_string.h"
 
 #  include "DEG_depsgraph.hh"
 
-#  include "ED_lattice.hh"
 #  include "WM_api.hh"
 #  include "WM_types.hh"
+
+#  include "ED_lattice.hh"
 
 static void rna_LatticePoint_co_get(PointerRNA *ptr, float *values)
 {
@@ -97,15 +99,10 @@ static void rna_Lattice_update_data(Main * /*bmain*/, Scene * /*scene*/, Pointer
 static void rna_Lattice_update_data_editlatt(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   ID *id = ptr->owner_id;
-  Lattice *lt = (Lattice *)ptr->owner_id;
-
+  const Lattice *lt = (Lattice *)ptr->owner_id;
   if (lt->editlatt) {
     Lattice *lt_em = lt->editlatt->latt;
-    lt_em->typeu = lt->typeu;
-    lt_em->typev = lt->typev;
-    lt_em->typew = lt->typew;
-    lt_em->flag = lt->flag;
-    STRNCPY(lt_em->vgroup, lt->vgroup);
+    BKE_lattice_params_copy(lt_em, lt);
   }
 
   DEG_id_tag_update(id, 0);

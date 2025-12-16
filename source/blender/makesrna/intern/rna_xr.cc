@@ -1075,16 +1075,6 @@ static float rna_XrSessionState_nav_scale_get(PointerRNA *ptr)
   return value;
 }
 
-static void rna_XrSessionState_nav_scale_set(PointerRNA *ptr, float value)
-{
-#  ifdef WITH_XR_OPENXR
-  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  WM_xr_session_state_nav_scale_set(xr, value);
-#  else
-  UNUSED_VARS(ptr, value);
-#  endif
-}
-
 static void rna_XrSessionState_actionmaps_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
@@ -2035,14 +2025,30 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "clip_start", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
+  RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 0.1 * 100, 3);
   RNA_def_property_ui_text(prop, "Clip Start", "VR viewport near clipping distance");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "clip_end", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
+  RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10 * 100, 3);
   RNA_def_property_ui_text(prop, "Clip End", "VR viewport far clipping distance");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "fly_speed", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 1e-6f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 0.5 * 100, 3);
+  RNA_def_property_ui_text(prop, "Fly Speed", "Fly speed in meters per second");
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
+  prop = RNA_def_property(srna, "view_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "View Scale",
+                           "Scaling factor applied on top of scene scale for adjustments to the "
+                           "VR view. When possible, prefer modifying the scene scale instead");
+  RNA_def_property_range(prop, 1e-6f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.1f, 4);
+  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "use_positional_tracking", PROP_BOOLEAN, PROP_NONE);
@@ -2401,8 +2407,8 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       "Rotation offset to apply to base pose when determining viewer rotation");
 
   prop = RNA_def_property(srna, "navigation_scale", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_funcs(
-      prop, "rna_XrSessionState_nav_scale_get", "rna_XrSessionState_nav_scale_set", nullptr);
+  RNA_def_property_float_funcs(prop, "rna_XrSessionState_nav_scale_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop,
       "Navigation Scale",

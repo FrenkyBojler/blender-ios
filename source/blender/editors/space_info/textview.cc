@@ -80,11 +80,11 @@ static void textview_draw_sel(const char *str,
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     immUniformColor4ubv(bg_sel);
-    immRecti(pos, xy[0] + (cwidth * sta), xy[1] + lheight, xy[0] + (cwidth * end), xy[1]);
+    immRectf(pos, xy[0] + (cwidth * sta), xy[1] + lheight, xy[0] + (cwidth * end), xy[1]);
 
     immUnbindProgram();
 
@@ -207,10 +207,10 @@ static bool textview_draw_string(TextViewDrawState *tds,
 
   if (bg) {
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ubv(bg);
-    immRecti(pos, tds->draw_rect_outer->xmin, line_bottom, tds->draw_rect_outer->xmax, line_top);
+    immRectf(pos, tds->draw_rect_outer->xmin, line_bottom, tds->draw_rect_outer->xmax, line_top);
     immUnbindProgram();
   }
 
@@ -221,7 +221,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
     float hpadding = tds->draw_rect->xmin - (bg_size * 1.2f);
 
     rgba_uchar_to_float(col, icon_bg);
-    UI_draw_roundbox_corner_set(UI_CNR_ALL);
+    draw_roundbox_corner_set(blender::ui::CNR_ALL);
 
     rctf roundbox_rect;
     roundbox_rect.xmin = hpadding;
@@ -229,7 +229,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
     roundbox_rect.ymin = line_top - bg_size - vpadding;
     roundbox_rect.ymax = line_top - vpadding;
 
-    UI_draw_roundbox_4fv(&roundbox_rect, true, 4 * UI_SCALE_FAC, col);
+    blender::ui::draw_roundbox_4fv(&roundbox_rect, true, 4 * UI_SCALE_FAC, col);
   }
 
   if (icon) {
@@ -237,15 +237,15 @@ static bool textview_draw_string(TextViewDrawState *tds,
     int hpadding = tds->draw_rect->xmin - (UI_ICON_SIZE * 1.3f);
 
     GPU_blend(GPU_BLEND_ALPHA);
-    UI_icon_draw_ex(hpadding,
-                    line_top - UI_ICON_SIZE - vpadding,
-                    icon,
-                    (16 / UI_ICON_SIZE),
-                    1.0f,
-                    0.0f,
-                    icon_fg,
-                    false,
-                    UI_NO_ICON_OVERLAY_TEXT);
+    blender::ui::icon_draw_ex(hpadding,
+                              line_top - UI_ICON_SIZE - vpadding,
+                              icon,
+                              (16 / UI_ICON_SIZE),
+                              1.0f,
+                              0.0f,
+                              icon_fg,
+                              false,
+                              UI_NO_ICON_OVERLAY_TEXT);
     GPU_blend(GPU_BLEND_NONE);
   }
 

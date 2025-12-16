@@ -7,10 +7,11 @@
  */
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_rect.h"
 
 #include "BKE_context.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -106,7 +107,7 @@ static wmOperatorStatus dopesheet_select_channel_invoke(bContext *C,
   ARegion *region = CTX_wm_region(C);
   float location[2];
 
-  UI_view2d_region_to_view(
+  blender::ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -120,7 +121,7 @@ void CLIP_OT_dopesheet_select_channel(wmOperatorType *ot)
   ot->description = "Select movie tracking channel";
   ot->idname = "CLIP_OT_dopesheet_select_channel";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = dopesheet_select_channel_invoke;
   ot->exec = dopesheet_select_channel_exec;
   ot->poll = dopesheet_select_channel_poll;
@@ -189,7 +190,7 @@ void CLIP_OT_dopesheet_view_all(wmOperatorType *ot)
   ot->description = "Reset viewable area to show full keyframe range";
   ot->idname = "CLIP_OT_dopesheet_view_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = dopesheet_view_all_exec;
   ot->poll = space_clip_dopesheet_poll;
 

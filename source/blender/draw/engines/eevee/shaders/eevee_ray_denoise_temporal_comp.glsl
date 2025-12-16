@@ -15,14 +15,18 @@
  * https://www.ea.com/seed/news/seed-dd18-presentation-slides-raytracing
  */
 
-#include "infos/eevee_tracing_info.hh"
+#include "infos/eevee_tracing_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_denoise_temporal)
 
 #include "draw_view_lib.glsl"
 #include "eevee_colorspace_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_matrix_transform_lib.glsl"
+#include "gpu_shader_math_safe_lib.glsl"
+
 #include "gpu_shader_utildefines_lib.glsl"
 
 struct LocalStatistics {
@@ -194,7 +198,7 @@ void main()
 
   /* Surface reprojection. */
   /* TODO(fclem): Use per pixel velocity. Is this worth it? */
-  float scene_depth = texelFetch(depth_tx, texel_fullres, 0).r;
+  float scene_depth = reverse_z::read(texelFetch(depth_tx, texel_fullres, 0).r);
   float3 P = drw_point_screen_to_world(float3(uv, scene_depth));
   float4 history_radiance = radiance_history_sample(P, local);
   /* Reflection reprojection. */

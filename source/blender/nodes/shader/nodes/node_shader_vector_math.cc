@@ -17,7 +17,7 @@
 
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_vector_math_cc {
@@ -25,17 +25,65 @@ namespace blender::nodes::node_shader_vector_math_cc {
 static void sh_node_vector_math_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Vector>("Vector", "Vector_001").min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Vector>("Vector", "Vector_002").min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Float>("Scale").default_value(1.0f).min(-10000.0f).max(10000.0f);
+  b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f).label_fn([](bNode node) {
+    switch (node.custom1) {
+      case NODE_VECTOR_MATH_POWER:
+        return IFACE_("Base");
+      default:
+        return IFACE_("Vector");
+    }
+  });
+  b.add_input<decl::Vector>("Vector", "Vector_001")
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](bNode node) {
+        switch (node.custom1) {
+          case NODE_VECTOR_MATH_POWER:
+            return IFACE_("Exponent");
+          case NODE_VECTOR_MATH_MULTIPLY_ADD:
+            return IFACE_("Multiplier");
+          case NODE_VECTOR_MATH_FACEFORWARD:
+            return IFACE_("Incident");
+          case NODE_VECTOR_MATH_WRAP:
+            return IFACE_("Max");
+          case NODE_VECTOR_MATH_SNAP:
+            return IFACE_("Increment");
+          default:
+            return IFACE_("Vector");
+        }
+      });
+  b.add_input<decl::Vector>("Vector", "Vector_002")
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](bNode node) {
+        switch (node.custom1) {
+          case NODE_VECTOR_MATH_MULTIPLY_ADD:
+            return IFACE_("Addend");
+          case NODE_VECTOR_MATH_FACEFORWARD:
+            return IFACE_("Reference");
+          case NODE_VECTOR_MATH_WRAP:
+            return IFACE_("Min");
+          default:
+            return IFACE_("Vector");
+        }
+      });
+  b.add_input<decl::Float>("Scale").default_value(1.0f).min(-10000.0f).max(10000.0f).label_fn(
+      [](bNode node) {
+        switch (node.custom1) {
+          case NODE_VECTOR_MATH_SCALE:
+          default:
+            return IFACE_("Scale");
+          case NODE_VECTOR_MATH_REFRACT:
+            return IFACE_("IOR");
+        }
+      });
   b.add_output<decl::Vector>("Vector");
   b.add_output<decl::Float>("Value");
 }
 
-static void node_shader_buts_vect_math(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_vect_math(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "operation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "operation", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 class SocketSearchOp {
@@ -52,8 +100,8 @@ class SocketSearchOp {
 
 static void sh_node_vector_math_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!params.node_tree().typeinfo->validate_link(
-          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_VECTOR))
+  if (!params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
+                                                  SOCK_VECTOR))
   {
     return;
   }
@@ -142,6 +190,10 @@ static const char *gpu_shader_get_name(int mode)
       return "vector_math_faceforward";
     case NODE_VECTOR_MATH_MULTIPLY_ADD:
       return "vector_math_multiply_add";
+    case NODE_VECTOR_MATH_POWER:
+      return "vector_math_power";
+    case NODE_VECTOR_MATH_SIGN:
+      return "vector_math_sign";
   }
 
   return nullptr;
@@ -182,7 +234,8 @@ static void node_shader_update_vector_math(bNodeTree *ntree, bNode *node)
                                           NODE_VECTOR_MATH_LENGTH,
                                           NODE_VECTOR_MATH_ABSOLUTE,
                                           NODE_VECTOR_MATH_FRACTION,
-                                          NODE_VECTOR_MATH_NORMALIZE));
+                                          NODE_VECTOR_MATH_NORMALIZE,
+                                          NODE_VECTOR_MATH_SIGN));
   bke::node_set_socket_availability(*ntree,
                                     *sockC,
                                     ELEM(node->custom1,
@@ -203,34 +256,6 @@ static void node_shader_update_vector_math(bNodeTree *ntree, bNode *node)
                                          NODE_VECTOR_MATH_LENGTH,
                                          NODE_VECTOR_MATH_DISTANCE,
                                          NODE_VECTOR_MATH_DOT_PRODUCT));
-
-  /* Labels */
-  node_sock_label_clear(sockB);
-  node_sock_label_clear(sockC);
-  node_sock_label_clear(sockScale);
-  switch (node->custom1) {
-    case NODE_VECTOR_MATH_MULTIPLY_ADD:
-      node_sock_label(sockB, "Multiplier");
-      node_sock_label(sockC, "Addend");
-      break;
-    case NODE_VECTOR_MATH_FACEFORWARD:
-      node_sock_label(sockB, "Incident");
-      node_sock_label(sockC, "Reference");
-      break;
-    case NODE_VECTOR_MATH_WRAP:
-      node_sock_label(sockB, "Max");
-      node_sock_label(sockC, "Min");
-      break;
-    case NODE_VECTOR_MATH_SNAP:
-      node_sock_label(sockB, "Increment");
-      break;
-    case NODE_VECTOR_MATH_REFRACT:
-      node_sock_label(sockScale, "IOR");
-      break;
-    case NODE_VECTOR_MATH_SCALE:
-      node_sock_label(sockScale, "Scale");
-      break;
-  }
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &node)

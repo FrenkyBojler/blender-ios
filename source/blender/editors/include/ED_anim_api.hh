@@ -10,8 +10,8 @@
 
 #include "BKE_nla.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -48,7 +48,9 @@ struct FCurve;
 struct FModifier;
 struct bAction;
 
-struct uiBlock;
+namespace blender::ui {
+struct Block;
+}
 
 struct PointerRNA;
 struct PropertyRNA;
@@ -108,6 +110,17 @@ struct bAnimContext {
   eAnimEdit_Context dopesheet_mode;
   eGraphEdit_Mode grapheditor_mode;
 
+  /**
+   * Filters from the dope-sheet/graph editor settings.
+   * These may reflect the corresponding bits in `ads->filterflag` and `ads->filterflag2`,
+   * but can also be overridden by the dope-sheet mode to force certain filters
+   * (without having to write to `ads->filterflag/flag2`).
+   */
+  struct {
+    eDopeSheet_FilterFlag flag;
+    eDopeSheet_FilterFlag2 flag2;
+  } filters;
+
   /** area->spacetype */
   eSpace_Type spacetype;
   /** active region -> type (channels or main) */
@@ -133,6 +146,15 @@ struct bAnimContext {
   Depsgraph *depsgraph;
   /** active object */
   Object *obact;
+
+  /**
+   * Active Action, only set when the Dope Sheet shows a single Action (in its
+   * Action and Shape Key modes).
+   */
+  bAction *active_action;
+  /** The ID that is animated by `active_action`, and that was used to obtain the pointer. */
+  ID *active_action_user;
+
   /** active set of markers */
   ListBase *markers;
 
@@ -194,6 +216,7 @@ enum eAnim_ChannelType {
   ANIMTYPE_DSHAIR,
   ANIMTYPE_DSPOINTCLOUD,
   ANIMTYPE_DSVOLUME,
+  ANIMTYPE_DSLIGHTPROBE,
 
   ANIMTYPE_SHAPEKEY,
 
@@ -249,7 +272,7 @@ enum eAnim_Update_Flags {
   /** Recalculate handles. */
   ANIM_UPDATE_HANDLES = (1 << 2),
 };
-ENUM_OPERATORS(eAnim_Update_Flags, ANIM_UPDATE_HANDLES);
+ENUM_OPERATORS(eAnim_Update_Flags);
 
 /* used for most tools which change keyframes (flushed by ANIM_animdata_update) */
 #define ANIM_UPDATE_DEFAULT (ANIM_UPDATE_DEPS | ANIM_UPDATE_ORDER | ANIM_UPDATE_HANDLES)
@@ -401,7 +424,7 @@ enum eAnimFilter_Flags {
   ANIMFILTER_TMP_IGNORE_ONLYSEL = (1u << 31),
 
 };
-ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
+ENUM_OPERATORS(eAnimFilter_Flags);
 
 /** \} */
 
@@ -440,6 +463,8 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 #define FILTER_CURVES_OBJD(ha) (CHECK_TYPE_INLINE(ha, Curves *), ((ha->flag & HA_DS_EXPAND)))
 #define FILTER_POINTS_OBJD(pt) (CHECK_TYPE_INLINE(pt, PointCloud *), ((pt->flag & PT_DS_EXPAND)))
 #define FILTER_VOLUME_OBJD(vo) (CHECK_TYPE_INLINE(vo, Volume *), ((vo->flag & VO_DS_EXPAND)))
+#define FILTER_LIGHTPROBE_OBJD(probe) \
+  (CHECK_TYPE_INLINE(probe, LightProbe *), ((probe->flag & LIGHTPROBE_DS_EXPAND)))
 /* Variable use expanders */
 #define FILTER_NTREE_DATA(ntree) \
   (CHECK_TYPE_INLINE(ntree, bNodeTree *), (((ntree)->flag & NTREE_DS_EXPAND)))
@@ -475,7 +500,6 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 #define SEL_GPL(gpl) (gpl->flag & GP_LAYER_SELECT)
 
 /* Mask Only */
-/** Grease Pencil data-block settings. */
 #define EXPANDED_MASK(mask) (mask->flag & MASK_ANIMF_EXPAND)
 /** Grease Pencil Layer settings. */
 #define EDITABLE_MASK(masklay) ((masklay->flag & MASK_LAYERFLAG_LOCKED) == 0)
@@ -502,7 +526,7 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 
 /** NLA track heights */
 #define NLATRACK_FIRST_TOP(ac) \
-  (UI_view2d_scale_get_y(&(ac)->region->v2d) * -UI_TIME_SCRUB_MARGIN_Y - NLATRACK_SKIP)
+  (blender::ui::view2d_scale_get_y(&(ac)->region->v2d) * -UI_TIME_SCRUB_MARGIN_Y - NLATRACK_SKIP)
 #define NLATRACK_HEIGHT(snla) \
   (((snla) && ((snla)->flag & SNLA_NOSTRIPCURVES)) ? (0.8f * U.widget_unit) : \
                                                      (1.2f * U.widget_unit))
@@ -594,6 +618,11 @@ void ANIM_animdata_freelist(ListBase *anim_data);
  * Check if the given animation container can contain grease pencil layer keyframes.
  */
 bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type);
+
+bAction *ANIM_active_action_from_area(Scene *scene,
+                                      ViewLayer *view_layer,
+                                      const ScrArea *area,
+                                      ID **r_action_user = nullptr);
 
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */
@@ -749,7 +778,7 @@ void ANIM_channel_draw(
 void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
-                               uiBlock *block,
+                               blender::ui::Block *block,
                                const rctf *rect,
                                size_t channel_index);
 
@@ -862,7 +891,12 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag);
 /**
  * Draw preview range 'curtains' for highlighting where the animation data is.
  */
-void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width);
+void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width);
+
+/**
+ * Draw range of the current sequencer scene strip when using scene time syncing.
+ */
+void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d);
 
 /** \} */
 
@@ -874,8 +908,6 @@ void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width)
 
 /**
  * Draw frame range guides (for scene frame range) in background.
- *
- * TODO: Should we still show these when preview range is enabled?
  */
 void ANIM_draw_framerange(Scene *scene, View2D *v2d);
 
@@ -1215,6 +1247,14 @@ void ED_animedit_unlink_action(
  * \note Currently called from window-manager.
  */
 void ED_drivers_editor_init(bContext *C, ScrArea *area);
+
+/**
+ * Delete an F-Curve from its owner.
+ *
+ * This can delete an F-Curve from an Action (both directly assigned and via an
+ * NLA strip), Drivers, and NLA control curves.
+ */
+void ED_anim_ale_fcurve_delete(bAnimContext &ac, bAnimListElem &ale);
 
 /* ************************************************ */
 

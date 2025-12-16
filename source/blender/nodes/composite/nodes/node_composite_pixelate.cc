@@ -14,7 +14,6 @@
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "node_composite_util.hh"
@@ -25,14 +24,13 @@ namespace blender::nodes::node_composite_pixelate_cc {
 
 static void cmp_node_pixelate_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Color").compositor_domain_priority(0);
-  b.add_input<decl::Int>("Size")
-      .default_value(1)
-      .min(1)
-      .description("The number of pixels that correspond to the same output pixel")
-      .compositor_expects_single_value();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Color>("Color").structure_type(StructureType::Dynamic).hide_value();
+  b.add_output<decl::Color>("Color").structure_type(StructureType::Dynamic).align_with_previous();
 
-  b.add_output<decl::Color>("Color");
+  b.add_input<decl::Int>("Size").default_value(1).min(1).description(
+      "The number of pixels that correspond to the same output pixel");
 }
 
 using namespace blender::compositor;
@@ -61,7 +59,7 @@ class PixelateOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_pixelate");
+    gpu::Shader *shader = context().get_shader("compositor_pixelate");
     GPU_shader_bind(shader);
 
     const int pixel_size = get_pixel_size();
@@ -75,7 +73,7 @@ class PixelateOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -90,7 +88,7 @@ class PixelateOperation : public NodeOperation {
     const Domain domain = compute_domain();
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     const int pixel_size = get_pixel_size();
     parallel_for(size, [&](const int2 texel) {
       int2 start = (texel / int2(pixel_size)) * int2(pixel_size);
@@ -99,13 +97,13 @@ class PixelateOperation : public NodeOperation {
       float4 accumulated_color = float4(0.0f);
       for (int y = start.y; y < end.y; y++) {
         for (int x = start.x; x < end.x; x++) {
-          accumulated_color += input.load_pixel<float4>(int2(x, y));
+          accumulated_color += float4(input.load_pixel<Color>(int2(x, y)));
         }
       }
 
       int2 size = end - start;
       int count = size.x * size.y;
-      output.store_pixel(texel, accumulated_color / count);
+      output.store_pixel(texel, Color(accumulated_color / count));
     });
   }
 
@@ -122,7 +120,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_pixelate_cc
 
-void register_node_type_cmp_pixelate()
+static void register_node_type_cmp_pixelate()
 {
   namespace file_ns = blender::nodes::node_composite_pixelate_cc;
 
@@ -140,3 +138,4 @@ void register_node_type_cmp_pixelate()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_pixelate)

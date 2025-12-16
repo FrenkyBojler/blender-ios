@@ -10,6 +10,7 @@
 #  include "BLI_fileops.hh"
 #  include "BLI_hash.hh"
 #  include "BLI_path_utils.hh"
+#  include "BLI_string.h"
 #  include "BLI_threads.h"
 #  include "CLG_log.h"
 #  include "GHOST_C-api.h"
@@ -131,9 +132,7 @@ static bool validate_binary(void *binary)
   return status;
 }
 
-}  // namespace blender::gpu
-
-static std::string cache_dir_get()
+std::string GL_shader_cache_dir_get()
 {
   static char tmp_dir_buffer[1024];
   BKE_appdir_folder_caches(tmp_dir_buffer, sizeof(tmp_dir_buffer));
@@ -143,6 +142,8 @@ static std::string cache_dir_get()
 
   return cache_dir;
 }
+
+}  // namespace blender::gpu
 
 void GPU_compilation_subprocess_run(const char *subprocess_name)
 {
@@ -187,7 +188,7 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
   GPUContext *gpu_context = GPU_context_create(nullptr, ghost_context);
   GPU_init();
 
-  std::string cache_dir = cache_dir_get();
+  std::string cache_dir = GL_shader_cache_dir_get();
 
   while (true) {
     /* Process events to avoid crashes on Wayland.
@@ -243,6 +244,14 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
 
     /* TODO: This should lock the files? */
     if (BLI_exists(cache_path.c_str())) {
+      {
+        /* Store the source hash in the shared memory.
+         * If the subprocess crashes, the main process will delete the cache file. */
+        std::string source_hash = "SOURCE_HASH:" + hash_str;
+        BLI_strncpy(reinterpret_cast<char *>(shared_mem.get_data()),
+                    source_hash.c_str(),
+                    source_hash.size() + 1);
+      }
       /* Prevent old cache files from being deleted if they're still being used. */
       BLI_file_touch(cache_path.c_str());
       /* Read cached binary. */
@@ -250,16 +259,23 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
       std::streamsize size = file.tellg();
       if (size <= compilation_subprocess_shared_memory_size) {
         file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char *>(shared_mem.get_data()), size);
+        /* Use temp memory so we don't overwrite the source hash. */
+        static char tmp_mem[compilation_subprocess_shared_memory_size];
+        file.read(tmp_mem, size);
+        /* Close first in case validation hangs the driver. */
+        file.close();
         /* Ensure it's valid. */
-        if (!validate_binary(shared_mem.get_data())) {
+        if (!validate_binary(tmp_mem)) {
           std::cout << "Compilation Subprocess: Failed to load cached shader binary " << hash_str
                     << "\n";
+          /* TODO: No longer true. */
           /* We can't compile the shader anymore since we have written over the source code,
            * but we delete the cache for the next time this shader is requested. */
-          file.close();
           BLI_delete(cache_path.c_str(), false, false);
         }
+        /* Copy the temp memory to the shared memory now that we know loading the shader doesn't
+         * crash the driver. */
+        memcpy(shared_mem.get_data(), tmp_mem, size);
         end_semaphore.increment();
         continue;
       }
@@ -275,13 +291,13 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
     SubprocessShader shader(comp_src, vert_src, geom_src, frag_src);
     ShaderBinaryHeader *binary = shader.get_binary(shared_mem.get_data());
 
-    end_semaphore.increment();
-
     if (binary) {
       fstream file(cache_path, std::ios::binary | std::ios::out);
       file.write(reinterpret_cast<char *>(shared_mem.get_data()),
                  binary->size + offsetof(ShaderBinaryHeader, data));
     }
+
+    end_semaphore.increment();
   }
 
   GPU_exit();
@@ -293,11 +309,11 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
 namespace blender::gpu {
 void GL_shader_cache_dir_clear_old()
 {
-  std::string cache_dir = cache_dir_get();
+  std::string cache_dir = GL_shader_cache_dir_get();
 
   direntry *entries = nullptr;
   uint32_t dir_len = BLI_filelist_dir_contents(cache_dir.c_str(), &entries);
-  for (int i : blender::IndexRange(dir_len)) {
+  for (int i : IndexRange(dir_len)) {
     direntry entry = entries[i];
     if (S_ISDIR(entry.s.st_mode)) {
       continue;

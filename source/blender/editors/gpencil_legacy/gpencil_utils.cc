@@ -12,7 +12,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_gpencil_legacy_types.h"
@@ -21,27 +20,21 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_paint.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
-#include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
 #include "UI_view2d.hh"
 
 #include "ED_clip.hh"
 #include "ED_gpencil_legacy.hh"
-#include "ED_object.hh"
-#include "ED_select_utils.hh"
 #include "ED_view3d.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -244,7 +237,7 @@ void gpencil_point_to_xy(
   else if (gps->flag & GP_STROKE_2DSPACE) {
     float vec[3] = {pt->x, pt->y, 0.0f};
     mul_m4_v3(gsc->mat, vec);
-    UI_view2d_view_to_region_clip(v2d, vec[0], vec[1], r_x, r_y);
+    blender::ui::view2d_view_to_region_clip(v2d, vec[0], vec[1], r_x, r_y);
   }
   else {
     if (subrect == nullptr) {
@@ -258,52 +251,6 @@ void gpencil_point_to_xy(
       *r_y = int((pt->y / 100) * BLI_rctf_size_y(subrect)) + subrect->ymin;
     }
   }
-}
-
-/**
- * Helper to convert 2d to 3d for simple drawing buffer.
- */
-static void gpencil_stroke_convertcoords(ARegion *region,
-                                         const tGPspoint *point2D,
-                                         const float origin[3],
-                                         float out[3])
-{
-  float mval_prj[2];
-  float rvec[3];
-
-  copy_v3_v3(rvec, origin);
-
-  const float zfac = ED_view3d_calc_zfac(static_cast<const RegionView3D *>(region->regiondata),
-                                         rvec);
-
-  if (ED_view3d_project_float_global(region, rvec, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK)
-  {
-    float dvec[3];
-    float xy_delta[2];
-    sub_v2_v2v2(xy_delta, mval_prj, point2D->m_xy);
-    ED_view3d_win_to_delta(region, xy_delta, zfac, dvec);
-    sub_v3_v3v3(out, rvec, dvec);
-  }
-  else {
-    zero_v3(out);
-  }
-}
-
-void ED_gpencil_tpoint_to_point(ARegion *region,
-                                float origin[3],
-                                const tGPspoint *tpt,
-                                bGPDspoint *pt)
-{
-  float p3d[3];
-  /* conversion to 3d format */
-  gpencil_stroke_convertcoords(region, tpt, origin, p3d);
-  copy_v3_v3(&pt->x, p3d);
-  zero_v4(pt->vert_color);
-
-  pt->pressure = tpt->pressure;
-  pt->strength = tpt->strength;
-  pt->uv_fac = tpt->uv_fac;
-  pt->uv_rot = tpt->uv_rot;
 }
 
 tGPspoint *ED_gpencil_sbuffer_ensure(tGPspoint *buffer_array,

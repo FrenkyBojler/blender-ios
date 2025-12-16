@@ -22,7 +22,7 @@
 #include "bpy_rna_gizmo.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -187,7 +187,6 @@ static void py_rna_gizmo_handler_get_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_XDECREF(ret);
 
@@ -237,7 +236,6 @@ static void py_rna_gizmo_handler_set_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_DECREF(args);
 
@@ -293,7 +291,6 @@ static void py_rna_gizmo_handler_range_get_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_XDECREF(ret);
 
@@ -318,7 +315,7 @@ static void py_rna_gizmo_handler_free_cb(const wmGizmo * /*gz*/, wmGizmoProperty
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_gizmo_target_set_handler_doc,
-    ".. method:: target_set_handler(target, get, set, range=None):\n"
+    ".. method:: target_set_handler(target, get, set, range=None)\n"
     "\n"
     "   Assigns callbacks to a gizmos property.\n"
     "\n"
@@ -431,7 +428,7 @@ fail:
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_gizmo_target_get_value_doc,
-    ".. method:: target_get_value(target):\n"
+    ".. method:: target_get_value(target)\n"
     "\n"
     "   Get the value of this target property.\n"
     "\n"
@@ -502,7 +499,7 @@ fail:
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_gizmo_target_set_value_doc,
-    ".. method:: target_set_value(target):\n"
+    ".. method:: target_set_value(target)\n"
     "\n"
     "   Set the value of this target property.\n"
     "\n"
@@ -589,7 +586,7 @@ fail:
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_gizmo_target_get_range_doc,
-    ".. method:: target_get_range(target):\n"
+    ".. method:: target_get_range(target)\n"
     "\n"
     "   Get the range for this target property.\n"
     "\n"

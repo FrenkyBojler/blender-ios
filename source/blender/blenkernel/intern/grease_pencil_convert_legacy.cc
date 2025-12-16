@@ -106,11 +106,11 @@ struct AnimDataFCurveConvertor {
   const char *relative_rna_path_dst;
 
   /** Optional callback to perform additional conversion work on a specific FCurve. */
-  blender::FunctionRef<FCurveConvertCB> convert_cb;
+  FunctionRef<FCurveConvertCB> convert_cb;
 
   AnimDataFCurveConvertor(const char *relative_rna_path_src,
                           const char *relative_rna_path_dst,
-                          blender::FunctionRef<FCurveConvertCB> convert_cb = {nullptr})
+                          FunctionRef<FCurveConvertCB> convert_cb = {nullptr})
       : relative_rna_path_src(relative_rna_path_src),
         relative_rna_path_dst(relative_rna_path_dst),
         convert_cb(convert_cb)
@@ -126,7 +126,7 @@ struct AnimDataFCurveConvertor {
  *  - Convert FCurves and move them from the source to the destination IDs animation data.
  * The constructor used defines which of these two 'modes' will be the used by a given convertor.
  *
- * RNA paths to convert can be specified  in two ways:
+ * RNA paths to convert can be specified in two ways:
  *  - Complete paths, with a list of source to destination pairs of paths (relative to the relevant
  * root paths).
  *  - Only by the source and destination root paths (in which case all FCurves starting by these
@@ -157,7 +157,7 @@ class AnimDataConvertor {
    * Source (old) RNA property path in source ID to destination (new) matching property RNA path in
    * destination ID.
    *
-   * \note All paths here are relative the their respective (source or destination) root path.
+   * \note All paths here are relative to their respective (source or destination) root path.
    * \note If this array is empty, all FCurves starting with `root_path_source` will be "rebased"
    * on `root_path_dst`.
    */
@@ -178,9 +178,9 @@ class AnimDataConvertor {
    *
    * Currently only used when moving animation from one source ID to a different destination ID.
    */
-  blender::Vector<FCurve *> fcurves_from_src_main_action = {};
-  blender::Vector<FCurve *> fcurves_from_src_tmp_action = {};
-  blender::Vector<FCurve *> fcurves_from_src_drivers = {};
+  Vector<FCurve *> fcurves_from_src_main_action = {};
+  Vector<FCurve *> fcurves_from_src_tmp_action = {};
+  Vector<FCurve *> fcurves_from_src_drivers = {};
   /**
    * Generic 'has done something' flag, used to decide whether depsgraph tagging for updates is
    * needed.
@@ -267,8 +267,7 @@ class AnimDataConvertor {
 
   /* Iterator over all FCurves in a given animation data. */
 
-  bool fcurve_foreach_in_action(bAction *owner_action,
-                                blender::FunctionRef<FCurveCallback> callback) const
+  bool fcurve_foreach_in_action(bAction *owner_action, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     animrig::foreach_fcurve_in_action(owner_action->wrap(), [&](FCurve &fcurve) {
@@ -279,8 +278,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool fcurve_foreach_in_listbase(ListBase &fcurves,
-                                  blender::FunctionRef<FCurveCallback> callback) const
+  bool fcurve_foreach_in_listbase(ListBase &fcurves, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     LISTBASE_FOREACH (FCurve *, fcurve, &fcurves) {
@@ -290,8 +288,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool nla_strip_fcurve_foreach(NlaStrip &nla_strip,
-                                blender::FunctionRef<FCurveCallback> callback) const
+  bool nla_strip_fcurve_foreach(NlaStrip &nla_strip, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     if (nla_strip.act) {
@@ -307,8 +304,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool animdata_fcurve_foreach(AnimData &anim_data,
-                               blender::FunctionRef<FCurveCallback> callback) const
+  bool animdata_fcurve_foreach(AnimData &anim_data, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     if (anim_data.action) {
@@ -345,7 +341,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool action_process(bAction &action, blender::FunctionRef<ActionCallback> callback) const
+  bool action_process(bAction &action, FunctionRef<ActionCallback> callback) const
   {
     if (callback(action)) {
       DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
@@ -354,8 +350,7 @@ class AnimDataConvertor {
     return false;
   }
 
-  bool nla_strip_action_foreach(NlaStrip &nla_strip,
-                                blender::FunctionRef<ActionCallback> callback) const
+  bool nla_strip_action_foreach(NlaStrip &nla_strip, FunctionRef<ActionCallback> callback) const
   {
     bool is_changed = false;
     if (nla_strip.act) {
@@ -367,8 +362,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool animdata_action_foreach(AnimData &anim_data,
-                               blender::FunctionRef<ActionCallback> callback) const
+  bool animdata_action_foreach(AnimData &anim_data, FunctionRef<ActionCallback> callback) const
   {
     bool is_changed = false;
 
@@ -631,7 +625,7 @@ class AnimDataConvertor {
   }
 };
 
-/* \} */
+/** \} */
 
 /**
  * Find vertex groups that have assigned vertices in this drawing.
@@ -1036,6 +1030,7 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
   BLI_assert(!grease_pencil.id.properties);
   if (gpd.id.properties) {
     grease_pencil.id.properties = IDP_CopyProperty(gpd.id.properties);
+    grease_pencil.id.system_properties = IDP_CopyProperty(gpd.id.properties);
   }
 
   /** Convert Grease Pencil data flag. */
@@ -1316,7 +1311,7 @@ static void thickness_factor_to_modifier(ConversionData &conversion_data,
 
   tmd->thickness_fac = thickness_factor;
 
-  STRNCPY(md->name, DATA_("Thickness"));
+  STRNCPY_UTF8(md->name, DATA_("Thickness"));
   BKE_modifier_unique_name(&dst_object.modifiers, md);
 
   BLI_addtail(&dst_object.modifiers, md);
@@ -1434,11 +1429,11 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
 
       copy_v3_v3(tmd->color, tint_color);
       tmd->factor = tint_factor;
-      STRNCPY(tmd->influence.layer_name, gpl->info);
+      STRNCPY_UTF8(tmd->influence.layer_name, gpl->info);
 
       char modifier_name[MAX_NAME];
-      SNPRINTF(modifier_name, "Tint %s", gpl->info);
-      STRNCPY(md->name, modifier_name);
+      SNPRINTF_UTF8(modifier_name, "Tint %s", gpl->info);
+      STRNCPY_UTF8(md->name, modifier_name);
       BKE_modifier_unique_name(&dst_object.modifiers, md);
 
       BLI_addtail(&dst_object.modifiers, md);
@@ -1491,8 +1486,8 @@ static void layer_adjustments_to_modifiers(ConversionData &conversion_data,
       auto *md = reinterpret_cast<NodesModifierData *>(BKE_modifier_new(eModifierType_Nodes));
 
       char modifier_name[MAX_NAME];
-      SNPRINTF(modifier_name, "Thickness %s", gpl->info);
-      STRNCPY(md->modifier.name, modifier_name);
+      SNPRINTF_UTF8(modifier_name, "Thickness %s", gpl->info);
+      STRNCPY_UTF8(md->modifier.name, modifier_name);
       BKE_modifier_unique_name(&dst_object.modifiers, &md->modifier);
       md->node_group = offset_radius_node_tree;
 
@@ -3196,7 +3191,7 @@ void lineart_wrap_v3(const LineartGpencilModifierData *lmd_legacy,
   lmd->shadow_camera_near = lmd_legacy->shadow_camera_near;
   lmd->shadow_camera_far = lmd_legacy->shadow_camera_far;
   lmd->opacity = lmd_legacy->opacity;
-  lmd->thickness = lmd_legacy->thickness;
+  lmd->radius = float(lmd_legacy->thickness) * LEGACY_RADIUS_CONVERSION_FACTOR;
   lmd->mask_switches = lmd_legacy->mask_switches;
   lmd->material_mask_bits = lmd_legacy->material_mask_bits;
   lmd->intersection_mask = lmd_legacy->intersection_mask;
@@ -3239,7 +3234,7 @@ void lineart_unwrap_v3(LineartGpencilModifierData *lmd_legacy,
   lmd_legacy->shadow_camera_near = lmd->shadow_camera_near;
   lmd_legacy->shadow_camera_far = lmd->shadow_camera_far;
   lmd_legacy->opacity = lmd->opacity;
-  lmd_legacy->thickness = lmd->thickness;
+  lmd_legacy->thickness = lmd->radius / LEGACY_RADIUS_CONVERSION_FACTOR;
   lmd_legacy->mask_switches = lmd->mask_switches;
   lmd_legacy->material_mask_bits = lmd->material_mask_bits;
   lmd_legacy->intersection_mask = lmd->intersection_mask;

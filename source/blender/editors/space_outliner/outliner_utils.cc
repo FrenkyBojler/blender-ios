@@ -31,6 +31,7 @@
 
 #include "outliner_intern.hh"
 #include "tree/tree_display.hh"
+#include "tree/tree_element_rna.hh"
 
 namespace blender::ed::outliner {
 
@@ -41,6 +42,8 @@ namespace blender::ed::outliner {
 void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
 {
   memset(tvc, 0, sizeof(*tvc));
+  /* Workspace. */
+  tvc->workspace = CTX_wm_workspace(C);
 
   /* Scene level. */
   tvc->scene = CTX_data_scene(C);
@@ -191,6 +194,19 @@ TreeElement *outliner_find_id(SpaceOutliner *space_outliner, ListBase *lb, const
     if (tselem->type == TSE_SOME_ID) {
       if (tselem->id == id) {
         return te;
+      }
+    }
+    else if (tselem->type == TSE_RNA_STRUCT) {
+      /* No ID, so check if entry is RNA-struct, and if that RNA-struct is an ID datablock we are
+       * good. */
+      const TreeElementRNAStruct *te_rna_struct = tree_element_cast<TreeElementRNAStruct>(te);
+      if (te_rna_struct) {
+        const PointerRNA &ptr = te_rna_struct->get_pointer_rna();
+        if (RNA_struct_is_ID(ptr.type)) {
+          if (static_cast<ID *>(ptr.data) == id) {
+            return te;
+          }
+        }
       }
     }
 
@@ -468,7 +484,7 @@ Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2])
   Base *base = nullptr;
   float view_mval[2];
 
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);
   if (te) {
@@ -489,7 +505,7 @@ bool ED_outliner_give_rna_under_cursor(bContext *C, const int mval[2], PointerRN
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   float view_mval[2];
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);
   if (!te) {

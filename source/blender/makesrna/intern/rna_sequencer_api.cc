@@ -14,6 +14,7 @@
 
 #include "RNA_define.hh"
 
+#include "RNA_enum_types.hh"
 #include "SEQ_edit.hh"
 #include "SEQ_sequencer.hh"
 
@@ -21,30 +22,17 @@
 
 #ifdef RNA_RUNTIME
 
-// #include "DNA_anim_types.h"
-#  include "DNA_image_types.h"
 #  include "DNA_mask_types.h"
-#  include "DNA_sound_types.h"
 
 #  include "BLI_path_utils.hh" /* #BLI_path_split_dir_file */
 
-#  include "BKE_image.hh"
-#  include "BKE_mask.h"
-#  include "BKE_movieclip.h"
-
 #  include "BKE_report.hh"
-#  include "BKE_sound.h"
-
-#  include "IMB_imbuf.hh"
-#  include "IMB_imbuf_types.hh"
 
 #  include "SEQ_add.hh"
-#  include "SEQ_edit.hh"
 #  include "SEQ_effects.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_render.hh"
 #  include "SEQ_retiming.hh"
-#  include "SEQ_time.hh"
 
 #  include "WM_api.hh"
 
@@ -87,15 +75,26 @@ static void rna_Strips_move_strip_to_meta(
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 }
 
-static Strip *rna_Strip_split(
-    ID *id, Strip *strip, Main *bmain, ReportList *reports, int frame, int split_method)
+static Strip *rna_Strip_split(ID *id,
+                              Strip *strip,
+                              Main *bmain,
+                              ReportList *reports,
+                              int frame,
+                              int split_method,
+                              bool ignore_connections)
 {
   Scene *scene = (Scene *)id;
   ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   const char *error_msg = nullptr;
-  Strip *r_seq = blender::seq::edit_strip_split(
-      bmain, scene, seqbase, strip, frame, blender::seq::eSplitMethod(split_method), &error_msg);
+  Strip *strip_split = blender::seq::edit_strip_split(bmain,
+                                                      scene,
+                                                      seqbase,
+                                                      strip,
+                                                      frame,
+                                                      blender::seq::eSplitMethod(split_method),
+                                                      ignore_connections,
+                                                      &error_msg);
   if (error_msg != nullptr) {
     BKE_report(reports, RPT_ERROR, error_msg);
   }
@@ -106,7 +105,7 @@ static Strip *rna_Strip_split(
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
-  return r_seq;
+  return strip_split;
 }
 
 static Strip *rna_Strip_parent_meta(ID *id, Strip *strip_self)
@@ -247,11 +246,11 @@ static Strip *rna_Strips_new_image(ID *id,
 
   blender::seq::LoadData load_data;
   blender::seq::add_load_data_init(&load_data, name, file, frame_start, channel);
-  load_data.image.len = 1;
+  load_data.image.count = 1;
   load_data.fit_method = eSeqImageFitMethod(fit_method);
 
   char vt_old[64];
-  STRNCPY(vt_old, scene->view_settings.view_transform);
+  STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
 
   Strip *strip = blender::seq::add_image_strip(bmain, scene, seqbase, &load_data);
 
@@ -267,7 +266,7 @@ static Strip *rna_Strips_new_image(ID *id,
   BLI_path_split_dir_file(file, dirpath, sizeof(dirpath), filename, sizeof(filename));
   blender::seq::add_image_set_directory(strip, dirpath);
   blender::seq::add_image_load_file(scene, strip, 0, filename);
-  blender::seq::add_image_init_alpha_mode(strip);
+  blender::seq::add_image_init_alpha_mode(bmain, scene, strip);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -321,7 +320,7 @@ static Strip *rna_Strips_new_movie(ID *id,
   load_data.allow_invalid_file = true;
 
   char vt_old[64];
-  STRNCPY(vt_old, scene->view_settings.view_transform);
+  STRNCPY_UTF8(vt_old, scene->view_settings.view_transform);
   float fps_old = scene->r.frs_sec / scene->r.frs_sec_base;
 
   Strip *strip = blender::seq::add_movie_strip(bmain, scene, seqbase, &load_data);
@@ -477,9 +476,9 @@ static Strip *rna_Strips_new_effect(ID *id,
                                     int type,
                                     int channel,
                                     int frame_start,
-                                    int frame_end,
-                                    Strip *seq1,
-                                    Strip *seq2)
+                                    int length,
+                                    Strip *input1,
+                                    Strip *input2)
 {
   Scene *scene = (Scene *)id;
   Strip *strip;
@@ -487,19 +486,19 @@ static Strip *rna_Strips_new_effect(ID *id,
 
   switch (num_inputs) {
     case 0:
-      if (frame_end <= frame_start) {
-        BKE_report(reports, RPT_ERROR, "Strips.new_effect: end frame not set");
+      if (length <= 0) {
+        BKE_report(reports, RPT_ERROR, "Strips.new_effect: invalid length");
         return nullptr;
       }
       break;
     case 1:
-      if (seq1 == nullptr) {
+      if (input1 == nullptr) {
         BKE_report(reports, RPT_ERROR, "Strips.new_effect: effect takes 1 input strip");
         return nullptr;
       }
       break;
     case 2:
-      if (seq1 == nullptr || seq2 == nullptr) {
+      if (input1 == nullptr || input2 == nullptr) {
         BKE_report(reports, RPT_ERROR, "Strips.new_effect: effect takes 2 input strips");
         return nullptr;
       }
@@ -515,10 +514,10 @@ static Strip *rna_Strips_new_effect(ID *id,
 
   blender::seq::LoadData load_data;
   blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
-  load_data.effect.end_frame = frame_end;
-  load_data.effect.type = type;
-  load_data.effect.seq1 = seq1;
-  load_data.effect.seq2 = seq2;
+  load_data.effect.length = length;
+  load_data.effect.type = StripType(type);
+  load_data.effect.input1 = input1;
+  load_data.effect.input2 = input2;
   strip = blender::seq::add_effect_strip(scene, seqbase, &load_data);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -534,12 +533,12 @@ static Strip *rna_Strips_editing_new_effect(ID *id,
                                             int type,
                                             int channel,
                                             int frame_start,
-                                            int frame_end,
-                                            Strip *seq1,
-                                            Strip *seq2)
+                                            int length,
+                                            Strip *input1,
+                                            Strip *input2)
 {
   return rna_Strips_new_effect(
-      id, &ed->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
+      id, &ed->seqbase, reports, name, type, channel, frame_start, length, input1, input2);
 }
 
 static Strip *rna_Strips_meta_new_effect(ID *id,
@@ -549,12 +548,12 @@ static Strip *rna_Strips_meta_new_effect(ID *id,
                                          int type,
                                          int channel,
                                          int frame_start,
-                                         int frame_end,
-                                         Strip *seq1,
-                                         Strip *seq2)
+                                         int length,
+                                         Strip *input1,
+                                         Strip *input2)
 {
   return rna_Strips_new_effect(
-      id, &strip->seqbase, reports, name, type, channel, frame_start, frame_end, seq1, seq2);
+      id, &strip->seqbase, reports, name, type, channel, frame_start, length, input1, input2);
 }
 
 static void rna_Strips_remove(
@@ -656,11 +655,8 @@ static void rna_Strip_invalidate_cache_rnafunc(ID *id, Strip *self, int type)
     case SEQ_CACHE_STORE_RAW:
       blender::seq::relations_invalidate_cache_raw((Scene *)id, self);
       break;
-    case SEQ_CACHE_STORE_PREPROCESSED:
-      blender::seq::relations_invalidate_cache_preprocessed((Scene *)id, self);
-      break;
-    case SEQ_CACHE_STORE_COMPOSITE:
-      blender::seq::relations_invalidate_cache_composite((Scene *)id, self);
+    case SEQ_CACHE_STORE_FINAL_OUT:
+      blender::seq::relations_invalidate_cache((Scene *)id, self);
       break;
   }
 }
@@ -695,8 +691,7 @@ void RNA_api_strip(StructRNA *srna)
 
   static const EnumPropertyItem strip_cache_type_items[] = {
       {SEQ_CACHE_STORE_RAW, "RAW", 0, "Raw", ""},
-      {SEQ_CACHE_STORE_PREPROCESSED, "PREPROCESSED", 0, "Preprocessed", ""},
-      {SEQ_CACHE_STORE_COMPOSITE, "COMPOSITE", 0, "Composite", ""},
+      {SEQ_CACHE_STORE_FINAL_OUT, "COMPOSITE", 0, "Composite", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -757,6 +752,8 @@ void RNA_api_strip(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_enum(func, "split_method", strip_split_method_items, 0, "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  parm = RNA_def_boolean(
+      func, "ignore_connections", false, "", "Don't propagate split to connected strips");
   /* Return type. */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "Right side Strip");
   RNA_def_function_return(func, parm);
@@ -816,35 +813,26 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
   FunctionRNA *func;
 
   static const EnumPropertyItem strip_effect_items[] = {
-      {STRIP_TYPE_CROSS, "CROSS", 0, "Cross", ""},
-      {STRIP_TYPE_ADD, "ADD", 0, "Add", ""},
-      {STRIP_TYPE_SUB, "SUBTRACT", 0, "Subtract", ""},
-      {STRIP_TYPE_ALPHAOVER, "ALPHA_OVER", 0, "Alpha Over", ""},
-      {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", ""},
-      {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Cross", ""},
-      {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", ""},
-      {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", ""},
-      {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", ""},
-      {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", ""},
-      {STRIP_TYPE_COLOR, "COLOR", 0, "Color", ""},
-      {STRIP_TYPE_SPEED, "SPEED", 0, "Speed", ""},
-      {STRIP_TYPE_MULTICAM, "MULTICAM", 0, "Multicam Selector", ""},
-      {STRIP_TYPE_ADJUSTMENT, "ADJUSTMENT", 0, "Adjustment Layer", ""},
-      {STRIP_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", ""},
-      {STRIP_TYPE_TEXT, "TEXT", 0, "Text", ""},
-      {STRIP_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  static const EnumPropertyItem scale_fit_methods[] = {
-      {SEQ_SCALE_TO_FIT, "FIT", 0, "Scale to Fit", "Scale image so fits in preview"},
-      {SEQ_SCALE_TO_FILL,
-       "FILL",
+      {STRIP_TYPE_CROSS, "CROSS", 0, "Crossfade", "Fade out of one video, fading into another"},
+      {STRIP_TYPE_ADD, "ADD", 0, "Add", "Add together color channels from two videos"},
+      {STRIP_TYPE_SUB, "SUBTRACT", 0, "Subtract", "Subtract one strip's color from another"},
+      {STRIP_TYPE_ALPHAOVER, "ALPHA_OVER", 0, "Alpha Over", "Blend alpha on top of another video"},
+      {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", "Blend alpha below another video"},
+      {STRIP_TYPE_GAMCROSS,
+       "GAMMA_CROSS",
        0,
-       "Scale to Fill",
-       "Scale image so it fills preview completely"},
-      {SEQ_STRETCH_TO_FILL, "STRETCH", 0, "Stretch to Fill", "Stretch image so it fills preview"},
-      {SEQ_USE_ORIGINAL_SIZE, "ORIGINAL", 0, "Use Original Size", "Don't scale the image"},
+       "Gamma Crossfade",
+       "Crossfade with color correction"},
+      {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", "Multiply color channels from two videos"},
+      {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", "Sweep a transition line across the frame"},
+      {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", "Add blur and brightness to light areas"},
+      {STRIP_TYPE_COLOR, "COLOR", 0, "Color", "Add a simple color strip"},
+      {STRIP_TYPE_SPEED, "SPEED", 0, "Speed", "Timewarp video strips, modifying playback speed"},
+      {STRIP_TYPE_MULTICAM, "MULTICAM", 0, "Multicam Selector", "Control active camera angles"},
+      {STRIP_TYPE_ADJUSTMENT, "ADJUSTMENT", 0, "Adjustment Layer", "Apply nondestructive effects"},
+      {STRIP_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", "Soften details along axes"},
+      {STRIP_TYPE_TEXT, "TEXT", 0, "Text", "Add a simple text strip"},
+      {STRIP_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", "Combine two strips using blend modes"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -990,8 +978,12 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      -MAXFRAME,
                      MAXFRAME);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_enum(
-      func, "fit_method", scale_fit_methods, SEQ_USE_ORIGINAL_SIZE, "Image Fit Method", nullptr);
+  parm = RNA_def_enum(func,
+                      "fit_method",
+                      rna_enum_strip_scale_method_items,
+                      SEQ_USE_ORIGINAL_SIZE,
+                      "Image Fit Method",
+                      nullptr);
   /* return type */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Strip");
   RNA_def_function_return(func, parm);
@@ -1023,8 +1015,12 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      -MAXFRAME,
                      MAXFRAME);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_enum(
-      func, "fit_method", scale_fit_methods, SEQ_USE_ORIGINAL_SIZE, "Image Fit Method", nullptr);
+  parm = RNA_def_enum(func,
+                      "fit_method",
+                      rna_enum_strip_scale_method_items,
+                      SEQ_USE_ORIGINAL_SIZE,
+                      "Image Fit Method",
+                      nullptr);
   /* return type */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Strip");
   RNA_def_function_return(func, parm);
@@ -1118,16 +1114,16 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
                      INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_int(func,
-              "frame_end",
+              "length",
               0,
               INT_MIN,
               INT_MAX,
               "",
-              "The end frame for the new strip",
+              "Length of the strip in frames, or the length of each strip if multiple are added",
               INT_MIN,
               INT_MAX);
-  RNA_def_pointer(func, "seq1", "Strip", "", "Strip 1 for effect");
-  RNA_def_pointer(func, "seq2", "Strip", "", "Strip 2 for effect");
+  RNA_def_pointer(func, "input1", "Strip", "", "First input strip for effect");
+  RNA_def_pointer(func, "input2", "Strip", "", "Second input strip for effect");
   /* return type */
   parm = RNA_def_pointer(func, "sequence", "Strip", "", "New Strip");
   RNA_def_function_return(func, parm);

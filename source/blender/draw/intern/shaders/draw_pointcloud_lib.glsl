@@ -4,8 +4,12 @@
 
 #pragma once
 
+#include "draw_defines.hh"
+
 #include "draw_model_lib.glsl"
 #include "draw_view_lib.glsl"
+
+#include "gpu_shader_utildefines_lib.glsl"
 
 #ifdef POINTCLOUD_SHADER
 #  define COMMON_POINTCLOUD_LIB
@@ -18,7 +22,7 @@ int pointcloud_get_point_id()
 {
 #  ifdef GPU_VERTEX_SHADER
   /* Remove shape indices. */
-  return gl_VertexID >> 3;
+  return gl_VertexID / DRW_POINTCLOUD_STRIP_TILE_SIZE;
 #  endif
   return 0;
 }
@@ -27,6 +31,11 @@ float3x3 pointcloud_get_facing_matrix(float3 p)
 {
   float3x3 facing_mat;
   facing_mat[2] = drw_world_incident_vector(p);
+#  ifdef MAT_GEOM_POINTCLOUD
+  if (ptcloud_backface) {
+    facing_mat[2] = -facing_mat[2];
+  }
+#  endif
   facing_mat[1] = normalize(cross(drw_view().viewinv[0].xyz, facing_mat[2]));
   facing_mat[0] = cross(facing_mat[1], facing_mat[2]);
   return facing_mat;
@@ -52,27 +61,35 @@ void pointcloud_get_pos_nor_radius(out float3 outpos, out float3 outnor, out flo
 
   uint vert_id = 0u;
 #  ifdef GPU_VERTEX_SHADER
-  /* Mask point indices. */
-  vert_id = uint(gl_VertexID) & ~(0xFFFFFFFFu << 3u);
+  vert_id = gl_VertexID % DRW_POINTCLOUD_STRIP_TILE_SIZE;
 #  endif
 
   float3 pos_inst = float3(0.0f);
 
   switch (vert_id) {
     case 0:
-      pos_inst.z = 1.0f;
+      pos_inst = float3(-1.0, 0.0, 0.0);
       break;
     case 1:
-      pos_inst.x = 1.0f;
+      pos_inst = float3(0.0, -1.0, 0.0);
       break;
     case 2:
-      pos_inst.y = 1.0f;
+      pos_inst = float3(0.0, 0.0, 1.0);
       break;
     case 3:
-      pos_inst.x = -1.0f;
+      pos_inst = float3(1.0, 0.0, 0.0);
       break;
     case 4:
-      pos_inst.y = -1.0f;
+      pos_inst = float3(0.0, 0.0, 1.0);
+      break;
+    case 5:
+      pos_inst = float3(0.0, 1.0, 0.0);
+      break;
+    case 6:
+      pos_inst = float3(-1.0, 0.0, 0.0);
+      break;
+    case 7:
+      pos_inst = float3(NAN_FLT);
       break;
   }
 

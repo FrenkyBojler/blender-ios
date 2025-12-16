@@ -11,6 +11,7 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
@@ -29,6 +30,11 @@ class IDRemapper;
 namespace blender::asset_system {
 class AssetRepresentation;
 }
+
+namespace blender::ui {
+struct Layout;
+struct Block;
+}  // namespace blender::ui
 
 struct ARegion;
 struct AssetShelfType;
@@ -53,8 +59,6 @@ struct View3DShading;
 struct WorkSpace;
 struct bContext;
 struct bScreen;
-struct uiBlock;
-struct uiLayout;
 struct uiList;
 struct wmDrawBuffer;
 struct wmGizmoMap;
@@ -198,6 +202,29 @@ struct RegionPollParams {
   const bContext *context;
 };
 
+enum class ARegionTypeFlag {
+  /**
+   * Use panel categories, where #PanelType.category and #ARegion.panels_category_active define
+   * which panels are visible. Available categories are collected during layout and cached in
+   * #ARegion.panels_category_active.
+   */
+  UsePanelCategories = (1 << 0),
+  /**
+   * Same as #UsePanelCategories, plus panel drawing will draw tabs for the categories in this
+   * region.
+   */
+  UsePanelCategoryTabs = (1 << 1),
+};
+ENUM_OPERATORS(ARegionTypeFlag)
+
+/* #ARegionType::lock */
+enum ARegionDrawLockFlags {
+  REGION_DRAW_LOCK_NONE = 0,
+  REGION_DRAW_LOCK_RENDER = (1 << 0),
+  REGION_DRAW_LOCK_BAKING = (1 << 1),
+  REGION_DRAW_LOCK_ALL = (REGION_DRAW_LOCK_RENDER | REGION_DRAW_LOCK_BAKING)
+};
+
 struct ARegionType {
   ARegionType *next, *prev;
   /** Unique identifier within this space, defines `RGN_TYPE_xxxx`. */
@@ -267,9 +294,11 @@ struct ARegionType {
    * performed.
    *
    * This callback is not called on indirect changes of the current viewport (which could happen
-   * when the `v2d->tot is changed and `cur` is adopted accordingly).
+   * when the `v2d->tot` is changed and `cur` is adopted accordingly).
    */
   void (*on_view2d_changed)(const bContext *C, ARegion *region);
+
+  ARegionTypeFlag flag;
 
   /** Custom drawing callbacks. */
   ListBase drawcalls;
@@ -288,10 +317,11 @@ struct ARegionType {
   int keymapflag;
   /**
    * Return without drawing.
-   * lock is set by region definition, and copied to do_lock by render. can become flag.
+   * lock is set by region definition, and copied to do_lock by render.
+   * Set as bitflag value in #ARegionDrawLockFlags.
    */
   short do_lock, lock;
-  /** Don't handle gizmos events behind #uiBlock's with #UI_BLOCK_CLIP_EVENTS flag set. */
+  /** Don't handle gizmos events behind #ui::Block's with #BLOCK_CLIP_EVENTS flag set. */
   bool clip_gizmo_events_by_ui;
   /** Call cursor function on each move event. */
   short event_cursor;
@@ -400,12 +430,12 @@ struct LayoutPanelBody {
 };
 
 /**
- * "Layout Panels" are panels which are defined as part of the #uiLayout. As such they have a
- * specific place in the layout and can not be freely dragged around like top level panels.
+ * "Layout Panels" are panels which are defined as part of the #blender::ui::Layout. As such they
+ * have a specific place in the layout and can not be freely dragged around like top level panels.
  *
  * This struct gathers information about the layout panels created by layout code. This is then
- * used for e.g. drawing the backdrop of nested panels and to support opening and closing multiple
- * panels with a single mouse gesture.
+ * used for example drawing the backdrop of nested panels and to support opening and closing
+ * multiple panels with a single mouse gesture.
  */
 struct LayoutPanels {
   blender::Vector<LayoutPanelHeader> headers;
@@ -432,10 +462,10 @@ struct Panel_Runtime {
   PointerRNA *custom_data_ptr = nullptr;
 
   /**
-   * Pointer to the panel's block. Useful when changes to panel #uiBlocks
+   * Pointer to the panel's block. Useful when changes to panel #ui::Blocks
    * need some context from traversal of the panel "tree".
    */
-  uiBlock *block = nullptr;
+  blender::ui::Block *block = nullptr;
 
   /** Non-owning pointer. The context is stored in the block. */
   bContextStore *context = nullptr;
@@ -471,9 +501,9 @@ struct ARegionRuntime {
   /** Panel category to use between 'layout' and 'draw'. */
   const char *category = nullptr;
 
-  /** Maps #uiBlock::name to uiBlock for faster lookups. */
-  Map<std::string, uiBlock *> block_name_map;
-  /** #uiBlock. */
+  /** Maps #ui::Block::name to ui::Block for faster lookups. */
+  Map<std::string, blender::ui::Block *> block_name_map;
+  /** #ui::Block. */
   ListBase uiblocks = {};
 
   /** #wmEventHandler. */
@@ -513,7 +543,7 @@ struct ARegionRuntime {
 /** Draw an item in the `ui_list`. */
 using uiListDrawItemFunc = void (*)(uiList *ui_list,
                                     const bContext *C,
-                                    uiLayout *layout,
+                                    blender::ui::Layout &layout,
                                     PointerRNA *dataptr,
                                     PointerRNA *itemptr,
                                     int icon,
@@ -523,7 +553,9 @@ using uiListDrawItemFunc = void (*)(uiList *ui_list,
                                     int flt_flag);
 
 /** Draw the filtering part of an uiList. */
-using uiListDrawFilterFunc = void (*)(uiList *ui_list, const bContext *C, uiLayout *layout);
+using uiListDrawFilterFunc = void (*)(uiList *ui_list,
+                                      const bContext *C,
+                                      blender::ui::Layout &layout);
 
 /** Filter items of an uiList. */
 using uiListFilterItemsFunc = void (*)(uiList *ui_list,
@@ -572,7 +604,7 @@ struct Header {
   /** Runtime. */
   HeaderType *type;
   /** Runtime for drawing. */
-  uiLayout *layout;
+  blender::ui::Layout *layout;
 };
 
 /* Menu types. */
@@ -588,7 +620,7 @@ enum class MenuTypeFlag {
    */
   SearchOnKeyPress = (1 << 1),
 };
-ENUM_OPERATORS(MenuTypeFlag, MenuTypeFlag::ContextDependent)
+ENUM_OPERATORS(MenuTypeFlag)
 
 struct MenuType {
   MenuType *next, *prev;
@@ -618,7 +650,7 @@ struct Menu {
   /** Runtime. */
   MenuType *type;
   /** Runtime for drawing. */
-  uiLayout *layout;
+  blender::ui::Layout *layout;
 };
 
 /* Asset shelf types. */
@@ -632,12 +664,16 @@ enum AssetShelfTypeFlag {
   ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG = (1 << 0),
   ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE = (1 << 1),
   ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS = (1 << 2),
-
-  ASSET_SHELF_TYPE_FLAG_MAX
+  /**
+   * When spawning a context menu for an asset, activate the asset and call the activate operator
+   * (`bl_activate_operator`/#AssetShelfType.activate_operator) if present, rather than just
+   * highlighting the asset as active.
+   */
+  ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU = (1 << 3),
 };
-ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_MAX);
+ENUM_OPERATORS(AssetShelfTypeFlag);
 
-#define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 64
+#define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 48
 
 struct AssetShelfType {
   /** Unique name. */
@@ -645,8 +681,21 @@ struct AssetShelfType {
 
   int space_type;
 
+  /**
+   * `FILTER_ID_` bit-flags to pre-filter ID types to include in the asset shelf, as if
+   * #asset_poll() returned false for non-matching IDs. If this isn't set (== 0), no pre-filtering
+   * will be done.
+   *
+   * For bigger asset libraries, many assets can usually be excluded cheaply this way. Calling
+   * #asset_poll() on many assets isn't cheap, so doing the ID type check only in there can cause
+   * performance issues.
+   */
+  uint64_t id_types_prefilter; /* rna_enum_id_type_filter_items */
+
   /** Operator to call when activating a grid view item. */
   std::string activate_operator;
+  /** Operator to call when dragging a grid view item. */
+  std::string drag_operator;
 
   AssetShelfTypeFlag flag;
 
@@ -656,8 +705,9 @@ struct AssetShelfType {
   bool (*poll)(const bContext *C, const AssetShelfType *shelf_type);
 
   /**
-   * Determine if an individual asset should be visible or not. May be a temporary design,
-   * visibility should first and foremost be controlled by asset traits.
+   * Determine if an individual asset should be visible or not.
+   * Don't use directly, use #blender::ed::asset::shelf::type_asset_poll() (does additional
+   * pre-filtering based on the ID-type).
    */
   bool (*asset_poll)(const AssetShelfType *shelf_type,
                      const blender::asset_system::AssetRepresentation *asset);
@@ -666,7 +716,7 @@ struct AssetShelfType {
   void (*draw_context_menu)(const bContext *C,
                             const AssetShelfType *shelf_type,
                             const blender::asset_system::AssetRepresentation *asset,
-                            uiLayout *layout);
+                            blender::ui::Layout &layout);
 
   const AssetWeakReference *(*get_active_asset)(const AssetShelfType *shelf_type);
 
@@ -684,6 +734,9 @@ bool BKE_spacetype_exists(int spaceid);
 /** Only for quitting blender. */
 void BKE_spacetypes_free();
 
+bool BKE_regiontype_uses_categories(const ARegionType *region_type);
+bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type);
+
 /* Space-data. */
 
 void BKE_spacedata_freelist(ListBase *lb);
@@ -695,10 +748,11 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src);
 /**
  * Facility to set locks for drawing to survive (render) threads accessing drawing data.
  *
- * \note Lock can become bit-flag too.
  * \note Should be replaced in future by better local data handling for threads.
+ * \note Effect of multiple calls to this function is not accumulative. The locking flags
+ * will be set to by the last call.
  */
-void BKE_spacedata_draw_locks(bool set);
+void BKE_spacedata_draw_locks(ARegionDrawLockFlags lock_flags);
 
 /**
  * Version of #BKE_area_find_region_type that also works if \a slink
@@ -787,6 +841,10 @@ ARegion *BKE_screen_find_main_region_at_xy(const bScreen *screen, int space_type
  */
 ScrArea *BKE_screen_find_area_from_space(const bScreen *screen,
                                          const SpaceLink *sl) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(1, 2);
+ARegion *BKE_screen_find_region_in_space(const bScreen *screen,
+                                         const SpaceLink *sl,
+                                         int region_type) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1, 2);
 /**
  * \note used to get proper RNA paths for spaces (editors).

@@ -8,7 +8,7 @@
 
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
@@ -16,13 +16,14 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_c.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "COM_keying_screen.hh"
@@ -45,7 +46,9 @@ static void cmp_node_keyingscreen_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .description("Specifies the smoothness of the keying screen");
 
-  b.add_output<decl::Color>("Screen").translation_context(BLT_I18NCONTEXT_ID_SCREEN);
+  b.add_output<decl::Color>("Screen")
+      .translation_context(BLT_I18NCONTEXT_ID_SCREEN)
+      .structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_keyingscreen(const bContext *C, PointerRNA *ptr)
@@ -63,24 +66,23 @@ static void node_composit_init_keyingscreen(const bContext *C, PointerRNA *ptr)
     id_us_plus(&clip->id);
 
     const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-    STRNCPY(data->tracking_object, tracking_object->name);
+    STRNCPY_UTF8(data->tracking_object, tracking_object->name);
   }
 }
 
-static void node_composit_buts_keyingscreen(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_keyingscreen(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(layout, C, ptr, "clip", nullptr, nullptr, nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, nullptr, nullptr);
 
   if (node->id) {
     MovieClip *clip = (MovieClip *)node->id;
-    uiLayout *col;
     PointerRNA tracking_ptr = RNA_pointer_create_discrete(
         &clip->id, &RNA_MovieTracking, &clip->tracking);
 
-    col = &layout->column(true);
-    uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+    ui::Layout &col = layout.column(true);
+    col.prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
   }
 }
 
@@ -135,13 +137,18 @@ class KeyingScreenOperation : public NodeOperation {
 
   int2 get_size()
   {
+    MovieClip *movie_clip = this->get_movie_clip();
+    if (!this->get_movie_clip()) {
+      return int2(1);
+    }
+
     MovieClipUser movie_clip_user = *DNA_struct_default_get(MovieClipUser);
     const int scene_frame = context().get_frame_number();
-    const int clip_frame = BKE_movieclip_remap_scene_to_clip_frame(get_movie_clip(), scene_frame);
+    const int clip_frame = BKE_movieclip_remap_scene_to_clip_frame(movie_clip, scene_frame);
     BKE_movieclip_user_set_frame(&movie_clip_user, clip_frame);
 
     int2 size;
-    BKE_movieclip_get_size(get_movie_clip(), &movie_clip_user, &size.x, &size.y);
+    BKE_movieclip_get_size(movie_clip, &movie_clip_user, &size.x, &size.y);
     return size;
   }
 
@@ -169,7 +176,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_keyingscreen_cc
 
-void register_node_type_cmp_keyingscreen()
+static void register_node_type_cmp_keyingscreen()
 {
   namespace file_ns = blender::nodes::node_composite_keyingscreen_cc;
 
@@ -189,3 +196,4 @@ void register_node_type_cmp_keyingscreen()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_keyingscreen)

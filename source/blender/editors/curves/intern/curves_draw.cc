@@ -355,7 +355,7 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
     const float *location_prev = location_zero;
 
     float color[3];
-    UI_GetThemeColor3fv(TH_WIRE, color);
+    ui::theme::get_color_3fv(TH_WIRE, color);
 
     gpu::Batch *sphere = GPU_batch_preset_sphere(0);
     GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
@@ -387,7 +387,7 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
   }
 
   if (stroke_len > 1) {
-    float(*coord_array)[3] = static_cast<float(*)[3]>(
+    float (*coord_array)[3] = static_cast<float (*)[3]>(
         MEM_mallocN(sizeof(*coord_array) * stroke_len, __func__));
 
     {
@@ -404,7 +404,8 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
 
     {
       GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      uint pos = GPU_vertformat_attr_add(
+          format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_depth_test(GPU_DEPTH_NONE);
@@ -1115,7 +1116,7 @@ static wmOperatorStatus curves_draw_invoke(bContext *C, wmOperator *op, const wm
         }
       }
 
-      /* use view plane (when set or as fallback when surface can't be found) */
+      /* use view plane (when set or as a fallback when surface can't be found) */
       if (cdd->project.use_depth == false) {
         plane_co = cdd->vc.scene->cursor.location;
         plane_no = rv3d->viewinv[2];
