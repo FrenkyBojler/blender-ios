@@ -974,112 +974,6 @@ class USDImportTest(AbstractUSDTest):
         self.assertAlmostEqual(f.evaluate(0), 0.0, 2, "Unexpected value for rotation quaternion Z curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.0, 2, "Unexpected value for rotation quaternion Z curve at frame 10")
 
-    def check_curve(self, blender_curve, usd_curve):
-        curve_type_map = {"linear-bezier": 1, "cubic-catmullRom": 0, "cubic-bezier": 2, "cubic-bspline": 3}
-        cyclic_map = {"pinned": False, "nonperiodic": False, "periodic": True}
-
-        # Check correct spline count.
-        blender_spline_count = len(blender_curve.curves)
-        usd_spline_count = len(usd_curve.GetCurveVertexCountsAttr().Get())
-        self.assertEqual(blender_spline_count, usd_spline_count)
-
-        # Check correct type of curve. All splines should have the same type and periodicity.
-        usd_curve_type_basis = usd_curve.GetTypeAttr().Get() + "-" + usd_curve.GetBasisAttr().Get()
-        usd_cyclic = usd_curve.GetWrapAttr().Get()
-        expected_curve_type = curve_type_map[usd_curve_type_basis]
-        expected_cyclic = cyclic_map[usd_cyclic]
-
-        for i in range(0, blender_spline_count):
-            blender_curve_type = 0
-            if "curve_type" in blender_curve.attributes:
-                blender_curve_type = blender_curve.attributes["curve_type"].data[i].value
-            blender_cyclic = False
-            if "cyclic" in blender_curve.attributes:
-                blender_cyclic = blender_curve.attributes["cyclic"].data[i].value
-
-            self.assertEqual(blender_curve_type, expected_curve_type)
-            self.assertEqual(blender_cyclic, expected_cyclic)
-
-        # Check position data.
-        usd_positions = usd_curve.GetPointsAttr().Get()
-        blender_positions = blender_curve.attributes["position"].data
-
-        point_count = 0
-        if usd_curve_type_basis in ("linear-bezier", "cubic-catmullRom"):
-            point_count = len(usd_positions)
-            self.assertEqual(len(blender_positions), point_count)
-        elif usd_curve_type_basis == "cubic-bezier":
-            control_point_count = 0
-            usd_vert_counts = usd_curve.GetCurveVertexCountsAttr().Get()
-            for i in range(0, usd_spline_count):
-                if usd_cyclic == "nonperiodic":
-                    control_point_count += (int(usd_vert_counts[i] / 3) + 1)
-                else:
-                    control_point_count += (int(usd_vert_counts[i] / 3))
-
-            point_count = control_point_count
-            self.assertEqual(len(blender_positions), point_count)
-        elif usd_curve_type_basis == "cubic-bspline":
-            point_count = len(usd_positions)
-            self.assertEqual(len(blender_positions), point_count)
-
-        # Check radius data. (note: the currently available bsplines have no radii)
-        if usd_curve_type_basis == "cubic-bspline":
-            return
-
-        if not usd_curve.GetWidthsAttr().IsAuthored():
-            return
-
-        usd_width_interpolation = usd_curve.GetWidthsInterpolation()
-        usd_radius = [w / 2 for w in usd_curve.GetWidthsAttr().Get()]
-        blender_radius = [r.value for r in blender_curve.attributes["radius"].data]
-        if usd_curve_type_basis == "linear-bezier":
-            if usd_width_interpolation == "constant":
-                usd_radius = usd_radius * point_count
-
-            for i in range(0, len(blender_radius)):
-                self.assertAlmostEqual(blender_radius[i], usd_radius[i], 2)
-
-        elif usd_curve_type_basis == "cubic-bezier":
-            if usd_width_interpolation == "constant":
-                usd_radius = usd_radius * point_count
-
-                for i in range(0, len(blender_radius)):
-                    self.assertAlmostEqual(blender_radius[i], usd_radius[i], 2)
-            elif usd_width_interpolation == "varying":
-                # Do a quick min/max sanity check instead of reimplementing width interpolation
-                usd_min = min(usd_radius)
-                usd_max = max(usd_radius)
-                blender_min = min(blender_radius)
-                blender_max = max(blender_radius)
-
-                self.assertAlmostEqual(blender_min, usd_min, 2)
-                self.assertAlmostEqual(blender_max, usd_max, 2)
-            elif usd_width_interpolation == "vertex":
-                # Do a quick check to ensure radius has been set at all
-                self.assertEqual(True, all([r > 0 and r < 1 for r in blender_radius]))
-
-    def test_import_curves_bspline(self):
-        """Test importing bspline curve variations."""
-
-        # Use the existing hair test file to create the USD file
-        # for import. It is validated as part of the bl_usd_export test.
-        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_particle_hair.blend"))
-        testfile = str(self.tempdir / "usd_particle_hair.usda")
-        res = bpy.ops.wm.usd_export(filepath=testfile, export_hair=True, evaluation_mode="RENDER")
-        self.assertEqual({'FINISHED'}, res, f"Unable to export to {testfile}")
-
-        # Reload the empty file and import back in
-        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
-        res = bpy.ops.wm.usd_import(filepath=testfile)
-        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
-
-        stage = Usd.Stage.Open(testfile)
-
-        blender_curve = bpy.data.objects["ParticleSystem"].data
-        usd_prim = stage.GetPrimAtPath("/root/Sphere/ParticleSystem")
-        self.check_curve(blender_curve, UsdGeom.BasisCurves(usd_prim))
-
     def test_import_point_instancer(self):
         """Test importing a typical point instancer setup."""
 
@@ -2101,7 +1995,8 @@ class USDImportComparisonTest(unittest.TestCase):
             VERBOSE_TESTS = (
                 "usd_curve_linear_all.usda",
                 "usd_curve_bezier_all.usda",
-                "usd_curve_bspline_all.usda"
+                "usd_curve_bspline_all.usda",
+                "usd_curve_catmullRom.usda"
             )
             VERBOSE_TESTS_HOOK_RENAME = (
                 "nurbs-gen-single.usda",
