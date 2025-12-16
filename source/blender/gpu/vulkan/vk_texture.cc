@@ -474,10 +474,8 @@ void VKTexture::update_sub(int mip,
   }
 
   VKDevice &device = VKBackend::get().device;
-  const VKWorkarounds &workarounds = device.workarounds_get();
   const bool needs_data_conversion = needs_conversion(format, format_, device_format_);
-  const bool use_host_image_copy = !has_data_ && data != nullptr && allow_host_image_copy_ &&
-                                   (unpack_row_length == 0);
+  const bool use_host_image_copy = !has_data_ && data != nullptr && allow_host_image_copy_;
   if (use_host_image_copy) {
     Vector<uint8_t> device_compatible_data;
 
@@ -502,7 +500,8 @@ void VKTexture::update_sub(int mip,
     device.functions.vkTransitionImageLayout(device.vk_handle(), 1, &image_layout_transition);
     device.resources.update_image_layout(vk_image_handle(),
                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
+    /* TODO: Add support for VK_HOST_IMAGE_COPY_MEMCPY_EXT flag. It would theoretically allow
+     * faster uploading, but requires sub resource to match our CPU layout. */
     VkMemoryToImageCopyEXT vk_memory_to_image_copy = {
         VK_STRUCTURE_TYPE_MEMORY_TO_IMAGE_COPY_EXT,
         nullptr,
@@ -513,19 +512,10 @@ void VKTexture::update_sub(int mip,
         {offset.x, offset.y, offset.z},
         {uint32_t(extent.x), uint32_t(extent.y), uint32_t(extent.z)}};
 
-    /* When the whole extent is covered additional optimizations can happen in the driver as it
-     * will become a memcpy. */
-    int3 whole_extent;
-    mip_size_get(0, whole_extent);
-    whole_extent.y = max_ii(whole_extent.y, 1);
-    whole_extent.z = max_ii(whole_extent.z, 1);
-    const bool use_mem_copy = workarounds.host_image_copy_memcpy == false &&
-                              (extent == whole_extent) && math::is_zero(offset);
-
     VkCopyMemoryToImageInfoEXT vk_copy_memory_to_image = {
         VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO_EXT,
         nullptr,
-        use_mem_copy ? VK_HOST_IMAGE_COPY_MEMCPY_EXT : VkHostImageCopyFlagsEXT(0),
+        VkHostImageCopyFlagsEXT(0),
         vk_image_handle(),
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         1,

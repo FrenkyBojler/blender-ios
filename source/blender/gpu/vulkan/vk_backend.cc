@@ -485,11 +485,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
     workarounds.not_aligned_pixel_formats = true;
   }
 
-  /* AMD Driver uploads incorrect data when using memcpy. */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-    workarounds.host_image_copy_memcpy = true;
-  }
-
   /* During testing graphics pipeline library feature it was detected that it would crash on
    * official AMD drivers.
    */

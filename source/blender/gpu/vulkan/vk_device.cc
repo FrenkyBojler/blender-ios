@@ -74,10 +74,8 @@ void VKWorkarounds::log() const
 {
   CLOG_DEBUG(&LOG,
              "Activated workarounds\n"
-             " - [%c] Not 16/32 bit aligned image formats\n"
-             " - [%c] Host image copy memcpy",
-             not_aligned_pixel_formats ? 'X' : ' ',
-             host_image_copy_memcpy ? 'X' : ' ');
+             " - [%c] Not 16/32 bit aligned image formats",
+             not_aligned_pixel_formats ? 'X' : ' ');
 }
 
 void VKDevice::reinit()
