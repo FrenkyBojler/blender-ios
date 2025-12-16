@@ -640,19 +640,17 @@ static bool animdata_move_drivers_by_basepath(AnimData &src_adt,
   return result;
 }
 
-void BKE_animdata_copy_by_basepath(Main &bmain,
-                                   const ID &src_id,
-                                   ID &dst_id,
-                                   blender::Span<AnimationBasePathChange> basepaths)
+/* Make sure the destination ID has animdata and a valid action.
+ * Note: Returned source animdata pointer is mutable, but should only be modified if the source ID
+ * is mutable too. */
+static std::pair<AnimData *, AnimData *> ensure_animdata_pair(Main &bmain,
+                                                              const ID &src_id,
+                                                              ID &dst_id)
 {
-  if (basepaths.is_empty()) {
-    return;
-  }
-
   AnimData *src_adt = BKE_animdata_from_id(&src_id);
   if (src_adt == nullptr) {
     /* Nothing to do. */
-    return;
+    return {nullptr, nullptr};
   }
 
   /* Create destination animdata if needed. */
@@ -661,11 +659,10 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
     if (G.debug & G_DEBUG) {
       CLOG_ERROR(&LOG, "Failed to create AnimData for '%s'", dst_id.name);
     }
-    return;
+    return {nullptr, nullptr};
   }
   const OwnedAnimData dst_owned_adt = {dst_id, *dst_adt};
 
-  /* Copy data from tyhe source action. */
   if (src_adt->action) {
     if (dst_adt->action == src_adt->action) {
       CLOG_WARN(&LOG,
@@ -694,6 +691,25 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
 
       DEG_relations_tag_update(&bmain);
     }
+  }
+
+  return {src_adt, dst_adt};
+}
+
+void BKE_animdata_copy_by_basepath(Main &bmain,
+                                   const ID &src_id,
+                                   ID &dst_id,
+                                   blender::Span<AnimationBasePathChange> basepaths)
+{
+  if (basepaths.is_empty()) {
+    return;
+  }
+
+  auto [src_adt, dst_adt] = ensure_animdata_pair(bmain, src_id, dst_id);
+
+  /* Copy data from tyhe source action. */
+  if (src_adt->action) {
+    BLI_assert(dst_adt->action);
 
     /* Copy fcurves for each base path. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {
@@ -732,51 +748,11 @@ void BKE_animdata_move_by_basepath(Main &bmain,
     return;
   }
 
-  AnimData *src_adt = BKE_animdata_from_id(&src_id);
-  if (src_adt == nullptr) {
-    /* Nothing to do. */
-    return;
-  }
-
-  /* Create destination animdata if needed. */
-  AnimData *dst_adt = BKE_animdata_ensure_id(&dst_id);
-  if (dst_adt == nullptr) {
-    if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG, "Failed to create AnimData for '%s'", dst_id.name);
-    }
-    return;
-  }
-  const OwnedAnimData dst_owned_adt = {dst_id, *dst_adt};
+  auto [src_adt, dst_adt] = ensure_animdata_pair(bmain, src_id, dst_id);
 
   /* Move data from the source action to the destination action. */
   if (src_adt->action) {
-    if (dst_adt->action == src_adt->action) {
-      CLOG_WARN(&LOG,
-                "Source and Destination share animation! "
-                "('%s' and '%s' both use '%s') Making new empty action",
-                src_id.name,
-                dst_id.name,
-                src_adt->action->id.name);
-
-      const bool unassign_ok = animrig::unassign_action(dst_owned_adt);
-      BLI_assert_msg(unassign_ok, "Expected Action unassignment to work");
-      UNUSED_VARS_NDEBUG(unassign_ok);
-
-      DEG_relations_tag_update(&bmain);
-    }
-
-    /* Create an empty action for the destination if necessary. */
-    if (!dst_adt->action) {
-      animrig::Action &new_action = animrig::action_add(bmain, src_adt->action->id.name + 2);
-      new_action.slot_add_for_id(dst_id);
-
-      const bool assign_ok = animrig::assign_action(&new_action, dst_owned_adt);
-      BLI_assert_msg(assign_ok, "Expected Action assignment to work");
-      UNUSED_VARS_NDEBUG(assign_ok);
-      BLI_assert(dst_adt->slot_handle != animrig::Slot::unassigned);
-
-      DEG_relations_tag_update(&bmain);
-    }
+    BLI_assert(dst_adt->action);
 
     /* Move fcurves for each base path from the source action to the destination action. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {
