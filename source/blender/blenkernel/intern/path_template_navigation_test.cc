@@ -153,7 +153,7 @@ TEST(path_template_navigation, Browse_DownWithNestedVariable)
 
 TEST(path_template_navigation, Browse_UpWithMultiPathVariable)
 {
-  /* Testing filepath as variable (instead of a single string).
+  /* Testing directory path as variable (instead of a single string).
   expectation is to treat the entire variable as a unit. */
   FileSelectParams params = create_params_with_state("/root/project", "/{project_root}");
   VariableMap variables = create_test_variables();
@@ -163,6 +163,20 @@ TEST(path_template_navigation, Browse_UpWithMultiPathVariable)
 
   EXPECT_STREQ(params.dir_template, "/");
   EXPECT_STREQ(params.dir, "/");
+}
+
+TEST(path_template_navigation, Browse_IntoMultiPathVariable)
+{
+  /* Testing navigation into directory path as variable
+  expectation is to remove variable and only use realized path. */
+  FileSelectParams params = create_params_with_state("/root/project", "/{project_root}");
+  VariableMap variables = create_test_variables();
+  variables.add_filepath("project_root", "/root/project");
+
+  nav_handle_browse(&params, "/root", variables);
+
+  EXPECT_STREQ(params.dir_template, "/root");
+  EXPECT_STREQ(params.dir, "/root");
 }
 
 /** \} */
