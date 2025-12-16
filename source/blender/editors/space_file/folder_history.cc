@@ -149,9 +149,7 @@ static ListBase folderlist_duplicate(ListBase *folderlist)
 
   LISTBASE_FOREACH (FolderList *, folder, &folderlistn) {
     folder->foldername = (char *)MEM_dupallocN(folder->foldername);
-    if (folder->foldertemplate) {
-      folder->foldertemplate = (char *)MEM_dupallocN(folder->foldertemplate);
-    }
+    folder->foldertemplate = (char *)MEM_dupallocN(folder->foldertemplate);
   }
   return folderlistn;
 }
