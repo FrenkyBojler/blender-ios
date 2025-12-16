@@ -194,12 +194,11 @@ class VKResourceStateTracker {
   /**
    * \brief Update the layout of an image that has been externally modified.
    *
-   * There are extensions that allow image layouts to be modified outside the render graph. In
-   * those cases the image layout needs to be updated in the resource state tracker to ensure
-   * future barriers are aware of them.
+   * 'vkTransitionImageLayout' changes the image layout. When used the the image layout needs to be
+   * updated to match the current layout, ensuring correct generation of pipeline barriers.
    *
    * \name vk_image:        VkImage handle to update the image layout for.
-   * \name vk_image_layout: The layout the resource state tracker should now be using as the
+   * \name vk_image_layout: The layout the resource state tracker should now be using, matching the
    *                        current layout of the image.
    */
   void update_image_layout(VkImage vk_image, VkImageLayout vk_image_layout);
