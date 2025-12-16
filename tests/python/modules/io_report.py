@@ -865,7 +865,7 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
             desc.write(f"==== Images: {len(bpy.data.images)}\n")
             for img in bpy.data.images:
                 desc.write(f"- Image '{img.name}' {img.size[0]}x{img.size[1]} {img.depth}bpp\n")
-                if len(img.tiles) > 0:
+                if len(img.tiles) > 1:
                     desc.write(f"  - {len(img.tiles)} tiles: ")
                     Report._write_collection_single(img.tiles, desc, "")
                 Report._write_custom_props(img, desc)
