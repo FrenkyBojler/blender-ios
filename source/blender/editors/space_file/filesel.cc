@@ -192,6 +192,12 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
       params->type = FILE_SPECIAL;
     }
 
+    /**
+     *  \note :
+     * this doesn't yet handle paths where parts of the directory path and file name are
+     * both within a single variable.
+     */
+
     if (is_filepath && RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
       char filepath[FILE_MAX];
       RNA_string_get(op->ptr, "filepath", filepath);
