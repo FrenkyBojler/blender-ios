@@ -201,12 +201,12 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     items.sort()
 
     # TODO: Allow/support adding new custom props to overrides.
-    if use_edit and not is_lib_override:
-        row = layout.row()
-        props = row.operator("wm.properties_add", text="New", icon='ADD')
-        props.data_path = context_member
-        del row
-        layout.separator()
+    # if use_edit and not is_lib_override:
+    #     row = layout.row()
+    #     props = row.operator("wm.properties_add", text="New", icon='ADD')
+    #     props.data_path = context_member
+    #     del row
+    #     layout.separator()
 
     show_developer_ui = context.preferences.view.show_developer_ui
     rna_properties = {prop.identifier for prop in rna_item.bl_rna.properties if prop.is_runtime} if items else None
@@ -214,7 +214,12 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     if len(items) <= 0:
         return
 
-    layout.template_id_properties_tree(rna_item.id_data)
+    row = layout.row()
+    row.template_id_properties_tree(rna_item.id_data)
+
+    col = row.column(align=True)
+    col.operator("wm.properties_add", text="", icon='ADD').data_path = context_member
+
     active_prop = items[rna_item.idprop_active_index]
     key = active_prop[0]
     value = active_prop[1]
@@ -251,8 +256,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 
     layout.draw_id_properties_value(rna_item.id_data)
-    # property_type = get_property_type(rna_item, key)
-    # print(property_type)
 
     return
 
