@@ -80,18 +80,18 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   BKE_color_managed_view_settings_blend_read_data(&reader, &nctd->view_settings);
 }
 
-static void node_draw_buttons(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_draw_buttons(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
 #ifndef WITH_OPENCOLORIO
-  layout->label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
+  layout.label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
 #endif
 
   PointerRNA display_ptr = RNA_pointer_get(ptr, "display_settings");
   PointerRNA view_ptr = RNA_pointer_get(ptr, "view_settings");
 
-  layout->prop(&display_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(&view_ptr, "view_transform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(&view_ptr, "look", UI_ITEM_NONE, IFACE_("Look"), ICON_NONE);
+  layout.prop(&display_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&view_ptr, "view_transform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&view_ptr, "look", UI_ITEM_NONE, IFACE_("Look"), ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -145,7 +145,7 @@ class ConvertToDisplayOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, ocio_shader.output_image_name());
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     output_image.unbind_as_image();
@@ -164,14 +164,14 @@ class ConvertToDisplayOperation : public NodeOperation {
     Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       output_image.store_pixel(texel, input_image.load_pixel<Color>(texel));
     });
 
     IMB_colormanagement_processor_apply(color_processor,
                                         static_cast<float *>(output_image.cpu_data().data()),
-                                        domain.size.x,
-                                        domain.size.y,
+                                        domain.data_size.x,
+                                        domain.data_size.y,
                                         input_image.channels_count(),
                                         false);
     IMB_colormanagement_processor_free(color_processor);

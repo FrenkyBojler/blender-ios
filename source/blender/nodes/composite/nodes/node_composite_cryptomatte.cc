@@ -343,7 +343,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
     output_pick.allocate_texture(domain);
     output_pick.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     first_layer.unbind_as_texture();
@@ -379,7 +379,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
      *
      * Except we put the identifier in the red channel by convention instead of the suggested blue
      * channel. */
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* Each layer stores two ranks, each rank contains a pair, the identifier and the coverage of
        * the entity identified by the identifier. */
       float2 first_rank = float4(first_layer.load_pixel<Color>(texel + lower_bound)).xy();
@@ -437,7 +437,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
       /* Bind the matte with read access, since we will be accumulating in it. */
       output_matte.bind_as_image(shader, "matte_img", true);
 
-      compute_dispatch_threads_at_least(shader, domain.size);
+      compute_dispatch_threads_at_least(shader, domain.data_size);
 
       layer.unbind_as_texture();
       output_matte.unbind_as_image();
@@ -455,7 +455,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
     matte.allocate_texture(domain);
 
     /* Clear the matte to zero to ready it to accumulate the coverage. */
-    parallel_for(domain.size, [&](const int2 texel) { matte.store_pixel(texel, 0.0f); });
+    parallel_for(domain.data_size, [&](const int2 texel) { matte.store_pixel(texel, 0.0f); });
 
     Vector<float> identifiers = get_identifiers();
     /* The user haven't selected any entities, return the currently zero matte. */
@@ -474,7 +474,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
        *   Friedman, Jonah, and Andrew C. Jones. "Fully automatic id mattes with support for motion
        * blur and transparency." ACM SIGGRAPH 2015 Posters. 2015. 1-1.
        */
-      parallel_for(domain.size, [&](const int2 texel) {
+      parallel_for(domain.data_size, [&](const int2 texel) {
         float4 layer = float4(layer_result.load_pixel<Color>(texel + lower_bound));
 
         /* Each Cryptomatte layer stores two ranks. */
@@ -534,7 +534,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
     image_output.allocate_texture(domain);
     image_output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     input_image.unbind_as_texture();
@@ -550,7 +550,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float4 input_color = float4(input.load_pixel<Color, true>(texel));
       float input_matte = matte.load_pixel<float>(texel);
 
@@ -577,13 +577,6 @@ class BaseCryptoMatteOperation : public NodeOperation {
 namespace blender::nodes::node_composite_cryptomatte_cc {
 
 NODE_STORAGE_FUNCS(NodeCryptomatte)
-
-static bke::bNodeSocketTemplate cmp_node_cryptomatte_out[] = {
-    {SOCK_RGBA, N_("Image")},
-    {SOCK_FLOAT, N_("Matte")},
-    {SOCK_RGBA, N_("Pick")},
-    {-1, ""},
-};
 
 static void cmp_node_cryptomatte_declare(NodeDeclarationBuilder &b)
 {
@@ -851,7 +844,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   {
     switch (get_source()) {
       case CMP_NODE_CRYPTOMATTE_SOURCE_RENDER: {
-        return this->context().get_compositing_region().min;
+        return this->context().get_input_region().min;
       }
       case CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE:
         return int2(0);
@@ -867,7 +860,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   {
     switch (get_source()) {
       case CMP_NODE_CRYPTOMATTE_SOURCE_RENDER:
-        return Domain(context().get_compositing_region_size());
+        return context().get_compositing_domain();
       case CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE:
         return compute_image_domain();
     }
@@ -969,44 +962,56 @@ NOD_REGISTER_NODE(register_node_type_cmp_cryptomatte)
 /** \name Cryptomatte Legacy
  * \{ */
 
-bNodeSocket *ntreeCompositCryptomatteAddSocket(bNodeTree *ntree, bNode *node)
+void ntreeCompositCryptomatteAddSocket(bNode *node)
 {
   BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY);
   NodeCryptomatte *n = static_cast<NodeCryptomatte *>(node->storage);
-  char sockname[32];
   n->inputs_num++;
-  SNPRINTF_UTF8(sockname, "Crypto %.2d", n->inputs_num - 1);
-  bNodeSocket *sock = blender::bke::node_add_static_socket(
-      *ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", sockname);
-  return sock;
 }
 
-int ntreeCompositCryptomatteRemoveSocket(bNodeTree *ntree, bNode *node)
+bool ntreeCompositCryptomatteRemoveSocket(bNode *node)
 {
   BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY);
   NodeCryptomatte *n = static_cast<NodeCryptomatte *>(node->storage);
   if (n->inputs_num < 2) {
-    return 0;
+    return false;
   }
-  bNodeSocket *sock = static_cast<bNodeSocket *>(node->inputs.last);
-  blender::bke::node_remove_socket(*ntree, *node, *sock);
   n->inputs_num--;
-  return 1;
+  return true;
 }
 
 namespace blender::nodes::node_composite_legacy_cryptomatte_cc {
 
-static void node_init_cryptomatte_legacy(bNodeTree *ntree, bNode *node)
+static void node_declare(NodeDeclarationBuilder &b)
 {
-  namespace file_ns = blender::nodes::node_composite_cryptomatte_cc;
-  file_ns::node_init_cryptomatte(ntree, node);
+  b.add_input<decl::Color>("Image")
+      .default_value({0.0f, 0.0f, 0.0f, 1.0f})
+      .structure_type(StructureType::Dynamic);
 
-  bke::node_add_static_socket(*ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "image", "Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Matte").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Pick").structure_type(StructureType::Dynamic);
+
+  const bNode *node = b.node_or_null();
+  if (!node) {
+    b.add_input<decl::Color>("Crypto 00").structure_type(StructureType::Dynamic);
+    return;
+  }
+
+  const int inputs_count = static_cast<NodeCryptomatte *>(node->storage)->inputs_num;
+  for (int i = 0; i < inputs_count; i++) {
+    const std::string name = fmt::format("Crypto {:02}", i);
+    b.add_input<decl::Color>(name).structure_type(StructureType::Dynamic);
+  }
+}
+
+static void node_init_cryptomatte_legacy(bNodeTree * /*ntree*/, bNode *node)
+{
+  NodeCryptomatte *storage = MEM_callocN<NodeCryptomatte>(__func__);
+  node->storage = storage;
 
   /* Add three inputs by default, as recommended by the Cryptomatte specification. */
-  ntreeCompositCryptomatteAddSocket(ntree, node);
-  ntreeCompositCryptomatteAddSocket(ntree, node);
-  ntreeCompositCryptomatteAddSocket(ntree, node);
+  storage->inputs_num = 3;
 }
 
 using namespace blender::compositor;
@@ -1018,7 +1023,7 @@ class LegacyCryptoMatteOperation : public BaseCryptoMatteOperation {
 
   Result &get_input_image() override
   {
-    return get_input("image");
+    return this->get_input("Image");
   }
 
   Vector<Result> get_layers() override
@@ -1061,7 +1066,7 @@ static void register_node_type_cmp_cryptomatte_legacy()
   ntype.ui_description = "Deprecated. Use Cryptomatte Node instead";
   ntype.enum_name_legacy = "CRYPTOMATTE";
   ntype.nclass = NODE_CLASS_MATTE;
-  blender::bke::node_type_socket_templates(&ntype, nullptr, file_ns::cmp_node_cryptomatte_out);
+  ntype.declare = legacy_file_ns::node_declare;
   ntype.initfunc = legacy_file_ns::node_init_cryptomatte_legacy;
   blender::bke::node_type_storage(
       ntype, "NodeCryptomatte", file_ns::node_free_cryptomatte, file_ns::node_copy_cryptomatte);

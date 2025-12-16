@@ -8,7 +8,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
-from pxr import Ar, Gf, Sdf, Usd, UsdGeom, UsdShade
+from pxr import Ar, Gf, Sdf, Usd, UsdGeom, UsdShade, UsdUI
 
 import bpy
 
@@ -128,9 +128,11 @@ class USDImportTest(AbstractUSDTest):
         # Test topology counts.
         self.assertIn("m_degenerate", objects, "Scene does not contain object m_degenerate")
         mesh = objects["m_degenerate"].data
-        self.assertEqual(len(mesh.polygons), 0)
-        self.assertEqual(len(mesh.edges), 0)
-        self.assertEqual(len(mesh.vertices), 6)
+        self.assertEqual(len(mesh.polygons), 2)
+        self.assertEqual(len(mesh.edges), 10)
+        self.assertEqual(len(mesh.vertices), 20)
+        self.assertEqual(len(mesh.polygons[0].vertices), 5)
+        self.assertEqual(len(mesh.polygons[1].vertices), 5)
 
         self.assertIn("m_triangles", objects, "Scene does not contain object m_triangles")
         mesh = objects["m_triangles"].data
@@ -786,11 +788,11 @@ class USDImportTest(AbstractUSDTest):
         # Validate some simple aspects of the animated objects which prove that they're animating.
         ob_xform = bpy.data.objects["cube_anim_xform"]
         ob_xform_child = bpy.data.objects["cube_anim_child_mesh"]
-        ob_shapekeys = bpy.data.objects["cube_anim_keys"]
+        ob_shapekeys = bpy.data.objects["cube_anim_keys.001"]
         ob_arm = bpy.data.objects["column_anim_armature"]
         ob_arm2_side_a = bpy.data.objects["side_a"]
         ob_arm2_side_b = bpy.data.objects["side_b"]
-        self.assertEqual(bpy.data.objects["Armature"].animation_data.action.name, "ArmatureAction_001")
+        self.assertEqual(bpy.data.objects["Armature.001"].animation_data.action.name, "ArmatureAction_001")
 
         bpy.context.scene.frame_set(1)
         self.assertEqual(len(ob_xform.constraints), 1)
@@ -875,7 +877,7 @@ class USDImportTest(AbstractUSDTest):
         res = bpy.ops.wm.usd_import(filepath=infile)
         self.assertEqual({'FINISHED'}, res)
 
-        obj = bpy.data.objects["Plane"]
+        obj = bpy.data.objects["Plane.001"]
 
         obj.active_shape_key_index = 1
 
@@ -973,11 +975,11 @@ class USDImportTest(AbstractUSDTest):
         self.assertAlmostEqual(f.evaluate(10), 0.0, 2, "Unexpected value for rotation quaternion Z curve at frame 10")
 
     def check_curve(self, blender_curve, usd_curve):
-        curve_type_map = {"linear-bezier": 1, "linear-catmullRom": 1, "cubic-bezier": 2, "cubic-bspline": 3}
+        curve_type_map = {"linear-bezier": 1, "cubic-catmullRom": 0, "cubic-bezier": 2, "cubic-bspline": 3}
         cyclic_map = {"pinned": False, "nonperiodic": False, "periodic": True}
 
         # Check correct spline count.
-        blender_spline_count = len(blender_curve.attributes["curve_type"].data)
+        blender_spline_count = len(blender_curve.curves)
         usd_spline_count = len(usd_curve.GetCurveVertexCountsAttr().Get())
         self.assertEqual(blender_spline_count, usd_spline_count)
 
@@ -988,7 +990,9 @@ class USDImportTest(AbstractUSDTest):
         expected_cyclic = cyclic_map[usd_cyclic]
 
         for i in range(0, blender_spline_count):
-            blender_curve_type = blender_curve.attributes["curve_type"].data[i].value
+            blender_curve_type = 0
+            if "curve_type" in blender_curve.attributes:
+                blender_curve_type = blender_curve.attributes["curve_type"].data[i].value
             blender_cyclic = False
             if "cyclic" in blender_curve.attributes:
                 blender_cyclic = blender_curve.attributes["cyclic"].data[i].value
@@ -1001,7 +1005,7 @@ class USDImportTest(AbstractUSDTest):
         blender_positions = blender_curve.attributes["position"].data
 
         point_count = 0
-        if usd_curve_type_basis in ("linear-bezier", "linear-catmullRom"):
+        if usd_curve_type_basis in ("linear-bezier", "cubic-catmullRom"):
             point_count = len(usd_positions)
             self.assertEqual(len(blender_positions), point_count)
         elif usd_curve_type_basis == "cubic-bezier":
@@ -1692,6 +1696,50 @@ class USDImportTest(AbstractUSDTest):
                     usd_test_data,
                     f"Frame {frame}: {name} test attributes do not match")
 
+    def test_import_point_ids(self):
+        """Validate we can import animated PointCloud IDs"""
+
+        # Use the existing IDs test file to create the USD file for import.
+        # It is validated as part of the bl_usd_export test.
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_point_ids.blend"))
+        for frame in range(1, 7):
+            bpy.context.scene.frame_set(frame)
+        bpy.context.scene.frame_set(1)
+
+        testfile = str(self.tempdir / "usd_point_ids.usda")
+        res = bpy.ops.wm.usd_export(filepath=testfile, export_animation=True, evaluation_mode="RENDER")
+        self.assertEqual({'FINISHED'}, res, f"Unable to export to {testfile}")
+
+        # Reload the empty file and import back in
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        res = bpy.ops.wm.usd_import(filepath=testfile)
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {testfile}")
+
+        stage = Usd.Stage.Open(testfile)
+
+        #
+        # Validate Point Cloud data
+        #
+        blender_pointcloud = bpy.data.objects["PointCloud"]
+        usd_points = UsdGeom.Points(stage.GetPrimAtPath("/root/pointcloud1/PointCloud"))
+
+        # A MeshSequenceCache modifier should be present
+        self.assertTrue(len(blender_pointcloud.modifiers) == 1 and blender_pointcloud.modifiers[0].type ==
+                        'MESH_SEQUENCE_CACHE', f"{blender_pointcloud.name} has incorrect modifiers")
+
+        # Compare Blender and USD data against each other for every frame
+        for frame in range(1, 7):
+            bpy.context.scene.frame_set(frame)
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            blender_pointcloud = blender_pointcloud.evaluated_get(depsgraph)
+
+            # Check IDs
+            blender_id_data = [d.value for d in blender_pointcloud.data.attributes["id"].data]
+            usd_id_data = [d for d in usd_points.GetIdsAttr().Get(frame)]
+
+            name = usd_points.GetPath().GetParentPath().name
+            self.assertEqual(blender_id_data, usd_id_data, f"Frame {frame}: {name} IDs do not match")
+
     def test_import_shapes(self):
         """Test importing USD Shape prims with time-varying attributes."""
 
@@ -1924,12 +1972,12 @@ class USDImportTest(AbstractUSDTest):
         bpy.utils.unregister_class(GetPrimMapUsdImportHook)
 
         expected_prim_map = {
-            Sdf.Path('/Cube'): [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
+            Sdf.Path('/Cube'): [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
             Sdf.Path('/XformThenCube'): [bpy.data.objects["XformThenCube"]],
-            Sdf.Path('/XformThenCube/Cube'): [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
+            Sdf.Path('/XformThenCube/Cube'): [bpy.data.objects["Cube.001"], bpy.data.meshes["Cube.001"]],
             Sdf.Path('/XformThenXformCube'): [bpy.data.objects["XformThenXformCube"]],
             Sdf.Path('/XformThenXformCube/XformIntermediate'): [bpy.data.objects["XformIntermediate"]],
-            Sdf.Path('/XformThenXformCube/XformIntermediate/Cube'): [bpy.data.objects["Cube.001"], bpy.data.meshes["Cube.001"]],
+            Sdf.Path('/XformThenXformCube/XformIntermediate/Cube'): [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
             Sdf.Path('/Material'): [bpy.data.materials["Material"]],
         }
 
@@ -1942,12 +1990,12 @@ class USDImportTest(AbstractUSDTest):
         bpy.utils.unregister_class(GetPrimMapUsdImportHook)
 
         expected_prim_map = {
-            Sdf.Path('/Cube'): [bpy.data.objects["Cube.002"], bpy.data.meshes["Cube.002"]],
-            Sdf.Path('/XformThenCube'): [bpy.data.objects["Cube"]],
-            Sdf.Path('/XformThenCube/Cube'): [bpy.data.meshes["Cube"]],
+            Sdf.Path('/Cube'): [bpy.data.objects["Cube"], bpy.data.meshes["Cube"]],
+            Sdf.Path('/XformThenCube'): [bpy.data.objects["Cube.001"]],
+            Sdf.Path('/XformThenCube/Cube'): [bpy.data.meshes["Cube.001"]],
             Sdf.Path('/XformThenXformCube'): [bpy.data.objects["XformThenXformCube"]],
-            Sdf.Path('/XformThenXformCube/XformIntermediate'): [bpy.data.objects["Cube.001"]],
-            Sdf.Path('/XformThenXformCube/XformIntermediate/Cube'): [bpy.data.meshes["Cube.001"]],
+            Sdf.Path('/XformThenXformCube/XformIntermediate'): [bpy.data.objects["Cube.002"]],
+            Sdf.Path('/XformThenXformCube/XformIntermediate/Cube'): [bpy.data.meshes["Cube.002"]],
             Sdf.Path('/Material'): [bpy.data.materials["Material"]],
         }
 
@@ -2070,6 +2118,62 @@ class USDImportTest(AbstractUSDTest):
 
         bpy.utils.unregister_class(ImportMtlxTextureUSDHook)
 
+    def test_import_accessibility(self):
+        """Test importing accessibility metadata as custom properties."""
+
+        # Create a simple USD file with accessibility metadata
+        usd_path = self.tempdir / "accessibility_test.usda"
+        stage = Usd.Stage.CreateNew(str(usd_path))
+
+        # Create a cube with accessibility metadata
+        prim = stage.DefinePrim("/root", "Xform")
+        stage.SetDefaultPrim(prim)
+
+        # Add default namespace
+        default_api = UsdUI.AccessibilityAPI.Apply(prim, "default")
+        label_attr = default_api.CreateLabelAttr()
+        label_attr.Set("Test Prim")
+        description_attr = default_api.CreateDescriptionAttr()
+        description_attr.Set("A test prim for import")
+        priority_attr = default_api.CreatePriorityAttr()
+        priority_attr.Set(UsdUI.Tokens.high)
+
+        # Add custom namespace
+        custom_api = UsdUI.AccessibilityAPI.Apply(prim, "alternate")
+        alt_label_attr = custom_api.CreateLabelAttr()
+        alt_label_attr.Set("Alternate Label")
+        alt_description_attr = custom_api.CreateDescriptionAttr()
+        alt_description_attr.Set("Alternate description")
+
+        stage.Save()
+
+        # Import the USD file
+        res = bpy.ops.wm.usd_import(filepath=str(usd_path))
+        self.assertEqual({'FINISHED'}, res, f"Unable to import USD file {usd_path}")
+
+        # Verify the imported object has the accessibility custom properties
+        xform = bpy.data.objects.get("root")
+        self.assertIsNotNone(xform, "root prim object should be imported")
+
+        label_key = label_attr.GetName()
+        description_key = description_attr.GetName()
+        priority_key = priority_attr.GetName()
+
+        self.assertIn(label_key, xform, "Default label should be imported")
+        self.assertEqual(xform[label_key], label_attr.Get())
+        self.assertIn(description_key, xform, "Default description should be imported")
+        self.assertEqual(xform[description_key], description_attr.Get())
+        self.assertIn(priority_key, xform, "Default priority should be imported")
+        self.assertEqual(xform[priority_key], priority_attr.Get())
+
+        alt_label_key = alt_label_attr.GetName()
+        alt_description_key = alt_description_attr.GetName()
+
+        self.assertIn(alt_label_key, xform, "Alternate label should be imported")
+        self.assertEqual(xform[alt_label_key], alt_label_attr.Get())
+        self.assertIn(alt_description_key, xform, "Alternate description should be imported")
+        self.assertEqual(xform[alt_description_key], alt_description_attr.Get())
+
 
 class USDImportComparisonTest(unittest.TestCase):
     @classmethod
@@ -2097,6 +2201,10 @@ class USDImportComparisonTest(unittest.TestCase):
             io_report.Report.side_to_print_multi_line = 3
 
             CompareTestSupportHook.reset_config()
+            if input_file_path.name in ("usd_curve_bspline_all.usda"):
+                CompareTestSupportHook.do_curve_rename = False
+                io_report.Report.side_to_print_single_line = 10
+                io_report.Report.side_to_print_multi_line = 10
             if input_file_path.name in ("nurbs-gen-single.usda", "nurbs-gen-multiple.usda", "nurbs-custom.usda"):
                 CompareTestSupportHook.do_curve_rename = True
                 io_report.Report.side_to_print_single_line = 10

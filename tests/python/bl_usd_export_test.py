@@ -9,7 +9,7 @@ import pprint
 import sys
 import tempfile
 import unittest
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdMtlx, UsdShade, UsdSkel, UsdUtils, UsdVol
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdMtlx, UsdShade, UsdSkel, UsdUI, UsdUtils, UsdVol
 
 import bpy
 
@@ -535,7 +535,7 @@ class USDExportTest(AbstractUSDTest):
 
         hair_curves = UsdGeom.BasisCurves(hair_prim)
         hair_samples = hair_curves.GetPointsAttr().GetTimeSamples()
-        self.assertEqual(hair_curves.GetTypeAttr().Get(), "linear")
+        self.assertEqual(hair_curves.GetTypeAttr().Get(), "cubic")
         self.assertEqual(hair_curves.GetBasisAttr().Get(), "catmullRom")
         self.assertEqual(len(hair_samples), 10)
 
@@ -876,6 +876,35 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(len(indices1), 15)
         self.assertEqual(len(indices2), 15)
         self.assertNotEqual(indices1, indices2)
+
+    def test_export_point_ids(self):
+        """Validate we can export animated PointCloud IDs"""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_point_ids.blend"))
+        # Ensure the simulation zone data is baked for all relevant frames...
+        for frame in range(1, 7):
+            bpy.context.scene.frame_set(frame)
+        bpy.context.scene.frame_set(1)
+
+        export_path = self.tempdir / "usd_point_ids.usda"
+        self.export_and_validate(filepath=str(export_path), export_animation=True, evaluation_mode="RENDER")
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        #
+        # Validate PointCloud data
+        #
+        points1 = UsdGeom.Points(stage.GetPrimAtPath("/root/pointcloud1/PointCloud"))
+
+        # IDs
+        attr_ids = points1.GetIdsAttr()
+        self.assertEqual(attr_ids.GetTimeSamples(), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        self.assertEqual(attr_ids.Get(1), [3])
+        self.assertEqual(attr_ids.Get(2), [6])
+        self.assertEqual(attr_ids.Get(3), [6, 9])
+        self.assertEqual(attr_ids.Get(4), [9, 12])
+        self.assertEqual(attr_ids.Get(5), [12, 15])
+        self.assertEqual(attr_ids.Get(6), [12, 15, 18])
 
     def test_export_curves(self):
         """Test exporting Curve types"""
@@ -1916,6 +1945,120 @@ class USDExportTest(AbstractUSDTest):
         with zipfile.ZipFile(export_path, 'r') as zfile:
             file_list = zfile.namelist()
             self.assertIn('textures/color_0C0C0C.exr', file_list)
+
+    def test_export_indexed_uvs(self):
+        """Test that UV maps are exported with proper indexing."""
+
+        # Create a simple cube
+        bpy.ops.mesh.primitive_cube_add()
+        cube = bpy.context.active_object
+        cube.name = "Cube"
+
+        # Export the mesh
+        export_path = self.tempdir / "uv_indexed_test.usda"
+        self.export_and_validate(
+            filepath=str(export_path),
+            export_uvmaps=True,
+            rename_uvmaps=True,
+            evaluation_mode="RENDER",
+        )
+
+        # Load and validate the exported USD
+        stage = Usd.Stage.Open(str(export_path))
+        mesh_prim = stage.GetPrimAtPath("/root/Cube/Cube")
+
+        primvars_api = UsdGeom.PrimvarsAPI(mesh_prim)
+        uv_primvar = primvars_api.GetPrimvar("st")
+        self.assertTrue(uv_primvar.IsIndexed(), "UV primvar should be indexed")
+        self.assertEqual(uv_primvar.GetInterpolation(), UsdGeom.Tokens.faceVarying,
+                         "UV interpolation should be faceVarying")
+
+        uv_values = uv_primvar.Get()
+        uv_indices = uv_primvar.GetIndices()
+        self.assertIsNotNone(uv_indices, "UV primvar should have indices")
+        self.assertEqual(len(uv_indices), 24, "Should have 24 UV indices (one per face vertex)")
+        self.assertLess(len(uv_values), 24,
+                        f"Unique UV count ({len(uv_values)}) should be less than face vertex count (24)")
+
+    def test_export_accessibility(self):
+        """Validate that writing UsdUIAccessibilityAPI metadata exports correctly."""
+
+        def verify_accessibility_api(prim, namespace, label, description=None, priority=None):
+            self.assertTrue(prim.HasAPI(UsdUI.AccessibilityAPI))
+            accessibility_api = UsdUI.AccessibilityAPI(prim, namespace)
+            label_attr = accessibility_api.GetLabelAttr()
+            self.assertTrue(label_attr.HasAuthoredValue())
+            self.assertEqual(label_attr.Get(), label)
+            if description is not None:
+                description_attr = accessibility_api.GetDescriptionAttr()
+                self.assertTrue(description_attr.HasAuthoredValue())
+                self.assertEqual(description_attr.Get(), description)
+            if priority is not None:
+                priority_attr = accessibility_api.GetPriorityAttr()
+                self.assertTrue(priority_attr.HasAuthoredValue())
+                self.assertEqual(priority_attr.Get(), priority)
+
+        # Create a few objects to export.
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
+        bpy.ops.mesh.primitive_uv_sphere_add()
+        sphere = bpy.context.active_object
+        sphere.name = "Sphere"
+        sphere_label = "a sphere"
+        sphere_description = "a primitive uv sphere"
+        sphere["accessibility:default:label"] = sphere_label
+        sphere["accessibility:default:description"] = sphere_description
+        sphere["accessibility:default:priority"] = UsdUI.Tokens.high
+
+        # Apply a second set of accessibility data.
+        sphere_color_label = "blue"
+        sphere_color_description = "a cool slightly greenish blue"
+        sphere["accessibility:color:label"] = sphere_color_label
+        sphere["accessibility:color:description"] = sphere_color_description
+
+        export_path = self.tempdir / "accessibility_basic.usda"
+        root_label = "Accessibility Test"
+        root_description = "This is an accessibility test from Python!"
+        self.export_and_validate(
+            filepath=str(export_path),
+            export_custom_properties=True,
+            accessibility_label=root_label,
+            accessibility_description=root_description,
+            selected_objects_only=True,
+        )
+
+        stage = Usd.Stage.Open(str(export_path))
+        root_prim = stage.GetPrimAtPath("/root")
+        self.assertTrue(root_prim.IsValid())
+        sphere_prim = stage.GetPrimAtPath(f"/root/{sphere.name}")
+        self.assertTrue(sphere_prim.IsValid())
+
+        # Check the accessibility metadata on the root prim (set via the export args).
+        verify_accessibility_api(root_prim, UsdUI.Tokens.default_, root_label, root_description)
+
+        # Check the accessibility metadata exported from custom properties.
+        verify_accessibility_api(
+            sphere_prim, UsdUI.Tokens.default_, sphere_label, sphere_description, UsdUI.Tokens.high)
+        verify_accessibility_api(
+            sphere_prim, "color", sphere_color_label, sphere_color_description)
+
+        # Test another export, but this time do not have the root prim. Verify
+        # that the export settings take precedence over custom properties.
+        export_path = self.tempdir / "accessibility_basic_no_root.usda"
+        self.export_and_validate(
+            filepath=str(export_path),
+            export_custom_properties=True,
+            accessibility_label=root_label,
+            accessibility_description=root_description,
+            root_prim_path="",
+            selected_objects_only=True,
+        )
+
+        stage = Usd.Stage.Open(str(export_path))
+        root_prim = stage.GetPrimAtPath(f"/{sphere.name}")
+        self.assertTrue(root_prim.IsValid())
+
+        # Check that the accessibility information is pulled from the export args.
+        verify_accessibility_api(root_prim, UsdUI.Tokens.default_, root_label, root_description)
 
 
 class USDHookBase:
