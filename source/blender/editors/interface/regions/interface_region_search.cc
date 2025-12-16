@@ -99,6 +99,7 @@ struct uiSearchboxData {
   ButtonSearchListenFn search_listener;
   bool mmb_panning;
   int mmb_panning_last_y;
+  wmTimer *mmb_panning_auto_scroll;
 };
 
 #define SEARCH_ITEMS 10
@@ -419,19 +420,43 @@ bool searchbox_event(
     handled = true;
     if (data->mmb_panning) {
       WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
-      if (U.uiflag & USER_CONTINUOUS_MOUSE) {
+      if (U.uiflag & USER_CONTINUOUS_MOUSE && !WM_event_is_tablet(event)) {
         WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &region->winrct, false);
+      }
+      else {
+        /* Check if the timer already exists (just in case window lost focus and new middle mouse
+         * event got triggered).*/
+        if (!data->mmb_panning_auto_scroll) {
+          static constexpr double MMB_PANNING_AUTO_SCROLL = 0.01;
+          data->mmb_panning_auto_scroll = WM_event_timer_add(
+              CTX_wm_manager(C), CTX_wm_window(C), TIMER, MMB_PANNING_AUTO_SCROLL);
+        }
       }
     }
     else {
       WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
       WM_cursor_grab_disable(CTX_wm_window(C), nullptr);
+      if (data->mmb_panning_auto_scroll) {
+        WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), data->mmb_panning_auto_scroll);
+        data->mmb_panning_auto_scroll = nullptr;
+      }
     }
   }
   else if (data->mmb_panning && type == MOUSEMOVE) {
     const int delta = (data->mmb_panning_last_y - event->xy[1]) / UI_UNIT_Y *
                       (event->flag & WM_EVENT_SCROLL_INVERT ? -1 : 1);
-    if (delta) {
+    if (delta &&
+        (!data->mmb_panning_auto_scroll || BLI_rcti_isect_y(&region->winrct, event->xy[1])))
+    {
+      searchbox_select(C, region, but, delta);
+      data->mmb_panning_last_y = event->xy[1];
+    }
+    handled = true;
+  }
+  else if (event->type == TIMER && event->customdata == data->mmb_panning_auto_scroll) {
+    if (!BLI_rcti_isect_y(&region->winrct, event->xy[1])) {
+      int delta = (event->xy[1] > region->winrct.ymax ? -1 : 1) *
+                  (event->flag & WM_EVENT_SCROLL_INVERT ? -1 : 1);
       searchbox_select(C, region, but, delta);
       data->mmb_panning_last_y = event->xy[1];
     }
@@ -1022,6 +1047,7 @@ static ARegion *searchbox_create_generic_ex(bContext *C,
   data->search_listener = but->listen_fn;
   data->zoom = 1.0f / aspect;
   data->mmb_panning = false;
+  data->mmb_panning_auto_scroll = nullptr;
 
   /* Set font, get the bounding-box. */
   data->fstyle = style->widget; /* copy struct */
@@ -1214,6 +1240,9 @@ void searchbox_free(bContext *C, ARegion *region)
   if (data->mmb_panning) {
     WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
     WM_cursor_grab_disable(CTX_wm_window(C), nullptr);
+  }
+  if (data->mmb_panning_auto_scroll) {
+    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), data->mmb_panning_auto_scroll);
   }
   region_temp_remove(C, CTX_wm_screen(C), region);
 }

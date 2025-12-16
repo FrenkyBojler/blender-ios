@@ -3803,6 +3803,11 @@ static int ui_do_but_textedit(
 #endif
 
   switch (event->type) {
+    case TIMER:
+      if (data->searchbox) {
+        searchbox_event(C, data->searchbox, but, data->region, event);
+      }
+      break;
     case MIDDLEMOUSE:
       if (data->searchbox) {
         searchbox_event(C, data->searchbox, but, data->region, event);
