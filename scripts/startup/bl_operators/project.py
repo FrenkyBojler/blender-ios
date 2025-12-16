@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import os
 from pathlib import Path
 import tomllib
 import atexit
@@ -33,6 +34,9 @@ def save_project(project, clear_dirty_flag: bool = True):
     """ Note: throws a ProjectSaveException on anticipated errors.
         Other exceptions indicate unanticipated errors (a.k.a. bugs).
     """
+
+    if project.data is None:
+        raise ProjectSaveException("Cannot save project because there is no project to save.")
 
     print("Saving project '{}' at '{}'...".format(project.data.name, project.data.root_path))
 
@@ -181,6 +185,10 @@ class PROJECT_OP_NewProject(Operator):
         # TODO: ensure `self.directory` is a parent of the current file (if the
         # file is on disk).
 
+        if self.directory == "":
+            self.report({'ERROR'}, "Cannot create a project with an empty file path")
+            return {'CANCELLED'}
+
         # Create the project.
         context.project.init("New Project", self.directory)
 
@@ -194,6 +202,12 @@ class PROJECT_OP_NewProject(Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        # Set our initial path as the directory that contains the currently open
+        # blend file.
+        dirpath = os.path.dirname(bpy.data.filepath)
+        if dirpath is not "":
+            self.directory = dirpath
+
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
