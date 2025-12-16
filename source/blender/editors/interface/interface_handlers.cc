@@ -3361,8 +3361,8 @@ static bool ui_textedit_insert_ascii(Button *but, HandleButtonData *data, const 
 #endif
 
 /**
- * Moves te cursor in the textbox one line up/down while keeping the character count distance to
- * the beginning of the line.
+ * Moves te cursor in the textbox one line up/ and tries to maintain the horizontal offset in
+ * pixels from the current line.
  */
 static void textbox_jump_line(ARegion *region,
                               ButtonTextBox *textbox,
@@ -3387,10 +3387,12 @@ static void textbox_jump_line(ARegion *region,
     line_cursor++;
   }
   line_cursor = std::clamp<int>(line_cursor, 0, lines.size() - 1);
-
-  int pos_i = BLI_str_utf8_offset_from_column(lines[line_cursor].begin(),
-                                              lines[line_cursor].size(),
-                                              textbox->pos - (lines[line_cursor].begin() - str));
+  const int fontid = style_get()->widget.uifont_id;
+  int offset = BLF_str_offset_to_cursor(fontid,
+                                        lines[line_cursor].begin(),
+                                        lines[line_cursor].size(),
+                                        textbox->pos - (lines[line_cursor].begin() - str),
+                                        0);
   StringRef dest_line = nullptr;
   if (direction == STRCUR_DIR_NEXT) {
     if (line_cursor == lines.size() - 1) {
@@ -3410,7 +3412,8 @@ static void textbox_jump_line(ARegion *region,
   }
   if (dest_line.data()) {
     textbox->pos = dest_line.begin() - str +
-                   BLI_str_utf8_offset_from_index(dest_line.data(), dest_line.size(), pos_i);
+                   BLF_str_offset_from_cursor_position(
+                       fontid, dest_line.data(), dest_line.size(), offset);
   }
   if (!select) {
     textbox->selsta = textbox->selend = textbox->pos;
