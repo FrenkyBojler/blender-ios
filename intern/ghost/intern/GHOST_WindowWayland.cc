@@ -2240,6 +2240,8 @@ void GHOST_WindowWayland::outputs_changed_update_scale_tag()
 
 bool GHOST_WindowWayland::outputs_changed_update_scale()
 {
+  /* NOTE: a current limitation is that a change in monitor scale while using --no-native-pixels
+   * will scale the window content up/down. */
   if (!system_->native_pixel_) {
     return false;
   }
