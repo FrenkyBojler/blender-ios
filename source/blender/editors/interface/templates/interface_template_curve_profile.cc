@@ -453,7 +453,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [profile, cb](bContext &C) {
+    button_func_set(bt, [profile, cb, crp](bContext &C) {
       float center_x_pre = 0.0f;
       float center_y_pre = 0.0f;
       BKE_curveprofile_get_selection_center(profile, &center_x_pre, &center_y_pre);
@@ -478,7 +478,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [profile, cb](bContext &C) {
+    button_func_set(bt, [profile, cb, crp](bContext &C) {
       float center_x_pre = 0.0f;
       float center_y_pre = 0.0f;
       BKE_curveprofile_get_selection_center(profile, &center_x_pre, &center_y_pre);
