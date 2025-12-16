@@ -665,7 +665,7 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
   }
   const OwnedAnimData dst_owned_adt = {dst_id, *dst_adt};
 
-  /* Transfer data from action. */
+  /* Copy data from tyhe source action. */
   if (src_adt->action) {
     if (dst_adt->action == src_adt->action) {
       CLOG_WARN(&LOG,
@@ -682,7 +682,7 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
       DEG_relations_tag_update(&bmain);
     }
 
-    /* Copy action if necessary. */
+    /* Create an empty action for the destination if necessary. */
     if (!dst_adt->action) {
       animrig::Action &new_action = animrig::action_add(bmain, src_adt->action->id.name + 2);
       new_action.slot_add_for_id(dst_id);
@@ -695,7 +695,7 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
       DEG_relations_tag_update(&bmain);
     }
 
-    /* Transfer fcurves for each base path. */
+    /* Copy fcurves for each base path. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {
       if (action_copy_fcurves_by_basepath(src_adt->action->wrap(),
                                           src_adt->slot_handle,
@@ -710,7 +710,7 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
     }
   }
 
-  /* Drivers */
+  /* Copy drivers in the animation data. */
   if (src_adt->drivers.first) {
     for (const AnimationBasePathChange &basepath_change : basepaths) {
       if (animdata_copy_drivers_by_basepath(
@@ -748,7 +748,7 @@ void BKE_animdata_move_by_basepath(Main &bmain,
   }
   const OwnedAnimData dst_owned_adt = {dst_id, *dst_adt};
 
-  /* Transfer data from action. */
+  /* Move data from the source action to the destination action. */
   if (src_adt->action) {
     if (dst_adt->action == src_adt->action) {
       CLOG_WARN(&LOG,
@@ -765,7 +765,7 @@ void BKE_animdata_move_by_basepath(Main &bmain,
       DEG_relations_tag_update(&bmain);
     }
 
-    /* Copy action if necessary. */
+    /* Create an empty action for the destination if necessary. */
     if (!dst_adt->action) {
       animrig::Action &new_action = animrig::action_add(bmain, src_adt->action->id.name + 2);
       new_action.slot_add_for_id(dst_id);
@@ -778,7 +778,7 @@ void BKE_animdata_move_by_basepath(Main &bmain,
       DEG_relations_tag_update(&bmain);
     }
 
-    /* Transfer fcurves for each base path. */
+    /* Move fcurves for each base path from the source action to the destination action. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {
       if (action_move_fcurves_by_basepath(src_adt->action->wrap(),
                                           src_adt->slot_handle,
@@ -795,7 +795,7 @@ void BKE_animdata_move_by_basepath(Main &bmain,
     }
   }
 
-  /* Drivers */
+  /* Move drivers from the source animdata to the destination animdata. */
   if (src_adt->drivers.first) {
     for (const AnimationBasePathChange &basepath_change : basepaths) {
       if (animdata_move_drivers_by_basepath(
