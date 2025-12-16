@@ -907,6 +907,10 @@ wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *even
 void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context);
 
 wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_enum_search_invoke(bContext *C,
+                                       wmOperator *op,
+                                       const wmEvent *event,
+                                       std::optional<blender::StringRef> initial_query);
 
 /**
  * Invoke callback, confirm menu + exec.

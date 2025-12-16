@@ -1142,6 +1142,7 @@ wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent * /*e
 
 struct EnumSearchMenu {
   wmOperator *op; /* The operator that will be executed when selecting an item. */
+  std::optional<std::string> initial_query;
 };
 
 /** Generic enum search invoke popup. */
@@ -1162,7 +1163,12 @@ static blender::ui::Block *wm_enum_search_menu(bContext *C, ARegion *region, voi
                         blender::ui::BLOCK_SEARCH_MENU);
   block_theme_style_set(block, blender::ui::BLOCK_THEME_STYLE_POPUP);
 
-  search[0] = '\0';
+  if (search_menu->initial_query.has_value()) {
+    STRNCPY_UTF8(search, search_menu->initial_query->c_str());
+  }
+  else {
+    search[0] = '\0';
+  }
   blender::ui::Button *but = uiDefSearchButO_ptr(block,
                                                  op->type,
                                                  static_cast<IDProperty *>(op->ptr->data),
@@ -1191,15 +1197,28 @@ static blender::ui::Block *wm_enum_search_menu(bContext *C, ARegion *region, voi
   /* Move it downwards, mouse over button. */
   block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, blender::int2{0, -UI_UNIT_Y});
 
+  if (search_menu->initial_query.has_value()) {
+    blender::ui::button_flag2_enable(but, blender::ui::BUT2_ACTIVATE_ON_INIT_NO_SELECT);
+  }
+
   button_focus_on_enter_event(win, but);
 
   return block;
 }
 
-wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return WM_enum_search_invoke(C, op, event, {});
+}
+
+wmOperatorStatus WM_enum_search_invoke(bContext *C,
+                                       wmOperator *op,
+                                       const wmEvent * /*event*/,
+                                       std::optional<blender::StringRef> initial_query)
 {
   static EnumSearchMenu search_menu;
   search_menu.op = op;
+  search_menu.initial_query = initial_query;
   /* Refreshing not supported, because operator might get freed. */
   const bool can_refresh = false;
   popup_block_invoke_ex(C, wm_enum_search_menu, &search_menu, nullptr, can_refresh);
@@ -2195,6 +2214,12 @@ static void WM_OT_search_single_menu(wmOperatorType *ot)
                  "Query to insert into the search box");
 }
 
+static wmOperatorStatus search_enum_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  std::string buffer = RNA_string_get(op->ptr, "initial_query");
+  return WM_enum_search_invoke(C, op, event, buffer);
+}
+
 static wmOperatorStatus search_enum_exec(bContext *C, wmOperator *op)
 {
   return OPERATOR_FINISHED;
@@ -2237,7 +2262,7 @@ static void WM_OT_search_enum(wmOperatorType *ot)
   ot->idname = "WM_OT_search_enum";
   ot->description = "Pop-up a search for a drop-down menu";
 
-  ot->invoke = WM_enum_search_invoke;
+  ot->invoke = search_enum_invoke;
   ot->exec = search_enum_exec;
 
   PropertyRNA *prop;
@@ -2255,6 +2280,13 @@ static void WM_OT_search_enum(wmOperatorType *ot)
               "",
               INT_MIN,
               INT_MAX);
+
+  RNA_def_string(ot->srna,
+                 "initial_query",
+                 nullptr,
+                 0,
+                 "Initial Query",
+                 "Query to insert into the search box");
 }
 
 static wmOperatorStatus wm_call_menu_exec(bContext *C, wmOperator *op)
