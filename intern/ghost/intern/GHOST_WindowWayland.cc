@@ -2256,6 +2256,7 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
   int fractional_scale_from_output = 0;
 
   int scale_next = outputs_max_scale_or_default(outputs_get(), 0, &fractional_scale_from_output);
+
   if (UNLIKELY(scale_next == 0)) {
     return false;
   }
