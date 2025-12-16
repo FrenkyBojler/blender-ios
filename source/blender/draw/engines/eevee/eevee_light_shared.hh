@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Shared code between host and client codebases.
+ * Shared code between host and client code-bases.
  */
 
 #pragma once
@@ -18,6 +18,21 @@ namespace blender::eevee {
 #endif
 
 #define LIGHT_NO_SHADOW -1
+
+/**
+ * Index inside the world sun buffer.
+ * In the case the world uses the light path node, multiple suns can be extracted from the world.
+ */
+enum WorldSunIndex : uint32_t {
+  /** When the world node-tree doesn't use the light path node, there is only 1 extracted. */
+  WORLD_SUN_COMBINED = 0u,
+
+  /* Index of each components. */
+  WORLD_SUN_DIFFUSE = 0u,
+  WORLD_SUN_GLOSSY = 1u,
+
+  WORLD_SUN_MAX = 2u,
+};
 
 enum eLightType : uint32_t {
   LIGHT_SUN = 0u,

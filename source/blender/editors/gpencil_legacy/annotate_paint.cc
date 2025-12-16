@@ -13,11 +13,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -27,7 +27,7 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_scene_types.h"
@@ -86,7 +86,7 @@ enum eGPencil_PaintFlags {
   GP_PAINTFLAG_USE_STABILIZER = (1 << 7),
   GP_PAINTFLAG_USE_STABILIZER_TEMP = (1 << 8),
 };
-ENUM_OPERATORS(eGPencil_PaintFlags, GP_PAINTFLAG_USE_STABILIZER_TEMP)
+ENUM_OPERATORS(eGPencil_PaintFlags)
 
 /* Temporary 'Stroke' Operation data
  *   "p" = op->customdata
@@ -349,7 +349,7 @@ static void annotation_stroke_convertcoords(tGPsdata *p,
 
   /* 2d - on 'canvas' (assume that p->v2d is set) */
   else if ((gpd->runtime.sbuffer_sflag & GP_STROKE_2DSPACE) && (p->v2d)) {
-    UI_view2d_region_to_view(p->v2d, mval[0], mval[1], &out[0], &out[1]);
+    blender::ui::view2d_region_to_view(p->v2d, mval[0], mval[1], &out[0], &out[1]);
     mul_v3_m4v3(out, p->imat, out);
   }
 

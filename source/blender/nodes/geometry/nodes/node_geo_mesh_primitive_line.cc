@@ -40,17 +40,23 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_TRANSLATION)
       .description(
           "In offset mode, the distance between each socket on each axis. In end points mode, the "
-          "position of the final vertex");
+          "position of the final vertex")
+      .label_fn([](bNode node) {
+        return (node_storage(node).mode == GEO_NODE_MESH_LINE_MODE_END_POINTS) ?
+                   IFACE_("End Location") :
+                   IFACE_("Offset");
+      });
+  ;
   b.add_output<decl::Geometry>("Mesh");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   if (RNA_enum_get(ptr, "mode") == GEO_NODE_MESH_LINE_MODE_END_POINTS) {
-    layout->prop(ptr, "count_mode", UI_ITEM_NONE, "", ICON_NONE);
+    layout.prop(ptr, "count_mode", UI_ITEM_NONE, "", ICON_NONE);
   }
 }
 
@@ -68,17 +74,11 @@ static void node_update(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *count_socket = static_cast<bNodeSocket *>(node->inputs.first);
   bNodeSocket *resolution_socket = count_socket->next;
-  bNodeSocket *start_socket = resolution_socket->next;
-  bNodeSocket *end_and_offset_socket = start_socket->next;
 
   const NodeGeometryMeshLine &storage = node_storage(*node);
   const GeometryNodeMeshLineMode mode = (GeometryNodeMeshLineMode)storage.mode;
   const GeometryNodeMeshLineCountMode count_mode = (GeometryNodeMeshLineCountMode)
                                                        storage.count_mode;
-
-  node_sock_label(end_and_offset_socket,
-                  (mode == GEO_NODE_MESH_LINE_MODE_END_POINTS) ? N_("End Location") :
-                                                                 N_("Offset"));
 
   bke::node_set_socket_availability(*ntree,
                                     *resolution_socket,
