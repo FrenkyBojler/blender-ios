@@ -2195,9 +2195,40 @@ static void WM_OT_search_single_menu(wmOperatorType *ot)
                  "Query to insert into the search box");
 }
 
-static wmOperatorStatus search_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus search_enum_exec(bContext *C, wmOperator *op)
 {
   return OPERATOR_FINISHED;
+}
+
+static const EnumPropertyItem *search_enum_items(bContext *C,
+                                                 PointerRNA *ptr,
+                                                 PropertyRNA * /*prop*/,
+                                                 bool *r_free)
+{
+
+  Main *bmain = CTX_data_main(C);
+
+  std::string rna_path = RNA_string_get(ptr, "rna_path");
+  int owner_session_uid = RNA_int_get(ptr, "owner_session_uid");
+  ID *owner_id = owner_session_uid >= 0 ? BKE_libblock_find_session_uid(bmain, owner_session_uid) :
+                                          nullptr;
+
+  PointerRNA id_ptr = RNA_id_pointer_create(owner_id);
+
+  PointerRNA search_prop_owner;
+  PropertyRNA *search_prop = nullptr;
+  int index = 0;
+  if (!RNA_path_resolve_property_full(
+          &id_ptr, rna_path.c_str(), &search_prop_owner, &search_prop, &index))
+  {
+    return rna_enum_dummy_NULL_items;
+  }
+
+  const EnumPropertyItem *items = nullptr;
+  int items_num = 0;
+  RNA_property_enum_items_ex(
+      C, &search_prop_owner, search_prop, false, &items, &items_num, r_free);
+  return items;
 }
 
 static void WM_OT_search_enum(wmOperatorType *ot)
@@ -2207,11 +2238,23 @@ static void WM_OT_search_enum(wmOperatorType *ot)
   ot->description = "Pop-up a search for a drop-down menu";
 
   ot->invoke = WM_enum_search_invoke;
-  ot->exec = search_menu_exec;
+  ot->exec = search_enum_exec;
 
   PropertyRNA *prop;
   prop = RNA_def_enum(ot->srna, "enum", rna_enum_dummy_DEFAULT_items, 0, "Enum", "");
+  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, search_enum_items, nullptr, nullptr);
   ot->prop = prop;
+
+  RNA_def_string(ot->srna, "rna_path", nullptr, 0, "RNA Path", "");
+  RNA_def_int(ot->srna,
+              "owner_session_uid",
+              0,
+              INT_MIN,
+              INT_MAX,
+              "Owner Session UID",
+              "",
+              INT_MIN,
+              INT_MAX);
 }
 
 static wmOperatorStatus wm_call_menu_exec(bContext *C, wmOperator *op)

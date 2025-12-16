@@ -69,6 +69,7 @@
 #include "interface_intern.hh"
 
 #include "RNA_access.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
 #include "CLG_log.h"
@@ -10720,11 +10721,27 @@ static int ui_handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEv
 
 static int ui_handle_enum_letter_press_search(PopupBlockHandle *menu, const wmEvent *event)
 {
+  PointerRNA ptr = menu->popup_create_vars.but->rnapoin;
+  PropertyRNA *prop = menu->popup_create_vars.but->rnaprop;
+  const std::optional<std::string> rna_path = RNA_path_from_ID_to_property(&ptr, prop);
+  if (!rna_path) {
+    return WM_UI_HANDLER_CONTINUE;
+  }
   AfterFunc *after = ui_afterfunc_new();
   wmOperatorType *ot = WM_operatortype_find("WM_OT_search_enum", false);
   after->optype = ot;
   after->opcontext = wm::OpCallContext::InvokeDefault;
   after->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
+
+  RNA_string_set(after->opptr, "rna_path", rna_path->c_str());
+
+  if (ptr.owner_id) {
+    RNA_int_set(after->opptr, "owner_session_uid", ptr.owner_id->session_uid);
+  }
+  else {
+    RNA_int_set(after->opptr, "owner_session_uid", -1);
+  }
+
   menu->menuretval = RETURN_OUT;
   return WM_UI_HANDLER_BREAK;
 }
