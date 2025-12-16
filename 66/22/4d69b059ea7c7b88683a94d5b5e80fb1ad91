@@ -1,3 +1,4 @@
 Referenced by issue #147361, Cycles:  OSL kernel fails to load on GPU Cycles
 Referenced by issue #138940, Library changes for Blender 5.0
 Referenced by issue #148752, 5.0 OSL Camera Depth of Field artifacts
+Referenced by issue #151628, blender-softwaregl does not work
