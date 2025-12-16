@@ -1,7 +1,14 @@
 if "%NOBUILD%"=="1" goto EOF
 echo %TIME% > %BUILD_DIR%\buildtime.txt
+
+if "%BUILD_VS_VER%"=="18" (
+	set VS_SLN_EXT=slnx
+) else (
+	set VS_SLN_EXT=sln
+)
+
 msbuild ^
-	%BUILD_DIR%\Blender.sln ^
+	%BUILD_DIR%\Blender.%VS_SLN_EXT% ^
 	/target:build ^
 	/property:Configuration=%BUILD_TYPE% ^
 	/maxcpucount:2 ^
