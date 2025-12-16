@@ -58,16 +58,6 @@ Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTex
   return handle.texture;
 }
 
-bool TexturePool::is_texture_acquired(Texture *tex) const
-{
-  for (const auto &handle : acquired_) {
-    if (handle.texture == tex) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void TexturePool::release_texture(Texture *tex)
 {
   BLI_assert_msg(acquired_.contains({tex}),
