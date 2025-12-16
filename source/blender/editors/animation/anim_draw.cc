@@ -587,7 +587,7 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
   }
 
   const PropertyUnit prop_unit = PropertyUnit(RNA_SUBTYPE_UNIT(RNA_property_subtype(prop)));
-  double unit_scaler = 1.0;
+  double unit_scaler = 1.0f;
 
   switch (prop_unit) {
     const void *usys;
@@ -595,28 +595,31 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
 
     case PROP_UNIT_ROTATION:
       if (scene->unit.system_rotation == USER_UNIT_ROT_RADIANS) {
-        if (flag & ANIM_UNITCONV_RESTORE) {
-          return DEG2RADF(1.0f);
-        }
-        return RAD2DEGF(1.0f);
+        return 1.0f;
       }
-      break;
+      if (flag & ANIM_UNITCONV_RESTORE) {
+        return DEG2RADF(1.0f);
+      }
+      return RAD2DEGF(1.0f);
+
     case PROP_UNIT_LENGTH:
       BKE_unit_system_get(scene->unit.system, B_UNIT_LENGTH, &usys, &len);
-      if (usys)
+      if (usys) {
         unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.length_unit);
+      }
       break;
 
     case PROP_UNIT_MASS:
       BKE_unit_system_get(scene->unit.system, B_UNIT_MASS, &usys, &len);
-      if (usys)
+      if (usys) {
         unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.mass_unit);
+      }
       break;
-
     case PROP_UNIT_TIME:
       BKE_unit_system_get(scene->unit.system, B_UNIT_TIME, &usys, &len);
-      if (usys)
+      if (usys) {
         unit_scaler = BKE_unit_scalar_get(usys, (int)scene->unit.time_unit);
+      }
       break;
 
     case PROP_UNIT_TEMPERATURE:
