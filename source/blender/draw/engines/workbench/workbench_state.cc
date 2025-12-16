@@ -339,9 +339,9 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
           image_paint_override = MaterialTexture(paint_mode->canvas_image);
           image_paint_override.sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
           image_paint_override.sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-          // TODO: Add an image texture interpolation variable to PaintModeSettings, similar to
-          // ImagePaintSetting's interp variable, and make the material override apply the
-          // interpolation filter to achieve feature parity with legacy texture painting mode.
+          /* TODO: Add an image texture interpolation variable to PaintModeSettings, similar to
+           * ImagePaintSetting's interp variable, and make the material override apply the
+           * interpolation filter to achieve feature parity with legacy texture painting mode. */
         }
         else {
           image_paint_override = resources.missing_texture;
