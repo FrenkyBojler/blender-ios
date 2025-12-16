@@ -14,85 +14,13 @@ import bpy
 args = None
 
 
-base_idname = {
-    "VALUE": "NodeSocketFloat",
-    "INT": "NodeSocketInt",
-    "BOOLEAN": "NodeSocketBool",
-    "ROTATION": "NodeSocketRotation",
-    "VECTOR": "NodeSocketVector",
-    "RGBA": "NodeSocketColor",
-    "STRING": "NodeSocketString",
-    "SHADER": "NodeSocketShader",
-    "OBJECT": "NodeSocketObject",
-    "IMAGE": "NodeSocketImage",
-    "GEOMETRY": "NodeSocketGeometry",
-    "COLLECTION": "NodeSocketCollection",
-    "TEXTURE": "NodeSocketTexture",
-    "MATERIAL": "NodeSocketMaterial",
-}
-
-
-subtype_idname = {
-    ("VALUE", "NONE"): "NodeSocketFloat",
-    ("VALUE", "UNSIGNED"): "NodeSocketFloatUnsigned",
-    ("VALUE", "PERCENTAGE"): "NodeSocketFloatPercentage",
-    ("VALUE", "FACTOR"): "NodeSocketFloatFactor",
-    ("VALUE", "ANGLE"): "NodeSocketFloatAngle",
-    ("VALUE", "TIME"): "NodeSocketFloatTime",
-    ("VALUE", "TIME_ABSOLUTE"): "NodeSocketFloatTimeAbsolute",
-    ("VALUE", "DISTANCE"): "NodeSocketFloatDistance",
-    ("INT", "NONE"): "NodeSocketInt",
-    ("INT", "UNSIGNED"): "NodeSocketIntUnsigned",
-    ("INT", "PERCENTAGE"): "NodeSocketIntPercentage",
-    ("INT", "FACTOR"): "NodeSocketIntFactor",
-    ("BOOLEAN", "NONE"): "NodeSocketBool",
-    ("ROTATION", "NONE"): "NodeSocketRotation",
-    ("VECTOR", "NONE"): "NodeSocketVector",
-    ("VECTOR", "FACTOR"): "NodeSocketVectorFactor",
-    ("VECTOR", "PERCENTAGE"): "NodeSocketVectorPercentage",
-    ("VECTOR", "TRANSLATION"): "NodeSocketVectorTranslation",
-    ("VECTOR", "DIRECTION"): "NodeSocketVectorDirection",
-    ("VECTOR", "VELOCITY"): "NodeSocketVectorVelocity",
-    ("VECTOR", "ACCELERATION"): "NodeSocketVectorAcceleration",
-    ("VECTOR", "EULER"): "NodeSocketVectorEuler",
-    ("VECTOR", "XYZ"): "NodeSocketVectorXYZ",
-    ("RGBA", "NONE"): "NodeSocketColor",
-    ("STRING", "NONE"): "NodeSocketString",
-    ("STRING", "FILEPATH"): "NodeSocketStringFilePath",
-    ("SHADER", "NONE"): "NodeSocketShader",
-    ("OBJECT", "NONE"): "NodeSocketObject",
-    ("IMAGE", "NONE"): "NodeSocketImage",
-    ("GEOMETRY", "NONE"): "NodeSocketGeometry",
-    ("COLLECTION", "NONE"): "NodeSocketCollection",
-    ("TEXTURE", "NONE"): "NodeSocketTexture",
-    ("MATERIAL", "NONE"): "NodeSocketMaterial",
-}
-
-
-@dataclass
-class SocketSpec():
-    name: str
-    identifier: str
-    type: str
-    subtype: str = 'NONE'
-    hide_value: bool = False
-    hide_in_modifier: bool = False
-    default_value: object = None
-    min_value: object = None
-    max_value: object = None
-    internal_links: int = 1
-    external_links: int = 1
-
-    @property
-    def base_idname(self):
-        return base_idname[self.type]
-
-    @property
-    def subtype_idname(self):
-        return subtype_idname[(self.type, self.subtype)]
-
-
 class AbstractNodeCopyOperatorTest(unittest.TestCase):
+    testfile = "node_copy_operators.blend"
+
+    def open_file(self):
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / self.testfile))
+        self.assertEqual(bpy.data.version, (5, 1, 14))
+
     @classmethod
     def setUpClass(cls):
         cls.testdir = args.testdir
@@ -105,6 +33,78 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
 
     def tearDown(self):
         self._tempdir.cleanup()
+
+    def compare_value(self, type, value_a, value_b):
+        if type in {'VECTOR', 'ROTATION', 'MATRIX', 'RGBA'}:
+            for comp_a, comp_b in zip(value_a, value_b):
+                self.assertEqual(comp_a, comp_b)
+        else:
+            self.assertEqual(value_a, value_b)
+
+    # Validate node socket properties and connections in the tree.
+    # Links to/from the socket are compared to expected values using the node and socket maps.
+    def compare_socket(self, test_socket, node_map, socket_map):
+        expected_socket = socket_map[test_socket]
+        with self.subTest(test_socket=test_socket.name, expected_socket=expected_socket.name):
+            # Generic socket properties
+            self.assertEqual(test_socket.name, expected_socket.name)
+            self.assertEqual(test_socket.bl_idname, expected_socket.bl_idname)
+            self.assertEqual(test_socket.type, expected_socket.type)
+            self.assertEqual(test_socket.description, expected_socket.description)
+            self.assertEqual(test_socket.is_output, expected_socket.is_output)
+
+            # Input value
+            if not expected_socket.is_output:
+                self.assertEqual(test_socket.hide_value, expected_socket.hide_value)
+                test_has_value = hasattr(test_socket, "default_value")
+                expected_has_value = hasattr(expected_socket, "default_value")
+                self.assertEqual(test_has_value, expected_has_value)
+                if test_has_value and expected_has_value:
+                    self.compare_value(expected_socket.type, test_socket.default_value, expected_socket.default_value)
+
+            # Links
+            self.assertEqual(test_socket.is_linked, expected_socket.is_linked)
+            if expected_socket.is_linked:
+                self.assertEqual(len(test_socket.links), len(expected_socket.links))
+                for test_link, expected_link in zip(test_socket.links, expected_socket.links):
+                    if expected_socket.is_output:
+                        self.assertEqual(node_map[test_link.to_node], expected_link.to_node)
+                        self.assertEqual(socket_map[test_link.to_socket], expected_link.to_socket)
+                    else:
+                        self.assertEqual(node_map[test_link.from_node], expected_link.from_node)
+                        self.assertEqual(socket_map[test_link.from_socket], expected_link.from_socket)
+
+    # Validate a node against the expected data using the node map.
+    def compare_nodes(self, test_node, node_map, socket_map):
+        expected_node = node_map[test_node]
+
+        self.assertEqual(len(test_node.inputs), len(expected_node.inputs))
+        self.assertEqual(len(test_node.outputs), len(expected_node.outputs))
+        for test_socket in test_node.inputs:
+            self.compare_socket(test_socket, node_map, socket_map)
+        for test_socket in test_node.outputs:
+            self.compare_socket(test_socket, node_map, socket_map)
+
+    # Validate the tree interface settings of a node group.
+    def compare_tree_interface(self, test_tree, expected_tree):
+        test_items = test_tree.interface.items_tree
+        expected_items = expected_tree.interface.items_tree
+        self.assertEqual(len(test_items), len(expected_items))
+        for te, ex in zip(test_items, expected_items):
+            te_io = getattr(te, "in_out", None)
+            ex_io = getattr(ex, "in_out", None)
+            # print(f"{te.item_type}|{ex.item_type}, {te_io}|{ex_io}, {te.name}|{ex.name}")
+
+    # Add all sockets of mapped nodes to their own dictionary, assuming the socket order is the same.
+    @staticmethod
+    def build_socket_map(node_map):
+        socket_map = dict()
+        for test_node, expected_node in node_map.items():
+            for test_socket, expected_socket in zip(test_node.inputs, expected_node.inputs):
+                socket_map[test_socket] = expected_socket
+            for test_socket, expected_socket in zip(test_node.outputs, expected_node.outputs):
+                socket_map[test_socket] = expected_socket
+        return socket_map
 
 
 # Provide a valid context override to run node editor operators
@@ -125,7 +125,7 @@ def node_editor_context_override(context=None, selected_nodes=[], active_node=No
     context_override["selected_nodes"] = selected_nodes
     context_override["active_node"] = active_node
 
-    # XXX Relying on context.selected_nodes and context.active_node does not work for many/most node operators
+    # Relying on context.selected_nodes and context.active_node does not work for many/most node operators
     # because they rely on actual selected/active nodes in the tree, rather than the context.
     for node in tree.nodes:
         node.select = False
@@ -136,6 +136,7 @@ def node_editor_context_override(context=None, selected_nodes=[], active_node=No
     return context.temp_override(**context_override)
 
 
+# Iterator for all nodes inside a frame node.
 def node_frame_children(frame_node):
     tree = frame_node.id_data
     for node in tree.nodes:
@@ -147,75 +148,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
     test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
     group_nodes_single = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
     group_node_all = "GroupNode.All"
-
-    def open_file(self):
-        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "node_copy_operators.blend"))
-        self.assertEqual(bpy.data.version, (5, 1, 14))
-
-    def compare_value(self, type, value_a, value_b):
-        if type in {'VECTOR', 'ROTATION', 'MATRIX', 'RGBA'}:
-            for comp_a, comp_b in zip(value_a, value_b):
-                self.assertEqual(comp_a, comp_b)
-        else:
-            self.assertEqual(value_a, value_b)
-
-    def compare_socket(self, test_socket, node_map, socket_map):
-        expected_socket = socket_map[test_socket]
-        with self.subTest(test_socket=test_socket.name, expected_socket=expected_socket.name):
-            # Generic socket properties
-            self.assertEqual(test_socket.name, expected_socket.name)
-            self.assertEqual(test_socket.bl_idname, expected_socket.bl_idname)
-            self.assertEqual(test_socket.type, expected_socket.type)
-            self.assertEqual(test_socket.description, expected_socket.description)
-            self.assertEqual(test_socket.is_output, expected_socket.is_output)
-            # Input value
-            if not expected_socket.is_output:
-                self.assertEqual(test_socket.hide_value, expected_socket.hide_value)
-                test_has_value = hasattr(test_socket, "default_value")
-                expected_has_value = hasattr(expected_socket, "default_value")
-                self.assertEqual(test_has_value, expected_has_value)
-                if test_has_value and expected_has_value:
-                    self.compare_value(expected_socket.type, test_socket.default_value, expected_socket.default_value)
-            # Links
-            self.assertEqual(test_socket.is_linked, expected_socket.is_linked)
-            if expected_socket.is_linked:
-                self.assertEqual(len(test_socket.links), len(expected_socket.links))
-                for test_link, expected_link in zip(test_socket.links, expected_socket.links):
-                    if expected_socket.is_output:
-                        self.assertEqual(node_map[test_link.to_node], expected_link.to_node)
-                        self.assertEqual(socket_map[test_link.to_socket], expected_link.to_socket)
-                    else:
-                        self.assertEqual(node_map[test_link.from_node], expected_link.from_node)
-                        self.assertEqual(socket_map[test_link.from_socket], expected_link.from_socket)
-
-    def compare_nodes(self, test_node, node_map, socket_map):
-        expected_node = node_map[test_node]
-
-        self.assertEqual(len(test_node.inputs), len(expected_node.inputs))
-        self.assertEqual(len(test_node.outputs), len(expected_node.outputs))
-        for test_socket in test_node.inputs:
-            self.compare_socket(test_socket, node_map, socket_map)
-        for test_socket in test_node.outputs:
-            self.compare_socket(test_socket, node_map, socket_map)
-
-    def compare_tree_interface(self, test_tree, expected_tree):
-        test_items = test_tree.interface.items_tree
-        expected_items = expected_tree.interface.items_tree
-        self.assertEqual(len(test_items), len(expected_items))
-        for te, ex in zip(test_items, expected_items):
-            te_io = getattr(te, "in_out", None)
-            ex_io = getattr(ex, "in_out", None)
-            # print(f"{te.item_type}|{ex.item_type}, {te_io}|{ex_io}, {te.name}|{ex.name}")
-
-    @staticmethod
-    def build_socket_map(node_map):
-        socket_map = dict()
-        for test_node, expected_node in node_map.items():
-            for test_socket, expected_socket in zip(test_node.inputs, expected_node.inputs):
-                socket_map[test_socket] = expected_socket
-            for test_socket, expected_socket in zip(test_node.outputs, expected_node.outputs):
-                socket_map[test_socket] = expected_socket
-        return socket_map
 
     def test_make_node_group_single(self):
         test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
