@@ -184,6 +184,7 @@ struct Scope {
                             end.str_index_last_no_whitespace() - start.str_index_start() + 1);
   }
 
+  /* Return first occurrence of token_type inside this scope. */
   Token find_token(const char token_type) const
   {
     if (this->is_invalid()) {
@@ -226,6 +227,10 @@ struct Scope {
                      std::function<void(const std::vector<Token>)> callback) const
   {
     assert(!pattern.empty());
+    if (this->is_invalid()) {
+      return;
+    }
+
     const std::string_view scope_tokens =
         std::string_view(data->token_types).substr(range().start, range().size);
 
@@ -372,13 +377,7 @@ struct Scope {
     foreach_match("sw{..}", [&](const std::vector<Token> matches) {
       callback(matches[0], matches[1], matches[2].scope());
     });
-    foreach_match("Sw{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], matches[1], matches[2].scope());
-    });
     foreach_match("sw<..>{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], matches[1], matches[6].scope());
-    });
-    foreach_match("Sw<..>{..}", [&](const std::vector<Token> matches) {
       callback(matches[0], matches[1], matches[6].scope());
     });
   }
