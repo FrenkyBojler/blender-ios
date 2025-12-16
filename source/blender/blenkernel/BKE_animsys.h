@@ -12,6 +12,8 @@
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
 
+#include <string>
+
 struct AnimData;
 struct BlendDataReader;
 struct BlendWriter;
