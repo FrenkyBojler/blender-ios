@@ -1336,7 +1336,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     };
 
     constexpr int64_t target_point_count = 1024;
-    Vector<int64_t> processing_span_starts;
+    Vector<int64_t> processing_span_splits;
 
     int64_t curr_span_start = 0;
     int64_t curr_span_end = 0;
@@ -1349,17 +1349,20 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       curr_span_end += 1;
 
       if (curr_points_size >= target_point_count) {
-        processing_span_starts.append(curr_span_start);
+        processing_span_splits.append(curr_span_start);
         curr_span_start = curr_span_end;
         curr_points_size = 0;
       }
     }
-    processing_span_starts.append(visible_strokes.size());
+    if (processing_span_splits.size() == 0) {
+      processing_span_splits.append(0);
+    }
+    processing_span_splits.append(visible_strokes.size());
 
-    threading::parallel_for_each(IndexRange(processing_span_starts.size()-1),
+    threading::parallel_for_each(IndexRange(processing_span_splits.size()-1),
                                  [&](const int i) {
-      const int64_t span_start = processing_span_starts[i];
-      const int64_t span_end = processing_span_starts[i + 1];
+      const int64_t span_start = processing_span_splits[i];
+      const int64_t span_end = processing_span_splits[i + 1];
 
       for (const int pos : IndexRange(span_start, (span_end - span_start))) {
         const int curve_i = visible_strokes[pos];
