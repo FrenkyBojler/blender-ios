@@ -89,7 +89,7 @@ void draw_keyframe_shape(const float x,
   uchar highlight_color[4];
   uint flags = 0;
 
-  UI_GetThemeColor4ubv(TH_CFRAME, highlight_color);
+  blender::ui::theme::get_color_4ubv(TH_CFRAME, highlight_color);
   highlight_color[3] = 255;
 
   const bool sel = flag & KEYFRAME_DRAW_SELECTED;
