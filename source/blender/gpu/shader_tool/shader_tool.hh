@@ -3887,6 +3887,82 @@ class Preprocessor {
       parser.erase(body.start().next(), body.end().prev());
     };
 
+    auto member_from_float =
+        [&](const Member &union_member, const Member &struct_member, const string &access) {
+          /* Account for trivial types. */
+          const string &type = struct_member.is_trivial() ? union_member.type : struct_member.type;
+          bool is_enum = struct_member.is_trivial() ? union_member.is_enum : struct_member.is_enum;
+
+          if (is_enum) {
+            return struct_member.type + "(floatBitsToUint(" + access + "))";
+          }
+          if (type.substr(0, 4) == "uint") {
+            return "floatBitsToUint(" + access + ")";
+          }
+          if (type.substr(0, 3) == "int") {
+            return "floatBitsToInt(" + access + ")";
+          }
+          if (type == "bool") {
+            return "floatBitsToInt(" + access + ") != 0";
+          }
+          return access;
+        };
+
+    auto member_to_float =
+        [&](const Member &union_member, const Member &struct_member, const string &access) {
+          /* Account for trivial types. */
+          const string &type = struct_member.is_trivial() ? union_member.type : struct_member.type;
+          bool is_enum = struct_member.is_trivial() ? union_member.is_enum : struct_member.is_enum;
+
+          if (is_enum) {
+            return "uintBitsToFloat(uint(" + access + "))";
+          }
+          if (type.substr(0, 4) == "uint") {
+            return "uintBitsToFloat(" + access + ")";
+          }
+          if (type.substr(0, 3) == "int") {
+            return "intBitsToFloat(" + access + ")";
+          }
+          if (type == "bool") {
+            return "intBitsToFloat(int(" + access + "))";
+          }
+          return access;
+        };
+
+    auto union_data_access = [&](const Member &struct_member, size_t union_size) {
+      const size_t offset = struct_member.offset;
+      string access = ".data" + to_string(offset / 16);
+
+      if (struct_member.size == 12) {
+        access += ".xyz";
+      }
+      else if (struct_member.size == 8) {
+        access += ((offset % 16) == 0) ? ".xy" : ".zw";
+      }
+      else if (struct_member.size == 4) {
+        switch (offset % 16) {
+          case 0:
+            /* Special case if last member is a scalar. */
+            access += ((union_size - offset) == 4) ? "" : ".x";
+            break;
+          case 4:
+            access += ".y";
+            break;
+          case 8:
+            access += ".z";
+            break;
+          case 12:
+            access += ".w";
+            break;
+        }
+      }
+      return access;
+    };
+
+    auto member_data_access = [&](const Member &struct_member) -> string {
+      return (struct_member.is_trivial()) ? string() : ("." + struct_member.name);
+    };
+
     auto create_getter = [&](/* Tokens of the union declaration inside the struct. */
                              const Token &union_type_tok,
                              const Token &union_var_tok,
@@ -3895,78 +3971,61 @@ class Preprocessor {
                              /* Definition of the type of the accessed member. */
                              const vector<Member> &struct_members) -> string {
       const size_t union_size = type_size_get(union_type_tok);
-
       if (union_size == 0) {
         report_error(ERROR_TOK(union_type_tok),
                      "Can't infer size of member. Type must be defined in this file and have "
                      "the [[host_shared]] attribute.");
         return "";
       }
+      const Member &last_member = struct_members.back();
+      if (last_member.offset + last_member.size != union_size) {
+        report_error(ERROR_TOK(union_type_tok), "union has members of different sizes");
+        return "";
+      }
 
       string fn_body = "{\n";
       /* Declare return variable of the same type as the accessed member. */
       fn_body += "  " + union_member.type + " val;\n";
-
-      size_t offset = 0;
       for (const auto &member : struct_members) {
-        /* Account for trivial types. */
-        fn_body += (member.is_trivial()) ? string("  val") : ("  val." + member.name);
-        string access = union_var_tok.str() + ".data" + to_string(offset / 16);
-
-        if (member.size == 12) {
-          access += ".xyz";
-        }
-        else if (member.size == 8) {
-          access += ((offset % 16) == 0) ? ".xy" : ".zw";
-        }
-        else if (member.size == 4) {
-          switch (offset % 16) {
-            case 0:
-              /* Special case if last member is a scalar. */
-              access += ((union_size - offset) > 4) ? ".x" : "";
-              break;
-            case 4:
-              access += ".y";
-              break;
-            case 8:
-              access += ".z";
-              break;
-            case 12:
-              access += ".w";
-              break;
-          }
-        }
-        offset += member.size;
-
-        if (offset > union_size) {
-          report_error(ERROR_TOK(union_type_tok), "union has members of different size");
-        }
-
-        /* Account for trivial types. */
-        const string &type = member.is_trivial() ? union_member.type : member.type;
-        const bool is_enum = member.is_trivial() ? union_member.is_enum : member.is_enum;
-
-        if (is_enum) {
-          fn_body += " = " + member.type + "(floatBitsToUint(" + access + "));\n";
-        }
-        else if (type.substr(0, 4) == "uint") {
-          fn_body += " = floatBitsToUint(" + access + ");\n";
-        }
-        else if (type.substr(0, 3) == "int") {
-          fn_body += " = floatBitsToInt(" + access + ");\n";
-        }
-        else if (type == "bool") {
-          fn_body += " = floatBitsToInt(" + access + ") != 0;\n";
-        }
-        else {
-          fn_body += " = " + access + ";\n";
-        }
+        string to_var = "val" + member_data_access(member);
+        string access = union_var_tok.str() + union_data_access(member, union_size);
+        fn_body += "  " + to_var + " = " + member_from_float(union_member, member, access) + ";\n";
       }
-
       fn_body += "  return val;\n";
       fn_body += "}\n";
 
       return "\n" + union_member.type + " " + union_member.name + "() " + fn_body;
+    };
+
+    auto create_setter = [&](/* Tokens of the union declaration inside the struct. */
+                             const Token &union_type_tok,
+                             const Token &union_var_tok,
+                             /* Union member we are creating the accessor for. */
+                             const Member &union_member,
+                             /* Definition of the type of the accessed member. */
+                             const vector<Member> &struct_members) -> string {
+      const size_t union_size = type_size_get(union_type_tok);
+      if (union_size == 0) {
+        report_error(ERROR_TOK(union_type_tok),
+                     "Can't infer size of member. Type must be defined in this file and have "
+                     "the [[host_shared]] attribute.");
+        return "";
+      }
+      const Member &last_member = struct_members.back();
+      if (last_member.offset + last_member.size != union_size) {
+        report_error(ERROR_TOK(union_type_tok), "union has members of different sizes");
+        return "";
+      }
+
+      string fn_body = "{\n";
+      for (const auto &member : struct_members) {
+        string to_var = "this->" + union_var_tok.str() + union_data_access(member, union_size);
+        string access = "value" + member_data_access(member);
+        fn_body += "  " + to_var + " = " + member_to_float(union_member, member, access) + ";\n";
+      }
+      fn_body += "}\n";
+
+      return "\nvoid " + union_member.name + "_set_(" + union_member.type + " value) " + fn_body;
     };
 
     parser().foreach_struct([&](Token, Scope, Token struct_name, Scope body) {
@@ -3992,8 +4051,20 @@ class Preprocessor {
           parser.insert_after(
               body.end().prev(),
               create_getter(type, name, member, struct_members.find(member.type)->second));
+          parser.insert_after(
+              body.end().prev(),
+              create_setter(type, name, member, struct_members.find(member.type)->second));
         }
       });
+    });
+
+    /* Replace assignment pattern.
+     * Example: `a.b() = c;` >  `a.b_set_(c);`
+     * This pattern is currently only allowed for `union_t`. */
+    parser().foreach_match("w()=", [&](const Tokens &t) {
+      parser.insert_before(t[1], "_set_");
+      parser.erase(t[2], t[3]);
+      parser.insert_after(t[3].scope().end(), ")");
     });
 
     parser.apply_mutations();
