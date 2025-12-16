@@ -213,6 +213,11 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
     }
   }
 
+  /* Cache the contained geometry types of the #geometry_set_eval. */
+  if (ob->runtime->geometry_set_eval) {
+    ob->runtime->geometry_types_eval = ob->runtime->geometry_set_eval->gather_component_types();
+  }
+
   if (DEG_is_active(depsgraph)) {
     Object *object_orig = DEG_get_original(ob);
     object_orig->runtime->bounds_eval = BKE_object_evaluated_geometry_bounds(ob);

@@ -783,7 +783,7 @@ static void gather_component_types_recursive(const GeometrySet &geometry_set,
 }
 
 Vector<GeometryComponent::Type> GeometrySet::gather_component_types(const bool include_instances,
-                                                                    bool ignore_empty) const
+                                                                    const bool ignore_empty) const
 {
   Vector<GeometryComponent::Type> types;
   gather_component_types_recursive(*this, include_instances, ignore_empty, types);

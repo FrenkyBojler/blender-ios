@@ -1593,6 +1593,28 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   }
 }
 
+static bool depsgraph_contains_visible_grease_pencil_geometry(Depsgraph *depsgraph)
+{
+  bool found = false;
+  DEG_foreach_ID(depsgraph, [&](const ID *id) {
+    const ID *id_eval = DEG_get_evaluated_id(depsgraph, id);
+    if (found) {
+      return;
+    }
+    if (GS(id_eval->name) == ID_OB) {
+      const Object *ob = reinterpret_cast<const Object *>(id_eval);
+      if (BKE_object_visibility(ob, DAG_EVAL_RENDER) & OB_VISIBLE_SELF) {
+        if (ob->runtime->geometry_types_eval.contains(
+                blender::bke::GeometryComponent::Type::GreasePencil))
+        {
+          found = true;
+        }
+      }
+    }
+  });
+  return found;
+}
+
 bool DRW_render_check_grease_pencil(Depsgraph *depsgraph, View3D *v3d)
 {
   if (v3d && gpencil_object_is_excluded(v3d)) {
@@ -1603,19 +1625,7 @@ bool DRW_render_check_grease_pencil(Depsgraph *depsgraph, View3D *v3d)
     return true;
   }
 
-  DEGObjectIterSettings deg_iter_settings = {nullptr};
-  deg_iter_settings.depsgraph = depsgraph;
-  deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-  DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-    if (ob->type == OB_GREASE_PENCIL) {
-      if (BKE_object_visibility(ob, DAG_EVAL_RENDER) & OB_VISIBLE_SELF) {
-        return true;
-      }
-    }
-  }
-  DEG_OBJECT_ITER_END;
-
-  return false;
+  return depsgraph_contains_visible_grease_pencil_geometry(depsgraph);
 }
 
 void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)

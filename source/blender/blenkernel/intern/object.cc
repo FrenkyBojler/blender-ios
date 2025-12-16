@@ -1654,6 +1654,10 @@ void BKE_object_free_derived_caches(Object *ob)
     delete ob->runtime->geometry_set_eval;
     ob->runtime->geometry_set_eval = nullptr;
   }
+
+  if (!ob->runtime->geometry_types_eval.is_empty()) {
+    ob->runtime->geometry_types_eval.clear_and_shrink();
+  }
 }
 
 void BKE_object_free_caches(Object *object)
@@ -4885,6 +4889,7 @@ void BKE_object_runtime_reset_on_copy(Object *object, const int /*flag*/)
   runtime->pose_backup = nullptr;
   runtime->object_as_temp_curve = nullptr;
   runtime->geometry_set_eval = nullptr;
+  runtime->geometry_types_eval = {};
 
   runtime->crazyspace_deform_imats = {};
   runtime->crazyspace_deform_cos = {};
@@ -5417,6 +5422,7 @@ void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data)
   ob->type = BKE_object_obdata_to_type(new_data);
   ob->data = (void *)new_data;
   ob->runtime->geometry_set_eval = nullptr;
+  ob->runtime->geometry_types_eval.clear_and_shrink();
   ob->runtime->data_eval = new_data;
   ob->runtime->bounds_eval.reset();
   ob->id.py_instance = nullptr;

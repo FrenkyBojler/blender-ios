@@ -268,8 +268,8 @@ struct GeometrySet {
                                          const AttributeFilter &attribute_filter,
                                          GatheredAttributes &r_attributes) const;
 
-  Vector<GeometryComponent::Type> gather_component_types(bool include_instances,
-                                                         bool ignore_empty) const;
+  Vector<GeometryComponent::Type> gather_component_types(bool include_instances = true,
+                                                         bool ignore_empty = true) const;
 
   /* Utility methods for creation. */
   /**

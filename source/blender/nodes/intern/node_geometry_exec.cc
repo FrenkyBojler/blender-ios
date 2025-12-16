@@ -81,8 +81,7 @@ void GeoNodeExecParams::check_input_geometry_set(StringRef identifier,
     /* Assume all types are supported. */
     return;
   }
-  const Vector<GeometryComponent::Type> types_in_geometry = geometry_set.gather_component_types(
-      true, true);
+  const Vector<GeometryComponent::Type> types_in_geometry = geometry_set.gather_component_types();
   for (const GeometryComponent::Type type : types_in_geometry) {
     if (type == GeometryComponent::Type::Instance) {
       continue;
