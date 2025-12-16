@@ -1983,7 +1983,7 @@ class USDExportTest(AbstractUSDTest):
     def test_export_accessibility(self):
         """Validate that writing UsdUIAccessibilityAPI metadata exports correctly."""
 
-        def verify_accessibility_api(prim, namespace, label, description=None, priority=None):
+        def verify_accessibility_api(prim, namespace, label, description, priority=None):
             self.assertTrue(prim.IsValid())
             self.assertTrue(prim.HasAPI(UsdUI.AccessibilityAPI))
             accessibility_api = UsdUI.AccessibilityAPI(prim, namespace)
@@ -1995,9 +1995,10 @@ class USDExportTest(AbstractUSDTest):
             self.assertTrue(description_attr.HasAuthoredValue())
             self.assertEqual(description_attr.Get(), description)
 
-            priority_attr = accessibility_api.GetPriorityAttr()
-            self.assertTrue(priority_attr.HasAuthoredValue())
-            self.assertEqual(priority_attr.Get(), priority)
+            if priority is not None:
+                priority_attr = accessibility_api.GetPriorityAttr()
+                self.assertTrue(priority_attr.HasAuthoredValue())
+                self.assertEqual(priority_attr.Get(), priority)
 
         # Create a few objects to export.
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
