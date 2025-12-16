@@ -2302,26 +2302,31 @@ static void WM_OT_search_enum(wmOperatorType *ot)
 
   PropertyRNA *prop;
   prop = RNA_def_enum(ot->srna, "enum", rna_enum_dummy_DEFAULT_items, 0, "Enum", "");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, search_enum_items, nullptr, nullptr);
   ot->prop = prop;
 
-  RNA_def_string(ot->srna, "rna_path", nullptr, 0, "RNA Path", "");
-  RNA_def_int(ot->srna,
-              "owner_session_uid",
-              0,
-              INT_MIN,
-              INT_MAX,
-              "Owner Session UID",
-              "",
-              INT_MIN,
-              INT_MAX);
+  prop = RNA_def_string(ot->srna, "rna_path", nullptr, 0, "RNA Path", "");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-  RNA_def_string(ot->srna,
-                 "initial_query",
-                 nullptr,
-                 0,
-                 "Initial Query",
-                 "Query to insert into the search box");
+  prop = RNA_def_int(ot->srna,
+                     "owner_session_uid",
+                     0,
+                     INT_MIN,
+                     INT_MAX,
+                     "Owner Session UID",
+                     "",
+                     INT_MIN,
+                     INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_string(ot->srna,
+                        "initial_query",
+                        nullptr,
+                        0,
+                        "Initial Query",
+                        "Query to insert into the search box");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 static wmOperatorStatus wm_call_menu_exec(bContext *C, wmOperator *op)
