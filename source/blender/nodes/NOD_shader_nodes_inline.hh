@@ -20,6 +20,9 @@ struct InlineShaderNodeTreeParams {
    */
   bool allow_preserving_repeat_zones = false;
 
+  /* Allow processing only the outputs relevant to specific engines. */
+  NodeShaderOutputTarget target_engine_ = SHD_OUTPUT_ALL;
+
   struct ErrorMessage {
     /* In theory, more contextual information could be added here like the entire context path to
      * that node. In practice, we can't report errors with that level of detail in shader nodes
