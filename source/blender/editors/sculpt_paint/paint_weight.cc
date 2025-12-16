@@ -35,6 +35,7 @@
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_global.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
@@ -1681,7 +1682,7 @@ static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
    * exit (exit needs doing regardless because we
    * should re-deform).
    */
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
   WM_event_add_notifier(C, NC_SCENE | ND_MODE, &scene);
 
@@ -1831,7 +1832,6 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
   vc = &wpd->vc;
   ob = vc->obact;
 
-  view3d_operator_needs_gpu(this->evil_C);
   ED_view3d_init_mats_rv3d(ob, vc->rv3d);
 
   mul_m4_m4m4(mat, vc->rv3d->persmat, ob->object_to_world().ptr());
@@ -1876,7 +1876,7 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
 
   BKE_mesh_batch_cache_dirty_tag(&mesh, BKE_MESH_BATCH_DIRTY_ALL);
 
-  DEG_id_tag_update(&mesh.id, 0);
+  DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(this->evil_C, NC_OBJECT | ND_DRAW, ob);
   swap_m4m4(wpd->vc.rv3d->persmat, mat);
 
@@ -1906,7 +1906,7 @@ void WeightPaintStroke::done(bool /*is_cancel*/)
     }
   }
 
-  DEG_id_tag_update((ID *)ob.data, 0);
+  DEG_id_tag_update((ID *)ob.data, ID_RECALC_GEOMETRY);
 
   WM_event_add_notifier(this->evil_C, NC_OBJECT | ND_DRAW, &ob);
 
@@ -1916,6 +1916,10 @@ void WeightPaintStroke::done(bool /*is_cancel*/)
 
 static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  if (!G.background) {
+    view3d_operator_needs_gpu(C);
+  }
+
   WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 

@@ -56,6 +56,30 @@ Scope Token::scope() const
   return Scope::from_position(data, data->token_scope[index]);
 }
 
+Scope Token::attribute_before() const
+{
+  if (is_invalid()) {
+    return Scope::invalid();
+  }
+  Token prev = this->prev();
+  if (prev == ']' && prev.prev().scope().type() != ScopeType::Attributes) {
+    return prev.prev().scope();
+  }
+  return Scope::invalid();
+}
+
+Scope Token::attribute_after() const
+{
+  if (is_invalid()) {
+    return Scope::invalid();
+  }
+  Token next = this->next();
+  if (next == ']' && next.next().scope().type() != ScopeType::Attributes) {
+    return next.next().scope();
+  }
+  return Scope::invalid();
+}
+
 /** If `keep_whitespace` is false, white-spaces are merged with the previous token. */
 void Parser::tokenize(const bool keep_whitespace)
 {
@@ -291,6 +315,9 @@ void Parser::tokenize(const bool keep_whitespace)
         else if (word == "using") {
           c = Using;
         }
+        else if (word == "inline") {
+          c = Inline;
+        }
       }
     }
   }
@@ -362,7 +389,7 @@ void Parser::parse_scopes(report_callback &report_error)
             pos += 3;
           } while (keyword != Invalid && keyword == Colon);
 
-          if (keyword == Struct) {
+          if (keyword == Struct || keyword == Class) {
             enter_scope(ScopeType::Struct, tok_id);
           }
           else if (keyword == Enum) {
@@ -525,6 +552,16 @@ void Parser::parse_scopes(report_callback &report_error)
       }
     }
 
+    if (scopes.empty()) {
+      Token token = Token::from_position(this, tok_id);
+      report_error(
+          token.line_number(), token.char_number(), token.line_str(), "Extraneous end of scope");
+
+      /* Avoid out of bound access for the rest of the processing. Empty everything. */
+      *this = {};
+      return;
+    }
+
     if (scopes.top().type == ScopeType::Preprocessor) {
       exit_scope(tok_id - 1);
     }
@@ -533,7 +570,7 @@ void Parser::parse_scopes(report_callback &report_error)
       ScopeItem scope_item = scopes.top();
       Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
       report_error(
-          token.line_number(), token.char_number(), token.line_str(), "unterminated scope");
+          token.line_number(), token.char_number(), token.line_str(), "Unterminated scope");
 
       /* Avoid out of bound access for the rest of the processing. Empty everything. */
       *this = {};
