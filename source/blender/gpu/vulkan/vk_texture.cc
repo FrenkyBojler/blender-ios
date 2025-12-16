@@ -474,6 +474,7 @@ void VKTexture::update_sub(int mip,
   }
 
   VKDevice &device = VKBackend::get().device;
+  const VKWorkarounds &workarounds = device.workarounds_get();
   const bool needs_data_conversion = needs_conversion(format, format_, device_format_);
   const bool use_host_image_copy = !has_data_ && data != nullptr && allow_host_image_copy_ &&
                                    (unpack_row_length == 0);
@@ -518,7 +519,8 @@ void VKTexture::update_sub(int mip,
     mip_size_get(0, whole_extent);
     whole_extent.y = max_ii(whole_extent.y, 1);
     whole_extent.z = max_ii(whole_extent.z, 1);
-    bool use_mem_copy = (extent == whole_extent) && (math::is_zero(offset));
+    const bool use_mem_copy = workarounds.host_image_copy_memcpy == false &&
+                              (extent == whole_extent) && math::is_zero(offset);
 
     VkCopyMemoryToImageInfoEXT vk_copy_memory_to_image = {
         VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO_EXT,

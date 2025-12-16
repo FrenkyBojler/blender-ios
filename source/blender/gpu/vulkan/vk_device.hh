@@ -119,6 +119,11 @@ struct VKWorkarounds {
    */
   bool not_aligned_pixel_formats = false;
 
+  /**
+   * AMD Driver seems to perform memcpy incorrectly. Work around by not using it.
+   */
+  bool host_image_copy_memcpy = false;
+
   /** Log enabled workarounds. */
   void log() const;
 };
