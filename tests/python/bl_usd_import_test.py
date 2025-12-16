@@ -1965,29 +1965,14 @@ class USDImportComparisonTest(unittest.TestCase):
         for input_file in input_files:
             input_file_path = pathlib.Path(input_file)
 
-            io_report.Report.side_to_print_single_line = 5
-            io_report.Report.side_to_print_multi_line = 3
+            # Print out more data to get correct validation of more attribute values (esp. Curves attributes)
+            io_report.Report.side_to_print_single_line = 10
+            io_report.Report.side_to_print_multi_line = 10
 
             CompareTestSupportHook.reset_config()
 
-            VERBOSE_TESTS = (
-                "usd_curve_linear_all.usda",
-                "usd_curve_bezier_all.usda",
-                "usd_curve_bspline_all.usda",
-                "usd_curve_catmullRom.usda"
-            )
-            VERBOSE_TESTS_HOOK_RENAME = (
-                "nurbs-gen-single.usda",
-                "nurbs-gen-multiple.usda",
-                "nurbs-custom.usda"
-            )
-            if input_file_path.name in VERBOSE_TESTS:
-                io_report.Report.side_to_print_single_line = 10
-                io_report.Report.side_to_print_multi_line = 10
-            if input_file_path.name in VERBOSE_TESTS_HOOK_RENAME:
+            if input_file_path.name in ("nurbs-gen-single.usda", "nurbs-gen-multiple.usda", "nurbs-custom.usda"):
                 CompareTestSupportHook.do_curve_rename = True
-                io_report.Report.side_to_print_single_line = 10
-                io_report.Report.side_to_print_multi_line = 10
 
             with self.subTest(input_file_path.stem):
                 bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
