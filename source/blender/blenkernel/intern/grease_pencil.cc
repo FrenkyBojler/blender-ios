@@ -455,7 +455,7 @@ Drawing::~Drawing()
   this->runtime = nullptr;
 }
 
-static void ensure_shape_cache(Drawing &drawing)
+static void ensure_shape_cache(const Drawing &drawing)
 {
   drawing.runtime->shape_cache.ensure([&](std::optional<ShapeCache> &r_shape_cache) {
     const CurvesGeometry &curves = drawing.strokes();
@@ -470,7 +470,7 @@ std::optional<GroupedSpan<int>> Drawing::shapes() const
 {
   ensure_shape_cache(*this);
   if (this->runtime->shape_cache.data().has_value()) {
-    ShapeCache &shape_cache = *this->runtime->shape_cache.data();
+    const ShapeCache &shape_cache = *this->runtime->shape_cache.data();
     return GroupedSpan<int>(shape_cache.shape_offsets.as_span(), shape_cache.shape_map.as_span());
   }
   return std::nullopt;
