@@ -709,7 +709,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* data... */
   movieclip_main_area_set_view2d(C, region);
@@ -861,7 +861,7 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
+  blender::ui::theme::frame_buffer_clear(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
   blender::ui::view2d_view_ortho(v2d);
 
@@ -917,7 +917,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
+  blender::ui::theme::frame_buffer_clear(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
   blender::ui::view2d_view_ortho(v2d);
 
@@ -1007,7 +1007,7 @@ static void clip_channels_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   blender::ui::view2d_view_ortho(v2d);
 
@@ -1295,6 +1295,7 @@ void ED_spacetype_clip()
   /* regions: tools */
   art = MEM_callocN<ARegionType>("spacetype clip region tools");
   art->regionid = RGN_TYPE_TOOLS;
+  art->flag = ARegionTypeFlag::UsePanelCategoryTabs;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
   art->poll = clip_tools_region_poll;

@@ -1081,7 +1081,7 @@ static void draw_draglink_tooltip(const bContext * /*C*/, ARegion * /*region*/, 
   bNodeLinkDrag *nldrag = static_cast<bNodeLinkDrag *>(arg);
 
   uchar text_col[4];
-  ui::GetThemeColor4ubv(TH_TEXT, text_col);
+  ui::theme::get_color_4ubv(TH_TEXT, text_col);
 
   const int padding = 4 * UI_SCALE_FAC;
   const float x = nldrag->in_out == SOCK_IN ? nldrag->cursor[0] - 3.3f * padding :
@@ -2811,6 +2811,11 @@ static int get_main_socket_priority(const bNodeSocket *socket)
     case SOCK_COLLECTION:
     case SOCK_TEXTURE:
     case SOCK_MATERIAL:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
       return 7;

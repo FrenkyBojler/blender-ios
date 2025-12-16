@@ -291,6 +291,9 @@ void Parser::tokenize(const bool keep_whitespace)
         else if (word == "using") {
           c = Using;
         }
+        else if (word == "inline") {
+          c = Inline;
+        }
       }
     }
   }
@@ -362,7 +365,7 @@ void Parser::parse_scopes(report_callback &report_error)
             pos += 3;
           } while (keyword != Invalid && keyword == Colon);
 
-          if (keyword == Struct) {
+          if (keyword == Struct || keyword == Class) {
             enter_scope(ScopeType::Struct, tok_id);
           }
           else if (keyword == Enum) {
@@ -407,7 +410,8 @@ void Parser::parse_scopes(report_callback &report_error)
             enter_scope(ScopeType::FunctionArgs, tok_id);
           }
           else if ((scopes.top().type == ScopeType::Function ||
-                    scopes.top().type == ScopeType::Local) &&
+                    scopes.top().type == ScopeType::Local ||
+                    scopes.top().type == ScopeType::Attribute) &&
                    (tok_id >= 1 && token_types[tok_id - 1] == Word))
           {
             enter_scope(ScopeType::FunctionCall, tok_id);
@@ -500,6 +504,9 @@ void Parser::parse_scopes(report_callback &report_error)
           if (scopes.top().type == ScopeType::Attributes) {
             exit_scope(tok_id - 1);
           }
+          if (scopes.top().type == ScopeType::Attribute) {
+            exit_scope(tok_id - 1);
+          }
           break;
         default:
           if (scopes.top().type == ScopeType::Attributes) {
@@ -521,6 +528,16 @@ void Parser::parse_scopes(report_callback &report_error)
       }
     }
 
+    if (scopes.empty()) {
+      Token token = Token::from_position(this, tok_id);
+      report_error(
+          token.line_number(), token.char_number(), token.line_str(), "Extraneous end of scope");
+
+      /* Avoid out of bound access for the rest of the processing. Empty everything. */
+      *this = {};
+      return;
+    }
+
     if (scopes.top().type == ScopeType::Preprocessor) {
       exit_scope(tok_id - 1);
     }
@@ -529,7 +546,7 @@ void Parser::parse_scopes(report_callback &report_error)
       ScopeItem scope_item = scopes.top();
       Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
       report_error(
-          token.line_number(), token.char_number(), token.line_str(), "unterminated scope");
+          token.line_number(), token.char_number(), token.line_str(), "Unterminated scope");
 
       /* Avoid out of bound access for the rest of the processing. Empty everything. */
       *this = {};
