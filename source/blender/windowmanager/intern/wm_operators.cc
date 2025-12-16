@@ -2269,10 +2269,25 @@ static const EnumPropertyItem *search_enum_items(bContext *C,
     return rna_enum_dummy_NULL_items;
   }
 
-  const EnumPropertyItem *items = nullptr;
-  int items_num = 0;
+  const EnumPropertyItem *src_items = nullptr;
+  int src_items_num = 0;
+  bool src_free = false;
   RNA_property_enum_items_ex(
-      C, &search_prop_owner, search_prop, false, &items, &items_num, r_free);
+      C, &search_prop_owner, search_prop, false, &src_items, &src_items_num, &src_free);
+
+  EnumPropertyItem *items = nullptr;
+  int items_num = 0;
+  for (const EnumPropertyItem *src_item = src_items; src_item->identifier; src_item++) {
+    /* Filter out separators.*/
+    if (src_item->identifier[0] != '\0') {
+      RNA_enum_item_add(&items, &items_num, src_item);
+    }
+  }
+  RNA_enum_item_end(&items, &items_num);
+  *r_free = true;
+  if (src_free) {
+    MEM_SAFE_FREE(src_items);
+  }
   return items;
 }
 
