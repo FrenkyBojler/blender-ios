@@ -216,8 +216,10 @@ struct AnimationBasePathChange {
 };
 
 /**
- * Copy any animation data under the base paths.
- * Creates new #AnimData as necessary.
+ * Copy any animation data under the base paths from the #src_id animation data to the #dst_id
+ * animation data. Animation data in #dst_id is created if necessary. If #dst_id has an assigned
+ * action it may be modified or an empty action is assigned if none exists. F-Curves are copied to
+ * the action assigned to #dst_id and drivers are copied to the animation data.
  *
  * \param basepaths: List of base path pairs to transfer.
  */
@@ -227,8 +229,11 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
                                    blender::Span<AnimationBasePathChange> basepaths);
 
 /**
- * Move any animation data under the base paths.
- * Creates new #AnimData as necessary.
+ * Move any animation data under the base paths from the #src_id animation data to the #dst_id
+ * animation data. Animation data in #dst_id is created if necessary. If #dst_id has an assigned
+ * action it may be modified or an empty action is assigned if none exists. F-Curves are removed
+ * from the action assigned to #src_id and added to the action assigned to #dst_id. Drivers are
+ * removed from the animation data in #src_id and moved to animation data in #dst_id.
  *
  * \param basepaths: List of base path pairs to transfer.
  */
