@@ -1098,11 +1098,11 @@ static void node_group_make_insert_selected(const bContext &C,
 
     node_identifier_map.add(old_identifier, node->identifier);
 
-    BKE_ntree_update_tag_node_removed(&ntree);
-    BKE_ntree_update_tag_node_new(&group, node);
-
     const std::string new_basepath = node_basepath(group, *node);
     anim_basepaths.append({old_basepath, new_basepath});
+
+    BKE_ntree_update_tag_node_removed(&ntree);
+    BKE_ntree_update_tag_node_new(&group, node);
   }
   bke::node_rebuild_id_vector(ntree);
 
@@ -1115,6 +1115,8 @@ static void node_group_make_insert_selected(const bContext &C,
     node->location[0] -= center[0];
     node->location[1] -= center[1];
   }
+
+  BKE_animdata_move_by_basepath(*bmain, ntree.id, group.id, anim_basepaths);
 
   for (bNodeLink *link : internal_links_to_move) {
     BLI_remlink(&ntree.links, link);
@@ -1176,8 +1178,6 @@ static void node_group_make_insert_selected(const bContext &C,
   }
 
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
-
-  BKE_animdata_move_by_basepath(*bmain, ntree.id, group.id, anim_basepaths);
 
   /* Add new links to inputs outside of the group. */
   for (const auto item : input_links.items()) {
