@@ -187,20 +187,20 @@ struct [[host_shared]] LightSunData {
   int clipmap_lod_max;
 };
 
-struct [[host_shared, unchecked]] LightData {
+struct [[host_shared]] LightData {
   /**
    * Normalized object to world matrix. Stored transposed for compactness.
    * Used for shading and shadowing local lights, or shadowing sun lights.
    * IMPORTANT: Not used for shading sun lights as this matrix is jittered.
    */
-  Transform object_to_world;
+  struct Transform object_to_world;
 
   /** Power depending on shader type. Referenced by LightingType. */
   float4 power;
   /** Light Color. */
   packed_float3 color;
   /** Light Type. */
-  eLightType type;
+  enum eLightType type;
 
   /** --- Shadow Data --- */
   /** Near clip distances. Float stored as orderedIntBitsToFloat for atomic operations. */

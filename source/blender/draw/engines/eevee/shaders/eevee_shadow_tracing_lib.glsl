@@ -358,7 +358,7 @@ float shadow_texel_radius_at_position(LightData light, const bool is_directional
       /* Uniform distribution everywhere. No distance scaling.
        * shadow_directional_level_fractional returns the cascade level, but all levels have the
        * same density as the level 0. So the effective density only depends on the `lod_bias`. */
-      scale = exp2(float(light.sun().clipmap_lod_min));
+      scale = exp2(float(sun.clipmap_lod_min));
     }
   }
   else {
