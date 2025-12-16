@@ -82,13 +82,13 @@ def wm_toggle_stacked_fullscreen_file_browser():
     yield e.esc()
     t.assertEqual(len(window.screen.areas), 1)
     t.assertNotEqual(window.screen.areas[0].type, 'FILE_BROWSER')
-    restored_area = window.screen_areas[0]
+    restored_area = window.screen.areas[0]
 
     # Pressing 'Escape' again shouldn't cause any change.
     yield e.esc()
     t.assertEqual(len(window.screen.areas), 1)
     t.assertNotEqual(window.screen.areas[0].type, 'FILE_BROWSER')
-    t.assertEqual(restored_area == window.screen.areas[0])
+    t.assertEqual(restored_area, window.screen.areas[0])
 
     # Restore to non-maximized area.
     yield from _call_by_name(e, "Toggle Maximize Area")
