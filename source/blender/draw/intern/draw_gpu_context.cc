@@ -345,7 +345,7 @@ void DRW_render_context_disable(Render *render)
 
 #ifdef WITH_XR_OPENXR
 
-void *DRW_system_gpu_context_get()
+GHOST_IContext *DRW_system_gpu_context_get()
 {
   /* XXX: There should really be no such getter, but for VR we currently can't easily avoid it.
    * OpenXR needs some low level info for the GPU context that will be used for submitting the

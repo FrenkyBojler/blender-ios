@@ -161,7 +161,7 @@ void DRW_gpu_context_disable();
 
 #ifdef WITH_XR_OPENXR
 /* XXX: see comment on #DRW_system_gpu_context_get() */
-void *DRW_system_gpu_context_get();
+GHOST_IContext *DRW_system_gpu_context_get();
 void *DRW_xr_blender_gpu_context_get();
 void DRW_xr_drawing_begin();
 void DRW_xr_drawing_end();

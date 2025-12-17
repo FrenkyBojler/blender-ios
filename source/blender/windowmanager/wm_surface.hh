@@ -20,7 +20,7 @@ struct GPUContext;
 struct wmSurface {
   wmSurface *next, *prev;
 
-  GHOST_ContextHandle system_gpu_context;
+  GHOST_IContext *system_gpu_context;
   GPUContext *blender_gpu_context;
 
   void *customdata;
