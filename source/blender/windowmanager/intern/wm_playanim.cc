@@ -330,10 +330,7 @@ static bool playanim_window_contains_point(GHOST_IWindow *ghost_window,
       const GHOST_CSD_Layout *csd_layout = nullptr; /* Not needed to get the "body" area. */
       const GHOST_TWindowState state = ghost_window->getState();
       GHOST_CSD_Elem csd_elems[GHOST_kCSDType_NUM];
-      const int fractional_scale[2] = {
-          GHOST_CSD_DPI_FRACTIONAL_BASE,
-          ghost_window->getDPIHint()
-      };
+      const int fractional_scale[2] = {GHOST_CSD_DPI_FRACTIONAL_BASE, ghost_window->getDPIHint()};
       const int csd_elems_num = WM_window_csd_layout_callback(
           window_size, fractional_scale, state, csd_layout, csd_elems);
       for (int i = 0; i < csd_elems_num; i += 1) {
