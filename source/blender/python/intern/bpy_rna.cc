@@ -7108,7 +7108,7 @@ PyTypeObject pyrna_struct_meta_idprop_Type = {
     /*tp_hash*/ nullptr,
     /*tp_call*/ nullptr,
     /*tp_str*/ nullptr,
-    /*tp_getattro*/ nullptr, /* Sub-classed: #pyrna_struct_meta_idprop_getattro. */
+    /*tp_getattro*/ nullptr, /* Subclassed: #pyrna_struct_meta_idprop_getattro. */
     /*tp_setattro*/ (setattrofunc)pyrna_struct_meta_idprop_setattro,
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -7510,7 +7510,7 @@ PyTypeObject pyrna_prop_array_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_array_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /* Sub-classed: #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -7542,7 +7542,7 @@ PyTypeObject pyrna_prop_collection_Type = {
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
-    /*tp_repr*/ nullptr, /* Sub-classed, no need to define. */
+    /*tp_repr*/ nullptr, /* Subclassed, no need to define. */
     /*tp_as_number*/ &pyrna_prop_collection_as_number,
     /*tp_as_sequence*/ &pyrna_prop_collection_as_sequence,
     /*tp_as_mapping*/ &pyrna_prop_collection_as_mapping,
@@ -7566,7 +7566,7 @@ PyTypeObject pyrna_prop_collection_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_collection_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /*Sub-classed: see #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: see #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -7599,7 +7599,7 @@ static PyTypeObject pyrna_prop_collection_idprop_Type = {
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_compare*/ nullptr, /* DEPRECATED. */
-    /*tp_repr*/ nullptr,    /* Sub-classed, no need to define. */
+    /*tp_repr*/ nullptr,    /* Subclassed, no need to define. */
     /*tp_as_number*/ nullptr,
     /*tp_as_sequence*/ nullptr,
     /*tp_as_mapping*/ nullptr,
@@ -7623,7 +7623,7 @@ static PyTypeObject pyrna_prop_collection_idprop_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_collection_idprop_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /* Sub-classed: #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_collection_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -10316,6 +10316,24 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
    */
   if (pyrna_deferred_register_class(srna_new, (PyTypeObject *)py_class) != 0) {
     return nullptr;
+  }
+
+  /* Update 'struct name property' of the new type, in case:
+   *  - it already has a `name_property` defined;
+   *  - the current type has a different string property using the same identifier.
+   *
+   * This allows to keep using the default PropertyGroup `name` property (see the call to
+   * #RNA_def_struct_name_property on 'PropertyGroup' StructRNA, in #rna_def_ID_properties), while
+   * allowing to override it by another `name` string property in Python sub-types when required.
+   */
+  PropertyRNA *parent_name_prop = RNA_struct_name_property(srna_new);
+  if (parent_name_prop) {
+    PropertyRNA *name_prop = RNA_struct_type_find_property(
+        srna_new, RNA_property_identifier(parent_name_prop));
+    if (name_prop && name_prop != parent_name_prop && RNA_property_type(name_prop) == PROP_STRING)
+    {
+      RNA_def_struct_name_property(srna_new, name_prop, true);
+    }
   }
 
   /* Call classed register method.
