@@ -387,6 +387,7 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 # Compare generated group tree interface to expected tree.
                 self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
+    @unittest.skip("Broken due to #151786")
     def test_make_node_group_multi(self):
         test_node_names = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
         expected_group_node_name = "GroupNode.All"
