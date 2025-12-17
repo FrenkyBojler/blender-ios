@@ -328,8 +328,8 @@ static bool window_set_custom_cursor_generator(wmWindow *win, const BCursor &cur
     MEM_freeN(cursor_generator);
   };
 
-  GHOST_TSuccess success = GHOST_SetCustomCursorGenerator(
-      static_cast<GHOST_WindowHandle>(win->runtime->ghostwin), cursor_generator);
+  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+  GHOST_TSuccess success = ghost_window->setCustomCursorGenerator(cursor_generator);
 
   return (success == GHOST_kSuccess) ? true : false;
 }
@@ -856,8 +856,8 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
     MEM_freeN(cursor_generator);
   };
 
-  GHOST_TSuccess success = GHOST_SetCustomCursorGenerator(
-      static_cast<GHOST_WindowHandle>(win->runtime->ghostwin), cursor_generator);
+  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+  GHOST_TSuccess success = ghost_window->setCustomCursorGenerator(cursor_generator);
 
   return (success == GHOST_kSuccess) ? true : false;
 }
@@ -887,14 +887,13 @@ static bool wm_cursor_text_pixmap(wmWindow *win, const char *text, int font_id)
       bitmap_size[0] / 2,
       bitmap_size[1] / 2,
   };
-  GHOST_TSuccess success = GHOST_SetCustomCursorShape(
-      static_cast<GHOST_WindowHandle>(win->runtime->ghostwin),
-      bitmap_rgba,
-      nullptr,
-      bitmap_size,
-      hot_spot,
-      /* Always use a black background. */
-      false);
+  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
+  GHOST_TSuccess success = ghost_window->setCustomCursorShape(bitmap_rgba,
+                                                              nullptr,
+                                                              bitmap_size,
+                                                              hot_spot,
+                                                              /* Always use a black background. */
+                                                              false);
   MEM_freeN(bitmap_rgba);
 
   return (success == GHOST_kSuccess) ? true : false;
