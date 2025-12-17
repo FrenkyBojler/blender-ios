@@ -10,7 +10,7 @@
 
 #include "GHOST_SystemWin32.hh"
 #include "GHOST_WindowWin32.hh"
-#include <GHOST_Types.h>
+#include "GHOST_Types.hh"
 #include <string.h>
 
 class GHOST_DropTargetWin32 : public IDropTarget {

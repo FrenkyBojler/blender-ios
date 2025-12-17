@@ -10,7 +10,7 @@
 
 #include "GHOST_SystemX11.hh"
 #include "GHOST_WindowX11.hh"
-#include <GHOST_Types.h>
+#include "GHOST_Types.hh"
 
 #include "xdnd.h"
 
