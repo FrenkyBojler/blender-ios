@@ -2477,7 +2477,7 @@ static void WM_OT_quit_blender(wmOperatorType *ot)
 static wmOperatorStatus wm_console_toggle_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
-  return ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
+  ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
   return OPERATOR_FINISHED;
 }
 
