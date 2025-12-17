@@ -188,7 +188,7 @@ Batch *Context::procedural_triangle_strips_batch_get()
 
 /* -------------------------------------------------------------------- */
 
-GPUContext *GPU_context_create(void *ghost_window, void *ghost_context)
+GPUContext *GPU_context_create(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
 {
   {
     std::scoped_lock lock(backend_users_mutex);
