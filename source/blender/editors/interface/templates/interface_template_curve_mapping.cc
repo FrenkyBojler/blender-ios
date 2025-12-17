@@ -31,8 +31,9 @@ namespace blender::ui {
 
 using blender::Vector;
 struct CurveRuntimeProperties {
-  float center_x;
-  float center_y;
+  CurveMapPoint *last_pt = nullptr;
+  float last_x = 0.0f;
+  float last_y = 0.0f;
 };
 
 static bool curvemap_can_zoom_out(CurveMapping *cumap)
@@ -338,23 +339,6 @@ static void add_preset_button(Block *block,
   });
 }
 
-static CurveRuntimeProperties *curvemap_runtime_props_ensure(CurveMap *cum)
-{
-  if (cum->runtime.runtime_storage == nullptr) {
-    CurveRuntimeProperties *crp = static_cast<CurveRuntimeProperties *>(
-        MEM_callocN(sizeof(CurveRuntimeProperties), "CurveRuntimeProperties"));
-    /* Construct C++ structures in otherwise zero initialized struct. */
-    new (crp) CurveRuntimeProperties();
-
-    cum->runtime.runtime_storage = crp;
-    cum->runtime.runtime_storage_free = [](void *properties_storage) {
-      CurveRuntimeProperties *tar = static_cast<CurveRuntimeProperties *>(properties_storage);
-
-      MEM_delete(tar);
-    };
-  }
-  return static_cast<CurveRuntimeProperties *>(cum->runtime.runtime_storage);
-}
 /**
  * \note Still unsure how this call evolves.
  *
@@ -628,7 +612,6 @@ static void curvemap_buttons_layout(Layout *layout,
 
   if (!cmps.is_empty()) {
     CurveMap *active_cm = cumap->cm + cumap->cur;
-    CurveRuntimeProperties *crp = curvemap_runtime_props_ensure(active_cm);
 
     rctf bounds;
     if (cumap->flag & CUMA_DO_CLIP) {
@@ -718,7 +701,23 @@ static void curvemap_buttons_layout(Layout *layout,
     }
 
     /* Curve handle position */
-    BKE_curvemap_get_selection_center(active_cm, &crp->center_x, &crp->center_y);
+    auto crp = std::make_shared<CurveRuntimeProperties>();
+    BKE_curvemap_get_active_ptr(active_cm, &crp->last_pt);
+    crp->last_x = crp->last_pt->x;
+    crp->last_y = crp->last_pt->y;
+
+    float min_x = bounds.xmax;
+    float max_x = bounds.xmin;
+    float min_y = bounds.ymax;
+    float max_y = bounds.ymin;
+
+    for (const CurveMapPoint *cmp : cmps) {
+      min_x = min_ff(min_x, cmp->x);
+      max_x = max_ff(max_x, cmp->x);
+      min_y = min_ff(min_y, cmp->y);
+      max_y = max_ff(max_y, cmp->y);
+    }
+
     bt = uiDefButF(block,
                    ButtonType::Num,
                    "X:",
@@ -726,21 +725,23 @@ static void curvemap_buttons_layout(Layout *layout,
                    2 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
-                   &crp->center_x,
-                   bounds.xmin,
-                   bounds.xmax,
+                   &crp->last_pt->x,
+                   bounds.xmin + crp->last_pt->x - min_x,
+                   bounds.xmax - crp->last_pt->x + max_x,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [cumap, cb](bContext &C) {
+    button_func_set(bt, [cumap, cb, crp](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
-      CurveRuntimeProperties *crp = curvemap_runtime_props_ensure(cuma);
-      float center_x_pre = 0.0f;
-      float center_y_pre = 0.0f;
-      BKE_curvemap_get_selection_center(cuma, &center_x_pre, &center_y_pre);
-      BKE_translate_selection(cuma, crp->center_x - center_x_pre, crp->center_y - center_y_pre);
+      CurveMapPoint *active_pt = nullptr;
+      BKE_curvemap_get_active_ptr(cuma, &active_pt);
+      BKE_translate_inactive_selection(cuma, active_pt->x - crp->last_x, 0.0f);
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
+
+      // update the last_x for the next callback
+      crp->last_x = active_pt->x;
+      crp->last_pt = active_pt;
     });
 
     bt = uiDefButF(block,
@@ -750,21 +751,23 @@ static void curvemap_buttons_layout(Layout *layout,
                    1 * UI_UNIT_Y,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
-                   &crp->center_y,
-                   bounds.ymin,
-                   bounds.ymax,
+                   &crp->last_pt->y,
+                   bounds.ymin + crp->last_pt->y - min_y,
+                   bounds.ymax - crp->last_pt->y + max_y,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
-    button_func_set(bt, [cumap, cb](bContext &C) {
+    button_func_set(bt, [cumap, cb, crp](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
-      CurveRuntimeProperties *crp = curvemap_runtime_props_ensure(cuma);
-      float center_x_pre = 0.0f;
-      float center_y_pre = 0.0f;
-      BKE_curvemap_get_selection_center(cuma, &center_x_pre, &center_y_pre);
-      BKE_translate_selection(cuma, crp->center_x - center_x_pre, crp->center_y - center_y_pre);
+      CurveMapPoint *active_pt = nullptr;
+      BKE_curvemap_get_active_ptr(cuma, &active_pt);
+      BKE_translate_inactive_selection(cuma, 0.0f, active_pt->y - crp->last_y);
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
+
+      // update the last_x for the next callback
+      crp->last_y = active_pt->y;
+      crp->last_pt = active_pt;
     });
 
     /* Curve handle delete point */
