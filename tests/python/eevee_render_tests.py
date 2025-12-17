@@ -61,11 +61,6 @@ BLOCKLIST_VULKAN = [
 ]
 
 BLOCKLIST_INTEL = [
-    # Blocked due to large differences in dithered surfaces and shadows.
-    "transparency_blended.blend",
-    "transparency_dithered.blend",
-    # Blocked due to differences in shadow edges (to be investigated).
-    "shadow_resolution_scale.blend"
 ]
 
 
