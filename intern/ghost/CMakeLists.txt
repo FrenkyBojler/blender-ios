@@ -19,7 +19,6 @@ set(SRC
   intern/GHOST_ISystem.cc
   intern/GHOST_ISystemPaths.cc
   intern/GHOST_ModifierKeys.cc
-  intern/GHOST_Path-api.cc
   intern/GHOST_PathUtils.cc
   intern/GHOST_Rect.cc
   intern/GHOST_System.cc
@@ -35,7 +34,6 @@ set(SRC
   GHOST_ISystemPaths.hh
   GHOST_ITimerTask.hh
   GHOST_IWindow.hh
-  GHOST_Path-api.hh
   GHOST_Rect.hh
   GHOST_Types.hh
 
@@ -539,6 +537,7 @@ if(WITH_XR_OPENXR)
     intern/GHOST_XrSwapchain.cc
 
     GHOST_IXrContext.hh
+    GHOST_Xr-api.hh
     intern/GHOST_IXrGraphicsBinding.hh
     intern/GHOST_XrAction.hh
     intern/GHOST_XrContext.hh

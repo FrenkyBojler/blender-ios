@@ -11,7 +11,7 @@
 #pragma once
 
 #include "GHOST_Types.hh"
-#include "GHOST_XrContext.hh"
+#include "GHOST_IXrContext.hh"
 
 /* XR-context */
 
