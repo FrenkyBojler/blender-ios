@@ -15,11 +15,8 @@ class VRAction():
 
         self.path_type = VRActionPathType.DUAL_HANDED
 
-    def enable_gamepad(self, enable: bool):
-        if enable:
-            self.path_type = VRActionPathType.GAMEPAD
-        else:
-            self.path_type = VRActionPathType.DUAL_HANDED
+    def enable_gamepad(self):
+        self.path_type = VRActionPathType.GAMEPAD
 
     def vr_action_map_add(self, action_map):
         action_map_item = action_map.actionmap_items.new(self.name, True)

@@ -26,7 +26,7 @@ from .profiles.wmr import VRActionProfileWMR
 from .profiles.gamepad import VRActionProfileGamepad
 
 from .actions.action_fly import VRActionFly, VRActionFlyForward, VRActionFlyBack, VRActionFlyLeft, VRActionFlyRight, VRActionFlyUp, VRActionFlyDown, VRActionFlyTurnLeft, VRActionFlyTurnRight
-from .actions.action_nav_reset import VRActionNavReset
+from .actions.action_nav_reset import VRActionNavReset, VRActionNavResetGamepad
 from .actions.action_teleport import VRActionTeleport
 from .actions.action_nav_grab import VRActionNavGrab
 from .actions.action_pose import VRActionControllerGrip, VRActionControllerAim
@@ -103,7 +103,7 @@ def vr_defaults_create_default_gamepad(session_state):
         VRActionFlyDown(),
         VRActionFlyTurnLeft(),
         VRActionFlyTurnRight(),
-        VRActionNavReset(),
+        VRActionNavResetGamepad(),
         VRActionHapticLeft(),
         VRActionHapticRight(),
         VRActionHapticLeftTrigger(),
@@ -111,7 +111,7 @@ def vr_defaults_create_default_gamepad(session_state):
     ]
 
     for action in actions:
-        action.enable_gamepad(True)
+        action.enable_gamepad()
         action_map_item = action.vr_action_map_add(am)
         if not action_map_item:
             continue
