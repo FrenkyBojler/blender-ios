@@ -2091,58 +2091,6 @@ void push_end(bContext *C)
 /** \name Implements ED Undo System
  * \{ */
 
-static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
-{
-  if (attr_ref->domain == bke::AttrDomain::Auto) {
-    return;
-  }
-
-  Object *ob = CTX_data_active_object(C);
-  Mesh *mesh = BKE_object_get_original_mesh(ob);
-
-  SculptAttrRef existing;
-  save_active_attribute(*ob, &existing);
-
-  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-
-  /* Temporary fix for #97408. This is a fundamental
-   * bug in the undo stack; the operator code needs to push
-   * an extra undo step before running an operator if a
-   * non-memfile undo system is active.
-   *
-   * For now, detect if the layer does exist but with a different
-   * domain and just unconvert it.
-   */
-  if (const bke::GAttributeReader attr = attributes.lookup(attr_ref->name)) {
-    if (attr.domain != attr_ref->domain ||
-        bke::cpp_type_to_custom_data_type(attr.varray.type()) != attr_ref->type)
-    {
-      AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-      if (ed::geometry::convert_attribute(owner,
-                                          mesh->attributes_for_write(),
-                                          attr_ref->name,
-                                          attr_ref->domain,
-                                          *bke::custom_data_type_to_attr_type(attr_ref->type),
-                                          nullptr))
-      {
-      }
-    }
-  }
-
-  if (!attributes.contains(attr_ref->name)) {
-    /* Memfile undo killed the layer; re-create it. */
-    mesh->attributes_for_write().add(attr_ref->name,
-                                     attr_ref->domain,
-                                     *bke::custom_data_type_to_attr_type(attr_ref->type),
-                                     bke::AttributeInitDefaultValue());
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  }
-
-  if (attributes.contains(attr_ref->name)) {
-    BKE_id_attributes_active_color_set(&mesh->id, attr_ref->name);
-  }
-}
-
 static void step_encode_init(bContext * /*C*/, UndoStep *us_p)
 {
   SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
@@ -2176,7 +2124,7 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 
 static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  // BLI_assert(us->step.is_applied == true);
+  BLI_assert(us->step.is_applied == true);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = false;
@@ -2184,7 +2132,7 @@ static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 
 static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  // BLI_assert(us->step.is_applied == false);
+  BLI_assert(us->step.is_applied == false);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = true;
