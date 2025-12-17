@@ -1919,8 +1919,11 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
         case IDP_UI_DATA_TYPE_FLOAT:
           return src;
         case IDP_UI_DATA_TYPE_ID:
-        case IDP_UI_DATA_TYPE_STRING:
-          return convert_base_ui_data(src, dst_type);
+        case IDP_UI_DATA_TYPE_STRING: {
+          IDPropertyUIData *ui_data = convert_base_ui_data(src, dst_type);
+          ui_data_free(src, src_type);
+          return ui_data;
+        }
         case IDP_UI_DATA_TYPE_INT: {
           auto clamp_double_to_int = [](const double value) {
             return int(std::clamp<double>(value, INT_MIN, INT_MAX));

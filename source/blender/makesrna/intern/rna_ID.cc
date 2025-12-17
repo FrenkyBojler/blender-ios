@@ -1731,6 +1731,8 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
   prop->ui_data = IDP_TryConvertUIData(prop->ui_data, IDP_ui_data_type(prop), ui_data_type);
   prop->type = type;
   prop->subtype = subtype;
+
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
 
 #else
