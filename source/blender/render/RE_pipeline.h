@@ -28,6 +28,7 @@ struct ReportList;
 struct Scene;
 struct StampData;
 struct ViewLayer;
+struct GHOST_IContext;
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is what is exposed of render to outside world */
@@ -431,7 +432,7 @@ void RE_current_scene_update_cb(struct Render *re,
                                 void *handle,
                                 void (*f)(void *handle, struct Scene *scene));
 
-void *RE_system_gpu_context_get(Render *re);
+GHOST_IContext *RE_system_gpu_context_get(Render *re);
 void *RE_blender_gpu_context_ensure(Render *re);
 
 /**

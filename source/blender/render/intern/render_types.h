@@ -38,6 +38,7 @@ struct RenderDisplay;
 struct RenderEngine;
 struct ReportList;
 struct Scene;
+struct GHOST_IContext;
 
 struct BaseRender {
   BaseRender() = default;
@@ -235,7 +236,7 @@ struct RenderDisplay {
 
   /* GPU contexts.
    * TODO: replace by a whole draw manager. */
-  void *system_gpu_context = nullptr;
+  GHOST_IContext *system_gpu_context = nullptr;
   void *blender_gpu_context = nullptr;
 };
 

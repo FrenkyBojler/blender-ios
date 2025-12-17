@@ -30,6 +30,7 @@ struct View3D;
 struct ViewLayer;
 struct bContext;
 struct rcti;
+struct GHOST_IContext;
 
 namespace blender::bke {
 enum class AttrType : int16_t;
@@ -184,8 +185,8 @@ void DRW_gpu_context_disable_ex(bool restore);
  * Enable system context first, then enable blender context,
  * then disable blender context, then disable system context. */
 
-void DRW_system_gpu_render_context_enable(void *re_system_gpu_context);
-void DRW_system_gpu_render_context_disable(void *re_system_gpu_context);
+void DRW_system_gpu_render_context_enable(GHOST_IContext *re_system_gpu_context);
+void DRW_system_gpu_render_context_disable(GHOST_IContext *re_system_gpu_context);
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
 void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
 

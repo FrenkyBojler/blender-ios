@@ -12,8 +12,9 @@
 
 #include "GPU_platform.hh"
 
-class GHOST_IContext;
-class GHOST_ISystem;
+struct GHOST_IContext;
+struct GHOST_ISystem;
+struct GHOST_IWindow;
 
 /* GPU back-ends abstract the differences between different APIs. #GPU_context_create
  * automatically initializes the back-end, and #GPU_context_discard frees it when there
@@ -64,7 +65,7 @@ bool GPU_backend_vsync_is_overridden();
 /** Opaque type hiding blender::gpu::Context. */
 struct GPUContext;
 
-GPUContext *GPU_context_create(void *ghost_window, void *ghost_context);
+GPUContext *GPU_context_create(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context);
 /**
  * To be called after #GPU_context_active_set(ctx_to_destroy).
  */

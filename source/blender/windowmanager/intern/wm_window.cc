@@ -3008,8 +3008,7 @@ void WM_init_input_devices()
 
 void WM_cursor_warp(wmWindow *win, int x, int y)
 {
-  /* This function requires access to the GHOST_SystemHandle (`g_system`). */
-
+  /* This function requires access to the GHOST System Handle (`g_system`). */
   if (!(win && win->runtime->ghostwin)) {
     return;
   }
@@ -3413,7 +3412,7 @@ void wm_window_IME_end(wmWindow *win)
 /** \name Direct GPU Context Management
  * \{ */
 
-void *WM_system_gpu_context_create()
+GHOST_IContext *WM_system_gpu_context_create()
 {
   /* On Windows there is a problem creating contexts that share resources (almost any object,
    * including legacy display lists, but also textures) with a context which is current in another
@@ -3444,24 +3443,22 @@ void *WM_system_gpu_context_create()
   return g_system->createOffscreenContext(gpu_settings);
 }
 
-void WM_system_gpu_context_dispose(void *context)
+void WM_system_gpu_context_dispose(GHOST_IContext *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  g_system->disposeContext(static_cast<GHOST_IContext *>(context));
+  g_system->disposeContext(context);
 }
 
-void WM_system_gpu_context_activate(void *context)
+void WM_system_gpu_context_activate(GHOST_IContext *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GHOST_IContext *ghost_context = static_cast<GHOST_IContext *>(context);
-  ghost_context->activateDrawingContext();
+  context->activateDrawingContext();
 }
 
-void WM_system_gpu_context_release(void *context)
+void WM_system_gpu_context_release(GHOST_IContext *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GHOST_IContext *ghost_context = static_cast<GHOST_IContext *>(context);
-  ghost_context->releaseDrawingContext();
+  context->releaseDrawingContext();
 }
 
 void WM_ghost_show_message_box(const char *title,
