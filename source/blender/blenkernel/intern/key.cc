@@ -632,7 +632,10 @@ static void copy_key_float3(
   float *keyblock_data = reinterpret_cast<float *>(
       key_block_get_data(key, active_keyblock, source, &free_keyblock_data));
 
-  memcpy(r_target, keyblock_data, vertex_count * 3 * sizeof(float));
+  /* In case of KeyBlocks that have a different amount of elements than the original data. This is
+   * a state that has to be maintained for backwards compatibility. */
+  const int copy_element_count = min_ii(vertex_count, source->totelem);
+  memcpy(r_target, keyblock_data, copy_element_count * 3 * sizeof(float));
 
   if (free_keyblock_data) {
     MEM_freeN(free_keyblock_data);
