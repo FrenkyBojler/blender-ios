@@ -102,7 +102,7 @@ std::string ShaderCreateInfo::buffer_typename(StringRefNull type_name) const
   {
     return type_name;
   }
-  return type_name + "_linted_";
+  return type_name + "_host_shared_";
 }
 
 /** \} */

@@ -456,7 +456,7 @@ class Preprocessor {
   static constexpr const char *namespace_separator = "_";
   /* Add a prefix to all member functions so that they are not clashing with local variables. */
   static constexpr const char *method_call_prefix = "_";
-  static constexpr const char *linted_struct_suffix = "_linted_";
+  static constexpr const char *linted_struct_suffix = "_host_shared_";
 
   static SourceLanguage language_from_filename(const std::string &filename)
   {
