@@ -143,10 +143,16 @@ struct [[host_shared]] T {
     string expect =
         R"(
 #line 3
+
+#define T_union0_linted_ T_union0
+#line 3
 struct                 T_union0 {
   float4 data0;
 
 };
+#line 2
+
+#define T_linted_ T
 #line 2
 struct                 T {
          T_union0 union0;
@@ -213,15 +219,24 @@ struct [[host_shared]] T {
     string expect =
         R"(
 #line 5
+
+#define T_union0_linted_ T_union0
+#line 5
 struct                 T_union0 {
   float4 data0;
 
 };
 #line 8
+
+#define T_union1_linted_ T_union1
+#line 8
 struct                 T_union1 {
   float4 data0;
 
 };
+#line 2
+
+#define T_linted_ T
 #line 2
 struct                 T {
   float2 foo;
@@ -282,19 +297,30 @@ struct [[host_shared]] T {
 };
 )";
     string expect = R"(
+
+#define B_linted_ B
+#line 2
 struct                 B {
   packed_float3 a;
   float b;
 };
-
+#line 8
+#define A_linted_ A
+#line 7
 struct                 A {
          B e;
 };
+#line 12
+
+#define T_union0_linted_ T_union0
 #line 12
 struct                 T_union0 {
   float4 data0;
 
 };
+#line 11
+
+#define T_linted_ T
 #line 11
 struct                 T {
          T_union0 union0;
@@ -333,6 +359,9 @@ struct [[host_shared]] T {
 )";
     string expect = R"(
 #line 3
+
+#define T_union0_linted_ T_union0
+#line 3
 struct                 T_union0 {
   float4 data0;
   float4 data1;
@@ -340,6 +369,9 @@ struct                 T_union0 {
   float4 data3;
 
 };
+#line 2
+
+#define T_linted_ T
 #line 2
 struct                 T {
          T_union0 union0;

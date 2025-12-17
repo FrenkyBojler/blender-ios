@@ -456,6 +456,7 @@ class Preprocessor {
   static constexpr const char *namespace_separator = "_";
   /* Add a prefix to all member functions so that they are not clashing with local variables. */
   static constexpr const char *method_call_prefix = "_";
+  static constexpr const char *linted_struct_suffix = "_linted_";
 
   static SourceLanguage language_from_filename(const std::string &filename)
   {
@@ -3029,7 +3030,10 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    parser().foreach_struct([&](Token, Scope attributes, Token struct_name, Scope body) {
+    parser().foreach_struct([&](Token struct_keyword,
+                                Scope attributes,
+                                Token struct_name,
+                                Scope body) {
       if (attributes.is_invalid()) {
         return;
       }
@@ -3130,7 +3134,10 @@ class Preprocessor {
         else if (type.prev() == Struct) {
           /* Only 4 bytes enums are allowed. */
           type_info = {16, 16};
+          /* Erase redundant struct keyword. */
           parser.erase(type.prev());
+          /* Make sure that linted structs only contain other linted structs. */
+          parser.replace(type, type.str() + linted_struct_suffix + " ");
         }
         else {
           report_error(ERROR_TOK(type),
@@ -3168,6 +3175,11 @@ class Preprocessor {
                      " padding bytes";
         report_error(ERROR_TOK(struct_name), err.c_str());
       }
+      /* Insert an alias to the type that will get referenced for shaders that enforce usage of
+       * linted types. */
+      parser.insert_directive(struct_keyword.prev(),
+                              "#define " + struct_name.str() + linted_struct_suffix + " " +
+                                  struct_name.str() + "\n");
     });
     parser.apply_mutations();
   }
