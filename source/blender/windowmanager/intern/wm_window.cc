@@ -3041,14 +3041,14 @@ uint WM_cursor_preferred_logical_size()
 int WM_window_native_pixel_x(const wmWindow *win)
 {
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-  const float fac = ghost_window->getNativePixelSize();
+  const float fac = ghost_window ? ghost_window->getNativePixelSize() : 1.0f;
 
   return int(fac * float(win->sizex));
 }
 int WM_window_native_pixel_y(const wmWindow *win)
 {
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-  const float fac = ghost_window->getNativePixelSize();
+  const float fac = ghost_window ? ghost_window->getNativePixelSize() : 1.0f;
 
   return int(fac * float(win->sizey));
 }
@@ -3056,7 +3056,7 @@ int WM_window_native_pixel_y(const wmWindow *win)
 blender::int2 WM_window_native_pixel_size(const wmWindow *win)
 {
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-  const float fac = ghost_window->getNativePixelSize();
+  const float fac = ghost_window ? ghost_window->getNativePixelSize() : 1.0f;
 
   return blender::int2(int(fac * float(win->sizex)), int(fac * float(win->sizey)));
 }
@@ -3064,7 +3064,7 @@ blender::int2 WM_window_native_pixel_size(const wmWindow *win)
 void WM_window_native_pixel_coords(const wmWindow *win, int *x, int *y)
 {
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-  const float fac = ghost_window->getNativePixelSize();
+  const float fac = ghost_window ? ghost_window->getNativePixelSize() : 1.0f;
 
   *x *= fac;
   *y *= fac;
