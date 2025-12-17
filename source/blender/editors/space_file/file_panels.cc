@@ -121,16 +121,16 @@ static void file_panel_execution_cancel_button(blender::ui::Layout &layout)
 
 static void file_panel_execution_execute_button(blender::ui::Layout &layout,
                                                 const char *title,
-                                                bool overwrite_alert)
+                                                const bool overwrite_alert)
 {
   blender::ui::Layout &row = layout.row(false);
-  if (overwrite_alert) {
-    row.red_alert_set(true);
-  }
   row.scale_x_set(0.8f);
   row.fixed_size_set(true);
   /* Just a display hint. */
   row.active_default_set(true);
+  if (overwrite_alert) {
+    row.red_alert_set(true);
+  }
   row.op("FILE_OT_execute", overwrite_alert ? IFACE_("Overwrite") : title, ICON_NONE);
 }
 
