@@ -186,7 +186,7 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
     return false;
   }
 
-  /* The actual string search is now handled for the whole list at once, to allow sorting of the
+  /* The actual string search is handled for the whole list at once, to allow sorting of the
    * results. */
   return true;
 }
@@ -339,9 +339,7 @@ void filelist_filter(FileList *filelist)
     }
   }
 
-  const bool is_asset_search = filelist->filter_fn == is_filtered_asset_library ||
-                               filelist->filter_fn == is_filtered_main_assets;
-  if (is_asset_search) {
+  if (filelist->tags & FILELIST_TAGS_APPLY_FUZZY_SEARCH) {
     filelist_filter_and_sort_assets(filelist, filtered_tmp, num_filtered);
   }
   else {
