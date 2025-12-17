@@ -16,7 +16,7 @@
 
 #include "BLI_string.h"
 
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 #include "GHOST_XrException.hh"
 #include "GHOST_XrSession.hh"
 #include "GHOST_Xr_intern.hh"

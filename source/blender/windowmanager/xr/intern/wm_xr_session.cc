@@ -1587,7 +1587,7 @@ static wmSurface *wm_xr_session_surface_create()
   return surface;
 }
 
-void *wm_xr_session_gpu_binding_context_create()
+GHOST_IContext *wm_xr_session_gpu_binding_context_create()
 {
   wmSurface *surface = wm_xr_session_surface_create();
 
