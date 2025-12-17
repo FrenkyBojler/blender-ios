@@ -209,7 +209,10 @@ void GreasePencilPaintStroke::update_step(wmOperator *op, PointerRNA *stroke_ele
         *this->evil_C, op);
     BLI_assert(new_operation != nullptr);
     new_operation->straight_line_mode_ = RNA_boolean_get(op->ptr, "straight_line_mode");
-    this->constrain_line = true;
+    /* Set flag to override shift smooth. */
+    if (new_operation->straight_line_mode_) {
+      this->constrain_line = true;
+    }
     new_operation->constrain_line_ = RNA_boolean_get(op->ptr, "constrain_line");
     new_operation->on_stroke_begin(*this->evil_C, sample);
     mode_data_ = std::move(new_operation);
