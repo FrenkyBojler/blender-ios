@@ -28,6 +28,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "GHOST_CallbackEventConsumer.hh"
+#include "GHOST_IContext.hh"
 #include "GHOST_IEvent.hh"
 #include "GHOST_ISystem.hh"
 #include "GHOST_IWindow.hh"
@@ -1638,12 +1639,11 @@ void wm_window_reset_drawable()
   }
 }
 
-#ifndef NDEBUG
 /**
  * Time-stamp validation that uses basic heuristics to warn about bad time-stamps.
  * Issues here should be resolved in GHOST.
  */
-static void ghost_event_proc_timestamp_warning(GHOST_EventHandle ghost_event)
+static void ghost_event_proc_timestamp_warning(const GHOST_IEvent *ghost_event)
 {
   /* NOTE: The following time constants can be tweaked if they're reporting false positives. */
 
@@ -1653,7 +1653,7 @@ static void ghost_event_proc_timestamp_warning(GHOST_EventHandle ghost_event)
   constexpr uint64_t event_time_error_ms = 5000;
 
   static uint64_t event_ms_ref_last = std::numeric_limits<uint64_t>::max();
-  const uint64_t event_ms = GHOST_GetEventTime(ghost_event);
+  const uint64_t event_ms = ghost_event->getTime();
   const uint64_t event_ms_ref = event_ms_ref_last;
 
   /* Assign first (allow early returns). */
@@ -1663,7 +1663,7 @@ static void ghost_event_proc_timestamp_warning(GHOST_EventHandle ghost_event)
     return;
   }
   /* Check the events are recent enough to be used for testing. */
-  const uint64_t now_ms = GHOST_GetMilliSeconds(g_system);
+  const uint64_t now_ms = g_system->getMilliSeconds();
   /* Ensure the reference time occurred in the last #event_time_ok_ms.
    * If not, the reference time it's self may be a bad time-stamp. */
   if (event_ms_ref < event_time_error_ms || (event_ms_ref < (now_ms - event_time_ok_ms)) ||
@@ -1712,9 +1712,8 @@ static void ghost_event_proc_timestamp_warning(GHOST_EventHandle ghost_event)
                     time_unit,
                     event_ms,
                     now_ms,
-                    int(GHOST_GetEventType(ghost_event)));
+                    int(ghost_event->getType()));
 }
-#endif /* !NDEBUG */
 
 /**
  * Called by ghost, here we handle events for windows themselves or send to event system.
@@ -2214,12 +2213,12 @@ void WM_window_csd_params_update()
       /*cursor_drag_threshold*/ U.drag_threshold_mouse,
       /*cursor_double_click_ms*/ U.dbl_click_time,
   };
-  GHOST_SetWindowCSD(g_system, &csd_params);
+  g_system->setWindowCSD(csd_params);
 }
 
 const GHOST_CSD_Layout *WM_window_csd_layout_get()
 {
-  return GHOST_GetWindowCSD_Layout(g_system);
+  return &g_system->getWindowCSD_Layout();
 }
 
 #endif /* WITH_GHOST_CSD */

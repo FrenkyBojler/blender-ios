@@ -46,7 +46,7 @@ void GPUTest::SetUpTestSuite(GHOST_TDrawingContextType draw_context_type,
   GHOST_ISystem::createSystemBackground();
   ghost_system_ = GHOST_ISystem::getSystem();
   GPU_backend_ghost_system_set(ghost_system_);
-  ghost_context_ = GHOST_CreateGPUContext(ghost_system_, gpu_settings);
+  ghost_context_ = ghost_system_->createOffscreenContext(gpu_settings);
   ghost_context_->activateDrawingContext();
   context_ = GPU_context_create(nullptr, ghost_context_);
   GPU_init();
