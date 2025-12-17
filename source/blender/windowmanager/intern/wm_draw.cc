@@ -185,7 +185,7 @@ static struct {
     /*winid*/ -1,
 };
 
-/** Reuse the result from #GHOST_GetCursorGrabState. */
+/** Reuse the result from #GHOST_IWindow::getCursorGrabState. */
 struct GrabState {
   GHOST_TGrabCursorMode mode;
   GHOST_TAxisFlag wrap_axis;

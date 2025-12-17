@@ -143,7 +143,7 @@ enum GHOST_TCapabilityFlag {
    */
   GHOST_kCapabilityCursorRGBA = (1 << 10),
   /**
-   * Setting cursors via #GHOST_SetCursorGenerator is supported.
+   * Setting cursors via #GHOST_IWindow::setCursorShape is supported.
    */
   GHOST_kCapabilityCursorGenerator = (1 << 11),
   /**

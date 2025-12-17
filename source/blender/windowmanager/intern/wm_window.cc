@@ -1100,7 +1100,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
       win->cursor = WM_CURSOR_DEFAULT;
     }
 
-    /* As the window has not yet been created: #GHOST_SetPath cannot be called yet.
+    /* As the window has not yet been created: #GHOST_IWindow::setPath cannot be called yet.
      * Use this callback to store the file-path path which is used later in this function
      * after the window has been created. */
     auto window_filepath_fn = (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_PATH) ?

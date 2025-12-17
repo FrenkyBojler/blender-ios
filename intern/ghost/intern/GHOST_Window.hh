@@ -221,7 +221,7 @@ class GHOST_Window : public GHOST_IWindow {
   unsigned int getDefaultFramebuffer() override;
 
 #ifdef WITH_VULKAN_BACKEND
-  /** \copydoc #GHOST_GetVulkanSwapChainFormat */
+  /** \copydoc #GHOST_IContext::getVulkanHandles */
   virtual GHOST_TSuccess getVulkanSwapChainFormat(
       GHOST_VulkanSwapChainData *r_swap_chain_data) override;
 #endif
