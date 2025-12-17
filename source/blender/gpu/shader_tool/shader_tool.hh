@@ -556,7 +556,7 @@ class Preprocessor {
         lower_unions(parser, report_error);
         lower_host_shared_structures(parser, report_error);
         /* Lower enums. */
-        lower_enums(parser, language == CPP, report_error);
+        lower_enums(parser, report_error);
         /* Lower SRT and Interfaces. */
         lower_entry_points(parser, report_error);
         lower_pipeline_definition(parser, filename, report_error);
@@ -2914,7 +2914,7 @@ class Preprocessor {
     parser.insert_directive(scope.back().prev(), guard_else + guard_end);
   };
 
-  void lower_enums(Parser &parser, bool is_shared_file, report_callback report_error)
+  void lower_enums(Parser &parser, report_callback report_error)
   {
     /**
      * Transform C,C++ enum declaration into GLSL compatible defines and constants:
@@ -2958,47 +2958,61 @@ class Preprocessor {
     parser().foreach_match("Mw{", missing_underlying_type);
     parser().foreach_match("MSw{", missing_underlying_type);
 
-    auto process_enum =
-        [&](Token enum_tok, Token class_tok, Token enum_name, Token enum_type, Scope enum_scope) {
-          string type_str = enum_type.str();
+    auto process_enum = [&](Token enum_tok,
+                            Token class_tok,
+                            Token enum_name,
+                            Token enum_type,
+                            Scope enum_scope,
+                            const bool is_host_shared) {
+      string type_str = enum_type.str();
 
-          if (is_shared_file) {
-            if (type_str != "uint32_t" && type_str != "int32_t") {
-              report_error(
-                  enum_type.line_number(),
-                  enum_type.char_number(),
-                  enum_type.line_str(),
-                  "enum declaration must use uint32_t or int32_t underlying type for interface "
-                  "compatibility");
-              return;
-            }
-          }
+      if (is_host_shared) {
+        if (type_str != "uint32_t" && type_str != "int32_t") {
+          report_error(
+              enum_type.line_number(),
+              enum_type.char_number(),
+              enum_type.line_str(),
+              "enum declaration must use uint32_t or int32_t underlying type for interface "
+              "compatibility");
+          return;
+        }
 
-          size_t insert_at = enum_scope.back().line_end();
-          parser.erase(enum_tok.str_index_start(), insert_at);
-          parser.insert_line_number(insert_at + 1, enum_tok.line_number());
-          parser.insert_after(insert_at + 1,
-                              "#define " + enum_name.str() + " " + enum_type.str() + "\n");
+        string define = "#define ";
+        define += enum_name.str() + linted_struct_suffix + " " + enum_name.str() + "\n";
+        parser.insert_directive(enum_tok.prev(), define);
+      }
 
-          enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
-            string name = scope.front().prev().str();
-            string value = scope.str_with_whitespace();
-            if (class_tok.is_valid()) {
-              name = enum_name.str() + "::" + name;
-            }
-            string decl = "constant static constexpr " + type_str + " " + name + " " + value +
-                          ";\n";
-            parser.insert_line_number(insert_at + 1, scope.front().line_number());
-            parser.insert_after(insert_at + 1, decl);
-          });
-          parser.insert_line_number(insert_at + 1, enum_scope.back().line_number() + 1);
-        };
+      size_t insert_at = enum_scope.back().line_end();
+      parser.erase(enum_tok.str_index_start(), insert_at);
+      parser.insert_line_number(insert_at + 1, enum_tok.line_number());
+      parser.insert_after(insert_at + 1,
+                          "#define " + enum_name.str() + " " + enum_type.str() + "\n");
+
+      enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
+        string name = scope.front().prev().str();
+        string value = scope.str_with_whitespace();
+        if (class_tok.is_valid()) {
+          name = enum_name.str() + "::" + name;
+        }
+        string decl = "constant static constexpr " + type_str + " " + name + " " + value + ";\n";
+        parser.insert_line_number(insert_at + 1, scope.front().line_number());
+        parser.insert_after(insert_at + 1, decl);
+      });
+      parser.insert_line_number(insert_at + 1, enum_scope.back().line_number() + 1);
+    };
 
     parser().foreach_match("MSw:w{", [&](vector<Token> tokens) {
-      process_enum(tokens[0], tokens[1], tokens[2], tokens[4], tokens[5].scope());
+      process_enum(tokens[0], tokens[1], tokens[2], tokens[4], tokens[5].scope(), false);
     });
     parser().foreach_match("Mw:w{", [&](vector<Token> tokens) {
-      process_enum(tokens[0], Token::invalid(), tokens[1], tokens[3], tokens[4].scope());
+      process_enum(tokens[0], Token::invalid(), tokens[1], tokens[3], tokens[4].scope(), false);
+    });
+    parser().foreach_match("MS[[w]]w:w{", [&](vector<Token> tokens) {
+      process_enum(tokens[0], tokens[1], tokens[7], tokens[9], tokens[10].scope(), true);
+      parser.erase(tokens[1], tokens[5]);
+    });
+    parser().foreach_match("M[[w]]w:w{", [&](vector<Token> tokens) {
+      process_enum(tokens[0], Token::invalid(), tokens[6], tokens[8], tokens[9].scope(), true);
     });
 
     parser.apply_mutations();
@@ -3130,6 +3144,8 @@ class Preprocessor {
           /* Only 4 bytes enums are allowed. */
           type_info = {4, 4};
           parser.erase(type.prev());
+          /* Make sure that linted structs only contain other linted structs. */
+          parser.replace(type, type.str() + linted_struct_suffix + " ");
         }
         else if (type.prev() == Struct) {
           /* Only 4 bytes enums are allowed. */
@@ -3287,9 +3303,12 @@ class Preprocessor {
           }
         }
         else if (attr_str == "host_shared") {
-          if (attributes.front().prev().prev() != Struct) {
-            report_error(ERROR_TOK(attr),
-                         "host_shared attributes must be placed after a struct keyword");
+          if (attributes.front().prev().prev() != Struct &&
+              attributes.front().prev().prev() != Enum)
+          {
+            report_error(
+                ERROR_TOK(attr),
+                "host_shared attributes must be placed after a struct or an enum definition");
             invalid = true;
           }
           /* Placement already checked. */
