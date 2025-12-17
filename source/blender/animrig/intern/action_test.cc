@@ -35,12 +35,11 @@ namespace blender::animrig::tests {
 
 static bActionGroup *action_groups_add_new(bAction *act, const char name[])
 {
-  bActionGroup *agrp;
   if (ELEM(nullptr, act, name)) {
     return nullptr;
   }
   BLI_assert(act->wrap().is_action_legacy());
-  agrp = MEM_callocN<bActionGroup>("bActionGroup");
+  bActionGroup *agrp = MEM_callocN<bActionGroup>("bActionGroup");
   agrp->flag = AGRP_SELECTED;
   STRNCPY_UTF8(agrp->name, name[0] ? name : "Group");
   BLI_addtail(&act->groups, agrp);
