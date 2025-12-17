@@ -447,8 +447,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
                                        eIDPropertyUIDataType dst_type);
 
 void IDP_TryConvertProperty(IDProperty *prop,
-                             const eIDPropertyUIDataType src_type,
-                             const eIDPropertyUIDataType dst_type);
+                            const eIDPropertyUIDataType src_type,
+                            const eIDPropertyUIDataType dst_type);
 
 namespace blender::bke::idprop {
 

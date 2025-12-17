@@ -1977,20 +1977,22 @@ void IDP_TryConvertProperty(IDProperty *src,
                             const eIDPropertyUIDataType dst_type)
 {
   switch (src_type) {
-    case IDP_UI_DATA_TYPE_INT: {
+    case IDP_UI_DATA_TYPE_INT:
+    case IDP_UI_DATA_TYPE_BOOLEAN: {
       switch (dst_type) {
         case IDP_UI_DATA_TYPE_INT:
         case IDP_UI_DATA_TYPE_BOOLEAN:
           src->type = char((dst_type == IDP_UI_DATA_TYPE_INT) ? IDP_INT : IDP_BOOLEAN);
           break;
         case IDP_UI_DATA_TYPE_FLOAT: {
-          const double value = IDP_int_get(src);
+          const double value = IDP_int_or_bool_get(src);
           src->type = IDP_DOUBLE;
           IDP_double_set(src, value);
           break;
         }
         case IDP_UI_DATA_TYPE_STRING: {
-          IDP_AssignString(src, std::to_string(IDP_int_get(src)).c_str());
+          IDP_AssignString(src, std::to_string(IDP_int_or_bool_get(src)).c_str());
+          src->type = IDP_STRING;
           break;
         }
         default:
@@ -2011,6 +2013,39 @@ void IDP_TryConvertProperty(IDProperty *src,
         }
         case IDP_UI_DATA_TYPE_STRING: {
           IDP_AssignString(src, std::to_string(IDP_double_get(src)).c_str());
+          src->type = IDP_STRING;
+          break;
+        }
+        default:
+          break;
+      }
+      break;
+    }
+    case IDP_UI_DATA_TYPE_STRING: {
+      switch (dst_type) {
+        case IDP_UI_DATA_TYPE_STRING:
+          break;
+        case IDP_UI_DATA_TYPE_INT:
+        case IDP_UI_DATA_TYPE_BOOLEAN: {
+          const char *str = IDP_string_get(src);
+          int value = 0;
+          if (str != nullptr) {
+            value = std::stoi(str);
+            IDP_FreeString(src);
+          }
+          src->type = char((dst_type == IDP_UI_DATA_TYPE_INT) ? IDP_INT : IDP_BOOLEAN);
+          IDP_int_or_bool_set(src, value);
+          break;
+        }
+        case IDP_UI_DATA_TYPE_FLOAT: {
+          const char *str = IDP_string_get(src);
+          double value = 0.0;
+          if (str != nullptr) {
+            value = std::stod(str);
+            IDP_FreeString(src);
+          }
+          src->type = IDP_DOUBLE;
+          IDP_double_set(src, value);
           break;
         }
         default:

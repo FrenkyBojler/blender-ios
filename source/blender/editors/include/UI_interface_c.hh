@@ -2626,7 +2626,7 @@ void template_collection_exporters(Layout *layout, bContext *C);
 namespace id_properties {
 void template_tree(ui::Layout *layout, bContext *C, ID *id);
 void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id);
-}
+}  // namespace id_properties
 
 }  // namespace blender::ui
 
