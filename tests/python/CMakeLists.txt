@@ -1447,6 +1447,19 @@ if(TEST_SRC_DIR_EXISTS)
   )
 endif()
 
+# ------------------------------------------------------------------------------
+# FONT RENDERING TESTS (BLF)
+# ------------------------------------------------------------------------------
+
+if(TEST_SRC_DIR_EXISTS)
+  add_render_test(
+    blf_basic_rendering
+    ${CMAKE_CURRENT_LIST_DIR}/blf_render_tests.py
+    --testdir "${TEST_SRC_DIR}/blenfont"
+    --outdir "${TEST_OUT_DIR}/blf"
+  )
+endif()
+
 if(WITH_GPU_MESH_PAINT_TESTS AND TEST_SRC_DIR_EXISTS)
   set(render_tests
     brushes
