@@ -1359,8 +1359,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     }
     processing_span_splits.append(visible_strokes.size());
 
-    threading::parallel_for_each(IndexRange(processing_span_splits.size()-1),
-                                 [&](const int i) {
+    threading::parallel_for_each(IndexRange(processing_span_splits.size() - 1), [&](const int i) {
       const int64_t span_start = processing_span_splits[i];
       const int64_t span_end = processing_span_splits[i + 1];
 
@@ -1385,7 +1384,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         /* Write all the point attributes to the vertex buffers. Create a quad for each point. */
         const float u_scale = u_scales[curve_i];
         const float u_translation = u_translations[curve_i];
-
         for (const int i : IndexRange(points.size())) {
           const int idx = i + 1;
           const float u_stroke = u_scale * (i > 0 ? lengths[i - 1] : 0.0f) + u_translation;
@@ -1394,6 +1392,23 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                          start_caps[curve_i],
                          end_caps[curve_i],
                          points[i],
+                         idx,
+                         u_stroke,
+                         is_cyclic,
+                         texture_matrix,
+                         verts_slice[idx],
+                         cols_slice[idx]);
+        }
+
+        if (is_cyclic) {
+          const int idx = points.size() + 1;
+          const float u = points.size() > 1 ? lengths[points.size() - 1] : 0.0f;
+          const float u_stroke = u_scale * u + u_translation;
+          populate_point(verts_range,
+                         curve_i,
+                         start_caps[curve_i],
+                         end_caps[curve_i],
+                         points[0],
                          idx,
                          u_stroke,
                          is_cyclic,
