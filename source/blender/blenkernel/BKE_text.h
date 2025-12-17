@@ -89,7 +89,7 @@ void txt_sel_all(struct Text *text);
  * at the selection (where the cursor is visually while editing).
  */
 void txt_sel_clear(struct Text *text);
-void txt_sel_line(struct Text *text);
+void txt_sel_line(struct Text *text, bool include_newline = false);
 void txt_sel_set(struct Text *text, int startl, int startc, int endl, int endc);
 char *txt_sel_to_buf(const struct Text *text, size_t *r_buf_strlen);
 /**

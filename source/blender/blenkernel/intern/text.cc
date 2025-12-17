@@ -1269,15 +1269,16 @@ void txt_sel_clear(Text *text)
   }
 }
 
-void txt_sel_line(Text *text)
+void txt_sel_line(Text *text, bool include_newline)
 {
-  if (!text->curl) {
-    return;
-  }
+  if (!text->curl) return;
 
-  text->curc = 0;
-  text->sell = text->curl;
-  text->selc = text->sell->len;
+  TextLine *line = text->curl;
+  text->sell = line;
+  text->selc = 0;
+
+  text->curl = (include_newline && line->next) ? line->next : line;
+  text->curc = (include_newline && line->next) ? 0 : line->len;
 }
 
 void txt_sel_set(Text *text, int startl, int startc, int endl, int endc)

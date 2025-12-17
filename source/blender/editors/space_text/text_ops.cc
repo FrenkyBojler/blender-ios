@@ -1093,9 +1093,23 @@ static void txt_copy_clipboard(const Text *text)
 
 static wmOperatorStatus text_copy_exec(bContext *C, wmOperator * /*op*/)
 {
-  const Text *text = CTX_data_edit_text(C);
+  Text *text = CTX_data_edit_text(C);
 
-  txt_copy_clipboard(text);
+  if (txt_has_sel(text)) {
+    txt_copy_clipboard(text);
+  }
+  else {
+    
+    TextLine *original_curl = text->curl;
+    int original_curc = text->curc;
+    txt_sel_line(text);
+    txt_copy_clipboard(text);
+
+    text->curl = original_curl;
+    text->curc = original_curc;
+    text->sell = original_curl;
+    text->selc = original_curc;
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -1122,6 +1136,10 @@ static wmOperatorStatus text_cut_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceText *st = CTX_wm_space_text(C);
   Text *text = CTX_data_edit_text(C);
+
+  if (!txt_has_sel(text)) {
+    txt_sel_line(text,true);
+  }
 
   space_text_drawcache_tag_update(st, false);
 
