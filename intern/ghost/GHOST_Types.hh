@@ -19,28 +19,6 @@ VK_DEFINE_HANDLE(VmaAllocator)
 
 #include "MEM_guardedalloc.h"
 
-#define GHOST_DECLARE_HANDLE(name) \
-  typedef struct name##__ { \
-    int unused; \
-    MEM_CXX_CLASS_ALLOC_FUNCS(#name) \
-  } *name
-
-/**
- * Creates a "handle" for a C++ GHOST object.
- * A handle is just an opaque pointer to an empty struct.
- * In the API the pointer is cast to the actual C++ class.
- * The 'name' argument to the macro is the name of the handle to create.
- */
-
-GHOST_DECLARE_HANDLE(GHOST_SystemHandle);
-GHOST_DECLARE_HANDLE(GHOST_TimerTaskHandle);
-GHOST_DECLARE_HANDLE(GHOST_WindowHandle);
-GHOST_DECLARE_HANDLE(GHOST_EventHandle);
-GHOST_DECLARE_HANDLE(GHOST_RectangleHandle);
-GHOST_DECLARE_HANDLE(GHOST_EventConsumerHandle);
-GHOST_DECLARE_HANDLE(GHOST_ContextHandle);
-GHOST_DECLARE_HANDLE(GHOST_XrContextHandle);
-
 using GHOST_TBacktraceFn = void (*)(FILE *file_handle);
 
 using GHOST_TUserDataPtr = void *;
@@ -1025,13 +1003,8 @@ using GHOST_TEmbedderWindowID = int;
  * \param task: The timer task object.
  * \param time: Time since this timer started (in milliseconds).
  */
-#ifdef __cplusplus
 class GHOST_ITimerTask;
 using GHOST_TimerProcPtr = void (*)(GHOST_ITimerTask *task, uint64_t time);
-#else
-struct GHOST_TimerTaskHandle__;
-using GHOST_TimerProcPtr = void (*)(struct GHOST_TimerTaskHandle__ *task, uint64_t time);
-#endif
 
 /* Window client-side-decorations (CSD). */
 enum GHOST_TCSD_Type {
@@ -1124,8 +1097,9 @@ using GHOST_XrSessionCreateFn = void (*)();
 using GHOST_XrSessionExitFn = void (*)(void *customdata);
 using GHOST_XrCustomdataFreeFn = void (*)(void *customdata);
 
+struct GHOST_IXrContext;
 using GHOST_XrGraphicsContextBindFn = void *(*)();
-using GHOST_XrGraphicsContextUnbindFn = void (*)(GHOST_ContextHandle graphics_context);
+using GHOST_XrGraphicsContextUnbindFn = void (*)(GHOST_IXrContext *graphics_context);
 using GHOST_XrDrawViewFn = void (*)(const struct GHOST_XrDrawViewInfo *draw_view,
                                     void *customdata);
 using GHOST_XrPassthroughEnabledFn = bool (*)(void *customdata);
