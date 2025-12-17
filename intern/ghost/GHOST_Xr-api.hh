@@ -10,8 +10,8 @@
 
 #pragma once
 
-#include "GHOST_Types.hh"
 #include "GHOST_IXrContext.hh"
+#include "GHOST_Types.hh"
 
 /* XR-context */
 
@@ -199,8 +199,7 @@ void GHOST_XrStopHapticAction(GHOST_IXrContext *xr_context_handle,
 /**
  * Get action set custom data (owned by Blender, not GHOST).
  */
-void *GHOST_XrGetActionSetCustomdata(GHOST_IXrContext *xr_context,
-                                     const char *action_set_name);
+void *GHOST_XrGetActionSetCustomdata(GHOST_IXrContext *xr_context, const char *action_set_name);
 
 /**
  * Get action custom data (owned by Blender, not GHOST).
@@ -244,4 +243,3 @@ int GHOST_XrUpdateControllerModelComponents(GHOST_IXrContext *xr_context,
 int GHOST_XrGetControllerModelData(GHOST_IXrContext *xr_context,
                                    const char *subaction_path,
                                    GHOST_XrControllerModelData *r_data);
-

@@ -36,8 +36,8 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
-#include "GHOST_IWindow.hh"
 #include "GHOST_ISystem.hh"
+#include "GHOST_IWindow.hh"
 #include "GHOST_Rect.hh"
 #include "GHOST_Types.hh"
 

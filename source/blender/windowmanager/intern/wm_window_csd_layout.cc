@@ -177,10 +177,7 @@ void WM_window_csd_rect_calc(const wmWindow *win, rcti *r_rect)
 {
   const GHOST_CSD_Layout *csd_layout = WM_window_csd_layout_get();
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-  const int fractional_scale[2] = {
-      GHOST_CSD_DPI_FRACTIONAL_BASE,
-      ghost_window->getDPIHint()
-  };
+  const int fractional_scale[2] = {GHOST_CSD_DPI_FRACTIONAL_BASE, ghost_window->getDPIHint()};
 
   GHOST_CSD_Elem csd_elems[GHOST_kCSDType_NUM];
 

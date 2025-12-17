@@ -516,7 +516,7 @@ static bool get_path_user_ex(char *targetpath,
 
     const GHOST_ISystemPaths *ghost_system_paths = GHOST_ISystemPaths::get();
     const char *user_base_path = ghost_system_paths->getUserDir(version,
-                                                          blender_version_decimal(version));
+                                                                blender_version_decimal(version));
     if (user_base_path) {
       STRNCPY(user_path, user_base_path);
     }
@@ -572,8 +572,8 @@ static bool get_path_system_ex(char *targetpath,
   else {
     system_path[0] = '\0';
     const GHOST_ISystemPaths *ghost_system_paths = GHOST_ISystemPaths::get();
-    const char *system_base_path = ghost_system_paths->getSystemDir(version,
-                                                              blender_version_decimal(version));
+    const char *system_base_path = ghost_system_paths->getSystemDir(
+        version, blender_version_decimal(version));
     if (system_base_path) {
       STRNCPY(system_path, system_base_path);
     }

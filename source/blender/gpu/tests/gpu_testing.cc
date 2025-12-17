@@ -67,8 +67,7 @@ void GPUTest::TearDownTestSuite()
   GPU_exit();
   GPU_context_discard(context_);
   ghost_system_->disposeContext(ghost_context_);
-  GHOST_ISystem::disposeSystem()
-  GHOST_ISystemPaths::dispose();
+  GHOST_ISystem::disposeSystem() GHOST_ISystemPaths::dispose();
   CLG_exit();
 
   G.debug = prev_g_debug_;
