@@ -7727,14 +7727,29 @@ static int ui_do_but_CURVE(
       if (sel != -1) {
         /* ok, we move a point */
         /* deselect all if this one is deselect. except if we hold shift */
-        if ((event->modifier & KM_SHIFT) == 0) {
+        if ((event->modifier & KM_SHIFT) == 0) {              // not holding shift
           for (int a = 0; a < cuma->totpoint; a++) {
-            cmp[a].flag &= ~CUMA_SELECT;
+            cmp[a].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
           }
-          cmp[sel].flag |= CUMA_SELECT;
+          cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
         }
-        else {
-          cmp[sel].flag ^= CUMA_SELECT;
+        else {                                                // holding shift
+          if (cmp[sel].flag & CUMA_SELECT) {                  // if the current point is selected
+            if (cmp[sel].flag & CUMA_ACTIVE) {
+              for (int b = sel - 1; b >= 0; b--) {            // then activate previous point
+                if (cmp[b].flag & CUMA_SELECT) {
+                  cmp[b].flag |= CUMA_ACTIVE;
+                }
+              }
+            }
+            cmp[sel].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
+          }
+          else {
+            for (int a = 0; a < cuma->totpoint; a++) {
+              cmp[a].flag &= ~CUMA_ACTIVE;
+            }
+            cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
+          }
         }
       }
       else {
@@ -7779,9 +7794,9 @@ static int ui_do_but_CURVE(
           /* deselect all, select one */
           if ((event->modifier & KM_SHIFT) == 0) {
             for (int a = 0; a < cuma->totpoint; a++) {
-              cmp[a].flag &= ~CUMA_SELECT;
+              cmp[a].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
             }
-            cmp[data->dragsel].flag |= CUMA_SELECT;
+            cmp[data->dragsel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
           }
         }
         else {

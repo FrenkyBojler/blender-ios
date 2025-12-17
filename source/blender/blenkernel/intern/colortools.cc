@@ -257,7 +257,7 @@ CurveMapPoint *BKE_curvemap_insert(CurveMap *cuma, float x, float y)
     if ((foundloc == false) && ((a + 1 == cuma->totpoint) || (x < cuma->curve[a].x))) {
       cmp[a].x = x;
       cmp[a].y = y;
-      cmp[a].flag = CUMA_SELECT;
+      cmp[a].flag = (CUMA_SELECT | CUMA_ACTIVE);
       cmp[a].flag |= cuma->default_handle_type;
       foundloc = true;
       newcmp = &cmp[a];
@@ -266,7 +266,7 @@ CurveMapPoint *BKE_curvemap_insert(CurveMap *cuma, float x, float y)
       cmp[a].x = cuma->curve[b].x;
       cmp[a].y = cuma->curve[b].y;
       /* make sure old points don't remain selected */
-      cmp[a].flag = cuma->curve[b].flag & ~CUMA_SELECT;
+      cmp[a].flag = cuma->curve[b].flag & ~(CUMA_SELECT | CUMA_ACTIVE);
       cmp[a].shorty = cuma->curve[b].shorty;
       b++;
     }
@@ -977,31 +977,25 @@ void BKE_curvemapping_premultiply(CurveMapping *cumap, bool restore)
 }
 
 /* ************************ more CurveMapping calls *************** */
-void BKE_curvemap_get_selection_center(CurveMap *cuma, float *center_x_out, float *center_y_out)
+void BKE_curvemap_get_active_ptr(CurveMap *cuma, CurveMapPoint **ptr_out)
 {
-  int n = 0;
-  *center_x_out = 0.0f;
-  *center_y_out = 0.0f;
-
+  *ptr_out = nullptr;
   for (int i = 0; i < cuma->totpoint; i++) {
     CurveMapPoint *pt = &cuma->curve[i];
     if (pt->flag & CUMA_SELECT) {
-      *center_x_out += pt->x;
-      *center_y_out += pt->y;
-      n++;
+      *ptr_out = pt;
+      if (pt->flag & CUMA_ACTIVE) {
+        return;
+      }
     }
-  }
-  if (n > 0) {
-    *center_x_out /= n;
-    *center_y_out /= n;
   }
 }
 
-void BKE_translate_selection(CurveMap *cuma, const float delta_x, const float delta_y)
+void BKE_translate_inactive_selection(CurveMap *cuma, const float delta_x, const float delta_y)
 {
   for (int i = 0; i < cuma->totpoint; i++) {
     CurveMapPoint *pt = &cuma->curve[i];
-    if (pt->flag & CUMA_SELECT) {
+    if ((pt->flag & CUMA_SELECT) && !(pt->flag & CUMA_ACTIVE)) {
       pt->x += delta_x;
       pt->y += delta_y;
     }
@@ -1070,11 +1064,17 @@ void BKE_curvemapping_changed(CurveMapping *cumap, const bool rem_doubles)
           if (cmp[a + 1].flag & CUMA_SELECT) {
             cmp[a].flag |= CUMA_SELECT;
           }
+          if (cmp[a + 1].flag & CUMA_ACTIVE) {
+            cmp[a].flag |= CUMA_ACTIVE;
+          }
         }
         else {
           cmp[a].flag |= CUMA_REMOVE;
           if (cmp[a].flag & CUMA_SELECT) {
             cmp[a + 1].flag |= CUMA_SELECT;
+          }
+          if (cmp[a].flag & CUMA_ACTIVE) {
+            cmp[a + 1].flag |= CUMA_ACTIVE;
           }
         }
         break; /* we assume 1 deletion per edit is ok */

@@ -61,15 +61,15 @@ void BKE_curvemap_remove(CurveMap *cuma, short flag);
 bool BKE_curvemap_remove_point(CurveMap *cuma, CurveMapPoint *point);
 CurveMapPoint *BKE_curvemap_insert(CurveMap *cuma, float x, float y);
 /**
- * Shift specified point from center.
+ * Shift all selected but not active points.
  */
-void BKE_translate_selection(CurveMap *cuma, const float delta_x, const float delta_y);
+void BKE_translate_inactive_selection(CurveMap *cuma, const float delta_x, const float delta_y);
 /**
  * \param type: #eBezTriple_Handle
  */
 void BKE_curvemap_handle_set(CurveMap *cuma, int type);
 
-void BKE_curvemap_get_selection_center(CurveMap *cuma, float *center_x_out, float *center_y_out);
+void BKE_curvemap_get_active_ptr(CurveMap *cuma, CurveMapPoint** ptr_out);
 
 /**
  * \note only does current curvemap!.
