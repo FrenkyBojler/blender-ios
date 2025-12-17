@@ -78,6 +78,7 @@ class GHOST_IEventConsumer;
  * - GHOST_IWindow.hh
  * - GHOST_Rect.hh
  * - GHOST_Types.hh
+ * - GHOST_Xr-api.hh
  *
  * For an example of using the GHOST API, have a look at the GHOST_Test.cpp
  * program in the ?/ghost/test/gears/ directory.
