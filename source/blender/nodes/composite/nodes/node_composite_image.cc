@@ -71,35 +71,27 @@ static void declare_pass(NodeDeclarationBuilder &b, const RenderPass &pass)
   switch (pass.channels) {
     case 1:
       b.add_output<decl::Float>(pass.name).structure_type(StructureType::Dynamic);
-      break;
+      return;
     case 2:
       b.add_output<decl::Vector>(pass.name).dimensions(2).structure_type(StructureType::Dynamic);
-      break;
+      return;
     case 3:
       if (STR_ELEM(pass.chan_id, "RGB", "rgb")) {
         b.add_output<decl::Color>(pass.name).structure_type(StructureType::Dynamic);
+        return;
       }
-      else {
-        b.add_output<decl::Vector>(pass.name).dimensions(3).structure_type(StructureType::Dynamic);
-      }
-      break;
+      b.add_output<decl::Vector>(pass.name).dimensions(3).structure_type(StructureType::Dynamic);
+      return;
     case 4:
       if (STR_ELEM(pass.chan_id, "RGBA", "rgba")) {
         b.add_output<decl::Color>(pass.name).structure_type(StructureType::Dynamic);
+        return;
       }
-      else {
-        b.add_output<decl::Vector>(pass.name).dimensions(4).structure_type(StructureType::Dynamic);
-      }
-      break;
-    default:
-      BLI_assert_unreachable();
-      break;
+      b.add_output<decl::Vector>(pass.name).dimensions(4).structure_type(StructureType::Dynamic);
+      return;
   }
 
-  /* The Alpha pass is generated based on the combined pass. */
-  if (STREQ(pass.name, RE_PASSNAME_COMBINED)) {
-    b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
-  }
+  BLI_assert_unreachable();
 }
 
 static void node_declare_multi_layer(NodeDeclarationBuilder &b,
@@ -121,8 +113,22 @@ static void node_declare_multi_layer(NodeDeclarationBuilder &b,
     return;
   }
 
+  bool has_alpha_pass = false;
+  LISTBASE_FOREACH (RenderPass *, pass, &render_layer->passes) {
+    if (StringRef(pass->name) == "Alpha") {
+      has_alpha_pass = true;
+      break;
+    }
+  }
+
   LISTBASE_FOREACH (RenderPass *, pass, &render_layer->passes) {
     declare_pass(b, *pass);
+
+    /* If the image does not have an alpha pass add an extra alpha pass that is generated based on
+     * the combined pass. */
+    if (!has_alpha_pass && StringRef(pass->name) == RE_PASSNAME_COMBINED) {
+      b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
+    }
   }
 }
 
@@ -236,30 +242,68 @@ class ImageOperation : public NodeOperation {
 
   void compute_output(StringRef identifier)
   {
-    if (!this->should_compute_output(identifier)) {
+    Result &result = this->get_result(identifier);
+    if (!result.should_compute()) {
       return;
     }
 
-    /* Alpha is not an actual pass, but one that is extracted from the combined pass. */
-    const bool is_generated_alpha = identifier == "Alpha";
-    const char *pass_name = is_generated_alpha ? RE_PASSNAME_COMBINED : identifier.data();
-    Result cached_image = this->context().cache_manager().cached_images.get(
-        this->context(), this->get_image(), this->get_image_user(), pass_name);
+    if (!this->get_image() || !this->get_image_user()) {
+      result.allocate_invalid();
+      return;
+    }
 
-    Result &result = this->get_result(identifier);
+    if (identifier == "Alpha") {
+      this->compute_alpha();
+      return;
+    }
+
+    Result cached_image = this->context().cache_manager().cached_images.get(
+        this->context(), this->get_image(), this->get_image_user(), identifier.data());
     if (!cached_image.is_allocated()) {
       result.allocate_invalid();
       return;
     }
 
-    if (is_generated_alpha) {
-      extract_alpha(this->context(), cached_image, result);
+    result.set_type(cached_image.type());
+    result.set_precision(cached_image.precision());
+    result.wrap_external(cached_image);
+  }
+
+  void compute_alpha()
+  {
+    Result &result = this->get_result("Alpha");
+    Result cached_alpha = this->context().cache_manager().cached_images.get(
+        this->context(), this->get_image(), this->get_image_user(), "Alpha");
+
+    /* For single layer images, the returned cached alpha is actually just the image, and we just
+     * extract the alpha from it. */
+    if (!BKE_image_is_multilayer(this->get_image())) {
+      if (!cached_alpha.is_allocated()) {
+        result.allocate_invalid();
+        return;
+      }
+
+      extract_alpha(this->context(), cached_alpha, result);
+      return;
     }
-    else {
-      result.set_type(cached_image.type());
-      result.set_precision(cached_image.precision());
-      result.wrap_external(cached_image);
+
+    /* For multi-layer images, if the returned cached alpha is allocated, that means that an actual
+     * pass called Alpha exists, and we just return it as is. */
+    if (cached_alpha.is_allocated()) {
+      result.set_type(cached_alpha.type());
+      result.set_precision(cached_alpha.precision());
+      result.wrap_external(cached_alpha);
+      return;
     }
+
+    /* Otherwise, we try to extract the alpha from the combined pass if it exists. */
+    Result cached_combined_image = this->context().cache_manager().cached_images.get(
+        this->context(), this->get_image(), this->get_image_user(), RE_PASSNAME_COMBINED);
+    if (!cached_combined_image.is_allocated()) {
+      result.allocate_invalid();
+      return;
+    }
+    extract_alpha(this->context(), cached_combined_image, result);
   }
 
   Image *get_image()
