@@ -13,6 +13,8 @@
 
 #include "testing/testing.h"
 
+#include "MEM_guardedalloc.h"
+
 class ShapekeyTest : public testing::Test {
  public:
   Main *bmain = nullptr;
@@ -217,4 +219,41 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
   EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
   MEM_freeN(ob_eval);
 }
+
+/* For historical reasons, keyblocks can end up having an element count that does not match the
+ * element count of the source data (unequal vertex count in the case of meshes). This is not
+ * supported in relative evaluation though. */
+TEST_F(ShapekeyTest, mesh_key_evaluation_relative_uneqal_element_count)
+{
+  Key *key = BKE_key_add(bmain, &mesh->id);
+  mesh->key = key;
+  key->type = KEY_NORMAL;
+  KeyBlock *base = BKE_keyblock_add(key, "base");
+  BKE_keyblock_convert_from_mesh(mesh, key, base);
+
+  KeyBlock *key1 = BKE_keyblock_add(key, "one");
+  ASSERT_EQ(mesh->verts_num, 4);
+  ASSERT_EQ(key->elemsize, 12);
+  /* The mesh has 4 vertices, but this shapekey will only have 3. */
+  float3 *key1_data = reinterpret_cast<float3 *>(
+      MEM_malloc_arrayN(size_t(3), size_t(key->elemsize), __func__));
+  key1->data = key1_data;
+  key1->totelem = 3;
+  key1_data[1] = {5, 5, 5};
+
+  key1->curval = 1.0;
+  int totelem = 0;
+  float3 *ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  /* Despite having the key at full influence, it should do nothing since the element count does
+   * not match. */
+  Array<float3> expected = {
+      {0, 0, 0},
+      {1, 0, 0},
+      {1, 1, 0},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  MEM_freeN(ob_eval);
+}
+
 }  // namespace blender::bke::tests
