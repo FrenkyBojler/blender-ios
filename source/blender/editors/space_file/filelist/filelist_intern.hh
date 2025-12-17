@@ -277,9 +277,6 @@ enum FileListTags {
   FILELIST_TAGS_USES_MAIN_DATA = (1 << 0),
   /**
    * Apply fuzzy search on results left after applying #FileList.filter_fn.
-   *
-   * \note Needs to be set explicitly by #filelist_settype(), as `filter_fn` itself might not be
-   * strictly deducible (pointers comparison) if wrapped or changed.
    */
   FILELIST_TAGS_APPLY_FUZZY_SEARCH = (1 << 1),
   /** The file list type is not thread-safe. */
