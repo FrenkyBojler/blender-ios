@@ -305,6 +305,7 @@ static void sync_volume_object(
   volume->set_velocity_scale(velocity_scale);
 
   /* Find grid with matching name. */
+#ifdef WITH_OPENVDB
   for (const int grid_index : blender::IndexRange(BKE_volume_num_grids(&b_volume))) {
     const blender::bke::VolumeGridData &b_grid = *BKE_volume_grid_get(&b_volume, grid_index);
     const ustring name = ustring(b_grid.name());
@@ -365,6 +366,7 @@ static void sync_volume_object(
       attr->data_voxel() = scene->image_manager->add_image(std::move(loader), params, false);
     }
   }
+#endif
 }
 
 void BlenderSync::sync_volume(BObjectInfo &b_ob_info, Volume *volume)
