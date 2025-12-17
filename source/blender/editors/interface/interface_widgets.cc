@@ -2058,6 +2058,13 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox, int width)
   if (textbox->wrap_cache) {
     textbox->wrap_cache->wrapped_lines = lines;
   }
+  /* WORKAROUND: Textbox event handling and drawing requires lines to not include line breaks, but
+   * sometimes text wrapp adds them and other times not. */
+  for (int i : lines.index_range()) {
+    if (lines[i] == "\n") {
+      lines[i] = StringRef(lines[i].data(), lines[i].data());
+    }
+  }
   return lines;
 }
 

@@ -3366,6 +3366,21 @@ static bool ui_textedit_insert_ascii(Button *but, HandleButtonData *data, const 
 }
 #endif
 
+int textbox_line_cursor(Span<StringRef> lines, int cursor_pos)
+{
+  const char *cursor = lines.first().begin() + cursor_pos;
+  int line_cursor = 0;
+  for (StringRef line : lines) {
+    if (line.begin() > cursor) {
+      line_cursor = line_cursor - 1;
+      break;
+    }
+    line_cursor++;
+  }
+  line_cursor = std::clamp<int>(line_cursor, 0, lines.size() - 1);
+  return line_cursor;
+}
+
 /**
  * Moves te cursor in the textbox one line up/down and tries to maintain the horizontal offset in
  * pixels from the current line.
@@ -3383,16 +3398,7 @@ static void textbox_jump_line(ARegion *region,
   Vector<StringRef> lines = textbox_wrap_lines(region, textbox);
   const char *str = lines.first().begin();
   const bool append_selection = textbox->selend == textbox->pos;
-  const char *cursor = str + textbox->pos;
-  int line_cursor = 0;
-  for (StringRef line : lines) {
-    if (line.begin() > cursor) {
-      line_cursor = line_cursor - 1;
-      break;
-    }
-    line_cursor++;
-  }
-  line_cursor = std::clamp<int>(line_cursor, 0, lines.size() - 1);
+  const int line_cursor = textbox_line_cursor(lines, textbox->pos);
   const int fontid = style_get()->widget.uifont_id;
   int offset = BLF_str_offset_to_cursor(fontid,
                                         lines[line_cursor].begin(),
@@ -3437,14 +3443,20 @@ static void textbox_jump_line(ARegion *region,
   }
 }
 
-static void ui_textedit_move(Button *but,
+static void ui_textedit_move(ARegion *region,
+                             Button *but,
                              TextEdit &text_edit,
                              eStrCursorJumpDirection direction,
                              const bool select,
-                             eStrCursorJumpType jump)
+                             eStrCursorJumpType jump,
+                             bool jump_all_multiline = false)
 {
-  const char *str = text_edit.edit_string;
-  const int len = strlen(str);
+  Vector<StringRef> lines = {text_edit.edit_string};
+  if (but->type == ButtonType::TextBox && jump == STRCUR_JUMP_ALL && !jump_all_multiline) {
+    lines = textbox_wrap_lines(region, static_cast<ButtonTextBox *>(but));
+  }
+  const char *str = lines.first().begin();
+  StringRef line_cursor = lines[textbox_line_cursor(lines, but->pos)];
   const int pos_prev = but->pos;
   const bool has_sel = (but->selend - but->selsta) > 0;
 
@@ -3453,7 +3465,9 @@ static void ui_textedit_move(Button *but,
   /* special case, quit selection and set cursor */
   if (has_sel && !select) {
     if (jump == STRCUR_JUMP_ALL) {
-      but->selsta = but->selend = but->pos = direction ? len : 0;
+      but->selsta = but->selend = but->pos = (direction ? line_cursor.end() :
+                                                          line_cursor.begin()) -
+                                             str;
     }
     else {
       if (direction) {
@@ -3466,9 +3480,10 @@ static void ui_textedit_move(Button *but,
     text_edit.sel_pos_init = but->pos;
   }
   else {
-    int pos_i = but->pos;
-    BLI_str_cursor_step_utf8(str, len, &pos_i, direction, jump, true);
-    but->pos = pos_i;
+    int pos_i = but->pos - (line_cursor.data() - str);
+    BLI_str_cursor_step_utf8(
+        line_cursor.data(), line_cursor.size(), &pos_i, direction, jump, true);
+    but->pos = pos_i + (line_cursor.data() - str);
 
     if (select) {
       if (has_sel == false) {
@@ -4164,7 +4179,8 @@ static int ui_do_but_textedit(
                                                       STRCUR_DIR_NEXT :
                                                       STRCUR_DIR_PREV;
         const eStrCursorJumpType jump = ui_textedit_jump_type_from_event(event);
-        ui_textedit_move(but, text_edit, direction, event->modifier & KM_SHIFT, jump);
+        ui_textedit_move(
+            data->region, but, text_edit, direction, event->modifier & KM_SHIFT, jump);
         retval = WM_UI_HANDLER_BREAK;
         break;
       }
@@ -4190,8 +4206,13 @@ static int ui_do_but_textedit(
         }
         ATTR_FALLTHROUGH;
       case EVT_ENDKEY:
-        ui_textedit_move(
-            but, text_edit, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT, STRCUR_JUMP_ALL);
+        ui_textedit_move(data->region,
+                         but,
+                         text_edit,
+                         STRCUR_DIR_NEXT,
+                         event->modifier & KM_SHIFT,
+                         STRCUR_JUMP_ALL,
+                         event->modifier & KM_CTRL);
         retval = WM_UI_HANDLER_BREAK;
         break;
       case WHEELUPMOUSE:
@@ -4219,8 +4240,13 @@ static int ui_do_but_textedit(
         }
         ATTR_FALLTHROUGH;
       case EVT_HOMEKEY:
-        ui_textedit_move(
-            but, text_edit, STRCUR_DIR_PREV, event->modifier & KM_SHIFT, STRCUR_JUMP_ALL);
+        ui_textedit_move(data->region,
+                         but,
+                         text_edit,
+                         STRCUR_DIR_PREV,
+                         event->modifier & KM_SHIFT,
+                         STRCUR_JUMP_ALL,
+                         event->modifier & KM_CTRL);
         retval = WM_UI_HANDLER_BREAK;
         break;
       case EVT_PADENTER:
@@ -4256,8 +4282,10 @@ static int ui_do_but_textedit(
         if (event->modifier == KM_CTRL)
 #endif
         {
-          ui_textedit_move(but, text_edit, STRCUR_DIR_PREV, false, STRCUR_JUMP_ALL);
-          ui_textedit_move(but, text_edit, STRCUR_DIR_NEXT, true, STRCUR_JUMP_ALL);
+          ui_textedit_move(
+              data->region, but, text_edit, STRCUR_DIR_PREV, false, STRCUR_JUMP_ALL, true);
+          ui_textedit_move(
+              data->region, but, text_edit, STRCUR_DIR_NEXT, true, STRCUR_JUMP_ALL, true);
           retval = WM_UI_HANDLER_BREAK;
         }
         break;
