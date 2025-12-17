@@ -640,13 +640,13 @@ static void copy_key_float3(
   }
   else {
     /* In case of KeyBlocks that have a different amount of elements than the original data.
-     * Maintained for backwards compatibility. This is not particularly useful given that there
-     * will be gaps if KeyBlock.totelem is lower than vertex_count but it is what it is. */
-    const float step_rate = vertex_count / float(source->totelem);
-    for (int i = 0; i < source->totelem; i++) {
+     * Maintained for backwards compatibility even though this state should not be reachable
+     * through normal interactions with Blender. */
+    const float step_rate = source->totelem / float(vertex_count);
+    for (int i = 0; i < vertex_count; i++) {
       /* Rounding down to avoid exceeding the bounds. */
       const int target_index = int(step_rate * i);
-      memcpy(&r_target[target_index * 3], &keyblock_data[i * 3], 3 * sizeof(float));
+      memcpy(&r_target[i * 3], &keyblock_data[target_index * 3], 3 * sizeof(float));
     }
   }
 

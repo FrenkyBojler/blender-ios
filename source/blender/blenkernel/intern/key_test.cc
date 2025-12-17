@@ -217,6 +217,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
       {0, 1, 0},
   };
   EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
+  EXPECT_NEAR(3.0, 0.5 * key1_data[2][0] + 0.5 * key2_data[2][0], 0.001);
   MEM_freeN(ob_eval);
 }
 
@@ -265,6 +266,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute_uneqal_element_count)
   key->type = KEY_NORMAL;
   KeyBlock *base = BKE_keyblock_add(key, "base");
   BKE_keyblock_convert_from_mesh(mesh, key, base);
+  float3 *base_data = reinterpret_cast<float3 *>(base->data);
 
   KeyBlock *key1 = BKE_keyblock_add(key, "one");
   ASSERT_EQ(mesh->verts_num, 4);
@@ -283,18 +285,34 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute_uneqal_element_count)
   int totelem = 0;
   float3 *ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
   ASSERT_EQ(totelem, 4);
-  /* The evaluation sets any vertices that are out of range of the shapekey to 0. */
+  /* Vertices are skipped in this case. */
   Array<float3> expected = {
       {1, 0, 0},
-      {0, 0, 0},
+      {1, 0, 0},
       {2, 0, 0},
-      {0, 0, 0},
+      {2, 0, 0},
+  };
+  EXPECT_NEAR_ARRAY_ND(&expected[0], ob_eval, 4, 3, 0.001);
+  MEM_freeN(ob_eval);
+
+  /* Causing blending with the base key. */
+  key->ctime = 95.0;
+
+  totelem = 0;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  ASSERT_EQ(totelem, 4);
+  expected = {
+      {0.95, 0, 0},
+      {1, 0, 0},
+      {1.95, 0.05, 0},
+      {1.9, 0.05, 0},
   };
   EXPECT_NEAR_ARRAY_ND(&expected[0], ob_eval, 4, 3, 0.001);
   MEM_freeN(ob_eval);
 
   MEM_freeN(key1_data);
 
+  key->ctime = 100.0;
   /* Testing with more vertices than the mesh. */
   key1_data = reinterpret_cast<float3 *>(
       MEM_malloc_arrayN(size_t(8), size_t(key->elemsize), __func__));
@@ -314,12 +332,29 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute_uneqal_element_count)
   ASSERT_EQ(totelem, 4);
   /* The evaluation ignores any vertices that are extra. */
   expected = {
-      {2, 0, 0},
-      {4, 0, 0},
-      {6, 0, 0},
-      {8, 0, 0},
+      {1, 0, 0},
+      {3, 0, 0},
+      {5, 0, 0},
+      {7, 0, 0},
   };
   EXPECT_NEAR_ARRAY_ND(&expected[0], ob_eval, 4, 3, 0.001);
+  MEM_freeN(ob_eval);
+
+  /* Causing blending with the base key. */
+  key->ctime = 95.0;
+
+  totelem = 0;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  ASSERT_EQ(totelem, 4);
+  expected = {
+      {0.95, 0, 0},
+      {2.9, 0, 0},
+      {4.8, 0.05, 0},
+      {6.65, 0.05, 0},
+  };
+  EXPECT_NEAR_ARRAY_ND(&expected[0], ob_eval, 4, 3, 0.001);
+  /* The values should be a linear interpolation between base and key1 at 95%. */
+  EXPECT_NEAR(6.65, 0.95 * key1_data[6][0] + 0.05 * base_data[3][0], 0.001);
   MEM_freeN(ob_eval);
 }
 
