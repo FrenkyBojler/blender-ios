@@ -1991,8 +1991,9 @@ void IDP_TryConvertProperty(IDProperty *src,
           break;
         }
         case IDP_UI_DATA_TYPE_STRING: {
-          IDP_AssignString(src, std::to_string(IDP_int_or_bool_get(src)).c_str());
+          const std::string str = std::to_string(IDP_int_or_bool_get(src));
           src->type = IDP_STRING;
+          IDP_AssignString(src, str.c_str());
           break;
         }
         default:
@@ -2012,8 +2013,9 @@ void IDP_TryConvertProperty(IDProperty *src,
           break;
         }
         case IDP_UI_DATA_TYPE_STRING: {
-          IDP_AssignString(src, std::to_string(IDP_double_get(src)).c_str());
+          const std::string str = std::to_string(IDP_double_get(src));
           src->type = IDP_STRING;
+          IDP_AssignString(src, str.c_str());
           break;
         }
         default:
@@ -2027,9 +2029,8 @@ void IDP_TryConvertProperty(IDProperty *src,
           break;
         case IDP_UI_DATA_TYPE_INT:
         case IDP_UI_DATA_TYPE_BOOLEAN: {
-          const char *str = IDP_string_get(src);
           int value = 0;
-          if (str != nullptr) {
+          if (const char *str = IDP_string_get(src)) {
             value = std::stoi(str);
             IDP_FreeString(src);
           }
@@ -2038,9 +2039,8 @@ void IDP_TryConvertProperty(IDProperty *src,
           break;
         }
         case IDP_UI_DATA_TYPE_FLOAT: {
-          const char *str = IDP_string_get(src);
           double value = 0.0;
-          if (str != nullptr) {
+          if (const char *str = IDP_string_get(src)) {
             value = std::stod(str);
             IDP_FreeString(src);
           }
