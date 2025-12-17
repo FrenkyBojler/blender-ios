@@ -477,7 +477,6 @@ class Preprocessor {
                       std::string str,
                       const std::string &filepath,
                       bool do_parse_function,
-                      bool do_small_type_linting,
                       report_callback report_error,
                       metadata::Source &r_metadata)
   {
@@ -540,9 +539,6 @@ class Preprocessor {
         lint_reserved_tokens(parser, report_error);
         lint_attributes(parser, report_error);
         lint_global_scope_constants(parser, report_error);
-        if (do_small_type_linting) {
-          lint_small_types_in_structs(parser, report_error);
-        }
 
         /* Lower unions and then lint shared structures. */
         lower_union_accessor_templates(parser, report_error);
@@ -634,7 +630,7 @@ class Preprocessor {
   std::string process(const std::string &str, metadata::Source &r_metadata)
   {
     auto no_err_report = [](int, int, std::string, const char *) {};
-    return process(GLSL, str, "", false, false, no_err_report, r_metadata);
+    return process(GLSL, str, "", false, no_err_report, r_metadata);
   }
 
  private:
@@ -3013,7 +3009,7 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    parser().foreach_struct([&](Token, Scope attributes, Token /*struct_name*/, Scope body) {
+    parser().foreach_struct([&](Token, Scope attributes, Token struct_name, Scope body) {
       if (attributes.is_invalid()) {
         return;
       }
@@ -3067,7 +3063,13 @@ class Preprocessor {
       size_t offset = 0;
       body.foreach_declaration([&](Scope, Token, Token type, Scope, Token, Scope, Token) {
         string type_str = type.str();
-        if (type_str == "float3") {
+
+        if (type_str.find("char") != string::npos || type_str.find("short") != string::npos ||
+            type_str.find("half") != string::npos)
+        {
+          report_error(ERROR_TOK(type), "Small types are forbidden in shader interfaces.");
+        }
+        else if (type_str == "float3") {
           report_error(ERROR_TOK(type), "use packed_float3 instead of float3 in shared structure");
         }
         else if (type_str == "uint3") {
@@ -3122,15 +3124,15 @@ class Preprocessor {
 
         size_t align = type_info.alignment - (offset % type_info.alignment);
         if (align != type_info.alignment) {
-          // string err = "Misaligned member, missing " + to_string(align) + " padding bytes";
-          // report_error(ERROR_TOK(type), err.c_str());
+          string err = "Misaligned member, missing " + to_string(align) + " padding bytes";
+          report_error(ERROR_TOK(type), err.c_str());
         }
         offset += type_info.size;
       });
       if (offset % 16 != 0) {
-        // string err = "Alignment issue, missing " + to_string(16 - (offset % 16)) +
-        //              " padding bytes";
-        // report_error(ERROR_TOK(struct_name), err.c_str());
+        string err = "Alignment issue, missing " + to_string(16 - (offset % 16)) +
+                     " padding bytes";
+        report_error(ERROR_TOK(struct_name), err.c_str());
       }
     });
     parser.apply_mutations();
@@ -3809,7 +3811,6 @@ class Preprocessor {
     /* Map structure name to structure members. */
     unordered_map<string, vector<Member>> struct_members = {
         {"float", {{"", "", 0, 4}}},
-        {"float", {{"", "", 0, 4}}},
         {"float2", {{"", "", 0, 8}}},
         {"float4", {{"", "", 0, 16}}},
         {"bool32_t", {{"", "", 0, 4}}},
@@ -3823,10 +3824,14 @@ class Preprocessor {
         {"packed_float3", {{"", "", 0, 12}}},
         {"packed_int3", {{"", "", 0, 12}}},
         {"packed_uint3", {{"", "", 0, 12}}},
-        {"float2x4", {{"", "[0]", 0, 16}, {"", "[1]", 0, 16}}},
-        {"float3x4", {{"", "[0]", 0, 16}, {"", "[1]", 0, 16}, {"", "[2]", 0, 16}}},
+        {"float2x4", {{"float4", "[0]", 0, 16}, {"float4", "[1]", 16, 16}}},
+        {"float3x4",
+         {{"float4", "[0]", 0, 16}, {"float4", "[1]", 16, 16}, {"float4", "[2]", 32, 16}}},
         {"float4x4",
-         {{"", "[0]", 0, 16}, {"", "[1]", 0, 16}, {"", "[2]", 0, 16}, {"", "[3]", 0, 16}}},
+         {{"float4", "[0]", 0, 16},
+          {"float4", "[1]", 16, 16},
+          {"float4", "[2]", 32, 16},
+          {"float4", "[3]", 48, 16}}},
     };
 
     auto type_size_get = [&](Token type) -> size_t {
@@ -3854,11 +3859,11 @@ class Preprocessor {
         if (type.prev() != Enum) {
           size = type_size_get(type);
           if (size != 0) {
-            members.emplace_back(Member{type.str(), name.str(), offset, size});
+            members.emplace_back(Member{type.str(), "." + name.str(), offset, size});
           }
         }
         else {
-          members.emplace_back(Member{type.str(), name.str(), offset, size, true});
+          members.emplace_back(Member{type.str(), "." + name.str(), offset, size, true});
         }
         offset += size;
       });
@@ -3966,7 +3971,7 @@ class Preprocessor {
     };
 
     auto member_data_access = [&](const Member &struct_member) -> string {
-      return (struct_member.is_trivial()) ? string() : ("." + struct_member.name);
+      return struct_member.is_trivial() ? string() : struct_member.name;
     };
 
     auto create_getter = [&](/* Tokens of the union declaration inside the struct. */
@@ -4034,6 +4039,40 @@ class Preprocessor {
       return "\nvoid " + union_member.name + "_set_(" + union_member.type + " value) " + fn_body;
     };
 
+    auto flatten_members = [&](Token type, vector<Member> &members) {
+      vector<Member> dst;
+      dst.reserve(members.size());
+      bool expanded = false;
+      for (const auto &member : members) {
+        if (member.is_trivial() || member.is_enum) {
+          dst.emplace_back(member);
+          continue;
+        }
+        if (struct_members.find(member.type) == struct_members.end()) {
+          report_error(
+              ERROR_TOK(type),
+              "Unknown type encountered while unwrapping union. Contained types must be defined "
+              "in this file and decorated with [[host_shared]] attribute.");
+          continue;
+        }
+
+        vector<Member> nested_structure = struct_members.find(member.type)->second;
+        for (Member nested_member : nested_structure) {
+          if (nested_member.is_trivial() || nested_member.is_enum) {
+            dst.emplace_back(member);
+          }
+          else {
+            expanded = true;
+            nested_member.name = member.name + nested_member.name;
+            nested_member.offset = member.offset + nested_member.offset;
+            dst.emplace_back(nested_member);
+          }
+        }
+      }
+      members = dst;
+      return expanded;
+    };
+
     parser().foreach_struct([&](Token, Scope, Token struct_name, Scope body) {
       if (union_members.find(struct_name.str()) != union_members.end()) {
         replace_placeholder_member(body);
@@ -4047,19 +4086,20 @@ class Preprocessor {
 
         const vector<Member> &members = union_members.find(type.str())->second;
         for (const auto &member : members) {
-          if (struct_members.find(member.type) == union_members.end()) {
+          if (struct_members.find(member.type) == struct_members.end()) {
             report_error(
                 ERROR_TOK(type),
                 "Unknown union member type. Type must be defined in this file and decorated "
                 "with [[host_shared]] attribute.");
             return;
           }
-          parser.insert_after(
-              body.end().prev(),
-              create_getter(type, name, member, struct_members.find(member.type)->second));
-          parser.insert_after(
-              body.end().prev(),
-              create_setter(type, name, member, struct_members.find(member.type)->second));
+          vector<Member> structure = struct_members.find(member.type)->second;
+          /* Flatten references to other structures, recursively. */
+          while (flatten_members(type, structure)) {
+          }
+
+          parser.insert_after(body.end().prev(), create_getter(type, name, member, structure));
+          parser.insert_after(body.end().prev(), create_setter(type, name, member, structure));
         }
       });
     });
@@ -4832,23 +4872,6 @@ class Preprocessor {
             "Global scope constant expression found. These get allocated per-thread in MSL. "
             "Use Macro's or uniforms instead.");
       }
-    });
-  }
-
-  void lint_small_types_in_structs(Parser &parser, report_callback report_error)
-  {
-    using namespace std;
-    using namespace shader::parser;
-
-    parser().foreach_scope(ScopeType::Struct, [&](const Scope scope) {
-      scope.foreach_match("ww;", [&](const vector<Token> tokens) {
-        string type = tokens[0].str();
-        if (type.find("char") != string::npos || type.find("short") != string::npos ||
-            type.find("half") != string::npos)
-        {
-          report_error(ERROR_TOK(tokens[0]), "Small types are forbidden in shader interfaces.");
-        }
-      });
     });
   }
 
