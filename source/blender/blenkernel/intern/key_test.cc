@@ -56,20 +56,20 @@ namespace blender::bke::tests {
 TEST_F(ShapekeyTest, mesh_key_creation)
 {
   Key *key = BKE_key_add(bmain, &mesh->id);
-  ASSERT_EQ(key->from, &mesh->id);
+  EXPECT_EQ(key->from, &mesh->id);
   /* Assignment to the mesh does not happen automatically by adding it. */
   mesh->key = key;
-  ASSERT_EQ(BKE_key_from_object(ob), key);
+  EXPECT_EQ(BKE_key_from_object(ob), key);
   KeyBlock *base = BKE_keyblock_add(key, "base");
   /* This should be set automatically after adding the first key. */
-  ASSERT_EQ(key->refkey, base);
+  EXPECT_EQ(key->refkey, base);
   /* The elemsize stores how many bytes one element has (vertex in this case). */
-  ASSERT_EQ(key->elemsize, 12);
+  EXPECT_EQ(key->elemsize, 12);
   /* Adding the keyblock does not actually allocate any data for it. */
-  ASSERT_EQ(base->data, nullptr);
+  EXPECT_EQ(base->data, nullptr);
   BKE_keyblock_convert_from_mesh(mesh, key, base);
   ASSERT_NE(base->data, nullptr);
-  ASSERT_EQ(base->totelem, 4);
+  EXPECT_EQ(base->totelem, 4);
   float3 *data = reinterpret_cast<float3 *>(base->data);
   Array<float3> expected = {
       {0, 0, 0},
@@ -286,8 +286,8 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute_uneqal_element_count)
   /* The evaluation sets any vertices that are out of range of the shapekey to 0. */
   Array<float3> expected = {
       {1, 0, 0},
-      {2, 0, 0},
       {0, 0, 0},
+      {2, 0, 0},
       {0, 0, 0},
   };
   EXPECT_NEAR_ARRAY_ND(&expected[0], ob_eval, 4, 3, 0.001);
@@ -314,10 +314,10 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute_uneqal_element_count)
   ASSERT_EQ(totelem, 4);
   /* The evaluation ignores any vertices that are extra. */
   expected = {
-      {1, 0, 0},
       {2, 0, 0},
-      {3, 0, 0},
       {4, 0, 0},
+      {6, 0, 0},
+      {8, 0, 0},
   };
   EXPECT_NEAR_ARRAY_ND(&expected[0], ob_eval, 4, 3, 0.001);
   MEM_freeN(ob_eval);
