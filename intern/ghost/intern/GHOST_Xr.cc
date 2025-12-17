@@ -53,7 +53,7 @@ GHOST_XrContext *GHOST_XrContextCreate(const GHOST_XrContextCreateInfo *create_i
   return xr_context.release();
 }
 
-void GHOST_XrContextDestroy(GHOST_XrContext *xr_context)
+void GHOST_XrContextDestroy(GHOST_IXrContext *xr_context)
 {
   delete xr_context;
 }

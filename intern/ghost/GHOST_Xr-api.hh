@@ -37,7 +37,7 @@ GHOST_XrContext *GHOST_XrContextCreate(const GHOST_XrContextCreateInfo *create_i
 /**
  * Free a XR-context involving OpenXR runtime link destruction and freeing of all internal data.
  */
-void GHOST_XrContextDestroy(GHOST_XrContext *xr_context);
+void GHOST_XrContextDestroy(GHOST_IXrContext *xr_context);
 
 /**
  * Set callbacks for binding and unbinding a graphics context for a session. The binding callback
