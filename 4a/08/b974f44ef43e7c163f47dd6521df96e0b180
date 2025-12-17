@@ -10,3 +10,4 @@ Referenced by pull request #134548, Undo: Add explicit filtering for IDs and RNA
 Referenced by commit 0dd326592a1b0aedd7d5920ecdd4d593e1f23dc6, Undo: Add explicit filtering for IDs and RNA structs marked as skippable
 Referenced by pull request #134836, Undo: Avoid inserting empty undo steps from the editor for tool settings
 Referenced by pull request #134381, WIP: Fix: Weight Paint undo ignores non-tool editor changes
+Referenced by pull request #117417, Fix undo overreach in various paint modes for #69760 and related.
