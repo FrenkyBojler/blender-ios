@@ -104,7 +104,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
       {1, 1, 0},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
   MEM_freeN(ob_eval);
 
   KeyBlock *key2 = BKE_keyblock_add(key, "two");
@@ -121,7 +121,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
       {1, 1, 0},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
   MEM_freeN(ob_eval);
 
   /* Blend in halfway. */
@@ -133,7 +133,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
       {1, 1, 0},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
   MEM_freeN(ob_eval);
 
   /* Blend in double. */
@@ -145,7 +145,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
       {1, 1, 0},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
   MEM_freeN(ob_eval);
 }
 
@@ -180,7 +180,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
       {1, 1, 0},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
   MEM_freeN(ob_eval);
 
   /* At 1 this should be at key1. */
@@ -192,7 +192,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
       {1, 1, 0},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
   MEM_freeN(ob_eval);
 
   /* At 2 this should be at key2. */
@@ -204,7 +204,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
       {5, 5, 5},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
   MEM_freeN(ob_eval);
 
   /* This should be a linear blend between key1 and key2; */
@@ -216,7 +216,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
       {3, 3, 2.5},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
   MEM_freeN(ob_eval);
 }
 
@@ -227,7 +227,7 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative_uneqal_element_count)
 {
   Key *key = BKE_key_add(bmain, &mesh->id);
   mesh->key = key;
-  key->type = KEY_NORMAL;
+  key->type = KEY_RELATIVE;
   KeyBlock *base = BKE_keyblock_add(key, "base");
   BKE_keyblock_convert_from_mesh(mesh, key, base);
 
@@ -252,7 +252,74 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative_uneqal_element_count)
       {1, 1, 0},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], ob_eval, 4);
+  MEM_freeN(ob_eval);
+}
+
+/* Same as mesh_key_evaluation_relative_uneqal_element_count but with absolute shapekeys this is
+ * somewhat supported. */
+TEST_F(ShapekeyTest, mesh_key_evaluation_absolute_uneqal_element_count)
+{
+  Key *key = BKE_key_add(bmain, &mesh->id);
+  mesh->key = key;
+  key->type = KEY_NORMAL;
+  KeyBlock *base = BKE_keyblock_add(key, "base");
+  BKE_keyblock_convert_from_mesh(mesh, key, base);
+
+  KeyBlock *key1 = BKE_keyblock_add(key, "one");
+  ASSERT_EQ(mesh->verts_num, 4);
+  ASSERT_EQ(key->elemsize, 12);
+  /* The mesh has 4 vertices, but this shapekey will only have 2. */
+  float3 *key1_data = reinterpret_cast<float3 *>(
+      MEM_malloc_arrayN(size_t(2), size_t(key->elemsize), __func__));
+  key1->data = key1_data;
+  key1->totelem = 2;
+  key1_data[0] = {1, 0, 0};
+  key1_data[1] = {2, 0, 0};
+
+  key1->pos = 1.0;
+  key->ctime = 100.0;
+
+  int totelem = 0;
+  float3 *ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  ASSERT_EQ(totelem, 4);
+  /* The evaluation sets any vertices that are out of range of the shapekey to 0. */
+  Array<float3> expected = {
+      {1, 0, 0},
+      {2, 0, 0},
+      {0, 0, 0},
+      {0, 0, 0},
+  };
+  EXPECT_NEAR_ARRAY_ND(&expected[0], ob_eval, 4, 3, 0.001);
+  MEM_freeN(ob_eval);
+
+  MEM_freeN(key1_data);
+
+  /* Testing with more vertices than the mesh. */
+  key1_data = reinterpret_cast<float3 *>(
+      MEM_malloc_arrayN(size_t(8), size_t(key->elemsize), __func__));
+  key1->data = key1_data;
+  key1->totelem = 8;
+  key1_data[0] = {1, 0, 0};
+  key1_data[1] = {2, 0, 0};
+  key1_data[2] = {3, 0, 0};
+  key1_data[3] = {4, 0, 0};
+  key1_data[4] = {5, 0, 0};
+  key1_data[5] = {6, 0, 0};
+  key1_data[6] = {7, 0, 0};
+  key1_data[7] = {8, 0, 0};
+
+  totelem = 0;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  ASSERT_EQ(totelem, 4);
+  /* The evaluation ignores any vertices that are extra. */
+  expected = {
+      {1, 0, 0},
+      {2, 0, 0},
+      {3, 0, 0},
+      {4, 0, 0},
+  };
+  EXPECT_NEAR_ARRAY_ND(&expected[0], ob_eval, 4, 3, 0.001);
   MEM_freeN(ob_eval);
 }
 
