@@ -4,7 +4,42 @@ from .action_profile import VRDefaultActions
 class VRAction():
     def __init__(self):
         self.name = VRDefaultActions.EMPTY.value
+        self.type = ''
         self.user_paths = ["/user/hand/left", "/user/hand/right"]
+
+    def vr_action_map_add(self, action_map):
+        action_map_item = action_map.actionmap_items.new(self.name, True)
+
+        if action_map_item is None:
+            return None
+        
+        action_map_item.type = self.type
+        for path in self.user_paths:
+            action_map_item.user_paths.new(path)
+        
+        return action_map_item
+
+    def vr_action_map_item_add(self, action_map_item, action_profile):
+        if action_profile.action_map[self.name] is None:
+            return None
+
+        action_map_binding = action_map_item.bindings.new(action_profile.name, True)
+        if not action_map_binding:
+            return None
+
+        action_map_binding.profile = action_profile.profile
+        action_properties = action_profile.action_map[self.name]
+
+        for path in action_properties["component_paths"]:
+            action_map_binding.component_paths.new(path)
+        
+        return action_map_binding
+
+
+class VRActionFloat(VRAction):
+    def __init__(self):
+        super().__init__()
+        self.type = 'FLOAT'
         self.op = None
         self.op_mode = 'MODAL'
         self.bimanual = False
@@ -17,14 +52,10 @@ class VRAction():
         self.op_properties = None
 
     def vr_action_map_add(self, action_map):
-        action_map_item = action_map.actionmap_items.new(self.name, True)
-
+        action_map_item = super().vr_action_map_add(action_map)
         if action_map_item is None:
-            return
+            return None
         
-        action_map_item.type = 'FLOAT'
-        for path in self.user_paths:
-            action_map_item.user_paths.new(path)
         action_map_item.op = self.op
         action_map_item.op_mode = self.op_mode
         action_map_item.bimanual = self.bimanual
@@ -45,15 +76,34 @@ class VRAction():
                     print(f"Warning: {ex!r}")
 
         return action_map_item
+    
+    def vr_action_map_item_add(self, action_map_item, action_profile):
+        action_map_binding = super().vr_action_map_item_add(action_map_item, action_profile)
+
+        if action_map_binding is None:
+            return None
+        
+        action_properties = action_profile.action_map[self.name]
+        action_map_binding.threshold = action_properties["threshold"]
+        action_map_binding.axis0_region = action_properties["axis_region"]
+        action_map_binding.axis1_region = "ANY"
+        return action_map_binding
 
 
-class VRActionLeftHanded(VRAction):
+class VRActionHaptic(VRAction):
+    def __init__(self):
+        super().__init__()
+        self.type = 'VIBRATION'
+        self.name = VRDefaultActions.HAPTIC.value
+
+
+class VRActionFloatLeftHanded(VRActionFloat):
     def __init__(self):
         super().__init__()
         self.user_paths = ["/user/hand/left"]
 
 
-class VRActionRightHanded(VRAction):
+class VRActionFloatRightHanded(VRActionFloat):
     def __init__(self):
         super().__init__()
         self.user_paths = ["/user/hand/right"]

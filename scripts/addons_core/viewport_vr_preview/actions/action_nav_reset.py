@@ -1,8 +1,8 @@
-from ..action import VRAction
+from ..action import VRActionFloat
 from ..action_profile import VRDefaultActions
 
 
-class VRActionNavReset(VRAction):
+class VRActionNavReset(VRActionFloat):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.NAV_RESET.value

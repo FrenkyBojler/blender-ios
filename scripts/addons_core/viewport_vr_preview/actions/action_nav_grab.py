@@ -1,8 +1,8 @@
-from ..action import VRAction
+from ..action import VRActionFloat
 from ..action_profile import VRDefaultActions
 
 
-class VRActionNavGrab(VRAction):
+class VRActionNavGrab(VRActionFloat):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.NAV_GRAB.value

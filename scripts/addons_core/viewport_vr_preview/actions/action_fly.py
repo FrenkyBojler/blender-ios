@@ -1,8 +1,8 @@
-from ..action import VRActionLeftHanded, VRActionRightHanded
+from ..action import VRActionFloatLeftHanded, VRActionFloatRightHanded
 from ..action_profile import VRDefaultActions
 
 
-class VRActionFlyForward(VRActionLeftHanded):
+class VRActionFlyForward(VRActionFloatLeftHanded):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.FLY_FORWARD.value
@@ -10,7 +10,7 @@ class VRActionFlyForward(VRActionLeftHanded):
         self.op_properties = [("mode", 'VIEWER_FORWARD'), ("lock_location_z", True)]
 
 
-class VRActionFlyBack(VRActionLeftHanded):
+class VRActionFlyBack(VRActionFloatLeftHanded):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.FLY_BACK.value
@@ -18,7 +18,7 @@ class VRActionFlyBack(VRActionLeftHanded):
         self.op_properties = [("mode", 'VIEWER_BACK'), ("lock_location_z", True)]
 
 
-class VRActionFlyLeft(VRActionLeftHanded):
+class VRActionFlyLeft(VRActionFloatLeftHanded):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.FLY_LEFT.value
@@ -26,7 +26,7 @@ class VRActionFlyLeft(VRActionLeftHanded):
         self.op_properties = [("mode", 'VIEWER_LEFT'), ("lock_location_z", True)]
 
 
-class VRActionFlyRight(VRActionLeftHanded):
+class VRActionFlyRight(VRActionFloatLeftHanded):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.FLY_RIGHT.value
@@ -34,7 +34,7 @@ class VRActionFlyRight(VRActionLeftHanded):
         self.op_properties = [("mode", 'VIEWER_RIGHT'), ("lock_location_z", True)]
 
 
-class VRActionFlyUp(VRActionRightHanded):
+class VRActionFlyUp(VRActionFloatRightHanded):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.FLY_UP.value
@@ -42,7 +42,7 @@ class VRActionFlyUp(VRActionRightHanded):
         self.op_properties = [("mode", 'UP')]
 
 
-class VRActionFlyDown(VRActionRightHanded):
+class VRActionFlyDown(VRActionFloatRightHanded):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.FLY_DOWN.value
@@ -50,7 +50,7 @@ class VRActionFlyDown(VRActionRightHanded):
         self.op_properties = [("mode", 'DOWN')]
 
 
-class VRActionFlyTurnLeft(VRActionRightHanded):
+class VRActionFlyTurnLeft(VRActionFloatRightHanded):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.FLY_TURNLEFT.value
@@ -58,7 +58,7 @@ class VRActionFlyTurnLeft(VRActionRightHanded):
         self.op_properties = [("mode", 'TURNLEFT')]
 
 
-class VRActionFlyTurnRight(VRActionRightHanded):
+class VRActionFlyTurnRight(VRActionFloatRightHanded):
     def __init__(self):
         super().__init__()
         self.name = VRDefaultActions.FLY_TURNRIGHT.value

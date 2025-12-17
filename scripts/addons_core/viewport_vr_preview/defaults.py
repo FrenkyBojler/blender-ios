@@ -25,10 +25,12 @@ from .profiles.vive_cosmos import VRActionProfileViveCosmos
 from .profiles.vive_focus import VRActionProfileViveFocus
 from .profiles.wmr import VRActionProfileWMR
 
+from .action import VRActionHaptic
 from .actions.action_fly import VRActionFlyForward, VRActionFlyBack, VRActionFlyLeft, VRActionFlyRight, VRActionFlyUp, VRActionFlyDown, VRActionFlyTurnLeft, VRActionFlyTurnRight
 from .actions.action_nav_reset import VRActionNavReset
 from .actions.action_teleport import VRActionTeleport
 from .actions.action_nav_grab import VRActionNavGrab
+from .actions.action_pose import VRActionControllerGrip, VRActionControllerAim
 
 
 def vr_defaults_actionmap_add(session_state, name):
@@ -215,57 +217,31 @@ def vr_defaults_create_default(session_state):
         VRActionProfileWMR(),
     ]
     
-    actions = {
-        VRDefaultActions.TELEPORT.value: VRActionTeleport(),
-        VRDefaultActions.NAV_GRAB.value: VRActionNavGrab(),
-        VRDefaultActions.FLY_FORWARD.value: VRActionFlyForward(),
-        VRDefaultActions.FLY_BACK.value: VRActionFlyBack(),
-        VRDefaultActions.FLY_LEFT.value: VRActionFlyLeft(),
-        VRDefaultActions.FLY_RIGHT.value: VRActionFlyRight(),
-        VRDefaultActions.FLY_UP.value: VRActionFlyUp(),
-        VRDefaultActions.FLY_DOWN.value: VRActionFlyDown(),
-        VRDefaultActions.FLY_TURNLEFT.value: VRActionFlyTurnLeft(),
-        VRDefaultActions.FLY_TURNRIGHT.value: VRActionFlyTurnRight(),
-        VRDefaultActions.NAV_RESET.value: VRActionNavReset(),
-    }
+    actions = [
+        VRActionControllerGrip(),
+        VRActionControllerAim(),
+        VRActionTeleport(),
+        VRActionNavGrab(),
+        VRActionFlyForward(),
+        VRActionFlyBack(),
+        VRActionFlyLeft(),
+        VRActionFlyRight(),
+        VRActionFlyUp(),
+        VRActionFlyDown(),
+        VRActionFlyTurnLeft(),
+        VRActionFlyTurnRight(),
+        VRActionNavReset(),
+        VRActionHaptic(),
+    ]
 
-    ami = vr_defaults_pose_action_add(am,
-                                      VRDefaultActions.CONTROLLER_GRIP.value,
-                                      ["/user/hand/left",
-                                       "/user/hand/right"],
-                                      True,
-                                      False)
-    if ami:
-        vr_defaults_pose_actionbindings_add(ami,
-                                           VRDefaultActions.CONTROLLER_GRIP.value,
-                                           action_profiles)
-
-    ami = vr_defaults_pose_action_add(am,
-                                      VRDefaultActions.CONTROLLER_AIM.value,
-                                      ["/user/hand/left",
-                                       "/user/hand/right"],
-                                      False,
-                                      True)
-    if ami:
-        vr_defaults_pose_actionbindings_add(ami,
-                                           VRDefaultActions.CONTROLLER_AIM.value,
-                                           action_profiles)
-
-    for action_name, action in actions.items():
-        ami = action.vr_action_map_add(am)
-        if not ami:
+    for action in actions:
+        action_map_item = action.vr_action_map_add(am)
+        if not action_map_item:
             continue
-        vr_defaults_actionbindings_add(ami, action_name, action_profiles)
+        
+        for action_profile in action_profiles:
+            action.vr_action_map_item_add(action_map_item, action_profile)
 
-
-    ami = vr_defaults_haptic_action_add(am,
-                                        VRDefaultActions.HAPTIC.value,
-                                        ["/user/hand/left",
-                                         "/user/hand/right"])
-    if ami:
-        vr_defaults_haptic_actionbindings_add(ami,
-                                             VRDefaultActions.HAPTIC.value,
-                                             action_profiles)
 
 def vr_defaults_create_default_gamepad(session_state):
     am = vr_defaults_actionmap_add(session_state,
