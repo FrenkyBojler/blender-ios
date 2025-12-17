@@ -1271,7 +1271,8 @@ void txt_sel_clear(Text *text)
 
 void txt_sel_line(Text *text, bool include_newline)
 {
-  if (!text->curl) return;
+  if (!text->curl)
+    return;
 
   TextLine *line = text->curl;
   text->sell = line;

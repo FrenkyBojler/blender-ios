@@ -1099,7 +1099,7 @@ static wmOperatorStatus text_copy_exec(bContext *C, wmOperator * /*op*/)
     txt_copy_clipboard(text);
   }
   else {
-    
+
     TextLine *original_curl = text->curl;
     int original_curc = text->curc;
     txt_sel_line(text);
@@ -1138,7 +1138,7 @@ static wmOperatorStatus text_cut_exec(bContext *C, wmOperator * /*op*/)
   Text *text = CTX_data_edit_text(C);
 
   if (!txt_has_sel(text)) {
-    txt_sel_line(text,true);
+    txt_sel_line(text, true);
   }
 
   space_text_drawcache_tag_update(st, false);
