@@ -22,11 +22,11 @@ namespace blender::animrig {
 using namespace internal;
 
 /**
- * Blend the current_result into the given result based on the layer
+ * Blend the intermediate_result into the final_result based on the layer
  * weight and mix mode.
  */
-void blend_layer_results(EvaluationResult &result,
-                         const EvaluationResult &current_result,
+void blend_layer_results(EvaluationResult &final_result,
+                         const EvaluationResult &intermediate_result,
                          const Layer &current_layer);
 
 /**
@@ -237,25 +237,25 @@ static EvaluationResult evaluate_strip(PointerRNA &animated_id_ptr,
   return {};
 }
 
-void blend_layer_results(EvaluationResult &result,
-                         const EvaluationResult &current_result,
+void blend_layer_results(EvaluationResult &final_result,
+                         const EvaluationResult &intermediate_result,
                          const Layer &current_layer)
 {
   /* TODO?: store the layer results sequentially, so that we can step through
    * them in parallel, instead of iterating over one and doing map lookups on
    * the other. */
 
-  for (auto channel_result : current_result.items()) {
+  for (auto channel_result : intermediate_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
-    AnimatedProperty *last_prop = result.lookup_ptr(prop_ident);
+    AnimatedProperty *last_prop = final_result.lookup_ptr(prop_ident);
     const AnimatedProperty &anim_prop = channel_result.value;
 
     if (!last_prop) {
       /* Nothing to blend with, so just take (influence * value). */
-      result.store(prop_ident.rna_path,
-                   prop_ident.array_index,
-                   anim_prop.value * current_layer.influence,
-                   anim_prop.prop_rna);
+      final_result.store(prop_ident.rna_path,
+                         prop_ident.array_index,
+                         anim_prop.value * current_layer.influence,
+                         anim_prop.prop_rna);
       continue;
     }
 
