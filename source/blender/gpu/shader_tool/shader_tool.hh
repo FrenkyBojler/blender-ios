@@ -3009,7 +3009,6 @@ class Preprocessor {
     });
     parser().foreach_match("MS[[w]]w:w{", [&](vector<Token> tokens) {
       process_enum(tokens[0], tokens[1], tokens[7], tokens[9], tokens[10].scope(), true);
-      parser.erase(tokens[1], tokens[5]);
     });
     parser().foreach_match("M[[w]]w:w{", [&](vector<Token> tokens) {
       process_enum(tokens[0], Token::invalid(), tokens[6], tokens[8], tokens[9].scope(), true);
