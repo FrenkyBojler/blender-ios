@@ -3509,14 +3509,14 @@ typedef enum NodeGeometryTransformMode {
   GEO_NODE_TRANSFORM_MODE_MATRIX = 1,
 } NodeGeometryTransformMode;
 
-typedef struct NodeGeometryStoreBundleItem {
-  /** #eCustomDataType. */
-  int8_t data_type;
-} NodeGeometryStoreBundleItem;
+typedef struct NodeStoreBundleItem {
+  /** #eNodeSocketDatatype. */
+  short socket_type;
+} NodeStoreBundleItem;
 
-typedef struct NodeGeometryGetBundleItem {
-  /** #eCustomDataType. */
-  int8_t data_type;
-} NodeGeometryGetBundleItem;
+typedef struct NodeGetBundleItem {
+  /** #eNodeSocketDatatype. */
+  short socket_type;
+} NodeGetBundleItem;
 
 

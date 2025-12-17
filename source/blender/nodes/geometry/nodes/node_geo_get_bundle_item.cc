@@ -26,7 +26,7 @@
 
 namespace blender::nodes::node_geo_get_bundle_item_cc {
 
-NODE_STORAGE_FUNCS(NodeGeometryGetBundleItem)
+NODE_STORAGE_FUNCS(NodeGetBundleItem)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -38,9 +38,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bundle>("Bundle");
   b.add_output<decl::Bundle>("Bundle").align_with_previous();
   if (node != nullptr) {
-    const NodeGeometryGetBundleItem &storage = node_storage(*node);
-    const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
-    b.add_output(data_type, "Item");
+    const NodeGetBundleItem &storage = node_storage(*node);
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.socket_type);
+    b.add_output(socket_type, "Item");
   }
   b.add_output<decl::Bool>("Exists");
   b.add_input<decl::String>("Name").optional_label();
@@ -51,20 +51,20 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
-  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "socket_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryGetBundleItem *data = MEM_callocN<NodeGeometryGetBundleItem>(__func__);
-  data->data_type = SOCK_GEOMETRY;
+  NodeGetBundleItem *data = MEM_callocN<NodeGetBundleItem>(__func__);
+  data->socket_type = SOCK_GEOMETRY;
   node->storage = data;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
-  const NodeGeometryGetBundleItem &storage = node_storage(node);
+  const NodeGetBundleItem &storage = node_storage(node);
 
   nodes::BundlePtr bundle = params.extract_input<nodes::BundlePtr>("Bundle");
   if (!bundle) {
@@ -97,7 +97,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.data_type, 0);
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.socket_type, 0);
   SocketValueVariant output_value = std::move(socket_value->value);
   if (socket_value->type->type != stype->type) {
     params.set_output("Bundle", std::move(bundle));
@@ -122,11 +122,11 @@ static void node_rna(StructRNA *srna)
 {
   RNA_def_node_enum(
       srna,
-      "data_type",
+      "socket_type",
       "Data Type",
       "",
       rna_enum_node_socket_data_type_items,
-      NOD_storage_enum_accessors(data_type),
+      NOD_storage_enum_accessors(socket_type),
       SOCK_GEOMETRY,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
@@ -162,7 +162,7 @@ static void node_register()
   ntype.ui_description = "Retrieve a bundle item by name and data type.";
   ntype.nclass = NODE_CLASS_CONVERTER;
   blender::bke::node_type_storage(
-      ntype, "NodeGeometryGetBundleItem", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGetBundleItem", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
