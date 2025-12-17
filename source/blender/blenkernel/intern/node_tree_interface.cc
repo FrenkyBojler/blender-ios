@@ -31,6 +31,7 @@
 #include "NOD_socket_declarations.hh"
 
 using blender::StringRef;
+using blender::StringRefNull;
 
 namespace blender::bke::node_interface {
 
@@ -461,6 +462,99 @@ static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSoc
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Get full socket type from socket data.
+ * \{ */
+
+template<typename T> StringRefNull socket_type_from_data_impl(const T & /*data*/)
+{
+  return {};
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueFloat &data)
+{
+  return *bke::node_static_socket_type(SOCK_FLOAT, data.subtype);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueInt &data)
+{
+  return *bke::node_static_socket_type(SOCK_INT, data.subtype);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueBoolean & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_BOOLEAN, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueRotation & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_ROTATION, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueVector &data)
+{
+  return *bke::node_static_socket_type(SOCK_VECTOR, data.subtype, data.dimensions);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueRGBA & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_RGBA, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueString &data)
+{
+  return *bke::node_static_socket_type(SOCK_STRING, data.subtype);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueObject & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_OBJECT, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueImage & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_IMAGE, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueCollection & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_COLLECTION, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueTexture & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_TEXTURE, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueMaterial & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_MATERIAL, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueFont & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_FONT, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueScene & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_SCENE, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueText & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_TEXT_ID, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueMask & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_MASK, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueSound & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_SOUND, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueMenu & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_MENU, PROP_NONE);
+}
+
+static StringRefNull socket_type_from_data(const bNodeTreeInterfaceSocket &socket)
+{
+  StringRefNull socket_type;
+  socket_data_to_static_type_tag(socket.socket_type, [&](auto type_tag) {
+    using SocketDataType = typename decltype(type_tag)::type;
+    socket_type = socket_type_from_data_impl(get_socket_data_as<SocketDataType>(socket));
+  });
+  return socket_type;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Callback per ID Pointer
  * \{ */
 
@@ -825,6 +919,23 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
   }
 
   return true;
+}
+
+void bNodeTreeInterfaceSocket::update_socket_type()
+{
+  const StringRefNull new_socket_type = socket_types::socket_type_from_data(*this);
+
+  if (new_socket_type != this->socket_type) {
+    MEM_SAFE_FREE(this->socket_type);
+    this->socket_type = BLI_strdup(new_socket_type.c_str());
+
+    blender::bke::bNodeSocketType *stype = this->socket_typeinfo();
+    if (!blender::nodes::socket_type_supports_default_input_type(
+            *stype, NodeDefaultInputType(this->default_input)))
+    {
+      this->default_input = NODE_DEFAULT_INPUT_VALUE;
+    }
+  }
 }
 
 void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *socket)
@@ -1232,7 +1343,8 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
   bNodeTreeInterfaceSocket *iosock = nullptr;
   if (from_node.is_group()) {
     if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(from_node.id)) {
-      /* Copy interface socket directly from source group to avoid loosing data in the process. */
+      /* Copy interface socket directly from source group to avoid loosing data in the process.
+       */
       group->ensure_interface_cache();
       const bNodeTreeInterfaceSocket &src_io_socket =
           from_sock.is_input() ? *group->interface_inputs()[from_sock.index()] :
@@ -1385,8 +1497,8 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::add_socket(const blender::StringRe
                                                          const NodeTreeInterfaceSocketFlag flag,
                                                          bNodeTreeInterfacePanel *parent)
 {
-  /* Check that each interface socket is either an input or an output. Technically, it can be both
-   * at the same time, but we don't want that for the time being. */
+  /* Check that each interface socket is either an input or an output. Technically, it can be
+   * both at the same time, but we don't want that for the time being. */
   BLI_assert(((NODE_INTERFACE_SOCKET_INPUT | NODE_INTERFACE_SOCKET_OUTPUT) & flag) !=
              (NODE_INTERFACE_SOCKET_INPUT | NODE_INTERFACE_SOCKET_OUTPUT));
   if (parent == nullptr) {
