@@ -77,7 +77,7 @@ TEST_F(ShapekeyTest, mesh_key_creation)
       {1, 1, 0},
       {0, 1, 0},
   };
-  EXPECT_EQ_ARRAY(&data[0], &expected[0], 4);
+  EXPECT_EQ_ARRAY(&expected[0], data, 4);
 }
 
 TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
