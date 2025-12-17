@@ -17,8 +17,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -56,7 +56,7 @@ static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
   b.add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
     bNode *node = ptr->data_as<bNode>();
 
-    uiTemplateID(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+    template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
     if (node->id) {
       MovieClip *clip = reinterpret_cast<MovieClip *>(node->id);
@@ -299,8 +299,8 @@ class PlaneTrackDeformOperation : public NodeOperation {
         float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
         float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
 
-        float4 sampled_color = input.sample_ewa_extended(
-            projected_coordinates, x_gradient, y_gradient);
+        float4 sampled_color = float4(input.sample_ewa(
+            projected_coordinates, x_gradient, y_gradient, ExtensionMode::Extend));
         accumulated_color += sampled_color;
       }
 

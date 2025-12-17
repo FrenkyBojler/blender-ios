@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-02 11:29+0000\n"
+"POT-Creation-Date: 2025-12-16 11:27+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -8131,6 +8131,22 @@ msgid "Bundle"
 msgstr "Mód Úchopu"
 
 
+msgid "Font"
+msgstr "Písmo"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Sound"
+msgstr "Zvuk"
+
+
 msgid "Border"
 msgstr "Okraj"
 
@@ -9419,10 +9435,6 @@ msgstr "Text na křivce"
 
 msgid "Curve deforming text object"
 msgstr "Křivka deformující textový objekt"
-
-
-msgid "Font"
-msgstr "Písmo"
 
 
 msgid "Font Bold"
@@ -11601,10 +11613,6 @@ msgstr "Jméno aktuálního klíče pro tvar"
 msgctxt "Sound"
 msgid "Pitch"
 msgstr "Seškrcení"
-
-
-msgid "Sound"
-msgstr "Zvuk"
 
 
 msgid "How loud the sound is"
@@ -13818,10 +13826,6 @@ msgid "UV Factor"
 msgstr "UV Faktor"
 
 
-msgid "Mask"
-msgstr "Maska"
-
-
 msgid "Material slot in an object"
 msgstr "Přivlastnit"
 
@@ -13834,12 +13838,80 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
+msgid "Mirror"
+msgstr "Zrcadlit"
+
+
+msgid "Snap"
+msgstr "Přichytit"
+
+
+msgid "UV Mapping"
+msgstr "UV mapování"
+
+
+msgid "Local View"
+msgstr "Lokální pohled"
+
+
+msgid "Navigation"
+msgstr "Navigace"
+
+
+msgid "Align View"
+msgstr "Zarovnat pohled"
+
+
+msgid "Select Linked"
+msgstr "Vybrat Propojené"
+
+
+msgid "Assign Material"
+msgstr "Přiřadit Materiál"
+
+
+msgid "Metaball"
+msgstr "Meta objekt"
+
+
+msgid "Layout"
+msgstr "Rozložení"
+
+
+msgid "Light"
+msgstr "Světlo"
+
+
+msgid "Relations"
+msgstr "Vztahy"
+
+
+msgid "Rigid Body"
+msgstr "Tuhé Těleso"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
+
+
 msgid "Apply"
 msgstr "Použít"
 
 
+msgid "Tracking"
+msgstr "Sledování"
+
+
 msgid "Track"
 msgstr "Sledování"
+
+
+msgid "Utilities"
+msgstr "Nástroje"
+
+
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Quick Effects"
@@ -13874,10 +13946,6 @@ msgid "Names"
 msgstr "Názvy"
 
 
-msgid "Layout"
-msgstr "Rozložení"
-
-
 msgid "Mesh Select Mode"
 msgstr "Síťový mód výběru"
 
@@ -13890,96 +13958,28 @@ msgid "Merge"
 msgstr "Sloučit"
 
 
-msgid "Keying"
-msgstr "Klíčovací sestava"
-
-
-msgid "Tracking"
-msgstr "Sledování"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
 msgid "Special Characters"
 msgstr "Speciální Znaky"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Metaball"
-msgstr "Meta objekt"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Pivot Point"
-msgstr "Bod pro pivot"
-
-
-msgid "Snap"
-msgstr "Přichytit"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Způsob útlumu"
-
-
-msgid "Mirror"
-msgstr "Zrcadlit"
-
-
-msgid "UV Mapping"
-msgstr "UV mapování"
-
-
-msgid "Local View"
-msgstr "Lokální pohled"
-
-
-msgid "Navigation"
-msgstr "Navigace"
-
-
-msgid "Align View"
-msgstr "Zarovnat pohled"
 
 
 msgid "Instances"
 msgstr "Instance"
 
 
-msgid "Select Linked"
-msgstr "Vybrat Propojené"
+msgid "Bone Roll"
+msgstr "Kost"
 
 
 msgid "Import"
 msgstr "Importovat"
 
 
-msgid "Assign Material"
-msgstr "Přiřadit Materiál"
+msgid "Pivot Point"
+msgstr "Bod pro pivot"
 
 
-msgid "Light"
-msgstr "Světlo"
-
-
-msgid "Relations"
-msgstr "Vztahy"
-
-
-msgid "Rigid Body"
-msgstr "Tuhé Těleso"
+msgid "Proportional Editing Falloff"
+msgstr "Způsob útlumu"
 
 
 msgid "Basic"
@@ -14015,8 +14015,8 @@ msgid "Console"
 msgstr "Konzola"
 
 
-msgid "Languages..."
-msgstr "Jazyky..."
+msgid "Languages"
+msgstr "Jazyky"
 
 
 msgid "Add Attribute"
@@ -17095,12 +17095,16 @@ msgid "Instances of objects or collections"
 msgstr "Instance objektů nebo kolekcí"
 
 
-msgid "Collection Info"
-msgstr "Informace o Kolekci"
+msgid "The transformation of the vector and geometry outputs"
+msgstr "Transformace vektoru a výstupy geometrie"
 
 
 msgid "Original"
 msgstr "Originální"
+
+
+msgid "Collection Info"
+msgstr "Informace o Kolekci"
 
 
 msgid "Delete Geometry"
@@ -17149,10 +17153,6 @@ msgstr "Trojúhleníky"
 
 msgid "Object Info"
 msgstr "Informace o objektu"
-
-
-msgid "The transformation of the vector and geometry outputs"
-msgstr "Transformace vektoru a výstupy geometrie"
 
 
 msgid "Points to Volume"
@@ -18453,11 +18453,6 @@ msgstr "Odstranit Vlastnost"
 
 msgid "Generate system information, saved into a text file"
 msgstr "Generovat informace o systému a uložit je do textového souboru"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Uložit Systémové Informace"
 
 
 msgctxt "Operator"
@@ -30486,26 +30481,6 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Active Tool"
-msgstr "Aktivní nástroj"
-
-
-msgid "View Lock"
-msgstr "Zámek zobrazení"
-
-
-msgid "Shadow Settings"
-msgstr "Nastavení Stínů"
-
-
-msgid "SSAO Settings"
-msgstr "Nastavení SSAO"
-
-
-msgid "Cavity"
-msgstr "Dutina"
-
-
 msgid "Overlays"
 msgstr "Překrytí"
 
@@ -30540,6 +30515,26 @@ msgstr "Stereoskopie"
 
 msgid "Auto-Masking"
 msgstr "Auto-Maska"
+
+
+msgid "Active Tool"
+msgstr "Aktivní nástroj"
+
+
+msgid "View Lock"
+msgstr "Zámek zobrazení"
+
+
+msgid "Shadow Settings"
+msgstr "Nastavení Stínů"
+
+
+msgid "SSAO Settings"
+msgstr "Nastavení SSAO"
+
+
+msgid "Cavity"
+msgstr "Dutina"
 
 
 msgid "Chain Scaling"
@@ -33109,10 +33104,6 @@ msgstr "Jazyk & Fonty"
 
 msgid "Language ID"
 msgstr "ID Jazyka"
-
-
-msgid "Languages"
-msgstr "Jazyky"
 
 
 msgid "POT File Path"
@@ -38471,11 +38462,6 @@ msgstr "Po současném snímku"
 
 
 msgctxt "Operator"
-msgid "Move..."
-msgstr "Přesunout..."
-
-
-msgctxt "Operator"
 msgid "Snap"
 msgstr "Přichytit"
 
@@ -39646,11 +39632,6 @@ msgstr "Reproduktor"
 
 
 msgctxt "Operator"
-msgid "Make Local..."
-msgstr "Vytvořit lokální..."
-
-
-msgctxt "Operator"
 msgid "Bake Action..."
 msgstr "Bake Akci..."
 
@@ -39894,11 +39875,6 @@ msgstr "Vymazat cesty pohybu"
 
 
 msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "Seřadit prvky..."
-
-
-msgctxt "Operator"
 msgid "Extrude Vertices"
 msgstr "Vysunout vrcholy"
 
@@ -40074,16 +40050,6 @@ msgstr "Vybrat non-manifold"
 msgctxt "Operator"
 msgid "Armature"
 msgstr "Kostra"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Reference"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Pozadí"
 
 
 msgctxt "Operator"
@@ -40498,10 +40464,6 @@ msgid "ID %s not found in library %s anymore!"
 msgstr "ID %s se v knihovně %s už nenašlo!"
 
 
-msgid "insufficient content"
-msgstr "nedostatek obsahu"
-
-
 msgid "unknown error reading file"
 msgstr "neznámá chyba čtení souboru"
 
@@ -40516,10 +40478,6 @@ msgstr "Není možné otevřít soubor"
 
 msgid "Unable to open blend <memory>"
 msgstr "Není možné otevřít soubor"
-
-
-msgid "Unable to read '%s': %s"
-msgstr "Nelze číst '%s': %s"
 
 
 msgid "Unrecognized file format '%s'"
@@ -40772,16 +40730,6 @@ msgstr "Nastavení hodnoty se nezdařilo"
 
 msgid "Pin"
 msgstr "Připnout"
-
-
-msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Znaky"
-
-
-msgctxt "Operator"
-msgid "Assign Shortcut"
-msgstr "Přiřadit Zkratku"
 
 
 msgctxt "Operator"
