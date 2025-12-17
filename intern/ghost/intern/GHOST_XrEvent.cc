@@ -8,7 +8,9 @@
 
 #include <iostream>
 
+#include "GHOST_XrContext.hh"
 #include "GHOST_Xr-api.hh"
+#include "GHOST_Xr_intern.hh"
 
 static bool GHOST_XrEventPollNext(XrInstance instance, XrEventDataBuffer &r_event_data)
 {

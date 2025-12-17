@@ -35,7 +35,7 @@ void GHOST_XrErrorHandler(GHOST_XrErrorHandlerFn handler_fn, void *customdata)
   GHOST_XrContext::setErrorHandler(handler_fn, customdata);
 }
 
-GHOST_XrContext *GHOST_XrContextCreate(const GHOST_XrContextCreateInfo *create_info)
+GHOST_IXrContext *GHOST_XrContextCreate(const GHOST_XrContextCreateInfo *create_info)
 {
   auto xr_context = std::make_unique<GHOST_XrContext>(create_info);
 

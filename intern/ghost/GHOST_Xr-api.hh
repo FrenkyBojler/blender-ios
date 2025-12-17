@@ -33,7 +33,7 @@ void GHOST_XrErrorHandler(GHOST_XrErrorHandlerFn handler_fn, void *customdata);
  * \param create_info: Options for creating the XR-context, e.g. debug-flags and ordered array of
  *                     graphics bindings to try enabling.
  */
-GHOST_XrContext *GHOST_XrContextCreate(const GHOST_XrContextCreateInfo *create_info);
+GHOST_IXrContext *GHOST_XrContextCreate(const GHOST_XrContextCreateInfo *create_info);
 /**
  * Free a XR-context involving OpenXR runtime link destruction and freeing of all internal data.
  */
