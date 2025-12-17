@@ -2411,15 +2411,6 @@ void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free)
 {
   if (do_free) {
     BKE_screen_area_free(area_dst);
-    /* TODO: Orig 'freeing' code, not sure why not calling `BKE_screen_area_free` instead, so
-     * replaced for now. Clean up once tested not needed. */
-    // BKE_spacedata_freelist(&area_dst->spacedata);
-
-    // SpaceType *st = BKE_spacetype_from_id(area_dst->spacetype);
-    // LISTBASE_FOREACH (ARegion *, region, &area_dst->regionbase) {
-    //   BKE_area_region_free(st, region);
-    // }
-    // BLI_freelistN(&area_dst->regionbase);
   }
 
   BKE_area_copy(area_dst, area_src);
