@@ -9,7 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "EventToBuf.h"
-#include "GHOST_C-api.h"
+#include "GHOST_Types.hh"
 
 char *eventtype_to_string(GHOST_TEventType type)
 {
