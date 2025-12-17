@@ -1971,7 +1971,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   }
 
   const char *filepath = nullptr;
-  GHOST_EventConsumerHandle ghost_event_consumer = nullptr;
+  GHOST_IEventConsumer *ghost_event_consumer = nullptr;
 
   {
     std::optional<int> exit_code = [&]() -> std::optional<int> {
@@ -2015,7 +2015,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
       /* Init GHOST and open window. */
       GHOST_ISystem::setBacktraceFn(BLI_system_backtrace);
-      GHOST_UseWindowFrame(WM_init_window_frame_get());
+      GHOST_ISystem::setUseWindowFrame(WM_init_window_frame_get());
 
       GHOST_ISystem::createSystem();
       ps.ghost_data.system = GHOST_ISystem::getSystem();
