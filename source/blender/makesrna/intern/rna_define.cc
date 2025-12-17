@@ -44,6 +44,9 @@ static CLG_LogRef LOG = {"rna.define"};
 
 #ifdef RNA_RUNTIME
 #  include "RNA_prototypes.hh"
+#  ifdef WITH_PYTHON
+#    include "BPY_extern.hh"
+#  endif
 #endif
 
 #ifndef NDEBUG
@@ -1141,13 +1144,13 @@ void RNA_def_struct_sdna_from(StructRNA *srna, const char *structname, const cha
   ds->dnaname = structname;
 }
 
-void RNA_def_struct_name_property(StructRNA *srna, PropertyRNA *prop)
+void RNA_def_struct_name_property(StructRNA *srna, PropertyRNA *prop, const bool allow_replace)
 {
   if (prop->type != PROP_STRING) {
     CLOG_ERROR(&LOG, "\"%s.%s\", must be a string property.", srna->identifier, prop->identifier);
     DefRNA.error = true;
   }
-  else if (srna->nameproperty != nullptr) {
+  else if (srna->nameproperty != nullptr && !allow_replace) {
     CLOG_ERROR(
         &LOG, "\"%s.%s\", name property is already set.", srna->identifier, prop->identifier);
     DefRNA.error = true;
