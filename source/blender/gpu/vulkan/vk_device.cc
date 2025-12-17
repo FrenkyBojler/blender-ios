@@ -42,34 +42,40 @@ void VKExtensions::log() const
              "Device extensions\n"
              " - [%c] dynamic rendering local read\n"
              " - [%c] dynamic rendering unused attachments\n"
+             " - [%c] extended dynamic state\n"
              " - [%c] external memory\n"
              " - [%c] graphics pipeline library\n"
+             " - [%c] host image copy\n"
+             " - [%c] line rasterization\n"
              " - [%c] maintenance4\n"
              " - [%c] memory priority\n"
              " - [%c] pageable device local memory\n"
-             " - [%c] shader stencil export",
+             " - [%c] shader stencil export\n"
+             " - [%c] vertex input dynamic state",
              shader_output_viewport_index ? 'X' : ' ',
              shader_output_layer ? 'X' : ' ',
              fragment_shader_barycentric ? 'X' : ' ',
              wide_lines ? 'X' : ' ',
              dynamic_rendering_local_read ? 'X' : ' ',
              dynamic_rendering_unused_attachments ? 'X' : ' ',
+             extended_dynamic_state ? 'X' : ' ',
              external_memory ? 'X' : ' ',
              graphics_pipeline_library ? 'X' : ' ',
+             host_image_copy ? 'X' : ' ',
+             line_rasterization ? 'X' : ' ',
              maintenance4 ? 'X' : ' ',
              memory_priority ? 'X' : ' ',
              pageable_device_local_memory ? 'X' : ' ',
-             GPU_stencil_export_support() ? 'X' : ' ');
+             GPU_stencil_export_support() ? 'X' : ' ',
+             vertex_input_dynamic_state ? 'X' : ' ');
 }
 
 void VKWorkarounds::log() const
 {
   CLOG_DEBUG(&LOG,
              "Activated workarounds\n"
-             " - [%c] Not 16/32 bit aligned image formats\n"
-             " - [%c] rgb8 vertex format\n",
-             not_aligned_pixel_formats ? 'X' : ' ',
-             vertex_formats.r8g8b8 ? 'X' : ' ');
+             " - [%c] Not 16/32 bit aligned image formats",
+             not_aligned_pixel_formats ? 'X' : ' ');
 }
 
 void VKDevice::reinit()
@@ -176,6 +182,22 @@ void VKDevice::init_functions()
   functions.vkSetDebugUtilsObjectName = LOAD_FUNCTION(vkSetDebugUtilsObjectNameEXT);
   functions.vkCreateDebugUtilsMessenger = LOAD_FUNCTION(vkCreateDebugUtilsMessengerEXT);
   functions.vkDestroyDebugUtilsMessenger = LOAD_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
+
+  /* VK_EXT_extended_dynamic_state */
+  if (extensions_.extended_dynamic_state) {
+    functions.vkCmdSetFrontFace = LOAD_FUNCTION(vkCmdSetFrontFaceEXT);
+  }
+
+  /* VK_EXT_vertex_input_dynamic_state */
+  if (extensions_.vertex_input_dynamic_state) {
+    functions.vkCmdSetVertexInput = LOAD_FUNCTION(vkCmdSetVertexInputEXT);
+  }
+
+  /* VK_EXT_host_image_copy */
+  if (extensions_.host_image_copy) {
+    functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImageEXT);
+    functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
+  }
 
   if (extensions_.external_memory) {
 #ifdef _WIN32

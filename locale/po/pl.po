@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"POT-Creation-Date: 2025-12-16 11:27+0000\n"
 "PO-Revision-Date: 2025-07-23 15:14+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -9167,6 +9167,22 @@ msgid "Collection"
 msgstr "Kolekcja"
 
 
+msgid "Font"
+msgstr "Czcionka"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Sound"
+msgstr "Dźwięk"
+
+
 msgid "Collection Negation"
 msgstr "Kolekcja negacji"
 
@@ -9702,10 +9718,6 @@ msgstr "Rozdzielczość V"
 
 msgid "Path"
 msgstr "Ścieżka"
-
-
-msgid "Font"
-msgstr "Czcionka"
 
 
 msgid "Selected Bold"
@@ -10592,10 +10604,6 @@ msgstr "Wycisz głośnik"
 msgctxt "Sound"
 msgid "Pitch"
 msgstr "Wysokość"
-
-
-msgid "Sound"
-msgstr "Dźwięk"
 
 
 msgctxt "Text"
@@ -11523,8 +11531,56 @@ msgid "Use Material Mask"
 msgstr "Używa maski materiału"
 
 
-msgid "Mask"
-msgstr "Maska"
+msgid "Mirror"
+msgstr "Odbicie lustrzane"
+
+
+msgid "Snap"
+msgstr "Przyciągnij"
+
+
+msgid "Local View"
+msgstr "Widok lokalny"
+
+
+msgid "Viewpoint"
+msgstr "Punkt obserwacji"
+
+
+msgid "Navigation"
+msgstr "Nawigacja"
+
+
+msgid "Select Linked"
+msgstr "Zaznacz powiązane"
+
+
+msgid "Assign Material"
+msgstr "Przypisanie materiału"
+
+
+msgid "Metaball"
+msgstr "Metakula"
+
+
+msgid "Layout"
+msgstr "Układ"
+
+
+msgid "Light"
+msgstr "Światło"
+
+
+msgid "Light Probe"
+msgstr "Sonda świetlna"
+
+
+msgid "Rigid Body"
+msgstr "Bryła sztywna"
+
+
+msgid "Keying"
+msgstr "Kluczowanie"
 
 
 msgid "Apply"
@@ -11535,12 +11591,16 @@ msgid "Track"
 msgstr "Ścieżka"
 
 
+msgid "Utilities"
+msgstr "Narzędzia"
+
+
+msgid "Math"
+msgstr "Matematyka"
+
+
 msgid "Quick Effects"
 msgstr "Szybkie efekty"
-
-
-msgid "Navigation"
-msgstr "Nawigacja"
 
 
 msgid "Show/Hide"
@@ -11559,20 +11619,8 @@ msgid "Convert"
 msgstr "Konwertuj"
 
 
-msgid "Viewpoint"
-msgstr "Punkt obserwacji"
-
-
-msgid "Local View"
-msgstr "Widok lokalny"
-
-
 msgid "Bone Collections"
 msgstr "Kolekcja kości"
-
-
-msgid "Layout"
-msgstr "Układ"
 
 
 msgid "Face Data"
@@ -11581,38 +11629,6 @@ msgstr "Dane ściany"
 
 msgid "Merge"
 msgstr "Scal"
-
-
-msgid "Keying"
-msgstr "Kluczowanie"
-
-
-msgid "Utilities"
-msgstr "Narzędzia"
-
-
-msgid "Math"
-msgstr "Matematyka"
-
-
-msgid "Snap"
-msgstr "Przyciągnij"
-
-
-msgid "Mirror"
-msgstr "Odbicie lustrzane"
-
-
-msgid "Text"
-msgstr "Tekst"
-
-
-msgid "Metaball"
-msgstr "Metakula"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proporcjonalne edytowanie spadku"
 
 
 msgid "Read"
@@ -11627,10 +11643,6 @@ msgid "Gizmo"
 msgstr "Gizmo"
 
 
-msgid "Select Linked"
-msgstr "Zaznacz powiązane"
-
-
 msgid "Import"
 msgstr "Importuj"
 
@@ -11639,20 +11651,8 @@ msgid "Deprecated"
 msgstr "Przestarzałe"
 
 
-msgid "Assign Material"
-msgstr "Przypisanie materiału"
-
-
-msgid "Light"
-msgstr "Światło"
-
-
-msgid "Light Probe"
-msgstr "Sonda świetlna"
-
-
-msgid "Rigid Body"
-msgstr "Bryła sztywna"
+msgid "Proportional Editing Falloff"
+msgstr "Proporcjonalne edytowanie spadku"
 
 
 msgid "Catalog"
@@ -11677,10 +11677,6 @@ msgstr "Zbliżenie"
 
 msgid "Console"
 msgstr "Konsola"
-
-
-msgid "Languages..."
-msgstr "Języki..."
 
 
 msgid "Add Attribute"
@@ -13078,16 +13074,16 @@ msgid "Bake Item"
 msgstr "Wypal przedmiot"
 
 
-msgid "Default Value"
-msgstr "Wartość domyślna"
-
-
 msgid "Geometry Node Socket"
 msgstr "Gniazdo węzła geometrii"
 
 
 msgid "Texture Node Socket"
 msgstr "Gniazdo węzła tekstury"
+
+
+msgid "Default Value"
+msgstr "Wartość domyślna"
 
 
 msgid "Hide in Modifier"
@@ -13395,11 +13391,6 @@ msgstr "Edytuj właściwość"
 msgctxt "Operator"
 msgid "Edit Property Value"
 msgstr "Edytuj wartość właściwości"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Zapisz informacje o systemie"
 
 
 msgctxt "Operator"
@@ -17251,18 +17242,6 @@ msgid "Palette Color"
 msgstr "Kolor palety"
 
 
-msgid "Active Tool"
-msgstr "Aktywne narzędzie"
-
-
-msgid "Shadow Settings"
-msgstr "Ustawienia cienia"
-
-
-msgid "Compositor"
-msgstr "Kompozytor"
-
-
 msgid "Motion Tracking"
 msgstr "Śledzenie ruchu"
 
@@ -17281,6 +17260,18 @@ msgstr "Tryb edycji krzywej"
 
 msgid "Transform Orientations"
 msgstr "Orientacje przekształcenia"
+
+
+msgid "Active Tool"
+msgstr "Aktywne narzędzie"
+
+
+msgid "Shadow Settings"
+msgstr "Ustawienia cienia"
+
+
+msgid "Compositor"
+msgstr "Kompozytor"
 
 
 msgid "Aperture"
@@ -19951,6 +19942,11 @@ msgstr "Użyj obiektu"
 
 
 msgctxt "WindowManager"
+msgid "Snap"
+msgstr "Przyciągaj"
+
+
+msgctxt "WindowManager"
 msgid "Forward"
 msgstr "Do przodu"
 
@@ -20073,11 +20069,6 @@ msgstr "Początek"
 msgctxt "WindowManager"
 msgid "Move"
 msgstr "Przesunięcie"
-
-
-msgctxt "WindowManager"
-msgid "Snap"
-msgstr "Przyciągaj"
 
 
 msgctxt "WindowManager"
@@ -21100,11 +21091,6 @@ msgstr "Filtruj według typu:"
 
 
 msgctxt "Operator"
-msgid "Move..."
-msgstr "Przesuń..."
-
-
-msgctxt "Operator"
 msgid "Snap"
 msgstr "Przyciągaj"
 
@@ -21572,11 +21558,6 @@ msgstr "Ścieżki/pliki"
 
 
 msgctxt "Operator"
-msgid "Movie"
-msgstr "Film"
-
-
-msgctxt "Operator"
 msgid "Delete Keyframes..."
 msgstr "Usuń klatki kluczowe..."
 
@@ -21653,11 +21634,6 @@ msgstr "Kontrola prędkości"
 msgctxt "Operator"
 msgid "Gaussian Blur"
 msgstr "Rozmycie Gaussa"
-
-
-msgctxt "Operator"
-msgid "Insert Keyframe with Keying Set"
-msgstr "Wstaw klatkę kluczową z zestawem kluczowania"
 
 
 msgctxt "Operator"
@@ -22461,11 +22437,6 @@ msgstr "Głośnik"
 
 
 msgctxt "Operator"
-msgid "Mesh Plane"
-msgstr "Siatka płaszczyzny"
-
-
-msgctxt "Operator"
 msgid "Bake Action..."
 msgstr "Akcja przeliczenia..."
 
@@ -22620,11 +22591,6 @@ msgstr "Zmień nazwę aktywnej kości..."
 
 
 msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "Sortuj elementy..."
-
-
-msgctxt "Operator"
 msgid "Extrude Vertices"
 msgstr "Wydłuż wierzchołki"
 
@@ -22692,16 +22658,6 @@ msgstr "Brak kolekcji do instancji"
 msgctxt "Operator"
 msgid "Collection Instance"
 msgstr "Instancja kolekcji"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Odniesienie"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Tło"
 
 
 msgctxt "Operator"
@@ -22842,10 +22798,6 @@ msgstr "Nie można było usunąć klatki kluczowej, ścieżka RNA jest nieprawid
 
 msgid "No action to delete keyframes from for ID = %s"
 msgstr "Brak akcji do usunięcia klatek kluczowych dla ID = %s"
-
-
-msgid "Not deleting keyframe for locked F-Curve '%s' for %s '%s'"
-msgstr "Nie można usunąć klatki kluczowej dla zablokowanej krzywej-F '%s' dla %s '%s'"
 
 
 msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
@@ -23783,16 +23735,6 @@ msgstr "Nie klawiaturowe skróty"
 
 msgid "Pin"
 msgstr "Przypnij"
-
-
-msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Zmień skrót"
-
-
-msgctxt "Operator"
-msgid "Assign Shortcut"
-msgstr "Przypisz skrót"
 
 
 msgctxt "Operator"
@@ -28110,18 +28052,6 @@ msgstr "Właściwość musi być typu integer lub float"
 
 msgid "Property must be a none, distance, factor, percentage, angle, or pixel"
 msgstr "Właściwość musi być typu żaden, distans, współczynnik, odsetek, kąt lub piksel"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', at position %d"
-msgstr "Rejestracja operator class: '%s', nieprawidłowe bl_idname '%s', w pozycji %d"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', is too long, maximum length is %d"
-msgstr "Rejestracja operator class: '%s', nieprawidłowe bl_idname, '%s' jest za długie, maksymalna długość: %d"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', must contain 1 '.' character"
-msgstr "Rejestracja operator class '%s', nieprawidłowe bl_idname '%s', musi zawierać 1 znak '.'"
 
 
 msgid "Cannot read %s '%s': %s"
