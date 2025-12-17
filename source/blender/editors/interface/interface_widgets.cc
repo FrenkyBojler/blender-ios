@@ -2061,6 +2061,11 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox, int width)
   return lines;
 }
 
+float textbox_grip_ui_height()
+{
+  return UI_UNIT_Y * ButtonTextBox::grip_height_factor;
+}
+
 static void widget_draw_textbox(const uiFontStyle *fstyle,
                                 const uiWidgetColors *wcol,
                                 Button *but,
@@ -2083,7 +2088,13 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   fontstyle_set(fstyle);
   const Vector<StringRef> lines = textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect));
 
-  const int line_height = BLI_rcti_size_y(&rect) / (visible_lines);
+  if (textbox->editstr) {
+    Button *grip = textbox->block->buttons[textbox->block->but_index(textbox) + 2].get();
+    BLI_assert(grip->type == ButtonType::Grip);
+    grip->flag |= UI_HIDDEN;
+  }
+  const int line_height = BLI_rcti_size_y(&rect) /
+                          float(visible_lines + ButtonTextBox::grip_height_factor);
   textbox->line_scroll_set(textbox->line_scroll);
 
   const int scroll = textbox->line_scroll;
@@ -2342,7 +2353,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   rcti scroll_rect = *button_rect;
   BLI_rcti_pad(&scroll_rect, -scrollbar_pad, -scrollbar_pad);
   scroll_rect.xmin = scroll_rect.xmax - text_padding;
-  scroll_rect.ymin += UI_UNIT_Y * 0.65f / but->block->aspect;
+  scroll_rect.ymin += textbox_grip_ui_height() / but->block->aspect;
 
   rcti slider_rect = scroll_rect;
 

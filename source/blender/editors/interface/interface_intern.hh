@@ -356,6 +356,8 @@ struct Button {
 
 /** Derived struct for #ButtonType::TextBox */
 struct ButtonTextBox : public Button {
+  static constexpr float grip_height_factor = 0.75f;
+
   int line_scroll = 0;
   /** Total number of wrapped lines in the last textbox redraw/event handling. */
   int last_total_lines = 0;
@@ -373,6 +375,7 @@ struct ButtonTextBox : public Button {
 
 /** Wraps input text into lines, this may overwrite draw string if there is IME data available. */
 Vector<StringRef> textbox_wrap_lines(ButtonTextBox *but, int width);
+float textbox_grip_ui_height();
 
 /** Derived struct for #ButType::Grip */
 struct ButtonGrip : public Button {

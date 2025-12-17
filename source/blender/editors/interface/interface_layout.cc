@@ -2728,7 +2728,7 @@ void Layout::prop_textbox(PointerRNA *ptr,
                                0,
                                0,
                                w,
-                               line_heigth * visible_lines,
+                               line_heigth * visible_lines + textbox_grip_ui_height(),
                                ptr,
                                prop,
                                0,
@@ -2739,27 +2739,27 @@ void Layout::prop_textbox(PointerRNA *ptr,
   textbox->visible_lines = visible_lines;
 
   Layout &grip_row = overlap.row(true);
-  grip_row.alignment_set(LayoutAlign::Right);
+  grip_row.alignment_set(LayoutAlign::Expand);
 
-  grip_row.column(true);
+  grip_row.column(true).alignment_set(LayoutAlign::Center);
   uiDefBut(block,
            ButtonType::Sepr,
            "",
            0,
            0,
            0,
-           line_heigth * (float(textbox->visible_lines) - 0.65f),
+           line_heigth * float(textbox->visible_lines),
            nullptr,
            0.0,
            0.0,
            "");
   but = uiDefIconButR(block,
                       ButtonType::Grip,
-                      ICON_GRIP_CORNER_BOTTOM_RIGHT,
+                      ICON_GRIP,
                       0,
                       0,
-                      0.65f * UI_UNIT_X,
-                      0.65f * UI_UNIT_Y,
+                      UI_UNIT_X,
+                      textbox_grip_ui_height(),
                       visible_lines_ptr,
                       visible_lines_propname,
                       0,

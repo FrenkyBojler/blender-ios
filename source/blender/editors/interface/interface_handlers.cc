@@ -418,7 +418,6 @@ struct HandleButtonData {
   wmTimer *flashtimer = nullptr;
 
   TextEdit text_edit;
-  bool with_text_edit = false;
 
   double value = 0.0f;
   double origvalue = 0.0f;
@@ -3191,8 +3190,8 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
   const float aspect = textbox->block->aspect;
   fontscale(&fstyle.points, aspect);
   fontstyle_set(&fstyle);
-
-  float2 start = {textbox->rect.xmin, textbox->rect.ymin};
+  /* Don't include grip bounds when selecting text with the mouse.*/
+  float2 start = {textbox->rect.xmin, textbox->rect.ymin + textbox_grip_ui_height()};
   float2 end = {textbox->rect.xmax, textbox->rect.ymax};
 
   block_to_window_fl(region, textbox->block, &start.x, &start.y);
@@ -3667,7 +3666,6 @@ const wmIMEData *button_ime_data_get(Button *but)
 static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 {
   TextEdit &text_edit = data->text_edit;
-  data->with_text_edit = true;
   wmWindow *win = data->window;
   const bool is_num_but = ELEM(but->type, ButtonType::Num, ButtonType::NumSlider);
   const bool is_textbox = ELEM(but->type, ButtonType::TextBox);
@@ -3819,7 +3817,6 @@ static void ui_textedit_end(bContext *C, Button *but, HandleButtonData *data)
 {
   TextEdit &text_edit = data->text_edit;
   wmWindow *win = data->window;
-  data->with_text_edit = false;
   ED_workspace_status_text(C, nullptr);
 
   if (but) {
@@ -5199,9 +5196,13 @@ static int ui_do_but_TEX(
     int my = event->xy[1];
     window_to_block(data->region, but->block, &mx, &my);
     /* Activate textbox scrollbar. */
-    if (but->rect.xmax - button_text_padding(but) < mx &&
-        my > but->rect.ymin + UI_UNIT_Y * (0.75f))
-    {
+    if (but->rect.xmax - button_text_padding(but) <= mx && mx <= but->rect.xmax) {
+      if (data->state == BUTTON_STATE_HIGHLIGHT) {
+        WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      }
+      else {
+        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
+      }
       button_activate_state(C, but, BUTTON_STATE_TEXT_SCROLLING);
       WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
       return WM_UI_HANDLER_BREAK;
@@ -5209,10 +5210,14 @@ static int ui_do_but_TEX(
   }
   if (textbox && data->state == BUTTON_STATE_TEXT_SCROLLING) {
     if (event->val == KM_RELEASE && event->type == LEFTMOUSE) {
-      WM_cursor_set(CTX_wm_window(C),
-                    data->with_text_edit ? WM_CURSOR_TEXT_EDIT : WM_CURSOR_DEFAULT);
+      if (textbox->editstr) {
+        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_TEXT_EDIT);
+      }
+      else {
+        WM_cursor_modal_restore(CTX_wm_window(C));
+      }
       button_activate_state(
-          C, but, data->with_text_edit ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
+          C, but, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
       return WM_UI_HANDLER_BREAK;
     }
     int mx = event->xy[0];
@@ -9050,7 +9055,7 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
     ui_textedit_end(C, but, data);
   }
   else if ((data->state == BUTTON_STATE_TEXT_SELECTING ||
-            (data->state == BUTTON_STATE_TEXT_SCROLLING && data->with_text_edit)) &&
+            (data->state == BUTTON_STATE_TEXT_SCROLLING && but->editstr)) &&
            state != BUTTON_STATE_TEXT_EDITING)
   {
     ui_textedit_end(C, but, data);
