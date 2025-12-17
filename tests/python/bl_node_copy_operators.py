@@ -361,6 +361,8 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 tree = bpy.data.node_groups['Geometry Nodes']
                 test_node = tree.nodes[test_node_name]
                 expected_group_node = tree.nodes[expected_group_node_name]
+                test_link_nodes = [tree.nodes[n] for n in external_links]
+                expected_link_nodes = [tree.nodes[n] for n in external_links_001]
 
                 with node_editor_context_override(selected_nodes=[test_node]):
                     bpy.ops.node.group_make()
@@ -376,7 +378,7 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 mapping = NodeMapping()
                 mapping.add(group_node, expected_group_node)
                 mapping.extend(group_node.node_tree.nodes, expected_group_node.node_tree.nodes)
-                mapping.extend((tree.nodes[n] for n in external_links), (tree.nodes[n] for n in external_links_001))
+                mapping.extend(test_link_nodes, expected_link_nodes)
 
                 # Compare generated group node to expected node.
                 self.compare_nodes(group_node, mapping)
@@ -384,6 +386,40 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                     self.compare_nodes(internal_node, mapping)
                 # Compare generated group tree interface to expected tree.
                 self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
+
+    def test_make_node_group_multi(self):
+        test_node_names = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
+        expected_group_node_name = "GroupNode.All"
+
+        self.open_file()
+        tree = bpy.data.node_groups['Geometry Nodes']
+        test_nodes = [tree.nodes[m] for m in test_node_names]
+        expected_group_node = tree.nodes[expected_group_node_name]
+        test_link_nodes = [tree.nodes[n] for n in external_links]
+        expected_link_nodes = [tree.nodes[n] for n in external_links_002]
+
+        with node_editor_context_override(selected_nodes=test_nodes):
+            bpy.ops.node.group_make()
+        group_node = tree.nodes.active
+
+        # XXX WORKAROUND FOR #151777
+        print("XXX REMOVE ME WHEN #151777 IS FIXED")
+        group_node.node_tree.interface.items_tree['Dim2'].dimensions = 3
+        group_node.node_tree.interface.items_tree['Dim2'].dimensions = 2
+        # XXX
+
+        # Map resulting nodes to expected nodes.
+        mapping = NodeMapping()
+        mapping.add(group_node, expected_group_node)
+        mapping.extend(group_node.node_tree.nodes, expected_group_node.node_tree.nodes)
+        mapping.extend(test_link_nodes, expected_link_nodes)
+
+        # Compare generated group node to expected node.
+        self.compare_nodes(group_node, mapping)
+        for internal_node in group_node.node_tree.nodes:
+            self.compare_nodes(internal_node, mapping)
+        # Compare generated group tree interface to expected tree.
+        self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
 
 def main():
