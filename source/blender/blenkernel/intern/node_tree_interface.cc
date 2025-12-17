@@ -36,27 +36,24 @@ namespace blender::bke::node_interface {
 
 namespace socket_types {
 
-/* Try to get a supported socket type from some final type.
- * Built-in socket can have multiple registered RNA types for the base type, e.g.
- * `NodeSocketFloatUnsigned`, `NodeSocketFloatFactor`. Only the "base type" (`NodeSocketFloat`)
- * is considered valid for interface sockets.
- */
-static std::optional<StringRef> try_get_supported_socket_type(const StringRef socket_type)
+/* Check valid socket type for node tree interfaces. */
+static bool is_supported_socket_type(const StringRef socket_type)
 {
   const blender::bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket_type);
   if (typeinfo == nullptr) {
-    return std::nullopt;
+    return false;
   }
-  /* For builtin socket types only the base type is supported. */
-  if (node_is_static_socket_type(*typeinfo)) {
-    if (const std::optional<StringRefNull> type_name = bke::node_static_socket_type(typeinfo->type,
-                                                                                    PROP_NONE))
-    {
-      return *type_name;
-    }
-    return std::nullopt;
+  /* Accept all dynamic socket types. */
+  if (!node_is_static_socket_type(*typeinfo)) {
+    return true;
   }
-  return typeinfo->idname;
+  /* Static socket types must have a valid base type.
+   * Built-in sockets can have multiple registered RNA types for the base type, e.g.
+   * `NodeSocketFloatUnsigned`, `NodeSocketFloatFactor`. */
+  if (bke::node_static_socket_type(typeinfo->type, PROP_NONE)) {
+    return true;
+  }
+  return false;
 }
 
 /* -------------------------------------------------------------------- */
@@ -807,9 +804,7 @@ blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
 
 bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
 {
-  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(
-      new_socket_type);
-  if (!idname) {
+  if (!socket_types::is_supported_socket_type(new_socket_type)) {
     return false;
   }
 
@@ -834,9 +829,7 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
 
 void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *socket)
 {
-  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(
-      socket->idname);
-  BLI_assert(idname.has_value());
+  BLI_assert(socket_types::is_supported_socket_type(socket->idname));
 
   if (this->socket_data != nullptr) {
     socket_types::socket_data_free(*this, true);
@@ -847,8 +840,8 @@ void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *sock
     this->flag |= NODE_INTERFACE_SOCKET_HIDE_VALUE;
   }
 
-  this->socket_type = BLI_strdupn(idname->data(), idname->size());
-  this->socket_data = socket_types::make_socket_data(*idname);
+  this->socket_type = BLI_strdup(socket->idname);
+  this->socket_data = socket_types::make_socket_data(socket->idname);
   socket_types::socket_data_copy_ptr(*this, socket->default_value, 0);
 }
 
@@ -1207,9 +1200,7 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
                                              const NodeTreeInterfaceSocketFlag flag)
 {
   BLI_assert(!socket_type.is_empty());
-
-  const std::optional<StringRef> idname = socket_types::try_get_supported_socket_type(socket_type);
-  if (!idname) {
+  if (!socket_types::is_supported_socket_type(socket_type)) {
     return nullptr;
   }
 
