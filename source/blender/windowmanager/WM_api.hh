@@ -32,6 +32,7 @@
 #include "WM_types.hh"
 
 struct ARegion;
+struct GHOST_IContext;
 struct GPUViewport;
 struct ID;
 struct IDProperty;
