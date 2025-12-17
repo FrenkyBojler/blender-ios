@@ -1972,6 +1972,59 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
   return nullptr;
 }
 
+void IDP_TryConvertProperty(IDProperty *src,
+                            const eIDPropertyUIDataType src_type,
+                            const eIDPropertyUIDataType dst_type)
+{
+  switch (src_type) {
+    case IDP_UI_DATA_TYPE_INT: {
+      switch (dst_type) {
+        case IDP_UI_DATA_TYPE_INT:
+        case IDP_UI_DATA_TYPE_BOOLEAN:
+          src->type = char((dst_type == IDP_UI_DATA_TYPE_INT) ? IDP_INT : IDP_BOOLEAN);
+          break;
+        case IDP_UI_DATA_TYPE_FLOAT: {
+          const double value = IDP_int_get(src);
+          src->type = IDP_DOUBLE;
+          IDP_double_set(src, value);
+          break;
+        }
+        case IDP_UI_DATA_TYPE_STRING: {
+          IDP_AssignString(src, std::to_string(IDP_int_get(src)).c_str());
+          break;
+        }
+        default:
+          break;
+      }
+      break;
+    }
+    case IDP_UI_DATA_TYPE_FLOAT: {
+      switch (dst_type) {
+        case IDP_UI_DATA_TYPE_FLOAT:
+          break;
+        case IDP_UI_DATA_TYPE_INT:
+        case IDP_UI_DATA_TYPE_BOOLEAN: {
+          const int value = int(IDP_double_get(src));
+          src->type = char((dst_type == IDP_UI_DATA_TYPE_INT) ? IDP_INT : IDP_BOOLEAN);
+          IDP_int_or_bool_set(src, value);
+          break;
+        }
+        case IDP_UI_DATA_TYPE_STRING: {
+          IDP_AssignString(src, std::to_string(IDP_double_get(src)).c_str());
+          break;
+        }
+        default:
+          break;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  src->ui_data = IDP_TryConvertUIData(src->ui_data, src_type, dst_type);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
