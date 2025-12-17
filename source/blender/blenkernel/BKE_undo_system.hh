@@ -141,6 +141,8 @@ struct UndoType {
                               UndoTypeForEachIDRefFn foreach_ID_ref_fn,
                               void *user_data);
 
+  void (*step_before_memfile)(UndoStep *us);
+
   /** Information for the generic undo system to refine handling of this specific undo type. */
   uint flags;
 

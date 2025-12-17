@@ -191,7 +191,7 @@ static void undosys_step_decode(bContext *C,
                                 const eUndoStepDir dir,
                                 bool is_final)
 {
-  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+  CLOG_DEBUG(&LOG, "%s - addr=%p, name='%s', type='%s'", __func__, us, us->name, us->type->name);
 
   if (us->type->step_foreach_ID_ref) {
 #ifdef WITH_GLOBAL_UNDO_CORRECT_ORDER
@@ -202,9 +202,15 @@ static void undosys_step_decode(bContext *C,
             /* Common case, we're already using the last memfile state. */
           }
           else {
+            if (us->type->step_before_memfile) {
+              CLOG_DEBUG(&LOG, "Before memfile");
+              us->type->step_before_memfile(us);
+            }
             /* Load the previous memfile state so any ID's referenced in this
              * undo step will be correctly resolved, see: #56163. */
+            printf("Before nested\n");
             undosys_step_decode(C, bmain, ustack, us_iter, dir, false);
+            printf("After  nested\n");
             /* May have been freed on memfile read. */
             bmain = G_MAIN;
           }
@@ -219,6 +225,7 @@ static void undosys_step_decode(bContext *C,
   }
 
   UNDO_NESTED_CHECK_BEGIN;
+  printf("Do typed (%s) undo step for (%s)\n", us->type->name, us->name);
   us->type->step_decode(C, bmain, us, dir, is_final);
   UNDO_NESTED_CHECK_END;
 
@@ -792,11 +799,25 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
              us_target->type->name,
              undo_dir);
 
+  if (us_target_active != us_target) {
+    printf("Target (%p) %s and active_target (%p) inequal %s\n",
+           us_target,
+           us_target->name,
+           us_target_active,
+           us_target_active->name);
+  }
+
   /* Undo/Redo steps until we reach given target step (or beyond if it has to be skipped),
    * from given reference step. */
   bool is_processing_extra_skipped_steps = false;
-  for (UndoStep *us_iter = undosys_step_iter_first(us_reference, undo_dir); us_iter != nullptr;
-       us_iter = (undo_dir == -1) ? us_iter->prev : us_iter->next)
+  UndoStep *us_first = undosys_step_iter_first(us_reference, undo_dir);
+  printf("Starting at (%p) %s -> Traveling to (%p) %s\n",
+         us_first,
+         us_first->name,
+         us_target_active,
+         us_target_active->name);
+  for (UndoStep *us_iter = us_first; us_iter != nullptr;
+         us_iter = (undo_dir == -1) ? us_iter->prev : us_iter->next)
   {
     BLI_assert(us_iter != nullptr);
 

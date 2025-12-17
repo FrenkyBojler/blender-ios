@@ -451,6 +451,7 @@ struct PositionUndoStorage : NonMovable {
 struct SculptUndoStep {
   UndoStep step;
   UndoRefID_Object object_ref;
+  Mesh *mesh;
 
   /* NOTE: will split out into list for multi-object-sculpt-mode. */
   StepData data;
@@ -2153,7 +2154,11 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   /* Dummy, encoding is done along the way by adding tiles
    * to the current 'SculptUndoStep' added by encode_init. */
   SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
-  us->object_ref.ptr = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(C);
+  Mesh *mesh = static_cast<Mesh *>(object->data);
+
+  us->object_ref.ptr = object;
+  us->mesh = mesh;
   us->step.data_size = us->data.undo_size;
 
   if (us->data.type == Type::DyntopoEnd) {
@@ -2171,7 +2176,7 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 
 static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  //BLI_assert(us->step.is_applied == true);
+  // BLI_assert(us->step.is_applied == true);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = false;
@@ -2179,7 +2184,7 @@ static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 
 static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  //BLI_assert(us->step.is_applied == false);
+  // BLI_assert(us->step.is_applied == false);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = true;
@@ -2190,53 +2195,17 @@ static void step_decode_undo(bContext *C,
                              SculptUndoStep *us,
                              const bool is_final)
 {
-  /* Walk forward over any applied steps of same type,
-   * then walk back in the next loop, un-applying them. */
-  SculptUndoStep *us_iter = us;
-  while (us_iter->step.next && (us_iter->step.next->type == us_iter->step.type)) {
-    if (us_iter->step.next->is_applied == false) {
-      break;
-    }
-    us_iter = reinterpret_cast<SculptUndoStep *>(us_iter->step.next);
-  }
-
-  while ((us_iter != us) || (!is_final && us_iter == us)) {
-    BLI_assert(us_iter->step.type == us->step.type); /* Previous loop ensures this. */
-
-    set_active_layer(C, &us_iter->active_color_start);
-    step_decode_undo_impl(C, depsgraph, us_iter);
-
-    if (us_iter == us) {
-      if (us_iter->step.prev && us_iter->step.prev->type == BKE_UNDOSYS_TYPE_SCULPT) {
-        set_active_layer(
-            C, &reinterpret_cast<SculptUndoStep *>(us_iter->step.prev)->active_color_end);
-      }
-      break;
-    }
-
-    us_iter = reinterpret_cast<SculptUndoStep *>(us_iter->step.prev);
+  const bool will_apply = (!is_final || us->step.next->type != us->step.type);
+  printf("%s %p %s %d\n", __func__, us, us->step.name, will_apply);
+  if (!is_final || us->step.next->type != us->step.type) {
+    step_decode_undo_impl(C, depsgraph, us);
   }
 }
 
-static void step_decode_redo(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
+static void step_decode_redo(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us, const bool is_final)
 {
-  SculptUndoStep *us_iter = us;
-  while (us_iter->step.prev && (us_iter->step.prev->type == us_iter->step.type)) {
-    if (us_iter->step.prev->is_applied == true) {
-      break;
-    }
-    us_iter = reinterpret_cast<SculptUndoStep *>(us_iter->step.prev);
-  }
-  while (us_iter && (us_iter->step.is_applied == false)) {
-    set_active_layer(C, &us_iter->active_color_end);
-    step_decode_redo_impl(C, depsgraph, us_iter);
-
-    if (us_iter == us) {
-      set_active_layer(C, &us_iter->active_color_start);
-      break;
-    }
-    us_iter = reinterpret_cast<SculptUndoStep *>(us_iter->step.next);
-  }
+  if (!is_final || us->step.prev->type != us->step.type) {}
+  step_decode_redo_impl(C, depsgraph, us);
 }
 
 static void step_decode(
@@ -2288,7 +2257,7 @@ static void step_decode(
     step_decode_undo(C, depsgraph, us, is_final);
   }
   else if (dir == STEP_REDO) {
-    step_decode_redo(C, depsgraph, us);
+    step_decode_redo(C, depsgraph, us, is_final);
   }
 }
 
@@ -2379,6 +2348,12 @@ static void sculpt_undosys_foreach_ID_ref(UndoStep *us_p,
   foreach_ID_ref_fn(user_data, reinterpret_cast<UndoRefID *>(&us->object_ref));
 }
 
+static void step_before_memfile(UndoStep *us_p)
+{
+  SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
+  /* Make copy of existing needed attrs */
+}
+
 void register_type(UndoType *ut)
 {
   ut->name = "Sculpt";
@@ -2391,6 +2366,7 @@ void register_type(UndoType *ut)
   ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_DECODE_ACTIVE_STEP;
 
   ut->step_foreach_ID_ref = sculpt_undosys_foreach_ID_ref;
+  ut->step_before_memfile = step_before_memfile;
 
   ut->step_size = sizeof(SculptUndoStep);
 }

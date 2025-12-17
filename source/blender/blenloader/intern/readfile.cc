@@ -3199,13 +3199,22 @@ static bool read_libblock_undo_restore(
     return true;
   }
   if (id_old != nullptr) {
-    /* Local datablock was changed. Restore at the address of the old datablock. */
-    CLOG_DEBUG(&LOG_UNDO,
-               "UNDO: read %s (uid %u) -> read to old existing address",
-               id->name,
-               id->session_uid);
-    *r_id_old = id_old;
-    return false;
+    if (id_old->tag & ID_TAG_SKIP_UNDO) {
+      CLOG_DEBUG(&LOG_UNDO, "UNDO: read %s (uid %u) -> skipping, tagged with ID_TAG_SKIP_UNDO", id->name, id->session_uid);
+      id_old->tag &= ~ID_TAG_SKIP_UNDO;
+
+      read_libblock_undo_restore_identical(fd, main, id, id_old, bhead, id_tag);
+      *r_id_old = id_old;
+      return true;
+    } else {
+      /* Local datablock was changed. Restore at the address of the old datablock. */
+      CLOG_DEBUG(&LOG_UNDO,
+                 "UNDO: read %s (uid %u) -> read to old existing address",
+                 id->name,
+                 id->session_uid);
+      *r_id_old = id_old;
+      return false;
+    }
   }
 
   /* Local datablock does not exist in the undo step, so read from scratch. */
