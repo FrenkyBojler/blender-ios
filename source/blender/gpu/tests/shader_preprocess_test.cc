@@ -22,7 +22,6 @@ static std::string process_test_string(std::string str,
       str,
       "test.glsl",
       false,
-      true,
       [&](int /*err_line*/, int /*err_char*/, const std::string & /*line*/, const char *err_msg) {
         if (first_error.empty()) {
           first_error = err_msg;
@@ -126,6 +125,268 @@ static void test_preprocess_include()
   }
 }
 GPU_TEST(preprocess_include);
+
+static void test_preprocess_union()
+{
+  using namespace shader;
+  using namespace std;
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  union {
+    union_t<uint4> a;
+    union_t<int4> b;
+    union_t<float4> c;
+  };
+};
+)";
+    string expect =
+        R"(
+#line 3
+struct                 T_union0 {
+  float4 data0;
+
+};
+#line 2
+struct                 T {
+         T_union0 union0;
+#line 38
+};
+#ifndef GPU_METAL
+uint4 _a(const T this_);
+void _a_set_(_ref(T ,this_), uint4 value);
+int4 _b(const T this_);
+void _b_set_(_ref(T ,this_), int4 value);
+float4 _c(const T this_);
+void _c_set_(_ref(T ,this_), float4 value);
+#endif
+#line 9
+uint4 _a(const T this_)       {
+  uint4 val;
+  val = floatBitsToUint(this_.union0.data0);
+  return val;
+}
+#line 15
+void _a_set_(_ref(T ,this_), uint4 value) {
+  this_.union0.data0 = uintBitsToFloat(value);
+}
+#line 19
+int4 _b(const T this_)       {
+  int4 val;
+  val = floatBitsToInt(this_.union0.data0);
+  return val;
+}
+#line 25
+void _b_set_(_ref(T ,this_), int4 value) {
+  this_.union0.data0 = intBitsToFloat(value);
+}
+#line 29
+float4 _c(const T this_)       {
+  float4 val;
+  val = this_.union0.data0;
+  return val;
+}
+#line 35
+void _c_set_(_ref(T ,this_), float4 value) {
+  this_.union0.data0 = value;
+}
+#line 39
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  float2 foo;
+  float2 bar;
+  union {
+    union_t<uint4> a;
+  };
+  union {
+    union_t<uint4> b;
+  };
+};
+)";
+    string expect =
+        R"(
+#line 5
+struct                 T_union0 {
+  float4 data0;
+
+};
+#line 8
+struct                 T_union1 {
+  float4 data0;
+
+};
+#line 2
+struct                 T {
+  float2 foo;
+  float2 bar;
+         T_union0 union0;
+#line 8
+         T_union1 union1;
+#line 31
+};
+#ifndef GPU_METAL
+uint4 _a(const T this_);
+void _a_set_(_ref(T ,this_), uint4 value);
+uint4 _b(const T this_);
+void _b_set_(_ref(T ,this_), uint4 value);
+#endif
+#line 12
+uint4 _a(const T this_)       {
+  uint4 val;
+  val = floatBitsToUint(this_.union0.data0);
+  return val;
+}
+#line 18
+void _a_set_(_ref(T ,this_), uint4 value) {
+  this_.union0.data0 = uintBitsToFloat(value);
+}
+#line 22
+uint4 _b(const T this_)       {
+  uint4 val;
+  val = floatBitsToUint(this_.union1.data0);
+  return val;
+}
+#line 28
+void _b_set_(_ref(T ,this_), uint4 value) {
+  this_.union1.data0 = uintBitsToFloat(value);
+}
+#line 32
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] B {
+  packed_float3 a;
+  float b;
+};
+
+struct [[host_shared]] A {
+  struct B e;
+};
+
+struct [[host_shared]] T {
+  union {
+    union_t<A> a;
+  };
+};
+)";
+    string expect = R"(
+struct                 B {
+  packed_float3 a;
+  float b;
+};
+
+struct                 A {
+         B e;
+};
+#line 12
+struct                 T_union0 {
+  float4 data0;
+
+};
+#line 11
+struct                 T {
+         T_union0 union0;
+#line 27
+};
+#ifndef GPU_METAL
+A _a(const T this_);
+void _a_set_(_ref(T ,this_), A value);
+#endif
+#line 16
+A _a(const T this_)       {
+  A val;
+  val.e.a = this_.union0.data0.xyz;
+  val.e.b = this_.union0.data0.w;
+  return val;
+}
+#line 23
+void _a_set_(_ref(T ,this_), A value) {
+  this_.union0.data0.xyz = value.e.a;
+  this_.union0.data0.w = value.e.b;
+}
+#line 28
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  union {
+    union_t<float4x4> a;
+  };
+};
+)";
+    string expect = R"(
+#line 3
+struct                 T_union0 {
+  float4 data0;
+  float4 data1;
+  float4 data2;
+  float4 data3;
+
+};
+#line 2
+struct                 T {
+         T_union0 union0;
+#line 22
+};
+#ifndef GPU_METAL
+float4x4 _a(const T this_);
+void _a_set_(_ref(T ,this_), float4x4 value);
+#endif
+#line 7
+float4x4 _a(const T this_)       {
+  float4x4 val;
+  val[0] = this_.union0.data0;
+  val[1] = this_.union0.data1;
+  val[2] = this_.union0.data2;
+  val[3] = this_.union0.data3;
+  return val;
+}
+#line 16
+void _a_set_(_ref(T ,this_), float4x4 value) {
+  this_.union0.data0 = value[0];
+  this_.union0.data1 = value[1];
+  this_.union0.data2 = value[2];
+  this_.union0.data3 = value[3];
+}
+#line 23
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  union {
+    uint a;
+  };
+};
+)";
+    string error;
+    process_test_string(input, error);
+    EXPECT_EQ(error,
+              "All union members must have their type wrapped using the union_t<T> template.");
+  }
+}
+GPU_TEST(preprocess_union);
 
 static void test_preprocess_unroll()
 {
@@ -807,14 +1068,14 @@ struct SRT {
 #line 16
 };
 #ifndef GPU_METAL
-void method(_ref(SRT ,this_), int t);
+void _method(_ref(SRT ,this_), int t);
 SRT SRT_new_();
 #endif
 #line 5
 
 #if defined(CREATE_INFO_SRT)
 #line 5
-  void method(_ref(SRT ,this_), int t) {
+  void _method(_ref(SRT ,this_), int t) {
     srt_access(SRT, a);
   }
 #endif
@@ -1253,14 +1514,14 @@ int _pad;};
 
 #ifndef GPU_METAL
 NS_S NS_S_static_method(NS_S s);
-NS_S other_method(_ref(NS_S ,this_), int s);
+NS_S _other_method(_ref(NS_S ,this_), int s);
 #endif
 #line 4
          NS_S NS_S_static_method(NS_S s) {
     return NS_S(0);
   }
-  NS_S other_method(_ref(NS_S ,this_), int s) {
-    some_method(this_);
+  NS_S _other_method(_ref(NS_S ,this_), int s) {
+    _some_method(this_);
     return NS_S(0);
   }
 #line 13
@@ -1589,8 +1850,8 @@ struct S {
 
 #ifndef GPU_METAL
 S S_construct();
-S function(_ref(S ,this_), int i);
-int size(const S this_);
+S _function(_ref(S ,this_), int i);
+int _size(const S this_);
 #endif
 #line 8
          S S_construct()
@@ -1602,14 +1863,14 @@ int size(const S this_);
   }
 
   #line 18
-  S function(_ref(S ,this_), int i)
+  S _function(_ref(S ,this_), int i)
   {
     this_.member = i;
     this_.this_member++;
     return this_;
   }
 
-  int size(const S this_)
+  int _size(const S this_)
   {
     return this_.member;
   }
@@ -1617,15 +1878,15 @@ int size(const S this_);
 void main()
 {
   S s = S_construct();
-  f(f);
-  f(f(0));
-  f(f());
-  t(l.o);
-  t(o(l, 0));
-  t(o(l));
-  o(l[0]);
-  t(l.o[0]);
-  o(l).t[0];
+  _f(f);
+  _f(f(0));
+  _f(f());
+  _t(l.o);
+  _t(_o(l, 0));
+  _t(_o(l));
+  _o(l[0]);
+  _t(l.o[0]);
+  _o(l).t[0];
 }
 )";
     string error;
@@ -1650,13 +1911,13 @@ struct A {
 #line 8
 };
 #ifndef GPU_METAL
-float fn1(_ref(A ,this_));
-float fn2(_ref(A ,this_));
+float _fn1(_ref(A ,this_));
+float _fn2(_ref(A ,this_));
 float A_fn3();
 #endif
 #line 5
-  float fn1(_ref(A ,this_)) { return this_.a; }
-  float fn2(_ref(A ,this_)) { int fn2; return fn1(this_); }
+  float _fn1(_ref(A ,this_)) { return this_.a; }
+  float _fn2(_ref(A ,this_)) { int fn2; return _fn1(this_); }
          float A_fn3() { int a; return a; }
 #line 9
 )";
@@ -1699,9 +1960,7 @@ class S {
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error,
-              "Method name matching swizzles and vector component "
-              "accessor are forbidden.");
+    EXPECT_EQ(error, "Method name matching swizzles accessor are forbidden.");
   }
 }
 GPU_TEST(preprocess_struct_methods);
