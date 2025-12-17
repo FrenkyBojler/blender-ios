@@ -65,7 +65,12 @@ class DATA_PT_speaker(DataButtonsPanel, Panel):
         col.active = not speaker.muted
         col.prop(speaker, "volume", slider=True)
         col.prop(speaker, "pitch")
-
+        
+        if anim_data and anim_data.nla_tracks:
+            track = anim_data.nla_tracks['SoundTrack']
+            if track.strips:
+                first_strip = track.strips[0]
+                col.prop(first_strip, "frame_start_ui", text="Start Frame")
 
 class DATA_PT_distance(DataButtonsPanel, Panel):
     bl_label = "Distance"
