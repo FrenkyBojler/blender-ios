@@ -433,6 +433,8 @@ endif()
 
 if(WITH_METAL_BACKEND)
   list(APPEND SRC ${METAL_SRC})
+  # Precompiled headers cannot mix C++ and ObjC, so turn off PCH on ObjC sources
+  set_source_files_properties(${METAL_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS TRUE)
 endif()
 
 

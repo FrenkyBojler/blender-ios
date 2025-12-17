@@ -441,8 +441,17 @@ function(blender_add_lib__impl
   # blenders dependency loops are longer than cmake expects and we need additional loops to
   # properly link.
   set_property(TARGET ${name} APPEND PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
-endfunction()
 
+  if(NOT "${name}" STREQUAL "bf_pch" AND NOT "${name}" MATCHES "^extern_")
+    # ideally we would not link to a dummy library that causes
+    # everyone to build their own precompiled headers, but use
+    # cmake REUSE_FROM functionality to share PCHs. However
+    # that one has issues with MSVC generator in some transitive
+    # dependencies situations, see
+    # https://gitlab.kitware.com/cmake/cmake/-/issues/22630
+    target_link_libraries(${name} PRIVATE bf_pch)
+  endif()
+endfunction()
 
 function(blender_add_lib_nolist
   name

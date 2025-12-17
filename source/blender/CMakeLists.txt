@@ -185,6 +185,7 @@ add_subdirectory(makesdna)
 add_subdirectory(makesrna)
 add_subdirectory(compositor)
 add_subdirectory(compositor/shaders)
+add_subdirectory(pch)
 
 if(WITH_BLENDER_THUMBNAILER)
   add_subdirectory(blendthumb)

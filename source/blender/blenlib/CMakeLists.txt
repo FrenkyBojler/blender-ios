@@ -491,6 +491,8 @@ if(APPLE)
     intern/fileops_apple.mm
     intern/storage_apple.mm
   )
+  # Precompiled headers cannot mix C++ and ObjC, so turn off PCH on ObjC sources
+  set_source_files_properties(intern/fileops_apple.mm intern/storage_apple.mm PROPERTIES SKIP_PRECOMPILE_HEADERS TRUE)
 endif()
 
 if(UNIX AND NOT APPLE)

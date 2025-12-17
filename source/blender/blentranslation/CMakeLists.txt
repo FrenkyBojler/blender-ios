@@ -28,6 +28,8 @@ if(WITH_INTERNATIONAL)
     list(APPEND SRC
       intern/messages_apple.mm
     )
+    # Precompiled headers cannot mix C++ and ObjC, so turn off PCH on ObjC sources
+    set_source_files_properties(intern/messages_apple.mm PROPERTIES SKIP_PRECOMPILE_HEADERS TRUE)
   endif()
 endif()
 

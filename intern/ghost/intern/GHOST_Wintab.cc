@@ -8,6 +8,8 @@
 
 #define _USE_MATH_DEFINES
 
+#include <math.h>
+
 #include "GHOST_Wintab.hh"
 
 GHOST_Wintab *GHOST_Wintab::loadWintabUnsafe(HWND hwnd)

@@ -624,4 +624,12 @@ if(WITH_XR_OPENXR)
   unset(XR_PLATFORM_DEFINES)
 endif()
 
+# Precompiled headers cannot mix C++ and ObjC, so turn off PCH on ObjC sources
+foreach(SOURCE_FILE ${SRC})
+  get_filename_component(FILE_EXTENSION ${SOURCE_FILE} EXT)
+  if(FILE_EXTENSION STREQUAL ".mm")
+    set_property(SOURCE ${SOURCE_FILE} PROPERTY SKIP_PRECOMPILE_HEADERS TRUE)
+  endif()
+endforeach()
+
 blender_add_lib(bf_intern_ghost "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
