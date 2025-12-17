@@ -859,8 +859,6 @@ void animsys_blend_in_action(PointerRNA *ptr,
                              const AnimationEvalContext *anim_eval_context,
                              const float blend_factor)
 {
-  animrig::Action &action = act->wrap();
-
   Vector<FCurve *> fcurves = animrig::legacy::fcurves_for_action_slot(act, action_slot_handle);
   animsys_blend_in_fcurves(ptr, fcurves, anim_eval_context, blend_factor);
 }
