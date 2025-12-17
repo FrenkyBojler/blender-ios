@@ -739,94 +739,22 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
 template<typename T, bool CouldBeSingleValue>
 BLI_INLINE_METHOD T Result::sample_bilinear_zero(const float2 &coordinates) const
 {
-  if constexpr (CouldBeSingleValue) {
-    if (is_single_value_) {
-      return this->get_single_value<T>();
-    }
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = (coordinates * float2(size)) - 0.5f;
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  T pixel_value = T(0);
-  float *output = nullptr;
-  if constexpr (std::is_same_v<T, float>) {
-    output = &pixel_value;
-  }
-  else {
-    output = pixel_value;
-  }
-  math::interpolate_bilinear_border_fl(buffer,
-                                       output,
-                                       size.x,
-                                       size.y,
-                                       this->channels_count(),
-                                       texel_coordinates.x,
-                                       texel_coordinates.y);
-  return pixel_value;
+  return this->sample<T, CouldBeSingleValue>(
+      coordinates, Interpolation::Bilinear, Extension::Clip, Extension::Clip);
 }
 
 template<typename T, bool CouldBeSingleValue>
 BLI_INLINE_METHOD T Result::sample_nearest_extended(const float2 &coordinates) const
 {
-  if constexpr (CouldBeSingleValue) {
-    if (is_single_value_) {
-      return this->get_single_value<T>();
-    }
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = coordinates * float2(size);
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  T pixel_value = T(0);
-  float *output = nullptr;
-  if constexpr (std::is_same_v<T, float>) {
-    output = &pixel_value;
-  }
-  else {
-    output = pixel_value;
-  }
-  math::interpolate_nearest_fl(buffer,
-                               output,
-                               size.x,
-                               size.y,
-                               this->channels_count(),
-                               texel_coordinates.x,
-                               texel_coordinates.y);
-  return pixel_value;
+  return this->sample<T, CouldBeSingleValue>(
+      coordinates, Interpolation::Nearest, Extension::Extend, Extension::Extend);
 }
 
 template<typename T, bool CouldBeSingleValue>
 BLI_INLINE_METHOD T Result::sample_bilinear_extended(const float2 &coordinates) const
 {
-  if constexpr (CouldBeSingleValue) {
-    if (is_single_value_) {
-      return this->get_single_value<T>();
-    }
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = (coordinates * float2(size)) - 0.5f;
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  T pixel_value = T(0);
-  float *output = nullptr;
-  if constexpr (std::is_same_v<T, float>) {
-    output = &pixel_value;
-  }
-  else {
-    output = pixel_value;
-  }
-  math::interpolate_bilinear_fl(buffer,
-                                output,
-                                size.x,
-                                size.y,
-                                this->channels_count(),
-                                texel_coordinates.x,
-                                texel_coordinates.y);
-  return pixel_value;
+  return this->sample<T, CouldBeSingleValue>(
+      coordinates, Interpolation::Bilinear, Extension::Extend, Extension::Extend);
 }
 
 /* Given a Result as the userdata argument, sample it at the given coordinates using extended
