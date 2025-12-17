@@ -24,6 +24,8 @@
 
 #include <pthread.h>
 
+struct GHOST_IWindow;
+
 struct GPUMatrixState;
 
 namespace blender::gpu {
@@ -83,8 +85,8 @@ class Context {
   /** Thread on which this context is active. */
   pthread_t thread_;
   bool is_active_;
-  /** Avoid including GHOST headers. Can be nullptr for off-screen contexts. */
-  void *ghost_window_;
+  /** Can be nullptr for off-screen contexts. */
+  GHOST_IWindow *ghost_window_;
 
  public:
   Context();
