@@ -258,7 +258,9 @@ void GPUCodegen::generate_resources()
         ss << input->type << " u" << input->id << (input->is_duplicate ? "b" : "") << ";\n";
       }
     }
-    ss << "};\n\n";
+    ss << "};\n";
+    ss << "#define NodeTree_linted_ NodeTree\n";
+    ss << "\n";
 
     info.uniform_buf(GPU_NODE_TREE_UBO_SLOT, "NodeTree", GPU_UBO_BLOCK_NAME, Frequency::BATCH);
   }

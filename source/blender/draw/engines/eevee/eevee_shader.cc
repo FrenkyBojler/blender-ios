@@ -1143,9 +1143,6 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     res.info_name = "eevee_node_tree";
   }
 
-  /* Nodetree buffer is not linted. */
-  info.builtins(BuiltinBits::NO_BUFFER_TYPE_LINTING);
-
   std::string generated_resource_header = info.typedef_source_generated;
   /* Insert resource declaration after types declaration. */
   generated_resource_header += "#ifdef CREATE_INFO_RES_PASS_eevee_node_tree\n";
