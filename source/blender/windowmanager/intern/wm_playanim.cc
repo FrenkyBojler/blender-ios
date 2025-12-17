@@ -2356,6 +2356,8 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
     ps.ghost_data.gpu_context = nullptr;
   }
   ps.ghost_data.system->removeEventConsumer(ghost_event_consumer);
+  delete ghost_event_consumer;
+
   ps.ghost_data.system->disposeWindow(ps.ghost_data.window);
 
   GHOST_ISystem::disposeSystem();

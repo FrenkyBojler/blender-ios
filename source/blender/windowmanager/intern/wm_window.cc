@@ -2232,7 +2232,8 @@ void wm_ghost_init(bContext *C)
   BLI_assert(C != nullptr);
   BLI_assert_msg(!G.background, "Use wm_ghost_init_background instead");
 
-  GHOST_CallbackEventConsumer ghost_event_consumer(ghost_event_proc, C);
+  GHOST_CallbackEventConsumer *ghost_event_consumer = new GHOST_CallbackEventConsumer(
+      ghost_event_proc, C);
   GHOST_ISystem::setBacktraceFn(BLI_system_backtrace);
   GHOST_ISystem::setUseWindowFrame(wm_init_state.window_frame);
 
@@ -2259,7 +2260,7 @@ void wm_ghost_init(bContext *C)
   }
   g_system->initDebug(debug);
 
-  g_system->addEventConsumer(&ghost_event_consumer);
+  g_system->addEventConsumer(ghost_event_consumer);
 
   if (wm_init_state.native_pixels) {
     g_system->useNativePixel();
