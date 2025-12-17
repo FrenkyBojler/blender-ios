@@ -1276,17 +1276,15 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
   }
 
   /* Actually execute all tasks. */
-  threading::parallel_for(tasks.index_range(), 100, [&](const IndexRange task_range) {
-    for (const int task_index : task_range) {
-      const RealizePointCloudTask &task = tasks[task_index];
-      execute_realize_pointcloud_task(options,
-                                      task,
-                                      ordered_attributes,
-                                      dst_attribute_writers,
-                                      point_radii.span,
-                                      point_ids.span,
-                                      positions.span);
-    }
+  threading::parallel_for_lazy(tasks.index_range(), 100, [&](const int64_t task_i) {
+    const RealizePointCloudTask &task = tasks[task_i];
+    execute_realize_pointcloud_task(options,
+                                    task,
+                                    ordered_attributes,
+                                    dst_attribute_writers,
+                                    point_radii.span,
+                                    point_ids.span,
+                                    positions.span);
   });
 
   /* Tag modified attributes. */

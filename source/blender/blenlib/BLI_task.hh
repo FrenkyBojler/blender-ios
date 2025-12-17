@@ -106,6 +106,10 @@ inline void parallel_for(const IndexRange range,
   detail::parallel_for_impl(range, grain_size, function, size_hints);
 }
 
+void parallel_for_lazy(IndexRange range,
+                       int64_t grain_size,
+                       FunctionRef<void(const int64_t i)> fn);
+
 /**
  * Move the sub-range boundaries down to the next aligned index. The "global" begin and end
  * remain fixed though.

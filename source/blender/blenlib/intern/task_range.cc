@@ -315,3 +315,82 @@ void memory_bandwidth_bound_task_impl(const FunctionRef<void()> function)
 }
 
 }  // namespace blender::threading::detail
+
+namespace blender::threading {
+
+#ifdef WITH_TBB
+static void parallel_for_lazy_recursive(const IndexRange range,
+                                        const FunctionRef<void(const int64_t i)> fn,
+                                        std::optional<tbb::task_group> &task_group)
+{
+  if (range.is_empty()) {
+    return;
+  }
+  if (range.size() == 1) {
+    fn(range[0]);
+    return;
+  }
+
+  bool threading_started = false;
+  int64_t serial_i = 0;
+
+  auto start_threading_fn = [&]() {
+    if (!task_group.has_value()) {
+      task_group.emplace();
+    }
+    threading_started = true;
+    const IndexRange subrange = range.drop_front(serial_i + 1);
+    const int64_t split = subrange.size() / 2;
+    const IndexRange subrange_left = subrange.take_front(split);
+    const IndexRange subrange_right = subrange.drop_front(split);
+    if (!subrange_left.is_empty()) {
+      task_group->run([subrange_left, fn, &task_group]() {
+        parallel_for_lazy_recursive(subrange_left, fn, task_group);
+      });
+    }
+    if (!subrange_right.is_empty()) {
+      task_group->run([subrange_right, fn, &task_group]() {
+        parallel_for_lazy_recursive(subrange_right, fn, task_group);
+      });
+    }
+  };
+
+  lazy_threading::HintReceiver receiver(start_threading_fn);
+  while (serial_i < range.size() && !threading_started) {
+    fn(range[serial_i]);
+    serial_i++;
+  }
+}
+#endif
+
+void parallel_for_lazy(const IndexRange range,
+                       const int64_t grain_size,
+                       const FunctionRef<void(const int64_t i)> fn)
+{
+#ifndef WITH_TBB
+  for (const int64_t i : range) {
+    fn(i);
+  }
+#else
+  if (range.is_empty()) {
+    return;
+  }
+  if (range.size() == 1) {
+    fn(range[0]);
+    return;
+  }
+  if (range.size() >= grain_size) {
+    parallel_for(range, grain_size, [&](const IndexRange subrange) {
+      parallel_for_lazy(subrange, INT64_MAX, fn);
+    });
+    return;
+  }
+  std::optional<tbb::task_group> task_group;
+  parallel_for_lazy_recursive(range, fn, task_group);
+  if (task_group.has_value()) {
+    task_group->wait();
+  }
+#endif
+}
+
+}  // namespace blender::threading
