@@ -106,6 +106,16 @@ inline void parallel_for(const IndexRange range,
   detail::parallel_for_impl(range, grain_size, function, size_hints);
 }
 
+/**
+ * Calls the given function for each index in the range while using lazy-threading (see
+ * `BLI_lazy_threading.hh`). This can be used when the size of the tasks is not known in advance.
+ * It starts out single-threaded and may switch to using multiple threads when a task reports that
+ * it will take a while.
+ *
+ * The if the range is larger than the grain size, the work will first be split based on the grain
+ * size and lazy-threading is used for the sub-ranges. Therefore, the grain size should be chosen
+ * assuming that each individual task is quite cheap.
+ */
 void parallel_for_lazy(IndexRange range,
                        int64_t grain_size,
                        FunctionRef<void(const int64_t i)> fn);
