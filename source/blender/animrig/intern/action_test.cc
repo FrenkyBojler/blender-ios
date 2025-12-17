@@ -33,16 +33,6 @@
 
 namespace blender::animrig::tests {
 
-static bActionGroup *action_group_find_name(bAction *act, const char name[])
-{
-  if (ELEM(nullptr, act, act->groups.first, name) || (name[0] == 0)) {
-    return nullptr;
-  }
-  BLI_assert(act->wrap().is_action_legacy());
-  return static_cast<bActionGroup *>(
-      BLI_findstring(&act->groups, name, offsetof(bActionGroup, name)));
-}
-
 static bActionGroup *action_groups_add_new(bAction *act, const char name[])
 {
   bActionGroup *agrp;
@@ -162,7 +152,8 @@ static FCurve *action_fcurve_ensure_legacy(Main *bmain,
   }
 
   if (group) {
-    bActionGroup *agrp = action_group_find_name(act, group);
+    bActionGroup *agrp = static_cast<bActionGroup *>(
+        BLI_findstring(&act->groups, group, offsetof(bActionGroup, name)));
 
     if (agrp == nullptr) {
       agrp = action_groups_add_new(act, group);
