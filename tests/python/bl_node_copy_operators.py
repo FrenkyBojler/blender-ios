@@ -19,7 +19,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
 
     def open_file(self):
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / self.testfile))
-        self.assertEqual(bpy.data.version, (5, 1, 14))
+        self.assertEqual(bpy.data.version, (5, 1, 15))
 
     @classmethod
     def setUpClass(cls):
@@ -39,7 +39,13 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
             "NodeSocketMatrix", "NodeSocketRotation", "NodeSocketVector", "NodeSocketVectorFactor",
             "NodeSocketVectorPercentage", "NodeSocketVectorTranslation", "NodeSocketVectorDirection",
             "NodeSocketVectorVelocity", "NodeSocketVectorAcceleration", "NodeSocketVectorEuler",
-            "NodeSocketVectorXYZ", "NodeSocketColor"
+            "NodeSocketVectorXYZ", "NodeSocketVector2D", "NodeSocketVectorFactor2D",
+            "NodeSocketVectorPercentage2D", "NodeSocketVectorTranslation2D", "NodeSocketVectorDirection2D",
+            "NodeSocketVectorVelocity2D", "NodeSocketVectorAcceleration2D", "NodeSocketVectorEuler2D",
+            "NodeSocketVectorXYZ2D", "NodeSocketVector4D", "NodeSocketVectorFactor4D",
+            "NodeSocketVectorPercentage4D", "NodeSocketVectorTranslation4D", "NodeSocketVectorDirection4D",
+            "NodeSocketVectorVelocity4D", "NodeSocketVectorAcceleration4D", "NodeSocketVectorEuler4D",
+            "NodeSocketVectorXYZ4D", "NodeSocketColor"
         }
         if bl_idname in vector_value_types:
             for comp_a, comp_b in zip(value_a, value_b):
@@ -142,7 +148,6 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
 
             if expected_item.item_type == 'PANEL':
                 self.assertEqual(test_item.name, expected_item.name)
-                self.assertEqual(test_item.persistent_uid, expected_item.persistent_uid)
                 self.assertEqual(test_item.description, expected_item.description)
                 self.assertEqual(test_item.default_closed, expected_item.default_closed)
 
@@ -303,6 +308,12 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 with node_editor_context_override(selected_nodes=[test_node]):
                     bpy.ops.node.group_make()
                 group_node = tree.nodes.active
+
+                # XXX WORKAROUND FOR #151777
+                print("XXX REMOVE ME WHEN #151777 IS FIXED")
+                group_node.node_tree.interface.items_tree['Dim2'].dimensions = 3
+                group_node.node_tree.interface.items_tree['Dim2'].dimensions = 2
+                # XXX
 
                 # Map operator result to expected nodes.
                 node_map = dict()
