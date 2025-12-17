@@ -55,8 +55,8 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
 
     # Validate node socket properties and connections in the tree.
     # Links to/from the socket are compared to expected values using the node and socket maps.
-    def compare_socket(self, test_socket, node_map, socket_map):
-        expected_socket = socket_map[test_socket]
+    def compare_socket(self, test_socket, mapping):
+        expected_socket = mapping.socket_map[test_socket]
         with self.subTest(test_socket=test_socket.name, expected_socket=expected_socket.name):
             # Generic socket properties
             self.assertEqual(test_socket.name, expected_socket.name)
@@ -80,22 +80,22 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
                 self.assertEqual(len(test_socket.links), len(expected_socket.links))
                 for test_link, expected_link in zip(test_socket.links, expected_socket.links):
                     if expected_socket.is_output:
-                        self.assertEqual(node_map[test_link.to_node], expected_link.to_node)
-                        self.assertEqual(socket_map[test_link.to_socket], expected_link.to_socket)
+                        self.assertEqual(mapping.node_map[test_link.to_node], expected_link.to_node)
+                        self.assertEqual(mapping.socket_map[test_link.to_socket], expected_link.to_socket)
                     else:
-                        self.assertEqual(node_map[test_link.from_node], expected_link.from_node)
-                        self.assertEqual(socket_map[test_link.from_socket], expected_link.from_socket)
+                        self.assertEqual(mapping.node_map[test_link.from_node], expected_link.from_node)
+                        self.assertEqual(mapping.socket_map[test_link.from_socket], expected_link.from_socket)
 
     # Validate a node against the expected data using the node map.
-    def compare_nodes(self, test_node, node_map, socket_map):
-        expected_node = node_map[test_node]
+    def compare_nodes(self, test_node, mapping):
+        expected_node = mapping.node_map[test_node]
 
         self.assertEqual(len(test_node.inputs), len(expected_node.inputs))
         self.assertEqual(len(test_node.outputs), len(expected_node.outputs))
         for test_socket in test_node.inputs:
-            self.compare_socket(test_socket, node_map, socket_map)
+            self.compare_socket(test_socket, mapping)
         for test_socket in test_node.outputs:
-            self.compare_socket(test_socket, node_map, socket_map)
+            self.compare_socket(test_socket, mapping)
 
     # Validate the tree interface settings of a node group.
     def compare_tree_interface(self, test_tree, expected_tree):
@@ -151,16 +151,171 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
                 self.assertEqual(test_item.description, expected_item.description)
                 self.assertEqual(test_item.default_closed, expected_item.default_closed)
 
-    # Add all sockets of mapped nodes to their own dictionary, assuming the socket order is the same.
-    @staticmethod
-    def build_socket_map(node_map):
-        socket_map = dict()
-        for test_node, expected_node in node_map.items():
-            for test_socket, expected_socket in zip(test_node.inputs, expected_node.inputs):
-                socket_map[test_socket] = expected_socket
-            for test_socket, expected_socket in zip(test_node.outputs, expected_node.outputs):
-                socket_map[test_socket] = expected_socket
-        return socket_map
+
+# Utility for mapping nodes and sockets to ground truth data.
+class NodeMapping:
+    def __init__(self):
+        self.node_map = dict()
+        self.socket_map = dict()
+
+    def add(self, test_node, expected_node):
+        self.node_map[test_node] = expected_node
+        # Add all sockets of mapped nodes to their own dictionary, assuming the socket order is the same.
+        for test_socket, expected_socket in zip(test_node.inputs, expected_node.inputs):
+            self.socket_map[test_socket] = expected_socket
+        for test_socket, expected_socket in zip(test_node.outputs, expected_node.outputs):
+            self.socket_map[test_socket] = expected_socket
+
+    def extend(self, test_nodes, expected_nodes):
+        for test_node, expected_node in zip(test_nodes, expected_nodes):
+            self.add(test_node, expected_node)
+
+
+# Reroute nodes that are used for external links.
+external_links = [
+    "InputLink.Geometry",
+    "InputLink.Float",
+    "InputLink.Int",
+    "InputLink.Bool",
+    "InputLink.Vector",
+    "InputLink.Color",
+    "InputLink.Matrix",
+    "InputLink.String",
+    "InputLink.MenuUndefined",
+    "InputLink.MenuDefined",
+    "InputLink.MenuConflict",
+    "InputLink.Object", 
+    "InputLink.Collection",
+    "InputLink.Image",
+    "InputLink.Material",
+    "InputLink.OptLabel",
+    "InputLink.HideValue",
+    "InputLink.HideInModifier",
+    "InputLink.LayerSelect",
+    "InputLink.Expanded",
+    "InputLink.Dynamic",
+    "InputLink.Field",
+    "InputLink.Grid",
+    "InputLink.Single",
+    "InputLink.Dim2",
+    "InputLink.DefaultNormal",
+    "InputLink.Panel",
+    "InputLink.Panel Socket",
+    "InputLink.PanelClosed Socket",
+
+    "OutputLink.Geometry",
+    "OutputLink.Float",
+    "OutputLink.Int",
+    "OutputLink.Bool",
+    "OutputLink.Vector",
+    "OutputLink.Color",
+    "OutputLink.Matrix",
+    "OutputLink.String",
+    "OutputLink.Menu",
+    "OutputLink.Object",
+    "OutputLink.Collection",
+    "OutputLink.Image",
+    "OutputLink.Material",
+    "OutputLink.Panel",
+    "OutputLink.Panel Socket",
+    "OutputLink.PanelClosed Socket",
+]
+external_links_001 = [
+    "InputLink.Geometry.001",
+    "InputLink.Float.001",
+    "InputLink.Int.001",
+    "InputLink.Bool.001",
+    "InputLink.Vector.001",
+    "InputLink.Color.001",
+    "InputLink.Matrix.001",
+    "InputLink.String.001",
+    "InputLink.MenuUndefined.001",
+    "InputLink.MenuDefined.001",
+    "InputLink.MenuConflict.001",
+    "InputLink.Object.001",
+    "InputLink.Collection.001",
+    "InputLink.Image.001",
+    "InputLink.Material.001",
+    "InputLink.OptLabel.001",
+    "InputLink.HideValue.001",
+    "InputLink.HideInModifier.001",
+    "InputLink.LayerSelect.001",
+    "InputLink.Expanded.001",
+    "InputLink.Dynamic.001",
+    "InputLink.Field.001",
+    "InputLink.Grid.001",
+    "InputLink.Single.001",
+    "InputLink.Dim2.001",
+    "InputLink.DefaultNormal.001",
+    "InputLink.Panel.001",
+    "InputLink.Panel Socket.001",
+    "InputLink.PanelClosed Socket.001",
+
+    "OutputLink.Geometry.001",
+    "OutputLink.Float.001",
+    "OutputLink.Int.001",
+    "OutputLink.Bool.001",
+    "OutputLink.Vector.001",
+    "OutputLink.Color.001",
+    "OutputLink.Matrix.001",
+    "OutputLink.String.001",
+    "OutputLink.Menu.001",
+    "OutputLink.Object.001",
+    "OutputLink.Collection.001",
+    "OutputLink.Image.001",
+    "OutputLink.Material.001",
+    "OutputLink.Panel.001",
+    "OutputLink.Panel Socket.001",
+    "OutputLink.PanelClosed Socket.001",
+]
+external_links_002 = [
+    "InputLink.Geometry.002",
+    "InputLink.Float.002",
+    "InputLink.Int.002",
+    "InputLink.Bool.002",
+    "InputLink.Vector.002",
+    "InputLink.Color.002",
+    "InputLink.Matrix.002",
+    "InputLink.String.002",
+    "InputLink.MenuUndefined.002",
+    "InputLink.MenuDefined.002",
+    "InputLink.MenuConflict.002",
+    "InputLink.Object.002",
+    "InputLink.Collection.002",
+    "InputLink.Image.002",
+    "InputLink.Material.002",
+    "InputLink.OptLabel.002",
+    "InputLink.HideValue.002",
+    "InputLink.HideInModifier.002",
+    "InputLink.LayerSelect.002",
+    "InputLink.Expanded.002",
+    "InputLink.Dynamic.002",
+    "InputLink.Field.002",
+    "InputLink.Grid.002",
+    "InputLink.Single.002",
+    "InputLink.Dim2.002",
+    "InputLink.DefaultNormal.002",
+    "InputLink.Panel.002",
+    "InputLink.Panel Socket.002",
+    "InputLink.PanelClosed Socket.002",
+
+    "OutputLink.Geometry.002",
+    "OutputLink.Float.002",
+    "OutputLink.Int.002",
+    "OutputLink.Bool.002",
+    "OutputLink.Vector.002",
+    "OutputLink.Color.002",
+    "OutputLink.Matrix.002",
+    "OutputLink.String.002",
+    "OutputLink.Menu.002",
+    "OutputLink.Object.002",
+    "OutputLink.Collection.002",
+    "OutputLink.Image.002",
+    "OutputLink.Material.002",
+    "OutputLink.Panel.002",
+    "OutputLink.Panel Socket.002",
+    "OutputLink.PanelClosed Socket.002",
+]
 
 
 # Provide a valid context override to run node editor operators
@@ -200,104 +355,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
     def test_make_node_group_single(self):
         test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
         expected_group_nodes = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
-        # Reroute nodes with links to the test node.
-        test_links = [
-            "InputLink.Geometry",
-            "InputLink.Float",
-            "InputLink.Int",
-            "InputLink.Bool",
-            "InputLink.Vector",
-            "InputLink.Color",
-            "InputLink.Matrix",
-            "InputLink.String",
-            "InputLink.MenuUndefined",
-            "InputLink.MenuDefined",
-            "InputLink.MenuConflict",
-            "InputLink.Object", 
-            "InputLink.Collection",
-            "InputLink.Image",
-            "InputLink.Material",
-            "InputLink.OptLabel",
-            "InputLink.HideValue",
-            "InputLink.HideInModifier",
-            "InputLink.LayerSelect",
-            "InputLink.Expanded",
-            "InputLink.Dynamic",
-            "InputLink.Field",
-            "InputLink.Grid",
-            "InputLink.Single",
-            "InputLink.Dim2",
-            "InputLink.DefaultNormal",
-            "InputLink.Panel",
-            "InputLink.Panel Socket",
-            "InputLink.PanelClosed Socket",
-
-            "OutputLink.Geometry",
-            "OutputLink.Float",
-            "OutputLink.Int",
-            "OutputLink.Bool",
-            "OutputLink.Vector",
-            "OutputLink.Color",
-            "OutputLink.Matrix",
-            "OutputLink.String",
-            "OutputLink.Menu",
-            "OutputLink.Object",
-            "OutputLink.Collection",
-            "OutputLink.Image",
-            "OutputLink.Material",
-            "OutputLink.Panel",
-            "OutputLink.Panel Socket",
-            "OutputLink.PanelClosed Socket",
-        ]
-        # Reroute nodes with links to the expected node.
-        expected_links = [
-            "InputLink.Geometry.001",
-            "InputLink.Float.001",
-            "InputLink.Int.001",
-            "InputLink.Bool.001",
-            "InputLink.Vector.001",
-            "InputLink.Color.001",
-            "InputLink.Matrix.001",
-            "InputLink.String.001",
-            "InputLink.MenuUndefined.001",
-            "InputLink.MenuDefined.001",
-            "InputLink.MenuConflict.001",
-            "InputLink.Object.001",
-            "InputLink.Collection.001",
-            "InputLink.Image.001",
-            "InputLink.Material.001",
-            "InputLink.OptLabel.001",
-            "InputLink.HideValue.001",
-            "InputLink.HideInModifier.001",
-            "InputLink.LayerSelect.001",
-            "InputLink.Expanded.001",
-            "InputLink.Dynamic.001",
-            "InputLink.Field.001",
-            "InputLink.Grid.001",
-            "InputLink.Single.001",
-            "InputLink.Dim2.001",
-            "InputLink.DefaultNormal.001",
-            "InputLink.Panel.001",
-            "InputLink.Panel Socket.001",
-            "InputLink.PanelClosed Socket.001",
-
-            "OutputLink.Geometry.001",
-            "OutputLink.Float.001",
-            "OutputLink.Int.001",
-            "OutputLink.Bool.001",
-            "OutputLink.Vector.001",
-            "OutputLink.Color.001",
-            "OutputLink.Matrix.001",
-            "OutputLink.String.001",
-            "OutputLink.Menu.001",
-            "OutputLink.Object.001",
-            "OutputLink.Collection.001",
-            "OutputLink.Image.001",
-            "OutputLink.Material.001",
-            "OutputLink.Panel.001",
-            "OutputLink.Panel Socket.001",
-            "OutputLink.PanelClosed Socket.001",
-        ]
         for test_node_name, expected_group_node_name in zip(test_nodes, expected_group_nodes):
             with self.subTest(test_node=test_node_name, expected_group_node=expected_group_node_name):
                 self.open_file()
@@ -315,16 +372,16 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 group_node.node_tree.interface.items_tree['Dim2'].dimensions = 2
                 # XXX
 
-                # Map operator result to expected nodes.
-                node_map = dict()
-                node_map[group_node] = expected_group_node
-                # Linked reroute nodes are gathered in frame nodes for convenience, map frame children in the same order.
-                for test_link_name, expected_link_name in zip(test_links, expected_links):
-                    node_map[tree.nodes[test_link_name]] = tree.nodes[expected_link_name]
-                socket_map = self.build_socket_map(node_map)
+                # Map resulting nodes to expected nodes.
+                mapping = NodeMapping()
+                mapping.add(group_node, expected_group_node)
+                mapping.extend(group_node.node_tree.nodes, expected_group_node.node_tree.nodes)
+                mapping.extend((tree.nodes[n] for n in external_links), (tree.nodes[n] for n in external_links_001))
 
                 # Compare generated group node to expected node.
-                self.compare_nodes(group_node, node_map, socket_map)
+                self.compare_nodes(group_node, mapping)
+                for internal_node in group_node.node_tree.nodes:
+                    self.compare_nodes(internal_node, mapping)
                 # Compare generated group tree interface to expected tree.
                 self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
