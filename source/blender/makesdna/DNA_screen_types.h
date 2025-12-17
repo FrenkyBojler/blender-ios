@@ -264,6 +264,8 @@ typedef struct PanelCategoryDyn {
 typedef struct PanelCategoryStack {
   struct PanelCategoryStack *next, *prev;
   char idname[64];
+  int width;
+  char _pad[4];
 } PanelCategoryStack;
 
 typedef void (*uiListFreeRuntimeDataFunc)(struct uiList *ui_list);
