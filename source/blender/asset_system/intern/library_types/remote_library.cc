@@ -43,8 +43,10 @@
 
 namespace blender::asset_system {
 
-RemoteAssetLibrary::RemoteAssetLibrary(const StringRef remote_url, StringRef cache_root_path)
-    : AssetLibrary(ASSET_LIBRARY_CUSTOM, "", cache_root_path)
+RemoteAssetLibrary::RemoteAssetLibrary(const StringRef remote_url,
+                                       const StringRef name,
+                                       const StringRef cache_root_path)
+    : AssetLibrary(ASSET_LIBRARY_CUSTOM, name, cache_root_path)
 {
   import_method_ = ASSET_IMPORT_APPEND_REUSE;
   may_override_import_method_ = false;
@@ -341,6 +343,14 @@ void remote_library_request_asset_download(bContext &C,
                 asset.get_name().c_str());
     return;
   }
+  const std::optional<URLWithHash> asset_url = asset.online_asset_url();
+  if (!asset_url) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Could not find URL to download asset '%s'",
+                asset.get_name().c_str());
+    return;
+  }
 
   {
     std::string script =
@@ -349,13 +359,15 @@ void remote_library_request_asset_download(bContext &C,
         "\n"
         "asset_dl.download_asset(\n"
         "    library_url, Path(library_path),\n"
-        "    dst_filepath, Path(dst_filepath),\n"
+        "    asset_url, asset_hash, Path(dst_filepath),\n"
         ")\n";
 
     std::unique_ptr locals = bke::idprop::create_group("locals");
     IDP_AddToGroup(locals.get(), IDP_NewString(*library_url, "library_url"));
     IDP_AddToGroup(locals.get(), IDP_NewString(library.root_path(), "library_path"));
     IDP_AddToGroup(locals.get(), IDP_NewString(*dst_filepath, "dst_filepath"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(asset_url->url, "asset_url"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(asset_url->hash, "asset_hash"));
 
     /* TODO: report errors in the UI somehow. */
     BPY_run_string_with_locals(&C, script, *locals);
@@ -379,8 +391,12 @@ void remote_library_request_preview_download(bContext &C,
   }
 
 #ifdef WITH_PYTHON
-  const std::optional<StringRef> preview_url = asset.online_asset_preview_url();
+  const std::optional<StringRefNull> preview_url = asset.online_asset_preview_url();
   if (!preview_url) {
+    return;
+  }
+  const std::optional<StringRefNull> preview_hash = asset.online_asset_preview_hash();
+  if (!preview_hash) {
     return;
   }
   const asset_system::AssetLibrary &library = asset.owner_asset_library();
@@ -403,13 +419,14 @@ void remote_library_request_preview_download(bContext &C,
         "\n"
         "asset_dl.download_preview(\n"
         "    library_url, Path(library_path),\n"
-        "    preview_url, Path(dst_filepath),\n"
+        "    preview_url, preview_hash, Path(dst_filepath),\n"
         ")\n";
 
     std::unique_ptr locals = bke::idprop::create_group("locals");
     IDP_AddToGroup(locals.get(), IDP_NewString(*library_url, "library_url"));
     IDP_AddToGroup(locals.get(), IDP_NewString(library.root_path(), "library_path"));
     IDP_AddToGroup(locals.get(), IDP_NewString(*preview_url, "preview_url"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(*preview_hash, "preview_hash"));
     IDP_AddToGroup(locals.get(), IDP_NewString(dst_filepath, "dst_filepath"));
 
     /* TODO: report errors in the UI somehow. */

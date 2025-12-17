@@ -4,6 +4,13 @@
 
 from __future__ import annotations
 
+__all__ = (
+    'RemoteAssetListingLocator',
+    'DownloadStatus',
+    'RemoteAssetListingDownloader',
+    'is_more_recent_than',
+)
+
 import copy
 import enum
 import functools
@@ -18,6 +25,7 @@ import bpy
 from _bpy_internal.http import downloader as http_dl
 from _bpy_internal.assets.remote_library_listing import blender_asset_library_openapi as api_models
 from _bpy_internal.assets.remote_library_listing import listing_common
+from _bpy_internal.assets.remote_library_listing import hashing
 from _bpy_internal.assets.remote_library_listing import http_metadata
 from _bpy_internal.assets.remote_library_listing import asset_catalogs
 from _bpy_internal.assets.remote_library_listing import json_parsing
@@ -107,6 +115,20 @@ class DownloadStatus(enum.Enum):
 
 
 class RemoteAssetListingDownloader:
+    """Download a remote asset listing.
+
+    Calling `downloader.download_and_process()` performs the following steps:
+
+    - Download the top metadata file, and validate+parse it.
+    - Download the top asset listing index file, and validate+parse it.
+    - For each page in that file, download the page, and validate+parse it.
+    - Once the last page is downloaded and considered valid, touch the
+      downloaded top metadata file. That is then an indicator of the last time
+      the remote listing was downloaded.
+
+    The above steps always happen, even when the HTTP server returns a '304 Not
+    Modified'.
+    """
     _locator: RemoteAssetListingLocator
 
     OnUpdateCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
@@ -310,10 +332,10 @@ class RemoteAssetListingDownloader:
                               ) -> None:
         asset_index, used_unsafe_file = self._parse_api_model(unsafe_local_file, api_models.AssetLibraryIndexV1)
 
-        page_urls = asset_index.page_urls or []
+        pages = asset_index.pages or []
         logger.info("    Schema version    : %s", asset_index.schema_version)
         logger.info("    Asset count       : %d", asset_index.asset_count)
-        logger.info("    Pages             : %d", len(page_urls))
+        logger.info("    Pages             : %d", len(pages))
 
         # The file passed validation, so can be marked safe.
         if used_unsafe_file:
@@ -336,21 +358,24 @@ class RemoteAssetListingDownloader:
         # no need to store them again.
         processed_asset_index.catalogs = []
         # The code below will re-fill the list with the relative file paths.
-        processed_asset_index.page_urls = []
+        processed_asset_index.pages = []
 
         # Download the asset pages.
-        self._num_asset_pages_pending = len(page_urls)
-        for page_index, page_url in enumerate(page_urls):
+        self._num_asset_pages_pending = len(pages)
+        for page_index, page_url_w_hash in enumerate(pages):
             # These URLs may be absolute or they may be relative. In any case,
             # do not assume that they can be used direclty as local filesystem path.
             local_path = listing_common.api_versioned(f"assets-{page_index:05}.json")
             download_to = self._queue_download(
-                page_url,
+                page_url_w_hash,
                 http_metadata.safe_to_unsafe_filename(local_path),
                 self.on_asset_page_downloaded)
 
             self._referenced_local_files.append(http_metadata.unsafe_to_safe_filename(download_to))
-            processed_asset_index.page_urls.append(local_path.as_posix())
+
+            # Replace the URL with the local path.
+            page_url_w_hash.url = local_path.as_posix()
+            processed_asset_index.pages.append(page_url_w_hash)
 
         # Save the processed index to a JSON file for Blender to pick up.
         json_path = local_file.with_suffix(".processed{!s}".format(local_file.suffix))
@@ -402,6 +427,16 @@ class RemoteAssetListingDownloader:
             abs_path.unlink()
 
         self.report({'INFO'}, "Asset library index downloaded")
+
+        # Update the mtime of the top metadata file, so that that can be used as
+        # an indicator of how new the files are. This is only done after the
+        # last page has been downloaded.
+        #
+        # See is_more_recent_than() below.
+        top_metadata = self._locator.local_path / listing_common.ASSET_TOP_METADATA_FILENAME
+        assert top_metadata.exists(), "Expecting top metadata file to exist after downloading"
+        top_metadata.touch()
+
         self._shutdown_if_done()
 
     def _shutdown_if_done(self) -> None:
@@ -468,9 +503,20 @@ class RemoteAssetListingDownloader:
         self.report({'ERROR'}, "Asset library index had an issue, download aborted")
         self.shutdown(DownloadStatus.FAILED)
 
-    def _queue_download(self, relative_url: str, download_to_path: Path | str,
-                        on_done: Callable[[http_dl.RequestDescription, Path], None]) -> Path:
+    def _queue_download(
+        self,
+        relative_url: str | api_models.URLWithHash,
+        download_to_path: Path | str,
+        on_done: Callable[[http_dl.RequestDescription, Path], None],
+    ) -> Path:
         """Queue up this download, returning the path to which it will be downloaded."""
+        assert isinstance(relative_url, (str, api_models.URLWithHash)), "value is {!r}".format(relative_url)
+        assert isinstance(download_to_path, (str, Path)), "value is {!r}".format(download_to_path)
+
+        # If a hash is known, append it to the query string.
+        if isinstance(relative_url, api_models.URLWithHash):
+            relative_url = hashing.url(relative_url)
+
         remote_url = urllib.parse.urljoin(self._locator.remote_url, relative_url)
         download_to_path = self._locator.local_path / download_to_path
 
@@ -532,6 +578,10 @@ class RemoteAssetListingDownloader:
     @property
     def remote_url(self) -> str:
         return self._locator.remote_url
+
+    @property
+    def local_path(self) -> Path:
+        return self._locator.local_path
 
     @property
     def status(self) -> DownloadStatus:
@@ -653,6 +703,34 @@ def _sanitize_path_from_url(urlpath: PurePosixPath | str) -> PurePosixPath:
         i -= 1
 
     return PurePosixPath(*parts)
+
+
+def is_more_recent_than(library: bpy.types.UserAssetLibrary, max_age_sec: float | int) -> bool:
+    """Return whether the remote asset library listing is more recent than the given age.
+
+    If the listing hasn't been downloaded, return False.
+    """
+    import time
+
+    top_metadata_path = Path(library.path) / listing_common.ASSET_TOP_METADATA_FILENAME
+
+    if not top_metadata_path.exists():
+        # If the metadata does not exist, it's certainly not new enough.
+        return False
+
+    try:
+        stat = top_metadata_path.stat()
+    except OSError as ex:
+        print("Could not stat {!s}: {!s}".format(top_metadata_path, ex))
+        return False
+
+    file_age_sec = time.time() - stat.st_mtime
+
+    # Note that the age can be negative, when the local clock changed. Since
+    # that's usually measured in the order of minutes/hours, and the refresh
+    # period of remote asset libraries is measured in days, we can consider it
+    # "fresh" in those cases.
+    return file_age_sec < max_age_sec
 
 
 if __name__ == '__main__':

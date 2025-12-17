@@ -13,6 +13,8 @@
 
 #include "BLI_function_ref.hh"
 
+#include "AS_remote_library.hh"
+
 #include "ED_file_indexer.hh"
 
 struct AssetLibraryReference;
@@ -46,9 +48,7 @@ struct RemoteListingAssetEntry {
   BLODataBlockInfo datablock_info = {};
   short idcode = 0;
 
-  /* The path of the blend file that contains the asset, relative to the library root. */
-  std::string file_path;
-  std::string thumbnail_url;
+  asset_system::OnlineAssetInfo online_info;
 
   RemoteListingAssetEntry() = default;
   RemoteListingAssetEntry(const RemoteListingAssetEntry &) = delete;
@@ -56,6 +56,24 @@ struct RemoteListingAssetEntry {
   RemoteListingAssetEntry(RemoteListingAssetEntry &&);
   RemoteListingAssetEntry &operator=(RemoteListingAssetEntry &&);
   ~RemoteListingAssetEntry();
+};
+
+/**
+ * Representation of the FileV1 type in the OpenAPI definition.
+ * See blender_asset_library_openapi.yaml.
+ *
+ * Not all fields are included here, just the ones that are used by Blender.
+ */
+struct RemoteListingFileEntry {
+  std::string local_path;
+  asset_system::URLWithHash download_url;
+
+  RemoteListingFileEntry() = default;
+  RemoteListingFileEntry(const RemoteListingFileEntry &) = delete;
+  RemoteListingFileEntry &operator=(const RemoteListingFileEntry &) = delete;
+  RemoteListingFileEntry(RemoteListingFileEntry &&);
+  RemoteListingFileEntry &operator=(RemoteListingFileEntry &&);
+  ~RemoteListingFileEntry() = default;
 };
 
 using RemoteListingEntryProcessFn = FunctionRef<bool(RemoteListingAssetEntry &)>;

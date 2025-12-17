@@ -33,6 +33,8 @@ struct ReportList;
 namespace blender::asset_system {
 
 class AssetLibrary;
+struct OnlineAssetInfo;
+struct URLWithHash;
 
 class AssetRepresentation : NonCopyable, NonMovable {
   /** Pointer back to the asset library that owns this asset representation. */
@@ -44,16 +46,6 @@ class AssetRepresentation : NonCopyable, NonMovable {
   /* Mutable to allow lazy updating on name changes in #library_relative_identifier(). */
   mutable std::string relative_identifier_;
 
-  /** Information specific to online assets. */
-  /* TODO move to #AS_remote_library.hh, use instead of passing individual members through API
-   * functions? */
-  struct OnlineAssetInfo {
-    /** The path this file should be downloaded to. Usually relative, but isn't required to. The
-     * downloader accepts both cases, see #download_asset() in Python. */
-    std::string download_dst_filepath_;
-    std::optional<std::string> preview_url_;
-  };
-
   struct ExternalAsset {
     std::string name;
     int id_type = 0;
@@ -61,7 +53,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
     PreviewImage *preview_ = nullptr;
 
     /** Set if this is an online asset only. */
-    std::unique_ptr<OnlineAssetInfo> online_info_ = nullptr;
+    std::unique_ptr<OnlineAssetInfo> online_info_;
   };
   std::variant<ExternalAsset, ID *> asset_;
 
@@ -89,8 +81,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
                       int id_type,
                       std::unique_ptr<AssetMetaData> metadata,
                       AssetLibrary &owner_asset_library,
-                      StringRef download_dst_filepath,
-                      std::optional<StringRef> preview_url);
+                      OnlineAssetInfo online_info);
   /**
    * Constructs an asset representation for an ID stored in the current file. This makes the asset
    * local and fully editable.
@@ -137,6 +128,14 @@ class AssetRepresentation : NonCopyable, NonMovable {
   std::string full_library_path() const;
 
   /**
+   * For online assets (see #is_online()), the URL this file should be downloaded from when
+   * requested.
+   *
+   * Will return an empty value if this is not an online asset.
+   */
+  std::optional<URLWithHash> online_asset_url() const;
+
+  /**
    * For online assets (see #is_online()), the path this file should be downloaded to when
    * requested. Usually relative, but isn't required to. The downloader accepts both cases, see
    * #download_asset() in Python.
@@ -150,6 +149,13 @@ class AssetRepresentation : NonCopyable, NonMovable {
    * Will return an empty value if this is not an online asset.
    */
   std::optional<StringRefNull> online_asset_preview_url() const;
+  /**
+   * For online assets (see #is_online()), the hash of the asset's preview.
+   *
+   * Will return an empty value if this is not an online asset.
+   */
+  std::optional<StringRefNull> online_asset_preview_hash() const;
+
   /**
    * If the asset is marked as online, removes the online data and marking, turning it into a
    * regular on-disk asset.
