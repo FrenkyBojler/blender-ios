@@ -12,6 +12,9 @@
 
 #include "GPU_platform.hh"
 
+class GHOST_IContext;
+class GHOST_ISystem;
+
 /* GPU back-ends abstract the differences between different APIs. #GPU_context_create
  * automatically initializes the back-end, and #GPU_context_discard frees it when there
  * are no more contexts. */
@@ -118,8 +121,8 @@ void GPU_render_end();
 void GPU_render_step(bool force_resource_release = false);
 
 /** For when we need access to a system context in order to create a GPU context. */
-void GPU_backend_ghost_system_set(void *ghost_system_handle);
-void *GPU_backend_ghost_system_get();
+void GPU_backend_ghost_system_set(GHOST_ISystem *ghost_system_handle);
+GHOST_ISystem *GPU_backend_ghost_system_get();
 
 namespace blender::gpu {
 
@@ -130,7 +133,7 @@ namespace blender::gpu {
  */
 class GPUSecondaryContext {
  private:
-  void *ghost_context_;
+  GHOST_IContext *ghost_context_;
   GPUContext *gpu_context_;
 
  public:
