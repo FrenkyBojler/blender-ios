@@ -921,9 +921,30 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
   return true;
 }
 
+[[maybe_unused]] static bool is_same_socket_base_type(const StringRef socket_type_a,
+                                                      const StringRef socket_type_b)
+{
+  using namespace blender;
+
+  const bke::bNodeSocketType *typeinfo_a = bke::node_socket_type_find(socket_type_a);
+  const bke::bNodeSocketType *typeinfo_b = bke::node_socket_type_find(socket_type_b);
+  if (typeinfo_a == nullptr || typeinfo_b == nullptr) {
+    return false;
+  }
+  /* Dynamic socket types are fine/ignored here. */
+  if (!bke::node_is_static_socket_type(*typeinfo_a) &&
+      !bke::node_is_static_socket_type(*typeinfo_b))
+  {
+    return true;
+  }
+  return typeinfo_a->type == typeinfo_b->type;
+}
+
 void bNodeTreeInterfaceSocket::update_socket_type()
 {
   const StringRefNull new_socket_type = socket_types::socket_type_from_data(*this);
+  BLI_assert_msg(is_same_socket_base_type(this->socket_type, new_socket_type),
+                 "Cannot change socket base type without replacing socket data");
 
   if (new_socket_type != this->socket_type) {
     MEM_SAFE_FREE(this->socket_type);
