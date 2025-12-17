@@ -328,11 +328,11 @@ static bool playanim_window_contains_point(GHOST_IWindow *ghost_window,
 #ifdef WITH_GHOST_CSD
     if (use_window_csd) {
       const GHOST_CSD_Layout *csd_layout = nullptr; /* Not needed to get the "body" area. */
-      const GHOST_TWindowState state = GHOST_GetWindowState(ghost_window);
+      const GHOST_TWindowState state = ghost_window->getState();
       GHOST_CSD_Elem csd_elems[GHOST_kCSDType_NUM];
       const int fractional_scale[2] = {
           GHOST_CSD_DPI_FRACTIONAL_BASE,
-          GHOST_GetDPIHint(ghost_window),
+          ghost_window->getDPIHint()
       };
       const int csd_elems_num = WM_window_csd_layout_callback(
           window_size, fractional_scale, state, csd_layout, csd_elems);
@@ -874,12 +874,12 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
 
 #ifdef WITH_GHOST_CSD
   if (display_ctx.use_window_csd && (display_ctx.ui_window_csd_alpha > 0.0f)) {
-    const GHOST_TWindowState state = GHOST_GetWindowState(ghost_data.window);
+    const GHOST_TWindowState state = ghost_data.window->getState();
     if (ELEM(state, GHOST_kWindowStateNormal, GHOST_kWindowStateMaximized)) {
       GPU_matrix_push();
 
-      const GHOST_CSD_Layout *csd_layout = GHOST_GetWindowCSD_Layout(ghost_data.system);
-      const uint16_t dpi = GHOST_GetDPIHint(ghost_data.window);
+      const GHOST_CSD_Layout *csd_layout = &ghost_data.system->getWindowCSD_Layout();
+      const uint16_t dpi = ghost_data.window->getDPIHint();
       const blender::int2 window_size = playanim_window_size_get(ghost_data.window);
       const bool is_active = true; /* Alpha is zero when inactive. */
       const int font_size = 11;    /* Un-scaled (same as default panel point size). */
@@ -2026,7 +2026,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
       }
 
 #ifdef WITH_GHOST_CSD
-      ps.display_ctx.use_window_csd = (GHOST_GetCapabilities() &
+      ps.display_ctx.use_window_csd = (ps.ghost_data.system->getCapabilities() &
                                        GHOST_kCapabilityWindowDecorationServerSide) == 0;
       if (ps.display_ctx.use_window_csd) {
         playanim_window_csd_params_update(ps.ghost_data);
