@@ -2,16 +2,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __BLENDER_VIEWPORT_H__
-#define __BLENDER_VIEWPORT_H__
+#pragma once
 
-#include "MEM_guardedalloc.h"
+#include "kernel/types.h"
 
-#include "RNA_access.hh"
-#include "RNA_blender_cpp.hh"
-#include "RNA_types.hh"
+#include "util/param.h"
 
-#include "scene/film.h"
+struct View3D;
+struct bScreen;
 
 CCL_NAMESPACE_BEGIN
 
@@ -30,7 +28,7 @@ class BlenderViewportParameters {
   bool show_active_pixels;
 
   BlenderViewportParameters();
-  BlenderViewportParameters(BL::SpaceView3D &b_v3d, bool use_developer_ui);
+  BlenderViewportParameters(::View3D *b_v3d, bool use_developer_ui);
 
   /* Check whether any of shading related settings are different from the given parameters. */
   bool shader_modified(const BlenderViewportParameters &other) const;
@@ -47,5 +45,3 @@ class BlenderViewportParameters {
 };
 
 CCL_NAMESPACE_END
-
-#endif

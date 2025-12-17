@@ -4,17 +4,20 @@
 
 #pragma once
 
-#include <pxr/base/vt/array.h>
+#include <pxr/base/vt/types.h>
 #include <pxr/imaging/hd/sceneDelegate.h>
 
 #include "BLI_set.hh"
 
-#include "BKE_duplilist.hh"
-
 #include "material.hh"
 #include "object.hh"
 
+struct Mesh;
+struct Object;
+
 namespace blender::io::hydra {
+
+class HydraSceneDelegate;
 
 class MeshData : public ObjectData {
  public:

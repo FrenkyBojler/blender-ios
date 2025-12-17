@@ -106,7 +106,7 @@ macro(file_list_suffix
   fp_list_new fp_list fn_suffix
   )
 
-  # incase of empty list
+  # in case of empty list
   set(_fp)
   set(_fp_suffixed)
 
@@ -350,7 +350,7 @@ function(blender_link_libraries
   # CMake have a native way of dealing with this, which is specifying what build type the
   # libraries are provided for:
   #
-  #   target_link_libraries(tagret optimized|debug|general <libraries>)
+  #   target_link_libraries(target optimized|debug|general <libraries>)
   #
   # The build type is to be provided as a separate argument to the function.
   #
@@ -404,7 +404,6 @@ function(blender_link_libraries
   endif()
 endfunction()
 
-# only MSVC uses SOURCE_GROUP
 function(blender_add_lib__impl
   name
   sources
@@ -439,6 +438,9 @@ function(blender_add_lib__impl
   # Not for system includes because they can resolve to the same path
   # list_assert_duplicates("${includes_sys}")
 
+  # blenders dependency loops are longer than cmake expects and we need additional loops to
+  # properly link.
+  set_property(TARGET ${name} APPEND PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
 endfunction()
 
 
@@ -539,50 +541,42 @@ function(setup_platform_linker_libs
   target_link_libraries(${target} PRIVATE ${PLATFORM_LINKLIBS})
 endfunction()
 
-macro(TEST_SSE_SUPPORT
+macro(get_sse_flags
   _sse42_flags)
 
-  include(CheckCSourceRuns)
-
-  # message(STATUS "Detecting SSE support")
-  if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
-    set(${_sse42_flags} "-march=x86-64-v2")
-  elseif(MSVC)
-    # msvc has no specific build flags for SSE42, but when using intrinsics it will
-    # generate the right instructions.
-    set(${_sse42_flags} "")
-  elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
-    if(WIN32)
-      set(${_sse42_flags} "/QxSSE4.2")
+  if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
+    # message(STATUS "Detecting SSE support")
+    if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+      set(${_sse42_flags} "-march=x86-64-v2")
+    elseif(MSVC)
+      # MSVC has no specific compile flags for SSE42 (only for AVX).
+      set(${_sse42_flags})
+      # It also doesn't define __SSE__/__MMX__ flags and only does the AVX and higher flags.
+      # For consistency we define these flags for MSVC.
+      add_compile_definitions(__MMX__ __SSE__ __SSE2__ _SSE3__ __SSE4_1__ __SSE4_2__)
+    elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
+      if(WIN32)
+        set(${_sse42_flags} "/QxSSE4.2")
+      else()
+        set(${_sse42_flags} "-xsse4.2")
+      endif()
     else()
-      set(${_sse42_flags} "-xsse4.2")
+      message(WARNING "SSE flags for this compiler: '${CMAKE_C_COMPILER_ID}' not known")
+      set(${_sse42_flags})
     endif()
   else()
-    message(WARNING "SSE flags for this compiler: '${CMAKE_C_COMPILER_ID}' not known")
+    # Not a 64bit x86 system, don't set any SSE x86 compiler flags.
     set(${_sse42_flags})
   endif()
-
-  set(CMAKE_REQUIRED_FLAGS "${${_sse42_flags}}")
-
-  if(NOT DEFINED SUPPORT_SSE42_BUILD)
-    # result cached
-    check_c_source_runs("
-      #include <nmmintrin.h>
-      #include <emmintrin.h>
-      int main(void) { __m128i v = _mm_setzero_si128(); v = _mm_cmpgt_epi64(v,v); return 0; }"
-    SUPPORT_SSE42_BUILD)
-  endif()
-
-  unset(CMAKE_REQUIRED_FLAGS)
 endmacro()
 
-macro(TEST_NEON_SUPPORT)
-  if(NOT DEFINED SUPPORT_NEON_BUILD)
+macro(test_neon_support)
+  if(NOT DEFINED SUPPORTS_NEON_BUILD)
     include(CheckCXXSourceCompiles)
     check_cxx_source_compiles(
       "#include <arm_neon.h>
        int main() {return vaddvq_s32(vdupq_n_s32(1));}"
-      SUPPORT_NEON_BUILD)
+      SUPPORTS_NEON_BUILD)
   endif()
 endmacro()
 
@@ -644,6 +638,25 @@ macro(add_cxx_flag
   string(APPEND CMAKE_CXX_FLAGS " ${flag}")
 endmacro()
 
+# Needed to "negate" options: `-Wno-example`
+# as this doesn't work when added to `CMAKE_CXX_FLAGS`.
+macro(add_c_flag_per_config
+  flag)
+
+  string(APPEND CMAKE_C_FLAGS_DEBUG " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_RELEASE " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_MINSIZEREL " ${flag}")
+  string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " ${flag}")
+endmacro()
+macro(add_cxx_flag_per_config
+  flag)
+
+  string(APPEND CMAKE_CXX_FLAGS_DEBUG " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_RELEASE " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL " ${flag}")
+  string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " ${flag}")
+endmacro()
+
 macro(remove_strict_flags)
 
   if(CMAKE_COMPILER_IS_GNUCC)
@@ -662,6 +675,7 @@ macro(remove_strict_flags)
       "-Wshadow"
       "-Wdouble-promotion"
       "-Wold-style-definition"
+      "-Wextra"
       "-Werror=[^ ]+"
       "-Werror"
     )
@@ -685,6 +699,10 @@ macro(remove_strict_flags)
   endif()
 
   if(MSVC)
+    add_cxx_flag(
+      # Warning C5038: data member 'foo' will be initialized after data member 'bar'.
+      "/wd5038"
+    )
     remove_cc_flag(
       # Restore warn C4100 (unreferenced formal parameter) back to w4.
       "/w34100"
@@ -927,7 +945,6 @@ macro(blender_project_hack_post)
 
   unset(_reset_standard_cflags_rel)
   unset(_reset_standard_cxxflags_rel)
-
 endmacro()
 
 # pair of macros to allow libraries to be specify files to install, but to
@@ -986,7 +1003,6 @@ function(data_to_c
 
   add_custom_command(
     OUTPUT ${file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
     COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to}
     DEPENDS ${file_from} datatoc)
 
@@ -1013,7 +1029,6 @@ function(data_to_c_simple
 
   add_custom_command(
     OUTPUT  ${_file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to}
     DEPENDS ${_file_from} datatoc)
 
@@ -1028,9 +1043,11 @@ function(glsl_to_c
   )
 
   # remove ../'s
-  get_filename_component(_file_from ${CMAKE_CURRENT_SOURCE_DIR}/${file_from}   REALPATH)
-  get_filename_component(_file_tmp  ${CMAKE_CURRENT_BINARY_DIR}/${file_from}   REALPATH)
-  get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c REALPATH)
+  get_filename_component(_file_from ${CMAKE_CURRENT_SOURCE_DIR}/${file_from}    REALPATH)
+  get_filename_component(_file_tmp  ${CMAKE_CURRENT_BINARY_DIR}/${file_from}    REALPATH)
+  get_filename_component(_file_meta ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.hh REALPATH)
+  get_filename_component(_file_info ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.info  REALPATH)
+  get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c  REALPATH)
 
   list(APPEND ${list_to_add} ${_file_to})
   source_group(Generated FILES ${_file_to})
@@ -1040,14 +1057,15 @@ function(glsl_to_c
   get_filename_component(_file_to_path ${_file_to} PATH)
 
   add_custom_command(
-    OUTPUT  ${_file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
-    COMMAND "$<TARGET_FILE:glsl_preprocess>" ${_file_from} ${_file_tmp}
+    OUTPUT  ${_file_to} ${_file_meta} ${_file_info}
+    COMMAND "$<TARGET_FILE:shader_tool>" ${_file_from} ${_file_tmp} ${_file_meta} ${_file_info}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
-    DEPENDS ${_file_from} datatoc glsl_preprocess)
+    DEPENDS ${_file_from} datatoc shader_tool)
 
   set_source_files_properties(${_file_tmp} PROPERTIES GENERATED TRUE)
   set_source_files_properties(${_file_to}  PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_meta}  PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_info}  PROPERTIES GENERATED TRUE)
 endfunction()
 
 
@@ -1262,39 +1280,9 @@ endmacro()
 function(print_all_vars)
   get_cmake_property(_vars VARIABLES)
   foreach(_var ${_vars})
-    message("${_var}=${${_var}}")
+    message(STATUS "${_var}=${${_var}}")
   endforeach()
 endfunction()
-
-macro(openmp_delayload
-  projectname
-  )
-  if(MSVC)
-    if(WITH_OPENMP)
-      if(MSVC_CLANG)
-        set(OPENMP_DLL_NAME "libomp")
-      else()
-        set(OPENMP_DLL_NAME "vcomp140")
-      endif()
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_RELEASE " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_DEBUG " /DELAYLOAD:${OPENMP_DLL_NAME}d.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_RELWITHDEBINFO " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-      set_property(
-        TARGET ${projectname} APPEND_STRING PROPERTY
-        LINK_FLAGS_MINSIZEREL " /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib"
-      )
-    endif()
-  endif()
-endmacro()
 
 macro(set_and_warn_dependency
   _dependency _setting _val)
@@ -1409,14 +1397,14 @@ macro(windows_install_shared_manifest)
     endif()
     install(
       FILES ${WINDOWS_INSTALL_FILES}
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS ${WINDOWS_CONFIGURATIONS}
     )
   else()
     # Python module without manifest.
     install(
       FILES ${WINDOWS_INSTALL_FILES}
-      DESTINATION "./bpy"
+      DESTINATION "bpy"
       CONFIGURATIONS ${WINDOWS_CONFIGURATIONS}
     )
   endif()
@@ -1454,7 +1442,7 @@ macro(windows_generate_shared_manifest)
     )
     install(
       FILES ${CMAKE_BINARY_DIR}/Debug/blender.shared.manifest
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS Debug
     )
   endif()
@@ -1466,7 +1454,7 @@ macro(windows_generate_shared_manifest)
     )
     install(
       FILES ${CMAKE_BINARY_DIR}/Release/blender.shared.manifest
-      DESTINATION "./blender.shared"
+      DESTINATION "blender.shared"
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
   endif()
@@ -1483,11 +1471,61 @@ macro(windows_process_platform_bundled_libraries library_deps)
         set(next_library_mode "${library_upper}")
       else()
         windows_install_shared_manifest(
-            FILES ${library}
-            ${next_library_mode}
+          FILES ${library}
+          ${next_library_mode}
         )
         set(next_library_mode "ALL")
       endif()
     endforeach()
+  endif()
+endmacro()
+
+macro(with_shader_cpp_compilation_config)
+  # avoid noisy warnings
+  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    add_c_flag("-Wno-unused-result")
+    remove_cc_flag("-Wmissing-declarations")
+    # Would be nice to enable the warning once we support references.
+    add_cxx_flag("-Wno-uninitialized")
+    # Would be nice to enable the warning once we support nameless parameters.
+    add_cxx_flag("-Wno-unused-parameter")
+    # To compile libraries.
+    add_cxx_flag("-Wno-pragma-once-outside-header")
+  elseif(MSVC)
+    # Equivalent to "-Wno-uninitialized"
+    add_cxx_flag("/wd4700")
+    # Equivalent to "-Wno-unused-parameter"
+    add_cxx_flag("/wd4100")
+    # Disable "potential divide by 0" warning
+    add_cxx_flag("/wd4723")
+  endif()
+  add_definitions(-DGPU_SHADER)
+endmacro()
+
+function(compile_sources_as_cpp
+  executable
+  sources
+  define
+  )
+
+  foreach(glsl_file ${sources})
+    set_source_files_properties(${glsl_file} PROPERTIES LANGUAGE CXX)
+  endforeach()
+
+  add_library(${executable} OBJECT ${sources})
+  set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
+  target_include_directories(${executable} PUBLIC ${INC_GLSL})
+  target_compile_definitions(${executable} PRIVATE ${define})
+endfunction()
+
+macro(optimize_debug_target executable)
+  if(WITH_OPTIMIZED_BUILD_TOOLS)
+    if(WIN32)
+      remove_cc_flag(${executable} "/Od" "/RTC1")
+      target_compile_options(${executable} PRIVATE "/Ox")
+      target_compile_definitions(${executable} PRIVATE "_ITERATOR_DEBUG_LEVEL=0")
+    else()
+      target_compile_options(${executable} PRIVATE "-O2")
+    endif()
   endif()
 endmacro()

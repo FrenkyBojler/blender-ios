@@ -7,7 +7,6 @@
  */
 
 #include <cfloat>
-#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -17,12 +16,15 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_screen.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_screen.hh"
+
 #include "UI_interface.hh"
 
 #include "RNA_prototypes.hh"
@@ -43,7 +45,7 @@ void ED_drivers_editor_init(bContext *C, ScrArea *area)
   /* Show Properties Region (or else the settings can't be edited) */
   ARegion *region_props = BKE_area_find_region_type(area, RGN_TYPE_UI);
   if (region_props) {
-    UI_panel_category_active_set(region_props, "Drivers");
+    blender::ui::panel_category_active_set(region_props, "Drivers");
 
     region_props->flag &= ~RGN_FLAG_HIDDEN;
     /* XXX: Adjust width of this too? */
@@ -168,7 +170,7 @@ bool graphop_editable_keyframes_poll(bContext *C)
   int filter;
   bool found = false;
 
-  /* firstly, check if in Graph Editor or Dopesheet */
+  /* Firstly, check if in Graph Editor or Dope-sheet. */
   /* TODO: also check for region? */
   if (area == nullptr || !ELEM(area->spacetype, SPACE_GRAPH, SPACE_ACTION)) {
     return found;

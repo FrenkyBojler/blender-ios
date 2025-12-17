@@ -16,15 +16,13 @@
 
 #include <algorithm>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sort_utils.h"
 
 #include "BKE_context.hh"
 
-#include "GPU_batch.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
@@ -98,8 +96,10 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
   GPU_matrix_mul(matrix_screen);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  const uint color_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  const uint pos_id = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint color_id = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   float viewport_size[4];
   GPU_viewport_size_get_f(viewport_size);
 
@@ -137,7 +137,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
     GPU_matrix_ortho_set_z(-gz->scale_final, gz->scale_final);
   }
 
-  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  draw_roundbox_corner_set(blender::ui::CNR_ALL);
   GPU_polygon_smooth(false);
 
   /* Circle defining active area. */
@@ -151,7 +151,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
     rect.xmax = rad;
     rect.ymin = -rad;
     rect.ymax = rad;
-    UI_draw_roundbox_4fv(&rect, true, rad, gz->color_hi);
+    blender::ui::draw_roundbox_4fv(&rect, true, rad, gz->color_hi);
     GPU_matrix_pop();
   }
 
@@ -175,7 +175,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
       is_highlight = true;
     }
 
-    UI_GetThemeColor3fv(TH_AXIS_X + axis, axis_color[axis]);
+    blender::ui::theme::get_color_3fv(TH_AXIS_X + axis, axis_color[axis]);
     axis_color[axis][3] = 1.0f;
 
     /* Color that is full at front, but 50% view background when in back. */
@@ -241,7 +241,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
       rect.xmax = rad;
       rect.ymin = -rad;
       rect.ymax = rad;
-      UI_draw_roundbox_4fv_ex(
+      blender::ui::draw_roundbox_4fv_ex(
           &rect, inner_color, nullptr, 0.0f, outline_color, AXIS_RING_WIDTH, rad);
       GPU_matrix_pop();
     }
@@ -362,7 +362,7 @@ void VIEW3D_GT_navigate_rotate(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "VIEW3D_GT_navigate_rotate";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_axis_draw;
   gzt->test_select = gizmo_axis_test_select;
   gzt->cursor_get = gizmo_axis_cursor_get;

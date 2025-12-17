@@ -6,9 +6,12 @@
  * \ingroup draw
  */
 
+#pragma once
+
+#include "GPU_shader_shared_utils.hh"
+
 #ifndef GPU_SHADER
 #  include "BLI_span.hh"
-#  include "GPU_shader_shared_utils.hh"
 
 namespace blender::draw::command {
 
@@ -22,7 +25,7 @@ namespace blender::draw::command {
  * A DrawGroup allow to split the command stream into batch-able chunks of commands with
  * the same render state.
  */
-struct DrawGroup {
+struct [[host_shared, unchecked]] DrawGroup {
   /** Index of next #DrawGroup from the same header. */
   uint next;
 
@@ -47,9 +50,9 @@ struct DrawGroup {
 
   /** Atomic counters used during command sorting. GPU only. Reset on CPU. */
 
-  /* Counts visible and invisible instances. Create drawcalls when it reaches `DrawGroup::len`. */
+  /* Counts visible and invisible instances. Create draw-calls when it reaches `DrawGroup::len`. */
   uint total_counter;
-  /* Counts only visible instance (counting multi-view). Used to issue the drawcalls. */
+  /* Counts only visible instance (counting multi-view). Used to issue the draw-calls. */
   uint front_facing_counter;
   uint back_facing_counter;
 
@@ -87,17 +90,16 @@ BLI_STATIC_ASSERT_ALIGN(DrawGroup, 16)
  * converted into #DrawCommand on GPU after visibility and compaction. Multiple
  * #DrawPrototype might get merged into the same final #DrawCommand.
  */
-struct DrawPrototype {
+struct [[host_shared]] DrawPrototype {
   /* Reference to parent DrawGroup to get the gpu::Batch vertex / instance count. */
   uint group_id;
   /* Resource handle associated with this call. Also reference visibility. */
-  uint resource_handle;
+  uint res_index;
   /* Custom extra value to be used by the engines. */
   uint custom_id;
   /* Number of instances. */
   uint instance_len;
 };
-BLI_STATIC_ASSERT_ALIGN(DrawPrototype, 16)
 
 /** \} */
 

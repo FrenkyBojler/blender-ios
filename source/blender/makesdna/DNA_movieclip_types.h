@@ -9,16 +9,24 @@
 #pragma once
 
 #include "DNA_ID.h"
-#include "DNA_color_types.h"    /* for color management */
-#include "DNA_tracking_types.h" /* for #MovieTracking */
+#include "DNA_color_types.h"
+#include "DNA_tracking_types.h"
 
 struct AnimData;
 struct ImBuf;
-struct ImBufAnim;
+struct MovieReader;
 struct MovieClipProxy;
 struct MovieTrackingMarker;
 struct MovieTrackingTrack;
 struct bGPdata;
+#ifdef __cplusplus
+namespace blender::gpu {
+class Texture;
+}  // namespace blender::gpu
+using GPUTexture = blender::gpu::Texture;
+#else
+typedef struct GPUTexture GPUTexture;
+#endif
 
 typedef struct MovieClipUser {
   /** Current frame number. */
@@ -28,8 +36,8 @@ typedef struct MovieClipUser {
 } MovieClipUser;
 
 typedef struct MovieClipProxy {
-  /** 768=FILE_MAXDIR custom directory for index and proxy files (defaults to BL_proxy). */
-  char dir[768];
+  /** Custom directory for index and proxy files (defaults to "BL_proxy"). */
+  char dir[/*FILE_MAXDIR*/ 768];
 
   /** Time code in use. */
   short tc;
@@ -44,29 +52,29 @@ typedef struct MovieClipProxy {
 typedef struct MovieClip_RuntimeGPUTexture {
   void *next, *prev;
   MovieClipUser user;
-  /** Not written in file 3 = TEXTARGET_COUNT. */
-  struct GPUTexture *gputexture[3];
+  /** Not written in file. */
+  GPUTexture *gputexture[/*TEXTARGET_COUNT*/ 3];
 } MovieClip_RuntimeGPUTexture;
 
 typedef struct MovieClip_Runtime {
   struct ListBase gputextures;
+  /* The Depsgraph::update_count when this ID was last updated. Covers any IDRecalcFlag. */
+  uint64_t last_update;
 } MovieClip_Runtime;
 
 typedef struct MovieClip {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_MC;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /**
-   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
-   * DRW_drawdatalist_from_id to understand this requirement.
-   */
-  DrawDataList drawdata;
 
-  /** File path, 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
-  /** Sequence or movie. */
-  int source;
+  int source; /* MovieClipSource */
   int _pad;
   /** Size of last accessed frame. */
   int lastsize[2];
@@ -75,7 +83,7 @@ typedef struct MovieClip {
   float aspx, aspy;
 
   /** Movie source data. */
-  struct ImBufAnim *anim;
+  struct MovieReader *anim;
   /** Cache for different stuff, not in file. */
   struct MovieClipCache *cache;
   /** Grease pencil data. */
@@ -91,7 +99,7 @@ typedef struct MovieClip {
 
   /** Proxy to clip data. */
   struct MovieClipProxy proxy;
-  int flag;
+  int flag; /* MovieClipFlag */
 
   /** Length of movie. */
   int len;
@@ -145,7 +153,8 @@ typedef struct MovieClipScopes {
   float slide_scale[2];
 } MovieClipScopes;
 
-/** #MovieClipProxy.build_size_flag */
+/** #MovieClipProxy.build_size_flag
+ * NOTE: Keep in sync with #IMB_Proxy_Size. */
 enum {
   MCLIP_PROXY_SIZE_25 = (1 << 0),
   MCLIP_PROXY_SIZE_50 = (1 << 1),
@@ -157,21 +166,26 @@ enum {
   MCLIP_PROXY_UNDISTORTED_SIZE_100 = (1 << 7),
 };
 
-/** #MovieClip.source */
+/** #MovieClipProxy.build_tc_flag
+ * NOTE: Keep in sync with #IMB_Timecode_Type. */
 enum {
-  MCLIP_SRC_SEQUENCE = 1,
-  MCLIP_SRC_MOVIE = 2,
+  MCLIP_TC_RECORD_RUN = 1,
+  MCLIP_TC_RECORD_RUN_NO_GAPS = 8,
 };
 
-/** #MovieClip.flag */
-enum {
+typedef enum MovieClipSource {
+  MCLIP_SRC_SEQUENCE = 1,
+  MCLIP_SRC_MOVIE = 2,
+} MovieClipSource;
+
+typedef enum MovieClipFlag {
   MCLIP_USE_PROXY = (1 << 0),
   MCLIP_USE_PROXY_CUSTOM_DIR = (1 << 1),
   /* MCLIP_CUSTOM_START_FRAME    = (1 << 2), */ /* UNUSED */
   MCLIP_DATA_EXPAND = (1 << 3),
 
   MCLIP_TIMECODE_FLAGS = (MCLIP_USE_PROXY | MCLIP_USE_PROXY_CUSTOM_DIR),
-};
+} MovieClipFlag;
 
 /** #MovieClip.render_size */
 enum {

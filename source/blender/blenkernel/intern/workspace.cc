@@ -24,6 +24,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
+#include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
 #include "BKE_workspace.hh"
 
@@ -66,11 +67,55 @@ static void workspace_free_data(ID *id)
   BKE_viewer_path_clear(&workspace->viewer_path);
 }
 
+static void workspace_copy_data(
+    Main *bmain, std::optional<Library *> owner_library, ID *id_dst, const ID *id_src, int flag)
+{
+  /* Workspaces should always be local data currently. */
+  BLI_assert(!owner_library || owner_library == nullptr);
+  UNUSED_VARS_NDEBUG(owner_library);
+
+  WorkSpace *workspace_dst = blender::id_cast<WorkSpace *>(id_dst);
+  const WorkSpace *workspace_src = blender::id_cast<const WorkSpace *>(id_src);
+
+  workspace_dst->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
+  BKE_asset_library_reference_init_default(&workspace_dst->asset_library_ref);
+
+  workspace_dst->flags = workspace_src->flags;
+  workspace_dst->pin_scene = workspace_src->pin_scene;
+  workspace_dst->sequencer_scene = workspace_src->sequencer_scene;
+  workspace_dst->object_mode = workspace_src->object_mode;
+  workspace_dst->order = workspace_src->order;
+  BLI_duplicatelist(&workspace_dst->owner_ids, &workspace_src->owner_ids);
+
+  /* TODO(@ideasman42): tools */
+  BLI_listbase_clear(&workspace_dst->tools);
+
+  BLI_listbase_clear(&workspace_dst->hook_layout_relations);
+
+  /* WARNING! This is effectively duplicating other IDs (bScreen ones) inside the copying callback
+   * of a workspace.
+   *
+   * This is similar to what is already done with ShapeKeys.
+   */
+  BLI_listbase_clear(&workspace_dst->layouts);
+  LISTBASE_FOREACH (WorkSpaceLayout *, layout_src, &workspace_src->layouts) {
+    if (flag & LIB_ID_COPY_SCREEN) {
+      BKE_workspace_layout_add_from_layout(bmain, *workspace_dst, *layout_src, flag);
+    }
+    else {
+      /* Copying of screens should only be disabled in some `NO_MAIN` cases. */
+      BLI_assert(flag & LIB_ID_CREATE_NO_MAIN);
+      BKE_workspace_layout_add(bmain, *workspace_dst, *layout_src->screen, layout_src->name);
+    }
+  }
+}
+
 static void workspace_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   WorkSpace *workspace = (WorkSpace *)id;
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->pin_scene, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->pin_scene, IDWALK_CB_DIRECT_WEAK_LINK);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, workspace->sequencer_scene, IDWALK_CB_DIRECT_WEAK_LINK);
 
   LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, layout->screen, IDWALK_CB_USER);
@@ -175,7 +220,7 @@ static void workspace_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_WS = {
-    /*id_code*/ ID_WS,
+    /*id_code*/ WorkSpace::id_type,
     /*id_filter*/ FILTER_ID_WS,
     /*dependencies_id_types*/ FILTER_ID_SCE,
     /*main_listbase_index*/ INDEX_ID_WS,
@@ -183,17 +228,18 @@ IDTypeInfo IDType_ID_WS = {
     /*name*/ "WorkSpace",
     /*name_plural*/ N_("workspaces"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WORKSPACE,
-    /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
+    /*flags*/ IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO |
+        IDTYPE_FLAGS_NEVER_UNUSED,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ workspace_init_data,
-    /*copy_data*/ nullptr,
+    /*copy_data*/ workspace_copy_data,
     /*free_data*/ workspace_free_data,
     /*make_local*/ nullptr,
     /*foreach_id*/ workspace_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ workspace_blend_write,
@@ -239,7 +285,7 @@ static void workspace_relation_add(ListBase *relation_list,
                                    const int parentid,
                                    void *data)
 {
-  WorkSpaceDataRelation *relation = MEM_cnew<WorkSpaceDataRelation>(__func__);
+  WorkSpaceDataRelation *relation = MEM_callocN<WorkSpaceDataRelation>(__func__);
   relation->parent = parent;
   relation->parentid = parentid;
   relation->value = data;
@@ -316,7 +362,7 @@ static bool UNUSED_FUNCTION(workspaces_is_screen_used)
 
 WorkSpace *BKE_workspace_add(Main *bmain, const char *name)
 {
-  WorkSpace *new_workspace = static_cast<WorkSpace *>(BKE_id_new(bmain, ID_WS, name));
+  WorkSpace *new_workspace = BKE_id_new<WorkSpace>(bmain, name);
   id_us_ensure_real(&new_workspace->id);
   return new_workspace;
 }
@@ -336,7 +382,7 @@ void BKE_workspace_remove(Main *bmain, WorkSpace *workspace)
 
 WorkSpaceInstanceHook *BKE_workspace_instance_hook_create(const Main *bmain, const int winid)
 {
-  WorkSpaceInstanceHook *hook = MEM_cnew<WorkSpaceInstanceHook>(__func__);
+  WorkSpaceInstanceHook *hook = MEM_callocN<WorkSpaceInstanceHook>(__func__);
 
   /* set an active screen-layout for each possible window/workspace combination */
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
@@ -376,22 +422,49 @@ void BKE_workspace_instance_hook_free(const Main *bmain, WorkSpaceInstanceHook *
 }
 
 WorkSpaceLayout *BKE_workspace_layout_add(Main *bmain,
-                                          WorkSpace *workspace,
-                                          bScreen *screen,
+                                          WorkSpace &workspace,
+                                          bScreen &screen,
                                           const char *name)
 {
-  WorkSpaceLayout *layout = MEM_cnew<WorkSpaceLayout>(__func__);
+  WorkSpaceLayout *layout = MEM_callocN<WorkSpaceLayout>(__func__);
 
-  BLI_assert(!workspaces_is_screen_used(bmain, screen));
+  BLI_assert(!bmain || !workspaces_is_screen_used(bmain, &screen));
 #ifdef NDEBUG
   UNUSED_VARS(bmain);
 #endif
-  layout->screen = screen;
+  layout->screen = &screen;
   id_us_plus(&layout->screen->id);
-  workspace_layout_name_set(workspace, layout, name);
-  BLI_addtail(&workspace->layouts, layout);
+  workspace_layout_name_set(&workspace, layout, name);
+  BLI_addtail(&workspace.layouts, layout);
 
   return layout;
+}
+
+WorkSpaceLayout *BKE_workspace_layout_add_from_layout(Main *bmain,
+                                                      WorkSpace &workspace_dst,
+                                                      const WorkSpaceLayout &layout_src,
+                                                      const int id_copy_flags)
+{
+  bScreen *screen_src = BKE_workspace_layout_screen_get(&layout_src);
+  const char *name = BKE_workspace_layout_name_get(&layout_src);
+
+  /* In case the current layout's screen is a 'full screen' one, find the 'full' area, and its its
+   * 'restore screen' as source, instead of the temporary full-screen one. */
+  if (BKE_screen_is_fullscreen_area(screen_src)) {
+    LISTBASE_FOREACH (ScrArea *, area_old, &screen_src->areabase) {
+      /* The original layout/screen will also have one area->full set, but it will point to the
+       * same source screen. This can be ignored. */
+      if (area_old->full && area_old->full != screen_src) {
+        screen_src = area_old->full;
+        break;
+      }
+    }
+  }
+
+  bScreen *screen_dst = blender::id_cast<bScreen *>(
+      BKE_id_copy_ex(bmain, &screen_src->id, nullptr, id_copy_flags));
+
+  return BKE_workspace_layout_add(bmain, workspace_dst, *screen_dst, name);
 }
 
 void BKE_workspace_layout_remove(Main *bmain, WorkSpace *workspace, WorkSpaceLayout *layout)
@@ -445,8 +518,6 @@ WorkSpaceLayout *BKE_workspace_layout_find_global(const Main *bmain,
                                                   const bScreen *screen,
                                                   WorkSpace **r_workspace)
 {
-  WorkSpaceLayout *layout;
-
   if (r_workspace) {
     *r_workspace = nullptr;
   }
@@ -454,7 +525,8 @@ WorkSpaceLayout *BKE_workspace_layout_find_global(const Main *bmain,
   for (WorkSpace *workspace = static_cast<WorkSpace *>(bmain->workspaces.first); workspace;
        workspace = static_cast<WorkSpace *>(workspace->id.next))
   {
-    if ((layout = workspace_layout_find_exec(workspace, screen))) {
+    WorkSpaceLayout *layout = workspace_layout_find_exec(workspace, screen);
+    if (layout) {
       if (r_workspace) {
         *r_workspace = workspace;
       }
@@ -515,7 +587,7 @@ void BKE_workspace_tool_id_replace_table(WorkSpace *workspace,
                                          int replace_table_num)
 {
   const size_t idname_prefix_len = idname_prefix_skip ? strlen(idname_prefix_skip) : 0;
-  const size_t idname_suffix_len = sizeof(bToolRef::idname) - idname_prefix_len;
+  const size_t idname_suffix_maxncpy = sizeof(bToolRef::idname) - idname_prefix_len;
 
   LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
     if (!(tref->space_type == space_type && tref->mode == mode)) {
@@ -529,7 +601,7 @@ void BKE_workspace_tool_id_replace_table(WorkSpace *workspace,
       idname_suffix += idname_prefix_len;
     }
     BLI_string_replace_table_exact(
-        idname_suffix, idname_suffix_len, replace_table, replace_table_num);
+        idname_suffix, idname_suffix_maxncpy, replace_table, replace_table_num);
   }
 }
 

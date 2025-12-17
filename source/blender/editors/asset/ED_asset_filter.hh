@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include "BLI_function_ref.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_vector.hh"
@@ -18,6 +20,7 @@
 #include "AS_asset_catalog_tree.hh"
 
 struct AssetLibraryReference;
+struct AssetMetaData;
 struct bContext;
 namespace blender::asset_system {
 class AssetLibrary;
@@ -61,7 +64,7 @@ struct AssetItemTree {
 asset_system::AssetCatalogTree build_filtered_catalog_tree(
     const asset_system::AssetLibrary &library,
     const AssetLibraryReference &library_ref,
-    blender::FunctionRef<bool(const asset_system::AssetRepresentation &)> is_asset_visible_fn);
+    FunctionRef<bool(const asset_system::AssetRepresentation &)> is_asset_visible_fn);
 AssetItemTree build_filtered_all_catalog_tree(
     const AssetLibraryReference &library_ref,
     const bContext &C,

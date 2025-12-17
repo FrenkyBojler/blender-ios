@@ -4,20 +4,19 @@
 
 #pragma once
 
-#include <pxr/base/vt/array.h>
+#include <pxr/base/vt/types.h>
 #include <pxr/imaging/hd/sceneDelegate.h>
 
 #include "BLI_set.hh"
 
-#include "BKE_duplilist.hh"
-
-#include "DNA_curves_types.h"
-#include "DNA_particle_types.h"
-
 #include "material.hh"
 #include "object.hh"
 
+struct ParticleSystem;
+
 namespace blender::io::hydra {
+
+class HydraSceneDelegate;
 
 class CurvesData : public ObjectData {
  protected:

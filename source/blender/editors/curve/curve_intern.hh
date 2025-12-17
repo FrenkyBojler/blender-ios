@@ -8,12 +8,23 @@
 
 #pragma once
 
+#include "BLI_sys_types.h"
+
+#include "DNA_curve_types.h"
+
 /* internal exports only */
+struct BPoint;
+struct Base;
+struct BezTriple;
+struct Curve;
 struct EditNurb;
 struct GHash;
 struct ListBase;
+struct Nurb;
 struct Object;
+struct View3D;
 struct ViewContext;
+struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperatorType;
 
@@ -139,7 +150,7 @@ void CURVE_OT_match_texture_space(wmOperatorType *ot);
 
 /* exported for editcurve_undo.cc */
 
-GHash *ED_curve_keyindex_hash_duplicate(GHash *keyindex);
+CVKeyIndexMap *ED_curve_keyindex_hash_duplicate(CVKeyIndexMap *keyindex);
 void ED_curve_keyindex_update_nurb(EditNurb *editnurb, Nurb *nu, Nurb *newnu);
 
 /* exported for `editcurve_pen.cc` */

@@ -7,30 +7,15 @@
  */
 
 #include <climits>
-#include <cstdio>
 #include <cstdlib>
 
-#include "DNA_boid_types.h"
-#include "DNA_cloth_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_force_types.h"
-#include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-
-#include "BKE_mesh.hh"
-#include "BKE_mesh_legacy_convert.hh"
-
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
 
 #include "BLT_translation.hh"
 
@@ -113,7 +98,7 @@ static const EnumPropertyItem part_hair_ren_as_items[] = {
 
 static const EnumPropertyItem part_type_items[] = {
     {PART_EMITTER, "EMITTER", 0, "Emitter", ""},
-    /*{PART_REACTOR, "REACTOR", 0, "Reactor", ""}, */
+    // {PART_REACTOR, "REACTOR", 0, "Reactor", ""},
     {PART_HAIR, "HAIR", 0, "Hair", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -140,13 +125,22 @@ static const EnumPropertyItem part_fluid_type_items[] = {
 
 #  include "BLI_string_utils.hh"
 
+#  include "DNA_cloth_types.h"
+#  include "DNA_mesh_types.h"
+#  include "DNA_meshdata_types.h"
+
+#  include "BLI_math_matrix.h"
+#  include "BLI_math_vector.h"
+
 #  include "BKE_boids.h"
 #  include "BKE_cloth.hh"
 #  include "BKE_context.hh"
 #  include "BKE_customdata.hh"
 #  include "BKE_deform.hh"
 #  include "BKE_effect.h"
-#  include "BKE_material.h"
+#  include "BKE_material.hh"
+#  include "BKE_mesh.hh"
+#  include "BKE_mesh_legacy_convert.hh"
 #  include "BKE_modifier.hh"
 #  include "BKE_particle.h"
 #  include "BKE_pointcache.h"
@@ -387,11 +381,12 @@ static void rna_Particle_uv_on_emitter(ParticleData *particle,
   int num = particle->num_dmcache;
   int from = modifier->psys->part->from;
 
-  if (!CustomData_has_layer(&modifier->mesh_final->corner_data, CD_PROP_FLOAT2)) {
+  if (modifier->mesh_final->uv_map_names().is_empty()) {
     BKE_report(reports, RPT_ERROR, "Mesh has no UV data");
     return;
   }
   BKE_mesh_tessface_ensure(modifier->mesh_final); /* BMESH - UNTIL MODIFIER IS UPDATED FOR POLYS */
+#  include "BKE_mesh_legacy_convert.hh"
 
   if (ELEM(num, DMCACHE_NOTFOUND, DMCACHE_ISCHILD)) {
     if (particle->num < modifier->mesh_final->totface_legacy) {
@@ -418,64 +413,6 @@ static void rna_Particle_uv_on_emitter(ParticleData *particle,
 
   r_uv[0] = 0.0f;
   r_uv[1] = 0.0f;
-}
-
-static void rna_ParticleSystem_co_hair(
-    ParticleSystem *particlesystem, Object *object, int particle_no, int step, float n_co[3])
-{
-  ParticleSettings *part = nullptr;
-  ParticleData *pars = nullptr;
-  ParticleCacheKey *cache = nullptr;
-  int totchild = 0;
-  int totpart;
-  int max_k = 0;
-
-  if (particlesystem == nullptr) {
-    return;
-  }
-
-  part = particlesystem->part;
-  pars = particlesystem->particles;
-  totpart = particlesystem->totcached;
-  totchild = particlesystem->totchildcache;
-
-  if (part == nullptr || pars == nullptr) {
-    return;
-  }
-
-  if (ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR, PART_DRAW_NOT)) {
-    return;
-  }
-
-  /* can happen for disconnected/global hair */
-  if (part->type == PART_HAIR && !particlesystem->childcache) {
-    totchild = 0;
-  }
-
-  if (particle_no < totpart && particlesystem->pathcache) {
-    cache = particlesystem->pathcache[particle_no];
-    max_k = int(cache->segments);
-  }
-  else if (particle_no < totpart + totchild && particlesystem->childcache) {
-    cache = particlesystem->childcache[particle_no - totpart];
-
-    if (cache->segments < 0) {
-      max_k = 0;
-    }
-    else {
-      max_k = int(cache->segments);
-    }
-  }
-  else {
-    return;
-  }
-
-  /* Strands key loop data stored in cache + step->co. */
-  if (step >= 0 && step <= max_k) {
-    copy_v3_v3(n_co, (cache + step)->co);
-    mul_m4_v3(particlesystem->imat, n_co);
-    mul_m4_v3(object->object_to_world().ptr(), n_co);
-  }
 }
 
 static const EnumPropertyItem *rna_Particle_Material_itemf(bContext *C,
@@ -547,203 +484,6 @@ static const EnumPropertyItem *rna_Particle_Material_itemf(bContext *C,
   *r_free = true;
 
   return item;
-}
-
-/* return < 0 means invalid (no matching tessellated face could be found). */
-static int rna_ParticleSystem_tessfaceidx_on_emitter(ParticleSystem *particlesystem,
-                                                     ParticleSystemModifierData *modifier,
-                                                     ParticleData *particle,
-                                                     int particle_no,
-                                                     float (**r_fuv)[4])
-{
-  ParticleSettings *part = nullptr;
-  int totpart;
-  int totchild = 0;
-  int totface;
-  int totvert;
-  int num = -1;
-
-  BKE_mesh_tessface_ensure(modifier->mesh_final); /* BMESH - UNTIL MODIFIER IS UPDATED FOR POLYS */
-  totface = modifier->mesh_final->totface_legacy;
-  totvert = modifier->mesh_final->verts_num;
-
-  /* 1. check that everything is ok & updated */
-  if (!particlesystem || !totface) {
-    return num;
-  }
-
-  part = particlesystem->part;
-  /* NOTE: only hair, keyed and baked particles may have cached items... */
-  totpart = particlesystem->totcached != 0 ? particlesystem->totcached : particlesystem->totpart;
-  totchild = particlesystem->totchildcache != 0 ? particlesystem->totchildcache :
-                                                  particlesystem->totchild;
-
-  /* can happen for disconnected/global hair */
-  if (part->type == PART_HAIR && !particlesystem->childcache) {
-    totchild = 0;
-  }
-
-  if (particle_no >= totpart + totchild) {
-    return num;
-  }
-
-  /* 2. get matching face index. */
-  if (particle_no < totpart) {
-    num = (ELEM(particle->num_dmcache, DMCACHE_ISCHILD, DMCACHE_NOTFOUND)) ? particle->num :
-                                                                             particle->num_dmcache;
-
-    if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME)) {
-      if (num != DMCACHE_NOTFOUND && num < totface) {
-        *r_fuv = &particle->fuv;
-        return num;
-      }
-    }
-    else if (part->from == PART_FROM_VERT) {
-      if (num != DMCACHE_NOTFOUND && num < totvert) {
-        const MFace *mface = static_cast<const MFace *>(
-            CustomData_get_layer(&modifier->mesh_final->fdata_legacy, CD_MFACE));
-
-        *r_fuv = &particle->fuv;
-
-        /* This finds the first face to contain the emitting vertex,
-         * this is not ideal, but is mostly fine as UV seams generally
-         * map to equal-colored parts of a texture */
-        for (int i = 0; i < totface; i++, mface++) {
-          if (ELEM(num, mface->v1, mface->v2, mface->v3, mface->v4)) {
-            return i;
-          }
-        }
-      }
-    }
-  }
-  else {
-    ChildParticle *cpa = particlesystem->child + particle_no - totpart;
-    num = cpa->num;
-
-    if (part->childtype == PART_CHILD_FACES) {
-      if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME, PART_FROM_VERT)) {
-        if (num != DMCACHE_NOTFOUND && num < totface) {
-          *r_fuv = &cpa->fuv;
-          return num;
-        }
-      }
-    }
-    else {
-      ParticleData *parent = particlesystem->particles + cpa->parent;
-      num = parent->num_dmcache;
-
-      if (num == DMCACHE_NOTFOUND) {
-        num = parent->num;
-      }
-
-      if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME)) {
-        if (num != DMCACHE_NOTFOUND && num < totface) {
-          *r_fuv = &parent->fuv;
-          return num;
-        }
-      }
-      else if (part->from == PART_FROM_VERT) {
-        if (num != DMCACHE_NOTFOUND && num < totvert) {
-          const MFace *mface = static_cast<const MFace *>(
-              CustomData_get_layer(&modifier->mesh_final->fdata_legacy, CD_MFACE));
-
-          *r_fuv = &parent->fuv;
-
-          /* This finds the first face to contain the emitting vertex,
-           * this is not ideal, but is mostly fine as UV seams generally
-           * map to equal-colored parts of a texture */
-          for (int i = 0; i < totface; i++, mface++) {
-            if (ELEM(num, mface->v1, mface->v2, mface->v3, mface->v4)) {
-              return i;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return -1;
-}
-
-static void rna_ParticleSystem_uv_on_emitter(ParticleSystem *particlesystem,
-                                             ReportList *reports,
-                                             ParticleSystemModifierData *modifier,
-                                             ParticleData *particle,
-                                             int particle_no,
-                                             int uv_no,
-                                             float r_uv[2])
-{
-  if (modifier->mesh_final == nullptr) {
-    BKE_report(reports, RPT_ERROR, "Object was not yet evaluated");
-    zero_v2(r_uv);
-    return;
-  }
-  if (!CustomData_has_layer(&modifier->mesh_final->corner_data, CD_PROP_FLOAT2)) {
-    BKE_report(reports, RPT_ERROR, "Mesh has no UV data");
-    zero_v2(r_uv);
-    return;
-  }
-
-  {
-    float(*fuv)[4];
-    /* Note all sanity checks are done in this helper func. */
-    const int num = rna_ParticleSystem_tessfaceidx_on_emitter(
-        particlesystem, modifier, particle, particle_no, &fuv);
-
-    if (num < 0) {
-      /* No matching face found. */
-      zero_v2(r_uv);
-    }
-    else {
-      const MFace *mfaces = static_cast<const MFace *>(
-          CustomData_get_layer(&modifier->mesh_final->fdata_legacy, CD_MFACE));
-      const MFace *mface = &mfaces[num];
-      const MTFace *mtface = (const MTFace *)CustomData_get_layer_n(
-          &modifier->mesh_final->fdata_legacy, CD_MTFACE, uv_no);
-
-      psys_interpolate_uvs(&mtface[num], mface->v4, *fuv, r_uv);
-    }
-  }
-}
-
-static void rna_ParticleSystem_mcol_on_emitter(ParticleSystem *particlesystem,
-                                               ReportList *reports,
-                                               ParticleSystemModifierData *modifier,
-                                               ParticleData *particle,
-                                               int particle_no,
-                                               int vcol_no,
-                                               float r_mcol[3])
-{
-  if (!CustomData_has_layer(&modifier->mesh_final->corner_data, CD_PROP_BYTE_COLOR)) {
-    BKE_report(reports, RPT_ERROR, "Mesh has no VCol data");
-    zero_v3(r_mcol);
-    return;
-  }
-
-  {
-    float(*fuv)[4];
-    /* Note all sanity checks are done in this helper func. */
-    const int num = rna_ParticleSystem_tessfaceidx_on_emitter(
-        particlesystem, modifier, particle, particle_no, &fuv);
-
-    if (num < 0) {
-      /* No matching face found. */
-      zero_v3(r_mcol);
-    }
-    else {
-      const MFace *mfaces = static_cast<const MFace *>(
-          CustomData_get_layer(&modifier->mesh_final->fdata_legacy, CD_MFACE));
-      const MFace *mface = &mfaces[num];
-      const MCol *mc = (const MCol *)CustomData_get_layer_n(
-          &modifier->mesh_final->fdata_legacy, CD_MCOL, vcol_no);
-      MCol mcol;
-
-      psys_interpolate_mcol(&mc[num * 4], mface->v4, *fuv, &mcol);
-      r_mcol[0] = float(mcol.b) / 255.0f;
-      r_mcol[1] = float(mcol.g) / 255.0f;
-      r_mcol[2] = float(mcol.r) / 255.0f;
-    }
-  }
 }
 
 static void particle_recalc(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr, short flag)
@@ -822,7 +562,7 @@ static void rna_Particle_change_physics_type(Main *bmain, Scene *scene, PointerR
   if (part->phystype == PART_PHYS_BOIDS && part->boids == nullptr) {
     BoidState *state;
 
-    part->boids = static_cast<BoidSettings *>(MEM_callocN(sizeof(BoidSettings), "Boid Settings"));
+    part->boids = MEM_callocN<BoidSettings>("Boid Settings");
     boid_default_settings(part->boids);
 
     state = boid_new_state(part->boids);
@@ -835,8 +575,7 @@ static void rna_Particle_change_physics_type(Main *bmain, Scene *scene, PointerR
     BLI_addtail(&part->boids->states, state);
   }
   else if (part->phystype == PART_PHYS_FLUID && part->fluid == nullptr) {
-    part->fluid = static_cast<SPHFluidSettings *>(
-        MEM_callocN(sizeof(SPHFluidSettings), "SPH Fluid Settings"));
+    part->fluid = MEM_callocN<SPHFluidSettings>("SPH Fluid Settings");
     BKE_particlesettings_fluid_default_settings(part);
   }
 
@@ -950,7 +689,7 @@ static PointerRNA rna_particle_settings_get(PointerRNA *ptr)
   ParticleSystem *psys = (ParticleSystem *)ptr->data;
   ParticleSettings *part = psys->part;
 
-  return rna_pointer_inherit_refine(ptr, &RNA_ParticleSettings, part);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(part));
 }
 
 static void rna_particle_settings_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -998,8 +737,9 @@ static void rna_PartSettings_start_set(PointerRNA *ptr, float value)
   }
 
 #  if 0
-  if (settings->type == PART_REACTOR && value < 1.0)
+  if (settings->type == PART_REACTOR && value < 1.0) {
     value = 1.0;
+  }
   else
 #  endif
   if (value < MINAFRAMEF) {
@@ -1164,10 +904,10 @@ static PointerRNA rna_ParticleSystem_active_particle_target_get(PointerRNA *ptr)
 
   for (; pt; pt = pt->next) {
     if (pt->flag & PTARGET_CURRENT) {
-      return rna_pointer_inherit_refine(ptr, &RNA_ParticleTarget, pt);
+      return RNA_pointer_create_with_parent(*ptr, &RNA_ParticleTarget, pt);
     }
   }
-  return rna_pointer_inherit_refine(ptr, &RNA_ParticleTarget, nullptr);
+  return PointerRNA_NULL;
 }
 static void rna_ParticleSystem_active_particle_target_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
@@ -1305,10 +1045,10 @@ static PointerRNA rna_ParticleDupliWeight_active_get(PointerRNA *ptr)
 
   for (; dw; dw = dw->next) {
     if (dw->flag & PART_DUPLIW_CURRENT) {
-      return rna_pointer_inherit_refine(ptr, &RNA_ParticleDupliWeight, dw);
+      return RNA_pointer_create_with_parent(*ptr, &RNA_ParticleDupliWeight, dw);
     }
   }
-  return rna_pointer_inherit_refine(ptr, &RNA_ParticleTarget, nullptr);
+  return PointerRNA_NULL;
 }
 static void rna_ParticleDupliWeight_active_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
@@ -1359,10 +1099,10 @@ static size_t rna_ParticleDupliWeight_name_get_impl(PointerRNA *ptr,
   ParticleDupliWeight *dw = static_cast<ParticleDupliWeight *>(ptr->data);
 
   if (dw->ob) {
-    return BLI_snprintf_rlen(value, value_maxncpy, "%s: %i", dw->ob->id.name + 2, dw->count);
+    return BLI_snprintf_utf8_rlen(value, value_maxncpy, "%s: %i", dw->ob->id.name + 2, dw->count);
   }
 
-  return BLI_strncpy_rlen(value, "No object", value_maxncpy);
+  return BLI_strncpy_utf8_rlen(value, "No object", value_maxncpy);
 }
 
 static void rna_ParticleDupliWeight_name_get(PointerRNA *ptr, char *value)
@@ -1455,13 +1195,13 @@ static const EnumPropertyItem *rna_Particle_ren_as_itemf(bContext * /*C*/,
 static PointerRNA rna_Particle_field1_get(PointerRNA *ptr)
 {
   ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
-  return rna_pointer_inherit_refine(ptr, &RNA_FieldSettings, part->pd);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_FieldSettings, part->pd);
 }
 
 static PointerRNA rna_Particle_field2_get(PointerRNA *ptr)
 {
   ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
-  return rna_pointer_inherit_refine(ptr, &RNA_FieldSettings, part->pd2);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_FieldSettings, part->pd2);
 }
 
 static void psys_vg_name_get__internal(PointerRNA *ptr, char *value, int index)
@@ -1529,7 +1269,7 @@ static std::optional<std::string> rna_ParticleSystem_path(const PointerRNA *ptr)
 static void rna_ParticleSettings_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   ParticleSettings *part = (ParticleSettings *)ptr->data;
-  rna_iterator_array_begin(iter, (void *)part->mtex, sizeof(MTex *), MAX_MTEX, 0, nullptr);
+  rna_iterator_array_begin(iter, ptr, (void *)part->mtex, sizeof(MTex *), MAX_MTEX, 0, nullptr);
 }
 
 static PointerRNA rna_ParticleSettings_active_texture_get(PointerRNA *ptr)
@@ -1538,7 +1278,7 @@ static PointerRNA rna_ParticleSettings_active_texture_get(PointerRNA *ptr)
   Tex *tex;
 
   tex = give_current_particle_texture(part);
-  return rna_pointer_inherit_refine(ptr, &RNA_Texture, tex);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(tex));
 }
 
 static void rna_ParticleSettings_active_texture_set(PointerRNA *ptr,
@@ -1829,7 +1569,7 @@ static void rna_def_particle(BlenderRNA *brna)
   PropertyRNA *parm;
 
   static const EnumPropertyItem alive_items[] = {
-      /*{PARS_KILLED, "KILLED", 0, "Killed", ""}, */
+      // {PARS_KILLED, "KILLED", 0, "Killed", ""},
       {PARS_DEAD, "DEAD", 0, "Dead", ""},
       {PARS_UNBORN, "UNBORN", 0, "Unborn", ""},
       {PARS_ALIVE, "ALIVE", 0, "Alive", ""},
@@ -2499,11 +2239,6 @@ static void rna_def_particle_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem part_mat_items[] = {
-      {0, "DUMMY", 0, "Dummy", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   srna = RNA_def_struct(brna, "ParticleSettings", "ID");
   RNA_def_struct_ui_text(
       srna, "Particle Settings", "Particle settings, reusable by multiple particle systems");
@@ -2800,6 +2535,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, part_draw_as_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Particle_draw_as_itemf");
   RNA_def_property_ui_text(prop, "Particle Display", "How particles are displayed in viewport");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_PARTICLESETTINGS);
   RNA_def_property_update(prop, 0, "rna_Particle_redo");
 
   prop = RNA_def_property(srna, "render_type", PROP_ENUM, PROP_NONE);
@@ -2844,6 +2580,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "hair_step", PROP_INT, PROP_NONE);
   RNA_def_property_range(prop, 2, SHRT_MAX);
   RNA_def_property_ui_range(prop, 2, 50, 1, 1);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Segments", "Number of hair segments");
   RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
@@ -2886,7 +2623,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "material_slot", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "omat");
-  RNA_def_property_enum_items(prop, part_mat_items);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Particle_Material_itemf");
   RNA_def_property_ui_text(prop, "Material Slot", "Material slot used for rendering particles");
   RNA_def_property_update(prop, 0, "rna_Particle_redo");
@@ -4045,7 +3782,7 @@ static void rna_def_particle_system(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_ParticleSystem_path");
 
   /* extract cached hair location data */
-  func = RNA_def_function(srna, "co_hair", "rna_ParticleSystem_co_hair");
+  func = RNA_def_function(srna, "co_hair", "BKE_particle_co_hair");
   RNA_def_function_ui_description(func, "Obtain cache hair data");
   parm = RNA_def_pointer(func, "object", "Object", "", "Object");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
@@ -4057,7 +3794,7 @@ static void rna_def_particle_system(BlenderRNA *brna)
   RNA_def_function_output(func, parm);
 
   /* extract hair UVs */
-  func = RNA_def_function(srna, "uv_on_emitter", "rna_ParticleSystem_uv_on_emitter");
+  func = RNA_def_function(srna, "uv_on_emitter", "BKE_particle_uv_on_emitter");
   RNA_def_function_ui_description(func, "Obtain uv for all particles");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func, "modifier", "ParticleSystemModifier", "", "Particle modifier");
@@ -4072,7 +3809,7 @@ static void rna_def_particle_system(BlenderRNA *brna)
   RNA_def_function_output(func, parm);
 
   /* Extract hair vertex-colors. */
-  func = RNA_def_function(srna, "mcol_on_emitter", "rna_ParticleSystem_mcol_on_emitter");
+  func = RNA_def_function(srna, "mcol_on_emitter", "BKE_particle_mcol_on_emitter");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Obtain mcol for all particles");
   parm = RNA_def_pointer(func, "modifier", "ParticleSystemModifier", "", "Particle modifier");

@@ -15,6 +15,11 @@
  * Any filtering done on texel values just blends them without color space or
  * gamma conversions.
  *
+ * For sampling float images, there are "fully generic" functions that
+ * take arbitrary image channel counts, and arbitrary texture coordinate wrapping
+ * modes. However if you do not need full flexibility, use less generic functions,
+ * they will be faster (e.g. #interpolate_nearest_border_fl is faster than
+ * #interpolate_nearest_wrapmode_fl).
  */
 
 #include "BLI_math_base.h"
@@ -22,6 +27,22 @@
 #include "BLI_math_vector_types.hh"
 
 namespace blender::math {
+
+/**
+ * Texture coordinate wrapping mode.
+ */
+enum class InterpWrapMode {
+  /** Image edges are extended outside the image, i.e. sample coordinates are clamped to the edge.
+   */
+  Extend,
+  /** Image repeats, i.e. sample coordinates are wrapped around. */
+  Repeat,
+  /** Samples outside the image return transparent black. */
+  Border
+};
+
+/* -------------------------------------------------------------------- */
+/* Nearest (point) sampling. */
 
 /**
  * Nearest (point) sampling (with black border).
@@ -104,8 +125,8 @@ inline void interpolate_nearest_byte(
     const uchar *buffer, uchar *output, int width, int height, float u, float v)
 {
   BLI_assert(buffer);
-  const int x = math::clamp(int(u), 0, width - 1);
-  const int y = math::clamp(int(v), 0, height - 1);
+  const int x = u > 0 ? (u < width ? int(u) : width - 1) : 0;
+  const int y = v > 0 ? (v < height ? int(v) : height - 1) : 0;
 
   const uchar *data = buffer + (int64_t(width) * y + x) * 4;
   output[0] = data[0];
@@ -126,8 +147,8 @@ inline void interpolate_nearest_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v)
 {
   BLI_assert(buffer);
-  const int x = math::clamp(int(u), 0, width - 1);
-  const int y = math::clamp(int(v), 0, height - 1);
+  const int x = u > 0 ? (u < width ? int(u) : width - 1) : 0;
+  const int y = v > 0 ? (v < height ? int(v) : height - 1) : 0;
 
   const float *data = buffer + (int64_t(width) * y + x) * components;
   for (int i = 0; i < components; i++) {
@@ -144,6 +165,20 @@ inline void interpolate_nearest_fl(
 }
 
 /**
+ * Equal to int(mod_periodic(u, float(size)) for |u| <= MAXINT.
+ * However other values of u, including inf and NaN, produce in-range values,
+ * this is also at least 5% faster.
+ */
+[[nodiscard]] inline int32_t wrap_coord(float u, int32_t size)
+{
+  if (u < 0) {
+    int32_t x = int(uint32_t(-floor(u)) % uint32_t(size));
+    return x ? size - x : 0;
+  }
+  return int(uint32_t(u) % uint32_t(size));
+}
+
+/**
  * Wrapped nearest sampling. (u,v) is repeated to be inside the image size.
  */
 
@@ -151,10 +186,8 @@ inline void interpolate_nearest_wrap_byte(
     const uchar *buffer, uchar *output, int width, int height, float u, float v)
 {
   BLI_assert(buffer);
-  u = floored_fmod(u, float(width));
-  v = floored_fmod(v, float(height));
-  int x = int(u);
-  int y = int(v);
+  int x = wrap_coord(u, width);
+  int y = wrap_coord(v, height);
   BLI_assert(x >= 0 && y >= 0 && x < width && y < height);
 
   const uchar *data = buffer + (int64_t(width) * y + x) * 4;
@@ -176,10 +209,8 @@ inline void interpolate_nearest_wrap_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v)
 {
   BLI_assert(buffer);
-  u = floored_fmod(u, float(width));
-  v = floored_fmod(v, float(height));
-  int x = int(u);
-  int y = int(v);
+  int x = wrap_coord(u, width);
+  int y = wrap_coord(v, height);
   BLI_assert(x >= 0 && y >= 0 && x < width && y < height);
 
   const float *data = buffer + (int64_t(width) * y + x) * components;
@@ -195,6 +226,19 @@ inline void interpolate_nearest_wrap_fl(
   interpolate_nearest_wrap_fl(buffer, res, width, height, 4, u, v);
   return res;
 }
+
+void interpolate_nearest_wrapmode_fl(const float *buffer,
+                                     float *output,
+                                     int width,
+                                     int height,
+                                     int components,
+                                     float u,
+                                     float v,
+                                     InterpWrapMode wrap_u,
+                                     InterpWrapMode wrap_v);
+
+/* -------------------------------------------------------------------- */
+/* Bilinear sampling. */
 
 /**
  * Bilinear sampling (with black border).
@@ -247,15 +291,18 @@ void interpolate_bilinear_fl(
 [[nodiscard]] float4 interpolate_bilinear_wrap_fl(
     const float *buffer, int width, int height, float u, float v);
 
-void interpolate_bilinear_wrap_fl(const float *buffer,
-                                  float *output,
-                                  int width,
-                                  int height,
-                                  int components,
-                                  float u,
-                                  float v,
-                                  bool wrap_x,
-                                  bool wrap_y);
+void interpolate_bilinear_wrapmode_fl(const float *buffer,
+                                      float *output,
+                                      int width,
+                                      int height,
+                                      int components,
+                                      float u,
+                                      float v,
+                                      InterpWrapMode wrap_u,
+                                      InterpWrapMode wrap_v);
+
+/* -------------------------------------------------------------------- */
+/* Cubic sampling. */
 
 /**
  * Cubic B-Spline sampling.
@@ -277,6 +324,16 @@ void interpolate_bilinear_wrap_fl(const float *buffer,
 
 void interpolate_cubic_bspline_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v);
+
+void interpolate_cubic_bspline_wrapmode_fl(const float *buffer,
+                                           float *output,
+                                           int width,
+                                           int height,
+                                           int components,
+                                           float u,
+                                           float v,
+                                           InterpWrapMode wrap_u,
+                                           InterpWrapMode wrap_v);
 
 /**
  * Cubic Mitchell sampling.
@@ -300,6 +357,9 @@ void interpolate_cubic_mitchell_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v);
 
 }  // namespace blender::math
+
+/* -------------------------------------------------------------------- */
+/* EWA sampling. */
 
 #define EWA_MAXIDX 255
 extern const float EWA_WTS[EWA_MAXIDX + 1];
