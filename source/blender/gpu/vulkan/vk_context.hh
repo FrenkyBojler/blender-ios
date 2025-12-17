@@ -45,7 +45,7 @@ class VKContext : public Context, NonCopyable {
   VkExtent2D vk_extent_ = {};
   VkSurfaceFormatKHR swap_chain_format_ = {};
   gpu::Texture *surface_texture_ = nullptr;
-  void *ghost_context_;
+  GHOST_IContext *ghost_context_;
 
   Vector<std::unique_ptr<VKStreamingBuffer>> streaming_buffers_;
 
@@ -85,7 +85,7 @@ class VKContext : public Context, NonCopyable {
     return render_graph_.value().get();
   }
 
-  VKContext(void *ghost_window, void *ghost_context);
+  VKContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context);
   virtual ~VKContext();
 
   void activate() override;
