@@ -32,7 +32,6 @@
 #include "WM_types.hh"
 
 struct ARegion;
-struct GHOST_IContext;
 struct GPUViewport;
 struct ID;
 struct IDProperty;
@@ -86,6 +85,8 @@ class AssetRepresentation;
 namespace blender::ui {
 enum class AlertIcon : int8_t;
 }
+
+class GHOST_IContext;
 
 /* General API. */
 

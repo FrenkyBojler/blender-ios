@@ -24,7 +24,7 @@
 
 #include <pthread.h>
 
-struct GHOST_IWindow;
+class GHOST_IWindow;
 
 struct GPUMatrixState;
 

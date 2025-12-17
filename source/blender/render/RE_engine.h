@@ -35,7 +35,6 @@ struct ViewLayer;
 struct ViewRender;
 struct bNode;
 struct bNodeTree;
-struct GHOST_IContext;
 
 /* External Engine */
 

@@ -1097,7 +1097,7 @@ using GHOST_XrSessionCreateFn = void (*)();
 using GHOST_XrSessionExitFn = void (*)(void *customdata);
 using GHOST_XrCustomdataFreeFn = void (*)(void *customdata);
 
-struct GHOST_IContext;
+class GHOST_IContext;
 using GHOST_XrGraphicsContextBindFn = GHOST_IContext *(*)();
 using GHOST_XrGraphicsContextUnbindFn = void (*)(GHOST_IContext *graphics_context);
 using GHOST_XrDrawViewFn = void (*)(const struct GHOST_XrDrawViewInfo *draw_view,

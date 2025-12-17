@@ -29,6 +29,7 @@ class RenderContext;
 class Profiler;
 enum class OutputTypes : uint8_t;
 }  // namespace blender::compositor
+class GHOST_IContext;
 
 struct bNodeTree;
 struct Depsgraph;
@@ -38,7 +39,6 @@ struct RenderDisplay;
 struct RenderEngine;
 struct ReportList;
 struct Scene;
-struct GHOST_IContext;
 
 struct BaseRender {
   BaseRender() = default;

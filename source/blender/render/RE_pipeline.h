@@ -15,6 +15,8 @@
 namespace blender::gpu {
 class Texture;
 }
+class GHOST_IContext;
+
 struct ExrHandle;
 struct ImBuf;
 struct Image;
@@ -28,7 +30,6 @@ struct ReportList;
 struct Scene;
 struct StampData;
 struct ViewLayer;
-struct GHOST_IContext;
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is what is exposed of render to outside world */

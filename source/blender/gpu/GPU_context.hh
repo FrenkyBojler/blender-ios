@@ -12,9 +12,9 @@
 
 #include "GPU_platform.hh"
 
-struct GHOST_IContext;
-struct GHOST_ISystem;
-struct GHOST_IWindow;
+class GHOST_IContext;
+class GHOST_ISystem;
+class GHOST_IWindow;
 
 /* GPU back-ends abstract the differences between different APIs. #GPU_context_create
  * automatically initializes the back-end, and #GPU_context_discard frees it when there

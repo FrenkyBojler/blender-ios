@@ -10,6 +10,8 @@
 
 #include "BLI_string_ref.hh"
 
+class GHOST_IContext;
+
 struct ARegion;
 struct DRWData;
 struct DRWInstanceDataList;
@@ -30,7 +32,6 @@ struct View3D;
 struct ViewLayer;
 struct bContext;
 struct rcti;
-struct GHOST_IContext;
 
 namespace blender::bke {
 enum class AttrType : int16_t;
