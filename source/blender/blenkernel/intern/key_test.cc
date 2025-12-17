@@ -69,10 +69,13 @@ TEST_F(ShapekeyTest, mesh_key_creation)
   ASSERT_NE(base->data, nullptr);
   ASSERT_EQ(base->totelem, 4);
   float3 *data = reinterpret_cast<float3 *>(base->data);
-  ASSERT_TRUE(data[0] == float3(0, 0, 0));
-  ASSERT_TRUE(data[1] == float3(1, 0, 0));
-  ASSERT_TRUE(data[2] == float3(1, 1, 0));
-  ASSERT_TRUE(data[3] == float3(0, 1, 0));
+  Array<float3> expected = {
+      {0, 0, 0},
+      {1, 0, 0},
+      {1, 1, 0},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&data[0], &expected[0], 4);
 }
 
 TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
@@ -93,11 +96,13 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
   float3 *ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
   ASSERT_NE(ob_eval, nullptr);
   ASSERT_EQ(totelem, mesh->verts_num);
-
-  ASSERT_TRUE(ob_eval[0] == float3(1, 1, 1));
-  ASSERT_TRUE(ob_eval[1] == float3(1, 0, 0));
-  ASSERT_TRUE(ob_eval[2] == float3(1, 1, 0));
-  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  Array<float3> expected = {
+      {1, 1, 1},
+      {1, 0, 0},
+      {1, 1, 0},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
   MEM_freeN(ob_eval);
 
   KeyBlock *key2 = BKE_keyblock_add(key, "two");
@@ -108,13 +113,37 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
 
   key2->curval = 1.0;
   ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
-  ASSERT_NE(ob_eval, nullptr);
-  ASSERT_EQ(totelem, mesh->verts_num);
+  expected = {
+      {3, 3, 3},
+      {-1, -1, -1},
+      {1, 1, 0},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  MEM_freeN(ob_eval);
 
-  ASSERT_TRUE(ob_eval[0] == float3(3, 3, 3));
-  ASSERT_TRUE(ob_eval[1] == float3(-1, -1, -1));
-  ASSERT_TRUE(ob_eval[2] == float3(1, 1, 0));
-  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  /* Blend in halfway. */
+  key2->curval = 0.5;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  expected = {
+      {2, 2, 2},
+      {0, -0.5, -0.5},
+      {1, 1, 0},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  MEM_freeN(ob_eval);
+
+  /* Blend in double. */
+  key2->curval = 2.0;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  expected = {
+      {5, 5, 5},
+      {-3, -2, -2},
+      {1, 1, 0},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
   MEM_freeN(ob_eval);
 }
 
@@ -143,31 +172,49 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
   key->ctime = 0.0;
   int totelem = 0;
   float3 *ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
-
-  ASSERT_TRUE(ob_eval[0] == float3(0, 0, 0));
-  ASSERT_TRUE(ob_eval[1] == float3(1, 0, 0));
-  ASSERT_TRUE(ob_eval[2] == float3(1, 1, 0));
-  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  Array<float3> expected = {
+      {0, 0, 0},
+      {1, 0, 0},
+      {1, 1, 0},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
   MEM_freeN(ob_eval);
 
   /* At 1 this should be at key1. */
   key->ctime = 100.0;
   ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
-
-  ASSERT_TRUE(ob_eval[0] == float3(0, 0, 0));
-  ASSERT_TRUE(ob_eval[1] == float3(1, 1, 1));
-  ASSERT_TRUE(ob_eval[2] == float3(1, 1, 0));
-  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  expected = {
+      {0, 0, 0},
+      {1, 1, 1},
+      {1, 1, 0},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
   MEM_freeN(ob_eval);
 
   /* At 2 this should be at key2. */
   key->ctime = 200.0;
   ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  expected = {
+      {0, 0, 0},
+      {0, 0, 0},
+      {5, 5, 5},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
+  MEM_freeN(ob_eval);
 
-  ASSERT_TRUE(ob_eval[0] == float3(0, 0, 0));
-  ASSERT_TRUE(ob_eval[1] == float3(0, 0, 0));
-  ASSERT_TRUE(ob_eval[2] == float3(5, 5, 5));
-  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  /* This should be a linear blend between key1 and key2; */
+  key->ctime = 150.0;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  expected = {
+      {0, 0, 0},
+      {0.5, 0.5, 0.5},
+      {3, 3, 2.5},
+      {0, 1, 0},
+  };
+  EXPECT_EQ_ARRAY(&ob_eval[0], &expected[0], 4);
   MEM_freeN(ob_eval);
 }
 }  // namespace blender::bke::tests
