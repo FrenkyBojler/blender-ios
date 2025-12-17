@@ -987,9 +987,11 @@ void BKE_curvemap_get_active_ptr(CurveMap *cuma, CurveMapPoint **ptr_out)
 
 void BKE_translate_inactive_selection(CurveMap *cuma, const float delta_x, const float delta_y)
 {
+  CurveMapPoint *active_pt = nullptr;
+  BKE_curvemap_get_active_ptr(cuma, &active_pt);
   for (int i = 0; i < cuma->totpoint; i++) {
     CurveMapPoint *pt = &cuma->curve[i];
-    if ((pt->flag & CUMA_SELECT) && !(pt->flag & CUMA_ACTIVE)) {
+    if ((pt->flag & CUMA_SELECT) && (pt != active_pt)) {
       pt->x += delta_x;
       pt->y += delta_y;
     }

@@ -733,13 +733,13 @@ static void curvemap_buttons_layout(Layout *layout,
     button_number_precision_set(bt, 5);
     button_func_set(bt, [cumap, cb, crp](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
-      CurveMapPoint *active_pt = nullptr;
-      BKE_curvemap_get_active_ptr(cuma, &active_pt);
-      BKE_translate_inactive_selection(cuma, active_pt->x - crp->last_x, 0.0f);
+      BKE_translate_inactive_selection(cuma, crp->last_pt->x - crp->last_x, 0.0f);
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
 
-      // update the last_x for the next callback
+      // update the active point if the pointer changed
+      CurveMapPoint *active_pt = nullptr;
+      BKE_curvemap_get_active_ptr(cuma, &active_pt);
       crp->last_x = active_pt->x;
       crp->last_pt = active_pt;
     });
@@ -759,13 +759,13 @@ static void curvemap_buttons_layout(Layout *layout,
     button_number_precision_set(bt, 5);
     button_func_set(bt, [cumap, cb, crp](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
-      CurveMapPoint *active_pt = nullptr;
-      BKE_curvemap_get_active_ptr(cuma, &active_pt);
-      BKE_translate_inactive_selection(cuma, 0.0f, active_pt->y - crp->last_y);
+      BKE_translate_inactive_selection(cuma, 0.0f, crp->last_pt->y - crp->last_y);
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
 
-      // update the last_x for the next callback
+      // update the active point if the pointer changed
+      CurveMapPoint *active_pt = nullptr;
+      BKE_curvemap_get_active_ptr(cuma, &active_pt);
       crp->last_y = active_pt->y;
       crp->last_pt = active_pt;
     });
