@@ -1,11 +1,25 @@
+import enum
 from .action_profile import VRDefaultActions
+from enum import Enum
 
+class VRActionPathType(Enum):
+    LEFT_HANDED = ["/user/hand/left"]
+    RIGHT_HANDED = ["/user/hand/right"]
+    DUAL_HANDED = ["/user/hand/left", "/user/hand/right"]
+    GAMEPAD = ["/user/gamepad"]    
 
 class VRAction():
     def __init__(self):
         self.name = VRDefaultActions.EMPTY.value
         self.type = ''
-        self.user_paths = ["/user/hand/left", "/user/hand/right"]
+
+        self.path_type = VRActionPathType.DUAL_HANDED
+
+    def enable_gamepad(self, enable: bool):
+        if enable:
+            self.path_type = VRActionPathType.GAMEPAD
+        else:
+            self.path_type = VRActionPathType.DUAL_HANDED
 
     def vr_action_map_add(self, action_map):
         action_map_item = action_map.actionmap_items.new(self.name, True)
@@ -14,7 +28,7 @@ class VRAction():
             return None
         
         action_map_item.type = self.type
-        for path in self.user_paths:
+        for path in self.path_type.value:
             action_map_item.user_paths.new(path)
         
         return action_map_item
@@ -90,21 +104,14 @@ class VRActionFloat(VRAction):
         return action_map_binding
 
 
-class VRActionHaptic(VRAction):
-    def __init__(self):
-        super().__init__()
-        self.type = 'VIBRATION'
-        self.name = VRDefaultActions.HAPTIC.value
-
-
 class VRActionFloatLeftHanded(VRActionFloat):
     def __init__(self):
         super().__init__()
-        self.user_paths = ["/user/hand/left"]
+        self.path_type = VRActionPathType.LEFT_HANDED
 
 
 class VRActionFloatRightHanded(VRActionFloat):
     def __init__(self):
         super().__init__()
-        self.user_paths = ["/user/hand/right"]
+        self.path_type = VRActionPathType.RIGHT_HANDED
 

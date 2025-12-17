@@ -2,6 +2,13 @@ from ..action import VRActionFloatLeftHanded, VRActionFloatRightHanded
 from ..action_profile import VRDefaultActions
 
 
+class VRActionFly(VRActionFloatLeftHanded):
+    def __init__(self):
+        super().__init__()
+        self.name = VRDefaultActions.FLY.value
+        self.op = "wm.xr_navigation_fly"
+
+
 class VRActionFlyForward(VRActionFloatLeftHanded):
     def __init__(self):
         super().__init__()

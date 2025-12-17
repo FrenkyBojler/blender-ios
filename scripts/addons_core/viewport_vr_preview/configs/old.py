@@ -474,9 +474,11 @@ def test_actionconfig(actionconfig_data):
          return
       
    else:
-      diff = deep_diff(actionconfig_data, actionconfig_data_old)
-      if diff:
-         print(f"Error: action configs differ\n{diff}")
+      diffs = deep_diff(actionconfig_data, actionconfig_data_old)
+      if diffs:
+         print(f"Error: action configs differ")
+         for d in diffs:
+            print(f"\t{d}")
          return
    
    print("No differences found between actionconfig_data and actionconfig_data_old...")

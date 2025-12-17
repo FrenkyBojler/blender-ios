@@ -34,6 +34,7 @@ class VRDefaultActions(Enum):
     HAPTIC_LEFTTRIGGER = "haptic_lefttrigger"
     HAPTIC_RIGHTTRIGGER = "haptic_righttrigger"
 
+
 # Default action bindings.
 class VRDefaultActionbindings(Enum):
     GAMEPAD = "gamepad"
