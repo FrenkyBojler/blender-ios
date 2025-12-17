@@ -1038,7 +1038,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 #ifndef __APPLE__
     /* Set the state here, so minimized state comes up correct on windows. */
     if (wm_init_state.window_focus) {
-      GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
+      ghost_window->setState(static_cast<GHOST_TWindowState>(win->windowstate));
     }
 #endif
 
@@ -1639,6 +1639,7 @@ void wm_window_reset_drawable()
   }
 }
 
+#ifndef NDEBUG
 /**
  * Time-stamp validation that uses basic heuristics to warn about bad time-stamps.
  * Issues here should be resolved in GHOST.
@@ -1714,6 +1715,7 @@ static void ghost_event_proc_timestamp_warning(const GHOST_IEvent *ghost_event)
                     now_ms,
                     int(ghost_event->getType()));
 }
+#endif /* !NDEBUG */
 
 /**
  * Called by ghost, here we handle events for windows themselves or send to event system.

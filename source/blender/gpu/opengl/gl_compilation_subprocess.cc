@@ -183,7 +183,7 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
   if (ghost_context == nullptr) {
     std::cerr << "Compilation Subprocess: Failed to initialize GHOST context for "
               << subprocess_name << "\n";
-    GHOST_DisposeSystem(ghost_system);
+    ghost_system->disposeSystem();
     return;
   }
   ghost_context->activateDrawingContext();
@@ -304,8 +304,8 @@ void GPU_compilation_subprocess_run(const char *subprocess_name)
 
   GPU_exit();
   GPU_context_discard(gpu_context);
-  ghost_system->diposeContext(ghost_context);
-  ghsot_system->disposeSystem();
+  ghost_system->disposeContext(ghost_context);
+  ghost_system->disposeSystem();
 }
 
 namespace blender::gpu {
