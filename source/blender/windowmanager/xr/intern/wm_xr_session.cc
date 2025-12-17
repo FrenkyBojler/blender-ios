@@ -32,7 +32,7 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
-#include "GHOST_C-api.h"
+#include "GHOST_Xr-api.hh"
 
 #include "GPU_batch.hh"
 #include "GPU_viewport.hh"
@@ -714,7 +714,7 @@ static void wm_xr_session_controller_pose_calc(const GHOST_XrPose *raw_pose,
 static void wm_xr_session_controller_data_update(const XrSessionSettings *settings,
                                                  const wmXrAction *grip_action,
                                                  const wmXrAction *aim_action,
-                                                 GHOST_XrContextHandle xr_context,
+                                                 GHOST_IXrContext *xr_context,
                                                  wmXrSessionState *state)
 {
   BLI_assert(grip_action->count_subaction_paths == aim_action->count_subaction_paths);
@@ -1201,7 +1201,7 @@ static wmXrActionData *wm_xr_session_event_create(const char *action_set_name,
 
 /* Dispatch events to window queues. */
 static void wm_xr_session_events_dispatch(wmXrData *xr,
-                                          GHOST_XrContextHandle xr_context,
+                                          GHOST_IXrContext *xr_context,
                                           wmXrActionSet *action_set,
                                           wmXrSessionState *session_state,
                                           wmWindow *win)
@@ -1290,7 +1290,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
   }
 
   XrSessionSettings *settings = &xr->session_settings;
-  GHOST_XrContextHandle xr_context = xr->runtime->context;
+  GHOST_IXrContext *xr_context = xr->runtime->context;
   wmXrSessionState *state = &xr->runtime->session_state;
 
   if (state->is_navigation_dirty) {
