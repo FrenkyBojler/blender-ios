@@ -51,13 +51,6 @@ class ShapekeyTest : public testing::Test {
 
 namespace blender::bke::tests {
 
-static void compare_float3(const float3 &a, const float3 &b)
-{
-  ASSERT_EQ(a[0], b[0]);
-  ASSERT_EQ(a[1], b[1]);
-  ASSERT_EQ(a[2], b[2]);
-}
-
 TEST_F(ShapekeyTest, mesh_key_creation)
 {
   Key *key = BKE_key_add(bmain, &mesh->id);
@@ -76,10 +69,10 @@ TEST_F(ShapekeyTest, mesh_key_creation)
   ASSERT_NE(base->data, nullptr);
   ASSERT_EQ(base->totelem, 4);
   float3 *data = reinterpret_cast<float3 *>(base->data);
-  compare_float3(data[0], {0, 0, 0});
-  compare_float3(data[1], {1, 0, 0});
-  compare_float3(data[2], {1, 1, 0});
-  compare_float3(data[3], {0, 1, 0});
+  ASSERT_TRUE(data[0] == float3(0, 0, 0));
+  ASSERT_TRUE(data[1] == float3(1, 0, 0));
+  ASSERT_TRUE(data[2] == float3(1, 1, 0));
+  ASSERT_TRUE(data[3] == float3(0, 1, 0));
 }
 
 TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
@@ -101,16 +94,80 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative)
   ASSERT_NE(ob_eval, nullptr);
   ASSERT_EQ(totelem, mesh->verts_num);
 
-  compare_float3(ob_eval[0], {1, 1, 1});
-  compare_float3(ob_eval[1], {1, 0, 0});
-  compare_float3(ob_eval[2], {1, 1, 0});
-  compare_float3(ob_eval[3], {0, 1, 0});
+  ASSERT_TRUE(ob_eval[0] == float3(1, 1, 1));
+  ASSERT_TRUE(ob_eval[1] == float3(1, 0, 0));
+  ASSERT_TRUE(ob_eval[2] == float3(1, 1, 0));
+  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  MEM_freeN(ob_eval);
 
+  KeyBlock *key2 = BKE_keyblock_add(key, "two");
+  BKE_keyblock_convert_from_mesh(mesh, key, key2);
+  float3 *key2_data = reinterpret_cast<float3 *>(key2->data);
+  key2_data[0] = {2, 2, 2};
+  key2_data[1] = {-1, -1, -1};
+
+  key2->curval = 1.0;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+  ASSERT_NE(ob_eval, nullptr);
+  ASSERT_EQ(totelem, mesh->verts_num);
+
+  ASSERT_TRUE(ob_eval[0] == float3(3, 3, 3));
+  ASSERT_TRUE(ob_eval[1] == float3(-1, -1, -1));
+  ASSERT_TRUE(ob_eval[2] == float3(1, 1, 0));
+  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
   MEM_freeN(ob_eval);
 }
 
-TEST_F(ShapekeyTest, evaluate_different_element_count)
+TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
 {
-  // BKE_key_evaluate_object_ex
+  Key *key = BKE_key_add(bmain, &mesh->id);
+  mesh->key = key;
+  key->type = KEY_NORMAL;
+  KeyBlock *base = BKE_keyblock_add(key, "base");
+  BKE_keyblock_convert_from_mesh(mesh, key, base);
+
+  KeyBlock *key1 = BKE_keyblock_add(key, "one");
+  key1->pos = 1.0;
+  BKE_keyblock_convert_from_mesh(mesh, key, key1);
+  float3 *key1_data = reinterpret_cast<float3 *>(key1->data);
+  key1_data[1] = {1, 1, 1};
+
+  KeyBlock *key2 = BKE_keyblock_add(key, "two");
+  key2->pos = 2.0;
+  BKE_keyblock_convert_from_mesh(mesh, key, key2);
+  float3 *key2_data = reinterpret_cast<float3 *>(key2->data);
+  key2_data[1] = {0, 0, 0};
+  key2_data[2] = {5, 5, 5};
+
+  /* At 0 this should be the base. */
+  key->ctime = 0.0;
+  int totelem = 0;
+  float3 *ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+
+  ASSERT_TRUE(ob_eval[0] == float3(0, 0, 0));
+  ASSERT_TRUE(ob_eval[1] == float3(1, 0, 0));
+  ASSERT_TRUE(ob_eval[2] == float3(1, 1, 0));
+  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  MEM_freeN(ob_eval);
+
+  /* At 1 this should be at key1. */
+  key->ctime = 100.0;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+
+  ASSERT_TRUE(ob_eval[0] == float3(0, 0, 0));
+  ASSERT_TRUE(ob_eval[1] == float3(1, 1, 1));
+  ASSERT_TRUE(ob_eval[2] == float3(1, 1, 0));
+  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  MEM_freeN(ob_eval);
+
+  /* At 2 this should be at key2. */
+  key->ctime = 200.0;
+  ob_eval = reinterpret_cast<float3 *>(BKE_key_evaluate_object(ob, &totelem));
+
+  ASSERT_TRUE(ob_eval[0] == float3(0, 0, 0));
+  ASSERT_TRUE(ob_eval[1] == float3(0, 0, 0));
+  ASSERT_TRUE(ob_eval[2] == float3(5, 5, 5));
+  ASSERT_TRUE(ob_eval[3] == float3(0, 1, 0));
+  MEM_freeN(ob_eval);
 }
 }  // namespace blender::bke::tests
