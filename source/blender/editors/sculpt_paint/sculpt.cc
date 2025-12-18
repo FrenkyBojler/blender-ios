@@ -1171,6 +1171,7 @@ static void restore_from_undo_step(const Depsgraph &depsgraph, const Sculpt &sd,
     case SCULPT_BRUSH_TYPE_MASK:
       restore_mask_from_undo_step(object);
       break;
+    case SCULPT_BRUSH_TYPE_BLUR:
     case SCULPT_BRUSH_TYPE_PAINT:
     case SCULPT_BRUSH_TYPE_SMEAR:
       restore_color_from_undo_step(object);
@@ -2250,6 +2251,7 @@ static float brush_strength(const Sculpt &sd,
       final_pressure = pressure * pressure;
       return final_pressure * overlap * feather;
     case SCULPT_BRUSH_TYPE_SMEAR:
+    case SCULPT_BRUSH_TYPE_BLUR:
     case SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR:
       return alpha * pressure * overlap * feather;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
@@ -3817,6 +3819,8 @@ static const char *sculpt_brush_type_name(const Brush &brush)
       return "Smear Brush";
     case SCULPT_BRUSH_TYPE_PLANE:
       return "Plane Brush";
+    case SCULPT_BRUSH_TYPE_BLUR:
+      return "Blur Brush";
   }
 
   return "Sculpting";
