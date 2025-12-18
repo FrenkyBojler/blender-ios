@@ -126,8 +126,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeCombineBundle &storage = node_storage(node);
 
   BundlePtr bundle_ptr = Bundle::create();
-  BLI_assert(bundle_ptr->is_mutable());
-  Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
+  Bundle &bundle = bundle_ptr.ensure_mutable_inplace();
 
   for (const int i : IndexRange(storage.items_num)) {
     const NodeCombineBundleItem &item = storage.items[i];
@@ -136,7 +135,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       continue;
     }
     const StringRef name = item.name;
-    if (name.is_empty()) {
+    if (!Bundle::is_valid_key(name)) {
       continue;
     }
     bke::SocketValueVariant value = params.extract_input<bke::SocketValueVariant>(

@@ -34,6 +34,9 @@ void BundleSignature::set_auto_structure_types()
 
 bool Bundle::is_valid_key(const StringRef key)
 {
+  if (key.is_empty()) {
+    return false;
+  }
   return key.find_first_of(Bundle::forbidden_key_chars) == StringRef::not_found;
 }
 
