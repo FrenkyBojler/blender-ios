@@ -2,3 +2,4 @@ Referenced by commit ee59ba1afde772ebbdb50d1d1a16d5245222e3d7, Fix: GPU: Mistake
 Referenced by commit f5921796c5997bd6c7cf44e8e60e41b0c6cff1b4, Fix: Metal: EEVEE crashes because of failed shader compilation
 Referenced by issue #151113, Sequencer rotation center "gizmo" is bigger
 Referenced by issue #151700, crash on python shader compile
+Referenced by issue #151764, python builtin shader `POLYLINE_UNIFORM_COLOR` problem
