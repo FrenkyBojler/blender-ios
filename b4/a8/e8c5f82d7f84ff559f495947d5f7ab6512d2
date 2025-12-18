@@ -1,2 +1,3 @@
 Referenced by issue #151660, Blender crashes suddenly when I open my file.
 Referenced by pull request #151752, Fix #151660: Crash from uninitialized anim_mirror_object field
+Referenced by commit 35f0bddce4f870615b0948ce4dee9fd36ad25afc, Fix #151660: Crash from uninitialized anim_mirror_object field
