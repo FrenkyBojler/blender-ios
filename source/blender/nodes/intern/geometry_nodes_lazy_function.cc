@@ -22,6 +22,7 @@
 
 #include "NOD_geo_viewer.hh"
 #include "NOD_geometry_exec.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_multi_function.hh"
@@ -1338,7 +1339,7 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
   {
     debug_name_ = "Extract References";
     inputs_.append_as("Use", CPPType::get<bool>());
-    inputs_.append_as("Field", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
+    inputs_.append_as("Value", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
     outputs_.append_as("References", CPPType::get<GeometryNodesReferenceSet>());
   }
 
@@ -1357,22 +1358,39 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
     }
 
     GeometryNodesReferenceSet references;
-    if (value_variant->is_context_dependent_field()) {
-      const GField &field = value_variant->get<GField>();
+    this->gather__socket_value(*value_variant, references);
+    params.set_output(0, std::move(references));
+  }
+
+  void gather__socket_value(const SocketValueVariant &value_variant,
+                            GeometryNodesReferenceSet &r_references) const
+  {
+    if (value_variant.is_context_dependent_field()) {
+      const GField &field = value_variant.get<GField>();
       field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
         if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input))
         {
           const StringRef name = attr_field_input->attribute_name();
           if (bke::attribute_name_is_anonymous(name)) {
-            if (!references.names) {
-              references.names = std::make_shared<Set<std::string>>();
+            if (!r_references.names) {
+              r_references.names = std::make_shared<Set<std::string>>();
             }
-            references.names->add_as(name);
+            r_references.names->add_as(name);
           }
         }
       });
     }
-    params.set_output(0, std::move(references));
+    if (value_variant.is_single()) {
+      const GPointer value = value_variant.get_single_ptr();
+      if (value.is_type<BundlePtr>()) {
+        const BundlePtr &bundle = *value.get<BundlePtr>();
+        for (const auto &[name, value] : bundle->items()) {
+          if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
+            this->gather__socket_value(socket_value->value, r_references);
+          }
+        }
+      }
+    }
   }
 };
 
