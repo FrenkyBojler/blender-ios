@@ -7,17 +7,12 @@
  * \brief Windows / Win32 System File menu implementation
  */
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
 /* Need to include windows.h so _WIN32_IE is defined. */
 #include <windows.h>
 /* For SHGetSpecialFolderPath, has to be done before BLI_winstuff
  * because 'near' is disabled through BLI_windstuff. */
 #include "BLI_winstuff.h"
 #include <comdef.h>
-#include <comutil.h>
 #include <shlobj.h>
 #include <shlwapi.h>
 #include <wrl.h>
@@ -26,18 +21,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
-
-#include "DNA_userdef_types.h"
 
 #include "BLT_translation.hh"
-
-#include "ED_fileselect.hh"
 
 #include "UI_resources.hh"
 
