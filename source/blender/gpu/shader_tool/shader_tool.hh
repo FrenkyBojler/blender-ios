@@ -542,6 +542,8 @@ class Preprocessor {
         lint_reserved_tokens(parser, report_error);
         lint_attributes(parser, report_error);
         lint_global_scope_constants(parser, report_error);
+        lint_constructors(parser, report_error);
+        lint_forward_declared_structs(parser, report_error);
 
         /* Lint and remove C++ accessor templates before lowering template. */
         lower_srt_accessor_templates(parser, report_error);
@@ -2543,6 +2545,11 @@ class Preprocessor {
             const Token static_tok = is_static ? fn_type.prev() : Token::invalid();
             const Token const_tok = is_const ? fn_args.back().next() : Token::invalid();
 
+            if (fn_name.str()[0] == '_') {
+              report_error(ERROR_TOK(fn_name),
+                           "function name starting with an underscore are reserved");
+            }
+
             if (is_static) {
               parser.replace(fn_name, struct_name.str() + namespace_separator + fn_name.str());
               /* WORKAROUND: Erase the static keyword as it conflicts with the wrapper class
@@ -2943,8 +2950,6 @@ class Preprocessor {
      *
      * IMPORTANT: This has some requirements:
      * - Enums needs to have underlying types set to uint32_t to make them usable in UBO and SSBO.
-     * - All values needs to be specified using constant literals to avoid compiler differences.
-     * - All values needs to have the 'u' suffix to avoid GLSL compiler errors.
      */
     using namespace std;
     using namespace shader::parser;
@@ -4958,6 +4963,38 @@ class Preprocessor {
             ERROR_TOK(tokens[2]),
             "Global scope constant expression found. These get allocated per-thread in MSL. "
             "Use Macro's or uniforms instead.");
+      }
+    });
+  }
+
+  /* Search for constructor definition in active code. These are not supported. */
+  void lint_constructors(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_struct([&](Token, Scope, Token struct_name, Scope struct_scope) {
+      struct_scope.foreach_match("w(..)", [&](const Tokens &t) {
+        if (t[0].scope() != struct_scope) {
+          return;
+        }
+        if (t[0].str() == struct_name.str()) {
+          report_error(ERROR_TOK(t[0]), "Constructors are not supported.");
+        }
+      });
+    });
+  }
+
+  /* Forward declaration of types are not supported and makes no sense in a shader program where
+   * there is no pointers. */
+  void lint_forward_declared_structs(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_match("sw;", [&](const Tokens &t) {
+      if (t[0].scope().type() == ScopeType::Global) {
+        report_error(ERROR_TOK(t[0]), "Forward declaration of types are not supported.");
       }
     });
   }
