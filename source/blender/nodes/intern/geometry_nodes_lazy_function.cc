@@ -1332,7 +1332,8 @@ class LazyFunctionForIndexSwitchSocketUsage : public lf::LazyFunction {
 };
 
 /**
- * Takes a field as input and extracts the set of anonymous attribute names that it references.
+ * Takes a socket value as input and extracts the set of anonymous attribute names that it
+ * references.
  */
 class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
  public:
