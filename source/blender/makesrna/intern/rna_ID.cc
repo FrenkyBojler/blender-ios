@@ -1733,6 +1733,30 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
 
+static int rna_idproperty_ui_default_array_length(const PointerRNA *ptr,
+                                                  int length[RNA_MAX_ARRAY_DIMENSION])
+{
+  IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)ptr->data;
+  length[0] = ui_data->default_array_len;
+  return length[0];
+}
+
+static void rna_idproperty_ui_default_array_float_get(PointerRNA *ptr, float *values)
+{
+  IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)ptr->data;
+  for (int i = 0; i < ui_data->default_array_len; i++) {
+    values[i] = (float)ui_data->default_array[i];
+  }
+}
+
+static void rna_idproperty_ui_default_array_float_set(PointerRNA *ptr, const float *values)
+{
+  IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)ptr->data;
+  for (int i = 0; i < ui_data->default_array_len; i++) {
+    ui_data->default_array[i] = (double)values[i];
+  }
+}
+
 #else
 
 static void rna_def_ID_properties(BlenderRNA *brna)
@@ -2976,6 +3000,10 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
                       "Change ID property type");
   RNA_def_property_enum_funcs(prop, "rna_IDProperty_type_get", "rna_IDProperty_type_set", nullptr);
 
+  prop = RNA_def_property(srna, "length", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "len");
+  RNA_def_property_ui_text(prop, "Length", "Length of array");
+
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
   RNA_def_struct_ui_text(srna, "float IDProperty UI", "UI data for a float ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
@@ -2985,6 +3013,16 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   prop = RNA_def_property(srna, "precision", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "precision");
   RNA_def_property_ui_text(prop, "Precision", "Number of decimal places to display");
+
+  prop = RNA_def_property(srna, "default_array", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_DYNAMIC);
+  RNA_def_property_multi_array(prop, 1, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_dynamic_array_funcs(prop, "rna_idproperty_ui_default_array_length");
+  RNA_def_property_float_funcs(prop,
+                               "rna_idproperty_ui_default_array_float_get",
+                               "rna_idproperty_ui_default_array_float_set",
+                               nullptr);
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataInt", nullptr);
   RNA_def_struct_ui_text(srna, "int IDProperty UI", "UI data for an int ID property");

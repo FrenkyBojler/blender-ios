@@ -133,8 +133,25 @@ void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
   layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
 
   PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
-  layout->prop(&propui_ptr, "default_value", UI_ITEM_NONE, "Default Value", ICON_NONE);
   if (ELEM(srna, &RNA_IDPropertyUIDataInt, &RNA_IDPropertyUIDataFloat)) {
+    if (active_prop->type == IDP_ARRAY) {
+      layout->prop(&prop_ptr,
+                  "length",
+                  UI_ITEM_NONE,
+                  "Length",
+                  ICON_NONE);
+
+      if (PropertyRNA *prop = RNA_struct_find_property(&propui_ptr, "default_array")) {
+        ui::Layout &col = layout->column(true);
+        const int len = RNA_property_array_length(&propui_ptr, prop);
+        for(int i = 0; i < len; i++) {
+          col.prop(&propui_ptr, prop, i, 0, UI_ITEM_NONE, "", ICON_NONE);
+        }
+      }
+    }
+    else {
+      layout->prop(&propui_ptr, "default_value", UI_ITEM_NONE, "Default Value", ICON_NONE);
+    }
     layout->prop(&propui_ptr, "soft_min", UI_ITEM_NONE, "Soft Min", ICON_NONE);
     layout->prop(&propui_ptr, "soft_max", UI_ITEM_NONE, "Soft Max", ICON_NONE);
     layout->prop(&propui_ptr, "min", UI_ITEM_NONE, "Hard Min", ICON_NONE);
