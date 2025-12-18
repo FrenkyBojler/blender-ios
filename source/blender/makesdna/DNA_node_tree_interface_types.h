@@ -140,6 +140,10 @@ typedef struct bNodeTreeInterfaceSocket {
   /**
    * Update the \a socket_type based on changes to \a socket_data.
    * This allows changing details like the subtype without replacing \a socket_data.
+   *
+   * For example, in a vector socket the dimensions are stored in the \a socket_data and after
+   * changes might require switching \a socket_type between "NodeSocketVector",
+   * "NodeSocketVector2D", and "NodeSocketVector4D".
    */
   void update_socket_type();
 
