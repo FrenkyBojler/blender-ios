@@ -3130,28 +3130,15 @@ static bool ui_textedit_delete_selection(Button *but, TextEdit &text_edit)
   return changed;
 }
 
-static Vector<StringRef> textbox_wrap_lines(const ARegion *region, ButtonTextBox *textbox)
+static void textbox_add_scroll(ButtonTextBox *textbox, int step)
 {
-  rcti rect;
-  button_to_pixelrect(&rect, region, textbox->block, textbox);
-  const int text_padding = button_text_padding(textbox);
-  uiFontStyle fstyle = style_get()->widget;
-  fontscale(&fstyle.points, textbox->block->aspect);
-  fontstyle_set(&fstyle);
-  return textbox_wrap_lines(textbox,
-                            BLI_rcti_size_x(&rect) - (2 * text_padding) -
-                                round_fl_to_int(2.0f / textbox->block->aspect));
-}
-
-static void textbox_add_scroll(const ARegion *region, ButtonTextBox *textbox, int step)
-{
-  textbox->last_total_lines = textbox_wrap_lines(region, textbox).size();
+  textbox->last_total_lines = textbox_wrap_lines(textbox).size();
   textbox->line_scroll_set(textbox->line_scroll + step);
 }
 
-static void textbox_scroll_to_cursor(const ARegion *region, ButtonTextBox *textbox)
+static void textbox_scroll_to_cursor(ButtonTextBox *textbox)
 {
-  Vector<StringRef> lines = textbox_wrap_lines(region, textbox);
+  Vector<StringRef> lines = textbox_wrap_lines(textbox);
   int line_cursor = 0;
   int but_pos = textbox->pos;
 #ifdef WITH_INPUT_IME
@@ -3174,22 +3161,18 @@ static void textbox_scroll_to_cursor(const ARegion *region, ButtonTextBox *textb
     return;
   }
   if (visible_bounds[0] > line_cursor) {
-    textbox_add_scroll(region, textbox, line_cursor - visible_bounds[0]);
+    textbox_add_scroll(textbox, line_cursor - visible_bounds[0]);
   }
   else {
-    textbox_add_scroll(region, textbox, line_cursor - visible_bounds[1] + 1);
+    textbox_add_scroll(textbox, line_cursor - visible_bounds[1] + 1);
   }
 }
 
-static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *region, const float2 xy)
+static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *region, float2 xy)
 {
   BLI_assert(button->type == ButtonType::TextBox);
   ButtonTextBox *textbox = static_cast<ButtonTextBox *>(button);
 
-  uiFontStyle fstyle = style_get()->widget;
-  const float aspect = textbox->block->aspect;
-  fontscale(&fstyle.points, aspect);
-  fontstyle_set(&fstyle);
   /* Don't include grip bounds when selecting text with the mouse.*/
   float2 start = {textbox->rect.xmin, textbox->rect.ymin + textbox_grip_ui_height()};
   float2 end = {textbox->rect.xmax, textbox->rect.ymax};
@@ -3197,7 +3180,11 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
   block_to_window_fl(region, textbox->block, &start.x, &start.y);
   block_to_window_fl(region, textbox->block, &end.x, &end.y);
 
-  Vector<StringRef> lines = textbox_wrap_lines(region, textbox);
+  Vector<StringRef> lines = textbox_wrap_lines(textbox);
+  uiFontStyle fstyle = style_get()->widget;
+  const float aspect = textbox->block->aspect;
+  fontscale(&fstyle.points, aspect);
+  fontstyle_set(&fstyle);
   int line_under_mouse = textbox->line_scroll +
                          (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines);
   /* Allow moving the cursor one line up or down of visible lines. */
@@ -3210,7 +3197,7 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
 
   start.x -= U.pixelsize / aspect;
   if (!(textbox->drawflag & BUT_NO_TEXT_PADDING)) {
-    start.x += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+    start.x += button_text_padding(button);
   }
   int offset = BLF_str_offset_from_cursor_position(
       fstyle.uifont_id, line.data(), line.size(), int(xy.x - start.x));
@@ -3225,7 +3212,7 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
   }
 #endif
   textbox->pos = position;
-  textbox_scroll_to_cursor(region, textbox);
+  textbox_scroll_to_cursor(textbox);
 }
 
 /**
@@ -3385,8 +3372,7 @@ static int textbox_wrapped_line_from_char_offset(Span<StringRef> lines, int offs
  * Moves te cursor in the textbox one line up/down and tries to maintain the horizontal offset in
  * pixels from the current line.
  */
-static void textbox_jump_line(ARegion *region,
-                              ButtonTextBox *textbox,
+static void textbox_jump_line(ButtonTextBox *textbox,
                               TextEdit & /*text_edit*/,
                               eStrCursorJumpDirection direction,
                               const bool select)
@@ -3395,11 +3381,14 @@ static void textbox_jump_line(ARegion *region,
   if (textbox->selend == textbox->selsta) {
     textbox->selsta = textbox->selend = textbox->pos;
   }
-  Vector<StringRef> lines = textbox_wrap_lines(region, textbox);
+  Vector<StringRef> lines = textbox_wrap_lines(textbox);
   const char *str = lines.first().begin();
   const bool append_selection = textbox->selend == textbox->pos;
   const int line_cursor = textbox_wrapped_line_from_char_offset(lines, textbox->pos);
-  const int fontid = style_get()->widget.uifont_id;
+  uiFontStyle fstyle = style_get()->widget;
+  fontscale(&fstyle.points, textbox->block->aspect);
+  fontstyle_set(&fstyle);
+  const int fontid = fstyle.uifont_id;
   int offset = BLF_str_offset_to_cursor(fontid,
                                         lines[line_cursor].begin(),
                                         lines[line_cursor].size(),
@@ -3443,8 +3432,7 @@ static void textbox_jump_line(ARegion *region,
   }
 }
 
-static void ui_textedit_move(ARegion *region,
-                             Button *but,
+static void ui_textedit_move(Button *but,
                              TextEdit &text_edit,
                              eStrCursorJumpDirection direction,
                              const bool select,
@@ -3453,7 +3441,7 @@ static void ui_textedit_move(ARegion *region,
 {
   Vector<StringRef> lines = {text_edit.edit_string};
   if (but->type == ButtonType::TextBox && jump == STRCUR_JUMP_ALL && !jump_all_multiline) {
-    lines = textbox_wrap_lines(region, static_cast<ButtonTextBox *>(but));
+    lines = textbox_wrap_lines(static_cast<ButtonTextBox *>(but));
   }
   const char *str = lines.first().begin();
   StringRef line_cursor = lines[textbox_wrapped_line_from_char_offset(lines, but->pos)];
@@ -4180,8 +4168,7 @@ static int ui_do_but_textedit(
                                                       STRCUR_DIR_NEXT :
                                                       STRCUR_DIR_PREV;
         const eStrCursorJumpType jump = ui_textedit_jump_type_from_event(event);
-        ui_textedit_move(
-            data->region, but, text_edit, direction, event->modifier & KM_SHIFT, jump);
+        ui_textedit_move(but, text_edit, direction, event->modifier & KM_SHIFT, jump);
         retval = WM_UI_HANDLER_BREAK;
         break;
       }
@@ -4195,20 +4182,18 @@ static int ui_do_but_textedit(
           break;
         }
         if (textbox && event->type == WHEELDOWNMOUSE) {
-          textbox_add_scroll(data->region, textbox, 1);
+          textbox_add_scroll(textbox, 1);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
         if (textbox && event->type == EVT_DOWNARROWKEY) {
-          textbox_jump_line(
-              data->region, textbox, text_edit, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT);
+          textbox_jump_line(textbox, text_edit, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
         ATTR_FALLTHROUGH;
       case EVT_ENDKEY:
-        ui_textedit_move(data->region,
-                         but,
+        ui_textedit_move(but,
                          text_edit,
                          STRCUR_DIR_NEXT,
                          event->modifier & KM_SHIFT,
@@ -4226,13 +4211,12 @@ static int ui_do_but_textedit(
           break;
         }
         if (textbox && event->type == WHEELUPMOUSE) {
-          textbox_add_scroll(data->region, textbox, -1);
+          textbox_add_scroll(textbox, -1);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
         if (textbox && event->type == EVT_UPARROWKEY) {
-          textbox_jump_line(
-              data->region, textbox, text_edit, STRCUR_DIR_PREV, event->modifier & KM_SHIFT);
+          textbox_jump_line(textbox, text_edit, STRCUR_DIR_PREV, event->modifier & KM_SHIFT);
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
@@ -4241,8 +4225,7 @@ static int ui_do_but_textedit(
         }
         ATTR_FALLTHROUGH;
       case EVT_HOMEKEY:
-        ui_textedit_move(data->region,
-                         but,
+        ui_textedit_move(but,
                          text_edit,
                          STRCUR_DIR_PREV,
                          event->modifier & KM_SHIFT,
@@ -4283,10 +4266,8 @@ static int ui_do_but_textedit(
         if (event->modifier == KM_CTRL)
 #endif
         {
-          ui_textedit_move(
-              data->region, but, text_edit, STRCUR_DIR_PREV, false, STRCUR_JUMP_ALL, true);
-          ui_textedit_move(
-              data->region, but, text_edit, STRCUR_DIR_NEXT, true, STRCUR_JUMP_ALL, true);
+          ui_textedit_move(but, text_edit, STRCUR_DIR_PREV, false, STRCUR_JUMP_ALL, true);
+          ui_textedit_move(but, text_edit, STRCUR_DIR_NEXT, true, STRCUR_JUMP_ALL, true);
           retval = WM_UI_HANDLER_BREAK;
         }
         break;
@@ -4407,7 +4388,7 @@ static int ui_do_but_textedit(
     textbox->wrap_cache.reset();
   }
   if (textbox && (changed || orig_pos != but->pos) && data->state != BUTTON_STATE_EXIT) {
-    textbox_scroll_to_cursor(data->region, textbox);
+    textbox_scroll_to_cursor(textbox);
   }
   if (changed) {
     /* The undo stack may be nullptr if an event exits editing. */

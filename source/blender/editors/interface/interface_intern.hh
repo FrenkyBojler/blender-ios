@@ -363,8 +363,10 @@ struct ButtonTextBox : public Button {
   int last_total_lines = 0;
   int visible_lines = 0;
   struct WrapCache {
-    int width = 0;
+    int wrap_width = 0;
     float font_size = 0;
+    int font_weight = 0;
+    float ui_scale = 0;
     std::string text;
     Vector<StringRef> wrapped_lines;
   };
@@ -373,8 +375,11 @@ struct ButtonTextBox : public Button {
   void line_scroll_set(int line_scroll);
 };
 
-/** Wraps input text into lines, this may overwrite draw string if there is IME data available. */
-Vector<StringRef> textbox_wrap_lines(ButtonTextBox *but, int width);
+/**
+ * Wraps input text into lines, this may overwrite draw string if there is IME data available.
+ * This also may override active font style.
+ */
+Vector<StringRef> textbox_wrap_lines(ButtonTextBox *but);
 float textbox_grip_ui_height();
 
 /** Derived struct for #ButType::Grip */

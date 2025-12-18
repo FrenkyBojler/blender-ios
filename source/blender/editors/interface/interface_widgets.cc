@@ -2006,11 +2006,12 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 }
 #endif /* WITH_INPUT_IME */
 
-Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox, int width)
+Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
 {
-  uiFontStyle fstyle = style_get()->widget;
+  const uiFontStyle &fstyle = style_get()->widget;
+  const int width = std::ceil(BLI_rctf_size_x(&textbox->rect) -
+                              2.0f * UI_TEXT_MARGIN_X * float(U.widget_unit) - 2.0f);
   StringRef text = textbox->drawstr;
-  width = std::max(width, 0);
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data = button_ime_data_get(textbox);
   if (ime_data && ime_data->composite.size() > 0) {
@@ -2033,19 +2034,22 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox, int width)
       textbox->wrap_cache = std::make_unique<ButtonTextBox::WrapCache>();
     }
     ButtonTextBox::WrapCache &cache = *textbox->wrap_cache;
-    const float font_size = (fstyle.points / textbox->block->aspect) * UI_SCALE_FAC;
-    if (cache.font_size == font_size && cache.width == width && text == cache.text) {
+    if (cache.font_size == fstyle.points && cache.font_weight == fstyle.character_weight &&
+        cache.ui_scale == UI_SCALE_FAC && cache.wrap_width == width && text == cache.text)
+    {
       return cache.wrapped_lines;
     }
     cache.text = text;
     text = cache.text;
-    cache.font_size = font_size;
-    cache.width = width;
+    cache.font_size = fstyle.points;
+    cache.font_weight = fstyle.character_weight;
+    cache.ui_scale = UI_SCALE_FAC;
+    cache.wrap_width = width;
   }
   else {
     textbox->wrap_cache.reset();
   }
-
+  fontstyle_set(&fstyle);
   Vector<StringRef> lines = BLF_string_wrap(fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
   if (lines.is_empty()) {
     lines.append(text);
@@ -2092,16 +2096,16 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
   const int visible_lines = textbox->visible_lines;
+  const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   fontstyle_set(fstyle);
-  const Vector<StringRef> lines = textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect));
 
   if (textbox->editstr) {
     Button *grip = textbox->block->buttons[textbox->block->but_index(textbox) + 2].get();
     BLI_assert(grip->type == ButtonType::Grip);
     grip->flag |= UI_HIDDEN;
   }
-  const int line_height = BLI_rcti_size_y(&rect) /
-                          float(visible_lines + ButtonTextBox::grip_height_factor);
+  const float line_height = BLI_rcti_size_y(&rect) /
+                            float(visible_lines + ButtonTextBox::grip_height_factor);
   textbox->line_scroll_set(textbox->line_scroll);
 
   const int scroll = textbox->line_scroll;
@@ -2228,7 +2232,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
           std::max<int>(0, selection.start - line.begin()),
           selection.end - selection.start);
       for (const Bounds<int> &bounds : boxes) {
-        int y = rect.ymax - (line_height * (selection.line - scroll));
+        float y = rect.ymax - (line_height * (selection.line - scroll));
         immRectf(pos,
                  rect.xmin + bounds.min,
                  y - line_height + U.pixelsize,
