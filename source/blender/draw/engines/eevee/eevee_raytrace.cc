@@ -654,8 +654,8 @@ RayTraceResultTexture RayTraceModule::trace(
                                  gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT,
                                  usage_rw);
     denoise_buf->variance_history_tx.acquire(use_bilateral_denoise ? extent : int2(1),
-                                                    gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT,
-                                                    usage_rw);
+                                             gpu::TextureFormat::RAYTRACE_VARIANCE_FORMAT,
+                                             usage_rw);
     denoise_buf->tilemask_history_tx.ensure_2d_array(gpu::TextureFormat::RAYTRACE_TILEMASK_FORMAT,
                                                      tile_raytrace_denoise_tx_.size().xy(),
                                                      tile_raytrace_denoise_tx_.size().z,

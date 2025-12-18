@@ -23,15 +23,8 @@ class TexturePool {
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles = 8;
 
-  /* Textures are stored with a counter, counting down the number of `reset` calls
-   * since last use. Depending on the context:
-   * - For `pool_` handles, the texture is deallocated once it reaches `max_pool_cycles`.
-   * - For `acquired_` handles, the texture is released if it reaches `max_acquire_cycles`.
-   * - For `acquired_` handles, an error is thrown if it equals -1, as
-   *   a texture was not explicitly retained/released, causing a memory leak.
-   */
-
-  // TODO(not_mark): rewrite
+  /* Associated counter is used to track texture acquire/retain, or
+   * nr. of unused cycles before deallocation. */
   struct TextureHandle {
     Texture *texture;
     int counter;
@@ -59,17 +52,12 @@ class TexturePool {
   void release_texture(Texture *tex);
 
   /* Decrease acquired texture counters and release/invalidate unused textures.
-   * If `force_free` is true, free all the texture memory inside the pool.
-   * Otherwise, only unused textures will be freed. */
+   * If `force_free` is true, free unused texture memory inside the pool. */
   void reset(bool force_free = false);
-
-  /* Check if the texture pointer refers to an acquired texture. */
-  bool is_texture_acquired(Texture *tex) const;
 
   /* Reference the internal counter of an acquired texture.
    * Used by `TextureFromPool` in `DRW_gpu_wrapper.hh`. */
   int &get_texture_counter(Texture *tex);
-  void swap_texture_counters(Texture *tex_a, Texture *tex_b);
 };
 
 }  // namespace blender::gpu
