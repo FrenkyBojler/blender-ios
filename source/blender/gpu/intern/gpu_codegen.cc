@@ -247,6 +247,7 @@ void GPUCodegen::generate_resources()
   textures_total_ = slot;
 
   if (!BLI_listbase_is_empty(&ubo_inputs_)) {
+    const char *linted_struct_suffix = "_host_shared_";
     /* NOTE: generate_uniform_buffer() should have sorted the inputs before this. */
     ss << "struct NodeTree {\n";
     LISTBASE_FOREACH (LinkData *, link, &ubo_inputs_) {
@@ -259,12 +260,10 @@ void GPUCodegen::generate_resources()
       }
     }
     ss << "};\n";
-    ss << "#define NodeTree_linted_ NodeTree\n";
+    ss << "#define NodeTree" << linted_struct_suffix << " NodeTree\n";
     ss << "\n";
 
     info.uniform_buf(GPU_NODE_TREE_UBO_SLOT, "NodeTree", GPU_UBO_BLOCK_NAME, Frequency::BATCH);
-    /* TODO(fclem): Could eventually turned on but currently breaks render tests. */
-    info.builtins(BuiltinBits::NO_BUFFER_TYPE_LINTING);
   }
 
   if (!BLI_listbase_is_empty(&graph.uniform_attrs.list)) {
