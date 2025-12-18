@@ -193,6 +193,7 @@ static void undosys_step_decode(bContext *C,
 {
   CLOG_DEBUG(&LOG, "%s - addr=%p, name='%s', type='%s'", __func__, us, us->name, us->type->name);
 
+  bool should_skip_step = false;
   if (us->type->step_foreach_ID_ref) {
 #ifdef WITH_GLOBAL_UNDO_CORRECT_ORDER
     if (us->type != BKE_UNDOSYS_TYPE_MEMFILE) {
@@ -202,6 +203,9 @@ static void undosys_step_decode(bContext *C,
             /* Common case, we're already using the last memfile state. */
           }
           else {
+            if (us->type->flags & UNDOTYPE_FLAG_DECODE_SINGLE_SEQUENTIAL_STEP) {
+              should_skip_step = true;
+            }
             if (us->type->step_before_memfile) {
               CLOG_DEBUG(&LOG, "Before memfile");
               us->type->step_before_memfile(us);
@@ -225,8 +229,13 @@ static void undosys_step_decode(bContext *C,
   }
 
   UNDO_NESTED_CHECK_BEGIN;
-  printf("Do typed (%s) undo step for (%s)\n", us->type->name, us->name);
-  us->type->step_decode(C, bmain, us, dir, is_final);
+  if (!should_skip_step) {
+    printf("Do typed (%s) undo step for (%p) %s\n", us->type->name, us, us->name);
+    us->type->step_decode(C, bmain, us, dir, is_final);
+  }
+  else {
+    printf("Skipping...");
+  }
   UNDO_NESTED_CHECK_END;
 
 #ifdef WITH_GLOBAL_UNDO_CORRECT_ORDER
@@ -811,13 +820,33 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
    * from given reference step. */
   bool is_processing_extra_skipped_steps = false;
   UndoStep *us_first = undosys_step_iter_first(us_reference, undo_dir);
+
+  UndoStep *skipped_target = nullptr;
+  if (us_reference->type->flags &
+          (UNDOTYPE_FLAG_DECODE_ACTIVE_STEP | UNDOTYPE_FLAG_DECODE_SINGLE_SEQUENTIAL_STEP) &&
+      us_target_active->type == us_reference->type)
+  {
+    if (us_target_active == us_first) {
+      /* Target and active are same element, cannot truncate */
+    }
+    else {
+      skipped_target = us_target_active;
+      if (undo_dir == -1) {
+        us_target_active = us_target_active->next;
+      } else {
+        us_target_active = us_target_active->prev;
+      }
+      printf("Truncating by one element, old (%p) -> new (%p)\n", skipped_target, us_target_active);
+    }
+  }
+
   printf("Starting at (%p) %s -> Traveling to (%p) %s\n",
          us_first,
          us_first->name,
          us_target_active,
          us_target_active->name);
   for (UndoStep *us_iter = us_first; us_iter != nullptr;
-         us_iter = (undo_dir == -1) ? us_iter->prev : us_iter->next)
+       us_iter = (undo_dir == -1) ? us_iter->prev : us_iter->next)
   {
     BLI_assert(us_iter != nullptr);
 
@@ -841,6 +870,9 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
 
     if (is_final) {
       /* Undo/Redo process is finished and successful. */
+      if (skipped_target) {
+       ustack->step_active = skipped_target;
+      }
       return true;
     }
   }

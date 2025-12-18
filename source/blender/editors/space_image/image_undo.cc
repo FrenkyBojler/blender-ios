@@ -1064,7 +1064,6 @@ static void image_undosys_foreach_ID_ref(UndoStep *us_p,
 void ED_image_undosys_type(UndoType *ut)
 {
   ut->name = "Image";
-  ut->poll = image_undosys_poll;
   ut->step_encode_init = image_undosys_step_encode_init;
   ut->step_encode = image_undosys_step_encode;
   ut->step_decode = image_undosys_step_decode;

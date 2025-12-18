@@ -2124,7 +2124,7 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 
 static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  BLI_assert(us->step.is_applied == true);
+  //BLI_assert(us->step.is_applied == true);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = false;
@@ -2132,7 +2132,7 @@ static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 
 static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  BLI_assert(us->step.is_applied == false);
+  //BLI_assert(us->step.is_applied == false);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = true;
@@ -2143,16 +2143,15 @@ static void step_decode_undo(bContext *C,
                              SculptUndoStep *us,
                              const bool is_final)
 {
-  const bool will_apply = (!is_final || us->step.next->type != us->step.type);
-  printf("%s %p %s %d\n", __func__, us, us->step.name, will_apply);
-  if (!is_final || us->step.next->type != us->step.type) {
+  const bool will_apply = (!is_final || us->step.next == nullptr || us->step.next->type != us->step.type);
+  printf("%s %p %s %d %d\n", __func__, us, us->step.name, is_final, will_apply);
+  //if (!is_final || us->step.next == nullptr || us->step.next->type != us->step.type) {
     step_decode_undo_impl(C, depsgraph, us);
-  }
+  //}
 }
 
 static void step_decode_redo(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us, const bool is_final)
 {
-  if (!is_final || us->step.prev->type != us->step.type) {}
   step_decode_redo_impl(C, depsgraph, us);
 }
 
@@ -2299,19 +2298,18 @@ static void sculpt_undosys_foreach_ID_ref(UndoStep *us_p,
 static void step_before_memfile(UndoStep *us_p)
 {
   SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
-  /* Make copy of existing needed attrs */
+  us->mesh->id.tag |= ID_TAG_SKIP_UNDO;
 }
 
 void register_type(UndoType *ut)
 {
   ut->name = "Sculpt";
-  ut->poll = nullptr; /* No poll from context for now. */
   ut->step_encode_init = step_encode_init;
   ut->step_encode = step_encode;
   ut->step_decode = step_decode;
   ut->step_free = step_free;
 
-  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_DECODE_ACTIVE_STEP;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_DECODE_ACTIVE_STEP | UNDOTYPE_FLAG_DECODE_SINGLE_SEQUENTIAL_STEP;
 
   ut->step_foreach_ID_ref = sculpt_undosys_foreach_ID_ref;
   ut->step_before_memfile = step_before_memfile;

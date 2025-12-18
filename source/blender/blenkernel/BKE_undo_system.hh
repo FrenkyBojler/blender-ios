@@ -166,6 +166,10 @@ enum eUndoTypeFlags {
    * This is typically used for undo systems that store both before/after states.
    */
   UNDOTYPE_FLAG_DECODE_ACTIVE_STEP = 1 << 1,
+
+  /**
+   */
+  UNDOTYPE_FLAG_DECODE_SINGLE_SEQUENTIAL_STEP = 1 << 2,
 };
 
 /* -------------------------------------------------------------------- */
