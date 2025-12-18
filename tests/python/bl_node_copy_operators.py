@@ -171,6 +171,11 @@ class NodeMapping:
             self.add(test_node, expected_node)
 
 
+test_node_names = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
+group_nodes_single_names = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
+group_node_all_name = "GroupNode.All"
+group_node_empty_name = "GroupNode.Empty"
+group_node_duplicate_name = "GroupNode.Duplicate"
 # Reroute nodes that are used for external links.
 external_links = [
     "InputLink.Geometry",
@@ -348,14 +353,8 @@ def node_editor_context_override(context=None, selected_nodes=[], active_node=No
 
 
 class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
-    test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
-    group_nodes_single = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
-    group_node_all = "GroupNode.All"
-
-    def test_make_node_group_single(self):
-        test_nodes = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
-        expected_group_nodes = ["GroupNode.Defaults", "GroupNode.InputValues", "GroupNode.Links"]
-        for test_node_name, expected_group_node_name in zip(test_nodes, expected_group_nodes):
+    def test_node_make_group_single(self):
+        for test_node_name, expected_group_node_name in zip(test_node_names, group_nodes_single_names):
             with self.subTest(test_node=test_node_name, expected_group_node=expected_group_node_name):
                 self.open_file()
                 tree = bpy.data.node_groups['Geometry Nodes']
@@ -388,14 +387,11 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
     @unittest.skip("Broken due to #151786")
-    def test_make_node_group_multi(self):
-        test_node_names = ["TestNode.Defaults", "TestNode.InputValues", "TestNode.Links"]
-        expected_group_node_name = "GroupNode.All"
-
+    def test_node_make_group_multi(self):
         self.open_file()
         tree = bpy.data.node_groups['Geometry Nodes']
         test_nodes = [tree.nodes[m] for m in test_node_names]
-        expected_group_node = tree.nodes[expected_group_node_name]
+        expected_group_node = tree.nodes[group_node_all_name]
         test_link_nodes = [tree.nodes[n] for n in external_links]
         expected_link_nodes = [tree.nodes[n] for n in external_links_002]
 
@@ -421,6 +417,41 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
             self.compare_nodes(internal_node, mapping)
         # Compare generated group tree interface to expected tree.
         self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
+
+
+    def test_node_group_insert_empty_single(self):
+        for test_node_name, expected_group_node_name in zip(test_node_names, group_nodes_single_names):
+            with self.subTest(test_node=test_node_name, expected_group_node=expected_group_node_name):
+                self.open_file()
+                tree = bpy.data.node_groups['Geometry Nodes']
+                test_node = tree.nodes[test_node_name]
+                group_node_empty = tree.nodes[group_node_empty_name]
+                expected_group_node = tree.nodes[expected_group_node_name]
+                test_link_nodes = [tree.nodes[n] for n in external_links]
+                expected_link_nodes = [tree.nodes[n] for n in external_links_001]
+
+                with node_editor_context_override(selected_nodes=[test_node, group_node_empty], active_node=group_node_empty):
+                    bpy.ops.node.group_insert()
+                group_node = tree.nodes.active
+
+                # XXX WORKAROUND FOR #151777
+                print("XXX REMOVE ME WHEN #151777 IS FIXED")
+                group_node.node_tree.interface.items_tree['Dim2'].dimensions = 3
+                group_node.node_tree.interface.items_tree['Dim2'].dimensions = 2
+                # XXX
+
+                # Map resulting nodes to expected nodes.
+                mapping = NodeMapping()
+                mapping.add(group_node, expected_group_node)
+                mapping.extend(group_node.node_tree.nodes, expected_group_node.node_tree.nodes)
+                mapping.extend(test_link_nodes, expected_link_nodes)
+
+                # Compare generated group node to expected node.
+                self.compare_nodes(group_node, mapping)
+                for internal_node in group_node.node_tree.nodes:
+                    self.compare_nodes(internal_node, mapping)
+                # Compare generated group tree interface to expected tree.
+                self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
 
 def main():
