@@ -1,2 +1,3 @@
 Referenced by issue #122359, Huge difference in reflections with EEVEE Next light probes
 Referenced by pull request #151857, Fix #151819: EEVEE: Wrong lightprobe selection in planar captures
+Referenced by commit 4d24a009f7e977621ec495e54f28034a227a50c2, Fix #151819: EEVEE: Wrong lightprobe selection in planar captures
