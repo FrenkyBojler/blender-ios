@@ -1,2 +1,3 @@
 Referenced by issue #147076, Crash when changing object dimensions
 Referenced by issue #147361, Cycles:  OSL kernel fails to load on GPU Cycles
+Referenced by pull request #151850, Docs: Fix Typo in `bpy.types.USDHook` code
