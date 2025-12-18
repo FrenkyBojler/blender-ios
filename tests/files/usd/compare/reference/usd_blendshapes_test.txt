@@ -51,7 +51,7 @@
 - Action 'PlaneAction' curverange:(1.0 .. 60.0) layers:1
 - ActionLayer Layer strips:1
  - Keyframe strip channelbags:1
- - Channelbag slot 'KEKey' curves:1
+ - Channelbag slot 'KEPlaneKey' curves:1
   - fcu 'key_blocks["Key_1"].value[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3
     - (1.000, 0.003) lh:(-8.667, 0.003 AUTO) rh:(10.667, 0.003 AUTO)
     - (30.000, 0.900) lh:(20.333, 0.862 AUTO) rh:(40.000, 0.939 AUTO)

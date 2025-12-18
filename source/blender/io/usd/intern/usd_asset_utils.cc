@@ -428,7 +428,10 @@ const char *temp_textures_dir()
 
 void temp_textures_dir_delete()
 {
-  BLI_delete(temp_textures_dir(), true, true);
+  const char *temp_dir = temp_textures_dir();
+  if (BLI_exists(temp_dir)) {
+    BLI_delete(temp_dir, true, true);
+  }
 }
 
 bool write_to_path(const void *data, size_t size, const std::string &path, ReportList *reports)
