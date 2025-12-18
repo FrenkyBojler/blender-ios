@@ -1751,7 +1751,7 @@ bool supports_dyntopo(const Brush &brush)
                /* These brushes could handle dynamic topology,
                 * but user feedback indicates it's better not to */
                SCULPT_BRUSH_TYPE_SMOOTH,
-               SCULPT_BRUSH_TYPE_MASK);
+               SCULPT_BRUSH_TYPE_MASK) && !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_BLUR);
 }
 bool supports_accumulate(const Brush &brush)
 {
@@ -1786,7 +1786,8 @@ bool supports_auto_smooth(const Brush &brush)
                SCULPT_BRUSH_TYPE_MASK,
                SCULPT_BRUSH_TYPE_SMOOTH,
                SCULPT_BRUSH_TYPE_PAINT,
-               SCULPT_BRUSH_TYPE_SMEAR);
+               SCULPT_BRUSH_TYPE_SMEAR,
+               SCULPT_BRUSH_TYPE_BLUR);
 }
 bool supports_height(const Brush &brush)
 {
@@ -1952,6 +1953,7 @@ bool supports_gravity(const Brush &brush)
   return !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_PAINT,
                SCULPT_BRUSH_TYPE_SMEAR,
+               SCULPT_BRUSH_TYPE_BLUR,
                SCULPT_BRUSH_TYPE_MASK,
                SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
                SCULPT_BRUSH_TYPE_BOUNDARY,
