@@ -1335,6 +1335,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       c_vert.fcol[3] = (int(c_vert.fcol[3] * 10000.0f) * 10.0f) + fill_opacities[curve_i];
     };
 
+    /* Create spans of visible strokes to fill in parallel.
+     * Aim to process 'target_point_count' points per task. */
     constexpr int64_t target_point_count = 1024;
     Vector<int64_t> processing_span_splits;
 
