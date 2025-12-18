@@ -263,6 +263,8 @@ void GPUCodegen::generate_resources()
     ss << "\n";
 
     info.uniform_buf(GPU_NODE_TREE_UBO_SLOT, "NodeTree", GPU_UBO_BLOCK_NAME, Frequency::BATCH);
+    /* TODO(fclem): Could eventually turned on but currently breaks render tests. */
+    info.builtins(BuiltinBits::NO_BUFFER_TYPE_LINTING);
   }
 
   if (!BLI_listbase_is_empty(&graph.uniform_attrs.list)) {
