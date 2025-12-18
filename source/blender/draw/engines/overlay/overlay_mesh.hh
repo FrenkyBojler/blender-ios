@@ -432,13 +432,9 @@ class Meshes : Overlay {
     manager.submit(edit_mesh_weight_ps_, view);
 
     if (!xray_enabled_) {
-      /* Still use depth-testing for selected faces when X-Ray flag is enabled but transparency is
-       * off (X-Ray Opacity == 1.0 or in Preview/Render mode) (See #135325). */
-      /* Only render retopology faces if face sets are not enabled */
-      if (!show_face_sets_) {
-        manager.submit(edit_mesh_faces_ps_, view);
-        manager.submit(edit_mesh_cages_ps_, view);
-      }
+      /* Render face selection with depth testing when X-Ray is disabled.*/
+      manager.submit(edit_mesh_faces_ps_, view);
+      manager.submit(edit_mesh_cages_ps_, view);
     }
 
     if (xray_flag_enabled_) {
@@ -463,13 +459,10 @@ class Meshes : Overlay {
 
     if (xray_enabled_) {
       /* Still use depth-testing for selected faces when X-Ray flag is enabled but transparency is
-       * off (X-Ray Opacity == 1.0 or in Preview/Render mode) (See #135325). */
+       * off (X-Ray Opacity == 1.0 or in Preview/Render mode) (See #135325).*/
       GPU_framebuffer_bind(framebuffer);
-      /* Only render retopology faces if face sets are not enabled */
-      if (!show_face_sets_) {
-        manager.submit(edit_mesh_faces_ps_, view);
-        manager.submit(edit_mesh_cages_ps_, view);
-      }
+      manager.submit(edit_mesh_faces_ps_, view);
+      manager.submit(edit_mesh_cages_ps_, view);
     }
 
     if (!xray_flag_enabled_) {
