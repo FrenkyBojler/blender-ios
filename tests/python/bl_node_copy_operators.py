@@ -367,12 +367,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                     bpy.ops.node.group_make()
                 group_node = tree.nodes.active
 
-                # XXX WORKAROUND FOR #151777
-                print("XXX REMOVE ME WHEN #151777 IS FIXED")
-                group_node.node_tree.interface.items_tree['Dim2'].dimensions = 3
-                group_node.node_tree.interface.items_tree['Dim2'].dimensions = 2
-                # XXX
-
                 # Map resulting nodes to expected nodes.
                 mapping = NodeMapping()
                 mapping.add(group_node, expected_group_node)
@@ -398,12 +392,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         with node_editor_context_override(selected_nodes=test_nodes):
             bpy.ops.node.group_make()
         group_node = tree.nodes.active
-
-        # XXX WORKAROUND FOR #151777
-        print("XXX REMOVE ME WHEN #151777 IS FIXED")
-        group_node.node_tree.interface.items_tree['Dim2'].dimensions = 3
-        group_node.node_tree.interface.items_tree['Dim2'].dimensions = 2
-        # XXX
 
         # Map resulting nodes to expected nodes.
         mapping = NodeMapping()
@@ -433,12 +421,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 with node_editor_context_override(selected_nodes=[test_node, group_node_empty], active_node=group_node_empty):
                     bpy.ops.node.group_insert()
                 group_node = tree.nodes.active
-
-                # XXX WORKAROUND FOR #151777
-                print("XXX REMOVE ME WHEN #151777 IS FIXED")
-                group_node.node_tree.interface.items_tree['Dim2'].dimensions = 3
-                group_node.node_tree.interface.items_tree['Dim2'].dimensions = 2
-                # XXX
 
                 # Map resulting nodes to expected nodes.
                 mapping = NodeMapping()
