@@ -2124,7 +2124,7 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 
 static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  //BLI_assert(us->step.is_applied == true);
+  BLI_assert(us->step.is_applied == true);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = false;
@@ -2132,7 +2132,7 @@ static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 
 static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
-  //BLI_assert(us->step.is_applied == false);
+  BLI_assert(us->step.is_applied == false);
 
   restore_list(C, depsgraph, us->data);
   us->step.is_applied = true;
@@ -2140,23 +2140,20 @@ static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 
 static void step_decode_undo(bContext *C,
                              Depsgraph *depsgraph,
-                             SculptUndoStep *us,
-                             const bool is_final)
+                             SculptUndoStep *us)
 {
-  const bool will_apply = (!is_final || us->step.next == nullptr || us->step.next->type != us->step.type);
-  printf("%s %p %s %d %d\n", __func__, us, us->step.name, is_final, will_apply);
-  //if (!is_final || us->step.next == nullptr || us->step.next->type != us->step.type) {
-    step_decode_undo_impl(C, depsgraph, us);
-  //}
+  step_decode_undo_impl(C, depsgraph, us);
 }
 
-static void step_decode_redo(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us, const bool is_final)
+static void step_decode_redo(bContext *C,
+                             Depsgraph *depsgraph,
+                             SculptUndoStep *us)
 {
   step_decode_redo_impl(C, depsgraph, us);
 }
 
 static void step_decode(
-    bContext *C, Main *bmain, UndoStep *us_p, const eUndoStepDir dir, const bool is_final)
+    bContext *C, Main *bmain, UndoStep *us_p, const eUndoStepDir dir, const bool /*is_final*/)
 {
   /* NOTE: behavior for undo/redo closely matches image undo. */
   BLI_assert(dir != STEP_INVALID);
@@ -2201,10 +2198,10 @@ static void step_decode(
 
   SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
   if (dir == STEP_UNDO) {
-    step_decode_undo(C, depsgraph, us, is_final);
+    step_decode_undo(C, depsgraph, us);
   }
   else if (dir == STEP_REDO) {
-    step_decode_redo(C, depsgraph, us, is_final);
+    step_decode_redo(C, depsgraph, us);
   }
 }
 
@@ -2309,7 +2306,8 @@ void register_type(UndoType *ut)
   ut->step_decode = step_decode;
   ut->step_free = step_free;
 
-  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_DECODE_ACTIVE_STEP | UNDOTYPE_FLAG_DECODE_SINGLE_SEQUENTIAL_STEP;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_DECODE_ACTIVE_STEP |
+              UNDOTYPE_FLAG_DECODE_SINGLE_SEQUENTIAL_STEP;
 
   ut->step_foreach_ID_ref = sculpt_undosys_foreach_ID_ref;
   ut->step_before_memfile = step_before_memfile;
