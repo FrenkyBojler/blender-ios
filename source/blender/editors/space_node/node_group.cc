@@ -779,19 +779,6 @@ class GroupOperatorNodeSet {
     Vector<MutableLinkPair> linked_sockets;
   };
 
-  struct NodeCopyMapping {
-    Map<const bNode *, bNode *> node_map;
-    Map<const bNodeSocket *, bNodeSocket *> socket_map;
-    Map<int32_t, int32_t> node_identifier_map;
-  };
-
-  using InterfaceSocketMapping = Map<bNodeTreeInterfaceSocket *, SocketLinks>;
-
-  struct GroupInputOutputNodes {
-    bNode *input_node;
-    bNode *output_node;
-  };
-
  private:
   const bNodeTree &tree_;
   VectorSet<const bNode *> nodes_;
@@ -829,9 +816,14 @@ class GroupOperatorNodeSet {
 
   ~GroupOperatorNodeSet() {}
 
-  Span<const bNode *> nodes() const
+  const bNodeTree &tree() const
   {
-    return nodes_.as_span();
+    return tree_;
+  }
+
+  const VectorSet<const bNode *> &nodes() const
+  {
+    return nodes_;
   }
 
   Span<const bNodeLink *> internal_links() const
@@ -839,119 +831,9 @@ class GroupOperatorNodeSet {
     return internal_links_;
   }
 
-  NodeCopyMapping copy_nodes_to_tree(Main &bmain, bNodeTree &dst_tree) const
+  Span<SocketLinks> exposed_sockets() const
   {
-    NodeCopyMapping node_mapping;
-    Vector<AnimationBasePathChange> anim_basepaths;
-    for (const bNode *node : nodes_) {
-      bNode *new_node = bke::node_copy_with_mapping(&dst_tree,
-                                                    *node,
-                                                    LIB_ID_COPY_DEFAULT,
-                                                    std::nullopt,
-                                                    std::nullopt,
-                                                    node_mapping.socket_map);
-
-      node_mapping.node_map.add(node, new_node);
-      node_mapping.node_identifier_map.add(node->identifier, new_node->identifier);
-
-      anim_basepaths.append({node_basepath(tree_, *node), node_basepath(dst_tree, *new_node)});
-    }
-
-    /* Recreate parent/child relationship of nodes. */
-    for (const auto &item : node_mapping.node_map.items()) {
-      const bNode *node = item.key;
-      bNode *new_node = item.value;
-      if (node->parent) {
-        if (bNode *new_parent = node_mapping.node_map.lookup_default(node->parent, nullptr)) {
-          bke::node_attach_node(dst_tree, *new_node, *new_parent);
-        }
-      }
-    }
-
-    /* Recreate internal links. */
-    for (const bNodeLink *src_link : internal_links_) {
-      bke::node_add_link(dst_tree,
-                         *node_mapping.node_map.lookup(src_link->fromnode),
-                         *node_mapping.socket_map.lookup(src_link->fromsock),
-                         *node_mapping.node_map.lookup(src_link->tonode),
-                         *node_mapping.socket_map.lookup(src_link->tosock));
-    }
-
-    /* Recreate zone pairing between new nodes. */
-    const Vector<bNode *> new_nodes(node_mapping.node_map.values().begin(),
-                                    node_mapping.node_map.values().end());
-    remap_pairing(dst_tree, new_nodes, node_mapping.node_identifier_map);
-
-    /* Copy animation data of source nodes. */
-    BKE_animdata_copy_by_basepath(bmain, tree_.id, dst_tree.id, anim_basepaths);
-
-    return node_mapping;
-  }
-
-  InterfaceSocketMapping add_sockets_to_interface(bNodeTree &dst_tree) const
-  {
-    InterfaceSocketMapping io_mapping;
-    for (const SocketLinks &src_links : exposed_sockets_) {
-      if (src_links.socket.socket->is_input()) {
-        /* Inputs generate one item, based on the source socket. */
-        io_mapping.add(add_interface_from_socket(tree_, dst_tree, *src_links.socket.socket),
-                       src_links);
-      }
-      else {
-        /* Output sockets generate an item for each link, based on the target socket. */
-        /* XXX This generates redundant sockets all based on the same internal socket.
-         * It would make more sense to just create a single group socket just like the input case.
-         */
-        for (const MutableLinkPair &src_link : src_links.linked_sockets) {
-          SocketLinks io_link = {src_links.socket, {src_link}};
-          io_mapping.add(add_interface_from_socket(tree_, dst_tree, *src_links.socket.socket),
-                         std::move(io_link));
-        }
-      }
-    }
-    return io_mapping;
-  }
-
-  GroupInputOutputNodes expose_sockets_to_interface(const bContext &C,
-                                                    bNodeTree &dst_tree,
-                                                    const NodeCopyMapping &node_mapping,
-                                                    const InterfaceSocketMapping &io_mapping) const
-  {
-    dst_tree.ensure_topology_cache();
-
-    GroupInputOutputNodes io_nodes;
-    io_nodes.output_node = dst_tree.group_output_node();
-    if (!io_nodes.output_node) {
-      io_nodes.output_node = bke::node_add_static_node(&C, dst_tree, NODE_GROUP_OUTPUT);
-    }
-    io_nodes.input_node = bke::node_add_static_node(&C, dst_tree, NODE_GROUP_INPUT);
-
-    for (const auto &item : io_mapping.items()) {
-      const bNode *node = item.value.socket.node;
-      const bNodeSocket *socket = item.value.socket.socket;
-      bNode *new_node = node_mapping.node_map.lookup(node);
-      bNodeSocket *new_socket = node_mapping.socket_map.lookup(socket);
-      if (socket->is_input()) {
-        bNodeSocket *group_input_socket = node_group_input_find_socket(io_nodes.input_node,
-                                                                       item.key->identifier);
-        BLI_assert(group_input_socket);
-        bke::node_add_link(
-            dst_tree, *io_nodes.input_node, *group_input_socket, *new_node, *new_socket);
-      }
-      else {
-        bNodeSocket *group_output_socket = node_group_output_find_socket(io_nodes.output_node,
-                                                                         item.key->identifier);
-        BLI_assert(group_output_socket);
-        bke::node_add_link(
-            dst_tree, *new_node, *new_socket, *io_nodes.output_node, *group_output_socket);
-      }
-    }
-
-    /* Make sure group input/output node sockets match the tree interface. */
-    nodes::update_node_declaration_and_sockets(dst_tree, *io_nodes.input_node);
-    nodes::update_node_declaration_and_sockets(dst_tree, *io_nodes.output_node);
-
-    return io_nodes;
+    return exposed_sockets_;
   }
 
  private:
@@ -1012,6 +894,195 @@ class GroupOperatorNodeSet {
       exposed_sockets_.append(std::move(links));
     }
   }
+};
+
+class NodeSetInterface {
+  using LinkPair = GroupOperatorNodeSet::LinkPair;
+  using MutableLinkPair = GroupOperatorNodeSet::MutableLinkPair;
+  using SocketLinks = GroupOperatorNodeSet::SocketLinks;
+
+ private:
+  Map<bNodeTreeInterfaceSocket *, SocketLinks> interface_links_;
+
+ public:
+  const Map<bNodeTreeInterfaceSocket *, SocketLinks> &interface_links() const
+  {
+    return interface_links_;
+  }
+
+  static NodeSetInterface from_nodes(const GroupOperatorNodeSet &node_set, bNodeTree &dst_tree)
+  {
+    const bNodeTree &src_tree = node_set.tree();
+
+    NodeSetInterface result;
+    for (const SocketLinks &src_links : node_set.exposed_sockets()) {
+      if (src_links.socket.socket->is_input()) {
+        /* Inputs generate one item, based on the source socket. */
+        result.interface_links_.add(
+            add_interface_from_socket(src_tree, dst_tree, *src_links.socket.socket), src_links);
+      }
+      else {
+        /* Output sockets generate an item for each link, based on the target socket. */
+        /* XXX This generates redundant sockets all based on the same internal socket.
+         * It would make more sense to just create a single group socket just like the input case.
+         */
+        for (const MutableLinkPair &src_link : src_links.linked_sockets) {
+          SocketLinks io_link = {src_links.socket, {src_link}};
+          result.interface_links_.add(
+              add_interface_from_socket(src_tree, dst_tree, *src_links.socket.socket),
+              std::move(io_link));
+        }
+      }
+    }
+    return result;
+  }
+
+  void connect_group_node(bNode &group_node) const
+  {
+    bNodeTree &tree = group_node.owner_tree();
+
+    /* Connect the group node to external sockets. */
+    for (const auto &item : interface_links_.items()) {
+      const bNodeSocket *socket = item.value.socket.socket;
+      if (socket->is_input()) {
+        bNodeSocket *group_node_input = node_group_find_input_socket(&group_node,
+                                                                     item.key->identifier);
+        for (const GroupOperatorNodeSet::MutableLinkPair &link : item.value.linked_sockets) {
+          bke::node_add_link(tree, *link.node, *link.socket, group_node, *group_node_input);
+        }
+      }
+      else {
+        bNodeSocket *group_node_output = node_group_find_output_socket(&group_node,
+                                                                       item.key->identifier);
+        for (const GroupOperatorNodeSet::MutableLinkPair &link : item.value.linked_sockets) {
+          bke::node_add_link(tree, group_node, *group_node_output, *link.node, *link.socket);
+        }
+      }
+    }
+  }
+};
+
+/**
+ * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
+ */
+class NodeSetCopy {
+ public:
+  struct GroupInputOutputNodes {
+    bNode *input_node;
+    bNode *output_node;
+  };
+
+ private:
+  bNodeTree &tree_;
+  Map<const bNode *, bNode *> node_map_;
+  Map<const bNodeSocket *, bNodeSocket *> socket_map_;
+  Map<int32_t, int32_t> node_identifier_map_;
+
+ public:
+  const Map<int32_t, int32_t> &node_identifier_map() const
+  {
+    return node_identifier_map_;
+  }
+
+  static NodeSetCopy from_nodes(Main &bmain,
+                                const GroupOperatorNodeSet &src_nodes,
+                                bNodeTree &dst_tree)
+  {
+    const bNodeTree &src_tree = src_nodes.tree();
+
+    NodeSetCopy result(dst_tree);
+    Vector<AnimationBasePathChange> anim_basepaths;
+    for (const bNode *src_node : src_nodes.nodes()) {
+      bNode *dst_node = bke::node_copy_with_mapping(&dst_tree,
+                                                    *src_node,
+                                                    LIB_ID_COPY_DEFAULT,
+                                                    std::nullopt,
+                                                    std::nullopt,
+                                                    result.socket_map_);
+
+      result.node_map_.add(src_node, dst_node);
+      result.node_identifier_map_.add(src_node->identifier, dst_node->identifier);
+
+      anim_basepaths.append(
+          {node_basepath(src_tree, *src_node), node_basepath(dst_tree, *dst_node)});
+    }
+
+    /* Recreate parent/child relationship of nodes. */
+    for (const auto &item : result.node_map_.items()) {
+      const bNode *node = item.key;
+      bNode *new_node = item.value;
+      if (node->parent) {
+        if (bNode *new_parent = result.node_map_.lookup_default(node->parent, nullptr)) {
+          bke::node_attach_node(dst_tree, *new_node, *new_parent);
+        }
+        else {
+          bke::node_detach_node(dst_tree, *new_node);
+        }
+      }
+    }
+
+    /* Recreate internal links. */
+    for (const bNodeLink *src_link : src_nodes.internal_links()) {
+      bke::node_add_link(dst_tree,
+                         *result.node_map_.lookup(src_link->fromnode),
+                         *result.socket_map_.lookup(src_link->fromsock),
+                         *result.node_map_.lookup(src_link->tonode),
+                         *result.socket_map_.lookup(src_link->tosock));
+    }
+
+    /* Recreate zone pairing between new nodes. */
+    const Vector<bNode *> new_nodes(result.node_map_.values().begin(),
+                                    result.node_map_.values().end());
+    remap_pairing(dst_tree, new_nodes, result.node_identifier_map_);
+
+    /* Copy animation data of source nodes. */
+    BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_tree.id, anim_basepaths);
+
+    return result;
+  }
+
+  GroupInputOutputNodes expose_sockets_to_interface(const bContext &C,
+                                                    const NodeSetInterface &node_set_io) const
+  {
+    tree_.ensure_topology_cache();
+
+    GroupInputOutputNodes io_nodes;
+    io_nodes.output_node = tree_.group_output_node();
+    if (!io_nodes.output_node) {
+      io_nodes.output_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_OUTPUT);
+    }
+    io_nodes.input_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_INPUT);
+
+    for (const auto &item : node_set_io.interface_links().items()) {
+      const bNode *node = item.value.socket.node;
+      const bNodeSocket *socket = item.value.socket.socket;
+      bNode *new_node = node_map_.lookup(node);
+      bNodeSocket *new_socket = socket_map_.lookup(socket);
+      if (socket->is_input()) {
+        bNodeSocket *group_input_socket = node_group_input_find_socket(io_nodes.input_node,
+                                                                       item.key->identifier);
+        BLI_assert(group_input_socket);
+        bke::node_add_link(
+            tree_, *io_nodes.input_node, *group_input_socket, *new_node, *new_socket);
+      }
+      else {
+        bNodeSocket *group_output_socket = node_group_output_find_socket(io_nodes.output_node,
+                                                                         item.key->identifier);
+        BLI_assert(group_output_socket);
+        bke::node_add_link(
+            tree_, *new_node, *new_socket, *io_nodes.output_node, *group_output_socket);
+      }
+    }
+
+    /* Make sure group input/output node sockets match the tree interface. */
+    nodes::update_node_declaration_and_sockets(tree_, *io_nodes.input_node);
+    nodes::update_node_declaration_and_sockets(tree_, *io_nodes.output_node);
+
+    return io_nodes;
+  }
+
+ private:
+  NodeSetCopy(bNodeTree &tree) : tree_(tree) {}
 };
 
 static VectorSet<bNode *> get_nodes_to_group(bNodeTree &node_tree, bNode *group_node)
@@ -1210,13 +1281,11 @@ static void node_group_make_insert_selected(const bContext &C,
       expose_visible);
 
   /* Copy nodes into the group. */
-  const GroupOperatorNodeSet::NodeCopyMapping new_node_mapping = node_set.copy_nodes_to_tree(
-      *bmain, group);
-  const GroupOperatorNodeSet::InterfaceSocketMapping io_mapping =
-      node_set.add_sockets_to_interface(group);
+  const NodeSetInterface node_set_io = NodeSetInterface::from_nodes(node_set, group);
+  const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(*bmain, node_set, group);
   /* Connect exposed sockets to group input/output nodes. */
-  const GroupOperatorNodeSet::GroupInputOutputNodes io_nodes =
-      node_set.expose_sockets_to_interface(C, group, new_node_mapping, io_mapping);
+  const NodeSetCopy::GroupInputOutputNodes io_nodes = node_set_copy.expose_sockets_to_interface(
+      C, node_set_io);
 
   /* Move nodes in the group to the center */
   for (bNode *node : nodes_to_move) {
@@ -1233,24 +1302,10 @@ static void node_group_make_insert_selected(const bContext &C,
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
 
   /* Connect the group node to external sockets. */
-  for (const auto &item : io_mapping.items()) {
-    const bNodeSocket *socket = item.value.socket.socket;
-    if (socket->is_input()) {
-      bNodeSocket *gnode_input = node_group_find_input_socket(gnode, item.key->identifier);
-      for (const GroupOperatorNodeSet::MutableLinkPair &link : item.value.linked_sockets) {
-        bke::node_add_link(ntree, *link.node, *link.socket, *gnode, *gnode_input);
-      }
-    }
-    else {
-      bNodeSocket *gnode_output = node_group_find_output_socket(gnode, item.key->identifier);
-      for (const GroupOperatorNodeSet::MutableLinkPair &link : item.value.linked_sockets) {
-        bke::node_add_link(ntree, *gnode, *gnode_output, *link.node, *link.socket);
-      }
-    }
-  }
+  node_set_io.connect_group_node(*gnode);
 
   update_nested_node_refs_after_moving_nodes_into_group(
-      ntree, group, *gnode, new_node_mapping.node_identifier_map);
+      ntree, group, *gnode, node_set_copy.node_identifier_map());
 
   /* Remove original nodes from the tree, everything has been copied to the group. */
   for (bNode *node : nodes_to_move) {
