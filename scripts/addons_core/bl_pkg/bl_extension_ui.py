@@ -33,15 +33,16 @@ from bl_ui.space_userpref import (
     USERPREF_MT_extensions_active_repo,
 )
 
+from addon_utils import (
+    CORE_ADDONS_HIDDEN,
+)
+
 # TODO: choose how to show this when an add-on is an extension/core/legacy.
 # The information is somewhat useful as you can only remove legacy add-ons from the add-ons sections.
 # Whereas extensions must be removed from the extensions section.
 # So without showing a distinction - the existence of these buttons is not clear.
 USE_SHOW_ADDON_TYPE_AS_TEXT = True
 USE_SHOW_ADDON_TYPE_AS_ICON = True
-
-# Hide these add-ons when enabled (unless running with extensions debugging enabled).
-SECRET_ADDONS = {__package__}
 
 # For official extensions, it's policy that the website in the JSON listing overrides the developers own website.
 # This incurs and awkward lookup although it's not likely to cause a noticeable slowdown.
@@ -478,6 +479,15 @@ def addons_panel_draw_items(
         show_expanded = bl_info["show_expanded"]
 
         if is_extension:
+            addon_type = ADDON_TYPE_EXTENSION
+        elif module_parent_dirname(mod.__file__) == "addons_core":
+            addon_type = ADDON_TYPE_LEGACY_CORE
+        elif USERPREF_PT_addons.is_user_addon(mod, user_addon_paths):
+            addon_type = ADDON_TYPE_LEGACY_USER
+        else:
+            addon_type = ADDON_TYPE_LEGACY_OTHER
+
+        if is_extension:
             item_warnings = []
 
             if pkg_block := addon_extension_block_map.get(module_name):
@@ -515,11 +525,10 @@ def addons_panel_draw_items(
                 item_tracker_url = ""
 
             del item_local
+        elif (addon_type == ADDON_TYPE_LEGACY_CORE) and (module_name in CORE_ADDONS_HIDDEN):
+            # Only a handful of core add-ons get to be exposed as add-ons.
+            continue
         else:
-            # Weak but allow some add-ons to be hidden, as they're for internal use.
-            if (module_name in SECRET_ADDONS) and is_enabled and (show_development is False):
-                continue
-
             item_warnings = []
 
             item_name = bl_info["name"]
@@ -551,15 +560,6 @@ def addons_panel_draw_items(
         if addon_tags_exclude:
             if tags_exclude_match(item_tags, addon_tags_exclude):
                 continue
-
-        if is_extension:
-            addon_type = ADDON_TYPE_EXTENSION
-        elif module_parent_dirname(mod.__file__) == "addons_core":
-            addon_type = ADDON_TYPE_LEGACY_CORE
-        elif USERPREF_PT_addons.is_user_addon(mod, user_addon_paths):
-            addon_type = ADDON_TYPE_LEGACY_USER
-        else:
-            addon_type = ADDON_TYPE_LEGACY_OTHER
 
         # Draw header.
         col_box = layout.column()

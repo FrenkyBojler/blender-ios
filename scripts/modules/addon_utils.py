@@ -15,6 +15,7 @@ __all__ = (
     "extensions_refresh",
     "stale_pending_remove_paths",
     "stale_pending_stage_paths",
+    "CORE_ADDONS_HIDDEN",
 )
 
 import bpy as _bpy
@@ -35,6 +36,9 @@ _extensions_warnings = {}
 # Filename used for stale files (which we can't delete).
 _stale_filename = ".~stale~"
 
+# Core add-ons which should not be visible on the UI.
+CORE_ADDONS_HIDDEN = set(addon.module for addon in _preferences.addons_core)
+
 
 # called only once at startup, avoids calling 'reset_all', correct but slower.
 def _initialize_once():
@@ -51,8 +55,6 @@ def _initialize_once():
             # Ensured by `_initialize_extensions_repos_once`.
             refresh_handled=True,
         )
-
-    _initialize_ensure_extensions_addon()
 
 
 def paths():
@@ -1395,12 +1397,6 @@ def _extension_sync_wheels(
 # -----------------------------------------------------------------------------
 # Extensions
 
-def _initialize_ensure_extensions_addon():
-    module_name = "bl_pkg"
-    if module_name not in _preferences.addons:
-        enable(module_name, default_set=True, persistent=True)
-
-
 # Module-like class, store singletons.
 class _ext_global:
     __slots__ = ()
@@ -1636,9 +1632,6 @@ def _initialize_extension_repos_pre(*_):
 
 @_bpy.app.handlers.persistent
 def _initialize_extension_repos_post(*_, is_first=False):
-
-    # When enabling extensions for the first time, ensure the add-on is enabled.
-    _initialize_ensure_extensions_addon()
 
     do_addons = not is_first
 

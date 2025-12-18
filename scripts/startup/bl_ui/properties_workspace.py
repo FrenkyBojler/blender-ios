@@ -68,7 +68,7 @@ class WORKSPACE_PT_addons(WorkSpaceButtonsPanel, Panel):
             "WORKSPACE_UL_addons_items",
             "",
             context.preferences,
-            "addons",
+            "addons_ui",
             context.workspace,
             "active_addon",
             rows=8,
