@@ -133,70 +133,70 @@ static void test_preprocess_union()
   {
     string input = R"(
 struct [[host_shared]] T {
-  float foo;
-  float bar;
-  float baz;
   union {
-    union_t<uint> a;
-    union_t<int> b;
-    union_t<float> c;
+    union_t<uint4> a;
+    union_t<int4> b;
+    union_t<float4> c;
   };
 };
 )";
     string expect =
         R"(
-#line 6
+#line 3
+
+#define T_union0_host_shared_ T_union0
+#line 3
 struct                 T_union0 {
-  float data0;
+  float4 data0;
 
 };
 #line 2
+
+#define T_host_shared_ T
+#line 2
 struct                 T {
-  float foo;
-  float bar;
-  float baz;
-         T_union0 union0;
-#line 41
+         T_union0_host_shared_ union0;
+#line 38
 };
 #ifndef GPU_METAL
-uint _a(const T this_);
-void _a_set_(_ref(T ,this_), uint value);
-int _b(const T this_);
-void _b_set_(_ref(T ,this_), int value);
-float _c(const T this_);
-void _c_set_(_ref(T ,this_), float value);
+uint4 _a(const T this_);
+void _a_set_(_ref(T ,this_), uint4 value);
+int4 _b(const T this_);
+void _b_set_(_ref(T ,this_), int4 value);
+float4 _c(const T this_);
+void _c_set_(_ref(T ,this_), float4 value);
 #endif
-#line 12
-uint _a(const T this_)       {
-  uint val;
+#line 9
+uint4 _a(const T this_)       {
+  uint4 val;
   val = floatBitsToUint(this_.union0.data0);
   return val;
 }
-#line 18
-void _a_set_(_ref(T ,this_), uint value) {
+#line 15
+void _a_set_(_ref(T ,this_), uint4 value) {
   this_.union0.data0 = uintBitsToFloat(value);
 }
-#line 22
-int _b(const T this_)       {
-  int val;
+#line 19
+int4 _b(const T this_)       {
+  int4 val;
   val = floatBitsToInt(this_.union0.data0);
   return val;
 }
-#line 28
-void _b_set_(_ref(T ,this_), int value) {
+#line 25
+void _b_set_(_ref(T ,this_), int4 value) {
   this_.union0.data0 = intBitsToFloat(value);
 }
-#line 32
-float _c(const T this_)       {
-  float val;
+#line 29
+float4 _c(const T this_)       {
+  float4 val;
   val = this_.union0.data0;
   return val;
 }
-#line 38
-void _c_set_(_ref(T ,this_), float value) {
+#line 35
+void _c_set_(_ref(T ,this_), float4 value) {
   this_.union0.data0 = value;
 }
-#line 42
+#line 39
 )";
     string error;
     string output = process_test_string(input, error);
@@ -206,61 +206,70 @@ void _c_set_(_ref(T ,this_), float value) {
   {
     string input = R"(
 struct [[host_shared]] T {
-  float foo;
-  float bar;
+  float2 foo;
+  float2 bar;
   union {
-    union_t<uint> a;
+    union_t<uint4> a;
   };
   union {
-    union_t<uint> b;
+    union_t<uint4> b;
   };
 };
 )";
     string expect =
         R"(
 #line 5
+
+#define T_union0_host_shared_ T_union0
+#line 5
 struct                 T_union0 {
-  float data0;
+  float4 data0;
 
 };
 #line 8
+
+#define T_union1_host_shared_ T_union1
+#line 8
 struct                 T_union1 {
-  float data0;
+  float4 data0;
 
 };
 #line 2
+
+#define T_host_shared_ T
+#line 2
 struct                 T {
-  float foo;
-  float bar;
-         T_union0 union0;
+  float2 foo;
+  float2 bar;
+         T_union0_host_shared_ union0;
 #line 8
-         T_union1 union1;
+         T_union1_host_shared_ union1;
 #line 31
 };
 #ifndef GPU_METAL
-uint _a(const T this_);
-void _a_set_(_ref(T ,this_), uint value);
-uint _b(const T this_);
-void _b_set_(_ref(T ,this_), uint value);
+uint4 _a(const T this_);
+void _a_set_(_ref(T ,this_), uint4 value);
+uint4 _b(const T this_);
+void _b_set_(_ref(T ,this_), uint4 value);
 #endif
 #line 12
-uint _a(const T this_)       {
-  uint val;
+uint4 _a(const T this_)       {
+  uint4 val;
   val = floatBitsToUint(this_.union0.data0);
   return val;
 }
 #line 18
-void _a_set_(_ref(T ,this_), uint value) {
+void _a_set_(_ref(T ,this_), uint4 value) {
   this_.union0.data0 = uintBitsToFloat(value);
 }
 #line 22
-uint _b(const T this_)       {
-  uint val;
+uint4 _b(const T this_)       {
+  uint4 val;
   val = floatBitsToUint(this_.union1.data0);
   return val;
 }
 #line 28
-void _b_set_(_ref(T ,this_), uint value) {
+void _b_set_(_ref(T ,this_), uint4 value) {
   this_.union1.data0 = uintBitsToFloat(value);
 }
 #line 32
@@ -288,22 +297,33 @@ struct [[host_shared]] T {
 };
 )";
     string expect = R"(
+
+#define B_host_shared_ B
+#line 2
 struct                 B {
   packed_float3 a;
   float b;
 };
-
+#line 8
+#define A_host_shared_ A
+#line 7
 struct                 A {
-         B e;
+         B_host_shared_ e;
 };
+#line 12
+
+#define T_union0_host_shared_ T_union0
 #line 12
 struct                 T_union0 {
   float4 data0;
 
 };
 #line 11
+
+#define T_host_shared_ T
+#line 11
 struct                 T {
-         T_union0 union0;
+         T_union0_host_shared_ union0;
 #line 27
 };
 #ifndef GPU_METAL
@@ -339,6 +359,9 @@ struct [[host_shared]] T {
 )";
     string expect = R"(
 #line 3
+
+#define T_union0_host_shared_ T_union0
+#line 3
 struct                 T_union0 {
   float4 data0;
   float4 data1;
@@ -347,8 +370,11 @@ struct                 T_union0 {
 
 };
 #line 2
+
+#define T_host_shared_ T
+#line 2
 struct                 T {
-         T_union0 union0;
+         T_union0_host_shared_ union0;
 #line 22
 };
 #ifndef GPU_METAL
@@ -372,7 +398,6 @@ void _a_set_(_ref(T ,this_), float4x4 value) {
   this_.union0.data3 = value[3];
 }
 #line 23
-
 )";
     string error;
     string output = process_test_string(input, error);

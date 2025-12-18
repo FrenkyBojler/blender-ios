@@ -23,7 +23,7 @@ namespace blender::eevee {
  * Index inside the world sun buffer.
  * In the case the world uses the light path node, multiple suns can be extracted from the world.
  */
-enum WorldSunIndex : uint32_t {
+enum [[host_shared]] WorldSunIndex : uint32_t {
   /** When the world node-tree doesn't use the light path node, there is only 1 extracted. */
   WORLD_SUN_COMBINED = 0u,
 
@@ -34,7 +34,7 @@ enum WorldSunIndex : uint32_t {
   WORLD_SUN_MAX = 2u,
 };
 
-enum eLightType : uint32_t {
+enum [[host_shared]] eLightType : uint32_t {
   LIGHT_SUN = 0u,
   LIGHT_SUN_ORTHO = 1u,
   /* Point light. */
@@ -100,7 +100,7 @@ struct [[host_shared]] LightLocalCommon {
 /* Untyped local light data. Gets reinterpreted to LightSpotData and LightAreaData.
  * Allow access to local light common data without casting. */
 struct [[host_shared]] LightLocalData {
-  struct LightLocalCommon common;
+  struct LightLocalCommon local;
 
   /** Number of allocated tilemap for this local light. */
   int tilemaps_count; /* Leaked from LightLocalCommon because of alignment. */
@@ -115,7 +115,7 @@ struct [[host_shared]] LightLocalData {
 
 /* Despite the name, is also used for omni light. */
 struct [[host_shared]] LightSpotData {
-  struct LightLocalCommon common;
+  struct LightLocalCommon local;
 
   /** Number of allocated tilemap for this local light. */
   int tilemaps_count; /* Leaked from LightLocalCommon because of alignment. */
@@ -132,7 +132,7 @@ struct [[host_shared]] LightSpotData {
 };
 
 struct [[host_shared]] LightAreaData {
-  struct LightLocalCommon common;
+  struct LightLocalCommon local;
 
   /** Number of allocated tilemap for this local light. */
   int tilemaps_count; /* Leaked from LightLocalCommon because of alignment. */
@@ -160,7 +160,7 @@ struct [[host_shared]] LightSunData {
 
   /** Angle covered by the light shape for shadow ray casting. */
   float shadow_angle;
-  float _pad5;
+  float shadow_angle_cos;
   float _pad3;
   float _pad4;
 
