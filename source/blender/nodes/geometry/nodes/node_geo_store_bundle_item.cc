@@ -5,21 +5,13 @@
 #include "node_geometry_util.hh"
 
 #include "NOD_geo_bundle.hh"
-#include "NOD_socket_items_blend.hh"
-#include "NOD_socket_search_link.hh"
-#include "NOD_sync_sockets.hh"
-
-#include "BKE_idprop.hh"
-
-#include "BLO_read_write.hh"
-
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_rna_define.hh"
+
+#include "RNA_enum_types.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
-
-#include "NOD_rna_define.hh"
-#include "RNA_enum_types.hh"
 
 namespace blender::nodes::node_geo_store_bundle_item_cc {
 
@@ -111,7 +103,7 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 0); //todo
+              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 0);  // todo
             });
       });
 }

@@ -4,21 +4,14 @@
 
 #include "node_geometry_util.hh"
 
-#include "ED_screen.hh"
-
 #include "NOD_geo_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_rna_define.hh"
-#include "NOD_sync_sockets.hh"
 
-#include "BKE_idprop.hh"
-
-#include "BLO_read_write.hh"
+#include "RNA_enum_types.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
-
-#include "RNA_enum_types.hh"
 
 #include <fmt/format.h>
 
@@ -104,11 +97,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (remove) {
-    if (!bundle->is_mutable()) {
-      bundle = bundle->copy();
-    }
-    bundle->tag_ensured_mutable();
-    const_cast<Bundle &>(*bundle).remove(path);
+    const_cast<Bundle &>(*bundle).remove_path(path);
   }
 
   params.set_output("Bundle", std::move(bundle));
@@ -130,7 +119,7 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 0); //todo
+              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 0);  // todo
             });
       });
 }
