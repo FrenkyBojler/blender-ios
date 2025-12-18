@@ -3591,8 +3591,6 @@ void WM_OT_recover_auto_save(wmOperatorType *ot)
  * Both #WM_OT_save_as_mainfile & #WM_OT_save_mainfile.
  * \{ */
 
-static char should_show_save_image_dialog = true;
-
 static void wm_save_as_mainfile_after_dialog_callback(bContext *C, void *user_data)
 {
   WM_operator_name_call_with_properties(C,
@@ -3684,8 +3682,12 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent * /*event*/)
 {
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
+  const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
+
   int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (modified_images_count > 0 && should_show_save_image_dialog) {
+  if (show_save_image_dialog && modified_images_count > 0) {
+    RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, wm_save_as_mainfile_after_dialog_callback);
     return OPERATOR_INTERFACE;
   }
@@ -3693,7 +3695,7 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
   save_set_compress(op);
   save_set_filepath(C, op);
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "relative_remap");
+  prop = RNA_struct_find_property(op->ptr, "relative_remap");
   if (!RNA_property_is_set(op->ptr, prop)) {
     RNA_property_boolean_set(op->ptr, prop, (U.flag & USER_RELPATHS));
   }
@@ -3714,6 +3716,16 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "incremental");
   const bool is_incremental = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
+  prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
+  const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
+
+  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
+  if (show_save_image_dialog && modified_images_count > 0) {
+    RNA_property_boolean_set(op->ptr, prop, false);
+    wm_operator_save_modified_images_dialog(C, op, wm_execute_save_mainfile_after_dialog_callback);
+    return OPERATOR_INTERFACE;
+  }
+
   /* We could expose all options to the users however in most cases remapping
    * existing relative paths is a good default.
    * Users can manually make their paths relative & absolute if they wish. */
@@ -3721,17 +3733,6 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
                                              BLO_WRITE_PATH_REMAP_RELATIVE :
                                              BLO_WRITE_PATH_REMAP_NONE;
   save_set_compress(op);
-
-  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (modified_images_count > 0) {
-    // 'Save As' and 'Save Copy' should not show this dialog since it's shown in the invoke
-    // function for those options.
-    if (!is_save_as && should_show_save_image_dialog) {
-      wm_operator_save_modified_images_dialog(
-          C, op, wm_execute_save_mainfile_after_dialog_callback);
-      return OPERATOR_INTERFACE;
-    }
-  }
 
   const bool is_filepath_set = RNA_struct_property_is_set(op->ptr, "filepath");
   if (is_filepath_set) {
@@ -3906,6 +3907,14 @@ void WM_OT_save_as_mainfile(wmOperatorType *ot)
       "Save Copy",
       "Save a copy of the actual working state but does not make saved file active");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
+      ot->srna,
+      "show_save_modified_images_dialog",
+      true,
+      "Show Save Modified Images Dialog",
+      "Show a popup dialog to save modified images before saving the blend file");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
@@ -3919,8 +3928,12 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
+  const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
+
   int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (modified_images_count > 0 && should_show_save_image_dialog) {
+  if (modified_images_count > 0 && show_save_image_dialog) {
+    RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, wm_invoke_save_mainfile_after_dialog_callback);
     return OPERATOR_INTERFACE;
   }
@@ -3933,7 +3946,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
    * enable the option to remap paths to avoid confusion, see: #37240. */
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
   if ((blendfile_path[0] == '\0') && (U.flag & USER_RELPATHS)) {
-    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "relative_remap");
+    prop = RNA_struct_find_property(op->ptr, "relative_remap");
     if (!RNA_property_is_set(op->ptr, prop)) {
       RNA_property_boolean_set(op->ptr, prop, true);
     }
@@ -4004,6 +4017,14 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
                          "Incremental",
                          "Save the current Blender file with a numerically incremented name that "
                          "does not overwrite any existing files");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
+      ot->srna,
+      "show_save_modified_images_dialog",
+      true,
+      "Show Save Modified Images Dialog",
+      "Show a popup dialog to save modified images before saving the blend file");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
@@ -5012,9 +5033,7 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
     WM_report_banner_show(wm, win);
   }
 
-  should_show_save_image_dialog = false;
   callback->exec(C, callback->user_data);
-  should_show_save_image_dialog = true;
   WM_generic_callback_free(callback);
 }
 
