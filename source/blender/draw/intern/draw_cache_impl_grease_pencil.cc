@@ -1342,7 +1342,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         [&](const IndexRange range) {
           visible_strokes.slice(range).foreach_index(
               [&](const int64_t curve_i, const int64_t pos_i) {
-                const int64_t pos = pos_i + range.start();
+                const int64_t pos = range[pos_i];
                 const IndexRange points = points_by_curve[curve_i];
                 const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
                 const int verts_start_offset = verts_start_offsets[pos];
@@ -1366,7 +1366,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                  */
                 const float u_scale = u_scales[curve_i];
                 const float u_translation = u_translations[curve_i];
-                for (const int i : IndexRange(points.size())) {
+                for (const int i : points.index_range()) {
                   const int idx = i + 1;
                   const float u_stroke = u_scale * (i > 0 ? lengths[i - 1] : 0.0f) + u_translation;
                   populate_point(verts_range,
@@ -1404,10 +1404,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
               });
         },
         threading::accumulated_task_sizes([&](const IndexRange range) {
-          int64_t total_size = 0;
-          visible_strokes.slice(range).foreach_index(
-              [&](const int64_t index) { total_size += points_by_curve[index].size(); });
-          return total_size;
+          return offset_indices::sum_group_sizes(points_by_curve, visible_strokes.slice(range));
         }));
 
     /* Fill in IBO in series. */
@@ -1431,7 +1428,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         }
       }
 
-      for (const int i : IndexRange(points.size())) {
+      for (const int i : points.index_range()) {
         const int idx = i + 1;
         int v_mat = (verts_range[idx] << GP_VERTEX_ID_SHIFT) | GP_IS_STROKE_VERTEX_BIT;
         triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 0, v_mat + 1, v_mat + 2);
