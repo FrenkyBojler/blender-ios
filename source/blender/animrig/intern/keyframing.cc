@@ -278,8 +278,8 @@ static bool assigned_action_has_keyframe_at(AnimData &adt, const float frame)
       fcurves.index_range(),
       512,
       false,
-      [&](const IndexRange range, const bool value) {
-        if (value) {
+      [&](const IndexRange range, const bool is_found) {
+        if (is_found) {
           return true;
         }
         for (FCurve *fcu : fcurves.slice(range)) {
