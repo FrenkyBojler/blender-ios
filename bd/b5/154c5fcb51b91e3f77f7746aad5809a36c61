@@ -3,3 +3,4 @@ Referenced by issue #148859, Crash in `DRW_particles_batch_cache_get_hair()`
 Referenced by commit 4c25b7f263d1d9aaad6b0da081a75a88b5568cdb, Fix #148859: Crash in particle system draw cache
 Referenced by commit 89ccded634e6f12973216608f24f02785f08cd4b, Fix #149206: Dupli-face instancing crashes in edit-mode
 Referenced by commit c7cdc9451fab30dfe86e5a3c064e5234d137d142, Fix: Workbench color attribute check null optional dereference
+Referenced by issue #151787, UV Editing tab click causes freeze if the combination of skin modifier and subdivision surface modifier is present
