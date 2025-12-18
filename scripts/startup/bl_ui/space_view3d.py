@@ -918,11 +918,10 @@ class VIEW3D_HT_header(Header):
             draw_topbar_grease_pencil_layer_panel(context, layout)
 
             if object_mode == 'PAINT_GREASE_PENCIL':
-                # FIXME: this is bad practice!
-                # Tool options are to be displayed in the top-bar.
-                paint_settings = tool_settings.gpencil_paint
-                brush = paint_settings.brush
-                if brush.gpencil_tool == 'DRAW':
+                tool_settings = context.tool_settings
+                brush = context.tool_settings.gpencil_paint.brush
+                grease_pencil_tool = brush.gpencil_brush_type
+                if grease_pencil_tool == 'DRAW':
                     guide_settings = tool_settings.gpencil_sculpt.guide
                     row = layout.row(align=True)
                     row.prop(guide_settings, "use_guide", text="", icon='GRID')
