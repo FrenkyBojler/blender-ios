@@ -23,6 +23,7 @@
 #include "NOD_geo_viewer.hh"
 #include "NOD_geometry_exec.hh"
 #include "NOD_geometry_nodes_bundle.hh"
+#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_multi_function.hh"
@@ -1375,6 +1376,10 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
         const BundlePtr &bundle = *value.get<BundlePtr>();
         this->gather__bundle(bundle, r_references);
       }
+      if (value.is_type<ClosurePtr>()) {
+        const ClosurePtr &closure = *value.get<ClosurePtr>();
+        this->gather__closure(closure, r_references);
+      }
     }
   }
 
@@ -1402,6 +1407,16 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
       if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
         this->gather__socket_value(socket_value->value, r_references);
       }
+    }
+  }
+
+  void gather__closure(const ClosurePtr &closure, GeometryNodesReferenceSet &r_references) const
+  {
+    if (!closure) {
+      return;
+    }
+    for (const bke::SocketValueVariant *value : closure->captured_values()) {
+      this->gather__socket_value(*value, r_references);
     }
   }
 };
