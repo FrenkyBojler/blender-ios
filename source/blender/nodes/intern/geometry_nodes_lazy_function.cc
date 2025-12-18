@@ -1367,28 +1367,40 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
   {
     if (value_variant.is_context_dependent_field()) {
       const GField &field = value_variant.get<GField>();
-      field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
-        if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input))
-        {
-          const StringRef name = attr_field_input->attribute_name();
-          if (bke::attribute_name_is_anonymous(name)) {
-            if (!r_references.names) {
-              r_references.names = std::make_shared<Set<std::string>>();
-            }
-            r_references.names->add_as(name);
-          }
-        }
-      });
+      this->gather__field(field, r_references);
     }
     if (value_variant.is_single()) {
       const GPointer value = value_variant.get_single_ptr();
       if (value.is_type<BundlePtr>()) {
         const BundlePtr &bundle = *value.get<BundlePtr>();
-        for (const auto &[name, value] : bundle->items()) {
-          if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
-            this->gather__socket_value(socket_value->value, r_references);
+        this->gather__bundle(bundle, r_references);
+      }
+    }
+  }
+
+  void gather__field(const GField &field, GeometryNodesReferenceSet &r_references) const
+  {
+    field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
+      if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input)) {
+        const StringRef name = attr_field_input->attribute_name();
+        if (bke::attribute_name_is_anonymous(name)) {
+          if (!r_references.names) {
+            r_references.names = std::make_shared<Set<std::string>>();
           }
+          r_references.names->add_as(name);
         }
+      }
+    });
+  }
+
+  void gather__bundle(const BundlePtr &bundle, GeometryNodesReferenceSet &r_references) const
+  {
+    if (!bundle) {
+      return;
+    }
+    for (const auto &[name, value] : bundle->items()) {
+      if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
+        this->gather__socket_value(socket_value->value, r_references);
       }
     }
   }
