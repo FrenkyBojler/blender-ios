@@ -22,13 +22,14 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
-
 #include "BLI_compiler_attrs.h"
+#include "BLI_string_ref.hh"
+#include "BLI_sys_types.h"
 
 struct ReportList;
 struct Text;
 struct bContext;
+struct IDProperty;
 
 /* `bpy_interface_run.cc` */
 
@@ -96,6 +97,41 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr);
  *  used for `bpy.context` and reporting errors to `CTX_wm_reports(C)`.
  */
 bool BPY_run_string_eval(bContext *C, const char *imports[], const char *expr);
+
+/**
+ * Run a script, with the given local variables.
+ *
+ * \param C: Optional context (may be null),
+ *  used for `bpy.context` and reporting errors to `CTX_wm_reports(C)`.
+ *
+ * \param script The Python script to run, can be multiple lines.
+ *
+ * \param locals group property with string keys, defining the script's local variables.
+ */
+bool BPY_run_string_with_locals(bContext *C,
+                                const blender::StringRefNull script,
+                                IDProperty &locals);
+
+/**
+ * Run a script, with the given local variables, and return a result.
+ *
+ * The script should assign a value to the script-local variable `_result`. Its value will be
+ * returned as IDProperty. This is limited to simple values (None, bool, int, float, string), where
+ * integers are limited to signed 32-bit values.
+ *
+ * \param C: Optional context (may be null),
+ *  used for `bpy.context` and reporting errors to `CTX_wm_reports(C)`.
+ *
+ * \param script The Python script to run, can be multiple lines.
+ *
+ * \param locals group property with string keys, defining the script's local variables.
+ *
+ * \returns the value of `_result` in the script. If `_result` was not set, std::noopt is returned.
+ * `_result=None` will return in a `nullptr` value of the `std::optional`.
+ */
+std::optional<IDProperty *> BPY_run_string_with_locals_return_idprop(bContext *C,
+                                                                     blender::StringRefNull script,
+                                                                     IDProperty &locals);
 
 /** \} */
 

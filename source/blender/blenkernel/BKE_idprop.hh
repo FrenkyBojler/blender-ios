@@ -96,6 +96,9 @@ IDProperty *IDP_NewStringMaxSize(const char *st,
 IDProperty *IDP_NewString(const char *st,
                           blender::StringRef name,
                           eIDPropertyFlag flags = {}) ATTR_WARN_UNUSED_RESULT;
+IDProperty *IDP_NewString(blender::StringRef value,
+                          blender::StringRef name,
+                          eIDPropertyFlag flags = {}) ATTR_WARN_UNUSED_RESULT;
 /**
  * \param st: The string to assign.
  * Doesn't need to be null terminated when clamped by `maxncpy`.
@@ -272,6 +275,12 @@ IDProperty *IDP_New(char type,
                     const IDPropertyTemplate *val,
                     blender::StringRef name,
                     eIDPropertyFlag flags = {}) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+
+/* ----------- Allocators for simple types ----------- */
+
+[[nodiscard]] IDProperty *IDP_NewInt(int value,
+                                     blender::StringRef name,
+                                     eIDPropertyFlag flags = {});
 
 /**
  * \note This will free allocated data, all child properties of arrays and groups, and unlink IDs!

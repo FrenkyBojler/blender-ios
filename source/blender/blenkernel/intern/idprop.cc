@@ -399,6 +399,16 @@ IDProperty *IDP_NewString(const char *st,
   return IDP_NewStringMaxSize(st, 0, name, flags);
 }
 
+IDProperty *IDP_NewString(const blender::StringRef value,
+                          const blender::StringRef name,
+                          const eIDPropertyFlag flags)
+{
+  BLI_assert(value.size() >= 0);
+  /* value.size() is the number of characters, while the size_t value passed here includes the
+   * trailing zero byte, hence the +1. */
+  return IDP_NewStringMaxSize(value.data(), size_t(value.size()) + 1, name, flags);
+}
+
 static IDProperty *IDP_CopyString(const IDProperty *prop, const int flag)
 {
   BLI_assert(prop->type == IDP_STRING);
@@ -1108,6 +1118,13 @@ IDProperty *IDP_New(const char type,
   prop->flag = short(flags);
 
   return prop;
+}
+
+IDProperty *IDP_NewInt(const int value, const blender::StringRef name, const eIDPropertyFlag flags)
+{
+  IDPropertyTemplate prop_template{0};
+  prop_template.i = value;
+  return IDP_New(IDP_INT, &prop_template, name, flags);
 }
 
 void IDP_ui_data_free_unique_contents(IDPropertyUIData *ui_data,
