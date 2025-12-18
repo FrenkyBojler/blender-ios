@@ -21,6 +21,7 @@
 #include "DNA_ID.h"
 #include "DNA_color_types.h"      /* color management */
 #include "DNA_customdata_types.h" /* Scene's runtime custom-data masks. */
+#include "DNA_image_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
 #include "DNA_scene_enums.h"
@@ -2560,14 +2561,16 @@ typedef enum eSnapMode {
   /** For snap individual elements. */
   SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
   SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
+
+  SCE_SNAP_TO_FACE_MIDPOINT = (1 << 11)
 } eSnapMode;
 ENUM_OPERATORS(eSnapMode)
 
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
 #define SCE_SNAP_TO_GEOM \
-  (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_EDGE_MIDPOINT | \
-   SCE_SNAP_TO_EDGE_PERPENDICULAR)
+  (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT | \
+   SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR)
 
 /** #SequencerToolSettings::snap_mode */
 enum {

@@ -24,6 +24,9 @@
 
 #include "NOD_shader_nodes_inline.hh"
 
+#include "DNA_light_types.h"
+#include "DNA_material_types.h"
+
 CCL_NAMESPACE_BEGIN
 
 using PtrInputMap = unordered_multimap<void *, ShaderInput *>;
@@ -1473,6 +1476,7 @@ static void add_nodes(Scene *scene,
       nullptr, (blender::StringRef(ntree->id.name) + " Inlined").c_str(), ntree->idname);
   blender::nodes::InlineShaderNodeTreeParams inline_params;
   inline_params.allow_preserving_repeat_zones = false;
+  inline_params.target_engine_ = SHD_OUTPUT_CYCLES;
   blender::nodes::inline_shader_node_tree(*ntree, *localtree, inline_params);
 
   BL::ShaderNodeTree b_localtree(RNA_id_pointer_create(&localtree->id));
@@ -1594,7 +1598,7 @@ void BlenderSync::sync_materials(BL::Depsgraph &b_depsgraph, bool update_all)
     Shader *shader;
 
     /* test if we need to sync */
-    if (shader_map.add_or_update(&shader, b_mat) || update_all ||
+    if (shader_map.add_or_update(&shader, &b_mat.ptr.data_as<::Material>()->id) || update_all ||
         scene_attr_needs_recalc(shader, b_depsgraph))
     {
       unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
@@ -1664,7 +1668,10 @@ void BlenderSync::sync_materials(BL::Depsgraph &b_depsgraph, bool update_all)
 
 /* Sync World */
 
-void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d, bool update_all)
+void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph,
+                             ::bScreen *b_screen,
+                             BL::SpaceView3D &b_v3d,
+                             bool update_all)
 {
   Background *background = scene->background;
   Integrator *integrator = scene->integrator;
@@ -1672,7 +1679,8 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d,
 
   BL::World b_world = view_layer.world_override ? view_layer.world_override : b_scene.world();
 
-  const BlenderViewportParameters new_viewport_parameters(b_v3d, use_developer_ui);
+  const BlenderViewportParameters new_viewport_parameters(
+      b_screen, b_v3d.ptr.data_as<::View3D>(), use_developer_ui);
 
   Shader *shader = scene->default_background;
 
@@ -1834,7 +1842,7 @@ void BlenderSync::sync_lights(BL::Depsgraph &b_depsgraph, bool update_all)
     Shader *shader;
 
     /* test if we need to sync */
-    if (shader_map.add_or_update(&shader, b_light) || update_all ||
+    if (shader_map.add_or_update(&shader, &b_light.ptr.data_as<::Light>()->id) || update_all ||
         scene_attr_needs_recalc(shader, b_depsgraph))
     {
       unique_ptr<ShaderGraph> graph = make_unique<ShaderGraph>();
@@ -1864,11 +1872,14 @@ void BlenderSync::sync_lights(BL::Depsgraph &b_depsgraph, bool update_all)
   }
 }
 
-void BlenderSync::sync_shaders(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d, bool update_all)
+void BlenderSync::sync_shaders(BL::Depsgraph &b_depsgraph,
+                               ::bScreen *b_screen,
+                               BL::SpaceView3D &b_v3d,
+                               bool update_all)
 {
   shader_map.pre_sync();
 
-  sync_world(b_depsgraph, b_v3d, update_all);
+  sync_world(b_depsgraph, b_screen, b_v3d, update_all);
   sync_lights(b_depsgraph, update_all);
   sync_materials(b_depsgraph, update_all);
 }
