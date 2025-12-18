@@ -303,13 +303,15 @@ static void graphedit_activekey_handles_cb(bContext *C, void *fcu_ptr, void *bez
 
 static void graphedit_activekey_handle_left_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
 {
-  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr), true);
+  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr),
+                                              HandleSide::LEFT);
   graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
 }
 
 static void graphedit_activekey_handle_right_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
 {
-  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr), false);
+  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr),
+                                              HandleSide::RIGHT);
   graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
 }
 

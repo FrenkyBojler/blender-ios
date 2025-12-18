@@ -1234,18 +1234,21 @@ void BKE_fcurve_handles_recalc_ex(FCurve *fcu, eBezTriple_Flag handle_sel_flag)
   }
 }
 
-void BKE_fcurve_update_handle_flag_from_opposite(BezTriple &key, const bool from_left)
+void BKE_fcurve_update_handle_flag_from_opposite(BezTriple &key, const HandleSide source_side)
 {
-  uint8_t source;
+  eBezTriple_Handle source;
   uint8_t *target;
-
-  if (from_left) {
-    source = key.h1;
-    target = &key.h2;
-  }
-  else {
-    source = key.h2;
-    target = &key.h1;
+  switch (source_side) {
+    case HandleSide::LEFT: {
+      source = eBezTriple_Handle(key.h1);
+      target = &key.h2;
+      break;
+    }
+    case HandleSide::RIGHT: {
+      source = eBezTriple_Handle(key.h2);
+      target = &key.h1;
+      break;
+    }
   }
 
   switch (source) {
@@ -1253,6 +1256,7 @@ void BKE_fcurve_update_handle_flag_from_opposite(BezTriple &key, const bool from
     case HD_AUTO:
     case HD_ALIGN:
     case HD_AUTO_ANIM:
+    case HD_ALIGN_DOUBLESIDE:
       *target = source;
       break;
 
@@ -1262,9 +1266,6 @@ void BKE_fcurve_update_handle_flag_from_opposite(BezTriple &key, const bool from
       if (!ELEM(*target, HD_FREE, HD_VECT)) {
         *target = HD_FREE;
       }
-      break;
-
-    default:
       break;
   }
 }

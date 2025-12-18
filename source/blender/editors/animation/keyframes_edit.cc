@@ -1112,11 +1112,11 @@ static short set_bezier_vector(KeyframeEditData * /*ked*/, BezTriple *bezt)
   else {
     if (bezt->f1 & SELECT) {
       bezt->h1 = HD_VECT;
-      BKE_fcurve_update_handle_flag_from_opposite(*bezt, true);
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, HandleSide::LEFT);
     }
     if (bezt->f3 & SELECT) {
       bezt->h2 = HD_VECT;
-      BKE_fcurve_update_handle_flag_from_opposite(*bezt, false);
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, HandleSide::RIGHT);
     }
   }
 
@@ -1160,11 +1160,11 @@ static short set_bezier_free(KeyframeEditData * /*ked*/, BezTriple *bezt)
   else {
     if (bezt->f1 & SELECT) {
       bezt->h1 = HD_FREE;
-      BKE_fcurve_update_handle_flag_from_opposite(*bezt, true);
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, HandleSide::LEFT);
     }
     if (bezt->f3 & SELECT) {
       bezt->h2 = HD_FREE;
-      BKE_fcurve_update_handle_flag_from_opposite(*bezt, false);
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, HandleSide::RIGHT);
     }
   }
 
