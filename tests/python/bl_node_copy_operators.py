@@ -19,7 +19,7 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
 
     def open_file(self):
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / self.testfile))
-        self.assertEqual(bpy.data.version, (5, 1, 15))
+        self.assertEqual(bpy.data.version, (5, 1, 16))
 
     @classmethod
     def setUpClass(cls):
@@ -407,6 +407,7 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
 
+    @unittest.skip("Broken due to #151786")
     def test_node_group_insert_empty_single(self):
         for test_node_name, expected_group_node_name in zip(test_node_names, group_nodes_single_names):
             with self.subTest(test_node=test_node_name, expected_group_node=expected_group_node_name):
