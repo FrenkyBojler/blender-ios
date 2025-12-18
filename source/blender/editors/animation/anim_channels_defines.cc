@@ -303,10 +303,7 @@ static short acf_generic_group_offset(bAnimContext *ac, bAnimListElem *ale)
       switch (ale->type) {
         case ANIMTYPE_FCURVE:
         case ANIMTYPE_GROUP: {
-          const bAction *action = reinterpret_cast<bAction *>(ale->fcurve_owner_id);
-          if (action->wrap().is_action_layered()) {
-            offset += short(0.35f * U.widget_unit);
-          }
+          offset += short(0.35f * U.widget_unit);
           break;
         }
 
@@ -5044,7 +5041,7 @@ void ANIM_channel_setting_set(bAnimContext *ac,
 /* --------------------------- */
 
 /** Size of icons. */
-#define ICON_WIDTH (0.85f * U.widget_unit)
+#define ICON_WIDTH (0.8f * U.widget_unit)
 /** Width of sliders. */
 #define SLIDER_WIDTH (4 * U.widget_unit)
 /** Min-width of rename text-boxes. */
@@ -5099,9 +5096,6 @@ static bool achannel_is_part_of_disconnected_slot(const bAnimListElem *ale)
 
       const animrig::Action &action =
           reinterpret_cast<const bAction *>(ale->fcurve_owner_id)->wrap();
-      if (action.is_action_legacy()) {
-        return false;
-      }
 
       const animrig::Slot *slot = action.slot_for_handle(ale->slot_handle);
       if (slot == nullptr) {
@@ -5205,7 +5199,8 @@ void ANIM_channel_draw(
 
   /* calculate appropriate y-coordinates for icon buttons */
   y = (ymaxc - yminc) / 2 + yminc;
-  ymid = y - 0.5f * ICON_WIDTH;
+  ymid = yminc - 1;
+
   /* y-coordinates for text is only 4 down from middle */
   ytext = y - 0.2f * U.widget_unit;
 
@@ -6109,7 +6104,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
   }
 
   /* calculate appropriate y-coordinates for icon buttons */
-  ymid = BLI_rctf_cent_y(rect) - 0.5f * ICON_WIDTH;
+  ymid = rect->ymin - 1;
 
   /* no button backdrop behind icons */
   block_emboss_set(block, blender::ui::EmbossType::None);

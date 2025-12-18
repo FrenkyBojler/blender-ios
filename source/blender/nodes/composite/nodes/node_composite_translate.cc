@@ -69,8 +69,8 @@ class TranslateOperation : public NodeOperation {
   {
     const Result &input = this->get_input("Image");
 
-    float x = this->get_input("X").get_single_value_default(0.0f);
-    float y = this->get_input("Y").get_single_value_default(0.0f);
+    float x = this->get_input("X").get_single_value_default<float>();
+    float y = this->get_input("Y").get_single_value_default<float>();
     const float2 translation = float2(x, y);
 
     Result &output = this->get_result("Image");
@@ -83,10 +83,8 @@ class TranslateOperation : public NodeOperation {
 
   Interpolation get_interpolation()
   {
-    const Result &input = this->get_input("Interpolation");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_INTERPOLATION_BILINEAR);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(menu_value.value);
+    const CMPNodeInterpolation interpolation = CMPNodeInterpolation(
+        this->get_input("Interpolation").get_single_value_default<MenuValue>().value);
     switch (interpolation) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
@@ -100,40 +98,36 @@ class TranslateOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  ExtensionMode get_extension_mode_x()
+  Extension get_extension_mode_x()
   {
-    const Result &input = this->get_input("Extension X");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
+    const CMPExtensionMode extension_x = CMPExtensionMode(
+        this->get_input("Extension X").get_single_value_default<MenuValue>().value);
     switch (extension_x) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+        return Extension::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        return Extension::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        return Extension::Extend;
     }
 
-    return ExtensionMode::Clip;
+    return Extension::Clip;
   }
 
-  ExtensionMode get_extension_mode_y()
+  Extension get_extension_mode_y()
   {
-    const Result &input = this->get_input("Extension Y");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
+    const CMPExtensionMode extension_y = CMPExtensionMode(
+        this->get_input("Extension Y").get_single_value_default<MenuValue>().value);
     switch (extension_y) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+        return Extension::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        return Extension::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        return Extension::Extend;
     }
 
-    return ExtensionMode::Clip;
+    return Extension::Clip;
   }
 };
 

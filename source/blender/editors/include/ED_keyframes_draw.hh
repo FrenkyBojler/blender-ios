@@ -96,13 +96,7 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
                                 float ypos,
                                 float yscale_fac,
                                 int saction_flag);
-/* Legacy Action Summary */
-void ED_add_action_channel(ChannelDrawList *channel_list,
-                           bAnimListElem *ale,
-                           bAction *act,
-                           float ypos,
-                           float yscale_fac,
-                           int saction_flag);
+
 /* Object Summary */
 void ED_add_object_channel(ChannelDrawList *channel_list,
                            bDopeSheet *ads,

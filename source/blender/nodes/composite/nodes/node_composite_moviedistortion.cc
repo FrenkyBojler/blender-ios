@@ -140,16 +140,13 @@ class MovieDistortionOperation : public NodeOperation {
 
     parallel_for(distortion_grid.domain().data_size, [&](const int2 texel) {
       output.store_pixel(
-          texel, Color(input.sample_bilinear_zero(distortion_grid.load_pixel<float2>(texel))));
+          texel, input.sample_bilinear_zero<Color>(distortion_grid.load_pixel<float2>(texel)));
     });
   }
 
   DistortionType get_distortion_type()
   {
-    const Result &input = this->get_input("Type");
-    const MenuValue default_menu_value = MenuValue(DistortionType::Distort);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<DistortionType>(menu_value.value);
+    return DistortionType(this->get_input("Type").get_single_value_default<MenuValue>().value);
   }
 
   MovieClip *get_movie_clip()
