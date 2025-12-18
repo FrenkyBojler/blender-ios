@@ -79,14 +79,13 @@
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "ED_anim_api.hh"
-#include "ED_markers.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
@@ -95,7 +94,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_armature.hh"
-#include "ANIM_bone_collections.hh"
 
 #include "anim_intern.hh"
 
@@ -349,7 +347,8 @@ static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
   /* sync settings with current view status, then return appropriate data */
   /* update scene-pointer (no need to check for pinning yet, as not implemented) */
   snla->ads->source = reinterpret_cast<ID *>(ac->scene);
-  snla->ads->filterflag |= ADS_FILTER_ONLYNLA;
+  ac->filters.flag = eDopeSheet_FilterFlag(snla->ads->filterflag | ADS_FILTER_ONLYNLA);
+  ac->filters.flag2 = eDopeSheet_FilterFlag2(snla->ads->filterflag2);
 
   ac->datatype = ANIMCONT_NLA;
   ac->data = snla->ads;
@@ -498,11 +497,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
 /* ............................... */
 
 /* Test whether AnimData has a usable Action. */
-#define ANIMDATA_HAS_ACTION_LEGACY(id) \
-  ((id)->adt && (id)->adt->action && (id)->adt->action->wrap().is_action_legacy())
 
-#define ANIMDATA_HAS_ACTION_LAYERED(id) \
-  ((id)->adt && (id)->adt->action && (id)->adt->action->wrap().is_action_layered())
+#define ANIMDATA_HAS_ACTION(id) ((id)->adt && (id)->adt->action)
 
 /* quick macro to test if AnimData is usable for drivers */
 #define ANIMDATA_HAS_DRIVERS(id) ((id)->adt && (id)->adt->drivers.first)
@@ -560,8 +556,7 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
           if (ANIMDATA_HAS_NLA(id)) { \
             nlaOk \
           } \
-          else if (!(ac->filters.flag & ADS_FILTER_NLA_NOACT) || ANIMDATA_HAS_ACTION_LAYERED(id)) \
-          { \
+          else if (!(ac->filters.flag & ADS_FILTER_NLA_NOACT) || ANIMDATA_HAS_ACTION(id)) { \
             nlaOk \
           } \
         } \
@@ -574,11 +569,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
           if (ANIMDATA_HAS_NLA(id)) { \
             nlaKeysOk \
           } \
-          if (ANIMDATA_HAS_ACTION_LAYERED(id)) { \
+          if (ANIMDATA_HAS_ACTION(id)) { \
             layeredActionOk \
-          } \
-          else if (ANIMDATA_HAS_ACTION_LEGACY(id)) { \
-            legacyActionOk \
           } \
         } \
       } \
@@ -656,7 +648,7 @@ static void key_data_from_adt(bAnimListElem &ale, AnimData *adt)
 
   blender::animrig::Action &action = adt->action->wrap();
   ale.key_data = &action;
-  ale.datatype = action.is_action_layered() ? ALE_ACTION_LAYERED : ALE_ACT;
+  ale.datatype = ALE_ACTION_LAYERED;
 }
 
 /* this function allocates memory for a new bAnimListElem struct for the
@@ -1098,7 +1090,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
           return true;
         }
 
-        if ((strip->flag & SELECT) == 0) {
+        if ((strip->flag & SEQ_SELECT) == 0) {
           return true;
         }
       }
@@ -1513,8 +1505,6 @@ static size_t animfilter_act_group(bAnimContext *ac,
   size_t tmp_items = 0;
   size_t items = 0;
 
-  animrig::Action &action = act->wrap();
-
   /* if we care about the selection status of the channels,
    * but the group isn't expanded (1)...
    * (1) this only matters if we actually care about the hierarchy though.
@@ -1558,25 +1548,10 @@ static size_t animfilter_act_group(bAnimContext *ac,
         if (!(filter_mode & ANIMFILTER_FOREDIT) || EDITABLE_AGRP(agrp)) {
           /* Filter the fcurves in this group, adding them to the temporary
            * filter list. */
-          if (action.is_action_legacy()) {
-            /* get first F-Curve which can be used here */
-            FCurve *first_fcu = animfilter_fcurve_next(ac,
-                                                       static_cast<FCurve *>(agrp->channels.first),
-                                                       ANIMTYPE_FCURVE,
-                                                       filter_mode,
-                                                       agrp,
-                                                       owner_id);
-
-            /* filter list, starting from this F-Curve */
-            tmp_items += animfilter_fcurves(
-                ac, &tmp_data, first_fcu, ANIMTYPE_FCURVE, filter_mode, agrp, owner_id, &act->id);
-          }
-          else {
-            BLI_assert(agrp->channelbag != nullptr);
-            Span<FCurve *> fcurves = agrp->wrap().fcurves();
-            tmp_items += animfilter_fcurves_span(
-                ac, &tmp_data, fcurves, slot_handle, filter_mode, owner_id, &act->id);
-          }
+          BLI_assert(agrp->channelbag != nullptr);
+          Span<FCurve *> fcurves = agrp->wrap().fcurves();
+          tmp_items += animfilter_fcurves_span(
+              ac, &tmp_data, fcurves, slot_handle, filter_mode, owner_id, &act->id);
         }
       }
     }
@@ -1590,14 +1565,9 @@ static size_t animfilter_act_group(bAnimContext *ac,
       /* filter selection of channel specially here again,
        * since may be open and not subject to previous test */
       if (ANIMCHANNEL_SELOK(SEL_AGRP(agrp))) {
-        if (action.is_action_legacy()) {
-          ANIMCHANNEL_NEW_CHANNEL(ac->bmain, agrp, ANIMTYPE_GROUP, owner_id, &act->id);
-        }
-        else {
-          ANIMCHANNEL_NEW_CHANNEL_FULL(ac->bmain, agrp, ANIMTYPE_GROUP, owner_id, &act->id, {
-            ale->slot_handle = slot_handle;
-          });
-        }
+        ANIMCHANNEL_NEW_CHANNEL_FULL(ac->bmain, agrp, ANIMTYPE_GROUP, owner_id, &act->id, {
+          ale->slot_handle = slot_handle;
+        });
       }
     }
 
@@ -1738,9 +1708,6 @@ static size_t animfilter_action(bAnimContext *ac,
                                 const eAnimFilter_Flags filter_mode,
                                 ID *owner_id)
 {
-  FCurve *lastchan = nullptr;
-  size_t items = 0;
-
   if (action.is_empty()) {
     return 0;
   }
@@ -1752,29 +1719,6 @@ static size_t animfilter_action(bAnimContext *ac,
       (!ID_IS_EDITABLE(&action) || ID_IS_OVERRIDE_LIBRARY(&action)))
   {
     return 0;
-  }
-
-  if (action.is_action_legacy()) {
-    LISTBASE_FOREACH (bActionGroup *, agrp, &action.groups) {
-      /* Store reference to last channel of group. */
-      if (agrp->channels.last) {
-        lastchan = static_cast<FCurve *>(agrp->channels.last);
-      }
-
-      items += animfilter_act_group(
-          ac, anim_data, &action, animrig::Slot::unassigned, agrp, filter_mode, owner_id);
-    }
-
-    /* Un-grouped F-Curves (only if we're not only considering those channels in
-     * the active group) */
-    if (!(filter_mode & ANIMFILTER_ACTGROUPED)) {
-      FCurve *firstfcu = (lastchan) ? (lastchan->next) :
-                                      static_cast<FCurve *>(action.curves.first);
-      items += animfilter_fcurves(
-          ac, anim_data, firstfcu, ANIMTYPE_FCURVE, filter_mode, nullptr, owner_id, &action.id);
-    }
-
-    return items;
   }
 
   /* For now we don't show layers anywhere, just the contained F-Curves. */
@@ -3692,7 +3636,7 @@ static int ds_base_sorting_cmp(const void *base1_ptr, const void *base2_ptr)
   const Base *b1 = *((const Base **)base1_ptr);
   const Base *b2 = *((const Base **)base2_ptr);
 
-  return strcmp(b1->object->id.name + 2, b2->object->id.name + 2);
+  return BLI_strcasecmp_natural(b1->object->id.name + 2, b2->object->id.name + 2);
 }
 
 /* Get a sorted list of all the bases - for inclusion in dopesheet (when drawing channels) */
@@ -3950,12 +3894,9 @@ static size_t animdata_filter_remove_invalid(ListBase *anim_data)
 /* Remove duplicate entries in animation channel list */
 static size_t animdata_filter_remove_duplis(ListBase *anim_data)
 {
-  GSet *gs;
-  size_t items = 0;
-
   /* Build new hash-table to efficiently store and retrieve which entries have been
    * encountered already while searching. */
-  gs = BLI_gset_ptr_new(__func__);
+  Set<const void *> gs;
 
   /* loop through items, removing them from the list if a similar item occurs already */
   LISTBASE_FOREACH_MUTABLE (bAnimListElem *, ale, anim_data) {
@@ -3964,21 +3905,14 @@ static size_t animdata_filter_remove_duplis(ListBase *anim_data)
      *   ale->type in combination too to capture corner cases
      *   (where same data performs differently)
      */
-    if (BLI_gset_add(gs, ale->data)) {
-      /* this entry is 'unique' and can be kept */
-      items++;
-    }
-    else {
+    if (!gs.add(ale->data)) {
       /* this entry isn't needed anymore */
       BLI_freelinkN(anim_data, ale);
     }
   }
 
-  /* free the hash... */
-  BLI_gset_free(gs, nullptr);
-
   /* return the number of items still in the list */
-  return items;
+  return gs.size();
 }
 
 /* ----------- Public API --------------- */

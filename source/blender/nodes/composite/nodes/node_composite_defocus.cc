@@ -57,28 +57,33 @@ static void node_composit_init_defocus(bNodeTree * /*ntree*/, bNode *node)
   node->storage = nbd;
 }
 
-static void node_composit_buts_defocus(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_defocus(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  uiLayout *sub, *col;
 
-  col = &layout->column(false);
-  col->label(IFACE_("Bokeh Type:"), ICON_NONE);
-  col->prop(ptr, "bokeh", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  col->prop(ptr, "angle", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  {
+    ui::Layout &col = layout.column(false);
+    col.label(IFACE_("Bokeh Type:"), ICON_NONE);
+    col.prop(ptr, "bokeh", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    col.prop(ptr, "angle", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  }
 
-  col = &layout->column(false);
-  col->active_set(RNA_boolean_get(ptr, "use_zbuffer") == true);
-  col->prop(ptr, "f_stop", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  {
+    ui::Layout &col = layout.column(false);
+    col.active_set(RNA_boolean_get(ptr, "use_zbuffer") == true);
+    col.prop(ptr, "f_stop", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  }
 
-  layout->prop(ptr, "blur_max", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "blur_max", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-  uiTemplateID(layout, C, ptr, "scene", nullptr, nullptr, nullptr);
+  template_id(&layout, C, ptr, "scene", nullptr, nullptr, nullptr);
 
-  col = &layout->column(false);
-  col->prop(ptr, "use_zbuffer", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  sub = &col->column(false);
-  sub->active_set(RNA_boolean_get(ptr, "use_zbuffer") == false);
-  sub->prop(ptr, "z_scale", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  {
+    ui::Layout &col = layout.column(false);
+    col.prop(ptr, "use_zbuffer", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    ui::Layout &sub = col.column(false);
+    sub.active_set(RNA_boolean_get(ptr, "use_zbuffer") == false);
+    sub.prop(ptr, "z_scale", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  }
 }
 
 using namespace blender::compositor;
@@ -142,7 +147,7 @@ class DefocusOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     input.unbind_as_texture();
@@ -178,11 +183,11 @@ class DefocusOperation : public NodeOperation {
        * transform the texel into the normalized range [0, 1] needed to sample the weights sampler.
        * Finally, invert the textures coordinates by subtracting from 1 to maintain the shape of
        * the weights as mentioned in the function description. */
-      return bokeh_kernel.sample_bilinear_extended(
-          1.0f - ((float2(texel) + float2(radius + 0.5f)) / (radius * 2.0f + 1.0f)));
+      return float4(bokeh_kernel.sample_bilinear_extended<Color>(
+          1.0f - ((float2(texel) + float2(radius + 0.5f)) / (radius * 2.0f + 1.0f))));
     };
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float center_radius = math::max(0.0f, radius.load_pixel<float, true>(texel));
 
       /* Go over the window of the given search radius and accumulate the colors multiplied by
@@ -205,7 +210,7 @@ class DefocusOperation : public NodeOperation {
           }
 
           float4 weight = load_weight(int2(x, y), radius);
-          float4 input_color = input.load_pixel_extended<float4>(texel + int2(x, y));
+          float4 input_color = float4(input.load_pixel_extended<Color>(texel + int2(x, y)));
 
           accumulated_color += input_color * weight;
           accumulated_weight += weight;
@@ -214,7 +219,7 @@ class DefocusOperation : public NodeOperation {
 
       accumulated_color = math::safe_divide(accumulated_color, accumulated_weight);
 
-      output.store_pixel(texel, accumulated_color);
+      output.store_pixel(texel, Color(accumulated_color));
     });
   }
 
@@ -251,7 +256,7 @@ class DefocusOperation : public NodeOperation {
     output_radius.allocate_texture(domain);
     output_radius.bind_as_image(shader, "radius_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     input_depth.unbind_as_texture();
@@ -282,7 +287,7 @@ class DefocusOperation : public NodeOperation {
     const Domain domain = input_depth.domain();
     output_radius.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float depth = input_depth.load_pixel<float>(texel);
       output_radius.store_pixel(texel, compute_radius(depth));
     });
@@ -336,7 +341,7 @@ class DefocusOperation : public NodeOperation {
     output_radius.allocate_texture(domain);
     output_radius.bind_as_image(shader, "radius_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     input_depth.unbind_as_texture();
@@ -383,7 +388,7 @@ class DefocusOperation : public NodeOperation {
     const Domain domain = input_depth.domain();
     output_radius.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float depth = input_depth.load_pixel<float>(texel);
       output_radius.store_pixel(texel, compute_radius(depth));
     });
@@ -456,7 +461,7 @@ class DefocusOperation : public NodeOperation {
    * an invalid camera. Note that the stored sensor size is in millimeter, so convert to meters. */
   float compute_pixels_per_meter()
   {
-    const int2 size = compute_domain().size;
+    const int2 size = compute_domain().data_size;
     const Camera *camera = get_camera();
     const float default_value = size.x / (DEFAULT_SENSOR_WIDTH / 1000.0f);
     if (!camera) {

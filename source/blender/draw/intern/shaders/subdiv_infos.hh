@@ -28,80 +28,11 @@ ADDITIONAL_INFO(subdiv_base)
 GPU_SHADER_CREATE_END()
 
 /* -------------------------------------------------------------------- */
-/** \name Patch evaluation
- * \{ */
-
-GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_basis)
-#ifdef __APPLE__
-/* Match definition from OPenSubdiv which defines OSD_PATCH_BASIS_METAL as 1. Matching it here
- * avoids possible re-definition warning at runtime. */
-DEFINE_VALUE("OSD_PATCH_BASIS_METAL", "1")
-#else
-DEFINE("OSD_PATCH_BASIS_GLSL")
-#endif
-DEFINE("OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES")
-TYPEDEF_SOURCE("osd_patch_basis.glsl")
-COMPUTE_SOURCE("subdiv_patch_evaluation_comp.glsl")
-STORAGE_BUF(PATCH_EVALUATION_SOURCE_VERTEX_BUFFER_BUF_SLOT, read, float, srcVertexBuffer[])
-STORAGE_BUF(PATCH_EVALUATION_INPUT_PATCH_HANDLES_BUF_SLOT,
-            read,
-            PatchHandle,
-            input_patch_handles[])
-STORAGE_BUF(PATCH_EVALUATION_QUAD_NODES_BUF_SLOT, read, QuadNode, quad_nodes[])
-STORAGE_BUF(PATCH_EVALUATION_PATCH_COORDS_BUF_SLOT, read, BlenderPatchCoord, patch_coords[])
-STORAGE_BUF(PATCH_EVALUATION_PATCH_ARRAY_BUFFER_BUF_SLOT, read, OsdPatchArray, patchArrayBuffer[])
-STORAGE_BUF(PATCH_EVALUATION_PATCH_INDEX_BUFFER_BUF_SLOT, read, int, patchIndexBuffer[])
-STORAGE_BUF(PATCH_EVALUATION_PATCH_PARAM_BUFFER_BUF_SLOT, read, OsdPatchParam, patchParamBuffer[])
-ADDITIONAL_INFO(subdiv_base)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots)
-DEFINE("FDOTS_EVALUATION")
-STORAGE_BUF(PATCH_EVALUATION_OUTPUT_FDOTS_VERTEX_BUFFER_BUF_SLOT, write, FDotVert, output_verts[])
-STORAGE_BUF(PATCH_EVALUATION_OUTPUT_INDICES_BUF_SLOT, write, uint, output_indices[])
-STORAGE_BUF(PATCH_EVALUATION_EXTRA_COARSE_FACE_DATA_BUF_SLOT, read, uint, extra_coarse_face_data[])
-ADDITIONAL_INFO(subdiv_patch_evaluation_basis)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts)
-DO_STATIC_COMPILATION()
-DEFINE("VERTS_EVALUATION")
-STORAGE_BUF(PATCH_EVALUATION_OUTPUT_POS_BUF_SLOT, write, Position, positions[])
-ADDITIONAL_INFO(subdiv_patch_evaluation_basis)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fvar)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(subdiv_patch_evaluation_basis)
-DEFINE("FVAR_EVALUATION")
-STORAGE_BUF(PATCH_EVALUATION_OUTPUT_FVAR_BUF_SLOT, write, packed_float2, output_fvar[])
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_fdots_normals)
-DO_STATIC_COMPILATION()
-DEFINE("FDOTS_NORMALS")
-STORAGE_BUF(PATCH_EVALUATION_OUTPUT_NORMALS_BUF_SLOT, write, FDotNor, output_nors[])
-ADDITIONAL_INFO(subdiv_patch_evaluation_fdots)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts_orcos)
-DO_STATIC_COMPILATION()
-ADDITIONAL_INFO(subdiv_patch_evaluation_verts)
-DEFINE("ORCO_EVALUATION")
-STORAGE_BUF(PATCH_EVALUATION_SOURCE_EXTRA_VERTEX_BUFFER_BUF_SLOT,
-            read,
-            float,
-            srcExtraVertexBuffer[])
-STORAGE_BUF(PATCH_EVALUATION_OUTPUT_ORCOS_BUF_SLOT, write, float4, output_orcos[])
-GPU_SHADER_CREATE_END()
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Loop Normals
  * \{ */
 
 GPU_SHADER_CREATE_INFO(subdiv_loop_normals)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 DO_STATIC_COMPILATION()
 STORAGE_BUF(LOOP_NORMALS_POS_SLOT, read, Position, positions[])
 STORAGE_BUF(LOOP_NORMALS_EXTRA_COARSE_FACE_DATA_BUF_SLOT, read, uint, extra_coarse_face_data[])
@@ -167,6 +98,7 @@ GPU_SHADER_CREATE_END()
  * \{ */
 
 GPU_SHADER_CREATE_INFO(subdiv_edge_fac)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 ADDITIONAL_INFO(subdiv_base)
 DO_STATIC_COMPILATION()
 STORAGE_BUF(EDGE_FAC_POS_BUF_SLOT, read, Position, positions[])
@@ -183,6 +115,7 @@ GPU_SHADER_CREATE_END()
  * \{ */
 
 GPU_SHADER_CREATE_INFO(subdiv_custom_data_interp_base)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 COMPUTE_SOURCE("subdiv_custom_data_interp_comp.glsl")
 STORAGE_BUF(CUSTOM_DATA_FACE_PTEX_OFFSET_BUF_SLOT, read, uint, face_ptex_offset[])
 STORAGE_BUF(CUSTOM_DATA_PATCH_COORDS_BUF_SLOT, read, BlenderPatchCoord, patch_coords[])
@@ -253,6 +186,7 @@ CREATE_INFO_VARIANT(subdiv_custom_data_interp_3d_f32_normalize,
  * \{ */
 
 GPU_SHADER_CREATE_INFO(subdiv_sculpt_data)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 DO_STATIC_COMPILATION()
 STORAGE_BUF(SCULPT_DATA_SCULPT_MASK_BUF_SLOT, read, float, sculpt_mask[])
 STORAGE_BUF(SCULPT_DATA_SCULPT_FACE_SET_COLOR_BUF_SLOT, read, uint, sculpt_face_set_color[])
@@ -268,6 +202,7 @@ GPU_SHADER_CREATE_END()
  * \{ */
 
 GPU_SHADER_CREATE_INFO(subdiv_edituv_stretch_angle)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 DO_STATIC_COMPILATION()
 STORAGE_BUF(STRETCH_ANGLE_POS_BUF_SLOT, read, Position, positions[])
 STORAGE_BUF(STRETCH_ANGLE_UVS_BUF_SLOT, read, packed_float2, uvs[])
@@ -291,6 +226,7 @@ GPU_SHADER_CREATE_END()
  * \{ */
 
 GPU_SHADER_CREATE_INFO(subdiv_normals_accumulate)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 DO_STATIC_COMPILATION()
 STORAGE_BUF(NORMALS_ACCUMULATE_POS_BUF_SLOT, read, Position, positions[])
 STORAGE_BUF(NORMALS_ACCUMULATE_FACE_ADJACENCY_OFFSETS_BUF_SLOT,

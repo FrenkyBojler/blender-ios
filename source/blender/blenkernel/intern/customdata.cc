@@ -2302,8 +2302,6 @@ static bool customdata_merge_internal(const CustomData *source,
   int last_type = -1;
   int last_active = 0;
   int last_render = 0;
-  int last_clone = 0;
-  int last_mask = 0;
   int current_type_layer_count = 0;
   int max_current_type_layer_count = -1;
 
@@ -2319,8 +2317,6 @@ static bool customdata_merge_internal(const CustomData *source,
       max_current_type_layer_count = CustomData_layertype_layers_max(type);
       last_active = src_layer.active;
       last_render = src_layer.active_rnd;
-      last_clone = src_layer.active_clone;
-      last_mask = src_layer.active_mask;
       last_type = type;
     }
     else {
@@ -2374,8 +2370,6 @@ static bool customdata_merge_internal(const CustomData *source,
     new_layer->flag |= src_layer_flag & (CD_FLAG_EXTERNAL | CD_FLAG_IN_MEMORY);
     new_layer->active = last_active;
     new_layer->active_rnd = last_render;
-    new_layer->active_clone = last_clone;
-    new_layer->active_mask = last_mask;
     changed = true;
   }
 
@@ -2728,20 +2722,6 @@ int CustomData_get_render_layer_index(const CustomData *data, const eCustomDataT
   return (layer_index != -1) ? layer_index + data->layers[layer_index].active_rnd : -1;
 }
 
-int CustomData_get_clone_layer_index(const CustomData *data, const eCustomDataType type)
-{
-  const int layer_index = data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-  return (layer_index != -1) ? layer_index + data->layers[layer_index].active_clone : -1;
-}
-
-int CustomData_get_stencil_layer_index(const CustomData *data, const eCustomDataType type)
-{
-  const int layer_index = data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-  return (layer_index != -1) ? layer_index + data->layers[layer_index].active_mask : -1;
-}
-
 /* -------------------------------------------------------------------- */
 /* index values per layer type */
 
@@ -2767,20 +2747,6 @@ int CustomData_get_render_layer(const CustomData *data, const eCustomDataType ty
   const int layer_index = data->typemap[type];
   BLI_assert(customdata_typemap_is_valid(data));
   return (layer_index != -1) ? data->layers[layer_index].active_rnd : -1;
-}
-
-int CustomData_get_clone_layer(const CustomData *data, const eCustomDataType type)
-{
-  const int layer_index = data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-  return (layer_index != -1) ? data->layers[layer_index].active_clone : -1;
-}
-
-int CustomData_get_stencil_layer(const CustomData *data, const eCustomDataType type)
-{
-  const int layer_index = data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-  return (layer_index != -1) ? data->layers[layer_index].active_mask : -1;
 }
 
 const char *CustomData_get_active_layer_name(const CustomData *data, const eCustomDataType type)
@@ -2822,32 +2788,6 @@ void CustomData_set_layer_render(CustomData *data, const eCustomDataType type, c
   }
 }
 
-void CustomData_set_layer_clone(CustomData *data, const eCustomDataType type, const int n)
-{
-#ifndef NDEBUG
-  const int layer_num = CustomData_number_of_layers(data, type);
-#endif
-  for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type) {
-      BLI_assert(uint(n) < uint(layer_num));
-      data->layers[i].active_clone = n;
-    }
-  }
-}
-
-void CustomData_set_layer_stencil(CustomData *data, const eCustomDataType type, const int n)
-{
-#ifndef NDEBUG
-  const int layer_num = CustomData_number_of_layers(data, type);
-#endif
-  for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type) {
-      BLI_assert(uint(n) < uint(layer_num));
-      data->layers[i].active_mask = n;
-    }
-  }
-}
-
 void CustomData_set_layer_active_index(CustomData *data, const eCustomDataType type, const int n)
 {
 #ifndef NDEBUG
@@ -2876,22 +2816,6 @@ void CustomData_set_layer_render_index(CustomData *data, const eCustomDataType t
     if (data->layers[i].type == type) {
       BLI_assert(uint(layer_index) < uint(layer_num));
       data->layers[i].active_rnd = layer_index;
-    }
-  }
-}
-
-void CustomData_set_layer_clone_index(CustomData *data, const eCustomDataType type, const int n)
-{
-#ifndef NDEBUG
-  const int layer_num = CustomData_number_of_layers(data, type);
-#endif
-  const int layer_index = n - data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-
-  for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type) {
-      BLI_assert(uint(layer_index) < uint(layer_num));
-      data->layers[i].active_clone = layer_index;
     }
   }
 }
@@ -3028,14 +2952,10 @@ static CustomDataLayer *customData_add_layer__internal(
   if (index > 0 && data->layers[index - 1].type == type) {
     new_layer.active = data->layers[index - 1].active;
     new_layer.active_rnd = data->layers[index - 1].active_rnd;
-    new_layer.active_clone = data->layers[index - 1].active_clone;
-    new_layer.active_mask = data->layers[index - 1].active_mask;
   }
   else {
     new_layer.active = 0;
     new_layer.active_rnd = 0;
-    new_layer.active_clone = 0;
-    new_layer.active_mask = 0;
   }
 
   customData_update_offsets(data);
@@ -3147,12 +3067,6 @@ bool CustomData_free_layer(CustomData *data, const eCustomDataType type, const i
       if (layer->active_rnd >= index_nonzero) {
         layer->active_rnd--;
       }
-      if (layer->active_clone >= index_nonzero) {
-        layer->active_clone--;
-      }
-      if (layer->active_mask >= index_nonzero) {
-        layer->active_mask--;
-      }
     }
   }
 
@@ -3186,12 +3100,14 @@ bool CustomData_free_layer_active(CustomData *data, const eCustomDataType type)
   return CustomData_free_layer(data, type, index);
 }
 
-void CustomData_free_layers(CustomData *data, const eCustomDataType type)
+bool CustomData_free_layers(CustomData *data, const eCustomDataType type)
 {
   const int index = CustomData_get_layer_index(data, type);
+  bool any_removed = false;
   while (CustomData_free_layer(data, type, index)) {
-    /* pass */
+    any_removed = true;
   }
+  return any_removed;
 }
 
 bool CustomData_has_layer_named(const CustomData *data,
@@ -4693,54 +4609,6 @@ bool CustomData_external_test(CustomData *data, const eCustomDataType type)
 /** \name Mesh-to-Mesh Data Transfer
  * \{ */
 
-static void copy_bit_flag(void *dst, const void *src, const size_t data_size, const uint64_t flag)
-{
-#define COPY_BIT_FLAG(_type, _dst, _src, _f) \
-  { \
-    const _type _val = *((_type *)(_src)) & (_type)(_f); \
-    *((_type *)(_dst)) &= ~(_type)(_f); \
-    *((_type *)(_dst)) |= _val; \
-  } \
-  (void)0
-
-  switch (data_size) {
-    case 1:
-      COPY_BIT_FLAG(uint8_t, dst, src, flag);
-      break;
-    case 2:
-      COPY_BIT_FLAG(uint16_t, dst, src, flag);
-      break;
-    case 4:
-      COPY_BIT_FLAG(uint32_t, dst, src, flag);
-      break;
-    case 8:
-      COPY_BIT_FLAG(uint64_t, dst, src, flag);
-      break;
-    default:
-      // CLOG_ERROR(&LOG, "Unknown flags-container size (%zu)", datasize);
-      break;
-  }
-
-#undef COPY_BIT_FLAG
-}
-
-static bool check_bit_flag(const void *data, const size_t data_size, const uint64_t flag)
-{
-  switch (data_size) {
-    case 1:
-      return ((*((uint8_t *)data) & uint8_t(flag)) != 0);
-    case 2:
-      return ((*((uint16_t *)data) & uint16_t(flag)) != 0);
-    case 4:
-      return ((*((uint32_t *)data) & uint32_t(flag)) != 0);
-    case 8:
-      return ((*((uint64_t *)data) & uint64_t(flag)) != 0);
-    default:
-      // CLOG_ERROR(&LOG, "Unknown flags-container size (%zu)", datasize);
-      return false;
-  }
-}
-
 static void customdata_data_transfer_interp_generic(const CustomDataTransferLayerMap *laymap,
                                                     void *data_dst,
                                                     const void **sources,
@@ -4761,7 +4629,6 @@ static void customdata_data_transfer_interp_generic(const CustomDataTransferLaye
   const int mix_mode = laymap->mix_mode;
 
   size_t data_size;
-  const uint64_t data_flag = laymap->data_flag;
 
   cd_interp interp_cd = nullptr;
   cd_copy copy_cd = nullptr;
@@ -4785,32 +4652,13 @@ static void customdata_data_transfer_interp_generic(const CustomDataTransferLaye
   void *tmp_dst = MEM_mallocN(data_size, __func__);
 
   if (count > 1 && !interp_cd) {
-    if (data_flag) {
-      /* Boolean case, we can 'interpolate' in two groups,
-       * and choose value from highest weighted group. */
-      float tot_weight_true = 0.0f;
-      int item_true_idx = -1, item_false_idx = -1;
+    /* We just choose highest weighted source. */
+    float max_weight = 0.0f;
 
-      for (int i = 0; i < count; i++) {
-        if (check_bit_flag(sources[i], data_size, data_flag)) {
-          tot_weight_true += weights[i];
-          item_true_idx = i;
-        }
-        else {
-          item_false_idx = i;
-        }
-      }
-      best_src_idx = (tot_weight_true >= 0.5f) ? item_true_idx : item_false_idx;
-    }
-    else {
-      /* We just choose highest weighted source. */
-      float max_weight = 0.0f;
-
-      for (int i = 0; i < count; i++) {
-        if (weights[i] > max_weight) {
-          max_weight = weights[i];
-          best_src_idx = i;
-        }
+    for (int i = 0; i < count; i++) {
+      if (weights[i] > max_weight) {
+        max_weight = weights[i];
+        best_src_idx = i;
       }
     }
   }
@@ -4820,9 +4668,6 @@ static void customdata_data_transfer_interp_generic(const CustomDataTransferLaye
   if (interp_cd) {
     interp_cd(sources, weights, count, tmp_dst);
   }
-  else if (data_flag) {
-    copy_bit_flag(tmp_dst, sources[best_src_idx], data_size, data_flag);
-  }
   /* No interpolation, just copy highest weight source element's data. */
   else if (copy_cd) {
     copy_cd(sources[best_src_idx], tmp_dst, 1);
@@ -4831,19 +4676,7 @@ static void customdata_data_transfer_interp_generic(const CustomDataTransferLaye
     memcpy(tmp_dst, sources[best_src_idx], data_size);
   }
 
-  if (data_flag) {
-    /* Bool flags, only copy if dest data is set (resp. unset) -
-     * only 'advanced' modes we can support here! */
-    if (mix_factor >= 0.5f && ((mix_mode == CDT_MIX_TRANSFER) ||
-                               (mix_mode == CDT_MIX_REPLACE_ABOVE_THRESHOLD &&
-                                check_bit_flag(data_dst, data_size, data_flag)) ||
-                               (mix_mode == CDT_MIX_REPLACE_BELOW_THRESHOLD &&
-                                !check_bit_flag(data_dst, data_size, data_flag))))
-    {
-      copy_bit_flag(data_dst, tmp_dst, data_size, data_flag);
-    }
-  }
-  else if (!(int(data_type) & CD_FAKE)) {
+  if (!(int(data_type) & CD_FAKE)) {
     CustomData_data_mix_value(eCustomDataType(data_type), tmp_dst, data_dst, mix_mode, mix_factor);
   }
   /* Else we can do nothing by default, needs custom interp func!
@@ -4892,15 +4725,27 @@ void customdata_data_transfer_interp_normal_normals(const CustomDataTransferLaye
   CustomData_data_mix_value(data_type, tmp_dst, data_dst, mix_mode, mix_factor);
 }
 
-void CustomData_data_transfer(const MeshPairRemap *me_remap,
-                              const CustomDataTransferLayerMap *laymap)
+void CustomData_data_transfer(const MeshPairRemap *me_remap, CustomDataTransferLayerMap *laymap)
 {
+  using namespace blender;
   MeshPairRemapItem *mapit = me_remap->items;
   const int totelem = me_remap->items_num;
 
   const int data_type = laymap->data_type;
-  const void *data_src = laymap->data_src;
-  void *data_dst = laymap->data_dst;
+  GVArraySpan data_src_span;
+  const void *data_src = [&]() -> const void * {
+    if (std::holds_alternative<const void *>(laymap->data_src)) {
+      return std::get<const void *>(laymap->data_src);
+    }
+    data_src_span = std::get<GVArray>(laymap->data_src);
+    return data_src_span.data();
+  }();
+  void *data_dst = [&]() -> void * {
+    if (std::holds_alternative<void *>(laymap->data_dst)) {
+      return std::get<void *>(laymap->data_dst);
+    }
+    return std::get<GMutableVArraySpan>(laymap->data_dst).data();
+  }();
 
   size_t data_step;
   size_t data_size;
@@ -4965,6 +4810,13 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap,
            mapit->weights_src,
            sources_num,
            mix_factor);
+  }
+
+  if (laymap->tag_modified_fn) {
+    laymap->tag_modified_fn();
+  }
+  if (std::holds_alternative<GMutableVArraySpan>(laymap->data_dst)) {
+    std::get<GMutableVArraySpan>(laymap->data_dst).save();
   }
 
   MEM_SAFE_FREE(tmp_data_src);

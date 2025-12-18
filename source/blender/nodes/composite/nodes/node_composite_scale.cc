@@ -136,6 +136,13 @@ class ScaleOperation : public NodeOperation {
 
   void execute_variable_size()
   {
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value()) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
+      return;
+    }
+
     if (this->context().use_gpu()) {
       execute_variable_size_gpu();
     }
@@ -154,8 +161,8 @@ class ScaleOperation : public NodeOperation {
      * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
      * interpolation. */
     const Interpolation interpolation = this->get_interpolation();
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    const Extension extension_mode_x = this->get_extension_mode_x();
+    const Extension extension_mode_y = this->get_extension_mode_y();
 
     /* For now the EWA sampling falls back to bicubic interpolation. */
     const bool use_bilinear = ELEM(interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
@@ -175,7 +182,7 @@ class ScaleOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input.unbind_as_texture();
     x_scale.unbind_as_texture();
@@ -192,10 +199,10 @@ class ScaleOperation : public NodeOperation {
 
     Result &output = this->get_result("Image");
     const Interpolation interpolation = this->get_interpolation();
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    const Extension extension_mode_x = this->get_extension_mode_x();
+    const Extension extension_mode_y = this->get_extension_mode_y();
     const Domain domain = compute_domain();
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     output.allocate_texture(domain);
 
     parallel_for(size, [&](const int2 texel) {
@@ -209,7 +216,8 @@ class ScaleOperation : public NodeOperation {
 
       output.store_pixel(
           texel,
-          input.sample(scaled_coordinates, interpolation, extension_mode_x, extension_mode_y));
+          input.sample<Color>(
+              scaled_coordinates, interpolation, extension_mode_x, extension_mode_y));
     });
   }
 
@@ -240,7 +248,7 @@ class ScaleOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  ExtensionMode get_extension_mode_x() const
+  Extension get_extension_mode_x() const
   {
     const Result &input = this->get_input("Extension X");
     const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
@@ -248,17 +256,17 @@ class ScaleOperation : public NodeOperation {
     const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
     switch (extension_x) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+        return Extension::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        return Extension::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        return Extension::Extend;
     }
 
-    return ExtensionMode::Clip;
+    return Extension::Clip;
   }
 
-  ExtensionMode get_extension_mode_y() const
+  Extension get_extension_mode_y() const
   {
     const Result &input = this->get_input("Extension Y");
     const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
@@ -266,14 +274,14 @@ class ScaleOperation : public NodeOperation {
     const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
     switch (extension_y) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+        return Extension::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        return Extension::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        return Extension::Extend;
     }
 
-    return ExtensionMode::Clip;
+    return Extension::Clip;
   }
 
   float2 get_scale()
@@ -302,7 +310,7 @@ class ScaleOperation : public NodeOperation {
   /* Scale such that the new size matches the input absolute size. */
   float2 get_scale_absolute()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
+    const float2 input_size = float2(get_input("Image").domain().display_size);
     const float2 absolute_size = float2(get_input("X").get_single_value_default(1.0f),
                                         get_input("Y").get_single_value_default(1.0f));
     return absolute_size / input_size;
@@ -316,10 +324,6 @@ class ScaleOperation : public NodeOperation {
 
   float2 get_scale_render_size()
   {
-    if (!context().is_valid_compositing_region()) {
-      return float2(1.0f);
-    }
-
     switch (get_frame_type()) {
       case CMP_NODE_SCALE_RENDER_SIZE_STRETCH:
         return get_scale_render_size_stretch();
@@ -336,8 +340,8 @@ class ScaleOperation : public NodeOperation {
    * potentially stretched, hence the name. */
   float2 get_scale_render_size_stretch()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_compositing_region_size());
+    const float2 input_size = float2(get_input("Image").domain().display_size);
+    const float2 render_size = float2(context().get_compositing_domain().display_size);
     return render_size / input_size;
   }
 
@@ -347,8 +351,8 @@ class ScaleOperation : public NodeOperation {
    * inside that region, hence the name. */
   float2 get_scale_render_size_fit()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_compositing_region_size());
+    const float2 input_size = float2(get_input("Image").domain().display_size);
+    const float2 render_size = float2(context().get_compositing_domain().display_size);
     const float2 scale = render_size / input_size;
     return float2(math::min(scale.x, scale.y));
   }
@@ -359,8 +363,8 @@ class ScaleOperation : public NodeOperation {
    * region, hence the name. */
   float2 get_scale_render_size_crop()
   {
-    const float2 input_size = float2(get_input("Image").domain().size);
-    const float2 render_size = float2(context().get_compositing_region_size());
+    const float2 input_size = float2(get_input("Image").domain().display_size);
+    const float2 render_size = float2(context().get_compositing_domain().display_size);
     const float2 scale = render_size / input_size;
     return float2(math::max(scale.x, scale.y));
   }

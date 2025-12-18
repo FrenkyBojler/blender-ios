@@ -17,6 +17,19 @@
 
 namespace blender::gpu {
 
+inline bool is_half_float(TextureFormat format)
+{
+  switch (format) {
+    case TextureFormat::SFLOAT_16_16_16_16:
+    case TextureFormat::SFLOAT_16_16_16:
+    case TextureFormat::SFLOAT_16_16:
+    case TextureFormat::SFLOAT_16:
+      return true;
+    default:
+      return false;
+  }
+}
+
 enum GPUTextureFormatFlag {
   /* The format has a depth component and can be used as depth attachment. */
   GPU_FORMAT_DEPTH = (1 << 0),
@@ -159,8 +172,12 @@ class Texture {
 
   void usage_set(eGPUTextureUsage usage_flags);
 
-  virtual void update_sub(
-      int mip, int offset[3], int extent[3], eGPUDataFormat format, const void *data) = 0;
+  virtual void update_sub(int mip,
+                          int offset[3],
+                          int extent[3],
+                          eGPUDataFormat format,
+                          const void *data,
+                          uint unpack_row_length = 0) = 0;
   virtual void update_sub(int offset[3],
                           int extent[3],
                           eGPUDataFormat format,

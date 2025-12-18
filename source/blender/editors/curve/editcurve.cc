@@ -162,7 +162,6 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
 {
   Nurb *nu = static_cast<Nurb *>(editnurb->nurbs.first);
   Nurb *orignu = static_cast<Nurb *>(origBase->first);
-  GHash *gh;
   BezTriple *bezt, *origbezt;
   BPoint *bp, *origbp;
   CVKeyIndex *keyIndex;
@@ -172,7 +171,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
     return;
   }
 
-  gh = BLI_ghash_ptr_new("editNurb keyIndex");
+  auto *gh = MEM_new<CVKeyIndexMap>("editNurb keyIndex");
 
   while (orignu) {
     if (orignu->bezt) {
@@ -189,7 +188,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
             MEM_mallocN(sizeof(*origbezt), __func__));
         *origbezt_cpy = *origbezt;
         keyIndex = init_cvKeyIndex(origbezt_cpy, key_index, nu_index, pt_index, vertex_index);
-        BLI_ghash_insert(gh, bezt, keyIndex);
+        gh->add(bezt, keyIndex);
         key_index += KEYELEM_FLOAT_LEN_BEZTRIPLE;
         vertex_index += 3;
         bezt++;
@@ -210,7 +209,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
         BPoint *origbp_cpy = MEM_mallocN<BPoint>(__func__);
         *origbp_cpy = *origbp;
         keyIndex = init_cvKeyIndex(origbp_cpy, key_index, nu_index, pt_index, vertex_index);
-        BLI_ghash_insert(gh, bp, keyIndex);
+        gh->add(bp, keyIndex);
         key_index += KEYELEM_FLOAT_LEN_BPOINT;
         bp++;
         origbp++;
@@ -229,12 +228,12 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
 
 static CVKeyIndex *getCVKeyIndex(EditNurb *editnurb, const void *cv)
 {
-  return static_cast<CVKeyIndex *>(BLI_ghash_lookup(editnurb->keyindex, cv));
+  return editnurb->keyindex->lookup_default(cv, nullptr);
 }
 
 static CVKeyIndex *popCVKeyIndex(EditNurb *editnurb, const void *cv)
 {
-  return static_cast<CVKeyIndex *>(BLI_ghash_popkey(editnurb->keyindex, cv, nullptr));
+  return editnurb->keyindex->pop_default(cv, nullptr);
 }
 
 static BezTriple *getKeyIndexOrig_bezt(EditNurb *editnurb, const BezTriple *bezt)
@@ -337,7 +336,7 @@ static void keyIndex_updateCV(EditNurb *editnurb, char *cv, char *newcv, int cou
     index = popCVKeyIndex(editnurb, cv);
 
     if (index) {
-      BLI_ghash_insert(editnurb->keyindex, newcv, index);
+      editnurb->keyindex->add(newcv, index);
     }
 
     newcv += size;
@@ -371,10 +370,10 @@ static void keyIndex_swap(EditNurb *editnurb, void *a, void *b)
   CVKeyIndex *index2 = popCVKeyIndex(editnurb, b);
 
   if (index2) {
-    BLI_ghash_insert(editnurb->keyindex, a, index2);
+    editnurb->keyindex->add(a, index2);
   }
   if (index1) {
-    BLI_ghash_insert(editnurb->keyindex, b, index1);
+    editnurb->keyindex->add(b, index1);
   }
 }
 
@@ -544,22 +543,20 @@ static void keyData_switchDirectionNurb(Curve *cu, Nurb *nu)
   }
 }
 
-GHash *ED_curve_keyindex_hash_duplicate(GHash *keyindex)
+CVKeyIndexMap *ED_curve_keyindex_hash_duplicate(CVKeyIndexMap *keyindex)
 {
-  GHash *gh;
-  GHashIterator gh_iter;
+  CVKeyIndexMap *gh = MEM_new<CVKeyIndexMap>("dupli_keyIndex gh");
+  gh->reserve(keyindex->size());
 
-  gh = BLI_ghash_ptr_new_ex("dupli_keyIndex gh", BLI_ghash_len(keyindex));
-
-  GHASH_ITER (gh_iter, keyindex) {
-    void *cv = BLI_ghashIterator_getKey(&gh_iter);
-    CVKeyIndex *index = static_cast<CVKeyIndex *>(BLI_ghashIterator_getValue(&gh_iter));
+  for (const auto &item : keyindex->items()) {
+    const void *cv = item.key;
+    CVKeyIndex *index = item.value;
     CVKeyIndex *newIndex = MEM_mallocN<CVKeyIndex>("dupli_keyIndexHash index");
 
     memcpy(newIndex, index, sizeof(CVKeyIndex));
     newIndex->orig_cv = MEM_dupallocN(index->orig_cv);
 
-    BLI_ghash_insert(gh, cv, newIndex);
+    gh->add(cv, newIndex);
   }
 
   return gh;
@@ -605,8 +602,14 @@ static void calc_keyHandles(ListBase *nurb, float *key)
         prevfp = nullptr;
       }
 
-      nextp = bezt + 1;
-      nextfp = fp + KEYELEM_FLOAT_LEN_BEZTRIPLE;
+      if (nu->pntsu > 1) {
+        nextp = bezt + 1;
+        nextfp = fp + KEYELEM_FLOAT_LEN_BEZTRIPLE;
+      }
+      else {
+        nextp = nullptr;
+        nextfp = nullptr;
+      }
 
       while (a--) {
         key_to_bezt(fp, bezt, &cur);
@@ -1108,22 +1111,15 @@ int ED_curve_updateAnimPaths(Main *bmain, Curve *cu)
 
   if (adt->action != nullptr) {
     blender::animrig::Action &action = adt->action->wrap();
-    const bool is_action_legacy = action.is_action_legacy();
 
     Vector<FCurve *> fcurves_to_process = blender::animrig::legacy::fcurves_for_assigned_action(
         adt);
 
     Vector<FCurve *> fcurves_to_remove = curve_rename_fcurves(cu, fcurves_to_process);
     for (FCurve *fcurve : fcurves_to_remove) {
-      if (is_action_legacy) {
-        action_groups_remove_channel(adt->action, fcurve);
-        BKE_fcurve_free(fcurve);
-      }
-      else {
-        const bool remove_ok = blender::animrig::action_fcurve_remove(action, *fcurve);
-        BLI_assert(remove_ok);
-        UNUSED_VARS_NDEBUG(remove_ok);
-      }
+      const bool remove_ok = blender::animrig::action_fcurve_remove(action, *fcurve);
+      BLI_assert(remove_ok);
+      UNUSED_VARS_NDEBUG(remove_ok);
     }
 
     BKE_action_groups_reconstruct(adt->action);
@@ -5963,17 +5959,16 @@ static wmOperatorStatus toggle_cyclic_invoke(bContext *C,
 {
   Object *obedit = CTX_data_edit_object(C);
   ListBase *editnurb = object_editcurve_get(obedit);
-  uiPopupMenu *pup;
-  uiLayout *layout;
 
   if (obedit->type == OB_SURF) {
     LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (nu->pntsu > 1 || nu->pntsv > 1) {
         if (nu->type == CU_NURBS) {
-          pup = UI_popup_menu_begin(C, IFACE_("Direction"), ICON_NONE);
-          layout = UI_popup_menu_layout(pup);
-          layout->op_enum(op->type->idname, "direction");
-          UI_popup_menu_end(C, pup);
+          blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
+              C, IFACE_("Direction"), ICON_NONE);
+          blender::ui::Layout &layout = *popup_menu_layout(pup);
+          layout.op_enum(op->type->idname, "direction");
+          popup_menu_end(C, pup);
           return OPERATOR_INTERFACE;
         }
       }

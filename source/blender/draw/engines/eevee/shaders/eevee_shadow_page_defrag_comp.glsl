@@ -18,7 +18,7 @@
  *     `[----xxxxxx------]`
  */
 
-#include "infos/eevee_shadow_infos.hh"
+#include "infos/eevee_shadow_pipeline_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_shadow_page_defrag)
 
@@ -29,7 +29,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_shadow_page_defrag)
 
 #define max_page uint(SHADOW_MAX_PAGE)
 
-void find_first_valid(inout uint src, uint dst)
+void find_first_valid(uint &src, uint dst)
 {
   for (uint i = src; i < dst; i++) {
     if (pages_cached_buf[i % max_page].x != uint(-1)) {
@@ -101,7 +101,7 @@ void main()
       shadow_page_cache_update_page_ref(src % max_page, dst % max_page);
       /* Move page. */
       pages_cached_buf[dst % max_page] = pages_cached_buf[src % max_page];
-      pages_cached_buf[src % max_page] = uint2(-1);
+      pages_cached_buf[src % max_page] = uint2(~0u);
 
       find_first_valid(src, dst);
     }
@@ -143,8 +143,10 @@ void main()
   clear_dispatch_buf.num_groups_z = 0;
 
   /* Reset TBDR command indirect buffer. */
-  tile_draw_buf.vertex_len = 0u;
-  tile_draw_buf.instance_len = 1u;
-  tile_draw_buf.vertex_first = 0u;
-  tile_draw_buf.base_index = 0u;
+  DrawCommandArray cmd;
+  cmd.vertex_len = 0u;
+  cmd.instance_len = 1u;
+  cmd.vertex_first = 0u;
+  cmd.instance_first = 0u;
+  tile_draw_buf = cmd;
 }

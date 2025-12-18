@@ -231,12 +231,11 @@ static void outliner_select_sync_to_pose_bone(TreeElement *te,
 
   if (blender::animrig::bone_is_selectable(arm, pchan)) {
     if (tselem->flag & TSE_SELECTED) {
-      pchan->flag |= POSE_SELECTED;
-
+      blender::animrig::bone_select(pchan);
       selected_pbones.add(pchan);
     }
     else if (!selected_pbones.contains(pchan)) {
-      pchan->flag &= ~POSE_SELECTED;
+      blender::animrig::bone_deselect(pchan);
     }
   }
 
@@ -263,10 +262,10 @@ static void outliner_select_sync_to_strip(WorkSpace *workspace, const TreeElemen
   }
 
   if (tselem->flag & TSE_SELECTED) {
-    strip->flag |= SELECT;
+    strip->flag |= SEQ_SELECT;
   }
   else {
-    strip->flag &= ~SELECT;
+    strip->flag &= ~SEQ_SELECT;
   }
 }
 
@@ -439,7 +438,7 @@ static void outliner_select_sync_from_strip(Strip *strip_active, const TreeEleme
     tselem->flag &= ~TSE_ACTIVE;
   }
 
-  if (strip->flag & SELECT) {
+  if (strip->flag & SEQ_SELECT) {
     tselem->flag |= TSE_SELECTED;
   }
   else {
