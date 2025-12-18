@@ -17,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
+#include "BLI_task_size_hints.hh"
 
 #include "DNA_grease_pencil_types.h"
 
@@ -1335,94 +1336,79 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       c_vert.fcol[3] = (int(c_vert.fcol[3] * 10000.0f) * 10.0f) + fill_opacities[curve_i];
     };
 
-    /* Create spans of visible strokes to fill in parallel.
-     * Aim to process 'target_point_count' points per task. */
-    constexpr int64_t target_point_count = 1024;
-    Vector<int64_t> processing_span_splits;
+    threading::parallel_for(
+        visible_strokes.index_range(),
+        1024,
+        [&](const IndexRange range) {
+          visible_strokes.slice(range).foreach_index(
+              [&](const int64_t curve_i, const int64_t pos_i) {
+                const int64_t pos = pos_i + range.start();
+                const IndexRange points = points_by_curve[curve_i];
+                const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
+                const int verts_start_offset = verts_start_offsets[pos];
+                const int num_verts = 1 + points.size() + (is_cyclic ? 1 : 0) + 1;
+                const IndexRange verts_range = IndexRange(verts_start_offset, num_verts);
+                MutableSpan<GreasePencilStrokeVert> verts_slice = verts.slice(verts_range);
+                MutableSpan<GreasePencilColorVert> cols_slice = cols.slice(verts_range);
+                const float4x2 texture_matrix = texture_matrices[curve_i] *
+                                                object_space_to_layer_space;
 
-    int64_t curr_span_start = 0;
-    int64_t curr_span_end = 0;
-    int64_t curr_points_size = 0;
-    for (const auto i : visible_strokes.index_range()) {
-      const int curve_i = visible_strokes[i];
-      const IndexRange points = points_by_curve[curve_i];
-      const int64_t points_size = points.size();
-      curr_points_size += points_size;
-      curr_span_end += 1;
+                const Span<float> lengths = curves.evaluated_lengths_for_curve(curve_i,
+                                                                               cyclic[curve_i]);
 
-      if (curr_points_size >= target_point_count) {
-        processing_span_splits.append(curr_span_start);
-        curr_span_start = curr_span_end;
-        curr_points_size = 0;
-      }
-    }
-    if (processing_span_splits.size() == 0) {
-      processing_span_splits.append(0);
-    }
-    processing_span_splits.append(visible_strokes.size());
+                /* First vertex is not drawn. */
+                verts_slice.first().mat = -1;
+                /* The first vertex will have the index of the last vertex. */
+                verts_slice.first().stroke_id = verts_range.last();
 
-    threading::parallel_for_each(IndexRange(processing_span_splits.size() - 1), [&](const int i) {
-      const int64_t span_start = processing_span_splits[i];
-      const int64_t span_end = processing_span_splits[i + 1];
+                /* Write all the point attributes to the vertex buffers. Create a quad for each
+                 * point.
+                 */
+                const float u_scale = u_scales[curve_i];
+                const float u_translation = u_translations[curve_i];
+                for (const int i : IndexRange(points.size())) {
+                  const int idx = i + 1;
+                  const float u_stroke = u_scale * (i > 0 ? lengths[i - 1] : 0.0f) + u_translation;
+                  populate_point(verts_range,
+                                 curve_i,
+                                 start_caps[curve_i],
+                                 end_caps[curve_i],
+                                 points[i],
+                                 idx,
+                                 u_stroke,
+                                 is_cyclic,
+                                 texture_matrix,
+                                 verts_slice[idx],
+                                 cols_slice[idx]);
+                }
 
-      for (const int pos : IndexRange(span_start, (span_end - span_start))) {
-        const int curve_i = visible_strokes[pos];
-        const IndexRange points = points_by_curve[curve_i];
-        const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
-        const int verts_start_offset = verts_start_offsets[pos];
-        const int num_verts = 1 + points.size() + (is_cyclic ? 1 : 0) + 1;
-        const IndexRange verts_range = IndexRange(verts_start_offset, num_verts);
-        MutableSpan<GreasePencilStrokeVert> verts_slice = verts.slice(verts_range);
-        MutableSpan<GreasePencilColorVert> cols_slice = cols.slice(verts_range);
-        const float4x2 texture_matrix = texture_matrices[curve_i] * object_space_to_layer_space;
+                if (is_cyclic) {
+                  const int idx = points.size() + 1;
+                  const float u = points.size() > 1 ? lengths[points.size() - 1] : 0.0f;
+                  const float u_stroke = u_scale * u + u_translation;
+                  populate_point(verts_range,
+                                 curve_i,
+                                 start_caps[curve_i],
+                                 end_caps[curve_i],
+                                 points[0],
+                                 idx,
+                                 u_stroke,
+                                 is_cyclic,
+                                 texture_matrix,
+                                 verts_slice[idx],
+                                 cols_slice[idx]);
+                }
 
-        const Span<float> lengths = curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
-
-        /* First vertex is not drawn. */
-        verts_slice.first().mat = -1;
-        /* The first vertex will have the index of the last vertex. */
-        verts_slice.first().stroke_id = verts_range.last();
-
-        /* Write all the point attributes to the vertex buffers. Create a quad for each point. */
-        const float u_scale = u_scales[curve_i];
-        const float u_translation = u_translations[curve_i];
-        for (const int i : IndexRange(points.size())) {
-          const int idx = i + 1;
-          const float u_stroke = u_scale * (i > 0 ? lengths[i - 1] : 0.0f) + u_translation;
-          populate_point(verts_range,
-                         curve_i,
-                         start_caps[curve_i],
-                         end_caps[curve_i],
-                         points[i],
-                         idx,
-                         u_stroke,
-                         is_cyclic,
-                         texture_matrix,
-                         verts_slice[idx],
-                         cols_slice[idx]);
-        }
-
-        if (is_cyclic) {
-          const int idx = points.size() + 1;
-          const float u = points.size() > 1 ? lengths[points.size() - 1] : 0.0f;
-          const float u_stroke = u_scale * u + u_translation;
-          populate_point(verts_range,
-                         curve_i,
-                         start_caps[curve_i],
-                         end_caps[curve_i],
-                         points[0],
-                         idx,
-                         u_stroke,
-                         is_cyclic,
-                         texture_matrix,
-                         verts_slice[idx],
-                         cols_slice[idx]);
-        }
-
-        /* Last vertex is not drawn. */
-        verts_slice.last().mat = -1;
-      }
-    });
+                /* Last vertex is not drawn. */
+                verts_slice.last().mat = -1;
+              });
+        },
+        threading::accumulated_task_sizes([&](const IndexRange range) {
+          int64_t total_size;
+          visible_strokes.slice(range).foreach_index(
+              [&](const int64_t index) { total_size += points_by_curve[index].size(); });
+          return total_size;
+        }));
 
     /* Fill in IBO in series. */
     visible_strokes.foreach_index([&](const int curve_i, const int pos) {
