@@ -364,6 +364,7 @@ struct ButtonTextBox : public Button {
   int visible_lines = 0;
   struct WrapCache {
     int wrap_width = 0;
+    int font_id = 0;
     float font_size = 0;
     int font_weight = 0;
     float ui_scale = 0;

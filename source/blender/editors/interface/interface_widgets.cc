@@ -2034,13 +2034,15 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
       textbox->wrap_cache = std::make_unique<ButtonTextBox::WrapCache>();
     }
     ButtonTextBox::WrapCache &cache = *textbox->wrap_cache;
-    if (cache.font_size == fstyle.points && cache.font_weight == fstyle.character_weight &&
-        cache.ui_scale == UI_SCALE_FAC && cache.wrap_width == width && text == cache.text)
+    if (cache.font_id == fstyle.uifont_id && cache.font_size == fstyle.points &&
+        cache.font_weight == fstyle.character_weight && cache.ui_scale == UI_SCALE_FAC &&
+        cache.wrap_width == width && text == cache.text)
     {
       return cache.wrapped_lines;
     }
     cache.text = text;
     text = cache.text;
+    cache.font_id = fstyle.uifont_id;
     cache.font_size = fstyle.points;
     cache.font_weight = fstyle.character_weight;
     cache.ui_scale = UI_SCALE_FAC;
