@@ -44,7 +44,6 @@ class NODE_OT_swap_links(Operator, NWBase):
                     if output.links:
                         for link in output.links:
                             n1_outputs.append([out_index, link.to_socket])
-                            links.remove(link)
                     out_index += 1
 
                 out_index = 0
@@ -52,18 +51,29 @@ class NODE_OT_swap_links(Operator, NWBase):
                     if output.links:
                         for link in output.links:
                             n2_outputs.append([out_index, link.to_socket])
-                            links.remove(link)
                     out_index += 1
 
                 for connection in n1_outputs:
+                    out_socket = n2.outputs[connection[0]]
+                    in_socket = connection[1]
+                    if (out_socket.node == in_socket.node):
+                        continue
                     try:
-                        connect_sockets(n2.outputs[connection[0]], connection[1])
+                        for link in out_socket.links:
+                            links.remove(link)
+                        connect_sockets(out_socket, in_socket)
                     except:
                         self.report({'WARNING'},
                                     "Some connections have been lost due to differing numbers of output sockets")
                 for connection in n2_outputs:
+                    out_socket = n1.outputs[connection[0]]
+                    in_socket = connection[1]
+                    if (out_socket.node == in_socket.node):
+                        continue
                     try:
-                        connect_sockets(n1.outputs[connection[0]], connection[1])
+                        for link in out_socket.links:
+                            links.remove(link)
+                        connect_sockets(out_socket, in_socket)
                     except:
                         self.report({'WARNING'},
                                     "Some connections have been lost due to differing numbers of output sockets")
