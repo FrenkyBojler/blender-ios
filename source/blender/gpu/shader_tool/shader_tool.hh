@@ -2970,9 +2970,13 @@ class Preprocessor {
       const string &value = placeholder_value;
       const string start = " = 0" + string(enum_scope.front().prev().str()[0] == 'u' ? "u" : "");
 
-      enum_scope.foreach_match("{w,", [&](const Tokens &t) { parser.insert_after(t[1], start); });
-      enum_scope.foreach_match(",w,", [&](const Tokens &t) { parser.insert_after(t[1], value); });
-      enum_scope.foreach_match(",w}", [&](const Tokens &t) { parser.insert_after(t[1], value); });
+      auto insert = [&](Token name, const string &replacement) {
+        if (name.next() == ',' || name.next() == '}') {
+          parser.insert_after(name, replacement);
+        }
+      };
+      enum_scope.foreach_match("{w", [&](const Tokens &t) { insert(t[1], start); });
+      enum_scope.foreach_match(",w", [&](const Tokens &t) { insert(t[1], value); });
     };
 
     parser().foreach_match("MSw:w{", [&](const Tokens &t) { placeholder(t[5].scope()); });
