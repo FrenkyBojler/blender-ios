@@ -893,7 +893,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
       endforeach()
     endif()
 
-    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+    if(WITH_VULKAN_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
           workbench_vulkan_${render_test}
@@ -930,7 +930,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         )
       endif()
 
-      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND)
         add_render_test(
           overlay_vulkan
           ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
@@ -1497,6 +1497,9 @@ if(WITH_UI_TESTS)
     test_workspace.sanity_check_storyboarding
     test_workspace.sanity_check_vfx
     test_workspace.sanity_check_video_editing
+    test_fullscreen.wm_toggle_fullscreen
+    test_fullscreen.wm_toggle_stacked_fullscreen_file_browser
+    test_fullscreen.wm_toggle_stacked_fullscreens
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
