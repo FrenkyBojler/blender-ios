@@ -59,10 +59,11 @@ class NODE_OT_swap_links(Operator, NWBase):
                     if (out_socket.node == in_socket.node):
                         continue
                     try:
+                        connect_sockets(out_socket, in_socket)
+
                         for link in in_socket.links:
                             if link.from_socket == n1.outputs[connection[0]]:
                                 links.remove(link)
-                        connect_sockets(out_socket, in_socket)
                     except:
                         self.report({'WARNING'},
                                     "Some connections have been lost due to differing numbers of output sockets")
@@ -72,10 +73,11 @@ class NODE_OT_swap_links(Operator, NWBase):
                     if (out_socket.node == in_socket.node):
                         continue
                     try:
+                        connect_sockets(out_socket, in_socket)
+
                         for link in in_socket.links:
                             if link.from_socket == n2.outputs[connection[0]]:
                                 links.remove(link)
-                        connect_sockets(out_socket, in_socket)
                     except:
                         self.report({'WARNING'},
                                     "Some connections have been lost due to differing numbers of output sockets")
