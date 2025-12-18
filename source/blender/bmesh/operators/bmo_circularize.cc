@@ -294,10 +294,7 @@ static void calculate_plane_basis(
   for (const int i : loop.index_range()) {
     BMVert *curr = loop[i];
     BMVert *next = loop[(i + 1) % loop.size()];
-
-    r_normal[0] += (curr->co[1] - next->co[1]) * (curr->co[2] + next->co[2]);
-    r_normal[1] += (curr->co[2] - next->co[2]) * (curr->co[0] + next->co[0]);
-    r_normal[2] += (curr->co[0] - next->co[0]) * (curr->co[1] + next->co[1]);
+    add_newell_cross_v3_v3v3(r_normal, curr->co, next->co);
   }
   normalize_v3(r_normal);
 
