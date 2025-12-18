@@ -196,21 +196,18 @@ bool Bundle::remove_path(const StringRef path)
 
 bool Bundle::remove_path(const Span<StringRef> path)
 {
+  BLI_assert(!path.is_empty());
   if (!this->contains_path(path)) {
     return false;
   }
-  BLI_assert(!path.is_empty());
-  if (path.size() == 1) {
-    return this->remove(path[0]);
+  Bundle *current = this;
+  for (const StringRef path_elem : path.drop_back(1)) {
+    BundleItemValue &item = current->items_.lookup_as(path_elem);
+    BundlePtr *child_bundle_ptr = item.as_pointer<BundlePtr>();
+    current = &child_bundle_ptr->ensure_mutable_inplace();
   }
-  const StringRef first_elem = path[0];
-  BundleItemValue *item = const_cast<BundleItemValue *>(this->lookup_path(first_elem));
-  /* Existence was checked above. */
-  BLI_assert(item);
-  BundlePtr *child_bundle_ptr = item->as_pointer<BundlePtr>();
-  BLI_assert(child_bundle_ptr);
-  Bundle &child_bundle = child_bundle_ptr->ensure_mutable_inplace();
-  return child_bundle.remove_path(path.drop_front(1));
+  current->items_.remove_as(path.last());
+  return true;
 }
 
 bool Bundle::contains(const StringRef key) const
