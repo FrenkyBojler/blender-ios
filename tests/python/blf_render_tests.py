@@ -30,7 +30,7 @@ def render_font_test():
     font_id = 0
 
     # Configure font
-    blf.color(font_id, 1.0, 1.0, 1.0, 1.0)  # White text
+    blf.color(font_id, 0.3, 0.3, 0.3, 1.0)  # Grey Text (readable on black and white background)
     blf.size(font_id, font_size)
     blf.position(font_id, text_position[0], text_position[1], 0)
     blf.disable(font_id, blf.WORD_WRAP)
