@@ -3,19 +3,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-BLF font rendering test
-
-Tests BLF text rendering using image comparison.
-"""
-
 import argparse
 import os
 import sys
 
 
-def render_font_test(output_path):
+def render_font_test():
     """Render the font test and save to output_path."""
+
+    # Import BLF and image buffer utilities only when running inside Blender
+    import blf
+    import imbuf
+
+    output_path = sys.argv[sys.argv.index("--") + 1]
 
     # Simple hardcoded configuration
     image_size = (512, 128)
@@ -41,24 +41,28 @@ def render_font_test(output_path):
     print(f"Saving image to: {output_path}")
     imbuf.write(ibuf, filepath=output_path)
 
-    # Check if file was actually created (since imbuf.write may return False even on success)
-    if os.path.exists(output_path):
-        print(f"Successfully rendered font test to: {output_path}")
-        return True
+    bpy.ops.wm.quit_blender()
 
 
+# When run from inside Blender, render and exit.
+try:
+    import bpy
+    inside_blender = True
+except Exception:
+    inside_blender = False
+
+
+if inside_blender:
+    render_font_test()
+    sys.exit(0)
 
 def get_arguments(filepath, output_filepath):
     """Get command line arguments for rendering font test.
-    
+
     Args:
-        filepath: Path to the blend file (not used, we generate content directly)
         output_filepath: Where to save the rendered PNG
     """
-    # Run this script inside Blender (-P <this file>) which will perform the
-    # BLF rendering when executed in-process. The renderer reads the output
-    # base path from the arguments after '--' and will append the frame
-    # suffix (0001.png) as expected by the render runner.
+
     return [
         "--background",
         "--factory-startup",
@@ -67,34 +71,8 @@ def get_arguments(filepath, output_filepath):
         "--debug-exit-on-error",
         "--python", os.path.realpath(__file__),
         "--",
-        output_filepath,
+        output_filepath + "0001.png",
     ]
-
-
-# When run from inside Blender, render and exit.
-try:
-    import bpy 
-    inside_blender = True
-except Exception:
-    inside_blender = False
-
-
-if inside_blender:
-    # Import BLF and image buffer utilities only when running inside Blender
-    import blf
-    import imbuf
-
-    # When executed inside Blender (-P thisfile), parse args and run the render.
-    output_path_base = sys.argv[sys.argv.index("--") + 1]
-    output_path = output_path_base + "0001.png"
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    success = render_font_test(output_path)
-    if not success:
-        sys.exit(1)
-    sys.exit(0)
-    
-
 
 def create_argparse():
     parser = argparse.ArgumentParser(
@@ -109,16 +87,15 @@ def create_argparse():
     return parser
 
 
-
 def main():
     parser = create_argparse()
     args = parser.parse_args()
 
     from modules import render_report
-    
+
     report = render_report.Report("BLF Font Rendering", args.outdir, args.oiiotool)
     report.set_reference_dir("blf_renders")
-    
+
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)
 
