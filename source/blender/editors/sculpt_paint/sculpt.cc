@@ -3440,6 +3440,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
                               *cursor_sample_result.plane_normal,
                               *cursor_sample_result.plane_center);
       break;
+    case SCULPT_BRUSH_TYPE_BLUR:
+      color::do_blur_brush(depsgraph, sd, ob, node_mask);
+      break;
   }
 
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
@@ -3902,16 +3905,19 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
 
   if (ELEM(cur_brush->sculpt_brush_type,
            SCULPT_BRUSH_TYPE_SLIDE_RELAX,
-           SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
-           SCULPT_BRUSH_TYPE_PAINT,
-           SCULPT_BRUSH_TYPE_SMEAR))
+           SCULPT_BRUSH_TYPE_DRAW_FACE_SETS))
   {
     /* Do nothing, this brush has its own smooth mode. */
     return;
   }
 
-  /* Switch to the smooth brush if possible. */
-  BKE_paint_brush_set_essentials(bmain, paint, "Smooth");
+  /* Switch to smooth brush if possible */
+  if (brush_type_is_paint(cur_brush->sculpt_brush_type)) {
+    BKE_paint_brush_set_essentials(bmain, paint, "Blur");
+  } else {
+    BKE_paint_brush_set_essentials(bmain, paint, "Smooth");
+  }
+
   Brush *smooth_brush = BKE_paint_brush(paint);
 
   if (!smooth_brush) {
@@ -3941,9 +3947,7 @@ static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
 
   if (ELEM(brush.sculpt_brush_type,
            SCULPT_BRUSH_TYPE_SLIDE_RELAX,
-           SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
-           SCULPT_BRUSH_TYPE_PAINT,
-           SCULPT_BRUSH_TYPE_SMEAR))
+           SCULPT_BRUSH_TYPE_DRAW_FACE_SETS))
   {
     /* Do nothing. */
     return;
