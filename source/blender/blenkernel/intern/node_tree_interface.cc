@@ -465,10 +465,7 @@ static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSoc
 /** \name Get full socket type from socket data.
  * \{ */
 
-template<typename T> StringRefNull socket_type_from_data_impl(const T & /*data*/)
-{
-  return {};
-}
+template<typename T> StringRefNull socket_type_from_data_impl(const T & /*data*/);
 template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueFloat &data)
 {
   return *bke::node_static_socket_type(SOCK_FLOAT, data.subtype);
