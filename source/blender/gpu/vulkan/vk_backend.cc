@@ -515,7 +515,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
    * GPU_TEXTURE_USAGE_SHADER_READ/WRITE will fail to allocate the memory. This needs some more
    * research as this might just be a missing flag when allocating. Another solution is to not
    * allow host_imag_copy when only these two flags are set as the rest seems to work as expected.
-   * 
+   *
    * See #151826
    */
   if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
