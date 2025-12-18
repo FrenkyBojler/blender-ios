@@ -419,7 +419,7 @@ enum eBrushFlags2 {
   BRUSH_JITTER_COLOR = (1 << 10),
 };
 
-enum BrushMaskPressureFlags {
+enum {
   BRUSH_MASK_PRESSURE_RAMP = (1 << 1),
   BRUSH_MASK_PRESSURE_CUTOFF = (1 << 2),
 };
@@ -477,6 +477,7 @@ enum eBrushSculptType {
   SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER = 31,
   SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR = 32,
   SCULPT_BRUSH_TYPE_PLANE = 33,
+  SCULPT_BRUSH_TYPE_BLUR = 34,
 };
 
 /* Brush.curves_sculpt_brush_type. */
@@ -572,7 +573,7 @@ enum {
   SCULPT_DISP_DIR_Z = 4,
 };
 
-enum BrushMaskTool {
+enum {
   BRUSH_MASK_DRAW = 0,
   BRUSH_MASK_SMOOTH = 1,
 };
