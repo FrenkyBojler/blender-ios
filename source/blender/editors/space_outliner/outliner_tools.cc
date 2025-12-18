@@ -2117,14 +2117,14 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
 
   if (event == OL_DOP_SELECT) {
-    blender::animrig::select_bone(pchan);
+    blender::animrig::bone_select(pchan);
   }
   else if (event == OL_DOP_DESELECT) {
-    blender::animrig::deselect_bone(pchan);
+    blender::animrig::bone_deselect(pchan);
   }
   else if (event == OL_DOP_HIDE) {
     pchan->drawflag |= PCHAN_DRAW_HIDDEN;
-    blender::animrig::deselect_bone(pchan);
+    blender::animrig::bone_deselect(pchan);
   }
   else if (event == OL_DOP_UNHIDE) {
     pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;

@@ -789,7 +789,7 @@ static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
    * applied when pasting.  */
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob->pose->chanbase) {
     if (!blender::animrig::bone_is_visible(armature, pose_bone)) {
-      blender::animrig::deselect_bone(pose_bone);
+      blender::animrig::bone_deselect(pose_bone);
     }
   }
 

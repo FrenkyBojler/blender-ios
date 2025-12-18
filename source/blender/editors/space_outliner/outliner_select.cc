@@ -570,7 +570,7 @@ static void tree_element_posechannel_activate(bContext *C,
       }
 
       LISTBASE_FOREACH (bPoseChannel *, pchannel, &ob_iter->pose->chanbase) {
-        blender::animrig::deselect_bone(pchannel);
+        blender::animrig::bone_deselect(pchannel);
       }
 
       if (ob != ob_iter) {
@@ -580,11 +580,11 @@ static void tree_element_posechannel_activate(bContext *C,
   }
 
   if ((set == OL_SETSEL_EXTEND) && (pchan->flag & POSE_SELECTED)) {
-    blender::animrig::deselect_bone(pchan);
+    blender::animrig::bone_deselect(pchan);
   }
   else {
     if (blender::animrig::bone_is_visible(arm, pchan)) {
-      blender::animrig::select_bone(pchan);
+      blender::animrig::bone_select(pchan);
     }
     arm->act_bone = pchan->bone;
   }

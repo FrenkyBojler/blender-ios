@@ -71,12 +71,12 @@ inline bool bone_is_selectable(const bArmature *armature, const Bone *bone)
  * root. While tip and root are not individually selectable in pose mode, these flags carry over to
  * edit mode.
  */
-inline void select_bone(bPoseChannel *pchan)
+inline void bone_select(bPoseChannel *pchan)
 {
   pchan->flag |= POSE_SELECTED_ALL;
 }
 
-inline void deselect_bone(bPoseChannel *pchan)
+inline void bone_deselect(bPoseChannel *pchan)
 {
   pchan->flag &= ~POSE_SELECTED_ALL;
 }

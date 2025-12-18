@@ -807,10 +807,10 @@ static void bone_collection_select(bContext *C,
       }
 
       if (select) {
-        blender::animrig::select_bone(pose_bone);
+        blender::animrig::bone_select(pose_bone);
       }
       else {
-        blender::animrig::deselect_bone(pose_bone);
+        blender::animrig::bone_deselect(pose_bone);
       }
     }
     DEG_id_tag_update(&active_object->id, ID_RECALC_SELECT);
