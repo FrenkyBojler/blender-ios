@@ -105,6 +105,14 @@ class Bundle : public ImplicitSharingMixin {
 
   /** Create the combined path by inserting '/' between each element. */
   static std::string combine_path(const Span<StringRef> path);
+
+  /* Disallow certain characters so that we can use them to e.g. build a bundle path or
+   * expressions referencing multiple bundle items. We might not need all of them in the future,
+   * but better reserve them now while we still can. */
+  static constexpr StringRefNull forbidden_key_chars = "/*&|\"^~!,{}()+$#@[];:?<>.-%\\=";
+  static bool is_valid_key(const StringRef key);
+  static bool is_valid_path(const StringRef path);
+  static std::optional<Vector<StringRef>> split_path(const StringRef path);
 };
 
 template<typename T>

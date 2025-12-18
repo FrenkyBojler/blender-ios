@@ -77,6 +77,8 @@ TEST_F(BundleTest, AddLookupPath)
   EXPECT_EQ(bundle.lookup_path<int>("a/b/d"), 4);
   EXPECT_EQ(bundle.lookup_path<BundlePtr>("a/b/c"), std::nullopt);
   EXPECT_EQ(bundle.lookup_path<BundlePtr>("a/b/x"), std::nullopt);
+  bundle.add_path_override("a/b/c/d", 5);
+  EXPECT_EQ(bundle.lookup_path<int>("a/b/c/d"), 5);
 }
 
 TEST_F(BundleTest, RemovePath)
