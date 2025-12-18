@@ -283,6 +283,11 @@ static void object_copy_data(Main *bmain,
       ob_dst->lightprobe_cache->shared = false;
     }
   }
+
+  /* Copy LODs */
+  BLI_listbase_clear(&ob_dst->lod_items);
+  BLI_duplicatelist(&ob_dst->lod_items, &ob_src->lod_items);
+  ob_dst->act_lod = ob_src->act_lod;
 }
 
 static void object_free_data(ID *id)
@@ -329,16 +334,8 @@ static void object_free_data(ID *id)
   }
 
   /* Free LOD items */
-  if (!BLI_listbase_is_empty(&ob->lod_items)) {
-    for (Lod *lod = (Lod *)ob->lod_items.first; lod; lod = (Lod *)lod->next) {
-      if (lod->target) {
-        id_us_min(reinterpret_cast<ID *>(lod->target));
-        lod->target = nullptr;
-      }
-    }
-    BLI_freelistN(&ob->lod_items);
-  }
-  ob->act_lod = -1;
+  BLI_freelistN(&ob->lod_items);
+  ob->act_lod = 0;
 
   BKE_previewimg_free(&ob->preview);
 
@@ -520,6 +517,13 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, paf->group, IDWALK_CB_USER);
     }
   }
+
+  LISTBASE_FOREACH (Lod *, lod, &object->lod_items) {
+    if (lod->target) {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(
+          data, lod->target, IDWALK_CB_USER);
+    }
+  }
 }
 
 static void object_foreach_path_pointcache(ListBase *ptcache_list,
@@ -683,7 +687,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_modifier_blend_write(writer, &ob->id, &ob->modifiers);
   BKE_shaderfx_blend_write(writer, &ob->shader_fx);
 
-  // !!! Pay attention
   BLO_write_struct_list(writer, LinkData, &ob->pc_ids);
 
   BKE_previewimg_blend_write(writer, ob->preview);
@@ -700,21 +703,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     BKE_lightprobe_cache_blend_write(writer, ob->lightprobe_cache);
   }
 
-  // /* --- Write LOD ListBase correctly --- */
-  // // !!!: Is it even necessary to write LOD target? afterall, it's an object in scene...
-  // {
-  //   const int count = BLI_listbase_count(&ob->lod_items);
-  //   BLO_write_raw(writer, &count, sizeof(count));
-
-  //   for (Lod *lod = (Lod *)ob->lod_items.first; lod; lod = lod->next) {
-  //     BLO_write_struct(writer, Lod, lod);
-
-  //     /* Write ID pointer reference */
-  //     BLO_write_pointer(writer, lod->target);
-  //   }
-  // }
-
-  /* --- Write LOD ListBase (same pattern as ObHook, bDeformGroup, etc.) --- */
   BLO_write_struct_list(writer, Lod, &ob->lod_items);
 }
 
@@ -729,10 +717,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   /* XXX This should not be needed - but seems like it can happen in some cases,
    * so for now play safe. */
   ob->proxy_from = nullptr;
-
-  // !!!: Temp
-  /* near top of object_blend_read_data, after ob allocated */
-  BLI_listbase_clear(&ob->lod_items);  /* ensure a valid empty listbase if nothing to read */
 
   const bool is_undo = BLO_read_data_is_undo(reader);
   if (ob->id.tag & (ID_TAG_EXTERN | ID_TAG_INDIRECT)) {
@@ -755,7 +739,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     animviz_motionpath_blend_read_data(reader, ob->mpath);
   }
 
-  // !!!: Pay attention
   /* Only for versioning, vertex group names are now stored on object data. */
   BLO_read_struct_list(reader, bDeformGroup, &ob->defbase);
   BLO_read_struct_list(reader, bFaceMap, &ob->fmaps);
@@ -875,7 +858,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   BKE_constraint_blend_read_data(reader, &ob->id, &ob->constraints);
 
-  // !!!: Pay Attention
   BLO_read_struct_list(reader, ObHook, &ob->hooks);
   while (ob->hooks.first) {
     ObHook *hook = (ObHook *)ob->hooks.first;
@@ -936,7 +918,9 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   BLO_read_struct_list(reader, Lod, &ob->lod_items);
-  ob->act_lod = (ob->lod_items.first) ? 0 : -1;
+  if (ob->lod_items.first == nullptr) {
+    ob->act_lod = 0;
+  }
 }
 
 static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
