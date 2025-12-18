@@ -3366,19 +3366,19 @@ static bool ui_textedit_insert_ascii(Button *but, HandleButtonData *data, const 
 }
 #endif
 
-int textbox_line_cursor(Span<StringRef> lines, int cursor_pos)
+static int textbox_wrapped_line_from_char_offset(Span<StringRef> lines, int offset)
 {
-  const char *cursor = lines.first().begin() + cursor_pos;
-  int line_cursor = 0;
+  const char *dest = lines.first().begin() + offset;
+  int i = 0;
   for (StringRef line : lines) {
-    if (line.begin() > cursor) {
-      line_cursor = line_cursor - 1;
+    if (line.begin() > dest) {
+      i = i - 1;
       break;
     }
-    line_cursor++;
+    i++;
   }
-  line_cursor = std::clamp<int>(line_cursor, 0, lines.size() - 1);
-  return line_cursor;
+  i = std::clamp<int>(i, 0, lines.size() - 1);
+  return i;
 }
 
 /**
@@ -3398,7 +3398,7 @@ static void textbox_jump_line(ARegion *region,
   Vector<StringRef> lines = textbox_wrap_lines(region, textbox);
   const char *str = lines.first().begin();
   const bool append_selection = textbox->selend == textbox->pos;
-  const int line_cursor = textbox_line_cursor(lines, textbox->pos);
+  const int line_cursor = textbox_wrapped_line_from_char_offset(lines, textbox->pos);
   const int fontid = style_get()->widget.uifont_id;
   int offset = BLF_str_offset_to_cursor(fontid,
                                         lines[line_cursor].begin(),
@@ -3456,7 +3456,7 @@ static void ui_textedit_move(ARegion *region,
     lines = textbox_wrap_lines(region, static_cast<ButtonTextBox *>(but));
   }
   const char *str = lines.first().begin();
-  StringRef line_cursor = lines[textbox_line_cursor(lines, but->pos)];
+  StringRef line_cursor = lines[textbox_wrapped_line_from_char_offset(lines, but->pos)];
   const int pos_prev = but->pos;
   const bool has_sel = (but->selend - but->selsta) > 0;
 
@@ -3832,6 +3832,7 @@ static void ui_textedit_end(bContext *C, Button *but, HandleButtonData *data)
 {
   TextEdit &text_edit = data->text_edit;
   wmWindow *win = data->window;
+
   ED_workspace_status_text(C, nullptr);
 
   if (but) {
@@ -5218,13 +5219,14 @@ static int ui_do_but_TEX(
   ButtonTextBox *textbox = but->type == ButtonType::TextBox ? static_cast<ButtonTextBox *>(but) :
                                                               nullptr;
   if (textbox && ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_HIGHLIGHT) &&
-      event->val == KM_PRESS && event->type == LEFTMOUSE)
+      event->val == KM_PRESS && event->type == LEFTMOUSE &&
+      textbox->last_total_lines > textbox->visible_lines)
   {
-    int mx = event->xy[0];
-    int my = event->xy[1];
-    window_to_block(data->region, but->block, &mx, &my);
+    float xmax = but->rect.xmax;
+    float ymax = but->rect.ymax;
+    block_to_window_fl(data->region, but->block, &xmax, &ymax);
     /* Activate textbox scrollbar. */
-    if (but->rect.xmax - button_text_padding(but) <= mx && mx <= but->rect.xmax) {
+    if (xmax - button_text_padding(but) <= event->xy[0] && event->xy[0] <= xmax) {
       if (data->state == BUTTON_STATE_HIGHLIGHT) {
         WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_NS_SCROLL);
       }
@@ -9018,6 +9020,7 @@ static bool button_modal_state(HandleButtonState state)
               BUTTON_STATE_NUM_EDITING,
               BUTTON_STATE_TEXT_EDITING,
               BUTTON_STATE_TEXT_SELECTING,
+              BUTTON_STATE_TEXT_SCROLLING,
               BUTTON_STATE_MENU_OPEN);
 }
 
