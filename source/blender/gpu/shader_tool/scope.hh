@@ -40,6 +40,8 @@ enum class ScopeType : char {
   Local = 'L',
   /* Added scope inside FunctionArgs. */
   FunctionArg = 'g',
+  /* Added scope inside FunctionCall. */
+  FunctionParam = 'm',
   /* Added scope inside LoopArgs. */
   LoopArg = 'r',
 
@@ -83,12 +85,14 @@ struct Scope {
     return is_invalid() ? Token::invalid() : Token::from_position(data, range().start + i);
   }
 
-  Token start() const
+  /* Return first token of that scope. */
+  Token front() const
   {
     return is_invalid() ? Token::invalid() : Token::from_position(data, range().start);
   }
 
-  Token end() const
+  /* Return last token of that scope. */
+  Token back() const
   {
     return is_invalid() ? Token::invalid() : Token::from_position(data, range().last());
   }
@@ -119,10 +123,10 @@ struct Scope {
     if (is_invalid()) {
       return Scope::invalid();
     }
-    const size_t scope_start = this->start().str_index_start();
+    const size_t scope_start = this->front().str_index_start();
     Scope scope = *this;
     while ((scope = scope.prev()).is_valid()) {
-      if (scope.end().str_index_last() > scope_start) {
+      if (scope.back().str_index_last() > scope_start) {
         return scope;
       }
     }
@@ -133,14 +137,14 @@ struct Scope {
    * previous scope inside the same container. */
   Scope prev() const
   {
-    return is_invalid() ? Scope::invalid() : start().prev().scope();
+    return is_invalid() ? Scope::invalid() : front().prev().scope();
   }
 
   /* Returns the next scope after this scope. Can be either the container scope or the next scope
    * inside the same container. */
   Scope next() const
   {
-    return is_invalid() ? Scope::invalid() : end().next().scope();
+    return is_invalid() ? Scope::invalid() : back().next().scope();
   }
 
   bool contains(const Scope sub) const
@@ -157,8 +161,8 @@ struct Scope {
     if (this->is_invalid()) {
       return "";
     }
-    return data->str.substr(start().str_index_start(),
-                            end().str_index_last() - start().str_index_start() + 1);
+    return data->str.substr(front().str_index_start(),
+                            back().str_index_last() - front().str_index_start() + 1);
   }
 
   std::string str() const
@@ -166,20 +170,23 @@ struct Scope {
     if (this->is_invalid()) {
       return "";
     }
-    return data->str.substr(start().str_index_start(),
-                            end().str_index_last_no_whitespace() - start().str_index_start() + 1);
+    return data->str.substr(front().str_index_start(),
+                            back().str_index_last_no_whitespace() - front().str_index_start() + 1);
   }
 
-  /* Return the content without the first and last characters. */
+  /* Return the content without the first and last token. */
   std::string str_exclusive() const
   {
-    if (this->is_invalid()) {
+    if (this->is_invalid() || this->token_count() <= 2) {
       return "";
     }
-    return data->str.substr(start().str_index_start() + 1,
-                            end().str_index_last() - start().str_index_start() - 1);
+    Token start = this->front().next();
+    Token end = this->back().prev();
+    return data->str.substr(start.str_index_start(),
+                            end.str_index_last_no_whitespace() - start.str_index_start() + 1);
   }
 
+  /* Return first occurrence of token_type inside this scope. */
   Token find_token(const char token_type) const
   {
     if (this->is_invalid()) {
@@ -206,10 +213,26 @@ struct Scope {
     return scope.type() == type ? scope : Scope::invalid();
   }
 
+  /**
+   * Small pattern matching engine.
+   * - pattern is expected to a be a sequence of #TokenType stored as a string.
+   * - single '?' after a token will make this token optional.
+   * - double '?' will match the question mark.
+   * - double '.' will skip to the end of the current matched scope.
+   * - callback is called for each matches with a vector of token the size of the input pattern.
+   * - control tokens ('..' and '?') and unmatched optional tokens will be set to invalid in match
+   *   vector.
+   * IMPORTANT: 2 matches cannot overlap. The pattern matching algorithm skips the whole match
+   *            after a match there is no readback. This could eventually be fixed.
+   */
   void foreach_match(const std::string &pattern,
                      std::function<void(const std::vector<Token>)> callback) const
   {
     assert(!pattern.empty());
+    if (this->is_invalid()) {
+      return;
+    }
+
     const std::string_view scope_tokens =
         std::string_view(data->token_types).substr(range().start, range().size);
 
@@ -244,7 +267,7 @@ struct Scope {
 
         /* Scope skipping. */
         if (!is_last_token && curr_search_token == '.' && next_search_token == '.') {
-          cursor = match[i - 1].scope().end().index;
+          cursor = match[i - 1].scope().back().index;
           i++;
           continue;
         }
@@ -289,7 +312,7 @@ struct Scope {
     size_t pos = this->index;
     while ((pos = data->scope_types.find(char(type), pos)) != std::string::npos) {
       Scope scope = Scope::from_position(data, pos);
-      if (scope.start().index > this->end().index) {
+      if (scope.front().index > this->back().index) {
         /* Found scope starts after this scope. End iteration. */
         break;
       }
@@ -300,6 +323,16 @@ struct Scope {
       }
       pos += 1;
     }
+  }
+
+  /* Will iterate over all the attribute if this scope is an ScopeType::Attributes. */
+  void foreach_attribute(
+      std::function<void(Token attribute_name, Scope attribute_props)> callback) const
+  {
+    assert(this->type() == ScopeType::Attributes);
+    this->foreach_scope(ScopeType::Attribute, [&](Scope attr) {
+      callback(attr[0], attr[1] == '(' ? attr[1].scope() : Scope::invalid());
+    });
   }
 
   void foreach_token(const TokenType token_type, std::function<void(const Token)> callback) const
@@ -341,19 +374,21 @@ struct Scope {
   }
 
   /* Run a callback for all existing struct scopes. */
-  void foreach_struct(std::function<void(Token struct_tok, Token name, Scope body)> callback) const
+  void foreach_struct(
+      std::function<void(Token struct_tok, Scope attributes, Token name, Scope body)> callback)
+      const
   {
     foreach_match("sw{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], matches[1], matches[2].scope());
-    });
-    foreach_match("Sw{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], matches[1], matches[2].scope());
+      callback(matches[0], Scope::invalid(), matches[1], matches[2].scope());
     });
     foreach_match("sw<..>{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], matches[1], matches[6].scope());
+      callback(matches[0], Scope::invalid(), matches[1], matches[6].scope());
     });
-    foreach_match("Sw<..>{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], matches[1], matches[6].scope());
+    foreach_match("s[[..]]w{..}", [&](const std::vector<Token> matches) {
+      callback(matches[0], matches[2].scope(), matches[7], matches[8].scope());
+    });
+    foreach_match("s[[..]]w<..>{..}", [&](const std::vector<Token> matches) {
+      callback(matches[0], matches[2].scope(), matches[7], matches[12].scope());
     });
   }
 
@@ -364,13 +399,26 @@ struct Scope {
                                               Scope template_scope,
                                               Token name,
                                               Scope array,
-                                              Token decl_end)> cb) const
+                                              Token decl_end)> callback) const
   {
     auto attrs = [](const std::vector<Token> &tokens) {
       Token first = tokens[0].is_valid() ? tokens[0] : tokens[2];
       Scope attributes = first.prev().prev().scope();
       attributes = (attributes.type() == ScopeType::Attributes) ? attributes : Scope::invalid();
       return attributes;
+    };
+
+    auto cb = [&](Scope attributes,
+                  Token const_tok,
+                  Token type,
+                  Scope template_scope,
+                  Token name,
+                  Scope array,
+                  Token decl_end) {
+      if (type.scope() != *this) {
+        return;
+      }
+      callback(attributes, const_tok, type, template_scope, name, array, decl_end);
     };
 
     foreach_match("c?ww;", [&](const std::vector<Token> toks) {

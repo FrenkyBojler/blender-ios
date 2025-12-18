@@ -15,6 +15,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -240,22 +241,14 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager 
 WorkSpace *ED_workspace_duplicate(WorkSpace *workspace_old, Main *bmain, wmWindow *win)
 {
   WorkSpaceLayout *layout_active_old = BKE_workspace_active_layout_get(win->workspace_hook);
-  WorkSpace *workspace_new = ED_workspace_add(bmain, workspace_old->id.name + 2);
+  WorkSpace *workspace_new = blender::id_cast<WorkSpace *>(BKE_id_copy(bmain, &workspace_old->id));
 
-  workspace_new->flags = workspace_old->flags;
-  workspace_new->pin_scene = workspace_old->pin_scene;
-  workspace_new->sequencer_scene = workspace_old->sequencer_scene;
-  workspace_new->object_mode = workspace_old->object_mode;
-  workspace_new->order = workspace_old->order;
-  BLI_duplicatelist(&workspace_new->owner_ids, &workspace_old->owner_ids);
-
-  /* TODO(@ideasman42): tools */
-
-  LISTBASE_FOREACH (WorkSpaceLayout *, layout_old, &workspace_old->layouts) {
-    WorkSpaceLayout *layout_new = ED_workspace_layout_duplicate(
-        bmain, workspace_new, layout_old, win);
-
-    if (layout_active_old == layout_old) {
+  /* Try to keep active the layout from the new workspace matching the current active one from
+   * the old worksapce. */
+  WorkSpaceLayout *layout_old = static_cast<WorkSpaceLayout *>(workspace_old->layouts.first);
+  WorkSpaceLayout *layout_new = static_cast<WorkSpaceLayout *>(workspace_new->layouts.first);
+  for (; layout_old && layout_new; layout_old = layout_old->next, layout_new = layout_new->next) {
+    if (layout_old == layout_active_old) {
       win->workspace_hook->temp_layout_store = layout_new;
     }
   }
@@ -305,7 +298,7 @@ void ED_workspace_scene_data_sync(WorkSpaceInstanceHook *hook, Scene *scene)
 
 static WorkSpace *workspace_context_get(bContext *C)
 {
-  ID *id = UI_context_active_but_get_tab_ID(C);
+  ID *id = blender::ui::context_active_but_get_tab_ID(C);
   if (id && GS(id->name) == ID_WS) {
     return (WorkSpace *)id;
   }
@@ -581,13 +574,17 @@ static void workspace_add_menu(bContext * /*C*/, blender::ui::Layout *layout, vo
   }
 }
 
-static wmOperatorStatus workspace_add_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static void workspace_add_menu_draw(blender::ui::Layout &layout)
 {
-  uiPopupMenu *pup = UI_popup_menu_begin(
-      C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, op->type->name), ICON_ADD);
-  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  {
+    PointerRNA props = layout.op("WM_OT_search_single_menu",
+                                 "Search...",
+                                 ICON_VIEWZOOM,
+                                 blender::wm::OpCallContext::InvokeDefault,
+                                 UI_ITEM_NONE);
+    RNA_string_set(&props, "menu_idname", "WORKSPACE_MT_add");
+  }
+  layout.separator();
 
   layout.menu_fn(IFACE_("General"), ICON_NONE, workspace_add_menu, nullptr);
 
@@ -610,9 +607,27 @@ static wmOperatorStatus workspace_add_invoke(bContext *C,
   layout.op("WORKSPACE_OT_duplicate",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate Current"),
             ICON_DUPLICATE);
+}
 
-  UI_popup_menu_end(C, pup);
+static void workspace_add_menu_register()
+{
+  MenuType *mt = MEM_callocN<MenuType>("workspace_add_invoke");
+  STRNCPY_UTF8(mt->idname, "WORKSPACE_MT_add");
+  STRNCPY_UTF8(mt->label, N_("Add Workspace"));
+  mt->flag = MenuTypeFlag::SearchOnKeyPress;
+  mt->draw = [](const bContext * /*C*/, Menu *menu) {
+    blender::ui::Layout &layout = *menu->layout;
+    workspace_add_menu_draw(layout);
+  };
 
+  WM_menutype_add(mt);
+}
+
+static wmOperatorStatus workspace_add_invoke(bContext *C,
+                                             wmOperator * /*op*/,
+                                             const wmEvent * /*event*/)
+{
+  WM_menu_name_call(C, "WORKSPACE_MT_add", blender::wm::OpCallContext::InvokeDefault);
   return OPERATOR_INTERFACE;
 }
 
@@ -706,6 +721,8 @@ static void WORKSPACE_OT_scene_pin_toggle(wmOperatorType *ot)
 
 void ED_operatortypes_workspace()
 {
+  workspace_add_menu_register();
+
   WM_operatortype_append(WORKSPACE_OT_duplicate);
   WM_operatortype_append(WORKSPACE_OT_delete);
   WM_operatortype_append(WORKSPACE_OT_delete_all_others);

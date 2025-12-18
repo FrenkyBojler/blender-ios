@@ -38,6 +38,7 @@
 #include "token.hh"
 #include "utils.hh"
 
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 
@@ -88,6 +89,9 @@ struct IntermediateForm {
   /* Main access operator. Returns the root scope (aka global scope). */
   Scope operator()() const
   {
+    if (data_.scope_types.empty()) {
+      return Scope::invalid();
+    }
     return Scope::from_position(&data_, 0);
   }
 
@@ -154,12 +158,12 @@ struct IntermediateForm {
   void replace(Scope scope, const std::string &replacement, bool keep_trailing_whitespaces = false)
   {
     if (keep_trailing_whitespaces) {
-      replace(scope.start().str_index_start(),
-              scope.end().str_index_last_no_whitespace(),
+      replace(scope.front().str_index_start(),
+              scope.back().str_index_last_no_whitespace(),
               replacement);
     }
     else {
-      replace(scope.start(), scope.end(), replacement);
+      replace(scope.front(), scope.back(), replacement);
     }
   }
 
@@ -183,6 +187,9 @@ struct IntermediateForm {
    * line count and keep the remaining indentation spaces. */
   void erase(Token from, Token to)
   {
+    if (from.is_invalid() && to.is_invalid()) {
+      return;
+    }
     assert(from.index <= to.index);
     erase(from.str_index_start(), to.str_index_last());
   }
@@ -190,13 +197,16 @@ struct IntermediateForm {
    * line count and keep the remaining indentation spaces. */
   void erase(Token tok)
   {
+    if (tok.is_invalid()) {
+      return;
+    }
     erase(tok, tok);
   }
   /* Replace the content of the scope by whitespaces without changing
    * line count and keep the remaining indentation spaces. */
   void erase(Scope scope)
   {
-    erase(scope.start(), scope.end());
+    erase(scope.front(), scope.back());
   }
 
   void insert_before(size_t at, const std::string &content)

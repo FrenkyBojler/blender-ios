@@ -17,6 +17,37 @@
 
 namespace blender::gpu::shader::parser {
 
+size_t line_number(const std::string &str, size_t pos)
+{
+  std::string directive = "#line ";
+  /* String to count the number of line. */
+  std::string sub_str = str.substr(0, pos);
+  size_t nearest_line_directive = sub_str.rfind(directive);
+  size_t line_count = 1;
+  if (nearest_line_directive != std::string::npos) {
+    sub_str = sub_str.substr(nearest_line_directive + directive.size());
+    line_count = std::stoll(sub_str) - 1;
+  }
+  return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
+}
+
+size_t char_number(const std::string &str, size_t pos)
+{
+  std::string sub_str = str.substr(0, pos);
+  size_t nearest_line_directive = sub_str.rfind('\n');
+  return (nearest_line_directive == std::string::npos) ?
+             (sub_str.size()) :
+             (sub_str.size() - nearest_line_directive - 1);
+}
+
+std::string line_str(const std::string &str, size_t pos)
+{
+  size_t start = str.rfind('\n', pos);
+  size_t end = str.find('\n', pos);
+  start = (start != std::string::npos) ? start + 1 : 0;
+  return str.substr(start, end - start);
+}
+
 Scope Token::scope() const
 {
   if (this->is_invalid()) {
@@ -25,7 +56,31 @@ Scope Token::scope() const
   return Scope::from_position(data, data->token_scope[index]);
 }
 
-/* If keep_whitespace is false, whitespaces are merged with the previous token. */
+Scope Token::attribute_before() const
+{
+  if (is_invalid()) {
+    return Scope::invalid();
+  }
+  Token prev = this->prev();
+  if (prev == ']' && prev.prev().scope().type() != ScopeType::Attributes) {
+    return prev.prev().scope();
+  }
+  return Scope::invalid();
+}
+
+Scope Token::attribute_after() const
+{
+  if (is_invalid()) {
+    return Scope::invalid();
+  }
+  Token next = this->next();
+  if (next == ']' && next.next().scope().type() != ScopeType::Attributes) {
+    return next.next().scope();
+  }
+  return Scope::invalid();
+}
+
+/** If `keep_whitespace` is false, white-spaces are merged with the previous token. */
 void Parser::tokenize(const bool keep_whitespace)
 {
   if (str.empty()) {
@@ -41,18 +96,23 @@ void Parser::tokenize(const bool keep_whitespace)
     token_types += char(to_type(str[0]));
     token_offsets.offsets.emplace_back(0);
 
-    /* When doing whitespace merging, keep knowledge about whether previous char was whitespace.
+    /* When doing white-space merging, keep knowledge about whether previous char was white-space.
      * This allows to still split words on spaces. */
     bool prev_was_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
     bool inside_preprocessor_directive = token_types[0] == Hash;
     bool next_character_is_escape = false;
     bool inside_string = false;
 
+    char curr_c = str[0];
+    char prev_c = str[0];
     int offset = 0;
-    for (const char &c : str.substr(1)) {
+    for (const char c : str.substr(1)) {
       offset++;
       TokenType type = to_type(c);
       TokenType prev = TokenType(token_types.back());
+
+      std::swap(curr_c, prev_c);
+      curr_c = c;
 
       /* Merge string literal. */
       if (inside_string) {
@@ -143,7 +203,7 @@ void Parser::tokenize(const bool keep_whitespace)
         continue;
       }
       /* If sign is part of float literal after exponent. */
-      if ((c == '+' || c == '-') && prev == Number) {
+      if ((c == '+' || c == '-') && prev_c == 'e') {
         continue;
       }
       /* Detect increment. */
@@ -160,7 +220,7 @@ void Parser::tokenize(const bool keep_whitespace)
       if (type != Word && type != NewLine && type != Space && type != Number) {
         prev = Word;
       }
-      /* Split words on whitespaces even when merging. */
+      /* Split words on white-spaces even when merging. */
       if (!keep_whitespace && type == Word && prev_was_whitespace) {
         prev = Space;
         prev_was_whitespace = false;
@@ -255,6 +315,12 @@ void Parser::tokenize(const bool keep_whitespace)
         else if (word == "using") {
           c = Using;
         }
+        else if (word == "inline") {
+          c = Inline;
+        }
+        else if (word == "union") {
+          c = Union;
+        }
       }
     }
   }
@@ -326,7 +392,7 @@ void Parser::parse_scopes(report_callback &report_error)
             pos += 3;
           } while (keyword != Invalid && keyword == Colon);
 
-          if (keyword == Struct) {
+          if (keyword == Struct || keyword == Class) {
             enter_scope(ScopeType::Struct, tok_id);
           }
           else if (keyword == Enum) {
@@ -371,7 +437,8 @@ void Parser::parse_scopes(report_callback &report_error)
             enter_scope(ScopeType::FunctionArgs, tok_id);
           }
           else if ((scopes.top().type == ScopeType::Function ||
-                    scopes.top().type == ScopeType::Local) &&
+                    scopes.top().type == ScopeType::Local ||
+                    scopes.top().type == ScopeType::Attribute) &&
                    (tok_id >= 1 && token_types[tok_id - 1] == Word))
           {
             enter_scope(ScopeType::FunctionCall, tok_id);
@@ -420,6 +487,9 @@ void Parser::parse_scopes(report_callback &report_error)
           if (scopes.top().type == ScopeType::FunctionArg) {
             exit_scope(tok_id - 1);
           }
+          if (scopes.top().type == ScopeType::FunctionParam) {
+            exit_scope(tok_id - 1);
+          }
           if (scopes.top().type == ScopeType::LoopArg) {
             exit_scope(tok_id - 1);
           }
@@ -452,10 +522,16 @@ void Parser::parse_scopes(report_callback &report_error)
           if (scopes.top().type == ScopeType::FunctionArg) {
             exit_scope(tok_id - 1);
           }
+          if (scopes.top().type == ScopeType::FunctionParam) {
+            exit_scope(tok_id - 1);
+          }
           if (scopes.top().type == ScopeType::TemplateArg) {
             exit_scope(tok_id - 1);
           }
           if (scopes.top().type == ScopeType::Attributes) {
+            exit_scope(tok_id - 1);
+          }
+          if (scopes.top().type == ScopeType::Attribute) {
             exit_scope(tok_id - 1);
           }
           break;
@@ -465,6 +541,9 @@ void Parser::parse_scopes(report_callback &report_error)
           }
           if (scopes.top().type == ScopeType::FunctionArgs) {
             enter_scope(ScopeType::FunctionArg, tok_id);
+          }
+          if (scopes.top().type == ScopeType::FunctionCall) {
+            enter_scope(ScopeType::FunctionParam, tok_id);
           }
           if (scopes.top().type == ScopeType::LoopArgs) {
             enter_scope(ScopeType::LoopArg, tok_id);
@@ -476,6 +555,16 @@ void Parser::parse_scopes(report_callback &report_error)
       }
     }
 
+    if (scopes.empty()) {
+      Token token = Token::from_position(this, tok_id);
+      report_error(
+          token.line_number(), token.char_number(), token.line_str(), "Extraneous end of scope");
+
+      /* Avoid out of bound access for the rest of the processing. Empty everything. */
+      *this = {};
+      return;
+    }
+
     if (scopes.top().type == ScopeType::Preprocessor) {
       exit_scope(tok_id - 1);
     }
@@ -484,7 +573,7 @@ void Parser::parse_scopes(report_callback &report_error)
       ScopeItem scope_item = scopes.top();
       Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
       report_error(
-          token.line_number(), token.char_number(), token.line_str(), "unterminated scope");
+          token.line_number(), token.char_number(), token.line_str(), "Unterminated scope");
 
       /* Avoid out of bound access for the rest of the processing. Empty everything. */
       *this = {};

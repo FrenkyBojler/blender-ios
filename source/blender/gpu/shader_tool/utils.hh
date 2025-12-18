@@ -23,7 +23,7 @@ namespace blender::gpu::shader::parser {
 using report_callback = std::function<void(
     int error_line, int error_char, std::string error_line_string, const char *error_str)>;
 
-/* Poor man's IndexRange. */
+/** Poor man's IndexRange. */
 struct IndexRange {
   int64_t start;
   int64_t size;
@@ -32,6 +32,9 @@ struct IndexRange {
 
   bool overlaps(IndexRange other) const
   {
+    if (start == other.start && size == other.size) {
+      return true;
+    }
     return ((start < other.start) && (other.start < (start + size))) ||
            ((other.start < start) && (start < (other.start + other.size)));
   }
@@ -42,7 +45,7 @@ struct IndexRange {
   }
 };
 
-/* Poor man's OffsetIndices. */
+/** Poor man's OffsetIndices. */
 struct OffsetIndices {
   std::vector<size_t> offsets;
 
@@ -74,18 +77,11 @@ struct TimeIt {
   }
 };
 
-static inline size_t line_number(const std::string &prefix_string)
-{
-  std::string directive = "#line ";
-  /* String to count the number of line. */
-  std::string sub_str = prefix_string;
-  size_t nearest_line_directive = sub_str.rfind(directive);
-  size_t line_count = 1;
-  if (nearest_line_directive != std::string::npos) {
-    sub_str = sub_str.substr(nearest_line_directive + directive.size());
-    line_count = std::stoll(sub_str) - 1;
-  }
-  return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
-}
+/** Return the line number this token is found at. Take into account the #line directives. */
+size_t line_number(const std::string &str, size_t pos);
+/** Return the offset to the start of the line. */
+size_t char_number(const std::string &str, size_t pos);
+/** Returns a string of the line containing the character at the given position. */
+std::string line_str(const std::string &str, size_t pos);
 
 }  // namespace blender::gpu::shader::parser

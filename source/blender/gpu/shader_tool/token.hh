@@ -80,6 +80,8 @@ enum TokenType : char {
   Using = 'u',
   Private = 'v',
   Public = 'V',
+  Inline = 'l',
+  Union = 'o',
 };
 
 static inline TokenType to_type(const char c)
@@ -309,29 +311,33 @@ struct Token {
     return str.substr(1, str.length() - 2);
   }
 
-  /* Return the line number this token is found at. Take into account the #line directives. */
-  size_t line_number() const
+  /* Return the line number this token is found at. Take into account the #line directives.
+   * If `at_end` is true, return the line number after this token. */
+  size_t line_number(bool at_end = false) const
   {
-    return parser::line_number(data->str.substr(0, str_index_start()));
+    if (is_invalid()) {
+      return 0;
+    }
+    if (at_end) {
+      return parser::line_number(data->str, str_index_last()) +
+             int(data->str[str_index_last()] == '\n');
+    }
+    return parser::line_number(data->str, str_index_start());
   }
 
   /* Return the offset to the start of the line. */
   size_t char_number() const
   {
-    std::string sub_str = data->str.substr(0, str_index_start());
-    size_t nearest_line_directive = sub_str.rfind('\n');
-    return (nearest_line_directive == std::string::npos) ?
-               (sub_str.size()) :
-               (sub_str.size() - nearest_line_directive - 1);
+    if (is_invalid()) {
+      return 0;
+    }
+    return parser::char_number(data->str, str_index_start());
   }
 
   /* Return the line the token is at. */
   std::string line_str() const
   {
-    size_t start = data->str.rfind('\n', str_index_start());
-    size_t end = data->str.find('\n', str_index_start());
-    start = (start != std::string::npos) ? start + 1 : 0;
-    return data->str.substr(start, end - start);
+    return parser::line_str(data->str, str_index_start());
   }
 
   TokenType type() const
@@ -341,6 +347,11 @@ struct Token {
     }
     return TokenType(data->token_types[index]);
   }
+
+  /* Return the attribute scope before this token if it exists. */
+  Scope attribute_before() const;
+  /* Return the attribute scope after this token if it exists. */
+  Scope attribute_after() const;
 
   bool operator==(TokenType type) const
   {

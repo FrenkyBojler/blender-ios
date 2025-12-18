@@ -63,26 +63,26 @@ static void node_composit_buts_defocus(ui::Layout &layout, bContext *C, PointerR
   {
     ui::Layout &col = layout.column(false);
     col.label(IFACE_("Bokeh Type:"), ICON_NONE);
-    col.prop(ptr, "bokeh", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-    col.prop(ptr, "angle", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    col.prop(ptr, "bokeh", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    col.prop(ptr, "angle", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 
   {
     ui::Layout &col = layout.column(false);
     col.active_set(RNA_boolean_get(ptr, "use_zbuffer") == true);
-    col.prop(ptr, "f_stop", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    col.prop(ptr, "f_stop", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 
-  layout.prop(ptr, "blur_max", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "blur_max", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-  uiTemplateID(&layout, C, ptr, "scene", nullptr, nullptr, nullptr);
+  template_id(&layout, C, ptr, "scene", nullptr, nullptr, nullptr);
 
   {
     ui::Layout &col = layout.column(false);
-    col.prop(ptr, "use_zbuffer", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    col.prop(ptr, "use_zbuffer", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     ui::Layout &sub = col.column(false);
     sub.active_set(RNA_boolean_get(ptr, "use_zbuffer") == false);
-    sub.prop(ptr, "z_scale", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    sub.prop(ptr, "z_scale", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 }
 
@@ -183,8 +183,8 @@ class DefocusOperation : public NodeOperation {
        * transform the texel into the normalized range [0, 1] needed to sample the weights sampler.
        * Finally, invert the textures coordinates by subtracting from 1 to maintain the shape of
        * the weights as mentioned in the function description. */
-      return bokeh_kernel.sample_bilinear_extended(
-          1.0f - ((float2(texel) + float2(radius + 0.5f)) / (radius * 2.0f + 1.0f)));
+      return float4(bokeh_kernel.sample_bilinear_extended<Color>(
+          1.0f - ((float2(texel) + float2(radius + 0.5f)) / (radius * 2.0f + 1.0f))));
     };
 
     parallel_for(domain.data_size, [&](const int2 texel) {

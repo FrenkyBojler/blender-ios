@@ -188,7 +188,10 @@ static void assert_valid_panels_recursive(const NodeDeclaration &node_decl,
     if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
       if (socket_decl->in_out == SOCK_IN) {
         BLI_assert(node_decl.allow_any_socket_order || !found_panel);
-        found_input = true;
+        /* Panel toggles are always the first socket, breaking expected outputs-inputs ordering. */
+        if (!socket_decl->is_panel_toggle) {
+          found_input = true;
+        }
         r_flat_inputs.append(socket_decl);
       }
       else {
@@ -353,6 +356,21 @@ static bool socket_type_to_static_decl_type(const eNodeSocketDatatype socket_typ
       return true;
     case SOCK_MATERIAL:
       fn(TypeTag<decl::Material>());
+      return true;
+    case SOCK_FONT:
+      fn(TypeTag<decl::Font>());
+      return true;
+    case SOCK_SCENE:
+      fn(TypeTag<decl::Scene>());
+      return true;
+    case SOCK_TEXT_ID:
+      fn(TypeTag<decl::Text>());
+      return true;
+    case SOCK_MASK:
+      fn(TypeTag<decl::Mask>());
+      return true;
+    case SOCK_SOUND:
+      fn(TypeTag<decl::Sound>());
       return true;
     case SOCK_MENU:
       fn(TypeTag<decl::Menu>());
