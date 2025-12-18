@@ -218,6 +218,7 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   poseAnim_mapping_get(C, &pso->pfLinks);
   ObjectsInModeParams params = {0};
   params.object_mode = OB_MODE_POSE;
+  /* Explicitly setting this to false because we *do* want this to work for armature instances. */
   params.no_dup_data = false;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_params(
       CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), &params);
