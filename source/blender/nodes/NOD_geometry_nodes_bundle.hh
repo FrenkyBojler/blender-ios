@@ -42,6 +42,12 @@ struct BundleItemValue {
   template<typename T>
   std::optional<T> as_socket_value(const bke::bNodeSocketType &socket_type) const;
   template<typename T> std::optional<T> as() const;
+
+  /**
+   * Get a pointer to the underlying stored single value.
+   */
+  template<typename T> T *as_pointer();
+  template<typename T> const T *as_pointer() const;
 };
 
 /**
@@ -72,8 +78,11 @@ class Bundle : public ImplicitSharingMixin {
   template<typename T> void add_path_override(StringRef path, T value);
 
   bool remove(StringRef key);
+  bool remove_path(StringRef path);
+  bool remove_path(Span<StringRef> path);
   bool contains(StringRef key) const;
   bool contains_path(StringRef path) const;
+  bool contains_path(Span<StringRef> path) const;
 
   const BundleItemValue *lookup(StringRef key) const;
   const BundleItemValue *lookup_path(Span<StringRef> path) const;
@@ -115,6 +124,26 @@ inline std::optional<T> BundleItemValue::as_socket_value(
     return converted_value->get<T>();
   }
   return std::nullopt;
+}
+
+template<typename T> inline T *BundleItemValue::as_pointer()
+{
+  return const_cast<T *>(std::as_const(*this).as_pointer<T>());
+}
+template<typename T> inline const T *BundleItemValue::as_pointer() const
+{
+  const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&this->value);
+  if (!socket_value) {
+    return nullptr;
+  }
+  if (!socket_value->value.is_single()) {
+    return nullptr;
+  }
+  const GPointer ptr = socket_value->value.get_single_ptr();
+  if (!ptr.is_type<T>()) {
+    return nullptr;
+  }
+  return ptr.get<T>();
 }
 
 template<typename T> inline const bke::bNodeSocketType *socket_type_info_by_static_type()
