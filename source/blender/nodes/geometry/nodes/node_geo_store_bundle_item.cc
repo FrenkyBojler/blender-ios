@@ -6,8 +6,6 @@
 
 #include "NOD_geo_bundle.hh"
 #include "NOD_socket_items_blend.hh"
-#include "NOD_socket_items_ops.hh"
-#include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
 #include "NOD_sync_sockets.hh"
 
@@ -36,7 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Bundle>("Bundle");
   b.add_output<decl::Bundle>("Bundle").align_with_previous();
-  b.add_input<decl::String>("Name").optional_label();
+  b.add_input<decl::String>("Path").optional_label();
 
   if (node != nullptr) {
     const NodeStoreBundleItem &storage = node_storage(*node);
@@ -55,7 +53,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeStoreBundleItem *data = MEM_callocN<NodeStoreBundleItem>(__func__);
-  data->socket_type = SOCK_GEOMETRY;
+  data->socket_type = SOCK_FLOAT;
   node->storage = data;
 }
 
@@ -70,12 +68,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   if (!bundle_ptr->is_mutable()) {
     bundle_ptr = bundle_ptr->copy();
+    bundle_ptr->tag_ensured_mutable();
   }
 
   Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
 
-  const std::string name = params.extract_input<std::string>("Name");
-  if (name.empty()) {
+  const std::string path = params.extract_input<std::string>("Path");
+  if (path.empty()) {
     params.set_output("Bundle", std::move(bundle_ptr));
     return;
   }
@@ -93,7 +92,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  bundle.add_path_override(name, BundleItemSocketValue{stype, std::move(value)});
+  bundle.add_path_override(path, BundleItemSocketValue{stype, std::move(value)});
 
   params.set_output("Bundle", std::move(bundle_ptr));
 }
@@ -103,33 +102,17 @@ static void node_rna(StructRNA *srna)
   RNA_def_node_enum(
       srna,
       "socket_type",
-      "Data Type",
+      "Socket Type",
       "",
       rna_enum_node_socket_data_type_items,
       NOD_storage_enum_accessors(socket_type),
-      SOCK_GEOMETRY,
+      SOCK_FLOAT,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(rna_enum_node_socket_data_type_items,
-                                 [](const EnumPropertyItem &item) -> bool {
-                                   return ELEM(item.value,
-                                               SOCK_FLOAT,
-                                               SOCK_INT,
-                                               SOCK_BOOLEAN,
-                                               SOCK_ROTATION,
-                                               SOCK_MATRIX,
-                                               SOCK_VECTOR,
-                                               SOCK_STRING,
-                                               SOCK_RGBA,
-                                               SOCK_GEOMETRY,
-                                               SOCK_OBJECT,
-                                               SOCK_COLLECTION,
-                                               SOCK_MATERIAL,
-                                               SOCK_IMAGE,
-                                               SOCK_MENU,
-                                               SOCK_BUNDLE,
-                                               SOCK_CLOSURE);
-                                 });
+        return enum_items_filter(
+            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
+              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 0); //todo
+            });
       });
 }
 
@@ -139,12 +122,10 @@ static void node_register()
 
   geo_node_type_base(&ntype, "NodeStoreBundleItem");
   ntype.ui_name = "Store Bundle Item";
-  ntype.ui_description = "Store a bundle item by name and data type.";
+  ntype.ui_description = "Store a bundle item by path and data type.";
   ntype.nclass = NODE_CLASS_CONVERTER;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeStoreBundleItem",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      ntype, "NodeStoreBundleItem", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

@@ -9,8 +9,6 @@
 #include "NOD_geo_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_rna_define.hh"
-#include "NOD_socket_items_blend.hh"
-#include "NOD_socket_items_ui.hh"
 #include "NOD_sync_sockets.hh"
 
 #include "BKE_idprop.hh"
@@ -43,7 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_output(socket_type, "Item");
   }
   b.add_output<decl::Bool>("Exists");
-  b.add_input<decl::String>("Name").optional_label();
+  b.add_input<decl::String>("Path").optional_label();
   b.add_input<decl::Bool>("Remove");
 }
 
@@ -57,7 +55,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGetBundleItem *data = MEM_callocN<NodeGetBundleItem>(__func__);
-  data->socket_type = SOCK_GEOMETRY;
+  data->socket_type = SOCK_FLOAT;
   node->storage = data;
 }
 
@@ -72,16 +70,16 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const std::string name = params.extract_input<std::string>("Name");
+  const std::string path = params.extract_input<std::string>("Path");
   const bool remove = params.extract_input<bool>("Remove");
 
-  if (name.empty()) {
+  if (path.empty()) {
     params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
   }
 
-  const BundleItemValue *value = bundle->lookup_path(name);
+  const BundleItemValue *value = bundle->lookup_path(path);
   if (!value) {
     params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
@@ -91,14 +89,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!socket_value) {
     params.error_message_add(
         NodeWarningType::Error,
-        fmt::format("{}: \"{}\"", TIP_("Cannot get internal value from bundle"), name));
+        fmt::format("{}: \"{}\"", TIP_("Cannot get internal value from bundle"), path));
     params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
   }
 
   const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.socket_type, 0);
-  SocketValueVariant output_value = std::move(socket_value->value);
+  SocketValueVariant output_value = socket_value->value;
   if (socket_value->type->type != stype->type) {
     params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
@@ -110,7 +108,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       bundle = bundle->copy();
     }
     bundle->tag_ensured_mutable();
-    const_cast<Bundle &>(*bundle).remove(name);
+    const_cast<Bundle &>(*bundle).remove(path);
   }
 
   params.set_output("Bundle", std::move(bundle));
@@ -123,33 +121,17 @@ static void node_rna(StructRNA *srna)
   RNA_def_node_enum(
       srna,
       "socket_type",
-      "Data Type",
+      "Socket Type",
       "",
       rna_enum_node_socket_data_type_items,
       NOD_storage_enum_accessors(socket_type),
-      SOCK_GEOMETRY,
+      SOCK_FLOAT,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(rna_enum_node_socket_data_type_items,
-                                 [](const EnumPropertyItem &item) -> bool {
-                                   return ELEM(item.value,
-                                               SOCK_FLOAT,
-                                               SOCK_INT,
-                                               SOCK_BOOLEAN,
-                                               SOCK_ROTATION,
-                                               SOCK_MATRIX,
-                                               SOCK_VECTOR,
-                                               SOCK_STRING,
-                                               SOCK_RGBA,
-                                               SOCK_GEOMETRY,
-                                               SOCK_OBJECT,
-                                               SOCK_COLLECTION,
-                                               SOCK_MATERIAL,
-                                               SOCK_IMAGE,
-                                               SOCK_MENU,
-                                               SOCK_BUNDLE,
-                                               SOCK_CLOSURE);
-                                 });
+        return enum_items_filter(
+            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
+              return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value), 0); //todo
+            });
       });
 }
 
@@ -159,7 +141,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "NodeGetBundleItem");
   ntype.ui_name = "Get Bundle Item";
-  ntype.ui_description = "Retrieve a bundle item by name and data type.";
+  ntype.ui_description = "Retrieve a bundle item by path and data type.";
   ntype.nclass = NODE_CLASS_CONVERTER;
   blender::bke::node_type_storage(
       ntype, "NodeGetBundleItem", node_free_standard_storage, node_copy_standard_storage);
