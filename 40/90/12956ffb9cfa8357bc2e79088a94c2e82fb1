@@ -3,3 +3,4 @@ Referenced by issue #130867, macOS: Crash on startup using Overlay-Next
 Referenced by issue #134784, Regression: Object 'bounds' & 'wire' behavior changed while in cycles render preview
 Referenced by issue #134808, Blender Crash using Grease Pencil Interpolation
 Referenced by issue #148608, With Overlay-Next, opaque "in front" images hide edit mode geometry
+Referenced by issue #147721, Window freezes when in edit mode
