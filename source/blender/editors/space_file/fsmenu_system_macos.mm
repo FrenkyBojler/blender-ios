@@ -82,7 +82,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
       if (!volume_is_local.boolValue) {
         icon = ICON_NETWORK_DRIVE;
       }
-      if (volume_is_ejectable.boolValue) {
+      else if (volume_is_ejectable.boolValue) {
         icon = ICON_EXTERNAL_DRIVE;
       }
 

@@ -165,7 +165,8 @@ class DirectionalBlurOperation : public NodeOperation {
                                            float2(-current_sin, current_cos));
         transformed_coordinates += origin;
 
-        accumulated_color += input.sample_bilinear_zero(transformed_coordinates / float2(size));
+        accumulated_color += float4(
+            input.sample_bilinear_zero<Color>(transformed_coordinates / float2(size)));
 
         current_scale += delta_scale;
         current_translation += delta_translation;
@@ -249,35 +250,34 @@ class DirectionalBlurOperation : public NodeOperation {
 
   int get_samples()
   {
-    return math::clamp(this->get_input("Samples").get_single_value_default(1), 1, 29);
+    return math::clamp(this->get_input("Samples").get_single_value_default<int>(), 1, 29);
   }
 
   float2 get_center()
   {
-    return math::clamp(this->get_input("Center").get_single_value_default(float2(0.5f)),
-                       float2(0.0f),
-                       float2(1.0f));
+    return math::clamp(
+        this->get_input("Center").get_single_value_default<float2>(), float2(0.0f), float2(1.0f));
   }
 
   float get_translation_amount()
   {
     return math::clamp(
-        this->get_input("Translation Amount").get_single_value_default(0.0f), -1.0f, 1.0f);
+        this->get_input("Translation Amount").get_single_value_default<float>(), -1.0f, 1.0f);
   }
 
   float get_translation_direction()
   {
-    return this->get_input("Translation Direction").get_single_value_default(0.0f);
+    return this->get_input("Translation Direction").get_single_value_default<float>();
   }
 
   float get_rotation()
   {
-    return this->get_input("Rotation").get_single_value_default(0.0f);
+    return this->get_input("Rotation").get_single_value_default<float>();
   }
 
   float get_scale()
   {
-    return math::max(10e-6f, this->get_input("Scale").get_single_value_default(1.0f));
+    return math::max(10e-6f, this->get_input("Scale").get_single_value_default<float>());
   }
 };
 

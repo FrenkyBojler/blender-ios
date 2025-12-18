@@ -118,7 +118,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       input.supports_field();
     }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
-    input.optional_label(ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
+    input.optional_label(ELEM(data_type,
+                              SOCK_OBJECT,
+                              SOCK_IMAGE,
+                              SOCK_COLLECTION,
+                              SOCK_MATERIAL,
+                              SOCK_FONT,
+                              SOCK_SCENE,
+                              SOCK_TEXT_ID,
+                              SOCK_MASK,
+                              SOCK_SOUND));
     input.structure_type(value_structure_type);
   }
 
@@ -404,7 +413,7 @@ class IndexSwitchOperation : public NodeOperation {
   void execute() override
   {
     Result &output = this->get_result("Output");
-    const int index = this->get_input("Index").get_single_value_default(0);
+    const int index = this->get_input("Index").get_single_value_default<int>();
     const NodeIndexSwitch &storage = node_storage(bnode());
 
     if (!IndexRange(storage.items_num).contains(index)) {

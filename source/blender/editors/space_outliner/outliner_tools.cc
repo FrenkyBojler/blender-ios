@@ -88,6 +88,7 @@
 #include "RNA_enum_types.hh"
 
 #include "ANIM_action_legacy.hh"
+#include "ANIM_armature.hh"
 
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
@@ -2116,14 +2117,14 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
 
   if (event == OL_DOP_SELECT) {
-    pchan->flag |= POSE_SELECTED_ALL;
+    blender::animrig::bone_select(pchan);
   }
   else if (event == OL_DOP_DESELECT) {
-    pchan->flag &= ~POSE_SELECTED_ALL;
+    blender::animrig::bone_deselect(pchan);
   }
   else if (event == OL_DOP_HIDE) {
     pchan->drawflag |= PCHAN_DRAW_HIDDEN;
-    pchan->flag &= ~POSE_SELECTED_ALL;
+    blender::animrig::bone_deselect(pchan);
   }
   else if (event == OL_DOP_UNHIDE) {
     pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
@@ -3221,16 +3222,6 @@ static wmOperatorStatus outliner_action_set_exec(bContext *C, wmOperator *op)
   if (act == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "No valid action to add");
     return OPERATOR_CANCELLED;
-  }
-  if (act->idroot == 0 && blender::animrig::legacy::action_treat_as_legacy(*act)) {
-    /* Hopefully in this case (i.e. library of userless actions),
-     * the user knows what they're doing. */
-    BKE_reportf(op->reports,
-                RPT_WARNING,
-                "Action '%s' does not specify what data-blocks it can be used on "
-                "(try setting the 'ID Root Type' setting from the data-blocks editor "
-                "for this action to avoid future problems)",
-                act->id.name + 2);
   }
 
   /* perform action if valid channel */
