@@ -11,8 +11,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${ALEMBIC_INCLUDE_DIRS}
-  ${OPENEXR_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -84,8 +82,8 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   bf_io_common
 
-  ${ALEMBIC_LIBRARIES}
-  ${OPENEXR_LIBRARIES}
+  PRIVATE bf::dependencies::optional::alembic
+  PRIVATE bf::dependencies::optional::openexr
   PRIVATE bf::windowmanager
 )
 

@@ -40,18 +40,8 @@ set(SRC
 
 set(LIB
   PRIVATE bf::intern::atomic
+  PRIVATE bf::dependencies::pthreads
 )
-
-if(WIN32 AND NOT UNIX)
-  list(APPEND INC_SYS
-    ${PTHREADS_INC}
-  )
-  if(DEFINED PTHREADS_LIBRARIES)
-    list(APPEND LIB
-      ${PTHREADS_LIBRARIES}
-    )
-  endif()
-endif()
 
 if(WITH_MEM_JEMALLOC)
   add_definitions(-DWITH_MEM_JEMALLOC)

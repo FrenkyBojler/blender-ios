@@ -53,11 +53,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${USD_INCLUDE_DIRS}
-  ${BOOST_INCLUDE_DIR}
-  ${TBB_INCLUDE_DIRS}
-  ${PYTHON_INCLUDE_DIR}
-
 )
 
 set(SRC
@@ -216,10 +211,9 @@ set(LIB
 )
 
 list(APPEND LIB
-  ${BOOST_PYTHON_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-  ${USD_LIBRARIES}
-  ${TBB_LIBRARIES}
+  bf::dependencies::optional::python
+  bf::dependencies::optional::usd
+  bf::dependencies::optional::tbb
 )
 
 if(WITH_MATERIALX)

@@ -419,14 +419,11 @@ set(LIB
 
 # Select Backend source based on availability
 if(WITH_OPENGL_BACKEND)
-  list(APPEND INC_SYS
-    ${Epoxy_INCLUDE_DIRS}
-  )
   list(APPEND SRC
     ${OPENGL_SRC}
   )
   list(APPEND LIB
-    ${Epoxy_LIBRARIES}
+    bf::dependencies::optional::epoxy
   )
   add_definitions(-DWITH_OPENGL_BACKEND)
 endif()
@@ -437,24 +434,13 @@ endif()
 
 
 if(WITH_VULKAN_BACKEND)
-  list(APPEND INC
-    ../../../extern/vulkan_memory_allocator
-  )
-  list(APPEND INC_SYS
-    ${VULKAN_INCLUDE_DIRS}
-  )
-
-  list(APPEND INC_SYS
-    ${SHADERC_INCLUDE_DIRS}
-  )
   list(APPEND SRC
     ${VULKAN_SRC}
   )
-
   list(APPEND LIB
-    ${VULKAN_LIBRARIES}
-    ${SHADERC_LIBRARIES}
-    extern_vulkan_memory_allocator
+    PRIVATE bf::dependencies::optional::vulkan
+    PRIVATE bf::dependencies::optional::shaderc
+    PRIVATE bf::extern::vulkan_memory_allocator
     PRIVATE bf::extern::xxhash
   )
 

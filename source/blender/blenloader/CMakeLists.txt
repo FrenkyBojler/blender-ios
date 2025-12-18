@@ -12,7 +12,6 @@ set(INC
 )
 
 set(INC_SYS
-  ${ZSTD_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -77,6 +76,7 @@ set(LIB
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
   PRIVATE bf::extern::xxhash
+  PRIVATE bf::dependencies::zstd
 )
 
 if(WITH_BUILDINFO)
@@ -117,13 +117,13 @@ if(WITH_GTESTS)
   )
   set(TEST_UTIL_INC_SYS
     ${INC_SYS}
-    ${GFLAGS_INCLUDE_DIRS}
-    ${GLOG_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/extern/gtest/include
   )
   set(TEST_UTIL_LIB
     ${LIB}
     PRIVATE bf::blenfont
+    PRIVATE bf::dependencies::gflags
+    PRIVATE bf::dependencies::glog
     bf_blenloader
   )
   blender_add_lib(bf_blenloader_test_util "${TEST_UTIL_SRC}" "${TEST_UTIL_INC}" "${TEST_UTIL_INC_SYS}" "${TEST_UTIL_LIB}")
