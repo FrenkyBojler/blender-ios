@@ -4644,6 +4644,13 @@ static bool ui_do_but_extra_operator_icon(bContext *C,
     /* Still swallow events on the icon. */
     return true;
   }
+  if (event->type == event->prev_press_type) {
+    /* Release should be close to the press. #151371. */
+    const float icon_size = 0.8f * BLI_rctf_size_y(&but->rect);
+    if (abs(event->prev_press_xy[0] - event->xy[0]) > icon_size) {
+      return true;
+    }
+  }
 
   ED_region_tag_redraw(data->region);
   button_tooltip_timer_reset(C, but);
@@ -9986,20 +9993,10 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
   return retval;
 }
 
-static int ui_list_get_increment(const uiList *ui_list, const int type, const int columns)
+static int ui_list_get_increment(const uiList *ui_list, const int type)
 {
-  int increment = 0;
-
-  /* Handle column offsets for grid layouts. */
-  if (ELEM(type, EVT_UPARROWKEY, EVT_DOWNARROWKEY) &&
-      ELEM(ui_list->layout_type, UILST_LAYOUT_BIG_PREVIEW_GRID))
-  {
-    increment = (type == EVT_UPARROWKEY) ? -columns : columns;
-  }
-  else {
-    /* Left or right in grid layouts or any direction in single column layouts increments by 1. */
-    increment = ELEM(type, EVT_UPARROWKEY, EVT_LEFTARROWKEY, WHEELUPMOUSE) ? -1 : 1;
-  }
+  /* Left or right in grid layouts or any direction in single column layouts increments by 1. */
+  int increment = ELEM(type, EVT_UPARROWKEY, EVT_LEFTARROWKEY, WHEELUPMOUSE) ? -1 : 1;
 
   if ((ui_list->filter_sort_flag & UILST_FLT_SORT_REVERSE) != 0) {
     increment *= -1;
@@ -10053,7 +10050,7 @@ static int ui_handle_list_event(bContext *C,
       int value, min, max;
 
       value = value_orig;
-      const int inc = ui_list_get_increment(ui_list, type, dyn_data->columns);
+      const int inc = ui_list_get_increment(ui_list, type);
 
       if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
         /* If we have a display order different from
