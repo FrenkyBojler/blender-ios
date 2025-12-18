@@ -12,7 +12,9 @@
 
 #  include "draw_attribute_shader_shared.hh"
 #  include "draw_object_infos_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define DRW_HAIR_INFO
 #endif
 
@@ -46,7 +48,7 @@ STORAGE_BUF(CURVE_CYCLIC_SLOT, read, uint, curves_cyclic_buf[]) /* Actually bool
 STORAGE_BUF(HANDLES_POS_LEFT_SLOT, read, float, handles_positions_left_buf[])
 STORAGE_BUF(HANDLES_POS_RIGHT_SLOT, read, float, handles_positions_right_buf[])
 STORAGE_BUF(BEZIER_OFFSETS_SLOT, read, int, bezier_offsets_buf[])
-/* Nurbs (alias of other buffers).  */
+/* Nurbs (alias of other buffers). */
 // STORAGE_BUF(CURVES_ORDER_SLOT, read, uint, curves_order_buf[])  /* Actually int8_t. */
 // STORAGE_BUF(BASIS_CACHE_SLOT, read, float, basis_cache_buf[])
 // STORAGE_BUF(CONTROL_WEIGHTS_SLOT, read, float, control_weights_buf[])
@@ -77,6 +79,7 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_curves_interpolate_float4_attribute)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 ADDITIONAL_INFO(draw_curves_data)
 STORAGE_BUF(POINT_ATTR_SLOT, read, StoredFloat4, attribute_float4_buf[])
 STORAGE_BUF(EVALUATED_ATTR_SLOT, read_write, StoredFloat4, evaluated_float4_buf[])
@@ -85,6 +88,7 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_curves_interpolate_float3_attribute)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 ADDITIONAL_INFO(draw_curves_data)
 STORAGE_BUF(POINT_ATTR_SLOT, read, StoredFloat3, attribute_float3_buf[])
 STORAGE_BUF(EVALUATED_ATTR_SLOT, read_write, StoredFloat3, evaluated_float3_buf[])
@@ -93,6 +97,7 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_curves_interpolate_float2_attribute)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 ADDITIONAL_INFO(draw_curves_data)
 STORAGE_BUF(POINT_ATTR_SLOT, read, StoredFloat2, attribute_float2_buf[])
 STORAGE_BUF(EVALUATED_ATTR_SLOT, read_write, StoredFloat2, evaluated_float2_buf[])
@@ -101,6 +106,7 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_curves_interpolate_float_attribute)
+BUILTINS(BuiltinBits::NO_BUFFER_TYPE_LINTING)
 ADDITIONAL_INFO(draw_curves_data)
 STORAGE_BUF(POINT_ATTR_SLOT, read, StoredFloat, attribute_float_buf[])
 STORAGE_BUF(EVALUATED_ATTR_SLOT, read_write, StoredFloat, evaluated_float_buf[])

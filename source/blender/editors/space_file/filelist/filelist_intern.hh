@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "BLI_fileops.h"
+#include "BLI_map.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_space_enums.h"
@@ -136,10 +137,10 @@ struct FileListEntryCache {
    * NOTE: Not 100% sure we actually need that, time will say. */
   int misc_cursor = 0;
   int *misc_entries_indices = nullptr;
-  GHash *misc_entries = nullptr;
+  blender::Map<int, FileDirEntry *> misc_entries;
 
   /* Allows to quickly get a cached entry from its UID. */
-  GHash *uids = nullptr;
+  blender::Map<int, FileDirEntry *> uids;
 
   /* Previews handling. */
   TaskPool *previews_pool = nullptr;
@@ -274,6 +275,10 @@ enum {
 enum FileListTags {
   /** The file list has references to main data (IDs) and needs special care. */
   FILELIST_TAGS_USES_MAIN_DATA = (1 << 0),
+  /**
+   * Apply fuzzy search on results left after applying #FileList.filter_fn.
+   */
+  FILELIST_TAGS_APPLY_FUZZY_SEARCH = (1 << 1),
   /** The file list type is not thread-safe. */
   FILELIST_TAGS_NO_THREADS = (1 << 2),
 };

@@ -135,7 +135,7 @@ class MapUVOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     input_uv.unbind_as_texture();
@@ -172,18 +172,18 @@ class MapUVOperation : public NodeOperation {
   void execute_single()
   {
     const Interpolation interpolation = this->get_interpolation();
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    const Extension extension_mode_x = this->get_extension_mode_x();
+    const Extension extension_mode_y = this->get_extension_mode_y();
     const Result &input_uv = get_input("UV");
     const Result &input_image = get_input("Image");
 
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
-    float4 sampled_color = sample_pixel(this->context(),
-                                        input_image,
-                                        interpolation,
-                                        extension_mode_x,
-                                        extension_mode_y,
-                                        uv_coordinates);
+    float4 sampled_color = float4(sample_pixel(this->context(),
+                                               input_image,
+                                               interpolation,
+                                               extension_mode_x,
+                                               extension_mode_y,
+                                               uv_coordinates));
 
     /* The UV input is assumed to contain an alpha channel as its third channel, since the
      * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
@@ -197,13 +197,13 @@ class MapUVOperation : public NodeOperation {
 
     Result &output = get_result("Image");
     output.allocate_single_value();
-    output.set_single_value(result);
+    output.set_single_value(Color(result));
   }
 
   void execute_cpu_interpolation(const Interpolation &interpolation)
   {
-    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
-    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+    const Extension extension_mode_x = this->get_extension_mode_x();
+    const Extension extension_mode_y = this->get_extension_mode_y();
     const Result &input_image = get_input("Image");
     const Result &input_uv = get_input("UV");
 
@@ -211,10 +211,10 @@ class MapUVOperation : public NodeOperation {
     Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float2 uv_coordinates = input_uv.load_pixel<float3>(texel).xy();
-      float4 sampled_color = input_image.sample(
-          uv_coordinates, interpolation, extension_mode_x, extension_mode_y);
+      float4 sampled_color = float4(input_image.sample<Color>(
+          uv_coordinates, interpolation, extension_mode_x, extension_mode_y));
       /* The UV input is assumed to contain an alpha channel as its third channel, since the
        * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
        * In that case, the alpha is typically opaque at the subset area and transparent
@@ -225,7 +225,7 @@ class MapUVOperation : public NodeOperation {
 
       float4 result = sampled_color * alpha;
 
-      output_image.store_pixel(texel, result);
+      output_image.store_pixel(texel, Color(result));
     });
   }
 
@@ -244,8 +244,8 @@ class MapUVOperation : public NodeOperation {
      * the image in 2x2 blocks of pixels, where the derivatives are computed horizontally and
      * vertically across the 2x2 block such that odd texels use a forward finite difference
      * equation while even invocations use a backward finite difference equation. */
-    const int2 size = domain.size;
-    const int2 uv_size = input_uv.domain().size;
+    const int2 size = domain.data_size;
+    const int2 uv_size = input_uv.domain().data_size;
     parallel_for(math::divide_ceil(size, int2(2)), [&](const int2 base_texel) {
       const int x = base_texel.x * 2;
       const int y = base_texel.y * 2;
@@ -274,7 +274,8 @@ class MapUVOperation : public NodeOperation {
                                const float2 &y_gradient) {
         /* Sample the input using the UV coordinates passing in the computed gradients in order
          * to utilize the anisotropic filtering capabilities of the sampler. */
-        float4 sampled_color = input_image.sample_ewa_zero(coordinates, x_gradient, y_gradient);
+        float4 sampled_color = float4(
+            input_image.sample_ewa(coordinates, x_gradient, y_gradient, Extension::Clip));
 
         /* The UV input is assumed to contain an alpha channel as its third channel, since the
          * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
@@ -286,7 +287,7 @@ class MapUVOperation : public NodeOperation {
 
         float4 result = sampled_color * alpha;
 
-        output_image.store_pixel(texel, result);
+        output_image.store_pixel(texel, Color(result));
       };
 
       /* Compute each of the pixels in the 2x2 block, making sure to exempt out of bounds right
@@ -324,7 +325,7 @@ class MapUVOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  ExtensionMode get_extension_mode_x()
+  Extension get_extension_mode_x()
   {
     const Result &input = this->get_input("Extension X");
     const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
@@ -332,17 +333,17 @@ class MapUVOperation : public NodeOperation {
     const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
     switch (extension_x) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+        return Extension::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        return Extension::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        return Extension::Extend;
     }
 
-    return ExtensionMode::Clip;
+    return Extension::Clip;
   }
 
-  ExtensionMode get_extension_mode_y()
+  Extension get_extension_mode_y()
   {
     const Result &input = this->get_input("Extension Y");
     const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
@@ -350,14 +351,14 @@ class MapUVOperation : public NodeOperation {
     const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
     switch (extension_y) {
       case CMP_NODE_EXTENSION_MODE_CLIP:
-        return ExtensionMode::Clip;
+        return Extension::Clip;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
+        return Extension::Repeat;
       case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
+        return Extension::Extend;
     }
 
-    return ExtensionMode::Clip;
+    return Extension::Clip;
   }
 };
 

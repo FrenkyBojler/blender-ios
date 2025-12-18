@@ -45,6 +45,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 #include "UI_view2d.hh"
@@ -517,13 +518,13 @@ static wmOperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
       float ymid = (ymax - ymin) / 2.0f + ymin;
       float x_center;
 
-      UI_view2d_center_get(v2d, &x_center, nullptr);
-      UI_view2d_center_set(v2d, x_center, ymid);
+      blender::ui::view2d_center_get(v2d, &x_center, nullptr);
+      blender::ui::view2d_center_set(v2d, x_center, ymid);
     }
   }
 
   /* do View2D syncing */
-  UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
+  blender::ui::view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
 
   /* just redraw this view */
   ED_area_tag_redraw(CTX_wm_area(C));
@@ -670,16 +671,6 @@ static wmOperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No valid action to add");
     // printf("Add strip - actname = '%s'\n", actname);
     return OPERATOR_CANCELLED;
-  }
-  if (act->idroot == 0 && blender::animrig::legacy::action_treat_as_legacy(*act)) {
-    /* hopefully in this case (i.e. library of userless actions),
-     * the user knows what they're doing... */
-    BKE_reportf(op->reports,
-                RPT_WARNING,
-                "Action '%s' does not specify what data-blocks it can be used on "
-                "(try setting the 'ID Root Type' setting from the data-blocks editor "
-                "for this action to avoid future problems)",
-                act->id.name + 2);
   }
 
   /* add tracks to empty but selected animdata blocks so that strips can be added to those directly
@@ -2127,7 +2118,7 @@ static wmOperatorStatus nlaedit_make_single_user_invoke(bContext *C,
         IFACE_("Make Selected Strips Single-User"),
         IFACE_("Linked actions will be duplicated for each selected strip."),
         IFACE_("Make Single"),
-        ALERT_ICON_WARNING,
+        blender::ui::AlertIcon::Warning,
         false);
   }
   return nlaedit_make_single_user_exec(C, op);
@@ -2222,14 +2213,14 @@ static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*
 
         /* setup iterator, and iterate over all the keyframes in the action,
          * applying this scaling */
+        blender::animrig::Action &action = strip->act->wrap();
+        blender::Span<FCurve *> fcurves = blender::animrig::fcurves_for_action_slot(
+            action, strip->action_slot_handle);
         ked.data = strip;
-        ANIM_animchanneldata_keyframes_loop(&ked,
-                                            ac.ads,
-                                            strip->act,
-                                            ALE_ACT,
-                                            nullptr,
-                                            bezt_apply_nlamapping,
-                                            BKE_fcurve_handles_recalc);
+        for (FCurve *fcurve : fcurves) {
+          ANIM_fcurve_keyframes_loop(
+              &ked, fcurve, nullptr, bezt_apply_nlamapping, BKE_fcurve_handles_recalc);
+        }
 
         /* clear scale of strip now that it has been applied,
          * and recalculate the extents of the action now that it has been scaled
@@ -2249,6 +2240,11 @@ static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*
         strip->actstart = start;
         strip->actend = end;
 
+        /* We have to update the action itself. Tagging the bAnimListElem will just update the ID
+         * owning the NLA, not the action itself. This may be a bug of ANIM_animdata_update but so
+         * far no other operator had issues with this so for this 5.0 fix I (Christoph) kept the
+         * scope of the change small. */
+        DEG_id_tag_update(&strip->act->id, ID_RECALC_ANIMATION);
         ale->update |= ANIM_UPDATE_DEPS;
       }
     }

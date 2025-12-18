@@ -223,6 +223,7 @@ set(SRC_RNA_INC
 
 set(SRC
   makesrna.cc
+  makesrna_utils.cc
   rna_define.cc
   ${DEFSRC}
   ${APISRC}
@@ -230,6 +231,8 @@ set(SRC
   # Needed for defaults.
   ../../../../release/datafiles/userdef/userdef_default.c
   ../../../../release/datafiles/userdef/userdef_default_theme.c
+
+  makesrna_utils.hh
 )
 
 set(INC
@@ -447,6 +450,7 @@ add_custom_command(
 # Build bf_rna
 set(SRC
   rna_access.cc
+  rna_define.cc
   rna_access_compare_override.cc
   rna_path.cc
   ${GENSRC}
@@ -456,7 +460,7 @@ set(SRC
   rna_curves_utils.hh
   rna_internal.hh
   rna_internal_types.hh
-  rna_mesh_utils.hh
+  rna_screen_utils.hh
 )
 
 set(LIB
@@ -489,3 +493,18 @@ set(LIB
 )
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+target_compile_definitions(bf_rna PRIVATE RNA_RUNTIME)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    makesrna_test.cc
+  )
+  set(TEST_LIB
+    ${LIB}
+  )
+  set(TEST_COMMON_SRC
+    makesrna_utils.cc
+  )
+  blender_add_test_suite_lib(bf_makesrna "${TEST_SRC}" "${INC}" "${INC_SYS}" "${TEST_LIB}" "${TEST_COMMON_SRC}")
+endif()

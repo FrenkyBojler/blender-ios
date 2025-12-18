@@ -499,7 +499,7 @@ static void bm_mesh_select_mode_flush_face_to_vert_and_edge(BMesh *bm)
 
 void BM_mesh_select_mode_flush_ex(BMesh *bm, const short selectmode, BMSelectFlushFlag flag)
 {
-  const bool flush_down = bool(flag & BMSelectFlushFlag::Down);
+  const bool flush_down = flag_is_set(flag, BMSelectFlushFlag::Down);
   if (flush_down) {
     if (selectmode & SCE_SELECT_VERTEX) {
       /* Pass. */
@@ -526,13 +526,13 @@ void BM_mesh_select_mode_flush_ex(BMesh *bm, const short selectmode, BMSelectFlu
   /* Remove any deselected elements from the BMEditSelection */
   BM_select_history_validate(bm);
 
-  if (bool(flag & BMSelectFlushFlag::RecalcLenVert)) {
+  if (flag_is_set(flag, BMSelectFlushFlag::RecalcLenVert)) {
     recount_totvertsel(bm);
   }
-  if (bool(flag & BMSelectFlushFlag::RecalcLenEdge)) {
+  if (flag_is_set(flag, BMSelectFlushFlag::RecalcLenEdge)) {
     recount_totedgesel(bm);
   }
-  if (bool(flag & BMSelectFlushFlag::RecalcLenFace)) {
+  if (flag_is_set(flag, BMSelectFlushFlag::RecalcLenFace)) {
     recount_totfacesel(bm);
   }
   BLI_assert(recount_totsels_are_ok(bm));
@@ -1286,8 +1286,11 @@ GHash *BM_select_history_map_create(BMesh *bm)
   return map;
 }
 
-void BM_select_history_merge_from_targetmap(
-    BMesh *bm, GHash *vert_map, GHash *edge_map, GHash *face_map, const bool use_chain)
+void BM_select_history_merge_from_targetmap(BMesh *bm,
+                                            blender::Map<void *, void *> *vert_map,
+                                            blender::Map<void *, void *> *edge_map,
+                                            blender::Map<void *, void *> *face_map,
+                                            const bool use_chain)
 {
 
 #ifndef NDEBUG
@@ -1300,7 +1303,7 @@ void BM_select_history_merge_from_targetmap(
     BM_ELEM_API_FLAG_ENABLE(ese->ele, _FLAG_OVERLAP);
 
     /* Only loop when (use_chain == true). */
-    GHash *map = nullptr;
+    blender::Map<void *, void *> *map = nullptr;
     switch (ese->ele->head.htype) {
       case BM_VERT:
         map = vert_map;
@@ -1318,7 +1321,7 @@ void BM_select_history_merge_from_targetmap(
     if (map != nullptr) {
       BMElem *ele_dst = ese->ele;
       while (true) {
-        BMElem *ele_dst_next = static_cast<BMElem *>(BLI_ghash_lookup(map, ele_dst));
+        BMElem *ele_dst_next = static_cast<BMElem *>(map->lookup_default(ele_dst, nullptr));
         BLI_assert(ele_dst != ele_dst_next);
         if (ele_dst_next == nullptr) {
           break;

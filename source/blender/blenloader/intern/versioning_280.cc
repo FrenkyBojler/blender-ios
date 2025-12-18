@@ -13,12 +13,12 @@
 #include <cfloat>
 #include <cstring>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
@@ -155,7 +155,7 @@ static void do_version_workspaces_create_from_screens(Main *bmain)
     if (workspace == nullptr) {
       continue; /* Not much we can do. */
     }
-    BKE_workspace_layout_add(bmain, workspace, screen, screen->id.name + 2);
+    BKE_workspace_layout_add(bmain, *workspace, *screen, screen->id.name + 2);
   }
 
   bmain->is_locked_for_linking = true;
@@ -619,7 +619,7 @@ static void do_version_constraints_copy_rotation_mix_mode(ListBase *lb)
 static void do_versions_seq_alloc_transform_and_crop(ListBase *seqbase)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD) == 0) {
+    if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD) == 0) {
       if (strip->data->transform == nullptr) {
         strip->data->transform = MEM_callocN<StripTransform>("StripTransform");
       }
@@ -3036,7 +3036,7 @@ enum class eNTreeDoVersionErrors : int8_t {
   NTREE_DOVERSION_NEED_OUTPUT = (1 << 0),
   NTREE_DOVERSION_TRANSPARENCY_EMISSION = (1 << 1),
 };
-ENUM_OPERATORS(eNTreeDoVersionErrors, ~int8_t{});
+ENUM_OPERATORS(eNTreeDoVersionErrors);
 
 /* NOLINTNEXTLINE: readability-function-size */
 void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
@@ -3129,9 +3129,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");
@@ -3141,9 +3139,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           "nodes.\n");
     }
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");

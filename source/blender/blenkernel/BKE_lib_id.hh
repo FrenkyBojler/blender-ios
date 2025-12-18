@@ -33,9 +33,9 @@
 #include <optional>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
 #include "DNA_ID.h"
@@ -283,19 +283,26 @@ enum {
   LIB_ID_COPY_ACTIONS = 1 << 24,
   /** EXCEPTION! Deep-copy shape-keys used by copied obdata ID. */
   LIB_ID_COPY_SHAPEKEY = 1 << 26,
+  /**
+   * EXCEPTION! Deep-copy screen used by copied workspace ID.
+   * WARNING: Should always be used, except in `NO_MAIN` cases of copying. */
+  LIB_ID_COPY_SCREEN = 1 << 27,
   /** EXCEPTION! Specific deep-copy of node trees used e.g. for rendering purposes. */
-  LIB_ID_COPY_NODETREE_LOCALIZE = 1 << 27,
+  LIB_ID_COPY_NODETREE_LOCALIZE = 1 << 28,
   /**
    * EXCEPTION! Specific handling of RB objects regarding collections differs depending whether we
    * duplicate scene/collections, or objects.
    */
-  LIB_ID_COPY_RIGID_BODY_NO_COLLECTION_HANDLING = 1 << 28,
+  LIB_ID_COPY_RIGID_BODY_NO_COLLECTION_HANDLING = 1 << 29,
   /* Copy asset metadata. */
-  LIB_ID_COPY_ASSET_METADATA = 1 << 29,
+  LIB_ID_COPY_ASSET_METADATA = 1 << 30,
 
   /* *** Helper 'defines' gathering most common flag sets. *** */
-  /** Shape-keys are not real ID's, more like local data to geometry IDs. */
-  LIB_ID_COPY_DEFAULT = LIB_ID_COPY_SHAPEKEY,
+  /**
+   * Shape-keys are not real ID's, more like local data to geometry IDs. Same for bScreens being
+   * local data of Workspaces.
+   */
+  LIB_ID_COPY_DEFAULT = LIB_ID_COPY_SHAPEKEY | LIB_ID_COPY_SCREEN,
 
   /** Create a local, outside of bmain, data-block to work on. */
   LIB_ID_CREATE_LOCALIZE = LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT |
@@ -470,7 +477,7 @@ enum eLibIDDuplicateFlags {
   LIB_ID_DUPLICATE_IS_ROOT_ID = 1 << 1,
 };
 
-ENUM_OPERATORS(eLibIDDuplicateFlags, LIB_ID_DUPLICATE_IS_ROOT_ID)
+ENUM_OPERATORS(eLibIDDuplicateFlags)
 
 /* `lib_remap.cc` (keep here since they're general functions) */
 /**
@@ -615,6 +622,17 @@ void BKE_libblock_management_main_remove(Main *bmain, void *idv);
 void BKE_libblock_management_usercounts_set(Main *bmain, void *idv);
 void BKE_libblock_management_usercounts_clear(Main *bmain, void *idv);
 
+/**
+ * Flag this linked ID as directly used by another ID in the current blend file.
+ *
+ * If the ID was marked as indirectly/weakly linked, those flags are cleared.
+ *
+ * This is a no-op when `id` is `nullptr` or not linked.
+ *
+ * This status is rechecked for the whole Main data-base as a step of pre-blend-file writing
+ * (see #write_id_direct_linked_data_process_cb() and its usage in #write_file_handle).
+ * This ensures that no reference to indirectly used IDs are kept in the written blend-file.
+ */
 void id_lib_extern(ID *id);
 void id_lib_indirect_weak_link(ID *id);
 /**

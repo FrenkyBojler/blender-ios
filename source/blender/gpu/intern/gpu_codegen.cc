@@ -247,6 +247,7 @@ void GPUCodegen::generate_resources()
   textures_total_ = slot;
 
   if (!BLI_listbase_is_empty(&ubo_inputs_)) {
+    const char *linted_struct_suffix = "_host_shared_";
     /* NOTE: generate_uniform_buffer() should have sorted the inputs before this. */
     ss << "struct NodeTree {\n";
     LISTBASE_FOREACH (LinkData *, link, &ubo_inputs_) {
@@ -258,7 +259,9 @@ void GPUCodegen::generate_resources()
         ss << input->type << " u" << input->id << (input->is_duplicate ? "b" : "") << ";\n";
       }
     }
-    ss << "};\n\n";
+    ss << "};\n";
+    ss << "#define NodeTree" << linted_struct_suffix << " NodeTree\n";
+    ss << "\n";
 
     info.uniform_buf(GPU_NODE_TREE_UBO_SLOT, "NodeTree", GPU_UBO_BLOCK_NAME, Frequency::BATCH);
   }
@@ -311,7 +314,7 @@ void GPUCodegen::node_serialize(Set<StringRefNull> &used_libraries,
       if (from == GPU_VEC4 && to == GPU_FLOAT) {
         float coefficients[3];
         IMB_colormanagement_get_luminance_coefficients(coefficients);
-        eval_ss << ", " << blender::Span<float>(coefficients, 3);
+        eval_ss << ", " << Span<float>(coefficients, 3);
       }
       eval_ss << ")";
     }
@@ -502,8 +505,8 @@ void GPUCodegen::generate_uniform_buffer()
 /* Sets id for unique names for all inputs, resources and temp variables. */
 void GPUCodegen::set_unique_ids()
 {
-  blender::Map<int, GPUNode *> zone_starts;
-  blender::Map<int, GPUNode *> zone_ends;
+  Map<int, GPUNode *> zone_starts;
+  Map<int, GPUNode *> zone_ends;
 
   int id = 1;
   LISTBASE_FOREACH (GPUNode *, node, &graph.nodes) {

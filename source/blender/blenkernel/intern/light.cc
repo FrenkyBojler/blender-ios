@@ -24,7 +24,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -39,6 +39,8 @@
 #include "IMB_colormanagement.hh"
 
 #include "BLO_read_write.hh"
+
+#include "NOD_defaults.hh"
 
 static void light_init_data(ID *id)
 {
@@ -140,6 +142,9 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     la->energy_deprecated /= M_PI_4;
   }
 
+  /* Forward compatibiilty for Use Nodes. */
+  la->use_nodes = true;
+
   /* write LibData */
   BLO_write_id_struct(writer, Light, id_address, &la->id);
   BKE_id_blend_write(writer, &la->id);
@@ -199,6 +204,8 @@ Light *BKE_light_add(Main *bmain, const char *name)
   Light *la;
 
   la = BKE_id_new<Light>(bmain, name);
+
+  blender::nodes::node_tree_shader_default(nullptr, bmain, &la->id);
 
   return la;
 }

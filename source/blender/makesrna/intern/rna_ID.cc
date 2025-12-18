@@ -135,11 +135,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
      ICON_GREASEPENCIL,
      "Grease Pencil",
      "Show Grease Pencil data-blocks"},
-    {FILTER_ID_GR,
-     "filter_group",
-     ICON_OUTLINER_COLLECTION,
-     "Collections",
-     "Show Collection data-blocks"},
+    {FILTER_ID_GR, "filter_group", ICON_GROUP, "Collections", "Show Collection data-blocks"},
     {FILTER_ID_CV,
      "filter_curves",
      ICON_CURVES_DATA,
@@ -218,7 +214,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_global.hh" /* XXX, remove me */
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_idtype.hh"
 #  include "BKE_lib_override.hh"
@@ -673,7 +669,7 @@ bool rna_PropertyGroup_unregister(Main * /*bmain*/, StructRNA *type)
   BPY_free_srna_pytype(type);
 #  endif
 
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
   return true;
 }
 
@@ -706,7 +702,7 @@ StructRNA *rna_PropertyGroup_register(Main * /*bmain*/,
     return nullptr;
   }
 
-  return RNA_def_struct_ptr(&BLENDER_RNA, identifier, &RNA_PropertyGroup); /* XXX */
+  return RNA_def_struct_ptr(&RNA_blender_rna_get(), identifier, &RNA_PropertyGroup); /* XXX */
 }
 
 StructRNA *rna_PropertyGroup_refine(PointerRNA *ptr)
@@ -1721,13 +1717,18 @@ static void rna_def_ID_properties(BlenderRNA *brna)
       srna, "rna_PropertyGroup_register", "rna_PropertyGroup_unregister", nullptr);
   RNA_def_struct_refine_func(srna, "rna_PropertyGroup_refine");
 
-  /* important so python types can have their name used in list views
-   * however this isn't perfect because it overrides how python would set the name
-   * when we only really want this so RNA_def_struct_name_property() is set to something useful */
+  /* Important so that python types can have their name used in list views.
+   *
+   * Note that python types can override this by defining their own `name` string property, see
+   * also #pyrna_register_class.
+   */
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   // RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Name", "Unique name used in the code and scripting");
+  RNA_def_property_ui_text(prop,
+                           "Name",
+                           "Unique name used in the code and scripting, can be re-defined in "
+                           "Python sub-classes if needed");
   RNA_def_struct_name_property(srna, prop);
 }
 
