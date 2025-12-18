@@ -1404,7 +1404,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
               });
         },
         threading::accumulated_task_sizes([&](const IndexRange range) {
-          int64_t total_size;
+          int64_t total_size = 0;
           visible_strokes.slice(range).foreach_index(
               [&](const int64_t index) { total_size += points_by_curve[index].size(); });
           return total_size;
