@@ -1022,6 +1022,8 @@ static int rna_Space_show_region_asset_shelf_editable(const PointerRNA *ptr, con
 static void rna_Space_show_region_asset_shelf_update(bContext *C, PointerRNA *ptr)
 {
   rna_Space_bool_from_region_flag_update_by_type(C, ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN);
+  rna_Space_bool_from_region_flag_update_by_type(
+      C, ptr, RGN_TYPE_ASSET_SHELF_HEADER, RGN_FLAG_HIDDEN_BY_USER);
 }
 
 /** \} */
