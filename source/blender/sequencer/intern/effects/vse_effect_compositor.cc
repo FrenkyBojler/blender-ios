@@ -36,14 +36,15 @@ class CompositorEffectContext : public compositor::Context {
   const Strip *strip_;
 
  public:
-  CompositorEffectContext(const RenderData &render_data,
+  CompositorEffectContext(compositor::StaticCacheManager &cache_manager,
+                          const RenderData &render_data,
                           bNodeTree *node_tree,
                           ImBuf *input_1,
                           ImBuf *input_2,
                           ImBuf *output,
                           float factor,
                           const Strip &strip)
-      : compositor::Context(),
+      : compositor::Context(cache_manager),
         render_data_(render_data),
         node_group_(node_tree),
         input_1_(input_1),
@@ -208,8 +209,10 @@ static ImBuf *do_compositor_effect(const RenderData *context,
     ImBuf *linear_src1 = make_linear_float_buffer(src1);
     ImBuf *linear_src2 = make_linear_float_buffer(src2);
 
+    /* TODO: Should be persistent across evaluations. */
+    compositor::StaticCacheManager cache_manager;
     CompositorEffectContext com_context(
-        *context, data->node_group, linear_src1, linear_src2, out, fac, *strip);
+        cache_manager, *context, data->node_group, linear_src1, linear_src2, out, fac, *strip);
     compositor::Evaluator evaluator(com_context);
     evaluator.evaluate();
     // context.result_translation += com_context.get_result_translation(); //@TODO?

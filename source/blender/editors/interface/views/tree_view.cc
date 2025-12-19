@@ -151,7 +151,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   uiViewState state{};
 
   SET_FLAG_FROM_TEST(state.flag, *show_display_options_, UI_VIEW_SHOW_FILTER_OPTIONS);
-  BLI_strncpy(state.search_string, search_string_.get(), sizeof(state.search_string));
+  STRNCPY(state.search_string, search_string_.get());
 
   if (!custom_height_ && !scroll_value_) {
     return {};
@@ -487,6 +487,11 @@ std::optional<DropLocation> TreeViewItemDropTarget::choose_drop_location(
 
 /* ---------------------------------------------------------------------- */
 
+AbstractTreeViewItem::AbstractTreeViewItem()
+{
+  activate_for_context_menu_ = true;
+}
+
 void AbstractTreeViewItem::add_treerow_button(Block &block)
 {
   /* For some reason a width > (UI_UNIT_X * 2) make the layout system use all available width. */
@@ -540,8 +545,8 @@ void AbstractTreeViewItem::collapse_chevron_click_fn(bContext *C,
 
   const wmWindow *win = CTX_wm_window(C);
   const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
-  AbstractViewItem *hovered_abstract_item = region_views_find_item_at(*region,
-                                                                      win->eventstate->xy);
+  AbstractViewItem *hovered_abstract_item = region_views_find_item_at(
+      *region, win->runtime->eventstate->xy);
 
   auto *hovered_item = reinterpret_cast<AbstractTreeViewItem *>(hovered_abstract_item);
   BLI_assert(hovered_item != nullptr);

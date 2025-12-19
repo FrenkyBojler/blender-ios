@@ -993,6 +993,11 @@ static const float std_node_socket_colors[][4] = {
     {0.72, 0.20, 0.52, 1.0}, /* SOCK_MATRIX */
     {0.30, 0.50, 0.50, 1.0}, /* SOCK_BUNDLE */
     {0.49, 0.49, 0.23, 1.0}, /* SOCK_CLOSURE */
+    {0, 0, 0, 1},            /* SOCK_FONT */
+    {0, 0, 0, 1},            /* SOCK_SCENE */
+    {0, 0, 0, 1},            /* SOCK_TEXT_ID */
+    {0, 0, 0, 1},            /* SOCK_MASK */
+    {0, 0, 0, 1},            /* SOCK_SOUND */
 };
 
 void std_node_socket_colors_get(int socket_type, float *r_color)
@@ -1029,7 +1034,9 @@ static const SocketColorFn std_node_socket_color_funcs[] = {
     std_node_socket_color_fn<SOCK_TEXTURE>,  std_node_socket_color_fn<SOCK_MATERIAL>,
     std_node_socket_color_fn<SOCK_ROTATION>, std_node_socket_color_fn<SOCK_MENU>,
     std_node_socket_color_fn<SOCK_MATRIX>,   std_node_socket_color_fn<SOCK_BUNDLE>,
-    std_node_socket_color_fn<SOCK_CLOSURE>,
+    std_node_socket_color_fn<SOCK_CLOSURE>,  std_node_socket_color_fn<SOCK_FONT>,
+    std_node_socket_color_fn<SOCK_SCENE>,    std_node_socket_color_fn<SOCK_TEXT_ID>,
+    std_node_socket_color_fn<SOCK_MASK>,     std_node_socket_color_fn<SOCK_SOUND>,
 };
 
 static bool socket_needs_attribute_search(bNode &node, bNodeSocket &socket)
@@ -1327,7 +1334,12 @@ static void std_node_socket_draw(
     }
     case SOCK_COLLECTION:
     case SOCK_OBJECT:
-    case SOCK_MATERIAL: {
+    case SOCK_MATERIAL:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND: {
       if (optional_label) {
         layout->prop(ptr,
                      RNA_struct_find_property(ptr, "default_value"),
@@ -1446,7 +1458,12 @@ static void std_node_socket_interface_draw(ID *id,
     case SOCK_COLLECTION:
     case SOCK_IMAGE:
     case SOCK_TEXTURE:
-    case SOCK_MATERIAL: {
+    case SOCK_MATERIAL:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND: {
       col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
       break;
     }
@@ -1660,7 +1677,7 @@ float2 socket_link_connection_location(const bNode &node,
 
 static void calculate_inner_link_bezier_points(std::array<float2, 4> &points)
 {
-  const int curving = ui::GetThemeValueType(TH_NODE_CURVING, SPACE_NODE);
+  const int curving = ui::theme::get_value_type(TH_NODE_CURVING, SPACE_NODE);
   if (curving == 0) {
     /* Straight line: align all points. */
     points[1] = math::interpolate(points[0], points[3], 1.0f / 3.0f);
@@ -2021,12 +2038,13 @@ static void nodelink_batch_draw(const SpaceNode &snode)
   GPU_blend(GPU_BLEND_ALPHA);
   NodeLinkUniformData node_link_data;
 
-  ui::GetThemeColor4fv(TH_WIRE_INNER, node_link_data.colors[nodelink_get_color_id(TH_WIRE_INNER)]);
-  ui::GetThemeColor4fv(TH_WIRE, node_link_data.colors[nodelink_get_color_id(TH_WIRE)]);
-  ui::GetThemeColor4fv(TH_ACTIVE, node_link_data.colors[nodelink_get_color_id(TH_ACTIVE)]);
-  ui::GetThemeColor4fv(TH_EDGE_SELECT,
-                       node_link_data.colors[nodelink_get_color_id(TH_EDGE_SELECT)]);
-  ui::GetThemeColor4fv(TH_REDALERT, node_link_data.colors[nodelink_get_color_id(TH_REDALERT)]);
+  ui::theme::get_color_4fv(TH_WIRE_INNER,
+                           node_link_data.colors[nodelink_get_color_id(TH_WIRE_INNER)]);
+  ui::theme::get_color_4fv(TH_WIRE, node_link_data.colors[nodelink_get_color_id(TH_WIRE)]);
+  ui::theme::get_color_4fv(TH_ACTIVE, node_link_data.colors[nodelink_get_color_id(TH_ACTIVE)]);
+  ui::theme::get_color_4fv(TH_EDGE_SELECT,
+                           node_link_data.colors[nodelink_get_color_id(TH_EDGE_SELECT)]);
+  ui::theme::get_color_4fv(TH_REDALERT, node_link_data.colors[nodelink_get_color_id(TH_REDALERT)]);
   node_link_data.aspect = snode.runtime->aspect;
   node_link_data.arrow_size = ARROW_SIZE;
 
@@ -2190,7 +2208,7 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
 
   draw_config.dim_factor = selected ? 1.0f : node_link_dim_factor(v2d, link);
 
-  bTheme *btheme = ui::GetTheme();
+  bTheme *btheme = ui::theme::theme_get();
   draw_config.dash_alpha = btheme->space_node.dash_alpha;
 
   const bool field_link = node_link_is_field_link(snode, link);
@@ -2209,7 +2227,7 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
                             (link.fromnode && link.fromnode->is_reroute()));
   draw_config.draw_muted = (link.flag & NODE_LINK_MUTED);
 
-  ui::GetThemeColor4fv(th_col3, draw_config.outline_color);
+  ui::theme::get_color_4fv(th_col3, draw_config.outline_color);
 
   if (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
       snode.overlay.flag & SN_OVERLAY_SHOW_WIRE_COLORS)
@@ -2235,14 +2253,14 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
     }
   }
   else {
-    ui::GetThemeColor4fv(th_col1, draw_config.start_color);
-    ui::GetThemeColor4fv(th_col2, draw_config.end_color);
+    ui::theme::get_color_4fv(th_col1, draw_config.start_color);
+    ui::theme::get_color_4fv(th_col2, draw_config.end_color);
   }
 
   /* Highlight links connected to selected nodes. */
   if (selected) {
     ColorTheme4f color_selected;
-    ui::GetThemeColor4fv(TH_EDGE_SELECT, color_selected);
+    ui::theme::get_color_4fv(TH_EDGE_SELECT, color_selected);
     const float alpha = color_selected.a;
 
     /* Interpolate color if highlight color is not fully transparent. */
@@ -2258,7 +2276,7 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
 
   if (draw_config.highlighted) {
     ColorTheme4f link_preselection_highlight_color;
-    ui::GetThemeColor4fv(TH_SELECT, link_preselection_highlight_color);
+    ui::theme::get_color_4fv(TH_SELECT, link_preselection_highlight_color);
     /* Multi sockets can only be inputs. So we only have to highlight the end of the link. */
     copy_v4_v4(draw_config.end_color, link_preselection_highlight_color);
   }

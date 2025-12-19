@@ -692,7 +692,6 @@ set(GLSL_SRC
   intern/draw_command_shared.hh
   intern/draw_curves_defines.hh
   intern/draw_defines.hh
-  intern/draw_pointcloud_private.hh
   intern/draw_shader_shared.hh
   intern/draw_subdiv_defines.hh
   intern/draw_subdiv_shader_shared.hh
@@ -793,7 +792,6 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_facing_frag.glsl
   engines/overlay/shaders/overlay_facing_vert.glsl
   engines/overlay/shaders/overlay_fullscreen_vert.glsl
-  engines/overlay/shaders/overlay_grid_background_frag.glsl
   engines/overlay/shaders/overlay_grid_frag.glsl
   engines/overlay/shaders/overlay_grid_vert.glsl
   engines/overlay/shaders/overlay_image_frag.glsl

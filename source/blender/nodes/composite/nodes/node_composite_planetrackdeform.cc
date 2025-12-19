@@ -299,8 +299,8 @@ class PlaneTrackDeformOperation : public NodeOperation {
         float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
         float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
 
-        float4 sampled_color = input.sample_ewa_extended(
-            projected_coordinates, x_gradient, y_gradient);
+        float4 sampled_color = float4(
+            input.sample_ewa(projected_coordinates, x_gradient, y_gradient, Extension::Extend));
         accumulated_color += sampled_color;
       }
 
@@ -421,19 +421,19 @@ class PlaneTrackDeformOperation : public NodeOperation {
   int get_motion_blur_samples()
   {
     const int samples = math::clamp(
-        this->get_input("Motion Blur Samples").get_single_value_default(16), 1, 64);
+        this->get_input("Motion Blur Samples").get_single_value_default<int>(), 1, 64);
     return this->use_motion_blur() ? samples : 1;
   }
 
   float get_motion_blur_shutter()
   {
     return math::clamp(
-        this->get_input("Motion Blur Shutter").get_single_value_default(0.5f), 0.0f, 1.0f);
+        this->get_input("Motion Blur Shutter").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   bool use_motion_blur()
   {
-    return this->get_input("Motion Blur").get_single_value_default(false);
+    return this->get_input("Motion Blur").get_single_value_default<bool>();
   }
 
   MovieClip *get_movie_clip()
