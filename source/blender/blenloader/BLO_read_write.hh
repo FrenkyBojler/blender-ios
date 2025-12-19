@@ -30,11 +30,11 @@
 
 #pragma once
 
-#include "BLI_map.hh"
 #include "DNA_sdna_type_ids.hh"
 
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing.hh"
+#include "BLI_map.hh"
 #include "BLI_memory_utils.hh"
 
 namespace blender {
