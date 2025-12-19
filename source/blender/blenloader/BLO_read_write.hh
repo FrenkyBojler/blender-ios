@@ -45,16 +45,17 @@ struct BlendLibReader;
 struct ID;
 struct ListBase;
 struct Main;
+struct WriteData;
+struct FileData;
 enum eReportType : uint16_t;
 
 struct BlendWriter {
-  /** Pointer to private #WriteData in writefile.cc. */
-  void *writedata_handle = nullptr;
+  WriteData *wd = nullptr;
 };
 
 struct BlendDataReader {
   /** Pointer to private #FileData in readfile.cc. */
-  void *readdata_handle = nullptr;
+  FileData *fd = nullptr;
 
   /**
    * The key is the old address id referencing shared data that's written to a file, typically an
