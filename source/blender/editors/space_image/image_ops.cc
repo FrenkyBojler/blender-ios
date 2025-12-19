@@ -2191,7 +2191,12 @@ static bool image_file_format_writable(Image *ima, ImageUser *iuser)
 static bool image_save_poll(bContext *C)
 {
   /* Can't save if there are no pixels. */
-  if (image_from_context_has_data_poll(C) == false) {
+  if (image_from_context_has_data(C) == false) {
+    return false;
+  }
+
+  if (G.is_rendering) {
+    CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
     return false;
   }
 
