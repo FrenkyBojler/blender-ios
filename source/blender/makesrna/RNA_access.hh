@@ -33,7 +33,7 @@ struct Scene;
 struct bContext;
 
 /* Types */
-extern BlenderRNA BLENDER_RNA;
+BlenderRNA &RNA_blender_rna_get();
 
 /* Pointer
  *
@@ -156,7 +156,7 @@ bool RNA_struct_system_idprops_check(StructRNA *srna);
  * (e.g. by assigning an IDP_GROUP containing some IDP_ID pointers...).
  *
  * \note This is currently giving results for both user-defined and system-defined IDProperties,
- * there is no distinction for this between both storages.
+ * there is no distinction for this between both kinds of storage.
  */
 bool RNA_struct_idprops_contains_datablock(const StructRNA *type);
 /**
