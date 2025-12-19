@@ -97,8 +97,6 @@ void TexturePool::reset(bool force_free)
       tex.counter++;
     }
   }
-
-  std::printf("acquired=%d, pool=%d\n", acquired_.size(), pool_.size());
 }
 
 TexturePool &TexturePool::get()
