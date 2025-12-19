@@ -110,7 +110,7 @@ static bool depthdropper_test(bContext *C, wmOperator *op)
   PointerRNA ptr;
   PropertyRNA *prop;
   int index_dummy;
-  uiBut *but;
+  Button *but;
 
   /* Check if the custom prop_data_path is set. */
   if ((prop = RNA_struct_find_property(op->ptr, "prop_data_path")) &&
@@ -121,8 +121,8 @@ static bool depthdropper_test(bContext *C, wmOperator *op)
 
   /* check if there's an active button taking depth value */
   if ((CTX_wm_window(C) != nullptr) &&
-      (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
-      (but->type == ButType::Num) && (prop != nullptr))
+      (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
+      (but->type == ButtonType::Num) && (prop != nullptr))
   {
     if ((RNA_property_type(prop) == PROP_FLOAT) &&
         (RNA_property_subtype(prop) & PROP_UNIT_LENGTH) &&
@@ -167,7 +167,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
   else {
     /* fallback to the active camera's dof */
     int index_dummy;
-    uiBut *but = UI_context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
+    Button *but = context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
     if (ddr->prop == nullptr) {
       RegionView3D *rv3d = CTX_wm_region_view3d(C);
       if (rv3d && rv3d->persp == RV3D_CAMOB) {
@@ -184,7 +184,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
       }
     }
     else {
-      ddr->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+      ddr->is_undo = button_flag_is_set(but, BUT_UNDO);
     }
   }
 
@@ -404,7 +404,7 @@ static wmOperatorStatus depthdropper_invoke(bContext *C, wmOperator *op, const w
   if (depthdropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    UI_context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -433,11 +433,11 @@ static bool depthdropper_poll(bContext *C)
   PointerRNA ptr;
   PropertyRNA *prop;
   int index_dummy;
-  uiBut *but;
+  Button *but;
 
   /* check if there's an active button taking depth value */
   if ((CTX_wm_window(C) != nullptr) &&
-      (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)))
+      (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)))
   {
     if (but->icon == ICON_EYEDROPPER) {
       return true;
@@ -447,7 +447,7 @@ static bool depthdropper_poll(bContext *C)
       return true;
     }
 
-    if ((but->type == ButType::Num) && (prop != nullptr) &&
+    if ((but->type == ButtonType::Num) && (prop != nullptr) &&
         (RNA_property_type(prop) == PROP_FLOAT) &&
         (RNA_property_subtype(prop) & PROP_UNIT_LENGTH) &&
         (RNA_property_array_check(prop) == false))

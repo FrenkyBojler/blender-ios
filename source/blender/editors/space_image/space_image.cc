@@ -109,6 +109,7 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   simage->flag = SI_SHOW_GPENCIL | SI_USE_ALPHA | SI_COORDFLOATS;
   simage->uv_opacity = 1.0f;
   simage->uv_face_opacity = 1.0f;
+  simage->uv_edge_opacity = 1.0f;
   simage->stretch_opacity = 1.0f;
   simage->overlay.flag = SI_OVERLAY_SHOW_OVERLAYS | SI_OVERLAY_SHOW_GRID_BACKGROUND;
   simage->overlay.passepartout_alpha = 0.5f;
@@ -606,7 +607,7 @@ static void image_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  /* NOTE: don't use `UI_view2d_region_reinit(&region->v2d, ...)`
+  /* NOTE: don't use `view2d_region_reinit(&region->v2d, ...)`
    * since the space clip manages own v2d in #image_main_region_set_view2d */
 
   /* mask polls mode */
@@ -696,7 +697,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     rcti render_region;
     BLI_rcti_init(
         &render_region, center_x, render_size_x + center_x, center_y, render_size_y + center_y);
-    blender::ui::UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
+    blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
 
     ED_region_image_render_region_draw(
         x, y, &render_region, zoomx, zoomy, sima->overlay.passepartout_alpha);
@@ -717,7 +718,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
       int x, y;
       rctf frame;
       BLI_rctf_init(&frame, 0.0f, ibuf->x, 0.0f, ibuf->y);
-      blender::ui::UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
+      blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
       ED_region_image_metadata_draw(x, y, ibuf, &frame, zoomx, zoomy);
     }
     ED_space_image_release_buffer(sima, ibuf, lock);
@@ -741,9 +742,9 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* sample line */
-  blender::ui::UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
   draw_image_sample_line(sima);
-  blender::ui::UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   if (mask) {
     int width, height;
@@ -894,7 +895,7 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
   /* TODO(lukas): Support tiles in scopes? */
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
   /* XXX performance regression if name of scopes category changes! */
-  PanelCategoryStack *category = blender::ui::UI_panel_category_active_find(region, "Scopes");
+  PanelCategoryStack *category = blender::ui::panel_category_active_find(region, "Scopes");
 
   /* only update scopes if scope category is active */
   if (category) {
@@ -1031,8 +1032,8 @@ static void image_tools_header_region_draw(const bContext *C, ARegion *region)
       C,
       region,
       (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) ?
-          blender::ui::uiButtonSectionsAlign::Top :
-          blender::ui::uiButtonSectionsAlign::Bottom);
+          blender::ui::ButtonSectionsAlign::Top :
+          blender::ui::ButtonSectionsAlign::Bottom);
 }
 
 /************************* header region **************************/

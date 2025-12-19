@@ -52,9 +52,13 @@ class BlenderSync {
   void set_bake_target(BL::Object &b_object);
 
   /* sync */
-  void sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d, BL::RegionView3D &b_rv3d);
+  void sync_recalc(BL::Depsgraph &b_depsgraph,
+                   ::bScreen *b_screen,
+                   BL::SpaceView3D &b_v3d,
+                   BL::RegionView3D &b_rv3d);
   void sync_data(BL::RenderSettings &b_render,
                  BL::Depsgraph &b_depsgraph,
+                 ::bScreen *b_screen,
                  BL::SpaceView3D &b_v3d,
                  BL::RegionView3D &b_rv3d,
                  const int width,
@@ -66,14 +70,11 @@ class BlenderSync {
   void sync_integrator(BL::ViewLayer &b_view_layer,
                        bool background,
                        const DeviceInfo &denoise_device_info);
-  void sync_camera(BL::RenderSettings &b_render,
+  void sync_camera(const ::RenderData &b_render,
                    const int width,
                    const int height,
                    const char *viewname);
-  void sync_view(BL::SpaceView3D &b_v3d,
-                 BL::RegionView3D &b_rv3d,
-                 const int width,
-                 const int height);
+  void sync_view(::View3D *b_v3d, ::RegionView3D *b_rv3d, const int width, const int height);
   int get_layer_samples()
   {
     return view_layer.samples;
@@ -95,11 +96,8 @@ class BlenderSync {
                                           BL::Scene &b_scene,
                                           bool background);
   static bool get_session_pause(BL::Scene &b_scene, bool background);
-  static BufferParams get_buffer_params(BL::SpaceView3D &b_v3d,
-                                        BL::RegionView3D &b_rv3d,
-                                        Camera *cam,
-                                        const int width,
-                                        const int height);
+  static BufferParams get_buffer_params(
+      ::View3D *b_v3d, ::RegionView3D *b_rv3d, Camera *cam, const int width, const int height);
 
   static DenoiseParams get_denoise_params(BL::Scene &b_scene,
                                           BL::ViewLayer &b_view_layer,
@@ -108,31 +106,34 @@ class BlenderSync {
 
  private:
   /* sync */
-  void sync_lights(BL::Depsgraph &b_depsgraph, bool update_all);
-  void sync_materials(BL::Depsgraph &b_depsgraph, bool update_all);
+  void sync_lights(::Depsgraph &b_depsgraph, bool update_all);
+  void sync_materials(::Depsgraph &b_depsgraph, bool update_all);
   void sync_objects(BL::Depsgraph &b_depsgraph,
+                    ::bScreen *b_screen,
                     BL::SpaceView3D &b_v3d,
                     const float motion_time = 0.0f);
   void sync_motion(BL::RenderSettings &b_render,
                    BL::Depsgraph &b_depsgraph,
+                   ::bScreen *b_screen,
                    BL::SpaceView3D &b_v3d,
                    BL::RegionView3D &b_rv3d,
                    const int width,
                    const int height,
                    void **python_thread_state);
-  void sync_film(BL::ViewLayer &b_view_layer, BL::SpaceView3D &b_v3d);
+  void sync_film(BL::ViewLayer &b_view_layer, ::bScreen *b_screen, BL::SpaceView3D &b_v3d);
   void sync_view();
 
   /* Shader */
-  array<Node *> find_used_shaders(BL::Object &b_ob);
-  void sync_world(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d, bool update_all);
-  void sync_shaders(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d, bool update_all);
-  void sync_nodes(Shader *shader, BL::ShaderNodeTree &b_ntree);
+  array<Node *> find_used_shaders(::Object &b_ob);
+  void sync_world(::Depsgraph &b_depsgraph, ::bScreen *b_screen, ::View3D *b_v3d, bool update_all);
+  void sync_shaders(::Depsgraph &b_depsgraph,
+                    ::bScreen *b_screen,
+                    ::View3D *b_v3d,
+                    bool update_all);
+  void sync_nodes(Shader *shader, ::bNodeTree &b_ntree);
 
-  bool scene_attr_needs_recalc(Shader *shader, BL::Depsgraph &b_depsgraph);
-  void resolve_view_layer_attributes(Shader *shader,
-                                     ShaderGraph *graph,
-                                     BL::Depsgraph &b_depsgraph);
+  bool scene_attr_needs_recalc(Shader *shader, ::Depsgraph &b_depsgraph);
+  void resolve_view_layer_attributes(Shader *shader, ShaderGraph *graph, ::Depsgraph &b_depsgraph);
 
   /* Object */
   Object *sync_object(BL::ViewLayer &b_view_layer,
@@ -162,11 +163,11 @@ class BlenderSync {
   void sync_hair_motion(BObjectInfo &b_ob_info, Hair *hair, int motion_step);
   void sync_hair(Hair *hair, BObjectInfo &b_ob_info, bool motion, const int motion_step = 0);
   void sync_particle_hair(Hair *hair,
-                          BL::Mesh &b_mesh,
+                          const ::Mesh &b_mesh,
                           BObjectInfo &b_ob_info,
                           bool motion,
                           const int motion_step = 0);
-  bool object_has_particle_hair(BL::Object b_ob);
+  bool object_has_particle_hair(::Object *b_ob);
 
   /* Point Cloud */
   void sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info);
@@ -175,8 +176,8 @@ class BlenderSync {
                               const int motion_step = 0);
 
   /* Camera */
-  void sync_camera_motion(BL::RenderSettings &b_render,
-                          BL::Object &b_ob,
+  void sync_camera_motion(const ::RenderData &b_render,
+                          ::Object *b_ob,
                           const int width,
                           const int height,
                           const float motion_time);
@@ -195,7 +196,7 @@ class BlenderSync {
 
   /* Light */
   void sync_light(BObjectInfo &b_ob_info, Light *light);
-  void sync_background_light(BL::SpaceView3D &b_v3d);
+  void sync_background_light(::bScreen *b_screen, ::View3D *b_v3d);
 
   /* Particles */
   bool sync_dupli_particle(BL::Object &b_ob,
@@ -206,25 +207,25 @@ class BlenderSync {
   void sync_images();
 
   /* util */
-  void find_shader(const BL::ID &id, array<Node *> &used_shaders, Shader *default_shader);
+  void find_shader(const ::ID *id, array<Node *> &used_shaders, Shader *default_shader);
   bool BKE_object_is_modified(BL::Object &b_ob);
   bool object_is_geometry(BObjectInfo &b_ob_info);
   bool object_can_have_geometry(BL::Object &b_ob);
   bool object_is_light(BL::Object &b_ob);
   bool object_is_camera(BL::Object &b_ob);
 
-  BL::Object get_camera_object(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d);
-  BL::Object get_dicing_camera_object(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d);
+  ::Object *get_camera_object(::View3D *b_v3d, ::RegionView3D *b_rv3d);
+  ::Object *get_dicing_camera_object(::View3D *b_v3d, ::RegionView3D *b_rv3d);
 
   /* variables */
-  BL::RenderEngine b_engine;
+  ::RenderEngine *b_engine;
   BL::BlendData b_data;
   BL::Scene b_scene;
   BL::Object b_bake_target;
 
   enum ShaderFlags { SHADER_WITH_LAYER_ATTRS };
 
-  id_map<void *, Shader, ShaderFlags> shader_map;
+  id_map<const void *, Shader, ShaderFlags> shader_map;
   id_map<ObjectKey, Object> object_map;
   id_map<void *, Procedural> procedural_map;
   id_map<GeometryKey, Geometry> geometry_map;
@@ -250,11 +251,11 @@ class BlenderSync {
   int max_subdivisions;
 
   struct RenderLayerInfo {
-    RenderLayerInfo() : material_override(PointerRNA_NULL), world_override(PointerRNA_NULL) {}
+    RenderLayerInfo() : material_override(PointerRNA_NULL), world_override(nullptr) {}
 
     string name;
     BL::Material material_override;
-    BL::World world_override;
+    ::World *world_override;
     bool use_background_shader = true;
     bool use_surfaces = true;
     bool use_hair = true;

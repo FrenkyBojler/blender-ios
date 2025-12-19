@@ -246,7 +246,7 @@ static ImBuf *filelist_ensure_special_file_image(SpecialFileImages image, int ic
   if (ibuf) {
     return ibuf;
   }
-  return gSpecialFileImages[int(image)] = blender::ui::UI_svg_icon_bitmap(icon, 256.0f, false);
+  return gSpecialFileImages[int(image)] = blender::ui::svg_icon_bitmap(icon, 256.0f, false);
 }
 
 ImBuf *filelist_geticon_special_file_image_ex(const FileDirEntry *file)
@@ -380,7 +380,7 @@ static int filelist_geticon_file_type_ex(const FileList *filelist,
     return ICON_FILE_ARCHIVE;
   }
   if (typeflag & FILE_TYPE_BLENDERLIB) {
-    const int ret = blender::ui::UI_icon_from_idcode(file->blentype);
+    const int ret = blender::ui::icon_from_idcode(file->blentype);
     if (ret != ICON_NONE) {
       return ret;
     }
@@ -880,21 +880,22 @@ void filelist_settype(FileList *filelist, short type)
       filelist->read_job_fn = filelist_readjob_asset_library;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_asset_library;
-      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA;
+      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA | FILELIST_TAGS_APPLY_FUZZY_SEARCH;
       break;
     case FILE_MAIN_ASSET:
       filelist->check_dir_fn = filelist_checkdir_return_always_valid;
       filelist->read_job_fn = filelist_readjob_main_assets;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_main_assets;
-      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA | FILELIST_TAGS_NO_THREADS;
+      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA | FILELIST_TAGS_NO_THREADS |
+                        FILELIST_TAGS_APPLY_FUZZY_SEARCH;
       break;
     case FILE_ASSET_LIBRARY_ALL:
       filelist->check_dir_fn = filelist_checkdir_return_always_valid;
       filelist->read_job_fn = filelist_readjob_all_asset_library;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_asset_library;
-      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA;
+      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA | FILELIST_TAGS_APPLY_FUZZY_SEARCH;
       break;
     default:
       filelist->check_dir_fn = filelist_checkdir_dir;
@@ -2073,7 +2074,7 @@ struct TodoDir {
 };
 
 struct FileListReadJob {
-  blender::Mutex lock;
+  Mutex lock;
   char main_filepath[FILE_MAX] = "";
   Main *current_main = nullptr;
   FileList *filelist = nullptr;

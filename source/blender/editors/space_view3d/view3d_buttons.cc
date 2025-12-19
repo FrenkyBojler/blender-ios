@@ -142,7 +142,7 @@ static TransformProperties *v3d_transform_props_ensure(View3D *v3d);
  * \{ */
 
 static void *editmesh_partial_update_begin_fn(bContext * /*C*/,
-                                              const blender::ui::uiBlockInteraction_Params *params,
+                                              const blender::ui::BlockInteraction_Params *params,
                                               void *arg1)
 {
   const int retval_test = B_TRANSFORM_PANEL_MEDIAN;
@@ -177,11 +177,10 @@ static void *editmesh_partial_update_begin_fn(bContext * /*C*/,
   return bmpinfo;
 }
 
-static void editmesh_partial_update_end_fn(
-    bContext * /*C*/,
-    const blender::ui::uiBlockInteraction_Params * /*params*/,
-    void * /*arg1*/,
-    void *user_data)
+static void editmesh_partial_update_end_fn(bContext * /*C*/,
+                                           const blender::ui::BlockInteraction_Params * /*params*/,
+                                           void * /*arg1*/,
+                                           void *user_data)
 {
   BMPartialUpdate *bmpinfo = static_cast<BMPartialUpdate *>(user_data);
   if (bmpinfo == nullptr) {
@@ -192,7 +191,7 @@ static void editmesh_partial_update_end_fn(
 
 static void editmesh_partial_update_update_fn(
     bContext *C,
-    const blender::ui::uiBlockInteraction_Params * /*params*/,
+    const blender::ui::BlockInteraction_Params * /*params*/,
     void *arg1,
     void *user_data)
 {
@@ -594,7 +593,7 @@ static void v3d_editvertex_buts(
     const bContext *C, blender::ui::Layout *layout, View3D *v3d, Object *ob, float lim)
 {
   using namespace blender;
-  uiBlock *block = (layout) ? layout->absolute().block() : nullptr;
+  blender::ui::Block *block = (layout) ? layout->absolute().block() : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   TransformMedian median_basis, ve_median_basis;
   int tot, totedgedata, totcurvedata, totlattdata, totcurvebweight;
@@ -807,7 +806,7 @@ static void v3d_editvertex_buts(
 
   if (tot == 0) {
     uiDefBut(block,
-             blender::ui::ButType::Label,
+             blender::ui::ButtonType::Label,
              IFACE_("Nothing selected"),
              0,
              130,
@@ -864,7 +863,7 @@ static void v3d_editvertex_buts(
   }
 
   if (block) { /* buttons */
-    uiBut *but;
+    blender::ui::Button *but;
     int yi = 200;
     const float tilt_limit = DEG2RADF(21600.0f);
     const int butw = 200;
@@ -874,7 +873,7 @@ static void v3d_editvertex_buts(
 
     memcpy(&tfp->ve_median, &median_basis, sizeof(tfp->ve_median));
 
-    UI_block_align_begin(block);
+    block_align_begin(block);
     if (tot == 1) {
       if (totcurvedata) {
         /* Curve */
@@ -891,13 +890,14 @@ static void v3d_editvertex_buts(
     else {
       c = IFACE_("Median:");
     }
-    uiDefBut(block, blender::ui::ButType::Label, c, 0, yi -= buth, butw, buth, nullptr, 0, 0, "");
+    uiDefBut(
+        block, blender::ui::ButtonType::Label, c, 0, yi -= buth, butw, buth, nullptr, 0, 0, "");
 
-    UI_block_align_begin(block);
+    block_align_begin(block);
 
     /* Should be no need to translate these. */
     but = uiDefButF(block,
-                    blender::ui::ButType::Num,
+                    blender::ui::ButtonType::Num,
                     IFACE_("X:"),
                     0,
                     yi -= buth,
@@ -907,12 +907,12 @@ static void v3d_editvertex_buts(
                     -lim,
                     lim,
                     "");
-    UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-    UI_but_number_step_size_set(but, 10);
-    UI_but_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
-    UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
+    button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+    button_number_step_size_set(but, 10);
+    button_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
+    button_unit_type_set(but, PROP_UNIT_LENGTH);
     but = uiDefButF(block,
-                    blender::ui::ButType::Num,
+                    blender::ui::ButtonType::Num,
                     IFACE_("Y:"),
                     0,
                     yi -= buth,
@@ -922,12 +922,12 @@ static void v3d_editvertex_buts(
                     -lim,
                     lim,
                     "");
-    UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-    UI_but_number_step_size_set(but, 10);
-    UI_but_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
-    UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
+    button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+    button_number_step_size_set(but, 10);
+    button_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
+    button_unit_type_set(but, PROP_UNIT_LENGTH);
     but = uiDefButF(block,
-                    blender::ui::ButType::Num,
+                    blender::ui::ButtonType::Num,
                     IFACE_("Z:"),
                     0,
                     yi -= buth,
@@ -937,17 +937,17 @@ static void v3d_editvertex_buts(
                     -lim,
                     lim,
                     "");
-    UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-    UI_but_number_step_size_set(but, 10);
-    UI_but_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
-    UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
+    button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+    button_number_step_size_set(but, 10);
+    button_number_precision_set(but, RNA_TRANSLATION_PREC_DEFAULT);
+    button_unit_type_set(but, PROP_UNIT_LENGTH);
 
     if (totcurvebweight == tot) {
       float &weight = ELEM(ob->type, OB_CURVES, OB_GREASE_PENCIL) ?
                           tfp->ve_median.curves.nurbs_weight :
                           tfp->ve_median.curve.b_weight;
       but = uiDefButF(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       IFACE_("W:"),
                       0,
                       yi -= buth,
@@ -957,14 +957,14 @@ static void v3d_editvertex_buts(
                       0.01,
                       100.0,
                       "");
-      UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-      UI_but_number_step_size_set(but, 1);
-      UI_but_number_precision_set(but, 3);
+      button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+      button_number_step_size_set(but, 1);
+      button_number_precision_set(but, 3);
     }
 
-    UI_block_align_begin(block);
+    block_align_begin(block);
     but = uiDefButBitS(block,
-                       blender::ui::ButType::Toggle,
+                       blender::ui::ButtonType::Toggle,
                        V3D_GLOBAL_STATS,
                        IFACE_("Global"),
                        0,
@@ -975,9 +975,9 @@ static void v3d_editvertex_buts(
                        0,
                        0,
                        TIP_("Displays global values"));
-    UI_but_retval_set(but, B_REDR);
+    button_retval_set(but, B_REDR);
     but = uiDefButBitS(block,
-                       blender::ui::ButType::ToggleN,
+                       blender::ui::ButtonType::ToggleN,
                        V3D_GLOBAL_STATS,
                        IFACE_("Local"),
                        100,
@@ -988,15 +988,15 @@ static void v3d_editvertex_buts(
                        0,
                        0,
                        TIP_("Displays local values"));
-    UI_but_retval_set(but, B_REDR);
-    UI_block_align_end(block);
+    button_retval_set(but, B_REDR);
+    block_align_end(block);
 
     /* Meshes... */
     if (has_meshdata) {
       TransformMedian_Mesh *ve_median = &tfp->ve_median.mesh;
       if (tot) {
         uiDefBut(block,
-                 blender::ui::ButType::Label,
+                 blender::ui::ButtonType::Label,
                  tot == 1 ? IFACE_("Vertex Data:") : IFACE_("Vertices Data:"),
                  0,
                  yi -= buth + but_margin,
@@ -1008,7 +1008,7 @@ static void v3d_editvertex_buts(
                  "");
         /* customdata layer added on demand */
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         tot == 1 ? IFACE_("Bevel Weight:") : IFACE_("Mean Bevel Weight:"),
                         0,
                         yi -= buth + but_margin,
@@ -1018,12 +1018,12 @@ static void v3d_editvertex_buts(
                         0.0,
                         1.0,
                         TIP_("Vertex weight used by Bevel modifier"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 2);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 2);
         /* customdata layer added on demand */
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         tot == 1 ? IFACE_("Vertex Crease:") : IFACE_("Mean Vertex Crease:"),
                         0,
                         yi -= buth + but_margin,
@@ -1033,14 +1033,14 @@ static void v3d_editvertex_buts(
                         0.0,
                         1.0,
                         TIP_("Weight used by the Subdivision Surface modifier"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 2);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 2);
       }
       if (has_skinradius) {
-        UI_block_align_begin(block);
+        block_align_begin(block);
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         tot == 1 ? IFACE_("Radius X:") : IFACE_("Mean Radius X:"),
                         0,
                         yi -= buth + but_margin,
@@ -1050,11 +1050,11 @@ static void v3d_editvertex_buts(
                         0.0,
                         100.0,
                         TIP_("X radius used by Skin modifier"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         tot == 1 ? IFACE_("Radius Y:") : IFACE_("Mean Radius Y:"),
                         0,
                         yi -= buth + but_margin,
@@ -1064,14 +1064,14 @@ static void v3d_editvertex_buts(
                         0.0,
                         100.0,
                         TIP_("Y radius used by Skin modifier"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
-        UI_block_align_end(block);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
+        block_align_end(block);
       }
       if (totedgedata) {
         uiDefBut(block,
-                 blender::ui::ButType::Label,
+                 blender::ui::ButtonType::Label,
                  totedgedata == 1 ? IFACE_("Edge Data:") : IFACE_("Edges Data:"),
                  0,
                  yi -= buth + but_margin,
@@ -1083,7 +1083,7 @@ static void v3d_editvertex_buts(
                  "");
         /* customdata layer added on demand */
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         totedgedata == 1 ? IFACE_("Bevel Weight:") : IFACE_("Mean Bevel Weight:"),
                         0,
                         yi -= buth + but_margin,
@@ -1093,12 +1093,12 @@ static void v3d_editvertex_buts(
                         0.0,
                         1.0,
                         TIP_("Edge weight used by Bevel modifier"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 2);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 2);
         /* customdata layer added on demand */
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         totedgedata == 1 ? IFACE_("Crease:") : IFACE_("Mean Crease:"),
                         0,
                         yi -= buth + but_margin,
@@ -1108,9 +1108,9 @@ static void v3d_editvertex_buts(
                         0.0,
                         1.0,
                         TIP_("Weight used by the Subdivision Surface modifier"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 2);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 2);
       }
     }
     /* Curve or GP... */
@@ -1119,7 +1119,7 @@ static void v3d_editvertex_buts(
       TransformMedian_Curves *ve_median = &tfp->ve_median.curves;
 
       but = uiDefButF(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       is_single ? IFACE_("Radius:") : IFACE_("Mean Radius:"),
                       0,
                       yi -= buth + but_margin,
@@ -1131,11 +1131,11 @@ static void v3d_editvertex_buts(
                       is_single ?
                           std::nullopt :
                           std::optional<StringRef>{TIP_("Radius of curve control points")});
-      UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-      UI_but_number_step_size_set(but, 1);
-      UI_but_number_precision_set(but, 3);
+      button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+      button_number_step_size_set(but, 1);
+      button_number_precision_set(but, 3);
       but = uiDefButF(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       is_single ? IFACE_("Tilt:") : IFACE_("Mean Tilt:"),
                       0,
                       yi -= buth + but_margin,
@@ -1146,17 +1146,17 @@ static void v3d_editvertex_buts(
                       tilt_limit,
                       is_single ? std::nullopt :
                                   std::optional<StringRef>{TIP_("Tilt of curve control points")});
-      UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-      UI_but_number_step_size_set(but, 1);
-      UI_but_number_precision_set(but, 3);
-      UI_but_unit_type_set(but, PROP_UNIT_ROTATION);
+      button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+      button_number_step_size_set(but, 1);
+      button_number_precision_set(but, 3);
+      button_unit_type_set(but, PROP_UNIT_ROTATION);
     }
     /* Curve... */
     else if (totcurvedata) {
       TransformMedian_Curve *ve_median = &tfp->ve_median.curve;
       if (totcurvedata == 1) {
         but = uiDefButR(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         IFACE_("Weight:"),
                         0,
                         yi -= buth + but_margin,
@@ -1168,10 +1168,10 @@ static void v3d_editvertex_buts(
                         0.0,
                         1.0,
                         std::nullopt);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
         but = uiDefButR(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         IFACE_("Radius:"),
                         0,
                         yi -= buth + but_margin,
@@ -1183,10 +1183,10 @@ static void v3d_editvertex_buts(
                         0.0,
                         100.0,
                         std::nullopt);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
         but = uiDefButR(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         IFACE_("Tilt:"),
                         0,
                         yi -= buth + but_margin,
@@ -1198,12 +1198,12 @@ static void v3d_editvertex_buts(
                         -tilt_limit,
                         tilt_limit,
                         std::nullopt);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
       }
       else if (totcurvedata > 1) {
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         IFACE_("Mean Weight:"),
                         0,
                         yi -= buth + but_margin,
@@ -1213,11 +1213,11 @@ static void v3d_editvertex_buts(
                         0.0,
                         1.0,
                         TIP_("Weight used for Soft Body Goal"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         IFACE_("Mean Radius:"),
                         0,
                         yi -= buth + but_margin,
@@ -1227,11 +1227,11 @@ static void v3d_editvertex_buts(
                         0.0,
                         100.0,
                         TIP_("Radius of curve control points"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         IFACE_("Mean Tilt:"),
                         0,
                         yi -= buth + but_margin,
@@ -1241,10 +1241,10 @@ static void v3d_editvertex_buts(
                         -tilt_limit,
                         tilt_limit,
                         TIP_("Tilt of curve control points"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
-        UI_but_unit_type_set(but, PROP_UNIT_ROTATION);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
+        button_unit_type_set(but, PROP_UNIT_ROTATION);
       }
     }
     /* Lattice... */
@@ -1252,7 +1252,7 @@ static void v3d_editvertex_buts(
       TransformMedian_Lattice *ve_median = &tfp->ve_median.lattice;
       if (totlattdata == 1) {
         but = uiDefButR(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         IFACE_("Weight:"),
                         0,
                         yi -= buth + but_margin,
@@ -1264,12 +1264,12 @@ static void v3d_editvertex_buts(
                         0.0,
                         1.0,
                         std::nullopt);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
       }
       else if (totlattdata > 1) {
         but = uiDefButF(block,
-                        blender::ui::ButType::Num,
+                        blender::ui::ButtonType::Num,
                         IFACE_("Mean Weight:"),
                         0,
                         yi -= buth + but_margin,
@@ -1279,23 +1279,23 @@ static void v3d_editvertex_buts(
                         0.0,
                         1.0,
                         TIP_("Weight used for Soft Body Goal"));
-        UI_but_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
-        UI_but_number_step_size_set(but, 1);
-        UI_but_number_precision_set(but, 3);
+        button_retval_set(but, B_TRANSFORM_PANEL_MEDIAN);
+        button_number_step_size_set(but, 1);
+        button_number_precision_set(but, 3);
       }
     }
 
-    UI_block_align_end(block);
+    block_align_end(block);
 
     if (ob->type == OB_MESH) {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
       if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-        blender::ui::uiBlockInteraction_CallbackData callback_data{};
+        blender::ui::BlockInteraction_CallbackData callback_data{};
         callback_data.begin_fn = editmesh_partial_update_begin_fn;
         callback_data.end_fn = editmesh_partial_update_end_fn;
         callback_data.update_fn = editmesh_partial_update_update_fn;
         callback_data.arg1 = em;
-        UI_block_interaction_set(block, &callback_data);
+        block_interaction_set(block, &callback_data);
       }
     }
   }
@@ -1602,7 +1602,7 @@ static void v3d_object_dimension_buts(bContext *C,
                                       View3D *v3d,
                                       Object *ob)
 {
-  uiBlock *block = (layout) ? layout->block() : nullptr;
+  blender::ui::Block *block = (layout) ? layout->block() : nullptr;
   blender::ui::Layout *sub_layout = layout ? &layout->absolute(false) : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   const bool is_editable = ID_IS_EDITABLE(&ob->id);
@@ -1623,7 +1623,7 @@ static void v3d_object_dimension_buts(bContext *C,
     }
 
     uiDefBut(block,
-             blender::ui::ButType::Label,
+             blender::ui::ButtonType::Label,
              IFACE_("Dimensions:"),
              0,
              yi -= buth,
@@ -1633,13 +1633,13 @@ static void v3d_object_dimension_buts(bContext *C,
              0,
              0,
              "");
-    UI_block_align_begin(block);
+    block_align_begin(block);
     const float lim = FLT_MAX;
     for (int i = 0; i < 3; i++) {
-      uiBut *but;
+      blender::ui::Button *but;
       const char text[3] = {char('X' + i), ':', '\0'};
       but = uiDefButF(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       text,
                       0,
                       yi -= buth,
@@ -1649,15 +1649,15 @@ static void v3d_object_dimension_buts(bContext *C,
                       0.0f,
                       lim,
                       "");
-      UI_but_retval_set(but, B_TRANSFORM_PANEL_DIMS);
-      UI_but_number_step_size_set(but, 10);
-      UI_but_number_precision_set(but, 3);
-      UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
+      button_retval_set(but, B_TRANSFORM_PANEL_DIMS);
+      button_number_step_size_set(but, 10);
+      button_number_precision_set(but, 3);
+      button_unit_type_set(but, PROP_UNIT_LENGTH);
       if (!is_editable) {
-        UI_but_disable(but, "Cannot edit this property from a linked data-block");
+        button_disable(but, "Cannot edit this property from a linked data-block");
       }
     }
-    UI_block_align_end(block);
+    block_align_end(block);
   }
   else { /* apply */
     int axis_mask = 0;
@@ -1723,7 +1723,7 @@ static void update_active_vertex_weight(bContext *C, void *arg1, void * /*arg2*/
 
 static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 {
-  uiBlock *block = panel->layout->absolute().block();
+  blender::ui::Block *block = panel->layout->absolute().block();
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -1744,7 +1744,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 
     blender::ui::Layout *col, *bcol;
     blender::ui::Layout *row;
-    uiBut *but;
+    blender::ui::Button *but;
     bDeformGroup *dg;
     uint i;
     int subset_count, vgroup_tot;
@@ -1753,14 +1753,14 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
     int yco = 0;
     int lock_count = 0;
 
-    UI_block_func_handle_set(block, do_view3d_vgroup_buttons, nullptr);
+    block_func_handle_set(block, do_view3d_vgroup_buttons, nullptr);
 
     bcol = &panel->layout->column(true);
     row = &bcol->row(true); /* The filter button row */
 
     PointerRNA tools_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ToolSettings, ts);
     row->prop(
-        &tools_ptr, "vertex_group_subset", blender::ui::UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+        &tools_ptr, "vertex_group_subset", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
     col = &bcol->column(true);
 
@@ -1784,7 +1784,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 
           ot = WM_operatortype_find("OBJECT_OT_vertex_weight_set_active", true);
           but = uiDefButO_ptr(block,
-                              blender::ui::ButType::But,
+                              blender::ui::ButtonType::But,
                               ot,
                               blender::wm::OpCallContext::ExecDefault,
                               dg->name,
@@ -1793,11 +1793,11 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
                               (x = UI_UNIT_X * 5),
                               UI_UNIT_Y,
                               "");
-          but_ptr = UI_but_operator_ptr_ensure(but);
+          but_ptr = button_operator_ptr_ensure(but);
           RNA_int_set(but_ptr, "weight_group", i);
-          UI_but_drawflag_enable(but, blender::ui::UI_BUT_TEXT_RIGHT);
+          button_drawflag_enable(but, blender::ui::BUT_TEXT_RIGHT);
           if (BKE_object_defgroup_active_index_get(ob) != i + 1) {
-            UI_but_flag_enable(but, blender::ui::UI_BUT_INACTIVE);
+            button_flag_enable(but, blender::ui::BUT_INACTIVE);
           }
           xco += x;
 
@@ -1809,7 +1809,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           float &vertex_weight = tfp->vertex_weights[i];
           vertex_weight = dw->weight;
           but = uiDefButF(block,
-                          blender::ui::ButType::Num,
+                          blender::ui::ButtonType::Num,
                           "",
                           xco,
                           yco,
@@ -1819,11 +1819,11 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
                           0.0,
                           1.0,
                           "");
-          UI_but_retval_set(but, B_VGRP_PNL_EDIT_SINGLE + i);
-          UI_but_number_step_size_set(but, 1);
-          UI_but_number_precision_set(but, 3);
-          UI_but_drawflag_enable(but, blender::ui::UI_BUT_TEXT_LEFT);
-          UI_but_func_set(but, update_active_vertex_weight, POINTER_FROM_INT(i), nullptr);
+          button_retval_set(but, B_VGRP_PNL_EDIT_SINGLE + i);
+          button_number_step_size_set(but, 1);
+          button_number_precision_set(but, 3);
+          button_drawflag_enable(but, blender::ui::BUT_TEXT_LEFT);
+          button_func_set(but, update_active_vertex_weight, POINTER_FROM_INT(i), nullptr);
           if (locked) {
             lock_count++;
           }
@@ -1861,7 +1861,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
     ot = WM_operatortype_find("OBJECT_OT_vertex_weight_normalize_active_vertex", true);
     but = uiDefButO_ptr(
         block,
-        blender::ui::ButType::But,
+        blender::ui::ButtonType::But,
         ot,
         blender::wm::OpCallContext::ExecDefault,
         IFACE_("Normalize"),
@@ -1874,7 +1874,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
     ot = WM_operatortype_find("OBJECT_OT_vertex_weight_copy", true);
     but = uiDefButO_ptr(
         block,
-        blender::ui::ButType::But,
+        blender::ui::ButtonType::But,
         ot,
         blender::wm::OpCallContext::ExecDefault,
         IFACE_("Copy"),
@@ -1884,7 +1884,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
         UI_UNIT_Y,
         TIP_("Copy active vertex to other selected vertices (if affected groups are unlocked)"));
     if (lock_count) {
-      UI_but_flag_enable(but, blender::ui::UI_BUT_DISABLED);
+      button_flag_enable(but, blender::ui::BUT_DISABLED);
     }
   }
 }
@@ -1908,7 +1908,7 @@ static void v3d_transform_butsR(blender::ui::Layout &layout, PointerRNA *ptr)
   colsub->label("", ICON_NONE);
   colsub->prop(ptr,
                "lock_location",
-               blender::ui::UI_ITEM_R_TOGGLE | blender::ui::UI_ITEM_R_ICON_ONLY,
+               blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_ICON_ONLY,
                "",
                ICON_DECORATE_UNLOCKED);
 
@@ -1920,12 +1920,11 @@ static void v3d_transform_butsR(blender::ui::Layout &layout, PointerRNA *ptr)
       colsub->prop(ptr, "rotation_quaternion", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
       colsub = &split->column(true);
       colsub->emboss_set(blender::ui::EmbossType::NoneOrStatus);
-      colsub->prop(
-          ptr, "lock_rotations_4d", blender::ui::UI_ITEM_R_TOGGLE, IFACE_("4L"), ICON_NONE);
+      colsub->prop(ptr, "lock_rotations_4d", blender::ui::ITEM_R_TOGGLE, IFACE_("4L"), ICON_NONE);
       if (RNA_boolean_get(ptr, "lock_rotations_4d")) {
         colsub->prop(ptr,
                      "lock_rotation_w",
-                     blender::ui::UI_ITEM_R_TOGGLE | blender::ui::UI_ITEM_R_ICON_ONLY,
+                     blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_ICON_ONLY,
                      "",
                      ICON_DECORATE_UNLOCKED);
       }
@@ -1934,7 +1933,7 @@ static void v3d_transform_butsR(blender::ui::Layout &layout, PointerRNA *ptr)
       }
       colsub->prop(ptr,
                    "lock_rotation",
-                   blender::ui::UI_ITEM_R_TOGGLE | blender::ui::UI_ITEM_R_ICON_ONLY,
+                   blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_ICON_ONLY,
                    "",
                    ICON_DECORATE_UNLOCKED);
       break;
@@ -1943,12 +1942,11 @@ static void v3d_transform_butsR(blender::ui::Layout &layout, PointerRNA *ptr)
       colsub->prop(ptr, "rotation_axis_angle", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
       colsub = &split->column(true);
       colsub->emboss_set(blender::ui::EmbossType::NoneOrStatus);
-      colsub->prop(
-          ptr, "lock_rotations_4d", blender::ui::UI_ITEM_R_TOGGLE, IFACE_("4L"), ICON_NONE);
+      colsub->prop(ptr, "lock_rotations_4d", blender::ui::ITEM_R_TOGGLE, IFACE_("4L"), ICON_NONE);
       if (RNA_boolean_get(ptr, "lock_rotations_4d")) {
         colsub->prop(ptr,
                      "lock_rotation_w",
-                     blender::ui::UI_ITEM_R_TOGGLE | blender::ui::UI_ITEM_R_ICON_ONLY,
+                     blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_ICON_ONLY,
                      "",
                      ICON_DECORATE_UNLOCKED);
       }
@@ -1957,7 +1955,7 @@ static void v3d_transform_butsR(blender::ui::Layout &layout, PointerRNA *ptr)
       }
       colsub->prop(ptr,
                    "lock_rotation",
-                   blender::ui::UI_ITEM_R_TOGGLE | blender::ui::UI_ITEM_R_ICON_ONLY,
+                   blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_ICON_ONLY,
                    "",
                    ICON_DECORATE_UNLOCKED);
       break;
@@ -1969,7 +1967,7 @@ static void v3d_transform_butsR(blender::ui::Layout &layout, PointerRNA *ptr)
       colsub->label("", ICON_NONE);
       colsub->prop(ptr,
                    "lock_rotation",
-                   blender::ui::UI_ITEM_R_TOGGLE | blender::ui::UI_ITEM_R_ICON_ONLY,
+                   blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_ICON_ONLY,
                    "",
                    ICON_DECORATE_UNLOCKED);
       break;
@@ -1984,7 +1982,7 @@ static void v3d_transform_butsR(blender::ui::Layout &layout, PointerRNA *ptr)
   colsub->label("", ICON_NONE);
   colsub->prop(ptr,
                "lock_scale",
-               blender::ui::UI_ITEM_R_TOGGLE | blender::ui::UI_ITEM_R_ICON_ONLY,
+               blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_ICON_ONLY,
                "",
                ICON_DECORATE_UNLOCKED);
 }
@@ -2126,7 +2124,7 @@ static bool view3d_panel_transform_poll(const bContext *C, PanelType * /*pt*/)
 
 static void view3d_panel_transform(const bContext *C, Panel *panel)
 {
-  uiBlock *block;
+  blender::ui::Block *block;
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -2134,7 +2132,7 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
   Object *obedit = OBEDIT_FROM_OBACT(ob);
 
   block = panel->layout->block();
-  UI_block_func_handle_set(block, do_view3d_region_buttons, nullptr);
+  block_func_handle_set(block, do_view3d_region_buttons, nullptr);
 
   blender::ui::Layout &col = panel->layout->column(false);
 
@@ -2389,13 +2387,13 @@ constexpr std::array<EnumPropertyItem, 5> enum_curve_knot_mode_items{{
 
 static void knot_modes_menu(bContext * /*C*/, blender::ui::Layout *layout, void *knot_mode_p)
 {
-  uiBlock *block = layout->block();
+  blender::ui::Block *block = layout->block();
   blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   for (const EnumPropertyItem &item : enum_curve_knot_mode_items) {
     uiDefButI(block,
-              blender::ui::ButType::ButMenu,
+              blender::ui::ButtonType::ButMenu,
               IFACE_(item.name),
               0,
               0,
@@ -2417,7 +2415,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  uiBlock *block = panel->layout->block();
+  blender::ui::Block *block = panel->layout->block();
 
   CurvesSelectionStatus status;
 
@@ -2448,7 +2446,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
 
   if (status.curve_count == 0) {
     uiDefBut(block,
-             blender::ui::ButType::Label,
+             blender::ui::ButtonType::Label,
              IFACE_("Nothing selected"),
              0,
              130,
@@ -2475,22 +2473,22 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   modified = current;
 
   panel->layout->use_property_split_set(true);
-  blender::ui::Layout &bcol = panel->layout->column(false);
+  ui::Layout &bcol = panel->layout->column(false);
 
   auto add_labeled_field =
-      [&](const StringRef label, const bool active, FunctionRef<uiBut *()> add_button) {
-        blender::ui::Layout &row = bcol.row(true);
-        blender::ui::Layout &split = row.split(0.4, true);
-        blender::ui::Layout &col = split.column(true);
+      [&](const StringRef label, const bool active, FunctionRef<ui::Button *()> add_button) {
+        ui::Layout &row = bcol.row(true);
+        ui::Layout &split = row.split(0.4, true);
+        ui::Layout &col = split.column(true);
         col.alignment_set(ui::LayoutAlign::Right);
         col.label(label, ICON_NONE);
         split.column(false);
-        uiBut *but = add_button();
+        ui::Button *but = add_button();
         if (active) {
-          UI_but_drawflag_disable(but, blender::ui::UI_BUT_INDETERMINATE);
+          button_drawflag_disable(but, ui::BUT_INDETERMINATE);
         }
         else {
-          UI_but_drawflag_enable(but, blender::ui::UI_BUT_INDETERMINATE);
+          button_drawflag_enable(but, ui::BUT_INDETERMINATE);
         }
       };
 
@@ -2500,47 +2498,57 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   add_labeled_field(IFACE_("Cyclic"),
                     status.cyclic_count == 0 || status.cyclic_count == status.curve_count,
                     [&]() {
-                      uiBut *but = uiDefButC(block,
-                                             blender::ui::ButType::Checkbox,
-                                             "",
-                                             0,
-                                             0,
-                                             butw,
-                                             buth,
-                                             &modified.cyclic,
-                                             0,
-                                             1,
-                                             "");
-                      UI_but_func_set(but, handle_curves_cyclic, nullptr, nullptr);
+                      blender::ui::Button *but = uiDefButC(block,
+                                                           blender::ui::ButtonType::Checkbox,
+                                                           "",
+                                                           0,
+                                                           0,
+                                                           butw,
+                                                           buth,
+                                                           &modified.cyclic,
+                                                           0,
+                                                           1,
+                                                           "");
+                      button_func_set(but, handle_curves_cyclic, nullptr, nullptr);
                       return but;
                     });
 
   if (status.nurbs_count == status.curve_count) {
-    add_labeled_field(
-        IFACE_("Knot Mode"),
-        status.nurbs_knot_mode_max * status.nurbs_count == status.nurbs_knot_mode_sum,
-        [&]() {
-          uiBut *but = uiDefMenuBut(block,
-                                    knot_modes_menu,
-                                    &modified.nurbs_knot_mode,
-                                    enum_curve_knot_mode_items[modified.nurbs_knot_mode].name,
-                                    0,
-                                    0,
-                                    butw,
-                                    buth,
-                                    "");
-          UI_but_type_set_menu_from_pulldown(but);
-          UI_but_func_set(but, handle_curves_knot_mode, nullptr, nullptr);
-          return but;
-        });
+    add_labeled_field(IFACE_("Knot Mode"),
+                      status.nurbs_knot_mode_max * status.nurbs_count ==
+                          status.nurbs_knot_mode_sum,
+                      [&]() {
+                        blender::ui::Button *but = uiDefMenuBut(
+                            block,
+                            knot_modes_menu,
+                            &modified.nurbs_knot_mode,
+                            enum_curve_knot_mode_items[modified.nurbs_knot_mode].name,
+                            0,
+                            0,
+                            butw,
+                            buth,
+                            "");
+                        button_type_set_menu_from_pulldown(but);
+                        button_func_set(but, handle_curves_knot_mode, nullptr, nullptr);
+                        return but;
+                      });
 
     add_labeled_field(
         IFACE_("Order"), status.order_max * status.nurbs_count == status.order_sum, [&]() {
-          uiBut *but = uiDefButI(
-              block, blender::ui::ButType::Num, "", 0, 0, butw, buth, &modified.order, 2, 6, "");
-          UI_but_number_step_size_set(but, 1);
-          UI_but_number_precision_set(but, -1);
-          UI_but_func_set(but, handle_curves_order, nullptr, nullptr);
+          blender::ui::Button *but = uiDefButI(block,
+                                               blender::ui::ButtonType::Num,
+                                               "",
+                                               0,
+                                               0,
+                                               butw,
+                                               buth,
+                                               &modified.order,
+                                               2,
+                                               6,
+                                               "");
+          button_number_step_size_set(but, 1);
+          button_number_precision_set(but, -1);
+          button_func_set(but, handle_curves_order, nullptr, nullptr);
           return but;
         });
   }
@@ -2549,20 +2557,20 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
     add_labeled_field(IFACE_("Resolution"),
                       status.resolution_max * status.curve_count == status.resolution_sum,
                       [&]() {
-                        uiBut *but = uiDefButI(block,
-                                               blender::ui::ButType::Num,
-                                               "",
-                                               0,
-                                               0,
-                                               butw,
-                                               buth,
-                                               &modified.resolution,
-                                               1,
-                                               64,
-                                               "");
-                        UI_but_number_step_size_set(but, 1);
-                        UI_but_number_precision_set(but, -1);
-                        UI_but_func_set(but, handle_curves_resolution, nullptr, nullptr);
+                        blender::ui::Button *but = uiDefButI(block,
+                                                             blender::ui::ButtonType::Num,
+                                                             "",
+                                                             0,
+                                                             0,
+                                                             butw,
+                                                             buth,
+                                                             &modified.resolution,
+                                                             1,
+                                                             64,
+                                                             "");
+                        button_number_step_size_set(but, 1);
+                        button_number_precision_set(but, -1);
+                        button_func_set(but, handle_curves_resolution, nullptr, nullptr);
                         return but;
                       });
   }
@@ -2613,7 +2621,8 @@ static wmOperatorStatus view3d_object_mode_menu_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  blender::ui::UI_pie_menu_invoke(C, "VIEW3D_MT_object_mode_pie", CTX_wm_window(C)->eventstate);
+  blender::ui::pie_menu_invoke(
+      C, "VIEW3D_MT_object_mode_pie", CTX_wm_window(C)->runtime->eventstate);
   return OPERATOR_CANCELLED;
 }
 
