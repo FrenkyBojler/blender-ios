@@ -3770,10 +3770,9 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   else {
     but->selsta = 0;
   }
-  if (but->type == ButtonType::TextBox) {
+  if (but->type == ButtonType::TextBox && data->text_select_on_drag_activation) {
     const float2 event_xy = {float(data->dragstartx), float(data->dragstarty)};
     ui_textedit_set_cursor_pos(but, data->region, event_xy);
-    data->text_select_on_drag_activation = true;
   }
   else {
     but->selend = len;
@@ -3811,8 +3810,9 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
      * that region to ensure it is in view can't work and causes issues. #97530 */
     but_ensure_in_view(C, data->region, but);
   }
-
-  WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
+  if (but->type == ButtonType::TextBox) {
+    WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
+  }
 
   /* Temporarily turn off window auto-focus on platforms that support it. */
   GHOST_SetAutoFocus(false);
@@ -4014,7 +4014,7 @@ static int ui_do_but_textedit(
   switch (event->type) {
     case MOUSEMOVE:
     case MOUSEPAN:
-      if (data->text_select_on_drag_activation) {
+      if (text_select_on_drag_activation) {
         ui_textedit_set_cursor_pos(but, data->region, float2(event->xy));
         but->selsta = but->selend = but->pos;
         text_edit.sel_pos_init = but->pos;
@@ -5286,6 +5286,7 @@ static int ui_do_but_TEX(
           HandleButtonData *data = but->active;
           data->dragstartx = event->xy[0];
           data->dragstarty = event->xy[1];
+          data->text_select_on_drag_activation = event->type == LEFTMOUSE;
           button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
         }
         return WM_UI_HANDLER_BREAK;
@@ -9354,7 +9355,7 @@ static void button_activate_exit(
   wmWindow *win = data->window;
   Block *block = but->block;
 
-  if (but->type == ButtonType::Grip) {
+  if (ELEM(but->type, ButtonType::Grip, ButtonType::TextBox)) {
     WM_cursor_modal_restore(win);
   }
 
