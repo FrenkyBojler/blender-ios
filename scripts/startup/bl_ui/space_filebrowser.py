@@ -389,17 +389,11 @@ class FILEBROWSER_PT_advanced_filter(Panel):
             filter_id = params.filter_id
             filters = [x for x in filter_id.bl_rna.properties if x.identifier.startswith("filter_")]
 
-            import locale
-            current_locale = locale.getlocale(locale.LC_ALL)
-            language = context.preferences.view.language
-            locale.setlocale(locale.LC_ALL, language if language != 'DEFAULT' else '')
-
-            for i in sorted(filters, key=lambda x: locale.strxfrm(bpy.app.translations.pgettext_iface(x.name))):
+            # Sorted by the English (untranslated) name
+            for i in sorted(filters, key=lambda x: (x.name)):
                 row = col.row()
                 row.label(icon=i.icon)
                 row.prop(filter_id, i.identifier, toggle=False)
-
-            locale.setlocale(locale.LC_ALL, current_locale)
 
 
 def is_option_region_visible(context, space):
