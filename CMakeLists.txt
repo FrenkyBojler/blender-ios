@@ -1387,6 +1387,9 @@ set_and_warn_dependency(WITH_IMAGE_OPENEXR WITH_CYCLES_OSL OFF)
 # Hydra requires USD.
 set_and_warn_dependency(WITH_USD WITH_HYDRA OFF)
 
+# Boolean requires both GMP and Manifold. Boolean guards GMP that include Manifold code.
+set_and_warn_dependency(WITH_MANIFOLD WITH_GMP OFF) 
+
 # Ocean modifier and Rubberband require FFTW3.
 set_and_warn_dependency(WITH_FFTW3 WITH_MOD_OCEANSIM OFF)
 set_and_warn_dependency(WITH_FFTW3 WITH_RUBBERBAND OFF)
