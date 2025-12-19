@@ -936,16 +936,16 @@ void Instance::draw_v3d(Manager &manager, View &view)
     draw(regular, resources.overlay_fb);
     draw_line(regular, resources.overlay_line_fb);
 
+    /* Here as it does depth+blending, and should draw after most overlay line passes.. */
+    if (!state.is_depth_only_drawing) {
+      grid.draw_line(resources.overlay_line_fb, manager, view);
+    }
+    
     /* Here because of custom order of regular.facing. */
     infront.facing.draw(resources.overlay_fb, manager, view);
 
     draw(infront, resources.overlay_in_front_fb);
     draw_line(infront, resources.overlay_line_in_front_fb);
-
-    /* Here as it does depth+blending, and should draw after most overlay line passes.. */
-    if (!state.is_depth_only_drawing) {
-      grid.draw_line(resources.overlay_line_fb, manager, view);
-    }
   }
   {
     /* Color only pass. */
