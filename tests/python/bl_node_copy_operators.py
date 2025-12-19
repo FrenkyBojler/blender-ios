@@ -380,7 +380,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 # Compare generated group tree interface to expected tree.
                 self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
-    @unittest.skip("Broken due to #151786")
     def test_node_make_group_multi(self):
         self.open_file()
         tree = bpy.data.node_groups['Geometry Nodes']
@@ -407,7 +406,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         self.compare_tree_interface(group_node.node_tree, expected_group_node.node_tree)
 
 
-    @unittest.skip("Broken due to #151786")
     def test_node_group_insert_empty_single(self):
         for test_node_name, expected_group_node_name in zip(test_node_names, group_nodes_single_names):
             with self.subTest(test_node=test_node_name, expected_group_node=expected_group_node_name):
