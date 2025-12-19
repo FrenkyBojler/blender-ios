@@ -418,6 +418,7 @@ struct HandleButtonData {
   wmTimer *flashtimer = nullptr;
 
   TextEdit text_edit;
+  bool text_select_on_drag_activation = false;
 
   double value = 0.0f;
   double origvalue = 0.0f;
@@ -3769,7 +3770,14 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   else {
     but->selsta = 0;
   }
-  but->selend = len;
+  if (but->type == ButtonType::TextBox) {
+    const float2 event_xy = {float(data->dragstartx), float(data->dragstarty)};
+    ui_textedit_set_cursor_pos(but, data->region, event_xy);
+    data->text_select_on_drag_activation = true;
+  }
+  else {
+    but->selend = len;
+  }
 
   /* Initialize undo history tracking. */
   text_edit.undo_stack_text = textedit_undo_stack_create();
@@ -4001,9 +4009,20 @@ static int ui_do_but_textedit(
   ButtonTextBox *textbox = but->type == ButtonType::TextBox ? static_cast<ButtonTextBox *>(but) :
                                                               nullptr;
   int orig_pos = but->pos;
+  const bool text_select_on_drag_activation = data->text_select_on_drag_activation;
+  data->text_select_on_drag_activation = false;
   switch (event->type) {
     case MOUSEMOVE:
     case MOUSEPAN:
+      if (data->text_select_on_drag_activation) {
+        ui_textedit_set_cursor_pos(but, data->region, float2(event->xy));
+        but->selsta = but->selend = but->pos;
+        text_edit.sel_pos_init = but->pos;
+
+        button_activate_state(C, but, BUTTON_STATE_TEXT_SELECTING);
+        retval = WM_UI_HANDLER_BREAK;
+        break;
+      }
       if (data->searchbox) {
 #ifdef USE_KEYNAV_LIMIT
         if ((event->type == MOUSEMOVE) &&
@@ -5264,6 +5283,9 @@ static int ui_do_but_TEX(
       }
       else {
         if (!ui_but_extra_operator_icon_mouse_over_get(but, data->region, event)) {
+          HandleButtonData *data = but->active;
+          data->dragstartx = event->xy[0];
+          data->dragstarty = event->xy[1];
           button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
         }
         return WM_UI_HANDLER_BREAK;
@@ -9306,6 +9328,9 @@ static void button_activate_init(bContext *C,
   if (but->type == ButtonType::Grip) {
     const bool horizontal = (BLI_rctf_size_x(&but->rect) < BLI_rctf_size_y(&but->rect));
     WM_cursor_modal_set(data->window, horizontal ? WM_CURSOR_X_MOVE : WM_CURSOR_Y_MOVE);
+  }
+  if (but->type == ButtonType::TextBox) {
+    WM_cursor_modal_set(data->window, WM_CURSOR_TEXT_EDIT);
   }
   else if (but->type == ButtonType::Num) {
     ui_numedit_set_active(but);
