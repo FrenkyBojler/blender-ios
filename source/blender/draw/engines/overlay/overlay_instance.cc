@@ -943,7 +943,9 @@ void Instance::draw_v3d(Manager &manager, View &view)
     draw_line(infront, resources.overlay_line_in_front_fb);
 
     /* Here as it does depth+blending, and should draw after most overlay line passes.. */
-    grid.draw_line(resources.overlay_line_fb, manager, view);
+    if (!state.is_depth_only_drawing) {
+      grid.draw_line(resources.overlay_line_fb, manager, view);
+    }
   }
   {
     /* Color only pass. */
