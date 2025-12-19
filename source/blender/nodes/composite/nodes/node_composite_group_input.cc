@@ -138,6 +138,11 @@ class GroupInputOperation : public NodeOperation {
         /* Unsupported type. */
         BLI_assert_unreachable();
       }
+      else if (input.is_single_value()) {
+        T value = input.get_single_value<T>();
+        parallel_for(result.domain().data_size,
+                     [&](const int2 texel) { result.store_pixel(texel, value); });
+      }
       else {
         parallel_for(result.domain().data_size, [&](const int2 texel) {
           result.store_pixel(texel, input.load_pixel<T>(texel + lower_bound));
