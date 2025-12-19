@@ -962,6 +962,29 @@ class NodeSetInterface {
   }
 };
 
+static void get_min_max_of_nodes(const Span<const bNode *> nodes,
+                                 const bool use_size,
+                                 float2 &min,
+                                 float2 &max)
+{
+  if (nodes.is_empty()) {
+    min = float2(0);
+    max = float2(0);
+    return;
+  }
+
+  INIT_MINMAX2(min, max);
+  for (const bNode *node : nodes) {
+    float2 loc(node->location);
+    math::min_max(loc, min, max);
+    if (use_size) {
+      loc.x += node->width;
+      loc.y -= node->height;
+      math::min_max(loc, min, max);
+    }
+  }
+}
+
 /**
  * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
  */
@@ -989,6 +1012,8 @@ class NodeSetCopy {
                                 bNodeTree &dst_tree)
   {
     const bNodeTree &src_tree = src_nodes.tree();
+
+    node_deselect_all(dst_tree);
 
     NodeSetCopy result(dst_tree);
     Vector<AnimationBasePathChange> anim_basepaths;
@@ -1038,6 +1063,19 @@ class NodeSetCopy {
     /* Copy animation data of source nodes. */
     BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_tree.id, anim_basepaths);
 
+    /* Move nodes in the group to the center */
+    {
+      float2 min, max;
+      get_min_max_of_nodes(src_nodes.nodes(), false, min, max);
+      const float2 center = math::midpoint(min, max);
+      float2 real_min, real_max;
+      get_min_max_of_nodes(src_nodes.nodes(), true, real_min, real_max);
+      for (bNode *node : new_nodes) {
+        node->location[0] -= center[0];
+        node->location[1] -= center[1];
+      }
+    }
+
     return result;
   }
 
@@ -1077,6 +1115,18 @@ class NodeSetCopy {
     /* Make sure group input/output node sockets match the tree interface. */
     nodes::update_node_declaration_and_sockets(tree_, *io_nodes.input_node);
     nodes::update_node_declaration_and_sockets(tree_, *io_nodes.output_node);
+
+    /* Move group input/output nodes to the edges of the bounding box. */
+    {
+      Vector<const bNode *> src_nodes(node_map_.keys().begin(), node_map_.keys().end());
+      float2 min, max;
+      get_min_max_of_nodes(src_nodes, false, min, max);
+      const float2 center = math::midpoint(min, max);
+      float2 real_min, real_max;
+      get_min_max_of_nodes(src_nodes, true, real_min, real_max);
+      io_nodes.output_node->location[0] = real_max[0] - center[0] + 50.0f;
+      io_nodes.input_node->location[0] = real_min[0] - center[0] - 200.0f;
+    }
 
     return io_nodes;
   }
@@ -1182,29 +1232,6 @@ static bool node_group_make_test_selected(bNodeTree &ntree,
   return true;
 }
 
-static void get_min_max_of_nodes(const Span<bNode *> nodes,
-                                 const bool use_size,
-                                 float2 &min,
-                                 float2 &max)
-{
-  if (nodes.is_empty()) {
-    min = float2(0);
-    max = float2(0);
-    return;
-  }
-
-  INIT_MINMAX2(min, max);
-  for (const bNode *node : nodes) {
-    float2 loc(node->location);
-    math::min_max(loc, min, max);
-    if (use_size) {
-      loc.x += node->width;
-      loc.y -= node->height;
-      math::min_max(loc, min, max);
-    }
-  }
-}
-
 static void update_nested_node_refs_after_moving_nodes_into_group(
     bNodeTree &ntree,
     bNodeTree &group,
@@ -1261,37 +1288,18 @@ static void node_group_make_insert_selected(const bContext &C,
   bNodeTree &group = *reinterpret_cast<bNodeTree *>(gnode->id);
   BLI_assert(!nodes_to_move.contains(gnode));
 
-  node_deselect_all(group);
-
-  float2 min, max;
-  get_min_max_of_nodes(nodes_to_move, false, min, max);
-  const float2 center = math::midpoint(min, max);
-  float2 real_min, real_max;
-  get_min_max_of_nodes(nodes_to_move, true, real_min, real_max);
-
   /* If only one node is selected expose all its sockets regardless of links. */
   const bool expose_visible = nodes_to_move.size() == 1;
-
-  GroupOperatorNodeSet node_set(
+  const GroupOperatorNodeSet node_set(
       ntree,
       VectorSet<const bNode *>(nodes_to_move.as_span().cast<const bNode *>()),
       [&](const bNode *node) { return node != gnode; },
       expose_visible);
-
   /* Copy nodes into the group. */
   const NodeSetInterface node_set_io = NodeSetInterface::from_nodes(node_set, group);
   const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(*bmain, node_set, group);
   /* Connect exposed sockets to group input/output nodes. */
-  const NodeSetCopy::GroupInputOutputNodes io_nodes = node_set_copy.expose_sockets_to_interface(
-      C, node_set_io);
-
-  /* Move nodes in the group to the center */
-  for (bNode *node : nodes_to_move) {
-    node->location[0] -= center[0];
-    node->location[1] -= center[1];
-  }
-  io_nodes.output_node->location[0] = real_max[0] - center[0] + 50.0f;
-  io_nodes.input_node->location[0] = real_min[0] - center[0] - 200.0f;
+  node_set_copy.expose_sockets_to_interface(C, node_set_io);
 
   update_nested_node_refs_after_moving_nodes_into_group(
       ntree, group, *gnode, node_set_copy.node_identifier_map());
@@ -1322,7 +1330,7 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   Main *bmain = CTX_data_main(&C);
 
   float2 min, max;
-  get_min_max_of_nodes(nodes_to_group, false, min, max);
+  get_min_max_of_nodes(nodes_to_group.as_span(), false, min, max);
 
   /* New node-tree. */
   bNodeTree *ngroup = bke::node_tree_add_tree(bmain, "NodeGroup", ntreetype);
