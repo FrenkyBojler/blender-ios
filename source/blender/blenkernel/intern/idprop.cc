@@ -1456,7 +1456,7 @@ void IDP_WriteProperty_OnlyData(const IDProperty *prop, BlendWriter *writer)
 
 void IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop)
 {
-  writer->write_struct(prop);
+  BLO_write_struct(writer, IDProperty, prop);
   IDP_WriteProperty_OnlyData(prop, writer);
 }
 

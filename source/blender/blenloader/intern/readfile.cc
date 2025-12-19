@@ -193,6 +193,11 @@ static void read_libraries(FileData *basefd);
 static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const int id_type_index);
 static BHead *find_bhead_from_code_name(FileData *fd, const short idcode, const char *name);
 
+static FileData &get_filedata(BlendDataReader &reader)
+{
+  return *static_cast<FileData *>(reader.readdata_handle);
+}
+
 struct BHeadN {
   BHeadN *next, *prev;
 #ifdef USE_BHEAD_READ_ON_DEMAND
@@ -575,16 +580,6 @@ void blo_readfile_invalidate(FileData *fd, Main *bmain, const char *message)
 /* -------------------------------------------------------------------- */
 /** \name File Parsing
  * \{ */
-
-struct BlendDataReader {
-  FileData *fd;
-
-  /**
-   * The key is the old address id referencing shared data that's written to a file, typically an
-   * array. The corresponding value is the shared data at run-time.
-   */
-  blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
-};
 
 struct BlendLibReader {
   FileData *fd;
@@ -2033,7 +2028,7 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
     BLO_read_struct(reader, bNodeTree, nodetree);
     if (!*nodetree || !BKE_idtype_idcode_is_valid(GS((*nodetree)->id.name))) {
       BLO_reportf_wrap(
-          reader->fd->reports,
+          get_filedata(*reader).reports,
           RPT_ERROR,
           RPT_("Data-block '%s' had an invalid embedded node group, which has not been read"),
           id->name);
@@ -2059,7 +2054,7 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
           !BKE_idtype_idcode_is_valid(GS(scene->master_collection->id.name)))
       {
         BLO_reportf_wrap(
-            reader->fd->reports,
+            get_filedata(*reader).reports,
             RPT_ERROR,
             RPT_("Scene '%s' had an invalid root collection, which has not been read"),
             BKE_id_name(*id));
@@ -2298,8 +2293,8 @@ static void direct_link_id_common(BlendDataReader *reader,
     id->recalc = 0;
     id->recalc_after_undo_push = 0;
   }
-  else if ((reader->fd->skip_flags & BLO_READ_SKIP_UNDO_OLD_MAIN) == 0) {
-    id->recalc = direct_link_id_restore_recalc(reader->fd, id, id_old, false);
+  else if ((get_filedata(*reader).skip_flags & BLO_READ_SKIP_UNDO_OLD_MAIN) == 0) {
+    id->recalc = direct_link_id_restore_recalc(&get_filedata(*reader), id, id_old, false);
     id->recalc_after_undo_push = 0;
   }
 
@@ -2747,7 +2742,7 @@ static bool direct_link_id(FileData *fd,
   /* try to restore (when undoing) or clear ID's cache pointers. */
   if (id_type->foreach_cache != nullptr) {
     BKE_idtype_id_foreach_cache(
-        id, blo_cache_storage_entry_restore_in_new, reader.fd->cache_storage);
+        id, blo_cache_storage_entry_restore_in_new, get_filedata(reader).cache_storage);
   }
 
   return success;
@@ -5827,23 +5822,23 @@ static void *blo_verify_data_address(FileData *fd,
 
 void *BLO_read_get_new_data_address(BlendDataReader *reader, const void *old_address)
 {
-  return newdataadr(reader->fd, old_address);
+  return newdataadr(&get_filedata(*reader), old_address);
 }
 
 void *BLO_read_get_new_data_address_no_us(BlendDataReader *reader,
                                           const void *old_address,
                                           const size_t expected_size)
 {
-  void *new_address = newdataadr_no_us(reader->fd, old_address);
-  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
+  void *new_address = newdataadr_no_us(&get_filedata(*reader), old_address);
+  return blo_verify_data_address(&get_filedata(*reader), new_address, old_address, expected_size);
 }
 
 void *BLO_read_struct_array_with_size(BlendDataReader *reader,
                                       const void *old_address,
                                       const size_t expected_size)
 {
-  void *new_address = newdataadr(reader->fd, old_address);
-  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
+  void *new_address = newdataadr(&get_filedata(*reader), old_address);
+  return blo_verify_data_address(&get_filedata(*reader), new_address, old_address, expected_size);
 }
 
 void *BLO_read_struct_by_name_array(BlendDataReader *reader,
@@ -5851,10 +5846,11 @@ void *BLO_read_struct_by_name_array(BlendDataReader *reader,
                                     const int64_t items_num,
                                     const void *old_address)
 {
-  const int struct_index = DNA_struct_find_with_alias(reader->fd->memsdna, struct_name);
-  BLI_assert(STREQ(DNA_struct_identifier(const_cast<SDNA *>(reader->fd->memsdna), struct_index),
-                   struct_name));
-  const size_t struct_size = size_t(DNA_struct_size(reader->fd->memsdna, struct_index));
+  const int struct_index = DNA_struct_find_with_alias(get_filedata(*reader).memsdna, struct_name);
+  BLI_assert(
+      STREQ(DNA_struct_identifier(const_cast<SDNA *>(get_filedata(*reader).memsdna), struct_index),
+            struct_name));
+  const size_t struct_size = size_t(DNA_struct_size(get_filedata(*reader).memsdna, struct_index));
   return BLO_read_struct_array_with_size(reader, old_address, struct_size * items_num);
 }
 
@@ -5873,7 +5869,7 @@ ID *BLO_read_get_new_id_address_from_session_uid(BlendLibReader *reader, const u
 
 int BLO_read_fileversion_get(BlendDataReader *reader)
 {
-  return reader->fd->fileversion;
+  return get_filedata(*reader).fileversion;
 }
 
 void BLO_read_struct_list_with_size(BlendDataReader *reader,
@@ -5919,28 +5915,28 @@ void BLO_read_int16_array(BlendDataReader *reader, const int64_t array_size, int
 {
   *ptr_p = reinterpret_cast<int16_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int16_t) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
+  BLI_assert((get_filedata(*reader).flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
 void BLO_read_int32_array(BlendDataReader *reader, const int64_t array_size, int32_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<int32_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(int32_t) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
+  BLI_assert((get_filedata(*reader).flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
 void BLO_read_uint32_array(BlendDataReader *reader, const int64_t array_size, uint32_t **ptr_p)
 {
   *ptr_p = reinterpret_cast<uint32_t *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(uint32_t) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
+  BLI_assert((get_filedata(*reader).flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
 void BLO_read_float_array(BlendDataReader *reader, const int64_t array_size, float **ptr_p)
 {
   *ptr_p = reinterpret_cast<float *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(float) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
+  BLI_assert((get_filedata(*reader).flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
 void BLO_read_float3_array(BlendDataReader *reader, const int64_t array_size, float **ptr_p)
@@ -5952,7 +5948,7 @@ void BLO_read_double_array(BlendDataReader *reader, const int64_t array_size, do
 {
   *ptr_p = reinterpret_cast<double *>(
       BLO_read_struct_array_with_size(reader, *((void **)ptr_p), sizeof(double) * array_size));
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
+  BLI_assert((get_filedata(*reader).flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
 }
 
 void BLO_read_string(BlendDataReader *reader, char **ptr_p)
@@ -5989,7 +5985,7 @@ static void convert_pointer_array_64_to_32(BlendDataReader *reader,
                                            const uint64_t *src,
                                            uint32_t *dst)
 {
-  BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
+  BLI_assert((get_filedata(*reader).flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
   UNUSED_VARS_NDEBUG(reader);
   for (int i = 0; i < array_size; i++) {
     dst[i] = uint32_from_uint64_ptr(src[i]);
@@ -6009,7 +6005,7 @@ static void convert_pointer_array_32_to_64(BlendDataReader * /*reader*/,
 
 void BLO_read_pointer_array(BlendDataReader *reader, const int64_t array_size, void **ptr_p)
 {
-  FileData *fd = reader->fd;
+  FileData *fd = &get_filedata(*reader);
 
   void *orig_array = newdataadr(fd, *ptr_p);
   if (orig_array == nullptr) {
@@ -6054,8 +6050,8 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
 {
   const uint64_t old_address_id = uint64_t(*ptr_p);
   if (BLO_read_data_is_undo(reader)) {
-    if (reader->fd->flags & FD_FLAGS_IS_MEMFILE) {
-      UndoReader *undo_reader = reinterpret_cast<UndoReader *>(reader->fd->file);
+    if (get_filedata(*reader).flags & FD_FLAGS_IS_MEMFILE) {
+      UndoReader *undo_reader = reinterpret_cast<UndoReader *>(get_filedata(*reader).file);
       const MemFile &memfile = *undo_reader->memfile;
       if (memfile.shared_storage) {
         /* Check if the data was saved with sharing-info. */
@@ -6092,22 +6088,22 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
 
 bool BLO_read_data_is_undo(BlendDataReader *reader)
 {
-  return (reader->fd->flags & FD_FLAGS_IS_MEMFILE);
+  return (get_filedata(*reader).flags & FD_FLAGS_IS_MEMFILE);
 }
 
 void BLO_read_data_globmap_add(BlendDataReader *reader, void *oldaddr, void *newaddr)
 {
-  oldnewmap_insert(reader->fd->globmap, oldaddr, newaddr, 0);
+  oldnewmap_insert(get_filedata(*reader).globmap, oldaddr, newaddr, 0);
 }
 
 void BLO_read_glob_list(BlendDataReader *reader, ListBase *list)
 {
-  link_glob_list(reader->fd, list);
+  link_glob_list(&get_filedata(*reader), list);
 }
 
 BlendFileReadReport *BLO_read_data_reports(BlendDataReader *reader)
 {
-  return reader->fd->reports;
+  return get_filedata(*reader).reports;
 }
 
 bool BLO_read_lib_is_undo(BlendLibReader *reader)

@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "BLI_map.hh"
 #include "DNA_sdna_type_ids.hh"
 
 #include "BLI_function_ref.hh"
@@ -39,14 +40,28 @@
 namespace blender {
 class ImplicitSharingInfo;
 }
-struct BlendDataReader;
 struct BlendFileReadReport;
 struct BlendLibReader;
-struct BlendWriter;
 struct ID;
 struct ListBase;
 struct Main;
 enum eReportType : uint16_t;
+
+struct BlendWriter {
+  /** Pointer to private #WriteData in writefile.cc. */
+  void *writedata_handle = nullptr;
+};
+
+struct BlendDataReader {
+  /** Pointer to private #FileData in readfile.cc. */
+  void *readdata_handle = nullptr;
+
+  /**
+   * The key is the old address id referencing shared data that's written to a file, typically an
+   * array. The corresponding value is the shared data at run-time.
+   */
+  blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
+};
 
 /* -------------------------------------------------------------------- */
 /** \name Blend Write API
@@ -95,15 +110,6 @@ void BLO_write_struct_by_name(BlendWriter *writer, const char *struct_name, cons
 void BLO_write_struct_by_id(BlendWriter *writer, int struct_id, const void *data_ptr);
 #define BLO_write_struct(writer, struct_name, data_ptr) \
   BLO_write_struct_by_id(writer, blender::dna::sdna_struct_id_get<struct_name>(), data_ptr)
-
-struct BlendWriter {
-  void *writedata_handle = nullptr;
-
-  template<typename T> void write_struct(const T *data)
-  {
-    BLO_write_struct_by_id(this, blender::dna::sdna_struct_id_get<T>(), data);
-  }
-};
 
 /**
  * Write single struct at address.
