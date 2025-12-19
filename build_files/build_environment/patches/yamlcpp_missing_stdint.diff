@@ -1,0 +1,12 @@
+diff --git a/src/emitterutils.cpp b/src/emitterutils.cpp
+index c6ad5e5..85d9e43 100644
+--- a/src/emitterutils.cpp
++++ b/src/emitterutils.cpp
+@@ -1,6 +1,7 @@
+ #include <algorithm>
+ #include <iomanip>
+ #include <sstream>
++#include <stdint.h>
+ 
+ #include "emitterutils.h"
+ #include "exp.h"

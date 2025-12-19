@@ -28,5 +28,11 @@ ExternalProject_Add(external_yamlcpp
     ${DEFAULT_CMAKE_FLAGS}
     ${YAMLCPP_EXTRA_ARGS}
 
+  PATCH_COMMAND
+    ${PATCH_CMD} -p 1 -d
+      # Fix compilation errors due to missing stdint import.
+      ${BUILD_DIR}/yamlcpp/src/external_yamlcpp <
+      ${PATCH_DIR}/yamlcpp_missing_stdint.diff
+
   INSTALL_DIR ${LIBDIR}/yamlcpp
 )
