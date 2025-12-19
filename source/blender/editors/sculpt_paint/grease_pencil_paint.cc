@@ -315,6 +315,12 @@ class PaintOperation : public GreasePencilStrokeOperation {
                                       float to_depth);
   void toggle_fill_guides_brush_on(const bContext &C);
   void toggle_fill_guides_brush_off(const bContext &C);
+  void guide_init(const bContext &C,
+                  const GP_Sculpt_Guide &guide_settings,
+                  const InputSample &sample);
+  float2 guide_apply(const float2 coords);
+  void guide_set_direction(const float2 coords);
+  float2 guide_get_origin(const bContext &C, const GP_Sculpt_Guide &guide_settings);
 };
 
 /**
@@ -363,138 +369,6 @@ struct PaintOperationExecutor {
     jitter_settings_ = BKE_brush_color_jitter_get_settings(paint, brush_);
   }
 
-  float2 guide_get_origin(PaintOperation &self,
-                          const bContext &C,
-                          const GP_Sculpt_Guide &guide_settings)
-  {
-    float3 location;
-    if (guide_settings.reference_point == GP_GUIDE_REF_CUSTOM) {
-      location = guide_settings.location;
-    }
-    else if (guide_settings.reference_point == GP_GUIDE_REF_OBJECT &&
-             guide_settings.reference_object != nullptr)
-    {
-      location = guide_settings.reference_object->loc;
-    }
-    else {
-      const Scene *scene = CTX_data_scene(&C);
-      const View3DCursor *cursor = &scene->cursor;
-      location = cursor->location;
-    }
-    /* Location to 2d. */
-    const ARegion *region = CTX_wm_region(&C);
-    float2 xy = float2(0);
-    eV3DProjStatus result = ED_view3d_project_float_global(
-        region,
-        math::transform_point(self.placement_.to_world_space(), location),
-        xy,
-        V3D_PROJ_TEST_NOP);
-    if (result != V3D_PROJ_RET_OK) {
-      xy = float2(0);
-    }
-    return xy;
-  }
-
-  float2 guide_apply(const GreasePencilDrawGuide &guide, const float2 coords)
-  {
-    float2 r_coords = coords;
-    switch (guide.type) {
-      case GP_GUIDE_CIRCULAR: {
-        /* Snap to circular distance between starting point and origin. */
-        dist_ensure_v2_v2fl(r_coords, guide.origin, guide.radius);
-        return r_coords;
-      }
-      case GP_GUIDE_RADIAL: {
-        /* Snap to line between starting point and origin. */
-        closest_to_line_v2(r_coords, coords, guide.start_coords, guide.origin);
-        return r_coords;
-      }
-      case GP_GUIDE_GRID: {
-        /* Constrain to starting Y position. */
-        if (guide.is_horizontal_stroke) {
-          r_coords.y = guide.start_coords.y;
-        }
-        else {
-          r_coords.x = guide.start_coords.x;
-        }
-        return r_coords;
-      }
-      case GP_GUIDE_ISO: {
-        /* Constrain to defined angles. */
-        closest_to_line_v2(
-            r_coords, coords, guide.start_coords, guide.start_coords + guide.direction);
-        return r_coords;
-      }
-      case GP_GUIDE_PARALLEL: {
-        /* Constrain to parallel angles. */
-        closest_to_line_v2(
-            r_coords, coords, guide.start_coords, guide.start_coords + guide.direction);
-        return r_coords;
-      }
-    }
-    return r_coords;
-  }
-
-  void guide_set_direction(GreasePencilDrawGuide &guide, const float2 coords)
-  {
-    constexpr float pi_2 = math::numbers::pi * 0.5f;
-    if (guide.has_initial_direction) {
-      return;
-    }
-    guide.has_initial_direction = true;
-    guide.is_horizontal_stroke = (math::distance(guide.start_coords.x, coords.x) >=
-                                  math::distance(guide.start_coords.y, coords.y));
-    float angle = guide.user_angle;
-    /* Set stroke direction and angle for grids based on input direction. */
-    if (ELEM(guide.type, GP_GUIDE_GRID)) {
-      angle = guide.is_horizontal_stroke ? 0.0f : pi_2;
-    }
-    else if (ELEM(guide.type, GP_GUIDE_ISO)) {
-      const float2 dir = coords - guide.start_coords;
-      float vert_angle = angle_signed_v2v2(dir, guide.ref_vector);
-      float rel_angle_a = angle_signed_v2v2(dir, guide.iso_vector_a);
-      float rel_angle_b = angle_signed_v2v2(dir, guide.iso_vector_b);
-      /* Determine ISO angle, choose best match. */
-      vert_angle = math::abs(math::abs(vert_angle) - pi_2);
-      rel_angle_a = math::abs(math::abs(rel_angle_a) - pi_2);
-      rel_angle_b = math::abs(math::abs(rel_angle_b) - pi_2);
-      if (vert_angle < rel_angle_a && vert_angle < rel_angle_b) {
-        angle = pi_2;
-      }
-      else {
-        angle = (rel_angle_a >= rel_angle_b) ? guide.user_angle : -guide.user_angle;
-      }
-    }
-    rotate_v2_v2v2fl(guide.direction, guide.ref_vector, float2(0.0f), angle);
-  }
-
-  /* Initialize guide settings. */
-  void guide_init(PaintOperation &self,
-                  const bContext &C,
-                  const GP_Sculpt_Guide &guide_settings,
-                  const InputSample &start_sample)
-  {
-    const float2 start_coords = start_sample.mouse_position;
-    const float2 origin = guide_get_origin(self, C, guide_settings);
-    self.guide_.use_guides = true;
-    self.guide_.is_horizontal_stroke = true;
-    self.guide_.start_coords = start_coords;
-    self.guide_.origin = origin;
-    self.guide_.radius = math::length(start_coords - origin);
-    self.guide_.resample = true;
-    self.guide_.type = eGPencil_GuideTypes(guide_settings.type);
-    self.guide_.user_angle = guide_settings.angle;
-    self.guide_.ref_vector = float2(1.0f, 0.0f);
-    if (self.guide_.type == GP_GUIDE_ISO) {
-      float2 iso_vector_a;
-      rotate_v2_v2v2fl(iso_vector_a, self.guide_.ref_vector, float2(0.0f), guide_settings.angle);
-      self.guide_.iso_vector_a = iso_vector_a;
-      float2 iso_vector_b;
-      rotate_v2_v2v2fl(iso_vector_b, self.guide_.ref_vector, float2(0.0f), -guide_settings.angle);
-      self.guide_.iso_vector_b = iso_vector_b;
-    }
-  }
-
   void process_start_sample(PaintOperation &self,
                             const bContext &C,
                             const InputSample &start_sample,
@@ -506,9 +380,9 @@ struct PaintOperationExecutor {
     const ARegion *region = CTX_wm_region(&C);
 
     const GP_Sculpt_Guide guide_settings = scene_->toolsettings->gp_sculpt.guide;
-    const bool use_guides = (guide_settings.use_guide != 0);
-    if (use_guides) {
-      guide_init(self, C, guide_settings, start_sample);
+    const bool use_drawing_guide = (guide_settings.use_guide != 0);
+    if (use_drawing_guide) {
+      self.guide_init(C, guide_settings, start_sample);
       self.draw_handle = ED_region_draw_cb_activate(region->runtime->type,
                                                     guide_draw,
                                                     reinterpret_cast<void *>(&self),
@@ -868,28 +742,24 @@ struct PaintOperationExecutor {
     float2 coords = extension_sample.mouse_position;
 
     /* Use drawing guide. */
-    GreasePencilDrawGuide &guide = self.guide_;
-    if (guide.use_guides) {
-      const bool requires_direction = ELEM(guide.type, GP_GUIDE_GRID, GP_GUIDE_ISO);
+    if (self.guide_.use_guides == true) {
       if (on_stroke_done) {
         const InputSample last_sample = self.deferred_input_samples_.last();
-        guide_set_direction(guide, last_sample.mouse_position);
+        self.guide_set_direction(last_sample.mouse_position);
       }
       else {
-        constexpr float defer_distance = 32.0f;
         /* Determine dominant stroke direction using distance metric. */
-        const float current_distance = math::distance(coords, guide.start_coords);
-        /* Defer until stroke direction is determined. */
-        if (requires_direction && current_distance < defer_distance) {
+        constexpr float defer_distance = 32.0f;
+        const float current_distance = math::distance(coords, self.guide_.start_coords);
+        /* Defer samples until stroke direction is determined. */
+        if (ELEM(self.guide_.type, GP_GUIDE_GRID, GP_GUIDE_ISO) &&
+            current_distance < defer_distance && self.screen_space_coords_orig_.size() == 1)
+        {
           self.deferred_input_samples_.append(extension_sample);
           return;
         }
-        if (requires_direction) {
-          guide_set_direction(guide, coords);
-        }
-        else {
-          rotate_v2_v2v2fl(guide.direction, guide.ref_vector, float2(0.0f), guide.user_angle);
-        }
+        self.guide_set_direction(coords);
+
         /* Process deferred samples. */
         if (self.deferred_input_samples_.size() > 0) {
           for (InputSample deferred_sample : self.deferred_input_samples_) {
@@ -898,31 +768,34 @@ struct PaintOperationExecutor {
           self.deferred_input_samples_.clear();
         }
       }
-      coords = guide_apply(guide, coords);
+
+      /* Apply guide to sample point. */
+      coords = self.guide_apply(coords);
+
       /* Resample circular guide. */
-      if (guide.type == GP_GUIDE_CIRCULAR) {
-        if (guide.resample) {
+      if (self.guide_.type == GP_GUIDE_CIRCULAR) {
+        if (self.guide_.resample) {
           const int samples = 24;
           const float2 prev_coords = self.screen_space_coords_orig_.last();
           const float distance = math::distance(coords, prev_coords);
-          const float min_distance = guide.radius / samples;
+          const float min_distance = self.guide_.radius / samples;
           if (distance > min_distance) {
-            const float cw = cross_tri_v2(prev_coords, guide.origin, coords);
-            const float angle = angle_v2v2v2(prev_coords, guide.origin, coords);
+            const float cw = cross_tri_v2(prev_coords, self.guide_.origin, coords);
+            const float angle = angle_v2v2v2(prev_coords, self.guide_.origin, coords);
             const float step = angle / float(samples + 1) * ((cw < 0.0f) ? -1.0f : 1.0f);
             for (int i = 1; i < samples; i++) {
               float2 new_position;
-              rotate_v2_v2v2fl(new_position, prev_coords, guide.origin, -step * i);
+              rotate_v2_v2v2fl(new_position, prev_coords, self.guide_.origin, -step * i);
               InputSample new_sample;
               new_sample.mouse_position = new_position;
               new_sample.pressure = extension_sample.pressure;
               /* Turn off resampling to prevent recursive sampling. */
-              guide.resample = false;
+              self.guide_.resample = false;
               process_extension_sample(self, C, new_sample, false);
             }
           }
         }
-        guide.resample = true;
+        self.guide_.resample = true;
       }
     }
 
@@ -1505,6 +1378,32 @@ void PaintOperation::toggle_fill_guides_brush_on(const bContext &C)
   saved_active_brush_ = current_brush;
 }
 
+float2 PaintOperation::guide_get_origin(const bContext &C, const GP_Sculpt_Guide &guide_settings)
+{
+  float3 location;
+  if (guide_settings.reference_point == GP_GUIDE_REF_CUSTOM) {
+    location = guide_settings.location;
+  }
+  else if (guide_settings.reference_point == GP_GUIDE_REF_OBJECT &&
+           guide_settings.reference_object != nullptr)
+  {
+    location = guide_settings.reference_object->loc;
+  }
+  else {
+    const View3DCursor cursor = scene_->cursor;
+    location = cursor.location;
+  }
+  /* Location to 2d. */
+  const ARegion *region = CTX_wm_region(&C);
+  float2 xy = float2(0);
+  eV3DProjStatus result = ED_view3d_project_float_global(
+      region, math::transform_point(placement_.to_world_space(), location), xy, V3D_PROJ_TEST_NOP);
+  if (result != V3D_PROJ_RET_OK) {
+    xy = float2(0);
+  }
+  return xy;
+}
+
 void PaintOperation::toggle_fill_guides_brush_off(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
@@ -1514,6 +1413,96 @@ void PaintOperation::toggle_fill_guides_brush_off(const bContext &C)
   /* Free the temporary brush. */
   BKE_id_free_ex(nullptr, fill_guides_brush_, LIB_ID_FREE_NO_MAIN, false);
   fill_guides_brush_ = nullptr;
+}
+
+/* Initialize guide settings. */
+void PaintOperation::guide_init(const bContext &C,
+                                const GP_Sculpt_Guide &guide_settings,
+                                const InputSample &sample)
+{
+  const float2 start_coords = sample.mouse_position;
+  const float2 origin = this->guide_get_origin(C, guide_settings);
+  guide_.has_initial_direction = false;
+  guide_.use_guides = true;
+  guide_.is_horizontal_stroke = true;
+  guide_.start_coords = start_coords;
+  guide_.origin = origin;
+  guide_.radius = math::length(start_coords - origin);
+  guide_.resample = true;
+  guide_.type = eGPencil_GuideTypes(guide_settings.type);
+  guide_.user_angle = guide_settings.angle;
+  guide_.ref_vector = float2(1.0f, 0.0f);
+  guide_.direction = float2(0.0f, 1.0f);
+  if (guide_.type == GP_GUIDE_ISO) {
+    float2 iso_vector_a;
+    rotate_v2_v2v2fl(iso_vector_a, guide_.ref_vector, float2(0.0f), guide_settings.angle);
+    guide_.iso_vector_a = iso_vector_a;
+    guide_.iso_vector_b = float2(iso_vector_a.x, -iso_vector_a.y);
+  }
+}
+
+float2 PaintOperation::guide_apply(const float2 coords)
+{
+  float2 r_coords = coords;
+  switch (guide_.type) {
+    case GP_GUIDE_CIRCULAR: {
+      /* Snap to circular distance between starting point and origin. */
+      dist_ensure_v2_v2fl(r_coords, guide_.origin, guide_.radius);
+      break;
+    }
+    case GP_GUIDE_RADIAL: {
+      /* Snap to line between starting point and origin. */
+      closest_to_line_v2(r_coords, coords, guide_.start_coords, guide_.origin);
+      break;
+    }
+    case GP_GUIDE_GRID: {
+      /* Constrain to starting x or y position. */
+      if (guide_.is_horizontal_stroke) {
+        r_coords.y = guide_.start_coords.y;
+      }
+      else {
+        r_coords.x = guide_.start_coords.x;
+      }
+      break;
+    }
+    case GP_GUIDE_ISO:
+    case GP_GUIDE_PARALLEL: {
+      /* Constrain to set direction. */
+      closest_to_line_v2(
+          r_coords, coords, guide_.start_coords, guide_.start_coords + guide_.direction);
+      break;
+    }
+  }
+  return r_coords;
+}
+
+/* Set stroke direction and angle based on input direction. */
+void PaintOperation::guide_set_direction(const float2 coords)
+{
+  if (guide_.has_initial_direction) {
+    return;
+  }
+  guide_.has_initial_direction = true;
+  guide_.is_horizontal_stroke = (math::distance(guide_.start_coords.x, coords.x) >=
+                                 math::distance(guide_.start_coords.y, coords.y));
+  float angle = guide_.user_angle;
+
+  if (ELEM(guide_.type, GP_GUIDE_ISO)) {
+    /* Determine ISO angle, choose best match. */
+    const float2 dir = math::normalize(coords - guide_.start_coords);
+    const float2 vert = float2(0.0f, 1.0f);
+    const float vert_angle = math::abs(math::dot(dir, vert));
+    const float angle_a = math::abs(math::dot(dir, guide_.iso_vector_a));
+    const float angle_b = math::abs(math::dot(dir, guide_.iso_vector_b));
+    if (vert_angle > angle_a && vert_angle > angle_b) {
+      guide_.direction = vert;
+      return;
+    }
+    else {
+      angle = (angle_a >= angle_b) ? guide_.user_angle : -guide_.user_angle;
+    }
+  }
+  rotate_v2_v2v2fl(guide_.direction, guide_.ref_vector, float2(0.0f), angle);
 }
 
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
