@@ -47,20 +47,17 @@ class TexturePoolImpl : public TexturePool {
   Set<TextureHandle> acquired_;
 
  public:
-  ~TexturePoolImpl();
+  ~TexturePoolImpl() final;
 
-  /* Acquire a 2D texture from the pool with the given characteristics. */
   Texture *acquire_texture(int2 extent,
                            TextureFormat format,
-                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) override;
+                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) final;
 
-  void release_texture(Texture *tex) override;
+  void release_texture(Texture *tex) final;
 
-  void reset(bool force_free = false) override;
+  void reset(bool force_free = false) final;
 
-  /* Modify the internal counter of an acquired texture.
-   * Used by `TextureFromPool::retain()` in `DRW_gpu_wrapper.hh`. */
-  void offset_users_count(Texture *tex, int offset);
+  void offset_users_count(Texture *tex, int offset) final;
 };
 
 }  // namespace blender::gpu

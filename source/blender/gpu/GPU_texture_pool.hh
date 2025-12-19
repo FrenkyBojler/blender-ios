@@ -31,7 +31,7 @@ struct TexturePool {
                                    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) = 0;
 
   /* Release the texture back into the pool so it can be reused. */
-  virtual void release_texture(Texture *tmp_tex) = 0;
+  virtual void release_texture(Texture *tex) = 0;
 
   /* Validate acquired texture counters and release unused textures.
    * If `force_free` is true, free unused texture memory inside the pool. */
@@ -39,7 +39,7 @@ struct TexturePool {
 
   /* Modify the internal counter of an acquired texture.
    * Used by `TextureFromPool::retain()` in `DRW_gpu_wrapper.hh`. */
-  virtual void offset_texture_counter(Texture *tex, int offset) = 0;
+  virtual void offset_users_count(Texture *tex, int offset) = 0;
 };
 
 }  // namespace blender::gpu

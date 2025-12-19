@@ -33,7 +33,9 @@ TexturePoolImpl::~TexturePoolImpl()
   }
 }
 
-Texture *TexturePoolImpl::acquire_texture(int2 extent, TextureFormat format, eGPUTextureUsage usage)
+Texture *TexturePoolImpl::acquire_texture(int2 extent,
+                                          TextureFormat format,
+                                          eGPUTextureUsage usage)
 {
   /* Search pool for compatible available texture first. */
   int64_t match_index = -1;
