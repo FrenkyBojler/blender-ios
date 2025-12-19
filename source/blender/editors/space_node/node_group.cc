@@ -1171,6 +1171,8 @@ static void node_group_make_insert_selected(const bContext &C,
     bke::node_field_inferencing::update_field_inferencing(group);
   }
 
+  update_nested_node_refs_after_moving_nodes_into_group(ntree, group, *gnode, node_identifier_map);
+
   if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
     BKE_ntree_update(*bmain, Span<bNodeTree *>{&group});
   }
@@ -1190,8 +1192,6 @@ static void node_group_make_insert_selected(const bContext &C,
     info.link->fromnode = gnode;
     info.link->fromsock = node_group_find_output_socket(gnode, info.interface_socket->identifier);
   }
-
-  update_nested_node_refs_after_moving_nodes_into_group(ntree, group, *gnode, node_identifier_map);
 
   BKE_main_ensure_invariants(*bmain);
 }
