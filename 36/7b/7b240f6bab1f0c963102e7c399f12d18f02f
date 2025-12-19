@@ -1,3 +1,3 @@
 Referenced by issue #148664, Compositor: Grouping a node with animation data (and removing sockets) leaves values without animation
 Referenced by issue #151351, Grouping a keyframed single node results in removed animation
-Referenced by pull request #151892, Fix: Nodes: grouping a single node does not preserve nested node refs
+Referenced by pull request #151892, Fix: Nodes: grouping nodes does not preserve nested node refs
