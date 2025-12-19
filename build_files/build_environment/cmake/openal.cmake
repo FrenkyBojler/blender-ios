@@ -42,6 +42,12 @@ if(BUILD_MODE STREQUAL Release)
       ${DEFAULT_CMAKE_FLAGS}
       ${OPENAL_EXTRA_ARGS}
 
+    PATCH_COMMAND
+      ${PATCH_CMD} -p 1 -d
+        # Fix compilation errors due to missing stdint import.
+      ${BUILD_DIR}/openal/src/external_openal <
+      ${PATCH_DIR}/openal_missing_stdint.diff
+
     INSTALL_DIR ${LIBDIR}/openal
   )
 

@@ -1,0 +1,36 @@
+diff --git a/alc/alu.h b/alc/alu.h
+index 67fd09e..b27b362 100644
+--- a/alc/alu.h
++++ b/alc/alu.h
+@@ -2,6 +2,7 @@
+ #define ALU_H
+ 
+ #include <bitset>
++#include <stdint.h>
+ 
+ #include "aloptional.h"
+ 
+diff --git a/core/mixer/defs.h b/core/mixer/defs.h
+index 48daca9..41f3bab 100644
+--- a/core/mixer/defs.h
++++ b/core/mixer/defs.h
+@@ -2,6 +2,7 @@
+ #define CORE_MIXER_DEFS_H
+ 
+ #include <array>
++#include <stdint.h>
+ #include <stdlib.h>
+ 
+ #include "alspan.h"
+diff --git a/core/uhjfilter.h b/core/uhjfilter.h
+index df30809..ff25490 100644
+--- a/core/uhjfilter.h
++++ b/core/uhjfilter.h
+@@ -2,6 +2,7 @@
+ #define CORE_UHJFILTER_H
+ 
+ #include <array>
++#include <stdint.h>
+ 
+ #include "almalloc.h"
+ #include "alspan.h"
