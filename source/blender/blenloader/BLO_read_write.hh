@@ -64,6 +64,11 @@ struct BlendDataReader {
   blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
 };
 
+struct BlendLibReader {
+  FileData *fd;
+  Main *main;
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Blend Write API
  *

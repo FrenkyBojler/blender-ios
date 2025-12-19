@@ -576,11 +576,6 @@ void blo_readfile_invalidate(FileData *fd, Main *bmain, const char *message)
 /** \name File Parsing
  * \{ */
 
-struct BlendLibReader {
-  FileData *fd;
-  Main *main;
-};
-
 static BHeadN *get_bhead(FileData *fd)
 {
   BHeadN *new_bhead = nullptr;
