@@ -16,8 +16,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -103,7 +103,7 @@ static void node_composit_buts_trackpos(ui::Layout &layout, bContext *C, Pointer
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (node->id) {
     MovieClip *clip = (MovieClip *)node->id;
@@ -123,7 +123,7 @@ static void node_composit_buts_trackpos(ui::Layout &layout, bContext *C, Pointer
       col.prop_search(ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
     }
     else {
-      layout.prop(ptr, "track_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
+      layout.prop(ptr, "track_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
     }
   }
 }
@@ -325,7 +325,7 @@ class TrackPositionOperation : public NodeOperation {
    * added to the current scene frame. See the get_mode() method for more information. */
   int get_relative_frame()
   {
-    return this->get_input("Frame").get_single_value_default(0);
+    return this->get_input("Frame").get_single_value_default<int>();
   }
 
   /* Get the frame where the marker will be retrieved. This is the absolute frame for the absolute
@@ -343,15 +343,13 @@ class TrackPositionOperation : public NodeOperation {
    * will be retrieved. See the get_mode() method for more information. */
   int get_absolute_frame()
   {
-    return this->get_input("Frame").get_single_value_default(0);
+    return this->get_input("Frame").get_single_value_default<int>();
   }
 
   CMPNodeTrackPositionMode get_mode()
   {
-    const Result &input = this->get_input("Mode");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_TRACK_POSITION_ABSOLUTE);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeTrackPositionMode>(menu_value.value);
+    return CMPNodeTrackPositionMode(
+        this->get_input("Mode").get_single_value_default<MenuValue>().value);
   }
 
   MovieClip *get_movie_clip()
