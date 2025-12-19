@@ -6980,6 +6980,19 @@ void update_text_styles()
   style->tooltip.character_weight = weight;
 }
 
+void invalidate_textboxes_wrap_cache(ARegion *region)
+{
+  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &button : block->buttons) {
+      if (button->type != ButtonType::TextBox) {
+        continue;
+      }
+      ButtonTextBox *textbox = static_cast<ButtonTextBox *>(button.get());
+      textbox->wrap_cache.reset();
+    }
+  }
+}
+
 void ui_exit()
 {
   resources_free();

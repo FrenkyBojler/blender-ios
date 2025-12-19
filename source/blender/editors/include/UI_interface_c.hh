@@ -2187,6 +2187,8 @@ void ui_exit();
  * if non-variable. Therefore fixed weight bold font will look bold. */
 void update_text_styles();
 
+void invalidate_textboxes_wrap_cache(ARegion *region);
+
 #define UI_UNIT_X ((void)0, U.widget_unit)
 #define UI_UNIT_Y ((void)0, U.widget_unit)
 
