@@ -1974,25 +1974,32 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
 
 void IDP_TryConvertProperty(IDProperty *src,
                             const eIDPropertyUIDataType src_type,
-                            const eIDPropertyUIDataType dst_type)
+                            const eIDPropertyUIDataType dst_type,
+                            const char type,
+                            const char sub_type)
 {
+  if ((src->type == type) && (src->subtype == sub_type)) {
+  }
   switch (src_type) {
     case IDP_UI_DATA_TYPE_INT:
     case IDP_UI_DATA_TYPE_BOOLEAN: {
       switch (dst_type) {
         case IDP_UI_DATA_TYPE_INT:
         case IDP_UI_DATA_TYPE_BOOLEAN:
-          src->type = char((dst_type == IDP_UI_DATA_TYPE_INT) ? IDP_INT : IDP_BOOLEAN);
+          src->type = type;
+          src->subtype = sub_type;
           break;
         case IDP_UI_DATA_TYPE_FLOAT: {
           const double value = IDP_int_or_bool_get(src);
-          src->type = IDP_DOUBLE;
+          src->type = type;
+          src->subtype = sub_type;
           IDP_double_set(src, value);
           break;
         }
         case IDP_UI_DATA_TYPE_STRING: {
           const std::string str = std::to_string(IDP_int_or_bool_get(src));
-          src->type = IDP_STRING;
+          src->type = type;
+          src->subtype = sub_type;
           IDP_AssignString(src, str.c_str());
           break;
         }
@@ -2003,18 +2010,35 @@ void IDP_TryConvertProperty(IDProperty *src,
     }
     case IDP_UI_DATA_TYPE_FLOAT: {
       switch (dst_type) {
-        case IDP_UI_DATA_TYPE_FLOAT:
+        case IDP_UI_DATA_TYPE_FLOAT: {
+          const double value = (type == IDP_ARRAY) ? IDP_double_get(src) : *IDP_array_double_get(src);
+          src->type = type;
+          src->subtype = sub_type;
+          if (type == IDP_ARRAY) {
+            if (src->data.pointer == nullptr) {
+              src->len = std::max(3, src->len);
+              src->data.pointer = MEM_callocN(sizeof(double) * src->len, __func__);
+            }
+            for (int i = 0; i < src->len; i++) {
+              static_cast<double *>(src->data.pointer)[i] = value;
+            }
+            break;
+          }
+          IDP_double_set(src, value);
           break;
+        }
         case IDP_UI_DATA_TYPE_INT:
         case IDP_UI_DATA_TYPE_BOOLEAN: {
           const int value = int(IDP_double_get(src));
-          src->type = char((dst_type == IDP_UI_DATA_TYPE_INT) ? IDP_INT : IDP_BOOLEAN);
+          src->type = type;
+          src->subtype = sub_type;
           IDP_int_or_bool_set(src, value);
           break;
         }
         case IDP_UI_DATA_TYPE_STRING: {
           const std::string str = std::to_string(IDP_double_get(src));
-          src->type = IDP_STRING;
+          src->type = type;
+          src->subtype = sub_type;
           IDP_AssignString(src, str.c_str());
           break;
         }
@@ -2034,7 +2058,8 @@ void IDP_TryConvertProperty(IDProperty *src,
             value = std::stoi(str);
             IDP_FreeString(src);
           }
-          src->type = char((dst_type == IDP_UI_DATA_TYPE_INT) ? IDP_INT : IDP_BOOLEAN);
+          src->type = type;
+          src->subtype = sub_type;
           IDP_int_or_bool_set(src, value);
           break;
         }
@@ -2044,7 +2069,8 @@ void IDP_TryConvertProperty(IDProperty *src,
             value = std::stod(str);
             IDP_FreeString(src);
           }
-          src->type = IDP_DOUBLE;
+          src->type = type;
+          src->subtype = sub_type;
           IDP_double_set(src, value);
           break;
         }

@@ -1688,7 +1688,7 @@ static int rna_IDProperty_type_get(PointerRNA *ptr)
 static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
 {
   IDProperty *prop = (IDProperty *)ptr->data;
-  int type = -1, subtype = 0;
+  char type = -1, subtype = 0;
   eIDPropertyUIDataType ui_data_type = IDP_UI_DATA_TYPE_FLOAT;
 
   switch (value) {
@@ -1697,7 +1697,7 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
       ui_data_type = IDP_UI_DATA_TYPE_INT;
       break;
     case IDP_UI_DATA_FLOAT:
-      type = IDP_FLOAT;
+      type = IDP_DOUBLE;
       ui_data_type = IDP_UI_DATA_TYPE_FLOAT;
       break;
     case IDP_UI_DATA_BOOL:
@@ -1715,7 +1715,7 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
       break;
     case IDP_UI_DATA_FLOAT_ARRAY:
       type = IDP_ARRAY;
-      subtype = IDP_FLOAT;
+      subtype = IDP_DOUBLE;
       ui_data_type = IDP_UI_DATA_TYPE_FLOAT;
       break;
     case IDP_UI_DATA_BOOL_ARRAY:
@@ -1728,7 +1728,7 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
       return;
   }
 
-  IDP_TryConvertProperty(prop, IDP_ui_data_type(prop), ui_data_type);
+  IDP_TryConvertProperty(prop, IDP_ui_data_type(prop), ui_data_type, type, subtype);
 
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
