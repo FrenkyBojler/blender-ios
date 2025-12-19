@@ -2234,7 +2234,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
           std::max<int>(0, selection.start - line.begin()),
           selection.end - selection.start);
       for (const Bounds<int> &bounds : boxes) {
-        float y = rect.ymax - (line_height * (selection.line - scroll));
+        float y = rect.ymax - (line_height * float(selection.line - scroll));
         immRectf(pos,
                  rect.xmin + bounds.min,
                  y - line_height + U.pixelsize,
@@ -2280,7 +2280,8 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
           std::max<int>(0, underlying.start - line.begin()),
           underlying.end - underlying.start);
       for (const Bounds<int> &bounds : boxes) {
-        int y = rect.ymax - (line_height * (underlying.line - scroll + 1)) + 6 * U.pixelsize;
+        int y = rect.ymax - (line_height * float(underlying.line - scroll + 1)) +
+                6.0f * U.pixelsize;
         draw_text_underline(rect.xmin + bounds.min,
                             y,
                             std::min(bounds.max - bounds.min, rect.xmax - 2 - rect.xmin),
@@ -2341,14 +2342,16 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   FontStyleDrawParams params{};
   params.align = align;
   params.word_clip = false;
-  rect.ymin = rect.ymax - line_height;
+  float ymax = rect.ymax;
   for (blender::StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
     if (rect.xmin > button_rect->xmax - scrollbar_pad - text_padding) {
       break;
     }
+    rect.ymax = ymax;
+    ymax -= line_height;
+    rect.ymin = ymax;
     fontstyle_draw_ex(
         fstyle, &rect, line.begin(), line.size(), wcol->text, &params, nullptr, nullptr, nullptr);
-    BLI_rcti_translate(&rect, 0, -line_height);
   }
 
   BLF_batch_draw_flush();
