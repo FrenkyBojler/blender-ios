@@ -107,6 +107,14 @@ void TexturePoolImpl::reset(bool force_free)
       tex.unused_cycles_count++;
     }
   }
-}
 
+  TexturePool *GPU_texturepool_create()
+  {
+    return new TexturePoolImpl();
+  }
+
+  void GPU_texturepool_free(TexturePool * ptr)
+  {
+    delete ptr;
+  }
 }  // namespace blender::gpu
