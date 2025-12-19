@@ -940,7 +940,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     if (!state.is_depth_only_drawing) {
       grid.draw_line(resources.overlay_line_fb, manager, view);
     }
-    
+
     /* Here because of custom order of regular.facing. */
     infront.facing.draw(resources.overlay_fb, manager, view);
 
