@@ -233,7 +233,7 @@ add_library(bf::dependencies::optional::sdl ALIAS bf_deps_optional_sdl)
 if(WITH_SDL)
   target_compile_definitions(bf_deps_optional_sdl INTERFACE WITH_SDL)
   target_include_directories(bf_deps_optional_sdl SYSTEM INTERFACE ${SDL_INCLUDE_DIR})
-  target_link_libraries(bf_deps_optional_sdl INTERFACE ${SDL_LIBRARIES})
+  target_link_libraries(bf_deps_optional_sdl INTERFACE ${SDL_LIBRARY})
 endif()
 
 # -----------------------------------------------------------------------------
