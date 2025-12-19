@@ -3,7 +3,7 @@ Manually Create an Action Slot
 ++++++++++++++++++++++++++++++
 If required you can also manually create Action Slots on an Action. Note the ``target_id_type``
 that matches the data-block type. Identifiers start with a prefix based on the ID type, 
-e.g. "OB" for objects, followed by a unique name.
+e.g. "OB" for objects, followed by the data-block name.
 
 """
 # Actions creation.
