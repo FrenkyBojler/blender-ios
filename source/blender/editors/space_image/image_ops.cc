@@ -2196,8 +2196,13 @@ static bool image_save_poll(bContext *C)
   }
 
   if (G.is_rendering) {
-    CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
-    return false;
+    /* no need to nullptr check here */
+    Image *ima = image_from_context(C);
+
+    if (ima->source == IMA_SRC_VIEWER) {
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
+      return false;
+    }
   }
 
   /* Check if there is a valid file path and image format we can write
