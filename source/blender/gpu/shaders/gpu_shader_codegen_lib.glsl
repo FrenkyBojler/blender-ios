@@ -237,7 +237,9 @@ struct GlobalData {
   bool is_strand;
 };
 
+#ifdef MAT_NODETREE
 GlobalData g_data;
+#endif
 
 #ifndef GPU_FRAGMENT_SHADER
 /* Stubs. */
