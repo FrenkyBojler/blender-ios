@@ -5,7 +5,8 @@
 /** \file
  * \ingroup RNA
  *
- * \see dna_defaults.c for details on how to use this system.
+ * This table is defined in the auto generated dna_defaults.cc, and populated
+ * using the C++ default member initializers of each DNA struct.
  */
 
 #pragma once
