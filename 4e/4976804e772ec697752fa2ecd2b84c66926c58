@@ -9,3 +9,4 @@ Referenced by issue #149617, Collection will be added to scene twice if it is ap
 Referenced by issue #150147, Blender 5.0 Crash when I try to open this Scene made in 5.0
 Referenced by issue #150786, Bundled hair node groups are imported with missing node groups
 Referenced by pull request blender/blender-manual#105368, Asset Browser: Remove Append (Reuse Data) from Blender manual
+Referenced by commit blender/blender-manual@f7378ac2d72bc5379c64387d9cc7ea7a8d600803, Asset Browser: Remove Append (Reuse Data) from Blender manual
