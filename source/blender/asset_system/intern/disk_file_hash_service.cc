@@ -37,8 +37,8 @@ std::string DiskFileHashService::get_hash(bContext &C,
                                           const StringRef hash_algorithm)
 {
 #ifdef WITH_PYTHON
-  /* NOTE: this is a rather inefficient implementation for frequently-repeated calls, as each call
-   * repeats the calls to `dfhs.get_service(Path(...))`. However, this does mean that the C++
+  /* NOTE: this is a somewhat inefficient implementation for frequently-repeated calls, as each
+   * call repeats the calls to `dfhs.get_service(Path(...))`. However, this does mean that the C++
    * wrapper does not have to retain any references to Python objects itself, avoiding reference
    * counting bugs. If the performance starts to matter, do the lookup of the service itself once,
    * and cache the result. */
@@ -93,8 +93,8 @@ bool DiskFileHashService::file_matches(bContext &C,
                                        const int64_t size_in_bytes)
 {
 #ifdef WITH_PYTHON
-  /* NOTE: this is a rather inefficient implementation for frequently-repeated calls, as each call
-   * repeats the calls to `dfhs.get_service(Path(...))`. However, this does mean that the C++
+  /* NOTE: this is a somewhat inefficient implementation for frequently-repeated calls, as each
+   * call repeats the calls to `dfhs.get_service(Path(...))`. However, this does mean that the C++
    * wrapper does not have to retain any references to Python objects itself, avoiding reference
    * counting bugs. If the performance starts to matter, do the lookup of the service itself once,
    * and cache the result. */
