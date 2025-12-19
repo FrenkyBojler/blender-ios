@@ -5,7 +5,10 @@
 set(SDL_PATCH
   ${PATCH_CMD} -p 0 -N -d
     ${BUILD_DIR}/sdl/src/external_sdl <
-    ${PATCH_DIR}/sdl.diff
+    ${PATCH_DIR}/sdl.diff &&
+  ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/sdl/src/external_sdl <
+    ${PATCH_DIR}/sdl_pipewire_missing_cast.diff
 )
 
 if(WIN32)
