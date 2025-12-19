@@ -13,15 +13,3 @@ anim_data = suzanne.animation_data_create()
 anim_data.action = action
 assert anim_data.action_suitable_slots, "expecting at least one suitable slot"
 anim_data.action_slot = anim_data.action_suitable_slots[0]
-
-
-"""
-Finding Slot Users
-"""
-# Iterate through all actions in the Blender data.
-print("Action & slot users:")
-for action in bpy.data.actions:
-    for slot in action.slots:
-        # Return the data-blocks that are animated by this slot of this action
-        users = slot.users()
-        print(f"{action.name:20} slot={slot.identifier:12s} users: {users}")
