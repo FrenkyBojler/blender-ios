@@ -2191,7 +2191,7 @@ static bool image_file_format_writable(Image *ima, ImageUser *iuser)
 static bool image_save_poll(bContext *C)
 {
   /* Can't save if there are no pixels. */
-  if (image_from_context_has_data(C) == false) {
+  if (image_from_context_has_data_poll(C) == false) {
     return false;
   }
 
