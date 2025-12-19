@@ -538,9 +538,8 @@ set(LIB
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   bf_python_mathutils
-
-  PRIVATE bf::dependencies::optional::python
   PRIVATE bf::render
+  PRIVATE bf::dependencies::optional::python
 )
 
 set(INC

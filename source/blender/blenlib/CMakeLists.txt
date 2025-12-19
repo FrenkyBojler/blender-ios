@@ -422,8 +422,8 @@ set(LIB
   PRIVATE bf::extern::wcwidth
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
-  PUBLIC bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::eigen
+  PUBLIC bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::zlib
   PRIVATE bf::dependencies::zstd
   PRIVATE bf::dependencies::optional::gmp

@@ -81,10 +81,10 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
+  PRIVATE bf::windowmanager
 
   PRIVATE bf::dependencies::optional::alembic
   PRIVATE bf::dependencies::optional::openexr
-  PRIVATE bf::windowmanager
 )
 
 blender_add_lib(bf_io_alembic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

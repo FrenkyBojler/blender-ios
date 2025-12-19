@@ -438,10 +438,10 @@ if(WITH_VULKAN_BACKEND)
     ${VULKAN_SRC}
   )
   list(APPEND LIB
-    PRIVATE bf::dependencies::optional::vulkan
-    PRIVATE bf::dependencies::optional::shaderc
     PRIVATE bf::extern::vulkan_memory_allocator
     PRIVATE bf::extern::xxhash
+    PRIVATE bf::dependencies::optional::vulkan
+    PRIVATE bf::dependencies::optional::shaderc
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)

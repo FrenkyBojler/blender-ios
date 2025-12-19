@@ -16,8 +16,8 @@ set(INC_SYS
 set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::dependencies::optional::tbb
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::dependencies::optional::tbb
 )
 
 add_definitions(-DWITH_DNA_GHASH)
