@@ -17,10 +17,10 @@ namespace blender::gpu {
 
 TexturePool::~TexturePool()
 {
-  for (TextureHandle &tex : acquired_) {
+  for (TextureHandle tex : acquired_) {
     GPU_texture_free(tex.texture);
   }
-  for (TextureHandle &tex : pool_) {
+  for (TextureHandle tex : pool_) {
     GPU_texture_free(tex.texture);
   }
 }
@@ -43,9 +43,8 @@ Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTex
   /* If compatible pool texture was found, acquire and return it. */
   if (match_index != -1) {
     Texture *tex = pool_[match_index].texture;
-    acquired_.append({tex, 1}); /* Internal counter set to 1 on acquire. */
+    acquired_.add({tex, 1}); /* Internal counter set to 1 on acquire. */
     pool_.remove_and_reorder(match_index);
-
     return tex;
   }
 
@@ -57,50 +56,29 @@ Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTex
     SNPRINTF(name, "TexFromPool_%d", texture_id);
   }
   Texture *tex = GPU_texture_create_2d(name, UNPACK2(extent), 1, format, usage, nullptr);
-  acquired_.append({tex, 1}); /* Internal counter set to 1 on acquire. */
+  acquired_.add({tex, 1}); /* Internal counter set to 1 on acquire. */
 
   return tex;
 }
 
 void TexturePool::release_texture(Texture *tex)
 {
-  /* Search for matching index of texture. */
-  int64_t index = -1;
-  for (uint64_t i : acquired_.index_range()) {
-    if (acquired_[i].texture == tex) {
-      index = i;
-      break;
-    }
-  }
-
-  BLI_assert_msg(index != -1, "Unacquired texture passed to TexturePool::release_texture()");
-
-  /* Move texture from acquired to pool. */
   pool_.append({tex, 0});
-  acquired_.remove_and_reorder(index);
+  BLI_assert_msg(acquired_.remove({tex, 1}),
+                 "Unacquired texture passed to TexturePool::release_texture()");
 }
 
-int &TexturePool::get_texture_counter(Texture *tex)
+void TexturePool::offset_texture_counter(Texture *tex, int offset)
 {
-  /* Search for matching index of texture. */
-  int64_t index = -1;
-  for (uint64_t i : acquired_.index_range()) {
-    if (acquired_[i].texture == tex) {
-      index = i;
-      break;
-    }
-  }
-
-  BLI_assert_msg(index != -1, "Unacquired texture passed to TexturePool::get_texture_counter()");
-
-  return acquired_[index].counter;
+  int counter = acquired_.lookup_key({tex, 0}).counter;
+  acquired_.add_overwrite({tex, counter + offset});
 }
 
 void TexturePool::reset(bool force_free)
 {
-/* Iterate acquired textures, and ensure `TextureHandle::counter` equals 0; otherwise
- * this indicates a missing `::retain()` or `::release()`. */
-#ifdef NDEBUG
+#ifndef NDEBUG
+  /* Iterate acquired textures, and ensure the internal counter equals 0; otherwise
+   * this indicates a missing `::retain()` or `::release()`. */
   for (const TextureHandle &tex : acquired_) {
     BLI_assert_msg(tex.counter == 0,
                    "Missing texture release/retain. Likely TextureFromPool::release(), "
@@ -119,6 +97,8 @@ void TexturePool::reset(bool force_free)
       tex.counter++;
     }
   }
+
+  std::printf("acquired=%d, pool=%d\n", acquired_.size(), pool_.size());
 }
 
 TexturePool &TexturePool::get()

@@ -12,28 +12,41 @@
 #pragma once
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_vector.hh"
 #include "GPU_texture.hh"
 
 namespace blender::gpu {
 
 class TexturePool {
- private:
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
 
-  /* Associated counter is used to track texture acquire/retain mismatch, or number of unused
-   * cycles before deferred deallocation. */
+  /* Internal packet for texture with and associated counter that supports `Set` insertion.
+   * The counter tracks texture acquire/retain mismatches in `acquire_`, or the number
+   * of unused cycles before deallocation in `pool_`. */
   struct TextureHandle {
     Texture *texture;
     int counter;
+
+    /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
+     * This means we can find the handle without knowing the internal counter. */
+    inline uint64_t hash() const
+    {
+      return get_default_hash(texture);
+    }
+
+    inline bool operator==(const TextureHandle &o) const
+    {
+      return texture == o.texture;
+    }
   };
 
   /* Pool of textures ready to be reused. */
   Vector<TextureHandle> pool_;
-  /* List of textures currently in use. */
-  Vector<TextureHandle> acquired_;
+  /* Set of textures currently in use. */
+  Set<TextureHandle> acquired_;
 
  public:
   ~TexturePool();
@@ -54,9 +67,9 @@ class TexturePool {
    * If `force_free` is true, free unused texture memory inside the pool. */
   void reset(bool force_free = false);
 
-  /* Reference the internal counter of an acquired texture.
+  /* Modify the internal counter of an acquired texture.
    * Used by `TextureFromPool::retain()` in `DRW_gpu_wrapper.hh`. */
-  int &get_texture_counter(Texture *tex);
+  void offset_texture_counter(Texture *tex, int offset);
 };
 
 }  // namespace blender::gpu

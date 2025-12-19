@@ -1092,7 +1092,7 @@ class TextureFromPool : public Texture, NonMovable {
       return true;
     }
     else {
-      pool_->get_texture_counter(tx_)++;
+      pool_->offset_texture_counter(tx_, 1);
       return false;
     }
   }
@@ -1113,7 +1113,7 @@ class TextureFromPool : public Texture, NonMovable {
    * Multiple retains can be done safely. */
   void retain()
   {
-    pool_->get_texture_counter(tx_)--;
+    pool_->offset_texture_counter(tx_, -1);
   }
 
   /* Swap the contents of the two textures, as well as their
