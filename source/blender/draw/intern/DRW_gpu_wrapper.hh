@@ -1085,7 +1085,7 @@ class TextureFromPool : public Texture, NonMovable {
   {
     if (tx_ == nullptr) {
       pool_ = &gpu::TexturePool::get();
-      tx_ = pool_->acquire_texture(UNPACK2(extent), format, usage);
+      tx_ = pool_->acquire_texture(extent, format, usage);
       if (G.debug & G_DEBUG_GPU) {
         debug_clear();
       }
@@ -1130,7 +1130,7 @@ class TextureFromPool : public Texture, NonMovable {
     return this;
   }
 
-  /* Strip forbidden methods from TextureFromPool. */
+  /** Remove methods that are forbidden with TextureFromPool. */
   bool ensure_1d(int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   bool ensure_1d_array(
       int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;

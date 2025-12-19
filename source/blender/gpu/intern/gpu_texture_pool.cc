@@ -25,18 +25,15 @@ TexturePool::~TexturePool()
   }
 }
 
-Texture *TexturePool::acquire_texture(int width,
-                                      int height,
-                                      TextureFormat format,
-                                      eGPUTextureUsage usage)
+Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTextureUsage usage)
 {
   /* Search pool for compatible released texture first. */
   int64_t match_index = -1;
-  for (auto i : pool_.index_range()) {
+  for (uint64_t i : pool_.index_range()) {
     Texture *tex = pool_[i].texture;
     /* TODO(@fclem): We could reuse texture using texture views if the formats are compatible. */
-    if ((GPU_texture_format(tex) == format) && (GPU_texture_width(tex) == width) &&
-        (GPU_texture_height(tex) == height) && (GPU_texture_usage(tex) == usage))
+    if ((GPU_texture_format(tex) == format) && (GPU_texture_width(tex) == extent.x) &&
+        (GPU_texture_height(tex) == extent.y) && (GPU_texture_usage(tex) == usage))
     {
       match_index = i;
       break;
@@ -59,7 +56,7 @@ Texture *TexturePool::acquire_texture(int width,
     int texture_id = pool_.size();
     SNPRINTF(name, "TexFromPool_%d", texture_id);
   }
-  Texture *tex = GPU_texture_create_2d(name, width, height, 1, format, usage, nullptr);
+  Texture *tex = GPU_texture_create_2d(name, UNPACK2(extent), 1, format, usage, nullptr);
   acquired_.append({tex, 1}); /* Internal counter set to 1 on acquire. */
 
   return tex;
@@ -69,10 +66,8 @@ void TexturePool::release_texture(Texture *tex)
 {
   /* Search for matching index of texture. */
   int64_t index = -1;
-  for (auto i : acquired_.index_range()) {
-    auto &acquired = acquired_[i];
-    auto *texture = acquired.texture;
-    if (texture == tex) {
+  for (uint64_t i : acquired_.index_range()) {
+    if (acquired_[i].texture == tex) {
       index = i;
       break;
     }
@@ -89,7 +84,7 @@ int &TexturePool::get_texture_counter(Texture *tex)
 {
   /* Search for matching index of texture. */
   int64_t index = -1;
-  for (auto i : acquired_.index_range()) {
+  for (uint64_t i : acquired_.index_range()) {
     if (acquired_[i].texture == tex) {
       index = i;
       break;
@@ -106,7 +101,7 @@ void TexturePool::reset(bool force_free)
 /* Iterate acquired textures, and ensure `TextureHandle::counter` equals 0; otherwise
  * this indicates a missing `::retain()` or `::release()`. */
 #ifdef NDEBUG
-  for (const auto &tex : acquired_) {
+  for (const TextureHandle &tex : acquired_) {
     BLI_assert_msg(tex.counter == 0,
                    "Missing texture release/retain. Likely TextureFromPool::release(), "
                    "TextureFromPool::retain() or TexturePool::release_texture().");
@@ -116,7 +111,7 @@ void TexturePool::reset(bool force_free)
   /* Reverse iterate pool textures, to make sure we only reorder known good handles. */
   for (int i = pool_.size() - 1; i >= 0; i--) {
     TextureHandle &tex = pool_[i];
-    if (tex.counter >= max_unused_cycles || force_free) {
+    if (tex.counter >= max_unused_cycles_ || force_free) {
       GPU_texture_free(tex.texture);
       pool_.remove_and_reorder(i);
     }
