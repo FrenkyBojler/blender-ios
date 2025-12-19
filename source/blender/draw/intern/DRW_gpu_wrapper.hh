@@ -1066,7 +1066,7 @@ class Texture : NonCopyable {
 };
 
 class TextureFromPool : public Texture, NonMovable {
-  /* Object may be destroyed on a different `GPUContext`; track the owning pool for release. */
+  /* Object may be released on a different `GPUContext`; track the owning pool. */
   gpu::TexturePool *pool_ = nullptr;
 
  public:
@@ -1097,8 +1097,7 @@ class TextureFromPool : public Texture, NonMovable {
     }
   }
 
-  /* Invalidate the acquired `TextureFromPool` for this frame.
-   * Multiple releases can be done safely. */
+  /* Invalidate the acquired texture for this frame. Multiple releases can be done safely. */
   void release()
   {
     if (tx_ == nullptr) {
@@ -1109,15 +1108,13 @@ class TextureFromPool : public Texture, NonMovable {
     pool_ = nullptr;
   }
 
-  /* Allow for the `TextureFromPool` to survive into the next cycle.
-   * Multiple retains can be done safely. */
+  /* Allow for the texture to survive into the next cycle. */
   void retain()
   {
     pool_->offset_texture_counter(tx_, -1);
   }
 
-  /* Swap the contents of the two textures, as well as their
-   * internal counter state in TexturePool`. */
+  /* Swap the contents of the two textures as well as their owning pool. */
   static void swap(TextureFromPool &a, TextureFromPool &b)
   {
     Texture::swap(a, b);
@@ -1130,7 +1127,7 @@ class TextureFromPool : public Texture, NonMovable {
     return this;
   }
 
-  /** Remove methods that are forbidden with TextureFromPool. */
+  /** Remove methods that are forbidden with this type of textures. */
   bool ensure_1d(int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   bool ensure_1d_array(
       int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
