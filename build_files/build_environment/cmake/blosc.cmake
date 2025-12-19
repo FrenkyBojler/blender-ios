@@ -26,6 +26,12 @@ ExternalProject_Add(external_blosc
     ${DEFAULT_CMAKE_FLAGS}
     ${BLOSC_EXTRA_ARGS}
 
+  PATCH_COMMAND
+    ${PATCH_CMD} -p 1 -d
+      # Fix compilation errors due bool typedef.
+      ${BUILD_DIR}/blosc/src/external_blosc <
+      ${PATCH_DIR}/blosc_remove_bool_typedef.diff
+
   INSTALL_DIR ${LIBDIR}/blosc
 )
 
