@@ -7704,7 +7704,8 @@ static int ui_do_but_CURVE(
           if (dist_squared_to_line_segment_v2(m_xy, f_xy_prev, f_xy) < dist_min_sq) {
             BLI_rctf_transform_pt_v(&cumap->curr, &but->rect, f_xy, m_xy);
 
-            BKE_curvemap_insert(cuma, f_xy[0], f_xy[1]);
+            CurveMapPoint *new_pt = BKE_curvemap_insert(cuma, f_xy[0], f_xy[1]);
+            new_pt->flag &= ~CUMA_SELECT; /* deselect new point for now */
             BKE_curvemapping_changed(cumap, false);
 
             changed = true;
@@ -7724,24 +7725,14 @@ static int ui_do_but_CURVE(
         }
       }
 
+      cmp = cuma->curve;
       if (sel != -1) {
         /* ok, we move a point */
         /* deselect all if this one is deselect. except if we hold shift */
-        if ((event->modifier & KM_SHIFT) == 0) {  // not holding shift
-          for (int a = 0; a < cuma->totpoint; a++) {
-            cmp[a].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
-          }
-          cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
-        }
-        else {                                // holding shift
+        if (event->modifier & KM_SHIFT) {     // if holding shift
           if (cmp[sel].flag & CUMA_SELECT) {  // if the current point is selected
             if (cmp[sel].flag & CUMA_ACTIVE) {
-              for (int b = sel - 1; b >= 0; b--) {  // then activate previous point
-                if (cmp[b].flag & CUMA_SELECT) {
-                  cmp[b].flag |= CUMA_ACTIVE;
-                  break;
-                }
-              }
+              BKE_curvemap_activate_nearest_point(cuma, sel);
             }
             cmp[sel].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
           }
@@ -7751,6 +7742,12 @@ static int ui_do_but_CURVE(
             }
             cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
           }
+        }
+        else {  // not holding shift
+          for (int a = 0; a < cuma->totpoint; a++) {
+            cmp[a].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
+          }
+          cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
         }
       }
       else {
@@ -8045,6 +8042,7 @@ static int ui_do_but_CURVEPROFILE(
             BLI_rctf_transform_pt_v(&profile->view_rect, &but->rect, f_xy, m_xy);
 
             CurveProfilePoint *new_pt = BKE_curveprofile_insert(profile, f_xy[0], f_xy[1]);
+            new_pt->flag &= ~PROF_SELECT; /* Deselect new point for now. */
             BKE_curveprofile_update(profile, PROF_UPDATE_CLIP);
 
             /* Get the index of the newly added point. */
@@ -8058,25 +8056,13 @@ static int ui_do_but_CURVEPROFILE(
 
       /* Change the flag for the point(s) if one was selected or added. */
       const short active_type = selection_type << 3;
+      pts = profile->path;
       if (i_selected != -1) {
-        /* Deselect all if this one is deselected, except if we hold shift. */
+        /* Deselect all if this one is deselectedpts = profile->path, except if we hold shift. */
         if (event->modifier & KM_SHIFT) {
           if (pts[i_selected].flag & selection_type) {  // if the current point is selected
             if (pts[i_selected].flag & active_type) {
-              for (int b = i_selected - 1; b >= 0; b--) {  // then activate previous point
-                if (pts[b].flag & PROF_SELECT) {
-                  pts[b].flag |= PROF_ACTIVE;
-                  break;
-                }
-                else if (pts[b].flag & PROF_H1_SELECT) {
-                  pts[b].flag |= PROF_H1_ACTIVE;
-                  break;
-                }
-                else if (pts[b].flag & PROF_H2_SELECT) {
-                  pts[b].flag |= PROF_H2_ACTIVE;
-                  break;
-                }
-              }
+              BKE_curveprofile_activate_nearest_point(profile, i_selected);
             }
             pts[i_selected].flag &= ~(PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
             pts[i_selected].flag ^= selection_type;

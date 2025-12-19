@@ -322,18 +322,18 @@ CurveProfilePoint *BKE_curveprofile_insert(CurveProfile *profile, float x, float
     if (i_new != i_insert) {
       /* Insert old points. */
       new_path[i_new] = profile->path[i_old];
-      new_path[i_new].flag &= ~PROF_SELECT; /* Deselect old points. */
+      new_path[i_new].flag &= ~(PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT | PROF_ACTIVE |
+                                PROF_H1_ACTIVE | PROF_H2_ACTIVE); /* Deselect old points. */
       i_old++;
     }
     else {
       /* Insert new point. */
       /* Set handles of new point based on its neighbors. */
-      char new_handle_type = (new_path[i_new - 1].h2 == HD_VECT &&
-                              profile->path[i_insert].h1 == HD_VECT) ?
-                                 HD_VECT :
-                                 HD_AUTO;
-      point_init(
-          &new_path[i_new], x, y, PROF_SELECT | PROF_ACTIVE, new_handle_type, new_handle_type);
+      const char new_handle_type = (new_path[i_new - 1].h2 == HD_VECT &&
+                                    profile->path[i_insert].h1 == HD_VECT) ?
+                                       HD_VECT :
+                                       HD_AUTO;
+      point_init(&new_path[i_new], x, y, PROF_SELECT, new_handle_type, new_handle_type);
       new_pt = &new_path[i_new];
       /* Give new point a reference to the profile. */
       new_pt->profile = profile;
@@ -538,6 +538,35 @@ void BKE_curveprofile_reset(CurveProfile *profile)
 
   MEM_SAFE_FREE(profile->table);
   profile->table = nullptr;
+}
+
+void BKE_curveprofile_activate_nearest_point(CurveProfile *profile, const int i_last)
+{
+  CurveProfilePoint *pts = profile->path;
+  for (int i = 1;; i++) {
+    int k = (i + 1) / 2;
+    int idx = (i & 1) ? (i_last - k) : (i_last + k);
+
+    if (idx < 0 || idx >= profile->path_len) {
+      if (i_last - k < 0 && i_last + k >= profile->path_len) {
+        return;
+      }
+      continue;
+    }
+
+    if (pts[idx].flag & PROF_SELECT) {
+      pts[idx].flag |= PROF_ACTIVE;
+      return;
+    }
+    else if (pts[idx].flag & PROF_H1_SELECT) {
+      pts[idx].flag |= PROF_H1_ACTIVE;
+      return;
+    }
+    else if (pts[idx].flag & PROF_H2_SELECT) {
+      pts[idx].flag |= PROF_H2_ACTIVE;
+      return;
+    }
+  }
 }
 
 /** \} */

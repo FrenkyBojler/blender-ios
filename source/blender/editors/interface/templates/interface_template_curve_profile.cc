@@ -433,29 +433,19 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
     crp->last_x = *last_x_ptr;
     crp->last_y = *last_y_ptr;
 
-    float min_x = bounds.xmax;
-    float max_x = bounds.xmin;
-    float min_y = bounds.ymax;
-    float max_y = bounds.ymin;
+    rctf selection_bounds;
+    BLI_rctf_init_minmax(&selection_bounds);
 
     for (const CurveProfilePoint *pt : cfps) {
       if (pt->flag & PROF_SELECT) {
-        min_x = min_ff(min_x, pt->x);
-        max_x = max_ff(max_x, pt->x);
-        min_y = min_ff(min_y, pt->y);
-        max_y = max_ff(max_y, pt->y);
+        const float loc[2] = {pt->x, pt->y};
+        BLI_rctf_do_minmax_v(&selection_bounds, loc);
       }
       if (pt->flag & PROF_H1_SELECT) {
-        min_x = min_ff(min_x, pt->h1_loc[0]);
-        max_x = max_ff(max_x, pt->h1_loc[0]);
-        min_y = min_ff(min_y, pt->h1_loc[1]);
-        max_y = max_ff(max_y, pt->h1_loc[1]);
+        BLI_rctf_do_minmax_v(&selection_bounds, pt->h1_loc);
       }
       if (pt->flag & PROF_H2_SELECT) {
-        min_x = min_ff(min_x, pt->h2_loc[0]);
-        max_x = max_ff(max_x, pt->h2_loc[0]);
-        min_y = min_ff(min_y, pt->h2_loc[1]);
-        max_y = max_ff(max_y, pt->h2_loc[1]);
+        BLI_rctf_do_minmax_v(&selection_bounds, pt->h2_loc);
       }
     }
 
@@ -467,8 +457,8 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
                    last_x_ptr,
-                   bounds.xmin + *last_x_ptr - min_x,
-                   bounds.xmax + *last_x_ptr - max_x,
+                   bounds.xmin + *last_x_ptr - selection_bounds.xmin,
+                   bounds.xmax + *last_x_ptr - selection_bounds.xmax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
@@ -498,8 +488,8 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
                    last_y_ptr,
-                   bounds.ymin + *last_y_ptr - min_y,
-                   bounds.ymax - *last_y_ptr + max_y,
+                   bounds.ymin + *last_y_ptr - selection_bounds.ymin,
+                   bounds.ymax + *last_y_ptr - selection_bounds.ymax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);

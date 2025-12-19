@@ -35,7 +35,7 @@ enum {
   /** Temporary tag for point deletion. */
   CUMA_REMOVE = (1 << 3),
   /** Active point in selection. */
-  CUMA_ACTIVE = (1 << 4) | (1 << 2),
+  CUMA_ACTIVE = (1 << 4),
 };
 
 typedef struct CurveMap {

@@ -706,16 +706,12 @@ static void curvemap_buttons_layout(Layout *layout,
     crp->last_x = crp->last_pt->x;
     crp->last_y = crp->last_pt->y;
 
-    float min_x = bounds.xmax;
-    float max_x = bounds.xmin;
-    float min_y = bounds.ymax;
-    float max_y = bounds.ymin;
+    rctf selection_bounds;
+    BLI_rctf_init_minmax(&selection_bounds);
 
     for (const CurveMapPoint *cmp : cmps) {
-      min_x = min_ff(min_x, cmp->x);
-      max_x = max_ff(max_x, cmp->x);
-      min_y = min_ff(min_y, cmp->y);
-      max_y = max_ff(max_y, cmp->y);
+      const float loc[2] = {cmp->x, cmp->y};
+      BLI_rctf_do_minmax_v(&selection_bounds, loc);
     }
 
     bt = uiDefButF(block,
@@ -726,8 +722,8 @@ static void curvemap_buttons_layout(Layout *layout,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
                    &crp->last_pt->x,
-                   bounds.xmin + crp->last_pt->x - min_x,
-                   bounds.xmax - crp->last_pt->x + max_x,
+                   bounds.xmin + crp->last_pt->x - selection_bounds.xmin,
+                   bounds.xmax - crp->last_pt->x + selection_bounds.xmax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
@@ -752,8 +748,8 @@ static void curvemap_buttons_layout(Layout *layout,
                    UI_UNIT_X * 10,
                    UI_UNIT_Y,
                    &crp->last_pt->y,
-                   bounds.ymin + crp->last_pt->y - min_y,
-                   bounds.ymax - crp->last_pt->y + max_y,
+                   bounds.ymin + crp->last_pt->y - selection_bounds.ymin,
+                   bounds.ymax - crp->last_pt->y + selection_bounds.ymax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);

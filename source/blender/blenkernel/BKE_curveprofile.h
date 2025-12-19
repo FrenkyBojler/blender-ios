@@ -114,6 +114,11 @@ void BKE_curveprofile_reset_view(struct CurveProfile *profile);
  */
 void BKE_curveprofile_reset(struct CurveProfile *profile);
 
+/**
+ * Reset the active point to the nearest one.
+ */
+void BKE_curveprofile_activate_nearest_point(struct CurveProfile *profile, const int i_last);
+
 int BKE_curveprofile_table_size(const struct CurveProfile *profile);
 
 /**

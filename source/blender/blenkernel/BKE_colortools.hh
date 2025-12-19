@@ -52,6 +52,10 @@ enum class CurveMapSlopeType : int8_t {
 void BKE_curvemapping_reset_view(CurveMapping *cumap);
 void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapSlopeType slope);
 /**
+ * Reset the active point to the nearest one.
+ */
+void BKE_curvemap_activate_nearest_point(struct CurveMap *cuma, const int i_last);
+/**
  * Removes with flag set.
  */
 void BKE_curvemap_remove(CurveMap *cuma, short flag);

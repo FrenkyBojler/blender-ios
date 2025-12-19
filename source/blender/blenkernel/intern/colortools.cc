@@ -239,38 +239,37 @@ void BKE_curvemap_remove(CurveMap *cuma, const short flag)
 
 CurveMapPoint *BKE_curvemap_insert(CurveMap *cuma, float x, float y)
 {
-  CurveMapPoint *cmp = MEM_calloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint) + 1,
-                                                        "curve points");
-  CurveMapPoint *newcmp = nullptr;
-  int a, b;
-  bool foundloc = false;
-
-  /* insert fragments of the old one and the new point to the new curve */
   cuma->totpoint++;
-  for (a = 0, b = 0; a < cuma->totpoint; a++) {
-    if ((foundloc == false) && ((a + 1 == cuma->totpoint) || (x < cuma->curve[a].x))) {
-      cmp[a].x = x;
-      cmp[a].y = y;
-      cmp[a].flag = (CUMA_SELECT | CUMA_ACTIVE);
-      cmp[a].flag |= cuma->default_handle_type;
+  CurveMapPoint *new_path = MEM_calloc_arrayN<CurveMapPoint>(size_t(cuma->totpoint),
+                                                             "curve points");
+  CurveMapPoint *new_pt = nullptr;
+
+  /* Insert fragments of the old one and the new point to the new curve. */
+  bool foundloc = false;
+  for (int i_new = 0, i_old = 0; i_new < cuma->totpoint; i_new++) {
+    if ((foundloc == false) && ((i_new + 1 == cuma->totpoint) || (x < cuma->curve[i_new].x))) {
+      new_path[i_new].x = x;
+      new_path[i_new].y = y;
+      new_path[i_new].flag = CUMA_SELECT;
+      new_path[i_new].flag |= cuma->default_handle_type;
       foundloc = true;
-      newcmp = &cmp[a];
+      new_pt = &new_path[i_new];
     }
     else {
-      cmp[a].x = cuma->curve[b].x;
-      cmp[a].y = cuma->curve[b].y;
-      /* make sure old points don't remain selected */
-      cmp[a].flag = cuma->curve[b].flag & ~(CUMA_SELECT | CUMA_ACTIVE);
-      cmp[a].shorty = cuma->curve[b].shorty;
-      b++;
+      new_path[i_new].x = cuma->curve[i_old].x;
+      new_path[i_new].y = cuma->curve[i_old].y;
+      /* Make sure old points don't remain selected and active. */
+      new_path[i_new].flag = cuma->curve[i_old].flag & ~(CUMA_SELECT | CUMA_ACTIVE);
+      new_path[i_new].shorty = cuma->curve[i_old].shorty;
+      i_old++;
     }
   }
 
-  /* free old curve and replace it with new one */
+  /* Free old curve and replace it with new one. */
   MEM_freeN(cuma->curve);
-  cuma->curve = cmp;
+  cuma->curve = new_path;
 
-  return newcmp;
+  return new_pt;
 }
 
 void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapSlopeType slope)
@@ -492,6 +491,27 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
   if (cuma->table) {
     MEM_freeN(cuma->table);
     cuma->table = nullptr;
+  }
+}
+
+void BKE_curvemap_activate_nearest_point(struct CurveMap *cuma, const int i_last)
+{
+  CurveMapPoint *pts = cuma->curve;
+  for (int i = 1;; i++) {
+    int k = (i + 1) / 2;
+    int idx = (i & 1) ? (i_last - k) : (i_last + k);
+
+    if (idx < 0 || idx >= cuma->totpoint) {
+      if (i_last - k < 0 && i_last + k >= cuma->totpoint) {
+        return;
+      }
+      continue;
+    }
+
+    if (pts[idx].flag & CUMA_SELECT) {
+      pts[idx].flag |= CUMA_ACTIVE;
+      return;
+    }
   }
 }
 
