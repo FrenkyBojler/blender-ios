@@ -24,6 +24,8 @@
 
 #include "BKE_duplilist.hh"
 
+#include "RE_engine.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Utilities */
@@ -119,7 +121,9 @@ void BlenderSync::sync_object_motion_init(BL::Object &b_parent, BL::Object &b_ob
 
   const Scene::MotionType need_motion = scene->need_motion();
   if (need_motion == Scene::MOTION_BLUR) {
-    motion_steps = object_motion_steps(b_parent, b_ob, Object::MAX_MOTION_STEPS);
+    motion_steps = object_motion_steps(*b_parent.ptr.data_as<::Object>(),
+                                       *b_ob.ptr.data_as<::Object>(),
+                                       Object::MAX_MOTION_STEPS);
     if (motion_steps && object_use_deform_motion(b_parent, b_ob)) {
       use_motion_blur = true;
     }
@@ -250,7 +254,10 @@ Object *BlenderSync::sync_object(BL::ViewLayer &b_view_layer,
   }
 
   /* test if we need to sync */
-  bool object_updated = object_map.add_or_update(&object, b_ob, b_parent, key) ||
+  bool object_updated = object_map.add_or_update(&object,
+                                                 &b_ob.ptr.data_as<::Object>()->id,
+                                                 &b_parent.ptr.data_as<::Object>()->id,
+                                                 key) ||
                         (tfm != object->get_tfm());
 
   /* mesh sync */
@@ -337,10 +344,14 @@ Object *BlenderSync::sync_object(BL::ViewLayer &b_view_layer,
     }
     object->set_lightgroup(ustring(lightgroup));
 
-    object->set_light_set_membership(BlenderLightLink::get_light_set_membership(b_parent, b_ob));
-    object->set_receiver_light_set(BlenderLightLink::get_receiver_light_set(b_parent, b_ob));
-    object->set_shadow_set_membership(BlenderLightLink::get_shadow_set_membership(b_parent, b_ob));
-    object->set_blocker_shadow_set(BlenderLightLink::get_blocker_shadow_set(b_parent, b_ob));
+    object->set_light_set_membership(BlenderLightLink::get_light_set_membership(
+        b_parent.ptr.data_as<::Object>(), *b_ob.ptr.data_as<::Object>()));
+    object->set_receiver_light_set(BlenderLightLink::get_receiver_light_set(
+        b_parent.ptr.data_as<::Object>(), *b_ob.ptr.data_as<::Object>()));
+    object->set_shadow_set_membership(BlenderLightLink::get_shadow_set_membership(
+        b_parent.ptr.data_as<::Object>(), *b_ob.ptr.data_as<::Object>()));
+    object->set_blocker_shadow_set(BlenderLightLink::get_blocker_shadow_set(
+        b_parent.ptr.data_as<::Object>(), *b_ob.ptr.data_as<::Object>()));
   }
 
   sync_object_motion_init(b_parent, b_ob, object);
@@ -400,12 +411,10 @@ bool BlenderSync::sync_object_attributes(BL::DepsgraphObjectInstance &b_instance
     const ustring name = req.name;
 
     std::string real_name;
-    const BlenderAttributeType type = blender_attribute_name_split_type(name, &real_name);
+    const int type = blender_attribute_name_split_type(name, &real_name);
 
-    if (type == BL::ShaderNodeAttribute::attribute_type_OBJECT ||
-        type == BL::ShaderNodeAttribute::attribute_type_INSTANCER)
-    {
-      const bool use_instancer = (type == BL::ShaderNodeAttribute::attribute_type_INSTANCER);
+    if (type == SHD_ATTRIBUTE_OBJECT || type == SHD_ATTRIBUTE_INSTANCER) {
+      const bool use_instancer = (type == SHD_ATTRIBUTE_INSTANCER);
       float4 value = lookup_instance_property(b_instance, real_name, use_instancer);
 
       /* Try finding the existing attribute value. */
@@ -439,6 +448,7 @@ bool BlenderSync::sync_object_attributes(BL::DepsgraphObjectInstance &b_instance
 /* Object Loop */
 
 void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
+                               ::bScreen *b_screen,
                                BL::SpaceView3D &b_v3d,
                                const float motion_time)
 {
@@ -471,7 +481,9 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
 
   /* object loop */
   bool cancel = false;
-  const bool show_lights = BlenderViewportParameters(b_v3d, use_developer_ui).use_scene_lights;
+  const bool show_lights = BlenderViewportParameters(
+                               b_screen, b_v3d.ptr.data_as<::View3D>(), use_developer_ui)
+                               .use_scene_lights;
 
   BL::ViewLayer b_view_layer = b_depsgraph.view_layer_eval();
   BL::Depsgraph::object_instances_iterator b_instance_iter;
@@ -495,7 +507,8 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
     /* Ensure the object geom supporting the hair is processed before adding
      * the hair processing task to the task pool, calling .to_mesh() on the
      * same object in parallel does not work. */
-    const bool sync_hair = b_instance.show_particles() && object_has_particle_hair(b_ob);
+    const bool sync_hair = b_instance.show_particles() &&
+                           object_has_particle_hair(b_ob.ptr.data_as<::Object>());
 
     /* Object itself. */
     if (b_instance.show_self()) {
@@ -523,7 +536,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
 
   if (!cancel && !motion) {
     /* After object for world_use_portal. */
-    sync_background_light(b_v3d);
+    sync_background_light(b_screen, b_v3d.ptr.data_as<::View3D>());
 
     /* Handle removed data and modified pointers, as this may free memory, delete Nodes in the
      * right order to ensure that dependent data is freed after their users. Objects should be
@@ -541,6 +554,7 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
 
 void BlenderSync::sync_motion(BL::RenderSettings &b_render,
                               BL::Depsgraph &b_depsgraph,
+                              ::bScreen *b_screen,
                               BL::SpaceView3D &b_v3d,
                               BL::RegionView3D &b_rv3d,
                               const int width,
@@ -552,7 +566,8 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
   }
 
   /* get camera object here to deal with camera switch */
-  BL::Object b_cam = get_camera_object(b_v3d, b_rv3d);
+  ::Object *b_cam = get_camera_object(b_v3d.ptr.data_as<::View3D>(),
+                                      b_rv3d.ptr.data_as<::RegionView3D>());
 
   const int frame_center = b_scene.frame_current();
   const float subframe_center = b_scene.frame_subframe();
@@ -574,18 +589,18 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
     const int frame = (int)floorf(time);
     const float subframe = time - frame;
     python_thread_state_restore(python_thread_state);
-    b_engine.frame_set(frame, subframe);
+    RE_engine_frame_set(b_engine, frame, subframe);
     python_thread_state_save(python_thread_state);
     if (b_cam) {
-      sync_camera_motion(b_render, b_cam, width, height, 0.0f);
+      sync_camera_motion(*b_render.ptr.data_as<::RenderData>(), b_cam, width, height, 0.0f);
     }
-    sync_objects(b_depsgraph, b_v3d);
+    sync_objects(b_depsgraph, b_screen, b_v3d);
   }
 
   /* Insert motion times from camera. Motion times from other objects
    * have already been added in a sync_objects call. */
   if (b_cam) {
-    const uint camera_motion_steps = object_motion_steps(b_cam, b_cam);
+    const uint camera_motion_steps = object_motion_steps(*b_cam, *b_cam);
     for (size_t step = 0; step < camera_motion_steps; step++) {
       motion_times.insert(scene->camera->motion_time(step));
     }
@@ -619,14 +634,14 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
 
     /* change frame */
     python_thread_state_restore(python_thread_state);
-    b_engine.frame_set(frame, subframe);
+    RE_engine_frame_set(b_engine, frame, subframe);
     python_thread_state_save(python_thread_state);
 
     /* Syncs camera motion if relative_time is one of the camera's motion times. */
-    sync_camera_motion(b_render, b_cam, width, height, relative_time);
+    sync_camera_motion(*b_render.ptr.data_as<::RenderData>(), b_cam, width, height, relative_time);
 
     /* sync object */
-    sync_objects(b_depsgraph, b_v3d, relative_time);
+    sync_objects(b_depsgraph, b_screen, b_v3d, relative_time);
   }
 
   geometry_motion_attribute_synced.clear();
@@ -635,7 +650,7 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
    * function assumes it is being executed from python and will
    * try to save the thread state */
   python_thread_state_restore(python_thread_state);
-  b_engine.frame_set(frame_center, subframe_center);
+  RE_engine_frame_set(b_engine, frame_center, subframe_center);
   python_thread_state_save(python_thread_state);
 }
 

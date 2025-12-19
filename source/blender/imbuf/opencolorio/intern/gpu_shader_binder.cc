@@ -480,6 +480,7 @@ bool GPUShaderBinder::create_gpu_shader(
   iface.smooth(Type::float2_t, "texCoord_interp");
 
   ShaderCreateInfo info("OCIO_Display");
+  info.builtins(BuiltinBits::NO_BUFFER_TYPE_LINTING);
 
   for (const auto &additional_define : additional_defines) {
     info.define(additional_define[0], additional_define[1]);
@@ -507,9 +508,10 @@ bool GPUShaderBinder::create_gpu_shader(
   info.vertex_source("gpu_shader_display_transform_vert.glsl");
   info.fragment_source("gpu_shader_display_transform_frag.glsl");
 
-  info.generated_sources.append({"gpu_shader_display_transform_lib.glsl",
-                                 {"ocio_shader_shared.hh"},
-                                 process_source(fragment_source, info)});
+  info.generated_sources.append(
+      {"gpu_shader_display_transform_lib.glsl",
+       {"gpu_shader_display_transform_fallback_lib.glsl", "ocio_shader_shared.hh"},
+       process_source(fragment_source, info)});
 
   /* #96502: Work around for incorrect OCIO GLSL code generation when using
    * GradingPrimaryTransform. Should be reevaluated when changing to a next version of OCIO.

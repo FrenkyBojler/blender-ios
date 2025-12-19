@@ -53,11 +53,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   output_value.structure_type(StructureType::Dynamic);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 class LazyFunctionForEnableOutputNode : public LazyFunction {
@@ -110,7 +110,7 @@ class EnableOutputOperation : public NodeOperation {
 
   void execute() override
   {
-    const bool keep = this->get_input("Enable").get_single_value_default<bool>(true);
+    const bool keep = this->get_input("Enable").get_single_value_default<bool>();
     Result &output = this->get_result("Value");
     if (keep) {
       const Result &input = this->get_input("Value");

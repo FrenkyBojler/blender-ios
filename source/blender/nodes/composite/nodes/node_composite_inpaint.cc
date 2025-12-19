@@ -259,7 +259,7 @@ class InpaintOperation : public NodeOperation {
 
       /* Mix the boundary color with the original color using its alpha because semi-transparent
        * areas are considered to be partially inpainted. */
-      float4 boundary_color = float4(input.load_pixel<Color>(closest_boundary_texel));
+      float4 boundary_color = float4(input.load_pixel_extended<Color>(closest_boundary_texel));
       filled_region.store_pixel(texel, Color(math::interpolate(boundary_color, color, color.w)));
     });
   }
@@ -345,7 +345,7 @@ class InpaintOperation : public NodeOperation {
 
   int get_max_distance()
   {
-    return math::max(0, this->get_input("Size").get_single_value_default(0));
+    return math::max(0, this->get_input("Size").get_single_value_default<int>());
   }
 };
 
