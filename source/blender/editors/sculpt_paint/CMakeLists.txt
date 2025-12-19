@@ -111,6 +111,7 @@ set(SRC
   sculpt_trim.cc
   sculpt_undo.cc
   sculpt_uv.cc
+
   curves_sculpt_intern.hh
   grease_pencil_intern.hh
   grease_pencil_trace_util.hh
