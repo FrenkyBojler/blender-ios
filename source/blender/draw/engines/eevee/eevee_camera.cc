@@ -157,14 +157,12 @@ void Camera::sync()
     else {
       /* Can happen for the case of XR or if `rv3d->dist == 0`.
        * In this case the produced winmat is degenerate. So just revert to the input matrix. */
-      float4x4 winmat = inst_.drw_view->winmat();
-      float4x4 uv_scale = {{1.0f / data.uv_scale.x, 0, 0, 0},
-                           {0, 1.0f / data.uv_scale.y, 0, 0},
-                           {0, 0, 1, 0},
-                           {0, 0, 0, 1}};
       float2 film_center = float2(film_offset) + float2(film_extent) / 2.0f;
       float2 uv_offset = float2(0.5f) - (film_center / float2(display_extent));
-      data.winmat = uv_scale * math::projection::translate(winmat, uv_offset * 2.0f);
+      data.winmat = inst_.drw_view->winmat();
+      data.winmat = math::projection::translate(data.winmat, uv_offset * 2.0f);
+      data.winmat = math::from_scale<float4x4>(float4(1.0f / data.uv_scale, 1.0f, 1.0f)) *
+                    data.winmat;
     }
   }
   else if (inst_.render) {
