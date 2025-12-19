@@ -11,6 +11,9 @@
 #include "BKE_context.hh"
 #include "BKE_object.hh"
 
+#include "BLI_listbase.h"
+#include "BLI_math_base.h"
+
 #include "ED_object.hh"
 #include "ED_screen.hh"
 
@@ -31,17 +34,35 @@ namespace blender::ed::object {
 
 static wmOperatorStatus object_lod_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  fprintf(stderr, "[DEBUG] object_lod_add_exec CALLED\n");
-
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
+  const int prev_len = BLI_listbase_count(&ob->lod_items);
+
   BKE_object_lod_add(ob);
 
+  /* Enforce monotonic distance (semantic rule). */
+  if (prev_len > 0) {
+    Lod *prev = static_cast<Lod *>(BLI_findlink(&ob->lod_items, prev_len - 1));
+    Lod *lod = static_cast<Lod *>(BLI_findlink(&ob->lod_items, prev_len));
+
+    if (prev && lod) {
+      lod->distance = max_ff(prev->distance + 10.0f, prev->distance);
+    }
+  }
+  else {
+    Lod *lod = static_cast<Lod *>(ob->lod_items.first);
+    if (lod) {
+      lod->distance = 10.0f;
+    }
+  }
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_ID | NA_EDITED, &ob->id);
+
   return OPERATOR_FINISHED;
 }
 
