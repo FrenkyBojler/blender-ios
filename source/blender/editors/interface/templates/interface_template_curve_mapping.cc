@@ -354,7 +354,7 @@ static void curvemap_buttons_layout(Layout *layout,
                                     bool presets,
                                     const RNAUpdateCb &cb)
 {
-  CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
+  CurveMapping *cumap = ptr->data_as<CurveMapping>();
   CurveMap *cm = &cumap->cm[cumap->cur];
   Button *bt;
   const float dx = UI_UNIT_X;
@@ -694,7 +694,7 @@ static void curvemap_buttons_layout(Layout *layout,
       BKE_curvemapping_changed(cumap, false);
       rna_update_cb(C, cb);
     });
-    
+
     for (const CurveMapPoint *cmp : cmps) {
       const bool auto_anim = (cmp->flag & CUMA_HANDLE_AUTO_ANIM);
       bt->flag |= UI_SELECT_DRAW && auto_anim;
@@ -733,15 +733,15 @@ static void curvemap_buttons_layout(Layout *layout,
     button_number_precision_set(bt, 5);
     button_func_set(bt, [cumap, cb, crp](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
-      BKE_translate_inactive_selection(cuma, crp->last_pt->x - crp->last_x, 0.0f);
+      const float dx = crp->last_pt->x - crp->last_x;
+      BKE_translate_selection(cuma, dx, 0.0f);
+      crp->last_pt->x -= dx;
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
 
       // update the active point if the pointer changed
-      CurveMapPoint *active_pt = nullptr;
-      BKE_curvemap_get_active_ptr(cuma, &active_pt);
-      crp->last_x = active_pt->x;
-      crp->last_pt = active_pt;
+      BKE_curvemap_get_active_ptr(cuma, &crp->last_pt);
+      crp->last_x = crp->last_pt->x;
     });
 
     bt = uiDefButF(block,
@@ -759,15 +759,15 @@ static void curvemap_buttons_layout(Layout *layout,
     button_number_precision_set(bt, 5);
     button_func_set(bt, [cumap, cb, crp](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
-      BKE_translate_inactive_selection(cuma, 0.0f, crp->last_pt->y - crp->last_y);
+      const float dy = crp->last_pt->y - crp->last_y;
+      BKE_translate_selection(cuma, 0.0f, dy);
+      crp->last_pt->y -= dy;
       BKE_curvemapping_changed(cumap, true);
       rna_update_cb(C, cb);
 
       // update the active point if the pointer changed
-      CurveMapPoint *active_pt = nullptr;
-      BKE_curvemap_get_active_ptr(cuma, &active_pt);
-      crp->last_y = active_pt->y;
-      crp->last_pt = active_pt;
+      BKE_curvemap_get_active_ptr(cuma, &crp->last_pt);
+      crp->last_y = crp->last_pt->y;
     });
 
     /* Curve handle delete point */

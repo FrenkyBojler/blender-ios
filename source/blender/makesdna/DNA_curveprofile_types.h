@@ -31,17 +31,14 @@ typedef struct CurveProfilePoint {
   struct CurveProfile *profile;
 } CurveProfilePoint;
 
-typedef struct CurveProfile_Runtime {
-  /** Temp storage for multiple selections operation. */
-  void *runtime_storage;
-  void (*runtime_storage_free)(void *properties_storage);
-} CurveProfile_Runtime;
-
 /** #CurveProfilePoint.flag */
 enum {
   PROF_SELECT = (1 << 0),
   PROF_H1_SELECT = (1 << 1),
   PROF_H2_SELECT = (1 << 2),
+  PROF_ACTIVE = (1 << 3),
+  PROF_H1_ACTIVE = (1 << 4),
+  PROF_H2_ACTIVE = (1 << 5),
 };
 
 /** Defines a profile. */
@@ -64,8 +61,6 @@ typedef struct CurveProfile {
   int changed_timestamp;
   /** Widget's current view, and clipping rect (is default rect too). */
   rctf view_rect, clip_rect;
-
-  CurveProfile_Runtime runtime;
 } CurveProfile;
 
 /** #CurveProfile.flag */

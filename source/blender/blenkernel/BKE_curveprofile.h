@@ -150,9 +150,11 @@ void BKE_curveprofile_evaluate_length_portion(const struct CurveProfile *profile
                                               float length_portion,
                                               float *x_out,
                                               float *y_out);
-void BKE_curveprofile_get_selection_center(const struct CurveProfile *profile,
-                                           float *center_x_out,
-                                           float *center_y_out);
+void BKE_curveprofile_get_active_ptr(struct CurveProfile *profile,
+                                     struct CurveProfilePoint **ptr_out);
+void BKE_curveprofile_get_active_location_ptr(struct CurveProfilePoint *point,
+                                              float **x_ptr_out,
+                                              float **y_ptr_out);
 
 void BKE_curveprofile_blend_write(struct BlendWriter *writer, const struct CurveProfile *profile);
 /**
