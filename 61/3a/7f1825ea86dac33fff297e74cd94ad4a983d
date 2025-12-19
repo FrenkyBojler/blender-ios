@@ -1,3 +1,4 @@
 Referenced by issue #151819, Reflection Plane Probe incorrectly shows the outside HDRI all the times
 Referenced by issue #123787, EEVEE-NEXT - Shadows Break with Subdivision Surface (RDNA2 only?)
 Referenced by issue #151910, Huge Artifacts when using Glossy Shader in Eevee
+Referenced by issue #122359, Huge difference in reflections with EEVEE Next light probes
