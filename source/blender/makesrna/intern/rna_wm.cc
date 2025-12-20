@@ -1056,6 +1056,12 @@ static bool rna_Window_support_hdr_color_get(PointerRNA *ptr)
   return WM_window_support_hdr_color(win);
 }
 
+static bool rna_Window_fullscreen_get(PointerRNA *ptr)
+{
+  wmWindow *win = static_cast<wmWindow *>(ptr->data);
+  return WM_window_is_fullscreen(win);
+}
+
 static bool rna_Window_modal_handler_skip(CollectionPropertyIterator * /*iter*/, void *data)
 {
   const wmEventHandler_Op *handler = (wmEventHandler_Op *)data;
@@ -2788,6 +2794,12 @@ static void rna_def_window(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "sizey");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Height", "Window height");
+
+  prop = RNA_def_property(srna, "is_fullscreen", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_Window_fullscreen_get", nullptr);
+  RNA_def_property_ui_text(
+      prop, "Is Fullsize", "Whether window is maximized, filling the monitor");
 
   prop = RNA_def_property(srna, "stereo_3d_display", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "stereo3d_format");

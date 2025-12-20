@@ -562,7 +562,10 @@ class TOPBAR_MT_window(Menu):
 
         layout.separator()
 
-        layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER')
+        if (context.window.is_fullscreen):
+            layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_EXIT', text="Exit Full Screen")
+        else:
+            layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER', text="Enter Full Screen")
 
         layout.separator()
 
