@@ -165,6 +165,11 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
   if (strip->effectdata && strip->type == STRIP_TYPE_SPEED) {
     strip_effect_speed_rebuild_map(scene, strip);
   }
+  
+  /* Text effect raw image changes, because translation is directly applied to text rendering. */
+  if (strip->type == STRIP_TYPE_TEXT) {
+    source_image_cache_invalidate_strip(scene, strip);
+  }
 
   invalidate_final_cache_strip_range(scene, strip);
   intra_frame_cache_invalidate(scene, strip);

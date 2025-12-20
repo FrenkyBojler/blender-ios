@@ -755,14 +755,6 @@ static void rna_StripTransform_update(Main * /*bmain*/, Scene * /*scene*/, Point
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = strip_get_by_transform(ed, static_cast<StripTransform *>(ptr->data));
 
-  /* Text effect raw image changes, because translation is directly applied to text rendering. */
-  if (strip->type == STRIP_TYPE_TEXT) {
-    blender::seq::relations_invalidate_cache_raw(scene, strip);
-  }
-  else {
-    blender::seq::relations_invalidate_cache(scene, strip);
-  }
-
   blender::seq::relations_invalidate_cache(scene, strip);
 }
 

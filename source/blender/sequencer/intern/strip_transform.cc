@@ -591,14 +591,9 @@ float2 image_transform_mirror_factor_get(const Strip *strip)
   return mirror;
 }
 
-static TextVarsRuntime *temp_text_runtime_get(const Scene *scene, const Strip *strip)
+static TextVarsRuntime *temp_text_runtime_get(const Scene *scene, const Strip *strip, int font)
 {
   float2 scene_render_size(scene->r.xsch, scene->r.ysch);
-  const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
-                               ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
-  const int font = text_effect_font_init(nullptr, strip, font_flags);
-  /* It's easier to create RenderData than overloaded `text_effect_calc_runtime` function. */
   RenderData render_data;
   render_data.scene = const_cast<Scene *>(scene);
   render_data.rectx = scene_render_size.x;
@@ -624,13 +619,15 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
   }
 
   if (strip->type == STRIP_TYPE_TEXT) {
-
     std::unique_lock<Mutex> lock = text_runtime_scoped_lock_get();
-    const TextVarsRuntime *temp_text_runtime = temp_text_runtime_get(scene, strip);
-    // BLF_disable(font, font_flags); //XXXXXXX
-
+    const TextVars *data = static_cast<TextVars *>(strip->effectdata);
+    const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                                 ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
+    const int font = text_effect_font_init(nullptr, strip, font_flags);
+    const TextVarsRuntime *temp_text_runtime = temp_text_runtime_get(scene, strip, font);
     const float2 text_size(float(BLI_rcti_size_x(&temp_text_runtime->text_boundbox)),
                            float(BLI_rcti_size_y(&temp_text_runtime->text_boundbox)));
+    BLF_disable(font, font_flags);
     MEM_delete(temp_text_runtime);
     return text_size;
   }
@@ -716,13 +713,18 @@ static Array<float2> strip_image_transform_quad_get_ex(const Scene *scene,
 
   /* Offset text boundbox when anchor is set. */
   if (strip->type == STRIP_TYPE_TEXT) {
+    std::unique_lock<Mutex> lock = text_runtime_scoped_lock_get();
     TextVars *data = static_cast<TextVars *>(strip->effectdata);
-    TextVarsRuntime *temp_text_runtime = temp_text_runtime_get(scene, strip);
+    const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                                 ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
+    const int font = text_effect_font_init(nullptr, strip, font_flags);
+    const TextVarsRuntime *temp_text_runtime = temp_text_runtime_get(scene, strip, font);
     for (int i = 0; i < 4; i++) {
       quad[i] += text_anchor_offset_get(data,
                                         BLI_rcti_size_x(&temp_text_runtime->text_boundbox),
                                         BLI_rcti_size_y(&temp_text_runtime->text_boundbox));
     }
+    BLF_disable(font, font_flags);
     MEM_delete(temp_text_runtime);
   }
 
