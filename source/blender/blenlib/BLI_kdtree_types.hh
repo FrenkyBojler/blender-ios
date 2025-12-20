@@ -15,21 +15,26 @@
 
 namespace blender {
 
-template<int DimsNum> struct KDTreeNode_head {
+template<typename CoordT> struct KDTreeNode_head {
   uint32_t left, right;
-  VecBase<float, DimsNum> co;
+  CoordT co;
   int index;
 };
 
-template<int DimsNum> struct KDTreeNode {
+template<typename CoordT> struct KDTreeNode {
+  constexpr static int DimsNum = CoordT::type_length;
+
   uint32_t left, right;
-  VecBase<float, DimsNum> co;
+  CoordT co;
   int index;
   uint d; /* range is only (0..DimsNum - 1) */
 };
 
-template<int DimsNum> struct KDTree {
-  KDTreeNode<DimsNum> *nodes;
+template<typename CoordT> struct KDTree {
+  using NodeT = KDTreeNode<CoordT>;
+  constexpr static int DimsNum = NodeT::DimsNum;
+
+  NodeT *nodes;
   uint32_t nodes_len;
   uint32_t root;
   int max_node_index;
@@ -39,20 +44,20 @@ template<int DimsNum> struct KDTree {
 #endif
 };
 
-template<int DimsNum> struct KDTreeNearest {
+template<typename CoordT> struct KDTreeNearest {
   int index;
   float dist;
-  VecBase<float, DimsNum> co;
+  CoordT co;
 };
 
-using KDTree_1d = KDTree<1>;
-using KDTree_2d = KDTree<2>;
-using KDTree_3d = KDTree<3>;
-using KDTree_4d = KDTree<4>;
+using KDTree_1d = KDTree<float1>;
+using KDTree_2d = KDTree<float2>;
+using KDTree_3d = KDTree<float3>;
+using KDTree_4d = KDTree<float4>;
 
-using KDTreeNearest_1d = KDTreeNearest<1>;
-using KDTreeNearest_2d = KDTreeNearest<2>;
-using KDTreeNearest_3d = KDTreeNearest<3>;
-using KDTreeNearest_4d = KDTreeNearest<4>;
+using KDTreeNearest_1d = KDTreeNearest<float1>;
+using KDTreeNearest_2d = KDTreeNearest<float2>;
+using KDTreeNearest_3d = KDTreeNearest<float3>;
+using KDTreeNearest_4d = KDTreeNearest<float4>;
 
 }  // namespace blender
