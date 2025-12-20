@@ -7607,7 +7607,7 @@ void RNA_def_userdef(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Recent Searches", "Sort the recently searched items at the top");
 
   prop = RNA_def_property(srna, "show_hidden_id_datablocks", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", USER_FLAG_ID_HIDE_DATABLOCK);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", USER_HIDE_DOT_DATABLOCK);
   RNA_def_property_ui_text(
       prop, "Show Hidden", "Show datablocks with dot-prefixed names in search menus");
 
