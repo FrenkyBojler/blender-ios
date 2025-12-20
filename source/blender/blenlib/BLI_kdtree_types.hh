@@ -23,6 +23,7 @@ template<typename CoordT> struct KDTreeNode_head {
 
 template<typename CoordT> struct KDTreeNode {
   constexpr static int DimsNum = CoordT::type_length;
+  using ValueType = typename CoordT::base_type;
 
   uint32_t left, right;
   CoordT co;
@@ -33,6 +34,7 @@ template<typename CoordT> struct KDTreeNode {
 template<typename CoordT> struct KDTree {
   using NodeT = KDTreeNode<CoordT>;
   constexpr static int DimsNum = NodeT::DimsNum;
+  using ValueType = typename NodeT::ValueType;
 
   NodeT *nodes;
   uint32_t nodes_len;
@@ -45,8 +47,11 @@ template<typename CoordT> struct KDTree {
 };
 
 template<typename CoordT> struct KDTreeNearest {
+  using TreeT = KDTree<CoordT>;
+  using ValueType = typename TreeT::ValueType;
+
   int index;
-  float dist;
+  ValueType dist;
   CoordT co;
 };
 

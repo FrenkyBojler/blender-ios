@@ -96,7 +96,7 @@ template<typename CoordT>
 static uint kdtree_balance(KDTreeNode<CoordT> *nodes, uint nodes_len, uint axis, const uint ofs)
 {
   KDTreeNode<CoordT> *node;
-  float co;
+  typename KDTree<CoordT>::ValueType co;
   uint left, right, median, i, j;
 
   if (nodes_len <= 0) {
@@ -200,7 +200,7 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *root, *min_node;
   uint *stack, stack_default[KD_STACK_INIT];
-  float min_dist, cur_dist;
+  typename KDTree<CoordT>::ValueType min_dist, cur_dist;
   uint stack_len_capacity, cur = 0;
 
 #ifndef NDEBUG
@@ -300,18 +300,20 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
  * Return codes: (1: accept, 0: skip, -1: immediate exit).
  */
 template<typename CoordT>
-inline int kdtree_find_nearest_cb(
-    const KDTree<CoordT> *tree,
-    const CoordT &co,
-    int (*filter_cb)(void *user_data, int index, const CoordT &co, float dist_sq),
-    void *user_data,
-    KDTreeNearest<CoordT> *r_nearest)
+inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
+                                  const CoordT &co,
+                                  int (*filter_cb)(void *user_data,
+                                                   int index,
+                                                   const CoordT &co,
+                                                   typename KDTree<CoordT>::ValueType dist_sq),
+                                  void *user_data,
+                                  KDTreeNearest<CoordT> *r_nearest)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *min_node = nullptr;
 
   uint *stack, stack_default[KD_STACK_INIT];
-  float min_dist = FLT_MAX, cur_dist;
+  typename KDTree<CoordT>::ValueType min_dist = FLT_MAX, cur_dist;
   uint stack_len_capacity, cur = 0;
 
 #ifndef NDEBUG
@@ -327,7 +329,7 @@ inline int kdtree_find_nearest_cb(
 
 #define NODE_TEST_NEAREST(node) \
   { \
-    const float dist_sq = math::distance_squared((node)->co, co); \
+    const typename KDTree<CoordT>::ValueType dist_sq = math::distance_squared((node)->co, co); \
     if (dist_sq < min_dist) { \
       const int result = filter_cb(user_data, (node)->index, (node)->co, dist_sq); \
       if (result == 1) { \
@@ -411,7 +413,7 @@ static void nearest_ordered_insert(KDTreeNearest<CoordT> *nearest,
                                    uint *nearest_len,
                                    const uint nearest_len_capacity,
                                    const int index,
-                                   const float dist,
+                                   const typename KDTree<CoordT>::ValueType dist,
                                    const CoordT &co)
 {
   uint i;
@@ -440,19 +442,20 @@ static void nearest_ordered_insert(KDTreeNearest<CoordT> *nearest,
  * \param r_nearest: An array of nearest, sized at least \a nearest_len_capacity.
  */
 template<typename CoordT>
-inline int kdtree_find_nearest_n_with_len_squared_cb(const KDTree<CoordT> *tree,
-                                                     const CoordT &co,
-                                                     KDTreeNearest<CoordT> r_nearest[],
-                                                     const uint nearest_len_capacity,
-                                                     float (*len_sq_fn)(const CoordT &co_search,
-                                                                        const CoordT &co_test,
-                                                                        const void *user_data),
-                                                     const void *user_data)
+inline int kdtree_find_nearest_n_with_len_squared_cb(
+    const KDTree<CoordT> *tree,
+    const CoordT &co,
+    KDTreeNearest<CoordT> r_nearest[],
+    const uint nearest_len_capacity,
+    typename KDTree<CoordT>::ValueType (*len_sq_fn)(const CoordT &co_search,
+                                                    const CoordT &co_test,
+                                                    const void *user_data),
+    const void *user_data)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *root;
   uint *stack, stack_default[KD_STACK_INIT];
-  float cur_dist;
+  typename KDTree<CoordT>::ValueType cur_dist;
   uint stack_len_capacity, cur = 0;
   uint i, nearest_len = 0;
 
@@ -465,10 +468,8 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(const KDTree<CoordT> *tree,
   }
 
   if (len_sq_fn == nullptr) {
-    len_sq_fn =
-        [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) -> float {
-      return math::distance_squared(co_search, co_test);
-    };
+    len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) ->
+        typename KDTree<CoordT>::ValueType { return math::distance_squared(co_search, co_test); };
     BLI_assert(user_data == nullptr);
   }
 
@@ -587,7 +588,7 @@ static void nearest_add_in_range(KDTreeNearest<CoordT> **r_nearest,
                                  uint nearest_index,
                                  uint *nearest_len_capacity,
                                  const int index,
-                                 const float dist,
+                                 const typename KDTree<CoordT>::ValueType dist,
                                  const CoordT &co)
 {
   KDTreeNearest<CoordT> *to;
@@ -614,20 +615,21 @@ static void nearest_add_in_range(KDTreeNearest<CoordT> **r_nearest,
  * \param r_nearest: Allocated array of nearest nearest_len (caller is responsible for freeing).
  */
 template<typename CoordT>
-inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
-                                                   const CoordT &co,
-                                                   KDTreeNearest<CoordT> **r_nearest,
-                                                   const float range,
-                                                   float (*len_sq_fn)(const CoordT &co_search,
-                                                                      const CoordT &co_test,
-                                                                      const void *user_data),
-                                                   const void *user_data)
+inline int kdtree_range_search_with_len_squared_cb(
+    const KDTree<CoordT> *tree,
+    const CoordT &co,
+    KDTreeNearest<CoordT> **r_nearest,
+    const typename KDTree<CoordT>::ValueType range,
+    typename KDTree<CoordT>::ValueType (*len_sq_fn)(const CoordT &co_search,
+                                                    const CoordT &co_test,
+                                                    const void *user_data),
+    const void *user_data)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   uint *stack, stack_default[KD_STACK_INIT];
   KDTreeNearest<CoordT> *nearest = nullptr;
-  const float range_sq = range * range;
-  float dist_sq;
+  const typename KDTree<CoordT>::ValueType range_sq = range * range;
+  typename KDTree<CoordT>::ValueType dist_sq;
   uint stack_len_capacity, cur = 0;
   uint nearest_len = 0, nearest_len_capacity = 0;
 
@@ -640,10 +642,8 @@ inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
   }
 
   if (len_sq_fn == nullptr) {
-    len_sq_fn =
-        [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) -> float {
-      return math::distance_squared(co_search, co_test);
-    };
+    len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) ->
+        typename KDTree<CoordT>::ValueType { return math::distance_squared(co_search, co_test); };
     BLI_assert(user_data == nullptr);
   }
 
@@ -702,7 +702,7 @@ template<typename CoordT>
 inline int kdtree_range_search(const KDTree<CoordT> *tree,
                                const CoordT &co,
                                KDTreeNearest<CoordT> **r_nearest,
-                               float range)
+                               typename KDTree<CoordT>::ValueType range)
 {
   return kdtree_range_search_with_len_squared_cb<CoordT>(
       tree, co, r_nearest, range, nullptr, nullptr);
@@ -718,17 +718,19 @@ inline int kdtree_range_search(const KDTree<CoordT> *tree,
  * \note the order of calls isn't sorted based on distance.
  */
 template<typename CoordT>
-inline void kdtree_range_search_cb(
-    const KDTree<CoordT> *tree,
-    const CoordT &co,
-    float range,
-    bool (*search_cb)(void *user_data, int index, const CoordT &co, float dist_sq),
-    void *user_data)
+inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
+                                   const CoordT &co,
+                                   typename KDTree<CoordT>::ValueType range,
+                                   bool (*search_cb)(void *user_data,
+                                                     int index,
+                                                     const CoordT &co,
+                                                     typename KDTree<CoordT>::ValueType dist_sq),
+                                   void *user_data)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
 
   uint *stack, stack_default[KD_STACK_INIT];
-  float range_sq = range * range, dist_sq;
+  typename KDTree<CoordT>::ValueType range_sq = range * range, dist_sq;
   uint stack_len_capacity, cur = 0;
 
 #ifndef NDEBUG
@@ -807,8 +809,8 @@ template<typename CoordT> static blender::Vector<int> kdtree_order(const KDTree<
 template<typename CoordT> struct DeDuplicateParams {
   /* Static */
   const KDTreeNode<CoordT> *nodes;
-  float range;
-  float range_sq;
+  typename KDTree<CoordT>::ValueType range;
+  typename KDTree<CoordT>::ValueType range_sq;
   int *duplicates;
   int *duplicates_found;
 
@@ -869,7 +871,7 @@ static void deduplicate_recursive(const DeDuplicateParams<CoordT> *p, uint i)
  */
 template<typename CoordT>
 inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
-                                       const float range,
+                                       const typename KDTree<CoordT>::ValueType range,
                                        const bool use_index_order,
                                        int *duplicates)
 {
@@ -926,14 +928,17 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
 template<typename CoordT, typename Fn>
 inline void kdtree_range_search_cb_cpp(const KDTree<CoordT> *tree,
                                        const CoordT &co,
-                                       const float distance,
+                                       const typename KDTree<CoordT>::ValueType distance,
                                        const Fn &fn)
 {
   kdtree_range_search_cb<CoordT>(
       tree,
       co,
       distance,
-      [](void *user_data, const int index, const CoordT &co, const float dist_sq) {
+      [](void *user_data,
+         const int index,
+         const CoordT &co,
+         const typename KDTree<CoordT>::ValueType dist_sq) {
         const Fn &fn = *static_cast<const Fn *>(user_data);
         return fn(index, co, dist_sq);
       },
@@ -964,7 +969,7 @@ inline void kdtree_range_search_cb_cpp(const KDTree<CoordT> *tree,
  */
 template<typename CoordT>
 inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
-                                     const float range,
+                                     const typename KDTree<CoordT>::ValueType range,
                                      int *duplicates,
                                      const bool has_self_index,
                                      int (*duplicates_cb)(void *user_data,
@@ -988,7 +993,8 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
 
   /* First pass, handle merging into self-index (if any exist). */
   if (has_self_index) {
-    blender::Array<float> duplicates_dist_sq(tree->max_node_index + 1);
+    blender::Array<typename KDTree<CoordT>::ValueType> duplicates_dist_sq(tree->max_node_index +
+                                                                          1);
     for (uint i = 0; i < nodes_len; i++) {
       const int node_index = tree->nodes[i].index;
       if (node_index != duplicates[node_index]) {
@@ -997,7 +1003,9 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
       const CoordT &search_co = tree->nodes[index_to_node_index[node_index]].co;
       auto accumulate_neighbors_fn =
           [&duplicates, &node_index, &duplicates_dist_sq, &found](
-              int neighbor_index, const CoordT & /*co*/, const float dist_sq) -> bool {
+              int neighbor_index,
+              const CoordT & /*co*/,
+              const typename KDTree<CoordT>::ValueType dist_sq) -> bool {
         const int target_index = duplicates[neighbor_index];
         if (target_index == -1) {
           duplicates[neighbor_index] = node_index;
@@ -1006,7 +1014,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
         }
         /* Don't steal from self references. */
         else if (target_index != neighbor_index) {
-          float &dist_sq_best = duplicates_dist_sq[neighbor_index];
+          typename KDTree<CoordT>::ValueType &dist_sq_best = duplicates_dist_sq[neighbor_index];
           /* Steal the target if it's closer. */
           if ((dist_sq < dist_sq_best) ||
               /* Pick the lowest index as a tie breaker for a deterministic result. */
@@ -1035,9 +1043,10 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
 
     BLI_assert(cluster.is_empty());
     const CoordT &search_co = tree->nodes[index_to_node_index[node_index]].co;
-    auto accumulate_neighbors_fn = [&duplicates, &cluster](int neighbor_index,
-                                                           const CoordT & /*co*/,
-                                                           const float /*dist_sq*/) -> bool {
+    auto accumulate_neighbors_fn =
+        [&duplicates, &cluster](int neighbor_index,
+                                const CoordT & /*co*/,
+                                const typename KDTree<CoordT>::ValueType /*dist_sq*/) -> bool {
       if (duplicates[neighbor_index] == -1) {
         cluster.append(neighbor_index);
       }
@@ -1074,7 +1083,10 @@ inline int kdtree_find_nearest_cb_cpp(const KDTree<CoordT> *tree,
   return kdtree_find_nearest_cb<CoordT>(
       tree,
       co,
-      [](void *user_data, const int index, const CoordT &co, const float dist_sq) {
+      [](void *user_data,
+         const int index,
+         const CoordT &co,
+         const typename KDTree<CoordT>::ValueType dist_sq) {
         Fn &fn = *static_cast<Fn *>(user_data);
         return fn(index, co, dist_sq);
       },
@@ -1084,7 +1096,7 @@ inline int kdtree_find_nearest_cb_cpp(const KDTree<CoordT> *tree,
 
 template<typename CoordT, typename Fn>
 inline int kdtree_calc_duplicates_cb_cpp(const KDTree<CoordT> *tree,
-                                         const float distance,
+                                         const typename KDTree<CoordT>::ValueType distance,
                                          int *duplicates,
                                          const bool has_self_index,
                                          const Fn &fn)
