@@ -557,7 +557,7 @@ colorspaces:
     description: |
       Linear AP0 with ACES white point
     isdata: false
-    interop_id: lin_ap0_aces
+    interop_id: lin_ap0
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
@@ -572,7 +572,7 @@ colorspaces:
     description: |
       Linear AP1 with ACES white point
     isdata: false
-    interop_id: lin_ap1_aces
+    interop_id: lin_ap1
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
