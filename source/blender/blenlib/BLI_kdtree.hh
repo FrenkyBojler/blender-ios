@@ -467,8 +467,9 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
   }
 
   if (len_sq_fn == nullptr) {
-    len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) ->
-        typename KDTree<CoordT>::ValueType { return math::distance_squared(co_search, co_test); };
+    len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) {
+      return math::distance_squared(co_search, co_test);
+    };
     BLI_assert(user_data == nullptr);
   }
 
@@ -641,8 +642,9 @@ inline int kdtree_range_search_with_len_squared_cb(
   }
 
   if (len_sq_fn == nullptr) {
-    len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) ->
-        typename KDTree<CoordT>::ValueType { return math::distance_squared(co_search, co_test); };
+    len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) {
+      return math::distance_squared(co_search, co_test);
+    };
     BLI_assert(user_data == nullptr);
   }
 
