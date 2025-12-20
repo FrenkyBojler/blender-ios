@@ -323,6 +323,7 @@ if(WITH_BLENDER)
       documents
       dot
       downarrow_hlt
+      drag_h
       driver
       driver_distance
       driver_rotational_difference
@@ -958,6 +959,7 @@ if(WITH_BLENDER)
       zoom_all
       zoom_in
       zoom_out
+      zoom_small
       zoom_previous
       zoom_selected
     )

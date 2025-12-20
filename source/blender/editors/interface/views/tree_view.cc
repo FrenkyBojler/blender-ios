@@ -920,54 +920,94 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     block_layout_set_current(block, &col);
 
     /* Bottom */
-    Layout &bottom = col.row(false);
-    block_emboss_set(block, EmbossType::None);
-    Button *but = uiDefIconButBitC(block,
-                                   ButtonType::IconToggleN,
-                                   1,
-                                   ICON_DISCLOSURE_TRI_DOWN,
-                                   0,
-                                   0,
-                                   UI_UNIT_X,
-                                   UI_UNIT_Y * 0.5,
-                                   tree_view.show_display_options_.get(),
-                                   0,
-                                   0,
-                                   TIP_(""));
-    button_flag_disable(but, BUT_UNDO);
-    block_emboss_set(block, EmbossType::Emboss);
-    bottom.column(false);
-
-    uiDefIconButI(block,
-                  ButtonType::Grip,
-                  ICON_GRIP,
-                  0,
-                  0,
-                  UI_UNIT_X * 10,
-                  UI_UNIT_Y * 0.5f,
-                  tree_view.custom_height_.get(),
-                  0,
-                  0,
-                  "");
+    Layout &bottom = col.row(true);
 
     if (*tree_view.show_display_options_) {
-      block_layout_set_current(block, &col);
-      Button *but = uiDefBut(block,
-                             ButtonType::Text,
-                             "",
-                             0,
-                             0,
-                             UI_TREEVIEW_INDENT,
-                             UI_UNIT_Y,
-                             tree_view.search_string_.get(),
-                             0,
-                             UI_MAX_NAME_STR,
-                             "");
+      block_emboss_set(block, EmbossType::None);
+      Button *but = uiDefIconButBitC(block,
+                                     ButtonType::IconToggleN,
+                                     1,
+                                     ICON_X,
+                                     0,
+                                     0,
+                                     UI_UNIT_X,
+                                     UI_UNIT_Y * 1.0,
+                                     tree_view.show_display_options_.get(),
+                                     0,
+                                     0,
+                                     TIP_(""));
+      button_flag_disable(but, BUT_UNDO);
+      block_emboss_set(block, EmbossType::Emboss);
+
+      but = uiDefBut(block,
+                     ButtonType::Text,
+                     "",
+                     0,
+                     0,
+                     1000,
+                     UI_UNIT_Y,
+                     tree_view.search_string_.get(),
+                     0,
+                     UI_MAX_NAME_STR,
+                     "");
       button_retval_set(but, 1);
       button_flag_enable(but, BUT_TEXTEDIT_UPDATE | BUT_VALUE_CLEAR);
       button_flag_disable(but, BUT_UNDO);
       def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
       button_placeholder_set(but, IFACE_("Search"));
+
+      col.row(true);
+      but = uiDefBut(block,
+                     ButtonType::Label,
+                     "",
+                     0,
+                     0,
+                     UI_UNIT_X,
+                     UI_UNIT_Y * 0.6f,
+                     nullptr,
+                     0,
+                     UI_MAX_NAME_STR,
+                     "");
+
+      uiDefIconButI(block,
+                    ButtonType::Grip,
+                    ICON_DRAG_H,
+                    0,
+                    0,
+                    UI_UNIT_X * 10,
+                    UI_UNIT_Y * 0.6f,
+                    tree_view.custom_height_.get(),
+                    0,
+                    0,
+                    "");
+    }
+    else {
+      block_emboss_set(block, EmbossType::None);
+      Button *but = uiDefIconButBitC(block,
+                                     ButtonType::IconToggleN,
+                                     1,
+                                     ICON_ZOOM_SELECTED,
+                                     0,
+                                     0,
+                                     UI_UNIT_X,
+                                     UI_UNIT_Y * 0.6f,
+                                     tree_view.show_display_options_.get(),
+                                     0,
+                                     0,
+                                     TIP_(""));
+      button_flag_disable(but, BUT_UNDO);
+
+      uiDefIconButI(block,
+                    ButtonType::Grip,
+                    ICON_DRAG_H,
+                    0,
+                    0,
+                    UI_UNIT_X * 10,
+                    UI_UNIT_Y * 0.6f,
+                    tree_view.custom_height_.get(),
+                    0,
+                    0,
+                    "");
     }
   }
 
