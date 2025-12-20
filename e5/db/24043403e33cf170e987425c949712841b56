@@ -1,3 +1,4 @@
 Referenced by issue #141811, Remesh Segmentation fault
 Referenced by issue #145654, Crash everytime on start, but file opens with no issue on 4.4
 Referenced by pull request #151922, Fix #151751: Voxel remesh produces a corrupt mesh
+Referenced by commit b9865a4cd0c61be7ddf5eab254ee9f1388fe8446, Fix #151751: Voxel remesh produces a corrupt mesh
