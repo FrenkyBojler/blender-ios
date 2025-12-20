@@ -13,7 +13,7 @@
 #
 # See ocio-license.txt for details.
 
-ocio_profile_version: 2.4
+ocio_profile_version: 2.5
 
 search_path: "luts:filmic"
 strictparsing: true
@@ -126,6 +126,7 @@ display_colorspaces:
       1931 CIE XYZ with adapted illuminant D65 white point
     isdata: false
     encoding: display-linear
+    interop_id: lin_ciexyzd65_scene
 
   - !<ColorSpace>
     name: sRGB
@@ -136,6 +137,7 @@ display_colorspaces:
     description: |
       sRGB IEC 61966-2-1 compound (piece-wise) encoding
     isdata: false
+    interop_id: srgb_rec709_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear Rec.709}
@@ -150,6 +152,7 @@ display_colorspaces:
     description: |
       Apple's Display P3 with sRGB compound (piece-wise) encoding transfer function, common on Mac devices
     isdata: false
+    interop_id: srgb_p3d65_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear DCI-P3 D65}
@@ -164,6 +167,7 @@ display_colorspaces:
     description: |
       BT.1886 2.4 Exponent EOTF Display, commonly used for TVs
     isdata: false
+    interop_id: g24_rec709_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear Rec.709}
@@ -178,6 +182,7 @@ display_colorspaces:
     description: |
       BT.2020 2.4 Exponent EOTF Display
     isdata: false
+    interop_id: g24_rec2020_display
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear Rec.2020}
@@ -193,6 +198,7 @@ display_colorspaces:
     isdata: false
     encoding: hdr-video
     allocation: uniform
+    interop_id: pq_rec2020_display
     from_display_reference: !<GroupTransform>
       children:
         - !<BuiltinTransform> {style: DISPLAY - CIE-XYZ-D65_to_REC.2100-PQ}
@@ -207,6 +213,7 @@ display_colorspaces:
     isdata: false
     encoding: hdr-video
     allocation: uniform
+    interop_id: hlg_rec2020_display
     from_display_reference: !<GroupTransform>
       children:
         - !<BuiltinTransform> {style: DISPLAY - CIE-XYZ-D65_to_REC.2100-HLG-1000nit}
@@ -505,6 +512,7 @@ colorspaces:
     description: |
       Linear BT.709 with illuminant D65 white point
     isdata: false
+    interop_id: lin_rec709_scene
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
@@ -519,6 +527,7 @@ colorspaces:
     description: |
       Linear DCI-P3 with illuminant D65 white point
     isdata: false
+    interop_id: lin_p3d65_scene
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
@@ -533,6 +542,7 @@ colorspaces:
     description: |
       Linear BT.2020 with illuminant D65 white point
     isdata: false
+    interop_id: lin_rec2020_scene
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
@@ -547,6 +557,7 @@ colorspaces:
     description: |
       Linear AP0 with ACES white point
     isdata: false
+    interop_id: lin_ap0_aces
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
@@ -561,6 +572,7 @@ colorspaces:
     description: |
       Linear AP1 with ACES white point
     isdata: false
+    interop_id: lin_ap1_aces
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
@@ -589,6 +601,7 @@ colorspaces:
     equalitygroup:
     bitdepth: 32f
     isdata: true
+    interop_id: data
 
   - !<ColorSpace>
     name: Filmic Log
@@ -656,6 +669,7 @@ colorspaces:
       ACES color correction space, using AP1 primaries.
     isdata: false
     encoding: log
+    interop_id: acescc_ap1
     to_scene_reference: !<GroupTransform>
       children:
         - !<BuiltinTransform> {style: ACEScc_to_ACES2065-1}
@@ -671,6 +685,7 @@ colorspaces:
       ACES color correction space with toe, using AP1 primaries.
     isdata: false
     encoding: log
+    interop_id: acescct_ap1
     to_scene_reference: !<GroupTransform>
       children:
         - !<BuiltinTransform> {style: ACEScct_to_ACES2065-1}

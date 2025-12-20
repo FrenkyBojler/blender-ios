@@ -23,6 +23,7 @@ class LibOCIOColorSpace : public ColorSpace {
 
   std::string clean_description_;
   StringRefNull interop_id_;
+  StringRefNull icc_profile_name_;
   bool is_invertible_ = false;
 
   /* Mutable because they are lazily initialized and cached from the is_scene_linear() and
@@ -52,6 +53,10 @@ class LibOCIOColorSpace : public ColorSpace {
   StringRefNull interop_id() const override
   {
     return interop_id_;
+  }
+  StringRefNull icc_profile_name() const override
+  {
+    return icc_profile_name_;
   }
 
   bool is_invertible() const override

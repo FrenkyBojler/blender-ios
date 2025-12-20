@@ -1371,17 +1371,44 @@ const char *IMB_colormanagement_srgb_colorspace_name_get()
 
 blender::Vector<char> IMB_colormanagement_space_to_icc_profile(const ColorSpace *colorspace)
 {
-  /* ICC profiles shipped with Blender are named after the OpenColorIO interop ID. */
   blender::Vector<char> icc_profile;
-
-  const StringRefNull interop_id = colorspace->interop_id();
-  if (interop_id.is_empty()) {
-    return icc_profile;
-  }
 
   const std::optional<std::string> dir = BKE_appdir_folder_id(BLENDER_DATAFILES,
                                                               "colormanagement");
   if (!dir.has_value()) {
+    return icc_profile;
+  }
+
+  /* OpenColorIO 2.5 icc_profile_name attribute specifies the ICC profile filename directly. */
+  const StringRefNull icc_profile_name = colorspace->icc_profile_name();
+  if (!icc_profile_name.is_empty()) {
+    char icc_filename[FILE_MAX];
+    STRNCPY(icc_filename, icc_profile_name.c_str());
+    BLI_path_make_safe_filename(icc_filename);
+
+    char icc_filepath[FILE_MAX];
+    BLI_path_join(icc_filepath, sizeof(icc_filepath), dir->c_str(), "icc", icc_filename);
+
+    blender::fstream f(icc_filepath, std::ios::binary | std::ios::in | std::ios::ate);
+    if (f.is_open()) {
+      std::streamsize size = f.tellg();
+      if (size > 0) {
+        icc_profile.resize(size);
+        f.seekg(0, std::ios::beg);
+        if (!f.read(icc_profile.data(), icc_profile.size())) {
+          icc_profile.clear();
+        }
+      }
+    }
+
+    if (!icc_profile.is_empty()) {
+      return icc_profile;
+    }
+  }
+
+  /* Fallback: ICC profiles shipped with Blender are named after the OpenColorIO interop ID. */
+  const StringRefNull interop_id = colorspace->interop_id();
+  if (interop_id.is_empty()) {
     return icc_profile;
   }
 

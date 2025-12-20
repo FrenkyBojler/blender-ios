@@ -49,6 +49,10 @@ class FallbackColorSpace : public ColorSpace {
 
     return "";
   }
+  StringRefNull icc_profile_name() const override
+  {
+    return "";
+  }
 
   bool is_invertible() const override
   {

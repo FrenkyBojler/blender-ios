@@ -137,11 +137,14 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
 
   is_invertible_ = color_space_is_invertible(ocio_color_space);
 
-  /* In OpenColorIO 2.5 there will be native support for this. For older configs and
-   * older OpenColorIO versions, check the aliases. This a convention used in the
-   * Blender and ACES 2.0 configs. */
+  /* Support for OpenColorIO 2.5 interop_id and icc_profile_name attributes. */
+  interop_id_ = ocio_color_space->getInteropId();
+  icc_profile_name_ = ocio_color_space->getICCProfileName();
+
+  /* For older configs and older OpenColorIO versions, check the aliases as fallback.
+   * This is a convention used in the Blender and ACES 2.0 configs. */
   const int num_aliases = ocio_color_space->getNumAliases();
-  for (int i = 0; i < num_aliases; i++) {
+  for (int i = 0; interop_id_.is_empty() && i < num_aliases; i++) {
     StringRefNull alias = ocio_color_space->getAlias(i);
     if (alias == "srgb_display") {
       interop_id_ = "srgb_rec709_display";
