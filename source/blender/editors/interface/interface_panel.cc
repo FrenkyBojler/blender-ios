@@ -121,7 +121,6 @@ struct PanelSort {
 static void panel_set_expansion_from_list_data(const bContext *C, Panel *panel);
 static int get_panel_real_size_y(const Panel *panel);
 static void panel_activate_state(const bContext *C, Panel *panel, const HandlePanelState state);
-static int compare_panel(const void *a, const void *b);
 static bool panel_type_context_poll(ARegion *region,
                                     const PanelType *panel_type,
                                     const char *context);
@@ -397,17 +396,17 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
   }
 
   /* Find how many instanced panels with this context string. */
-  int list_panels_len = 0;
   int start_index = -1;
-  LISTBASE_FOREACH (const Panel *, panel, &region->panels) {
+  Vector<Panel *> panel_sort;
+  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     if (panel->type) {
       if (panel->type->flag & PANEL_TYPE_INSTANCED) {
         if (panel_type_context_poll(region, panel->type, context)) {
           if (panel == drag_panel) {
             BLI_assert(start_index == -1); /* This panel should only appear once. */
-            start_index = list_panels_len;
+            start_index = panel_sort.size();
           }
-          list_panels_len++;
+          panel_sort.append(panel);
         }
       }
     }
@@ -415,30 +414,17 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
   BLI_assert(start_index != -1); /* The drag panel should definitely be in the list. */
 
   /* Sort the matching instanced panels by their display order. */
-  PanelSort *panel_sort = static_cast<PanelSort *>(
-      MEM_callocN(list_panels_len * sizeof(*panel_sort), __func__));
-  PanelSort *sort_index = panel_sort;
-  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    if (panel->type) {
-      if (panel->type->flag & PANEL_TYPE_INSTANCED) {
-        if (panel_type_context_poll(region, panel->type, context)) {
-          sort_index->panel = panel;
-          sort_index++;
-        }
-      }
-    }
-  }
-  qsort(panel_sort, list_panels_len, sizeof(*panel_sort), compare_panel);
+  std::stable_sort(panel_sort.begin(), panel_sort.end(), [](const Panel *a, const Panel *b) {
+    return a->sortorder < b->sortorder;
+  });
 
   /* Find how many of those panels are above this panel. */
   int move_to_index = 0;
-  for (; move_to_index < list_panels_len; move_to_index++) {
-    if (panel_sort[move_to_index].panel == drag_panel) {
+  for (; move_to_index < panel_sort.size(); move_to_index++) {
+    if (panel_sort[move_to_index] == drag_panel) {
       break;
     }
   }
-
-  MEM_freeN(panel_sort);
 
   if (move_to_index == start_index) {
     /* In this case, the reorder was not changed, so don't do any updates or call the callback. */
@@ -641,8 +627,8 @@ static void panel_set_runtime_flag_recursive(Panel *panel, short flag, bool valu
 
 static void panels_collapse_all(ARegion *region, const Panel *from_panel)
 {
-  const bool has_category_tabs = panel_category_is_visible(region);
-  const char *category = has_category_tabs ? panel_category_active_get(region, false) : nullptr;
+  const bool has_category = panel_category_is_visible(region);
+  const char *category = has_category ? panel_category_active_get(region, false) : nullptr;
   const PanelType *from_pt = from_panel->type;
 
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
@@ -791,7 +777,7 @@ void panel_header_buttons_end(Panel *panel)
 
 static float panel_region_offset_x_get(const ARegion *region)
 {
-  if (panel_category_is_visible(region)) {
+  if (panel_category_tabs_is_visible(region)) {
     if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT) {
       return UI_PANEL_CATEGORY_MARGIN_WIDTH;
     }
@@ -1056,7 +1042,7 @@ static void panel_title_color_get(const Panel *panel,
 {
   if (!show_background) {
     /* Use menu colors for floating panels. */
-    bTheme *btheme = GetTheme();
+    bTheme *btheme = theme::theme_get();
     const uiWidgetColors *wcol = &btheme->tui.wcol_menu_back;
     copy_v4_v4_uchar(r_color, (const uchar *)wcol->text);
     return;
@@ -1064,7 +1050,7 @@ static void panel_title_color_get(const Panel *panel,
 
   const bool search_match = panel_matches_search_filter(panel);
 
-  GetThemeColor4ubv(TH_TITLE, r_color);
+  theme::get_color_4ubv(TH_TITLE, r_color);
   if (region_search_filter_active && !search_match) {
     r_color[0] *= 0.5;
     r_color[1] *= 0.5;
@@ -1083,12 +1069,12 @@ static void panel_draw_border(const Panel *panel,
   }
 
   float color[4];
-  GetThemeColor4fv(is_active ? TH_PANEL_ACTIVE : TH_PANEL_OUTLINE, color);
+  theme::get_color_4fv(is_active ? TH_PANEL_ACTIVE : TH_PANEL_OUTLINE, color);
   if (color[3] == 0.0f) {
     return; /* No border to draw. */
   }
 
-  const bTheme *btheme = GetTheme();
+  const bTheme *btheme = theme::theme_get();
   const float aspect = panel->runtime->block->aspect;
   const float radius = (btheme->tui.panel_roundness * U.widget_unit * 0.5f) / aspect;
   draw_roundbox_corner_set(CNR_ALL);
@@ -1249,7 +1235,7 @@ static void panel_draw_softshadow(const rctf *box_rect,
   BLI_rctf_pad(&shadow_rect, -outline, -outline);
   draw_roundbox_corner_set(roundboxalign);
 
-  const float shadow_alpha = GetTheme()->tui.menu_shadow_fac;
+  const float shadow_alpha = theme::theme_get()->tui.menu_shadow_fac;
   draw_dropshadow(&shadow_rect, radius, shadow_width, 1.0f, shadow_alpha);
 }
 
@@ -1267,7 +1253,7 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
     return;
   }
 
-  const bTheme *btheme = GetTheme();
+  const bTheme *btheme = theme::theme_get();
   const float aspect = panel->runtime->block->aspect;
   const float radius = btheme->tui.panel_roundness * U.widget_unit * 0.5f / aspect;
 
@@ -1277,9 +1263,9 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
   /* Draw shadow on top-level panels with headers during drag or region overlap. */
   if (!is_subpanel && has_header && (region->overlap || is_dragging)) {
     /* Make shadow wider (at least 16px) while the panel is being dragged. */
-    const float shadow_width = is_dragging ?
-                                   max_ii(int(16.0f * UI_SCALE_FAC), ThemeMenuShadowWidth()) :
-                                   ThemeMenuShadowWidth();
+    const float shadow_width = is_dragging ? max_ii(int(16.0f * UI_SCALE_FAC),
+                                                    theme::get_menu_shadow_width()) :
+                                             theme::get_menu_shadow_width();
     const int roundboxalign = is_open ? CNR_BOTTOM_RIGHT | CNR_BOTTOM_LEFT : CNR_ALL;
 
     rctf box_rect;
@@ -1295,10 +1281,10 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
     float panel_backcolor[4];
     draw_roundbox_corner_set(is_open ? CNR_BOTTOM_RIGHT | CNR_BOTTOM_LEFT : CNR_ALL);
     if (!has_header) {
-      GetThemeColor4fv(TH_BACK, panel_backcolor);
+      theme::get_color_4fv(TH_BACK, panel_backcolor);
     }
     else {
-      GetThemeColor4fv((is_subpanel ? TH_PANEL_SUB_BACK : TH_PANEL_BACK), panel_backcolor);
+      theme::get_color_4fv((is_subpanel ? TH_PANEL_SUB_BACK : TH_PANEL_BACK), panel_backcolor);
     }
 
     rctf box_rect;
@@ -1310,15 +1296,15 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
     draw_roundbox_4fv(&box_rect, true, radius, panel_backcolor);
 
     float subpanel_backcolor[4];
-    GetThemeColor4fv(TH_PANEL_SUB_BACK, subpanel_backcolor);
+    theme::get_color_4fv(TH_PANEL_SUB_BACK, subpanel_backcolor);
     draw_layout_panels_backdrop(region, panel, radius, subpanel_backcolor);
   }
 
   /* Panel header backdrops for non sub-panels. */
   if (!is_subpanel && has_header) {
     float panel_headercolor[4];
-    GetThemeColor4fv(panel_matches_search_filter(panel) ? TH_MATCH : TH_PANEL_HEADER,
-                     panel_headercolor);
+    theme::get_color_4fv(panel_matches_search_filter(panel) ? TH_MATCH : TH_PANEL_HEADER,
+                         panel_headercolor);
     draw_roundbox_corner_set(is_open ? CNR_TOP_RIGHT | CNR_TOP_LEFT : CNR_ALL);
 
     /* Change the width a little bit to line up with the sides. */
@@ -1405,7 +1391,7 @@ bool panel_should_show_background(const ARegion *region, const PanelType *panel_
 #define TABS_PADDING_BETWEEN_FACTOR 4.0f
 #define TABS_PADDING_TEXT_FACTOR 6.0f
 
-void panel_category_draw_all(ARegion *region, const char *category_id_active)
+void panel_category_tabs_draw_all(ARegion *region, const char *category_id_active)
 {
   // #define USE_FLAT_INACTIVE
   const bool is_left = RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT;
@@ -1426,7 +1412,7 @@ void panel_category_draw_all(ARegion *region, const char *category_id_active)
   const int tab_v_pad_text = round_fl_to_int(TABS_PADDING_TEXT_FACTOR * dpi_fac * zoom) + 2 * px;
   /* Padding between tabs. */
   const int tab_v_pad = round_fl_to_int(TABS_PADDING_BETWEEN_FACTOR * dpi_fac * zoom);
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const float tab_curve_radius = btheme->tui.wcol_tab.roundness * U.widget_unit * zoom;
   /* Round all corners when region overlap is on. */
   const int roundboxtype = region->overlap ? CNR_ALL :
@@ -1454,14 +1440,14 @@ void panel_category_draw_all(ARegion *region, const char *category_id_active)
   float theme_col_tab_outline[4];
   float theme_col_tab_outline_sel[4];
 
-  GetThemeColor4ubv(TH_BACK, theme_col_back);
-  GetThemeColor3ubv(TH_TAB_TEXT, theme_col_tab_text);
-  GetThemeColor3ubv(TH_TAB_TEXT_HI, theme_col_tab_text_sel);
-  GetThemeColor4ubv(TH_TAB_BACK, theme_col_tab_bg);
-  GetThemeColor4fv(TH_TAB_ACTIVE, theme_col_tab_active);
-  GetThemeColor4fv(TH_TAB_INACTIVE, theme_col_tab_inactive);
-  GetThemeColor4fv(TH_TAB_OUTLINE, theme_col_tab_outline);
-  GetThemeColor4fv(TH_TAB_OUTLINE_ACTIVE, theme_col_tab_outline_sel);
+  theme::get_color_4ubv(TH_BACK, theme_col_back);
+  theme::get_color_3ubv(TH_TAB_TEXT, theme_col_tab_text);
+  theme::get_color_3ubv(TH_TAB_TEXT_HI, theme_col_tab_text_sel);
+  theme::get_color_4ubv(TH_TAB_BACK, theme_col_tab_bg);
+  theme::get_color_4fv(TH_TAB_ACTIVE, theme_col_tab_active);
+  theme::get_color_4fv(TH_TAB_INACTIVE, theme_col_tab_inactive);
+  theme::get_color_4fv(TH_TAB_OUTLINE, theme_col_tab_outline);
+  theme::get_color_4fv(TH_TAB_OUTLINE_ACTIVE, theme_col_tab_outline_sel);
 
   is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
@@ -1472,7 +1458,7 @@ void panel_category_draw_all(ARegion *region, const char *category_id_active)
 
   /* Check the region type supports categories to avoid an assert
    * for showing 3D view panels in the properties space. */
-  if ((1 << region->regiontype) & RGN_TYPE_HAS_CATEGORY_MASK) {
+  if (BKE_regiontype_uses_category_tabs(region->runtime->type)) {
     BLI_assert(panel_category_is_visible(region));
   }
 
@@ -1663,6 +1649,9 @@ static int ui_panel_category_show_active_tab(ARegion *region, const int mval[2])
   if (!ED_region_panel_category_gutter_isect_xy(region, mval)) {
     return WM_UI_HANDLER_CONTINUE;
   }
+
+  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
+
   const View2D *v2d = &region->v2d;
   LISTBASE_FOREACH (PanelCategoryDyn *, pc_dyn, &region->runtime->panels_category) {
     const bool is_active = STREQ(pc_dyn->idname, region->runtime->category);
@@ -1736,61 +1725,41 @@ bool panel_is_dragging(const Panel *panel)
  * panels do not match for sorting.
  */
 
-static int find_highest_panel(const void *a, const void *b)
+static bool find_highest_panel(const PanelSort &a, const PanelSort &b)
 {
-  const Panel *panel_a = ((PanelSort *)a)->panel;
-  const Panel *panel_b = ((PanelSort *)b)->panel;
-
   /* Stick uppermost header-less panels to the top of the region -
    * prevent them from being sorted (multiple header-less panels have to be sorted though). */
-  if (panel_a->type->flag & PANEL_TYPE_NO_HEADER && panel_b->type->flag & PANEL_TYPE_NO_HEADER) {
+  if (a.panel->type->flag & PANEL_TYPE_NO_HEADER && b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
     /* Pass the no-header checks and check for `ofsy` and #Panel.sortorder below. */
   }
-  else if (panel_a->type->flag & PANEL_TYPE_NO_HEADER) {
-    return -1;
+  else if (a.panel->type->flag & PANEL_TYPE_NO_HEADER) {
+    return true;
   }
-  else if (panel_b->type->flag & PANEL_TYPE_NO_HEADER) {
-    return 1;
+  else if (b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
+    return false;
   }
 
-  const bool pin_last_a = panel_custom_pin_to_last_get(panel_a);
-  const bool pin_last_b = panel_custom_pin_to_last_get(panel_b);
+  const bool pin_last_a = panel_custom_pin_to_last_get(a.panel);
+  const bool pin_last_b = panel_custom_pin_to_last_get(b.panel);
   if (pin_last_a && !pin_last_b) {
-    return 1;
+    return false;
   }
   if (!pin_last_a && pin_last_b) {
-    return -1;
+    return true;
   }
 
-  if (panel_a->ofsy + panel_a->sizey < panel_b->ofsy + panel_b->sizey) {
-    return 1;
+  if (a.panel->ofsy + a.panel->sizey < b.panel->ofsy + b.panel->sizey) {
+    return false;
   }
-  if (panel_a->ofsy + panel_a->sizey > panel_b->ofsy + panel_b->sizey) {
-    return -1;
+  if (a.panel->ofsy + a.panel->sizey > b.panel->ofsy + b.panel->sizey) {
+    return true;
   }
-  if (panel_a->sortorder > panel_b->sortorder) {
-    return 1;
-  }
-  if (panel_a->sortorder < panel_b->sortorder) {
-    return -1;
-  }
-
-  return 0;
+  return a.panel->sortorder < b.panel->sortorder;
 }
 
-static int compare_panel(const void *a, const void *b)
+static bool compare_panel(const PanelSort &a, const PanelSort &b)
 {
-  const Panel *panel_a = ((PanelSort *)a)->panel;
-  const Panel *panel_b = ((PanelSort *)b)->panel;
-
-  if (panel_a->sortorder > panel_b->sortorder) {
-    return 1;
-  }
-  if (panel_a->sortorder < panel_b->sortorder) {
-    return -1;
-  }
-
-  return 0;
+  return a.panel->sortorder < b.panel->sortorder;
 }
 
 static void align_sub_panels(Panel *panel)
@@ -1816,86 +1785,70 @@ static void align_sub_panels(Panel *panel)
  */
 static bool uiAlignPanelStep(ARegion *region, const float factor, const bool drag)
 {
-  /* Count active panels. */
-  int active_panels_len = 0;
+  Vector<PanelSort> panel_sort;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     if (panel->runtime_flag & PANEL_ACTIVE) {
       /* These panels should have types since they are currently displayed to the user. */
       BLI_assert(panel->type != nullptr);
-      active_panels_len++;
+      panel_sort.append({panel, 0, 0});
     }
   }
-  if (active_panels_len == 0) {
+  if (panel_sort.is_empty()) {
     return false;
-  }
-
-  /* Sort panels. */
-  PanelSort *panel_sort = MEM_malloc_arrayN<PanelSort>(active_panels_len, __func__);
-  {
-    PanelSort *ps = panel_sort;
-    LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-      if (panel->runtime_flag & PANEL_ACTIVE) {
-        ps->panel = panel;
-        ps++;
-      }
-    }
   }
 
   if (drag) {
     /* While dragging, sort based on location and update #Panel.sortorder. */
-    qsort(panel_sort, active_panels_len, sizeof(PanelSort), find_highest_panel);
-    for (int i = 0; i < active_panels_len; i++) {
+    std::stable_sort(panel_sort.begin(), panel_sort.end(), find_highest_panel);
+    for (int i : panel_sort.index_range()) {
       panel_sort[i].panel->sortorder = i;
     }
   }
   else {
     /* Otherwise use #Panel.sortorder. */
-    qsort(panel_sort, active_panels_len, sizeof(PanelSort), compare_panel);
+    std::stable_sort(panel_sort.begin(), panel_sort.end(), compare_panel);
   }
-
   /* X offset. */
   const int region_offset_x = panel_region_offset_x_get(region);
-  for (int i = 0; i < active_panels_len; i++) {
-    PanelSort *ps = &panel_sort[i];
-    const bool show_background = panel_should_show_background(region, ps->panel->type);
-    ps->panel->runtime->region_ofsx = region_offset_x;
-    ps->new_offset_x = region_offset_x + (show_background ? UI_PANEL_MARGIN_X : 0);
+  for (PanelSort &ps : panel_sort) {
+    const bool show_background = panel_should_show_background(region, ps.panel->type);
+    ps.panel->runtime->region_ofsx = region_offset_x;
+    ps.new_offset_x = region_offset_x + (show_background ? UI_PANEL_MARGIN_X : 0);
   }
 
   /* Y offset. */
-  for (int i = 0, y = 0; i < active_panels_len; i++) {
-    PanelSort *ps = &panel_sort[i];
-    const bool show_background = panel_should_show_background(region, ps->panel->type);
+  int y = 0;
+  for (PanelSort &ps : panel_sort) {
+    const bool show_background = panel_should_show_background(region, ps.panel->type);
 
-    y -= get_panel_real_size_y(ps->panel);
+    y -= get_panel_real_size_y(ps.panel);
 
     /* Separate panel boxes a bit further (if they are drawn). */
     if (show_background) {
       y -= UI_PANEL_MARGIN_Y;
     }
-    ps->new_offset_y = y;
+    ps.new_offset_y = y;
     /* The header still draws offset by the size of closed panels, so apply the offset here. */
-    if (panel_is_closed(ps->panel)) {
-      panel_sort[i].new_offset_y -= ps->panel->sizey;
+    if (panel_is_closed(ps.panel)) {
+      ps.new_offset_y -= ps.panel->sizey;
     }
   }
 
   /* Interpolate based on the input factor. */
   bool changed = false;
-  for (int i = 0; i < active_panels_len; i++) {
-    PanelSort *ps = &panel_sort[i];
-    if (ps->panel->flag & PNL_SELECT) {
+  for (PanelSort &ps : panel_sort) {
+    if (ps.panel->flag & PNL_SELECT) {
       continue;
     }
 
-    if (ps->new_offset_x != ps->panel->ofsx) {
-      const float x = interpf(float(ps->new_offset_x), float(ps->panel->ofsx), factor);
-      ps->panel->ofsx = round_fl_to_int(x);
+    if (ps.new_offset_x != ps.panel->ofsx) {
+      const float x = interpf(float(ps.new_offset_x), float(ps.panel->ofsx), factor);
+      ps.panel->ofsx = round_fl_to_int(x);
       changed = true;
     }
-    if (ps->new_offset_y != ps->panel->ofsy) {
-      const float y = interpf(float(ps->new_offset_y), float(ps->panel->ofsy), factor);
-      ps->panel->ofsy = round_fl_to_int(y);
+    if (ps.new_offset_y != ps.panel->ofsy) {
+      const float y = interpf(float(ps.new_offset_y), float(ps.panel->ofsy), factor);
+      ps.panel->ofsy = round_fl_to_int(y);
       changed = true;
     }
   }
@@ -1908,8 +1861,6 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
       }
     }
   }
-
-  MEM_freeN(panel_sort);
 
   return changed;
 }
@@ -2219,7 +2170,7 @@ static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, voi
     case LEFTMOUSE:
       if (event->val == KM_RELEASE) {
         /* Done! */
-        WM_event_remove_ui_handler(&win->modalhandlers,
+        WM_event_remove_ui_handler(&win->runtime->modalhandlers,
                                    ui_panel_drag_collapse_handler,
                                    ui_panel_drag_collapse_handler_remove,
                                    dragcol_data,
@@ -2240,14 +2191,14 @@ static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, voi
 void panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
 {
   wmWindow *win = CTX_wm_window(C);
-  const wmEvent *event = win->eventstate;
+  const wmEvent *event = win->runtime->eventstate;
   PanelDragCollapseHandle *dragcol_data = MEM_callocN<PanelDragCollapseHandle>(__func__);
 
   dragcol_data->was_first_open = was_open;
   copy_v2_v2_int(dragcol_data->xy_init, event->xy);
 
   WM_event_add_ui_handler(C,
-                          &win->modalhandlers,
+                          &win->runtime->modalhandlers,
                           ui_panel_drag_collapse_handler,
                           ui_panel_drag_collapse_handler_remove,
                           dragcol_data,
@@ -2304,7 +2255,7 @@ static void ui_handle_panel_header(const bContext *C,
   BLI_assert(!(panel->type->flag & PANEL_TYPE_NO_HEADER));
 
   const bool is_subpanel = (panel->type->parent != nullptr);
-  const bool use_pin = panel_category_is_visible(region) && panel_can_be_pinned(panel);
+  const bool use_pin = panel_category_tabs_is_visible(region) && panel_can_be_pinned(panel);
   const bool show_pin = use_pin && (panel->flag & PNL_PIN);
   const bool show_drag = !is_subpanel;
 
@@ -2391,6 +2342,12 @@ bool panel_category_is_visible(const ARegion *region)
   /* Check for more than one category. */
   return region->runtime->panels_category.first &&
          region->runtime->panels_category.first != region->runtime->panels_category.last;
+}
+
+bool panel_category_tabs_is_visible(const ARegion *region)
+{
+  return panel_category_is_visible(region) &&
+         BKE_regiontype_uses_category_tabs(region->runtime->type);
 }
 
 PanelCategoryDyn *panel_category_find(const ARegion *region, const char *idname)
@@ -2496,6 +2453,8 @@ const char *panel_category_active_get(ARegion *region, bool set_fallback)
 
 static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const wmEvent *event)
 {
+  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
+
   LISTBASE_FOREACH (PanelCategoryDyn *, ptd, &region->runtime->panels_category) {
     if (BLI_rcti_isect_pt(&ptd->rect, event->mval[0], event->mval[1])) {
       return ptd;
@@ -2524,6 +2483,8 @@ static int ui_handle_panel_category_cycling(const wmEvent *event,
                                             ARegion *region,
                                             const Button *active_but)
 {
+  BLI_assert(BKE_regiontype_uses_category_tabs(region->runtime->type));
+
   const bool is_mousewheel = ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE);
   const bool inside_tabregion =
       ((RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT) ?
@@ -2618,7 +2579,7 @@ int handler_panel_region(bContext *C,
   int retval = WM_UI_HANDLER_CONTINUE;
 
   /* Handle category tabs. */
-  if (panel_category_is_visible(region)) {
+  if (panel_category_tabs_is_visible(region)) {
     if (event->type == LEFTMOUSE) {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
@@ -2845,7 +2806,7 @@ static void panel_handle_data_ensure(const bContext *C,
   if (panel->activedata == nullptr) {
     panel->activedata = MEM_callocN(sizeof(HandlePanelData), __func__);
     WM_event_add_ui_handler(C,
-                            &win->modalhandlers,
+                            &win->runtime->modalhandlers,
                             ui_handler_panel,
                             ui_handler_remove_panel,
                             panel,
@@ -2861,8 +2822,8 @@ static void panel_handle_data_ensure(const bContext *C,
   }
 
   data->state = state;
-  data->startx = win->eventstate->xy[0];
-  data->starty = win->eventstate->xy[1];
+  data->startx = win->runtime->eventstate->xy[0];
+  data->starty = win->runtime->eventstate->xy[1];
   data->startofsx = panel->ofsx;
   data->startofsy = panel->ofsy;
   data->start_cur_xmin = region->v2d.cur.xmin;
@@ -2916,7 +2877,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
     panel->activedata = nullptr;
 
     WM_event_remove_ui_handler(
-        &win->modalhandlers, ui_handler_panel, ui_handler_remove_panel, panel, false);
+        &win->runtime->modalhandlers, ui_handler_panel, ui_handler_remove_panel, panel, false);
   }
 
   ED_region_tag_redraw(region);
