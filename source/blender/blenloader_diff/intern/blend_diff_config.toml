@@ -1,0 +1,43 @@
+ignore_pad = true
+ignored_id_types = ["wmWindowManager", "bScreen", "WorkSpace"]
+
+[nofollow_members]
+bArmature = ["act_bone"]
+
+[ignored_members]
+bNodeLink = ["fromnode", "tonode", "fromsock", "tosock"]
+bNode = ["locx", "locy", "width", "height", "ui_order", "location", "type"]
+bNodeTree = ["view_center", "owner_id"]
+bNodeSocket = ["link", "type"]
+ID = [
+    "session_uid",
+    "recalc_up_to_undo_push",
+    "recalc_after_undo_push",
+    "recalc",
+]
+CustomData = ["typemap"]
+bNodeTreeInterface = ["active_index"]
+IDProperty = ["totallen"]
+PreviewImage = ["changed_timestamp"]
+CurveProfile = ["changed_timestamp"]
+Scene = ["customdata_mask", "customdata_mask_modal"]
+Group = ["owner_id"]
+Bone = ["parent", "constinv"]
+Object = ["constinv"]
+bPoseChannel = ["constinv"]
+IDPropertyData = ["val", "val2"] # These have special handling.
+ModifierData = ["ui_expand_flag"]
+
+[ignored_flags]
+bNode.flag = [
+    0, # NODE_SELECT
+    1, # NODE_OPTIONS
+    4, # NODE_ACTIVE
+]
+bNodeSocket.flag = [
+    0,  # SELECT
+    1,  # SOCK_HIDDEN
+    2,  # SOCK_IS_LINKED
+    6,  # SOCK_COLLAPSED
+    14, # SOCK_PANEL_COLLAPSED
+]

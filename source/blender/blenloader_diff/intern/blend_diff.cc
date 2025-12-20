@@ -5,6 +5,7 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
+#include <toml.hpp>
 #include <xxhash.h>
 
 #include "BLI_generic_span.hh"
@@ -100,7 +101,7 @@ struct DiffOptions {
   void add_id_types_to_ignore(const Span<StringRef> type_names)
   {
     for (const StringRef type_name : type_names) {
-      this->id_types_to_ignore.add(type_name);
+      this->id_types_to_ignore.add(scope_.allocator().copy_string(type_name));
     }
   }
 
@@ -108,7 +109,9 @@ struct DiffOptions {
                          const StringRef member_name,
                          const uint64_t flag)
   {
-    this->ignored_flags.add({type_name, member_name}, flag);
+    LinearAllocator<> &allocator = scope_.allocator();
+    this->ignored_flags.add({allocator.copy_string(type_name), allocator.copy_string(member_name)},
+                            flag);
   }
 
   bool ignore_member(const StructMember &member) const
@@ -1545,6 +1548,7 @@ static int main_do(const int argc, char *argv[])
     fmt::println(stderr, "Usage: blend_diff <file_old> <file_new>");
     return 1;
   }
+
   const StringRefNull file_old = argv[1];
   const StringRefNull file_new = argv[2];
 
@@ -1560,43 +1564,44 @@ static int main_do(const int argc, char *argv[])
     return 1;
   }
 
+  const toml::basic_value<toml::type_config> diff_config_toml = toml::parse(
+      "/home/jacques/blender/blender/source/blender/blenloader_diff/intern/blend_diff_config.toml",
+      toml::spec::v(1, 1, 0));
+
   DiffOptions options;
-  options.ignore_pad = true;
-  options.add_members_to_ignore(
-      "bNode", {"locx", "locy", "width", "height", "ui_order", "location", "type"});
-  options.add_members_to_ignore("bNodeTree", {"view_center", "owner_id"});
-  options.add_members_to_ignore("bNodeSocket", {"link", "type"});
-  options.add_members_to_ignore(
-      "ID", {"session_uid", "recalc_up_to_undo_push", "recalc_after_undo_push", "recalc"});
-  options.add_members_to_ignore("CustomData", {"typemap"});
-  options.add_members_to_ignore("bNodeTreeInterface", {"active_index"});
-  options.add_members_to_ignore("IDProperty", {"totallen"});
-  options.add_members_to_ignore("PreviewImage", {"changed_timestamp"});
-  options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
-  options.add_members_to_ignore("Scene", {"customdata_mask", "customdata_mask_modal"});
-  options.add_members_to_ignore("bNodeLink", {"fromnode", "tonode", "fromsock", "tosock"});
-  options.add_members_to_ignore("Group", {"owner_id"});
-  options.add_members_to_ignore("Bone", {"parent", "constinv"});
-  options.add_members_to_ignore("Object", {"constinv"});
-  options.add_members_to_ignore("bPoseChannel", {"constinv"});
-  options.add_next_prev_ignore_types({"bNode",
-                                      "bNodeSocket",
-                                      "bNodeLink",
-                                      "IDProperty",
-                                      "ModifierData",
-                                      "Bone",
-                                      "GroupObject",
-                                      "CollectionChild",
-                                      "Base"});
-  options.add_ignored_flags("bNode", "flag", NODE_SELECT | NODE_OPTIONS | NODE_ACTIVE);
-  options.add_ignored_flags("bNodeSocket",
-                            "flag",
-                            SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED |
-                                SOCK_PANEL_COLLAPSED);
-  options.add_id_types_to_ignore({"wmWindowManager", "bScreen", "WorkSpace"});
-  options.dont_follow_members.add({"bArmature", "act_bone"});
-  /* These have special handling. */
-  options.add_members_to_ignore("IDPropertyData", {"val", "val2"});
+  options.ignore_pad = toml::find_or<bool>(diff_config_toml, "ignore_pad", true);
+  {
+    const auto &ignored_members = toml::find(diff_config_toml, "ignored_members").as_table();
+    for (const auto &[struct_name, members_to_ignore] : ignored_members) {
+      for (const auto &member_name : members_to_ignore.as_array()) {
+        options.add_member_to_ignore(struct_name, member_name.as_string());
+      }
+    }
+  }
+  {
+    const auto &ignored_flags = toml::find(diff_config_toml, "ignored_flags").as_table();
+    for (const auto &[struct_name, member_flags] : ignored_flags) {
+      for (const auto &[member_name, member_flags] : member_flags.as_table()) {
+        for (const auto &flag_bit : member_flags.as_array()) {
+          options.add_ignored_flags(struct_name, member_name, (1 << flag_bit.as_integer()));
+        }
+      }
+    }
+  }
+  {
+    const auto &nofollow_members = toml::find(diff_config_toml, "nofollow_members").as_table();
+    for (const auto &[struct_name, members_to_ignore] : nofollow_members) {
+      for (const auto &member_name : members_to_ignore.as_array()) {
+        options.dont_follow_members.add({struct_name, member_name.as_string()});
+      }
+    }
+  }
+  {
+    const auto &ignored_id_types = toml::find(diff_config_toml, "ignored_id_types").as_array();
+    for (const auto &id_type : ignored_id_types) {
+      options.add_id_types_to_ignore({id_type.as_string()});
+    }
+  }
 
   const DiffLines sdna_diff = write_diff_sdna(
       options, *new_blend->sdna().sdna, *old_blend->sdna().sdna);
