@@ -1,1 +1,2 @@
 Referenced by issue #142769, Window resizing broken with Vulkan+Wayland+Nvidia
+Referenced by issue #151943, Focus mode does not hide FPS counter in video sequencer
