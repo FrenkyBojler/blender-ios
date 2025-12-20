@@ -15,7 +15,6 @@
 #include "BLI_kdtree_types.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
 
 #include <algorithm>
