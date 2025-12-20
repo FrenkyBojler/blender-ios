@@ -14,6 +14,7 @@
 #include "BLI_array.hh"
 #include "BLI_kdtree_types.hh"
 #include "BLI_math_base.h"
+#include "BLI_span.hh"
 #include "BLI_vector.hh"
 
 #include <algorithm>
@@ -126,62 +127,30 @@ inline void kdtree_insert(KDTree<DimsNum> *tree, int index, const float co[DimsN
 namespace detail {
 
 template<int DimsNum>
-static uint kdtree_balance(KDTreeNode<DimsNum> *nodes, uint nodes_len, uint axis, const uint ofs)
+static uint kdtree_balance(MutableSpan<KDTreeNode<DimsNum>> nodes, uint axis, const uint ofs)
 {
-  KDTreeNode<DimsNum> *node;
-  float co;
-  uint left, right, median, i, j;
-
-  if (nodes_len <= 0) {
+  if (nodes.is_empty()) {
     return KD_NODE_UNSET;
   }
-  if (nodes_len == 1) {
+  if (nodes.size() == 1) {
     return 0 + ofs;
   }
 
-  /* Quick-sort style sorting around median. */
-  left = 0;
-  right = nodes_len - 1;
-  median = nodes_len / 2;
-
-  while (right > left) {
-    co = nodes[right].co[axis];
-    i = left - 1;
-    j = right;
-
-    while (true) {
-      while (nodes[++i].co[axis] < co) { /* pass */
-      }
-      while (nodes[--j].co[axis] > co && j > left) { /* pass */
-      }
-
-      if (i >= j) {
-        break;
-      }
-
-      SWAP(KDTreeNode_head<DimsNum>,
-           *(KDTreeNode_head<DimsNum> *)&nodes[i],
-           *(KDTreeNode_head<DimsNum> *)&nodes[j]);
-    }
-
-    SWAP(KDTreeNode_head<DimsNum>,
-         *(KDTreeNode_head<DimsNum> *)&nodes[i],
-         *(KDTreeNode_head<DimsNum> *)&nodes[right]);
-    if (i >= median) {
-      right = i - 1;
-    }
-    if (i <= median) {
-      left = i + 1;
-    }
-  }
+  const int median = nodes.size() / 2;
+  std::nth_element(nodes.begin(),
+                   nodes.begin() + median,
+                   nodes.end(),
+                   [&](const KDTreeNode<DimsNum> &a, const KDTreeNode<DimsNum> &b) {
+                     return a.co[axis] < b.co[axis];
+                   });
 
   /* Set node and sort sub-nodes. */
-  node = &nodes[median];
-  node->d = axis;
+  KDTreeNode<DimsNum> &node = nodes[median];
+  node.d = axis;
   axis = (axis + 1) % DimsNum;
-  node->left = kdtree_balance(nodes, median, axis, ofs);
-  node->right = kdtree_balance(
-      nodes + median + 1, (nodes_len - (median + 1)), axis, (median + 1) + ofs);
+
+  node.left = kdtree_balance(nodes.take_front(median), axis, ofs);
+  node.right = kdtree_balance(nodes.drop_front(median + 1), axis, (median + 1) + ofs);
 
   return median + ofs;
 }
@@ -197,7 +166,7 @@ template<int DimsNum> inline void kdtree_balance(KDTree<DimsNum> *tree)
     }
   }
 
-  tree->root = detail::kdtree_balance<DimsNum>(tree->nodes, tree->nodes_len, 0, 0);
+  tree->root = detail::kdtree_balance<DimsNum>(MutableSpan(tree->nodes, tree->nodes_len), 0, 0);
 
 #ifndef NDEBUG
   tree->is_balanced = true;
