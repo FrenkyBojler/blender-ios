@@ -1036,7 +1036,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
     BLI_assert(cluster.is_empty());
     const CoordT &search_co = tree->nodes[index_to_node_index[node_index]].co;
     auto accumulate_neighbors_fn = [&duplicates, &cluster](int neighbor_index,
-                                                           const float * /*co*/,
+                                                           const CoordT & /*co*/,
                                                            const float /*dist_sq*/) -> bool {
       if (duplicates[neighbor_index] == -1) {
         cluster.append(neighbor_index);
