@@ -36,3 +36,7 @@ install(
   PROGRAMS intern/blend_diff_git_driver.py
   DESTINATION "."
 )
+install(
+  FILES intern/blend_diff_config.toml
+  DESTINATION "."
+)

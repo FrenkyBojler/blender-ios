@@ -11,6 +11,7 @@
 #include "BLI_generic_span.hh"
 #include "BLI_index_range.hh"
 #include "BLI_linear_allocator.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
@@ -1542,6 +1543,13 @@ static void handle_invalid_blend_file_error(const StringRef path)
   fmt::println(stderr, "Unable to read .blend file: {}", path);
 }
 
+static std::string get_default_config_path(const StringRefNull binary_path)
+{
+  char path[FILE_MAX] = "//blend_diff_config.toml";
+  BLI_path_abs(path, binary_path.c_str());
+  return path;
+}
+
 static int main_do(const int argc, char *argv[])
 {
   if (argc < 3) {
@@ -1564,9 +1572,9 @@ static int main_do(const int argc, char *argv[])
     return 1;
   }
 
+  const std::string diff_config_path = get_default_config_path(argv[0]);
   const toml::basic_value<toml::type_config> diff_config_toml = toml::parse(
-      "/home/jacques/blender/blender/source/blender/blenloader_diff/intern/blend_diff_config.toml",
-      toml::spec::v(1, 1, 0));
+      diff_config_path, toml::spec::v(1, 1, 0));
 
   DiffOptions options;
   options.ignore_pad = toml::find_or<bool>(diff_config_toml, "ignore_pad", true);
