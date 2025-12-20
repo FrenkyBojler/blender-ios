@@ -11,17 +11,19 @@
 
 #include <cstdint>
 
+#include "BLI_math_vector_types.hh"
+
 namespace blender {
 
 template<int DimsNum> struct KDTreeNode_head {
   uint32_t left, right;
-  float co[DimsNum];
+  VecBase<float, DimsNum> co;
   int index;
 };
 
 template<int DimsNum> struct KDTreeNode {
   uint32_t left, right;
-  float co[DimsNum];
+  VecBase<float, DimsNum> co;
   int index;
   uint d; /* range is only (0..DimsNum - 1) */
 };
@@ -40,7 +42,7 @@ template<int DimsNum> struct KDTree {
 template<int DimsNum> struct KDTreeNearest {
   int index;
   float dist;
-  float co[DimsNum];
+  VecBase<float, DimsNum> co;
 };
 
 using KDTree_1d = KDTree<1>;
