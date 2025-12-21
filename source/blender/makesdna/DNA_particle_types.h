@@ -635,7 +635,7 @@ struct ParticleSettings {
   struct MTex *mtex[/*MAX_MTEX*/ 18] = {};
 
   struct Collection *instance_collection = nullptr;
-  ListBase instance_weights = {nullptr, nullptr};
+  ListBaseT<ParticleDupliWeight> instance_weights = {nullptr, nullptr};
   DNA_DEPRECATED struct Collection *force_group = nullptr; /* deprecated */
   struct Object *instance_object = nullptr;
   struct Object *bb_ob = nullptr;
@@ -689,7 +689,7 @@ struct ParticleSystem {
   /** Child cache (runtime). */
   struct ParticleCacheKey **childcache = nullptr;
   /** Buffers for the above. */
-  ListBase pathcachebufs, childcachebufs;
+  ListBaseT<LinkData> pathcachebufs, childcachebufs;
 
   /** Cloth simulation for hair. */
   struct ClothModifierData *clmd = nullptr;
@@ -705,7 +705,7 @@ struct ParticleSystem {
   struct Object *parent = nullptr;
 
   /** Used for keyed and boid physics. */
-  ListBase targets = {nullptr, nullptr};
+  ListBaseT<ParticleTarget> targets = {nullptr, nullptr};
 
   /** Particle system name. */
   char name[/*MAX_NAME*/ 64] = "";
@@ -733,9 +733,9 @@ struct ParticleSystem {
 
   /* point cache */
   struct PointCache *pointcache = nullptr;
-  ListBase ptcaches = {nullptr, nullptr};
+  ListBaseT<PointCache> ptcaches = {nullptr, nullptr};
 
-  struct ListBase *effectors = nullptr;
+  struct ListBaseT<struct EffectorCache> *effectors = nullptr;
 
   ParticleSpring *fluid_springs = nullptr;
   int tot_fluidsprings = 0, alloc_fluidsprings = 0;
