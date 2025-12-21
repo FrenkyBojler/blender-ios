@@ -890,7 +890,7 @@ static void deduplicate_recursive(const DeDuplicateParams<DimsNum> *p, uint i)
  * \param use_index_order: Loop over the coordinates ordered by #KDTreeNode.index
  * At the expense of some performance, this ensures the layout of the tree doesn't influence
  * the iteration order.
- * \param duplicates: An array of int's the length of #KDTree.nodes_len
+ * \param duplicates: An array of int's the length of (max(KDTreeNode.index) + 1)
  * Values initialized to -1 are candidates to me merged.
  * Setting the index to its own position in the array prevents it from being touched,
  * although it can still be used as a target.
@@ -920,7 +920,7 @@ inline int kdtree_calc_duplicates_fast(const KDTree<DimsNum> *tree,
       if (node_index == -1) {
         continue;
       }
-      const int index = i;
+      const int index = tree->nodes[node_index].index;
       if (ELEM(duplicates[index], -1, index)) {
         p.search = index;
         detail::copy_vn_vn<DimsNum>(p.search_co, tree->nodes[node_index].co);
