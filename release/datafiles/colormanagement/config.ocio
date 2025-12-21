@@ -661,7 +661,7 @@ colorspaces:
 
   - !<ColorSpace>
     name: ACEScc
-    aliases: [acescc_ap1, acescc_ap1_scene]
+    aliases: [acescc_ap1, acescc_ap1_scene, ocio:acescc_ap1_scene]
     family: Log
     equalitygroup:
     bitdepth: 32f
@@ -677,7 +677,7 @@ colorspaces:
 
   - !<ColorSpace>
     name: ACEScct
-    aliases: [acescct_ap1, acescct_ap1_scene]
+    aliases: [acescct_ap1, acescct_ap1_scene, ocio:acescct_ap1_scene]
     family: Log
     equalitygroup:
     bitdepth: 32f
