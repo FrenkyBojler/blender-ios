@@ -17,6 +17,7 @@
 #include "DNA_vec_types.h" /* for #rctf */
 
 #include "BLI_enum_flags.hh"
+#include "BLI_listbase_typed.hh"
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
@@ -1568,7 +1569,7 @@ struct bNode {
   struct bNode *next = nullptr, *prev = nullptr;
 
   /* Input and output #bNodeSocket. */
-  ListBase inputs, outputs;
+  ListBaseT<bNodeSocket> inputs, outputs;
 
   /** The node's name for unique identification and string lookup. */
   char name[/*MAX_NAME*/ 64] = "";
@@ -1856,7 +1857,8 @@ struct bNodeTree {
   /** Node tree stores its own offset for consistent editor view. */
   float view_center[2] = {};
 
-  ListBase nodes, links;
+  ListBaseT<bNode> nodes;
+  ListBaseT<bNodeLink> links;
 
   int type = 0;
 
@@ -1890,8 +1892,8 @@ struct bNodeTree {
    * Warning! Don't make links to these sockets, input/output nodes are used for that.
    * These sockets are used only for generating external interfaces.
    */
-  DNA_DEPRECATED ListBase inputs_legacy;
-  DNA_DEPRECATED ListBase outputs_legacy;
+  DNA_DEPRECATED ListBaseT<bNodeSocket> inputs_legacy;
+  DNA_DEPRECATED ListBaseT<bNodeSocket> outputs_legacy;
 
   bNodeTreeInterface tree_interface;
 
@@ -2881,8 +2883,7 @@ struct CryptomatteLayer {
 struct NodeCryptomatte_Runtime {
   DNA_DEFINE_CXX_METHODS(NodeCryptomatte_Runtime)
 
-  /** Contains #CryptomatteLayer. */
-  ListBase layers = {nullptr, nullptr};
+  ListBaseT<CryptomatteLayer> layers = {nullptr, nullptr};
   /** Temp storage for the crypto-matte picker. */
   float add[3] = {1.0f, 1.0f, 1.0f};
   float remove[3] = {1.0f, 1.0f, 1.0f};
@@ -2898,8 +2899,7 @@ struct NodeCryptomatte {
    */
   ImageUser iuser;
 
-  /** Contains #CryptomatteEntry. */
-  ListBase entries = {nullptr, nullptr};
+  ListBaseT<CryptomatteEntry> entries = {nullptr, nullptr};
 
   char layer_name[/*MAX_NAME*/ 64] = "";
   /** Stores `entries` as a string for opening in 2.80-2.91. */
