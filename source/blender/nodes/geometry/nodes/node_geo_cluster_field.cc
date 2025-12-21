@@ -58,6 +58,17 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     if (!context.attributes()) {
       return {};
     }
+
+    const auto default_no_clusters_to_out = [&]() {
+      Array<int> cluster_ids(mask.min_array_size());
+      array_utils::fill_index_range(cluster_ids.as_mutable_span());
+      return VArray<int>::from_container(std::move(cluster_ids));
+    };
+
+    if (distance_ == 0.0f) {
+      return default_no_clusters_to_out();
+    }
+
     const int domain_size = context.attributes()->domain_size(context.domain());
     fn::FieldEvaluator evaluator{context, domain_size};
     evaluator.add(positions_field_);
@@ -68,12 +79,6 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     const VArray<int> group_ids = evaluator.get_evaluated<int>(1);
     const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
 
-    const auto default_no_clusters_to_out = [&]() {
-      Array<int> cluster_ids(mask.min_array_size());
-      array_utils::fill_index_range(cluster_ids.as_mutable_span());
-      return VArray<int>::from_container(std::move(cluster_ids));
-    };
-
     if (selection.is_empty()) {
       return default_no_clusters_to_out();
     }
@@ -83,7 +88,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     }
 
     KDTree_3d *tree = kdtree_3d_new(selection.size());
-    selection.foreach_index([&](const int64_t i) { kdtree_3d_insert(tree, i, positions[i]); });
+    selection.foreach_index([&](const int i) { kdtree_3d_insert(tree, i, positions[i]); });
     kdtree_3d_balance(tree);
 
     constexpr int no_cluster_value = -1;
@@ -92,7 +97,6 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
      * but not to value. */
     const int total_merge_ops = kdtree_3d_calc_duplicates_fast(
         tree, distance_, true, gathered_cluster_ids.data());
-    BLI_assert(!gathered_cluster_ids.as_span().contains(no_cluster_value));
     kdtree_3d_free(tree);
 
     if (total_merge_ops == 0) {
@@ -112,19 +116,11 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       }
     });
 
-    Array<int> selection_reverse(selection.size());
-    selection.to_indices(selection_reverse.as_mutable_span());
-    array_utils::gather(
-        selection_reverse.as_span(),
-        gathered_cluster_ids.as_span().take_front(last_reqered_gathered_index + 1),
-        gathered_cluster_ids.as_mutable_span().take_front(last_reqered_gathered_index + 1));
-
     Array<int> cluster_ids(mask.min_array_size());
     array_utils::fill_index_range(cluster_ids.as_mutable_span());
-    array_utils::scatter(
-        gathered_cluster_ids.as_span().take_front(last_reqered_gathered_index + 1),
-        selection.slice(requered_selection),
-        cluster_ids.as_mutable_span());
+    array_utils::copy(gathered_cluster_ids.as_span().take_front(last_reqered_gathered_index + 1),
+                      selection.slice(requered_selection),
+                      cluster_ids.as_mutable_span().take_front(last_reqered_gathered_index + 1));
 
     BLI_assert(!cluster_ids.as_span().contains(no_cluster_value));
     return VArray<int>::from_container(std::move(cluster_ids));
