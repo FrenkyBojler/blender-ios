@@ -693,7 +693,7 @@ static void image_zoom_apply(ViewZoomData *vpd,
     zoom = round(zoom * 10.0f) / 10.0f;
   }
   char str[5];
-  BLI_snprintf(str, sizeof(str), "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  SNPRINTF(str, "%i%%", int(round(vpd->sima->zoom * 100.0f)));
   ED_area_status_text(vpd->area, str);
 
   RNA_float_set(op->ptr, "factor", factor);
@@ -1938,7 +1938,7 @@ static ImageSaveData *image_save_as_init(bContext *C, wmOperator *op)
   ImageUser *iuser = image_user_from_context(C);
   Scene *scene = CTX_data_scene(C);
 
-  ImageSaveData *isd = MEM_callocN<ImageSaveData>(__func__);
+  ImageSaveData *isd = MEM_new_for_free<ImageSaveData>(__func__);
   isd->image = image;
   isd->iuser = iuser;
 

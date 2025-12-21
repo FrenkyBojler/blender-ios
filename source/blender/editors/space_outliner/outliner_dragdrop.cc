@@ -368,7 +368,8 @@ static void parent_drop_set_parents(bContext *C,
   Main *bmain = CTX_data_main(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
-  TreeElement *te = outliner_find_id(space_outliner, &space_outliner->tree, &parent->id);
+  TreeElement *te = outliner_find_id(
+      space_outliner, &space_outliner->tree, &parent->id, (TreeElementFlag)0);
   Scene *scene = (Scene *)outliner_search_back(te, ID_SCE);
 
   if (scene == nullptr) {
@@ -1372,7 +1373,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   /* Update dependency graph. */
   DEG_id_tag_update(&data.to->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
   DEG_relations_tag_update(bmain);
-  /* NOTE: It is possible to drag'n'drop between different windows, which means that the source
+  /* NOTE: It is possible to drag-and-drop between different windows, which means that the source
    * window/Outliner may also need to be updated. So do not pass the current window in this
    * notifier (unless there is a way to get the drag source window as well?). */
   WM_event_add_notifier_ex(CTX_wm_manager(C), nullptr, NC_SCENE | ND_LAYER, nullptr);

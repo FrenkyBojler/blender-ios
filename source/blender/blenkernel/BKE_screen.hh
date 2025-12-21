@@ -202,6 +202,21 @@ struct RegionPollParams {
   const bContext *context;
 };
 
+enum class ARegionTypeFlag {
+  /**
+   * Use panel categories, where #PanelType.category and #ARegion.panels_category_active define
+   * which panels are visible. Available categories are collected during layout and cached in
+   * #ARegion.panels_category_active.
+   */
+  UsePanelCategories = (1 << 0),
+  /**
+   * Same as #UsePanelCategories, plus panel drawing will draw tabs for the categories in this
+   * region.
+   */
+  UsePanelCategoryTabs = (1 << 1),
+};
+ENUM_OPERATORS(ARegionTypeFlag)
+
 /* #ARegionType::lock */
 enum ARegionDrawLockFlags {
   REGION_DRAW_LOCK_NONE = 0,
@@ -282,6 +297,8 @@ struct ARegionType {
    * when the `v2d->tot` is changed and `cur` is adopted accordingly).
    */
   void (*on_view2d_changed)(const bContext *C, ARegion *region);
+
+  ARegionTypeFlag flag;
 
   /** Custom drawing callbacks. */
   ListBase drawcalls;
@@ -717,6 +734,9 @@ bool BKE_spacetype_exists(int spaceid);
 /** Only for quitting blender. */
 void BKE_spacetypes_free();
 
+bool BKE_regiontype_uses_categories(const ARegionType *region_type);
+bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type);
+
 /* Space-data. */
 
 void BKE_spacedata_freelist(ListBase *lb);
@@ -791,6 +811,9 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
  * inputs
  */
 ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const int region_type);
+
+void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src);
+
 /**
  * Find a region of type \a region_type in the currently active space of \a area.
  *
@@ -821,6 +844,10 @@ ARegion *BKE_screen_find_main_region_at_xy(const bScreen *screen, int space_type
  */
 ScrArea *BKE_screen_find_area_from_space(const bScreen *screen,
                                          const SpaceLink *sl) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(1, 2);
+ARegion *BKE_screen_find_region_in_space(const bScreen *screen,
+                                         const SpaceLink *sl,
+                                         int region_type) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1, 2);
 /**
  * \note used to get proper RNA paths for spaces (editors).
@@ -870,6 +897,11 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
  */
 void BKE_screen_free_data(bScreen *screen);
 void BKE_screen_area_map_free(ScrAreaMap *area_map) ATTR_NONNULL();
+
+/**
+ * bScreen copying. Assumes that #screen_dst is cleared and can be fully overwritten.
+ */
+void BKE_screen_copy_data(bScreen *screen_dst, const bScreen *screen_src);
 
 ScrEdge *BKE_screen_find_edge(const bScreen *screen, ScrVert *v1, ScrVert *v2);
 void BKE_screen_sort_scrvert(ScrVert **v1, ScrVert **v2);
