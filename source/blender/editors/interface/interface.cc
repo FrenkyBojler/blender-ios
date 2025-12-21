@@ -6980,7 +6980,7 @@ void update_text_styles()
   style->tooltip.character_weight = weight;
 }
 
-void invalidate_textboxes_wrap_cache(ARegion *region)
+void invalidate_textboxes_wrap_cache(const ARegion *region)
 {
   LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
     for (const std::unique_ptr<Button> &button : block->buttons) {

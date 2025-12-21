@@ -2104,7 +2104,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   textbox->line_scroll_set(textbox->line_scroll);
 
   const int scroll = textbox->line_scroll;
-  const char *raw_begin = lines[0].begin();
+  const char *str = lines[0].begin();
 
   int line_cursor = 0;
   int line_select_start = 0;
@@ -2131,15 +2131,15 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   for (int i : lines.index_range()) {
     const char *line_bounds[] = {
         lines[i].begin(), i != lines.size() - 1 ? lines[i + 1].begin() : lines.last().end()};
-    if (line_bounds[0] <= (raw_begin + but_pos) && (raw_begin + but_pos) <= line_bounds[1]) {
+    if (line_bounds[0] <= (str + but_pos) && (str + but_pos) <= line_bounds[1]) {
       line_cursor = i;
     }
     auto selection_line_bounds_get =
-        [line_bounds, raw_begin, i](int start, int end, int &r_line_begin, int &r_line_end) {
-          if (line_bounds[0] <= (raw_begin + start) && (raw_begin + start) <= line_bounds[1]) {
+        [line_bounds, str, i](int start, int end, int &r_line_begin, int &r_line_end) {
+          if (line_bounds[0] <= (str + start) && (str + start) <= line_bounds[1]) {
             r_line_begin = i;
           }
-          if (line_bounds[0] <= (raw_begin + end) && (raw_begin + end) <= line_bounds[1]) {
+          if (line_bounds[0] <= (str + end) && (str + end) <= line_bounds[1]) {
             r_line_end = i;
           }
         };
@@ -2188,38 +2188,37 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       const char *end;
     };
     auto lines_selection_get =
-        [raw_begin,
-         &lines](int start, int end, int line_start, int line_end) -> Vector<LineSelection> {
+        [str, &lines](int start, int end, int line_start, int line_end) -> Vector<LineSelection> {
       if (start == end) {
         return {};
       }
       Vector<LineSelection> selection = {};
 
-      const char *itr = raw_begin + start;
+      const char *itr = str + start;
       for (int i = line_start; i <= line_end; i++) {
         /* Include line feed in selection draw. */
         const char *itr_end = std::min(
-            raw_begin + end, i != lines.size() - 1 ? lines[i + 1].begin() : lines.last().end());
+            str + end, i != lines.size() - 1 ? lines[i + 1].begin() : lines.last().end());
         selection.append({i, itr, itr_end});
         itr = itr_end;
       }
       return selection;
     };
-    Vector<LineSelection> lines_selection = lines_selection_get(
+    const Vector<LineSelection> lines_selection = lines_selection_get(
         selsta, selend, line_select_start, line_select_end);
     /* Text button selection. */
-    for (LineSelection &selection : lines_selection) {
+    for (const LineSelection &selection : lines_selection) {
       if (!(scroll <= selection.line && selection.line < visible_lines + scroll)) {
         continue;
       }
       /* We are drawing on top of widget bases. Flush cache. */
       GPU_blend(GPU_BLEND_ALPHA);
       widgetbase_draw_cache_flush();
-      uint pos = GPU_vertformat_attr_add(
+      const uint pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor4ubv(wcol->item);
-      StringRef line = lines[selection.line];
+      const StringRef line = lines[selection.line];
       const Vector<Bounds<int>> boxes = BLF_str_selection_boxes(
           fstyle->uifont_id,
           line.begin(),
@@ -2227,7 +2226,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
           std::max<int>(0, selection.start - line.begin()),
           selection.end - selection.start);
       for (const Bounds<int> &bounds : boxes) {
-        float y = rect.ymax - (line_height * float(selection.line - scroll));
+        const float y = rect.ymax - (line_height * float(selection.line - scroll));
         immRectf(pos,
                  rect.xmin + bounds.min,
                  y - line_height + U.pixelsize,
@@ -2251,7 +2250,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
 #ifdef WITH_INPUT_IME
     /* Composite underline. */
-    Vector<LineSelection> ime_underlying_selection = lines_selection_get(
+    const Vector<LineSelection> ime_underlying_selection = lines_selection_get(
         but->pos,
         but->pos + (ime_data ? ime_data->composite.size() : 0),
         ime_line_start,
@@ -2261,11 +2260,11 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     widgetbase_draw_cache_flush();
     GPU_blend(GPU_BLEND_NONE);
     rgba_uchar_to_float(fcol, wcol->text);
-    for (LineSelection &underlying : ime_underlying_selection) {
+    for (const LineSelection &underlying : ime_underlying_selection) {
       if (!(scroll <= underlying.line && underlying.line < visible_lines + scroll)) {
         continue;
       }
-      StringRef line = lines[underlying.line];
+      const StringRef line = lines[underlying.line];
       const Vector<Bounds<int>> boxes = BLF_str_selection_boxes(
           fstyle->uifont_id,
           line.begin(),
@@ -2273,8 +2272,8 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
           std::max<int>(0, underlying.start - line.begin()),
           underlying.end - underlying.start);
       for (const Bounds<int> &bounds : boxes) {
-        int y = rect.ymax - (line_height * float(underlying.line - scroll + 1)) +
-                6.0f * U.pixelsize;
+        const int y = rect.ymax - (line_height * float(underlying.line - scroll + 1)) +
+                      6.0f * U.pixelsize;
         draw_text_underline(rect.xmin + bounds.min,
                             y,
                             std::min(bounds.max - bounds.min, rect.xmax - 2 - rect.xmin),
@@ -2286,23 +2285,23 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
     /* Draw text cursor (caret). */
     if (scroll <= line_cursor && line_cursor < scroll + visible_lines) {
-      int t = BLF_str_offset_to_cursor(fstyle->uifont_id,
-                                       lines[line_cursor].begin(),
-                                       UI_MAX_DRAW_STR,
-                                       but_pos - (lines[line_cursor].begin() - raw_begin),
-                                       caret_width);
+      const int t = BLF_str_offset_to_cursor(fstyle->uifont_id,
+                                             lines[line_cursor].begin(),
+                                             UI_MAX_DRAW_STR,
+                                             but_pos - (lines[line_cursor].begin() - str),
+                                             caret_width);
 
       /* We are drawing on top of widget bases. Flush cache. */
       GPU_blend(GPU_BLEND_ALPHA);
       widgetbase_draw_cache_flush();
       GPU_blend(GPU_BLEND_NONE);
 
-      uint pos = GPU_vertformat_attr_add(
+      const uint pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       immUniformThemeColor(TH_WIDGET_TEXT_CURSOR);
-      int y = rect.ymax - (line_height * (line_cursor - scroll));
+      const int y = rect.ymax - (line_height * (line_cursor - scroll));
       /* draw cursor */
       immRectf(pos,
                rect.xmin + t,
@@ -2336,7 +2335,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   params.align = align;
   params.word_clip = false;
   float ymax = rect.ymax;
-  for (blender::StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
+  for (const StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
     if (rect.xmin > button_rect->xmax - scrollbar_pad - text_padding) {
       break;
     }
@@ -2357,8 +2356,6 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     return;
   }
   /* Draw scrollbar. */
-  bTheme *btheme = theme::theme_get();
-
   rcti scroll_rect = *button_rect;
   BLI_rcti_pad(&scroll_rect, -scrollbar_pad, -scrollbar_pad);
   scroll_rect.xmin = scroll_rect.xmax - text_padding;
@@ -2379,7 +2376,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                   slider_rect.ymin < scroll_rect.ymin ? (scroll_rect.ymin - slider_rect.ymin) :
                                                         0;
   BLI_rcti_translate(&slider_rect, 0, pad);
-  uiWidgetColors wscroll = btheme->tui.wcol_scroll;
+  uiWidgetColors wscroll = theme::theme_get()->tui.wcol_scroll;
   if (BLI_rcti_isect(&scroll_rect, button_rect, nullptr)) {
     draw_widget_scroll(&wscroll, &scroll_rect, &slider_rect, 0);
   }

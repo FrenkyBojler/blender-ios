@@ -3139,7 +3139,7 @@ static void textbox_add_scroll(ButtonTextBox *textbox, int step)
 
 static void textbox_scroll_to_cursor(ButtonTextBox *textbox)
 {
-  Vector<StringRef> lines = textbox_wrap_lines(textbox);
+  const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   int line_cursor = 0;
   int but_pos = textbox->pos;
 #ifdef WITH_INPUT_IME
@@ -3150,14 +3150,15 @@ static void textbox_scroll_to_cursor(ButtonTextBox *textbox)
   }
 #endif
   const char *cursor = lines[0].begin() + but_pos;
-  for (StringRef line : lines) {
+  for (const StringRef line : lines) {
     if (line.begin() > cursor) {
       line_cursor = std::max(0, line_cursor - 1);
       break;
     }
     line_cursor++;
   }
-  int visible_bounds[] = {textbox->line_scroll, textbox->line_scroll + textbox->visible_lines};
+  const int visible_bounds[] = {textbox->line_scroll,
+                                textbox->line_scroll + textbox->visible_lines};
   if (visible_bounds[0] <= line_cursor && line_cursor < visible_bounds[1]) {
     return;
   }
@@ -3169,7 +3170,7 @@ static void textbox_scroll_to_cursor(ButtonTextBox *textbox)
   }
 }
 
-static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *region, float2 xy)
+static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *region, const float2 xy)
 {
   BLI_assert(button->type == ButtonType::TextBox);
   ButtonTextBox *textbox = static_cast<ButtonTextBox *>(button);
@@ -3181,7 +3182,7 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
   block_to_window_fl(region, textbox->block, &start.x, &start.y);
   block_to_window_fl(region, textbox->block, &end.x, &end.y);
 
-  Vector<StringRef> lines = textbox_wrap_lines(textbox);
+  const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   uiFontStyle fstyle = style_get()->widget;
   const float aspect = textbox->block->aspect;
   fontscale(&fstyle.points, aspect);
@@ -3194,13 +3195,13 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
       std::max<int>(0, textbox->line_scroll - 1),
       std::min<int>(textbox->line_scroll + textbox->visible_lines, lines.size() - 1));
 
-  StringRef line = lines[line_under_mouse];
+  const StringRef line = lines[line_under_mouse];
 
   start.x -= U.pixelsize / aspect;
   if (!(textbox->drawflag & BUT_NO_TEXT_PADDING)) {
     start.x += button_text_padding(button);
   }
-  int offset = BLF_str_offset_from_cursor_position(
+  const int offset = BLF_str_offset_from_cursor_position(
       fstyle.uifont_id, line.data(), line.size(), int(xy.x - start.x));
   int position = line.begin() - lines[0].data() + offset;
 #ifdef WITH_INPUT_IME
@@ -3358,7 +3359,7 @@ static int textbox_wrapped_line_from_char_offset(Span<StringRef> lines, int offs
 {
   const char *dest = lines.first().begin() + offset;
   int i = 0;
-  for (StringRef line : lines) {
+  for (const StringRef line : lines) {
     if (line.begin() > dest) {
       i = i - 1;
       break;
@@ -3382,7 +3383,7 @@ static void textbox_jump_line(ButtonTextBox *textbox,
   if (textbox->selend == textbox->selsta) {
     textbox->selsta = textbox->selend = textbox->pos;
   }
-  Vector<StringRef> lines = textbox_wrap_lines(textbox);
+  const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   const char *str = lines.first().begin();
   const bool append_selection = textbox->selend == textbox->pos;
   const int line_cursor = textbox_wrapped_line_from_char_offset(lines, textbox->pos);
@@ -3445,7 +3446,7 @@ static void ui_textedit_move(Button *but,
     lines = textbox_wrap_lines(static_cast<ButtonTextBox *>(but));
   }
   const char *str = lines.first().begin();
-  StringRef line_cursor = lines[textbox_wrapped_line_from_char_offset(lines, but->pos)];
+  const StringRef line_cursor = lines[textbox_wrapped_line_from_char_offset(lines, but->pos)];
   const int pos_prev = but->pos;
   const bool has_sel = (but->selend - but->selsta) > 0;
 
@@ -4008,7 +4009,7 @@ static int ui_do_but_textedit(
 #endif
   ButtonTextBox *textbox = but->type == ButtonType::TextBox ? static_cast<ButtonTextBox *>(but) :
                                                               nullptr;
-  int orig_pos = but->pos;
+  int prev_pos = but->pos;
   const bool text_select_on_drag_activation = data->text_select_on_drag_activation;
   data->text_select_on_drag_activation = false;
   switch (event->type) {
@@ -4406,7 +4407,7 @@ static int ui_do_but_textedit(
     /* Text changed, invalidate cache now. */
     textbox->wrap_cache.reset();
   }
-  if (textbox && (changed || orig_pos != but->pos) && data->state != BUTTON_STATE_EXIT) {
+  if (textbox && (changed || prev_pos != but->pos) && data->state != BUTTON_STATE_EXIT) {
     textbox_scroll_to_cursor(textbox);
   }
   if (changed) {
@@ -5260,8 +5261,8 @@ static int ui_do_but_TEX(
     int mx = event->xy[0];
     int my = event->xy[1];
     window_to_block(data->region, but->block, &mx, &my);
-    float ymin = but->rect.ymin + UI_UNIT_Y * (0.75f);
-    float range = but->rect.ymax - ymin;
+    const float ymin = but->rect.ymin + UI_UNIT_Y * (0.75f);
+    const float range = but->rect.ymax - ymin;
 
     textbox->line_scroll_set(round_fl_to_int(
         (range - (my - ymin)) / range * (textbox->last_total_lines - textbox->visible_lines)));
