@@ -10,16 +10,15 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_anim_types.h"
 #include "DNA_node_types.h"
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
-#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
@@ -758,8 +757,30 @@ static bNodeTreeInterfaceSocket *add_interface_from_socket(const bNodeTree &orig
       tree_for_interface, node_for_io, socket_for_io, socket_for_io.idname, socket_for_name.name);
 }
 
+template<typename ContainerT> std::optional<Bounds<float2>> node_bounds(const ContainerT &nodes)
+{
+  std::optional<Bounds<float2>> result = std::nullopt;
+  for (const bNode *node : nodes) {
+    const float2 loc(node->location);
+    const Bounds<float2> box(loc, loc + float2(node->width, -node->height));
+    result = bounds::merge<float2>(result, box);
+  }
+  return result;
+}
+
+template<typename ContainerT>
+std::optional<Bounds<float2>> node_location_bounds(const ContainerT &nodes)
+{
+  std::optional<Bounds<float2>> result = std::nullopt;
+  for (const bNode *node : nodes) {
+    const float2 loc(node->location);
+    result = bounds::min_max(result, loc);
+  }
+  return result;
+}
+
 /* Subset of nodes in a tree with external links. */
-class GroupOperatorNodeSet {
+class NodeSet {
  public:
   /* Pair of node and socket for incoming or outgoing links. */
   struct LinkPair {
@@ -780,8 +801,8 @@ class GroupOperatorNodeSet {
   };
 
  private:
-  const bNodeTree &tree_;
-  VectorSet<const bNode *> nodes_;
+  bNodeTree &tree_;
+  VectorSet<bNode *> nodes_;
   /* Links between nodes that should be copied.
    * Contains only links between nodes of this set. */
   Vector<const bNodeLink *> internal_links_;
@@ -791,37 +812,41 @@ class GroupOperatorNodeSet {
   Vector<SocketLinks> exposed_sockets_;
 
  public:
-  using NodeFilterFn = FunctionRef<bool(const bNode *)>;
+  using NodeFilterFn = FunctionRef<bool(const bNode &)>;
+  static bool default_link_filter(const bNode & /*node*/)
+  {
+    return true;
+  }
 
-  GroupOperatorNodeSet(const bNodeTree &tree,
-                       const VectorSet<const bNode *> &nodes,
-                       NodeFilterFn link_filter,
-                       const bool expose_visible)
-      : tree_(tree), nodes_(nodes)
+  NodeSet(bNodeTree &tree,
+          VectorSet<bNode *> &&nodes,
+          const bool expose_visible,
+          NodeFilterFn link_filter = default_link_filter)
+      : tree_(tree), nodes_(std::move(nodes))
   {
     tree_.ensure_topology_cache();
     for (const bNode *node : nodes_) {
       for (const bNodeSocket *socket : node->output_sockets()) {
         if (socket->is_visible()) {
-          add_output_socket(node, socket, link_filter, expose_visible);
+          add_output_socket(node, socket, expose_visible, link_filter);
         }
       }
       for (const bNodeSocket *socket : node->input_sockets()) {
         if (socket->is_visible()) {
-          add_input_socket(node, socket, link_filter, expose_visible);
+          add_input_socket(node, socket, expose_visible, link_filter);
         }
       }
     }
   }
 
-  ~GroupOperatorNodeSet() {}
+  ~NodeSet() {}
 
-  const bNodeTree &tree() const
+  bNodeTree &tree() const
   {
     return tree_;
   }
 
-  const VectorSet<const bNode *> &nodes() const
+  Span<bNode *> nodes() const
   {
     return nodes_;
   }
@@ -839,14 +864,14 @@ class GroupOperatorNodeSet {
  private:
   void add_input_socket(const bNode *node,
                         const bNodeSocket *socket,
-                        NodeFilterFn link_filter,
-                        const bool expose_visible)
+                        const bool expose_visible,
+                        NodeFilterFn link_filter)
   {
     SocketLinks links;
     links.socket = {node, socket};
     if (socket->is_directly_linked()) {
       for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (bke::node_link_is_hidden(*link) || !link_filter(link->fromnode)) {
+        if (bke::node_link_is_hidden(*link) || !link_filter(*link->fromnode)) {
           continue;
         }
 
@@ -868,14 +893,14 @@ class GroupOperatorNodeSet {
 
   void add_output_socket(const bNode *node,
                          const bNodeSocket *socket,
-                         NodeFilterFn link_filter,
-                         const bool expose_visible)
+                         const bool expose_visible,
+                         NodeFilterFn link_filter)
   {
     SocketLinks links;
     links.socket = {node, socket};
     if (socket->is_directly_linked()) {
       for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (bke::node_link_is_hidden(*link) || !link_filter(link->tonode)) {
+        if (bke::node_link_is_hidden(*link) || !link_filter(*link->tonode)) {
           continue;
         }
 
@@ -897,9 +922,9 @@ class GroupOperatorNodeSet {
 };
 
 class NodeSetInterface {
-  using LinkPair = GroupOperatorNodeSet::LinkPair;
-  using MutableLinkPair = GroupOperatorNodeSet::MutableLinkPair;
-  using SocketLinks = GroupOperatorNodeSet::SocketLinks;
+  using LinkPair = NodeSet::LinkPair;
+  using MutableLinkPair = NodeSet::MutableLinkPair;
+  using SocketLinks = NodeSet::SocketLinks;
 
  private:
   Map<bNodeTreeInterfaceSocket *, SocketLinks> interface_links_;
@@ -910,7 +935,7 @@ class NodeSetInterface {
     return interface_links_;
   }
 
-  static NodeSetInterface from_nodes(const GroupOperatorNodeSet &node_set, bNodeTree &dst_tree)
+  static NodeSetInterface from_nodes(const NodeSet &node_set, bNodeTree &dst_tree)
   {
     const bNodeTree &src_tree = node_set.tree();
 
@@ -947,43 +972,20 @@ class NodeSetInterface {
       if (socket->is_input()) {
         bNodeSocket *group_node_input = node_group_find_input_socket(&group_node,
                                                                      item.key->identifier);
-        for (const GroupOperatorNodeSet::MutableLinkPair &link : item.value.linked_sockets) {
+        for (const NodeSet::MutableLinkPair &link : item.value.linked_sockets) {
           bke::node_add_link(tree, *link.node, *link.socket, group_node, *group_node_input);
         }
       }
       else {
         bNodeSocket *group_node_output = node_group_find_output_socket(&group_node,
                                                                        item.key->identifier);
-        for (const GroupOperatorNodeSet::MutableLinkPair &link : item.value.linked_sockets) {
+        for (const NodeSet::MutableLinkPair &link : item.value.linked_sockets) {
           bke::node_add_link(tree, group_node, *group_node_output, *link.node, *link.socket);
         }
       }
     }
   }
 };
-
-static void get_min_max_of_nodes(const Span<const bNode *> nodes,
-                                 const bool use_size,
-                                 float2 &min,
-                                 float2 &max)
-{
-  if (nodes.is_empty()) {
-    min = float2(0);
-    max = float2(0);
-    return;
-  }
-
-  INIT_MINMAX2(min, max);
-  for (const bNode *node : nodes) {
-    float2 loc(node->location);
-    math::min_max(loc, min, max);
-    if (use_size) {
-      loc.x += node->width;
-      loc.y -= node->height;
-      math::min_max(loc, min, max);
-    }
-  }
-}
 
 /**
  * Set of nodes that are copied from other nodes and can be mapped to the original nodes.
@@ -1007,9 +1009,7 @@ class NodeSetCopy {
     return node_identifier_map_;
   }
 
-  static NodeSetCopy from_nodes(Main &bmain,
-                                const GroupOperatorNodeSet &src_nodes,
-                                bNodeTree &dst_tree)
+  static NodeSetCopy from_nodes(Main &bmain, const NodeSet &src_nodes, bNodeTree &dst_tree)
   {
     const bNodeTree &src_tree = src_nodes.tree();
 
@@ -1064,12 +1064,8 @@ class NodeSetCopy {
     BKE_animdata_copy_by_basepath(bmain, src_tree.id, dst_tree.id, anim_basepaths);
 
     /* Move nodes in the group to the center */
-    {
-      float2 min, max;
-      get_min_max_of_nodes(src_nodes.nodes(), false, min, max);
-      const float2 center = math::midpoint(min, max);
-      float2 real_min, real_max;
-      get_min_max_of_nodes(src_nodes.nodes(), true, real_min, real_max);
+    if (const std::optional<Bounds<float2>> bounds = node_location_bounds(src_nodes.nodes())) {
+      const float2 center = bounds->center();
       for (bNode *node : new_nodes) {
         node->location[0] -= center[0];
         node->location[1] -= center[1];
@@ -1117,15 +1113,11 @@ class NodeSetCopy {
     nodes::update_node_declaration_and_sockets(tree_, *io_nodes.output_node);
 
     /* Move group input/output nodes to the edges of the bounding box. */
-    {
-      Vector<const bNode *> src_nodes(node_map_.keys().begin(), node_map_.keys().end());
-      float2 min, max;
-      get_min_max_of_nodes(src_nodes, false, min, max);
-      const float2 center = math::midpoint(min, max);
-      float2 real_min, real_max;
-      get_min_max_of_nodes(src_nodes, true, real_min, real_max);
-      io_nodes.output_node->location[0] = real_max[0] - center[0] + 50.0f;
-      io_nodes.input_node->location[0] = real_min[0] - center[0] - 200.0f;
+    if (const std::optional<Bounds<float2>> bounds = node_bounds(node_map_.values())) {
+      io_nodes.input_node->location[0] = bounds->min[0] - 200.0f;
+      io_nodes.input_node->location[1] = bounds->center()[1];
+      io_nodes.output_node->location[0] = bounds->max[0] + 50.0f;
+      io_nodes.output_node->location[1] = bounds->center()[1];
     }
 
     return io_nodes;
@@ -1282,19 +1274,11 @@ static void update_nested_node_refs_after_moving_nodes_into_group(
 static void node_group_make_insert_selected(const bContext &C,
                                             bNodeTree &ntree,
                                             bNode *gnode,
-                                            const VectorSet<bNode *> &nodes_to_move)
+                                            NodeSet &&node_set)
 {
   Main *bmain = CTX_data_main(&C);
   bNodeTree &group = *reinterpret_cast<bNodeTree *>(gnode->id);
-  BLI_assert(!nodes_to_move.contains(gnode));
 
-  /* If only one node is selected expose all its sockets regardless of links. */
-  const bool expose_visible = nodes_to_move.size() == 1;
-  const GroupOperatorNodeSet node_set(
-      ntree,
-      VectorSet<const bNode *>(nodes_to_move.as_span().cast<const bNode *>()),
-      [&](const bNode *node) { return node != gnode; },
-      expose_visible);
   /* Copy nodes into the group. */
   const NodeSetInterface node_set_io = NodeSetInterface::from_nodes(node_set, group);
   const NodeSetCopy node_set_copy = NodeSetCopy::from_nodes(*bmain, node_set, group);
@@ -1303,18 +1287,16 @@ static void node_group_make_insert_selected(const bContext &C,
 
   update_nested_node_refs_after_moving_nodes_into_group(
       ntree, group, *gnode, node_set_copy.node_identifier_map());
-
   if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
     BKE_ntree_update(*bmain, Span<bNodeTree *>{&group});
   }
-
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
 
   /* Connect the group node to external sockets. */
   node_set_io.connect_group_node(*gnode);
 
   /* Remove original nodes from the tree, everything has been copied to the group. */
-  for (bNode *node : nodes_to_move) {
+  for (bNode *node : node_set.nodes()) {
     bke::node_remove_node(bmain, ntree, *node, true);
   }
 
@@ -1323,28 +1305,29 @@ static void node_group_make_insert_selected(const bContext &C,
 
 static bNode *node_group_make_from_nodes(const bContext &C,
                                          bNodeTree &ntree,
-                                         const VectorSet<bNode *> &nodes_to_group,
+                                         VectorSet<bNode *> &&nodes_to_group,
                                          const StringRef ntype,
                                          const StringRef ntreetype)
 {
   Main *bmain = CTX_data_main(&C);
 
-  float2 min, max;
-  get_min_max_of_nodes(nodes_to_group.as_span(), false, min, max);
-
   /* New node-tree. */
   bNodeTree *ngroup = bke::node_tree_add_tree(bmain, "NodeGroup", ntreetype);
-
   BKE_id_move_to_same_lib(*bmain, ngroup->id, ntree.id);
 
   /* make group node */
   bNode *gnode = bke::node_add_node(&C, ntree, ntype);
   gnode->id = (ID *)ngroup;
 
-  gnode->location[0] = 0.5f * (min[0] + max[0]);
-  gnode->location[1] = 0.5f * (min[1] + max[1]);
+  /* If only one node is selected expose all its sockets regardless of links. */
+  const bool expose_visible = nodes_to_group.size() == 1;
+  NodeSet node_set(ntree, std::move(nodes_to_group), expose_visible);
+  if (const std::optional<Bounds<float2>> bounds = node_location_bounds(node_set.nodes())) {
+    gnode->location[0] = bounds->center()[0];
+    gnode->location[1] = bounds->center()[1];
+  }
 
-  node_group_make_insert_selected(C, ntree, gnode, nodes_to_group);
+  node_group_make_insert_selected(C, ntree, gnode, std::move(node_set));
 
   return gnode;
 }
@@ -1619,7 +1602,8 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
     gnode = node_group_make_from_node_declaration(*C, ntree, *nodes_to_group[0], node_idname);
   }
   else {
-    gnode = node_group_make_from_nodes(*C, ntree, nodes_to_group, node_idname, ntree_idname);
+    gnode = node_group_make_from_nodes(
+        *C, ntree, std::move(nodes_to_group), node_idname, ntree_idname);
   }
 
   if (gnode) {
@@ -1693,7 +1677,10 @@ static wmOperatorStatus node_group_insert_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  node_group_make_insert_selected(*C, *ntree, gnode, nodes_to_group);
+  /* If only one node is selected expose all its sockets regardless of links. */
+  const bool expose_visible = nodes_to_group.size() == 1;
+  NodeSet node_set(*ntree, std::move(nodes_to_group), expose_visible);
+  node_group_make_insert_selected(*C, *ntree, gnode, std::move(node_set));
 
   bke::node_set_active(*ntree, *gnode);
   ED_node_tree_push(region, snode, ngroup, gnode);
