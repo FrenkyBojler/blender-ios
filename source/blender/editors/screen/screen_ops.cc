@@ -220,7 +220,13 @@ bool ED_operator_scene_editable(bContext *C)
 bool ED_operator_sequencer_scene_editable(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  if (scene == nullptr || !BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+  if (scene == nullptr) {
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
+    return false;
+  }
+
+  if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+    CTX_wm_operator_poll_msg_set(C, "Sequencer scene not editable");
     return false;
   }
   return true;
@@ -823,10 +829,10 @@ struct sActionzoneData {
 static bool actionzone_area_poll(bContext *C)
 {
   wmWindow *win = CTX_wm_window(C);
-  if (win && win->eventstate) {
+  if (win && win->runtime->eventstate) {
     bScreen *screen = WM_window_get_active_screen(win);
     if (screen) {
-      const int *xy = &win->eventstate->xy[0];
+      const int *xy = &win->runtime->eventstate->xy[0];
 
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (AZone *, az, &area->actionzones) {
@@ -4191,7 +4197,7 @@ static void area_join_draw_cb(const wmWindow *win, void *userdata)
   if (sd->sa1 == sd->sa2 && sd->split_fac > 0.0f) {
     screen_draw_split_preview(sd->sa1, sd->split_dir, sd->split_fac);
   }
-  else if (sd->sa2 && sd->dir != SCREEN_DIR_NONE) {
+  else if (sd->sa2 && (sd->sa1 != sd->sa2)) {
     screen_draw_join_highlight(win, sd->sa1, sd->sa2, sd->dir, factor);
   }
 }

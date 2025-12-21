@@ -15,7 +15,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -52,10 +51,7 @@
 static void init_data(ModifierData *md)
 {
   CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(csmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(csmd, DNA_struct_default_get(CorrectiveSmoothModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(csmd, modifier);
 
   csmd->delta_cache.deltas = nullptr;
 }
@@ -561,7 +557,7 @@ static void correctivesmooth_modifier_do(ModifierData *md,
       ((csmd->rest_source == MOD_CORRECTIVESMOOTH_RESTSOURCE_ORCO) &&
        (((ID *)ob->data)->recalc & ID_RECALC_ALL));
 
-  blender::Span<int> corner_verts = mesh->corner_verts();
+  Span<int> corner_verts = mesh->corner_verts();
 
   bool use_only_smooth = (csmd->flag & MOD_CORRECTIVESMOOTH_ONLY_SMOOTH) != 0;
   const MDeformVert *dvert = nullptr;
@@ -645,7 +641,7 @@ static void correctivesmooth_modifier_do(ModifierData *md,
       force_delta_cache_update)
   {
     blender::Array<blender::float3> rest_coords_alloc;
-    blender::Span<blender::float3> rest_coords;
+    Span<blender::float3> rest_coords;
 
     store_cache_settings(csmd);
 

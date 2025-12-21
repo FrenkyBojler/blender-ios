@@ -823,7 +823,7 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
  *
  * \note While different algorithms can be investigated,
  * these values are a kind of "intermediate" hash,
- * the the per-element hashes are accumulated into a unique value for each "chunk".
+ * the per-element hashes are accumulated into a unique value for each "chunk".
  *
  * For this reason, favor speed over high-quality hashes for each element.
  * (although the hashes are not *low* quality either).
@@ -839,20 +839,25 @@ static void bchunk_list_fill_from_array(const BArrayInfo *info,
  *
  * \{ */
 
-static inline uint32_t rotl32(uint32_t n, unsigned int c)
+static inline uint32_t rotl32(uint32_t n, uint c)
 {
   /* NOTE: can be replaced with `std::rotl` with C++ 20. */
   /* NOTE: Expected to optimize to a single bit-roll on x64. */
-  constexpr unsigned int mask = (8 * sizeof(n) - 1);
+  constexpr uint mask = (8 * sizeof(n) - 1);
   c &= mask;
   return (n << c) | (n >> ((-c) & mask));
 }
 
 #define HASH_INIT (5381)
 
-#define HASH_VALUE_IMPL_MUL(h, value) \
+/**
+ * The DJB2 algorithm was originally used for bytes, so it's kept
+ * although the rotating method from #HASH_VALUE_IMPL_ADD may be
+ * acceptable in this case too.
+ */
+#define HASH_VALUE_IMPL_ADD_BYTES(h, value) \
   { \
-    h = hash_key(int32_t((h << 5) + h) * (value)); \
+    h = hash_key(int32_t((h << 5) + h) + (value)); \
   } \
   ((void)0)
 
@@ -872,7 +877,7 @@ template<typename T> BLI_INLINE void hash_value_generic(hash_key &h, const T &va
                 std::is_same<T, UInt96_Data>() || std::is_same<T, UInt128_Data>());
 
   if constexpr (std::is_same_v<T, uint8_t>) {
-    HASH_VALUE_IMPL_MUL(h, int8_t(value));
+    HASH_VALUE_IMPL_ADD_BYTES(h, int8_t(value));
   }
   else if constexpr (std::is_same_v<T, uint16_t>) {
     HASH_VALUE_IMPL_ADD(h, value);

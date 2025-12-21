@@ -21,7 +21,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -55,10 +54,7 @@ using namespace blender;
 static void init_data(ModifierData *md)
 {
   ScrewModifierData *ltmd = (ScrewModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(ltmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(ltmd, DNA_struct_default_get(ScrewModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(ltmd, modifier);
 }
 
 /** Used for gathering edge connectivity. */
@@ -125,7 +121,7 @@ static void screwvert_iter_step(ScrewVertIter *iter)
 }
 
 static Mesh *mesh_remove_doubles_on_axis(Mesh *result,
-                                         blender::MutableSpan<blender::float3> vert_positions_new,
+                                         MutableSpan<blender::float3> vert_positions_new,
                                          const uint totvert,
                                          const uint step_tot,
                                          const float axis_vec[3],
@@ -399,17 +395,17 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   CustomData_free_layers(&result->edge_data, CD_ORIGINDEX);
   CustomData_free_layers(&result->face_data, CD_ORIGINDEX);
 
-  const blender::Span<float3> vert_positions_orig = mesh->vert_positions();
-  const blender::Span<int2> edges_orig = mesh->edges();
+  const Span<float3> vert_positions_orig = mesh->vert_positions();
+  const Span<int2> edges_orig = mesh->edges();
   const OffsetIndices faces_orig = mesh->faces();
-  const blender::Span<int> corner_verts_orig = mesh->corner_verts();
-  const blender::Span<int> corner_edges_orig = mesh->corner_edges();
+  const Span<int> corner_verts_orig = mesh->corner_verts();
+  const Span<int> corner_edges_orig = mesh->corner_edges();
 
-  blender::MutableSpan<float3> vert_positions_new = result->vert_positions_for_write();
-  blender::MutableSpan<int2> edges_new = result->edges_for_write();
+  MutableSpan<float3> vert_positions_new = result->vert_positions_for_write();
+  MutableSpan<int2> edges_new = result->edges_for_write();
   MutableSpan<int> face_offests_new = result->face_offsets_for_write();
-  blender::MutableSpan<int> corner_verts_new = result->corner_verts_for_write();
-  blender::MutableSpan<int> corner_edges_new = result->corner_edges_for_write();
+  MutableSpan<int> corner_verts_new = result->corner_verts_for_write();
+  MutableSpan<int> corner_edges_new = result->corner_edges_for_write();
   bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
       "sharp_face", bke::AttrDomain::Face);

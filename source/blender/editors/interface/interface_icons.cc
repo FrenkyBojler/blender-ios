@@ -269,10 +269,10 @@ static void vicon_keytype_draw_wrapper(const float x,
 {
   /* Initialize dummy theme state for Action Editor - where these colors are defined
    * (since we're doing this off-screen, free from any particular space_id). */
-  bThemeState theme_state;
+  theme::bThemeState theme_state;
 
-  Theme_Store(&theme_state);
-  UI_SetTheme(SPACE_ACTION, RGN_TYPE_WINDOW);
+  theme::theme_store(&theme_state);
+  theme::theme_set(SPACE_ACTION, RGN_TYPE_WINDOW);
 
   /* The "x" and "y" given are the bottom-left coordinates of the icon,
    * while the #draw_keyframe_shape() function needs the midpoint for the keyframe. */
@@ -317,7 +317,7 @@ static void vicon_keytype_draw_wrapper(const float x,
   GPU_program_point_size(false);
   immUnbindProgram();
 
-  Theme_Restore(&theme_state);
+  theme::theme_restore(&theme_state);
 }
 
 static void vicon_keytype_keyframe_draw(
@@ -406,7 +406,7 @@ static void icon_node_socket_draw(
   blender::ed::space_node::std_node_socket_colors_get(socket_type, color_inner);
 
   float color_outer[4] = {0};
-  GetThemeColorType4fv(TH_WIRE, SPACE_NODE, color_outer);
+  theme::get_color_type_4fv(TH_WIRE, SPACE_NODE, color_outer);
   color_outer[3] = 1.0f;
 
   blender::ed::space_node::node_draw_nodesocket(
@@ -415,7 +415,7 @@ static void icon_node_socket_draw(
 
 static void vicon_colorset_draw(int index, int x, int y, int w, int h, float /*alpha*/)
 {
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const ThemeWireColor *cs = &btheme->tarm[index];
 
   /* Draw three bands of color: One per color
@@ -479,7 +479,7 @@ DEF_ICON_VECTOR_COLORSET_DRAW_NTH(20, 19)
 static void vicon_strip_color_draw(
     short color_tag, float x, float y, float w, float /*h*/, float /*alpha*/)
 {
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const ThemeStripColor *strip_color = &btheme->strip_color[color_tag];
 
   const float aspect = float(ICON_DEFAULT_WIDTH) / w;
@@ -551,7 +551,7 @@ static void vicon_strip_color_draw_library_data_override_noneditable(
 static void vicon_layergroup_color_draw(
     short color_tag, float x, float y, float w, float /*h*/, float /*alpha*/)
 {
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const ThemeCollectionColor *layergroup_color = &btheme->collection_color[color_tag];
 
   const float aspect = float(ICON_DEFAULT_WIDTH) / w;
@@ -605,6 +605,11 @@ DEF_ICON_NODE_SOCKET_DRAW(geometry, eNodeSocketDatatype::SOCK_GEOMETRY)
 DEF_ICON_NODE_SOCKET_DRAW(collection, eNodeSocketDatatype::SOCK_COLLECTION)
 DEF_ICON_NODE_SOCKET_DRAW(texture, eNodeSocketDatatype::SOCK_TEXTURE)
 DEF_ICON_NODE_SOCKET_DRAW(material, eNodeSocketDatatype::SOCK_MATERIAL)
+DEF_ICON_NODE_SOCKET_DRAW(font, eNodeSocketDatatype::SOCK_FONT)
+DEF_ICON_NODE_SOCKET_DRAW(scene, eNodeSocketDatatype::SOCK_SCENE)
+DEF_ICON_NODE_SOCKET_DRAW(text, eNodeSocketDatatype::SOCK_TEXT_ID)
+DEF_ICON_NODE_SOCKET_DRAW(mask, eNodeSocketDatatype::SOCK_MASK)
+DEF_ICON_NODE_SOCKET_DRAW(sound, eNodeSocketDatatype::SOCK_SOUND)
 DEF_ICON_NODE_SOCKET_DRAW(rotation, eNodeSocketDatatype::SOCK_ROTATION)
 DEF_ICON_NODE_SOCKET_DRAW(menu, eNodeSocketDatatype::SOCK_MENU)
 DEF_ICON_NODE_SOCKET_DRAW(matrix, eNodeSocketDatatype::SOCK_MATRIX)
@@ -998,6 +1003,11 @@ static void init_internal_icons()
   def_internal_vicon(ICON_NODE_SOCKET_MATRIX, icon_node_socket_draw_matrix);
   def_internal_vicon(ICON_NODE_SOCKET_BUNDLE, icon_node_socket_draw_bundle);
   def_internal_vicon(ICON_NODE_SOCKET_CLOSURE, icon_node_socket_draw_closure);
+  def_internal_vicon(ICON_NODE_SOCKET_FONT, icon_node_socket_draw_font);
+  def_internal_vicon(ICON_NODE_SOCKET_SCENE, icon_node_socket_draw_scene);
+  def_internal_vicon(ICON_NODE_SOCKET_TEXT, icon_node_socket_draw_text);
+  def_internal_vicon(ICON_NODE_SOCKET_MASK, icon_node_socket_draw_mask);
+  def_internal_vicon(ICON_NODE_SOCKET_SOUND, icon_node_socket_draw_sound);
 }
 
 #else
@@ -1085,7 +1095,7 @@ bool icon_get_theme_color(int icon_id, uchar color[4])
   }
 
   DrawInfo *di = icon_ensure_drawinfo(icon);
-  return GetIconThemeColor4ubv(di->data.texture.theme_color, color);
+  return theme::get_icon_color_4ubv(di->data.texture.theme_color, color);
 }
 
 void icons_init()
@@ -1454,7 +1464,7 @@ static void svg_replace_color_attributes(std::string &svg,
                                          const size_t start,
                                          const size_t end)
 {
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
 
   uchar white[] = {255, 255, 255, 255};
   uchar black[] = {0, 0, 0, 255};
@@ -1531,10 +1541,10 @@ static void svg_replace_color_attributes(std::string &svg,
     }
     else if (item.colorid != TH_UNDEFINED) {
       if (item.spacetype != SPACE_TYPE_ANY) {
-        GetThemeColorType4ubv(item.colorid, item.spacetype, color);
+        theme::get_color_type_4ubv(item.colorid, item.spacetype, color);
       }
       else {
-        GetThemeColor4ubv(item.colorid, color);
+        theme::get_color_4ubv(item.colorid, color);
       }
     }
     else {
@@ -1631,7 +1641,7 @@ static void icon_draw_size(float x,
     return;
   }
 
-  bTheme *btheme = GetTheme();
+  bTheme *btheme = theme::theme_get();
   const float fdraw_size = float(draw_size);
 
   Icon *icon = BKE_icon_get(icon_id);
@@ -1721,13 +1731,13 @@ static void icon_draw_size(float x,
 
     float color[4];
     if (icon_id == ICON_NOT_FOUND) {
-      GetThemeColor4fv(TH_ERROR, color);
+      theme::get_color_4fv(TH_ERROR, color);
     }
     else if (mono_rgba) {
       rgba_uchar_to_float(color, mono_rgba);
     }
     else {
-      GetThemeColor4fv(TH_TEXT, color);
+      theme::get_color_4fv(TH_TEXT, color);
     }
 
     color[3] *= alpha;
@@ -1760,7 +1770,7 @@ static void icon_draw_size(float x,
         copy_v4_v4_uchar(text_color, text_overlay->color);
       }
       else {
-        GetThemeColor4ubv(TH_TEXT, text_color);
+        theme::get_color_4ubv(TH_TEXT, text_color);
       }
       const bool is_light = srgb_to_grayscale_byte(text_color) > 96;
       const float zoom_factor = w / UI_ICON_SIZE;

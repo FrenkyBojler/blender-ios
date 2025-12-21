@@ -14,7 +14,6 @@
 #include "BLT_translation.hh"
 
 #include "DNA_customdata_types.h"
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -68,10 +67,7 @@ static void init_data(ModifierData *md)
 {
 #ifdef WITH_OCEANSIM
   OceanModifierData *omd = (OceanModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(omd, modifier));
-
-  MEMCPY_STRUCT_AFTER(omd, DNA_struct_default_get(OceanModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(omd, modifier);
 
   BKE_modifier_path_init(omd->cachepath, sizeof(omd->cachepath), "cache_ocean");
 
@@ -349,15 +345,15 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
   CLAMP(cfra_for_cache, omd->bakestart, omd->bakeend);
   cfra_for_cache -= omd->bakestart; /* shift to 0 based */
 
-  blender::MutableSpan<blender::float3> positions = result->vert_positions_for_write();
-  const blender::OffsetIndices faces = result->faces();
+  MutableSpan<blender::float3> positions = result->vert_positions_for_write();
+  const OffsetIndices faces = result->faces();
 
   /* Add vertex-colors before displacement: allows lookup based on position. */
 
   if (omd->flag & MOD_OCEAN_GENERATE_FOAM) {
     AttributeOwner owner = AttributeOwner::from_id(&result->id);
     bke::MutableAttributeAccessor attributes = result->attributes_for_write();
-    const blender::Span<int> corner_verts = result->corner_verts();
+    const Span<int> corner_verts = result->corner_verts();
     bke::SpanAttributeWriter mloopcols = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
         BKE_attribute_calc_unique_name(owner, omd->foamlayername), bke::AttrDomain::Corner);
 
@@ -370,7 +366,7 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
     if (mloopcols) { /* unlikely to fail */
 
       for (const int i : faces.index_range()) {
-        const blender::IndexRange face = faces[i];
+        const IndexRange face = faces[i];
         const int *corner_vert = &corner_verts[face.start()];
         ColorGeometry4b *mlcol = &mloopcols.span[face.start()];
 

@@ -97,8 +97,8 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CROSS);
     WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_HOVER | WM_GIZMO_DRAW_NO_SCALE, true);
 
-    blender::ui::GetThemeColor3fv(TH_GIZMO_A, gz->color);
-    blender::ui::GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_A, gz->color);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
   }
 
   /* focal length
@@ -110,16 +110,16 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
     RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
 
-    blender::ui::GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    blender::ui::GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
     gz = cagzgroup->ortho_scale = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
     gz->flag |= WM_GIZMO_DRAW_NO_SCALE;
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
     RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
 
-    blender::ui::GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    blender::ui::GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
   }
 
   /* All gizmos must perform undo. */
@@ -416,7 +416,7 @@ static bool WIDGETGROUP_camera_view_poll(const bContext *C, wmGizmoGroupType * /
 
 static void WIDGETGROUP_camera_view_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
-  CameraViewWidgetGroup *viewgroup = MEM_mallocN<CameraViewWidgetGroup>(__func__);
+  CameraViewWidgetGroup *viewgroup = MEM_new_for_free<CameraViewWidgetGroup>(__func__);
 
   viewgroup->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
 

@@ -21,7 +21,6 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_enums.h"
 #include "DNA_userdef_types.h"
-#include "DNA_vec_types.h"
 
 #include "BLI_bit_vector.hh"
 #include "BLI_bitmap.h"
@@ -2302,8 +2301,6 @@ static bool customdata_merge_internal(const CustomData *source,
   int last_type = -1;
   int last_active = 0;
   int last_render = 0;
-  int last_clone = 0;
-  int last_mask = 0;
   int current_type_layer_count = 0;
   int max_current_type_layer_count = -1;
 
@@ -2319,8 +2316,6 @@ static bool customdata_merge_internal(const CustomData *source,
       max_current_type_layer_count = CustomData_layertype_layers_max(type);
       last_active = src_layer.active;
       last_render = src_layer.active_rnd;
-      last_clone = src_layer.active_clone;
-      last_mask = src_layer.active_mask;
       last_type = type;
     }
     else {
@@ -2374,8 +2369,6 @@ static bool customdata_merge_internal(const CustomData *source,
     new_layer->flag |= src_layer_flag & (CD_FLAG_EXTERNAL | CD_FLAG_IN_MEMORY);
     new_layer->active = last_active;
     new_layer->active_rnd = last_render;
-    new_layer->active_clone = last_clone;
-    new_layer->active_mask = last_mask;
     changed = true;
   }
 
@@ -2415,7 +2408,7 @@ CustomData CustomData_shallow_copy_remove_non_bmesh_attributes(const CustomData 
   }
 
   CustomData dst = *src;
-  dst.layers = MEM_calloc_arrayN<CustomDataLayer>(dst_layers.size(), __func__);
+  dst.layers = MEM_new_array_for_free<CustomDataLayer>(dst_layers.size(), __func__);
   dst.maxlayer = dst.totlayer = dst_layers.size();
   memcpy(dst.layers, dst_layers.data(), dst_layers.as_span().size_in_bytes());
 
@@ -2728,20 +2721,6 @@ int CustomData_get_render_layer_index(const CustomData *data, const eCustomDataT
   return (layer_index != -1) ? layer_index + data->layers[layer_index].active_rnd : -1;
 }
 
-int CustomData_get_clone_layer_index(const CustomData *data, const eCustomDataType type)
-{
-  const int layer_index = data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-  return (layer_index != -1) ? layer_index + data->layers[layer_index].active_clone : -1;
-}
-
-int CustomData_get_stencil_layer_index(const CustomData *data, const eCustomDataType type)
-{
-  const int layer_index = data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-  return (layer_index != -1) ? layer_index + data->layers[layer_index].active_mask : -1;
-}
-
 /* -------------------------------------------------------------------- */
 /* index values per layer type */
 
@@ -2767,20 +2746,6 @@ int CustomData_get_render_layer(const CustomData *data, const eCustomDataType ty
   const int layer_index = data->typemap[type];
   BLI_assert(customdata_typemap_is_valid(data));
   return (layer_index != -1) ? data->layers[layer_index].active_rnd : -1;
-}
-
-int CustomData_get_clone_layer(const CustomData *data, const eCustomDataType type)
-{
-  const int layer_index = data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-  return (layer_index != -1) ? data->layers[layer_index].active_clone : -1;
-}
-
-int CustomData_get_stencil_layer(const CustomData *data, const eCustomDataType type)
-{
-  const int layer_index = data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-  return (layer_index != -1) ? data->layers[layer_index].active_mask : -1;
 }
 
 const char *CustomData_get_active_layer_name(const CustomData *data, const eCustomDataType type)
@@ -2822,32 +2787,6 @@ void CustomData_set_layer_render(CustomData *data, const eCustomDataType type, c
   }
 }
 
-void CustomData_set_layer_clone(CustomData *data, const eCustomDataType type, const int n)
-{
-#ifndef NDEBUG
-  const int layer_num = CustomData_number_of_layers(data, type);
-#endif
-  for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type) {
-      BLI_assert(uint(n) < uint(layer_num));
-      data->layers[i].active_clone = n;
-    }
-  }
-}
-
-void CustomData_set_layer_stencil(CustomData *data, const eCustomDataType type, const int n)
-{
-#ifndef NDEBUG
-  const int layer_num = CustomData_number_of_layers(data, type);
-#endif
-  for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type) {
-      BLI_assert(uint(n) < uint(layer_num));
-      data->layers[i].active_mask = n;
-    }
-  }
-}
-
 void CustomData_set_layer_active_index(CustomData *data, const eCustomDataType type, const int n)
 {
 #ifndef NDEBUG
@@ -2876,22 +2815,6 @@ void CustomData_set_layer_render_index(CustomData *data, const eCustomDataType t
     if (data->layers[i].type == type) {
       BLI_assert(uint(layer_index) < uint(layer_num));
       data->layers[i].active_rnd = layer_index;
-    }
-  }
-}
-
-void CustomData_set_layer_clone_index(CustomData *data, const eCustomDataType type, const int n)
-{
-#ifndef NDEBUG
-  const int layer_num = CustomData_number_of_layers(data, type);
-#endif
-  const int layer_index = n - data->typemap[type];
-  BLI_assert(customdata_typemap_is_valid(data));
-
-  for (int i = 0; i < data->totlayer; i++) {
-    if (data->layers[i].type == type) {
-      BLI_assert(uint(layer_index) < uint(layer_num));
-      data->layers[i].active_clone = layer_index;
     }
   }
 }
@@ -3028,14 +2951,10 @@ static CustomDataLayer *customData_add_layer__internal(
   if (index > 0 && data->layers[index - 1].type == type) {
     new_layer.active = data->layers[index - 1].active;
     new_layer.active_rnd = data->layers[index - 1].active_rnd;
-    new_layer.active_clone = data->layers[index - 1].active_clone;
-    new_layer.active_mask = data->layers[index - 1].active_mask;
   }
   else {
     new_layer.active = 0;
     new_layer.active_rnd = 0;
-    new_layer.active_clone = 0;
-    new_layer.active_mask = 0;
   }
 
   customData_update_offsets(data);
@@ -3146,12 +3065,6 @@ bool CustomData_free_layer(CustomData *data, const eCustomDataType type, const i
       }
       if (layer->active_rnd >= index_nonzero) {
         layer->active_rnd--;
-      }
-      if (layer->active_clone >= index_nonzero) {
-        layer->active_clone--;
-      }
-      if (layer->active_mask >= index_nonzero) {
-        layer->active_mask--;
       }
     }
   }
@@ -4643,7 +4556,7 @@ void CustomData_external_add(CustomData *data,
   }
 
   if (!external) {
-    external = MEM_callocN<CustomDataExternal>(__func__);
+    external = MEM_new_for_free<CustomDataExternal>(__func__);
     data->external = external;
   }
   STRNCPY(external->filepath, filepath);

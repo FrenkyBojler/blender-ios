@@ -21,7 +21,6 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_colorband_types.h"
-#include "DNA_defaults.h"
 #include "DNA_fluid_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -3220,9 +3219,9 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   if (!mesh) {
     return nullptr;
   }
-  blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
-  blender::MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
-  blender::MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
+  MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
+  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
+  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
   if (orgmesh->attributes().domain_size(AttrDomain::Face) > 0) {
     const bool is_sharp = orgmesh->attributes()
@@ -3363,9 +3362,9 @@ static Mesh *create_smoke_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obje
   }
 
   result = BKE_mesh_new_nomain(num_verts, 0, num_faces, num_faces * 4);
-  blender::MutableSpan<blender::float3> positions = result->vert_positions_for_write();
-  blender::MutableSpan<int> face_offsets = result->face_offsets_for_write();
-  blender::MutableSpan<int> corner_verts = result->corner_verts_for_write();
+  MutableSpan<blender::float3> positions = result->vert_positions_for_write();
+  MutableSpan<int> face_offsets = result->face_offsets_for_write();
+  MutableSpan<int> corner_verts = result->corner_verts_for_write();
 
   if (num_verts) {
     /* Volume bounds. */
@@ -4427,7 +4426,7 @@ void BKE_fluid_particle_system_create(Main *bmain,
 
   /* add particle system */
   part = BKE_particlesettings_add(bmain, pset_name);
-  psys = MEM_callocN<ParticleSystem>(__func__);
+  psys = MEM_new_for_free<ParticleSystem>(__func__);
 
   part->type = psys_type;
   part->totpart = 0;
@@ -4783,7 +4782,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeDomain(fmd);
     }
 
-    fmd->domain = DNA_struct_default_alloc(FluidDomainSettings);
+    fmd->domain = MEM_new_for_free<FluidDomainSettings>(__func__);
     fmd->domain->fmd = fmd;
 
     /* Turn off incompatible options. */
@@ -4815,7 +4814,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeFlow(fmd);
     }
 
-    fmd->flow = DNA_struct_default_alloc(FluidFlowSettings);
+    fmd->flow = MEM_new_for_free<FluidFlowSettings>(__func__);
     fmd->flow->fmd = fmd;
   }
   else if (fmd->type & MOD_FLUID_TYPE_EFFEC) {
@@ -4823,7 +4822,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeEffector(fmd);
     }
 
-    fmd->effector = DNA_struct_default_alloc(FluidEffectorSettings);
+    fmd->effector = MEM_new_for_free<FluidEffectorSettings>(__func__);
     fmd->effector->fmd = fmd;
   }
 }
