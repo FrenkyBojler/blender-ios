@@ -1369,6 +1369,25 @@ const char *IMB_colormanagement_srgb_colorspace_name_get()
   return global_role_default_byte;
 }
 
+static blender::Vector<char> read_icc_profile_from_path(const char *filepath)
+{
+  blender::Vector<char> icc_profile;
+
+  blender::fstream f(filepath, std::ios::binary | std::ios::in | std::ios::ate);
+  if (f.is_open()) {
+    const std::streamsize size = f.tellg();
+    if (size > 0) {
+      icc_profile.resize(size);
+      f.seekg(0, std::ios::beg);
+      if (!f.read(icc_profile.data(), icc_profile.size())) {
+        icc_profile.clear();
+      }
+    }
+  }
+
+  return icc_profile;
+}
+
 blender::Vector<char> IMB_colormanagement_space_to_icc_profile(const ColorSpace *colorspace)
 {
   blender::Vector<char> icc_profile;
@@ -1389,18 +1408,7 @@ blender::Vector<char> IMB_colormanagement_space_to_icc_profile(const ColorSpace 
     char icc_filepath[FILE_MAX];
     BLI_path_join(icc_filepath, sizeof(icc_filepath), dir->c_str(), "icc", icc_filename);
 
-    blender::fstream f(icc_filepath, std::ios::binary | std::ios::in | std::ios::ate);
-    if (f.is_open()) {
-      std::streamsize size = f.tellg();
-      if (size > 0) {
-        icc_profile.resize(size);
-        f.seekg(0, std::ios::beg);
-        if (!f.read(icc_profile.data(), icc_profile.size())) {
-          icc_profile.clear();
-        }
-      }
-    }
-
+    icc_profile = read_icc_profile_from_path(icc_filepath);
     if (!icc_profile.is_empty()) {
       return icc_profile;
     }
@@ -1419,30 +1427,15 @@ blender::Vector<char> IMB_colormanagement_space_to_icc_profile(const ColorSpace 
   char icc_filepath[FILE_MAX];
   BLI_path_join(icc_filepath, sizeof(icc_filepath), dir->c_str(), "icc", icc_filename);
 
-  blender::fstream f(icc_filepath, std::ios::binary | std::ios::in | std::ios::ate);
-  if (!f.is_open()) {
+  icc_profile = read_icc_profile_from_path(icc_filepath);
+  if (icc_profile.is_empty()) {
     /* If we can't find a scene referred filename, try display referred. */
-    StringRef icc_filepath_ref = icc_filepath;
+    const StringRef icc_filepath_ref = icc_filepath;
     if (icc_filepath_ref.endswith("_scene.icc")) {
-      std::string icc_filepath_display = icc_filepath_ref.drop_suffix(strlen("_scene.icc")) +
-                                         "_display.icc";
-      f.open(icc_filepath_display, std::ios::binary | std::ios::in | std::ios::ate);
+      const std::string icc_filepath_display =
+          std::string(icc_filepath_ref.drop_suffix(strlen("_scene.icc"))) + "_display.icc";
+      icc_profile = read_icc_profile_from_path(icc_filepath_display.c_str());
     }
-
-    if (!f.is_open()) {
-      return icc_profile;
-    }
-  }
-
-  std::streamsize size = f.tellg();
-  if (size <= 0) {
-    return icc_profile;
-  }
-  icc_profile.resize(size);
-
-  f.seekg(0, std::ios::beg);
-  if (!f.read(icc_profile.data(), icc_profile.size())) {
-    icc_profile.clear();
   }
 
   return icc_profile;

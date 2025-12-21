@@ -23,7 +23,7 @@ class LibOCIOColorSpace : public ColorSpace {
 
   std::string clean_description_;
   StringRefNull interop_id_;
-  StringRefNull icc_profile_name_;
+
   bool is_invertible_ = false;
 
   /* Mutable because they are lazily initialized and cached from the is_scene_linear() and
@@ -56,7 +56,11 @@ class LibOCIOColorSpace : public ColorSpace {
   }
   StringRefNull icc_profile_name() const override
   {
-    return icc_profile_name_;
+#if OCIO_VERSION_HEX >= 0x02050000
+    return ocio_color_space_->getICCProfileName();
+#else
+    return StringRefNull();
+#endif
   }
 
   bool is_invertible() const override
