@@ -1197,7 +1197,7 @@ static void focus_mode_menu(wmWindow *win,
     layout->prop(&ptr, "show_region_footer", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  const bool is_full = wm_is_full_screen(win);
+  const bool is_full = WM_window_is_fullscreen(win);
   layout->separator();
   layout->op("WM_OT_window_fullscreen_toggle",
              is_full ? IFACE_("Exit Full Screen") : IFACE_("Enter Full Screen"),

@@ -206,12 +206,6 @@ bool wm_get_desktopsize(int r_size[2])
   return true;
 }
 
-bool wm_is_full_screen(wmWindow *win)
-{
-  GHOST_TWindowState state = GHOST_GetWindowState(static_cast<GHOST_WindowHandle>(win->runtime->ghostwin));
-  return (state == GHOST_kWindowStateFullScreen);
-}
-
 /** Keeps size within monitor bounds. */
 static void wm_window_check_size(rcti *rect)
 {
