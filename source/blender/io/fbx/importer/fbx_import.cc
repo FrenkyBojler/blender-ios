@@ -24,6 +24,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "IO_fbx.hh"
@@ -83,6 +84,7 @@ struct FbxImportContext {
   void import_lights();
   void import_empties();
   void import_armatures();
+  void import_lod_groups();
   void import_animation(double fps);
 
   void setup_hierarchy();
@@ -290,6 +292,66 @@ void FbxImportContext::import_animation(double fps)
   }
 }
 
+/**
+TODO(Tri): Handle the following:
+1. lod_group->use_distance_limit
+2. lod_group->distance_limit_min / max
+3. lod_group->ignore_parent_transform
+
+FIXME: FBX LOD export is not supported yet.
+*/
+void FbxImportContext::import_lod_groups()
+{
+  if (this->fbx.lod_groups.count == 0) {
+    return;
+  }
+
+  for (const ufbx_lod_group *lod_group : this->fbx.lod_groups) {
+
+    if (lod_group->instances.count == 0) {
+      continue;
+    }
+
+    /* LOD groups reference nodes, not objects */
+    const ufbx_node *base_node = lod_group->instances.data[0];
+    Object *base_object = this->mapping.el_to_object.lookup_default(
+        &base_node->element, nullptr);
+
+    if (!base_object) {
+      continue;
+    }
+
+    const int level_count = min_ii(
+        lod_group->lod_levels.count,
+        base_node->children.count);
+
+    for (int i = 0; i < level_count; i++) {
+
+      const ufbx_node *child_node = base_node->children.data[i];
+      Object *child_object = this->mapping.el_to_object.lookup_default(
+          &child_node->element, nullptr);
+
+      if (!child_object) {
+        continue;
+      }
+
+      BKE_object_lod_add(base_object);
+      Lod *lod = static_cast<Lod *>(base_object->lod_items.last);
+      lod->target = child_object;
+
+      const ufbx_lod_level &level = lod_group->lod_levels.data[i];
+
+      if (lod_group->relative_distances) {
+        /* Screen-relative distances are not supported yet */
+        lod->distance = float(i + 1) * 10.0f;
+      }
+      else {
+        lod->distance = float(level.distance);
+      }
+    }
+  }
+}
+
 void FbxImportContext::setup_hierarchy()
 {
   for (const auto &item : this->mapping.el_to_object.items()) {
@@ -424,6 +486,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   ctx.import_cameras();
   ctx.import_lights();
   ctx.import_empties();
+  ctx.import_lod_groups();
   ctx.import_animation(scene->frames_per_second());
   ctx.setup_hierarchy();
 

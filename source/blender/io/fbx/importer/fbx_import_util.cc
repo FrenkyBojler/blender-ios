@@ -281,8 +281,6 @@ void read_custom_properties(const ufbx_props &props, bPoseChannel &pchan, bool e
   }
 }
 
-// TODO(Treata): Import hierarchical LOD groups
-
 #ifdef FBX_DEBUG_PRINT
 FILE *g_debug_file;
 void print_matrix(const ufbx_matrix &m)

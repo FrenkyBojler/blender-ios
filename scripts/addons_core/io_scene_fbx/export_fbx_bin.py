@@ -12,6 +12,8 @@ import time
 from itertools import zip_longest
 from functools import cache
 
+# TODO(Tri): Export LODs
+
 if "bpy" in locals():
     import importlib
     if "encode_bin" in locals():
