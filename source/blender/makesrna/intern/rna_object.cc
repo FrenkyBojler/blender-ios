@@ -842,7 +842,6 @@ static void rna_Object_vertex_groups_update(Main * /*bmain*/, Scene * /*scene*/,
   rna_Object_internal_update_data_impl(ptr);
 }
 
-// !!!(Tri): Pay attention
 static void rna_Object_vertex_groups_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Object *ob = static_cast<Object *>(ptr->data);
@@ -1436,7 +1435,6 @@ static std::optional<std::string> rna_MaterialSlot_path(const PointerRNA *ptr)
   return fmt::format("material_slots[{}]", index);
 }
 
-//!!!(Tri): Pay attention 
 static int rna_Object_material_slots_length(PointerRNA *ptr)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
@@ -2322,6 +2320,58 @@ static int rna_Object_lod_items_length(PointerRNA *ptr)
   return BLI_listbase_count(&ob->lod_items);
 }
 
+static bool rna_Object_lod_items_lookup_int(PointerRNA *ptr,
+                                           int index,
+                                           PointerRNA *r_ptr)
+{
+  Object *ob = (Object *)ptr->data;
+  if (ob == nullptr) {
+    return false;
+  }
+
+  void *data = BLI_findlink(&ob->lod_items, index);
+  if (data == nullptr) {
+    return false;
+  }
+
+  *r_ptr = RNA_pointer_create_with_parent(*ptr, &RNA_Lod, data);
+  return true;
+}
+
+static void rna_Lod_distance_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+{
+  Lod *lod = static_cast<Lod *>(ptr->data);
+  ID *id = ptr->owner_id;
+
+  if (!id || GS(id->name) != ID_OB) {
+    return;
+  }
+
+  Object *ob = reinterpret_cast<Object *>(id);
+
+  const int index = BLI_findindex(&ob->lod_items, lod);
+  if (index == -1) {
+    return;
+  }
+
+  constexpr float LOD_EPSILON = 0.01f;
+
+  if (index > 0) {
+    Lod *prev = static_cast<Lod *>(BLI_findlink(&ob->lod_items, index - 1));
+    if (prev) {
+      lod->distance = max_ff(lod->distance, prev->distance + LOD_EPSILON);
+    }
+  }
+
+  if (Lod *next = static_cast<Lod *>(BLI_findlink(&ob->lod_items, index + 1))) {
+    lod->distance = min_ff(lod->distance, next->distance - LOD_EPSILON);
+  }
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
+}
+
 #else
 
 static void rna_def_vertex_group(BlenderRNA *brna)
@@ -2423,24 +2473,22 @@ static void rna_def_lod(BlenderRNA *brna)
   StructRNA *srna_lod = RNA_def_struct(brna, "Lod", nullptr);
   RNA_def_struct_sdna(srna_lod, "Lod");
   RNA_def_struct_ui_text(srna_lod, "LOD", "Level of detail entry");
-  // RNA_def_property_flag(srna_lod, PROP_EDITABLE); // !!!: candidate function not viable: no known conversion from 'StructRNA *' to 'PropertyRNA *' for 1st argument
 
   /* LOD target prop */
   prop = RNA_def_property(srna_lod, "target", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "target");
-  RNA_def_property_struct_type(prop, "Object"); // lod target is an object
+  RNA_def_property_struct_type(prop, "Object");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_ui_text(prop, "Target", "Object to swap to at this LOD level");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr); // TODO(Tri): Later, when LOD actually affects evaluation, `ND_DRAW` should become `ND_DATA` (draw/depsgraph stage)
 
-
+  /* LOD Distance */
   prop = RNA_def_property(srna_lod, "distance", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, nullptr, "distance");
-  // RNA_def_property_struct_type(prop, "Float"); // 
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_text(prop, "Distance", "Camera distance to trigger swap");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Lod_distance_update");
 }
 
 static void rna_def_material_slot(BlenderRNA *brna)
@@ -3064,14 +3112,13 @@ static void rna_def_object(BlenderRNA *brna)
     "rna_iterator_listbase_end",
     "rna_iterator_listbase_get",
     "rna_Object_lod_items_length", // rna_Object_lod_items_length
-    nullptr, // rna_Object_lod_items_lookup_int
+    "rna_Object_lod_items_lookup_int", // rna_Object_lod_items_lookup_int 
     nullptr, nullptr);
 
   /* Active LOD index */
-  prop = RNA_def_property(srna, "act_lod", PROP_INT, PROP_UNSIGNED);
-  // RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  prop = RNA_def_property(srna, "act_lod", PROP_INT, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_NO_DEG_UPDATE);
-  // RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  // RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT); 
   RNA_def_property_int_sdna(prop, nullptr, "act_lod");
   RNA_def_property_ui_text(prop, "Active LOD Index", "Active LOD item for UI");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
