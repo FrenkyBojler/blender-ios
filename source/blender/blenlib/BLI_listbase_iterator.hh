@@ -6,8 +6,7 @@
 
 #include <iterator>
 
-#include "DNA_listBase.h"
-
+/** An iterator for use with #ListBase.  */
 template<typename T> struct ListBaseTIterator {
  public:
   using iterator_category = std::bidirectional_iterator_tag;
@@ -61,33 +60,5 @@ template<typename T> struct ListBaseTIterator {
   T &operator*() const
   {
     return *data_;
-  }
-};
-
-/**
- * This is a thin wrapper around #ListBase to make it type-safe. It's designed to be used in DNA
- * structs. It is written as untyped #ListBase in .blend files for compatibility.
- */
-template<typename T> struct ListBaseT : public ListBase {
-  ListBaseTIterator<const T> begin() const
-  {
-    return ListBaseTIterator<const T>{static_cast<const T *>(this->first)};
-  }
-
-  ListBaseTIterator<const T> end() const
-  {
-    /* Don't use `this->last` because this iterator has to point to one-past-the-end. */
-    return ListBaseTIterator<const T>{nullptr};
-  }
-
-  ListBaseTIterator<T> begin()
-  {
-    return ListBaseTIterator<T>{static_cast<T *>(this->first)};
-  }
-
-  ListBaseTIterator<T> end()
-  {
-    /* Don't use `this->last` because this iterator has to point to one-past-the-end. */
-    return ListBaseTIterator<T>{nullptr};
   }
 };

@@ -17,7 +17,6 @@
 #include "DNA_vec_types.h" /* for #rctf */
 
 #include "BLI_enum_flags.hh"
-#include "BLI_listbase_typed.hh"
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
