@@ -1,3 +1,4 @@
 Referenced by pull request #140936, Attributes: Use AttributeStorage for curves and Grease Pencil
 Referenced by commit 68759af516853eda749b08df714a6d7279673800, Attributes: Use AttributeStorage for curves and Grease Pencil
 Referenced by commit 5925233e4d5ff3a4d5e86c1de103a2fb64da75ec, Fix #143847: Assert in attribute operator poll after refactor
+Referenced by issue #151946, Geometry Nodes: Empty point cloud inside simulation leads to crash
