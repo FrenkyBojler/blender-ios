@@ -33,6 +33,9 @@ class LibOCIOColorSpace : public ColorSpace {
   mutable bool is_scene_linear_ = false;
   mutable bool is_srgb_ = false;
 
+  mutable std::string icc_profile_path_cache_;
+  mutable bool is_icc_profile_path_cached_ = false;
+
   CPUProcessorCache to_scene_linear_cpu_processor_;
   CPUProcessorCache from_scene_linear_cpu_processor_;
 
@@ -60,9 +63,26 @@ class LibOCIOColorSpace : public ColorSpace {
   StringRefNull icc_profile_name() const override
   {
     #if OCIO_VERSION_HEX >= 0x02050000
-      return ocio_color_space_->getICCProfileName();
+        if (!is_icc_profile_path_cached_) {
+          const std::string icc_profile_name_str = ocio_color_space_->getICCProfileName();
+          if (icc_profile_name_str.empty()) {
+            icc_profile_path_cache_.clear();
+          }
+          else {
+            try {
+              icc_profile_path_cache_ = ocio_config_->getCurrentContext()->resolveFileLocation(
+                  icc_profile_name_str);
+            }
+            catch (const OCIO_NAMESPACE::Exception &) {
+              /* Fallback to original name if the path can't be resolved. */
+              icc_profile_path_cache_ = icc_profile_name_str;
+            }
+          }
+          is_icc_profile_path_cached_ = true;
+        }
+        return StringRefNull(icc_profile_path_cache_);
     #else
-      return StringRefNull();
+        return StringRefNull();
     #endif
   }
 

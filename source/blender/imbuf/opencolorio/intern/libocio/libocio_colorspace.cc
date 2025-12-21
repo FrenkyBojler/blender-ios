@@ -277,6 +277,8 @@ void LibOCIOColorSpace::clear_caches()
   from_scene_linear_cpu_processor_ = CPUProcessorCache();
   to_scene_linear_cpu_processor_ = CPUProcessorCache();
   is_info_cached_ = false;
+  icc_profile_path_cache_.clear();
+  is_icc_profile_path_cached_ = false;
 }
 
 }  // namespace blender::ocio
