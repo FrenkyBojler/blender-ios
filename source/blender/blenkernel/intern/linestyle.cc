@@ -223,12 +223,10 @@ static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modif
         writer->write_struct(((LineStyleColorModifier_AlongStroke *)m)->color_ramp);
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp);
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp);
         break;
       case LS_MODIFIER_MATERIAL:
         writer->write_struct(((LineStyleColorModifier_Material *)m)->color_ramp);
@@ -243,8 +241,7 @@ static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modif
         writer->write_struct(((LineStyleColorModifier_CreaseAngle *)m)->color_ramp);
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_Curvature_3D *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Curvature_3D *)m)->color_ramp);
         break;
     }
   }
