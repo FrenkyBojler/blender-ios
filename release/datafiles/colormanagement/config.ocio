@@ -153,7 +153,8 @@ display_colorspaces:
       Apple's Display P3 with sRGB compound (piece-wise) encoding transfer function, common on Mac devices
     isdata: false
     interop_id: srgb_p3d65_display
-    icc_profile_name: srgb_p3d65_display.icc
+    interchange:
+      icc_profile_name: srgb_p3d65_display.icc
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear DCI-P3 D65}
@@ -169,7 +170,8 @@ display_colorspaces:
       BT.1886 2.4 Exponent EOTF Display, commonly used for TVs
     isdata: false
     interop_id: g24_rec709_display
-    icc_profile_name: g24_rec709_display.icc
+    interchange:
+      icc_profile_name: g24_rec709_display.icc
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear Rec.709}
@@ -185,7 +187,8 @@ display_colorspaces:
       BT.2020 2.4 Exponent EOTF Display
     isdata: false
     interop_id: g24_rec2020_display
-    icc_profile_name: g24_rec2020_display.icc
+    interchange:
+      icc_profile_name: g24_rec2020_display.icc
     from_display_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: cie_xyz_d65_interchange, dst: Linear Rec.2020}
