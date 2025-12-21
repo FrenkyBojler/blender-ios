@@ -1135,7 +1135,7 @@ static void write_renderinfo(WriteData *wd, Main *mainvar)
 
 static void write_keymapitem(BlendWriter *writer, const wmKeyMapItem *kmi)
 {
-  BLO_write_struct(writer, wmKeyMapItem, kmi);
+  writer->write_struct<wmKeyMapItem>(kmi);
   if (kmi->properties) {
     IDP_BlendWrite(writer, kmi->properties);
   }
@@ -1146,14 +1146,14 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
   writestruct(writer->wd, BLO_CODE_USER, UserDef, 1, userdef);
 
   LISTBASE_FOREACH (const bTheme *, btheme, &userdef->themes) {
-    BLO_write_struct(writer, bTheme, btheme);
+    writer->write_struct<bTheme>(btheme);
   }
 
   LISTBASE_FOREACH (const wmKeyMap *, keymap, &userdef->user_keymaps) {
-    BLO_write_struct(writer, wmKeyMap, keymap);
+    writer->write_struct<wmKeyMap>(keymap);
 
     LISTBASE_FOREACH (const wmKeyMapDiffItem *, kmdi, &keymap->diff_items) {
-      BLO_write_struct(writer, wmKeyMapDiffItem, kmdi);
+      writer->write_struct<wmKeyMapDiffItem>(kmdi);
       if (kmdi->remove_item) {
         write_keymapitem(writer, kmdi->remove_item);
       }
@@ -1168,68 +1168,68 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
   }
 
   LISTBASE_FOREACH (const wmKeyConfigPref *, kpt, &userdef->user_keyconfig_prefs) {
-    BLO_write_struct(writer, wmKeyConfigPref, kpt);
+    writer->write_struct<wmKeyConfigPref>(kpt);
     if (kpt->prop) {
       IDP_BlendWrite(writer, kpt->prop);
     }
   }
 
   LISTBASE_FOREACH (const bUserMenu *, um, &userdef->user_menus) {
-    BLO_write_struct(writer, bUserMenu, um);
+    writer->write_struct<bUserMenu>(um);
     LISTBASE_FOREACH (const bUserMenuItem *, umi, &um->items) {
       if (umi->type == USER_MENU_TYPE_OPERATOR) {
         const bUserMenuItem_Op *umi_op = (const bUserMenuItem_Op *)umi;
-        BLO_write_struct(writer, bUserMenuItem_Op, umi_op);
+        writer->write_struct<bUserMenuItem_Op>(umi_op);
         if (umi_op->prop) {
           IDP_BlendWrite(writer, umi_op->prop);
         }
       }
       else if (umi->type == USER_MENU_TYPE_MENU) {
         const bUserMenuItem_Menu *umi_mt = (const bUserMenuItem_Menu *)umi;
-        BLO_write_struct(writer, bUserMenuItem_Menu, umi_mt);
+        writer->write_struct<bUserMenuItem_Menu>(umi_mt);
       }
       else if (umi->type == USER_MENU_TYPE_PROP) {
         const bUserMenuItem_Prop *umi_pr = (const bUserMenuItem_Prop *)umi;
-        BLO_write_struct(writer, bUserMenuItem_Prop, umi_pr);
+        writer->write_struct<bUserMenuItem_Prop>(umi_pr);
       }
       else {
-        BLO_write_struct(writer, bUserMenuItem, umi);
+        writer->write_struct<bUserMenuItem>(umi);
       }
     }
   }
 
   LISTBASE_FOREACH (const bAddon *, bext, &userdef->addons) {
-    BLO_write_struct(writer, bAddon, bext);
+    writer->write_struct<bAddon>(bext);
     if (bext->prop) {
       IDP_BlendWrite(writer, bext->prop);
     }
   }
 
   LISTBASE_FOREACH (const bPathCompare *, path_cmp, &userdef->autoexec_paths) {
-    BLO_write_struct(writer, bPathCompare, path_cmp);
+    writer->write_struct<bPathCompare>(path_cmp);
   }
 
   LISTBASE_FOREACH (const bUserScriptDirectory *, script_dir, &userdef->script_directories) {
-    BLO_write_struct(writer, bUserScriptDirectory, script_dir);
+    writer->write_struct<bUserScriptDirectory>(script_dir);
   }
 
   LISTBASE_FOREACH (const bUserAssetLibrary *, asset_library_ref, &userdef->asset_libraries) {
-    BLO_write_struct(writer, bUserAssetLibrary, asset_library_ref);
+    writer->write_struct<bUserAssetLibrary>(asset_library_ref);
   }
 
   LISTBASE_FOREACH (const bUserExtensionRepo *, repo_ref, &userdef->extension_repos) {
-    BLO_write_struct(writer, bUserExtensionRepo, repo_ref);
+    writer->write_struct<bUserExtensionRepo>(repo_ref);
     BKE_preferences_extension_repo_write_data(writer, repo_ref);
   }
   LISTBASE_FOREACH (
       const bUserAssetShelfSettings *, shelf_settings, &userdef->asset_shelves_settings)
   {
-    BLO_write_struct(writer, bUserAssetShelfSettings, shelf_settings);
+    writer->write_struct<bUserAssetShelfSettings>(shelf_settings);
     BKE_asset_catalog_path_list_blend_write(writer, shelf_settings->enabled_catalog_paths);
   }
 
   LISTBASE_FOREACH (const uiStyle *, style, &userdef->uistyles) {
-    BLO_write_struct(writer, uiStyle, style);
+    writer->write_struct<uiStyle>(style);
   }
 }
 

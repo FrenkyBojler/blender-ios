@@ -828,25 +828,25 @@ SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings)
 static bool strip_write_data_cb(Strip *strip, void *userdata)
 {
   BlendWriter *writer = (BlendWriter *)userdata;
-  BLO_write_struct(writer, Strip, strip);
+  writer->write_struct<Strip>(strip);
   if (strip->data) {
     /* TODO this doesn't depend on the `Strip` data to be present? */
     if (strip->effectdata) {
       switch (strip->type) {
         case STRIP_TYPE_COLOR:
-          BLO_write_struct(writer, SolidColorVars, strip->effectdata);
+          writer->write_struct<SolidColorVars>(strip->effectdata);
           break;
         case STRIP_TYPE_SPEED:
-          BLO_write_struct(writer, SpeedControlVars, strip->effectdata);
+          writer->write_struct<SpeedControlVars>(strip->effectdata);
           break;
         case STRIP_TYPE_WIPE:
-          BLO_write_struct(writer, WipeVars, strip->effectdata);
+          writer->write_struct<WipeVars>(strip->effectdata);
           break;
         case STRIP_TYPE_GLOW:
-          BLO_write_struct(writer, GlowVars, strip->effectdata);
+          writer->write_struct<GlowVars>(strip->effectdata);
           break;
         case STRIP_TYPE_GAUSSIAN_BLUR:
-          BLO_write_struct(writer, GaussianBlurVars, strip->effectdata);
+          writer->write_struct<GaussianBlurVars>(strip->effectdata);
           break;
         case STRIP_TYPE_TEXT: {
           TextVars *text = static_cast<TextVars *>(strip->effectdata);
@@ -854,34 +854,34 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
             /* Copy current text into legacy buffer. */
             STRNCPY_UTF8(text->text_legacy, text->text_ptr);
           }
-          BLO_write_struct(writer, TextVars, text);
+          writer->write_struct<TextVars>(text);
           BLO_write_string(writer, text->text_ptr);
         } break;
         case STRIP_TYPE_COLORMIX:
-          BLO_write_struct(writer, ColorMixVars, strip->effectdata);
+          writer->write_struct<ColorMixVars>(strip->effectdata);
           break;
       }
     }
 
-    BLO_write_struct(writer, Stereo3dFormat, strip->stereo3d_format);
+    writer->write_struct<Stereo3dFormat>(strip->stereo3d_format);
 
     StripData *data = strip->data;
-    BLO_write_struct(writer, StripData, data);
+    writer->write_struct<StripData>(data);
     if (data->crop) {
-      BLO_write_struct(writer, StripCrop, data->crop);
+      writer->write_struct<StripCrop>(data->crop);
     }
     if (data->transform) {
-      BLO_write_struct(writer, StripTransform, data->transform);
+      writer->write_struct<StripTransform>(data->transform);
     }
     if (data->proxy) {
-      BLO_write_struct(writer, StripProxy, data->proxy);
+      writer->write_struct<StripProxy>(data->proxy);
     }
     if (strip->type == STRIP_TYPE_IMAGE) {
       BLO_write_struct_array(
           writer, StripElem, MEM_allocN_len(data->stripdata) / sizeof(StripElem), data->stripdata);
     }
     else if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_SOUND)) {
-      BLO_write_struct(writer, StripElem, data->stripdata);
+      writer->write_struct<StripElem>(data->stripdata);
     }
   }
 
@@ -895,11 +895,11 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
   modifier_blend_write(writer, &strip->modifiers);
 
   LISTBASE_FOREACH (SeqTimelineChannel *, channel, &strip->channels) {
-    BLO_write_struct(writer, SeqTimelineChannel, channel);
+    writer->write_struct<SeqTimelineChannel>(channel);
   }
 
   LISTBASE_FOREACH (StripConnection *, con, &strip->connections) {
-    BLO_write_struct(writer, StripConnection, con);
+    writer->write_struct<StripConnection>(con);
   }
 
   if (strip->retiming_keys != nullptr) {
