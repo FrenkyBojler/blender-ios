@@ -1957,7 +1957,7 @@ static bool jump_to_target_button(bContext *C, bool poll)
 
         bool found = false;
         /* Jump to target only works with search properties currently, not search callbacks yet.
-         * See ui_but_add_search. */
+         * See #button_configure_search. */
         if (coll_search->search_prop != nullptr) {
           found = RNA_property_collection_lookup_string(
               &coll_search->search_ptr, coll_search->search_prop, str_ptr, &target_ptr);
@@ -2091,24 +2091,14 @@ void editsource_active_but_test(Button *but)
   ui_editsource_info->hash.add(but, std::move(but_store));
 }
 
-void editsource_but_replace(const Button *old_but, Button *new_but)
-{
-  std::unique_ptr<EditSourceButStore> but_store = ui_editsource_info->hash.pop_default(old_but,
-                                                                                       nullptr);
-  if (but_store) {
-    ui_editsource_info->hash.add(new_but, std::move(but_store));
-  }
-}
-
 static wmOperatorStatus editsource_text_edit(bContext *C,
                                              wmOperator * /*op*/,
                                              const char filepath[FILE_MAX],
                                              const int line)
 {
   wmOperatorType *ot = WM_operatortype_find("TEXT_OT_jump_to_file_at_point", true);
-  PointerRNA op_props;
 
-  WM_operator_properties_create_ptr(&op_props, ot);
+  PointerRNA op_props = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&op_props, "filepath", filepath);
   RNA_int_set(&op_props, "line", line - 1);
   RNA_int_set(&op_props, "column", 0);
@@ -2487,7 +2477,7 @@ static bool ui_list_focused_poll(bContext *C)
     return false;
   }
   const wmWindow *win = CTX_wm_window(C);
-  const uiList *list = list_find_mouse_over(region, win->eventstate);
+  const uiList *list = list_find_mouse_over(region, win->runtime->eventstate);
 
   return list != nullptr;
 }
@@ -2546,7 +2536,7 @@ static void UI_OT_list_start_filter(wmOperatorType *ot)
 static AbstractView *get_view_focused(bContext *C)
 {
   const wmWindow *win = CTX_wm_window(C);
-  if (!(win && win->eventstate)) {
+  if (!(win && win->runtime->eventstate)) {
     return nullptr;
   }
 
@@ -2554,7 +2544,7 @@ static AbstractView *get_view_focused(bContext *C)
   if (!region) {
     return nullptr;
   }
-  return region_view_find_at(region, win->eventstate->xy, 0);
+  return region_view_find_at(region, win->runtime->eventstate->xy, 0);
 }
 
 static bool ui_view_focused_poll(bContext *C)
@@ -2598,14 +2588,14 @@ static void UI_OT_view_start_filter(wmOperatorType *ot)
 static bool ui_view_drop_poll(bContext *C)
 {
   const wmWindow *win = CTX_wm_window(C);
-  if (!(win && win->eventstate)) {
+  if (!(win && win->runtime->eventstate)) {
     return false;
   }
   const ARegion *region = CTX_wm_region(C);
   if (region == nullptr) {
     return false;
   }
-  return region_views_find_drop_target_at(region, win->eventstate->xy) != nullptr;
+  return region_views_find_drop_target_at(region, win->runtime->eventstate->xy) != nullptr;
 }
 
 static wmOperatorStatus ui_view_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)

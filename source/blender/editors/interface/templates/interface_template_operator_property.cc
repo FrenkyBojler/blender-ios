@@ -328,7 +328,7 @@ static wmOperator *minimal_operator_create(wmOperatorType *ot, PointerRNA *prope
 {
   /* Copied from #wm_operator_create.
    * Create a slimmed down operator suitable only for UI drawing. */
-  wmOperator *op = MEM_callocN<wmOperator>(ot->rna_ext.srna ? __func__ : ot->idname);
+  wmOperator *op = MEM_new_for_free<wmOperator>(ot->rna_ext.srna ? __func__ : ot->idname);
   STRNCPY_UTF8(op->idname, ot->idname);
   op->type = ot;
 
@@ -434,7 +434,6 @@ void template_collection_exporters(Layout *layout, bContext *C)
                              3,
                              5,
                              UILST_LAYOUT_DEFAULT,
-                             1,
                              TEMPLATE_LIST_FLAG_NONE);
 
   Layout *col = &row.column(true);

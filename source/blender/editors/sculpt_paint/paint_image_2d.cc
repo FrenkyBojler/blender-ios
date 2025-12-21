@@ -109,17 +109,17 @@ enum ImagePaintTileState {
 
 struct ImagePaintTile {
   ImageUser iuser;
-  ImBuf *canvas;
-  float radius_fac;
-  int size[2];
-  float uv_origin[2]; /* Stores the position of this tile in UV space. */
-  bool need_redraw;
-  BrushPainterCache cache;
+  ImBuf *canvas = nullptr;
+  float radius_fac = 0.0f;
+  int size[2] = {};
+  float uv_origin[2] = {}; /* Stores the position of this tile in UV space. */
+  bool need_redraw = false;
+  BrushPainterCache cache = {};
 
-  ImagePaintTileState state;
+  ImagePaintTileState state = PAINT2D_TILE_UNINITIALIZED;
 
-  float last_paintpos[2];  /* position of last paint op */
-  float start_paintpos[2]; /* position of first paint */
+  float last_paintpos[2] = {};  /* position of last paint op */
+  float start_paintpos[2] = {}; /* position of first paint */
 };
 
 struct ImagePaintState {
@@ -1638,7 +1638,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   }
 
   s->num_tiles = BLI_listbase_count(&s->image->tiles);
-  s->tiles = MEM_calloc_arrayN<ImagePaintTile>(s->num_tiles, __func__);
+  s->tiles = MEM_new_array_for_free<ImagePaintTile>(s->num_tiles, __func__);
   for (int i = 0; i < s->num_tiles; i++) {
     s->tiles[i].iuser = sima->iuser;
   }
@@ -1733,6 +1733,17 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
     /* compositor listener deals with updating */
     WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, s->image);
     DEG_id_tag_update(&s->image->id, 0);
+
+    /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this
+     * paint mode, however, because the image isn't connected as part of the shader nodes, the draw
+     * code is unaware of the corresponding image tag. See #150957 for more details. */
+    const Scene *scene = CTX_data_scene(C);
+    Object *object = CTX_data_active_object(C);
+    if (object && object->type == OB_MESH && scene &&
+        scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_IMAGE)
+    {
+      DEG_id_tag_update(&object->id, ID_RECALC_SHADING);
+    }
   }
 }
 
