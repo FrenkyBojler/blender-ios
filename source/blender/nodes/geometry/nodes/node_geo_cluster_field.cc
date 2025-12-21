@@ -40,7 +40,10 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
   float distance_;
 
  public:
-  ClusterFieldInput(Field<float3> positions_field, Field<int> group_field, Field<bool> selection_field, const float distance)
+  ClusterFieldInput(Field<float3> positions_field,
+                    Field<int> group_field,
+                    Field<bool> selection_field,
+                    const float distance)
       : bke::GeometryFieldInput(CPPType::get<int>(), "Index of Nearest"),
         positions_field_(std::move(positions_field)),
         group_field_(std::move(group_field)),
@@ -85,8 +88,10 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
 
     constexpr int no_cluster_value = -1;
     Array<int> gathered_cluster_ids(selection.min_array_size(), no_cluster_value);
-    /* If #selection was not full then #gathered_cluster_ids will point to position in #selection, but not to value. */
-    const int total_merge_ops = kdtree_3d_calc_duplicates_fast(tree, distance_, true, gathered_cluster_ids.data());
+    /* If #selection was not full then #gathered_cluster_ids will point to position in #selection,
+     * but not to value. */
+    const int total_merge_ops = kdtree_3d_calc_duplicates_fast(
+        tree, distance_, true, gathered_cluster_ids.data());
     BLI_assert(!gathered_cluster_ids.as_span().contains(no_cluster_value));
     kdtree_3d_free(tree);
 
@@ -94,8 +99,10 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       return default_no_clusters_to_out();
     }
 
-    const int last_reqered_gathered_index = selection.iterator_to_index(*selection.find_smaller_equal(mask.last()));
-    const IndexRange requered_selection = IndexRange::from_begin_end_inclusive(0, last_reqered_gathered_index);
+    const int last_reqered_gathered_index = selection.iterator_to_index(
+        *selection.find_smaller_equal(mask.last()));
+    const IndexRange requered_selection = IndexRange::from_begin_end_inclusive(
+        0, last_reqered_gathered_index);
     const IndexMask requered_selection_mask = selection.slice(requered_selection);
     threading::parallel_for(requered_selection, 1024, [&](const IndexRange range) {
       for (const int i : range) {
@@ -107,15 +114,17 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
 
     Array<int> selection_reverse(selection.size());
     selection.to_indices(selection_reverse.as_mutable_span());
-    array_utils::gather(selection_reverse.as_span(),
-                        gathered_cluster_ids.as_span().take_front(last_reqered_gathered_index + 1),
-                        gathered_cluster_ids.as_mutable_span().take_front(last_reqered_gathered_index + 1));
+    array_utils::gather(
+        selection_reverse.as_span(),
+        gathered_cluster_ids.as_span().take_front(last_reqered_gathered_index + 1),
+        gathered_cluster_ids.as_mutable_span().take_front(last_reqered_gathered_index + 1));
 
     Array<int> cluster_ids(mask.min_array_size());
     array_utils::fill_index_range(cluster_ids.as_mutable_span());
-    array_utils::scatter(gathered_cluster_ids.as_span().take_front(last_reqered_gathered_index + 1),
-                         selection.slice(requered_selection),
-                         cluster_ids.as_mutable_span());
+    array_utils::scatter(
+        gathered_cluster_ids.as_span().take_front(last_reqered_gathered_index + 1),
+        selection.slice(requered_selection),
+        cluster_ids.as_mutable_span());
 
     BLI_assert(!cluster_ids.as_span().contains(no_cluster_value));
     return VArray<int>::from_container(std::move(cluster_ids));
@@ -157,7 +166,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const float distance = params.extract_input<float>("Distance");
 
-  params.set_output("Cluster ID", Field<int>(std::make_shared<ClusterFieldInput>(std::move(position_field), std::move(group_field), std::move(selection_field), distance)));
+  params.set_output("Cluster ID",
+                    Field<int>(std::make_shared<ClusterFieldInput>(std::move(position_field),
+                                                                   std::move(group_field),
+                                                                   std::move(selection_field),
+                                                                   distance)));
 }
 
 static void node_register()
