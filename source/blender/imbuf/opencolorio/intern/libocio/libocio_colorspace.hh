@@ -59,11 +59,11 @@ class LibOCIOColorSpace : public ColorSpace {
 
   StringRefNull icc_profile_name() const override
   {
-#if OCIO_VERSION_HEX >= 0x02050000
-    return ocio_color_space_->getICCProfileName();
-#else
-    return StringRefNull();
-#endif
+    #if OCIO_VERSION_HEX >= 0x02050000
+      return ocio_color_space_->getICCProfileName();
+    #else
+      return StringRefNull();
+    #endif
   }
 
   bool is_invertible() const override
