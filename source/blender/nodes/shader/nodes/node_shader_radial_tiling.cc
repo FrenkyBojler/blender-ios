@@ -58,12 +58,12 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_radial_tiling(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "normalize", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static void node_shader_init_radial_tiling(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeRadialTiling *storage = MEM_callocN<NodeRadialTiling>(__func__);
+  NodeRadialTiling *storage = MEM_new_for_free<NodeRadialTiling>(__func__);
   storage->normalize = false;
 
   node->storage = storage;

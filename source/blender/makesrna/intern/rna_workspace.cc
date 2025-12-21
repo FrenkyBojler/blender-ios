@@ -62,7 +62,7 @@ static PointerRNA rna_workspace_screens_item_get(CollectionPropertyIterator *ite
 
 static wmOwnerID *rna_WorkSpace_owner_ids_new(WorkSpace *workspace, const char *name)
 {
-  wmOwnerID *owner_id = MEM_callocN<wmOwnerID>(__func__);
+  wmOwnerID *owner_id = MEM_new_for_free<wmOwnerID>(__func__);
   BLI_addtail(&workspace->owner_ids, owner_id);
   STRNCPY(owner_id->name, name);
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -175,7 +175,7 @@ const EnumPropertyItem *rna_WorkSpace_tools_mode_itemf(bContext * /*C*/,
 static bool rna_WorkSpaceTool_use_paint_canvas_get(PointerRNA *ptr)
 {
   bToolRef *tref = static_cast<bToolRef *>(ptr->data);
-  return ED_image_paint_brush_type_use_canvas(nullptr, tref);
+  return ED_paint_brush_type_use_canvas(nullptr, tref);
 }
 
 static int rna_WorkSpaceTool_index_get(PointerRNA *ptr)

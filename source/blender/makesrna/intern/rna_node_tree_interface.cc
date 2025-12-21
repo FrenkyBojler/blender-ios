@@ -124,11 +124,19 @@ static void rna_NodeTreeInterfaceItem_update(Main *bmain, Scene * /*scene*/, Poi
   BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
+static void rna_NodeTreeInterfaceItem_subtype_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  socket->update_socket_type();
+
+  rna_NodeTreeInterfaceItem_update(bmain, scene, ptr);
+}
+
 static StructRNA *rna_NodeTreeInterfaceItem_refine(PointerRNA *ptr)
 {
   bNodeTreeInterfaceItem *item = static_cast<bNodeTreeInterfaceItem *>(ptr->data);
 
-  switch (NodeTreeInterfaceItemType(item->item_type)) {
+  switch (eNodeTreeInterfaceItemType(item->item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
           *item);
@@ -198,7 +206,7 @@ static bool rna_NodeTreeInterfaceSocket_unregister(Main * /*bmain*/, StructRNA *
 
   RNA_struct_free_extension(type, &st->ext_interface);
 
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   /* update while blender is running */
   WM_main_add_notifier(NC_NODE | NA_EDITED, nullptr);
@@ -356,10 +364,10 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
   if (st->ext_interface.srna) {
     StructRNA *srna = st->ext_interface.srna;
     RNA_struct_free_extension(srna, &st->ext_interface);
-    RNA_struct_free(&BLENDER_RNA, srna);
+    RNA_struct_free(&RNA_blender_rna_get(), srna);
   }
   st->ext_interface.srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, identifier, &RNA_NodeTreeInterfaceSocket);
+      &RNA_blender_rna_get(), identifier, &RNA_NodeTreeInterfaceSocket);
   st->ext_interface.data = data;
   st->ext_interface.call = call;
   st->ext_interface.free = free;
@@ -914,31 +922,6 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocketString_subtype_itemf(
   return rna_subtype_filter_itemf({PROP_FILEPATH, PROP_NONE}, r_free);
 }
 
-/* If the dimensions of the vector socket changed, we need to update the socket type, since each
- * dimensions value has its own sub-type. */
-static void rna_NodeTreeInterfaceSocketVector_dimensions_update(Main *bmain,
-                                                                Scene *scene,
-                                                                PointerRNA *ptr)
-{
-
-  bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
-
-  /* Store a copy of the existing default value since it will be freed when setting the socket type
-   * below. */
-  const bNodeSocketValueVector default_value = *static_cast<bNodeSocketValueVector *>(
-      socket->socket_data);
-
-  const blender::StringRefNull socket_idname = *blender::bke::node_static_socket_type(
-      SOCK_VECTOR, default_value.subtype, default_value.dimensions);
-
-  socket->set_socket_type(socket_idname);
-
-  /* Restore existing default value. */
-  *static_cast<bNodeSocketValueVector *>(socket->socket_data) = default_value;
-
-  rna_NodeTreeInterfaceItem_update(bmain, scene, ptr);
-}
-
 static bool rna_NodeTreeInterfaceSocketMaterial_default_value_poll(PointerRNA * /*ptr*/,
                                                                    PointerRNA value)
 {
@@ -1003,7 +986,7 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
 
   ntree->ensure_interface_cache();
   for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
-    switch (NodeTreeInterfaceItemType(item->item_type)) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_SOCKET: {
         bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
         if (STREQ(socket->identifier, key)) {
@@ -1017,7 +1000,7 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
     }
   }
   for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
-    switch (NodeTreeInterfaceItemType(item->item_type)) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_SOCKET: {
         bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
         if (STREQ(socket->name, key)) {

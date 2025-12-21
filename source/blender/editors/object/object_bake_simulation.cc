@@ -386,15 +386,15 @@ static void bake_geometry_nodes_startjob(void *customdata, wmJobWorkerStatus *wo
       continue;
     }
 
-    NodesModifierPackedBake *packed_bake = MEM_callocN<NodesModifierPackedBake>(__func__);
+    NodesModifierPackedBake *packed_bake = MEM_new_for_free<NodesModifierPackedBake>(__func__);
 
     packed_bake->meta_files_num = packed_data->meta_files.size();
     packed_bake->blob_files_num = packed_data->blob_files.size();
 
-    packed_bake->meta_files = MEM_calloc_arrayN<NodesModifierBakeFile>(packed_bake->meta_files_num,
-                                                                       __func__);
-    packed_bake->blob_files = MEM_calloc_arrayN<NodesModifierBakeFile>(packed_bake->blob_files_num,
-                                                                       __func__);
+    packed_bake->meta_files = MEM_new_array_for_free<NodesModifierBakeFile>(
+        packed_bake->meta_files_num, __func__);
+    packed_bake->blob_files = MEM_new_array_for_free<NodesModifierBakeFile>(
+        packed_bake->blob_files_num, __func__);
 
     auto transfer_to_bake =
         [&](NodesModifierBakeFile *bake_files, MemoryBakeFile *memory_bake_files, const int num) {
@@ -867,7 +867,7 @@ static wmOperatorStatus bake_simulation_invoke(bContext *C,
   }
 
   if (has_path_conflict) {
-    UI_popup_menu_reports(C, op->reports);
+    ui::popup_menu_reports(C, op->reports);
     return OPERATOR_CANCELLED;
   }
   if (has_existing_bake_data) {
@@ -1103,8 +1103,8 @@ static wmOperatorStatus unpack_single_bake_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Unpack"), ICON_NONE);
-  ui::Layout &layout = *UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Unpack"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.operator_context_set(wm::OpCallContext::ExecDefault);
   layout.op_enum(op->type->idname,
@@ -1113,7 +1113,7 @@ static wmOperatorStatus unpack_single_bake_invoke(bContext *C,
                  wm::OpCallContext::ExecRegionWin,
                  UI_ITEM_NONE);
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }

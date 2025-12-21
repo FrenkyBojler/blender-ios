@@ -12,7 +12,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
@@ -38,10 +37,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   GreasePencilSmoothModifierData *gpmd = reinterpret_cast<GreasePencilSmoothModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilSmoothModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
 }
 
@@ -233,15 +229,15 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
   ui::Layout &row = layout.row(true);
-  row.prop(ptr, "use_edit_position", UI_ITEM_R_TOGGLE, IFACE_("Position"), ICON_NONE);
+  row.prop(ptr, "use_edit_position", ui::ITEM_R_TOGGLE, IFACE_("Position"), ICON_NONE);
   row.prop(ptr,
            "use_edit_strength",
-           UI_ITEM_R_TOGGLE,
+           ui::ITEM_R_TOGGLE,
            CTX_IFACE_(BLT_I18NCONTEXT_ID_GPENCIL, "Strength"),
            ICON_NONE);
-  row.prop(ptr, "use_edit_thickness", UI_ITEM_R_TOGGLE, IFACE_("Thickness"), ICON_NONE);
+  row.prop(ptr, "use_edit_thickness", ui::ITEM_R_TOGGLE, IFACE_("Thickness"), ICON_NONE);
 
-  row.prop(ptr, "use_edit_uv", UI_ITEM_R_TOGGLE, IFACE_("UV"), ICON_NONE);
+  row.prop(ptr, "use_edit_uv", ui::ITEM_R_TOGGLE, IFACE_("UV"), ICON_NONE);
 
   layout.use_property_split_set(true);
 

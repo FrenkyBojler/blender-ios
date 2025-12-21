@@ -9,7 +9,6 @@
 #include "BKE_attribute.hh"
 #include "BKE_material.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
@@ -49,10 +48,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *smd = reinterpret_cast<GreasePencilShrinkwrapModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(GreasePencilShrinkwrapModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
   modifier::greasepencil::init_influence_data(&smd->influence, false);
 }
 
@@ -241,7 +237,8 @@ static void modify_geometry_set(ModifierData *md,
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  static const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  static const ui::eUI_Item_Flag toggles_flag = ui::ITEM_R_TOGGLE |
+                                                ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   ui::Layout &layout = *panel->layout;
 
@@ -274,7 +271,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     col->prop(ptr, "use_negative_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->prop(ptr, "use_positive_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    layout.prop(ptr, "cull_face", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "cull_face", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
     col = &layout.column(false);
     col->active_set(RNA_boolean_get(ptr, "use_negative_direction") &&
                     RNA_enum_get(ptr, "cull_face") != 0);

@@ -6,7 +6,6 @@
  * \ingroup modifiers
  */
 
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 
@@ -46,10 +45,7 @@ using bke::greasepencil::Drawing;
 static void init_data(ModifierData *md)
 {
   auto *cmd = reinterpret_cast<GreasePencilColorModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(cmd, DNA_struct_default_get(GreasePencilColorModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(cmd, modifier);
   modifier::greasepencil::init_influence_data(&cmd->influence, true);
 }
 
@@ -213,9 +209,9 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   layout.prop(ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout.prop(ptr, "hue", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  layout.prop(ptr, "saturation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  layout.prop(ptr, "value", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "hue", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "saturation", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "value", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (ui::Layout *influence_panel = layout.panel_prop(
           C, ptr, "open_influence_panel", IFACE_("Influence")))

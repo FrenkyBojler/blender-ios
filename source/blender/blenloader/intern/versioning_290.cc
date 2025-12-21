@@ -73,7 +73,6 @@
 
 #include "SEQ_proxy.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 
 #include "BLO_read_write.hh"
 #include "BLO_readfile.hh"
@@ -160,10 +159,10 @@ static void strip_convert_transform_crop(const Scene *scene,
                                          const eSpaceSeq_Proxy_RenderSize render_size)
 {
   if (strip->data->transform == nullptr) {
-    strip->data->transform = MEM_callocN<StripTransform>(__func__);
+    strip->data->transform = MEM_new_for_free<StripTransform>(__func__);
   }
   if (strip->data->crop == nullptr) {
-    strip->data->crop = MEM_callocN<StripCrop>(__func__);
+    strip->data->crop = MEM_new_for_free<StripCrop>(__func__);
   }
 
   StripCrop *c = strip->data->crop;
@@ -375,13 +374,13 @@ static void seq_update_meta_disp_range(Scene *scene)
   LISTBASE_FOREACH_BACKWARD (MetaStack *, ms, &ed->metastack) {
     /* Update ms->disp_range from meta. */
     if (ms->disp_range[0] == ms->disp_range[1]) {
-      ms->disp_range[0] = blender::seq::time_left_handle_frame_get(scene, ms->parent_strip);
-      ms->disp_range[1] = blender::seq::time_right_handle_frame_get(scene, ms->parent_strip);
+      ms->disp_range[0] = ms->parent_strip->left_handle();
+      ms->disp_range[1] = ms->parent_strip->right_handle(scene);
     }
 
     /* Update meta strip endpoints. */
-    blender::seq::time_left_handle_frame_set(scene, ms->parent_strip, ms->disp_range[0]);
-    blender::seq::time_right_handle_frame_set(scene, ms->parent_strip, ms->disp_range[1]);
+    ms->parent_strip->left_handle_set(scene, ms->disp_range[0]);
+    ms->parent_strip->right_handle_set(scene, ms->disp_range[1]);
 
     /* Recalculate effects using meta strip. */
     ListBase *old_seqbasep = ms->old_strip ? &ms->old_strip->seqbase : &ed->seqbase;
@@ -1619,7 +1618,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
           if (node->type_legacy != CMP_NODE_SETALPHA) {
             continue;
           }
-          NodeSetAlpha *storage = MEM_callocN<NodeSetAlpha>("NodeSetAlpha");
+          NodeSetAlpha *storage = MEM_new_for_free<NodeSetAlpha>("NodeSetAlpha");
           storage->mode = CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA;
           node->storage = storage;
         }
@@ -1689,7 +1688,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       }
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         if (node->type_legacy == GEO_NODE_OBJECT_INFO && node->storage == nullptr) {
-          NodeGeometryObjectInfo *data = MEM_callocN<NodeGeometryObjectInfo>(__func__);
+          NodeGeometryObjectInfo *data = MEM_new_for_free<NodeGeometryObjectInfo>(__func__);
           data->transform_space = GEO_NODE_TRANSFORM_SPACE_RELATIVE;
           node->storage = data;
         }

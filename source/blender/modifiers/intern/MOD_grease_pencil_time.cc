@@ -12,7 +12,6 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
@@ -48,13 +47,11 @@ static void init_data(ModifierData *md)
 {
   auto *tmd = reinterpret_cast<GreasePencilTimeModifierData *>(md);
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(tmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(tmd, DNA_struct_default_get(GreasePencilTimeModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(tmd, modifier);
   modifier::greasepencil::init_influence_data(&tmd->influence, false);
 
-  GreasePencilTimeModifierSegment *segment = DNA_struct_default_alloc(
-      GreasePencilTimeModifierSegment);
+  GreasePencilTimeModifierSegment *segment = MEM_new_for_free<GreasePencilTimeModifierSegment>(
+      __func__);
   STRNCPY_UTF8(segment->name, DATA_("Segment"));
   tmd->segments_array = segment;
   tmd->segments_num = 1;
@@ -549,20 +546,19 @@ static void panel_draw(const bContext *C, Panel *panel)
     row = &layout.row(false);
     row->use_property_split_set(false);
 
-    uiTemplateList(row,
-                   (bContext *)C,
-                   "MOD_UL_grease_pencil_time_modifier_segments",
-                   "",
-                   ptr,
-                   "segments",
-                   ptr,
-                   "segment_active_index",
-                   nullptr,
-                   3,
-                   10,
-                   0,
-                   1,
-                   UI_TEMPLATE_LIST_FLAG_NONE);
+    ui::template_list(row,
+                      (bContext *)C,
+                      "MOD_UL_grease_pencil_time_modifier_segments",
+                      "",
+                      ptr,
+                      "segments",
+                      ptr,
+                      "segment_active_index",
+                      nullptr,
+                      3,
+                      10,
+                      0,
+                      ui::TEMPLATE_LIST_FLAG_NONE);
 
     col = &row->column(false);
 
@@ -592,7 +588,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     }
   }
 
-  PanelLayout custom_range_panel_layout = layout.panel_prop(C, ptr, "open_custom_range_panel");
+  ui::PanelLayout custom_range_panel_layout = layout.panel_prop(C, ptr, "open_custom_range_panel");
   if (ui::Layout *header = custom_range_panel_layout.header) {
     header->use_property_split_set(false);
     header->active_set(use_custom_range);
@@ -628,7 +624,7 @@ static void segment_list_item_draw(uiList * /*ui_list*/,
                                    int /*flt_flag*/)
 {
   ui::Layout &row = layout.row(true);
-  row.prop(itemptr, "name", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  row.prop(itemptr, "name", ui::ITEM_R_NO_BG, "", ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
