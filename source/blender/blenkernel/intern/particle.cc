@@ -228,19 +228,19 @@ static void write_boid_state(BlendWriter *writer, BoidState *state)
     switch (rule->type) {
       case eBoidRuleType_Goal:
       case eBoidRuleType_Avoid:
-        writer->write_struct<BoidRuleGoalAvoid>(rule);
+        writer->write_struct_cast<BoidRuleGoalAvoid>(rule);
         break;
       case eBoidRuleType_AvoidCollision:
-        writer->write_struct<BoidRuleAvoidCollision>(rule);
+        writer->write_struct_cast<BoidRuleAvoidCollision>(rule);
         break;
       case eBoidRuleType_FollowLeader:
-        writer->write_struct<BoidRuleFollowLeader>(rule);
+        writer->write_struct_cast<BoidRuleFollowLeader>(rule);
         break;
       case eBoidRuleType_AverageSpeed:
-        writer->write_struct<BoidRuleAverageSpeed>(rule);
+        writer->write_struct_cast<BoidRuleAverageSpeed>(rule);
         break;
       case eBoidRuleType_Fight:
-        writer->write_struct<BoidRuleFight>(rule);
+        writer->write_struct_cast<BoidRuleFight>(rule);
         break;
       default:
         writer->write_struct<BoidRule>(rule);

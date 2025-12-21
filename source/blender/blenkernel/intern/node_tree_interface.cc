@@ -768,11 +768,11 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
                          socket.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
                          NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY);
 
-      writer->write_struct<bNodeTreeInterfaceSocket>(&item);
+      writer->write_struct_cast<bNodeTreeInterfaceSocket>(&item);
       break;
     }
     case NODE_INTERFACE_PANEL: {
-      writer->write_struct<bNodeTreeInterfacePanel>(&item);
+      writer->write_struct_cast<bNodeTreeInterfacePanel>(&item);
       break;
     }
   }

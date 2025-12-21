@@ -188,7 +188,7 @@ static void userpref_execute_region_listener(const wmRegionListenerParams * /*pa
 
 static void userpref_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  writer->write_struct<SpaceUserPref>(sl);
+  writer->write_struct_cast<SpaceUserPref>(sl);
 }
 
 void ED_spacetype_userpref()

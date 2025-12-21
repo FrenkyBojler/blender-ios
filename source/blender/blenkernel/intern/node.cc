@@ -1033,58 +1033,58 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
 
   switch (eNodeSocketDatatype(sock->type)) {
     case SOCK_FLOAT:
-      writer->write_struct<bNodeSocketValueFloat>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueFloat>(sock->default_value);
       break;
     case SOCK_VECTOR:
-      writer->write_struct<bNodeSocketValueVector>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueVector>(sock->default_value);
       break;
     case SOCK_RGBA:
-      writer->write_struct<bNodeSocketValueRGBA>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueRGBA>(sock->default_value);
       break;
     case SOCK_BOOLEAN:
-      writer->write_struct<bNodeSocketValueBoolean>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueBoolean>(sock->default_value);
       break;
     case SOCK_INT:
-      writer->write_struct<bNodeSocketValueInt>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueInt>(sock->default_value);
       break;
     case SOCK_STRING:
-      writer->write_struct<bNodeSocketValueString>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueString>(sock->default_value);
       break;
     case SOCK_OBJECT:
-      writer->write_struct<bNodeSocketValueObject>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueObject>(sock->default_value);
       break;
     case SOCK_IMAGE:
-      writer->write_struct<bNodeSocketValueImage>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueImage>(sock->default_value);
       break;
     case SOCK_COLLECTION:
-      writer->write_struct<bNodeSocketValueCollection>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueCollection>(sock->default_value);
       break;
     case SOCK_TEXTURE:
-      writer->write_struct<bNodeSocketValueTexture>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueTexture>(sock->default_value);
       break;
     case SOCK_MATERIAL:
-      writer->write_struct<bNodeSocketValueMaterial>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueMaterial>(sock->default_value);
       break;
     case SOCK_FONT:
-      writer->write_struct<bNodeSocketValueFont>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueFont>(sock->default_value);
       break;
     case SOCK_SCENE:
-      writer->write_struct<bNodeSocketValueScene>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueScene>(sock->default_value);
       break;
     case SOCK_TEXT_ID:
-      writer->write_struct<bNodeSocketValueText>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueText>(sock->default_value);
       break;
     case SOCK_MASK:
-      writer->write_struct<bNodeSocketValueMask>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueMask>(sock->default_value);
       break;
     case SOCK_SOUND:
-      writer->write_struct<bNodeSocketValueSound>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueSound>(sock->default_value);
       break;
     case SOCK_ROTATION:
-      writer->write_struct<bNodeSocketValueRotation>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueRotation>(sock->default_value);
       break;
     case SOCK_MENU:
-      writer->write_struct<bNodeSocketValueMenu>(sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueMenu>(sock->default_value);
       break;
     case SOCK_MATRIX:
       /* Matrix sockets currently have no default value. */
@@ -1265,7 +1265,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
     if (ELEM(node->type_legacy, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
       /* Write extra socket info. */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        writer->write_struct<NodeImageLayer>(sock->storage);
+        writer->write_struct_cast<NodeImageLayer>(sock->storage);
       }
     }
   }

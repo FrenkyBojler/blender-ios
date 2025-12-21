@@ -1745,7 +1745,7 @@ static void node_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 static void node_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   SpaceNode *snode = (SpaceNode *)sl;
-  writer->write_struct<SpaceNode>(snode);
+  writer->write_struct_cast<SpaceNode>(snode);
 
   LISTBASE_FOREACH (bNodeTreePath *, path, &snode->treepath) {
     writer->write_struct<bNodeTreePath>(path);

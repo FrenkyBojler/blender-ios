@@ -927,7 +927,7 @@ static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   /* temporarily disable ghost curves when saving */
   BLI_listbase_clear(&sipo->runtime.ghost_curves);
 
-  writer->write_struct<SpaceGraph>(sl);
+  writer->write_struct_cast<SpaceGraph>(sl);
   if (sipo->ads) {
     writer->write_struct<bDopeSheet>(sipo->ads);
   }

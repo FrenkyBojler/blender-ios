@@ -736,7 +736,7 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 
 static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  writer->write_struct<SpaceSpreadsheet>(sl);
+  writer->write_struct_cast<SpaceSpreadsheet>(sl);
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)sl;
 
   LISTBASE_FOREACH (SpreadsheetRowFilter *, row_filter, &sspreadsheet->row_filters) {

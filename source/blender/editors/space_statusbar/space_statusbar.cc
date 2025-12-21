@@ -124,7 +124,7 @@ static void statusbar_header_region_message_subscribe(const wmRegionMessageSubsc
 
 static void statusbar_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  writer->write_struct<SpaceStatusBar>(sl);
+  writer->write_struct_cast<SpaceStatusBar>(sl);
 }
 
 void ED_spacetype_statusbar()

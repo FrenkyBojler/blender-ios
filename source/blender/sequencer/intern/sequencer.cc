@@ -834,19 +834,19 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
     if (strip->effectdata) {
       switch (strip->type) {
         case STRIP_TYPE_COLOR:
-          writer->write_struct<SolidColorVars>(strip->effectdata);
+          writer->write_struct_cast<SolidColorVars>(strip->effectdata);
           break;
         case STRIP_TYPE_SPEED:
-          writer->write_struct<SpeedControlVars>(strip->effectdata);
+          writer->write_struct_cast<SpeedControlVars>(strip->effectdata);
           break;
         case STRIP_TYPE_WIPE:
-          writer->write_struct<WipeVars>(strip->effectdata);
+          writer->write_struct_cast<WipeVars>(strip->effectdata);
           break;
         case STRIP_TYPE_GLOW:
-          writer->write_struct<GlowVars>(strip->effectdata);
+          writer->write_struct_cast<GlowVars>(strip->effectdata);
           break;
         case STRIP_TYPE_GAUSSIAN_BLUR:
-          writer->write_struct<GaussianBlurVars>(strip->effectdata);
+          writer->write_struct_cast<GaussianBlurVars>(strip->effectdata);
           break;
         case STRIP_TYPE_TEXT: {
           TextVars *text = static_cast<TextVars *>(strip->effectdata);
@@ -858,7 +858,7 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
           BLO_write_string(writer, text->text_ptr);
         } break;
         case STRIP_TYPE_COLORMIX:
-          writer->write_struct<ColorMixVars>(strip->effectdata);
+          writer->write_struct_cast<ColorMixVars>(strip->effectdata);
           break;
       }
     }

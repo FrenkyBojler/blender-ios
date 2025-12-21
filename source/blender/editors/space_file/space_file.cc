@@ -940,7 +940,7 @@ static void file_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   SpaceFile *sfile = (SpaceFile *)sl;
 
-  writer->write_struct<SpaceFile>(sl);
+  writer->write_struct_cast<SpaceFile>(sl);
   if (sfile->params) {
     writer->write_struct<FileSelectParams>(sfile->params);
   }

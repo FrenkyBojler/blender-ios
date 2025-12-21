@@ -416,7 +416,7 @@ static void text_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *
 
 static void text_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  writer->write_struct<SpaceText>(sl);
+  writer->write_struct_cast<SpaceText>(sl);
 }
 
 /********************* registration ********************/
