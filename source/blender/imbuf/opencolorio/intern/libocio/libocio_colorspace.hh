@@ -23,6 +23,7 @@ class LibOCIOColorSpace : public ColorSpace {
 
   std::string clean_description_;
   StringRefNull interop_id_;
+  bool is_primary_interop_id_ = false;
 
   bool is_invertible_ = false;
 
@@ -54,6 +55,8 @@ class LibOCIOColorSpace : public ColorSpace {
   {
     return interop_id_;
   }
+  bool is_primary_interop_id() const override;
+
   StringRefNull icc_profile_name() const override
   {
 #if OCIO_VERSION_HEX >= 0x02050000

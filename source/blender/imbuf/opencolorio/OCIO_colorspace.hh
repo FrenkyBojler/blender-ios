@@ -59,6 +59,7 @@ class ColorSpace {
    * as defined by the ASWF Color Interop Forum.
    */
   virtual StringRefNull interop_id() const = 0;
+  virtual bool is_primary_interop_id() const = 0;
   virtual StringRefNull icc_profile_name() const = 0;
 
   /**

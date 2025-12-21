@@ -201,11 +201,31 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
     }
   }
 
+  if (!interop_id_.is_empty()) {
+    if (interop_id_ == name()) {
+      is_primary_interop_id_ = true;
+    }
+    else {
+      for (int i = 0; i < num_aliases; i++) {
+        if (interop_id_ == ocio_color_space_->getAlias(i)) {
+          is_primary_interop_id_ = true;
+          break;
+        }
+      }
+    }
+  }
+
   CLOG_TRACE(&LOG,
              "Add colorspace: %s (interop ID: %s)",
              name().c_str(),
              interop_id_.is_empty() ? "<none>" : interop_id_.c_str());
 }
+
+bool LibOCIOColorSpace::is_primary_interop_id() const
+{
+  return is_primary_interop_id_;
+}
+
 
 bool LibOCIOColorSpace::is_scene_linear() const
 {

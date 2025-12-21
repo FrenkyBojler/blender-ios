@@ -54,6 +54,11 @@ class FallbackColorSpace : public ColorSpace {
     return "";
   }
 
+  bool is_primary_interop_id() const override
+  {
+    return false;
+  }
+
   bool is_invertible() const override
   {
     return true;
