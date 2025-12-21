@@ -17,7 +17,7 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
+#include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -66,10 +66,7 @@ using blender::VectorSet;
 static void init_data(ModifierData *md)
 {
   BooleanModifierData *bmd = (BooleanModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(bmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(bmd, DNA_struct_default_get(BooleanModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(bmd, modifier);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -621,7 +618,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   blender::ui::Layout &layout = *panel->layout;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout.prop(ptr, "operation", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "operation", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   layout.use_property_split_set(true);
 
@@ -633,7 +630,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     layout.prop(ptr, "collection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  layout.prop(ptr, "solver", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "solver", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }

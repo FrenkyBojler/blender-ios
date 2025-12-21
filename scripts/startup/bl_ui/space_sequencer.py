@@ -422,7 +422,7 @@ class SEQUENCER_MT_view(Menu):
         layout.operator_context = 'INVOKE_DEFAULT'
         layout.separator()
 
-        layout.menu("SEQUENCER_MT_fullscreen_preview")
+        layout.menu("SEQUENCER_MT_fullscreen_preview", icon='FULLSCREEN_PREVIEW')
         layout.separator()
 
         layout.operator_context = 'INVOKE_REGION_WIN'

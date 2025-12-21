@@ -975,9 +975,9 @@ GHOST_TKey GHOST_SystemWin32::convertKey(short vKey, short scanCode, short exten
   return key;
 }
 
-GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
-                                                         GHOST_WindowWin32 *window,
-                                                         GHOST_TButton mask)
+std::unique_ptr<GHOST_EventButton> GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
+                                                                         GHOST_WindowWin32 *window,
+                                                                         GHOST_TButton mask)
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
 
@@ -990,8 +990,8 @@ GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
     DWORD msgPos = ::GetMessagePos();
     int msgPosX = GET_X_LPARAM(msgPos);
     int msgPosY = GET_Y_LPARAM(msgPos);
-    system->pushEvent(
-        new GHOST_EventCursor(event_ms, GHOST_kEventCursorMove, window, msgPosX, msgPosY, td));
+    system->pushEvent(std::make_unique<GHOST_EventCursor>(
+        event_ms, GHOST_kEventCursorMove, window, msgPosX, msgPosY, td));
 
     if (type == GHOST_kEventButtonDown) {
       WINTAB_PRINTF("HWND %p OS button down\n", window->getHWND());
@@ -1002,7 +1002,7 @@ GHOST_EventButton *GHOST_SystemWin32::processButtonEvent(GHOST_TEventType type,
   }
 
   window->updateMouseCapture(type == GHOST_kEventButtonDown ? MousePressed : MouseReleased);
-  return new GHOST_EventButton(event_ms, type, window, mask, td);
+  return std::make_unique<GHOST_EventButton>(event_ms, type, window, mask, td);
 }
 
 void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
@@ -1035,7 +1035,7 @@ void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
         }
 
         wt->mapWintabToSysCoordinates(info.x, info.y, info.x, info.y);
-        system->pushEvent(new GHOST_EventCursor(
+        system->pushEvent(std::make_unique<GHOST_EventCursor>(
             info.time, GHOST_kEventCursorMove, window, info.x, info.y, info.tabletData));
 
         break;
@@ -1081,12 +1081,12 @@ void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
           /* Move cursor to button location, to prevent incorrect cursor position when
            * transitioning from unsynchronized Win32 to Wintab cursor control. */
           wt->mapWintabToSysCoordinates(info.x, info.y, info.x, info.y);
-          system->pushEvent(new GHOST_EventCursor(
+          system->pushEvent(std::make_unique<GHOST_EventCursor>(
               info.time, GHOST_kEventCursorMove, window, info.x, info.y, info.tabletData));
 
           window->updateMouseCapture(MousePressed);
-          system->pushEvent(
-              new GHOST_EventButton(info.time, info.type, window, info.button, info.tabletData));
+          system->pushEvent(std::make_unique<GHOST_EventButton>(
+              info.time, info.type, window, info.button, info.tabletData));
 
           mouseMoveHandled = true;
         }
@@ -1127,8 +1127,8 @@ void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
 
           WINTAB_PRINTF(" ... associated to system button\n");
           window->updateMouseCapture(MouseReleased);
-          system->pushEvent(
-              new GHOST_EventButton(info.time, info.type, window, info.button, info.tabletData));
+          system->pushEvent(std::make_unique<GHOST_EventButton>(
+              info.time, info.type, window, info.button, info.tabletData));
         }
         else {
           WINTAB_PRINTF(" ... but no system button\n");
@@ -1147,8 +1147,8 @@ void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
     int y = GET_Y_LPARAM(pos);
     GHOST_TabletData td = wt->getLastTabletData();
 
-    system->pushEvent(
-        new GHOST_EventCursor(getMessageTime(system), GHOST_kEventCursorMove, window, x, y, td));
+    system->pushEvent(std::make_unique<GHOST_EventCursor>(
+        getMessageTime(system), GHOST_kEventCursorMove, window, x, y, td));
   }
 }
 
@@ -1173,12 +1173,12 @@ void GHOST_SystemWin32::processPointerEvent(
       /* Coalesced pointer events are reverse chronological order, reorder chronologically.
        * Only contiguous move events are coalesced. */
       for (uint32_t i = pointerInfo.size(); i-- > 0;) {
-        system->pushEvent(new GHOST_EventCursor(pointerInfo[i].time,
-                                                GHOST_kEventCursorMove,
-                                                window,
-                                                pointerInfo[i].pixelLocation.x,
-                                                pointerInfo[i].pixelLocation.y,
-                                                pointerInfo[i].tabletData));
+        system->pushEvent(std::make_unique<GHOST_EventCursor>(pointerInfo[i].time,
+                                                              GHOST_kEventCursorMove,
+                                                              window,
+                                                              pointerInfo[i].pixelLocation.x,
+                                                              pointerInfo[i].pixelLocation.y,
+                                                              pointerInfo[i].tabletData));
       }
 
       /* Leave event unhandled so that system cursor is moved. */
@@ -1187,17 +1187,17 @@ void GHOST_SystemWin32::processPointerEvent(
     }
     case WM_POINTERDOWN: {
       /* Move cursor to point of contact because GHOST_EventButton does not include position. */
-      system->pushEvent(new GHOST_EventCursor(pointerInfo[0].time,
-                                              GHOST_kEventCursorMove,
-                                              window,
-                                              pointerInfo[0].pixelLocation.x,
-                                              pointerInfo[0].pixelLocation.y,
-                                              pointerInfo[0].tabletData));
-      system->pushEvent(new GHOST_EventButton(pointerInfo[0].time,
-                                              GHOST_kEventButtonDown,
-                                              window,
-                                              pointerInfo[0].buttonMask,
-                                              pointerInfo[0].tabletData));
+      system->pushEvent(std::make_unique<GHOST_EventCursor>(pointerInfo[0].time,
+                                                            GHOST_kEventCursorMove,
+                                                            window,
+                                                            pointerInfo[0].pixelLocation.x,
+                                                            pointerInfo[0].pixelLocation.y,
+                                                            pointerInfo[0].tabletData));
+      system->pushEvent(std::make_unique<GHOST_EventButton>(pointerInfo[0].time,
+                                                            GHOST_kEventButtonDown,
+                                                            window,
+                                                            pointerInfo[0].buttonMask,
+                                                            pointerInfo[0].tabletData));
       window->updateMouseCapture(MousePressed);
 
       /* Mark event handled so that mouse button events are not generated. */
@@ -1206,11 +1206,11 @@ void GHOST_SystemWin32::processPointerEvent(
       break;
     }
     case WM_POINTERUP: {
-      system->pushEvent(new GHOST_EventButton(pointerInfo[0].time,
-                                              GHOST_kEventButtonUp,
-                                              window,
-                                              pointerInfo[0].buttonMask,
-                                              pointerInfo[0].tabletData));
+      system->pushEvent(std::make_unique<GHOST_EventButton>(pointerInfo[0].time,
+                                                            GHOST_kEventButtonUp,
+                                                            window,
+                                                            pointerInfo[0].buttonMask,
+                                                            pointerInfo[0].tabletData));
       window->updateMouseCapture(MouseReleased);
 
       /* Mark event handled so that mouse button events are not generated. */
@@ -1224,8 +1224,8 @@ void GHOST_SystemWin32::processPointerEvent(
   }
 }
 
-GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *window,
-                                                         const int32_t screen_co[2])
+std::unique_ptr<GHOST_EventCursor> GHOST_SystemWin32::processCursorEvent(
+    GHOST_WindowWin32 *window, const int32_t screen_co[2])
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
 
@@ -1302,12 +1302,12 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
     y_screen += y_accum;
   }
 
-  return new GHOST_EventCursor(getMessageTime(system),
-                               GHOST_kEventCursorMove,
-                               window,
-                               x_screen,
-                               y_screen,
-                               GHOST_TABLET_DATA_NONE);
+  return std::make_unique<GHOST_EventCursor>(getMessageTime(system),
+                                             GHOST_kEventCursorMove,
+                                             window,
+                                             x_screen,
+                                             y_screen,
+                                             GHOST_TABLET_DATA_NONE);
 }
 
 void GHOST_SystemWin32::processWheelEventVertical(GHOST_WindowWin32 *window,
@@ -1328,7 +1328,7 @@ void GHOST_SystemWin32::processWheelEventVertical(GHOST_WindowWin32 *window,
   acc = abs(acc);
 
   while (acc >= WHEEL_DELTA) {
-    system->pushEvent(new GHOST_EventWheel(
+    system->pushEvent(std::make_unique<GHOST_EventWheel>(
         getMessageTime(system), window, GHOST_kEventWheelAxisVertical, direction));
     acc -= WHEEL_DELTA;
   }
@@ -1354,20 +1354,21 @@ void GHOST_SystemWin32::processWheelEventHorizontal(GHOST_WindowWin32 *window,
   acc = abs(acc);
 
   while (acc >= WHEEL_DELTA) {
-    system->pushEvent(new GHOST_EventWheel(
+    system->pushEvent(std::make_unique<GHOST_EventWheel>(
         getMessageTime(system), window, GHOST_kEventWheelAxisHorizontal, direction));
     acc -= WHEEL_DELTA;
   }
   system->wheel_delta_accum_horizontal_ = acc * direction;
 }
 
-GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RAWINPUT const &raw)
+std::unique_ptr<GHOST_EventKey> GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window,
+                                                                   RAWINPUT const &raw)
 {
   const char vk = raw.data.keyboard.VKey;
   bool key_down = false;
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
   GHOST_TKey key = system->hardKey(raw, &key_down);
-  GHOST_EventKey *event;
+  std::unique_ptr<GHOST_EventKey> event;
 
   /* Scan code (device-dependent identifier for the key on the keyboard) for the Alt key.
    * https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#scan-codes */
@@ -1452,12 +1453,12 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     }
 #endif /* WITH_INPUT_IME */
 
-    event = new GHOST_EventKey(getMessageTime(system),
-                               key_down ? GHOST_kEventKeyDown : GHOST_kEventKeyUp,
-                               window,
-                               key,
-                               is_repeat,
-                               utf8_char);
+    event = std::make_unique<GHOST_EventKey>(getMessageTime(system),
+                                             key_down ? GHOST_kEventKeyDown : GHOST_kEventKeyUp,
+                                             window,
+                                             key,
+                                             is_repeat,
+                                             utf8_char);
 
 #if 0 /* we already get this info via EventPrinter. */
     GHOST_PRINTF("%c\n", ascii);
@@ -1470,14 +1471,15 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
   return event;
 }
 
-GHOST_Event *GHOST_SystemWin32::processWindowSizeEvent(GHOST_WindowWin32 *window)
+std::unique_ptr<GHOST_Event> GHOST_SystemWin32::processWindowSizeEvent(GHOST_WindowWin32 *window)
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
-  GHOST_Event *sizeEvent = new GHOST_Event(getMessageTime(system), GHOST_kEventWindowSize, window);
+  auto sizeEvent = std::make_unique<GHOST_Event>(
+      getMessageTime(system), GHOST_kEventWindowSize, window);
 
   /* We get WM_SIZE before we fully init. Do not dispatch before we are continuously resizing. */
   if (window->in_live_resize_) {
-    system->pushEvent(sizeEvent);
+    system->pushEvent(std::move(sizeEvent));
     system->dispatchEvents();
     return nullptr;
   }
@@ -1486,8 +1488,8 @@ GHOST_Event *GHOST_SystemWin32::processWindowSizeEvent(GHOST_WindowWin32 *window
   return sizeEvent;
 }
 
-GHOST_Event *GHOST_SystemWin32::processWindowEvent(GHOST_TEventType type,
-                                                   GHOST_WindowWin32 *window)
+std::unique_ptr<GHOST_Event> GHOST_SystemWin32::processWindowEvent(GHOST_TEventType type,
+                                                                   GHOST_WindowWin32 *window)
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
 
@@ -1498,16 +1500,16 @@ GHOST_Event *GHOST_SystemWin32::processWindowEvent(GHOST_TEventType type,
     system->getWindowManager()->setWindowInactive(window);
   }
 
-  return new GHOST_Event(getMessageTime(system), type, window);
+  return std::make_unique<GHOST_Event>(getMessageTime(system), type, window);
 }
 
 #ifdef WITH_INPUT_IME
-GHOST_Event *GHOST_SystemWin32::processImeEvent(GHOST_TEventType type,
-                                                GHOST_WindowWin32 *window,
-                                                const GHOST_TEventImeData *data)
+std::unique_ptr<GHOST_Event> GHOST_SystemWin32::processImeEvent(GHOST_TEventType type,
+                                                                GHOST_WindowWin32 *window,
+                                                                const GHOST_TEventImeData *data)
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
-  return new GHOST_EventIME(getMessageTime(system), type, window, data);
+  return std::make_unique<GHOST_EventIME>(getMessageTime(system), type, window, data);
 }
 #endif
 
@@ -1519,7 +1521,7 @@ GHOST_TSuccess GHOST_SystemWin32::pushDragDropEvent(GHOST_TEventType eventType,
                                                     void *data)
 {
   GHOST_SystemWin32 *system = (GHOST_SystemWin32 *)getSystem();
-  return system->pushEvent(new GHOST_EventDragnDrop(
+  return system->pushEvent(std::make_unique<GHOST_EventDragnDrop>(
       getMessageTime(system), eventType, draggedObjectType, window, mouseX, mouseY, data));
 }
 
@@ -1664,7 +1666,8 @@ void GHOST_SystemWin32::processTrackpad()
   system->getCursorPosition(cursor_x, cursor_y);
 
   if (trackpad_info.x != 0 || trackpad_info.y != 0) {
-    system->pushEvent(new GHOST_EventTrackpad(getMessageTime(system),
+    system->pushEvent(
+        std::make_unique<GHOST_EventTrackpad>(getMessageTime(system),
                                               active_window,
                                               GHOST_kTrackpadEventScroll,
                                               cursor_x,
@@ -1674,20 +1677,20 @@ void GHOST_SystemWin32::processTrackpad()
                                               trackpad_info.isScrollDirectionInverted));
   }
   if (trackpad_info.scale != 0) {
-    system->pushEvent(new GHOST_EventTrackpad(getMessageTime(system),
-                                              active_window,
-                                              GHOST_kTrackpadEventMagnify,
-                                              cursor_x,
-                                              cursor_y,
-                                              trackpad_info.scale,
-                                              0,
-                                              false));
+    system->pushEvent(std::make_unique<GHOST_EventTrackpad>(getMessageTime(system),
+                                                            active_window,
+                                                            GHOST_kTrackpadEventMagnify,
+                                                            cursor_x,
+                                                            cursor_y,
+                                                            trackpad_info.scale,
+                                                            0,
+                                                            false));
   }
 }
 
 LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, LPARAM lParam)
 {
-  GHOST_Event *event = nullptr;
+  std::unique_ptr<GHOST_Event> event = nullptr;
   bool eventHandled = false;
 
   LRESULT lResult = 0;
@@ -2462,7 +2465,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
   }
 
   if (event) {
-    system->pushEvent(event);
+    system->pushEvent(std::move(event));
     eventHandled = true;
   }
 

@@ -477,7 +477,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
         VertLink *vl;
 
         /* create new 'nurb' within the curve */
-        nu = MEM_callocN<Nurb>(__func__);
+        nu = MEM_new_for_free<Nurb>(__func__);
 
         nu->pntsu = faces_num;
         nu->pntsv = 1;
@@ -1150,6 +1150,8 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
   std::swap(mesh_dst->active_color_attribute, mesh_src->active_color_attribute);
   std::swap(mesh_dst->default_color_attribute, mesh_src->default_color_attribute);
   std::swap(mesh_dst->active_uv_map_attribute, mesh_src->active_uv_map_attribute);
+  std::swap(mesh_dst->stencil_uv_map_attribute, mesh_src->stencil_uv_map_attribute);
+  std::swap(mesh_dst->clone_uv_map_attribute, mesh_src->clone_uv_map_attribute);
   std::swap(mesh_dst->default_uv_map_attribute, mesh_src->default_uv_map_attribute);
   std::swap(mesh_dst->vertex_group_names, mesh_src->vertex_group_names);
 

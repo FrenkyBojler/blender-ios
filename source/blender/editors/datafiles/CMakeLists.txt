@@ -401,6 +401,7 @@ if(WITH_BLENDER)
       freeze
       fullscreen_enter
       fullscreen_exit
+      fullscreen_preview
       fund
       geometry_nodes
       geometry_set

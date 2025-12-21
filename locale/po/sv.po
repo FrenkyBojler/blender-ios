@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-02 11:29+0000\n"
+"POT-Creation-Date: 2025-12-16 11:27+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -5211,6 +5211,22 @@ msgid "Collection"
 msgstr "Samling"
 
 
+msgid "Font"
+msgstr "Typsnitt"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Mask"
+msgstr "Mask"
+
+
+msgid "Sound"
+msgstr "Ljud"
+
+
 msgid "Exclusive"
 msgstr "Exklusiv"
 
@@ -6255,10 +6271,6 @@ msgstr "Redigera format"
 
 msgid "Text on Curve"
 msgstr "Text på kurva"
-
-
-msgid "Font"
-msgstr "Typsnitt"
 
 
 msgid "X Offset"
@@ -7348,10 +7360,6 @@ msgstr "Cachning"
 msgctxt "Sound"
 msgid "Mute"
 msgstr "Tyst"
-
-
-msgid "Sound"
-msgstr "Ljud"
 
 
 msgid "Minimum Volume"
@@ -9331,8 +9339,72 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
-msgid "Mask"
-msgstr "Mask"
+msgid "Mirror"
+msgstr "Spegla"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgid "Local View"
+msgstr "Lokal vy"
+
+
+msgid "Viewpoint"
+msgstr "Visningspunkt"
+
+
+msgid "Navigation"
+msgstr "Navigering"
+
+
+msgid "Align View"
+msgstr "Justera vy"
+
+
+msgid "Align View to Active"
+msgstr "Justera vy till aktiv"
+
+
+msgid "Select More/Less"
+msgstr "Markera mera/mindre"
+
+
+msgid "Assign Material"
+msgstr "Tilldela material"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Light"
+msgstr "Ljus"
+
+
+msgid "Light Probe"
+msgstr "Ljussond"
+
+
+msgid "Add Image"
+msgstr "Lägg till bild"
+
+
+msgid "Relations"
+msgstr "Relationer"
+
+
+msgid "Adjust"
+msgstr "Justera"
+
+
+msgid "Rigid Body"
+msgstr "Rigid kropp"
 
 
 msgid "Apply"
@@ -9341,6 +9413,14 @@ msgstr "Applicera"
 
 msgid "Track"
 msgstr "Spår"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Math"
+msgstr "Matematik"
 
 
 msgid "Quick Effects"
@@ -9375,44 +9455,8 @@ msgid "Names"
 msgstr "Namn"
 
 
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Adjust"
-msgstr "Justera"
-
-
 msgid "Merge"
 msgstr "Sammanfoga"
-
-
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Math"
-msgstr "Matematik"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Metaball"
-msgstr "Metaboll"
-
-
-msgid "Pivot Point"
-msgstr "Fast punkt"
-
-
-msgid "Snap"
-msgstr "Snäpp"
 
 
 msgid "Read"
@@ -9427,32 +9471,8 @@ msgid "Primitives"
 msgstr "Primitiver"
 
 
-msgid "Mirror"
-msgstr "Spegla"
-
-
-msgid "Local View"
-msgstr "Lokal vy"
-
-
-msgid "Viewpoint"
-msgstr "Visningspunkt"
-
-
-msgid "Navigation"
-msgstr "Navigering"
-
-
-msgid "Align View"
-msgstr "Justera vy"
-
-
-msgid "Align View to Active"
-msgstr "Justera vy till aktiv"
-
-
-msgid "Select More/Less"
-msgstr "Markera mera/mindre"
+msgid "Special Characters"
+msgstr "Specialtecken"
 
 
 msgid "Instances"
@@ -9467,32 +9487,12 @@ msgid "Deprecated"
 msgstr "Föråldrad"
 
 
-msgid "Assign Material"
-msgstr "Tilldela material"
+msgid "Pivot Point"
+msgstr "Fast punkt"
 
 
 msgid "UV"
 msgstr "UV"
-
-
-msgid "Light"
-msgstr "Ljus"
-
-
-msgid "Light Probe"
-msgstr "Ljussond"
-
-
-msgid "Add Image"
-msgstr "Lägg till bild"
-
-
-msgid "Relations"
-msgstr "Relationer"
-
-
-msgid "Rigid Body"
-msgstr "Rigid kropp"
 
 
 msgid "Animals"
@@ -9528,8 +9528,8 @@ msgid "Console"
 msgstr "Konsol"
 
 
-msgid "Languages..."
-msgstr "Språk..."
+msgid "Languages"
+msgstr "Språk"
 
 
 msgid "Add Attribute"
@@ -13701,11 +13701,6 @@ msgstr "Generera systeminformation, sparat till en textfil"
 
 
 msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Spara systeminfo"
-
-
-msgctxt "Operator"
 msgid "Toolbar"
 msgstr "Verktygsrad"
 
@@ -15691,15 +15686,6 @@ msgstr "Ställ in standardfärgattribut som används för rendering"
 
 msgid "Name of color attribute"
 msgstr "Namn på färgattribut"
-
-
-msgctxt "Operator"
-msgid "Run Node Group"
-msgstr "Kör nodgrupp"
-
-
-msgid "Execute a node group on geometry"
-msgstr "Kör en nodgrupp på geometri"
 
 
 msgid "Arrow"
@@ -21385,22 +21371,6 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
-msgid "VR"
-msgstr "VR"
-
-
-msgid "Active Tool"
-msgstr "Aktivt verktyg"
-
-
-msgid "Cavity"
-msgstr "Hålrum"
-
-
-msgid "Render Pass"
-msgstr "Renderingspass"
-
-
 msgid "Overlays"
 msgstr "Överlägg"
 
@@ -21415,6 +21385,22 @@ msgstr "Mätning"
 
 msgid "Stroke Placement"
 msgstr "Streckplacering"
+
+
+msgid "VR"
+msgstr "VR"
+
+
+msgid "Active Tool"
+msgstr "Aktivt verktyg"
+
+
+msgid "Cavity"
+msgstr "Hålrum"
+
+
+msgid "Render Pass"
+msgstr "Renderingspass"
 
 
 msgid "Import Settings"
@@ -23729,10 +23715,6 @@ msgid "Active Language"
 msgstr "Aktivt språk"
 
 
-msgid "Languages"
-msgstr "Språk"
-
-
 msgid "Collection Name"
 msgstr "Samlingsnamn"
 
@@ -25547,6 +25529,16 @@ msgstr "Öka segment"
 
 
 msgctxt "WindowManager"
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgctxt "WindowManager"
+msgid "Precision"
+msgstr "Precision"
+
+
+msgctxt "WindowManager"
 msgid "Lock Angle"
 msgstr "Lås vinkel"
 
@@ -25584,11 +25576,6 @@ msgstr "Hoppa"
 msgctxt "WindowManager"
 msgid "Jump (Off)"
 msgstr "Hoppa (av)"
-
-
-msgctxt "WindowManager"
-msgid "Precision"
-msgstr "Precision"
 
 
 msgctxt "WindowManager"
@@ -25754,11 +25741,6 @@ msgstr "Börja"
 msgctxt "WindowManager"
 msgid "Move"
 msgstr "Flytta"
-
-
-msgctxt "WindowManager"
-msgid "Snap"
-msgstr "Snäpp"
 
 
 msgctxt "WindowManager"
@@ -26264,12 +26246,12 @@ msgid "Use Geometry Nodes"
 msgstr "Använd geometrinoder"
 
 
-msgid "Node {} deleted"
-msgstr "Noden {} togs bort"
-
-
 msgid "{} does not exist"
 msgstr "{} finns inte"
+
+
+msgid "Node {} deleted"
+msgstr "Noden {} togs bort"
 
 
 msgid "Deleted {} nodes"
@@ -27809,11 +27791,6 @@ msgstr "Efter aktuell bildruta"
 msgctxt "Operator"
 msgid "Extrapolation Mode"
 msgstr "Extrapoleringsläge"
-
-
-msgctxt "Operator"
-msgid "Move..."
-msgstr "Flytta..."
 
 
 msgctxt "Operator"
@@ -29406,11 +29383,6 @@ msgstr "Högtalare"
 
 
 msgctxt "Operator"
-msgid "Make Local..."
-msgstr "Gör lokal..."
-
-
-msgctxt "Operator"
 msgid "Change Shape"
 msgstr "Ändra form"
 
@@ -29652,16 +29624,6 @@ msgstr "Nästa block"
 msgctxt "Operator"
 msgid "Armature"
 msgstr "Armatur"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Referens"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Bakgrund"
 
 
 msgctxt "Operator"
@@ -30533,10 +30495,6 @@ msgid "worlds"
 msgstr "världar"
 
 
-msgid "insufficient content"
-msgstr "otillräckligt innehåll"
-
-
 msgid "unknown error reading file"
 msgstr "okänt fel vid läsning av fil"
 
@@ -30559,10 +30517,6 @@ msgstr "Går inte att öppna blend <memory>"
 
 msgid "Blend file '%s' created by a Big Endian version of Blender, support for these files has been removed in Blender 5.0, use an older version of Blender to open and convert it."
 msgstr "Blend-filen '%s' skapades av en Big Endian-version av Blender, stöd för dessa filer kommer att tas bort i Blender 5.0. Använd en äldre version av Blender för att öppna och konvertera den."
-
-
-msgid "Unable to read '%s': %s"
-msgstr "Det går inte att läsa '%s': %s"
 
 
 msgid "Unable to open '%s': %s"
@@ -30782,11 +30736,6 @@ msgstr "Sök"
 
 msgid "%s: %s"
 msgstr "%s: %s"
-
-
-msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Ändra genväg"
 
 
 msgctxt "Operator"
@@ -34407,26 +34356,6 @@ msgstr "filer"
 
 msgid "microphone"
 msgstr "mikrofon"
-
-
-msgid "Estonian - Eesti keel"
-msgstr "Estniska - Eesti keel"
-
-
-msgid "Amharic - አማርኛ"
-msgstr "Amhariska - አማርኛ"
-
-
-msgid "Uzbek (Latin) - Oʻzbek"
-msgstr "Uzbekiska (latin) - Oʻzbek"
-
-
-msgid "Uzbek (Cyrillic) - Ўзбек"
-msgstr "Uzbekisk (kyrilliska) - Ўзбек"
-
-
-msgid "Kazakh - Қазақша"
-msgstr "Kazakiska - Қазақша"
 
 
 msgid "Add & Subtract"

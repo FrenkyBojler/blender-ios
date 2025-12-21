@@ -6,7 +6,6 @@
  * \ingroup modifiers
  */
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 
 #include "BKE_curves.hh"
@@ -39,10 +38,7 @@ using bke::greasepencil::Layer;
 static void init_data(ModifierData *md)
 {
   auto *lmd = reinterpret_cast<GreasePencilLatticeModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(lmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(lmd, DNA_struct_default_get(GreasePencilLatticeModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(lmd, modifier);
   modifier::greasepencil::init_influence_data(&lmd->influence, false);
 }
 
@@ -161,7 +157,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   layout.use_property_split_set(true);
 
   layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(ptr, "strength", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "strength", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (ui::Layout *influence_panel = layout.panel_prop(
           C, ptr, "open_influence_panel", IFACE_("Influence")))

@@ -345,7 +345,7 @@ void BKE_nla_tracks_copy_from_adt(Main *bmain,
 NlaTrack *BKE_nlatrack_new()
 {
   /* allocate new track */
-  NlaTrack *nlt = MEM_callocN<NlaTrack>("NlaTrack");
+  NlaTrack *nlt = MEM_new_for_free<NlaTrack>("NlaTrack");
 
   /* set settings requiring the track to not be part of the stack yet */
   nlt->flag = NLATRACK_SELECTED | NLATRACK_OVERRIDELIBRARY_LOCAL;
@@ -484,7 +484,7 @@ static NlaStrip *nlastrip_new(bAction *act, ID &animated_id)
   }
 
   /* allocate new strip */
-  strip = MEM_callocN<NlaStrip>("NlaStrip");
+  strip = MEM_new_for_free<NlaStrip>("NlaStrip");
 
   /* generic settings
    * - selected flag to highlight this to the user
@@ -607,7 +607,7 @@ NlaStrip *BKE_nlastack_add_strip(const OwnedAnimData owned_adt, const bool is_li
 
 NlaStrip *BKE_nla_add_soundstrip(Main *bmain, Scene *scene, Speaker *speaker)
 {
-  NlaStrip *strip = MEM_callocN<NlaStrip>("NlaSoundStrip");
+  NlaStrip *strip = MEM_new_for_free<NlaStrip>("NlaSoundStrip");
 
 /* if speaker has a sound, set the strip length to the length of the sound,
  * otherwise default to length of 10 frames
@@ -969,7 +969,7 @@ void BKE_nlastrips_make_metas(ListBase *strips, bool is_temp)
       /* if there is an existing meta-strip, add this strip to it, otherwise, create a new one */
       if (mstrip == nullptr) {
         /* add a new meta-strip, and add it before the current strip that it will replace... */
-        mstrip = MEM_callocN<NlaStrip>("Meta-NlaStrip");
+        mstrip = MEM_new_for_free<NlaStrip>("Meta-NlaStrip");
         mstrip->type = NLASTRIP_TYPE_META;
         BLI_insertlinkbefore(strips, strip, mstrip);
 
@@ -1964,9 +1964,7 @@ void BKE_nlastrip_validate_name(AnimData *adt, NlaStrip *strip)
    *   but then everything else in Blender would fail too :).
    */
   BLI_uniquename_cb(
-      [&](const blender::StringRefNull check_name) {
-        return BLI_ghash_haskey(gh, check_name.c_str());
-      },
+      [&](const StringRefNull check_name) { return BLI_ghash_haskey(gh, check_name.c_str()); },
       DATA_("NlaStrip"),
       '.',
       strip->name,
@@ -2787,7 +2785,7 @@ void BKE_nla_liboverride_post_process(ID *id, AnimData *adt)
   }
 }
 
-static bool visit_strip(NlaStrip *strip, blender::FunctionRef<bool(NlaStrip *)> callback)
+static bool visit_strip(NlaStrip *strip, FunctionRef<bool(NlaStrip *)> callback)
 {
   if (!callback(strip)) {
     return false;
@@ -2804,7 +2802,7 @@ static bool visit_strip(NlaStrip *strip, blender::FunctionRef<bool(NlaStrip *)> 
 
 namespace blender::bke::nla {
 
-bool foreach_strip(ID *id, blender::FunctionRef<bool(NlaStrip *)> callback)
+bool foreach_strip(ID *id, FunctionRef<bool(NlaStrip *)> callback)
 {
   const AnimData *adt = BKE_animdata_from_id(id);
   if (!adt) {
@@ -2814,7 +2812,7 @@ bool foreach_strip(ID *id, blender::FunctionRef<bool(NlaStrip *)> callback)
   return foreach_strip_adt(*adt, callback);
 }
 
-bool foreach_strip_adt(const AnimData &adt, blender::FunctionRef<bool(NlaStrip *)> callback)
+bool foreach_strip_adt(const AnimData &adt, FunctionRef<bool(NlaStrip *)> callback)
 {
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt.nla_tracks) {
     LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {

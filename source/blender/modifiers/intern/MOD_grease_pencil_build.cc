@@ -13,7 +13,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -46,10 +45,7 @@ constexpr float GP_BUILD_TIME_DEFAULT_STROKES = 1.0f;
 static void init_data(ModifierData *md)
 {
   auto *gpmd = reinterpret_cast<GreasePencilBuildModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilBuildModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
 }
 
@@ -819,7 +815,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
   layout.separator();
   layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  PanelLayout restrict_frame_range_layout = layout.panel_prop_with_bool_header(
+  ui::PanelLayout restrict_frame_range_layout = layout.panel_prop_with_bool_header(
       C,
       ptr,
       "open_frame_range_panel",
@@ -833,7 +829,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     col.prop(ptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
     col.prop(ptr, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
   }
-  PanelLayout fading_layout = layout.panel_prop_with_bool_header(
+  ui::PanelLayout fading_layout = layout.panel_prop_with_bool_header(
       C, ptr, "open_fading_panel", ptr, "use_fading", IFACE_("Fading"));
   if (ui::Layout *panel = fading_layout.body) {
     const bool active = RNA_boolean_get(ptr, "use_fading");

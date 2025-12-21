@@ -13,7 +13,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -37,10 +36,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   GreasePencilNoiseModifierData *gpmd = reinterpret_cast<GreasePencilNoiseModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilNoiseModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, true);
 }
 
@@ -291,7 +287,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   col.prop(ptr, "noise_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "noise_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  PanelLayout random_panel_layout = layout.panel_prop_with_bool_header(
+  ui::PanelLayout random_panel_layout = layout.panel_prop_with_bool_header(
       C, ptr, "open_random_panel", ptr, "use_random", IFACE_("Random"));
   if (ui::Layout *random_layout = random_panel_layout.body) {
     ui::Layout &random_col = random_layout->column(false);

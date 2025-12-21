@@ -44,7 +44,7 @@ XrActionMapBinding *WM_xr_actionmap_binding_new(XrActionMapItem *ami,
     return amb_prev;
   }
 
-  XrActionMapBinding *amb = MEM_callocN<XrActionMapBinding>(__func__);
+  XrActionMapBinding *amb = MEM_new_for_free<XrActionMapBinding>(__func__);
   STRNCPY_UTF8(amb->name, name);
   if (amb_prev) {
     WM_xr_actionmap_binding_ensure_unique(ami, amb);
@@ -223,7 +223,7 @@ void WM_xr_actionmap_item_properties_update_ot(XrActionMapItem *ami)
     if (ot) {
       if (ot->srna != ami->op_properties_ptr->type) {
         /* Matches wm_xr_actionmap_item_properties_set() but doesn't alloc new ptr. */
-        WM_operator_properties_create_ptr(ami->op_properties_ptr, ot);
+        *ami->op_properties_ptr = WM_operator_properties_create_ptr(ot);
         if (ami->op_properties) {
           ami->op_properties_ptr->data = ami->op_properties;
         }
@@ -246,7 +246,7 @@ XrActionMapItem *WM_xr_actionmap_item_new(XrActionMap *actionmap,
     return ami_prev;
   }
 
-  XrActionMapItem *ami = MEM_callocN<XrActionMapItem>(__func__);
+  XrActionMapItem *ami = MEM_new_for_free<XrActionMapItem>(__func__);
   STRNCPY_UTF8(ami->name, name);
   if (ami_prev) {
     WM_xr_actionmap_item_ensure_unique(actionmap, ami);
@@ -310,7 +310,7 @@ static XrActionMapItem *wm_xr_actionmap_item_copy(XrActionMapItem *ami_src)
 
   if (ami_dst->op_properties) {
     ami_dst->op_properties_ptr = MEM_new<PointerRNA>("wmOpItemPtr");
-    WM_operator_properties_create(ami_dst->op_properties_ptr, ami_dst->op);
+    *ami_dst->op_properties_ptr = WM_operator_properties_create(ami_dst->op);
     ami_dst->op_properties = IDP_CopyProperty(ami_src->op_properties);
     ami_dst->op_properties_ptr->data = ami_dst->op_properties;
   }
@@ -385,7 +385,7 @@ XrActionMap *WM_xr_actionmap_new(wmXrRuntimeData *runtime, const char *name, boo
     return am_prev;
   }
 
-  XrActionMap *am = MEM_callocN<XrActionMap>(__func__);
+  XrActionMap *am = MEM_new_for_free<XrActionMap>(__func__);
   STRNCPY_UTF8(am->name, name);
   if (am_prev) {
     WM_xr_actionmap_ensure_unique(runtime, am);

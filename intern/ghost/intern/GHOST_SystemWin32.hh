@@ -347,9 +347,9 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param mask: The button mask of this event.
    * \return The event created.
    */
-  static GHOST_EventButton *processButtonEvent(GHOST_TEventType type,
-                                               GHOST_WindowWin32 *window,
-                                               GHOST_TButton mask);
+  static std::unique_ptr<GHOST_EventButton> processButtonEvent(GHOST_TEventType type,
+                                                               GHOST_WindowWin32 *window,
+                                                               GHOST_TButton mask);
 
   /**
    * Creates tablet events from Wintab events.
@@ -373,8 +373,8 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param window: The window receiving the event (the active window).
    * \return The event created.
    */
-  static GHOST_EventCursor *processCursorEvent(GHOST_WindowWin32 *window,
-                                               const int32_t screen_co[2]);
+  static std::unique_ptr<GHOST_EventCursor> processCursorEvent(GHOST_WindowWin32 *window,
+                                                               const int32_t screen_co[2]);
 
   /**
    * Handles a vertical mouse wheel event.
@@ -399,7 +399,8 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param window: The window receiving the event (the active window).
    * \param raw: RawInput structure with detailed info about the key event.
    */
-  static GHOST_EventKey *processKeyEvent(GHOST_WindowWin32 *window, RAWINPUT const &raw);
+  static std::unique_ptr<GHOST_EventKey> processKeyEvent(GHOST_WindowWin32 *window,
+                                                         RAWINPUT const &raw);
 
   /**
    * Process special keys `VK_OEM_*`, to see if current key layout
@@ -414,7 +415,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param window: The window receiving the event (the active window).
    * \return The event created.
    */
-  static GHOST_Event *processWindowSizeEvent(GHOST_WindowWin32 *window);
+  static std::unique_ptr<GHOST_Event> processWindowSizeEvent(GHOST_WindowWin32 *window);
 
   /**
    * Creates a window event.
@@ -422,7 +423,8 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param window: The window receiving the event (the active window).
    * \return The event created.
    */
-  static GHOST_Event *processWindowEvent(GHOST_TEventType type, GHOST_WindowWin32 *window);
+  static std::unique_ptr<GHOST_Event> processWindowEvent(GHOST_TEventType type,
+                                                         GHOST_WindowWin32 *window);
 
 #ifdef WITH_INPUT_IME
   /**
@@ -432,9 +434,9 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param data: IME data.
    * \return The event created.
    */
-  static GHOST_Event *processImeEvent(GHOST_TEventType type,
-                                      GHOST_WindowWin32 *window,
-                                      const GHOST_TEventImeData *data);
+  static std::unique_ptr<GHOST_Event> processImeEvent(GHOST_TEventType type,
+                                                      GHOST_WindowWin32 *window,
+                                                      const GHOST_TEventImeData *data);
 #endif /* WITH_INPUT_IME */
 
   /**

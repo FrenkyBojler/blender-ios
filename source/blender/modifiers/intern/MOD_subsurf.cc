@@ -17,7 +17,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -54,10 +53,7 @@
 static void init_data(ModifierData *md)
 {
   SubsurfModifierData *smd = (SubsurfModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SubsurfModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 static void free_runtime_data(void *runtime_data_v)
@@ -341,7 +337,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  layout.prop(ptr, "subdivision_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "subdivision_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   layout.use_property_split_set(true);
 
@@ -377,7 +373,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (get_show_adaptive_options(C, panel)) {
-    PanelLayout adaptive_panel = layout.panel_prop_with_bool_header(
+    blender::ui::PanelLayout adaptive_panel = layout.panel_prop_with_bool_header(
         C,
         ptr,
         "open_adaptive_subdivision_panel",

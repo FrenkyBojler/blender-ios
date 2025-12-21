@@ -12,7 +12,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
@@ -42,10 +41,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *gpmd = reinterpret_cast<GreasePencilHookModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilHookModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, true);
 }
 
@@ -280,7 +276,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     col.prop_search(ptr, "subtarget", &hook_object_data_ptr, "bones", IFACE_("Bone"), ICON_NONE);
   }
 
-  layout.prop(ptr, "strength", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "strength", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (ui::Layout *sub = layout.panel_prop(C, ptr, "open_falloff_panel", IFACE_("Falloff"))) {
     sub->use_property_split_set(true);
@@ -296,7 +292,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     sub->prop(ptr, "use_falloff_uniform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (RNA_enum_get(ptr, "falloff_type") == eWarp_Falloff_Curve) {
-      uiTemplateCurveMapping(sub, ptr, "custom_curve", 0, false, false, false, false, false);
+      template_curve_mapping(sub, ptr, "custom_curve", 0, false, false, false, false, false);
     }
   }
 

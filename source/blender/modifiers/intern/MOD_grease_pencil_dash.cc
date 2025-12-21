@@ -12,7 +12,6 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 
 #include "BKE_curves.hh"
@@ -47,12 +46,11 @@ static void init_data(ModifierData *md)
 {
   auto *dmd = reinterpret_cast<GreasePencilDashModifierData *>(md);
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(dmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(dmd, DNA_struct_default_get(GreasePencilDashModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(dmd, modifier);
   modifier::greasepencil::init_influence_data(&dmd->influence, false);
 
-  GreasePencilDashModifierSegment *ds = DNA_struct_default_alloc(GreasePencilDashModifierSegment);
+  GreasePencilDashModifierSegment *ds = MEM_new_for_free<GreasePencilDashModifierSegment>(
+      __func__);
   STRNCPY_UTF8(ds->name, DATA_("Segment"));
   dmd->segments_array = ds;
   dmd->segments_num = 1;
@@ -408,20 +406,19 @@ static void panel_draw(const bContext *C, Panel *panel)
   ui::Layout &row = layout.row(false);
   row.use_property_split_set(false);
 
-  uiTemplateList(&row,
-                 (bContext *)C,
-                 "MOD_UL_grease_pencil_dash_modifier_segments",
-                 "",
-                 ptr,
-                 "segments",
-                 ptr,
-                 "segment_active_index",
-                 nullptr,
-                 3,
-                 10,
-                 0,
-                 1,
-                 UI_TEMPLATE_LIST_FLAG_NONE);
+  template_list(&row,
+                (bContext *)C,
+                "MOD_UL_grease_pencil_dash_modifier_segments",
+                "",
+                ptr,
+                "segments",
+                ptr,
+                "segment_active_index",
+                nullptr,
+                3,
+                10,
+                0,
+                blender::ui::TEMPLATE_LIST_FLAG_NONE);
 
   ui::Layout &col = row.column(false);
   ui::Layout *sub = &col.column(true);
@@ -473,7 +470,7 @@ static void segment_list_item_draw(uiList * /*ui_list*/,
                                    int /*flt_flag*/)
 {
   ui::Layout &row = layout.row(true);
-  row.prop(itemptr, "name", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  row.prop(itemptr, "name", blender::ui::ITEM_R_NO_BG, "", ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
