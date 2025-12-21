@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_outline_info.hh"
+#include "infos/overlay_outline_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_outline_prepass_pointcloud)
 
@@ -25,7 +25,7 @@ uint outline_colorid_get()
     return 3u; /* theme.colors.active */
   }
   else {
-    return 1u; /* theme.colors.select */
+    return 1u; /* theme.colors.object_select */
   }
 
   return 0u;

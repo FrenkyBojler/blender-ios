@@ -6,6 +6,7 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
@@ -24,7 +25,7 @@
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geometry_nodes_log.hh"
@@ -68,7 +69,7 @@ static Vector<const std::string *> get_layer_names_from_context(const bContext &
   if (!tree_zones) {
     return {};
   }
-  const ContextualGeoTreeLogs tree_logs = GeoModifierLog::get_contextual_tree_logs(*snode);
+  const ContextualGeoTreeLogs tree_logs = GeoNodesLog::get_contextual_tree_logs(*snode);
 
   Set<StringRef> names;
 
@@ -122,7 +123,7 @@ static Vector<const std::string *> get_layer_names_from_context(const bContext &
 }
 
 static void layer_search_update_fn(
-    const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
+    const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
@@ -170,7 +171,7 @@ static void layer_search_exec_fn(bContext *C, void *data_v, void *item_v)
   BLI_assert(socket->type == SOCK_STRING);
 
   bNodeSocketValueString *value = static_cast<bNodeSocketValueString *>(socket->default_value);
-  BLI_strncpy(value->value, item->c_str(), MAX_NAME);
+  BLI_strncpy_utf8(value->value, item->c_str(), MAX_NAME);
 
   ED_undo_push(C, "Assign Layer Name");
 }
@@ -178,35 +179,32 @@ static void layer_search_exec_fn(bContext *C, void *data_v, void *item_v)
 void node_geometry_add_layer_search_button(const bContext & /*C*/,
                                            const bNode &node,
                                            PointerRNA &socket_ptr,
-                                           uiLayout &layout,
-                                           const StringRefNull placeholder)
+                                           ui::Layout &layout,
+                                           const StringRef placeholder)
 {
-  uiBlock *block = uiLayoutGetBlock(&layout);
-  uiBut *but = uiDefIconTextButR(block,
-                                 UI_BTYPE_SEARCH_MENU,
-                                 0,
-                                 ICON_OUTLINER_DATA_GP_LAYER,
-                                 "",
-                                 0,
-                                 0,
-                                 10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
-                                 UI_UNIT_Y,
-                                 &socket_ptr,
-                                 "default_value",
-                                 0,
-                                 0.0f,
-                                 0.0f,
-                                 "");
-  UI_but_placeholder_set(but, placeholder.c_str());
+  ui::Block *block = layout.block();
+  ui::Button *but = uiDefIconTextButR(block,
+                                      ui::ButtonType::SearchMenu,
+                                      ICON_OUTLINER_DATA_GP_LAYER,
+                                      "",
+                                      0,
+                                      0,
+                                      10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
+                                      UI_UNIT_Y,
+                                      &socket_ptr,
+                                      "default_value",
+                                      0,
+                                      "");
+  button_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *static_cast<const bNodeSocket *>(socket_ptr.data);
   LayerSearchData *data = MEM_callocN<LayerSearchData>(__func__);
   data->node_id = node.identifier;
-  STRNCPY(data->socket_identifier, socket.identifier);
+  STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 
-  UI_but_func_search_set_results_are_suggestions(but, true);
-  UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
-  UI_but_func_search_set(but,
+  button_func_search_set_results_are_suggestions(but, true);
+  button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  button_func_search_set(but,
                          nullptr,
                          layer_search_update_fn,
                          static_cast<void *>(data),

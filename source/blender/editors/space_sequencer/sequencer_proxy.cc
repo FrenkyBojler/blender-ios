@@ -25,10 +25,8 @@
 
 #include "RNA_define.hh"
 
-/* For menu, popup, icons, etc. */
 #include "ED_screen.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -39,7 +37,7 @@ namespace blender::ed::vse {
 
 static void seq_proxy_build_job(const bContext *C, ReportList *reports)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ScrArea *area = CTX_wm_area(C);
 
@@ -50,11 +48,12 @@ static void seq_proxy_build_job(const bContext *C, ReportList *reports)
   wmJob *wm_job = seq::ED_seq_proxy_wm_job_get(C);
   seq::ProxyJob *pj = seq::ED_seq_proxy_job_get(C, wm_job);
 
-  blender::Set<std::string> processed_paths;
+  Set<std::string> processed_paths;
   bool selected = false; /* Check for no selected strips */
 
   LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
-    if (!ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE) || (strip->flag & SELECT) == 0) {
+    if (!ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE) || (strip->flag & SEQ_SELECT) == 0)
+    {
       continue;
     }
 
@@ -103,17 +102,17 @@ static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  blender::Set<std::string> processed_paths;
+  Set<std::string> processed_paths;
 
   LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
-    if (strip->flag & SELECT) {
+    if (strip->flag & SEQ_SELECT) {
       ListBase queue = {nullptr, nullptr};
 
       seq::proxy_rebuild_context(bmain, depsgraph, scene, strip, &processed_paths, &queue, false);
@@ -127,6 +126,7 @@ static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /
       seq::relations_free_imbuf(scene, &ed->seqbase, false);
     }
   }
+  seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
 
   return OPERATOR_FINISHED;
 }
@@ -138,9 +138,10 @@ void SEQUENCER_OT_rebuild_proxy(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_rebuild_proxy";
   ot->description = "Rebuild all selected proxies and timecode indices";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_rebuild_proxy_invoke;
   ot->exec = sequencer_rebuild_proxy_exec;
+  ot->poll = sequencer_edit_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER;
@@ -162,7 +163,7 @@ static wmOperatorStatus sequencer_enable_proxies_invoke(bContext *C,
 
 static wmOperatorStatus sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   bool proxy_25 = RNA_boolean_get(op->ptr, "proxy_25");
   bool proxy_50 = RNA_boolean_get(op->ptr, "proxy_50");
@@ -176,7 +177,7 @@ static wmOperatorStatus sequencer_enable_proxies_exec(bContext *C, wmOperator *o
   }
 
   LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
-    if (strip->flag & SELECT) {
+    if (strip->flag & SEQ_SELECT) {
       if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
         seq::proxy_set(strip, turnon);
         if (strip->data->proxy == nullptr) {
@@ -233,9 +234,10 @@ void SEQUENCER_OT_enable_proxies(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_enable_proxies";
   ot->description = "Enable selected proxies on all selected Movie and Image strips";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_enable_proxies_invoke;
   ot->exec = sequencer_enable_proxies_exec;
+  ot->poll = sequencer_edit_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER;

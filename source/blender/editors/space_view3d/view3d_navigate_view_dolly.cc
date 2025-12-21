@@ -123,11 +123,13 @@ static wmOperatorStatus viewdolly_modal(bContext *C, wmOperator *op, const wmEve
         event_code = VIEW_CONFIRM;
         break;
       case VIEWROT_MODAL_SWITCH_MOVE:
-        WM_operator_name_call(C, "VIEW3D_OT_move", WM_OP_INVOKE_DEFAULT, nullptr, event);
+        WM_operator_name_call(
+            C, "VIEW3D_OT_move", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
       case VIEWROT_MODAL_SWITCH_ROTATE:
-        WM_operator_name_call(C, "VIEW3D_OT_rotate", WM_OP_INVOKE_DEFAULT, nullptr, event);
+        WM_operator_name_call(
+            C, "VIEW3D_OT_rotate", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
     }
@@ -330,7 +332,7 @@ void VIEW3D_OT_dolly(wmOperatorType *ot)
   ot->description = "Dolly in/out in the view";
   ot->idname = ViewOpsType_dolly.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = viewdolly_invoke;
   ot->exec = viewdolly_exec;
   ot->modal = viewdolly_modal;

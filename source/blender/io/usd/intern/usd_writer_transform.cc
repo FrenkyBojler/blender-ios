@@ -10,9 +10,10 @@
 
 #include "BKE_object.hh"
 
+#include "DNA_object_types.h"
+
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
-#include "BLI_string.h"
 #include "BLI_vector.hh"
 
 #include "CLG_log.h"
@@ -48,7 +49,7 @@ bool USDTransformWriter::should_apply_root_xform(const HierarchyContext &context
     return false;
   }
 
-  if (usd_export_context_.export_params.root_prim_path[0]) {
+  if (!usd_export_context_.export_params.root_prim_path.empty()) {
     return false;
   }
 
@@ -61,6 +62,10 @@ bool USDTransformWriter::should_apply_root_xform(const HierarchyContext &context
 
 void USDTransformWriter::do_write(HierarchyContext &context)
 {
+  if (context.is_point_proto || context.is_point_instance) {
+    return;
+  }
+
   constexpr float UNIT_M4[4][4] = {
       {1, 0, 0, 0},
       {0, 1, 0, 0},
@@ -119,6 +124,7 @@ void USDTransformWriter::do_write(HierarchyContext &context)
 
   if (context.object) {
     auto prim = xform.GetPrim();
+    add_to_prim_map(prim.GetPath(), &context.object->id);
     write_id_properties(prim, context.object->id, get_export_time_code());
   }
 }

@@ -17,7 +17,7 @@
 #include "util/debug.h"
 
 #include "util/guiding.h"
-#include "util/md5.h"
+#include "util/log.h"
 #include "util/openimagedenoise.h"
 #include "util/path.h"
 #include "util/string.h"
@@ -25,6 +25,8 @@
 #include "util/types.h"
 
 #include "GPU_state.hh"
+
+#include "DNA_screen_types.h"
 
 #include "scene/osl.h"
 
@@ -49,7 +51,7 @@ void *pylong_as_voidptr_typesafe(PyObject *object)
 
 PyObject *pyunicode_from_string(const char *str)
 {
-  /* Ignore errors if device API returns invalid UTF-8 strings. */
+  /* Ignore errors if device API returns invalid UTF8 strings. */
   return PyUnicode_DecodeUTF8(str, strlen(str), "ignore");
 }
 
@@ -213,7 +215,14 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
     const int width = region.width();
     const int height = region.height();
 
-    session = new BlenderSession(engine, preferences, data, v3d, rv3d, width, height);
+    session = new BlenderSession(engine,
+                                 preferences,
+                                 data,
+                                 blender::id_cast<::bScreen &>(*v3dptr.owner_id),
+                                 v3d,
+                                 rv3d,
+                                 width,
+                                 height);
   }
   else {
     /* offline session or preview render */
@@ -440,7 +449,7 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
   for (size_t i = 0; i < devices.size(); i++) {
     const DeviceInfo &device = devices[i];
     const string type_name = Device::string_from_type(device.type);
-    PyObject *device_tuple = PyTuple_New(7);
+    PyObject *device_tuple = PyTuple_New(8);
     PyTuple_SET_ITEM(device_tuple, 0, pyunicode_from_string(device.description.c_str()));
     PyTuple_SET_ITEM(device_tuple, 1, pyunicode_from_string(type_name.c_str()));
     PyTuple_SET_ITEM(device_tuple, 2, pyunicode_from_string(device.id.c_str()));
@@ -449,6 +458,7 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
     PyTuple_SET_ITEM(
         device_tuple, 5, PyBool_FromLong(device.denoisers & DENOISER_OPENIMAGEDENOISE));
     PyTuple_SET_ITEM(device_tuple, 6, PyBool_FromLong(device.denoisers & DENOISER_OPTIX));
+    PyTuple_SET_ITEM(device_tuple, 7, PyBool_FromLong(device.has_execution_optimization));
     PyTuple_SET_ITEM(ret, i, device_tuple);
   }
 
@@ -726,7 +736,7 @@ static PyObject *set_device_override_func(PyObject * /*self*/, PyObject *arg)
     BlenderSession::device_override = DEVICE_MASK_ONEAPI;
   }
   else {
-    fprintf(stderr, "\nError: %s is not a valid Cycles device.\n", override.c_str());
+    LOG_ERROR << override << " is not a valid Cycles device.";
     Py_RETURN_FALSE;
   }
 

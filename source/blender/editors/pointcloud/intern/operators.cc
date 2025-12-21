@@ -24,6 +24,7 @@
 #include "RNA_define.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 
@@ -151,7 +152,8 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
                                               .complement(IndexRange(pointcloud->totpoint),
                                                           memory);
     const bool was_anything_selected = has_anything_selected(*pointcloud);
-    bke::GSpanAttributeWriter selection = ensure_selection_attribute(*pointcloud, CD_PROP_BOOL);
+    bke::GSpanAttributeWriter selection = ensure_selection_attribute(*pointcloud,
+                                                                     bke::AttrType::Bool);
     if (!was_anything_selected) {
       pointcloud::fill_selection_true(selection.span);
     }
@@ -169,10 +171,10 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
 
 static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "probability", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "probability", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 }
 
 static void POINTCLOUD_OT_select_random(wmOperatorType *ot)

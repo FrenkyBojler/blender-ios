@@ -25,6 +25,7 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
@@ -176,7 +177,7 @@ void PAINTCURVE_OT_new(wmOperatorType *ot)
   ot->description = "Add new paint curve";
   ot->idname = "PAINTCURVE_OT_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = paintcurve_new_exec;
   ot->poll = paint_curve_poll;
 
@@ -200,8 +201,8 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
 
   ED_paintcurve_undo_push_begin(op->type->name);
 
-  PaintCurvePoint *pcp = MEM_malloc_arrayN<PaintCurvePoint>((pc->tot_points + 1),
-                                                            "PaintCurvePoint");
+  PaintCurvePoint *pcp = MEM_new_array_for_free<PaintCurvePoint>((pc->tot_points + 1),
+                                                                 "PaintCurvePoint");
   int add_index = pc->add_index;
 
   if (pc->points) {
@@ -277,7 +278,7 @@ void PAINTCURVE_OT_add_point(wmOperatorType *ot)
   ot->description = ot->name;
   ot->idname = "PAINTCURVE_OT_add_point";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paintcurve_add_point_invoke;
   ot->exec = paintcurve_add_point_exec;
   ot->poll = paint_curve_poll;
@@ -330,7 +331,7 @@ static wmOperatorStatus paintcurve_delete_point_exec(bContext *C, wmOperator *op
     int new_tot = pc->tot_points - tot_del;
     PaintCurvePoint *points_new = nullptr;
     if (new_tot > 0) {
-      points_new = MEM_malloc_arrayN<PaintCurvePoint>(new_tot, "PaintCurvePoint");
+      points_new = MEM_new_array_for_free<PaintCurvePoint>(new_tot, "PaintCurvePoint");
     }
 
     for (i = 0, pcp = pc->points; i < pc->tot_points; i++, pcp++) {
@@ -370,7 +371,7 @@ void PAINTCURVE_OT_delete_point(wmOperatorType *ot)
   ot->description = ot->name;
   ot->idname = "PAINTCURVE_OT_delete_point";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = paintcurve_delete_point_exec;
   ot->poll = paint_curve_poll;
 
@@ -518,7 +519,7 @@ void PAINTCURVE_OT_select(wmOperatorType *ot)
   ot->description = "Select a paint curve point";
   ot->idname = "PAINTCURVE_OT_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paintcurve_select_point_invoke;
   ot->exec = paintcurve_select_point_exec;
   ot->poll = paint_curve_poll;
@@ -664,7 +665,7 @@ void PAINTCURVE_OT_slide(wmOperatorType *ot)
   ot->description = "Select and slide paint curve point";
   ot->idname = "PAINTCURVE_OT_slide";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paintcurve_slide_invoke;
   ot->modal = paintcurve_slide_modal;
   ot->poll = paint_curve_poll;
@@ -708,7 +709,8 @@ static wmOperatorStatus paintcurve_draw_exec(bContext *C, wmOperator * /*op*/)
       return OPERATOR_PASS_THROUGH;
   }
 
-  return WM_operator_name_call(C, name, WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+  return WM_operator_name_call(
+      C, name, blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
 }
 
 void PAINTCURVE_OT_draw(wmOperatorType *ot)
@@ -718,7 +720,7 @@ void PAINTCURVE_OT_draw(wmOperatorType *ot)
   ot->description = "Draw curve";
   ot->idname = "PAINTCURVE_OT_draw";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = paintcurve_draw_exec;
   ot->poll = paint_curve_poll;
 
@@ -742,7 +744,7 @@ static wmOperatorStatus paintcurve_cursor_invoke(bContext *C,
         return OPERATOR_CANCELLED;
       }
 
-      UI_view2d_region_to_view(
+      blender::ui::view2d_region_to_view(
           &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
       copy_v2_v2(sima->cursor, location);
       WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
@@ -763,7 +765,7 @@ void PAINTCURVE_OT_cursor(wmOperatorType *ot)
   ot->description = "Place cursor";
   ot->idname = "PAINTCURVE_OT_cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paintcurve_cursor_invoke;
   ot->poll = paint_curve_poll;
 

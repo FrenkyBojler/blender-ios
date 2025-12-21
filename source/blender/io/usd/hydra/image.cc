@@ -31,9 +31,8 @@ static std::string cache_image_file(
     const char *file_ext[BKE_IMAGE_PATH_EXT_MAX];
     file_ext[0] = BLI_path_extension_or_end(image->id.name);
     if (!pxr::HioImageRegistry::GetInstance().IsSupportedImageFile(image->id.name)) {
-      BKE_image_path_ext_from_imformat(&scene->r.im_format, file_ext);
-      BKE_image_format_free(&opts.im_format);
-      BKE_image_format_copy(&opts.im_format, &scene->r.im_format);
+      BKE_image_format_set(&opts.im_format, nullptr, R_IMF_IMTYPE_PNG);
+      BKE_image_path_ext_from_imformat(&opts.im_format, file_ext);
     }
 
     char file_name[FILE_MAX];
@@ -48,7 +47,7 @@ static std::string cache_image_file(
     opts.save_copy = true;
     STRNCPY(opts.filepath, file_path.c_str());
     if (BKE_image_save(nullptr, bmain, image, iuser, &opts)) {
-      CLOG_INFO(LOG_HYDRA_SCENE, 1, "%s -> %s", image->id.name, file_path.c_str());
+      CLOG_DEBUG(LOG_HYDRA_SCENE, "%s -> %s", image->id.name, file_path.c_str());
     }
     else {
       CLOG_ERROR(LOG_HYDRA_SCENE, "Can't save %s", file_path.c_str());
@@ -104,7 +103,7 @@ std::string cache_or_get_image_file(Main *bmain, Scene *scene, Image *image, Ima
     file_path = cache_image_file(bmain, scene, image, iuser, true);
   }
 
-  CLOG_INFO(LOG_HYDRA_SCENE, 1, "%s -> %s", image->id.name, file_path.c_str());
+  CLOG_DEBUG(LOG_HYDRA_SCENE, "%s -> %s", image->id.name, file_path.c_str());
   return file_path;
 }
 

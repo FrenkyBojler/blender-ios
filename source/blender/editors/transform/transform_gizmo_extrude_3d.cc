@@ -167,13 +167,13 @@ static void gizmo_mesh_extrude_setup(const bContext *C, wmGizmoGroup *gzgroup)
   }
 
   for (int i = 0; i < 3; i++) {
-    UI_GetThemeColor3fv(TH_AXIS_X + i, ggd->invoke_xyz_no[i]->color);
+    ui::theme::get_color_3fv(TH_AXIS_X + i, ggd->invoke_xyz_no[i]->color);
   }
-  UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, ggd->invoke_xyz_no[3]->color);
+  ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, ggd->invoke_xyz_no[3]->color);
   ggd->invoke_view->color[3] = 0.5f;
 
   for (int i = 0; i < 2; i++) {
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, ggd->adjust[i]->color);
+    ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, ggd->adjust[i]->color);
   }
 
   for (int i = 0; i < 4; i++) {
@@ -282,7 +282,7 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
   /* Adjust current operator. */
   /* Don't use 'WM_operator_last_redo' because selection actions will be ignored. */
-  wmOperator *op = static_cast<wmOperator *>(CTX_wm_manager(C)->operators.last);
+  wmOperator *op = static_cast<wmOperator *>(CTX_wm_manager(C)->runtime->operators.last);
   bool has_redo = (op && op->type == ggd->ot_extrude);
   wmOperator *op_xform = static_cast<wmOperator *>(has_redo ? op->macro.last : nullptr);
 

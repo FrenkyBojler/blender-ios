@@ -15,7 +15,6 @@
 #include "BLT_translation.hh"
 
 #include "DNA_cloth_types.h"
-#include "DNA_defaults.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
@@ -34,7 +33,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_pointcache.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
@@ -48,11 +47,9 @@ static void init_data(ModifierData *md)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(clmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(clmd, DNA_struct_default_get(ClothModifierData), modifier);
-  clmd->sim_parms = DNA_struct_default_alloc(ClothSimSettings);
-  clmd->coll_parms = DNA_struct_default_alloc(ClothCollSettings);
+  INIT_DEFAULT_STRUCT_AFTER(clmd, modifier);
+  clmd->sim_parms = MEM_new_for_free<ClothSimSettings>(__func__);
+  clmd->coll_parms = MEM_new_for_free<ClothCollSettings>(__func__);
 
   clmd->point_cache = BKE_ptcache_add(&clmd->ptcaches);
 
@@ -97,10 +94,10 @@ static void deform_verts(ModifierData *md,
     KeyBlock *kb = BKE_keyblock_find_by_index(BKE_key_from_object(ctx->object),
                                               clmd->sim_parms->shapekey_rest);
     if (kb && kb->data != nullptr) {
-      float(*layerorco)[3] = static_cast<float(*)[3]>(
+      float (*layerorco)[3] = static_cast<float (*)[3]>(
           CustomData_get_layer_for_write(&mesh->vert_data, CD_CLOTH_ORCO, mesh->verts_num));
       if (!layerorco) {
-        layerorco = static_cast<float(*)[3]>(CustomData_add_layer(
+        layerorco = static_cast<float (*)[3]>(CustomData_add_layer(
             &mesh->vert_data, CD_CLOTH_ORCO, CD_SET_DEFAULT, mesh->verts_num));
       }
 
@@ -116,7 +113,7 @@ static void deform_verts(ModifierData *md,
                    scene,
                    ctx->object,
                    mesh,
-                   reinterpret_cast<float(*)[3]>(positions.data()));
+                   reinterpret_cast<float (*)[3]>(positions.data()));
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -250,13 +247,13 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -298,4 +295,5 @@ ModifierTypeInfo modifierType_Cloth = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

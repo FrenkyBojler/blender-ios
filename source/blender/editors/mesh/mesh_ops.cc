@@ -178,10 +178,6 @@ void ED_operatortypes_mesh()
   WM_operatortype_append(MESH_OT_symmetrize);
   WM_operatortype_append(MESH_OT_symmetry_snap);
 
-  WM_operatortype_append(MESH_OT_paint_mask_extract);
-  WM_operatortype_append(MESH_OT_face_set_extract);
-  WM_operatortype_append(MESH_OT_paint_mask_slice);
-
   WM_operatortype_append(MESH_OT_point_normals);
   WM_operatortype_append(MESH_OT_merge_normals);
   WM_operatortype_append(MESH_OT_split_normals);
@@ -191,6 +187,7 @@ void ED_operatortypes_mesh()
   WM_operatortype_append(MESH_OT_smooth_normals);
   WM_operatortype_append(MESH_OT_mod_weighted_strength);
   WM_operatortype_append(MESH_OT_flip_quad_tessellation);
+  WM_operatortype_append(MESH_OT_reorder_vertices_spatial);
 }
 
 #if 0 /* UNUSED, remove? */

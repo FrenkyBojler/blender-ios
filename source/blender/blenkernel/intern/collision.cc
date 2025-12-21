@@ -11,6 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_cloth_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -295,7 +296,7 @@ static float compute_collision_point_tri_tri(const float a1[3],
       }
     }
 
-    /* If no point is found, will fallback onto regular proximity test below. */
+    /* If no point is found, will fall back onto regular proximity test below. */
     if (found) {
       sub_v3_v3v3(r_vec, r_b, r_a);
 
@@ -482,7 +483,7 @@ static float compute_collision_point_edge_tri(const float a1[3],
       }
     }
 
-    /* If no point is found, will fallback onto regular proximity test below. */
+    /* If no point is found, will fall back onto regular proximity test below. */
     if (found) {
       sub_v3_v3v3(r_vec, r_b, r_a);
 

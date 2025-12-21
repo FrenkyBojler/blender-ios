@@ -132,7 +132,7 @@ static bool edbm_extrude_discrete_faces(BMEditMesh *em, wmOperator *op, const ch
   return true;
 }
 
-bool edbm_extrude_edges_indiv(BMEditMesh *em,
+bool EDBM_extrude_edges_indiv(BMEditMesh *em,
                               wmOperator *op,
                               const char hflag,
                               const bool use_normal_flip)
@@ -323,7 +323,7 @@ void MESH_OT_extrude_repeat(wmOperatorType *ot)
   ot->description = "Extrude selected vertices, edges or faces repeatedly";
   ot->idname = "MESH_OT_extrude_repeat";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_repeat_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -412,7 +412,7 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
       changed = edbm_extrude_verts_indiv(em, op, BM_ELEM_SELECT);
       break;
     case EDGE_ONLY:
-      changed = edbm_extrude_edges_indiv(em, op, BM_ELEM_SELECT, use_normal_flip);
+      changed = EDBM_extrude_edges_indiv(em, op, BM_ELEM_SELECT, use_normal_flip);
       break;
   }
 
@@ -459,7 +459,7 @@ void MESH_OT_extrude_region(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_region";
   ot->description = "Extrude region of faces";
 
-  /* api callbacks */
+  /* API callbacks. */
   // ot->invoke = mesh_extrude_region_invoke;
   ot->exec = edbm_extrude_region_exec;
   ot->poll = ED_operator_editmesh;
@@ -514,7 +514,7 @@ void MESH_OT_extrude_context(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_context";
   ot->description = "Extrude selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_context_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -564,7 +564,7 @@ void MESH_OT_extrude_verts_indiv(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_verts_indiv";
   ot->description = "Extrude individual vertices only";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_verts_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -595,7 +595,7 @@ static wmOperatorStatus edbm_extrude_edges_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    edbm_extrude_edges_indiv(em, op, BM_ELEM_SELECT, use_normal_flip);
+    EDBM_extrude_edges_indiv(em, op, BM_ELEM_SELECT, use_normal_flip);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -614,7 +614,7 @@ void MESH_OT_extrude_edges_indiv(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_edges_indiv";
   ot->description = "Extrude individual edges only";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_edges_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -664,7 +664,7 @@ void MESH_OT_extrude_faces_indiv(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_faces_indiv";
   ot->description = "Extrude individual faces only";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_faces_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -907,7 +907,7 @@ void MESH_OT_dupli_extrude_cursor(wmOperatorType *ot)
   ot->description =
       "Duplicate and extrude selected vertices, edges or faces towards the mouse cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_dupli_extrude_cursor_invoke;
   ot->poll = ED_operator_editmesh_region_view3d;
 

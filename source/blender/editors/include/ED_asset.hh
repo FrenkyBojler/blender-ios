@@ -15,7 +15,6 @@
  * dedicated headers. */
 
 #include "../asset/ED_asset_catalog.hh"           // IWYU pragma: export
-#include "../asset/ED_asset_handle.hh"            // IWYU pragma: export
 #include "../asset/ED_asset_library.hh"           // IWYU pragma: export
 #include "../asset/ED_asset_list.hh"              // IWYU pragma: export
 #include "../asset/ED_asset_mark_clear.hh"        // IWYU pragma: export
@@ -29,12 +28,14 @@
 using BIFIconID = int;
 
 struct PointerRNA;
-struct uiTooltipData;
+namespace blender::ui {
+struct TooltipData;
+}
 
 namespace blender::ed::asset {
 
 void asset_tooltip(const asset_system::AssetRepresentation &asset,
-                   uiTooltipData &tip,
+                   ui::TooltipData &tip,
                    bool include_name = true);
 
 BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset);

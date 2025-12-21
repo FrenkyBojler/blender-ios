@@ -15,14 +15,14 @@ namespace blender::nodes::node_geo_mesh_topology_edges_of_vertex_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Vertex Index")
-      .implicit_field(implicit_field_inputs::index)
-      .description("The vertex to retrieve data from. Defaults to the vertex from the context");
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
+      .description("The vertex to retrieve data from. Defaults to the vertex from the context")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values used to sort the edges connected to the vertex. Uses indices by default");
   b.add_input<decl::Int>("Sort Index")
-      .min(0)
       .supports_field()
-      .description("Which of the sorted edges to output");
+      .description("Which of the sorted edges to output. Negative indexing is supported");
   b.add_output<decl::Int>("Edge Index")
       .field_source_reference_all()
       .description("An edge connected to the face, chosen by the sort index");
@@ -117,7 +117,7 @@ class EdgesOfVertInput final : public bke::MeshFieldInput {
       }
     });
 
-    return VArray<int>::ForContainer(std::move(edge_of_vertex));
+    return VArray<int>::from_container(std::move(edge_of_vertex));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -163,7 +163,7 @@ class EdgesOfVertCountInput final : public bke::MeshFieldInput {
     }
     Array<int> counts(mesh.verts_num, 0);
     array_utils::count_indices(mesh.edges().cast<int>(), counts);
-    return VArray<int>::ForContainer(std::move(counts));
+    return VArray<int>::from_container(std::move(counts));
   }
 
   uint64_t hash() const final

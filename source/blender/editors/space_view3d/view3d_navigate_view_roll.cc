@@ -99,11 +99,13 @@ static wmOperatorStatus viewroll_modal(bContext *C, wmOperator *op, const wmEven
         event_code = VIEW_CANCEL;
         break;
       case VIEWROT_MODAL_SWITCH_MOVE:
-        WM_operator_name_call(C, "VIEW3D_OT_move", WM_OP_INVOKE_DEFAULT, nullptr, event);
+        WM_operator_name_call(
+            C, "VIEW3D_OT_move", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
       case VIEWROT_MODAL_SWITCH_ROTATE:
-        WM_operator_name_call(C, "VIEW3D_OT_rotate", WM_OP_INVOKE_DEFAULT, nullptr, event);
+        WM_operator_name_call(
+            C, "VIEW3D_OT_rotate", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
     }
@@ -294,7 +296,7 @@ void VIEW3D_OT_view_roll(wmOperatorType *ot)
   ot->description = "Roll the view";
   ot->idname = ViewOpsType_roll.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = viewroll_invoke;
   ot->exec = viewroll_exec;
   ot->modal = viewroll_modal;

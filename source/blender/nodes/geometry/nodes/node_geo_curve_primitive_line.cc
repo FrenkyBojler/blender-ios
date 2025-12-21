@@ -6,7 +6,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -55,14 +55,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mode", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurvePrimitiveLine *data = MEM_callocN<NodeGeometryCurvePrimitiveLine>(__func__);
+  NodeGeometryCurvePrimitiveLine *data = MEM_new_for_free<NodeGeometryCurvePrimitiveLine>(
+      __func__);
 
   data->mode = GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_POINTS;
   node->storage = data;

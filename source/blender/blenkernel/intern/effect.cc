@@ -15,6 +15,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curve_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
@@ -57,7 +58,7 @@
 
 EffectorWeights *BKE_effector_add_weights(Collection *collection)
 {
-  EffectorWeights *weights = MEM_callocN<EffectorWeights>("EffectorWeights");
+  EffectorWeights *weights = MEM_new_for_free<EffectorWeights>("EffectorWeights");
   for (int i = 0; i < NUM_PFIELD_TYPES; i++) {
     weights->weight[i] = 1.0f;
   }
@@ -72,7 +73,7 @@ PartDeflect *BKE_partdeflect_new(int type)
 {
   PartDeflect *pd;
 
-  pd = MEM_callocN<PartDeflect>("PartDeflect");
+  pd = MEM_new_for_free<PartDeflect>("PartDeflect");
 
   pd->forcefield = type;
   pd->pdef_sbdamp = 0.1f;
@@ -882,8 +883,7 @@ static void do_texture_effector(EffectorCache *eff,
     madd_v3_v3fl(tex_co, efd->nor, fac);
   }
 
-  hasrgb = multitex_ext(
-      eff->pd->tex, tex_co, nullptr, nullptr, 0, result, 0, nullptr, true, false);
+  hasrgb = multitex_ext(eff->pd->tex, tex_co, result, 0, nullptr, true, false);
 
   if (hasrgb && mode == PFIELD_TEX_RGB) {
     force[0] = (0.5f - result->trgba[0]) * strength;
@@ -894,15 +894,15 @@ static void do_texture_effector(EffectorCache *eff,
     strength /= nabla;
 
     tex_co[0] += nabla;
-    multitex_ext(eff->pd->tex, tex_co, nullptr, nullptr, 0, result + 1, 0, nullptr, true, false);
+    multitex_ext(eff->pd->tex, tex_co, result + 1, 0, nullptr, true, false);
 
     tex_co[0] -= nabla;
     tex_co[1] += nabla;
-    multitex_ext(eff->pd->tex, tex_co, nullptr, nullptr, 0, result + 2, 0, nullptr, true, false);
+    multitex_ext(eff->pd->tex, tex_co, result + 2, 0, nullptr, true, false);
 
     tex_co[1] -= nabla;
     tex_co[2] += nabla;
-    multitex_ext(eff->pd->tex, tex_co, nullptr, nullptr, 0, result + 3, 0, nullptr, true, false);
+    multitex_ext(eff->pd->tex, tex_co, result + 3, 0, nullptr, true, false);
 
     if (mode == PFIELD_TEX_GRAD || !hasrgb) { /* if we don't have rgb fall back to grad */
       /* generate intensity if texture only has rgb value */

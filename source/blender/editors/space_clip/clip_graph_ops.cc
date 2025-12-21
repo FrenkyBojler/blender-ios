@@ -18,7 +18,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -190,8 +190,9 @@ static bool mouse_select_knot(bContext *C, const float co[2], bool extend)
     if (userdata.marker) {
       int x1, y1, x2, y2;
 
-      if (UI_view2d_view_to_region_clip(v2d, co[0], co[1], &x1, &y1) &&
-          UI_view2d_view_to_region_clip(v2d, userdata.min_co[0], userdata.min_co[1], &x2, &y2) &&
+      if (blender::ui::view2d_view_to_region_clip(v2d, co[0], co[1], &x1, &y1) &&
+          blender::ui::view2d_view_to_region_clip(
+              v2d, userdata.min_co[0], userdata.min_co[1], &x2, &y2) &&
           (abs(x2 - x1) <= delta && abs(y2 - y1) <= delta))
       {
         if (!extend) {
@@ -310,7 +311,7 @@ static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent
   ARegion *region = CTX_wm_region(C);
   float co[2];
 
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
   RNA_float_set_array(op->ptr, "location", co);
 
   return select_exec(C, op);
@@ -325,7 +326,7 @@ void CLIP_OT_graph_select(wmOperatorType *ot)
   ot->description = "Select graph curves";
   ot->idname = "CLIP_OT_graph_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_exec;
   ot->invoke = select_invoke;
   ot->poll = clip_graph_knots_poll;
@@ -372,7 +373,7 @@ static void box_select_cb(void *userdata,
   }
 
   if (BLI_rctf_isect_pt(&data->rect, scene_framenr, val)) {
-    int flag = 0;
+    TrackingMarkerFlag flag = TrackingMarkerFlag(0);
 
     if (value_source == CLIP_VALUE_SOURCE_SPEED_X) {
       flag = MARKER_GRAPH_SEL_X;
@@ -411,7 +412,7 @@ static wmOperatorStatus box_select_graph_exec(bContext *C, wmOperator *op)
 
   /* get rectangle from operator */
   WM_operator_properties_border_to_rctf(op, &rect);
-  UI_view2d_region_to_view_rctf(&region->v2d, &rect, &userdata.rect);
+  blender::ui::view2d_region_to_view_rctf(&region->v2d, &rect, &userdata.rect);
 
   userdata.changed = false;
   userdata.select = !RNA_boolean_get(op->ptr, "deselect");
@@ -436,7 +437,7 @@ void CLIP_OT_graph_select_box(wmOperatorType *ot)
   ot->description = "Select curve points using box selection";
   ot->idname = "CLIP_OT_graph_select_box";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = box_select_graph_exec;
   ot->modal = WM_gesture_box_modal;
@@ -504,7 +505,7 @@ void CLIP_OT_graph_select_all_markers(wmOperatorType *ot)
   ot->description = "Change selection of all markers of active track";
   ot->idname = "CLIP_OT_graph_select_all_markers";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graph_select_all_markers_exec;
   ot->poll = clip_graph_knots_poll;
 
@@ -540,7 +541,7 @@ static wmOperatorStatus delete_curve_invoke(bContext *C, wmOperator *op, const w
                                   IFACE_("Delete track corresponding to the selected curve?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return delete_curve_exec(C, op);
@@ -553,7 +554,7 @@ void CLIP_OT_graph_delete_curve(wmOperatorType *ot)
   ot->description = "Delete track corresponding to the selected curve";
   ot->idname = "CLIP_OT_graph_delete_curve";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = delete_curve_invoke;
   ot->exec = delete_curve_exec;
   ot->poll = clip_graph_knots_poll;
@@ -597,7 +598,7 @@ void CLIP_OT_graph_delete_knot(wmOperatorType *ot)
   ot->description = "Delete curve knots";
   ot->idname = "CLIP_OT_graph_delete_knot";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = delete_knot_exec;
   ot->poll = clip_graph_knots_poll;
 
@@ -678,7 +679,7 @@ void CLIP_OT_graph_view_all(wmOperatorType *ot)
   ot->description = "View all curves in editor";
   ot->idname = "CLIP_OT_graph_view_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_all_exec;
   ot->poll = space_clip_graph_poll;
 }
@@ -714,7 +715,7 @@ void CLIP_OT_graph_center_current_frame(wmOperatorType *ot)
   ot->description = "Scroll view so current frame would be centered";
   ot->idname = "CLIP_OT_graph_center_current_frame";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = center_current_frame_exec;
   ot->poll = space_clip_graph_poll;
 }
@@ -770,7 +771,7 @@ void CLIP_OT_graph_disable_markers(wmOperatorType *ot)
   ot->description = "Disable/enable selected markers";
   ot->idname = "CLIP_OT_graph_disable_markers";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graph_disable_markers_exec;
   ot->poll = space_clip_graph_poll;
 

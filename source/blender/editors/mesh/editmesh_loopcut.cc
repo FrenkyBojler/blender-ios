@@ -11,7 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -245,9 +245,12 @@ static void ringsel_finish(bContext *C, wmOperator *op)
       }
 
       EDBM_selectmode_flush(lcd->em);
+
       DEG_id_tag_update(static_cast<ID *>(lcd->ob->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, lcd->ob->data);
     }
+
+    EDBM_uvselect_clear(em);
   }
 }
 
@@ -256,8 +259,11 @@ static void ringsel_exit(bContext * /*C*/, wmOperator *op)
 {
   RingSelOpData *lcd = static_cast<RingSelOpData *>(op->customdata);
 
-  /* deactivate the extra drawing stuff in 3D-View */
-  ED_region_draw_cb_exit(lcd->region->runtime->type, lcd->draw_handle);
+  /* Type can be null in background mode. */
+  if (lcd->region->runtime->type) {
+    /* deactivate the extra drawing stuff in 3D-View */
+    ED_region_draw_cb_exit(lcd->region->runtime->type, lcd->draw_handle);
+  }
 
   EDBM_preselect_edgering_destroy(lcd->presel_edgering);
 
@@ -281,8 +287,11 @@ static int ringsel_init(bContext *C, wmOperator *op, bool do_cut)
 
   /* assign the drawing handle for drawing preview line... */
   lcd->region = CTX_wm_region(C);
-  lcd->draw_handle = ED_region_draw_cb_activate(
-      lcd->region->runtime->type, ringsel_draw, lcd, REGION_DRAW_POST_VIEW);
+  /* Type can be null in background mode. */
+  if (lcd->region->runtime->type) {
+    lcd->draw_handle = ED_region_draw_cb_activate(
+        lcd->region->runtime->type, ringsel_draw, lcd, REGION_DRAW_POST_VIEW);
+  }
   lcd->presel_edgering = EDBM_preselect_edgering_create();
   /* Initialize once the cursor is over a mesh. */
   lcd->ob = nullptr;
@@ -463,10 +472,10 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
       outputNumInput(&lcd->num, str_rep, scene->unit);
     }
     else {
-      BLI_snprintf(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
-      BLI_snprintf(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", lcd->smoothness);
+      BLI_snprintf_utf8(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
+      BLI_snprintf_utf8(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", lcd->smoothness);
     }
-    SNPRINTF(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
+    SNPRINTF_UTF8(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
     ED_area_status_text(CTX_wm_area(C), buf);
 
     WorkspaceStatus status(C);
@@ -698,10 +707,10 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
       outputNumInput(&lcd->num, str_rep, sce->unit);
     }
     else {
-      BLI_snprintf(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
-      BLI_snprintf(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", smoothness);
+      BLI_snprintf_utf8(str_rep, NUM_STR_REP_LEN, "%d", int(lcd->cuts));
+      BLI_snprintf_utf8(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", smoothness);
     }
-    SNPRINTF(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
+    SNPRINTF_UTF8(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
     ED_area_status_text(CTX_wm_area(C), buf);
   }
 

@@ -25,7 +25,7 @@ void ED_image_draw_cursor(ARegion *region, const float cursor[2])
 {
   float zoom[2], x_fac, y_fac;
 
-  UI_view2d_scale_get_inverse(&region->v2d, &zoom[0], &zoom[1]);
+  blender::ui::view2d_scale_get_inverse(&region->v2d, &zoom[0], &zoom[1]);
 
   mul_v2_fl(zoom, 256.0f * UI_SCALE_FAC);
   x_fac = zoom[0];
@@ -36,7 +36,7 @@ void ED_image_draw_cursor(ARegion *region, const float cursor[2])
   GPU_matrix_translate_2fv(cursor);
 
   const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 

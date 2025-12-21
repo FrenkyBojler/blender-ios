@@ -33,6 +33,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_screen.hh"
@@ -196,13 +197,10 @@ static wmOperatorStatus select_orientation_invoke(bContext *C,
                                                   wmOperator * /*op*/,
                                                   const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup;
-  uiLayout *layout;
-
-  pup = UI_popup_menu_begin(C, IFACE_("Orientation"), ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
-  uiItemsEnumO(layout, "TRANSFORM_OT_select_orientation", "orientation");
-  UI_popup_menu_end(C, pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Orientation"), ICON_NONE);
+  ui::Layout &layout = *ui::popup_menu_layout(pup);
+  layout.op_enum("TRANSFORM_OT_select_orientation", "orientation");
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -633,6 +631,14 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
     return RNA_boolean_get(op->ptr, "snap");
   }
 
+  if (STREQ(prop_id, "use_even_offset")) {
+    /* Even offset isn't meaningful for individual faces. */
+    if (op->opm && STREQ(op->opm->idname, "MESH_OT_extrude_faces_move")) {
+      return false;
+    }
+    return true;
+  }
+
   /* #P_CORRECT_UV. */
   if (STREQ(prop_id, "correct_uv")) {
     ScrArea *area = CTX_wm_area(C);
@@ -721,13 +727,13 @@ void properties_register(wmOperatorType *ot, int flags)
     RNA_def_property_flag(prop, PROP_HIDDEN);
 
     if ((flags & P_GEO_SNAP) == P_GEO_SNAP) {
-      prop = RNA_def_enum(ot->srna,
-                          "snap_elements",
-                          rna_enum_snap_element_items,
-                          SCE_SNAP_TO_INCREMENT,
-                          "Snap to Elements",
-                          "");
-      RNA_def_property_flag(prop, PROP_HIDDEN | PROP_ENUM_FLAG);
+      prop = RNA_def_enum_flag(ot->srna,
+                               "snap_elements",
+                               rna_enum_snap_element_items,
+                               SCE_SNAP_TO_INCREMENT,
+                               "Snap to Elements",
+                               "");
+      RNA_def_property_flag(prop, PROP_HIDDEN);
 
       RNA_def_boolean(ot->srna, "use_snap_project", false, "Project Individual Elements", "");
 
@@ -868,7 +874,7 @@ static void TRANSFORM_OT_translate(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_translation(
@@ -895,7 +901,7 @@ static void TRANSFORM_OT_resize(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_vector(
@@ -985,7 +991,7 @@ static void TRANSFORM_OT_rotate(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_rotation(
@@ -1092,7 +1098,8 @@ static void TRANSFORM_OT_shear(wmOperatorType *ot)
   ot->poll = transform_shear_poll;
   ot->poll_property = transform_poll_property;
 
-  RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
+  RNA_def_float_rotation(
+      ot->srna, "angle", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 
   WM_operatortype_props_advanced_begin(ot);
 
@@ -1189,7 +1196,7 @@ static void TRANSFORM_OT_mirror(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   properties_register(ot, P_ORIENT_MATRIX | P_CONSTRAINT | P_GPENCIL_EDIT | P_CENTER);
@@ -1275,6 +1282,7 @@ static void TRANSFORM_OT_vert_slide(wmOperatorType *ot)
   ot->poll = ED_operator_editmesh;
   ot->poll_property = transform_poll_property;
 
+  PropertyRNA *prop;
   RNA_def_float_factor(ot->srna, "value", 0, -10.0f, 10.0f, "Factor", "", -1.0f, 1.0f);
   RNA_def_boolean(ot->srna,
                   "use_even",
@@ -1290,6 +1298,18 @@ static void TRANSFORM_OT_vert_slide(wmOperatorType *ot)
                   "Flipped",
                   "When Even mode is active, flips between the two adjacent edge loops");
   RNA_def_boolean(ot->srna, "use_clamp", true, "Clamp", "Clamp within the edge extents");
+  /* The direction is only needed to support "redo", see: #147956. */
+  prop = RNA_def_float_vector(ot->srna,
+                              "direction",
+                              3,
+                              nullptr,
+                              -FLT_MAX,
+                              FLT_MAX,
+                              "Slide Direction",
+                              "World-space direction",
+                              -FLT_MAX,
+                              FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   properties_register(ot, P_MIRROR | P_GEO_SNAP | P_CORRECT_UV);
 }
@@ -1393,14 +1413,14 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 
   WM_operatortype_props_advanced_begin(ot);
 
-  properties_register(ot, P_SNAP | P_VIEW2D_EDGE_PAN);
+  properties_register(ot, P_OPTIONS | P_SNAP | P_VIEW2D_EDGE_PAN);
 }
 
 static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "Rotate Normals";
-  ot->description = "Rotate split normal of selected items";
+  ot->description = "Rotate custom normal of selected items";
   ot->idname = OP_NORMAL_ROTATION;
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
@@ -1410,6 +1430,7 @@ static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_editmesh;
+  ot->poll_property = transform_poll_property;
 
   RNA_def_float_rotation(
       ot->srna, "value", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
@@ -1432,7 +1453,7 @@ static void TRANSFORM_OT_transform(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_screenactive;
+  ot->poll = ED_operator_active_screen_and_scene;
   ot->poll_property = transform_poll_property;
 
   prop = RNA_def_enum(
@@ -1479,10 +1500,9 @@ static wmOperatorStatus transform_from_gizmo_invoke(bContext *C,
       }
       if (op_id) {
         wmOperatorType *ot = WM_operatortype_find(op_id, true);
-        PointerRNA op_ptr;
-        WM_operator_properties_create_ptr(&op_ptr, ot);
+        PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
         RNA_boolean_set(&op_ptr, "release_confirm", true);
-        WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_ptr, event);
+        WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
         WM_operator_properties_free(&op_ptr);
         return OPERATOR_FINISHED;
       }

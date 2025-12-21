@@ -7,7 +7,6 @@
 #include "BLI_string.h"
 
 #include "BKE_curves.hh"
-#include "BKE_customdata.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
@@ -40,7 +39,7 @@ TEST(greasepencil, create_grease_pencil_id)
 {
   GreasePencilIDTestContext ctx;
 
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(BKE_id_new(ctx.bmain, ID_GP, "GP"));
+  GreasePencil &grease_pencil = *BKE_id_new<GreasePencil>(ctx.bmain, "GP");
   EXPECT_EQ(grease_pencil.drawings().size(), 0);
   EXPECT_EQ(grease_pencil.root_group().num_nodes_total(), 0);
 }
@@ -51,7 +50,7 @@ TEST(greasepencil, create_grease_pencil_id)
 TEST(greasepencil, add_empty_drawings)
 {
   GreasePencilIDTestContext ctx;
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(BKE_id_new(ctx.bmain, ID_GP, "GP"));
+  GreasePencil &grease_pencil = *BKE_id_new<GreasePencil>(ctx.bmain, "GP");
   grease_pencil.add_empty_drawings(3);
   EXPECT_EQ(grease_pencil.drawings().size(), 3);
 }
@@ -59,7 +58,7 @@ TEST(greasepencil, add_empty_drawings)
 TEST(greasepencil, remove_drawings)
 {
   GreasePencilIDTestContext ctx;
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(BKE_id_new(ctx.bmain, ID_GP, "GP"));
+  GreasePencil &grease_pencil = *BKE_id_new<GreasePencil>(ctx.bmain, "GP");
   grease_pencil.add_empty_drawings(3);
 
   GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(grease_pencil.drawing(1));
@@ -129,7 +128,7 @@ struct GreasePencilHelper : public ::GreasePencil {
     this->root_group_ptr = MEM_new<greasepencil::LayerGroup>(__func__);
     this->active_node = nullptr;
 
-    CustomData_reset(&this->layers_data);
+    new (&this->attribute_storage.wrap()) blender::bke::AttributeStorage();
 
     this->drawing_array = nullptr;
     this->drawing_array_num = 0;
@@ -139,7 +138,7 @@ struct GreasePencilHelper : public ::GreasePencil {
 
   ~GreasePencilHelper()
   {
-    CustomData_free(&this->layers_data);
+    this->attribute_storage.wrap().~AttributeStorage();
     MEM_delete(&this->root_group());
     MEM_delete(this->runtime);
     this->runtime = nullptr;

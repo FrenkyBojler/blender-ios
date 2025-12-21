@@ -142,10 +142,10 @@ void immRectf_with_texco(const uint pos, const uint tex_coord, const rctf &p, co
 void immRecti_complete(int x1, int y1, int x2, int y2, const float color[4])
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = add_attr(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = add_attr(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4fv(color);
-  immRecti(pos, x1, y1, x2, y2);
+  immRectf(pos, x1, y1, x2, y2);
   immUnbindProgram();
 }
 #endif
@@ -471,7 +471,8 @@ void imm_draw_box_checker_2d_ex(float x1,
                                 const float color_secondary[4],
                                 int checker_size)
 {
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
@@ -483,13 +484,15 @@ void imm_draw_box_checker_2d_ex(float x1,
 
   immUnbindProgram();
 }
-void imm_draw_box_checker_2d(float x1, float y1, float x2, float y2)
+void imm_draw_box_checker_2d(float x1, float y1, float x2, float y2, bool clear_alpha)
 {
   float checker_primary[4];
   float checker_secondary[4];
-  UI_GetThemeColor4fv(TH_TRANSPARENT_CHECKER_PRIMARY, checker_primary);
-  UI_GetThemeColor4fv(TH_TRANSPARENT_CHECKER_SECONDARY, checker_secondary);
-  int checker_size = UI_GetThemeValue(TH_TRANSPARENT_CHECKER_SIZE) * U.pixelsize;
+  blender::ui::theme::get_color_4fv(TH_TRANSPARENT_CHECKER_PRIMARY, checker_primary);
+  blender::ui::theme::get_color_4fv(TH_TRANSPARENT_CHECKER_SECONDARY, checker_secondary);
+  checker_primary[3] = clear_alpha ? 0.0 : checker_primary[3];
+  checker_secondary[3] = clear_alpha ? 0.0 : checker_secondary[3];
+  int checker_size = blender::ui::theme::get_value(TH_TRANSPARENT_CHECKER_SIZE) * U.pixelsize;
   imm_draw_box_checker_2d_ex(x1, y1, x2, y2, checker_primary, checker_secondary, checker_size);
 }
 

@@ -53,7 +53,6 @@ set(BLENLIB_SRC
   ../../blenlib/intern/BLI_linklist.cc
   ../../blenlib/intern/BLI_memarena.cc
   ../../blenlib/intern/BLI_mempool.cc
-  ../../blenlib/intern/endian_switch.cc
   ../../blenlib/intern/listbase.cc
   ../../blenlib/intern/string.cc
 
@@ -102,6 +101,8 @@ endif()
 add_custom_command(
   OUTPUT
     ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/dna_defaults.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
     ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
     ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
   COMMAND
@@ -110,6 +111,8 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
     ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
     ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/dna_defaults.cc
     ${CMAKE_SOURCE_DIR}/source/blender/makesdna/
   DEPENDS makesdna
 )
@@ -118,10 +121,10 @@ add_custom_command(
 # -----------------------------------------------------------------------------
 # Build bf_dna library
 set(SRC
-  dna_defaults.c
   dna_genfile.cc
   dna_utils.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
   ${SRC_DNA_INC}
 
@@ -132,6 +135,7 @@ set(SRC
 
 set_source_files_properties(
   ${CMAKE_CURRENT_BINARY_DIR}/dna.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
   ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
   PROPERTIES GENERATED TRUE
@@ -140,6 +144,22 @@ set_source_files_properties(
 blender_add_lib(bf_dna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::dna ALIAS bf_dna)
 
+
+# -----------------------------------------------------------------------------
+# Build bf_dna_defaults library
+
+set(SRC
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_defaults.cc
+  ${CMAKE_SOURCE_DIR}/release/datafiles/userdef/userdef_default_theme.c
+  ${SRC_DNA_INC}
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_BINARY_DIR}/dna_defaults.cc
+  PROPERTIES GENERATED TRUE
+)
+
+blender_add_lib(bf_dna_defaults "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 
 # -----------------------------------------------------------------------------
@@ -155,7 +175,6 @@ set(INC_SYS
 
 set(SRC
   ${BLENLIB_SRC}
-  ${SRC_DNA_DEFAULTS_INC}
   ${SRC_DNA_OTHER_INC}
 )
 

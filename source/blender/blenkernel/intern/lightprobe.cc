@@ -9,7 +9,6 @@
 #include <cstring>
 
 #include "DNA_collection_types.h"
-#include "DNA_defaults.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_object_types.h"
 
@@ -28,9 +27,7 @@
 static void lightprobe_init_data(ID *id)
 {
   LightProbe *probe = (LightProbe *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(probe, id));
-
-  MEMCPY_STRUCT_AFTER(probe, DNA_struct_default_get(LightProbe), id);
+  INIT_DEFAULT_STRUCT_AFTER(probe, id);
 }
 
 static void lightprobe_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -68,6 +65,7 @@ IDTypeInfo IDType_ID_LP = {
     /*foreach_id*/ lightprobe_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ lightprobe_blend_write,
@@ -107,7 +105,7 @@ LightProbe *BKE_lightprobe_add(Main *bmain, const char *name)
 {
   LightProbe *probe;
 
-  probe = static_cast<LightProbe *>(BKE_id_new(bmain, ID_LP, name));
+  probe = BKE_id_new<LightProbe>(bmain, name);
 
   return probe;
 }
@@ -204,7 +202,7 @@ template<typename DataT, typename T> static void spherical_harmonic_copy(T &dst,
 
 LightProbeGridCacheFrame *BKE_lightprobe_grid_cache_frame_create()
 {
-  LightProbeGridCacheFrame *cache = MEM_callocN<LightProbeGridCacheFrame>(
+  LightProbeGridCacheFrame *cache = MEM_new_for_free<LightProbeGridCacheFrame>(
       "LightProbeGridCacheFrame");
   return cache;
 }
@@ -245,7 +243,7 @@ void BKE_lightprobe_cache_create(Object *object)
 {
   BLI_assert(object->lightprobe_cache == nullptr);
 
-  object->lightprobe_cache = MEM_callocN<LightProbeObjectCache>("LightProbeObjectCache");
+  object->lightprobe_cache = MEM_new_for_free<LightProbeObjectCache>("LightProbeObjectCache");
 }
 
 LightProbeObjectCache *BKE_lightprobe_cache_copy(LightProbeObjectCache *src_cache)

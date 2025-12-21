@@ -13,6 +13,7 @@
 #include "BKE_action.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
 #include "DNA_armature_types.h"
@@ -117,10 +118,12 @@ static bool WIDGETGROUP_armature_spline_poll(const bContext *C, wmGizmoGroupType
     Object *ob = BKE_object_pose_armature_get(base->object);
     if (ob) {
       const bArmature *arm = static_cast<const bArmature *>(ob->data);
-      if (arm->drawtype == ARM_B_BONE) {
+      if (arm->drawtype == ARM_DRAW_TYPE_B_BONE) {
         bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
         if (pchan && pchan->bone->segments > 1) {
-          return true;
+          if (BKE_id_is_editable(CTX_data_main(C), &arm->id)) {
+            return true;
+          }
         }
       }
     }
@@ -151,8 +154,8 @@ static void WIDGETGROUP_armature_spline_setup(const bContext *C, wmGizmoGroup *g
                  ED_GIZMO_MOVE_DRAW_FLAG_FILL | ED_GIZMO_MOVE_DRAW_FLAG_ALIGN_VIEW);
     WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_VALUE, true);
 
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
     gz->scale_basis = 0.06f;
 

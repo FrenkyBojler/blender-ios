@@ -176,13 +176,15 @@ static void v3d_cursor_plane_draw_grid(const int resolution,
   GPU_line_width(1.0f);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  const uint col_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  const uint pos_id = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint col_id = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
   const size_t coords_len = resolution * resolution;
-  float(*coords)[3] = static_cast<float(*)[3]>(
+  float (*coords)[3] = static_cast<float (*)[3]>(
       MEM_mallocN(sizeof(*coords) * coords_len, __func__));
 
   const int axis_x = (plane_axis + 0) % 3;
@@ -325,7 +327,8 @@ static void v3d_cursor_plane_draw(const RegionView3D *rv3d,
 static void cursor_box_draw(const float dimensions[3], uchar color[4])
 {
   GPUVertFormat *format = immVertexFormat();
-  const uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  const uint pos_id = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
@@ -408,6 +411,12 @@ static void cursor_point_draw(
       immVertex3f(attr_pos, +size_b, -size_b, 0.0f);
       immEnd();
       break;
+    case SCE_SNAP_TO_FACE_MIDPOINT:
+      imm_draw_circle_wire_3d(attr_pos, 0.0f, 0.0f, 1.0f, 24);
+      immBegin(GPU_PRIM_POINTS, 1);
+      immVertex3f(attr_pos, 0.0f, 0.0f, 0.0f);
+      immEnd();
+      break;
     case SCE_SNAP_TO_FACE:
     default:
       imm_draw_circle_wire_3d(attr_pos, 0.0f, 0.0f, 1.0f, 24);
@@ -431,8 +440,9 @@ void ED_view3d_cursor_snap_draw_util(RegionView3D *rv3d,
 
   /* The size of the symbol is larger than the vertex size.
    * This prevents overlaps. */
-  float radius = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  float radius = 2.5f * blender::ui::theme::get_value_f(TH_VERTEX_SIZE);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
@@ -802,7 +812,7 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
   {
     snap_elem_index[1] = index;
   }
-  else if (snap_elem == SCE_SNAP_TO_FACE) {
+  else if (snap_elem & (SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT)) {
     snap_elem_index[2] = index;
   }
 
@@ -841,7 +851,7 @@ static bool v3d_cursor_snap_poll_fn(bContext *C)
     }
     /* Sometimes the cursor may be on an invisible part of an overlapping region. */
     wmWindow *win = CTX_wm_window(C);
-    const wmEvent *event = win->eventstate;
+    const wmEvent *event = win->runtime->eventstate;
     if (ED_region_overlap_isect_xy(region, event->xy)) {
       return false;
     }
@@ -890,7 +900,7 @@ static void v3d_cursor_snap_draw_fn(bContext *C,
   Scene *scene = DEG_get_input_scene(depsgraph);
 
   const wmWindow *win = CTX_wm_window(C);
-  const wmEvent *event = win->eventstate;
+  const wmEvent *event = win->runtime->eventstate;
   if (event && v3d_cursor_eventstate_has_changed(data_intern, state, mval, event->modifier)) {
     View3D *v3d = CTX_wm_view3d(C);
     v3d_cursor_snap_update(state, C, depsgraph, scene, region, v3d, mval, event->modifier);
@@ -979,7 +989,7 @@ static void v3d_cursor_snap_activate()
        * TODO: ED_view3d_cursor_snap_init */
 
 #ifdef USE_SNAP_DETECT_FROM_KEYMAP_HACK
-      wmKeyConfig *keyconf = ((wmWindowManager *)G.main->wm.first)->defaultconf;
+      wmKeyConfig *keyconf = ((wmWindowManager *)G.main->wm.first)->runtime->defaultconf;
 
       data_intern->keymap = WM_modalkeymap_find(keyconf, "Generic Gizmo Tweak Modal Map");
       RNA_enum_value_from_id(
@@ -1077,7 +1087,7 @@ void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state,
                                        const blender::int2 &mval)
 {
   SnapCursorDataIntern *data_intern = &g_data_intern;
-  const wmEvent *event = CTX_wm_window(C)->eventstate;
+  const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
   if (event && v3d_cursor_eventstate_has_changed(data_intern, state, mval, event->modifier)) {
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     Scene *scene = DEG_get_input_scene(depsgraph);

@@ -10,6 +10,7 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
@@ -25,7 +26,7 @@ using nodes::SocketDeclaration;
 
 static bool is_field_socket_type(const bNodeSocket &socket)
 {
-  return nodes::socket_type_supports_fields((eNodeSocketDatatype)socket.typeinfo->type);
+  return nodes::socket_type_supports_fields(socket.typeinfo->type);
 }
 
 static bool all_dangling_reroutes(const Span<const bNodeSocket *> sockets)
@@ -282,7 +283,7 @@ enum class FieldStateSyncResult : int8_t {
   /* State B has been modified. */
   CHANGED_B = (1 << 1),
 };
-ENUM_OPERATORS(FieldStateSyncResult, FieldStateSyncResult::CHANGED_B)
+ENUM_OPERATORS(FieldStateSyncResult)
 
 /**
  * Compare both field states and select the most compatible.
@@ -365,7 +366,7 @@ static bool propagate_special_data_requirements(
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const FieldStateSyncResult sync_result = simulation_nodes_field_state_sync(
             node, *output_node, field_state_by_socket_id);
-        if (bool(sync_result & FieldStateSyncResult::CHANGED_B)) {
+        if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_B)) {
           need_update = true;
         }
       }
@@ -377,7 +378,7 @@ static bool propagate_special_data_requirements(
         if (node.identifier == data.output_node_id) {
           const FieldStateSyncResult sync_result = simulation_nodes_field_state_sync(
               *input_node, node, field_state_by_socket_id);
-          if (bool(sync_result & FieldStateSyncResult::CHANGED_A)) {
+          if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_A)) {
             need_update = true;
           }
         }
@@ -389,7 +390,7 @@ static bool propagate_special_data_requirements(
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const FieldStateSyncResult sync_result = repeat_field_state_sync(
             node, *output_node, field_state_by_socket_id);
-        if (bool(sync_result & FieldStateSyncResult::CHANGED_B)) {
+        if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_B)) {
           need_update = true;
         }
       }
@@ -401,7 +402,7 @@ static bool propagate_special_data_requirements(
         if (node.identifier == data.output_node_id) {
           const FieldStateSyncResult sync_result = repeat_field_state_sync(
               *input_node, node, field_state_by_socket_id);
-          if (bool(sync_result & FieldStateSyncResult::CHANGED_A)) {
+          if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_A)) {
             need_update = true;
           }
         }
@@ -514,18 +515,17 @@ static void determine_group_input_states(
     for (const int index : tree.interface_inputs().index_range()) {
       const bNodeTreeInterfaceSocket *group_input = tree.interface_inputs()[index];
       const bNodeSocketType *typeinfo = group_input->socket_typeinfo();
-      const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
-                                                  SOCK_CUSTOM;
+      const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
       if (!nodes::socket_type_supports_fields(type)) {
         new_inferencing_interface.inputs[index] = InputSocketFieldType::None;
       }
-      else if (group_input->default_input != NODE_INPUT_DEFAULT_VALUE) {
+      else if (group_input->default_input != NODE_DEFAULT_INPUT_VALUE) {
         new_inferencing_interface.inputs[index] = InputSocketFieldType::Implicit;
       }
       else if (is_layer_selection_field(*group_input)) {
         new_inferencing_interface.inputs[index] = InputSocketFieldType::Implicit;
       }
-      else if (group_input->flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY) {
+      else if (group_input->structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE) {
         new_inferencing_interface.inputs[index] = InputSocketFieldType::None;
       }
     }

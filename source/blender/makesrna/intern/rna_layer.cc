@@ -33,6 +33,7 @@
 #  include "BKE_layer.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_node.hh"
+#  include "BKE_node_tree_update.hh"
 #  include "BKE_scene.hh"
 
 #  include "NOD_composite.hh"
@@ -128,6 +129,12 @@ static IDProperty **rna_ViewLayer_idprops(PointerRNA *ptr)
   return &view_layer->id_properties;
 }
 
+static IDProperty **rna_ViewLayer_system_idprops(PointerRNA *ptr)
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+  return &view_layer->system_properties;
+}
+
 static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, bContext *C)
 {
   View3D *v3d = CTX_wm_view3d(C);
@@ -143,12 +150,11 @@ static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, b
   return false;
 }
 
-static void rna_ViewLayer_update_render_passes(ID *id)
+static void rna_ViewLayer_update_render_passes(ID *id, Main *bmain)
 {
   Scene *scene = (Scene *)id;
-  if (scene->nodetree) {
-    ntreeCompositUpdateRLayers(scene->nodetree);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
   if (engine_type->update_render_passes) {
@@ -609,13 +615,14 @@ void RNA_def_view_layer(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_RENDER_RESULT);
   RNA_def_struct_path_func(srna, "rna_ViewLayer_path");
   RNA_def_struct_idprops_func(srna, "rna_ViewLayer_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_ViewLayer_system_idprops");
 
   rna_def_view_layer_common(brna, srna, true);
 
   func = RNA_def_function(srna, "update_render_passes", "rna_ViewLayer_update_render_passes");
   RNA_def_function_ui_description(func,
                                   "Requery the enabled render passes from the render engine");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_NO_SELF);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_NO_SELF);
 
   prop = RNA_def_property(srna, "layer_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "LayerCollection");
@@ -688,7 +695,7 @@ void RNA_def_view_layer(BlenderRNA *brna)
       prop, nullptr, "grease_pencil_flags", GREASE_PENCIL_AS_SEPARATE_PASS);
   RNA_def_property_ui_text(
       prop, "Grease Pencil", "Deliver Grease Pencil render result in a separate pass");
-  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, nullptr);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
 
   /* debug update routine */
   func = RNA_def_function(srna, "update", "rna_ViewLayer_update_tagged");
@@ -699,6 +706,7 @@ void RNA_def_view_layer(BlenderRNA *brna)
   /* Dependency Graph */
   prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Depsgraph");
+  RNA_def_property_flag_hide_from_ui_workaround(prop);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
   RNA_def_property_pointer_funcs(prop, "rna_ViewLayer_depsgraph_get", nullptr, nullptr, nullptr);

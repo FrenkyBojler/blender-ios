@@ -39,7 +39,9 @@ function(blender_test_set_envvars testname envvar_list)
       list(APPEND envvar_list "${_lsan_options}" "${_asan_options}")
     endif()
   endif()
-
+  if(WITH_COMPILER_CODE_COVERAGE AND CMAKE_C_COMPILER_ID MATCHES "Clang")
+    list(APPEND envvar_list "LLVM_PROFILE_FILE=${COMPILER_CODE_COVERAGE_DATA_DIR}/raw/blender_%p.profraw")
+  endif()
   # Can only be called once per test to define its custom environment variables.
   set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${envvar_list}")
 endfunction()
@@ -195,7 +197,7 @@ endfunction()
 # blender_add_test_suite_executable.
 #
 # The function accepts an optional argument which denotes list of sources which
-# is to be compiled-in with the suite sources for each fo the suites when the
+# is to be compiled-in with the suite sources for each of the suites when the
 # WITH_TESTS_SINGLE_BINARY configuration is set to OFF.
 function(blender_add_test_suite_lib
   name
@@ -307,7 +309,7 @@ endfunction()
 # very large executable, blender_add_test_suite_lib() should be used instead.
 #
 # The function accepts an optional argument which denotes list of sources which
-# is to be compiled-in with the suit sources for each fo the suites when the
+# is to be compiled-in with the suit sources for each of the suites when the
 # WITH_TESTS_SINGLE_BINARY configuration is set to OFF.
 function(blender_add_test_suite_executable
   name

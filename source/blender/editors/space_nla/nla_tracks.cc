@@ -172,7 +172,8 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
     case ANIMTYPE_PALETTE:
     case ANIMTYPE_DSHAIR:
     case ANIMTYPE_DSPOINTCLOUD:
-    case ANIMTYPE_DSVOLUME: {
+    case ANIMTYPE_DSVOLUME:
+    case ANIMTYPE_DSLIGHTPROBE: {
       /* sanity checking... */
       if (ale->adt) {
         /* select/deselect */
@@ -315,15 +316,15 @@ static wmOperatorStatus nlatracks_mouseclick_invoke(bContext *C,
   }
 
   /* Figure out which track user clicked in. */
-  UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
-  UI_view2d_listview_view_to_cell(NLATRACK_NAMEWIDTH,
-                                  NLATRACK_STEP(snla),
-                                  0,
-                                  NLATRACK_FIRST_TOP(&ac),
-                                  x,
-                                  y,
-                                  nullptr,
-                                  &track_index);
+  blender::ui::view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
+  blender::ui::view2d_listview_view_to_cell(NLATRACK_NAMEWIDTH,
+                                            NLATRACK_STEP(snla),
+                                            0,
+                                            NLATRACK_FIRST_TOP(&ac),
+                                            x,
+                                            y,
+                                            nullptr,
+                                            &track_index);
 
   /* handle mouse-click in the relevant track then */
   notifierFlags = mouse_nla_tracks(C, &ac, track_index, selectmode);
@@ -343,7 +344,7 @@ void NLA_OT_channels_click(wmOperatorType *ot)
   ot->idname = "NLA_OT_channels_click";
   ot->description = "Handle clicks to select NLA tracks";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = nlatracks_mouseclick_invoke;
   ot->poll = ED_operator_nla_active;
 
@@ -682,7 +683,7 @@ void NLA_OT_tracks_add(wmOperatorType *ot)
   ot->idname = "NLA_OT_tracks_add";
   ot->description = "Add NLA-Tracks above/after the selected tracks";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_add_tracks_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -760,7 +761,7 @@ void NLA_OT_tracks_delete(wmOperatorType *ot)
   ot->idname = "NLA_OT_tracks_delete";
   ot->description = "Delete selected NLA-Tracks and the strips they contain";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_delete_tracks_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -815,7 +816,7 @@ void NLA_OT_selected_objects_add(wmOperatorType *ot)
   ot->idname = "NLA_OT_selected_objects_add";
   ot->description = "Make selected objects appear in NLA Editor by adding Animation Data";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_objects_add_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 

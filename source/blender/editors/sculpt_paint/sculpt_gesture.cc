@@ -67,6 +67,9 @@ static void init_common(bContext *C, const wmOperator *op, GestureData &gesture_
   gesture_data.front_faces_only = RNA_boolean_get(op->ptr, "use_front_faces_only");
   gesture_data.selection_type = SelectionType::Inside;
 
+  gesture_data.paint = BKE_paint_get_active_from_context(C);
+  gesture_data.brush = BKE_paint_brush_for_read(gesture_data.paint);
+
   /* SculptSession */
   gesture_data.ss = object.sculpt;
 
@@ -187,7 +190,8 @@ static void line_plane_from_tri(float *r_plane,
 {
   float3 normal;
   normal_tri_v3(normal, p1, p2, p3);
-  normal = math::transform_direction(gesture_data.vc.obact->world_to_object(), normal);
+  normal = math::normalize(
+      math::transform_direction(gesture_data.vc.obact->world_to_object(), normal));
   if (flip) {
     normal *= -1.0f;
   }

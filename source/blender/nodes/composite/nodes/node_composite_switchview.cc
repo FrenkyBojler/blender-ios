@@ -11,8 +11,6 @@
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 
-#include "UI_interface.hh"
-
 #include "COM_node_operation.hh"
 
 #include "node_composite_util.hh"
@@ -23,7 +21,7 @@ namespace blender::nodes::node_composite_switchview_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>(N_("Image"));
+  b.add_output<decl::Color>(N_("Image")).structure_type(StructureType::Dynamic);
 
   const bNode *node = b.node_or_null();
   if (node == nullptr) {
@@ -38,7 +36,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       if (srv->viewflag & SCE_VIEW_DISABLE) {
         continue;
       }
-      b.add_input<decl::Color>(N_(srv->name)).default_value({0.0f, 0.0f, 0.0f, 1.0f});
+      b.add_input<decl::Color>(srv->name)
+          .default_value({0.0f, 0.0f, 0.0f, 1.0f})
+          .structure_type(StructureType::Dynamic);
     }
   }
 }
@@ -82,7 +82,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_switchview_cc
 
-void register_node_type_cmp_switch_view()
+static void register_node_type_cmp_switch_view()
 {
   namespace file_ns = blender::nodes::node_composite_switchview_cc;
 
@@ -99,3 +99,4 @@ void register_node_type_cmp_switch_view()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_switch_view)

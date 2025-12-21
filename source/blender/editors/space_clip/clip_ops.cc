@@ -19,7 +19,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h" /* min/max frames */
 #include "DNA_userdef_types.h"
 
@@ -38,9 +37,9 @@
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_report.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -170,7 +169,7 @@ static void open_init(bContext *C, wmOperator *op)
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
-  UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void open_cancel(bContext * /*C*/, wmOperator *op)
@@ -278,7 +277,7 @@ static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent *
   if (clip) {
     STRNCPY(dirpath, clip->filepath);
 
-    BLI_path_abs(dirpath, CTX_data_main(C)->filepath);
+    BLI_path_abs(dirpath, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
     BLI_path_parent_dir(dirpath);
   }
   else {
@@ -307,7 +306,7 @@ void CLIP_OT_open(wmOperatorType *ot)
   ot->description = "Load a sequence of frames or a movie file";
   ot->idname = "CLIP_OT_open";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = open_exec;
   ot->invoke = open_invoke;
   ot->cancel = open_cancel;
@@ -354,7 +353,7 @@ void CLIP_OT_reload(wmOperatorType *ot)
   ot->description = "Reload clip";
   ot->idname = "CLIP_OT_reload";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = reload_exec;
 }
 
@@ -385,7 +384,7 @@ static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
   op->customdata = vpd = MEM_callocN<ViewPanData>("ClipViewPanData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -512,7 +511,7 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_pan";
   ot->description = "Pan the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_pan_exec;
   ot->invoke = view_pan_invoke;
   ot->modal = view_pan_modal;
@@ -565,7 +564,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   op->customdata = vpd = MEM_callocN<ViewZoomData>("ClipViewZoomData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -721,7 +720,7 @@ void CLIP_OT_view_zoom(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_zoom";
   ot->description = "Zoom in/out the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_zoom_exec;
   ot->invoke = view_zoom_invoke;
   ot->modal = view_zoom_modal;
@@ -787,7 +786,7 @@ void CLIP_OT_view_zoom_in(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_zoom_in";
   ot->description = "Zoom in the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_zoom_in_exec;
   ot->invoke = view_zoom_in_invoke;
   ot->poll = ED_space_clip_view_clip_poll;
@@ -844,7 +843,7 @@ void CLIP_OT_view_zoom_out(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_zoom_out";
   ot->description = "Zoom out the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_zoom_out_exec;
   ot->invoke = view_zoom_out_invoke;
   ot->poll = ED_space_clip_view_clip_poll;
@@ -894,7 +893,7 @@ void CLIP_OT_view_zoom_ratio(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_zoom_ratio";
   ot->description = "Set the zoom ratio (based on clip size)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_zoom_ratio_exec;
   ot->poll = ED_space_clip_view_clip_poll;
 
@@ -979,7 +978,7 @@ void CLIP_OT_view_all(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_all";
   ot->description = "View whole image with markers";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_all_exec;
   ot->poll = ED_space_clip_view_clip_poll;
 
@@ -1016,7 +1015,7 @@ void CLIP_OT_view_center_cursor(wmOperatorType *ot)
   ot->description = "Center the view so that the cursor is in the middle of the view";
   ot->idname = "CLIP_OT_view_center_cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_center_cursor_exec;
   ot->poll = ED_space_clip_maskedit_poll;
 }
@@ -1048,7 +1047,7 @@ void CLIP_OT_view_selected(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_selected";
   ot->description = "View all selected elements";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_selected_exec;
   ot->poll = ED_space_clip_view_clip_poll;
 
@@ -1107,7 +1106,8 @@ static int frame_from_event(bContext *C, const wmEvent *event)
   else {
     float viewx, viewy;
 
-    UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
+    blender::ui::view2d_region_to_view(
+        &region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 
     framenr = round_fl_to_int(viewx);
   }
@@ -1167,7 +1167,7 @@ void CLIP_OT_change_frame(wmOperatorType *ot)
   ot->idname = "CLIP_OT_change_frame";
   ot->description = "Interactively change the current frame number";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = change_frame_exec;
   ot->invoke = change_frame_invoke;
   ot->modal = change_frame_modal;
@@ -1190,7 +1190,7 @@ struct ProxyJob {
   Scene *scene;
   Main *main;
   MovieClip *clip;
-  int clip_flag;
+  MovieClipFlag clip_flag;
   bool stop;
   MovieProxyBuilder *proxy_builder;
 };
@@ -1323,7 +1323,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
   std::lock_guard lock(queue->mutex);
   if (!*queue->stop && queue->cfra <= queue->efra) {
-    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+    MovieClipUser user = {};
     char filepath[FILE_MAX];
     int file;
 
@@ -1537,7 +1537,7 @@ static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        scene,
-                       "Building Proxies",
+                       "Building proxies...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
@@ -1545,7 +1545,7 @@ static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/
   pj->scene = scene;
   pj->main = CTX_data_main(C);
   pj->clip = clip;
-  pj->clip_flag = clip->flag & MCLIP_TIMECODE_FLAGS;
+  pj->clip_flag = MovieClipFlag(clip->flag & MCLIP_TIMECODE_FLAGS);
 
   if (clip->anim) {
     pj->proxy_builder = MOV_proxy_builder_start(clip->anim,
@@ -1576,7 +1576,7 @@ void CLIP_OT_rebuild_proxy(wmOperatorType *ot)
   ot->idname = "CLIP_OT_rebuild_proxy";
   ot->description = "Rebuild all selected proxies and timecode indices in the background";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clip_rebuild_proxy_exec;
   ot->poll = ED_space_clip_poll;
 
@@ -1614,7 +1614,7 @@ void CLIP_OT_mode_set(wmOperatorType *ot)
   ot->description = "Set the clip interaction mode";
   ot->idname = "CLIP_OT_mode_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = mode_set_exec;
 
   ot->poll = ED_space_clip_poll;
@@ -1649,14 +1649,11 @@ static wmOperatorStatus clip_view_ndof_invoke(bContext *C,
 
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
-  float pan_vec[3];
 
-  const wmNDOFMotionData *ndof = static_cast<wmNDOFMotionData *>(event->customdata);
+  const wmNDOFMotionData &ndof = *static_cast<wmNDOFMotionData *>(event->customdata);
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
 
-  WM_event_ndof_pan_get(ndof, pan_vec, true);
-
-  mul_v3_fl(pan_vec, ndof->dt);
+  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
   mul_v2_fl(pan_vec, pan_speed / sc->zoom);
 
   sclip_zoom_set_factor(C, max_ff(0.0f, 1.0f - pan_vec[2]), nullptr, false);
@@ -1675,7 +1672,7 @@ void CLIP_OT_view_ndof(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_ndof";
   ot->description = "Use a 3D mouse device to pan/zoom the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = clip_view_ndof_invoke;
   ot->poll = ED_space_clip_view_clip_poll;
 
@@ -1729,7 +1726,7 @@ void CLIP_OT_prefetch(wmOperatorType *ot)
   ot->idname = "CLIP_OT_prefetch";
   ot->description = "Prefetch frames from disk for faster playback/tracking";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_space_clip_view_clip_poll;
   ot->invoke = clip_prefetch_invoke;
   ot->modal = clip_prefetch_modal;
@@ -1770,7 +1767,7 @@ void CLIP_OT_set_scene_frames(wmOperatorType *ot)
   ot->idname = "CLIP_OT_set_scene_frames";
   ot->description = "Set scene's start and end frame to match clip's start frame and length";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_space_clip_view_clip_poll;
   ot->exec = clip_set_scene_frames_exec;
 }
@@ -1822,7 +1819,7 @@ void CLIP_OT_cursor_set(wmOperatorType *ot)
   ot->description = "Set 2D cursor location";
   ot->idname = "CLIP_OT_cursor_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clip_set_2d_cursor_exec;
   ot->invoke = clip_set_2d_cursor_invoke;
   ot->poll = ED_space_clip_poll;
@@ -1872,7 +1869,7 @@ void CLIP_OT_lock_selection_toggle(wmOperatorType *ot)
   ot->description = "Toggle Lock Selection option of the current clip editor";
   ot->idname = "CLIP_OT_lock_selection_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_space_clip_poll;
   ot->exec = lock_selection_toggle_exec;
 
@@ -1897,7 +1894,7 @@ void ED_operatormacros_clip()
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "CLIP_OT_add_marker");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-  RNA_struct_idprops_unset(otmacro->ptr, "release_confirm");
+  RNA_struct_system_idprops_unset(otmacro->ptr, "release_confirm");
 
   ot = WM_operatortype_append_macro(
       "CLIP_OT_add_marker_slide",

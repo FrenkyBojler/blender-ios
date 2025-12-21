@@ -140,7 +140,7 @@ static void ptcache_job_startjob(void *customdata, wmJobWorkerStatus *worker_sta
   /* XXX annoying hack: needed to prevent data corruption when changing
    * scene frame in separate threads
    */
-  WM_set_locked_interface(job->wm, true);
+  WM_locked_interface_set(job->wm, true);
 
   BKE_ptcache_bake(job->baker);
 
@@ -153,7 +153,7 @@ static void ptcache_job_endjob(void *customdata)
   PointCacheJob *job = static_cast<PointCacheJob *>(customdata);
   Scene *scene = job->baker->scene;
 
-  WM_set_locked_interface(job->wm, false);
+  WM_locked_interface_set(job->wm, false);
 
   WM_main_add_notifier(NC_SCENE | ND_FRAME, scene);
   WM_main_add_notifier(NC_OBJECT | ND_POINTCACHE, job->baker->pid.owner_id);
@@ -222,7 +222,7 @@ static wmOperatorStatus ptcache_bake_invoke(bContext *C, wmOperator *op, const w
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               CTX_data_scene(C),
-                              "Point Cache",
+                              "Baking point cache...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_POINTCACHE);
 
@@ -230,7 +230,7 @@ static wmOperatorStatus ptcache_bake_invoke(bContext *C, wmOperator *op, const w
   WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_POINTCACHE, NC_OBJECT | ND_POINTCACHE);
   WM_jobs_callbacks(wm_job, ptcache_job_startjob, nullptr, nullptr, ptcache_job_endjob);
 
-  WM_set_locked_interface(CTX_wm_manager(C), true);
+  WM_locked_interface_set(CTX_wm_manager(C), true);
 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
 
@@ -293,7 +293,7 @@ void PTCACHE_OT_bake_all(wmOperatorType *ot)
   ot->description = "Bake all physics";
   ot->idname = "PTCACHE_OT_bake_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ptcache_bake_exec;
   ot->invoke = ptcache_bake_invoke;
   ot->modal = ptcache_bake_modal;
@@ -312,7 +312,7 @@ void PTCACHE_OT_free_bake_all(wmOperatorType *ot)
   ot->idname = "PTCACHE_OT_free_bake_all";
   ot->description = "Delete all baked caches of all objects in the current scene";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ptcache_free_bake_all_exec;
   ot->poll = ptcache_bake_all_poll;
 
@@ -351,7 +351,7 @@ void PTCACHE_OT_bake(wmOperatorType *ot)
   ot->description = "Bake physics";
   ot->idname = "PTCACHE_OT_bake";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ptcache_bake_exec;
   ot->invoke = ptcache_bake_invoke;
   ot->modal = ptcache_bake_modal;
@@ -370,7 +370,7 @@ void PTCACHE_OT_free_bake(wmOperatorType *ot)
   ot->description = "Delete physics bake";
   ot->idname = "PTCACHE_OT_free_bake";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ptcache_free_bake_exec;
   ot->poll = ptcache_poll;
 
@@ -384,7 +384,7 @@ void PTCACHE_OT_bake_from_cache(wmOperatorType *ot)
   ot->description = "Bake from cache";
   ot->idname = "PTCACHE_OT_bake_from_cache";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ptcache_bake_from_cache_exec;
   ot->poll = ptcache_poll;
 
@@ -439,7 +439,7 @@ void PTCACHE_OT_add(wmOperatorType *ot)
   ot->description = "Add new cache";
   ot->idname = "PTCACHE_OT_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ptcache_add_new_exec;
   ot->poll = ptcache_add_remove_poll;
 
@@ -453,7 +453,7 @@ void PTCACHE_OT_remove(wmOperatorType *ot)
   ot->description = "Delete current cache";
   ot->idname = "PTCACHE_OT_remove";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ptcache_remove_exec;
   ot->poll = ptcache_add_remove_poll;
 

@@ -53,6 +53,7 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
       b_render(b_engine.render()),
       b_depsgraph(PointerRNA_NULL),
       b_scene(PointerRNA_NULL),
+      b_screen(nullptr),
       b_v3d(PointerRNA_NULL),
       b_rv3d(PointerRNA_NULL),
       width(0),
@@ -72,6 +73,7 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
 BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
                                BL::Preferences &b_userpref,
                                BL::BlendData &b_data,
+                               ::bScreen &b_screen,
                                BL::SpaceView3D &b_v3d,
                                BL::RegionView3D &b_rv3d,
                                const int width,
@@ -85,6 +87,7 @@ BlenderSession::BlenderSession(BL::RenderEngine &b_engine,
       b_render(b_engine.render()),
       b_depsgraph(PointerRNA_NULL),
       b_scene(PointerRNA_NULL),
+      b_screen(&b_screen),
       b_v3d(b_v3d),
       b_rv3d(b_rv3d),
       width(width),
@@ -133,17 +136,21 @@ void BlenderSession::create_session()
   /* create sync */
   sync = make_unique<BlenderSync>(
       b_engine, b_data, b_scene, scene, !background, use_developer_ui, session->progress);
-  BL::Object b_camera_override(b_engine.camera_override());
   if (b_v3d) {
-    sync->sync_view(b_v3d, b_rv3d, width, height);
+    sync->sync_view(
+        b_v3d.ptr.data_as<::View3D>(), b_rv3d.ptr.data_as<::RegionView3D>(), width, height);
   }
   else {
-    sync->sync_camera(b_render, b_camera_override, width, height, "");
+    sync->sync_camera(*b_render.ptr.data_as<::RenderData>(), width, height, "");
   }
 
   /* set buffer parameters */
   const BufferParams buffer_params = BlenderSync::get_buffer_params(
-      b_v3d, b_rv3d, scene->camera, width, height);
+      b_v3d.ptr.data_as<::View3D>(),
+      b_rv3d.ptr.data_as<::RegionView3D>(),
+      scene->camera,
+      width,
+      height);
   session->reset(session_params, buffer_params);
 
   /* Viewport and preview (as in, material preview) does not do tiled rendering, so can inform
@@ -176,8 +183,8 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
   }
   else {
     this->b_render = b_engine.render();
-    width = render_resolution_x(b_render);
-    height = render_resolution_y(b_render);
+    width = render_resolution_x(*b_render.ptr.data_as<::RenderData>());
+    height = render_resolution_y(*b_render.ptr.data_as<::RenderData>());
   }
 
   const bool is_new_session = (session == nullptr);
@@ -227,16 +234,13 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
   }
   else {
     /* Sync recalculations to do just the required updates. */
-    sync->sync_recalc(b_depsgraph, b_v3d);
+    sync->sync_recalc(b_depsgraph, b_screen, b_v3d, b_rv3d);
   }
 
-  BL::Object b_camera_override(b_engine.camera_override());
-  sync->sync_camera(b_render, b_camera_override, width, height, "");
+  sync->sync_camera(*b_render.ptr.data_as<::RenderData>(), width, height, "");
 
-  BL::SpaceView3D b_null_space_view3d(PointerRNA_NULL);
-  BL::RegionView3D b_null_region_view3d(PointerRNA_NULL);
   const BufferParams buffer_params = BlenderSync::get_buffer_params(
-      b_null_space_view3d, b_null_region_view3d, scene->camera, width, height);
+      nullptr, nullptr, scene->camera, width, height);
   session->reset(session_params, buffer_params);
 
   /* reset time */
@@ -337,7 +341,8 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
 
   /* Create driver to write out render results. */
   ensure_display_driver_if_needed();
-  session->set_output_driver(make_unique<BlenderOutputDriver>(b_engine));
+  session->set_output_driver(
+      make_unique<BlenderOutputDriver>(*b_engine.ptr.data_as<::RenderEngine>()));
 
   session->full_buffer_written_cb = [&](string_view filename) { full_buffer_written(filename); };
 
@@ -346,8 +351,11 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
   /* get buffer parameters */
   const SessionParams session_params = BlenderSync::get_session_params(
       b_engine, b_userpref, b_scene, background);
-  BufferParams buffer_params = BlenderSync::get_buffer_params(
-      b_v3d, b_rv3d, scene->camera, width, height);
+  BufferParams buffer_params = BlenderSync::get_buffer_params(b_v3d.ptr.data_as<::View3D>(),
+                                                              b_rv3d.ptr.data_as<::RegionView3D>(),
+                                                              scene->camera,
+                                                              width,
+                                                              height);
 
   /* temporary render result to find needed passes and views */
   BL::RenderResult b_rr = b_engine.begin_result(0, 0, 1, 1, b_view_layer.name().c_str(), nullptr);
@@ -392,12 +400,12 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
     }
 
     /* update scene */
-    BL::Object b_camera_override(b_engine.camera_override());
-    sync->sync_camera(b_render, b_camera_override, width, height, b_rview_name.c_str());
+    sync->sync_camera(*b_render.ptr.data_as<::RenderData>(), width, height, b_rview_name.c_str());
     sync->sync_data(b_render,
                     b_depsgraph,
+                    b_screen,
                     b_v3d,
-                    b_camera_override,
+                    b_rv3d,
                     width,
                     height,
                     &python_thread_state,
@@ -473,8 +481,8 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
   double total_time;
   double render_time;
   session->progress.get_time(total_time, render_time);
-  VLOG_INFO << "Total render time: " << total_time;
-  VLOG_INFO << "Render time (without synchronization): " << render_time;
+  LOG_INFO << "Total render time: " << total_time;
+  LOG_INFO << "Render time (without synchronization): " << render_time;
 }
 
 void BlenderSession::render_frame_finish()
@@ -685,17 +693,18 @@ void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
   scene->bake_manager->set_baking(scene, true);
 
   session->set_display_driver(nullptr);
-  session->set_output_driver(make_unique<BlenderOutputDriver>(b_engine));
+  session->set_output_driver(
+      make_unique<BlenderOutputDriver>(*b_engine.ptr.data_as<::RenderEngine>()));
   session->full_buffer_written_cb = [&](string_view filename) { full_buffer_written(filename); };
 
   /* Sync scene. */
-  BL::Object b_camera_override(b_engine.camera_override());
   sync->set_bake_target(b_object);
-  sync->sync_camera(b_render, b_camera_override, width, height, "");
+  sync->sync_camera(*b_render.ptr.data_as<::RenderData>(), width, height, "");
   sync->sync_data(b_render,
                   b_depsgraph,
+                  b_screen,
                   b_v3d,
-                  b_camera_override,
+                  b_rv3d,
                   width,
                   height,
                   &python_thread_state,
@@ -798,7 +807,7 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
 
   /* copy recalc flags, outside of mutex so we can decide to do the real
    * synchronization at a later time to not block on running updates */
-  sync->sync_recalc(b_depsgraph_, b_v3d);
+  sync->sync_recalc(b_depsgraph_, b_screen, b_v3d, b_rv3d);
 
   /* don't do synchronization if on pause */
   if (session_pause) {
@@ -815,26 +824,31 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
   /* data and camera synchronize */
   b_depsgraph = b_depsgraph_;
 
-  BL::Object b_camera_override(b_engine.camera_override());
   sync->sync_data(b_render,
                   b_depsgraph,
+                  b_screen,
                   b_v3d,
-                  b_camera_override,
+                  b_rv3d,
                   width,
                   height,
                   &python_thread_state,
                   session_params.denoise_device);
 
   if (b_rv3d) {
-    sync->sync_view(b_v3d, b_rv3d, width, height);
+    sync->sync_view(
+        b_v3d.ptr.data_as<::View3D>(), b_rv3d.ptr.data_as<::RegionView3D>(), width, height);
   }
   else {
-    sync->sync_camera(b_render, b_camera_override, width, height, "");
+    sync->sync_camera(*b_render.ptr.data_as<::RenderData>(), width, height, "");
   }
 
   /* get buffer parameters */
   const BufferParams buffer_params = BlenderSync::get_buffer_params(
-      b_v3d, b_rv3d, scene->camera, width, height);
+      b_v3d.ptr.data_as<::View3D>(),
+      b_rv3d.ptr.data_as<::RegionView3D>(),
+      scene->camera,
+      width,
+      height);
 
   /* reset if needed */
   if (scene->need_reset()) {
@@ -930,7 +944,8 @@ void BlenderSession::view_draw(const int w, const int h)
     else {
       /* update camera from 3d view */
 
-      sync->sync_view(b_v3d, b_rv3d, width, height);
+      sync->sync_view(
+          b_v3d.ptr.data_as<::View3D>(), b_rv3d.ptr.data_as<::RegionView3D>(), width, height);
 
       if (scene->camera->is_modified()) {
         reset = true;
@@ -944,7 +959,11 @@ void BlenderSession::view_draw(const int w, const int h)
       const SessionParams session_params = BlenderSync::get_session_params(
           b_engine, b_userpref, b_scene, background);
       const BufferParams buffer_params = BlenderSync::get_buffer_params(
-          b_v3d, b_rv3d, scene->camera, width, height);
+          b_v3d.ptr.data_as<::View3D>(),
+          b_rv3d.ptr.data_as<::RegionView3D>(),
+          scene->camera,
+          width,
+          height);
       const bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
       if (session_pause == false) {
@@ -990,53 +1009,36 @@ void BlenderSession::update_status_progress()
   string timestatus;
   string status;
   string substatus;
-  string scene_status;
-  double progress;
-  double total_time;
-  double remaining_time = 0;
-  double render_time;
-  const float mem_used = (float)session->stats.mem_used / 1024.0f / 1024.0f;
-  const float mem_peak = (float)session->stats.mem_peak / 1024.0f / 1024.0f;
-
   get_status(status, substatus);
-  get_progress(progress, total_time, render_time);
-
-  if (progress > 0) {
-    remaining_time = session->get_estimated_remaining_time();
+  if (background && !substatus.empty()) {
+    status += " | " + substatus;
   }
 
+  double progress;
+  double total_time;
+  double render_time;
+  get_progress(progress, total_time, render_time);
+
+  const float mem_used = (float)session->stats.mem_used / 1024.0f / 1024.0f;
+  const float mem_peak = (float)session->stats.mem_peak / 1024.0f / 1024.0f;
   if (background) {
-    if (scene) {
-      scene_status += " | " + scene->name;
-    }
-    if (!b_rlay_name.empty()) {
-      scene_status += ", " + b_rlay_name;
+
+    if (progress > 0) {
+      const double remaining_time = session->get_estimated_remaining_time();
+      if (remaining_time > 0) {
+        timestatus = "Remaining: " + time_human_readable_from_seconds(remaining_time) + " | ";
+      }
     }
 
-    if (!b_rview_name.empty()) {
-      scene_status += ", " + b_rview_name;
-    }
-
-    if (remaining_time > 0) {
-      timestatus += "Remaining:" + time_human_readable_from_seconds(remaining_time) + " | ";
-    }
-
-    timestatus += string_printf("Mem:%.2fM, Peak:%.2fM", (double)mem_used, (double)mem_peak);
-
-    if (!status.empty()) {
-      status = " | " + status;
-    }
-    if (!substatus.empty()) {
-      status += " | " + substatus;
-    }
+    timestatus += string_printf("Mem: %dM | ", (int)ceilf(mem_used));
   }
 
   const double current_time = time_dt();
-  /* When rendering in a window, redraw the status at least once per second to keep the elapsed
-   * and remaining time up-to-date. For headless rendering, only report when something
-   * significant changes to keep the console output readable. */
+  /* When rendering in a window, redraw the status at least once per second to keep things
+   * up to date. For headless rendering, only report when something significant changes to
+   * keep the console output readable. */
   if (status != last_status || (!headless && (current_time - last_status_time) > 1.0)) {
-    b_engine.update_stats("", (timestatus + scene_status + status).c_str());
+    b_engine.update_stats("", (timestatus + status).c_str());
     b_engine.update_memory_stats(mem_used, mem_peak);
     last_status = status;
     last_status_time = current_time;

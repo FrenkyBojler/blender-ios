@@ -6,7 +6,6 @@
  * \ingroup modifiers
  */
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 
 #include "BLI_array_utils.hh"
@@ -22,7 +21,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -41,10 +40,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *emd = reinterpret_cast<GreasePencilEnvelopeModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(emd, modifier));
-
-  MEMCPY_STRUCT_AFTER(emd, DNA_struct_default_get(GreasePencilEnvelopeModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(emd, modifier);
   modifier::greasepencil::init_influence_data(&emd->influence, false);
 }
 
@@ -596,7 +592,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
         dst_attributes.lookup_or_add_for_write_span<float>(
             "radius",
             bke::AttrDomain::Point,
-            bke::AttributeInitVArray(VArray<float>::ForSingle(0.01f, dst_point_num)));
+            bke::AttributeInitVArray(VArray<float>::from_single(0.01f, dst_point_num)));
     const IndexRange all_new_points = keep_original ?
                                           IndexRange(src_curves.point_num,
                                                      dst_point_num - src_curves.point_num) :
@@ -609,7 +605,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
             dst_attributes.lookup_or_add_for_write_span<float>(
                 "opacity",
                 bke::AttrDomain::Point,
-                bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, dst_point_num))))
+                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, dst_point_num))))
     {
       for (const int point_i : all_new_points) {
         opacity_writer.span[point_i] *= info.strength;
@@ -678,40 +674,40 @@ static void modify_geometry_set(ModifierData *md,
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   const GreasePencilEnvelopeModifierMode mode = GreasePencilEnvelopeModifierMode(
       RNA_enum_get(ptr, "mode"));
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "spread", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "spread", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (mode) {
     case MOD_GREASE_PENCIL_ENVELOPE_DEFORM:
       break;
     case MOD_GREASE_PENCIL_ENVELOPE_FILLS:
     case MOD_GREASE_PENCIL_ENVELOPE_SEGMENTS:
-      uiItemR(layout, ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(layout, ptr, "mat_nr", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(layout, ptr, "skip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "mat_nr", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "skip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (ui::Layout *influence_panel = layout.panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
-    modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_vertex_group_settings(C, influence_panel, ptr);
+    modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_vertex_group_settings(C, *influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

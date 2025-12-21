@@ -15,10 +15,11 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
+
+#include "COM_result.hh"
 
 #include "node_composite_util.hh"
 
@@ -28,10 +29,14 @@ namespace blender::nodes::node_composite_brightness_cc {
 
 static void cmp_node_brightcontrast_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Float>("Bright").min(-100.0f).max(100.0f);
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.is_function_node();
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
+
+  b.add_input<decl::Float>("Brightness", "Bright").min(-100.0f).max(100.0f);
   b.add_input<decl::Float>("Contrast").min(-100.0f).max(100.0f);
-  b.add_output<decl::Color>("Image");
 }
 
 using namespace blender::compositor;
@@ -69,12 +74,14 @@ static float4 brightness_and_contrast(const float4 &color,
   return float4(color.xyz() * multiplier + offset, color.w);
 }
 
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::SI3_SO<float4, float, float, float4>(
-      "Bright And Contrast",
-      [](const float4 &color, const float brightness, const float contrast) -> float4 {
-        return brightness_and_contrast(color, brightness, contrast);
+  static auto function = mf::build::SI3_SO<Color, float, float, Color>(
+      "Brightness And Contrast",
+      [](const Color &color, const float brightness, const float contrast) -> Color {
+        return Color(brightness_and_contrast(float4(color), brightness, contrast));
       },
       mf::build::exec_presets::SomeSpanOrSingle<0>());
   builder.set_matching_fn(function);
@@ -82,7 +89,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_brightness_cc
 
-void register_node_type_cmp_brightcontrast()
+static void register_node_type_cmp_brightcontrast()
 {
   namespace file_ns = blender::nodes::node_composite_brightness_cc;
 
@@ -99,3 +106,4 @@ void register_node_type_cmp_brightcontrast()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_brightcontrast)

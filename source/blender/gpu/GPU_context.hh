@@ -17,17 +17,18 @@
  * are no more contexts. */
 
 bool GPU_backend_supported();
-void GPU_backend_type_selection_set(const eGPUBackendType backend);
-eGPUBackendType GPU_backend_type_selection_get();
-eGPUBackendType GPU_backend_get_type();
+void GPU_backend_type_selection_set(const GPUBackendType backend);
+GPUBackendType GPU_backend_type_selection_get();
+GPUBackendType GPU_backend_get_type();
+const char *GPU_backend_get_name();
 
 /**
- * Detect the most suited eGPUBackendType.
+ * Detect the most suited GPUBackendType.
  *
  * - The detected backend will be set in `GPU_backend_type_selection_set`.
  * - When GPU_backend_type_selection_is_overridden it checks the overridden backend.
  *   When not overridden it checks a default list.
- * - OpenGL backend will be checked as fallback for Metal.
+ * - OpenGL backend will be checked as a fallback for Metal.
  *
  * Returns true when detection found a supported backend, otherwise returns false.
  * When no supported backend is found GPU_backend_type_selection_set is called with
@@ -38,12 +39,24 @@ bool GPU_backend_type_selection_detect();
 /**
  * Alter the GPU_backend_type_selection_detect to only test a specific backend
  */
-void GPU_backend_type_selection_set_override(eGPUBackendType backend_type);
+void GPU_backend_type_selection_set_override(GPUBackendType backend_type);
 
 /**
  * Check if the GPU_backend_type_selection_detect is overridden to only test a specific backend.
  */
 bool GPU_backend_type_selection_is_overridden();
+
+/**
+ * Get the VSync value (when set).
+ */
+int GPU_backend_vsync_get();
+/**
+ * Override the default VSync.
+ *
+ * \param vsync: See #GHOST_TVSyncModes for details.
+ */
+void GPU_backend_vsync_set_override(int vsync);
+bool GPU_backend_vsync_is_overridden();
 
 /** Opaque type hiding blender::gpu::Context. */
 struct GPUContext;
@@ -79,6 +92,22 @@ void GPU_context_end_frame(GPUContext *ctx);
 void GPU_context_main_lock();
 void GPU_context_main_unlock();
 
+/**
+ * \brief Enable shader create info pipeline state assert.
+ *
+ * Activates an assert when a shader create info contains pipeline states but using the shader
+ * still require a new pipeline. This helps to identify mismatches between the shader create info
+ * and actual usage.
+ *
+ * The assert can not be enabled by default as there are cases where new pipelines are expected.
+ * This function is used inside unit tests to check if pipeline creation is done when not expected.
+ * \param context: Context where to activate the pipeline creation debug.
+ * \param enable:  #true enables the feature, #false disables the feature.
+ *
+ * \note Currently only supported by Vulkan.
+ */
+void GPU_context_debug_pipeline_creation(GPUContext *context, bool enable);
+
 /** GPU Begin/end work blocks */
 void GPU_render_begin();
 void GPU_render_end();
@@ -110,6 +139,24 @@ class GPUSecondaryContext {
 
   /** Must be called from a secondary thread. */
   void activate();
+};
+
+/**
+ * \brief Activate pipeline creation debugging for a certain scope.
+ */
+struct DebugScopePipelineCreation {
+ private:
+  GPUContext *context_ = nullptr;
+
+ public:
+  DebugScopePipelineCreation(GPUContext *context) : context_(context)
+  {
+    GPU_context_debug_pipeline_creation(context, true);
+  }
+  ~DebugScopePipelineCreation()
+  {
+    GPU_context_debug_pipeline_creation(context_, false);
+  }
 };
 
 }  // namespace blender::gpu

@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_light_types.h"
@@ -29,18 +30,22 @@
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
 
-#include "NOD_composite.hh"
-
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+
+#include "SEQ_animation.hh"
+#include "SEQ_prefetch.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_sequencer.hh"
 
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
@@ -181,24 +186,12 @@ void ED_render_engine_changed(Main *bmain, const bool update_scene_data)
       update_ctx.view_layer = view_layer;
       ED_render_id_flush_update(&update_ctx, &scene->id);
     }
-    if (scene->nodetree && update_scene_data) {
-      ntreeCompositUpdateRLayers(scene->nodetree);
+    if (update_scene_data) {
+      BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+      BKE_ntree_update(*bmain);
     }
   }
   BKE_main_ensure_invariants(*bmain);
-
-  /* Update #CacheFiles to ensure that procedurals are properly taken into account. */
-  LISTBASE_FOREACH (CacheFile *, cachefile, &bmain->cachefiles) {
-    /* Only update cache-files which are set to use a render procedural.
-     * We do not use #BKE_cachefile_uses_render_procedural here as we need to update regardless of
-     * the current engine or its settings. */
-    if (cachefile->use_render_procedural) {
-      DEG_id_tag_update(&cachefile->id, ID_RECALC_SYNC_TO_EVAL);
-      /* Rebuild relations so that modifiers are reconnected to or disconnected from the
-       * cache-file. */
-      DEG_relations_tag_update(bmain);
-    }
-  }
 }
 
 void ED_render_view_layer_changed(Main *bmain, bScreen *screen)
@@ -248,14 +241,6 @@ static void texture_changed(Main *bmain, Tex *tex)
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
       BKE_paint_invalidate_overlay_tex(scene, view_layer, tex);
     }
-    /* find compositing nodes */
-    if (scene->use_nodes && scene->nodetree) {
-      for (bNode *node : scene->nodetree->all_nodes()) {
-        if (node->id == &tex->id) {
-          blender::ed::space_node::tag_update_id(&scene->id);
-        }
-      }
-    }
   }
 
   LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
@@ -288,6 +273,9 @@ static void image_changed(Main *bmain, Image *ima)
       texture_changed(bmain, tex);
     }
   }
+
+  /* Ensure downstream editors are made aware of changes to the Image data. */
+  WM_main_add_notifier(NC_IMAGE | NA_EDITED, ima);
 }
 
 static void scene_changed(Main *bmain, Scene *scene)
@@ -301,6 +289,47 @@ static void scene_changed(Main *bmain, Scene *scene)
     if (ob->mode & OB_MODE_TEXTURE_PAINT) {
       BKE_texpaint_slots_refresh_object(scene, ob);
       ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
+    }
+  }
+}
+
+static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bmain, ID *id)
+{
+  if (ELEM(id->recalc,
+           0,
+           ID_RECALC_SELECT,
+           ID_RECALC_FRAME_CHANGE,
+           ID_RECALC_AUDIO_FPS,
+           ID_RECALC_AUDIO_VOLUME,
+           ID_RECALC_AUDIO_MUTE,
+           ID_RECALC_AUDIO_LISTENER,
+           ID_RECALC_AUDIO))
+  {
+    return;
+  }
+  Scene *changed_scene = update_ctx->scene;
+
+  if (GS(id->name) != ID_SCE) {
+    blender::seq::relations_invalidate_scene_strips(bmain, changed_scene);
+  }
+
+  /* Invalidate rendered VSE caches in `changed_scene`, because strip animation may have been
+   * updated. */
+  if (GS(id->name) == ID_AC) {
+    Editing *ed = blender::seq::editing_get(changed_scene);
+    if (ed != nullptr && blender::seq::animation_keyframes_exist(changed_scene) &&
+        &changed_scene->adt->action->id == id)
+    {
+      blender::seq::prefetch_stop(changed_scene);
+      blender::seq::cache_cleanup(changed_scene, blender::seq::CacheCleanup::FinalAndIntra);
+    }
+  }
+
+  /* Invalidate cache for strips that use this compositing tree as a modifier. */
+  if (GS(id->name) == ID_NT) {
+    const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(id);
+    if (node_tree->type == NTREE_COMPOSIT) {
+      blender::seq::relations_invalidate_compositor_modifiers(bmain, node_tree);
     }
   }
 }
@@ -340,6 +369,8 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
     default:
       break;
   }
+
+  update_sequencer(update_ctx, bmain, id);
 }
 
 /** \} */

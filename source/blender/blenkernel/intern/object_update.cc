@@ -22,7 +22,6 @@
 #include "BKE_curves.h"
 #include "BKE_displist.h"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_lattice.hh"
@@ -143,13 +142,6 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
       cddata_masks.fmask |= CD_MASK_PROP_ALL;
       cddata_masks.pmask |= CD_MASK_PROP_ALL;
       cddata_masks.lmask |= CD_MASK_PROP_ALL;
-
-      /* Make sure Freestyle edge/face marks appear in evaluated mesh (see #40315).
-       * Due to Line Art implementation, edge marks should also be shown in viewport. */
-#ifdef WITH_FREESTYLE
-      cddata_masks.emask |= CD_MASK_FREESTYLE_EDGE;
-      cddata_masks.pmask |= CD_MASK_FREESTYLE_FACE;
-#endif
       if (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER) {
         /* Always compute orcos for render. */
         cddata_masks.vmask |= CD_MASK_ORCO;
@@ -235,6 +227,19 @@ void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
   Object *object_orig = DEG_get_original(object);
   /* Base flags. */
   object_orig->base_flag = object->base_flag;
+  object_orig->base_local_view_bits = object->base_local_view_bits;
+
+  /* Particle edit mode draws from the original object, so sync imat from evaluated to original
+   * object so drawing uses the correct transform. */
+  for (ParticleSystem *
+           psys_eval = static_cast<ParticleSystem *>(object->particlesystem.first),
+          *psys_orig = static_cast<ParticleSystem *>(object_orig->particlesystem.first);
+       psys_eval && psys_orig;
+       psys_eval = psys_eval->next, psys_orig = psys_orig->next)
+  {
+    copy_m4_m4(psys_orig->imat, psys_eval->imat);
+  }
+
   /* Transformation flags. */
   copy_m4_m4(object_orig->runtime->object_to_world.ptr(), object->object_to_world().ptr());
   copy_m4_m4(object_orig->runtime->world_to_object.ptr(), object->world_to_object().ptr());

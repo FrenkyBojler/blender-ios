@@ -37,7 +37,7 @@
 #include "ED_curves.hh"
 #include "ED_pointcloud.hh"
 
-#include "ANIM_bone_collections.hh"
+#include "ANIM_armature.hh"
 
 #include "ED_transverts.hh" /* own include */
 
@@ -119,7 +119,7 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
 
     /* Ensure all bone tails are correctly adjusted */
     LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
-      if (!EBONE_VISIBLE(arm, ebo)) {
+      if (!blender::animrig::bone_is_visible(arm, ebo)) {
         continue;
       }
       /* adjust tip if both ends selected */
@@ -142,7 +142,9 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
     LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
       if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
         /* If this bone has a parent tip that has been moved */
-        if (EBONE_VISIBLE(arm, ebo->parent) && (ebo->parent->flag & BONE_TIPSEL)) {
+        if (blender::animrig::bone_is_visible(arm, ebo->parent) &&
+            (ebo->parent->flag & BONE_TIPSEL))
+        {
           copy_v3_v3(ebo->head, ebo->parent->tail);
         }
         /* If this bone has a parent tip that has NOT been moved */
@@ -164,9 +166,8 @@ void ED_transverts_update_obedit(TransVertStore *tvs, Object *obedit)
   }
   else if (obedit->type == OB_CURVES) {
     Curves *curves_id = static_cast<Curves *>(obedit->data);
-    blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    curves.tag_positions_changed();
-    curves.calculate_bezier_auto_handles();
+    blender::ed::curves::transverts_update_curves(
+        curves_id->geometry.wrap(), tvs, (mode & TM_SKIP_HANDLES) != 0);
   }
   else if (obedit->type == OB_POINTCLOUD) {
     PointCloud *pointcloud = static_cast<PointCloud *>(obedit->data);
@@ -216,6 +217,7 @@ bool ED_transverts_check_obedit(const Object *obedit)
 void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit, const int mode)
 {
   using namespace blender;
+  BLI_assert(DEG_is_evaluated(obedit));
 
   Nurb *nu;
   BezTriple *bezt;
@@ -346,12 +348,12 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
     tv = tvs->transverts = MEM_calloc_arrayN<TransVert>(totmalloc, __func__);
 
     LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
-      if (EBONE_VISIBLE(arm, ebo)) {
+      if (blender::animrig::bone_is_visible(arm, ebo)) {
         const bool tipsel = (ebo->flag & BONE_TIPSEL) != 0;
         const bool rootsel = (ebo->flag & BONE_ROOTSEL) != 0;
-        const bool rootok = !(
-            ebo->parent && (ebo->flag & BONE_CONNECTED) &&
-            (EBONE_VISIBLE(arm, ebo->parent) && (ebo->parent->flag & BONE_TIPSEL)));
+        const bool rootok = !(ebo->parent && (ebo->flag & BONE_CONNECTED) &&
+                              (blender::animrig::bone_is_visible(arm, ebo->parent) &&
+                               (ebo->parent->flag & BONE_TIPSEL)));
 
         if ((tipsel && rootsel) || (rootsel)) {
           /* Don't add the tip (unless mode & TM_ALL_JOINTS, for getting all joints),

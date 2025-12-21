@@ -14,7 +14,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -29,7 +28,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_texture.h" /* Texture masking. */
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -123,10 +122,7 @@ static float mix_weight(float weight, float weight2, char mix_mode)
 static void init_data(ModifierData *md)
 {
   WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WeightVGMixModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -250,7 +246,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
   }
 
-  const bool has_mdef = CustomData_has_layer(&mesh->vert_data, CD_MDEFORMVERT);
+  const bool has_mdef = !mesh->deform_verts().is_empty();
   /* If no vertices were ever added to an object's vgroup, dvert might be nullptr. */
   if (!has_mdef) {
     /* If not affecting all vertices, just return. */
@@ -442,35 +438,35 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
   modifier_vgroup_ui(
       layout, ptr, &ob_ptr, "vertex_group_a", "invert_vertex_group_a", std::nullopt);
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group_b", "invert_vertex_group_b", IFACE_("B"));
 
-  uiItemS(layout);
+  layout.separator();
 
-  uiItemR(layout, ptr, "default_weight_a", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "default_weight_b", UI_ITEM_NONE, IFACE_("B"), ICON_NONE);
+  layout.prop(ptr, "default_weight_a", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "default_weight_b", UI_ITEM_NONE, IFACE_("B"), ICON_NONE);
 
-  uiItemS(layout);
+  layout.separator();
 
-  uiItemR(layout, ptr, "mix_set", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mix_set", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void influence_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -520,4 +516,5 @@ ModifierTypeInfo modifierType_WeightVGMix = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

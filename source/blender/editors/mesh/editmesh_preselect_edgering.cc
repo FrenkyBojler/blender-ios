@@ -163,7 +163,8 @@ void EDBM_preselect_edgering_draw(EditMesh_PreSelEdgeRing *psel, const float mat
   GPU_matrix_push();
   GPU_matrix_mul(matrix);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   if (psel->edges_len > 0) {
     float viewport[4];
@@ -190,9 +191,10 @@ void EDBM_preselect_edgering_draw(EditMesh_PreSelEdgeRing *psel, const float mat
     immUniformThemeColor3(TH_GIZMO_PRIMARY);
 
     /* Same size as an edit mode vertex */
-    immUniform1f("size",
-                 2.0 * U.pixelsize *
-                     max_ff(1.0f, UI_GetThemeValuef(TH_VERTEX_SIZE) * float(M_SQRT2) / 2.0f));
+    immUniform1f(
+        "size",
+        2.0 * U.pixelsize *
+            max_ff(1.0f, blender::ui::theme::get_value_f(TH_VERTEX_SIZE) * float(M_SQRT2) / 2.0f));
 
     immBegin(GPU_PRIM_POINTS, psel->verts_len);
 
@@ -220,10 +222,10 @@ static void view3d_preselect_mesh_edgering_update_verts_from_edge(
     const Span<float3> vert_positions)
 {
   float v_cos[2][3];
-  float(*verts)[3];
+  float (*verts)[3];
   int i, tot = 0;
 
-  verts = static_cast<float(*)[3]>(MEM_mallocN(sizeof(*psel->verts) * previewlines, __func__));
+  verts = static_cast<float (*)[3]>(MEM_mallocN(sizeof(*psel->verts) * previewlines, __func__));
 
   edgering_vcos_get_pair(&eed_start->v1, v_cos, vert_positions);
 
@@ -247,7 +249,7 @@ static void view3d_preselect_mesh_edgering_update_edges_from_edge(
   BMWalker walker;
   BMEdge *eed, *eed_last;
   BMVert *v[2][2] = {{nullptr}}, *eve_last;
-  float(*edges)[2][3] = nullptr;
+  float (*edges)[2][3] = nullptr;
   BLI_Stack *edge_stack;
 
   int i, tot = 0;
@@ -273,7 +275,7 @@ static void view3d_preselect_mesh_edgering_update_edges_from_edge(
 
   eed_start = *(BMEdge **)BLI_stack_peek(edge_stack);
 
-  edges = static_cast<float(*)[2][3]>(MEM_mallocN(
+  edges = static_cast<float (*)[2][3]>(MEM_mallocN(
       (sizeof(*edges) * (BLI_stack_count(edge_stack) + (eed_last != eed_start))) * previewlines,
       __func__));
 

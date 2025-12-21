@@ -4,15 +4,20 @@
 
 #pragma once
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 
 #include "eevee_bxdf_lib.glsl"
 #include "eevee_thickness_lib.glsl"
+#include "eevee_utility_tx_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_fast_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
+#include "gpu_shader_ray_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 /* -------------------------------------------------------------------- */
 /** \name Microfacet GGX distribution
@@ -125,8 +130,9 @@ BsdfEval bxdf_ggx_eval_reflection(float3 N, float3 L, float3 V, float alpha, boo
   BsdfEval eval;
 
   float NV2 = square(NV);
-  float s2 = square(1.0f + sqrt(1.0f - NV2));
-  float len_ai_sqr = a2 * (1.0f - NV2);
+  float one_minus_NV2 = saturate(1.0f - NV2);
+  float s2 = square(1.0f + sqrt(one_minus_NV2));
+  float len_ai_sqr = a2 * one_minus_NV2;
   float t = sqrt(len_ai_sqr + NV2);
   if (NV >= 0.0f) {
     float k = (1.0f - a2) * s2 / (s2 + a2 * NV2);
@@ -164,7 +170,7 @@ BsdfEval bxdf_ggx_eval_reflection(float3 N, float3 L, float3 V, float alpha, boo
  * https://diglib.eg.org/bitstream/handle/10.1111f/cgf14867/v42i8_03_14867.pdf
  * \{ */
 
-float3 bxdf_ggx_sample_vndf(float3 rand, float3 Vt, float alpha, out float G_V)
+float3 bxdf_ggx_sample_vndf(float3 rand, float3 Vt, float alpha, float &G_V)
 {
   /* Transforming the view direction to the hemisphere configuration. */
   float3 Vh = normalize(float3(alpha * Vt.xy, Vt.z));
@@ -313,7 +319,7 @@ float bxdf_ggx_perceived_roughness_transmission(float roughness, float ior)
 {
   /* This is a very rough mapping used by manually curve fitting the apparent roughness
    * (blurriness) of GGX reflections and GGX refraction.
-   * A better fit is desirable if it is in the same order of complexity.  */
+   * A better fit is desirable if it is in the same order of complexity. */
   return roughness *
          sqrt_fast((ior > 1.0f) ? (1.0f - 1.0f / ior) : (saturate(1.0f - ior) * 0.64f));
 }
@@ -369,9 +375,7 @@ LightProbeRay bxdf_ggx_lightprobe_transmission(ClosureRefraction cl, float3 V, f
   return probe;
 }
 
-void bxdf_ggx_context_amend_transmission(inout ClosureUndetermined cl,
-                                         inout float3 V,
-                                         float thickness)
+void bxdf_ggx_context_amend_transmission(ClosureUndetermined &cl, float3 &V, float thickness)
 {
   if (thickness != 0.0f) {
     ClosureRefraction bsdf = to_closure_refraction(cl);
@@ -395,13 +399,12 @@ Ray bxdf_ggx_ray_amend_transmission(ClosureUndetermined cl, float3 V, Ray ray, f
   return ray;
 }
 
-#ifdef EEVEE_UTILITY_TX
-
 ClosureLight bxdf_ggx_light_reflection(ClosureReflection cl, float3 V)
 {
   float cos_theta = dot(cl.N, V);
   ClosureLight light;
-  light.ltc_mat = utility_tx_sample_lut(utility_tx, cos_theta, cl.roughness, UTIL_LTC_MAT_LAYER);
+  auto &lut_tx = sampler_get(eevee_utility_texture, utility_tx);
+  light.ltc_mat = utility_tx_sample_lut(lut_tx, cos_theta, cl.roughness, UTIL_LTC_MAT_LAYER);
   light.N = cl.N;
   light.type = LIGHT_SPECULAR;
   return light;
@@ -422,13 +425,12 @@ ClosureLight bxdf_ggx_light_transmission(ClosureRefraction cl, float3 V, float t
   float cos_theta = dot(-cl.N, R);
 
   ClosureLight light;
+  auto &lut_tx = sampler_get(eevee_utility_texture, utility_tx);
   light.ltc_mat = utility_tx_sample_lut(
-      utility_tx, cos_theta, perceptual_roughness, UTIL_LTC_MAT_LAYER);
+      lut_tx, cos_theta, perceptual_roughness, UTIL_LTC_MAT_LAYER);
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
   return light;
 }
-
-#endif
 
 /** \} */

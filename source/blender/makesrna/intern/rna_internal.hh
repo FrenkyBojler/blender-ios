@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "BLI_compiler_attrs.h"
 
 #include "rna_internal_types.hh"
@@ -17,6 +19,8 @@
 #define RNA_MAGIC ((int)~0)
 
 enum class AttributeOwnerType;
+enum AttrDomainMask : uint8_t;
+using eCustomDataMask = uint64_t;
 
 struct FreestyleSettings;
 struct ID;
@@ -66,7 +70,7 @@ struct PropertyDefRNA {
   int dnapointerlevel;
   /**
    * Offset in bytes within `dnastructname`.
-   * -1 when unusable (follows pointer for e.g.). */
+   * -1 when unusable (follows pointer for example). */
   int dnaoffset;
   int dnasize;
 
@@ -132,7 +136,7 @@ extern BlenderDefRNA DefRNA;
 
 /* Define functions for all types */
 #ifndef __RNA_ACCESS_H__
-extern BlenderRNA BLENDER_RNA;
+extern BlenderRNA RNA_blender_rna_get();
 #endif
 
 void RNA_def_ID(BlenderRNA *brna);
@@ -216,17 +220,39 @@ void RNA_def_xr(BlenderRNA *brna);
 
 /* Common Define functions */
 
+/**
+ * Accessor to expose System IDProperties in structs that support it.
+ *
+ * See also #RNA_def_struct_system_idprops_func.
+ */
+struct IDPropertyGroup;
+IDPropertyGroup *rna_struct_system_properties_get_func(PointerRNA ptr, bool do_create);
+
 void rna_def_attributes_common(StructRNA *srna, AttributeOwnerType type);
 
+void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr);
+int rna_Attribute_data_length(PointerRNA *ptr);
+
+blender::StringRefNull rna_Attribute_name_get(const PointerRNA &ptr);
+void rna_Attribute_name_get(PointerRNA *ptr, char *value);
+int rna_Attribute_name_length(PointerRNA *ptr);
+void rna_Attribute_name_set(PointerRNA *ptr, const char *value);
+
+void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter,
+                                       PointerRNA *ptr,
+                                       AttrDomainMask domain_mask,
+                                       eCustomDataMask cd_type_mask,
+                                       bool include_anonymous);
 void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr);
-void rna_AttributeGroup_iterator_next(CollectionPropertyIterator *iter);
 PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter);
 int rna_AttributeGroup_length(PointerRNA *ptr);
+PointerRNA rna_AttributeGroup_lookup_string(const PointerRNA &ptr,
+                                            const blender::StringRef key,
+                                            AttrDomainMask domain_mask,
+                                            eCustomDataMask cd_type_mask);
 bool rna_AttributeGroup_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);
 
 void rna_AttributeGroup_color_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr);
-void rna_AttributeGroup_color_iterator_next(CollectionPropertyIterator *iter);
-PointerRNA rna_AttributeGroup_color_iterator_get(CollectionPropertyIterator *iter);
 int rna_AttributeGroup_color_length(PointerRNA *ptr);
 
 void rna_def_animdata_common(StructRNA *srna);
@@ -281,6 +307,7 @@ int rna_ID_name_length(PointerRNA *ptr);
 void rna_ID_name_set(PointerRNA *ptr, const char *value);
 StructRNA *rna_ID_refine(PointerRNA *ptr);
 IDProperty **rna_ID_idprops(PointerRNA *ptr);
+IDProperty **rna_ID_system_idprops(PointerRNA *ptr);
 void rna_ID_fake_user_set(PointerRNA *ptr, bool value);
 void **rna_ID_instance(PointerRNA *ptr);
 IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr);
@@ -394,6 +421,8 @@ std::optional<std::string> rna_CameraBackgroundImage_image_or_movieclip_user_pat
 std::optional<std::string> rna_ColorManagedDisplaySettings_path(const PointerRNA *ptr);
 std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *ptr);
 std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const PointerRNA *ptr);
+
+std::optional<std::string> rna_Channelbag_path(const PointerRNA *ptr);
 
 /* Node socket subtypes for group interface. */
 void rna_def_node_socket_interface_subtypes(BlenderRNA *brna);
@@ -573,8 +602,8 @@ PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, ListBase *l
 void rna_iterator_array_begin(CollectionPropertyIterator *iter,
                               PointerRNA *ptr,
                               void *data,
-                              int itemsize,
-                              int length,
+                              size_t itemsize,
+                              int64_t length,
                               bool free_ptr,
                               IteratorSkipFunc skip);
 void rna_iterator_array_next(CollectionPropertyIterator *iter);
@@ -582,7 +611,7 @@ void *rna_iterator_array_get(CollectionPropertyIterator *iter);
 void *rna_iterator_array_dereference_get(CollectionPropertyIterator *iter);
 void rna_iterator_array_end(CollectionPropertyIterator *iter);
 PointerRNA rna_array_lookup_int(
-    PointerRNA *ptr, StructRNA *type, void *data, int itemsize, int length, int index);
+    PointerRNA *ptr, StructRNA *type, void *data, size_t itemsize, int64_t length, int64_t index);
 
 /* Duplicated code since we can't link in blenlib */
 

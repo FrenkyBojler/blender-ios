@@ -15,6 +15,7 @@
 #include "BKE_material.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
@@ -24,7 +25,7 @@
 #include "BLI_color.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdopbvh.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
@@ -77,10 +78,23 @@ namespace blender::ed::sculpt_paint {
 /** \name Common Paint Operator Functions
  * \{ */
 
-static bool stroke_get_location(bContext * /*C*/,
-                                float out[3],
-                                const float mouse[2],
-                                bool /*force_original*/)
+struct GreasePencilPaintStroke final : public PaintStroke {
+  GreasePencilPaintStroke(bContext *C, wmOperator *op, const int event_type)
+      : PaintStroke(C, op, event_type)
+  {
+  }
+
+  bool get_location(float location[3], const float mouse[2], bool force_original) override;
+  bool test_start(wmOperator *op, const float mouse[2]) override;
+  void update_step(wmOperator *op, PointerRNA *itemptr) override;
+  void redraw(bool final) override;
+  bool test_cancel() override;
+  void done(bool is_cancel) override;
+};
+
+bool GreasePencilPaintStroke::get_location(float out[3],
+                                           const float mouse[2],
+                                           bool /*force_original*/)
 {
   out[0] = mouse[0];
   out[1] = mouse[1];
@@ -111,8 +125,8 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
       case GPAINT_BRUSH_TYPE_ERASE:
         return greasepencil::new_erase_operation();
       case GPAINT_BRUSH_TYPE_FILL:
-        /* Fill tool keymap uses the paint operator as alternative mode. */
-        return greasepencil::new_paint_operation(true);
+        /* Fill tool keymap uses the paint operator to draw fill guides. */
+        return greasepencil::new_paint_operation(/* do_fill_guides = */ true);
       case GPAINT_BRUSH_TYPE_TINT:
         return greasepencil::new_tint_operation(stroke_mode == BRUSH_STROKE_ERASE);
     }
@@ -176,46 +190,48 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
   return nullptr;
 }
 
-static bool stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
+bool GreasePencilPaintStroke::test_start(wmOperator * /*op*/, const float /*mouse*/[2])
 {
-  UNUSED_VARS(C, op, mouse);
   return true;
 }
 
-static void stroke_update_step(bContext *C,
-                               wmOperator *op,
-                               PaintStroke *stroke,
-                               PointerRNA *stroke_element)
+void GreasePencilPaintStroke::update_step(wmOperator *op, PointerRNA *stroke_element)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
-      paint_stroke_mode_data(stroke));
+      mode_data_.get());
 
   InputSample sample;
   RNA_float_get_array(stroke_element, "mouse", sample.mouse_position);
   sample.pressure = RNA_float_get(stroke_element, "pressure");
 
   if (!operation) {
-    std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(*C, op);
+    std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(
+        *this->evil_C, op);
     BLI_assert(new_operation != nullptr);
-    new_operation->on_stroke_begin(*C, sample);
-    paint_stroke_set_mode_data(stroke, std::move(new_operation));
+    new_operation->on_stroke_begin(*this->evil_C, sample);
+    mode_data_ = std::move(new_operation);
   }
   else {
-    operation->on_stroke_extended(*C, sample);
+    operation->on_stroke_extended(*this->evil_C, sample);
   }
 }
 
-static void stroke_redraw(const bContext *C, PaintStroke * /*stroke*/, bool /*final*/)
+void GreasePencilPaintStroke::redraw(bool /*final*/)
 {
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(this->evil_C));
 }
 
-static void stroke_done(const bContext *C, PaintStroke *stroke)
+bool GreasePencilPaintStroke::test_cancel()
+{
+  return false;
+}
+
+void GreasePencilPaintStroke::done(bool /*is_cancel*/)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
-      paint_stroke_mode_data(stroke));
+      mode_data_.get());
   if (operation != nullptr) {
-    operation->on_stroke_done(*C);
+    operation->on_stroke_done(*this->evil_C);
   }
 }
 
@@ -274,19 +290,14 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
     return retval;
   }
 
-  op->customdata = paint_stroke_new(C,
-                                    op,
-                                    stroke_get_location,
-                                    stroke_test_start,
-                                    stroke_update_step,
-                                    stroke_redraw,
-                                    stroke_done,
-                                    event->type);
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
@@ -298,12 +309,20 @@ static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
                                                          wmOperator *op,
                                                          const wmEvent *event)
 {
-  return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
+  GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void grease_pencil_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
-  paint_stroke_cancel(C, op, static_cast<PaintStroke *>(op->customdata));
+  GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+  stroke->cancel(C, op);
 }
 
 static void GREASE_PENCIL_OT_brush_stroke(wmOperatorType *ot)
@@ -350,20 +369,14 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   }
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  if (!grease_pencil.has_active_layer()) {
-    BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
+  if (!ed::greasepencil::has_editable_layer(grease_pencil)) {
+    BKE_report(op->reports, RPT_ERROR, "No editable Grease Pencil layer");
     return OPERATOR_CANCELLED;
   }
 
   const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   if (brush == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
-
-  bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer();
-  if (!active_layer.is_editable()) {
-    BKE_report(op->reports, RPT_ERROR, "Active layer is locked or hidden");
     return OPERATOR_CANCELLED;
   }
 
@@ -386,19 +399,14 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   }
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
-  op->customdata = paint_stroke_new(C,
-                                    op,
-                                    stroke_get_location,
-                                    stroke_test_start,
-                                    stroke_update_step,
-                                    stroke_redraw,
-                                    stroke_done,
-                                    event->type);
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
@@ -410,12 +418,20 @@ static wmOperatorStatus grease_pencil_sculpt_paint_modal(bContext *C,
                                                          wmOperator *op,
                                                          const wmEvent *event)
 {
-  return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
+  GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void grease_pencil_sculpt_paint_cancel(bContext *C, wmOperator *op)
 {
-  paint_stroke_cancel(C, op, static_cast<PaintStroke *>(op->customdata));
+  GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+  stroke->cancel(C, op);
 }
 
 static void GREASE_PENCIL_OT_sculpt_paint(wmOperatorType *ot)
@@ -481,19 +497,14 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  op->customdata = paint_stroke_new(C,
-                                    op,
-                                    stroke_get_location,
-                                    stroke_test_start,
-                                    stroke_update_step,
-                                    stroke_redraw,
-                                    stroke_done,
-                                    event->type);
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
@@ -505,12 +516,20 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_modal(bContext *C,
                                                                 wmOperator *op,
                                                                 const wmEvent *event)
 {
-  return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
+  GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void grease_pencil_weight_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
-  paint_stroke_cancel(C, op, static_cast<PaintStroke *>(op->customdata));
+  GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+  stroke->cancel(C, op);
 }
 
 static void GREASE_PENCIL_OT_weight_brush_stroke(wmOperatorType *ot)
@@ -557,14 +576,8 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
   }
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  if (!grease_pencil.has_active_layer()) {
-    BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
-    return OPERATOR_CANCELLED;
-  }
-
-  bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer();
-  if (!active_layer.is_editable()) {
-    BKE_report(op->reports, RPT_ERROR, "Active layer is locked or hidden");
+  if (!ed::greasepencil::has_editable_layer(grease_pencil)) {
+    BKE_report(op->reports, RPT_ERROR, "No editable Grease Pencil layer");
     return OPERATOR_CANCELLED;
   }
 
@@ -579,29 +592,28 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
   /* For the vertex paint tools, we don't want the auto-key to create an empty keyframe, so we
    * duplicate the previous key. */
   const bool use_duplicate_previous_key = true;
-  if (!ed::greasepencil::ensure_active_keyframe(
-          *scene, grease_pencil, active_layer, use_duplicate_previous_key, inserted_keyframe))
-  {
+  for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+    if (layer->is_editable() &&
+        ed::greasepencil::ensure_active_keyframe(
+            *scene, grease_pencil, *layer, use_duplicate_previous_key, inserted_keyframe))
+    {
+      inserted_keyframe = true;
+    }
+  }
+  if (!inserted_keyframe) {
     BKE_report(op->reports, RPT_ERROR, "No Grease Pencil frame to draw on");
     return OPERATOR_CANCELLED;
   }
-  if (inserted_keyframe) {
-    WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
-  }
+  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
-  op->customdata = paint_stroke_new(C,
-                                    op,
-                                    stroke_get_location,
-                                    stroke_test_start,
-                                    stroke_update_step,
-                                    stroke_redraw,
-                                    stroke_done,
-                                    event->type);
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
@@ -613,12 +625,20 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_modal(bContext *C,
                                                                 wmOperator *op,
                                                                 const wmEvent *event)
 {
-  return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
+  GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void grease_pencil_vertex_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
-  paint_stroke_cancel(C, op, static_cast<PaintStroke *>(op->customdata));
+  GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
+  stroke->cancel(C, op);
 }
 
 static void GREASE_PENCIL_OT_vertex_brush_stroke(wmOperatorType *ot)
@@ -899,7 +919,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
   Array<float2> view_centers(max_kd_entries);
   Array<float> view_radii(max_kd_entries);
 
-  KDTree_2d *kdtree = BLI_kdtree_2d_new(max_kd_entries);
+  KDTree_2d *kdtree = kdtree_2d_new(max_kd_entries);
 
   /* Insert points for overlap tests. */
   for (const int point_i : circles_range.index_range()) {
@@ -912,13 +932,13 @@ static void grease_pencil_fill_extension_lines_from_circles(
     view_centers[kd_index] = center;
     view_radii[kd_index] = radius;
 
-    BLI_kdtree_2d_insert(kdtree, kd_index, center);
+    kdtree_2d_insert(kdtree, kd_index, center);
   }
   for (const int i_point : feature_points_range.index_range()) {
     /* TODO Insert feature points into the KDTree. */
     UNUSED_VARS(i_point);
   }
-  BLI_kdtree_2d_balance(kdtree);
+  kdtree_2d_balance(kdtree);
 
   struct {
     Vector<float3> starts;
@@ -934,7 +954,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
     const float radius = view_radii[kd_index];
 
     bool found = false;
-    BLI_kdtree_2d_range_search_cb_cpp(
+    kdtree_range_search_cb_cpp<2>(
         kdtree,
         center,
         radius,
@@ -963,7 +983,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
     }
   }
 
-  BLI_kdtree_2d_free(kdtree);
+  kdtree_2d_free(kdtree);
 
   /* Add new extension lines. */
   extension_data.lines.starts.extend(connection_lines.starts);
@@ -1115,7 +1135,7 @@ static void grease_pencil_fill_overlay_cb(const bContext *C, ARegion * /*region*
 
     for (const ed::greasepencil::DrawingInfo &info : drawings) {
       const IndexMask curve_mask = info.drawing.strokes().curves_range();
-      const VArray<ColorGeometry4f> colors = VArray<ColorGeometry4f>::ForSingle(
+      const VArray<ColorGeometry4f> colors = VArray<ColorGeometry4f>::from_single(
           stroke_curves_color, info.drawing.strokes().points_num());
       const float4x4 layer_to_world = grease_pencil.layer(info.layer_index).to_world_space(object);
       const bool use_xray = false;
@@ -1141,7 +1161,7 @@ static void grease_pencil_fill_overlay_cb(const bContext *C, ARegion * /*region*
 
     const IndexRange lines_range = extensions.lines.starts.index_range();
     if (!lines_range.is_empty()) {
-      const VArray<ColorGeometry4f> line_colors = VArray<ColorGeometry4f>::ForSingle(
+      const VArray<ColorGeometry4f> line_colors = VArray<ColorGeometry4f>::from_single(
           extension_lines_color, lines_range.size());
 
       ed::greasepencil::image_render::draw_lines(world_to_view,
@@ -1153,14 +1173,14 @@ static void grease_pencil_fill_overlay_cb(const bContext *C, ARegion * /*region*
     }
     const IndexRange circles_range = extensions.circles.centers.index_range();
     if (!circles_range.is_empty()) {
-      const VArray<ColorGeometry4f> circle_colors = VArray<ColorGeometry4f>::ForSingle(
+      const VArray<ColorGeometry4f> circle_colors = VArray<ColorGeometry4f>::from_single(
           extension_circles_color, circles_range.size());
 
       ed::greasepencil::image_render::draw_circles(
           world_to_view,
           circles_range,
           extensions.circles.centers,
-          VArray<float>::ForSpan(extensions.circles.radii),
+          VArray<float>::from_span(extensions.circles.radii),
           circle_colors,
           float2(region.winx, region.winy),
           line_width,
@@ -1205,27 +1225,27 @@ static VArray<bool> get_fill_boundary_layers(const GreasePencil &grease_pencil,
 
   switch (fill_layer_mode) {
     case GP_FILL_GPLMODE_ACTIVE:
-      return VArray<bool>::ForFunc(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index;
       });
     case GP_FILL_GPLMODE_ABOVE:
-      return VArray<bool>::ForFunc(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index + 1;
       });
     case GP_FILL_GPLMODE_BELOW:
-      return VArray<bool>::ForFunc(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index - 1;
       });
     case GP_FILL_GPLMODE_ALL_ABOVE:
-      return VArray<bool>::ForFunc(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index <= active_layer_index;
       });
     case GP_FILL_GPLMODE_ALL_BELOW:
-      return VArray<bool>::ForFunc(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index >= active_layer_index;
       });
     case GP_FILL_GPLMODE_VISIBLE:
-      return VArray<bool>::ForFunc(all_layers.size(), [grease_pencil](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [grease_pencil](const int index) {
         return !grease_pencil.layers()[index]->is_visible();
       });
   }
@@ -1320,7 +1340,7 @@ static void smooth_fill_strokes(bke::CurvesGeometry &curves, const IndexMask &st
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
-  const VArray<bool> point_selection = VArray<bool>::ForSingle(true, curves.points_num());
+  const VArray<bool> point_selection = VArray<bool>::from_single(true, curves.points_num());
 
   bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position");
   geometry::smooth_curve_attribute(stroke_mask,
@@ -1389,6 +1409,8 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
           std::nullopt :
           std::make_optional(brush.gpencil_settings->fill_threshold);
   const bool on_back = (ts.gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK);
+  const bool auto_remove_fill_guides = (brush.gpencil_settings->flag &
+                                        GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES) != 0;
 
   if (!grease_pencil.has_active_layer()) {
     return false;
@@ -1400,6 +1422,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   const VArray<bool> boundary_layers = get_fill_boundary_layers(
       grease_pencil, eGP_FillLayerModes(brush.gpencil_settings->fill_layer_mode));
 
+  bool did_create_fill = false;
   for (const FillToolTargetInfo &info : target_drawings) {
     const Layer &layer = *grease_pencil.layers()[info.target.layer_index];
 
@@ -1419,6 +1442,9 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
                                                    fit_method,
                                                    op_data.material_index,
                                                    keep_images);
+    if (fill_curves.is_empty()) {
+      continue;
+    }
 
     smooth_fill_strokes(fill_curves, fill_curves.curves_range());
 
@@ -1427,6 +1453,11 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     }
 
     bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
+    if (auto_remove_fill_guides) {
+      /* Remove strokes that were created using the fill tool as boundary strokes. */
+      ed::greasepencil::remove_fill_guides(dst_curves);
+    }
+
     /* If the `fill_strokes` function creates the "fill_opacity" attribute, make sure that we
      * initialize this to full opacity on the target geometry. */
     if (fill_curves.attributes().contains("fill_opacity") &&
@@ -1436,7 +1467,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
           dst_curves.attributes_for_write().lookup_or_add_for_write_span<float>(
               "fill_opacity",
               bke::AttrDomain::Curve,
-              bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, dst_curves.curves_num())));
+              bke::AttributeInitVArray(VArray<float>::from_single(1.0f, dst_curves.curves_num())));
       fill_opacities.finish();
     }
 
@@ -1463,6 +1494,12 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
       Array<float4x2> texture_matrices(num_new_curves, texture_space);
       info.target.drawing.set_texture_matrices(texture_matrices, new_curves_range);
     }
+
+    did_create_fill = true;
+  }
+
+  if (!did_create_fill) {
+    BKE_reportf(op.reports, RPT_ERROR, "Unable to fill unclosed areas");
   }
 
   WM_cursor_modal_restore(&win);
@@ -1504,9 +1541,9 @@ static bool grease_pencil_fill_init(bContext &C, wmOperator &op)
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_pressure);
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_strength);
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_uv);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_hue);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_saturation);
-  BKE_curvemapping_init(brush.gpencil_settings->curve_rand_value);
+  BKE_curvemapping_init(brush.curve_rand_hue);
+  BKE_curvemapping_init(brush.curve_rand_saturation);
+  BKE_curvemapping_init(brush.curve_rand_value);
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(&bmain, &ob, &brush);
   const int material_index = BKE_object_material_index_get(&ob, material);
@@ -1830,10 +1867,27 @@ static bool remove_points_and_split_from_drawings(
   return changed;
 }
 
+static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 point)
+{
+  if (point.x < bounds.min.x) {
+    return false;
+  }
+  if (point.x > bounds.max.x) {
+    return false;
+  }
+  if (point.y < bounds.min.y) {
+    return false;
+  }
+  if (point.y > bounds.max.y) {
+    return false;
+  }
+  return true;
+}
+
 static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 point)
 {
   return isect_point_poly_v2_int(
-      point, reinterpret_cast<const int(*)[2]>(lasso.data()), uint(lasso.size()));
+      point, reinterpret_cast<const int (*)[2]>(lasso.data()), uint(lasso.size()));
 }
 
 static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)
@@ -1865,7 +1919,7 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *
       const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
       const bke::crazyspace::GeometryDeformation deformation =
           bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-              ob_eval, *object, info.layer_index, info.frame_number);
+              ob_eval, *object, info.drawing);
       const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
 
       const bke::CurvesGeometry &curves = info.drawing.strokes();
@@ -1893,6 +1947,15 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *
       IndexMaskMemory &memory = memories[drawing_i];
       const IndexMask curve_selection = IndexMask::from_predicate(
           curves.curves_range(), GrainSize(512), memory, [&](const int64_t index) {
+            /* For a single point curve, its screen_space_curve_bounds Bounds will be empty (by
+             * definition), so intersecting will fail. Check if the single point is in the bounds
+             * instead. */
+            const IndexRange points = points_by_curve[index];
+            if (points.size() == 1) {
+              return is_point_inside_bounds(lasso_bounds_int,
+                                            int2(screen_space_positions[points.first()]));
+            }
+
             return bounds::intersect(lasso_bounds, screen_space_curve_bounds[index]).has_value();
           });
 
@@ -1938,23 +2001,6 @@ static void GREASE_PENCIL_OT_erase_lasso(wmOperatorType *ot)
   WM_operator_properties_gesture_lasso(ot);
 }
 
-static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 point)
-{
-  if (point.x < bounds.min.x) {
-    return false;
-  }
-  if (point.x > bounds.max.x) {
-    return false;
-  }
-  if (point.y < bounds.min.y) {
-    return false;
-  }
-  if (point.y > bounds.max.y) {
-    return false;
-  }
-  return true;
-}
-
 static wmOperatorStatus grease_pencil_erase_box_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
@@ -1981,7 +2027,7 @@ static wmOperatorStatus grease_pencil_erase_box_exec(bContext *C, wmOperator *op
       const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
       const bke::crazyspace::GeometryDeformation deformation =
           bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-              ob_eval, *object, info.layer_index, info.frame_number);
+              ob_eval, *object, info.drawing);
       const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
 
       const bke::CurvesGeometry &curves = info.drawing.strokes();

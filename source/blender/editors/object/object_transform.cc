@@ -37,7 +37,6 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
@@ -51,7 +50,7 @@
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "BLT_translation.hh"
 
@@ -61,18 +60,16 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ANIM_action.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_armature.hh"
-#include "ED_keyframing.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -80,7 +77,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
 #include "object_intern.hh"
@@ -399,7 +395,7 @@ void OBJECT_OT_location_clear(wmOperatorType *ot)
   ot->description = "Clear the object's location";
   ot->idname = "OBJECT_OT_location_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_location_clear_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -433,7 +429,7 @@ void OBJECT_OT_rotation_clear(wmOperatorType *ot)
   ot->description = "Clear the object's rotation";
   ot->idname = "OBJECT_OT_rotation_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_rotation_clear_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -467,7 +463,7 @@ void OBJECT_OT_scale_clear(wmOperatorType *ot)
   ot->description = "Clear the object's scale";
   ot->idname = "OBJECT_OT_scale_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_scale_clear_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -521,7 +517,7 @@ void OBJECT_OT_origin_clear(wmOperatorType *ot)
   ot->description = "Clear the object's origin";
   ot->idname = "OBJECT_OT_origin_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_origin_clear_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -656,15 +652,6 @@ static bool apply_objects_internal_need_single_user(bContext *C)
   return (ID_REAL_USERS(ob->data) > CTX_DATA_COUNT(C, selected_editable_objects));
 }
 
-static void transform_positions(MutableSpan<float3> positions, const float4x4 &matrix)
-{
-  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &position : positions.slice(range)) {
-      position = math::transform_point(matrix, position);
-    }
-  });
-}
-
 static wmOperatorStatus apply_objects_internal(bContext *C,
                                                ReportList *reports,
                                                bool apply_loc,
@@ -753,7 +740,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
         BKE_reportf(
             reports,
             RPT_ERROR,
-            R"(Rotation/Location can't apply to a 2D curve: Object "%s", %s "%s", aborting)",
+            R"(Rotation/Location cannot apply to a 2D curve: Object "%s", %s "%s", aborting)",
             ob->id.name + 2,
             BKE_idtype_idcode_to_name(GS(obdata->name)),
             obdata->name + 2);
@@ -835,12 +822,11 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       /* correct for scale, note mul_m3_m3m3 has swapped args! */
       BKE_object_scale_to_mat3(ob, tmat);
       if (!invert_m3_m3(timat, tmat)) {
-        BKE_reportf(reports,
-                    RPT_WARNING,
-                    "%s \"%s\" %s",
-                    RPT_("Object"),
-                    ob->id.name + 2,
-                    RPT_("have non-invertable transformation matrix, not applying transform."));
+        BKE_reportf(
+            reports,
+            RPT_WARNING,
+            "Object \"%s\" has a non-invertible transformation matrix, not applying transform",
+            ob->id.name + 2);
         has_non_invertable_matrix = true;
         continue;
       }
@@ -958,7 +944,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
     }
     else if (ob->type == OB_POINTCLOUD) {
       PointCloud &pointcloud = *static_cast<PointCloud *>(ob->data);
-      transform_positions(pointcloud.positions_for_write(), float4x4(mat));
+      math::transform_points(float4x4(mat), pointcloud.positions_for_write());
       pointcloud.tag_positions_changed();
     }
     else if (ob->type == OB_CAMERA) {
@@ -1140,7 +1126,7 @@ void OBJECT_OT_visual_transform_apply(wmOperatorType *ot)
   ot->description = "Apply the object's visual transformation to its data";
   ot->idname = "OBJECT_OT_visual_transform_apply";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = visual_transform_apply_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -1184,7 +1170,7 @@ static wmOperatorStatus object_transform_apply_invoke(bContext *C,
                                     IFACE_("Warning: Multiple objects share the same data.\nMake "
                                            "single user and then apply transformations?"),
                                     IFACE_("Apply"),
-                                    ALERT_ICON_WARNING,
+                                    ui::AlertIcon::Warning,
                                     false);
     }
   }
@@ -1198,7 +1184,7 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
   ot->description = "Apply the object's transformation to its data";
   ot->idname = "OBJECT_OT_transform_apply";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_transform_apply_exec;
   ot->invoke = object_transform_apply_invoke;
   ot->poll = ED_operator_objectmode;
@@ -1253,7 +1239,7 @@ void OBJECT_OT_parent_inverse_apply(wmOperatorType *ot)
   ot->description = "Apply the object's parent inverse to its data";
   ot->idname = "OBJECT_OT_parent_inverse_apply";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_parent_inverse_apply_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1398,6 +1384,8 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
   }
 
+  bool reported_empty = false;
+  std::array<bool, INDEX_ID_MAX> reported{false};
   for (Object *ob : objects) {
     if (ob->flag & OB_DONE) {
       continue;
@@ -1433,12 +1421,18 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
             invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
             mul_m4_v3(ob->world_to_object().ptr(), cent);
           }
-
           add_v3_v3(ob->instance_collection->instance_offset, cent);
 
           tot_change++;
           ob->instance_collection->id.tag |= ID_TAG_DOIT;
           do_inverse_offset = true;
+        }
+      }
+      else {
+        BLI_assert(ob->type == OB_EMPTY);
+        if (!reported_empty) {
+          reported_empty = true;
+          BKE_report(op->reports, RPT_INFO, "Set Origin not supported for Empty object(s)");
         }
       }
     }
@@ -1631,7 +1625,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      if (curves.points_num() == 0) {
+      if (curves.is_empty()) {
         continue;
       }
 
@@ -1685,11 +1679,12 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
                   layer, current_frame))
           {
             const bke::CurvesGeometry &curves = drawing->strokes();
+            const Span<float3> positions = curves.positions();
 
-            for (const int i : curves.points_range()) {
-              center += math::transform_point(layer_to_object, curves.positions()[i]);
+            for (const int i : positions.index_range()) {
+              center += math::transform_point(layer_to_object, positions[i]);
             }
-            total_points += curves.points_num();
+            total_points += positions.size();
           }
         }
 
@@ -1752,6 +1747,19 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       pointcloud.tag_positions_changed();
       pointcloud.id.tag |= ID_TAG_DOIT;
       do_inverse_offset = true;
+    }
+    else {
+      const ID *obdata = static_cast<const ID *>(ob->data);
+      const short idcode = GS(obdata->name);
+      const int id_index = BKE_idtype_idcode_to_index(idcode);
+
+      if (!reported[id_index]) {
+        reported[id_index] = true;
+        BKE_reportf(op->reports,
+                    RPT_INFO,
+                    "Set Origin not supported for %s object(s)",
+                    BKE_idtype_idcode_to_name(idcode));
+      }
     }
 
     /* offset other selected objects */
@@ -1895,7 +1903,7 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
       "cursor";
   ot->idname = "OBJECT_OT_origin_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_origin_set_exec;
 
@@ -2374,7 +2382,7 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
   ot->description = "Interactively point cameras and lights to a location (Ctrl translates)";
   ot->idname = "OBJECT_OT_transform_axis_target";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_transform_axis_target_invoke;
   ot->cancel = object_transform_axis_target_cancel;
   ot->modal = object_transform_axis_target_modal;

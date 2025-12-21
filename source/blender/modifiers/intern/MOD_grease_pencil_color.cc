@@ -6,9 +6,10 @@
  * \ingroup modifiers
  */
 
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
+
+#include "BLI_math_color.h"
 
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
@@ -22,7 +23,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -44,10 +45,7 @@ using bke::greasepencil::Drawing;
 static void init_data(ModifierData *md)
 {
   auto *cmd = reinterpret_cast<GreasePencilColorModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(cmd, DNA_struct_default_get(GreasePencilColorModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(cmd, modifier);
   modifier::greasepencil::init_influence_data(&cmd->influence, true);
 }
 
@@ -202,28 +200,28 @@ static void modify_geometry_set(ModifierData *md,
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "hue", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "saturation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "value", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "hue", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "saturation", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "value", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (ui::Layout *influence_panel = layout.panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
-    modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
+    modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_custom_curve_settings(C, *influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

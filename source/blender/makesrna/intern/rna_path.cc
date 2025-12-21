@@ -884,7 +884,7 @@ static char *rna_idp_path(PointerRNA *ptr,
     }
     else if (iter->type == IDP_IDPARRAY) {
       if (prop->type == PROP_COLLECTION) {
-        const IDProperty *array = IDP_IDPArray(iter);
+        const IDProperty *array = IDP_property_array_get(iter);
         if (needle >= array && needle < (iter->len + array)) { /* found! */
           link.name = iter->name;
           link.index = int(needle - array);
@@ -920,7 +920,7 @@ static char *rna_idp_path(PointerRNA *ptr,
 std::optional<std::string> RNA_path_from_struct_to_idproperty(PointerRNA *ptr,
                                                               const IDProperty *needle)
 {
-  const IDProperty *haystack = RNA_struct_idprops(ptr, false);
+  const IDProperty *haystack = RNA_struct_system_idprops(ptr, false);
 
   if (!haystack) { /* can fail when called on bones */
     return std::nullopt;

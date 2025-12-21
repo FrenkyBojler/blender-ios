@@ -318,8 +318,8 @@ wmKeyMap *WM_gizmo_keymap_generic_select(wmWindowManager *wm);
 wmKeyMap *WM_gizmo_keymap_generic_drag_with_keyconfig(wmKeyConfig *kc);
 wmKeyMap *WM_gizmo_keymap_generic_drag(wmWindowManager *wm);
 
-wmKeyMap *WM_gizmo_keymap_generic_click_drag_with_keyconfig(wmKeyConfig *kc);
-wmKeyMap *WM_gizmo_keymap_generic_click_drag(wmWindowManager *wm);
+wmKeyMap *WM_gizmo_keymap_generic_press_drag_with_keyconfig(wmKeyConfig *kc);
+wmKeyMap *WM_gizmo_keymap_generic_press_drag(wmWindowManager *wm);
 
 /**
  * Drag or press depending on preference.
@@ -460,6 +460,8 @@ void WM_gizmo_group_type_reinit_ptr(Main *bmain, wmGizmoGroupType *gzgt);
 void WM_gizmo_group_type_reinit(Main *bmain, blender::StringRef idname);
 
 /* Utilities. */
+
+bool WM_gizmo_group_is_modal(const wmGizmoGroup *gzgroup);
 
 bool WM_gizmo_context_check_drawstep(const bContext *C, eWM_GizmoFlagMapDrawStep step);
 

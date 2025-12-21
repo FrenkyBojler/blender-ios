@@ -13,7 +13,7 @@
 
 #include "BLI_bitmap.h"
 #include "BLI_heap_simple.h"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -510,7 +510,7 @@ void CURVE_OT_de_select_first(wmOperatorType *ot)
   ot->idname = "CURVE_OT_de_select_first";
   ot->description = "(De)select first of visible part of each NURBS";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = de_select_first_exec;
   ot->poll = ED_operator_editcurve;
 
@@ -542,7 +542,7 @@ void CURVE_OT_de_select_last(wmOperatorType *ot)
   ot->idname = "CURVE_OT_de_select_last";
   ot->description = "(De)select last of visible part of each NURBS";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = de_select_last_exec;
   ot->poll = ED_operator_editcurve;
 
@@ -611,7 +611,7 @@ void CURVE_OT_select_all(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_all";
   ot->description = "(De)select all control points";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = de_select_all_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -671,7 +671,7 @@ void CURVE_OT_select_linked(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_linked";
   ot->description = "Select all control points linked to the current selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_linked_exec;
   ot->invoke = select_linked_invoke;
   ot->poll = ED_operator_editsurfcurve;
@@ -744,7 +744,7 @@ void CURVE_OT_select_linked_pick(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_linked_pick";
   ot->description = "Select all control points linked to already selected ones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = select_linked_pick_invoke;
   ot->poll = ED_operator_editsurfcurve_region_view3d;
 
@@ -819,7 +819,7 @@ void CURVE_OT_select_row(wmOperatorType *ot)
       "Select a row of control points including active one. "
       "Successive use on the same point switches between U/V directions";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_row_exec;
   ot->poll = ED_operator_editsurf;
 
@@ -858,7 +858,7 @@ void CURVE_OT_select_next(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_next";
   ot->description = "Select control points following already selected ones along the curves";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_next_exec;
   ot->poll = ED_operator_editcurve;
 
@@ -897,7 +897,7 @@ void CURVE_OT_select_previous(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_previous";
   ot->description = "Select control points preceding already selected ones along the curves";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_previous_exec;
   ot->poll = ED_operator_editcurve;
 
@@ -1007,7 +1007,7 @@ void CURVE_OT_select_more(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_more";
   ot->description = "Select control points at the boundary of each selection region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_select_more_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -1224,7 +1224,7 @@ void CURVE_OT_select_less(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_less";
   ot->description = "Deselect control points at the boundary of each selection region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_select_less_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -1338,7 +1338,7 @@ void CURVE_OT_select_random(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_random";
   ot->description = "Randomly select some control points";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = curve_select_random_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -1468,7 +1468,7 @@ void CURVE_OT_select_nth(wmOperatorType *ot)
   ot->description = "Deselect every Nth point starting from the active one";
   ot->idname = "CURVE_OT_select_nth";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_nth_exec;
   ot->poll = ED_operator_editsurfcurve;
 
@@ -1529,7 +1529,7 @@ static void nurb_bpoint_direction_worldspace_get(Object *ob, Nurb *nu, BPoint *b
 }
 
 static void curve_nurb_selected_type_get(
-    Object *ob, Nurb *nu, const int type, KDTree_1d *tree_1d, KDTree_3d *tree_3d)
+    Object *ob, Nurb *nu, const int type, blender::KDTree_1d *tree_1d, blender::KDTree_3d *tree_3d)
 {
   float tree_entry[3] = {0.0f, 0.0f, 0.0f};
 
@@ -1558,10 +1558,10 @@ static void curve_nurb_selected_type_get(
           }
         }
         if (tree_1d) {
-          BLI_kdtree_1d_insert(tree_1d, tree_index++, tree_entry);
+          blender::kdtree_1d_insert(tree_1d, tree_index++, tree_entry);
         }
         else {
-          BLI_kdtree_3d_insert(tree_3d, tree_index++, tree_entry);
+          blender::kdtree_3d_insert(tree_3d, tree_index++, tree_entry);
         }
       }
     }
@@ -1590,10 +1590,10 @@ static void curve_nurb_selected_type_get(
           }
         }
         if (tree_1d) {
-          BLI_kdtree_1d_insert(tree_1d, tree_index++, tree_entry);
+          blender::kdtree_1d_insert(tree_1d, tree_index++, tree_entry);
         }
         else {
-          BLI_kdtree_3d_insert(tree_3d, tree_index++, tree_entry);
+          blender::kdtree_3d_insert(tree_3d, tree_index++, tree_entry);
         }
       }
     }
@@ -1603,8 +1603,8 @@ static void curve_nurb_selected_type_get(
 static bool curve_nurb_select_similar_type(Object *ob,
                                            Nurb *nu,
                                            const int type,
-                                           const KDTree_1d *tree_1d,
-                                           const KDTree_3d *tree_3d,
+                                           const blender::KDTree_1d *tree_1d,
+                                           const blender::KDTree_3d *tree_3d,
                                            const float thresh,
                                            const int compare)
 {
@@ -1641,8 +1641,8 @@ static bool curve_nurb_select_similar_type(Object *ob,
           case SIMCURHAND_DIRECTION: {
             float dir[3];
             nurb_bezt_direction_worldspace_get(ob, nu, bezt, dir);
-            KDTreeNearest_3d nearest;
-            if (BLI_kdtree_3d_find_nearest(tree_3d, dir, &nearest) != -1) {
+            blender::KDTreeNearest_3d nearest;
+            if (blender::kdtree_3d_find_nearest(tree_3d, dir, &nearest) != -1) {
               float orient = angle_normalized_v3v3(dir, nearest.co);
               float delta = thresh_cos - fabsf(cosf(orient));
               if (ED_select_similar_compare_float(delta, thresh, eSimilarCmp(compare))) {
@@ -1690,8 +1690,8 @@ static bool curve_nurb_select_similar_type(Object *ob,
           case SIMCURHAND_DIRECTION: {
             float dir[3];
             nurb_bpoint_direction_worldspace_get(ob, nu, bp, dir);
-            KDTreeNearest_3d nearest;
-            if (BLI_kdtree_3d_find_nearest(tree_3d, dir, &nearest) != -1) {
+            blender::KDTreeNearest_3d nearest;
+            if (blender::kdtree_3d_find_nearest(tree_3d, dir, &nearest) != -1) {
               float orient = angle_normalized_v3v3(dir, nearest.co);
               float delta = fabsf(cosf(orient)) - thresh_cos;
               if (ED_select_similar_compare_float(delta, thresh, eSimilarCmp(compare))) {
@@ -1736,17 +1736,17 @@ static wmOperatorStatus curve_select_similar_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  KDTree_1d *tree_1d = nullptr;
-  KDTree_3d *tree_3d = nullptr;
+  blender::KDTree_1d *tree_1d = nullptr;
+  blender::KDTree_3d *tree_3d = nullptr;
   short type_ref = 0;
 
   switch (optype) {
     case SIMCURHAND_RADIUS:
     case SIMCURHAND_WEIGHT:
-      tree_1d = BLI_kdtree_1d_new(tot_nurbs_selected_all);
+      tree_1d = blender::kdtree_1d_new(tot_nurbs_selected_all);
       break;
     case SIMCURHAND_DIRECTION:
-      tree_3d = BLI_kdtree_3d_new(tot_nurbs_selected_all);
+      tree_3d = blender::kdtree_3d_new(tot_nurbs_selected_all);
       break;
   }
 
@@ -1774,12 +1774,12 @@ static wmOperatorStatus curve_select_similar_exec(bContext *C, wmOperator *op)
   }
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::kdtree_1d_deduplicate(tree_1d);
+    blender::kdtree_1d_balance(tree_1d);
   }
   if (tree_3d != nullptr) {
-    BLI_kdtree_3d_deduplicate(tree_3d);
-    BLI_kdtree_3d_balance(tree_3d);
+    blender::kdtree_3d_deduplicate(tree_3d);
+    blender::kdtree_3d_balance(tree_3d);
   }
 
   /* Select control points with desired type. */
@@ -1812,10 +1812,10 @@ static wmOperatorStatus curve_select_similar_exec(bContext *C, wmOperator *op)
   }
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_free(tree_1d);
+    blender::kdtree_1d_free(tree_1d);
   }
   if (tree_3d != nullptr) {
-    BLI_kdtree_3d_free(tree_3d);
+    blender::kdtree_3d_free(tree_3d);
   }
   return OPERATOR_FINISHED;
 }
@@ -1827,7 +1827,7 @@ void CURVE_OT_select_similar(wmOperatorType *ot)
   ot->idname = "CURVE_OT_select_similar";
   ot->description = "Select similar curve points by property type";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = curve_select_similar_exec;
   ot->poll = ED_operator_editsurfcurve;
@@ -2066,7 +2066,7 @@ void CURVE_OT_shortest_path_pick(wmOperatorType *ot)
   ot->idname = "CURVE_OT_shortest_path_pick";
   ot->description = "Select shortest path between two selections";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edcu_shortest_path_pick_invoke;
   ot->poll = ED_operator_editsurfcurve_region_view3d;
 

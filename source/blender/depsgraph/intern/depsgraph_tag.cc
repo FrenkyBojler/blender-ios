@@ -28,6 +28,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
+#include "BKE_image.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_node.hh"
 #include "BKE_scene.hh"
@@ -504,7 +505,7 @@ void deg_graph_tag_parameters_if_needed(Main *bmain,
                            ~(ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT | ID_RECALC_BASE_FLAGS |
                              ID_RECALC_SHADING |
                              /* While drivers may use the current-frame, this value is assigned
-                              * explicitly and doesn't require a the scene to be copied again. */
+                              * explicitly and doesn't require the scene to be copied again. */
                              ID_RECALC_FRAME_CHANGE);
 
   if (clean_flags == 0) {
@@ -680,7 +681,7 @@ static void set_id_update_count(ID *id)
   if (GS(id->name) == ID_IM) {
     Image *image = reinterpret_cast<Image *>(id);
     static std::atomic<uint64_t> global_image_update_count = 0;
-    image->runtime.update_count = global_image_update_count.fetch_add(1) + 1;
+    image->runtime->update_count = global_image_update_count.fetch_add(1) + 1;
   }
 }
 

@@ -131,7 +131,7 @@ void DRW_text_cache_add(DRWTextStore *dt,
   }
 }
 
-static void drw_text_cache_draw_ex(DRWTextStore *dt, ARegion *region)
+static void drw_text_cache_draw_ex(const DRWTextStore *dt, const ARegion *region)
 {
   ViewCachedString *vos;
   BLI_memiter_handle it;
@@ -144,7 +144,7 @@ static void drw_text_cache_draw_ex(DRWTextStore *dt, ARegion *region)
   GPU_matrix_push();
   GPU_matrix_identity_set();
 
-  BLF_default_size(UI_style_get()->widget.points);
+  BLF_default_size(blender::ui::style_get()->widget.points);
   const int font_id = BLF_set_default();
 
   float outline_dark_color[4] = {0, 0, 0, 0.8f};
@@ -198,7 +198,7 @@ static void drw_text_cache_draw_ex(DRWTextStore *dt, ARegion *region)
   GPU_matrix_projection_set(original_proj);
 }
 
-void DRW_text_cache_draw(DRWTextStore *dt, ARegion *region, View3D *v3d)
+void DRW_text_cache_draw(const DRWTextStore *dt, const ARegion *region, const View3D *v3d)
 {
   ViewCachedString *vos;
   if (v3d) {
@@ -242,7 +242,7 @@ void DRW_text_cache_draw(DRWTextStore *dt, ARegion *region, View3D *v3d)
     /* project first */
     BLI_memiter_handle it;
     BLI_memiter_iter_init(dt->cache_strings, &it);
-    View2D *v2d = &region->v2d;
+    const View2D *v2d = &region->v2d;
     float viewmat[4][4];
     rctf region_space = {0.0f, float(region->winx), 0.0f, float(region->winy)};
     BLI_rctf_transform_calc_m4_pivot_min(&v2d->cur, &region_space, viewmat);
@@ -266,9 +266,8 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
                                       const UnitSettings &unit,
                                       DRWTextStore *dt)
 {
-  /* Do not use ascii when using non-default unit system, some unit chars are utf8 (micro, square,
-   * etc.). See bug #36090.
-   */
+  /* Do not use ASCII when using non-default unit system, some unit chars are UTF8
+   * (micro, square, etc.). See #36090. */
   const short txt_flag = DRW_TEXT_CACHE_GLOBALSPACE;
   const Mesh *mesh = BKE_object_get_editmesh_eval_cage(ob);
   if (!mesh) {
@@ -333,7 +332,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
   if (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_EDGE_LEN) {
     BMEdge *eed;
 
-    UI_GetThemeColor3ubv(TH_DRAWEXTRA_EDGELEN, col);
+    blender::ui::theme::get_color_3ubv(TH_DRAWEXTRA_EDGELEN, col);
 
     if (use_coords) {
       BM_mesh_elem_index_ensure(em->bm, BM_VERT);
@@ -382,7 +381,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
     const bool is_rad = (unit.system_rotation == USER_UNIT_ROT_RADIANS);
     BMEdge *eed;
 
-    UI_GetThemeColor3ubv(TH_DRAWEXTRA_EDGEANG, col);
+    blender::ui::theme::get_color_3ubv(TH_DRAWEXTRA_EDGEANG, col);
 
     Span<float3> face_normals;
     if (use_coords) {
@@ -456,7 +455,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
     /* would be nice to use BM_face_calc_area, but that is for 2d faces
      * so instead add up tessellation triangle areas */
 
-    UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEAREA, col);
+    blender::ui::theme::get_color_3ubv(TH_DRAWEXTRA_FACEAREA, col);
 
     int i;
     BMFace *f = nullptr;
@@ -516,7 +515,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
     BMFace *efa;
     const bool is_rad = (unit.system_rotation == USER_UNIT_ROT_RADIANS);
 
-    UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEANG, col);
+    blender::ui::theme::get_color_3ubv(TH_DRAWEXTRA_FACEANG, col);
 
     if (use_coords) {
       BM_mesh_elem_index_ensure(em->bm, BM_VERT);
@@ -588,7 +587,7 @@ void DRW_text_edit_mesh_measure_stats(const ARegion *region,
   if (v3d->overlay.edit_flag & V3D_OVERLAY_EDIT_INDICES) {
     int i;
 
-    UI_GetThemeColor4ubv(TH_TEXT_HI, col);
+    blender::ui::theme::get_color_4ubv(TH_TEXT_HI, col);
 
     if (em->selectmode & SCE_SELECT_VERTEX) {
       BMVert *v;

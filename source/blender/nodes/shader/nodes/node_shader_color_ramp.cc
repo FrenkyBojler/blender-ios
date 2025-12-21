@@ -22,7 +22,7 @@ namespace blender::nodes::node_shader_color_ramp_cc {
 static void sh_node_valtorgb_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Fac")
+  b.add_input<decl::Float>("Factor", "Fac")
       .default_value(0.5f)
       .min(0.0f)
       .max(1.0f)
@@ -105,10 +105,13 @@ static int gpu_shader_valtorgb(GPUMaterial *mat,
 
 class ColorBandFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the color ramp. */
+  std::shared_ptr<const bNodeTree> tree_;
   const ColorBand &color_band_;
 
  public:
-  ColorBandFunction(const ColorBand &color_band) : color_band_(color_band)
+  ColorBandFunction(const ColorBand &color_band, std::shared_ptr<const bNodeTree> tree)
+      : tree_(tree), color_band_(color_band)
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -141,7 +144,7 @@ static void sh_node_valtorgb_build_multi_function(nodes::NodeMultiFunctionBuilde
 {
   const bNode &bnode = builder.node();
   const ColorBand *color_band = (const ColorBand *)bnode.storage;
-  builder.construct_and_set_matching_fn<ColorBandFunction>(*color_band);
+  builder.construct_and_set_matching_fn<ColorBandFunction>(*color_band, builder.shared_tree());
 }
 
 NODE_SHADER_MATERIALX_BEGIN

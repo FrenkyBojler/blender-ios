@@ -39,13 +39,16 @@ ViewerPathElem *viewer_path_elem_for_compute_context(const ComputeContext &compu
 {
   if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(&compute_context)) {
     ModifierViewerPathElem *elem = BKE_viewer_path_elem_new_modifier();
-    elem->modifier_name = BLI_strdup(context->modifier_name().c_str());
+    elem->modifier_uid = context->modifier_uid();
+    if (const NodesModifierData *nmd = context->nmd()) {
+      elem->base.ui_name = BLI_strdup(nmd->modifier.name);
+    }
     return &elem->base;
   }
   if (const auto *context = dynamic_cast<const bke::GroupNodeComputeContext *>(&compute_context)) {
     GroupNodeViewerPathElem *elem = BKE_viewer_path_elem_new_group_node();
     elem->node_id = context->node_id();
-    if (const bNode *caller_node = context->caller_group_node()) {
+    if (const bNode *caller_node = context->node()) {
       if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(caller_node->id)) {
         elem->base.ui_name = BLI_strdup(BKE_id_name(group->id));
       }
@@ -129,7 +132,10 @@ static void viewer_path_for_geometry_node(const SpaceNode &snode,
   BLI_addtail(&r_dst.path, viewer_node_elem);
 }
 
-void activate_geometry_node(Main &bmain, SpaceNode &snode, bNode &node)
+void activate_geometry_node(Main &bmain,
+                            SpaceNode &snode,
+                            bNode &node,
+                            std::optional<int> item_identifier)
 {
   wmWindowManager *wm = (wmWindowManager *)bmain.wm.first;
   if (wm == nullptr) {
@@ -156,7 +162,14 @@ void activate_geometry_node(Main &bmain, SpaceNode &snode, bNode &node)
       if (sl->spacetype == SPACE_SPREADSHEET) {
         SpaceSpreadsheet &sspreadsheet = *reinterpret_cast<SpaceSpreadsheet *>(sl);
         if (!(sspreadsheet.flag & SPREADSHEET_FLAG_PINNED)) {
-          sspreadsheet.object_eval_state = SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE;
+          SpreadsheetTableIDGeometry &table_id = sspreadsheet.geometry_id;
+          table_id.object_eval_state = SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE;
+          if (item_identifier) {
+            table_id.viewer_item_identifier = *item_identifier;
+          }
+          MEM_SAFE_FREE(table_id.bundle_path);
+          table_id.bundle_path_num = 0;
+          table_id.closure_input_output = SPREADSHEET_CLOSURE_NONE;
         }
       }
       else if (sl->spacetype == SPACE_VIEW3D) {
@@ -233,11 +246,9 @@ std::optional<ViewerPathForGeometryNodesViewer> parse_geometry_nodes_viewer(
   if (modifier_elem.type != VIEWER_PATH_ELEM_TYPE_MODIFIER) {
     return std::nullopt;
   }
-  const char *modifier_name =
-      reinterpret_cast<const ModifierViewerPathElem &>(modifier_elem).modifier_name;
-  if (modifier_name == nullptr) {
-    return std::nullopt;
-  }
+  const int modifier_uid =
+      reinterpret_cast<const ModifierViewerPathElem &>(modifier_elem).modifier_uid;
+
   remaining_elems = remaining_elems.drop_front(1);
   Vector<const ViewerPathElem *> node_path;
   for (const ViewerPathElem *elem : remaining_elems.drop_back(1)) {
@@ -258,7 +269,7 @@ std::optional<ViewerPathForGeometryNodesViewer> parse_geometry_nodes_viewer(
   }
   const int32_t viewer_node_id =
       reinterpret_cast<const ViewerNodeViewerPathElem *>(last_elem)->node_id;
-  return ViewerPathForGeometryNodesViewer{root_ob, modifier_name, node_path, viewer_node_id};
+  return ViewerPathForGeometryNodesViewer{root_ob, modifier_uid, node_path, viewer_node_id};
 }
 
 bool exists_geometry_nodes_viewer(const ViewerPathForGeometryNodesViewer &parsed_viewer_path)
@@ -268,7 +279,7 @@ bool exists_geometry_nodes_viewer(const ViewerPathForGeometryNodesViewer &parsed
     if (md->type != eModifierType_Nodes) {
       continue;
     }
-    if (md->name != parsed_viewer_path.modifier_name) {
+    if (md->persistent_uid != parsed_viewer_path.modifier_uid) {
       continue;
     }
     modifier = reinterpret_cast<const NodesModifierData *>(md);
@@ -461,7 +472,7 @@ UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const 
         if (!BKE_viewer_path_equal(
                 &viewer_path, &tmp_viewer_path, VIEWER_PATH_EQUAL_FLAG_CONSIDER_UI_NAME))
         {
-          /* Only swap, without triggering a depsgraph update.*/
+          /* Only swap, without triggering a depsgraph update. */
           std::swap(viewer_path, tmp_viewer_path);
           return UpdateActiveGeometryNodesViewerResult::Updated;
         }
@@ -512,7 +523,7 @@ bNode *find_geometry_nodes_viewer(const ViewerPath &viewer_path, SpaceNode &snod
     }
     case VIEWER_PATH_ELEM_TYPE_MODIFIER: {
       const auto &elem = reinterpret_cast<const ModifierViewerPathElem &>(elem_generic);
-      return &compute_context_cache.for_modifier(parent_compute_context, elem.modifier_name);
+      return &compute_context_cache.for_modifier(parent_compute_context, elem.modifier_uid);
     }
     case VIEWER_PATH_ELEM_TYPE_GROUP_NODE: {
       const auto &elem = reinterpret_cast<const GroupNodeViewerPathElem &>(elem_generic);

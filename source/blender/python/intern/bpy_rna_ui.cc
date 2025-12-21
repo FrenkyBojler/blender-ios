@@ -5,7 +5,7 @@
 /** \file
  * \ingroup pythonintern
  *
- * This adds helpers to #uiLayout which can't be added easily to RNA itself.
+ * This adds helpers to #blender::ui::Layout which can't be added easily to RNA itself.
  */
 
 #include <Python.h>
@@ -14,7 +14,7 @@
 
 #include "../generic/py_capi_utils.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "bpy_rna.hh"
 #include "bpy_rna_ui.hh" /* Declare #BPY_rna_uilayout_introspect_method_def. */
@@ -24,11 +24,13 @@ PyDoc_STRVAR(
     bpy_rna_uilayout_introspect_doc,
     ".. method:: introspect()\n"
     "\n"
-    "   Return a dictionary containing a textual representation of the UI layout.\n");
+    "   Return a list of dictionaries containing a textual representation of the UI layout.\n"
+    "\n"
+    "   :rtype: list[dict[str, Any]]\n");
 static PyObject *bpy_rna_uilayout_introspect(PyObject *self)
 {
   BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
-  uiLayout *layout = static_cast<uiLayout *>(pyrna->ptr->data);
+  blender::ui::Layout *layout = pyrna->ptr->data_as<blender::ui::Layout>();
 
   const char *expr = UI_layout_introspect(layout);
   PyObject *main_mod = PyC_MainModule_Backup();

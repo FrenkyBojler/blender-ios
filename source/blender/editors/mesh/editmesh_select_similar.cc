@@ -9,7 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -173,26 +173,26 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  KDTree_1d *tree_1d = nullptr;
-  KDTree_3d *tree_3d = nullptr;
-  KDTree_4d *tree_4d = nullptr;
-  GSet *gset = nullptr;
+  blender::KDTree_1d *tree_1d = nullptr;
+  blender::KDTree_3d *tree_3d = nullptr;
+  blender::KDTree_4d *tree_4d = nullptr;
+  blender::Set<int> sides_set;
+  blender::Set<const Material *> materials_set;
   int face_data_value = SIMFACE_DATA_NONE;
 
   switch (type) {
     case SIMFACE_AREA:
     case SIMFACE_PERIMETER:
-      tree_1d = BLI_kdtree_1d_new(tot_faces_selected_all);
+      tree_1d = blender::kdtree_1d_new(tot_faces_selected_all);
       break;
     case SIMFACE_NORMAL:
-      tree_3d = BLI_kdtree_3d_new(tot_faces_selected_all);
+      tree_3d = blender::kdtree_3d_new(tot_faces_selected_all);
       break;
     case SIMFACE_COPLANAR:
-      tree_4d = BLI_kdtree_4d_new(tot_faces_selected_all);
+      tree_4d = blender::kdtree_4d_new(tot_faces_selected_all);
       break;
     case SIMFACE_SIDES:
     case SIMFACE_MATERIAL:
-      gset = BLI_gset_ptr_new("Select similar face");
       break;
   }
 
@@ -210,6 +210,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     float ob_m3[3][3];
     copy_m3_m4(ob_m3, ob->object_to_world().ptr());
 
+    int custom_data_offset = -1;
     switch (type) {
       case SIMFACE_MATERIAL: {
         if (ob->totcol == 0) {
@@ -219,7 +220,9 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
         break;
       }
       case SIMFACE_FREESTYLE: {
-        if (!CustomData_has_layer(&bm->pdata, CD_FREESTYLE_FACE)) {
+        custom_data_offset = CustomData_get_offset_named(
+            &bm->pdata, CD_PROP_BOOL, "freestyle_face");
+        if (custom_data_offset == -1) {
           face_data_value |= SIMFACE_DATA_FALSE;
           continue;
         }
@@ -234,23 +237,23 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
       if (BM_elem_flag_test(face, BM_ELEM_SELECT)) {
         switch (type) {
           case SIMFACE_SIDES:
-            BLI_gset_add(gset, POINTER_FROM_INT(face->len));
+            sides_set.add(face->len);
             break;
           case SIMFACE_MATERIAL: {
             Material *material = (*material_array)[face->mat_nr];
             if (material != nullptr) {
-              BLI_gset_add(gset, material);
+              materials_set.add(material);
             }
             break;
           }
           case SIMFACE_AREA: {
             float area = BM_face_calc_area_with_mat3(face, ob_m3);
-            BLI_kdtree_1d_insert(tree_1d, tree_index++, &area);
+            blender::kdtree_1d_insert(tree_1d, tree_index++, &area);
             break;
           }
           case SIMFACE_PERIMETER: {
             float perimeter = BM_face_calc_perimeter_with_mat3(face, ob_m3);
-            BLI_kdtree_1d_insert(tree_1d, tree_index++, &perimeter);
+            blender::kdtree_1d_insert(tree_1d, tree_index++, &perimeter);
             break;
           }
           case SIMFACE_NORMAL: {
@@ -258,13 +261,13 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
             copy_v3_v3(normal, face->no);
             mul_transposed_mat3_m4_v3(ob->world_to_object().ptr(), normal);
             normalize_v3(normal);
-            BLI_kdtree_3d_insert(tree_3d, tree_index++, normal);
+            blender::kdtree_3d_insert(tree_3d, tree_index++, normal);
             break;
           }
           case SIMFACE_COPLANAR: {
             float plane[4];
             face_to_plane(ob, face, plane);
-            BLI_kdtree_4d_insert(tree_4d, tree_index++, plane);
+            blender::kdtree_4d_insert(tree_4d, tree_index++, plane);
             break;
           }
           case SIMFACE_SMOOTH: {
@@ -274,10 +277,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
             break;
           }
           case SIMFACE_FREESTYLE: {
-            FreestyleFace *fface;
-            fface = static_cast<FreestyleFace *>(
-                CustomData_bmesh_get(&bm->pdata, face->head.data, CD_FREESTYLE_FACE));
-            if ((fface == nullptr) || ((fface->flag & FREESTYLE_FACE_MARK) == 0)) {
+            if (custom_data_offset == -1 || !BM_ELEM_CD_GET_BOOL(face, custom_data_offset)) {
               face_data_value |= SIMFACE_DATA_FALSE;
             }
             else {
@@ -296,16 +296,16 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
   BLI_assert((type != SIMFACE_FREESTYLE) || (face_data_value != SIMFACE_DATA_NONE));
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::kdtree_1d_deduplicate(tree_1d);
+    blender::kdtree_1d_balance(tree_1d);
   }
   if (tree_3d != nullptr) {
-    BLI_kdtree_3d_deduplicate(tree_3d);
-    BLI_kdtree_3d_balance(tree_3d);
+    blender::kdtree_3d_deduplicate(tree_3d);
+    blender::kdtree_3d_balance(tree_3d);
   }
   if (tree_4d != nullptr) {
-    BLI_kdtree_4d_deduplicate(tree_4d);
-    BLI_kdtree_4d_balance(tree_4d);
+    blender::kdtree_4d_deduplicate(tree_4d);
+    blender::kdtree_4d_balance(tree_4d);
   }
 
   for (Object *ob : objects) {
@@ -317,7 +317,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     float ob_m3[3][3];
     copy_m3_m4(ob_m3, ob->object_to_world().ptr());
 
-    bool has_custom_data_layer = false;
+    int custom_data_offset = -1;
     switch (type) {
       case SIMFACE_MATERIAL: {
         if (ob->totcol == 0) {
@@ -327,8 +327,9 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
         break;
       }
       case SIMFACE_FREESTYLE: {
-        has_custom_data_layer = CustomData_has_layer(&bm->pdata, CD_FREESTYLE_FACE);
-        if ((face_data_value == SIMFACE_DATA_TRUE) && !has_custom_data_layer) {
+        custom_data_offset = CustomData_get_offset_named(
+            &bm->pdata, CD_PROP_BOOL, "freestyle_face");
+        if ((face_data_value == SIMFACE_DATA_TRUE) && (custom_data_offset == -1)) {
           continue;
         }
         break;
@@ -344,9 +345,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
         switch (type) {
           case SIMFACE_SIDES: {
             const int num_sides = face->len;
-            GSetIterator gs_iter;
-            GSET_ITER (gs_iter, gset) {
-              const int num_sides_iter = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
+            for (const int num_sides_iter : sides_set) {
               const int delta_i = num_sides - num_sides_iter;
               if (mesh_select_similar_compare_int(delta_i, compare)) {
                 select = true;
@@ -360,15 +359,8 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
             if (material == nullptr) {
               continue;
             }
-
-            GSetIterator gs_iter;
-            GSET_ITER (gs_iter, gset) {
-              const Material *material_iter = static_cast<const Material *>(
-                  BLI_gsetIterator_getKey(&gs_iter));
-              if (material == material_iter) {
-                select = true;
-                break;
-              }
+            if (materials_set.contains(material)) {
+              select = true;
             }
             break;
           }
@@ -397,8 +389,8 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
 
             /* We are treating the normals as coordinates, the "nearest" one will
              * also be the one closest to the angle. */
-            KDTreeNearest_3d nearest;
-            if (BLI_kdtree_3d_find_nearest(tree_3d, normal, &nearest) != -1) {
+            blender::KDTreeNearest_3d nearest;
+            if (blender::kdtree_3d_find_nearest(tree_3d, normal, &nearest) != -1) {
               if (angle_normalized_v3v3(normal, nearest.co) <= thresh_radians) {
                 select = true;
               }
@@ -409,8 +401,8 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
             float plane[4];
             face_to_plane(ob, face, plane);
 
-            KDTreeNearest_4d nearest;
-            if (BLI_kdtree_4d_find_nearest(tree_4d, plane, &nearest) != -1) {
+            blender::KDTreeNearest_4d nearest;
+            if (blender::kdtree_4d_find_nearest(tree_4d, plane, &nearest) != -1) {
               if (nearest.dist <= thresh) {
                 if ((fabsf(plane[3] - nearest.co[3]) <= thresh) &&
                     (angle_v3v3(plane, nearest.co) <= thresh_radians))
@@ -429,19 +421,15 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
             }
             break;
           case SIMFACE_FREESTYLE: {
-            FreestyleFace *fface;
 
-            if (!has_custom_data_layer) {
+            if (custom_data_offset == -1) {
               BLI_assert(face_data_value == SIMFACE_DATA_FALSE);
               select = true;
               break;
             }
 
-            fface = static_cast<FreestyleFace *>(
-                CustomData_bmesh_get(&bm->pdata, face->head.data, CD_FREESTYLE_FACE));
-            if (((fface != nullptr) && (fface->flag & FREESTYLE_FACE_MARK)) ==
-                ((face_data_value & SIMFACE_DATA_TRUE) != 0))
-            {
+            const bool value = BM_ELEM_CD_GET_BOOL(face, custom_data_offset);
+            if (value == ((face_data_value & SIMFACE_DATA_TRUE) != 0)) {
               select = true;
             }
             break;
@@ -457,6 +445,8 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       EDBMUpdate_Params params{};
       params.calc_looptris = false;
       params.calc_normals = false;
@@ -482,6 +472,8 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
         }
       }
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       EDBMUpdate_Params params{};
       params.calc_looptris = false;
       params.calc_normals = false;
@@ -490,12 +482,9 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BLI_kdtree_1d_free(tree_1d);
-  BLI_kdtree_3d_free(tree_3d);
-  BLI_kdtree_4d_free(tree_4d);
-  if (gset != nullptr) {
-    BLI_gset_free(gset, nullptr);
-  }
+  blender::kdtree_1d_free(tree_1d);
+  blender::kdtree_3d_free(tree_3d);
+  blender::kdtree_4d_free(tree_4d);
 
   return OPERATOR_FINISHED;
 }
@@ -580,9 +569,9 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  KDTree_1d *tree_1d = nullptr;
-  KDTree_3d *tree_3d = nullptr;
-  GSet *gset = nullptr;
+  blender::KDTree_1d *tree_1d = nullptr;
+  blender::KDTree_3d *tree_3d = nullptr;
+  blender::Set<int> face_count_set;
   int edge_data_value = SIMEDGE_DATA_NONE;
 
   switch (type) {
@@ -590,13 +579,12 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
     case SIMEDGE_BEVEL:
     case SIMEDGE_FACE_ANGLE:
     case SIMEDGE_LENGTH:
-      tree_1d = BLI_kdtree_1d_new(tot_edges_selected_all);
+      tree_1d = blender::kdtree_1d_new(tot_edges_selected_all);
       break;
     case SIMEDGE_DIR:
-      tree_3d = BLI_kdtree_3d_new(tot_edges_selected_all * 2);
+      tree_3d = blender::kdtree_3d_new(tot_edges_selected_all * 2);
       break;
     case SIMEDGE_FACE:
-      gset = BLI_gset_ptr_new("Select similar edge: face");
       break;
   }
 
@@ -611,7 +599,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
     switch (type) {
       case SIMEDGE_FREESTYLE: {
-        if (!CustomData_has_layer(&bm->edata, CD_FREESTYLE_EDGE)) {
+        if (!CustomData_has_layer_named(&bm->edata, CD_PROP_BOOL, "freestyle_edge")) {
           edge_data_value |= SIMEDGE_DATA_FALSE;
           continue;
         }
@@ -620,7 +608,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
       case SIMEDGE_CREASE: {
         if (!CustomData_has_layer_named(&bm->edata, CD_PROP_FLOAT, "crease_edge")) {
           float pos = 0.0f;
-          BLI_kdtree_1d_insert(tree_1d, tree_index++, &pos);
+          blender::kdtree_1d_insert(tree_1d, tree_index++, &pos);
           continue;
         }
         break;
@@ -628,7 +616,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
       case SIMEDGE_BEVEL: {
         if (!CustomData_has_layer_named(&bm->edata, CD_PROP_FLOAT, "bevel_weight_edge")) {
           float pos = 0.0f;
-          BLI_kdtree_1d_insert(tree_1d, tree_index++, &pos);
+          blender::kdtree_1d_insert(tree_1d, tree_index++, &pos);
           continue;
         }
         break;
@@ -637,6 +625,11 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
     int custom_data_offset;
     switch (type) {
+      case SIMEDGE_FREESTYLE: {
+        custom_data_offset = CustomData_get_offset_named(
+            &bm->edata, CD_PROP_BOOL, "freestyle_edge");
+        break;
+      }
       case SIMEDGE_CREASE:
         custom_data_offset = CustomData_get_offset_named(&bm->edata, CD_PROP_FLOAT, "crease_edge");
         break;
@@ -657,27 +650,27 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
       if (BM_elem_flag_test(edge, BM_ELEM_SELECT)) {
         switch (type) {
           case SIMEDGE_FACE:
-            BLI_gset_add(gset, POINTER_FROM_INT(BM_edge_face_count(edge)));
+            face_count_set.add(BM_edge_face_count(edge));
             break;
           case SIMEDGE_DIR: {
             float dir[3], dir_flip[3];
             edge_pos_direction_worldspace_get(ob, edge, dir);
-            BLI_kdtree_3d_insert(tree_3d, tree_index++, dir);
+            blender::kdtree_3d_insert(tree_3d, tree_index++, dir);
             /* Also store the flipped direction so it can be checked regardless of the verts order
              * of the edges. */
             negate_v3_v3(dir_flip, dir);
-            BLI_kdtree_3d_insert(tree_3d, tree_index++, dir_flip);
+            blender::kdtree_3d_insert(tree_3d, tree_index++, dir_flip);
             break;
           }
           case SIMEDGE_LENGTH: {
             float length = edge_length_squared_worldspace_get(ob, edge);
-            BLI_kdtree_1d_insert(tree_1d, tree_index++, &length);
+            blender::kdtree_1d_insert(tree_1d, tree_index++, &length);
             break;
           }
           case SIMEDGE_FACE_ANGLE: {
             if (BM_edge_face_count_at_most(edge, 2) == 2) {
               float angle = BM_edge_calc_face_angle_with_imat3(edge, ob_m3_inv);
-              BLI_kdtree_1d_insert(tree_1d, tree_index++, &angle);
+              blender::kdtree_1d_insert(tree_1d, tree_index++, &angle);
             }
             break;
           }
@@ -692,10 +685,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
             }
             break;
           case SIMEDGE_FREESTYLE: {
-            FreestyleEdge *fedge;
-            fedge = static_cast<FreestyleEdge *>(
-                CustomData_bmesh_get(&bm->edata, edge->head.data, CD_FREESTYLE_EDGE));
-            if ((fedge == nullptr) || ((fedge->flag & FREESTYLE_EDGE_MARK) == 0)) {
+            if (custom_data_offset == -1 || !BM_ELEM_CD_GET_BOOL(edge, custom_data_offset)) {
               edge_data_value |= SIMEDGE_DATA_FALSE;
             }
             else {
@@ -709,7 +699,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
           case SIMEDGE_CREASE:
           case SIMEDGE_BEVEL: {
             const float *value = BM_ELEM_CD_GET_FLOAT_P(edge, custom_data_offset);
-            BLI_kdtree_1d_insert(tree_1d, tree_index++, value);
+            blender::kdtree_1d_insert(tree_1d, tree_index++, value);
             break;
           }
         }
@@ -720,12 +710,12 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
   BLI_assert((type != SIMEDGE_FREESTYLE) || (edge_data_value != SIMEDGE_DATA_NONE));
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::kdtree_1d_deduplicate(tree_1d);
+    blender::kdtree_1d_balance(tree_1d);
   }
   if (tree_3d != nullptr) {
-    BLI_kdtree_3d_deduplicate(tree_3d);
-    BLI_kdtree_3d_balance(tree_3d);
+    blender::kdtree_3d_deduplicate(tree_3d);
+    blender::kdtree_3d_balance(tree_3d);
   }
 
   for (Object *ob : objects) {
@@ -736,7 +726,8 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
     bool has_custom_data_layer = false;
     switch (type) {
       case SIMEDGE_FREESTYLE: {
-        has_custom_data_layer = CustomData_has_layer(&bm->edata, CD_FREESTYLE_EDGE);
+        has_custom_data_layer = CustomData_has_layer_named(
+            &bm->edata, CD_PROP_BOOL, "freestyle_edge");
         if ((edge_data_value == SIMEDGE_DATA_TRUE) && !has_custom_data_layer) {
           continue;
         }
@@ -776,6 +767,10 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
     int custom_data_offset;
     switch (type) {
+      case SIMEDGE_FREESTYLE:
+        custom_data_offset = CustomData_get_offset_named(
+            &bm->edata, CD_PROP_BOOL, "freestyle_edge");
+        break;
       case SIMEDGE_CREASE:
         custom_data_offset = CustomData_get_offset_named(&bm->edata, CD_PROP_FLOAT, "crease_edge");
         break;
@@ -794,9 +789,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
         switch (type) {
           case SIMEDGE_FACE: {
             const int num_faces = BM_edge_face_count(edge);
-            GSetIterator gs_iter;
-            GSET_ITER (gs_iter, gset) {
-              const int num_faces_iter = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
+            for (const int num_faces_iter : face_count_set) {
               const int delta_i = num_faces - num_faces_iter;
               if (mesh_select_similar_compare_int(delta_i, compare)) {
                 select = true;
@@ -811,8 +804,8 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
             /* We are treating the direction as coordinates, the "nearest" one will
              * also be the one closest to the intended direction. */
-            KDTreeNearest_3d nearest;
-            if (BLI_kdtree_3d_find_nearest(tree_3d, dir, &nearest) != -1) {
+            blender::KDTreeNearest_3d nearest;
+            if (blender::kdtree_3d_find_nearest(tree_3d, dir, &nearest) != -1) {
               if (angle_normalized_v3v3(dir, nearest.co) <= thresh_radians) {
                 select = true;
               }
@@ -852,19 +845,14 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
             }
             break;
           case SIMEDGE_FREESTYLE: {
-            FreestyleEdge *fedge;
-
             if (!has_custom_data_layer) {
               BLI_assert(edge_data_value == SIMEDGE_DATA_FALSE);
               select = true;
               break;
             }
 
-            fedge = static_cast<FreestyleEdge *>(
-                CustomData_bmesh_get(&bm->edata, edge->head.data, CD_FREESTYLE_EDGE));
-            if (((fedge != nullptr) && (fedge->flag & FREESTYLE_EDGE_MARK)) ==
-                ((edge_data_value & SIMEDGE_DATA_TRUE) != 0))
-            {
+            const bool value = BM_ELEM_CD_GET_BOOL(edge, custom_data_offset);
+            if (value == ((edge_data_value & SIMEDGE_DATA_TRUE) != 0)) {
               select = true;
             }
             break;
@@ -895,6 +883,8 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       EDBMUpdate_Params params{};
       params.calc_looptris = false;
       params.calc_normals = false;
@@ -920,6 +910,8 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
         }
       }
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       EDBMUpdate_Params params{};
       params.calc_looptris = false;
       params.calc_normals = false;
@@ -928,11 +920,8 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BLI_kdtree_1d_free(tree_1d);
-  BLI_kdtree_3d_free(tree_3d);
-  if (gset != nullptr) {
-    BLI_gset_free(gset, nullptr);
-  }
+  blender::kdtree_1d_free(tree_1d);
+  blender::kdtree_3d_free(tree_3d);
 
   return OPERATOR_FINISHED;
 }
@@ -968,17 +957,17 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  KDTree_3d *tree_3d = nullptr;
-  KDTree_1d *tree_1d = nullptr;
+  blender::KDTree_3d *tree_3d = nullptr;
+  blender::KDTree_1d *tree_1d = nullptr;
   blender::Set<blender::StringRef> selected_vertex_groups;
   blender::Set<int> connected_elems_num_set;
 
   switch (type) {
     case SIMVERT_NORMAL:
-      tree_3d = BLI_kdtree_3d_new(tot_verts_selected_all);
+      tree_3d = blender::kdtree_3d_new(tot_verts_selected_all);
       break;
     case SIMVERT_CREASE:
-      tree_1d = BLI_kdtree_1d_new(tot_verts_selected_all);
+      tree_1d = blender::kdtree_1d_new(tot_verts_selected_all);
       break;
     case SIMVERT_EDGE:
     case SIMVERT_FACE:
@@ -1016,7 +1005,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
     else if (type == SIMVERT_CREASE) {
       if (!CustomData_has_layer_named(&bm->vdata, CD_PROP_FLOAT, "crease_vert")) {
         float pos = 0.0f;
-        BLI_kdtree_1d_insert(tree_1d, tree_1d_index++, &pos);
+        blender::kdtree_1d_insert(tree_1d, tree_1d_index++, &pos);
         continue;
       }
       cd_crease_offset = CustomData_get_offset_named(&bm->vdata, CD_PROP_FLOAT, "crease_vert");
@@ -1040,7 +1029,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
             mul_transposed_mat3_m4_v3(ob->world_to_object().ptr(), normal);
             normalize_v3(normal);
 
-            BLI_kdtree_3d_insert(tree_3d, normal_tree_index++, normal);
+            blender::kdtree_3d_insert(tree_3d, normal_tree_index++, normal);
             break;
           }
           case SIMVERT_VGROUP: {
@@ -1059,7 +1048,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
           }
           case SIMVERT_CREASE: {
             const float *value = BM_ELEM_CD_GET_FLOAT_P(vert, cd_crease_offset);
-            BLI_kdtree_1d_insert(tree_1d, tree_1d_index++, value);
+            blender::kdtree_1d_insert(tree_1d, tree_1d_index++, value);
             break;
           }
         }
@@ -1091,12 +1080,12 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 
   /* Remove duplicated entries. */
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::kdtree_1d_deduplicate(tree_1d);
+    blender::kdtree_1d_balance(tree_1d);
   }
   if (tree_3d != nullptr) {
-    BLI_kdtree_3d_deduplicate(tree_3d);
-    BLI_kdtree_3d_balance(tree_3d);
+    blender::kdtree_3d_deduplicate(tree_3d);
+    blender::kdtree_3d_balance(tree_3d);
   }
 
   /* Run the matching operations. */
@@ -1188,8 +1177,8 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 
             /* We are treating the normals as coordinates, the "nearest" one will
              * also be the one closest to the angle. */
-            KDTreeNearest_3d nearest;
-            if (BLI_kdtree_3d_find_nearest(tree_3d, normal, &nearest) != -1) {
+            blender::KDTreeNearest_3d nearest;
+            if (blender::kdtree_3d_find_nearest(tree_3d, normal, &nearest) != -1) {
               if (angle_normalized_v3v3(normal, nearest.co) <= thresh_radians) {
                 select = true;
               }
@@ -1249,8 +1238,8 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BLI_kdtree_1d_free(tree_1d);
-  BLI_kdtree_3d_free(tree_3d);
+  blender::kdtree_1d_free(tree_1d);
+  blender::kdtree_3d_free(tree_3d);
 
   return OPERATOR_FINISHED;
 }
@@ -1375,7 +1364,7 @@ void MESH_OT_select_similar(wmOperatorType *ot)
   ot->idname = "MESH_OT_select_similar";
   ot->description = "Select similar vertices, edges or faces by property types";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = edbm_select_similar_exec;
   ot->poll = ED_operator_editmesh;

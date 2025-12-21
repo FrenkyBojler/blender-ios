@@ -29,7 +29,7 @@
 
 #include "BKE_fcurve.hh"
 
-static CLG_LogRef LOG = {"bke.fmodifier"};
+static CLG_LogRef LOG = {"anim.fmodifier"};
 
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Modifier Types
@@ -1000,7 +1000,7 @@ static FModifierTypeInfo FMI_STEPPED = {
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Modifier Type API
  *
- * all of the f-curve modifier api functions use #fmodifiertypeinfo structs to carry out
+ * all of the f-curve modifier API functions use #fmodifiertypeinfo structs to carry out
  * and operations that involve f-curve modifier specific code.
  * \{ */
 
@@ -1090,7 +1090,7 @@ FModifier *add_fmodifier(ListBase *modifiers, int type, FCurve *owner_fcu)
   }
 
   /* add modifier itself */
-  fcm = MEM_callocN<FModifier>("F-Curve Modifier");
+  fcm = MEM_new_for_free<FModifier>("F-Curve Modifier");
   fcm->type = type;
   fcm->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT; /* Expand the main panel, not the sub-panels. */
   fcm->curve = owner_fcu;
