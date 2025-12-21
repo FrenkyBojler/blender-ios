@@ -138,8 +138,10 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
   is_invertible_ = color_space_is_invertible(ocio_color_space);
 
   /* Support for OpenColorIO 2.5 interop_id and icc_profile_name attributes. */
+#if OCIO_VERSION_HEX >= 0x02050000
   interop_id_ = ocio_color_space->getInteropId();
   icc_profile_name_ = ocio_color_space->getICCProfileName();
+#endif
 
   /* For older configs and older OpenColorIO versions, check the aliases as fallback.
    * This is a convention used in the Blender and ACES 2.0 configs. */
