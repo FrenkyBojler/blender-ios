@@ -37,7 +37,7 @@ static int find_nearest_non_self(const KDTree_3d &tree, const float3 &position, 
       &tree,
       position,
       nullptr,
-      [index](const int other, const float3 &/*co*/, const float /*dist_sq*/) {
+      [index](const int other, const float3 & /*co*/, const float /*dist_sq*/) {
         return index == other ? 0 : 1;
       });
 }
