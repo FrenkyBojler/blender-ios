@@ -108,7 +108,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(const bContext *C, PointerRNA *node_pointer)
 {
   bNode *node = node_pointer->data_as<bNode>();
-  NodeCompositorFileOutput *data = MEM_callocN<NodeCompositorFileOutput>(__func__);
+  NodeCompositorFileOutput *data = MEM_new_for_free<NodeCompositorFileOutput>(__func__);
   node->storage = data;
   data->save_as_render = true;
   data->file_name = BLI_strdup("file_name");
@@ -139,8 +139,8 @@ static void node_copy_storage(bNodeTree * /*destination_node_tree*/,
                               const bNode *source_node)
 {
   const NodeCompositorFileOutput &source_storage = node_storage(*source_node);
-  NodeCompositorFileOutput *destination_storage = MEM_dupallocN<NodeCompositorFileOutput>(
-      __func__, source_storage);
+  NodeCompositorFileOutput *destination_storage = MEM_new_for_free<NodeCompositorFileOutput>(
+      __func__, dna::shallow_copy(source_storage));
   destination_storage->file_name = BLI_strdup_null(source_storage.file_name);
   BKE_image_format_copy(&destination_storage->format, &source_storage.format);
   destination_node->storage = destination_storage;
@@ -617,7 +617,9 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float3:
         /* Float3 results might be stored in 4-component textures due to hardware limitations, so
          * we need to convert the buffer to a 3-component buffer on the host. */
-        if (this->context().use_gpu() && GPU_texture_component_len(GPU_texture_format(result))) {
+        if (!result.is_single_value() && this->context().use_gpu() &&
+            GPU_texture_component_len(GPU_texture_format(result)) == 4)
+        {
           file_output.add_pass(pass_name, view_name, "XYZ", float4_to_float3_image(size, buffer));
         }
         else {
@@ -704,7 +706,9 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float3:
         /* Float3 results might be stored in 4-component textures due to hardware limitations, so
          * we need to convert the buffer to a 3-component buffer on the host. */
-        if (this->context().use_gpu() && GPU_texture_component_len(GPU_texture_format(result))) {
+        if (!result.is_single_value() && this->context().use_gpu() &&
+            GPU_texture_component_len(GPU_texture_format(result)) == 4)
+        {
           file_output.add_view(view_name, 3, float4_to_float3_image(size, buffer));
         }
         else {
