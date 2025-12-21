@@ -67,6 +67,11 @@ struct BlendWriter {
                                            const void *data);
   void write_struct_list_by_name(const char *struct_name, ListBase *list);
   void write_struct_list_by_id(int struct_id, const ListBase *list);
+
+  template<typename T> void write_struct(const T *data)
+  {
+    this->write_struct_by_id(blender::dna::sdna_struct_id_get<T>(), data);
+  }
 };
 
 struct BlendDataReader {
