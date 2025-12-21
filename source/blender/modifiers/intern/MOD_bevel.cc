@@ -427,7 +427,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const BevelModifierData *bmd = (const BevelModifierData *)md;
 
-  writer->write_struct<BevelModifierData>(bmd);
+  writer->write_struct(bmd);
 
   if (bmd->custom_profile) {
     BKE_curveprofile_blend_write(writer, bmd->custom_profile);

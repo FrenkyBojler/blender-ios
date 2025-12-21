@@ -942,10 +942,10 @@ static void file_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
   writer->write_struct_cast<SpaceFile>(sl);
   if (sfile->params) {
-    writer->write_struct<FileSelectParams>(sfile->params);
+    writer->write_struct(sfile->params);
   }
   if (sfile->asset_params) {
-    writer->write_struct<FileAssetSelectParams>(sfile->asset_params);
+    writer->write_struct(sfile->asset_params);
   }
 }
 

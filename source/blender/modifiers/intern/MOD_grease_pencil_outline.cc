@@ -301,7 +301,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *omd = reinterpret_cast<const GreasePencilOutlineModifierData *>(md);
 
-  writer->write_struct<GreasePencilOutlineModifierData>(omd);
+  writer->write_struct(omd);
   modifier::greasepencil::write_influence_data(writer, &omd->influence);
 }
 

@@ -344,75 +344,75 @@ static void socket_data_copy_ptr(bNodeTreeInterfaceSocket &dst,
 
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueFloat &data)
 {
-  writer->write_struct<bNodeSocketValueFloat>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueInt &data)
 {
-  writer->write_struct<bNodeSocketValueInt>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueBoolean &data)
 {
-  writer->write_struct<bNodeSocketValueBoolean>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueRotation &data)
 {
-  writer->write_struct<bNodeSocketValueRotation>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueVector &data)
 {
-  writer->write_struct<bNodeSocketValueVector>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueRGBA &data)
 {
-  writer->write_struct<bNodeSocketValueRGBA>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueString &data)
 {
-  writer->write_struct<bNodeSocketValueString>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueObject &data)
 {
-  writer->write_struct<bNodeSocketValueObject>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueImage &data)
 {
-  writer->write_struct<bNodeSocketValueImage>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueCollection &data)
 {
-  writer->write_struct<bNodeSocketValueCollection>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueTexture &data)
 {
-  writer->write_struct<bNodeSocketValueTexture>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMaterial &data)
 {
-  writer->write_struct<bNodeSocketValueMaterial>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueFont &data)
 {
-  writer->write_struct<bNodeSocketValueFont>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueScene &data)
 {
-  writer->write_struct<bNodeSocketValueScene>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueText &data)
 {
-  writer->write_struct<bNodeSocketValueText>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMask &data)
 {
-  writer->write_struct<bNodeSocketValueMask>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueSound &data)
 {
-  writer->write_struct<bNodeSocketValueSound>(&data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &data)
 {
-  writer->write_struct<bNodeSocketValueMenu>(&data);
+  writer->write_struct(&data);
 }
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)

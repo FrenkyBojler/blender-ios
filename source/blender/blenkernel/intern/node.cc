@@ -1103,7 +1103,7 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
 
 static void write_node_socket(BlendWriter *writer, const bNodeSocket *sock)
 {
-  writer->write_struct<bNodeSocket>(sock);
+  writer->write_struct(sock);
 
   if (sock->prop) {
     IDP_BlendWrite(writer, sock->prop);
@@ -1212,7 +1212,7 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
     BLO_write_string(writer, nc->matte_id);
     LISTBASE_FOREACH (CryptomatteEntry *, entry, &nc->entries) {
-      writer->write_struct<CryptomatteEntry>(entry);
+      writer->write_struct(entry);
     }
   }
 }
@@ -1236,7 +1236,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
       node->custom1 = data->parametrization;
     }
 
-    writer->write_struct<bNode>(node);
+    writer->write_struct(node);
 
     if (node->prop) {
       IDP_BlendWrite(writer, node->prop);
@@ -1271,12 +1271,12 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   }
 
   for (const bNodeLink &link : ntree->links) {
-    writer->write_struct<bNodeLink>(&link);
+    writer->write_struct(&link);
   }
 
   ntree->tree_interface.write(writer);
 
-  writer->write_struct<GeometryNodeAssetTraits>(ntree->geometry_node_asset_traits);
+  writer->write_struct(ntree->geometry_node_asset_traits);
   if (ntree->geometry_node_asset_traits) {
     BLO_write_string(writer, ntree->geometry_node_asset_traits->node_tool_idname);
   }

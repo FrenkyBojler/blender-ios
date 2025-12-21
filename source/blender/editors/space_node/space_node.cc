@@ -1748,7 +1748,7 @@ static void node_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   writer->write_struct_cast<SpaceNode>(snode);
 
   LISTBASE_FOREACH (bNodeTreePath *, path, &snode->treepath) {
-    writer->write_struct<bNodeTreePath>(path);
+    writer->write_struct(path);
   }
 }
 

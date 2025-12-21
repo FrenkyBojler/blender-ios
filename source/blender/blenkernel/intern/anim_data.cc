@@ -1413,7 +1413,7 @@ void BKE_animdata_blend_write(BlendWriter *writer, ID *id)
   }
 
   /* firstly, just write the AnimData block */
-  writer->write_struct<AnimData>(adt);
+  writer->write_struct(adt);
 
   /* write drivers */
   BKE_fcurve_blend_write_listbase(writer, &adt->drivers);
@@ -1422,7 +1422,7 @@ void BKE_animdata_blend_write(BlendWriter *writer, ID *id)
   /* FIXME: are these needed? */
   LISTBASE_FOREACH (AnimOverride *, aor, &adt->overrides) {
     /* overrides consist of base data + rna_path */
-    writer->write_struct<AnimOverride>(aor);
+    writer->write_struct(aor);
     BLO_write_string(writer, aor->rna_path);
   }
 

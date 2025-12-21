@@ -1134,7 +1134,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* direct data */
   ToolSettings *ts = sce->toolsettings;
 
-  writer->write_struct<ToolSettings>(ts);
+  writer->write_struct(ts);
 
   if (ts->unified_paint_settings.curve_rand_hue) {
     BKE_curvemapping_blend_write(writer, ts->unified_paint_settings.curve_rand_hue);
@@ -1149,15 +1149,15 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   if (ts->vpaint) {
-    writer->write_struct<VPaint>(ts->vpaint);
+    writer->write_struct(ts->vpaint);
     BKE_paint_blend_write(writer, &ts->vpaint->paint);
   }
   if (ts->wpaint) {
-    writer->write_struct<VPaint>(ts->wpaint);
+    writer->write_struct(ts->wpaint);
     BKE_paint_blend_write(writer, &ts->wpaint->paint);
   }
   if (ts->sculpt) {
-    writer->write_struct<Sculpt>(ts->sculpt);
+    writer->write_struct(ts->sculpt);
     if (ts->sculpt->automasking_cavity_curve) {
       BKE_curvemapping_blend_write(writer, ts->sculpt->automasking_cavity_curve);
     }
@@ -1171,23 +1171,23 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BKE_curvemapping_blend_write(writer, ts->uvsculpt.curve_distance_falloff);
   }
   if (ts->gp_paint) {
-    writer->write_struct<GpPaint>(ts->gp_paint);
+    writer->write_struct(ts->gp_paint);
     BKE_paint_blend_write(writer, &ts->gp_paint->paint);
   }
   if (ts->gp_vertexpaint) {
-    writer->write_struct<GpVertexPaint>(ts->gp_vertexpaint);
+    writer->write_struct(ts->gp_vertexpaint);
     BKE_paint_blend_write(writer, &ts->gp_vertexpaint->paint);
   }
   if (ts->gp_sculptpaint) {
-    writer->write_struct<GpSculptPaint>(ts->gp_sculptpaint);
+    writer->write_struct(ts->gp_sculptpaint);
     BKE_paint_blend_write(writer, &ts->gp_sculptpaint->paint);
   }
   if (ts->gp_weightpaint) {
-    writer->write_struct<GpWeightPaint>(ts->gp_weightpaint);
+    writer->write_struct(ts->gp_weightpaint);
     BKE_paint_blend_write(writer, &ts->gp_weightpaint->paint);
   }
   if (ts->curves_sculpt) {
-    writer->write_struct<CurvesSculpt>(ts->curves_sculpt);
+    writer->write_struct(ts->curves_sculpt);
     BKE_paint_blend_write(writer, &ts->curves_sculpt->paint);
   }
   /* write grease-pencil custom ipo curve to file */
@@ -1207,22 +1207,22 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BKE_curveprofile_blend_write(writer, ts->custom_bevel_profile_preset);
   }
   if (ts->sequencer_tool_settings) {
-    writer->write_struct<SequencerToolSettings>(ts->sequencer_tool_settings);
+    writer->write_struct(ts->sequencer_tool_settings);
   }
 
   BKE_paint_blend_write(writer, &ts->imapaint.paint);
 
   Editing *ed = sce->ed;
   if (ed) {
-    writer->write_struct<Editing>(ed);
+    writer->write_struct(ed);
 
     blender::seq::blend_write(writer, &ed->seqbase);
     LISTBASE_FOREACH (SeqTimelineChannel *, channel, &ed->channels) {
-      writer->write_struct<SeqTimelineChannel>(channel);
+      writer->write_struct(channel);
     }
     /* new; meta stack too, even when its nasty restore code */
     LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
-      writer->write_struct<MetaStack>(ms);
+      writer->write_struct(ms);
     }
   }
 
@@ -1231,12 +1231,12 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* writing dynamic list of TransformOrientations to the blend file */
   LISTBASE_FOREACH (TransformOrientation *, ts, &sce->transform_spaces) {
-    writer->write_struct<TransformOrientation>(ts);
+    writer->write_struct(ts);
   }
 
   /* writing MultiView to the blend file */
   LISTBASE_FOREACH (SceneRenderView *, srv, &sce->r.views) {
-    writer->write_struct<SceneRenderView>(srv);
+    writer->write_struct(srv);
   }
 
   if (sce->compositing_node_group && !is_write_undo) {
@@ -1252,10 +1252,10 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     /* Set deprecated pointers to prevent crashes of older Blenders */
     sce->rigidbody_world->pointcache = sce->rigidbody_world->shared->pointcache;
     sce->rigidbody_world->ptcaches = sce->rigidbody_world->shared->ptcaches;
-    writer->write_struct<RigidBodyWorld>(sce->rigidbody_world);
+    writer->write_struct(sce->rigidbody_world);
 
-    writer->write_struct<RigidBodyWorld_Shared>(sce->rigidbody_world->shared);
-    writer->write_struct<EffectorWeights>(sce->rigidbody_world->effector_weights);
+    writer->write_struct(sce->rigidbody_world->shared);
+    writer->write_struct(sce->rigidbody_world->effector_weights);
     BKE_ptcache_blend_write(writer, &(sce->rigidbody_world->shared->ptcaches));
   }
 

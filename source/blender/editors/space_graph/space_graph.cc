@@ -929,7 +929,7 @@ static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
   writer->write_struct_cast<SpaceGraph>(sl);
   if (sipo->ads) {
-    writer->write_struct<bDopeSheet>(sipo->ads);
+    writer->write_struct(sipo->ads);
   }
 
   /* Re-enable ghost curves. */

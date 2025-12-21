@@ -281,15 +281,15 @@ void BKE_collection_blend_write_nolib(BlendWriter *writer, Collection *collectio
   BKE_previewimg_blend_write(writer, collection->preview);
 
   LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
-    writer->write_struct<CollectionObject>(cob);
+    writer->write_struct(cob);
   }
 
   LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
-    writer->write_struct<CollectionChild>(child);
+    writer->write_struct(child);
   }
 
   LISTBASE_FOREACH (CollectionExport *, data, &collection->exporters) {
-    writer->write_struct<CollectionExport>(data);
+    writer->write_struct(data);
     if (data->export_properties) {
       IDP_BlendWrite(writer, data->export_properties);
     }

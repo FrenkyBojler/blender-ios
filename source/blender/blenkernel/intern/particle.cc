@@ -222,7 +222,7 @@ static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void write_boid_state(BlendWriter *writer, BoidState *state)
 {
-  writer->write_struct<BoidState>(state);
+  writer->write_struct(state);
 
   LISTBASE_FOREACH (BoidRule *, rule, &state->rules) {
     switch (rule->type) {
@@ -243,14 +243,14 @@ static void write_boid_state(BlendWriter *writer, BoidState *state)
         writer->write_struct_cast<BoidRuleFight>(rule);
         break;
       default:
-        writer->write_struct<BoidRule>(rule);
+        writer->write_struct(rule);
         break;
     }
   }
 #if 0
   BoidCondition *cond = state->conditions.first;
   for (; cond; cond = cond->next) {
-    writer->write_struct<BoidCondition>(cond);
+    writer->write_struct(cond);
   }
 #endif
 }
@@ -263,9 +263,9 @@ static void particle_settings_blend_write(BlendWriter *writer, ID *id, const voi
   BLO_write_id_struct(writer, ParticleSettings, id_address, &part->id);
   BKE_id_blend_write(writer, &part->id);
 
-  writer->write_struct<PartDeflect>(part->pd);
-  writer->write_struct<PartDeflect>(part->pd2);
-  writer->write_struct<EffectorWeights>(part->effector_weights);
+  writer->write_struct(part->pd);
+  writer->write_struct(part->pd2);
+  writer->write_struct(part->effector_weights);
 
   if (part->clumpcurve) {
     BKE_curvemapping_blend_write(writer, part->clumpcurve);
@@ -291,23 +291,23 @@ static void particle_settings_blend_write(BlendWriter *writer, ID *id, const voi
         FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
       }
     }
-    writer->write_struct<ParticleDupliWeight>(dw);
+    writer->write_struct(dw);
   }
 
   if (part->boids && part->phystype == PART_PHYS_BOIDS) {
-    writer->write_struct<BoidSettings>(part->boids);
+    writer->write_struct(part->boids);
 
     LISTBASE_FOREACH (BoidState *, state, &part->boids->states) {
       write_boid_state(writer, state);
     }
   }
   if (part->fluid && part->phystype == PART_PHYS_FLUID) {
-    writer->write_struct<SPHFluidSettings>(part->fluid);
+    writer->write_struct(part->fluid);
   }
 
   for (int a = 0; a < MAX_MTEX; a++) {
     if (part->mtex[a]) {
-      writer->write_struct<MTex>(part->mtex[a]);
+      writer->write_struct(part->mtex[a]);
     }
   }
 }
@@ -5555,7 +5555,7 @@ void BKE_particle_batch_cache_free(ParticleSystem *psys)
 void BKE_particle_system_blend_write(BlendWriter *writer, ListBase *particles)
 {
   LISTBASE_FOREACH (ParticleSystem *, psys, particles) {
-    writer->write_struct<ParticleSystem>(psys);
+    writer->write_struct(psys);
 
     if (psys->particles) {
       BLO_write_struct_array(writer, ParticleData, psys->totpart, psys->particles);
@@ -5580,7 +5580,7 @@ void BKE_particle_system_blend_write(BlendWriter *writer, ListBase *particles)
       }
     }
     LISTBASE_FOREACH (ParticleTarget *, pt, &psys->targets) {
-      writer->write_struct<ParticleTarget>(pt);
+      writer->write_struct(pt);
     }
 
     if (psys->child) {
@@ -5588,9 +5588,9 @@ void BKE_particle_system_blend_write(BlendWriter *writer, ListBase *particles)
     }
 
     if (psys->clmd) {
-      writer->write_struct<ClothModifierData>(psys->clmd);
-      writer->write_struct<ClothSimSettings>(psys->clmd->sim_parms);
-      writer->write_struct<ClothCollSettings>(psys->clmd->coll_parms);
+      writer->write_struct(psys->clmd);
+      writer->write_struct(psys->clmd->sim_parms);
+      writer->write_struct(psys->clmd->coll_parms);
     }
 
     BKE_ptcache_blend_write(writer, &psys->ptcaches);

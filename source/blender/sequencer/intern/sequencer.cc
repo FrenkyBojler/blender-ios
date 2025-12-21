@@ -828,7 +828,7 @@ SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings)
 static bool strip_write_data_cb(Strip *strip, void *userdata)
 {
   BlendWriter *writer = (BlendWriter *)userdata;
-  writer->write_struct<Strip>(strip);
+  writer->write_struct(strip);
   if (strip->data) {
     /* TODO this doesn't depend on the `Strip` data to be present? */
     if (strip->effectdata) {
@@ -854,7 +854,7 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
             /* Copy current text into legacy buffer. */
             STRNCPY_UTF8(text->text_legacy, text->text_ptr);
           }
-          writer->write_struct<TextVars>(text);
+          writer->write_struct(text);
           BLO_write_string(writer, text->text_ptr);
         } break;
         case STRIP_TYPE_COLORMIX:
@@ -863,25 +863,25 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
       }
     }
 
-    writer->write_struct<Stereo3dFormat>(strip->stereo3d_format);
+    writer->write_struct(strip->stereo3d_format);
 
     StripData *data = strip->data;
-    writer->write_struct<StripData>(data);
+    writer->write_struct(data);
     if (data->crop) {
-      writer->write_struct<StripCrop>(data->crop);
+      writer->write_struct(data->crop);
     }
     if (data->transform) {
-      writer->write_struct<StripTransform>(data->transform);
+      writer->write_struct(data->transform);
     }
     if (data->proxy) {
-      writer->write_struct<StripProxy>(data->proxy);
+      writer->write_struct(data->proxy);
     }
     if (strip->type == STRIP_TYPE_IMAGE) {
       BLO_write_struct_array(
           writer, StripElem, MEM_allocN_len(data->stripdata) / sizeof(StripElem), data->stripdata);
     }
     else if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_SOUND)) {
-      writer->write_struct<StripElem>(data->stripdata);
+      writer->write_struct(data->stripdata);
     }
   }
 
@@ -895,11 +895,11 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
   modifier_blend_write(writer, &strip->modifiers);
 
   LISTBASE_FOREACH (SeqTimelineChannel *, channel, &strip->channels) {
-    writer->write_struct<SeqTimelineChannel>(channel);
+    writer->write_struct(channel);
   }
 
   LISTBASE_FOREACH (StripConnection *, con, &strip->connections) {
-    writer->write_struct<StripConnection>(con);
+    writer->write_struct(con);
   }
 
   if (strip->retiming_keys != nullptr) {

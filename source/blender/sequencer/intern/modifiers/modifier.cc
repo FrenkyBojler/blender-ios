@@ -612,7 +612,7 @@ void modifier_blend_write(BlendWriter *writer, ListBase *modbase)
       }
     }
     else {
-      writer->write_struct<StripModifierData>(smd);
+      writer->write_struct(smd);
     }
   }
 }

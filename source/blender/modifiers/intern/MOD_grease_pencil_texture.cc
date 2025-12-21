@@ -347,7 +347,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *tmd = reinterpret_cast<const GreasePencilTextureModifierData *>(md);
 
-  writer->write_struct<GreasePencilTextureModifierData>(tmd);
+  writer->write_struct(tmd);
   modifier::greasepencil::write_influence_data(writer, &tmd->influence);
 }
 

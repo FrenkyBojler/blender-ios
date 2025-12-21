@@ -350,16 +350,16 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BKE_id_blend_write(writer, &ima->id);
 
   LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
-    writer->write_struct<ImagePackedFile>(imapf);
+    writer->write_struct(imapf);
     BKE_packedfile_blend_write(writer, imapf->packedfile);
   }
 
   BKE_previewimg_blend_write(writer, ima->preview);
 
   LISTBASE_FOREACH (ImageView *, iv, &ima->views) {
-    writer->write_struct<ImageView>(iv);
+    writer->write_struct(iv);
   }
-  writer->write_struct<Stereo3dFormat>(ima->stereo3d_format);
+  writer->write_struct(ima->stereo3d_format);
 
   BLO_write_struct_list(writer, ImageTile, &ima->tiles);
 

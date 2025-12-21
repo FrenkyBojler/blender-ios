@@ -3720,11 +3720,11 @@ void BKE_ptcache_invalidate(PointCache *cache)
 void BKE_ptcache_blend_write(BlendWriter *writer, ListBase *ptcaches)
 {
   LISTBASE_FOREACH (PointCache *, cache, ptcaches) {
-    writer->write_struct<PointCache>(cache);
+    writer->write_struct(cache);
 
     if ((cache->flag & PTCACHE_DISK_CACHE) == 0) {
       LISTBASE_FOREACH (PTCacheMem *, pm, &cache->mem_cache) {
-        writer->write_struct<PTCacheMem>(pm);
+        writer->write_struct(pm);
 
         for (int i = 0; i < BPHYS_TOT_DATA; i++) {
           if (pm->data[i] && pm->data_types & (1 << i)) {
@@ -3744,7 +3744,7 @@ void BKE_ptcache_blend_write(BlendWriter *writer, ListBase *ptcaches)
         }
 
         LISTBASE_FOREACH (PTCacheExtra *, extra, &pm->extradata) {
-          writer->write_struct<PTCacheExtra>(extra);
+          writer->write_struct(extra);
           if (extra->type == BPHYS_EXTRA_FLUID_SPRINGS) {
             BLO_write_struct_array(writer, ParticleSpring, extra->totdata, extra->data);
           }

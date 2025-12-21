@@ -1412,7 +1412,7 @@ void BKE_curvemapping_table_RGBA(const CurveMapping *cumap, float **array, int *
 
 void BKE_curvemapping_blend_write(BlendWriter *writer, const CurveMapping *cumap)
 {
-  writer->write_struct<CurveMapping>(cumap);
+  writer->write_struct(cumap);
   BKE_curvemapping_curves_blend_write(writer, cumap);
 }
 

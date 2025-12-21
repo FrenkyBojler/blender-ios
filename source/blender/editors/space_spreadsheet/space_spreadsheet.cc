@@ -740,7 +740,7 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)sl;
 
   LISTBASE_FOREACH (SpreadsheetRowFilter *, row_filter, &sspreadsheet->row_filters) {
-    writer->write_struct<SpreadsheetRowFilter>(row_filter);
+    writer->write_struct(row_filter);
     BLO_write_string(writer, row_filter->value_string);
   }
 

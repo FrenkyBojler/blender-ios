@@ -2581,7 +2581,7 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
   if (fcu->driver) {
     ChannelDriver *driver = fcu->driver;
 
-    writer->write_struct<ChannelDriver>(driver);
+    writer->write_struct(driver);
 
     /* variables */
     BLO_write_struct_list(writer, DriverVar, &driver->variables);

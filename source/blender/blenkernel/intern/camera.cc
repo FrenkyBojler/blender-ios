@@ -217,7 +217,7 @@ static void camera_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_id_blend_write(writer, &cam->id);
 
   LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
-    writer->write_struct<CameraBGImage>(bgpic);
+    writer->write_struct(bgpic);
   }
 
   if (!is_undo) {

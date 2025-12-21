@@ -287,7 +287,7 @@ bool BLO_write_is_undo(BlendWriter *writer);
  * Examples of matching calls:
  *
  * \code{.c}
- * writer->write_struct<ClothSimSettings>(clmd->sim_parms);
+ * writer->write_struct(clmd->sim_parms);
  * BLO_read_struct(reader, ClothSimSettings, &clmd->sim_parms);
  *
  * BLO_write_struct_list(writer, TimeMarker, &action->markers);
