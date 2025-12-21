@@ -141,7 +141,8 @@ static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
                                                        MenuType *mt,
                                                        Button *but,
                                                        MenuSearch_Context *wm_context,
-                                                       MenuSearch_Parent *menu_parent)
+                                                       MenuSearch_Parent *menu_parent,
+                                                       const Set<std::string> &ignored_idnames)
 {
   MenuSearch_Item *item = nullptr;
 
@@ -152,6 +153,9 @@ static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
   const bool drawstr_is_empty = sep_index == 0 || but->drawstr.empty();
 
   if (but->optype != nullptr) {
+    if (ignored_idnames.contains_as(but->optype->idname)) {
+      return false;
+    }
     if (drawstr_is_empty) {
       drawstr_override = WM_operatortype_name(but->optype, but->opptr);
     }
@@ -229,7 +233,7 @@ static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
       item->drawstr = scope.allocator().copy_string(but->drawstr);
     }
 
-    item->icon = ui_but_icon(but);
+    item->icon = button_icon(but);
     item->state = (but->flag & (BUT_DISABLED | BUT_INACTIVE | BUT_REDALERT | BUT_HAS_SEP_CHAR));
     item->mt = mt;
 
@@ -306,7 +310,7 @@ static void menu_types_add_from_keymap_items(bContext *C,
   ListBase *handlers[] = {
       region ? &region->runtime->handlers : nullptr,
       area ? &area->handlers : nullptr,
-      &win->handlers,
+      &win->runtime->handlers,
   };
 
   for (int handler_index = 0; handler_index < ARRAY_SIZE(handlers); handler_index++) {
@@ -322,7 +326,8 @@ static void menu_types_add_from_keymap_items(bContext *C,
         continue;
       }
 
-      if (handler_base->poll == nullptr || handler_base->poll(win, area, region, win->eventstate))
+      if (handler_base->poll == nullptr ||
+          handler_base->poll(win, area, region, win->runtime->eventstate))
       {
         wmEventHandler_Keymap *handler = (wmEventHandler_Keymap *)handler_base;
         wmEventHandler_KeymapResult km_result;
@@ -435,6 +440,11 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
    * or they have been blacklisted. */
   Set<MenuType *> menu_tagged;
   Map<MenuType *, wmKeyMapItem *> menu_to_kmi;
+
+  /* Avoid showing the search operator in the menu search itself. */
+  static const Set<std::string> ignored_operator_idnames = {
+      "WM_OT_search_single_menu",
+  };
 
   /* Blacklist menus we don't want to show. */
   {
@@ -684,11 +694,11 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         MenuType *mt_from_but = nullptr;
         /* Support menu titles with dynamic from initial labels
          * (used by edit-mesh context menu). */
-        if (but->type == ButType::Label) {
+        if (but->type == ButtonType::Label) {
 
           /* Check if the label is the title. */
           const std::unique_ptr<Button> *but_test = block->buttons.begin() + i - 1;
-          while (but_test >= block->buttons.begin() && (*but_test)->type == ButType::Sepr) {
+          while (but_test >= block->buttons.begin() && (*but_test)->type == ButtonType::Sepr) {
             but_test--;
           }
 
@@ -696,8 +706,13 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
             menu_display_name_map.add(mt, scope.allocator().copy_string(but->drawstr).c_str());
           }
         }
-        else if (menu_items_from_ui_create_item_from_button(
-                     data, scope, mt, but.get(), wm_context, current_menu.self_as_parent))
+        else if (menu_items_from_ui_create_item_from_button(data,
+                                                            scope,
+                                                            mt,
+                                                            but.get(),
+                                                            wm_context,
+                                                            current_menu.self_as_parent,
+                                                            ignored_operator_idnames))
         {
           /* pass */
         }
@@ -804,8 +819,13 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
             menu_parent->parent = current_menu.self_as_parent;
 
             for (const std::unique_ptr<Button> &sub_but : sub_block->buttons) {
-              menu_items_from_ui_create_item_from_button(
-                  data, scope, mt, sub_but.get(), wm_context, menu_parent);
+              menu_items_from_ui_create_item_from_button(data,
+                                                         scope,
+                                                         mt,
+                                                         sub_but.get(),
+                                                         wm_context,
+                                                         menu_parent,
+                                                         ignored_operator_idnames);
             }
           }
 
@@ -1038,7 +1058,7 @@ static bool ui_search_menu_create_context_menu(bContext *C,
       CTX_wm_region_set(C, item->wm_context->region);
     }
 
-    if (ui_popup_context_menu_for_button(C, but, event)) {
+    if (popup_context_menu_for_button(C, but, event)) {
       has_menu = true;
     }
 
@@ -1074,10 +1094,10 @@ static ARegion *ui_search_menu_create_tooltip(
 
   /* Place the fake button at the cursor so the tool-tip is places properly. */
   float tip_init[2];
-  const wmEvent *event = CTX_wm_window(C)->eventstate;
+  const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
   tip_init[0] = event->xy[0];
   tip_init[1] = event->xy[1] - (UI_UNIT_Y / 2);
-  ui_window_to_block_fl(region, block, &tip_init[0], &tip_init[1]);
+  window_to_block_fl(region, block, &tip_init[0], &tip_init[1]);
 
   but->rect.xmin = tip_init[0];
   but->rect.xmax = tip_init[0];
@@ -1124,7 +1144,7 @@ void button_func_menu_search(Button *but, const char *single_menu_idname)
       C, win, area, region, include_all_areas, single_menu_idname);
   button_func_search_set(but,
                          /* Generic callback. */
-                         ui_searchbox_create_menu,
+                         searchbox_create_menu,
                          menu_search_update_fn,
                          data,
                          false,

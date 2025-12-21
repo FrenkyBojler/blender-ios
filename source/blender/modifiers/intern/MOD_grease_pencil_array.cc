@@ -6,7 +6,6 @@
  * \ingroup modifiers
  */
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 
 #include "BKE_curves.hh"
@@ -46,10 +45,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *mmd = reinterpret_cast<GreasePencilArrayModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(mmd, DNA_struct_default_get(GreasePencilArrayModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(mmd, modifier);
   modifier::greasepencil::init_influence_data(&mmd->influence, false);
 }
 
@@ -177,7 +173,7 @@ static bke::CurvesGeometry create_array_copies(const Object &ob,
 
   float3 size(0.0f);
   if (mmd.flag & MOD_GREASE_PENCIL_ARRAY_USE_RELATIVE) {
-    std::optional<blender::Bounds<float3>> bounds = filtered_curves.bounds_min_max();
+    std::optional<Bounds<float3>> bounds = filtered_curves.bounds_min_max();
     if (bounds.has_value()) {
       size = bounds.value().max - bounds.value().min;
       /* Need a minimum size (for flat drawings). */

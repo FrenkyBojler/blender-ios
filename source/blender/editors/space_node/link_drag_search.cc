@@ -415,8 +415,7 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   /* Start translation operator with the new node. */
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_translate_attach_remove_on_cancel", true);
   BLI_assert(ot);
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
@@ -458,7 +457,7 @@ static ui::Block *create_search_popup_block(bContext *C, ARegion *region, void *
 
   /* Fake button to hold space for the search items. */
   uiDefBut(block,
-           ui::ButType::Label,
+           ui::ButtonType::Label,
            "",
            storage.in_out() == SOCK_OUT ? 10 : 10 - ui::searchbox_size_x(),
            10 - ui::searchbox_size_y(),

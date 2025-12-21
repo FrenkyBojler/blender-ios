@@ -301,6 +301,20 @@ static void graphedit_activekey_handles_cb(bContext *C, void *fcu_ptr, void *bez
   graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
 }
 
+static void graphedit_activekey_handle_left_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
+{
+  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr),
+                                              HandleSide::LEFT);
+  graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
+}
+
+static void graphedit_activekey_handle_right_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
+{
+  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr),
+                                              HandleSide::RIGHT);
+  graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
+}
+
 /* update callback for editing coordinates of right handle in active keyframe properties
  * NOTE: we cannot just do graphedit_activekey_handles_cb() due to "order of computation"
  *       weirdness (see calchandleNurb_intern() and #39911)
@@ -424,7 +438,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       blender::ui::Layout &col = layout.column(true);
       uiItemL_respect_property_split(&col, IFACE_("Key Frame"), ICON_NONE);
       but = uiDefButR(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       "",
                       0,
                       0,
@@ -441,7 +455,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
       uiItemL_respect_property_split(&col, IFACE_("Value"), ICON_NONE);
       but = uiDefButR(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       "",
                       0,
                       0,
@@ -464,7 +478,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       blender::ui::Layout &col = layout.column(true);
       uiItemL_respect_property_split(&col, IFACE_("Left Handle Type"), ICON_NONE);
       but = uiDefButR(block,
-                      blender::ui::ButType::Menu,
+                      blender::ui::ButtonType::Menu,
                       std::nullopt,
                       0,
                       0,
@@ -477,11 +491,11 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       "Type of left handle");
       button_retval_set(but, B_REDR);
-      button_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
+      button_func_set(but, graphedit_activekey_handle_left_cb, fcu, bezt);
 
       uiItemL_respect_property_split(&col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       "",
                       0,
                       0,
@@ -498,7 +512,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
       uiItemL_respect_property_split(&col, IFACE_("Value"), ICON_NONE);
       but = uiDefButR(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       "",
                       0,
                       0,
@@ -522,7 +536,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       blender::ui::Layout &col = layout.column(true);
       uiItemL_respect_property_split(&col, IFACE_("Right Handle Type"), ICON_NONE);
       but = uiDefButR(block,
-                      blender::ui::ButType::Menu,
+                      blender::ui::ButtonType::Menu,
                       std::nullopt,
                       0,
                       0,
@@ -535,11 +549,11 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       "Type of right handle");
       button_retval_set(but, B_REDR);
-      button_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
+      button_func_set(but, graphedit_activekey_handle_right_cb, fcu, bezt);
 
       uiItemL_respect_property_split(&col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       "",
                       0,
                       0,
@@ -556,7 +570,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
       uiItemL_respect_property_split(&col, IFACE_("Value"), ICON_NONE);
       but = uiDefButR(block,
-                      blender::ui::ButType::Num,
+                      blender::ui::ButtonType::Num,
                       "",
                       0,
                       0,
@@ -899,7 +913,7 @@ static void graph_draw_driven_property_enabled_btn(blender::ui::Layout &layout,
 
   blender::ui::Block *block = layout.block();
   uiDefButR(block,
-            blender::ui::ButType::CheckboxN,
+            blender::ui::ButtonType::CheckboxN,
             label,
             0,
             0,
@@ -1063,7 +1077,7 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
     blender::ui::Layout &sub = row.row(true);
     but = uiDefIconTextBut(
         block,
-        blender::ui::ButType::But,
+        blender::ui::ButtonType::But,
         ICON_ADD,
         IFACE_("Add Input Variable"),
         0,
@@ -1128,7 +1142,7 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
 
     if (dvar->flag & DVAR_FLAG_INVALID_NAME) {
       but = uiDefIconBut(block,
-                         blender::ui::ButType::But,
+                         blender::ui::ButtonType::But,
                          ICON_ERROR,
                          290,
                          0,
@@ -1144,7 +1158,7 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
 
     /* 1.3) remove button */
     but = uiDefIconBut(block,
-                       blender::ui::ButType::But,
+                       blender::ui::ButtonType::But,
                        ICON_X,
                        290,
                        0,
@@ -1215,7 +1229,7 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
    * so keep this around for a while longer as a "last resort" */
   layout.row(true);
   but = uiDefIconTextBut(block,
-                         blender::ui::ButType::But,
+                         blender::ui::ButtonType::But,
                          ICON_FILE_REFRESH,
                          IFACE_("Update Dependencies"),
                          0,

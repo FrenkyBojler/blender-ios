@@ -12,9 +12,13 @@
 
 #include "DNA_collection_types.h"
 #include "DNA_image_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_text_types.h"
+#include "DNA_vfont_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_lasso_2d.hh"
@@ -1550,6 +1554,31 @@ static void node_find_update_fn(const bContext *C,
               *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueImage>()->value));
           break;
         }
+        case SOCK_FONT: {
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueFont>()->value));
+          break;
+        }
+        case SOCK_SCENE: {
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueScene>()->value));
+          break;
+        }
+        case SOCK_TEXT_ID: {
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueText>()->value));
+          break;
+        }
+        case SOCK_MASK: {
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueMask>()->value));
+          break;
+        }
+        case SOCK_SOUND: {
+          add_data_block_item(
+              *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueSound>()->value));
+          break;
+        }
       }
     }
   }
@@ -1598,8 +1627,17 @@ static ui::Block *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
 
   /* Fake button holds space for search items. */
   const int height = ui::searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(
-      block, ui::ButType::Label, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block,
+           ui::ButtonType::Label,
+           "",
+           0,
+           -height,
+           box_width,
+           height,
+           nullptr,
+           0,
+           0,
+           std::nullopt);
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};

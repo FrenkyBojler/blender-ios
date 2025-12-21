@@ -448,12 +448,12 @@ void debug_markers_print_list(ListBase *markers)
 static void marker_color_get(const TimeMarker *marker, uchar *r_text_color, uchar *r_line_color)
 {
   if (marker->flag & SELECT) {
-    blender::ui::GetThemeColor4ubv(TH_TIME_MARKER_LINE_SELECTED, r_text_color);
-    blender::ui::GetThemeColor4ubv(TH_TIME_MARKER_LINE_SELECTED, r_line_color);
+    blender::ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE_SELECTED, r_text_color);
+    blender::ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE_SELECTED, r_line_color);
   }
   else {
-    blender::ui::GetThemeColor4ubv(TH_TIME_MARKER_LINE, r_text_color);
-    blender::ui::GetThemeColor4ubv(TH_TIME_MARKER_LINE, r_line_color);
+    blender::ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE, r_text_color);
+    blender::ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE, r_line_color);
   }
 }
 
@@ -478,7 +478,7 @@ static void draw_marker_name(const uchar *text_color,
   }
 
   const int icon_half_width = UI_ICON_SIZE * 0.6;
-  blender::ui::uiFontStyleDraw_Params fs_params{};
+  blender::ui::FontStyleDrawParams fs_params{};
   fs_params.align = blender::ui::UI_STYLE_TEXT_LEFT;
   fs_params.word_wrap = 0;
 
@@ -540,20 +540,22 @@ static void draw_marker(const uiFontStyle *fstyle,
 
   GPU_blend(GPU_BLEND_ALPHA);
 
-  draw_marker_line(line_color, xpos, UI_SCALE_FAC * 28, region_height);
+  draw_marker_line(line_color, xpos, UI_SCALE_FAC * 22, region_height);
 
   int icon_id = marker_get_icon_id(marker, flag);
 
   uchar marker_color[4];
   if (marker->flag & SELECT) {
-    blender::ui::GetThemeColor4ubv(TH_TIME_MARKER_LINE_SELECTED, marker_color);
+    blender::ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE_SELECTED, marker_color);
   }
   else {
-    blender::ui::GetThemeColor4ubv(TH_TIME_MARKER_LINE, marker_color);
+    blender::ui::theme::get_color_4ubv(TH_TIME_MARKER_LINE, marker_color);
   }
 
+  constexpr int marker_y = 10;
+
   blender::ui::icon_draw_ex(xpos - (0.5f * UI_ICON_SIZE) - (0.5f * U.pixelsize),
-                            UI_SCALE_FAC * 18,
+                            UI_SCALE_FAC * marker_y,
                             icon_id,
                             UI_INV_SCALE_FAC,
                             1.0f,
@@ -564,10 +566,11 @@ static void draw_marker(const uiFontStyle *fstyle,
 
   GPU_blend(GPU_BLEND_NONE);
 
-  float name_y = UI_SCALE_FAC * 18;
+  /* Adding an offset because the text is drawn downwards, but the icon is drawn upwards. */
+  float name_y = UI_SCALE_FAC * (marker_y + 5);
   /* Give an offset to the marker that is elevated. */
   if (is_elevated) {
-    name_y += UI_SCALE_FAC * 10;
+    name_y += UI_SCALE_FAC * 6;
   }
   draw_marker_name(text_color, fstyle, marker, xpos, xmax, name_y);
 }
@@ -579,7 +582,7 @@ static void draw_markers_background(const rctf *rect)
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   uchar shade[4];
-  blender::ui::GetThemeColor4ubv(TH_TIME_SCRUB_BACKGROUND, shade);
+  blender::ui::theme::get_color_4ubv(TH_TIME_SCRUB_BACKGROUND, shade);
 
   immUniformColor4ubv(shade);
 
@@ -845,7 +848,7 @@ static wmOperatorStatus ed_marker_add_exec(bContext *C, wmOperator * /*op*/)
     marker->flag &= ~SELECT;
   }
 
-  TimeMarker *marker = MEM_callocN<TimeMarker>("TimeMarker");
+  TimeMarker *marker = MEM_new_for_free<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = frame;
   SNPRINTF_UTF8(marker->name, "F_%02d", frame);
@@ -1286,7 +1289,7 @@ static void ed_marker_duplicate_apply(bContext *C)
       marker->flag &= ~SELECT;
 
       /* create and set up new marker */
-      TimeMarker *newmarker = MEM_callocN<TimeMarker>("TimeMarker");
+      TimeMarker *newmarker = MEM_new_for_free<TimeMarker>("TimeMarker");
       newmarker->flag = SELECT;
       newmarker->frame = marker->frame;
       STRNCPY_UTF8(newmarker->name, marker->name);
@@ -2011,7 +2014,7 @@ static wmOperatorStatus ed_marker_camera_bind_exec(bContext *C, wmOperator *op)
 
   marker = ED_markers_find_nearest_marker(markers, scene->r.cfra);
   if ((marker == nullptr) || (marker->frame != scene->r.cfra)) {
-    marker = MEM_callocN<TimeMarker>("Camera TimeMarker");
+    marker = MEM_new_for_free<TimeMarker>("Camera TimeMarker");
     /* This marker's name is only displayed in the viewport statistics, animation editors use the
      * camera's name when bound to a marker. */
     SNPRINTF_UTF8(marker->name, "F_%02d", scene->r.cfra);

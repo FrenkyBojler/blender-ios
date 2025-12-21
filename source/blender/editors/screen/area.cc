@@ -72,9 +72,9 @@ static void region_draw_gradient(const ARegion *region)
   }
 
   float opaque[4];
-  blender::ui::GetThemeColor4fv(TH_HEADER, opaque);
+  blender::ui::theme::get_color_4fv(TH_HEADER, opaque);
   float transparent[4];
-  blender::ui::GetThemeColor3fv(TH_HEADER, transparent);
+  blender::ui::theme::get_color_3fv(TH_HEADER, transparent);
   transparent[3] = 0.0f;
 
   rctf rect{};
@@ -325,7 +325,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
 static void region_draw_status_text(ScrArea * /*area*/, ARegion *region)
 {
   float header_color[4];
-  blender::ui::GetThemeColor4fv(TH_HEADER, header_color);
+  blender::ui::theme::get_color_4fv(TH_HEADER, header_color);
 
   /* Clear the region from the buffer. */
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
@@ -358,7 +358,7 @@ static void region_draw_status_text(ScrArea * /*area*/, ARegion *region)
     blender::ui::draw_roundbox_4fv(&rect, true, 4.0f * UI_SCALE_FAC, header_color);
   }
 
-  blender::ui::FontThemeColor(fontid, TH_TEXT);
+  blender::ui::theme::font_theme_color_set(fontid, TH_TEXT);
   BLF_position(fontid, x, y, 0.0f);
   BLF_draw(fontid, region->runtime->headerstr, BLF_DRAW_STR_DUMMY_MAX);
 }
@@ -474,7 +474,7 @@ void ED_region_do_layout(bContext *C, ARegion *region)
 
   region->runtime->do_draw |= RGN_DRAWING;
 
-  blender::ui::UI_SetTheme(area ? area->spacetype : 0, at->regionid);
+  blender::ui::theme::theme_set(area ? area->spacetype : 0, at->regionid);
   at->layout(C, region);
 
   /* Clear temporary update flag. */
@@ -500,10 +500,10 @@ void ED_region_do_draw(bContext *C, ARegion *region)
 
   wmOrtho2_region_pixelspace(region);
 
-  blender::ui::UI_SetTheme(area ? area->spacetype : 0, at->regionid);
+  blender::ui::theme::theme_set(area ? area->spacetype : 0, at->regionid);
 
   if (area && area_is_pseudo_minimized(area)) {
-    blender::ui::ThemeClearColor(TH_EDITOR_BORDER);
+    blender::ui::theme::frame_buffer_clear(TH_EDITOR_BORDER);
     return;
   }
   /* optional header info instead? */
@@ -561,7 +561,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
       /* draw separating lines between the quad views */
 
       float color[4] = {0.0f, 0.0f, 0.0f, 0.8f};
-      blender::ui::GetThemeColor3fv(TH_EDITOR_BORDER, color);
+      blender::ui::theme::get_color_3fv(TH_EDITOR_BORDER, color);
       GPUVertFormat *format = immVertexFormat();
       uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -1099,7 +1099,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
 #endif
 
     /* set area action zones */
-    AZone *az = MEM_callocN<AZone>("actionzone");
+    AZone *az = MEM_new_for_free<AZone>("actionzone");
     BLI_addtail(&(area->actionzones), az);
     az->type = AZONE_AREA;
     az->x1 = coords[i][0];
@@ -1116,7 +1116,7 @@ static void fullscreen_azone_init(ScrArea *area, ARegion *region)
     return;
   }
 
-  AZone *az = MEM_callocN<AZone>("fullscreen action zone");
+  AZone *az = MEM_new_for_free<AZone>("fullscreen action zone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_FULLSCREEN;
   az->region = region;
@@ -1160,14 +1160,14 @@ static void quadview_azone_init(ScrArea *area, ARegion *region)
 static bool region_background_is_transparent(const ScrArea *area, const ARegion *region)
 {
   /* Ensure the right theme is active, may not be the case on startup, for example. */
-  blender::ui::bThemeState theme_state;
-  blender::ui::Theme_Store(&theme_state);
-  blender::ui::UI_SetTheme(area->spacetype, region->regiontype);
+  blender::ui::theme::bThemeState theme_state;
+  blender::ui::theme::theme_store(&theme_state);
+  blender::ui::theme::theme_set(area->spacetype, region->regiontype);
 
   uchar back[4];
-  blender::ui::GetThemeColor4ubv(TH_BACK, back);
+  blender::ui::theme::get_color_4ubv(TH_BACK, back);
 
-  Theme_Restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
 
   return back[3] < 50;
 }
@@ -1310,7 +1310,7 @@ static void region_azone_edge_init(ScrArea *area,
     return;
   }
 
-  AZone *az = MEM_callocN<AZone>("actionzone");
+  AZone *az = MEM_new_for_free<AZone>("actionzone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_REGION;
   az->region = region;
@@ -1328,7 +1328,7 @@ static void region_azone_scrollbar_init(ScrArea *area,
                                         ARegion *region,
                                         AZScrollDirection direction)
 {
-  AZone *az = MEM_callocN<AZone>(__func__);
+  AZone *az = MEM_new_for_free<AZone>(__func__);
 
   BLI_addtail(&area->actionzones, az);
   az->type = AZONE_REGION_SCROLL;
@@ -1515,7 +1515,7 @@ bool ED_region_is_overlap(const int spacetype, const int regiontype)
     case SPACE_VIEW3D:
       if (regiontype == RGN_TYPE_HEADER) {
         /* Only treat as overlapped if there is transparency. */
-        bTheme *theme = blender::ui::GetTheme();
+        bTheme *theme = blender::ui::theme::theme_get();
         return theme->space_view3d.header[3] != 255;
       }
       return ELEM(regiontype,
@@ -2100,7 +2100,7 @@ void ED_area_update_region_sizes(wmWindowManager *wm, wmWindow *win, ScrArea *ar
     /* Some AZones use View2D data which is only updated in region init, so call that first! */
     region_azones_add(screen, area, region);
   }
-  ED_area_azones_update(area, win->eventstate->xy);
+  ED_area_azones_update(area, win->runtime->eventstate->xy);
 
   area->flag &= ~AREA_FLAG_REGION_SIZE_UPDATE;
 }
@@ -2270,7 +2270,7 @@ static void area_offscreen_init(ScrArea *area)
 
 ScrArea *ED_area_offscreen_create(wmWindow *win, eSpace_Type space_type)
 {
-  ScrArea *area = MEM_callocN<ScrArea>(__func__);
+  ScrArea *area = MEM_new_for_free<ScrArea>(__func__);
   area->spacetype = space_type;
 
   screen_area_spacelink_add(WM_window_get_active_scene(win), area, space_type);
@@ -2410,35 +2410,11 @@ void ED_region_toggle_hidden(bContext *C, ARegion *region)
 
 void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free)
 {
-  const char spacetype = area_dst->spacetype;
-  const short flag_copy = HEADER_NO_PULLDOWN;
-
-  area_dst->spacetype = area_src->spacetype;
-  area_dst->type = area_src->type;
-
-  area_dst->flag = (area_dst->flag & ~flag_copy) | (area_src->flag & flag_copy);
-
-  /* area */
   if (do_free) {
-    BKE_spacedata_freelist(&area_dst->spacedata);
+    BKE_screen_area_free(area_dst);
   }
-  BKE_spacedata_copylist(&area_dst->spacedata, &area_src->spacedata);
 
-  /* NOTE: SPACE_EMPTY is possible on new screens. */
-
-  /* regions */
-  if (do_free) {
-    SpaceType *st = BKE_spacetype_from_id(spacetype);
-    LISTBASE_FOREACH (ARegion *, region, &area_dst->regionbase) {
-      BKE_area_region_free(st, region);
-    }
-    BLI_freelistN(&area_dst->regionbase);
-  }
-  SpaceType *st = BKE_spacetype_from_id(area_src->spacetype);
-  LISTBASE_FOREACH (ARegion *, region, &area_src->regionbase) {
-    ARegion *newar = BKE_area_region_copy(st, region);
-    BLI_addtail(&area_dst->regionbase, newar);
-  }
+  BKE_area_copy(area_dst, area_src);
 }
 
 void ED_area_data_swap(ScrArea *area_dst, ScrArea *area_src)
@@ -2695,7 +2671,7 @@ static void region_align_info_to_area(
 
 void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
 {
-  ScrArea *tmp = MEM_callocN<ScrArea>(__func__);
+  ScrArea *tmp = MEM_new_for_free<ScrArea>(__func__);
   wmWindow *win = CTX_wm_window(C);
 
   ED_area_exit(C, sa1);
@@ -2950,7 +2926,7 @@ int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, in
       int icon = item.icon;
 
       blender::ui::Button *add_but = uiDefIconBut(block,
-                                                  blender::ui::ButType::But,
+                                                  blender::ui::ButtonType::But,
                                                   icon,
                                                   xco,
                                                   yco,
@@ -2961,7 +2937,7 @@ int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, in
                                                   0,
                                                   name);
       uchar color[4];
-      blender::ui::GetThemeColor4ubv(TH_TEXT, color);
+      blender::ui::theme::get_color_4ubv(TH_TEXT, color);
       color[3] = 160;
       button_color_set(add_but, color);
       button_func_set(add_but, change_tab_cb, area, POINTER_FROM_INT(space_type));
@@ -2974,7 +2950,7 @@ int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, in
 
   PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
   uiDefButR(block,
-            blender::ui::ButType::Menu,
+            blender::ui::ButtonType::Menu,
             "",
             xco,
             yco,
@@ -3012,11 +2988,11 @@ void ED_region_clear(const bContext *C, const ARegion *region, const int /*Theme
     blender::ui::view2d_view_restore(C);
 
     float back[4];
-    blender::ui::GetThemeColor4fv(colorid, back);
+    blender::ui::theme::get_color_4fv(colorid, back);
     GPU_clear_color(back[3] * back[0], back[3] * back[1], back[3] * back[2], back[3]);
   }
   else {
-    blender::ui::ThemeClearColor(colorid);
+    blender::ui::theme::frame_buffer_clear(colorid);
   }
 }
 
@@ -3264,17 +3240,9 @@ static bool panel_add_check(const bContext *C,
   return true;
 }
 
-static bool region_uses_category_tabs(const ScrArea *area, const ARegion *region)
-{
-  /* XXX, should use some better check? */
-  /* For now also has hardcoded check for clip editor until it supports actual toolbar. */
-  return ((1 << region->regiontype) & RGN_TYPE_HAS_CATEGORY_MASK) ||
-         (region->regiontype == RGN_TYPE_TOOLS && area->spacetype == SPACE_CLIP);
-}
-
 static const char *region_panels_collect_categories(ARegion *region,
                                                     LinkNode *panel_types_stack,
-                                                    bool *use_category_tabs)
+                                                    bool *use_categories)
 {
   blender::ui::panel_category_clear_all(region);
 
@@ -3292,7 +3260,7 @@ static const char *region_panels_collect_categories(ARegion *region,
     return blender::ui::panel_category_active_get(region, true);
   }
 
-  *use_category_tabs = false;
+  *use_categories = false;
   return nullptr;
 }
 
@@ -3327,8 +3295,10 @@ void ED_region_panels_layout_ex(const bContext *C,
   ScrArea *area = CTX_wm_area(C);
   View2D *v2d = &region->v2d;
 
+  bool use_categories = (category_override == nullptr) &&
+                        BKE_regiontype_uses_categories(region->runtime->type);
   bool use_category_tabs = (category_override == nullptr) &&
-                           region_uses_category_tabs(area, region);
+                           BKE_regiontype_uses_category_tabs(region->runtime->type);
   /* offset panels for small vertical tab area */
   const char *category = nullptr;
   const int category_tabs_width = UI_PANEL_CATEGORY_MARGIN_WIDTH;
@@ -3351,8 +3321,11 @@ void ED_region_panels_layout_ex(const bContext *C,
   }
 
   /* collect categories */
-  if (use_category_tabs) {
-    category = region_panels_collect_categories(region, panel_types_stack, &use_category_tabs);
+  if (use_categories) {
+    category = region_panels_collect_categories(region, panel_types_stack, &use_categories);
+    if (!use_categories) {
+      use_category_tabs = false;
+    }
   }
   if (use_category_tabs) {
     margin_x = category_tabs_width;
@@ -3381,7 +3354,7 @@ void ED_region_panels_layout_ex(const bContext *C,
     }
     Panel *panel = blender::ui::panel_find_by_type(&region->panels, pt);
 
-    if (use_category_tabs && pt->category[0] && !STREQ(category, pt->category)) {
+    if (use_categories && pt->category[0] && !STREQ(category, pt->category)) {
       if ((panel == nullptr) || ((panel->flag & PNL_PIN) == 0)) {
         continue;
       }
@@ -3406,8 +3379,7 @@ void ED_region_panels_layout_ex(const bContext *C,
       if (!(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         continue;
       }
-      if (use_category_tabs && panel->type->category[0] && !STREQ(category, panel->type->category))
-      {
+      if (use_categories && panel->type->category[0] && !STREQ(category, panel->type->category)) {
         continue;
       }
       if (!panel_add_check(C, workspace, contexts, category_override, panel->type)) {
@@ -3485,7 +3457,7 @@ void ED_region_panels_layout_ex(const bContext *C,
     blender::ui::view2d_totRect_set(v2d, x, y);
   }
 
-  if (use_category_tabs) {
+  if (use_categories) {
     region->runtime->category = category;
   }
 }
@@ -3506,11 +3478,11 @@ void ED_region_draw_overflow_indication(const ScrArea *area,
 
   float opaque[4];
   if (narrow) {
-    blender::ui::GetThemeColor3fv(TH_BLACK, opaque);
+    blender::ui::theme::get_color_3fv(TH_BLACK, opaque);
     opaque[3] = 0.2f;
   }
   else {
-    blender::ui::GetThemeColor3fv(TH_BACK, opaque);
+    blender::ui::theme::get_color_3fv(TH_BACK, opaque);
     opaque[3] = 1.0f;
     if (!is_header) {
       mul_v3_fl(opaque, 0.85f);
@@ -3627,9 +3599,9 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   blender::ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
   /* draw panels if they are large enough. */
-  const bool has_categories = (region->panels_category_active.first != nullptr);
-  const short min_draw_size = has_categories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
-                                               std::min(region->runtime->type->prefsizex, 20);
+  const bool has_category_tabs = blender::ui::panel_category_tabs_is_visible(region);
+  const short min_draw_size = has_category_tabs ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
+                                                  std::min(region->runtime->type->prefsizex, 20);
   if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
     blender::ui::panels_draw(C, region);
   }
@@ -3638,8 +3610,8 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   blender::ui::view2d_view_restore(C);
 
   /* Set in layout. */
-  if (region->runtime->category) {
-    blender::ui::panel_category_draw_all(region, region->runtime->category);
+  if (has_category_tabs && region->runtime->category) {
+    blender::ui::panel_category_tabs_draw_all(region, region->runtime->category);
   }
 
   /* scrollers */
@@ -3647,7 +3619,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   rcti mask;
   const short alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
   if (region->runtime->category && ELEM(alignment, RGN_ALIGN_RIGHT, RGN_ALIGN_LEFT) &&
-      blender::ui::panel_category_is_visible(region))
+      has_category_tabs)
   {
     use_mask = true;
     blender::ui::view2d_mask_from_win(v2d, &mask);
@@ -3664,8 +3636,8 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   ED_region_draw_overflow_indication(CTX_wm_area(C), region, use_mask ? &mask : nullptr);
 
   /* Hide scrollbars below a threshold. */
-  int min_width = blender::ui::panel_category_is_visible(region) ? 60.0f * UI_SCALE_FAC / aspect :
-                                                                   40.0f * UI_SCALE_FAC / aspect;
+  int min_width = has_category_tabs ? 60.0f * UI_SCALE_FAC / aspect :
+                                      40.0f * UI_SCALE_FAC / aspect;
   if (BLI_rcti_size_x(&region->winrct) <= min_width) {
     v2d->scroll &= ~(V2D_SCROLL_HORIZONTAL | V2D_SCROLL_VERTICAL);
   }
@@ -3819,10 +3791,10 @@ bool ED_region_property_search(const bContext *C,
   }
 
   const char *category = nullptr;
-  bool use_category_tabs = (category_override == nullptr) &&
-                           region_uses_category_tabs(area, region);
-  if (use_category_tabs) {
-    category = region_panels_collect_categories(region, panel_types_stack, &use_category_tabs);
+  bool use_categories = (category_override == nullptr) &&
+                        BKE_regiontype_uses_categories(region->runtime->type);
+  if (use_categories) {
+    category = region_panels_collect_categories(region, panel_types_stack, &use_categories);
   }
 
   /* Run property search for each panel, stopping if a result is found. */
@@ -3836,7 +3808,7 @@ bool ED_region_property_search(const bContext *C,
       continue;
     }
 
-    if (use_category_tabs) {
+    if (use_categories) {
       if (panel_type->category[0] && !STREQ(category, panel_type->category)) {
         continue;
       }
@@ -3857,7 +3829,7 @@ bool ED_region_property_search(const bContext *C,
       if (panel->type == nullptr || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         continue;
       }
-      if (use_category_tabs) {
+      if (use_categories) {
         if (panel->type->category[0] && !STREQ(category, panel->type->category)) {
           continue;
         }
@@ -3998,7 +3970,7 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
 
 void ED_region_header_draw_with_button_sections(const bContext *C,
                                                 const ARegion *region,
-                                                const blender::ui::uiButtonSectionsAlign align)
+                                                const blender::ui::ButtonSectionsAlign align)
 {
   const ThemeColorID bgcolorid = region_background_color_id(C, region);
 
@@ -4023,7 +3995,7 @@ void ED_region_header(const bContext *C, ARegion *region)
 
 void ED_region_header_with_button_sections(const bContext *C,
                                            ARegion *region,
-                                           const blender::ui::uiButtonSectionsAlign align)
+                                           const blender::ui::ButtonSectionsAlign align)
 {
   ED_region_header_layout(C, region);
   ED_region_header_draw_with_button_sections(C, region, align);
@@ -4185,7 +4157,7 @@ void ED_region_info_draw_multiline(ARegion *region,
   GPU_blend(GPU_BLEND_NONE);
 
   /* text */
-  blender::ui::FontThemeColor(fontid, TH_TEXT_HI);
+  blender::ui::theme::font_theme_color_set(fontid, TH_TEXT_HI);
   BLF_clipping(fontid, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
   BLF_enable(fontid, BLF_CLIPPING);
   int offset = num_lines - 1;
@@ -4247,7 +4219,7 @@ void ED_region_grid_draw(ARegion *region, float zoomx, float zoomy, float x0, fl
   uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   float gridcolor[4];
-  blender::ui::GetThemeColor4fv(TH_GRID, gridcolor);
+  blender::ui::theme::get_color_4fv(TH_GRID, gridcolor);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   /* To fake alpha-blending, color shading is reduced when alpha is nearing 0. */
@@ -4291,7 +4263,7 @@ void ED_region_grid_draw(ARegion *region, float zoomx, float zoomy, float x0, fl
     immBegin(GPU_PRIM_LINES, 4 * count_fine + 4 * count_large);
 
     float theme_color[3];
-    blender::ui::GetThemeColorShade3fv(TH_GRID, int(20.0f * (1.0f - blendfac)), theme_color);
+    blender::ui::theme::get_color_shade_3fv(TH_GRID, int(20.0f * (1.0f - blendfac)), theme_color);
     float fac = 0.0f;
 
     /* the fine resolution level */
@@ -4308,7 +4280,7 @@ void ED_region_grid_draw(ARegion *region, float zoomx, float zoomy, float x0, fl
     }
 
     if (count_large > 0) {
-      blender::ui::GetThemeColor3fv(TH_GRID, theme_color);
+      blender::ui::theme::get_color_3fv(TH_GRID, theme_color);
       fac = 0.0f;
 
       /* the large resolution level */
@@ -4423,9 +4395,9 @@ void ED_region_cache_draw_curfra_label(const int framenr, const float x, const f
 
   /* Rounded corner background box. */
   float4 bg_color;
-  blender::ui::GetThemeColorShade4fv(TH_CFRAME, -5, bg_color);
+  blender::ui::theme::get_color_shade_4fv(TH_CFRAME, -5, bg_color);
   float4 outline_color;
-  blender::ui::GetThemeColorShade4fv(TH_CFRAME, 5, outline_color);
+  blender::ui::theme::get_color_shade_4fv(TH_CFRAME, 5, outline_color);
 
   rctf rect{};
   rect.xmin = x - text_dims.x / 2 - padding;
@@ -4437,7 +4409,7 @@ void ED_region_cache_draw_curfra_label(const int framenr, const float x, const f
       &rect, bg_color, nullptr, 1.0f, outline_color, U.pixelsize, 3 * UI_SCALE_FAC);
 
   /* Text label. */
-  blender::ui::FontThemeColor(fontid, TH_HEADER_TEXT_HI);
+  blender::ui::theme::font_theme_color_set(fontid, TH_HEADER_TEXT_HI);
   BLF_position(fontid, x - text_dims.x * 0.5f, y + padding, 0.0f);
   BLF_draw(fontid, numstr, sizeof(numstr));
 }

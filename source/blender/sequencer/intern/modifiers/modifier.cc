@@ -32,7 +32,6 @@
 #include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
 #include "UI_interface.hh"
@@ -184,9 +183,8 @@ static void modifier_reorder(bContext *C, Panel *panel, const int new_index)
   PointerRNA *smd_ptr = blender::ui::panel_custom_data_get(panel);
   StripModifierData *smd = static_cast<StripModifierData *>(smd_ptr->data);
 
-  PointerRNA props_ptr;
   wmOperatorType *ot = WM_operatortype_find("SEQUENCER_OT_strip_modifier_move_to_index", false);
-  WM_operator_properties_create_ptr(&props_ptr, ot);
+  PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&props_ptr, "modifier", smd->name);
   RNA_int_set(&props_ptr, "index", new_index);
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
@@ -445,8 +443,7 @@ static bool skip_modifier(Scene *scene, const StripModifierData *smd, int timeli
   }
   const bool strip_has_ended_skip = smd->mask_input_type == STRIP_MASK_INPUT_STRIP &&
                                     smd->mask_time == STRIP_MASK_TIME_RELATIVE &&
-                                    !time_strip_intersects_frame(
-                                        scene, smd->mask_strip, timeline_frame);
+                                    !smd->mask_strip->intersects_frame(scene, timeline_frame);
   const bool missing_data_skip = !strip_has_valid_data(smd->mask_strip) ||
                                  media_presence_is_missing(scene, smd->mask_strip);
 
@@ -609,7 +606,7 @@ void modifier_blend_write(BlendWriter *writer, ListBase *modbase)
     const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
 
     if (smti) {
-      BLO_write_struct_by_name(writer, smti->struct_name, smd);
+      writer->write_struct_by_name(smti->struct_name, smd);
       if (smti->blend_write) {
         smti->blend_write(writer, smd);
       }

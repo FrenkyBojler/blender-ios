@@ -12,7 +12,6 @@
 #include <cstring>
 
 #include "DNA_collection_types.h"
-#include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_object_types.h"
@@ -192,18 +191,14 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *area)
 
 static SpaceLink *view3d_create(const ScrArea * /*area*/, const Scene *scene)
 {
-  ARegion *region;
-  View3D *v3d;
-  RegionView3D *rv3d;
-
-  v3d = DNA_struct_default_alloc(View3D);
+  View3D *v3d = MEM_new_for_free<View3D>(__func__);
 
   if (scene) {
     v3d->camera = scene->camera;
   }
 
   /* header */
-  region = BKE_area_region_new();
+  ARegion *region = BKE_area_region_new();
 
   BLI_addtail(&v3d->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
@@ -253,12 +248,12 @@ static SpaceLink *view3d_create(const ScrArea * /*area*/, const Scene *scene)
   BLI_addtail(&v3d->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
 
-  region->regiondata = MEM_callocN<RegionView3D>("region view3d");
-  rv3d = static_cast<RegionView3D *>(region->regiondata);
+  RegionView3D *rv3d = MEM_new_for_free<RegionView3D>("region view3d");
   rv3d->viewquat[0] = 1.0f;
   rv3d->persp = RV3D_PERSP;
   rv3d->view = RV3D_VIEW_USER;
   rv3d->dist = 10.0;
+  region->regiondata = rv3d;
 
   return (SpaceLink *)v3d;
 }
@@ -362,6 +357,10 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
       wm->runtime->defaultconf, "Vertex Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Grease Pencil Weight Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
+
   /* pose is not modal, operator poll checks for this */
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Pose", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
@@ -416,15 +415,11 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(
-      wm->runtime->defaultconf, "Grease Pencil Paint Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "Grease Pencil Draw Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(
       wm->runtime->defaultconf, "Grease Pencil Sculpt Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
-
-  keymap = WM_keymap_ensure(
-      wm->runtime->defaultconf, "Grease Pencil Weight Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(
@@ -1410,8 +1405,8 @@ static void view3d_tools_header_region_draw(const bContext *C, ARegion *region)
       C,
       region,
       (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) ?
-          blender::ui::uiButtonSectionsAlign::Top :
-          blender::ui::uiButtonSectionsAlign::Bottom);
+          blender::ui::ButtonSectionsAlign::Top :
+          blender::ui::ButtonSectionsAlign::Bottom);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */

@@ -68,9 +68,9 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
   uchar report_icon_color[4];
   uchar report_text_color[4];
 
-  GetThemeColorType4ubv(
+  theme::get_color_type_4ubv(
       icon_colorid_from_report_type(report->type), SPACE_INFO, report_icon_color);
-  GetThemeColorType4ubv(
+  theme::get_color_type_4ubv(
       UI_text_colorid_from_report_type(report->type), SPACE_INFO, report_text_color);
   report_text_color[3] = 255; /* This theme color is RGB only, so have to set alpha here. */
 
@@ -90,7 +90,7 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
 
   /* Background for icon. */
   but = uiDefBut(block,
-                 ButType::Roundbox,
+                 ButtonType::Roundbox,
                  "",
                  0,
                  0,
@@ -100,12 +100,12 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
                  0.0f,
                  0.0f,
                  "");
-  /* #ButType::Roundbox's background color is set in `but->col`. */
+  /* #ButtonType::Roundbox's background color is set in `but->col`. */
   copy_v4_v4_uchar(but->col, report_icon_color);
 
   /* Background for the rest of the message. */
   but = uiDefBut(block,
-                 ButType::Roundbox,
+                 ButtonType::Roundbox,
                  "",
                  UI_UNIT_X + (6 * UI_SCALE_FAC),
                  0,
@@ -124,7 +124,7 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
 
   /* The report icon itself. */
   but = uiDefIconButO(block,
-                      ButType::But,
+                      ButtonType::But,
                       "SCREEN_OT_info_log_show",
                       blender::wm::OpCallContext::InvokeRegionWin,
                       icon_from_report_type(report->type),
@@ -137,7 +137,7 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
 
   /* The report message. */
   but = uiDefButO(block,
-                  ButType::But,
+                  ButtonType::But,
                   "SCREEN_OT_info_log_show",
                   blender::wm::OpCallContext::InvokeRegionWin,
                   report->message,
@@ -164,7 +164,7 @@ static bool uiTemplateInputStatusAzone(Layout *layout, const AZone *az, const AR
     layout->label(IFACE_("Duplicate into Window"), ICON_NONE);
     layout->separator(0.6f);
     layout->label("", ICON_EVENT_CTRL);
-    layout->separator(ui_event_icon_offset(ICON_EVENT_CTRL));
+    layout->separator(event_icon_offset(ICON_EVENT_CTRL));
     layout->label(nullptr, ICON_MOUSE_LMB_DRAG);
     layout->separator(-0.2f);
     layout->label(IFACE_("Swap Areas"), ICON_NONE);
@@ -197,10 +197,10 @@ static bool uiTemplateInputStatusBorder(wmWindow *win, Layout *row)
   const int pad = int((3.0f * UI_SCALE_FAC) + U.pixelsize);
   WM_window_screen_rect_calc(win, &win_rect);
   BLI_rcti_pad(&win_rect, pad * -2, pad);
-  if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
+  if (BLI_rcti_isect_pt_v(&win_rect, win->runtime->eventstate->xy)) {
     /* Show options but not along left and right edges. */
     BLI_rcti_pad(&win_rect, 0, pad * -3);
-    if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
+    if (BLI_rcti_isect_pt_v(&win_rect, win->runtime->eventstate->xy)) {
       /* No resize at top and bottom. */
       row->label(nullptr, ICON_MOUSE_LMB_DRAG);
       row->separator(-0.2f);
@@ -281,7 +281,7 @@ void uiTemplateInputStatus(Layout *layout, bContext *C)
         if (item.inverted) {
           but->drawflag |= BUT_ICON_INVERT;
         }
-        const float offset = ui_event_icon_offset(item.icon);
+        const float offset = event_icon_offset(item.icon);
         if (offset != 0.0f) {
           row.separator(offset);
         }
@@ -302,7 +302,7 @@ void uiTemplateInputStatus(Layout *layout, bContext *C)
     /* Check if over an action zone. */
     LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
       LISTBASE_FOREACH (AZone *, az, &area_iter->actionzones) {
-        if (BLI_rcti_isect_pt_v(&az->rect, win->eventstate->xy)) {
+        if (BLI_rcti_isect_pt_v(&az->rect, win->runtime->eventstate->xy)) {
           region = az->region;
           if (uiTemplateInputStatusAzone(&row, az, region)) {
             return;
@@ -313,11 +313,11 @@ void uiTemplateInputStatus(Layout *layout, bContext *C)
     }
   }
 
-  ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, win->eventstate->xy);
+  ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, win->runtime->eventstate->xy);
   if (!area) {
     /* Are we in a global area? */
     LISTBASE_FOREACH (ScrArea *, global_area, &win->global_areas.areabase) {
-      if (BLI_rcti_isect_pt_v(&global_area->totrct, win->eventstate->xy)) {
+      if (BLI_rcti_isect_pt_v(&global_area->totrct, win->runtime->eventstate->xy)) {
         area = global_area;
         break;
       }
@@ -439,7 +439,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       row.op("EXTENSIONS_OT_userpref_show_for_update", "", ICON_ERROR);
       Button *but = layout->block()->buttons.last().get();
       uchar color[4];
-      GetThemeColor4ubv(TH_TEXT, color);
+      theme::get_color_4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
 
       BLI_str_format_integer_unit(but->icon_overlay_text.text, wm->extensions_blocked);
@@ -464,7 +464,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
         row.op("EXTENSIONS_OT_userpref_show_online", "", ICON_INTERNET_OFFLINE);
         Button *but = layout->block()->buttons.last().get();
         uchar color[4];
-        GetThemeColor4ubv(TH_TEXT, color);
+        theme::get_color_4ubv(TH_TEXT, color);
         copy_v4_v4_uchar(but->col, color);
       }
 
@@ -488,7 +488,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       row.op("EXTENSIONS_OT_userpref_show_for_update", "", icon);
       Button *but = layout->block()->buttons.last().get();
       uchar color[4];
-      GetThemeColor4ubv(TH_TEXT, color);
+      theme::get_color_4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
 
       if (wm->extensions_updates > 0) {
@@ -553,7 +553,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
 
   /* Background for icon. */
   Button *but = uiDefBut(block,
-                         ButType::Roundbox,
+                         ButtonType::Roundbox,
                          "",
                          0,
                          0,
@@ -563,13 +563,13 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
                          0.0f,
                          0.0f,
                          "");
-  /*# ButType::Roundbox's background color is set in `but->col`. */
-  GetThemeColor4ubv(TH_WARNING, but->col);
+  /*# ButtonType::Roundbox's background color is set in `but->col`. */
+  theme::get_color_4ubv(TH_WARNING, but->col);
 
   if (!warning_message.empty()) {
     /* Background for the rest of the message. */
     but = uiDefBut(block,
-                   ButType::Roundbox,
+                   ButtonType::Roundbox,
                    "",
                    UI_UNIT_X + (6 * UI_SCALE_FAC),
                    0,
@@ -581,7 +581,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
                    "");
 
     /* Use icon background at low opacity to highlight, but still contrasting with area TH_TEXT. */
-    GetThemeColor4ubv(TH_WARNING, but->col);
+    theme::get_color_4ubv(TH_WARNING, but->col);
     but->col[3] = 64;
   }
 
@@ -590,7 +590,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
 
   /* The warning icon itself. */
   but = uiDefIconBut(block,
-                     ButType::But,
+                     ButtonType::But,
                      ICON_ERROR,
                      int(3 * UI_SCALE_FAC),
                      0,
@@ -601,13 +601,13 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
                      0.0f,
                      std::nullopt);
   button_func_tooltip_set(but, ui_template_status_tooltip, nullptr, nullptr);
-  GetThemeColorType4ubv(TH_INFO_WARNING_TEXT, SPACE_INFO, but->col);
+  theme::get_color_type_4ubv(TH_INFO_WARNING_TEXT, SPACE_INFO, but->col);
   but->col[3] = 255; /* This theme color is RBG only, so have to set alpha here. */
 
   /* The warning message, if any. */
   if (!warning_message.empty()) {
     but = uiDefBut(block,
-                   ButType::But,
+                   ButtonType::But,
                    warning_message.c_str(),
                    UI_UNIT_X,
                    0,

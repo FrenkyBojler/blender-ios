@@ -6,7 +6,6 @@
  * \ingroup spimage
  */
 
-#include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_image_types.h"
 #include "DNA_mask_types.h"
@@ -102,13 +101,14 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   ARegion *region;
   SpaceImage *simage;
 
-  simage = MEM_callocN<SpaceImage>("initimage");
+  simage = MEM_new_for_free<SpaceImage>("initimage");
   simage->spacetype = SPACE_IMAGE;
   simage->zoom = 1.0f;
   simage->lock = true;
   simage->flag = SI_SHOW_GPENCIL | SI_USE_ALPHA | SI_COORDFLOATS;
   simage->uv_opacity = 1.0f;
   simage->uv_face_opacity = 1.0f;
+  simage->uv_edge_opacity = 1.0f;
   simage->stretch_opacity = 1.0f;
   simage->overlay.flag = SI_OVERLAY_SHOW_OVERLAYS | SI_OVERLAY_SHOW_GRID_BACKGROUND;
   simage->overlay.passepartout_alpha = 0.5f;
@@ -125,7 +125,7 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   simage->custom_grid_subdiv[0] = 10;
   simage->custom_grid_subdiv[1] = 10;
 
-  simage->mask_info = *DNA_struct_default_get(MaskSpaceInfo);
+  simage->mask_info = MaskSpaceInfo();
 
   /* header */
   region = BKE_area_region_new();
@@ -1031,8 +1031,8 @@ static void image_tools_header_region_draw(const bContext *C, ARegion *region)
       C,
       region,
       (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) ?
-          blender::ui::uiButtonSectionsAlign::Top :
-          blender::ui::uiButtonSectionsAlign::Bottom);
+          blender::ui::ButtonSectionsAlign::Top :
+          blender::ui::ButtonSectionsAlign::Bottom);
 }
 
 /************************* header region **************************/

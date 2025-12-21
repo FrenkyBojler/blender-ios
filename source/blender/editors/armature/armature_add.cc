@@ -63,7 +63,7 @@ using blender::Vector;
 
 EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
 {
-  EditBone *bone = MEM_callocN<EditBone>("eBone");
+  EditBone *bone = MEM_new_for_free<EditBone>("eBone");
 
   STRNCPY_UTF8(bone->name, name);
   ED_armature_ebone_unique_name(arm->edbo, bone->name, nullptr);
@@ -570,18 +570,6 @@ static void update_duplicate_action_constraint_settings(
           bezt->vec[2][1] *= -1;
         }
       }
-
-      if (action.is_action_legacy()) {
-        /* Make sure that a action group name for the new bone exists */
-        bActionGroup *agrp = BKE_action_group_find_name(act, dup_bone->name);
-        if (agrp == nullptr) {
-          agrp = action_groups_add_new(act, dup_bone->name);
-        }
-        BLI_assert(agrp != nullptr);
-        action_groups_add_channel(act, agrp, new_curve);
-        continue;
-      }
-
       BLI_assert_msg(cbag, "If there are F-Curves for this slot, there should be a channelbag");
       bActionGroup &agrp = cbag->channel_group_ensure(dup_bone->name);
       cbag->fcurve_append(*new_curve);
@@ -1084,7 +1072,7 @@ void ED_armature_ebone_copy(EditBone *dest, const EditBone *source)
 EditBone *duplicateEditBoneObjects(
     EditBone *cur_bone, const char *name, ListBase *editbones, Object *src_ob, Object *dst_ob)
 {
-  EditBone *e_bone = MEM_mallocN<EditBone>("addup_editbone");
+  EditBone *e_bone = MEM_new_for_free<EditBone>("addup_editbone");
 
   /* Copy data from old bone to new bone */
   ED_armature_ebone_copy(e_bone, cur_bone);
@@ -1653,7 +1641,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
           }
 
           totbone++;
-          newbone = MEM_callocN<EditBone>("extrudebone");
+          newbone = MEM_new_for_free<EditBone>("extrudebone");
 
           if (do_extrude == TIP_EXTRUDE) {
             copy_v3_v3(newbone->head, ebone->tail);
@@ -1903,8 +1891,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
       float val2[3];
       float val3[3];
 
-      newbone = MEM_mallocN<EditBone>("ebone subdiv");
-      *newbone = *ebone;
+      newbone = MEM_new_for_free<EditBone>("ebone subdiv", *ebone);
       BLI_addtail(arm->edbo, newbone);
 
       /* calculate location of newbone->head */

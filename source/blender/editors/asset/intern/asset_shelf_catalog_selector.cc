@@ -61,9 +61,9 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
   void build_tree() override
   {
     if (catalog_tree_.is_empty()) {
-      auto &item = add_tree_item<ui::BasicTreeViewItem>(RPT_("No applicable assets found"),
-                                                        ICON_INFO);
+      auto &item = add_tree_item<ui::BasicTreeViewItem>(RPT_("No asset catalogs"), ICON_INFO);
       item.disable_interaction();
+      this->is_flat_ = true;
       return;
     }
 
@@ -149,7 +149,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
       ui::block_layout_set_current(block, &row);
 
       ui::Button *toggle_but = uiDefButC(block,
-                                         blender::ui::ButType::Checkbox,
+                                         blender::ui::ButtonType::Checkbox,
                                          "",
                                          0,
                                          0,

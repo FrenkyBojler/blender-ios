@@ -487,6 +487,18 @@ bool stroke_get_location_bvh(Depsgraph &depsgraph,
                              const float mval[2],
                              bool force_original);
 
+struct ActiveElementInfo {
+  ActiveVert vert = {};
+  int active_face_idx = -1;
+  int active_grid_idx = -1;
+};
+
+/**
+ * Retrieve the active vertex and active grid or face index.
+ *
+ * \note This API assumes that we are only interested in the current bounds of the BVH tree. */
+std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const float2 &mval);
+
 struct CursorGeometryInfo {
   float3 location;
   float3 normal;
@@ -950,8 +962,11 @@ void SCULPT_OT_face_set_polyline_gesture(wmOperatorType *ot);
 namespace blender::ed::sculpt_paint {
 
 void SCULPT_OT_set_pivot_position(wmOperatorType *ot);
+void SCULPT_OT_paint_mask_extract(wmOperatorType *ot);
+void SCULPT_OT_face_set_extract(wmOperatorType *ot);
+void SCULPT_OT_paint_mask_slice(wmOperatorType *ot);
 
-}
+}  // namespace blender::ed::sculpt_paint
 
 namespace blender::ed::sculpt_paint::filter {
 

@@ -93,8 +93,12 @@ void AbstractViewItem::activate_for_context_menu(bContext &C)
 
 void AbstractViewItem::deactivate()
 {
+  if (is_active_) {
+    /* Deselect only active item, otherwise selection state before active item is cleared, see:
+     * !150891 */
+    is_selected_ = false;
+  }
   is_active_ = false;
-  is_selected_ = false;
 }
 
 std::optional<bool> AbstractViewItem::should_be_selected() const
@@ -196,10 +200,10 @@ void AbstractViewItem::end_renaming()
 static AbstractViewItem *find_item_from_rename_button(const Button &rename_but)
 {
   /* A minimal sanity check, can't do much more here. */
-  BLI_assert(rename_but.type == ButType::Text && rename_but.poin);
+  BLI_assert(rename_but.type == ButtonType::Text && rename_but.poin);
 
   for (const std::unique_ptr<Button> &but : rename_but.block->buttons) {
-    if (but->type != ButType::ViewItem) {
+    if (but->type != ButtonType::ViewItem) {
       continue;
     }
 
@@ -227,7 +231,7 @@ void AbstractViewItem::add_rename_button(Block &block)
 {
   AbstractView &view = this->get_view();
   Button *rename_but = uiDefBut(&block,
-                                ButType::Text,
+                                ButtonType::Text,
                                 "",
                                 0,
                                 0,
@@ -428,7 +432,7 @@ bool view_item_matches(const AbstractViewItem &a, const AbstractViewItem &b)
   return ViewItemAPIWrapper::matches(a, b);
 }
 
-void ui_view_item_swap_button_pointers(AbstractViewItem &a, AbstractViewItem &b)
+void view_item_swap_button_pointers(AbstractViewItem &a, AbstractViewItem &b)
 {
   ViewItemAPIWrapper::swap_button_pointers(a, b);
 }

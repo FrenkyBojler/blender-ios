@@ -285,7 +285,7 @@ std::string WM_operator_pystring_ex(bContext *C,
       PointerRNA *opmptr = opm->ptr;
       PointerRNA opmptr_default;
       if (opmptr == nullptr) {
-        WM_operator_properties_create_ptr(&opmptr_default, opm->type);
+        opmptr_default = WM_operator_properties_create_ptr(opm->type);
         opmptr = &opmptr_default;
       }
 
@@ -309,7 +309,7 @@ std::string WM_operator_pystring_ex(bContext *C,
     const bool macro_args_test = ot->macro.first ? macro_args : true;
 
     if (opptr == nullptr) {
-      WM_operator_properties_create_ptr(&opptr_default, ot);
+      opptr_default = WM_operator_properties_create_ptr(ot);
       opptr = &opptr_default;
     }
 
@@ -738,24 +738,22 @@ std::optional<std::string> WM_prop_pystring_assign(bContext *C,
   return ret;
 }
 
-void WM_operator_properties_create_ptr(PointerRNA *ptr, wmOperatorType *ot)
+PointerRNA WM_operator_properties_create_ptr(wmOperatorType *ot)
 {
   /* Set the ID so the context can be accessed: see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
-  *ptr = RNA_pointer_create_discrete(static_cast<ID *>(G_MAIN->wm.first), ot->srna, nullptr);
+  return RNA_pointer_create_discrete(static_cast<ID *>(G_MAIN->wm.first), ot->srna, nullptr);
 }
 
-void WM_operator_properties_create(PointerRNA *ptr, const char *opstring)
+PointerRNA WM_operator_properties_create(const char *opstring)
 {
   wmOperatorType *ot = WM_operatortype_find(opstring, false);
 
   if (ot) {
-    WM_operator_properties_create_ptr(ptr, ot);
+    return WM_operator_properties_create_ptr(ot);
   }
-  else {
-    /* Set the ID so the context can be accessed: see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
-    *ptr = RNA_pointer_create_discrete(
-        static_cast<ID *>(G_MAIN->wm.first), &RNA_OperatorProperties, nullptr);
-  }
+  /* Set the ID so the context can be accessed: see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
+  return RNA_pointer_create_discrete(
+      static_cast<ID *>(G_MAIN->wm.first), &RNA_OperatorProperties, nullptr);
 }
 
 void WM_operator_properties_alloc(PointerRNA **ptr, IDProperty **properties, const char *opstring)
@@ -771,8 +769,7 @@ void WM_operator_properties_alloc(PointerRNA **ptr, IDProperty **properties, con
   }
 
   if (*ptr == nullptr) {
-    *ptr = MEM_new<PointerRNA>("wmOpItemPtr");
-    WM_operator_properties_create(*ptr, opstring);
+    *ptr = MEM_new<PointerRNA>("wmOpItemPtr", WM_operator_properties_create(opstring));
   }
 
   (*ptr)->data = *properties;
@@ -1180,7 +1177,7 @@ static blender::ui::Block *wm_enum_search_menu(bContext *C, ARegion *region, voi
 
   /* Fake button, it holds space for search items. */
   uiDefBut(block,
-           blender::ui::ButType::Label,
+           blender::ui::ButtonType::Label,
            "",
            0,
            -height,
@@ -1505,10 +1502,10 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
   }
 
   blender::ui::Block *block = static_cast<blender::ui::Block *>(arg2);
-  /* Explicitly set UI_RETURN_OK flag, otherwise the menu might be canceled
+  /* Explicitly set RETURN_OK flag, otherwise the menu might be canceled
    * in case WM_operator_call_ex exits/reloads the current file (#49199). */
 
-  popup_menu_retval_set(block, blender::ui::UI_RETURN_OK, true);
+  popup_menu_retval_set(block, blender::ui::RETURN_OK, true);
 
   /* Get context data *after* WM_operator_call_ex
    * which might have closed the current file and changed context. */
@@ -1525,7 +1522,7 @@ static void dialog_cancel_cb(bContext *C, void *arg1, void *arg2)
 {
   wm_operator_ui_popup_cancel(C, arg1);
   blender::ui::Block *block = static_cast<blender::ui::Block *>(arg2);
-  popup_menu_retval_set(block, blender::ui::UI_RETURN_CANCEL, true);
+  popup_menu_retval_set(block, blender::ui::RETURN_CANCEL, true);
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, block);
 }
@@ -1645,7 +1642,7 @@ static blender::ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, 
 
     if (windows_layout) {
       confirm_but = uiDefBut(col_block,
-                             blender::ui::ButType::But,
+                             blender::ui::ButtonType::But,
                              data->confirm_text.c_str(),
                              0,
                              0,
@@ -1659,7 +1656,7 @@ static blender::ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, 
     }
 
     cancel_but = uiDefBut(col_block,
-                          blender::ui::ButType::But,
+                          blender::ui::ButtonType::But,
                           IFACE_("Cancel"),
                           0,
                           0,
@@ -1673,7 +1670,7 @@ static blender::ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, 
     if (!windows_layout) {
       split.column(false);
       confirm_but = uiDefBut(col_block,
-                             blender::ui::ButType::But,
+                             blender::ui::ButtonType::But,
                              data->confirm_text.c_str(),
                              0,
                              0,
@@ -2064,7 +2061,7 @@ static blender::ui::Block *wm_block_search_menu(bContext *C, ARegion *region, vo
   }
   else if (init_data->search_type == SEARCH_TYPE_SINGLE_MENU) {
     button_func_menu_search(but, init_data->single_menu_idname.c_str());
-    button_flag2_enable(but, blender::ui::UI_BUT2_ACTIVATE_ON_INIT_NO_SELECT);
+    button_flag2_enable(but, blender::ui::BUT2_ACTIVATE_ON_INIT_NO_SELECT);
   }
   else {
     BLI_assert_unreachable();
@@ -2075,7 +2072,7 @@ static blender::ui::Block *wm_block_search_menu(bContext *C, ARegion *region, vo
   /* Fake button, it holds space for search items. */
   const int height = init_data->size[1] - UI_SEARCHBOX_BOUNDS;
   uiDefBut(block,
-           blender::ui::ButType::Label,
+           blender::ui::ButtonType::Label,
            "",
            0,
            -height,
@@ -2250,7 +2247,7 @@ static wmOperatorStatus wm_call_pie_menu_exec(bContext *C, wmOperator *op)
   char idname[BKE_ST_MAXNAME];
   RNA_string_get(op->ptr, "name", idname);
 
-  return blender::ui::pie_menu_invoke(C, idname, CTX_wm_window(C)->eventstate);
+  return blender::ui::pie_menu_invoke(C, idname, CTX_wm_window(C)->runtime->eventstate);
 }
 
 static void WM_OT_call_menu_pie(wmOperatorType *ot)
@@ -2964,7 +2961,7 @@ static void radial_control_paint_cursor(bContext * /*C*/,
   immUnbindProgram();
 
   BLF_size(fontid, 1.75f * fstyle_points * UI_SCALE_FAC);
-  blender::ui::GetThemeColor4fv(TH_TEXT_HI, text_color);
+  blender::ui::theme::get_color_4fv(TH_TEXT_HI, text_color);
   BLF_color4fv(fontid, text_color);
 
   /* Draw value. */
@@ -4159,11 +4156,10 @@ static void WM_OT_previews_clear(wmOperatorType *ot)
 
 static wmOperatorStatus doc_view_manual_ui_context_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr_props;
   wmOperatorStatus retval = OPERATOR_CANCELLED;
 
   if (std::optional<std::string> manual_id = blender::ui::button_online_manual_id_from_active(C)) {
-    WM_operator_properties_create(&ptr_props, "WM_OT_doc_view_manual");
+    PointerRNA ptr_props = WM_operator_properties_create("WM_OT_doc_view_manual");
     RNA_string_set(&ptr_props, "doc_id", manual_id.value().c_str());
 
     retval = WM_operator_name_call_ptr(C,
@@ -4421,6 +4417,7 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "SCREEN_OT_box_select");
 #endif
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_select_box");
+  WM_modalkeymap_assign(keymap, "SEQUENCER_OT_box_blade");
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_view_ghost_border");
   WM_modalkeymap_assign(keymap, "UV_OT_select_box");
   WM_modalkeymap_assign(keymap, "UV_OT_custom_region_set");
