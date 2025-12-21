@@ -39,6 +39,7 @@ set(SRC
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
   nodes/node_geo_closure.cc
+  nodes/node_geo_cluster_field.cc
   nodes/node_geo_collection_info.cc
   nodes/node_geo_combine_bundle.cc
   nodes/node_geo_common.cc
@@ -165,6 +166,7 @@ set(SRC
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
   nodes/node_geo_merge_by_distance.cc
+  nodes/node_geo_merge_geometry.cc
   nodes/node_geo_merge_layers.cc
   nodes/node_geo_mesh_face_group_boundaries.cc
   nodes/node_geo_mesh_primitive_circle.cc

@@ -273,6 +273,7 @@ class NODE_MT_gn_geometry_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeDeleteGeometry")
         self.node_operator(layout, "GeometryNodeDuplicateElements")
         self.node_operator(layout, "GeometryNodeMergeByDistance")
+        self.node_operator(layout, "GeometryNodeMergeGeometry")
         self.node_operator(layout, "GeometryNodeSortElements")
         self.node_operator(layout, "GeometryNodeTransform", search_weight=1.0)
         layout.separator()
@@ -727,6 +728,7 @@ class NODE_MT_gn_utilities_field_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeAccumulateField")
+        self.node_operator(layout, "GeometryNodeClusterField")
         self.node_operator(layout, "GeometryNodeFieldAtIndex")
         self.node_operator(layout, "GeometryNodeFieldOnDomain")
         self.node_operator(layout, "GeometryNodeFieldAverage")

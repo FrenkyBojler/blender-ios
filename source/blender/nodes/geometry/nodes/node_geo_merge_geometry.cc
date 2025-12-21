@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -11,23 +11,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_merge_by_distance_cc {
-
-NODE_STORAGE_FUNCS(NodeGeometryMergeByDistance)
-
-static EnumPropertyItem mode_items[] = {
-    {GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL,
-     "ALL",
-     0,
-     N_("All"),
-     N_("Merge all close selected points, whether or not they are connected")},
-    {GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED,
-     "CONNECTED",
-     0,
-     N_("Connected"),
-     N_("Only merge mesh vertices along existing edges. This method can be much faster")},
-    {0, nullptr, 0, nullptr, nullptr},
-};
+namespace blender::nodes::node_geo_merge_geometry_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -37,15 +21,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Mesh})
       .description("Point cloud or mesh to merge points of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_input<decl::Bool>("Merge ID").hide_value().field_on_all();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Menu>("Mode").static_items(mode_items).optional_label();
-  b.add_input<decl::Float>("Distance").default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
-}
-
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  /* Still used for forward compatibility. */
-  node->storage = MEM_new_for_free<NodeGeometryMergeByDistance>(__func__);
 }
 
 static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,
@@ -137,21 +114,13 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMergeByDistance", GEO_NODE_MERGE_BY_DISTANCE);
-  ntype.ui_name = "Merge by Distance";
-  ntype.ui_description = "Merge vertices or points within a given distance";
-  ntype.enum_name_legacy = "MERGE_BY_DISTANCE";
-  ntype.deprecation_notice = N_("Use the \"Merge Geometry\" node instead");
+  geo_node_type_base(&ntype, "GeometryNodeMergeGeometry");
+  ntype.ui_name = "Merge Geometry";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryMergeByDistance",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_merge_by_distance_cc
+}  // namespace blender::nodes::node_geo_merge_geometry_cc
