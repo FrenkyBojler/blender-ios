@@ -2883,7 +2883,8 @@ struct CryptomatteLayer {
 struct NodeCryptomatte_Runtime {
   DNA_DEFINE_CXX_METHODS(NodeCryptomatte_Runtime)
 
-  ListBaseT<CryptomatteLayer> layers = {nullptr, nullptr};
+  /** Contains #CryptomatteLayer. */
+  ListBase layers = {nullptr, nullptr};
   /** Temp storage for the crypto-matte picker. */
   float add[3] = {1.0f, 1.0f, 1.0f};
   float remove[3] = {1.0f, 1.0f, 1.0f};
@@ -2899,7 +2900,8 @@ struct NodeCryptomatte {
    */
   ImageUser iuser;
 
-  ListBaseT<CryptomatteEntry> entries = {nullptr, nullptr};
+  /** Contains #CryptomatteEntry. */
+  ListBase entries = {nullptr, nullptr};
 
   char layer_name[/*MAX_NAME*/ 64] = "";
   /** Stores `entries` as a string for opening in 2.80-2.91. */
