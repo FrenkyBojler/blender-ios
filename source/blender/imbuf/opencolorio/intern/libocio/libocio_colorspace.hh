@@ -58,7 +58,7 @@ class LibOCIOColorSpace : public ColorSpace {
   {
     return interop_id_;
   }
-  bool is_primary_interop_id() const override
+  bool is_primary_interop_id() const override;
 
   StringRefNull icc_profile_name() const override
   {
