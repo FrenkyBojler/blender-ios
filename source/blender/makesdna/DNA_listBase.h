@@ -35,6 +35,8 @@ struct ListBase {
   void *first, *last;
 };
 
+#ifdef __cplusplus
+
 /**
  * This is a thin wrapper around #ListBase to make it type-safe. It's designed to be used in DNA
  * structs. It is written as untyped #ListBase in .blend files for compatibility.
@@ -62,5 +64,7 @@ template<typename T> struct ListBaseT : public ListBase {
     return ListBaseTIterator<T>{nullptr};
   }
 };
+
+#endif
 
 /* 8 byte alignment! */
