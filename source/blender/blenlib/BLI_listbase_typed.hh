@@ -76,7 +76,8 @@ template<typename T> struct ListBaseT : public ListBase {
 
   ListBaseTIterator<const T> end() const
   {
-    return ListBaseTIterator<const T>{static_cast<const T *>(this->last)};
+    /* Don't use `this->last` because this iterator has to point to one-past-the-end. */
+    return ListBaseTIterator<const T>{nullptr};
   }
 
   ListBaseTIterator<T> begin()
@@ -86,6 +87,7 @@ template<typename T> struct ListBaseT : public ListBase {
 
   ListBaseTIterator<T> end()
   {
-    return ListBaseTIterator<T>{static_cast<T *>(this->last)};
+    /* Don't use `this->last` because this iterator has to point to one-past-the-end. */
+    return ListBaseTIterator<T>{nullptr};
   }
 };
