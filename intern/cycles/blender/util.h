@@ -187,7 +187,7 @@ static inline void curvemapping_minmax(const ::CurveMapping &cumap,
   *min_x = FLT_MAX;
   *max_x = -FLT_MAX;
   for (int i = 0; i < num_curves; ++i) {
-    const ::CurveMap map(cumap.cm[i]);
+    const ::CurveMap &map(cumap.cm[i]);
     curvemap_minmax_curve(map, min_x, max_x);
   }
 }
@@ -630,7 +630,7 @@ static inline uint object_motion_steps(::Object &b_parent,
   /* Also check parent object, so motion blur and steps can be
    * controlled by dupli-group duplicator for linked groups. */
   if (&b_parent != &b_ob) {
-    PointerRNA parent_rna_ptr = RNA_id_pointer_create(&b_ob.id);
+    PointerRNA parent_rna_ptr = RNA_id_pointer_create(&b_parent.id);
     PointerRNA parent_cobject = RNA_pointer_get(&parent_rna_ptr, "cycles");
     use_motion &= get_boolean(parent_cobject, "use_motion_blur");
 
