@@ -19,6 +19,8 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
+#include "BLI_listbase_typed.hh"
+
 struct MovieClip;
 struct Scene;
 struct VFont;
@@ -416,9 +418,9 @@ struct Strip {
   struct Strip *input1 = nullptr, *input2 = nullptr;
 
   /** List of strips for meta-strips. */
-  ListBase seqbase = {nullptr, nullptr};
+  ListBaseT<Strip> seqbase = {nullptr, nullptr};
   /** List of channels for meta-strips. */
-  ListBase channels = {nullptr, nullptr}; /* SeqTimelineChannel */
+  ListBaseT<struct SeqTimelineChannel> channels = {nullptr, nullptr};
 
   /* List of strip connections (one-way, not bidirectional). */
   ListBase connections = {nullptr, nullptr}; /* StripConnection */
@@ -465,7 +467,7 @@ struct Strip {
   struct IDProperty *system_properties = nullptr;
 
   /* Modifiers */
-  ListBase modifiers = {nullptr, nullptr}; /* StripModifierData */
+  ListBaseT<struct StripModifierData> modifiers = {nullptr, nullptr};
 
   /* Playback rate of original video file in frames per second, for movie strips only. */
   float media_playback_rate = 0;

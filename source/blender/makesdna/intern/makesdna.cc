@@ -650,6 +650,7 @@ static int preprocess_include(char *maindata, const int maindata_len)
   int newlen = 0;
   bool skip_until_closing_brace = false;
   int square_bracket_level = 0;
+  int angle_bracket_level = 0;
   for (char *cp = temp; cp < temp + maindata_len; cp++) {
     if (cp[0] == '[') {
       square_bracket_level++;
@@ -699,11 +700,15 @@ static int preprocess_include(char *maindata, const int maindata_len)
       }
     }
     else if (cp[0] == 'T' && cp[1] == '<') {
-      skip_until_closing_angle = true;
+      angle_bracket_level = 1;
+      cp++;
     }
-    else if (skip_until_closing_angle) {
-      if (cp[0] == '>') {
-        skip_until_closing_angle = false;
+    else if (angle_bracket_level >= 1) {
+      if (cp[0] == '<') {
+        angle_bracket_level++;
+      }
+      else if (cp[0] == '>') {
+        angle_bracket_level--;
       }
     }
     else {
