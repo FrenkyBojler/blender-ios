@@ -308,7 +308,7 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void write_channelbag(BlendWriter *writer, animrig::Channelbag &channelbag)
 {
-  writer->write_struct<ActionChannelbag>(&channelbag);
+  writer->write_struct_cast<ActionChannelbag>(&channelbag);
 
   Span<bActionGroup *> groups = channelbag.channel_groups();
   BLO_write_pointer_array(writer, groups.size(), groups.data());
@@ -327,7 +327,7 @@ static void write_channelbag(BlendWriter *writer, animrig::Channelbag &channelba
 static void write_strip_keyframe_data(BlendWriter *writer,
                                       animrig::StripKeyframeData &strip_keyframe_data)
 {
-  writer->write_struct<ActionStripKeyframeData>(&strip_keyframe_data);
+  writer->write_struct_cast<ActionStripKeyframeData>(&strip_keyframe_data);
 
   auto channelbags = strip_keyframe_data.channelbags();
   BLO_write_pointer_array(writer, channelbags.size(), channelbags.data());
@@ -353,7 +353,7 @@ static void write_strips(BlendWriter *writer, Span<animrig::Strip *> strips)
   BLO_write_pointer_array(writer, strips.size(), strips.data());
 
   for (animrig::Strip *strip : strips) {
-    writer->write_struct<ActionStrip>(strip);
+    writer->write_struct_cast<ActionStrip>(strip);
   }
 }
 
@@ -362,7 +362,7 @@ static void write_layers(BlendWriter *writer, Span<animrig::Layer *> layers)
   BLO_write_pointer_array(writer, layers.size(), layers.data());
 
   for (animrig::Layer *layer : layers) {
-    writer->write_struct<ActionLayer>(layer);
+    writer->write_struct_cast<ActionLayer>(layer);
     write_strips(writer, layer->strips());
   }
 }
