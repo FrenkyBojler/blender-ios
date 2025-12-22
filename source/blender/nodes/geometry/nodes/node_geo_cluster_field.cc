@@ -87,17 +87,17 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       return default_no_clusters_to_out();
     }
 
-    KDTree_3d *tree = kdtree_3d_new(selection.size());
-    selection.foreach_index([&](const int i) { kdtree_3d_insert(tree, i, positions[i]); });
-    kdtree_3d_balance(tree);
+    KDTree<float3> *tree = kdtree_new<float3>(selection.size());
+    selection.foreach_index([&](const int i) { kdtree_insert<float3>(tree, i, positions[i]); });
+    kdtree_balance<float3>(tree);
 
     constexpr int no_cluster_value = -1;
     Array<int> gathered_cluster_ids(selection.min_array_size(), no_cluster_value);
     /* If #selection was not full then #gathered_cluster_ids will point to position in #selection,
      * but not to value. */
-    const int total_merge_ops = kdtree_3d_calc_duplicates_fast(
+    const int total_merge_ops = kdtree_calc_duplicates_fast<float3>(
         tree, distance_, true, gathered_cluster_ids.data());
-    kdtree_3d_free(tree);
+    kdtree_free<float3>(tree);
 
     if (total_merge_ops == 0) {
       return default_no_clusters_to_out();
@@ -108,19 +108,21 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     const IndexRange requered_selection = IndexRange::from_begin_end_inclusive(
         0, last_reqered_gathered_index);
     const IndexMask requered_selection_mask = selection.slice(requered_selection);
-    threading::parallel_for(requered_selection, 1024, [&](const IndexRange range) {
-      for (const int i : range) {
-        if (gathered_cluster_ids[i] == no_cluster_value) {
-          gathered_cluster_ids[i] = i;
-        }
-      }
-    });
+    threading::parallel_for(
+        IndexRange(requered_selection_mask.min_array_size()), 1024, [&](const IndexRange range) {
+          for (const int i : range) {
+            if (gathered_cluster_ids[i] == no_cluster_value) {
+              gathered_cluster_ids[i] = i;
+            }
+          }
+        });
 
     Array<int> cluster_ids(mask.min_array_size());
     array_utils::fill_index_range(cluster_ids.as_mutable_span());
-    array_utils::copy(gathered_cluster_ids.as_span().take_front(last_reqered_gathered_index + 1),
-                      selection.slice(requered_selection),
-                      cluster_ids.as_mutable_span().take_front(last_reqered_gathered_index + 1));
+    array_utils::copy(
+        gathered_cluster_ids.as_span().take_front(requered_selection_mask.min_array_size()),
+        requered_selection_mask,
+        cluster_ids.as_mutable_span().take_front(requered_selection_mask.min_array_size()));
 
     BLI_assert(!cluster_ids.as_span().contains(no_cluster_value));
     return VArray<int>::from_container(std::move(cluster_ids));
