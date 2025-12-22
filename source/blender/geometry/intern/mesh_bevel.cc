@@ -2570,8 +2570,16 @@ static inline int f_anchor_div(int r, int nv, int ns)
 {
   int ring = vertex_ring(v, nv, ns);
   int ring_offset = v - v_ringstart(ring, nv, ns);
-  int anchor_index = ring_offset / v_anchor_div(ring, nv, ns);
-  int offset = ring_offset % v_anchor_div(ring, nv, ns);
+  int div = v_anchor_div(ring, nv, ns);
+  int anchor_index, offset;
+  if (div == 0) {
+    anchor_index = 0;
+    offset = 0;
+  }
+  else {
+    anchor_index = ring_offset / div;
+    offset = ring_offset % div;
+  }
   return int3(ring, anchor_index, offset);
 }
 
@@ -2579,8 +2587,16 @@ static int3 f_ring_anchor_offset(int f, int nv, int ns)
 {
   int ring = face_ring(f, nv, ns);
   int ring_offset = f - f_ringstart(ring, nv, ns);
-  int anchor_index = ring_offset / f_anchor_div(ring, nv, ns);
-  int offset = ring_offset % f_anchor_div(ring, nv, ns);
+  int anchor_index, offset;
+  int div = f_anchor_div(ring, nv, ns);
+  if (div == 0) {
+    anchor_index = 0;
+    offset = 0;
+  }
+  else {
+    anchor_index = ring_offset / div;
+    offset = ring_offset % div;
+  }
   return int3(ring, anchor_index, offset);
 }
 
@@ -3359,6 +3375,39 @@ static int find_center_face_rep(const int bv, const bool for_interp, const Bevel
 
 namespace uv {
 
+/** Return an array of the faces that go between the first and last edges at anchors[0]
+ * and also for anchor[1], as long as each is not -1. If both are -1, return all the faces
+ * around bv. */
+static SmallIntArray mesh_faces_for_anchors(const int bv, const int2 anchors, const BevelState &bs)
+{
+  const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
+  Vector<int, 20> faces;
+  for (const int anchor_i : IndexRange(2)) {
+    const int anchor = anchors[anchor_i];
+    if (anchor == -1) {
+      continue;
+    }
+    const int next_anchor = pat.next_anchor(anchor);
+    const int2 edge_poses = bs.anchor_bevedge_positions(bv, anchor);
+    const int2 edge_poses_next = bs.anchor_bevedge_positions(bv, next_anchor);
+
+    int pos = edge_poses[0];
+    do {
+      const int f = bs.face_next(bv, pos);
+      if (f != -1) {
+        faces.append(f);
+      }
+      pos = bs.next_edge_pos(bv, pos);
+    } while (pos != edge_poses_next[0]);
+  }
+  if (faces.size() == 0) {
+    SmallIntArray ans(bs.bevvert_faces()[bv]);
+    return ans;
+  }
+  SmallIntArray ans(faces.as_span());
+  return ans;
+}
+
 /** Return true if all uv's in the given uv_map are contiguous at bevvert \a bv.
  * If \a uv_map_index is -1, return true if all uv_maps are contiguous there.  */
 [[maybe_unused]] static bool bevvert_is_uv_contiguous(const int bv,
@@ -3601,6 +3650,11 @@ static void calculate_adj_face_uvs(const int f,
   const IndexRange newface_corners_range = bs.newface_faces_face()[newfaces[f]];
   const Span<int> fverts = bs.newcorner_verts().slice(newface_corners_range);
   const int num_fverts = fverts.size();
+  const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
+  int2 anchor_owner = pat.face_anchor_owner(f);
+  fmt::println("anchor_owner= {}, {}", anchor_owner[0], anchor_owner[1]);
+  SmallIntArray possible_over_faces = mesh_faces_for_anchors(bv, anchor_owner, bs);
+  print_span(possible_over_faces.as_span(), "possible_over_faces");
   SmallIntArray over_face(num_fverts);
   SmallIntArray alt_over_face(num_fverts);
   Array<float3, 20> over_pos(num_fverts);
@@ -3608,7 +3662,7 @@ static void calculate_adj_face_uvs(const int f,
   for (const int i : fverts.index_range()) {
     const float3 pos = bs.newvert_positions()[fverts[i]];
     find_over_faces(pos,
-                    bs.bevvert_faces()[bv],
+                    possible_over_faces,
                     bs,
                     &over_face[i],
                     &over_pos[i],
@@ -3919,6 +3973,7 @@ int MeshPattern::vert_to_anchor(const int v) const
     case MeshKind::Cutoff:
       /* TODO */
       BLI_assert(false);
+      break;
     default:
       ans = -1;
       break;
@@ -4184,7 +4239,7 @@ AdjVertKind MeshPattern::adj_vert_kind(const int v, const int anchor) const
   }
 }
 
-/** Return the ancho or anchorsr that owns (is nearest to) \a f  (in pattern space).
+/** Return the anchor or anchors that owns (is nearest to) \a f  (in pattern space).
  * For faces on the mid-strip (when odd segments), return both anchors on either
  * side of the mid-strip, otherwise put -1 in the second component of the answer.
  * For the center polygon (when odd segments), return (-1, -1)..
@@ -4210,45 +4265,6 @@ int2 MeshPattern::face_anchor_owner(const int f) const
     return int2(a, next_anchor(a));
   }
   return offset < floor_ring_side_2 ? int2(a, -1) : int2(next_anchor(a), 1);
-}
-
-/** Return an array of the faces that go between the first and last edges at \a anchor.
- * If \a include_prev_and_next is true, also include the faces just before and just after the
- * anchor. */
-static SmallIntArray faces_to_next_anchor(const int bv,
-                                          const int anchor,
-                                          const bool include_prev_and_next,
-                                          const BevelState &bs)
-{
-  const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
-  const int next_anchor = pat.next_anchor(anchor);
-  const int prev_anchor = pat.prev_anchor(anchor);
-  const int2 edge_poses = bs.anchor_bevedge_positions(bv, anchor);
-  const int2 edge_poses_prev = bs.anchor_bevedge_positions(bv, prev_anchor);
-  const int2 edge_poses_next = bs.anchor_bevedge_positions(bv, next_anchor);
-  Vector<int, 20> faces;
-  if (include_prev_and_next) {
-    const int f = bs.face_prev(bv, edge_poses_prev[1]);
-    if (f != -1) {
-      faces.append(f);
-    }
-  }
-  int pos = edge_poses[0];
-  do {
-    const int f = bs.face_next(bv, pos);
-    if (f != -1) {
-      faces.append(f);
-    }
-    pos = bs.next_edge_pos(bv, pos);
-  } while (pos != edge_poses_next[1]);
-  if (include_prev_and_next) {
-    const int f = bs.face_next(bv, edge_poses_next[1]);
-    if (f != -1) {
-      faces.append(f);
-    }
-  }
-  SmallIntArray ans(faces.as_span());
-  return ans;
 }
 
 /** Return a 4-tuple with the number of vertices, edges, faces, corners needed for edge mesh. */
