@@ -72,8 +72,8 @@ static FT_Library ft_lib = nullptr;
 static FTC_Manager ftc_manager = nullptr;
 static FTC_CMapCache ftc_charmap_cache = nullptr;
 
-/* Lock for FreeType library, used around face creation and deletion. */
-static blender::Mutex ft_lib_mutex;
+/* Mutex around face creation and deletion. */
+static blender::Mutex ft_face_load_mutex;
 
 /* Lock around places that query free type caching system, and use the
  * calculated ft_size result. `FTC_Manager_LookupSize` can remove
@@ -117,7 +117,7 @@ static FT_Error blf_cache_face_requester(FTC_FaceID faceID,
   FontBLF *font = (FontBLF *)faceID;
   int err = FT_Err_Cannot_Open_Resource;
 
-  std::scoped_lock lock(ft_lib_mutex);
+  std::scoped_lock lock(ft_face_load_mutex);
   if (font->filepath) {
     err = FT_New_Face(lib, font->filepath, 0, face);
   }
@@ -162,12 +162,7 @@ static void blf_size_finalizer(void *object)
 
 uint blf_get_char_index(FontBLF *font, const uint charcode)
 {
-  if (font->flags & BLF_CACHED) {
-    /* Use char-map cache for much faster lookup. */
-    return FTC_CMapCache_Lookup(ftc_charmap_cache, font, -1, charcode);
-  }
-  /* Fonts that are not cached need to use the regular lookup function. */
-  return blf_ensure_face(font) ? FT_Get_Char_Index(font->face, charcode) : 0;
+  return FTC_CMapCache_Lookup(ftc_charmap_cache, font, -1, charcode);
 }
 
 /** \} */
@@ -1041,77 +1036,79 @@ static bool blf_font_width_to_strlen_glyph_process(FontBLF *font,
 size_t blf_font_width_to_strlen(
     FontBLF *font, const char *str, const size_t str_len, int width, int *r_width)
 {
-  GlyphBLF *g;
-  const GlyphBLF *g_prev;
-  ft_pix pen_x;
-  ft_pix width_new;
-  size_t i, i_prev;
-
+  ft_pix pen_x = 0;
+  int pos = 0;
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
-  const int width_i = width;
-
-  for (i_prev = i = 0, width_new = pen_x = 0, g_prev = nullptr; (i < str_len) && str[i];
-       i_prev = i, width_new = pen_x, g_prev = g)
-  {
-    g = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i, nullptr);
-    if (blf_font_width_to_strlen_glyph_process(font, gc, g_prev, g, &pen_x, width_i)) {
-      break;
+  ShapingData text(str, str_len);
+  while (text.process(font, gc) && pos == 0) {
+    for (uint i = 0; i < text.segment.glyph_count; i++) {
+      const ft_pix advance = text.segment.glyph_pos[i].x_advance;
+      if (text.segment.glyphs[i] && (pen_x + advance) > (width * 64)) {
+        pos = i;
+        break;
+      }
+      pen_x += advance;
+      if (i == text.segment.glyph_count - 1) {
+        pos = i;
+      } 
     }
   }
 
   if (r_width) {
-    *r_width = ft_pix_to_int(width_new);
+    *r_width = ft_pix_to_int(pen_x);
   }
 
   blf_glyph_cache_release(font);
-  return i_prev;
+  return pos;
 }
+
+static void blf_font_boundbox_ex(FontBLF *font,
+                                 GlyphCacheBLF *gc,
+                                 const char *str,
+                                 const size_t str_len,
+                                 rcti *r_box,
+                                 ResultBLF *r_info,
+                                 ft_pix pen_y);
 
 size_t blf_font_width_to_rstrlen(
     FontBLF *font, const char *str, const size_t str_len, int width, int *r_width)
 {
-  GlyphBLF *g, *g_prev;
-  ft_pix pen_x, width_new;
-  size_t i, i_prev, i_tmp;
-  std::optional<size_t> i_next = {};
-  const char *s, *s_prev;
-
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
-#ifndef NDEBUG
-  int is_utf8_valid = -1;
-#endif
 
-  i = BLI_strnlen(str, str_len);
-  s = BLI_str_find_prev_char_utf8(&str[i], str);
-  i = size_t(s - str);
-  s_prev = BLI_str_find_prev_char_utf8(s, str);
-  i_prev = size_t(s_prev - str);
+  rcti box;
+  blf_font_boundbox_ex(font, gc, str, str_len, &box, nullptr, 0);
+  ft_pix str_width = BLI_rcti_size_x(&box);
+  ft_pix right = (width * 64) - str_width;
+  if (right <= 0) {
+    if (r_width) {
+      *r_width = ft_pix_to_int(str_width);
+    }
+    blf_glyph_cache_release(font);
+    return str_len;
+  }
 
-  i_tmp = i;
-  g = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i_tmp, nullptr);
-  for (width_new = pen_x = 0; (s != nullptr && i > 0);
-       i_next = i, i = i_prev, s = s_prev, g = g_prev, g_prev = nullptr, width_new = pen_x)
-  {
-    s_prev = BLI_str_find_prev_char_utf8(s, str);
-    i_prev = size_t(s_prev - str);
-
-    i_tmp = i_prev;
-    g_prev = blf_glyph_from_utf8_and_step(font, gc, nullptr, str, str_len, &i_tmp, nullptr);
-    BLI_assert(i_tmp == i ||
-               /* TODO: proper handling of non UTF8 strings. */
-               (blf_str_is_utf8_valid_lazy_init(str, str_len, is_utf8_valid) == 0));
-
-    if (blf_font_width_to_strlen_glyph_process(font, gc, g_prev, g, &pen_x, width)) {
-      break;
+  ft_pix pen_x = 0;
+  int pos = 0;
+  ShapingData text(str, str_len);
+  while (text.process(font, gc) && pos == 0) {
+    for (uint i = 0; i < text.segment.glyph_count; i++) {
+      pen_x += text.segment.glyph_pos[i].x_advance;
+      if (text.segment.glyphs[i] && (pen_x) > right) {
+        pos = int(text.char_count) - i - 1;
+        break;
+      }
+      if (i == text.segment.glyph_count - 1) {
+        pos = 0;
+      }
     }
   }
 
   if (r_width) {
-    *r_width = ft_pix_to_int(width_new);
+    *r_width = ft_pix_to_int(str_width - pen_x);
   }
 
   blf_glyph_cache_release(font);
-  return i_next ? *i_next : i;
+  return pos;
 }
 
 /** \} */
@@ -1137,7 +1134,7 @@ static void blf_font_boundbox_ex(FontBLF *font,
   r_box->xmax = INT32_MIN;
   r_box->ymin = pen_y;
   r_box->ymax = INT32_MIN;
-  while (text.process(font, gc, nullptr)) {
+  while (text.process(font, gc)) {
   }
 
   r_box->xmax = std::max(r_box->xmax, text.width);
@@ -1270,7 +1267,7 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
 
   ShapingData text(str, str_len);
-  while (text.process(font, gc, nullptr)) {
+  while (text.process(font, gc)) {
     for (i = 0; i < text.segment.glyph_count; i++) {
       if (text.segment.glyph_pos[i].x_advance <= 0) {
         /* Ignore combining marks. */
@@ -2092,27 +2089,7 @@ bool blf_ensure_face(FontBLF *font)
     return false;
   }
 
-  FT_Error err;
-
-  if (font->flags & BLF_CACHED) {
-    err = FTC_Manager_LookupFace(ftc_manager, font, &font->face);
-  }
-  else {
-    std::scoped_lock lock(ft_lib_mutex);
-    if (font->filepath) {
-      err = FT_New_Face(font->ft_lib, font->filepath, 0, &font->face);
-    }
-    if (font->mem) {
-      err = FT_New_Memory_Face(font->ft_lib,
-                               static_cast<const FT_Byte *>(font->mem),
-                               (FT_Long)font->mem_size,
-                               0,
-                               &font->face);
-    }
-    if (!err) {
-      font->face->generic.data = font;
-    }
-  }
+  FT_Error err = FTC_Manager_LookupFace(ftc_manager, font, &font->face);
 
   if (err) {
     if (ELEM(err, FT_Err_Unknown_File_Format, FT_Err_Unimplemented_Feature)) {
@@ -2155,11 +2132,6 @@ bool blf_ensure_face(FontBLF *font)
       }
       MEM_freeN(mfile);
     }
-  }
-
-  if (!(font->flags & BLF_CACHED)) {
-    /* Not cached so point at the face's size for convenience. */
-    font->ft_size = font->face->size;
   }
 
   /* Setup Font details that require having a Face. */
@@ -2213,14 +2185,11 @@ static const FaceDetails static_face_details[] = {
 
 /**
  * Create a new font from filename OR memory pointer.
- * For normal operation pass nullptr as FT_Library object. Pass a custom FT_Library if you
- * want to use the font without its lifetime being managed by the FreeType cache subsystem.
  */
 static FontBLF *blf_font_new_impl(const char *filepath,
                                   const char *mem_name,
                                   const uchar *mem,
-                                  const size_t mem_size,
-                                  void *ft_library)
+                                  const size_t mem_size)
 {
   FontBLF *font = MEM_new<FontBLF>(__func__);
 
@@ -2231,15 +2200,7 @@ static FontBLF *blf_font_new_impl(const char *filepath,
     font->mem_size = mem_size;
   }
   blf_font_fill(font);
-
-  if (ft_library && ((FT_Library)ft_library != ft_lib)) {
-    /* Pass. */
-  }
-  else {
-    font->flags |= BLF_CACHED;
-  }
-
-  font->ft_lib = ft_library ? (FT_Library)ft_library : ft_lib;
+  font->ft_lib = ft_lib;
 
   /* Defaults for consistent behavior. Some often overwritten by user preferences. */
   blf_font_feature(font, "kern", 1); /* Kerning. */
@@ -2303,12 +2264,12 @@ static FontBLF *blf_font_new_impl(const char *filepath,
 
 FontBLF *blf_font_new_from_filepath(const char *filepath)
 {
-  return blf_font_new_impl(filepath, nullptr, nullptr, 0, nullptr);
+  return blf_font_new_impl(filepath, nullptr, nullptr, 0);
 }
 
 FontBLF *blf_font_new_from_mem(const char *mem_name, const uchar *mem, const size_t mem_size)
 {
-  return blf_font_new_impl(nullptr, mem_name, mem, mem_size, nullptr);
+  return blf_font_new_impl(nullptr, mem_name, mem, mem_size);
 }
 
 void blf_font_attach_from_mem(FontBLF *font, const uchar *mem, const size_t mem_size)
@@ -2338,13 +2299,8 @@ void blf_font_free(FontBLF *font)
   }
 
   if (font->face) {
-    std::scoped_lock lock(ft_lib_mutex);
-    if (font->flags & BLF_CACHED) {
-      FTC_Manager_RemoveFaceID(ftc_manager, font);
-    }
-    else {
-      FT_Done_Face(font->face);
-    }
+    std::scoped_lock lock(ft_face_load_mutex);
+    FTC_Manager_RemoveFaceID(ftc_manager, font);
     font->face = nullptr;
   }
   if (font->filepath) {
@@ -2365,7 +2321,7 @@ void blf_font_free(FontBLF *font)
 
 void blf_ensure_size(FontBLF *font)
 {
-  if (font->ft_size || !(font->flags & BLF_CACHED)) {
+  if (font->ft_size) {
     return;
   }
 
@@ -2397,27 +2353,19 @@ bool blf_font_size(FontBLF *font, float size)
   size = float(ft_size) / 64.0f;
 
   if (font->size != size) {
-    if (font->flags & BLF_CACHED) {
-      std::lock_guard lock(ft_cache_size_mutex);
-      FTC_ScalerRec scaler = {nullptr};
-      scaler.face_id = font;
-      scaler.width = 0;
-      scaler.height = ft_size;
-      scaler.pixel = 0;
-      scaler.x_res = BLF_DPI;
-      scaler.y_res = BLF_DPI;
-      if (FTC_Manager_LookupSize(ftc_manager, &scaler, &font->ft_size) != FT_Err_Ok) {
-        return false;
-      }
-      font->ft_size->generic.data = (void *)font;
-      font->ft_size->generic.finalizer = blf_size_finalizer;
+    std::lock_guard lock(ft_cache_size_mutex);
+    FTC_ScalerRec scaler = {nullptr};
+    scaler.face_id = font;
+    scaler.width = 0;
+    scaler.height = ft_size;
+    scaler.pixel = 0;
+    scaler.x_res = BLF_DPI;
+    scaler.y_res = BLF_DPI;
+    if (FTC_Manager_LookupSize(ftc_manager, &scaler, &font->ft_size) != FT_Err_Ok) {
+      return false;
     }
-    else {
-      if (FT_Set_Char_Size(font->face, 0, ft_size, BLF_DPI, BLF_DPI) != FT_Err_Ok) {
-        return false;
-      }
-      font->ft_size = font->face->size;
-    }
+    font->ft_size->generic.data = (void *)font;
+    font->ft_size->generic.finalizer = blf_size_finalizer;
   }
 
   font->size = size;
