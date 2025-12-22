@@ -1,0 +1,12 @@
+diff --git a/source/MaterialXCore/Types.h b/source/MaterialXCore/Types.h
+index 5c64d09..f64be41 100644
+--- a/source/MaterialXCore/Types.h
++++ b/source/MaterialXCore/Types.h
+@@ -15,6 +15,7 @@
+ 
+ #include <array>
+ #include <cmath>
++#include <stdint.h>
+ 
+ MATERIALX_NAMESPACE_BEGIN
+ 

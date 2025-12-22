@@ -44,6 +44,12 @@ ExternalProject_Add(external_materialx
     ${DEFAULT_CMAKE_FLAGS}
     ${MATERIALX_EXTRA_ARGS}
 
+  PATCH_COMMAND
+    ${PATCH_CMD} -p 1 -d
+      # Fix compilation errors due bool typedef.
+      ${BUILD_DIR}/materialx/src/external_materialx <
+      ${PATCH_DIR}/materialx_missing_stdint.diff
+
   INSTALL_DIR ${LIBDIR}/materialx
 )
 
