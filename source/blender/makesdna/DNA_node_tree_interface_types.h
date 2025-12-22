@@ -51,6 +51,10 @@ struct bNodeTreeInterfaceItem {
   /* eNodeTreeInterfaceItemType */
   char item_type = 0;
   char _pad[7] = {};
+
+#ifdef __cplusplus
+  void set_selected(bool select);
+#endif
 };
 
 /* Socket interface flags */

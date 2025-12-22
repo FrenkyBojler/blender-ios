@@ -1495,6 +1495,24 @@ const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
   return active;
 }
 
+void bNodeTreeInterfaceItem::set_selected(bool select)
+{
+  switch (eNodeTreeInterfaceItemType(this->item_type)) {
+    case NODE_INTERFACE_PANEL: {
+      bNodeTreeInterfacePanel *panel =
+          blender::bke::node_interface::get_item_as<bNodeTreeInterfacePanel>(this);
+      SET_FLAG_FROM_TEST(panel->flag, select, NODE_INTERFACE_PANEL_SELECT);
+      break;
+    }
+    case NODE_INTERFACE_SOCKET: {
+      bNodeTreeInterfaceSocket *socket =
+          blender::bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(this);
+      SET_FLAG_FROM_TEST(socket->flag, select, NODE_INTERFACE_SOCKET_SELECT);
+      break;
+    }
+  }
+}
+
 void bNodeTreeInterface::active_item_set(bNodeTreeInterfaceItem *item)
 {
   this->active_index = 0;
