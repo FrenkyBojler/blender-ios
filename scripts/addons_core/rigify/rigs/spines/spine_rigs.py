@@ -118,7 +118,19 @@ class BaseSpineRig(TweakChainRig):
 
     @stage.configure_bones
     def configure_master_control(self):
-        pass
+        ctrl = self.bones.ctrl
+        bone_list = [ctrl.master] + ctrl.tweak + ctrl.fk.hips + ctrl.fk.chest + [ ctrl.hips] + [ctrl.chest]
+        panel = self.script.panel_with_selected_check(self, bone_list)
+
+        # Euler Control bones
+        bones_to_euler = [ctrl.master, ctrl.hips ,ctrl.chest]
+        for bone in bones_to_euler:
+            pose_bone = self.get_bone(bone)
+            pose_bone.rotation_mode = 'XYZ'
+
+        if self.params.make_preserve_volume:
+            self.make_property(self.bones.ctrl.master, 'volume_preserve', 0.0, description='Preserve volume when stretching')
+            panel.custom_prop(self.bones.ctrl.master, 'volume_preserve', text='Preserve Volume (Torso)', slider=True)
 
     @stage.generate_widgets
     def make_master_control_widget(self):
@@ -162,7 +174,11 @@ class BaseSpineRig(TweakChainRig):
     def rig_deform_bone(self, i: int, deform: str, tweak: str, next_tweak: Optional[str]):
         self.make_constraint(deform, 'COPY_TRANSFORMS', tweak)
         if next_tweak:
-            self.make_constraint(deform, 'STRETCH_TO', next_tweak, keep_axis='SWING_Y')
+            con = self.make_constraint(deform, 'STRETCH_TO', next_tweak, keep_axis='SWING_Y')
+            if self.params.make_preserve_volume:
+                #add driver for volume preservation
+                master = self.bones.ctrl.master
+                self.make_driver(con, 'bulge', variables=[(self.obj.pose.bones[master], 'volume_preserve')])
 
     @stage.configure_bones
     def configure_bbone_chain(self):

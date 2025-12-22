@@ -302,6 +302,11 @@ class Rig(BaseSpineRig):
             description="Specify the name for the generated master control."
         )
 
+        params.make_preserve_volume = bpy.props.BoolProperty(
+            name="Preserve Volume Slider", default=True,
+            description="Create slider for volume preservation"
+        )
+
         super().add_parameters(params)
 
         params.make_fk_controls = bpy.props.BoolProperty(
@@ -320,6 +325,8 @@ class Rig(BaseSpineRig):
             r.prop(params, "torso_control_name")
         r = layout.row()
         r.prop(params, "pivot_pos")
+        r = layout.row()
+        r.prop(params, "make_preserve_volume")
         r = layout.row()
         r.prop(params, "bbones")
 
