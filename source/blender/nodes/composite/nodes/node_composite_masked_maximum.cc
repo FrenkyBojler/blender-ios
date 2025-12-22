@@ -85,19 +85,33 @@ class MaskedMaximumOperation : public NodeOperation {
   void execute() override
   {
     const Result &input_mask = this->get_input("Mask");
+    const Result &input_size = get_input("Size");
+    const Result &input_translation = get_input("Translation");
+    const Result &input_falloff = get_input("Falloff");
     Result &output_mask = this->get_result("Mask");
-    float2 size_single_value = get_input("Size").get_single_value_default(float2(1.0f, 1.0f));
-    float2 translation_single_value =
-        get_input("Translation").get_single_value_default(float2(1.0f, 1.0f));
 
-    if (input_mask.is_single_value() ||
-        ((size_single_value == float2(0.0f, 0.0f)) &&
-         (translation_single_value == float2(0.0f, 0.0f)) &&
-         (get_input("Falloff").get_single_value_default(1.0f) <= 0.0f)))
-    {
-      /* Operation does nothing and the input can be passed through. */
-      output_mask.share_data(input_mask);
-      return;
+    if (input_translation.is_single_value()) {
+      if (math::floored_mod(input_translation.get_single_value<float2>(), float2(1.0f, 1.0f)) ==
+          float2(0.0f, 0.0f))
+      {
+        if (input_mask.is_single_value()) {
+          /* Operation does nothing and the input can be passed through. */
+          output_mask.share_data(input_mask);
+          return;
+        }
+        if (input_size.is_single_value() && input_falloff.is_single_value()) {
+          float2 abs_input_size = math::abs(input_size.get_single_value<float2>());
+          float rounded_square_mask_support_size = math::max(abs_input_size.x, abs_input_size.y) +
+                                                   math::max(
+                                                       input_falloff.get_single_value<float>(),
+                                                       0.0f);
+          if (rounded_square_mask_support_size < 1.0f) {
+            /* Operation does nothing and the input can be passed through. */
+            output_mask.share_data(input_mask);
+            return;
+          }
+        }
+      }
     }
 
     if (this->context().use_gpu()) {
