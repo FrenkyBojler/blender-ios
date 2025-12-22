@@ -1191,12 +1191,6 @@ template<typename CoordT> inline int kdtree_deduplicate(KDTree<CoordT> *tree)
 
 /** \} */
 
-#undef detail::kd_stack_init
-#undef detail::kd_near_alloc_inc
-#undef detail::kd_found_alloc_inc
-#undef detail::kd_node_unset
-#undef detail::kd_node_root_is_init
-
 }  //  namespace blender
 
 namespace blender {
