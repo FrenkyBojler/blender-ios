@@ -2234,6 +2234,7 @@ static wmOperatorStatus object_speaker_add_exec(bContext *C, wmOperator *op)
 
     /* hook them up */
     BKE_nlatrack_add_strip(nlt, strip, is_liboverride);
+    BKE_nlastrip_set_active(adt, strip);
 
     /* Auto-name the strip, and give the track an interesting name. */
     STRNCPY_UTF8(nlt->name, DATA_("SoundTrack"));

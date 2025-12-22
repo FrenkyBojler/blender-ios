@@ -374,6 +374,14 @@ static void nla_buttons_region_draw(const bContext *C, ARegion *region)
   ED_region_panels(C, region);
 }
 
+static void update_speaker_object(const wmNotifier *wmn, const ScrArea *area){
+  if (wmn->data == ND_NLA && (wmn->action == NA_SELECTED || wmn->action == NA_EDITED)) {
+        /* Redraw the Speaker properties in the Properties editor for Sound NLA strips */
+        WM_main_add_notifier(NC_OBJECT | ND_DATA, NULL);
+      
+  }
+}
+
 static void nla_region_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
@@ -383,6 +391,8 @@ static void nla_region_listener(const wmRegionListenerParams *params)
   switch (wmn->category) {
     case NC_ANIMATION:
       ED_region_tag_redraw(region);
+      
+      update_speaker_object(wmn, params->area);
       break;
     case NC_SCENE:
       switch (wmn->data) {

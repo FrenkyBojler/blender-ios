@@ -540,6 +540,14 @@ static void rna_NlaStrip_action_start_frame_set(PointerRNA *ptr, float value)
   BKE_nlastrip_recalculate_bounds(data);
 }
 
+static PointerRNA rna_NlaTrack_active_strip_get(PointerRNA *ptr)
+{
+  NlaTrack *track = (NlaTrack *)ptr->data;
+  NlaStrip *active = BKE_nlastrip_find_active(track);
+
+  return RNA_pointer_create_with_parent(*ptr, &RNA_NlaStrip, active);
+}
+
 static void rna_NlaStrip_action_end_frame_set(PointerRNA *ptr, float value)
 {
   NlaStrip *data = (NlaStrip *)ptr->data;
@@ -1178,6 +1186,11 @@ static void rna_def_nlatrack(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "NLA Strips", "NLA Strips on this NLA-track");
 
   rna_api_nlatrack_strips(brna, prop);
+
+  prop = RNA_def_property(srna, "active_strip", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "NlaStrip");
+  RNA_def_property_ui_text(prop, "Active Strip", "NLA Track's active strip");
+  RNA_def_property_pointer_funcs(prop, "rna_NlaTrack_active_strip_get", nullptr, nullptr, nullptr);
 
   prop = RNA_def_boolean(srna,
                          "is_override_data",
