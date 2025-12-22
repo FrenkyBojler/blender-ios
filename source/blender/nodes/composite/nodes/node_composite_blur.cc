@@ -21,11 +21,14 @@
 #include "COM_algorithm_parallel_reduction.hh"
 #include "COM_algorithm_recursive_gaussian_blur.hh"
 #include "COM_algorithm_symmetric_separable_blur.hh"
+#include "COM_algorithm_dual_kawase_blur.hh"
 #include "COM_node_operation.hh"
 #include "COM_symmetric_blur_weights.hh"
 #include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
+
+constexpr int R_FILTER_DUAL_KAWASE = 8; //@TODO hack
 
 namespace blender::nodes::node_composite_blur_cc {
 
@@ -36,6 +39,7 @@ static const EnumPropertyItem type_items[] = {
     {R_FILTER_CUBIC, "CUBIC", 0, N_("Cubic"), ""},
     {R_FILTER_GAUSS, "GAUSS", 0, N_("Gaussian"), ""},
     {R_FILTER_FAST_GAUSS, "FAST_GAUSS", 0, N_("Fast Gaussian"), ""},
+    {R_FILTER_DUAL_KAWASE, "DUAL_KAWASE", 0, N_("Dual Kawase"), ""},
     {R_FILTER_CATROM, "CATROM", 0, N_("Catrom"), ""},
     {R_FILTER_MITCH, "MITCH", 0, N_("Mitch"), ""},
     {0, nullptr, 0, nullptr, nullptr},
@@ -129,6 +133,9 @@ class BlurOperation : public NodeOperation {
     Result &output = this->get_result("Image");
     if (!size.is_single_value()) {
       this->execute_variable_size(input, size, output);
+    }
+    else if (this->get_type() == R_FILTER_DUAL_KAWASE) {
+      dual_kawase_blur(this->context(), input, output, math::average(this->get_blur_size()));
     }
     else if (this->get_type() == R_FILTER_FAST_GAUSS) {
       recursive_gaussian_blur(this->context(), input, output, this->get_blur_size());

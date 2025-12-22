@@ -74,6 +74,7 @@ set(SRC
   algorithms/intern/compute_preview.cc
   algorithms/intern/convolve.cc
   algorithms/intern/deriche_gaussian_blur.cc
+  algorithms/intern/dual_kawase_blur.cc
   algorithms/intern/extract_alpha.cc
   algorithms/intern/jump_flooding.cc
   algorithms/intern/morphological_blur.cc
@@ -92,6 +93,7 @@ set(SRC
   algorithms/COM_algorithm_compute_preview.hh
   algorithms/COM_algorithm_convolve.hh
   algorithms/COM_algorithm_deriche_gaussian_blur.hh
+  algorithms/COM_algorithm_dual_kawase_blur.hh
   algorithms/COM_algorithm_extract_alpha.hh
   algorithms/COM_algorithm_jump_flooding.hh
   algorithms/COM_algorithm_morphological_blur.hh
