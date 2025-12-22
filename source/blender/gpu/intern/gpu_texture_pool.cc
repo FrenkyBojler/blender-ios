@@ -108,13 +108,6 @@ void TexturePoolImpl::reset(bool force_free)
     }
   }
 
-  TexturePool *GPU_texturepool_create()
-  {
-    return new TexturePoolImpl();
-  }
-
-  void GPU_texturepool_free(TexturePool * ptr)
-  {
-    delete ptr;
-  }
+  std::printf("TexturePoolImpl: pool_=%d, acquired_=%d\n", pool_.size(), acquired_.size());
+}
 }  // namespace blender::gpu

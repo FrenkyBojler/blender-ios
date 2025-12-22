@@ -16,22 +16,36 @@
 namespace blender::gpu {
 
 struct VKTexturePool : public TexturePool {
+  /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
+   * functions (selection / display) causing constant allocation / deallocation (See #113024). */
+  static constexpr int max_unused_cycles_ = 8;
+
   struct AllocationHandle {
     VmaAllocation allocation;
     VmaAllocationInfo allocation_info;
-    VkFormat format;
     eGPUTextureUsage usage;
     int unused_cycles_counter;
   };
 
   struct TextureHandle {
-    AllocationHandle allocation;  
-    VKTexture *texture;
+    Texture *texture;
     int counter;
+
+    /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
+     * This means we can find the handle without knowing the internal counter. */
+    uint64_t hash() const
+    {
+      return get_default_hash(texture);
+    }
+
+    bool operator==(const TextureHandle &o) const
+    {
+      return texture == o.texture;
+    }
   };
 
   Vector<AllocationHandle> free_;
-  Vector<TextureHandle> acquired_
+  Set<TextureHandle> acquired_;
 
   // /* Forward declaration. */
   // struct PageHandle;
