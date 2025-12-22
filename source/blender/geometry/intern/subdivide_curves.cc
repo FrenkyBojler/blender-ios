@@ -420,6 +420,7 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
   const bool has_nurbs = src_curves.has_curve_with_type(CURVE_TYPE_NURBS);
   const VArraySpan<int8_t> src_order = src_curves.nurbs_orders();
   const VArraySpan<int8_t> src_knot_mode = src_curves.nurbs_knots_modes();
+  const VArraySpan<int> resolution = src_curves.resolution();
 
   IndexMaskMemory reduced_selection_mem;
   IndexMask reduced_selection;
@@ -428,10 +429,11 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
         selection, GrainSize(1024), reduced_selection_mem, [&](const int64_t curve_i) {
           /* TODO: Support Cyclic Custom NURBS as well... */
           return !cyclic[curve_i] &&
-                 bke::curves::nurbs::check_valid_num_and_order(src_points_by_curve[curve_i].size(),
-                                                               src_order[curve_i],
-                                                               cyclic[curve_i],
-                                                               KnotsMode(src_knot_mode[curve_i]));
+                 bke::curves::nurbs::check_valid_eval_params(src_points_by_curve[curve_i].size(),
+                                                             src_order[curve_i],
+                                                             cyclic[curve_i],
+                                                             KnotsMode(src_knot_mode[curve_i]),
+                                                             resolution[curve_i]);
         });
   }
   const IndexMask &subdiv_mask = has_nurbs ? reduced_selection : selection;
