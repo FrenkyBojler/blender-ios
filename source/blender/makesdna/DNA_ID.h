@@ -537,7 +537,7 @@ struct ID {
   ID_RuntimeHandle *runtime = nullptr;
   int idprop_active_index = 0;
   int _pad2 = {};
-} ID;
+};
 
 /**
  * For each library file used, a Library struct is added to Main.
