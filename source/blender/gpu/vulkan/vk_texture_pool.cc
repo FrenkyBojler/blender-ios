@@ -34,6 +34,7 @@ namespace blender::gpu {
 //   return {left_block.page, left_block.offset, left_block.extent + right_block.extent};
 // }
 
+/* TODO(not_mark): implement destructor. */
 VKTexturePool::~VKTexturePool()
 {
   for (auto &handle : acquired_) {
@@ -63,8 +64,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   vk_tex->format_flag_ = to_format_flag(format);
   vk_tex->type_ = GPU_TEXTURE_2D;
   vk_tex->gpu_image_usage_flags_ = usage;
-  /* FIXME(not_mark): did I get all of these? */
-  
+
   /* R16G16F16 formats are typically not supported (<1%). */
   vk_tex->device_format_ = format;
   if (vk_tex->device_format_ == TextureFormat::SFLOAT_16_16_16) {
@@ -79,12 +79,11 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
     vk_tex->sampler_state.filtering = GPU_SAMPLER_FILTERING_LINEAR;
   }
 
+  /* Fill a VkImage info object. */
   VkExtent3D image_extent;
   image_extent.width = static_cast<uint32_t>(extent.x);
   image_extent.height = static_cast<uint32_t>(extent.y);
   image_extent.depth = 1u;
-
-  /* Fill a VkImage info object. */
   VkImageCreateInfo image_create_info = {};
   image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   image_create_info.flags = to_vk_image_create(GPU_TEXTURE_2D, to_format_flag(format), usage);
@@ -97,11 +96,15 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
   image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  image_create_info.queueFamilyIndexCount = 1;
+  const uint32_t queue_family_indices[1] = {device.queue_family_get()};
+  image_create_info.pQueueFamilyIndices = queue_family_indices;
 
   /* Initialize VkImage object. */
   VkResult result = vkCreateImage(
       device.vk_handle(), &image_create_info, nullptr, &(vk_tex->vk_image_));
-  BLI_assert_msg(result == VK_SUCCESS, "Failed to create VkImage in VKTexturePool::acquire_texture");
+  BLI_assert_msg(result == VK_SUCCESS,
+                 "Failed to create VkImage in VKTexturePool::acquire_texture");
 
   /* Query the requirements for this specific image */
   VkMemoryRequirements memory_requirements;
@@ -114,7 +117,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
     const auto &handle = free_[i];
     if (handle.allocation_info.size >= memory_requirements.size) {
       /* `memory_requirements.memoryTypeBits` has bits set for every type of supported memory;
-       * only one needs to match for the allocation to be compatible. */
+       * only one needs to match for the allocation to be compatible to the image. */
       if (bool(handle.allocation_info.memoryType & memory_requirements.memoryTypeBits)) {
         match_index = i;
         break;
@@ -136,7 +139,6 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
     allocation_create_info.priority = 0.5f;  // memory_priority(usage); /* TODO export function */
     allocation_create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
     allocation_create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
     vmaAllocateMemory(device.mem_allocator_get(),
                       &memory_requirements,
                       &allocation_create_info,
@@ -146,7 +148,7 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   vmaBindImageMemory(device.mem_allocator_get(), vk_tex->allocation_, vk_tex->vk_image_);
 
   debug::object_label(vk_tex->vk_image_, vk_tex->name_);
-  device.resources.add_image(vk_tex->vk_image_, true, vk_tex->name_);
+  device.resources.add_image(vk_tex->vk_image_, false, vk_tex->name_);
 
   acquired_.add({vk_tex, 1}); /* Internal counter set to 1 on acquire. */
   return vk_tex;
