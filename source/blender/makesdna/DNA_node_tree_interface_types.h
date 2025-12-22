@@ -111,6 +111,8 @@ enum NodeTreeInterfacePanelFlag {
   NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS = 1 << 2,
   /* Whether the panel is collapsed in the node group interface tree view. */
   NODE_INTERFACE_PANEL_IS_COLLAPSED = 1 << 3,
+  /* Whether the panel is selected in the node group interface tree view. */
+  NODE_INTERFACE_PANEL_SELECT = 1 << 4,
 };
 ENUM_OPERATORS(NodeTreeInterfacePanelFlag);
 
@@ -180,33 +182,7 @@ struct bNodeTreeInterfaceSocket {
 #endif
 };
 
-/* Panel interface flags */
-typedef enum NodeTreeInterfacePanelFlag {
-  /* Panel starts closed on new node instances. */
-  NODE_INTERFACE_PANEL_DEFAULT_CLOSED = 1 << 0,
-  /* In the past, not all panels allowed child panels. Now all allow them. */
-  NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS_LEGACY = 1 << 1,
-  /* Allow adding sockets after panels. */
-  NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS = 1 << 2,
-  /* Whether the panel is collapsed in the node group interface tree view. */
-  NODE_INTERFACE_PANEL_IS_COLLAPSED = 1 << 3,
-  /* Whether the panel is selected in the node group interface tree view. */
-  NODE_INTERFACE_PANEL_SELECT = 1 << 4,
-} NodeTreeInterfacePanelFlag;
-ENUM_OPERATORS(NodeTreeInterfacePanelFlag);
-
-typedef enum NodeDefaultInputType {
-  NODE_DEFAULT_INPUT_VALUE = 0,
-  NODE_DEFAULT_INPUT_INDEX_FIELD = 1,
-  NODE_DEFAULT_INPUT_ID_INDEX_FIELD = 2,
-  NODE_DEFAULT_INPUT_NORMAL_FIELD = 3,
-  NODE_DEFAULT_INPUT_POSITION_FIELD = 4,
-  NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD = 5,
-  NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD = 6,
-  NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD = 7,
-} NodeDefaultInputType;
-
-typedef struct bNodeTreeInterfacePanel {
+struct bNodeTreeInterfacePanel {
   bNodeTreeInterfaceItem item;
 
   /* UI name of the panel. */

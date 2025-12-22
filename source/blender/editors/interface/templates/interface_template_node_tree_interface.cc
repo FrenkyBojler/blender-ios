@@ -412,7 +412,7 @@ static void gather_moved_items_recursive(bNodeTreeInterfacePanel &panel,
     }
 
     bool is_selected = false;
-    switch (NodeTreeInterfaceItemType(item->item_type)) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_PANEL: {
         bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
             item);
