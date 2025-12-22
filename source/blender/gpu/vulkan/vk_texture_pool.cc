@@ -58,39 +58,54 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   VKTexture *vk_tex = new VKTexture(name);
   vk_tex->w_ = extent.x;
   vk_tex->h_ = extent.y;
-  vk_tex->d_ = 1;
+  vk_tex->d_ = 0;
   vk_tex->format_ = format;
-  vk_tex->device_format_ = format; /* FIXME(not_mark): uhhhh. */
   vk_tex->format_flag_ = to_format_flag(format);
   vk_tex->type_ = GPU_TEXTURE_2D;
   vk_tex->gpu_image_usage_flags_ = usage;
   /* FIXME(not_mark): did I get all of these? */
+  
+  /* R16G16F16 formats are typically not supported (<1%). */
+  vk_tex->device_format_ = format;
+  if (vk_tex->device_format_ == TextureFormat::SFLOAT_16_16_16) {
+    vk_tex->device_format_ = TextureFormat::SFLOAT_16_16_16_16;
+  }
+  if (vk_tex->device_format_ == TextureFormat::SFLOAT_32_32_32) {
+    vk_tex->device_format_ = TextureFormat::SFLOAT_32_32_32_32;
+  }
 
-  /* Fill a VkImage create object. */
+  /* Mirrors behavior in gpu::Texture::init_2d(...). */
+  if ((vk_tex->format_flag_ & (GPU_FORMAT_DEPTH_STENCIL | GPU_FORMAT_INTEGER)) == 0) {
+    vk_tex->sampler_state.filtering = GPU_SAMPLER_FILTERING_LINEAR;
+  }
+
+  VkExtent3D image_extent;
+  image_extent.width = static_cast<uint32_t>(extent.x);
+  image_extent.height = static_cast<uint32_t>(extent.y);
+  image_extent.depth = 1u;
+
+  /* Fill a VkImage info object. */
   VkImageCreateInfo image_create_info = {};
   image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   image_create_info.flags = to_vk_image_create(GPU_TEXTURE_2D, to_format_flag(format), usage);
   image_create_info.usage = to_vk_image_usage(usage, to_format_flag(format), false);
   image_create_info.format = to_vk_format(format);
-  image_create_info.extent = {extent.x, extent.y, 1u};
+  image_create_info.extent = image_extent;
   image_create_info.arrayLayers = 1;
   image_create_info.mipLevels = 1;
   image_create_info.imageType = VK_IMAGE_TYPE_2D;
+  image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
   image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-  image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
   /* Initialize VkImage object. */
   VkResult result = vkCreateImage(
       device.vk_handle(), &image_create_info, nullptr, &(vk_tex->vk_image_));
-  BLI_assert_msg(result == VK_SUCCESS, "Failed to create image in VKTexturePool::acquire_texture");
+  BLI_assert_msg(result == VK_SUCCESS, "Failed to create VkImage in VKTexturePool::acquire_texture");
 
   /* Query the requirements for this specific image */
   VkMemoryRequirements memory_requirements;
   vkGetImageMemoryRequirements(device.vk_handle(), vk_tex->vk_image_, &memory_requirements);
-
-  /* Query specific VkImage device support. */
-  // ...
 
   /* Search for an existing compatible allocation. */
   int64_t match_index = -1;
@@ -118,19 +133,20 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   else {
     /* Otherwise, allocate new compatible memory. */
     VmaAllocationCreateInfo allocation_create_info = {};
-    // allocation_create_info.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    allocation_create_info.usage = VMA_MEMORY_USAGE_UNKNOWN /* VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE */;
-    allocation_create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
     allocation_create_info.priority = 0.5f;  // memory_priority(usage); /* TODO export function */
-    allocation_create_info.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocation_create_info.memoryTypeBits = memory_requirements.memoryTypeBits;
+    allocation_create_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    vmaAllocateMemoryForImage(device.mem_allocator_get(),
-                              vk_tex->vk_image_,
-                              &allocation_create_info,
-                              &(vk_tex->allocation_),
-                              &(vk_tex->allocation_info_));
+    vmaAllocateMemory(device.mem_allocator_get(),
+                      &memory_requirements,
+                      &allocation_create_info,
+                      &(vk_tex->allocation_),
+                      &(vk_tex->allocation_info_));
   }
   vmaBindImageMemory(device.mem_allocator_get(), vk_tex->allocation_, vk_tex->vk_image_);
+
+  debug::object_label(vk_tex->vk_image_, vk_tex->name_);
+  device.resources.add_image(vk_tex->vk_image_, true, vk_tex->name_);
 
   acquired_.add({vk_tex, 1}); /* Internal counter set to 1 on acquire. */
   return vk_tex;
@@ -161,9 +177,10 @@ void VKTexturePool::release_texture(Texture *tex)
   delete vk_tex;
 }
 
-void VKTexturePo
-ol::reset(bool force_free)
+void VKTexturePool::reset(bool force_free)
 {
+  VKDevice &device = VKBackend::get().device;
+
 #ifndef NDEBUG
   /* Iterate acquired textures, and ensure the internal counter equals 0; otherwise
    * this indicates a missing `::retain()` or `::release()`. */
@@ -178,7 +195,9 @@ ol::reset(bool force_free)
   for (int i = free_.size() - 1; i >= 0; i--) {
     AllocationHandle &handle = free_[i];
     if (handle.unused_cycles_counter >= max_unused_cycles_ || force_free) {
-      VKDiscardPool::discard_pool_get().discard_image(VK_NULL_HANDLE, handle.allocation);
+      /* FIXME(not_mark): this needs to go to discard pool, but for that it needs to be tracked. */
+      vmaFreeMemory(device.mem_allocator_get(), handle.allocation);
+      // VKDiscardPool::discard_pool_get().discard_image(VK_NULL_HANDLE, handle.allocation);
       free_.remove_and_reorder(i);
     }
     else {

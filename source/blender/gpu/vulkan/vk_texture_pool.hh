@@ -15,7 +15,8 @@
 
 namespace blender::gpu {
 
-struct VKTexturePool : public TexturePool {
+class VKTexturePool final : public TexturePool {
+public:
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;

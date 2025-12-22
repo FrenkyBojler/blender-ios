@@ -16,7 +16,7 @@ namespace blender::gpu {
  * Old texture pool implementation, to be used while a backend-specific
  * implementation is not yet available.
  */
-class TexturePoolImpl : public TexturePool {
+class TexturePoolImpl final : public TexturePool {
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
