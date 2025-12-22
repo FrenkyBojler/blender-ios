@@ -1780,9 +1780,27 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
       switch (dst_type) {
         case IDP_UI_DATA_TYPE_STRING:
           return src;
-        case IDP_UI_DATA_TYPE_INT:
+        case IDP_UI_DATA_TYPE_INT: {
+          IDPropertyUIDataInt *dst = reinterpret_cast<IDPropertyUIDataInt *>(
+              convert_base_ui_data(src, dst_type));
+          dst->min = 0;
+          dst->max = 1;
+          dst->soft_min = 0;
+          dst->soft_max = 1;
+          ui_data_free(src, src_type);
+          return &dst->base;
+        }
+        case IDP_UI_DATA_TYPE_FLOAT: {
+          IDPropertyUIDataFloat *dst = reinterpret_cast<IDPropertyUIDataFloat *>(
+              convert_base_ui_data(src, dst_type));
+          dst->min = 0.0;
+          dst->max = 1.0;
+          dst->soft_min = 0.0;
+          dst->soft_max = 1.0;
+          ui_data_free(src, src_type);
+          return &dst->base;
+        }
         case IDP_UI_DATA_TYPE_BOOLEAN:
-        case IDP_UI_DATA_TYPE_FLOAT:
         case IDP_UI_DATA_TYPE_ID: {
           IDPropertyUIData *dst = convert_base_ui_data(src, dst_type);
           ui_data_free(src, src_type);
