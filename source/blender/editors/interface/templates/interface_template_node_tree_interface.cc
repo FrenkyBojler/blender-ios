@@ -286,7 +286,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
   void delete_item(bContext *C) override
   {
     Main *bmain = CTX_data_main(C);
-    if (toggle_){
+    if (toggle_) {
       nodetree_.tree_interface.remove_item(toggle_->item);
     }
     nodetree_.tree_interface.remove_item(panel_.item);
@@ -403,7 +403,7 @@ std::optional<eWM_DragDataType> NodeTreeInterfaceDragController::get_drag_type()
 
 static void gather_moved_items_recursive(bNodeTreeInterfacePanel &panel,
                                          Vector<bNodeTreeInterfaceItem *> &r_items,
-                                         bool parent_selected)
+                                         const bool parent_selected)
 {
   for (bNodeTreeInterfaceItem *item : panel.items()) {
     /* If the parent is selected, the children will be moved implicitly. */

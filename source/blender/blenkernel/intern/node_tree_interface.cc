@@ -1495,7 +1495,7 @@ const bNodeTreeInterfaceItem *bNodeTreeInterface::active_item() const
   return active;
 }
 
-void bNodeTreeInterfaceItem::set_selected(bool select)
+void bNodeTreeInterfaceItem::set_selected(const bool select)
 {
   switch (eNodeTreeInterfaceItemType(this->item_type)) {
     case NODE_INTERFACE_PANEL: {

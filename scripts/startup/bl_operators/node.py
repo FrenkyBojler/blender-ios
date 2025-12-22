@@ -1082,8 +1082,6 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
         new_active = interface.active
         if isinstance(new_active, bpy.types.NodeTreeInterfaceSocket) and new_active.is_panel_toggle:
             interface.active_index = new_active.parent.index
-        if interface.active:
-            interface.active.select = True
 
         return {'FINISHED'}
 
