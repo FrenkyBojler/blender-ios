@@ -322,6 +322,7 @@ void drawSnapping(TransInfo *t)
   }
   else if (t->spacetype == SPACE_SEQ) {
     const ARegion *region = t->region;
+    ui::view2d_view_ortho(&region->v2d);
     GPU_blend(GPU_BLEND_ALPHA);
     uint pos = GPU_vertformat_attr_add(
         immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
