@@ -66,7 +66,13 @@ class AnimatedProperty {
   float value;
   PathResolvedRNA prop_rna;
 
-  AnimatedProperty(const float value, PathResolvedRNA prop_rna) : value(value), prop_rna(prop_rna)
+  AnimatedProperty(const float value, const PathResolvedRNA &prop_rna)
+      : value(value), prop_rna(prop_rna)
+  {
+  }
+
+  AnimatedProperty(const float value, PathResolvedRNA &&prop_rna)
+      : value(value), prop_rna(std::move(prop_rna))
   {
   }
 };
@@ -110,10 +116,20 @@ class EvaluationResult {
   void store(const StringRefNull rna_path,
              const int array_index,
              const float value,
-             PathResolvedRNA prop_rna)
+             const PathResolvedRNA &prop_rna)
   {
     PropIdentifier key(rna_path, array_index);
-    AnimatedProperty anim_prop(value, std::move(prop_rna));
+    AnimatedProperty anim_prop(value, prop_rna);
+    result_.add_overwrite(key, anim_prop);
+  }
+
+  void store(const StringRefNull rna_path,
+             const int array_index,
+             const float value,
+             PathResolvedRNA &&prop_rna)
+  {
+    PropIdentifier key(rna_path, array_index);
+    AnimatedProperty anim_prop(value, prop_rna);
     result_.add_overwrite(key, anim_prop);
   }
 
