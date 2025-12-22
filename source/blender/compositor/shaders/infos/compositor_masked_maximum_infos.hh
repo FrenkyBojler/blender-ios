@@ -7,6 +7,7 @@
 GPU_SHADER_CREATE_INFO(compositor_masked_maximum)
 LOCAL_GROUP_SIZE(16, 16)
 PUSH_CONSTANT(int2, domain_size)
+PUSH_CONSTANT(bool, keep_seamless)
 SAMPLER(0, sampler2D, input_mask_tx)
 SAMPLER(1, sampler2D, input_size_tx)
 SAMPLER(2, sampler2D, input_rotation_tx)

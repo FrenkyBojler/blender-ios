@@ -133,3 +133,15 @@ template<typename T> T inverse_mix(T from_min, T from_max, T value)
 }
 
 template float inverse_mix<float>(float, float, float);
+
+template<typename T> T floored_mod(T a, T b)
+{
+  return a - floor(a / b) * b;
+}
+
+template float2 floored_mod<float2>(float2, float2);
+
+template<typename T> T safe_floored_mod(T a, T b)
+{
+  return (b != 0) ? a - floor(a / b) * b : 0;
+}

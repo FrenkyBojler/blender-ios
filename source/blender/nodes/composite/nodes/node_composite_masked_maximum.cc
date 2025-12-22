@@ -32,12 +32,12 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Mask")
       .default_value(0.5f)
       .min(0.0f)
+      .max(1.0f)
       .compositor_domain_priority(0)
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Size")
       .dimensions(2)
       .default_value({0.0f, 0.0f, 0.0f})
-      .min(0.0f)
       .compositor_domain_priority(1)
       .description(
           "Size from the center of the constant part of the rounded square mask to its "
@@ -72,6 +72,10 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
           "Maximal range of the linear falloff starting at the boundaries of the constant part of "
           "the rounded square mask")
       .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Bool>("Keep Seamless")
+      .default_value(false)
+      .description(
+          "When enabled, the operation keeps the output mask seamless for a seamless input mask.");
 
   b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
@@ -130,6 +134,8 @@ class MaskedMaximumOperation : public NodeOperation {
     const Domain domain = compute_domain();
 
     GPU_shader_uniform_2iv(shader, "domain_size", domain.data_size);
+    GPU_shader_uniform_1b(
+        shader, "keep_seamless", get_input("Keep Seamless").get_single_value_default<bool>());
 
     input_mask.bind_as_texture(shader, "input_mask_tx");
 
@@ -220,14 +226,16 @@ class MaskedMaximumOperation : public NodeOperation {
 
       int2 bounding_box_top_right_corner = int2(bounding_box_top_right_corner_float);
       int2 bounding_box_bottom_left_corner = int2(bounding_box_bottom_left_corner_float);
-      /* Crop away parts of the bounding box that are outside of the domain. */
-      bounding_box_top_right_corner += texel;
-      bounding_box_bottom_left_corner += texel;
-      bounding_box_top_right_corner = math::min(bounding_box_top_right_corner,
-                                                domain.data_size - int2(1, 1));
-      bounding_box_bottom_left_corner = math::max(bounding_box_bottom_left_corner, int2(0, 0));
-      bounding_box_top_right_corner -= texel;
-      bounding_box_bottom_left_corner -= texel;
+      if (!get_input("Keep Seamless").get_single_value_default<bool>())
+      { /* Crop away parts of the bounding box that are outside of the domain. */
+        bounding_box_top_right_corner += texel;
+        bounding_box_bottom_left_corner += texel;
+        bounding_box_top_right_corner = math::min(bounding_box_top_right_corner,
+                                                  domain.data_size - int2(1, 1));
+        bounding_box_bottom_left_corner = math::max(bounding_box_bottom_left_corner, int2(0, 0));
+        bounding_box_top_right_corner -= texel;
+        bounding_box_bottom_left_corner -= texel;
+      }
       float masked_maximum = -FLT_MAX;
       if (is_dilate) {
         for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++)
@@ -246,7 +254,8 @@ class MaskedMaximumOperation : public NodeOperation {
               masked_maximum = math::max(
                   masked_maximum,
                   rounded_square_mask *
-                      input_mask.load_pixel_zero<float, true>(texel + int2(x, y)));
+                      input_mask.load_pixel_zero<float, true>(int2(math::floored_mod(
+                          float2(texel + int2(x, y)), float2(domain.data_size)))));
             }
           }
         }
@@ -269,7 +278,8 @@ class MaskedMaximumOperation : public NodeOperation {
               masked_maximum = math::max(
                   masked_maximum,
                   rounded_square_mask *
-                      (1.0f - input_mask.load_pixel_zero<float, true>(texel + int2(x, y))));
+                      (1.0f - input_mask.load_pixel_zero<float, true>(
+                                  math::floored_mod(texel + int2(x, y), domain.data_size))));
             }
           }
         }

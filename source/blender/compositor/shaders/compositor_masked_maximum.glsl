@@ -195,13 +195,14 @@ void main()
 
   int2 bounding_box_top_right_corner = int2(bounding_box_top_right_corner_float);
   int2 bounding_box_bottom_left_corner = int2(bounding_box_bottom_left_corner_float);
-  /* Crop away parts of the bounding box that are outside of the domain. */
-  bounding_box_top_right_corner += texel;
-  bounding_box_bottom_left_corner += texel;
-  bounding_box_top_right_corner = min(bounding_box_top_right_corner, domain_size - int2(1, 1));
-  bounding_box_bottom_left_corner = max(bounding_box_bottom_left_corner, int2(0, 0));
-  bounding_box_top_right_corner -= texel;
-  bounding_box_bottom_left_corner -= texel;
+  if (!keep_seamless) { /* Crop away parts of the bounding box that are outside of the domain. */
+    bounding_box_top_right_corner += texel;
+    bounding_box_bottom_left_corner += texel;
+    bounding_box_top_right_corner = min(bounding_box_top_right_corner, domain_size - int2(1, 1));
+    bounding_box_bottom_left_corner = max(bounding_box_bottom_left_corner, int2(0, 0));
+    bounding_box_top_right_corner -= texel;
+    bounding_box_bottom_left_corner -= texel;
+  }
   float masked_maximum = -FLT_MAX;
   if (is_dilate) {
     for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
@@ -214,9 +215,12 @@ void main()
             coord, abs_size, roundness, falloff);
         /* Only operate on the support of the rounded square mask. */
         if (rounded_square_mask != 0.0f) {
-          masked_maximum = max(masked_maximum,
-                               rounded_square_mask *
-                                   texture_load(input_mask_tx, texel + int2(x, y)).x);
+          masked_maximum = max(
+              masked_maximum,
+              rounded_square_mask *
+                  texture_load(input_mask_tx,
+                               int2(floored_mod(float2(texel + int2(x, y)), float2(domain_size))))
+                      .x);
         }
       }
     }
@@ -233,9 +237,13 @@ void main()
             coord, abs_size, roundness, falloff);
         /* Only operate on the support of the rounded square mask. */
         if (rounded_square_mask != 0.0f) {
-          masked_maximum = max(masked_maximum,
-                               rounded_square_mask *
-                                   (1.0f - texture_load(input_mask_tx, texel + int2(x, y)).x));
+          masked_maximum = max(
+              masked_maximum,
+              rounded_square_mask *
+                  (1.0f -
+                   texture_load(input_mask_tx,
+                                int2(floored_mod(float2(texel + int2(x, y)), float2(domain_size))))
+                       .x));
         }
       }
     }
