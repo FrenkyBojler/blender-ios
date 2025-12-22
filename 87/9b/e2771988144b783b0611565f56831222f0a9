@@ -1,3 +1,4 @@
 Referenced by issue #151959, Vulkan: Editor update lag due to updating other unrelated editor
 Referenced by pull request #151985, Fix #151959: Revert "Fix: Vulkan: Incorrect Memory Allocation"
 Referenced by issue #151986, Vulkan: VMA validation error using lavapipe
+Referenced by commit d71bf75f3ef85c89763ea3bef6c42e5b1b6a2d2a, Fix #151959: Revert "Fix: Vulkan: Incorrect Memory Allocation"
