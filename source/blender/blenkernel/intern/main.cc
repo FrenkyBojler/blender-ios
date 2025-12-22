@@ -306,7 +306,6 @@ static void main_merge_add_id_to_move(Main *bmain_dst,
   bool is_id_src_from_bmain_dst = false;
   if (is_id_src_linked) {
     BLI_assert(!is_library);
-    UNUSED_VARS_NDEBUG(is_library);
     Library *ref_src_library = ID_IS_PACKED(id_src) ? id_src->lib->archive_parent_library :
                                                       id_src->lib;
     BLI_assert((ref_src_library->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
@@ -339,8 +338,14 @@ static void main_merge_add_id_to_move(Main *bmain_dst,
       Library *lib_src = blender::id_cast<Library *>(id_src);
       BLI_assert((lib_src->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
       lib_src->runtime->archived_libraries.clear();
+      /* Libraries should be added to destination Main before any other ID, to ensure that
+       * potential packed IDs can find the required owner 'regular' library for their archive
+       * library containers. */
+      ids_to_move.prepend(id_src);
     }
-    ids_to_move.append(id_src);
+    else {
+      ids_to_move.append(id_src);
+    }
   }
 }
 
