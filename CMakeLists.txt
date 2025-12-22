@@ -1633,6 +1633,17 @@ endif()
 if(NOT WITH_SYSTEM_EIGEN3)
   set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
 endif()
+if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
+  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    # See also:
+    #   - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in extern/Eigen3/Eigen/src/Core/util/Memory.h
+    #   - Very cryptic Sanitizer build unittest failure with GCC, e.g.
+    #     https://builder.blender.org/admin/#/builders/10/builds/26291
+    message(DEBUG "Forcing Eigen to use their own allocator code because `WITH_COMPILER_ASAN` is enabled but "
+                  "`WITH_COMPILER_ASAN_EXTERN` is disabled, which can cause mismatch usages of Eigen allocators." )
+    add_definitions(-DEIGEN_MALLOC_ALREADY_ALIGNED=0)
+  endif()
+endif()
 
 # -----------------------------------------------------------------------------
 # Configure Metal
