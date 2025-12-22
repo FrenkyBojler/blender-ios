@@ -69,7 +69,12 @@ class BaseSpineRig(TweakChainRig):
         return self.get_bone(orgs[0]).head
 
     def make_master_control_bone(self, orgs: list[str]):
-        name = self.copy_bone(orgs[0], 'torso')
+        # check if the custom string is white space/blank and the user has it enabled in the ui
+        if self.params.torso_control_name.strip() and self.params.use_custom_name:
+           name = self.copy_bone(orgs[0], self.params.torso_control_name)
+        else:
+            name = self.copy_bone(orgs[0], 'torso') # fallback
+
         put_bone(self.obj, name, self.get_master_control_pos(orgs))
         align_bone_to_axis(self.obj, name, 'y', length=self.length * 0.6)
         return name
@@ -104,8 +109,8 @@ class BaseSpineRig(TweakChainRig):
         self.register_parent_bones(pbuilder)
 
     def register_parent_bones(self, pbuilder: SwitchParentBuilder):
-        pbuilder.register_parent(self, self.bones.org[0], name='Hips', exclude_self=True, tags={'hips'})
-        pbuilder.register_parent(self, self.bones.org[-1], name='Chest', exclude_self=True, tags={'chest'})
+        pbuilder.register_parent(self, self.bones.org[0], name='Hips', exclude_self=True, tags={'hips'}) #HARDCODED NAMES
+        pbuilder.register_parent(self, self.bones.org[-1], name='Chest', exclude_self=True, tags={'chest'}) #HARDCODED NAMES
 
     @stage.parent_bones
     def parent_master_control(self):

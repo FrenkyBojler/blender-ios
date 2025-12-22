@@ -30,6 +30,7 @@ class Rig(BaseSpineRig):
 
     def initialize(self):
         super().initialize()
+        self.bbone_segments = self.params.bbones
 
         # Check if user provided the pivot position
         self.pivot_pos = self.params.pivot_pos
@@ -78,8 +79,11 @@ class Rig(BaseSpineRig):
         orgs = self.bones.org
         pivot = self.pivot_pos
 
-        self.bones.ctrl.hips = self.make_hips_control_bone(orgs[pivot - 1], 'hips')
-        self.bones.ctrl.chest = self.make_chest_control_bone(orgs[pivot], 'chest')
+        hips =  make_derived_name(orgs[0], 'ctrl')
+        chest = make_derived_name(orgs[-1], 'ctrl')
+
+        self.bones.ctrl.hips = self.make_hips_control_bone(orgs[pivot - 1], hips)
+        self.bones.ctrl.chest = self.make_chest_control_bone(orgs[pivot], chest)
 
     def make_hips_control_bone(self, org: str, name: str):
         name = self.copy_bone(org, name, parent=False)
@@ -190,8 +194,8 @@ class Rig(BaseSpineRig):
         mch = self.bones.mch
 
         mch.pivot = self.make_mch_pivot_bone(orgs[self.pivot_pos], 'pivot')
-        mch.wgt_hips = self.make_mch_widget_bone(orgs[0], 'WGT-hips')
-        mch.wgt_chest = self.make_mch_widget_bone(orgs[-1], 'WGT-chest')
+        mch.wgt_hips = self.make_mch_widget_bone(orgs[0], 'WGT-' +  strip_org(orgs[0]))
+        mch.wgt_chest = self.make_mch_widget_bone(orgs[-1], 'WGT-' + strip_org(orgs[-1]))
 
     def make_mch_pivot_bone(self, org: str, name: str):
         name = self.copy_bone(org, make_mechanism_name(name), parent=False)
@@ -273,10 +277,29 @@ class Rig(BaseSpineRig):
     @classmethod
     def add_parameters(cls, params):
         params.pivot_pos = bpy.props.IntProperty(
-            name='pivot_position',
+            name='Pivot Position',
             default=2,
             min=0,
-            description='Position of the torso control and pivot point'
+            description='Position of the master control and pivot point'
+        )
+
+        params.bbones = bpy.props.IntProperty(
+            name        = 'B-Bone Segments',
+            default     = 8,
+            min         = 1,
+            max         = 32,
+            description = 'Number of B-Bone segments'
+        )
+
+        params.use_custom_name = bpy.props.BoolProperty(
+            name="Custom Name",
+            default=False,
+            description="Should the generated master control use a custom name."
+        )
+        params.torso_control_name = bpy.props.StringProperty(
+            name="Master Control Name",
+            default="torso",
+            description="Specify the name for the generated master control."
         )
 
         super().add_parameters(params)
@@ -291,7 +314,14 @@ class Rig(BaseSpineRig):
     @classmethod
     def parameters_ui(cls, layout, params):
         r = layout.row()
+        r.prop(params, "use_custom_name")
+        if params.use_custom_name:
+            r = layout.row()
+            r.prop(params, "torso_control_name")
+        r = layout.row()
         r.prop(params, "pivot_pos")
+        r = layout.row()
+        r.prop(params, "bbones")
 
         super().parameters_ui(layout, params)
 
