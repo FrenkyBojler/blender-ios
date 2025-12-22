@@ -7,6 +7,7 @@
  */
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
@@ -30,7 +31,10 @@ namespace blender::ui::id_properties {
 
 class IDPropertyView : public AbstractTreeView {
  public:
-  explicit IDPropertyView(ID *id) : id_(id) {}
+  IDPropertyView(ID *id) : id_(id)
+  {
+    is_flat_ = true;
+  }
 
   void build_tree() override;
 
@@ -48,6 +52,26 @@ class IDPropertyItem : public AbstractTreeViewItem {
   IDPropertyItem(ID *id, IDProperty *property, int index)
       : id_(id), property_(property), index_(index)
   {
+    label_ = property_->name;
+  }
+
+  StringRef get_rename_string() const override
+  {
+    return property_->name;
+  }
+
+  bool supports_renaming() const override
+  {
+    return true;
+  }
+
+  bool rename(const bContext &C, StringRefNull new_name) override
+  {
+    STRNCPY(property_->name, new_name.c_str());
+    ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
+    DEG_id_tag_update(id_, ID_RECALC_ALL);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
+    return true;
   }
 
   void build_row(ui::Layout &row) override
@@ -135,16 +159,12 @@ void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
   PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
   if (ELEM(srna, &RNA_IDPropertyUIDataInt, &RNA_IDPropertyUIDataFloat)) {
     if (active_prop->type == IDP_ARRAY) {
-      layout->prop(&prop_ptr,
-                  "length",
-                  UI_ITEM_NONE,
-                  "Length",
-                  ICON_NONE);
+      layout->prop(&prop_ptr, "length", UI_ITEM_NONE, "Length", ICON_NONE);
 
       if (PropertyRNA *prop = RNA_struct_find_property(&propui_ptr, "default_array")) {
         ui::Layout &col = layout->column(true);
         const int len = RNA_property_array_length(&propui_ptr, prop);
-        for(int i = 0; i < len; i++) {
+        for (int i = 0; i < len; i++) {
           col.prop(&propui_ptr, prop, i, 0, UI_ITEM_NONE, "", ICON_NONE);
         }
       }

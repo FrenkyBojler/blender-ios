@@ -211,14 +211,14 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     show_developer_ui = context.preferences.view.show_developer_ui
     rna_properties = {prop.identifier for prop in rna_item.bl_rna.properties if prop.is_runtime} if items else None
 
-    if len(items) <= 0:
-        return
-
     row = layout.row()
     row.template_id_properties_tree(rna_item.id_data)
 
     col = row.column(align=True)
     col.operator("wm.properties_add", text="", icon='ADD').data_path = context_member
+
+    if len(items) <= 0:
+        return
 
     active_prop = items[rna_item.idprop_active_index]
     key = active_prop[0]
