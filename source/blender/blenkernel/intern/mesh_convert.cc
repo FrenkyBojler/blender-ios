@@ -123,8 +123,11 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
       "material_index", AttrDomain::Face);
   SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
       "sharp_face", AttrDomain::Face);
+  const StringRef uv_name = DATA_("UVMap");
   SpanAttributeWriter<float2> uv_attribute = attributes.lookup_or_add_for_write_span<float2>(
-      DATA_("UVMap"), AttrDomain::Corner);
+      uv_name, AttrDomain::Corner);
+  mesh->uv_maps_active_set(uv_name);
+  mesh->uv_maps_default_set(uv_name);
   MutableSpan<float2> uv_map = uv_attribute.span;
 
   int dst_vert = 0;
@@ -474,7 +477,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
         VertLink *vl;
 
         /* create new 'nurb' within the curve */
-        nu = MEM_callocN<Nurb>(__func__);
+        nu = MEM_new_for_free<Nurb>(__func__);
 
         nu->pntsu = faces_num;
         nu->pntsv = 1;
@@ -513,7 +516,7 @@ void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Obj
     return;
   }
 
-  ListBase nurblist = {nullptr, nullptr};
+  ListBaseT<Nurb> nurblist = {nullptr, nullptr};
 
   BKE_mesh_to_curve_nurblist(mesh_eval, &nurblist, 0);
   BKE_mesh_to_curve_nurblist(mesh_eval, &nurblist, 1);
@@ -1146,6 +1149,10 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
   /* Make sure attribute names are moved. */
   std::swap(mesh_dst->active_color_attribute, mesh_src->active_color_attribute);
   std::swap(mesh_dst->default_color_attribute, mesh_src->default_color_attribute);
+  std::swap(mesh_dst->active_uv_map_attribute, mesh_src->active_uv_map_attribute);
+  std::swap(mesh_dst->stencil_uv_map_attribute, mesh_src->stencil_uv_map_attribute);
+  std::swap(mesh_dst->clone_uv_map_attribute, mesh_src->clone_uv_map_attribute);
+  std::swap(mesh_dst->default_uv_map_attribute, mesh_src->default_uv_map_attribute);
   std::swap(mesh_dst->vertex_group_names, mesh_src->vertex_group_names);
 
   BKE_mesh_copy_parameters(mesh_dst, mesh_src);

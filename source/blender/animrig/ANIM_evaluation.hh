@@ -88,8 +88,6 @@ class EvaluationResult {
 
  public:
   EvaluationResult() = default;
-  EvaluationResult(const EvaluationResult &other) = default;
-  ~EvaluationResult() = default;
 
   operator bool() const
   {
@@ -99,6 +97,15 @@ class EvaluationResult {
   {
     return result_.is_empty();
   }
+
+  /**
+   * When the expected count of entries is known, reserving with size instead of growing on demand
+   * is more performant.
+   */
+  void reserve(const int64_t size)
+  {
+    result_.reserve(size);
+  };
 
   void store(const StringRefNull rna_path,
              const int array_index,

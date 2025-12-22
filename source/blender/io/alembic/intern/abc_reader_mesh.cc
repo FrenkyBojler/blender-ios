@@ -262,7 +262,7 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
    * data has been loaded, unfortunately means any remaining data will be lost. */
   if (!all_faces_ok) {
     if (config.modifier_error_message) {
-      *config.modifier_error_message = "Mesh hash invalid geometry";
+      *config.modifier_error_message = "Mesh has invalid geometry";
     }
     bke::mesh_validate(*config.mesh, false);
 
@@ -395,6 +395,8 @@ BLI_INLINE void read_uvs_params(CDStreamConfig &config,
 
   bke::MutableAttributeAccessor attributes = config.mesh->attributes_for_write();
   config.uv_map = attributes.lookup_or_add_for_write_span<float2>(name, bke::AttrDomain::Corner);
+  config.mesh->uv_maps_active_set(name);
+  config.mesh->uv_maps_default_set(name);
 }
 
 template<typename SampleType>

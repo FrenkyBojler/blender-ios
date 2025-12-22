@@ -18,6 +18,7 @@
 
 #include "CLG_log.h"
 
+#include "DNA_defs.h"
 #include "MEM_guardedalloc.h"
 
 /* all types are needed here, in order to do memory operations */
@@ -258,9 +259,9 @@ void BKE_lib_id_clear_library_data(Main *bmain, ID *id, const int flags)
     }
   }
 
-  /* Ensure that the deephash is reset when making an ID local (in case it was previously a packed
-   * linked ID), as this is by definition not a valid deephash anymore (that ID is now a fully
-   * independent copy living in another blendfile). */
+  /* Ensure that the deep-hash is reset when making an ID local (in case it was previously a packed
+   * linked ID), as this is by definition not a valid deep-hash anymore (that ID is now a fully
+   * independent copy living in another blend-file). */
   id->deep_hash = {};
 
   /* We need to tag this IDs and all of its users, conceptually new local ID and original linked
@@ -488,7 +489,7 @@ void lib_id_copy_ensure_local(Main *bmain, const ID *old_id, ID *new_id, const i
 {
   if (ID_IS_LINKED(old_id)) {
     /* For packed linked data copied into local IDs in Main, assume that they are no more related
-     * to their original library source, and clear their deephash.
+     * to their original library source, and clear their deep-hash.
      *
      * NOTE: In case more control is needed over that behavior in the future, a new flag can be
      * added instead. */
@@ -1570,7 +1571,7 @@ void BKE_libblock_copy_in_lib(Main *bmain,
     /* `new_id_p` already contains pointer to allocated memory.
      * Clear and initialize it similar to BKE_libblock_alloc_in_lib. */
     const size_t size = BKE_libblock_get_alloc_info(GS(id->name), nullptr);
-    memset(new_id, 0, size);
+    memset((void *)new_id, 0, size);
     BKE_libblock_runtime_ensure(*new_id);
     STRNCPY(new_id->name, id->name);
     new_id->us = 0;
@@ -2072,8 +2073,7 @@ static void library_make_local_copying_check(ID *id,
     return; /* Already checked, nothing else to do. */
   }
 
-  MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(id_relations->relations_from_pointers, id));
+  MainIDRelationsEntry *entry = id_relations->relations_from_pointers->lookup(id);
   loop_tags.add(id);
   for (MainIDRelationsEntryItem *from_id_entry = entry->from_ids; from_id_entry != nullptr;
        from_id_entry = from_id_entry->next)
@@ -2632,7 +2632,7 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
   }
 
   if (id->library_weak_reference != nullptr) {
-    BLO_write_struct(writer, LibraryWeakReference, id->library_weak_reference);
+    writer->write_struct(id->library_weak_reference);
   }
 
   /* ID_WM's id->properties are considered runtime only, and never written in .blend file. */
@@ -2648,7 +2648,7 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
   BKE_animdata_blend_write(writer, id);
 
   if (id->override_library) {
-    BLO_write_struct(writer, IDOverrideLibrary, id->override_library);
+    writer->write_struct(id->override_library);
 
     BLO_write_struct_list(writer, IDOverrideLibraryProperty, &id->override_library->properties);
     LISTBASE_FOREACH (IDOverrideLibraryProperty *, op, &id->override_library->properties) {

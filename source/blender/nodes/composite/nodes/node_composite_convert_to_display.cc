@@ -45,7 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeConvertToDisplay *nctd = MEM_callocN<NodeConvertToDisplay>(__func__);
+  NodeConvertToDisplay *nctd = MEM_new_for_free<NodeConvertToDisplay>(__func__);
   BKE_color_managed_display_settings_init(&nctd->display_settings);
   BKE_color_managed_view_settings_init(&nctd->view_settings, &nctd->display_settings, nullptr);
   nctd->view_settings.flag |= COLORMANAGE_VIEW_ONLY_VIEW_LOOK;
@@ -61,7 +61,7 @@ static void node_free(bNode *node)
 
 static void node_copy(bNodeTree * /*dest_ntree*/, bNode *dest_node, const bNode *src_node)
 {
-  NodeConvertToDisplay *dest = MEM_callocN<NodeConvertToDisplay>(__func__);
+  NodeConvertToDisplay *dest = MEM_new_for_free<NodeConvertToDisplay>(__func__);
   const NodeConvertToDisplay *src = static_cast<const NodeConvertToDisplay *>(src_node->storage);
   BKE_color_managed_view_settings_copy(&dest->view_settings, &src->view_settings);
   BKE_color_managed_display_settings_copy(&dest->display_settings, &src->display_settings);
@@ -80,18 +80,18 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   BKE_color_managed_view_settings_blend_read_data(&reader, &nctd->view_settings);
 }
 
-static void node_draw_buttons(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_draw_buttons(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
 #ifndef WITH_OPENCOLORIO
-  layout->label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
+  layout.label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
 #endif
 
   PointerRNA display_ptr = RNA_pointer_get(ptr, "display_settings");
   PointerRNA view_ptr = RNA_pointer_get(ptr, "view_settings");
 
-  layout->prop(&display_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(&view_ptr, "view_transform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(&view_ptr, "look", UI_ITEM_NONE, IFACE_("Look"), ICON_NONE);
+  layout.prop(&display_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&view_ptr, "view_transform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&view_ptr, "look", UI_ITEM_NONE, IFACE_("Look"), ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -102,7 +102,7 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   bool do_inverse()
   {
-    return this->get_input("Invert").get_single_value_default(false);
+    return this->get_input("Invert").get_single_value_default<bool>();
   }
 
   void execute() override

@@ -137,7 +137,7 @@ KeyingSet *BKE_keyingset_add(
   KeyingSet *ks;
 
   /* allocate new KeyingSet */
-  ks = MEM_callocN<KeyingSet>("KeyingSet");
+  ks = MEM_new_for_free<KeyingSet>("KeyingSet");
 
   STRNCPY_UTF8(ks->idname, (idname) ? idname : (name) ? name : DATA_("KeyingSet"));
   STRNCPY_UTF8(ks->name, (name) ? name : (idname) ? idname : DATA_("Keying Set"));
@@ -192,7 +192,7 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks,
   }
 
   /* allocate a new KeyingSet Path */
-  ksp = MEM_callocN<KS_Path>("KeyingSet Path");
+  ksp = MEM_new_for_free<KS_Path>("KeyingSet Path");
 
   /* just store absolute info */
   ksp->id = id;
@@ -303,12 +303,12 @@ void BKE_keyingsets_blend_write(BlendWriter *writer, ListBase *list)
 {
   LISTBASE_FOREACH (KeyingSet *, ks, list) {
     /* KeyingSet */
-    BLO_write_struct(writer, KeyingSet, ks);
+    writer->write_struct(ks);
 
     /* Paths */
     LISTBASE_FOREACH (KS_Path *, ksp, &ks->paths) {
       /* Path */
-      BLO_write_struct(writer, KS_Path, ksp);
+      writer->write_struct(ksp);
 
       if (ksp->rna_path) {
         BLO_write_string(writer, ksp->rna_path);
@@ -1329,8 +1329,7 @@ static void nlaeval_init(NlaEvalData *nlaeval)
   memset(nlaeval, 0, sizeof(*nlaeval));
 
   nlaeval->path_hash = BLI_ghash_str_new("NlaEvalData::path_hash");
-  nlaeval->key_hash = MEM_new<blender::Map<NlaEvalChannelKey, NlaEvalChannel *>>(
-      "NlaEvalData::key_hash");
+  nlaeval->key_hash = MEM_new<Map<NlaEvalChannelKey, NlaEvalChannel *>>("NlaEvalData::key_hash");
 }
 
 static void nlaeval_free(NlaEvalData *nlaeval)
@@ -3718,7 +3717,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 
   if (ctx == nullptr) {
     /* Allocate and evaluate a new context. */
-    ctx = MEM_callocN<NlaKeyframingContext>("NlaKeyframingContext");
+    ctx = MEM_new_for_free<NlaKeyframingContext>("NlaKeyframingContext");
     ctx->adt = adt;
 
     nlaeval_init(&ctx->lower_eval_data);
@@ -3734,7 +3733,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
                                            PointerRNA *prop_ptr,
                                            PropertyRNA *prop,
-                                           const blender::MutableSpan<float> values,
+                                           const MutableSpan<float> values,
                                            int index,
                                            const AnimationEvalContext *anim_eval_context,
                                            bool *r_force_all,
@@ -4277,7 +4276,7 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
 void BKE_time_markers_blend_write(BlendWriter *writer, ListBase /* TimeMarker */ &markers)
 {
   LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
-    BLO_write_struct(writer, TimeMarker, marker);
+    writer->write_struct(marker);
 
     if (marker->prop != nullptr) {
       IDP_BlendWrite(writer, marker->prop);
