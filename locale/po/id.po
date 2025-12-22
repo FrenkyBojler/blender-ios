@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-02 11:29+0000\n"
+"POT-Creation-Date: 2025-12-16 11:27+0000\n"
 "PO-Revision-Date: 2025-12-01 14:52+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -10940,6 +10940,22 @@ msgid "Closure"
 msgstr "Penutup"
 
 
+msgid "Font"
+msgstr "Font"
+
+
+msgid "Text"
+msgstr "Teks"
+
+
+msgid "Mask"
+msgstr "Masker"
+
+
+msgid "Sound"
+msgstr "Suara"
+
+
 msgid "A collection of objects based on which feature edges are selected"
 msgstr "Koleksi objek berdasasrkan dengan tepi fitur yang terseleksi"
 
@@ -12556,10 +12572,6 @@ msgid "Text on Curve"
 msgstr "Tekstur"
 
 
-msgid "Font"
-msgstr "Font"
-
-
 msgid "Font Bold"
 msgstr "Huruf Tebal"
 
@@ -13563,10 +13575,6 @@ msgstr "Penyunting Teks"
 
 msgid "Attenuation"
 msgstr "Atenuasi"
-
-
-msgid "Sound"
-msgstr "Suara"
 
 
 msgid "Filename of the text file"
@@ -15520,96 +15528,32 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "Mask"
-msgstr "Masker"
-
-
-msgid "Apply"
-msgstr "Tetapkan"
-
-
-msgid "Track"
-msgstr "Lacak"
-
-
-msgid "Asset"
-msgstr "Aset"
-
-
-msgid "Hooks"
-msgstr "Kait"
-
-
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Layout"
-msgstr "Tata Letak"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
-
-
-msgid "Tracking"
-msgstr "Pelacakan"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Text"
-msgstr "Teks"
-
-
-msgid "Metaball"
-msgstr "Metabola"
+msgid "Mirror"
+msgstr "Cermin"
 
 
 msgid "Snap"
 msgstr "Jepret"
 
 
-msgid "Sample"
-msgstr "Sampel"
-
-
-msgid "Mirror"
-msgstr "Cermin"
-
-
 msgid "Navigation"
 msgstr "Navigasi"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
 
 
 msgid "Select Linked"
 msgstr "Seleksi yang Terhubung"
 
 
-msgid "Import"
-msgstr "Impor"
-
-
 msgid "Assign Material"
 msgstr "Tugaskan Bahan"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Metaball"
+msgstr "Metabola"
+
+
+msgid "Layout"
+msgstr "Tata Letak"
 
 
 msgid "Light"
@@ -15624,6 +15568,62 @@ msgid "Add Image"
 msgstr "Tambah Gambar"
 
 
+msgid "Apply"
+msgstr "Tetapkan"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
+
+
+msgid "Track"
+msgstr "Lacak"
+
+
+msgid "Utilities"
+msgstr "Utilitas"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Asset"
+msgstr "Aset"
+
+
+msgid "Hooks"
+msgstr "Kait"
+
+
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "Sample"
+msgstr "Sampel"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
+msgid "Import"
+msgstr "Impor"
+
+
+msgid "UV"
+msgstr "UV"
+
+
 msgctxt "MovieClip"
 msgid "Clip"
 msgstr "Klip"
@@ -15635,10 +15635,6 @@ msgstr "Perbesar"
 
 msgid "Console"
 msgstr "Konsol"
-
-
-msgid "Languages..."
-msgstr "Bahasa..."
 
 
 msgid "Add Attribute"
@@ -18180,16 +18176,16 @@ msgid "Blur Attribute"
 msgstr "Atribut Buram"
 
 
+msgid "Original"
+msgstr "Asli"
+
+
 msgid "Collection Info"
 msgstr "Info Koleksi"
 
 
 msgid "Retrieve geometry instances from a collection"
 msgstr "Mengambil contoh-contoh geometri dari koleksi"
-
-
-msgid "Original"
-msgstr "Asli"
 
 
 msgid "Geometry Custom Group"
@@ -23405,6 +23401,10 @@ msgid "Relax Method"
 msgstr "Metode Tenang"
 
 
+msgid "Ignore Selection"
+msgstr "Abaikan Seleksi"
+
+
 msgctxt "Operator"
 msgid "Change Effect Type"
 msgstr "Ganti Tipe Efek"
@@ -23661,10 +23661,6 @@ msgstr "Tidak ada Perubahan"
 
 msgid "Use Cursor Position"
 msgstr "Gunakan Posisi Kursor"
-
-
-msgid "Ignore Selection"
-msgstr "Abaikan Seleksi"
 
 
 msgctxt "Operator"
@@ -25186,10 +25182,6 @@ msgid "Frame Based Speed"
 msgstr "Kecepatan Berdasarkan Bingkai"
 
 
-msgid "Sample Count"
-msgstr "Hitungan Sampel"
-
-
 msgid "Add a new workspace"
 msgstr "Tambah spasi kerja baru"
 
@@ -26024,6 +26016,10 @@ msgstr "Orientasi Transformasi"
 
 msgid "Transmission Indirect"
 msgstr "Orientasi Transformasi"
+
+
+msgid "Sample Count"
+msgstr "Hitungan Sampel"
 
 
 msgid "Map Resolution"
@@ -29159,11 +29155,6 @@ msgstr "Mode Ekstrapolasi"
 
 
 msgctxt "Operator"
-msgid "Move..."
-msgstr "Pindahkan..."
-
-
-msgctxt "Operator"
 msgid "Snap"
 msgstr "Jepret"
 
@@ -30188,11 +30179,6 @@ msgstr "Kurangi Kontras"
 
 
 msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "Sortir Elemen..."
-
-
-msgctxt "Operator"
 msgid "Extrude Vertices"
 msgstr "Memperpanjang Simpul"
 
@@ -30327,11 +30313,6 @@ msgstr "Tidak ada Koleksi ke Contoh"
 msgctxt "Operator"
 msgid "Collection Instance"
 msgstr "Contoh Koleksi"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Referensi"
 
 
 msgctxt "Operator"
@@ -30565,10 +30546,6 @@ msgstr "Tidak dapat membuka blend <memory>"
 
 msgid "Failed to read blend file '%s': %s"
 msgstr "Gagal membaca dokumen blend '%s': %s"
-
-
-msgid "Unable to read '%s': %s"
-msgstr "Tidak dapat membaca '%s': %s"
 
 
 msgid "Unrecognized file format '%s'"

@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Vector").custom_draw([](CustomSocketDrawParams &params) {
     params.layout.alignment_set(ui::LayoutAlign::Expand);
     ui::Layout &row = params.layout.row(true);
-    row.column(true).prop(&params.node_ptr, "vector", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    row.column(true).prop(&params.node_ptr, "vector", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
     if (gizmos::value_node_has_gizmo(params.tree, params.node)) {
       row.prop(&params.socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
     }
@@ -33,7 +33,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeInputVector *data = MEM_callocN<NodeInputVector>(__func__);
+  NodeInputVector *data = MEM_new_for_free<NodeInputVector>(__func__);
   node->storage = data;
 }
 

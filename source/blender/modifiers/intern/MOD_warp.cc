@@ -16,7 +16,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -46,10 +45,7 @@
 static void init_data(ModifierData *md)
 {
   WarpModifierData *wmd = (WarpModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WarpModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 
   wmd->curfalloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
@@ -392,7 +388,7 @@ static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
   }
 
   if (use_falloff && RNA_enum_get(ptr, "falloff_type") == eWarp_Falloff_Curve) {
-    uiTemplateCurveMapping(&layout, ptr, "falloff_curve", 0, false, false, false, false, false);
+    template_curve_mapping(&layout, ptr, "falloff_curve", 0, false, false, false, false, false);
   }
 }
 
@@ -405,7 +401,7 @@ static void texture_panel_draw(const bContext *C, Panel *panel)
 
   int texture_coords = RNA_enum_get(ptr, "texture_coords");
 
-  uiTemplateID(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
+  template_id(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
   layout.use_property_split_set(true);
 
@@ -445,7 +441,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const WarpModifierData *wmd = (const WarpModifierData *)md;
 
-  BLO_write_struct(writer, WarpModifierData, wmd);
+  writer->write_struct(wmd);
 
   if (wmd->curfalloff) {
     BKE_curvemapping_blend_write(writer, wmd->curfalloff);

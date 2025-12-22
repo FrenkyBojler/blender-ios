@@ -1350,15 +1350,15 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
     ED_mesh_mirrtopo_init(em, nullptr, &mesh_topo_store, true);
   }
   else {
-    tree = blender::BLI_kdtree_3d_new(bm->totvert);
+    tree = blender::kdtree_3d_new(bm->totvert);
     BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
       if (respecthide && BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
         continue;
       }
 
-      blender::BLI_kdtree_3d_insert(tree, i, v->co);
+      blender::kdtree_3d_insert(tree, i, v->co);
     }
-    blender::BLI_kdtree_3d_balance(tree);
+    blender::kdtree_3d_balance(tree);
   }
 
 #define VERT_INTPTR(_v, _i) \
@@ -1392,7 +1392,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
       co[axis] *= -1.0f;
 
       v_mirr = nullptr;
-      i_mirr = blender::BLI_kdtree_3d_find_nearest(tree, co, nullptr);
+      i_mirr = blender::kdtree_3d_find_nearest(tree, co, nullptr);
       if (i_mirr != -1) {
         BMVert *v_test = BM_vert_at_index(bm, i_mirr);
         if (len_squared_v3v3(co, v_test->co) < maxdist_sq) {
@@ -1418,7 +1418,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
     ED_mesh_mirrtopo_free(&mesh_topo_store);
   }
   else {
-    blender::BLI_kdtree_3d_free(tree);
+    blender::kdtree_3d_free(tree);
   }
 }
 
@@ -2082,3 +2082,21 @@ void EDBM_project_snap_verts(
 }
 
 /** \} */
+
+bool EDBM_smooth_vert(BMEditMesh *em, wmOperator *op)
+{
+  return EDBM_op_callf(em,
+                       op,
+                       "smooth_vert verts=%hv factor=%f mirror_clip_x=%b mirror_clip_y=%b "
+                       "mirror_clip_z=%b "
+                       "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
+                       BM_ELEM_TAG,
+                       1.0,
+                       false,
+                       false,
+                       false,
+                       0.1,
+                       true,
+                       true,
+                       true);
+}

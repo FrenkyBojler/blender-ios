@@ -11,7 +11,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -44,10 +43,7 @@
 static void init_data(ModifierData *md)
 {
   WaveModifierData *wmd = (WaveModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WaveModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 }
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
@@ -300,10 +296,16 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   layout.use_property_split_set(true);
 
   blender::ui::Layout *row = &layout.row(true, IFACE_("Motion"));
-  row->prop(
-      ptr, "use_x", UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE, std::nullopt, ICON_NONE);
-  row->prop(
-      ptr, "use_y", UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE, std::nullopt, ICON_NONE);
+  row->prop(ptr,
+            "use_x",
+            blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_FORCE_BLANK_DECORATE,
+            std::nullopt,
+            ICON_NONE);
+  row->prop(ptr,
+            "use_y",
+            blender::ui::ITEM_R_TOGGLE | blender::ui::ITEM_R_FORCE_BLANK_DECORATE,
+            std::nullopt,
+            ICON_NONE);
 
   layout.prop(ptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -311,15 +313,15 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   row->prop(ptr, "use_normal", UI_ITEM_NONE, "", ICON_NONE);
   blender::ui::Layout &sub = row->row(true);
   sub.active_set(RNA_boolean_get(ptr, "use_normal"));
-  sub.prop(ptr, "use_normal_x", UI_ITEM_R_TOGGLE, IFACE_("X"), ICON_NONE);
-  sub.prop(ptr, "use_normal_y", UI_ITEM_R_TOGGLE, IFACE_("Y"), ICON_NONE);
-  sub.prop(ptr, "use_normal_z", UI_ITEM_R_TOGGLE, IFACE_("Z"), ICON_NONE);
+  sub.prop(ptr, "use_normal_x", blender::ui::ITEM_R_TOGGLE, IFACE_("X"), ICON_NONE);
+  sub.prop(ptr, "use_normal_y", blender::ui::ITEM_R_TOGGLE, IFACE_("Y"), ICON_NONE);
+  sub.prop(ptr, "use_normal_z", blender::ui::ITEM_R_TOGGLE, IFACE_("Z"), ICON_NONE);
 
   blender::ui::Layout &col = layout.column(false);
   col.prop(ptr, "falloff_radius", UI_ITEM_NONE, IFACE_("Falloff"), ICON_NONE);
-  col.prop(ptr, "height", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  col.prop(ptr, "width", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  col.prop(ptr, "narrowness", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  col.prop(ptr, "height", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  col.prop(ptr, "width", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  col.prop(ptr, "narrowness", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
@@ -353,7 +355,7 @@ static void time_panel_draw(const bContext * /*C*/, Panel *panel)
   col.prop(ptr, "time_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
   col.prop(ptr, "lifetime", UI_ITEM_NONE, IFACE_("Life"), ICON_NONE);
   col.prop(ptr, "damping_time", UI_ITEM_NONE, IFACE_("Damping"), ICON_NONE);
-  col.prop(ptr, "speed", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  col.prop(ptr, "speed", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 }
 
 static void texture_panel_draw(const bContext *C, Panel *panel)
@@ -365,7 +367,7 @@ static void texture_panel_draw(const bContext *C, Panel *panel)
 
   int texture_coords = RNA_enum_get(ptr, "texture_coords");
 
-  uiTemplateID(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
+  template_id(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
   layout.use_property_split_set(true);
 
