@@ -92,7 +92,8 @@ VkImageCreateFlags to_vk_image_create(const GPUTextureType texture_type,
                                       const GPUTextureFormatFlag format_flag,
                                       const eGPUTextureUsage usage);
 VkImageUsageFlags to_vk_image_usage(const eGPUTextureUsage usage,
-                                    const GPUTextureFormatFlag format_flag);
+                                    const GPUTextureFormatFlag format_flag,
+                                    bool use_image_host_copy);
 
 template<typename T> VkObjectType to_vk_object_type(T /*vk_obj*/)
 {
