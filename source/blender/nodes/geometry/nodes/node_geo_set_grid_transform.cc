@@ -32,22 +32,22 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
+  b.add_output<decl::Bool>("Is Valid")
+      .description("The new transform is valid and was successfully applied to the grid.");
   b.add_input(data_type, "Grid")
       .hide_value()
       .structure_type(StructureType::Grid)
       .is_default_link_socket();
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
-  b.add_output<decl::Bool>("Is Valid")
-      .description("The new transform is valid and was successfully applied to the grid.");
   b.add_input<decl::Matrix>("Transform")
       .description("The new transform from grid index space to object space.");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)

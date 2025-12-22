@@ -10,8 +10,8 @@
 
 #include "BKE_nla.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -48,7 +48,9 @@ struct FCurve;
 struct FModifier;
 struct bAction;
 
-struct uiBlock;
+namespace blender::ui {
+struct Block;
+}
 
 struct PointerRNA;
 struct PropertyRNA;
@@ -107,6 +109,17 @@ struct bAnimContext {
   /** Editor mode, which depends on `spacetype` (below). */
   eAnimEdit_Context dopesheet_mode;
   eGraphEdit_Mode grapheditor_mode;
+
+  /**
+   * Filters from the dope-sheet/graph editor settings.
+   * These may reflect the corresponding bits in `ads->filterflag` and `ads->filterflag2`,
+   * but can also be overridden by the dope-sheet mode to force certain filters
+   * (without having to write to `ads->filterflag/flag2`).
+   */
+  struct {
+    eDopeSheet_FilterFlag flag;
+    eDopeSheet_FilterFlag2 flag2;
+  } filters;
 
   /** area->spacetype */
   eSpace_Type spacetype;
@@ -259,7 +272,7 @@ enum eAnim_Update_Flags {
   /** Recalculate handles. */
   ANIM_UPDATE_HANDLES = (1 << 2),
 };
-ENUM_OPERATORS(eAnim_Update_Flags, ANIM_UPDATE_HANDLES);
+ENUM_OPERATORS(eAnim_Update_Flags);
 
 /* used for most tools which change keyframes (flushed by ANIM_animdata_update) */
 #define ANIM_UPDATE_DEFAULT (ANIM_UPDATE_DEPS | ANIM_UPDATE_ORDER | ANIM_UPDATE_HANDLES)
@@ -411,7 +424,7 @@ enum eAnimFilter_Flags {
   ANIMFILTER_TMP_IGNORE_ONLYSEL = (1u << 31),
 
 };
-ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
+ENUM_OPERATORS(eAnimFilter_Flags);
 
 /** \} */
 
@@ -487,7 +500,6 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 #define SEL_GPL(gpl) (gpl->flag & GP_LAYER_SELECT)
 
 /* Mask Only */
-/** Grease Pencil data-block settings. */
 #define EXPANDED_MASK(mask) (mask->flag & MASK_ANIMF_EXPAND)
 /** Grease Pencil Layer settings. */
 #define EDITABLE_MASK(masklay) ((masklay->flag & MASK_LAYERFLAG_LOCKED) == 0)
@@ -514,7 +526,7 @@ ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
 
 /** NLA track heights */
 #define NLATRACK_FIRST_TOP(ac) \
-  (UI_view2d_scale_get_y(&(ac)->region->v2d) * -UI_TIME_SCRUB_MARGIN_Y - NLATRACK_SKIP)
+  (blender::ui::view2d_scale_get_y(&(ac)->region->v2d) * -UI_TIME_SCRUB_MARGIN_Y - NLATRACK_SKIP)
 #define NLATRACK_HEIGHT(snla) \
   (((snla) && ((snla)->flag & SNLA_NOSTRIPCURVES)) ? (0.8f * U.widget_unit) : \
                                                      (1.2f * U.widget_unit))
@@ -766,7 +778,7 @@ void ANIM_channel_draw(
 void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
-                               uiBlock *block,
+                               blender::ui::Block *block,
                                const rctf *rect,
                                size_t channel_index);
 
@@ -880,6 +892,11 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag);
  * Draw preview range 'curtains' for highlighting where the animation data is.
  */
 void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width);
+
+/**
+ * Draw range of the current sequencer scene strip when using scene time syncing.
+ */
+void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d);
 
 /** \} */
 

@@ -23,8 +23,8 @@ namespace blender::nodes::node_geo_curve_fill_cc {
 NODE_STORAGE_FUNCS(NodeGeometryCurveFill)
 
 static const EnumPropertyItem mode_items[] = {
-    {GEO_NODE_CURVE_FILL_MODE_TRIANGULATED, "TRIANGLES", 0, "Triangles", ""},
-    {GEO_NODE_CURVE_FILL_MODE_NGONS, "NGONS", 0, "N-gons", ""},
+    {GEO_NODE_CURVE_FILL_MODE_TRIANGULATED, "TRIANGLES", 0, N_("Triangles"), ""},
+    {GEO_NODE_CURVE_FILL_MODE_NGONS, "NGONS", 0, N_("N-gons"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -49,7 +49,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   /* Still used for forward compatibility. */
-  node->storage = MEM_callocN<NodeGeometryCurveFill>(__func__);
+  node->storage = MEM_new_for_free<NodeGeometryCurveFill>(__func__);
 }
 
 static void fill_curve_vert_indices(const OffsetIndices<int> offsets,

@@ -24,7 +24,6 @@
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_defaults.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_effect_types.h"
 #include "DNA_fluid_types.h"
@@ -49,7 +48,7 @@
 #include "DNA_view3d_types.h"
 
 #include "BLI_bounds.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -122,9 +121,9 @@
 #include "BKE_preview_image.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 #include "BKE_softbody.h"
-#include "BKE_speaker.h"
+#include "BKE_speaker.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
@@ -173,9 +172,7 @@ static void copy_object_pose(Object *obn, const Object *ob, const int flag);
 static void object_init_data(ID *id)
 {
   Object *ob = (Object *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(ob, id));
-
-  MEMCPY_STRUCT_AFTER(ob, DNA_struct_default_get(Object), id);
+  INIT_DEFAULT_STRUCT_AFTER(ob, id);
 
   ob->type = OB_EMPTY;
 
@@ -637,38 +634,34 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_pointer_array(writer, ob->totcol, ob->mat);
   BLO_write_char_array(writer, ob->totcol, ob->matbits);
 
-  bArmature *arm = nullptr;
-  if (ob->type == OB_ARMATURE) {
-    arm = (bArmature *)ob->data;
-  }
-
   if (ob->pose) {
-    BKE_pose_blend_write(writer, ob->pose, arm);
+    BLI_assert(ob->type == OB_ARMATURE);
+    BKE_pose_blend_write(writer, ob->pose);
   }
   BKE_constraint_blend_write(writer, &ob->constraints);
   animviz_motionpath_blend_write(writer, ob->mpath);
 
-  BLO_write_struct(writer, PartDeflect, ob->pd);
+  writer->write_struct(ob->pd);
   if (ob->soft) {
     /* Set deprecated pointers to prevent crashes of older Blenders */
     ob->soft->pointcache = ob->soft->shared->pointcache;
     ob->soft->ptcaches = ob->soft->shared->ptcaches;
-    BLO_write_struct(writer, SoftBody, ob->soft);
-    BLO_write_struct(writer, SoftBody_Shared, ob->soft->shared);
+    writer->write_struct(ob->soft);
+    writer->write_struct(ob->soft->shared);
     BKE_ptcache_blend_write(writer, &(ob->soft->shared->ptcaches));
-    BLO_write_struct(writer, EffectorWeights, ob->soft->effector_weights);
+    writer->write_struct(ob->soft->effector_weights);
   }
 
   if (ob->rigidbody_object) {
     /* TODO: if any extra data is added to handle duplis, will need separate function then */
-    BLO_write_struct(writer, RigidBodyOb, ob->rigidbody_object);
+    writer->write_struct(ob->rigidbody_object);
   }
   if (ob->rigidbody_constraint) {
-    BLO_write_struct(writer, RigidBodyCon, ob->rigidbody_constraint);
+    writer->write_struct(ob->rigidbody_constraint);
   }
 
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
-    BLO_write_struct(writer, ImageUser, ob->iuser);
+    writer->write_struct(ob->iuser);
   }
 
   BKE_particle_system_blend_write(writer, &ob->particlesystem);
@@ -680,14 +673,14 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_previewimg_blend_write(writer, ob->preview);
 
   if (ob->lightgroup) {
-    BLO_write_struct(writer, LightgroupMembership, ob->lightgroup);
+    writer->write_struct(ob->lightgroup);
   }
   if (ob->light_linking) {
-    BLO_write_struct(writer, LightLinking, ob->light_linking);
+    writer->write_struct(ob->light_linking);
   }
 
   if (ob->lightprobe_cache) {
-    BLO_write_struct(writer, LightProbeObjectCache, ob->lightprobe_cache);
+    writer->write_struct(ob->lightprobe_cache);
     BKE_lightprobe_cache_blend_write(writer, ob->lightprobe_cache);
   }
 }
@@ -832,7 +825,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   if (ob->rigidbody_object) {
     RigidBodyOb *rbo = ob->rigidbody_object;
     /* Allocate runtime-only struct */
-    rbo->shared = MEM_callocN<RigidBodyOb_Shared>("RigidBodyObShared");
+    rbo->shared = MEM_new_for_free<RigidBodyOb_Shared>("RigidBodyObShared");
   }
   BLO_read_struct(reader, RigidBodyCon, &ob->rigidbody_constraint);
   if (ob->rigidbody_constraint) {
@@ -1433,16 +1426,7 @@ bool BKE_object_copy_modifier(Main *bmain,
         break;
     }
 
-    ModifierData *next_md = nullptr;
-    LISTBASE_FOREACH_BACKWARD (ModifierData *, md, &ob_dst->modifiers) {
-      if (md->flag & eModifierFlag_PinLast) {
-        next_md = md;
-      }
-      else {
-        break;
-      }
-    }
-    BLI_insertlinkbefore(&ob_dst->modifiers, next_md, md_dst);
+    BKE_modifiers_add_at_end_if_possible(ob_dst, md_dst);
     BKE_modifier_unique_name(&ob_dst->modifiers, md_dst);
     BKE_modifiers_persistent_uid_init(*ob_dst, *md_dst);
   }
@@ -1499,24 +1483,21 @@ void BKE_object_link_modifiers(Object *ob_dst, const Object *ob_src)
 /**
  * Copy CCG related data. Used to sync copy of mesh with reshaped original mesh.
  */
-static void copy_ccg_data(Mesh *mesh_destination,
-                          Mesh *mesh_source,
-                          const eCustomDataType layer_type)
+static void copy_ccg_data(Mesh *mesh_dst, Mesh *mesh_src, const eCustomDataType layer_type)
 {
-  BLI_assert(mesh_destination->corners_num == mesh_source->corners_num);
-  CustomData *data_destination = &mesh_destination->corner_data;
-  CustomData *data_source = &mesh_source->corner_data;
-  const int num_elements = mesh_source->corners_num;
-  if (!CustomData_has_layer(data_source, layer_type)) {
+  BLI_assert(mesh_dst->corners_num == mesh_src->corners_num);
+  CustomData *data_dst = &mesh_dst->corner_data;
+  CustomData *data_src = &mesh_src->corner_data;
+  const int num_elements = mesh_src->corners_num;
+  if (!CustomData_has_layer(data_src, layer_type)) {
     return;
   }
-  const int layer_index = CustomData_get_layer_index(data_destination, layer_type);
-  CustomData_free_layer(data_destination, layer_type, layer_index);
-  BLI_assert(!CustomData_has_layer(data_destination, layer_type));
-  CustomData_add_layer(
-      data_destination, eCustomDataType(layer_type), CD_SET_DEFAULT, num_elements);
-  BLI_assert(CustomData_has_layer(data_destination, layer_type));
-  CustomData_copy_layer_type_data(data_source, data_destination, layer_type, 0, 0, num_elements);
+  const int layer_index = CustomData_get_layer_index(data_dst, layer_type);
+  CustomData_free_layer(data_dst, layer_type, layer_index);
+  BLI_assert(!CustomData_has_layer(data_dst, layer_type));
+  CustomData_add_layer(data_dst, eCustomDataType(layer_type), CD_SET_DEFAULT, num_elements);
+  BLI_assert(CustomData_has_layer(data_dst, layer_type));
+  CustomData_copy_layer_type_data(data_src, data_dst, layer_type, 0, 0, num_elements);
 }
 
 static void object_update_from_subsurf_ccg(Object *object)
@@ -3646,7 +3627,7 @@ void BKE_object_empty_draw_type_set(Object *ob, const int value)
 
   if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
     if (!ob->iuser) {
-      ob->iuser = MEM_callocN<ImageUser>("image user");
+      ob->iuser = MEM_new_for_free<ImageUser>("image user");
       ob->iuser->flag |= IMA_ANIM_ALWAYS;
       ob->iuser->frames = 100;
       ob->iuser->sfra = 1;
@@ -5059,9 +5040,9 @@ void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *ob)
 /** \name Object KD-Tree
  * \{ */
 
-KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
+blender::KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 {
-  KDTree_3d *tree = nullptr;
+  blender::KDTree_3d *tree = nullptr;
   uint tot = 0;
 
   switch (ob->type) {
@@ -5081,14 +5062,14 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 
         /* Tree over-allocates in case where some verts have #ORIGINDEX_NONE. */
         tot = 0;
-        tree = BLI_kdtree_3d_new(positions.size());
+        tree = blender::kdtree_3d_new(positions.size());
 
         /* We don't how many verts from the DM we can use. */
         for (i = 0; i < positions.size(); i++) {
           if (index[i] != ORIGINDEX_NONE) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), positions[i]);
-            BLI_kdtree_3d_insert(tree, index[i], co);
+            blender::kdtree_3d_insert(tree, index[i], co);
             tot++;
           }
         }
@@ -5097,16 +5078,16 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
         const Span<float3> positions = mesh->vert_positions();
 
         tot = positions.size();
-        tree = BLI_kdtree_3d_new(tot);
+        tree = blender::kdtree_3d_new(tot);
 
         for (i = 0; i < tot; i++) {
           float co[3];
           mul_v3_m4v3(co, ob->object_to_world().ptr(), positions[i]);
-          BLI_kdtree_3d_insert(tree, i, co);
+          blender::kdtree_3d_insert(tree, i, co);
         }
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::kdtree_3d_balance(tree);
       break;
     }
     case OB_CURVES_LEGACY:
@@ -5118,7 +5099,7 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       Nurb *nu;
 
       tot = BKE_nurbList_verts_count_without_handles(&cu->nurb);
-      tree = BLI_kdtree_3d_new(tot);
+      tree = blender::kdtree_3d_new(tot);
       i = 0;
 
       nu = (Nurb *)cu->nurb.first;
@@ -5131,7 +5112,7 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
           while (a--) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), bezt->vec[1]);
-            BLI_kdtree_3d_insert(tree, i++, co);
+            blender::kdtree_3d_insert(tree, i++, co);
             bezt++;
           }
         }
@@ -5143,14 +5124,14 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
           while (a--) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), bp->vec);
-            BLI_kdtree_3d_insert(tree, i++, co);
+            blender::kdtree_3d_insert(tree, i++, co);
             bp++;
           }
         }
         nu = nu->next;
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::kdtree_3d_balance(tree);
       break;
     }
     case OB_LATTICE: {
@@ -5160,16 +5141,16 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       uint i;
 
       tot = lt->pntsu * lt->pntsv * lt->pntsw;
-      tree = BLI_kdtree_3d_new(tot);
+      tree = blender::kdtree_3d_new(tot);
       i = 0;
 
       for (bp = lt->def; i < tot; bp++) {
         float co[3];
         mul_v3_m4v3(co, ob->object_to_world().ptr(), bp->vec);
-        BLI_kdtree_3d_insert(tree, i++, co);
+        blender::kdtree_3d_insert(tree, i++, co);
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::kdtree_3d_balance(tree);
       break;
     }
   }

@@ -10,6 +10,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -21,7 +22,6 @@
 #include "BLI_sys_types.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #include "BLF_api.hh"
 
@@ -239,43 +239,20 @@ struct ExtractionGraph {
  public:
   TaskGraph *graph = BLI_task_graph_create();
 
- private:
-  /* WORKAROUND: BLI_gset_free is not allowing to pass a data pointer to the free function. */
-  static thread_local TaskGraph *task_graph_ptr_;
-
- public:
   ~ExtractionGraph()
   {
     BLI_assert_msg(graph == nullptr, "Missing call to work_and_wait");
   }
 
-  /* `delayed_extraction` is a set of object to add to the graph before running.
-   * The non-null, the set is consumed and freed after use. */
-  void work_and_wait(GSet *&delayed_extraction)
+  void work_and_wait()
   {
     BLI_assert_msg(graph, "Trying to submit more than once");
-
-    if (delayed_extraction) {
-      task_graph_ptr_ = graph;
-      BLI_gset_free(delayed_extraction, delayed_extraction_free_callback);
-      task_graph_ptr_ = nullptr;
-      delayed_extraction = nullptr;
-    }
 
     BLI_task_graph_work_and_wait(graph);
     BLI_task_graph_free(graph);
     graph = nullptr;
   }
-
- private:
-  static void delayed_extraction_free_callback(void *object)
-  {
-    blender::draw::drw_batch_cache_generate_requested_evaluated_mesh_or_curve(
-        reinterpret_cast<Object *>(object), *task_graph_ptr_);
-  }
 };
-
-thread_local TaskGraph *ExtractionGraph::task_graph_ptr_ = nullptr;
 
 /** \} */
 
@@ -705,13 +682,18 @@ static bool supports_handle_ranges(DupliObject *dupli, Object *parent)
     return !BKE_modifiers_findby_type(ob, eModifierType_Fluid);
   }
 
+  if (ob_type == OB_GREASE_PENCIL) {
+    GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(dupli->ob_data);
+    return grease_pencil->flag & GREASE_PENCIL_STROKE_ORDER_3D;
+  }
+
   return true;
 }
 
 enum class InstancesFlags : uint8_t {
   IsNegativeScale = 1 << 0,
 };
-ENUM_OPERATORS(InstancesFlags, InstancesFlags::IsNegativeScale);
+ENUM_OPERATORS(InstancesFlags);
 
 struct InstancesKey {
   uint64_t hash_value;
@@ -896,8 +878,9 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       }
 
       tmp_object.light_linking = ob->light_linking;
-      SET_FLAG_FROM_TEST(
-          tmp_object.transflag, bool(key.flags & InstancesFlags::IsNegativeScale), OB_NEG_SCALE);
+      SET_FLAG_FROM_TEST(tmp_object.transflag,
+                         flag_is_set(key.flags, InstancesFlags::IsNegativeScale),
+                         OB_NEG_SCALE);
       /* Should use DrawInstances data instead. */
       tmp_object.runtime->object_to_world = float4x4();
       tmp_object.runtime->world_to_object = float4x4();
@@ -995,13 +978,21 @@ void DRWContext::sync(iter_callback_t iter_callback)
   iter_callback(dupli_handler, extraction);
 
   dupli_handler.extract_all(extraction);
-  extraction.work_and_wait(this->delayed_extraction);
+  for (Object *object : this->delayed_extraction) {
+    blender::draw::drw_batch_cache_generate_requested_evaluated_mesh_or_curve(object,
+                                                                              *extraction.graph);
+  }
+  this->delayed_extraction.clear();
+
+  extraction.work_and_wait();
 
   DRW_curves_update(*view_data_active->manager);
 }
 
 void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
+  double start_time = BLI_time_now_seconds();
+
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.init(); });
 
   view_data_active->manager->begin_sync(this->obact);
@@ -1013,14 +1004,23 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.end_sync(); });
 
   view_data_active->manager->end_sync();
+
+  last_sync_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
 void DRWContext::engines_draw_scene()
 {
+  double start_time = BLI_time_now_seconds();
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
+#ifdef __APPLE__
+    if (G.debug & G_DEBUG_GPU) {
+      /* Put each engine inside their own command buffers. */
+      GPU_flush();
+    }
+#endif
     GPU_debug_group_begin(instance.name_get().c_str());
     instance.draw(*DRW_manager_get());
     GPU_debug_group_end();
@@ -1033,6 +1033,8 @@ void DRWContext::engines_draw_scene()
   if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
     GPU_flush();
   }
+
+  last_submission_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height)
@@ -1157,14 +1159,6 @@ static bool gpencil_any_exists(Depsgraph *depsgraph)
 {
   return (DEG_id_type_any_exists(depsgraph, ID_GD_LEGACY) ||
           DEG_id_type_any_exists(depsgraph, ID_GP));
-}
-
-bool DRW_gpencil_engine_needed_viewport(Depsgraph *depsgraph, View3D *v3d)
-{
-  if (gpencil_object_is_excluded(v3d)) {
-    return false;
-  }
-  return gpencil_any_exists(depsgraph);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1420,7 +1414,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   const bool internal_engine = (engine_type->flag & RE_INTERNAL) != 0;
   const bool draw_type_render = v3d->shading.type == OB_RENDER;
   const bool overlays_on = (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
-  const bool gpencil_engine_needed = DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
+  const bool gpencil_engine_needed = DRW_render_check_grease_pencil(depsgraph, v3d);
   const bool do_populate_loop = internal_engine || overlays_on || !draw_type_render ||
                                 gpencil_engine_needed;
 
@@ -1506,6 +1500,7 @@ void DRW_draw_view(const bContext *C)
 {
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(C);
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
   DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C);
@@ -1523,7 +1518,10 @@ void DRW_draw_view(const bContext *C)
   else {
     drw_draw_render_loop_2d(draw_ctx);
   }
-
+  if (v3d) {
+    v3d->runtime.last_sync_time = draw_ctx.last_sync_time();
+    v3d->runtime.last_submission_time = draw_ctx.last_submission_time();
+  }
   draw_ctx.release_data();
 }
 
@@ -1595,8 +1593,12 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   }
 }
 
-bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
+bool DRW_render_check_grease_pencil(Depsgraph *depsgraph, View3D *v3d)
 {
+  if (v3d && gpencil_object_is_excluded(v3d)) {
+    return false;
+  }
+
   if (gpencil_any_exists(depsgraph)) {
     return true;
   }
@@ -1870,6 +1872,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
 
   bool use_obedit = false;
+  const ToolSettings *ts = scene->toolsettings;
+
   /* obedit_ctx_mode is used for selecting the right draw engines */
   // eContextObjectMode obedit_ctx_mode;
   /* object_mode is used for filtering objects in the depsgraph */
@@ -1887,7 +1891,13 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       // obedit_ctx_mode = CTX_MODE_EDIT_ARMATURE;
     }
   }
-  if (v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) {
+
+  if ((v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) &&
+      /* Only restrict selection to bones when the user turns on "Lock Object Modes".
+       * If the lock is off, skip this so other objects can still be selected.
+       * See #66950 & #125822. */
+      (ts->object_flag & SCE_OBJECT_MODE_LOCK))
+  {
     if (!(v3d->flag2 & V3D_HIDE_OVERLAYS)) {
       /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
       Object *obpose = OBPOSE_FROM_OBACT(obact);
@@ -1912,7 +1922,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   }
 
   bool use_gpencil = !use_obedit && !draw_surface &&
-                     DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
+                     DRW_render_check_grease_pencil(depsgraph, v3d);
 
   DRWContext::Mode mode = do_material_sub_selection ? DRWContext::SELECT_OBJECT_MATERIAL :
                                                       DRWContext::SELECT_OBJECT;
@@ -2035,9 +2045,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
       if (use_only_selected && !(ob.base_flag & BASE_SELECTED)) {
         return false;
       }
-      if ((ob.base_flag & BASE_SELECTABLE) == 0) {
-        return false;
-      }
       return true;
     };
 
@@ -2087,7 +2094,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   using namespace blender::draw;
 
   /* Make sure select engine gets the correct vertex size. */
-  UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  blender::ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   DRWContext draw_ctx(DRWContext::SELECT_EDIT_MESH, depsgraph, viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();

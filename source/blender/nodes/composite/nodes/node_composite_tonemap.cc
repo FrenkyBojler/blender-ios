@@ -28,13 +28,13 @@ static const EnumPropertyItem type_items[] = {
     {CMP_NODE_TONE_MAP_PHOTORECEPTOR,
      "RD_PHOTORECEPTOR",
      0,
-     "R/D Photoreceptor",
-     "More advanced algorithm based on eye physiology, by Reinhard and Devlin"},
+     N_("R/D Photoreceptor"),
+     N_("More advanced algorithm based on eye physiology, by Reinhard and Devlin")},
     {CMP_NODE_TONE_MAP_SIMPLE,
      "RH_SIMPLE",
      0,
-     "Rh Simple",
-     "Simpler photographic algorithm by Reinhard"},
+     N_("Rh Simple"),
+     N_("Simpler photographic algorithm by Reinhard")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -112,7 +112,7 @@ static void cmp_node_tonemap_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_tonemap(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but still allocated for forward compatibility. */
-  NodeTonemap *ntm = MEM_callocN<NodeTonemap>(__func__);
+  NodeTonemap *ntm = MEM_new_for_free<NodeTonemap>(__func__);
   node->storage = ntm;
 }
 
@@ -178,7 +178,7 @@ class ToneMapOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -198,8 +198,8 @@ class ToneMapOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
-      float4 input_color = image.load_pixel<float4>(texel);
+    parallel_for(domain.data_size, [&](const int2 texel) {
+      float4 input_color = float4(image.load_pixel<Color>(texel));
 
       /* Equation (2) from Reinhard's 2002 paper. */
       float4 scaled_color = input_color * luminance_scale;
@@ -213,7 +213,7 @@ class ToneMapOperation : public NodeOperation {
         tone_mapped_color = math::pow(math::max(tone_mapped_color, float4(0.0f)), inverse_gamma);
       }
 
-      output.store_pixel(texel, float4(tone_mapped_color.xyz(), input_color.w));
+      output.store_pixel(texel, Color(float4(tone_mapped_color.xyz(), input_color.w)));
     });
   }
 
@@ -236,7 +236,7 @@ class ToneMapOperation : public NodeOperation {
 
   float get_key()
   {
-    return math::max(0.0f, this->get_input("Key").get_single_value_default(0.18f));
+    return math::max(0.0f, this->get_input("Key").get_single_value_default<float>());
   }
 
   /* Equation (3) from Reinhard's 2002 paper blends between high luminance scaling for high
@@ -247,12 +247,12 @@ class ToneMapOperation : public NodeOperation {
    * a parameter to the user for more flexibility. */
   float compute_luminance_scale_blend_factor()
   {
-    return math::max(0.0f, this->get_input("Balance").get_single_value_default(1.0f));
+    return math::max(0.0f, this->get_input("Balance").get_single_value_default<float>());
   }
 
   float get_gamma()
   {
-    return math::max(0.0f, this->get_input("Gamma").get_single_value_default(1.0f));
+    return math::max(0.0f, this->get_input("Gamma").get_single_value_default<float>());
   }
 
   /* Tone mapping based on equation (1) and the trilinear interpolation between equations (6) and
@@ -297,7 +297,7 @@ class ToneMapOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -321,8 +321,8 @@ class ToneMapOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
-      float4 input_color = input.load_pixel<float4>(texel);
+    parallel_for(domain.data_size, [&](const int2 texel) {
+      float4 input_color = float4(input.load_pixel<Color>(texel));
       float input_luminance = math::dot(input_color.xyz(), luminance_coefficients);
 
       /* Trilinear interpolation between equations (6) and (7) from Reinhard's 2005 paper. */
@@ -335,7 +335,7 @@ class ToneMapOperation : public NodeOperation {
       float4 semi_saturation = math::pow(intensity * adaptation_level, contrast);
       float4 tone_mapped_color = math::safe_divide(input_color, input_color + semi_saturation);
 
-      output.store_pixel(texel, float4(tone_mapped_color.xyz(), input_color.w));
+      output.store_pixel(texel, Color(float4(tone_mapped_color.xyz(), input_color.w)));
     });
   }
 
@@ -359,7 +359,7 @@ class ToneMapOperation : public NodeOperation {
     }
 
     const Result &input = get_input("Image");
-    return sum_color(context(), input) / (input.domain().size.x * input.domain().size.y);
+    return sum_color(context(), input) / (input.domain().data_size.x * input.domain().data_size.y);
   }
 
   float compute_average_luminance()
@@ -375,7 +375,7 @@ class ToneMapOperation : public NodeOperation {
     IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
     const Result &input = get_input("Image");
     float sum = sum_luminance(context(), input, luminance_coefficients);
-    return sum / (input.domain().size.x * input.domain().size.y);
+    return sum / (input.domain().data_size.x * input.domain().data_size.y);
   }
 
   /* Computes equation (5) from Reinhard's 2005 paper. */
@@ -416,7 +416,8 @@ class ToneMapOperation : public NodeOperation {
     const float sum_of_log_luminance = sum_log_luminance(
         context(), input_image, luminance_coefficients);
 
-    return sum_of_log_luminance / (input_image.domain().size.x * input_image.domain().size.y);
+    return sum_of_log_luminance /
+           (input_image.domain().data_size.x * input_image.domain().data_size.y);
   }
 
   float compute_log_maximum_luminance()
@@ -437,32 +438,29 @@ class ToneMapOperation : public NodeOperation {
 
   float get_intensity()
   {
-    return this->get_input("Intensity").get_single_value_default(0.0f);
+    return this->get_input("Intensity").get_single_value_default<float>();
   }
 
   float get_contrast()
   {
-    return math::max(0.0f, this->get_input("Contrast").get_single_value_default(0.0f));
+    return math::max(0.0f, this->get_input("Contrast").get_single_value_default<float>());
   }
 
   float get_chromatic_adaptation()
   {
     return math::clamp(
-        this->get_input("Chromatic Adaptation").get_single_value_default(0.0f), 0.0f, 1.0f);
+        this->get_input("Chromatic Adaptation").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   float get_light_adaptation()
   {
     return math::clamp(
-        this->get_input("Light Adaptation").get_single_value_default(0.0f), 0.0f, 1.0f);
+        this->get_input("Light Adaptation").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   CMPNodeToneMapType get_type()
   {
-    const Result &input = this->get_input("Type");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_TONE_MAP_PHOTORECEPTOR);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeToneMapType>(menu_value.value);
+    return CMPNodeToneMapType(this->get_input("Type").get_single_value_default<MenuValue>().value);
   }
 };
 

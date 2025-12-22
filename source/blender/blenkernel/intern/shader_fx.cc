@@ -23,9 +23,9 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
-#include "FX_shader_types.h"
+#include "FX_shader_types.hh"
 
 #include "BLO_read_write.hh"
 
@@ -268,7 +268,7 @@ void BKE_shaderfx_blend_write(BlendWriter *writer, ListBase *fxbase)
       return;
     }
 
-    BLO_write_struct_by_name(writer, fxi->struct_name, fx);
+    writer->write_struct_by_name(fxi->struct_name, fx);
   }
 }
 

@@ -559,7 +559,7 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
     {BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE,
      "SKIP_MULTIFILE",
      0,
-     "Skip Multifile",
+     "Skip Multi-file",
      "Skip paths where a single dir is used with an array of files, eg. sequence strip images or "
      "point-caches. In this case only the first file path is processed. This is needed for "
      "directory manipulation callbacks which might otherwise modify the same directory multiple "
@@ -570,14 +570,6 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
      "Reload Edited",
      "Reload data when the path is edited"},
     {0, nullptr, 0, nullptr, nullptr},
-};
-
-/** Wrapper for MEM_SAFE_FREE() as deallocator for std::unique_ptr. */
-struct MEM_freeN_smart_ptr_deleter {
-  void operator()(void *pointer) const noexcept
-  {
-    MEM_SAFE_FREE(pointer);
-  }
 };
 
 static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_data,

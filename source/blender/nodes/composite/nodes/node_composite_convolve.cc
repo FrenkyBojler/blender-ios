@@ -20,14 +20,14 @@ static const EnumPropertyItem kernel_data_type_items[] = {
     {int(KernelDataType::Float),
      "FLOAT",
      0,
-     "Float",
-     "The kernel is a float and will be convolved with all input channels"},
+     N_("Float"),
+     N_("The kernel is a float and will be convolved with all input channels")},
     {int(KernelDataType::Color),
      "COLOR",
      0,
-     "Color",
-     "The kernel is a color and each channel of the kernel will be convolved with each respective "
-     "channel in the input"},
+     N_("Color"),
+     N_("The kernel is a color and each channel of the kernel will be convolved with each "
+        "respective channel in the input")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -92,15 +92,13 @@ class ConvolveOperation : public NodeOperation {
 
   KernelDataType get_kernel_data_type()
   {
-    const Result &input = this->get_input("Kernel Data Type");
-    const MenuValue default_menu_value = MenuValue(KernelDataType::Float);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<KernelDataType>(menu_value.value);
+    return KernelDataType(
+        this->get_input("Kernel Data Type").get_single_value_default<MenuValue>().value);
   }
 
   bool get_normalize_kernel()
   {
-    return this->get_input("Normalize Kernel").get_single_value_default(true);
+    return this->get_input("Normalize Kernel").get_single_value_default<bool>();
   }
 };
 

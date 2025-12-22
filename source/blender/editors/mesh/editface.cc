@@ -686,7 +686,7 @@ bool paintface_minmax(Object *ob, float r_min[3], float r_max[3])
   float vec[3], bmat[3][3];
 
   const Mesh *mesh = BKE_mesh_from_object(ob);
-  if (!mesh || !CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
+  if (!mesh) {
     return ok;
   }
 
@@ -919,7 +919,7 @@ void paintvert_select_linked(bContext *C, Object *ob)
   blender::bke::SpanAttributeWriter<bool> select_vert =
       attributes.lookup_or_add_for_write_span<bool>(".select_vert", bke::AttrDomain::Point);
 
-  blender::Vector<int> indices;
+  Vector<int> indices;
   for (const int i : select_vert.span.index_range()) {
     if (!select_vert.span[i]) {
       continue;

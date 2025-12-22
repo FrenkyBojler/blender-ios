@@ -62,6 +62,7 @@
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_asset.hh"
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_collection.hh"
 #include "BKE_colortools.hh"
@@ -439,12 +440,10 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const Lis
         }
         else {
           v->speed_control_type = SEQ_SPEED_MULTIPLY;
-          v->speed_fader = globalSpeed_legacy *
-                           (float(strip->input1->len) /
-                            max_ff(float(blender::seq::time_right_handle_frame_get(scene,
-                                                                                   strip->input1) -
-                                         strip->input1->start),
-                                   1.0f));
+          v->speed_fader = globalSpeed_legacy * (float(strip->input1->len) /
+                                                 max_ff(float(strip->input1->right_handle(scene) -
+                                                              strip->input1->start),
+                                                        1.0f));
         }
       }
       else if (v->flags & STRIP_SPEED_INTEGRATE) {
@@ -660,7 +659,7 @@ static bool version_fix_seq_meta_range(Strip *strip, void *user_data)
 static bool strip_speed_factor_set(Strip *strip, void *user_data)
 {
   const Scene *scene = static_cast<const Scene *>(user_data);
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND) {
     /* Move `pitch` animation to `speed_factor` */
     if (scene->adt && scene->adt->action) {
       strip_speed_factor_fix_rna_path(strip, &scene->adt->action->curves);
@@ -875,7 +874,7 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
     store_attribute_node->parent = node->parent;
     store_attribute_node->locx_legacy = node->locx_legacy + 25;
     store_attribute_node->locy_legacy = node->locy_legacy;
-    auto &storage = *MEM_callocN<NodeGeometryStoreNamedAttribute>(__func__);
+    auto &storage = *MEM_new_for_free<NodeGeometryStoreNamedAttribute>(__func__);
     store_attribute_node->storage = &storage;
     storage.domain = int8_t(blender::bke::AttrDomain::Corner);
     /* Intentionally use 3D instead of 2D vectors, because 2D vectors did not exist in older
@@ -1005,7 +1004,7 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
     capture_node.locx_legacy = node->locx_legacy - 25;
     capture_node.locy_legacy = node->locy_legacy;
     new_nodes.append(&capture_node);
-    auto *capture_node_storage = MEM_callocN<NodeGeometryAttributeCapture>(__func__);
+    auto *capture_node_storage = MEM_new_for_free<NodeGeometryAttributeCapture>(__func__);
     capture_node.storage = capture_node_storage;
     capture_node_storage->data_type_legacy = CD_PROP_BOOL;
     capture_node_storage->domain = int8_t(bke::AttrDomain::Face);
@@ -1768,7 +1767,7 @@ static bool version_set_seq_single_frame_content(Strip *strip, void * /*user_dat
 
 static bool version_seq_fix_broken_sound_strips(Strip *strip, void * /*user_data*/)
 {
-  if (strip->type != STRIP_TYPE_SOUND_RAM || strip->speed_factor != 0.0f) {
+  if (strip->type != STRIP_TYPE_SOUND || strip->speed_factor != 0.0f) {
     return true;
   }
 
@@ -1944,7 +1943,7 @@ static void versioning_replace_legacy_mix_rgb_node(bNodeTree *ntree)
     if (node->type_legacy == SH_NODE_MIX_RGB_LEGACY) {
       STRNCPY_UTF8(node->idname, "ShaderNodeMix");
       node->type_legacy = SH_NODE_MIX;
-      NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
+      NodeShaderMix *data = MEM_new_for_free<NodeShaderMix>(__func__);
       data->blend_type = node->custom1;
       data->clamp_result = (node->custom2 & SHD_MIXRGB_CLAMP) ? 1 : 0;
       data->clamp_factor = 1;
@@ -2976,7 +2975,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         if (node->type_legacy == GEO_NODE_VIEWER) {
           if (node->storage == nullptr) {
-            NodeGeometryViewer *data = MEM_callocN<NodeGeometryViewer>(__func__);
+            NodeGeometryViewer *data = MEM_new_for_free<NodeGeometryViewer>(__func__);
             data->data_type_legacy = CD_PROP_FLOAT;
             node->storage = data;
           }
@@ -3098,7 +3097,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         /* Convert float compare into a more general compare node. */
         if (node->type_legacy == FN_NODE_COMPARE) {
           if (node->storage == nullptr) {
-            NodeFunctionCompare *data = MEM_callocN<NodeFunctionCompare>(__func__);
+            NodeFunctionCompare *data = MEM_new_for_free<NodeFunctionCompare>(__func__);
             data->data_type = SOCK_FLOAT;
             data->operation = node->custom1;
             STRNCPY_UTF8(node->idname, "FunctionNodeCompare");
@@ -3127,7 +3126,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         if (node->type_legacy == SH_NODE_MAP_RANGE) {
           if (node->storage == nullptr) {
-            NodeMapRange *data = MEM_callocN<NodeMapRange>(__func__);
+            NodeMapRange *data = MEM_new_for_free<NodeMapRange>(__func__);
             data->clamp = node->custom1;
             data->data_type = CD_PROP_FLOAT;
             data->interpolation_type = node->custom2;
@@ -3370,7 +3369,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
       if (brush->curves_sculpt_settings != nullptr) {
         continue;
       }
-      brush->curves_sculpt_settings = MEM_callocN<BrushCurvesSculptSettings>(__func__);
+      brush->curves_sculpt_settings = MEM_new_for_free<BrushCurvesSculptSettings>(__func__);
       brush->curves_sculpt_settings->add_amount = 1;
     }
 
@@ -3533,7 +3532,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == GEO_NODE_MERGE_BY_DISTANCE) {
             if (node->storage == nullptr) {
-              NodeGeometryMergeByDistance *data = MEM_callocN<NodeGeometryMergeByDistance>(
+              NodeGeometryMergeByDistance *data = MEM_new_for_free<NodeGeometryMergeByDistance>(
                   __func__);
               data->mode = GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL;
               node->storage = data;

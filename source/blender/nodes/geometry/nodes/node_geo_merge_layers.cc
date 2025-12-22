@@ -50,14 +50,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  auto *data = MEM_callocN<NodeGeometryMergeLayers>(__func__);
+  auto *data = MEM_new_for_free<NodeGeometryMergeLayers>(__func__);
   data->mode = int8_t(MergeLayerMode::ByName);
   node->storage = data;
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static Vector<Vector<int>> get_layers_map_by_name(const GreasePencil &src_grease_pencil,

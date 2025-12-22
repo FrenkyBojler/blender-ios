@@ -175,7 +175,7 @@ static int dgroup_skinnable_cb(Object *ob, Bone *bone, void *datap)
   }
 
   if (!data->is_weight_paint ||
-      (ANIM_bone_in_visible_collection(arm, bone) && (bone->flag & BONE_SELECTED)))
+      (ANIM_bone_in_visible_collection(arm, bone) && (pose_bone->flag & POSE_SELECTED)))
   {
     if (!(defgroup = BKE_object_defgroup_find_name(ob, bone->name))) {
       defgroup = BKE_object_defgroup_add_name(ob, bone->name);
@@ -394,8 +394,10 @@ static void add_verts_to_dgroups(ReportList *reports,
 
     /* set selected */
     if (wpmode) {
-      if (ANIM_bone_in_visible_collection(arm, bone) && (bone->flag & BONE_SELECTED)) {
-        selected[j] = true;
+      if (ANIM_bone_in_visible_collection(arm, bone)) {
+        if ((pchan = BKE_pose_channel_find_name(par->pose, bone->name))) {
+          selected[j] = pchan->flag & POSE_SELECTED;
+        }
       }
     }
     else {

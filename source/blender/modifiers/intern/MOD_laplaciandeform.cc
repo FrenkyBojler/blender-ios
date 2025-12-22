@@ -17,7 +17,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
@@ -724,10 +723,7 @@ static void LaplacianDeformModifier_do(
 static void init_data(ModifierData *md)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(lmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(lmd, DNA_struct_default_get(LaplacianDeformModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(lmd, modifier);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -785,8 +781,7 @@ static void free_data(ModifierData *md)
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -794,18 +789,17 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   bool is_bind = RNA_boolean_get(ptr, "is_bind");
   bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  layout->separator();
+  layout.separator();
 
-  row = &layout->row(true);
-  row->enabled_set(has_vertex_group);
-  row->op(
-      "OBJECT_OT_laplaciandeform_bind", is_bind ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
+  blender::ui::Layout &row = layout.row(true);
+  row.enabled_set(has_vertex_group);
+  row.op("OBJECT_OT_laplaciandeform_bind", is_bind ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -832,14 +826,14 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
     }
   }
 
-  BLO_write_struct_at_address(writer, LaplacianDeformModifierData, md, &lmd);
-
   if (lmd.vertexco != nullptr) {
     BLO_write_shared(
         writer, lmd.vertexco, sizeof(float[3]) * lmd.verts_num, lmd.vertexco_sharing_info, [&]() {
           BLO_write_float3_array(writer, lmd.verts_num, lmd.vertexco);
         });
   }
+
+  BLO_write_struct_at_address(writer, LaplacianDeformModifierData, md, &lmd);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)

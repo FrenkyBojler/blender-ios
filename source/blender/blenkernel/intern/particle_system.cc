@@ -28,7 +28,7 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_kdopbvh.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
@@ -203,13 +203,13 @@ static void realloc_particles(ParticleSimulationData *sim, int new_totpart)
     }
 
     if (totpart) {
-      newpars = MEM_calloc_arrayN<ParticleData>(totpart, "particles");
+      newpars = MEM_new_array_for_free<ParticleData>(totpart, "particles");
       if (newpars == nullptr) {
         return;
       }
 
       if (psys->part->phystype == PART_PHYS_BOIDS) {
-        newboids = MEM_calloc_arrayN<BoidParticle>(totpart, "boid particles");
+        newboids = MEM_new_array_for_free<BoidParticle>(totpart, "boid particles");
 
         if (newboids == nullptr) {
           /* allocation error! */
@@ -528,7 +528,7 @@ void psys_thread_context_free(ParticleThreadContext *ctx)
     MEM_freeN(ctx->seams);
   }
   // if (ctx->vertpart) MEM_freeN(ctx->vertpart);
-  BLI_kdtree_3d_free(ctx->tree);
+  blender::kdtree_3d_free(ctx->tree);
 
   if (ctx->clumpcurve != nullptr) {
     BKE_curvemapping_free(ctx->clumpcurve);
@@ -632,7 +632,7 @@ static void free_unexisting_particles(ParticleSimulationData *sim)
     int newtotpart = psys->totpart - psys->totunexist;
     ParticleData *npa, *newpars;
 
-    npa = newpars = MEM_calloc_arrayN<ParticleData>(newtotpart, "particles");
+    npa = newpars = MEM_new_array_for_free<ParticleData>(newtotpart, "particles");
 
     for (p = 0, pa = psys->particles; p < newtotpart; p++, pa++, npa++) {
       while (pa->flag & PARS_UNEXIST) {
@@ -650,7 +650,8 @@ static void free_unexisting_particles(ParticleSimulationData *sim)
     psys->totpart -= psys->totunexist;
 
     if (psys->particles->boid) {
-      BoidParticle *newboids = MEM_calloc_arrayN<BoidParticle>(psys->totpart, "boid particles");
+      BoidParticle *newboids = MEM_new_array_for_free<BoidParticle>(psys->totpart,
+                                                                    "boid particles");
 
       LOOP_PARTICLES
       {
@@ -1368,17 +1369,17 @@ void psys_update_particle_tree(ParticleSystem *psys, float cfra)
         }
       }
 
-      BLI_kdtree_3d_free(psys->tree);
-      psys->tree = BLI_kdtree_3d_new(totpart);
+      blender::kdtree_3d_free(psys->tree);
+      psys->tree = blender::kdtree_3d_new(totpart);
 
       LOOP_SHOWN_PARTICLES
       {
         if (pa->alive == PARS_ALIVE) {
           const float *co = (pa->state.time == cfra) ? pa->prev_state.co : pa->state.co;
-          BLI_kdtree_3d_insert(psys->tree, p, co);
+          blender::kdtree_3d_insert(psys->tree, p, co);
         }
       }
-      BLI_kdtree_3d_balance(psys->tree);
+      blender::kdtree_3d_balance(psys->tree);
 
       psys->tree_frame = cfra;
     }
@@ -1389,8 +1390,8 @@ static void psys_update_effectors(ParticleSimulationData *sim)
 {
   BKE_effectors_free(sim->psys->effectors);
   bool use_rotation = (sim->psys->part->flag & PART_ROT_DYN) != 0;
-  sim->psys->effectors = BKE_effectors_create(
-      sim->depsgraph, sim->ob, sim->psys, sim->psys->part->effector_weights, use_rotation);
+  sim->psys->effectors = static_cast<ListBaseT<EffectorCache> *>(BKE_effectors_create(
+      sim->depsgraph, sim->ob, sim->psys, sim->psys->part->effector_weights, use_rotation));
   precalc_guides(sim, sim->psys->effectors);
 }
 
@@ -3968,7 +3969,7 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
       break;
     }
     case PART_PHYS_FLUID: {
-      blender::Map<blender::OrderedEdge, int> eh;
+      Map<OrderedEdge, int> eh;
       SPHData sphdata;
       psys_sph_init(sim, &sphdata, eh);
 
@@ -4670,7 +4671,7 @@ void psys_check_boid_data(ParticleSystem *psys)
 
   if (psys->part && psys->part->phystype == PART_PHYS_BOIDS) {
     if (!pa->boid) {
-      bpa = MEM_calloc_arrayN<BoidParticle>(psys->totpart, "Boid Data");
+      bpa = MEM_new_array_for_free<BoidParticle>(psys->totpart, "Boid Data");
 
       LOOP_PARTICLES
       {

@@ -37,10 +37,7 @@ float3 workbench_hair_random_normal(float3 tangent, float3 binor, float3 nor, fl
   return nor;
 }
 
-void workbench_hair_random_material(float rand,
-                                    inout float3 color,
-                                    inout float roughness,
-                                    inout float metallic)
+void workbench_hair_random_material(float rand, float3 &color, float &roughness, float &metallic)
 {
   /* Center noise around 0. */
   rand -= 0.5f;
@@ -51,6 +48,11 @@ void workbench_hair_random_material(float rand,
   /* Modulate by color intensity to reduce very high contrast when color is dark. */
   color = saturate(color + rand * (color + 0.05f));
 }
+
+#if defined(GPU_NVIDIA) && defined(GPU_OPENGL)
+/* WORKAROUND: Fix legacy driver compiler issue (see #148472). */
+#  define const
+#endif
 
 void main()
 {

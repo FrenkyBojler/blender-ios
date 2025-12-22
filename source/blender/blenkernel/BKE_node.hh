@@ -53,7 +53,6 @@ struct bNodeSocket;
 struct bNodeStack;
 struct bNodeTree;
 struct bNodeTreeExec;
-struct uiLayout;
 
 namespace blender {
 class CPPType;
@@ -78,6 +77,10 @@ namespace compositor {
 class Context;
 class NodeOperation;
 }  // namespace compositor
+
+namespace ui {
+struct Layout;
+}  // namespace ui
 }  // namespace blender
 
 namespace blender::bke {
@@ -164,7 +167,7 @@ struct bNodeSocketType {
   std::string subtype_label;
 
   void (*draw)(bContext *C,
-               uiLayout *layout,
+               ui::Layout *layout,
                PointerRNA *ptr,
                PointerRNA *node_ptr,
                StringRef text) = nullptr;
@@ -174,7 +177,7 @@ struct bNodeSocketType {
   void (*interface_draw)(ID *id,
                          bNodeTreeInterfaceSocket *socket,
                          bContext *C,
-                         uiLayout *layout) = nullptr;
+                         ui::Layout *layout) = nullptr;
   void (*interface_init_socket)(ID *id,
                                 const bNodeTreeInterfaceSocket *interface_socket,
                                 bNode *node,
@@ -256,9 +259,9 @@ struct bNodeType {
   std::string storagename; /* struct name for DNA */
 
   /* Draw the option buttons on the node */
-  void (*draw_buttons)(uiLayout *, bContext *C, PointerRNA *ptr) = nullptr;
+  void (*draw_buttons)(ui::Layout &, bContext *C, PointerRNA *ptr) = nullptr;
   /* Additional parameters in the side panel */
-  void (*draw_buttons_ex)(uiLayout *, bContext *C, PointerRNA *ptr) = nullptr;
+  void (*draw_buttons_ex)(ui::Layout &, bContext *C, PointerRNA *ptr) = nullptr;
 
   /* Additional drawing on backdrop */
   void (*draw_backdrop)(SpaceNode *snode, ImBuf *backdrop, bNode *node, int x, int y) = nullptr;
@@ -547,11 +550,15 @@ struct bNodeTreeType {
  * \{ */
 
 bNodeTreeType *node_tree_type_find(StringRef idname);
+bNodeTreeType *node_tree_type_find_builtin(const int tree_type);
 void node_tree_type_add(bNodeTreeType &nt);
 void node_tree_type_free_link(const bNodeTreeType &nt);
 bool node_tree_is_registered(const bNodeTree &ntree);
 
 Span<bNodeTreeType *> node_tree_types_get();
+
+bool node_tree_type_supports_socket_type_static(const int ntree_type,
+                                                const eNodeSocketDatatype socket_type);
 
 /**
  * Try to initialize all type-info in a node tree.
@@ -695,7 +702,8 @@ void node_unique_id(bNodeTree &ntree, bNode &node);
 /**
  * Delete node, associated animation data and ID user count.
  */
-void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user);
+void node_remove_node(
+    Main *bmain, bNodeTree &ntree, bNode &node, bool do_id_user, bool remove_animation = true);
 
 float2 node_dimensions_get(const bNode &node);
 void node_tag_update_id(bNode &node);
@@ -1048,7 +1056,7 @@ void node_chain_iterator(const bNodeTree *ntree,
  * \note Recursive
  */
 void node_chain_iterator_backwards(const bNodeTree *ntree,
-                                   const bNode *node_start,
+                                   bNode *node_start,
                                    bool (*callback)(bNode *, bNode *, void *),
                                    void *userdata,
                                    int recursion_lvl);

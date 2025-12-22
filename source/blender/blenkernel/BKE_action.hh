@@ -371,7 +371,7 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only);
  */
 void BKE_pose_tag_recalc(Main *bmain, bPose *pose) ATTR_NONNULL(1, 2);
 
-void BKE_pose_blend_write(BlendWriter *writer, bPose *pose, bArmature *arm) ATTR_NONNULL(1, 2, 3);
+void BKE_pose_blend_write(BlendWriter *writer, bPose *pose) ATTR_NONNULL(1, 2);
 void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose)
     ATTR_NONNULL(1, 2);
 void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose *pose)
@@ -387,9 +387,8 @@ void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects) AT
 
 namespace blender::bke {
 
-using FoundFCurveCallback = blender::FunctionRef<void(FCurve *fcurve, const char *bone_name)>;
-using FoundFCurveCallbackConst =
-    blender::FunctionRef<void(const FCurve *fcurve, const char *bone_name)>;
+using FoundFCurveCallback = FunctionRef<void(FCurve *fcurve, const char *bone_name)>;
+using FoundFCurveCallbackConst = FunctionRef<void(const FCurve *fcurve, const char *bone_name)>;
 
 /**
  * Calls `callback` for every fcurve in an action slot that targets any bone.

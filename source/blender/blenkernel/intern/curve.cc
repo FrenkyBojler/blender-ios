@@ -34,7 +34,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 
 /* For dereferencing pointers. */
@@ -80,9 +79,7 @@ static void curve_init_data(ID *id)
 {
   Curve *curve = (Curve *)id;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(curve, id));
-
-  MEMCPY_STRUCT_AFTER(curve, DNA_struct_default_get(Curve), id);
+  INIT_DEFAULT_STRUCT_AFTER(curve, id);
 }
 
 static void curve_copy_data(Main *bmain,
@@ -182,7 +179,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   else {
     /* is also the order of reading */
     LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
-      BLO_write_struct(writer, Nurb, nu);
+      writer->write_struct(nu);
     }
     LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
       if (nu->type == CU_BEZIER) {
@@ -241,10 +238,10 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
       cu->str = MEM_calloc_arrayN<char>(cu->len_char32 + 1, "str new");
     }
     if (UNLIKELY(cu->strinfo == nullptr)) {
-      cu->strinfo = MEM_calloc_arrayN<CharInfo>(cu->len_char32 + 1, "strinfo new");
+      cu->strinfo = MEM_new_array_for_free<CharInfo>(cu->len_char32 + 1, "strinfo new");
     }
 
-    TextBox *tb = MEM_calloc_arrayN<TextBox>(MAXTEXTBOX, "TextBoxread");
+    TextBox *tb = MEM_new_array_for_free<TextBox>(MAXTEXTBOX, "TextBoxread");
     if (cu->tb) {
       memcpy(tb, cu->tb, cu->totbox * sizeof(TextBox));
       MEM_freeN(cu->tb);
@@ -333,25 +330,29 @@ void BKE_curve_editfont_free(Curve *cu)
   }
 }
 
-static void curve_editNurb_keyIndex_cv_free_cb(void *val)
+static void curve_editNurb_keyIndex_cv_free_cb(CVKeyIndex *index)
 {
-  CVKeyIndex *index = (CVKeyIndex *)val;
   MEM_freeN(index->orig_cv);
-  MEM_freeN(val);
+  MEM_freeN(index);
 }
 
-void BKE_curve_editNurb_keyIndex_delCV(GHash *keyindex, const void *cv)
+void BKE_curve_editNurb_keyIndex_delCV(CVKeyIndexMap *keyindex, const void *cv)
 {
   BLI_assert(keyindex != nullptr);
-  BLI_ghash_remove(keyindex, cv, nullptr, curve_editNurb_keyIndex_cv_free_cb);
+  if (CVKeyIndex *index = keyindex->pop_default(cv, nullptr)) {
+    curve_editNurb_keyIndex_cv_free_cb(index);
+  }
 }
 
-void BKE_curve_editNurb_keyIndex_free(GHash **keyindex)
+void BKE_curve_editNurb_keyIndex_free(CVKeyIndexMap **keyindex)
 {
   if (!(*keyindex)) {
     return;
   }
-  BLI_ghash_free(*keyindex, nullptr, curve_editNurb_keyIndex_cv_free_cb);
+  for (CVKeyIndex *index : (*keyindex)->values()) {
+    curve_editNurb_keyIndex_cv_free_cb(index);
+  }
+  MEM_delete(*keyindex);
   *keyindex = nullptr;
 }
 
@@ -387,10 +388,10 @@ void BKE_curve_init(Curve *cu, const short curve_type)
     cu->len = len_bytes;
     cu->len_char32 = cu->pos = len_char32;
 
-    cu->strinfo = MEM_calloc_arrayN<CharInfo>(len_char32 + 1, "strinfo new");
+    cu->strinfo = MEM_new_array_for_free<CharInfo>(len_char32 + 1, "strinfo new");
 
     cu->totbox = cu->actbox = 1;
-    cu->tb = MEM_calloc_arrayN<TextBox>(MAXTEXTBOX, "textbox");
+    cu->tb = MEM_new_array_for_free<TextBox>(MAXTEXTBOX, "textbox");
     cu->tb[0].w = cu->tb[0].h = 0.0;
   }
   else if (cu->ob_type == OB_SURF) {
@@ -611,7 +612,7 @@ Nurb *BKE_nurb_duplicate(const Nurb *nu)
   Nurb *newnu;
   int len;
 
-  newnu = MEM_mallocN<Nurb>("duplicateNurb");
+  newnu = MEM_new_for_free<Nurb>("duplicateNurb");
   if (newnu == nullptr) {
     return nullptr;
   }
@@ -648,7 +649,7 @@ Nurb *BKE_nurb_duplicate(const Nurb *nu)
 
 Nurb *BKE_nurb_copy(Nurb *src, int pntsu, int pntsv)
 {
-  Nurb *newnu = MEM_mallocN<Nurb>("copyNurb");
+  Nurb *newnu = MEM_new_for_free<Nurb>("copyNurb");
   *newnu = blender::dna::shallow_copy(*src);
 
   if (pntsu == 1) {
@@ -2583,7 +2584,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
     /* check we are a single point? also check we are not a surface and that the orderu is sane,
      * enforced in the UI but can go wrong possibly */
     if (!BKE_nurb_check_valid_u(nu)) {
-      BevList *bl = MEM_callocN<BevList>("makeBevelList1");
+      BevList *bl = MEM_new_for_free<BevList>("makeBevelList1");
       bl->bevpoints = MEM_calloc_arrayN<BevPoint>(1, "makeBevelPoints1");
       BLI_addtail(bev, bl);
       bl->nr = 0;
@@ -2613,7 +2614,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
 
     if (nu->type == CU_POLY) {
       len = nu->pntsu;
-      BevList *bl = MEM_callocN<BevList>(__func__);
+      BevList *bl = MEM_new_for_free<BevList>(__func__);
       bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
       if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
         bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
@@ -2663,7 +2664,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
       /* in case last point is not cyclic */
       len = segcount * resolu + 1;
 
-      BevList *bl = MEM_callocN<BevList>(__func__);
+      BevList *bl = MEM_new_for_free<BevList>(__func__);
       bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
       if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
         bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
@@ -2799,7 +2800,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
       if (nu->pntsv == 1) {
         len = (resolu * segcount);
 
-        BevList *bl = MEM_callocN<BevList>(__func__);
+        BevList *bl = MEM_new_for_free<BevList>(__func__);
         bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
         if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
           bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
@@ -2899,8 +2900,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
     }
 
     nr = bl->nr - bl->dupe_nr + 1; /* +1 because vector-bezier sets flag too. */
-    blnew = MEM_mallocN<BevList>("makeBevelList4");
-    memcpy(blnew, bl, sizeof(BevList));
+    blnew = MEM_new_for_free<BevList>("makeBevelList4", *bl);
     blnew->bevpoints = MEM_calloc_arrayN<BevPoint>(nr, "makeBevelPoints4");
     if (!blnew->bevpoints) {
       MEM_freeN(blnew);

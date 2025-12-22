@@ -691,6 +691,9 @@ static bool buttons_context_path(
   /* No pinned root, use scene as initial root. */
   else if (mainb != BCONTEXT_TOOL) {
     if (ELEM(mainb, BCONTEXT_STRIP, BCONTEXT_STRIP_MODIFIER)) {
+      if (!sequencer_scene) {
+        return false;
+      }
       path->ptr[0] = RNA_id_pointer_create(&sequencer_scene->id);
     }
     else {
@@ -1339,8 +1342,8 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  uiLayout *row = &panel->layout->row(true);
-  row->alignment_set(blender::ui::LayoutAlign::Left);
+  blender::ui::Layout &row = panel->layout->row(true);
+  row.alignment_set(blender::ui::LayoutAlign::Left);
 
   bool first = true;
   for (int i = 0; i < path->len; i++) {
@@ -1376,7 +1379,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 
     /* Add > triangle. */
     if (!first) {
-      row->label("", ICON_RIGHTARROW);
+      row.label("", ICON_RIGHTARROW);
     }
 
     /* Add icon and name. */
@@ -1386,31 +1389,31 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     if (name) {
       eSpaceButtons_Context context = context_from_path_item(C, ptr);
       if (context != BCONTEXT_TOT) {
-        row->emboss_set(blender::ui::EmbossType::None);
-        row->button(name, icon, [sbuts, ptr, context](const bContext &C) {
+        row.emboss_set(blender::ui::EmbossType::None);
+        row.button(name, icon, [sbuts, ptr, context](const bContext &C) {
           ED_buttons_set_context(&C, sbuts, ptr, context);
           WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
         });
       }
       else {
-        row->label(name, icon);
+        row.label(name, icon);
       }
       if (name != namebuf) {
         MEM_freeN(name);
       }
     }
     else {
-      row->label("", icon);
+      row.label("", icon);
     }
 
     first = false;
   }
 
-  uiLayout *pin_row = &row->row(false);
-  pin_row->alignment_set(blender::ui::LayoutAlign::Right);
-  pin_row->separator_spacer();
-  pin_row->emboss_set(blender::ui::EmbossType::None);
-  pin_row->op(
+  blender::ui::Layout &pin_row = row.row(false);
+  pin_row.alignment_set(blender::ui::LayoutAlign::Right);
+  pin_row.separator_spacer();
+  pin_row.emboss_set(blender::ui::EmbossType::None);
+  pin_row.op(
       "BUTTONS_OT_toggle_pin", "", (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED);
 }
 

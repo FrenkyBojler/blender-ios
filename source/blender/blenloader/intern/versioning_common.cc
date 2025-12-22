@@ -10,6 +10,7 @@
 
 #include <cstring>
 
+#include "DNA_layer_types.h"
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -238,7 +239,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
 {
   blender::bke::bNodeType *ntype = blender::bke::node_type_find(idname);
 
-  bNode *node = MEM_callocN<bNode>(__func__);
+  bNode *node = MEM_new_for_free<bNode>(__func__);
   node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
   blender::bke::node_unique_id(ntree, *node);
@@ -253,6 +254,56 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   node->color[0] = node->color[1] = node->color[2] = 0.608;
 
   node->type_legacy = ntype->type_legacy;
+
+  BKE_ntree_update_tag_node_new(&ntree, node);
+  return *node;
+}
+
+bNode &version_node_add_unknown(bNodeTree &ntree,
+                                blender::bke::bNodeType &ntype,
+                                const char *idname,
+                                const int16_t legacy_type,
+                                const std::string &ui_name,
+                                const std::string &ui_description,
+                                const std::string &enum_name_legacy,
+                                const short nclass,
+                                const float width,
+                                const float height,
+                                const bool no_muting)
+{
+  using namespace blender::bke;
+
+  ntype.idname = idname;
+  ntype.type_legacy = legacy_type;
+  ntype.height = height;
+  ntype.width = width;
+  node_type_size_preset(ntype, eNodeSizePreset::Default);
+  ntype.minheight = 30.0f;
+  ntype.maxheight = FLT_MAX;
+
+  ntype.ui_name = ui_name;
+  ntype.ui_description = ui_description;
+  ntype.enum_name_legacy = enum_name_legacy.c_str();
+  ntype.nclass = nclass;
+  ntype.no_muting = no_muting;
+  ntype.ui_name = ui_name;
+
+  bNode *node = MEM_new_for_free<bNode>(__func__);
+  node->runtime = MEM_new<bNodeRuntime>(__func__);
+  BLI_addtail(&ntree.nodes, node);
+  node_unique_id(ntree, *node);
+  node->typeinfo = &ntype;
+
+  STRNCPY(node->idname, idname);
+  DATA_(ntype.ui_name).copy_utf8_truncated(node->name);
+  node_unique_name(ntree, *node);
+
+  node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
+  node->width = ntype.width;
+  node->height = ntype.height;
+  node->color[0] = node->color[1] = node->color[2] = 0.608f;
+
+  node->type_legacy = ntype.type_legacy;
 
   BKE_ntree_update_tag_node_new(&ntree, node);
   return *node;
@@ -275,7 +326,7 @@ bNodeSocket &version_node_add_socket(bNodeTree &ntree,
 {
   blender::bke::bNodeSocketType *stype = blender::bke::node_socket_type_find(idname);
 
-  bNodeSocket *socket = MEM_callocN<bNodeSocket>(__func__);
+  bNodeSocket *socket = MEM_new_for_free<bNodeSocket>(__func__);
   socket->runtime = MEM_new<blender::bke::bNodeSocketRuntime>(__func__);
   socket->in_out = in_out;
   socket->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
@@ -310,7 +361,7 @@ bNodeLink &version_node_add_link(
   bNode &node_to = node_b;
   bNodeSocket &socket_to = socket_b;
 
-  bNodeLink *link = MEM_callocN<bNodeLink>(__func__);
+  bNodeLink *link = MEM_new_for_free<bNodeLink>(__func__);
   link->fromnode = &node_from;
   link->fromsock = &socket_from;
   link->tonode = &node_to;
@@ -336,6 +387,11 @@ bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
   }
   return blender::bke::node_add_static_socket(
       *ntree, *node, eNodeSocketInOut(in_out), type, subtype, identifier, name);
+}
+
+void version_node_tree_clear_interface(bNodeTree &ntree)
+{
+  ntree.tree_interface.clear_items();
 }
 
 void version_node_id(bNodeTree *ntree, const int node_type, const char *new_name)

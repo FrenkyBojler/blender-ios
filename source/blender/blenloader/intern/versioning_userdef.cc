@@ -68,7 +68,6 @@
 
 static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 {
-
 #define USER_VERSION_ATLEAST(ver, subver) MAIN_VERSION_FILE_ATLEAST(userdef, ver, subver)
 #define FROM_DEFAULT_V4_UCHAR(member) copy_v4_v4_uchar(btheme->member, U_theme_default.member)
 
@@ -384,6 +383,38 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.outline);
     FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.outline_sel);
     btheme->tui.wcol_curve.roundness = U_theme_default.tui.wcol_curve.roundness;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 104)) {
+    FROM_DEFAULT_V4_UCHAR(common.anim.scene_strip_range);
+  }
+
+  /* Reset the theme due to compatibility breaking changes in 5.0. */
+  if (!USER_VERSION_ATLEAST(500, 111)) {
+    MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);
+    /* Update text styles to match. */
+    LISTBASE_FOREACH (uiStyle *, style, &userdef->uistyles) {
+      style->paneltitle.points = 11.0f;
+      style->paneltitle.shadow = 3;
+      style->paneltitle.shadowalpha = 0.5f;
+      style->paneltitle.shadowcolor = 0.0f;
+      style->widget.points = 11.0f;
+      style->widget.shadow = 1;
+      style->widget.shadowalpha = 0.5f;
+      style->widget.shadowcolor = 0.0f;
+      style->tooltip.shadow = 1;
+      style->tooltip.points = 11.0f;
+      style->tooltip.shadowalpha = 0.5f;
+      style->tooltip.shadowcolor = 0.0f;
+    }
+
+    FROM_DEFAULT_V4_UCHAR(space_node.node_outline);
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 3)) {
+    FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_other);
+    FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_constant);
+    FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_linear);
   }
 
   /**
@@ -771,6 +802,8 @@ static void keymap_update_mesh_texture_paint_brushes(wmKeyMap *keymap)
 
 void blo_do_versions_userdef(UserDef *userdef)
 {
+  UserDef U_default = {};
+
 /* #UserDef & #Main happen to have the same struct member. */
 #define USER_VERSION_ATLEAST(ver, subver) MAIN_VERSION_FILE_ATLEAST(userdef, ver, subver)
 
@@ -1345,9 +1378,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(302, 5)) {
-    wmKeyConfigFilterItemParams params{};
-    params.check_item = true;
-    params.check_diff_item_add = true;
+    const wmKeyConfigFilterItemParams params = WM_KEY_CONFIG_FILTER_ITEM_ALL;
     BKE_keyconfig_pref_filter_items(userdef, &params, keymap_item_update_tweak_event, nullptr);
   }
 
@@ -1383,7 +1414,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(306, 5)) {
     if (userdef->pythondir_legacy[0]) {
-      bUserScriptDirectory *script_dir = MEM_callocN<bUserScriptDirectory>(
+      bUserScriptDirectory *script_dir = MEM_new_for_free<bUserScriptDirectory>(
           "Versioning user script path");
 
       STRNCPY(script_dir->dir_path, userdef->pythondir_legacy);
@@ -1605,9 +1636,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(405, 11)) {
-    wmKeyConfigFilterItemParams params{};
-    params.check_item = true;
-    params.check_diff_item_add = true;
+    const wmKeyConfigFilterItemParams params = WM_KEY_CONFIG_FILTER_ITEM_ALL;
     BKE_keyconfig_pref_filter_items(
         userdef,
         &params,
@@ -1702,6 +1731,15 @@ void blo_do_versions_userdef(UserDef *userdef)
     /* The Copy Global Transform add-on was moved into Blender itself, and thus
      * is no longer an add-on. */
     BKE_addon_remove_safe(&userdef->addons, "copy_global_transform");
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 116)) {
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Camera & Lens Effects");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Creative");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Utilities");
   }
 
   /**

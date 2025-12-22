@@ -34,6 +34,7 @@ set(SRC
   nodes/node_geo_attribute_statistic.cc
   nodes/node_geo_bake.cc
   nodes/node_geo_blur_attribute.cc
+  nodes/node_geo_bone_info.cc
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
@@ -96,6 +97,7 @@ set(SRC
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
+  nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_curl.cc
   nodes/node_geo_grid_divergence.cc
   nodes/node_geo_grid_gradient.cc
