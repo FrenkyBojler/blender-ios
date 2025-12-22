@@ -122,7 +122,13 @@ ExternalProject_Add(external_igc
       ${BUILD_DIR}/igc/src/SPIRV-Headers &&
     ${CMAKE_COMMAND} -E create_symlink
       ${BUILD_DIR}/igc_vcintrinsics/src/external_igc_vcintrinsics/
-      ${BUILD_DIR}/igc/src/vc-intrinsics
+      ${BUILD_DIR}/igc/src/vc-intrinsics &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/igc_llvm/src/external_igc_llvm <
+      ${PATCH_DIR}/igc_llvm_gcc15.diff &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/igc/src/external_igc <
+      ${PATCH_DIR}/igc_pass_by_reference_384.diff
 
   PREFIX ${BUILD_DIR}/igc
   INSTALL_DIR ${LIBDIR}/igc

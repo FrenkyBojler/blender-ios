@@ -1,0 +1,13 @@
+diff --git a/IGC/Compiler/Optimizer/InstructionHoistingOptimization.cpp b/IGC/Compiler/Optimizer/InstructionHoistingOptimization.cpp
+index 838ea8b..a821e3b 100644
+--- a/IGC/Compiler/Optimizer/InstructionHoistingOptimization.cpp
++++ b/IGC/Compiler/Optimizer/InstructionHoistingOptimization.cpp
+@@ -145,7 +145,7 @@ private:
+   }
+ 
+   inline void InsertHoistableInstruction(Instruction *hoistInstr) {
+-    auto isDuplicate = [](std::vector<Instruction *> hoistedInstr, Instruction *newInstr) -> bool {
++    auto isDuplicate = [](const std::vector<Instruction *> &hoistedInstr, Instruction *newInstr) -> bool {
+       auto it = std::find(hoistedInstr.begin(), hoistedInstr.end(), newInstr);
+       return it != hoistedInstr.end();
+     };
