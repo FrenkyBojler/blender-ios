@@ -38,7 +38,7 @@ static SpaceLink *script_create(const ScrArea * /*area*/, const Scene * /*scene*
   ARegion *region;
   SpaceScript *sscript;
 
-  sscript = MEM_callocN<SpaceScript>("initscript");
+  sscript = MEM_new_for_free<SpaceScript>("initscript");
   sscript->spacetype = SPACE_SCRIPT;
 
   /* header */
@@ -105,7 +105,7 @@ static void script_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   blender::ui::view2d_view_ortho(v2d);
 
@@ -167,7 +167,7 @@ static void script_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   SpaceScript *scr = (SpaceScript *)sl;
   scr->but_refs = nullptr;
-  BLO_write_struct(writer, SpaceScript, sl);
+  writer->write_struct_cast<SpaceScript>(sl);
 }
 
 void ED_spacetype_script()

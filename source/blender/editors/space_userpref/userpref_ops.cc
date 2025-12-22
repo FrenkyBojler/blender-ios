@@ -54,7 +54,7 @@
 static wmOperatorStatus preferences_reset_default_theme_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  blender::ui::theme_init_default();
+  blender::ui::theme::init_default();
   blender::ui::style_init_default();
   WM_reinit_gizmomap_all(bmain);
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
@@ -84,7 +84,7 @@ static void PREFERENCES_OT_reset_default_theme(wmOperatorType *ot)
 
 static wmOperatorStatus preferences_autoexec_add_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
-  bPathCompare *path_cmp = MEM_callocN<bPathCompare>("bPathCompare");
+  bPathCompare *path_cmp = MEM_new_for_free<bPathCompare>("bPathCompare");
   BLI_addtail(&U.autoexec_paths, path_cmp);
   U.runtime.is_dirty = true;
   return OPERATOR_FINISHED;
@@ -804,8 +804,7 @@ static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
   wmOperatorType *ot = WM_operatortype_find(idname_external, true);
   wmOperatorStatus retval;
   if (ot) {
-    PointerRNA props_ptr;
-    WM_operator_properties_create_ptr(&props_ptr, ot);
+    PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     if (use_url) {
       RNA_string_set(&props_ptr, "url", url.c_str());
     }

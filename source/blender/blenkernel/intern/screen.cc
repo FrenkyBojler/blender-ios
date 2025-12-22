@@ -21,7 +21,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -69,6 +68,15 @@ using blender::Vector;
 /** \name ID Type Implementation
  * \{ */
 
+static void screen_init_data(ID *id)
+{
+  bScreen *screen = blender::id_cast<bScreen *>(id);
+
+  screen->do_draw = true;
+  screen->do_refresh = true;
+  screen->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
+}
+
 static void screen_free_data(ID *id)
 {
   bScreen *screen = (bScreen *)id;
@@ -91,6 +99,70 @@ static void screen_free_data(ID *id)
   if (screen->tool_tip) {
     MEM_freeN(static_cast<void *>(screen->tool_tip));
     screen->tool_tip = nullptr;
+  }
+}
+
+static void screen_copy_data(Main * /*bmain*/,
+                             std::optional<Library *> owner_library,
+                             ID *id_dst,
+                             const ID *id_src,
+                             int /*flag*/)
+{
+  /* Workspaces should always be local data currently. */
+  BLI_assert(!owner_library || owner_library == nullptr);
+  UNUSED_VARS_NDEBUG(owner_library);
+
+  bScreen *screen_dst = blender::id_cast<bScreen *>(id_dst);
+  const bScreen *screen_src = blender::id_cast<const bScreen *>(id_src);
+
+  screen_dst->do_draw = true;
+  screen_dst->do_refresh = true;
+  screen_dst->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
+
+  screen_dst->state = SCREENNORMAL;
+
+  screen_dst->flag = screen_src->flag;
+
+  BLI_duplicatelist(&screen_dst->vertbase, &screen_src->vertbase);
+  BLI_duplicatelist(&screen_dst->edgebase, &screen_src->edgebase);
+  BLI_duplicatelist(&screen_dst->areabase, &screen_src->areabase);
+  BLI_listbase_clear(&screen_dst->regionbase);
+
+  {
+    ScrVert *sv_dst = static_cast<ScrVert *>(screen_dst->vertbase.first);
+    ScrVert *sv_src = static_cast<ScrVert *>(screen_src->vertbase.first);
+    for (; sv_dst && sv_src; sv_dst = sv_dst->next, sv_src = sv_src->next) {
+      sv_src->newv = sv_dst;
+    }
+  }
+
+  LISTBASE_FOREACH (ScrEdge *, se_dst, &screen_dst->edgebase) {
+    se_dst->v1 = se_dst->v1->newv;
+    se_dst->v2 = se_dst->v2->newv;
+    BKE_screen_sort_scrvert(&(se_dst->v1), &(se_dst->v2));
+  }
+
+  {
+    ScrArea *area_dst = static_cast<ScrArea *>(screen_dst->areabase.first);
+    ScrArea *area_src = static_cast<ScrArea *>(screen_src->areabase.first);
+    for (; area_dst && area_src; area_dst = area_dst->next, area_src = area_src->next) {
+      area_dst->v1 = area_dst->v1->newv;
+      area_dst->v2 = area_dst->v2->newv;
+      area_dst->v3 = area_dst->v3->newv;
+      area_dst->v4 = area_dst->v4->newv;
+
+      BLI_listbase_clear(&area_dst->spacedata);
+      BLI_listbase_clear(&area_dst->regionbase);
+      BLI_listbase_clear(&area_dst->actionzones);
+      BLI_listbase_clear(&area_dst->handlers);
+
+      BKE_area_copy(area_dst, area_src);
+    }
+  }
+
+  /* Cleanup: reset temp data. */
+  LISTBASE_FOREACH (ScrVert *, sv_src, &screen_src->vertbase) {
+    sv_src->newv = nullptr;
   }
 }
 
@@ -182,12 +254,11 @@ IDTypeInfo IDType_ID_SCR = {
     /*name*/ "Screen",
     /*name_plural*/ N_("screens"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_SCREEN,
-    /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+    /*flags*/ IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
     /*asset_type_info*/ nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*init_data*/ screen_init_data,
+    /*copy_data*/ screen_copy_data,
     /*free_data*/ screen_free_data,
     /*make_local*/ nullptr,
     /*foreach_id*/ screen_foreach_id,
@@ -296,6 +367,25 @@ bool BKE_spacetype_exists(int spaceid)
   return BKE_spacetype_from_id(spaceid) != nullptr;
 }
 
+bool BKE_regiontype_uses_categories(const ARegionType *region_type)
+{
+  if (BKE_regiontype_uses_category_tabs(region_type)) {
+    return true;
+  }
+
+  return bool(region_type->flag & ARegionTypeFlag::UsePanelCategories);
+}
+
+bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type)
+{
+  /* Some region types always support category tabs. */
+  if (ELEM(region_type->regionid, RGN_TYPE_UI)) {
+    return true;
+  }
+
+  return bool(region_type->flag & ARegionTypeFlag::UsePanelCategoryTabs);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -386,7 +476,7 @@ ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
 
 ARegion *BKE_area_region_new()
 {
-  ARegion *region = MEM_callocN<ARegion>(__func__);
+  ARegion *region = MEM_new_for_free<ARegion>(__func__);
   region->runtime = MEM_new<blender::bke::ARegionRuntime>(__func__);
   return region;
 }
@@ -535,7 +625,7 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
       return state;
     }
   }
-  LayoutPanelState *state = MEM_callocN<LayoutPanelState>(__func__);
+  LayoutPanelState *state = MEM_new_for_free<LayoutPanelState>(__func__);
   state->idname = BLI_strdupn(idname.data(), idname.size());
   SET_FLAG_FROM_TEST(state->flag, !default_closed, LAYOUT_PANEL_STATE_FLAG_OPEN);
   state->last_used = logical_time;
@@ -545,7 +635,7 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
 
 Panel *BKE_panel_new(PanelType *panel_type)
 {
-  Panel *panel = MEM_callocN<Panel>(__func__);
+  Panel *panel = MEM_new_for_free<Panel>(__func__);
   panel->runtime = MEM_new<Panel_Runtime>(__func__);
   panel->type = panel_type;
   if (panel_type) {
@@ -665,6 +755,11 @@ void BKE_screen_area_map_free(ScrAreaMap *area_map)
 void BKE_screen_free_data(bScreen *screen)
 {
   screen_free_data(&screen->id);
+}
+
+void BKE_screen_copy_data(bScreen *screen_dst, const bScreen *screen_src)
+{
+  screen_copy_data(nullptr, std::nullopt, &screen_dst->id, &screen_src->id, 0);
 }
 
 /** \} */
@@ -843,6 +938,31 @@ ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const i
   return nullptr;
 }
 
+void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src)
+{
+  constexpr short flag_copy = HEADER_NO_PULLDOWN;
+
+  area_dst->spacetype = area_src->spacetype;
+  area_dst->type = area_src->type;
+
+  /* Remove 'restore from fullscreen' data from the new copy. */
+  area_dst->full = nullptr;
+
+  area_dst->flag = (area_dst->flag & ~flag_copy) | (area_src->flag & flag_copy);
+
+  /* Spaces. */
+  BKE_spacedata_copylist(&area_dst->spacedata, &area_src->spacedata);
+
+  /* Regions. */
+  BLI_listbase_clear(&area_dst->regionbase);
+  /* NOTE: SPACE_EMPTY is possible on new screens. */
+  SpaceType *st = BKE_spacetype_from_id(area_src->spacetype);
+  LISTBASE_FOREACH (ARegion *, region_src, &area_src->regionbase) {
+    ARegion *region_dst = BKE_area_region_copy(st, region_src);
+    BLI_addtail(&area_dst->regionbase, region_dst);
+  }
+}
+
 ARegion *BKE_area_find_region_type(const ScrArea *area, int region_type)
 {
   if (area) {
@@ -918,6 +1038,22 @@ ScrArea *BKE_screen_find_area_from_space(const bScreen *screen, const SpaceLink 
     }
   }
 
+  return nullptr;
+}
+
+ARegion *BKE_screen_find_region_in_space(const bScreen *screen,
+                                         const SpaceLink *sl,
+                                         const int region_type)
+{
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    LISTBASE_FOREACH (SpaceLink *, slink, &area->spacedata) {
+      if (slink == sl) {
+        ListBase *regionbase = (slink == area->spacedata.first) ? &area->regionbase :
+                                                                  &slink->regionbase;
+        return BKE_region_find_in_listbase_by_type(regionbase, region_type);
+      }
+    }
+  }
   return nullptr;
 }
 
@@ -1016,8 +1152,7 @@ void BKE_screen_view3d_scene_sync(bScreen *screen, Scene *scene)
 
 void BKE_screen_view3d_shading_init(View3DShading *shading)
 {
-  const View3DShading *shading_default = DNA_struct_default_get(View3DShading);
-  memcpy(shading, shading_default, sizeof(*shading));
+  *shading = View3DShading();
 }
 
 ARegion *BKE_screen_find_main_region_at_xy(const bScreen *screen,
@@ -1121,13 +1256,13 @@ static void write_region(BlendWriter *writer, ARegion *region, int spacetype)
       case SPACE_VIEW3D:
         if (region->regiontype == RGN_TYPE_WINDOW) {
           RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-          BLO_write_struct(writer, RegionView3D, rv3d);
+          writer->write_struct(rv3d);
 
           if (rv3d->localvd) {
-            BLO_write_struct(writer, RegionView3D, rv3d->localvd);
+            writer->write_struct(rv3d->localvd);
           }
           if (rv3d->clipbb) {
-            BLO_write_struct(writer, BoundBox, rv3d->clipbb);
+            writer->write_struct(rv3d->clipbb);
           }
         }
         else {
@@ -1142,7 +1277,7 @@ static void write_region(BlendWriter *writer, ARegion *region, int spacetype)
 
 static void write_uilist(BlendWriter *writer, uiList *ui_list)
 {
-  BLO_write_struct(writer, uiList, ui_list);
+  writer->write_struct(ui_list);
 
   if (ui_list->properties) {
     IDP_BlendWrite(writer, ui_list->properties);
@@ -1171,7 +1306,7 @@ static void write_area(BlendWriter *writer, ScrArea *area)
     write_panel_list(writer, &region->panels);
 
     LISTBASE_FOREACH (PanelCategoryStack *, pc_act, &region->panels_category_active) {
-      BLO_write_struct(writer, PanelCategoryStack, pc_act);
+      writer->write_struct(pc_act);
     }
 
     LISTBASE_FOREACH (uiList *, ui_list, &region->ui_lists) {
@@ -1179,11 +1314,11 @@ static void write_area(BlendWriter *writer, ScrArea *area)
     }
 
     LISTBASE_FOREACH (uiPreview *, ui_preview, &region->ui_previews) {
-      BLO_write_struct(writer, uiPreview, ui_preview);
+      writer->write_struct(ui_preview);
     }
 
     LISTBASE_FOREACH (uiViewStateLink *, view_state, &region->view_states) {
-      BLO_write_struct(writer, uiViewStateLink, view_state);
+      writer->write_struct(view_state);
     }
   }
 
@@ -1206,9 +1341,9 @@ void BKE_screen_area_map_blend_write(BlendWriter *writer, ScrAreaMap *area_map)
   LISTBASE_FOREACH (ScrArea *, area, &area_map->areabase) {
     area->butspacetype = area->spacetype; /* Just for compatibility, will be reset below. */
 
-    BLO_write_struct(writer, ScrArea, area);
+    writer->write_struct(area);
 
-    BLO_write_struct(writer, ScrGlobalAreaData, area->global);
+    writer->write_struct(area->global);
 
     write_area(writer, area);
 
@@ -1300,7 +1435,7 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
 
         if (region->regiondata == nullptr) {
           /* To avoid crashing on some old files. */
-          region->regiondata = MEM_callocN<RegionView3D>("region view3d");
+          region->regiondata = MEM_new_for_free<RegionView3D>("region view3d");
         }
 
         RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
@@ -1332,7 +1467,7 @@ void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBase *regions)
     if (region->regiontype == RGN_TYPE_WINDOW && region->regiondata == nullptr) {
       RegionView3D *rv3d;
 
-      rv3d = MEM_callocN<RegionView3D>("region v3d patch");
+      rv3d = MEM_new_for_free<RegionView3D>("region v3d patch");
       rv3d->persp = char(v3d->persp);
       rv3d->view = char(v3d->view);
       rv3d->dist = v3d->dist;
@@ -1383,7 +1518,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
   /* accident can happen when read/save new file with older version */
   /* 2.50: we now always add spacedata for info */
   if (area->spacedata.first == nullptr) {
-    SpaceInfo *sinfo = MEM_callocN<SpaceInfo>("spaceinfo");
+    SpaceInfo *sinfo = MEM_new_for_free<SpaceInfo>("spaceinfo");
     area->spacetype = sinfo->spacetype = SPACE_INFO;
     BLI_addtail(&area->spacedata, sinfo);
   }

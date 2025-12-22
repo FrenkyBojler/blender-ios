@@ -397,7 +397,7 @@ static void ui_popup_block_position(wmWindow *window,
   }
 
   /* Keep a list of these, needed for pull-down menus. */
-  SafetyRect *saferct = MEM_callocN<SafetyRect>(__func__);
+  SafetyRect *saferct = MEM_new_for_free<SafetyRect>(__func__);
   saferct->parent = butrct;
   saferct->safety = block->safety;
   BLI_freelistN(&block->saferct);
@@ -642,8 +642,8 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
   BLI_assert(!handle->refresh || handle->can_refresh);
 
 #ifndef NDEBUG
-  wmEvent *event_back = window->eventstate;
-  wmEvent *event_last_back = window->event_last_handled;
+  wmEvent *event_back = window->runtime->eventstate;
+  wmEvent *event_last_back = window->runtime->event_last_handled;
 #endif
 
   /* create ui block */
@@ -677,7 +677,7 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
    * Since it's difficult to control logic which is called indirectly here,
    * clear the `eventstate` entirely to ensure it's never used when refreshing a popup. */
 #ifndef NDEBUG
-  window->eventstate = nullptr;
+  window->runtime->eventstate = nullptr;
 #endif
 
   if (block->handle) {
@@ -722,7 +722,7 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
   }
   else {
     /* Keep a list of these, needed for pull-down menus. */
-    SafetyRect *saferct = MEM_callocN<SafetyRect>(__func__);
+    SafetyRect *saferct = MEM_new_for_free<SafetyRect>(__func__);
     saferct->safety = block->safety;
     BLI_addhead(&block->saferct, saferct);
   }
@@ -863,8 +863,8 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
   ED_region_update_rect(region);
 
 #ifndef NDEBUG
-  window->eventstate = event_back;
-  window->event_last_handled = event_last_back;
+  window->runtime->eventstate = event_back;
+  window->runtime->event_last_handled = event_last_back;
 #endif
 
   return block;
@@ -904,7 +904,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
   handle->popup_create_vars.arg_free = arg_free;
   handle->popup_create_vars.but = but;
   handle->popup_create_vars.butregion = but ? butregion : nullptr;
-  copy_v2_v2_int(handle->popup_create_vars.event_xy, window->eventstate->xy);
+  copy_v2_v2_int(handle->popup_create_vars.event_xy, window->runtime->eventstate->xy);
 
   /* create area region */
   ARegion *region = region_temp_add(CTX_wm_screen(C));

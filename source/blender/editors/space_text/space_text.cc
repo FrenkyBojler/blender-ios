@@ -45,7 +45,7 @@ static SpaceLink *text_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   ARegion *region;
   SpaceText *stext;
 
-  stext = MEM_callocN<SpaceText>("inittext");
+  stext = MEM_new_for_free<SpaceText>("inittext");
   stext->spacetype = SPACE_TEXT;
 
   stext->lheight = 12;
@@ -275,7 +275,7 @@ static void text_main_region_draw(const bContext *C, ARegion *region)
   // View2D *v2d = &region->v2d;
 
   /* Clear and setup matrix. */
-  blender::ui::ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   // view2d_view_ortho(v2d);
 
@@ -294,7 +294,7 @@ static void text_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   int wmcursor = WM_CURSOR_TEXT_EDIT;
 
   if (st->text && BLI_rcti_isect_pt(&st->runtime->scroll_region_handle,
-                                    win->eventstate->xy[0] - region->winrct.xmin,
+                                    win->runtime->eventstate->xy[0] - region->winrct.xmin,
                                     st->runtime->scroll_region_handle.ymin))
   {
     wmcursor = WM_CURSOR_DEFAULT;
@@ -416,7 +416,7 @@ static void text_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *
 
 static void text_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceText, sl);
+  writer->write_struct_cast<SpaceText>(sl);
 }
 
 /********************* registration ********************/

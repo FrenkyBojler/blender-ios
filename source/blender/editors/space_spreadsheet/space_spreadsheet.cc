@@ -53,7 +53,7 @@ namespace blender::ed::spreadsheet {
 
 static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
-  SpaceSpreadsheet *spreadsheet_space = MEM_callocN<SpaceSpreadsheet>("spreadsheet space");
+  SpaceSpreadsheet *spreadsheet_space = MEM_new_for_free<SpaceSpreadsheet>("spreadsheet space");
   spreadsheet_space->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
   spreadsheet_space->spacetype = SPACE_SPREADSHEET;
 
@@ -646,7 +646,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
   ss << tot_rows_str << "   |   " << IFACE_("Columns:") << " " << runtime->tot_columns;
   std::string stats_str = ss.str();
 
-  ui::ThemeClearColor(TH_BACK);
+  ui::theme::frame_buffer_clear(TH_BACK);
 
   ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
   const uiStyle *style = ui::style_get_dpi();
@@ -736,11 +736,11 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 
 static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceSpreadsheet, sl);
+  writer->write_struct_cast<SpaceSpreadsheet>(sl);
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)sl;
 
   LISTBASE_FOREACH (SpreadsheetRowFilter *, row_filter, &sspreadsheet->row_filters) {
-    BLO_write_struct(writer, SpreadsheetRowFilter, row_filter);
+    writer->write_struct(row_filter);
     BLO_write_string(writer, row_filter->value_string);
   }
 
@@ -756,8 +756,8 @@ static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 {
   SpaceSpreadsheet &sspreadsheet = *static_cast<SpaceSpreadsheet *>(area->spacedata.first);
 
-  const int2 cursor_re{win->eventstate->xy[0] - region->winrct.xmin,
-                       win->eventstate->xy[1] - region->winrct.ymin};
+  const int2 cursor_re{win->runtime->eventstate->xy[0] - region->winrct.xmin,
+                       win->runtime->eventstate->xy[1] - region->winrct.ymin};
   if (find_hovered_column_header_edge(sspreadsheet, *region, cursor_re)) {
     WM_cursor_set(win, WM_CURSOR_X_MOVE);
     return;

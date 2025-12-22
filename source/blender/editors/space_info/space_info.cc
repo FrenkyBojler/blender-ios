@@ -38,7 +38,7 @@ static SpaceLink *info_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   ARegion *region;
   SpaceInfo *sinfo;
 
-  sinfo = MEM_callocN<SpaceInfo>("initinfo");
+  sinfo = MEM_new_for_free<SpaceInfo>("initinfo");
   sinfo->spacetype = SPACE_INFO;
 
   sinfo->rpt_mask = INFO_RPT_OP;
@@ -117,7 +117,7 @@ static void info_main_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* quick way to avoid drawing if not bug enough */
   if (region->winy < 16) {
@@ -247,7 +247,7 @@ static void info_header_region_message_subscribe(const wmRegionMessageSubscribeP
 
 static void info_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceInfo, sl);
+  writer->write_struct_cast<SpaceInfo>(sl);
 }
 
 void ED_spacetype_info()

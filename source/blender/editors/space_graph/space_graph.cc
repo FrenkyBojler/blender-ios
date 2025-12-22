@@ -61,11 +61,11 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   SpaceGraph *sipo;
 
   /* Graph Editor - general stuff */
-  sipo = MEM_callocN<SpaceGraph>("init graphedit");
+  sipo = MEM_new_for_free<SpaceGraph>("init graphedit");
   sipo->spacetype = SPACE_GRAPH;
 
   /* allocate DopeSheet data for Graph Editor */
-  sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
+  sipo->ads = MEM_new_for_free<bDopeSheet>("GraphEdit DopeSheet");
   sipo->ads->source = (ID *)scene;
 
   /* settings for making it easier by default to just see what you're interested in tweaking */
@@ -153,7 +153,7 @@ static void graph_init(wmWindowManager *wm, ScrArea *area)
   /* Init dope-sheet if non-existent (i.e. for old files). */
   if (sipo->ads == nullptr) {
     wmWindow *win = WM_window_find_by_area(wm, area);
-    sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
+    sipo->ads = MEM_new_for_free<bDopeSheet>("GraphEdit DopeSheet");
     sipo->ads->source = win ? (ID *)WM_window_get_active_scene(win) : nullptr;
   }
 
@@ -230,7 +230,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   const int min_height = UI_ANIM_MINY;
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   blender::ui::view2d_view_ortho(v2d);
 
@@ -427,7 +427,7 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   ListBase anim_data = {nullptr, nullptr};
   const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
@@ -702,7 +702,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
     return;
   }
 
-  blender::ui::UI_SetTheme(SPACE_GRAPH, RGN_TYPE_WINDOW);
+  blender::ui::theme::theme_set(SPACE_GRAPH, RGN_TYPE_WINDOW);
 
   /* build list of F-Curves which will be visible as channels in channel-region
    * - we don't include ANIMFILTER_CURVEVISIBLE filter, as that will result in a
@@ -736,13 +736,13 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 
         switch (fcu->array_index) {
           case 0:
-            blender::ui::GetThemeColor3fv(TH_AXIS_X, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_X, col);
             break;
           case 1:
-            blender::ui::GetThemeColor3fv(TH_AXIS_Y, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_Y, col);
             break;
           case 2:
-            blender::ui::GetThemeColor3fv(TH_AXIS_Z, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_Z, col);
             break;
           default:
             /* 'unknown' color - bluish so as to not conflict with handles */
@@ -759,17 +759,17 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 
         switch (fcu->array_index) {
           case 1:
-            blender::ui::GetThemeColor3fv(TH_AXIS_X, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_X, col);
             break;
           case 2:
-            blender::ui::GetThemeColor3fv(TH_AXIS_Y, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_Y, col);
             break;
           case 3:
-            blender::ui::GetThemeColor3fv(TH_AXIS_Z, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_Z, col);
             break;
 
           case 0: {
-            blender::ui::GetThemeColor3fv(TH_AXIS_W, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_W, col);
             break;
           }
 
@@ -922,14 +922,14 @@ static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   SpaceGraph *sipo = (SpaceGraph *)sl;
-  ListBase tmpGhosts = sipo->runtime.ghost_curves;
+  ListBaseT<FCurve> tmpGhosts = sipo->runtime.ghost_curves;
 
   /* temporarily disable ghost curves when saving */
   BLI_listbase_clear(&sipo->runtime.ghost_curves);
 
-  BLO_write_struct(writer, SpaceGraph, sl);
+  writer->write_struct_cast<SpaceGraph>(sl);
   if (sipo->ads) {
-    BLO_write_struct(writer, bDopeSheet, sipo->ads);
+    writer->write_struct(sipo->ads);
   }
 
   /* Re-enable ghost curves. */

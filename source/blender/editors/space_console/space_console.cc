@@ -41,7 +41,7 @@ static SpaceLink *console_create(const ScrArea * /*area*/, const Scene * /*scene
   ARegion *region;
   SpaceConsole *sconsole;
 
-  sconsole = MEM_callocN<SpaceConsole>("initconsole");
+  sconsole = MEM_new_for_free<SpaceConsole>("initconsole");
   sconsole->spacetype = SPACE_CONSOLE;
 
   sconsole->lheight = 14;
@@ -140,7 +140,7 @@ static void console_main_region_init(wmWindowManager *wm, ARegion *region)
 static void console_cursor(wmWindow *win, ScrArea * /*area*/, ARegion *region)
 {
   int wmcursor = WM_CURSOR_TEXT_EDIT;
-  const wmEvent *event = win->eventstate;
+  const wmEvent *event = win->runtime->eventstate;
   if (blender::ui::view2d_mouse_in_scrollers(region, &region->v2d, event->xy)) {
     wmcursor = WM_CURSOR_DEFAULT;
   }
@@ -224,7 +224,7 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  blender::ui::ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* Works best with no view2d matrix set. */
   blender::ui::view2d_view_ortho(v2d);
@@ -340,10 +340,10 @@ static void console_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
   LISTBASE_FOREACH (ConsoleLine *, cl, &con->history) {
     /* 'len_alloc' is invalid on write, set from 'len' on read */
-    BLO_write_struct(writer, ConsoleLine, cl);
+    writer->write_struct(cl);
     BLO_write_char_array(writer, size_t(cl->len) + 1, cl->line);
   }
-  BLO_write_struct(writer, SpaceConsole, sl);
+  writer->write_struct_cast<SpaceConsole>(sl);
 }
 
 void ED_spacetype_console()

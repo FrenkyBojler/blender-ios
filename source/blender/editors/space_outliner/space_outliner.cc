@@ -94,14 +94,14 @@ static void outliner_main_region_draw(const bContext *C, ARegion *region)
   const rctf v2d_cur_prev = v2d->cur;
 #endif
 
-  ui::ThemeClearColor(TH_BACK);
+  ui::theme::frame_buffer_clear(TH_BACK);
   draw_outliner(C, true);
 
 #ifdef USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK
   /* This happens when scrolling is clamped & occasionally when resizing the area.
    * In practice this isn't often which is important as that would hurt performance. */
   if (!BLI_rctf_compare(&v2d->cur, &v2d_cur_prev, FLT_EPSILON)) {
-    ui::ThemeClearColor(TH_BACK);
+    ui::theme::frame_buffer_clear(TH_BACK);
     draw_outliner(C, false);
   }
 #endif
@@ -384,7 +384,7 @@ static SpaceLink *outliner_create(const ScrArea * /*area*/, const Scene * /*scen
   ARegion *region;
   SpaceOutliner *space_outliner;
 
-  space_outliner = MEM_callocN<SpaceOutliner>("initoutliner");
+  space_outliner = MEM_new_for_free<SpaceOutliner>("initoutliner");
   space_outliner->runtime = MEM_new<SpaceOutliner_Runtime>(__func__);
   space_outliner->spacetype = SPACE_OUTLINER;
   space_outliner->filter_id_type = ID_GR;
@@ -594,7 +594,7 @@ static void write_space_outliner(BlendWriter *writer, const SpaceOutliner *space
                                   nullptr;
 
     if (data) {
-      BLO_write_struct(writer, SpaceOutliner, space_outliner);
+      writer->write_struct_cast<SpaceOutliner>(space_outliner);
 
       /* To store #TreeStore (instead of the mempool), two unique memory addresses are needed,
        * which can be used to identify the data on read:
@@ -633,7 +633,7 @@ static void write_space_outliner(BlendWriter *writer, const SpaceOutliner *space
     }
   }
   else {
-    BLO_write_struct(writer, SpaceOutliner, space_outliner);
+    writer->write_struct_cast<SpaceOutliner>(space_outliner);
   }
 }
 
