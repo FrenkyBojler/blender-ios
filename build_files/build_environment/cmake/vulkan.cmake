@@ -11,6 +11,7 @@ ExternalProject_Add(external_vulkan_headers
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
+    -DVULKAN_HEADERS_ENABLE_MODULE=OFF
     -Wno-dev ${DEFAULT_CMAKE_FLAGS}
     ${VULKAN_HEADERS_EXTRA_ARGS}
 
