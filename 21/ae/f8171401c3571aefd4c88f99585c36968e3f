@@ -5,3 +5,4 @@ Referenced by issue #135601, prop_tabs_enum No Longer Displays Text of Enum
 Referenced by pull request #135621, Fix #135601: prop_tabs_enum No Longer Displays Text of Enum
 Referenced by commit a568890515e3a9a2e376002b151eb32b2eb35d84, Fix #135601: prop_tabs_enum No Longer Displays Text of Enum
 Referenced by issue #138073, Crash in Blender 4.4.1 related to custom properties and drivers
+Referenced by issue #151729, Can't hide `template_popup_confirm`'s cancel button
