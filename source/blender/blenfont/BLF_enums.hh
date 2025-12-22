@@ -52,7 +52,6 @@ enum FontFlags {
   BLF_LAST_RESORT = 1 << 15,
   /** Failure to load this font. Don't try again. */
   BLF_BAD_FONT = 1 << 16,
-  // BLF_CACHED = 1 << 17,
   /**
    * At small sizes glyphs are rendered at multiple sub-pixel positions.
    *
