@@ -106,11 +106,11 @@ struct AnimDataFCurveConvertor {
   const char *relative_rna_path_dst;
 
   /** Optional callback to perform additional conversion work on a specific FCurve. */
-  blender::FunctionRef<FCurveConvertCB> convert_cb;
+  FunctionRef<FCurveConvertCB> convert_cb;
 
   AnimDataFCurveConvertor(const char *relative_rna_path_src,
                           const char *relative_rna_path_dst,
-                          blender::FunctionRef<FCurveConvertCB> convert_cb = {nullptr})
+                          FunctionRef<FCurveConvertCB> convert_cb = {nullptr})
       : relative_rna_path_src(relative_rna_path_src),
         relative_rna_path_dst(relative_rna_path_dst),
         convert_cb(convert_cb)
@@ -178,9 +178,9 @@ class AnimDataConvertor {
    *
    * Currently only used when moving animation from one source ID to a different destination ID.
    */
-  blender::Vector<FCurve *> fcurves_from_src_main_action = {};
-  blender::Vector<FCurve *> fcurves_from_src_tmp_action = {};
-  blender::Vector<FCurve *> fcurves_from_src_drivers = {};
+  Vector<FCurve *> fcurves_from_src_main_action = {};
+  Vector<FCurve *> fcurves_from_src_tmp_action = {};
+  Vector<FCurve *> fcurves_from_src_drivers = {};
   /**
    * Generic 'has done something' flag, used to decide whether depsgraph tagging for updates is
    * needed.
@@ -267,8 +267,7 @@ class AnimDataConvertor {
 
   /* Iterator over all FCurves in a given animation data. */
 
-  bool fcurve_foreach_in_action(bAction *owner_action,
-                                blender::FunctionRef<FCurveCallback> callback) const
+  bool fcurve_foreach_in_action(bAction *owner_action, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     animrig::foreach_fcurve_in_action(owner_action->wrap(), [&](FCurve &fcurve) {
@@ -279,8 +278,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool fcurve_foreach_in_listbase(ListBase &fcurves,
-                                  blender::FunctionRef<FCurveCallback> callback) const
+  bool fcurve_foreach_in_listbase(ListBase &fcurves, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     LISTBASE_FOREACH (FCurve *, fcurve, &fcurves) {
@@ -290,8 +288,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool nla_strip_fcurve_foreach(NlaStrip &nla_strip,
-                                blender::FunctionRef<FCurveCallback> callback) const
+  bool nla_strip_fcurve_foreach(NlaStrip &nla_strip, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     if (nla_strip.act) {
@@ -307,8 +304,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool animdata_fcurve_foreach(AnimData &anim_data,
-                               blender::FunctionRef<FCurveCallback> callback) const
+  bool animdata_fcurve_foreach(AnimData &anim_data, FunctionRef<FCurveCallback> callback) const
   {
     bool is_changed = false;
     if (anim_data.action) {
@@ -345,7 +341,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool action_process(bAction &action, blender::FunctionRef<ActionCallback> callback) const
+  bool action_process(bAction &action, FunctionRef<ActionCallback> callback) const
   {
     if (callback(action)) {
       DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
@@ -354,8 +350,7 @@ class AnimDataConvertor {
     return false;
   }
 
-  bool nla_strip_action_foreach(NlaStrip &nla_strip,
-                                blender::FunctionRef<ActionCallback> callback) const
+  bool nla_strip_action_foreach(NlaStrip &nla_strip, FunctionRef<ActionCallback> callback) const
   {
     bool is_changed = false;
     if (nla_strip.act) {
@@ -367,8 +362,7 @@ class AnimDataConvertor {
     return is_changed;
   }
 
-  bool animdata_action_foreach(AnimData &anim_data,
-                               blender::FunctionRef<ActionCallback> callback) const
+  bool animdata_action_foreach(AnimData &anim_data, FunctionRef<ActionCallback> callback) const
   {
     bool is_changed = false;
 
@@ -843,7 +837,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(const bGPDframe &gp
   }
 
   /* Find used vertex groups in this drawing. */
-  ListBase stroke_vertex_group_names;
+  ListBaseT<bDeformGroup> stroke_vertex_group_names;
   Array<int> stroke_def_nr_map;
   const int num_vertex_groups = BLI_listbase_count(&vertex_group_names);
   find_used_vertex_groups(
@@ -1197,7 +1191,7 @@ static bNodeTree *offset_radius_node_tree_add(ConversionData &conversion_data, L
       &conversion_data.bmain, library, OFFSET_RADIUS_NODETREE_NAME, "GeometryNodeTree");
 
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
@@ -1775,7 +1769,7 @@ static void legacy_object_modifier_dash(ConversionData &conversion_data,
   md_dash.segment_active_index = legacy_md_dash.segment_active_index;
   md_dash.segments_num = legacy_md_dash.segments_len;
   MEM_SAFE_FREE(md_dash.segments_array);
-  md_dash.segments_array = MEM_calloc_arrayN<GreasePencilDashModifierSegment>(
+  md_dash.segments_array = MEM_new_array_for_free<GreasePencilDashModifierSegment>(
       legacy_md_dash.segments_len, __func__);
   for (const int i : IndexRange(md_dash.segments_num)) {
     GreasePencilDashModifierSegment &dst_segment = md_dash.segments_array[i];
@@ -2487,7 +2481,7 @@ static void legacy_object_modifier_time(ConversionData &conversion_data,
   md_time.segment_active_index = legacy_md_time.segment_active_index;
   md_time.segments_num = legacy_md_time.segments_len;
   MEM_SAFE_FREE(md_time.segments_array);
-  md_time.segments_array = MEM_calloc_arrayN<GreasePencilTimeModifierSegment>(
+  md_time.segments_array = MEM_new_array_for_free<GreasePencilTimeModifierSegment>(
       legacy_md_time.segments_len, __func__);
   for (const int i : IndexRange(md_time.segments_num)) {
     GreasePencilTimeModifierSegment &dst_segment = md_time.segments_array[i];
@@ -3079,8 +3073,8 @@ static void legacy_gpencil_object(ConversionData &conversion_data, Object &objec
   const bool do_gpencil_data_conversion = (new_grease_pencil == nullptr);
 
   if (!new_grease_pencil) {
-    new_grease_pencil = static_cast<GreasePencil *>(
-        BKE_id_new_in_lib(&conversion_data.bmain, gpd->id.lib, ID_GP, gpd->id.name + 2));
+    new_grease_pencil = BKE_id_new_in_lib<GreasePencil>(
+        &conversion_data.bmain, gpd->id.lib, gpd->id.name + 2);
     id_us_min(&new_grease_pencil->id);
   }
 
@@ -3140,8 +3134,8 @@ void legacy_main(Main &bmain,
     GreasePencil *new_grease_pencil = conversion_data.legacy_to_greasepencil_data.lookup_default(
         legacy_gpd, nullptr);
     if (!new_grease_pencil) {
-      new_grease_pencil = static_cast<GreasePencil *>(
-          BKE_id_new_in_lib(&bmain, legacy_gpd->id.lib, ID_GP, legacy_gpd->id.name + 2));
+      new_grease_pencil = BKE_id_new_in_lib<GreasePencil>(
+          &bmain, legacy_gpd->id.lib, legacy_gpd->id.name + 2);
       id_us_min(&new_grease_pencil->id);
       legacy_gpencil_to_grease_pencil(conversion_data, *new_grease_pencil, *legacy_gpd);
       conversion_data.legacy_to_greasepencil_data.add(legacy_gpd, new_grease_pencil);

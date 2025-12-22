@@ -45,7 +45,7 @@ static SpaceLink *text_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   ARegion *region;
   SpaceText *stext;
 
-  stext = MEM_callocN<SpaceText>("inittext");
+  stext = MEM_new_for_free<SpaceText>("inittext");
   stext->spacetype = SPACE_TEXT;
 
   stext->lheight = 12;
@@ -253,7 +253,8 @@ static void text_main_region_init(wmWindowManager *wm, ARegion *region)
   wmKeyMap *keymap;
   ListBase *lb;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
+  view2d_region_reinit(
+      &region->v2d, blender::ui::V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
 
   /* Own keymap. */
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Text Generic", SPACE_TEXT, RGN_TYPE_WINDOW);
@@ -274,15 +275,15 @@ static void text_main_region_draw(const bContext *C, ARegion *region)
   // View2D *v2d = &region->v2d;
 
   /* Clear and setup matrix. */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  // UI_view2d_view_ortho(v2d);
+  // view2d_view_ortho(v2d);
 
   /* Data. */
   draw_text_main(st, region);
 
   /* Reset view matrix. */
-  // UI_view2d_view_restore(C);
+  // view2d_view_restore(C);
 
   /* Scroll-bars? */
 }
@@ -293,7 +294,7 @@ static void text_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   int wmcursor = WM_CURSOR_TEXT_EDIT;
 
   if (st->text && BLI_rcti_isect_pt(&st->runtime->scroll_region_handle,
-                                    win->eventstate->xy[0] - region->winrct.xmin,
+                                    win->runtime->eventstate->xy[0] - region->winrct.xmin,
                                     st->runtime->scroll_region_handle.ymin))
   {
     wmcursor = WM_CURSOR_DEFAULT;
@@ -415,7 +416,7 @@ static void text_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *
 
 static void text_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceText, sl);
+  writer->write_struct_cast<SpaceText>(sl);
 }
 
 /********************* registration ********************/

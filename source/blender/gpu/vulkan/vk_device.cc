@@ -45,11 +45,13 @@ void VKExtensions::log() const
              " - [%c] extended dynamic state\n"
              " - [%c] external memory\n"
              " - [%c] graphics pipeline library\n"
+             " - [%c] host image copy\n"
              " - [%c] line rasterization\n"
              " - [%c] maintenance4\n"
              " - [%c] memory priority\n"
              " - [%c] pageable device local memory\n"
-             " - [%c] shader stencil export",
+             " - [%c] shader stencil export\n"
+             " - [%c] vertex input dynamic state",
              shader_output_viewport_index ? 'X' : ' ',
              shader_output_layer ? 'X' : ' ',
              fragment_shader_barycentric ? 'X' : ' ',
@@ -59,11 +61,13 @@ void VKExtensions::log() const
              extended_dynamic_state ? 'X' : ' ',
              external_memory ? 'X' : ' ',
              graphics_pipeline_library ? 'X' : ' ',
+             host_image_copy ? 'X' : ' ',
              line_rasterization ? 'X' : ' ',
              maintenance4 ? 'X' : ' ',
              memory_priority ? 'X' : ' ',
              pageable_device_local_memory ? 'X' : ' ',
-             GPU_stencil_export_support() ? 'X' : ' ');
+             GPU_stencil_export_support() ? 'X' : ' ',
+             vertex_input_dynamic_state ? 'X' : ' ');
 }
 
 void VKWorkarounds::log() const
@@ -182,6 +186,17 @@ void VKDevice::init_functions()
   /* VK_EXT_extended_dynamic_state */
   if (extensions_.extended_dynamic_state) {
     functions.vkCmdSetFrontFace = LOAD_FUNCTION(vkCmdSetFrontFaceEXT);
+  }
+
+  /* VK_EXT_vertex_input_dynamic_state */
+  if (extensions_.vertex_input_dynamic_state) {
+    functions.vkCmdSetVertexInput = LOAD_FUNCTION(vkCmdSetVertexInputEXT);
+  }
+
+  /* VK_EXT_host_image_copy */
+  if (extensions_.host_image_copy) {
+    functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImageEXT);
+    functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
   }
 
   if (extensions_.external_memory) {

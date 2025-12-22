@@ -12,6 +12,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
+#include "DNA_layer_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
@@ -41,17 +42,16 @@ namespace blender::draw::compositor_engine {
 
 class Context : public compositor::Context {
  private:
+  const Scene *scene_;
   /* A pointer to the info message of the compositor engine. This is a char array of size
    * GPU_INFO_SIZE. The message is cleared prior to updating or evaluating the compositor. */
   char *info_message_;
-  const Scene *scene_;
 
  public:
-  Context(char *info_message) : compositor::Context(), info_message_(info_message) {}
-
-  void set_scene(const Scene *scene)
+  Context(compositor::StaticCacheManager &cache_manager, const Scene *scene, char *info_message)
+      : compositor::Context(cache_manager), scene_(scene), info_message_(info_message)
   {
-    scene_ = scene;
+    this->set_info_message("");
   }
 
   const Scene &get_scene() const override
@@ -260,11 +260,9 @@ class Context : public compositor::Context {
 
 class Instance : public DrawEngine {
  private:
-  Context context_;
+  compositor::StaticCacheManager cache_manager_;
 
  public:
-  Instance() : context_(this->info) {}
-
   StringRefNull name_get() final
   {
     return "Compositor";
@@ -278,7 +276,8 @@ class Instance : public DrawEngine {
 
   void draw(Manager & /*manager*/) final
   {
-    if (context_.get_camera_region().is_empty()) {
+    Context context(cache_manager_, DRW_context_get()->scene, this->info);
+    if (context.get_camera_region().is_empty()) {
       return;
     }
 
@@ -295,10 +294,9 @@ class Instance : public DrawEngine {
 
     /* Execute Compositor render commands. */
     {
-      context_.set_scene(DRW_context_get()->scene);
-      context_.set_info_message("");
-      compositor::Evaluator evaluator(context_);
+      compositor::Evaluator evaluator(context);
       evaluator.evaluate();
+      context.cache_manager().reset();
     }
 
 #if defined(__APPLE__)
