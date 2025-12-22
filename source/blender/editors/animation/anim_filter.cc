@@ -107,7 +107,7 @@ bAction *ANIM_active_action_from_area(Scene *scene,
                                       const ScrArea *area,
                                       ID **r_action_user)
 {
-  if (area->spacetype != SPACE_ACTION) {
+  if (!area || area->spacetype != SPACE_ACTION) {
     return nullptr;
   }
 
@@ -282,7 +282,7 @@ static bool graphedit_get_context(bAnimContext *ac, SpaceGraph *sipo)
 {
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (sipo->ads == nullptr) {
-    sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
+    sipo->ads = MEM_new_for_free<bDopeSheet>("GraphEdit DopeSheet");
     sipo->ads->source = reinterpret_cast<ID *>(ac->scene);
   }
   ac->ads = sipo->ads;
@@ -340,7 +340,7 @@ static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
 {
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (snla->ads == nullptr) {
-    snla->ads = MEM_callocN<bDopeSheet>("NlaEdit DopeSheet");
+    snla->ads = MEM_new_for_free<bDopeSheet>("NlaEdit DopeSheet");
   }
   ac->ads = snla->ads;
 
@@ -1505,8 +1505,6 @@ static size_t animfilter_act_group(bAnimContext *ac,
   size_t tmp_items = 0;
   size_t items = 0;
 
-  animrig::Action &action = act->wrap();
-
   /* if we care about the selection status of the channels,
    * but the group isn't expanded (1)...
    * (1) this only matters if we actually care about the hierarchy though.
@@ -1710,9 +1708,6 @@ static size_t animfilter_action(bAnimContext *ac,
                                 const eAnimFilter_Flags filter_mode,
                                 ID *owner_id)
 {
-  FCurve *lastchan = nullptr;
-  size_t items = 0;
-
   if (action.is_empty()) {
     return 0;
   }
