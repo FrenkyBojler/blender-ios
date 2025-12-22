@@ -323,7 +323,7 @@ TEST_F(BMainMergeTest, link_lib_packed)
   EXPECT_FALSE(is_archive_lib_new);
 
   /* Two packed IDs in destination Main before the merge, with same names as the two first in
-   * srouce Main, one sharing the same deep_hash (so being identical data), the second with another
+   * source Main, one sharing the same deep_hash (so being identical data), the second with another
    * deep hash. */
   Library *lib_dst = BKE_id_new<Library>(bmain_dst, LIB_PATH);
   BKE_library_filepath_set(bmain_dst, lib_dst, LIB_PATH);

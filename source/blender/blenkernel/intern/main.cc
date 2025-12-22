@@ -259,7 +259,7 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
     BLI_assert_msg(false, "No packed ID should be passed to this function currently.");
     return (id_1->deep_hash == id_2->deep_hash);
   }
-  else if (ID_IS_PACKED(id_1) || ID_IS_PACKED(id_2)) {
+  if (ID_IS_PACKED(id_1) || ID_IS_PACKED(id_2)) {
     BLI_assert_msg(false, "No packed ID should be passed to this function currently.");
     return false;
   }
