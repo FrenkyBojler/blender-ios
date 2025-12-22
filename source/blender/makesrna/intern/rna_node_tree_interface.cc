@@ -608,6 +608,15 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_attribute_domain_item
   return item_array;
 }
 
+static void rna_NodeTreeInterfaceItems_active_index_set(PointerRNA *ptr, int value)
+{
+  bNodeTreeInterface *interface = static_cast<bNodeTreeInterface *>(ptr->data);
+  interface->active_index = value;
+  if (bNodeTreeInterfaceItem *item = interface->active_item()) {
+    item->set_selected(true);
+  }
+}
+
 static PointerRNA rna_NodeTreeInterfaceItems_active_get(PointerRNA *ptr)
 {
   bNodeTreeInterface *interface = static_cast<bNodeTreeInterface *>(ptr->data);
@@ -1331,6 +1340,8 @@ static void rna_def_node_tree_interface_items_api(StructRNA *srna)
 
   prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "active_index");
+  RNA_def_property_int_funcs(
+      prop, nullptr, "rna_NodeTreeInterfaceItems_active_index_set", nullptr);
   RNA_def_property_ui_text(prop, "Active Index", "Index of the active item");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_NODE, nullptr);

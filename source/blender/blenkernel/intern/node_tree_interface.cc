@@ -1520,6 +1520,7 @@ void bNodeTreeInterface::active_item_set(bNodeTreeInterfaceItem *item)
   this->foreach_item([&](bNodeTreeInterfaceItem &titem) {
     if (&titem == item) {
       this->active_index = count;
+      item->set_selected(true);
       return false;
     }
     ++count;
