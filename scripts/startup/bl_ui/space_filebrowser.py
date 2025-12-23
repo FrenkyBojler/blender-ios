@@ -387,13 +387,11 @@ class FILEBROWSER_PT_advanced_filter(Panel):
             col.prop(params, "use_filter_asset_only")
 
             filter_id = params.filter_id
-            filters = [x for x in filter_id.bl_rna.properties if x.identifier.startswith("filter_")]
-
-            # Sorted by the English (untranslated) name
-            for i in sorted(filters, key=lambda x: (x.name)):
-                row = col.row()
-                row.label(icon=i.icon)
-                row.prop(filter_id, i.identifier, toggle=False)
+            for i in filter_id.bl_rna.properties:
+                if i.identifier.startswith("filter_"):
+                    row = col.row()
+                    row.label(icon=i.icon)
+                    row.prop(filter_id, i.identifier, toggle=False)
 
 
 def is_option_region_visible(context, space):
