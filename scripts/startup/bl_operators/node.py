@@ -972,7 +972,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             else:
                 interface.move_to_parent(item, active_item.parent, active_pos + 1)
         interface.active = item
-        interface.active.select = True
+        item.select = True
 
         return {'FINISHED'}
 
@@ -1051,7 +1051,7 @@ class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
         if item:
             item_copy = interface.copy(item)
             interface.active = item_copy
-            interface.active.select = True
+            item_copy.select = True
 
         return {'FINISHED'}
 
@@ -1144,7 +1144,7 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         interface.move_to_parent(active_item, parent_panel, 0)
         # Make the panel active.
         interface.active = parent_panel
-        interface.active.select = True
+        parent_panel.select = True
 
         return {'FINISHED'}
 
@@ -1193,7 +1193,7 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
 
         # Make the socket active.
         interface.active = first_item
-        interface.active.select = True
+        first_item.select = True
 
         return {'FINISHED'}
 
