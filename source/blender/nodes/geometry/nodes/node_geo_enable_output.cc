@@ -39,6 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (nodes::socket_type_supports_fields(data_type)) {
     input_value.supports_field();
+    output_value.dependent_field().reference_pass_all();
   }
 
   if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
@@ -46,7 +47,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
-    output_value.dependent_field();
+    output_value.reference_pass_all();
   }
 
   input_value.structure_type(StructureType::Dynamic);
