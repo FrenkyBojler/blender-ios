@@ -10,6 +10,7 @@
 #include "BLI_index_mask.hh"
 #include "BLI_index_mask_expression.hh"
 #include "BLI_kdtree.hh"
+#include "BLI_offset_indices.hh"
 
 #include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_merge_by_distance.hh"
@@ -30,6 +31,31 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
 
   b.add_output<decl::Int>("Cluster ID").field_source_reference_all();
+}
+
+static constexpr int no_cluster_value = -1;
+
+static void masked_cluster_ids(const Span<float3> all_positions,
+                               const IndexMask &mask_to_cluster,
+                               const float distance,
+                               MutableSpan<int> r_cluster_ids)
+{
+  KDTree<float3> *tree = kdtree_new<float3>(mask_to_cluster.size());
+  mask_to_cluster.foreach_index(
+      [&](const int i, const int pos) { kdtree_insert<float3>(tree, pos, all_positions[i]); });
+  kdtree_balance<float3>(tree);
+
+  r_cluster_ids.fill(no_cluster_value);
+  kdtree_calc_duplicates_fast<float3>(tree, distance, true, r_cluster_ids.data());
+  kdtree_free<float3>(tree);
+
+  threading::parallel_for(mask_to_cluster.index_range(), 1024 * 4, [&](const IndexRange range) {
+    for (const int i : range) {
+      if (r_cluster_ids[i] == no_cluster_value) {
+        r_cluster_ids[i] = i;
+      }
+    }
+  });
 }
 
 class ClusterFieldInput final : public bke::GeometryFieldInput {
@@ -76,7 +102,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     evaluator.set_selection(selection_field_);
     evaluator.evaluate();
     const VArraySpan<float3> positions = evaluator.get_evaluated<float3>(0);
-    const VArray<int> group_ids = evaluator.get_evaluated<int>(1);
+    const VArraySpan<int> group_ids = evaluator.get_evaluated<int>(1);
     const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
 
     if (selection.is_empty()) {
@@ -87,42 +113,61 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       return default_no_clusters_to_out();
     }
 
-    KDTree<float3> *tree = kdtree_new<float3>(selection.size());
-    selection.foreach_index([&](const int i) { kdtree_insert<float3>(tree, i, positions[i]); });
-    kdtree_balance<float3>(tree);
+    const VectorSet<int> group_indexing(group_ids);
+    const int groups_num = group_indexing.size();
 
-    constexpr int no_cluster_value = -1;
-    Array<int> gathered_cluster_ids(selection.min_array_size(), no_cluster_value);
-    /* If #selection was not full then #gathered_cluster_ids will point to position in #selection,
-     * but not to value. */
-    const int total_merge_ops = kdtree_calc_duplicates_fast<float3>(
-        tree, distance_, true, gathered_cluster_ids.data());
-    kdtree_free<float3>(tree);
+    const auto get_group_index = [&](const int i) {
+      return group_indexing.index_of(group_ids[i]);
+    };
 
-    if (total_merge_ops == 0) {
-      return default_no_clusters_to_out();
-    }
+    IndexMaskMemory memory;
+    Array<IndexMask> all_indices_by_group_id(groups_num);
+    IndexMask::from_groups<int>(selection, memory, get_group_index, all_indices_by_group_id);
 
-    const int last_reqered_gathered_index = selection.iterator_to_index(
-        *selection.find_smaller_equal(mask.last()));
-    const IndexRange requered_selection = IndexRange::from_begin_end_inclusive(
-        0, last_reqered_gathered_index);
-    const IndexMask requered_selection_mask = selection.slice(requered_selection);
-    threading::parallel_for(
-        IndexRange(requered_selection_mask.min_array_size()), 1024, [&](const IndexRange range) {
-          for (const int i : range) {
-            if (gathered_cluster_ids[i] == no_cluster_value) {
-              gathered_cluster_ids[i] = i;
-            }
-          }
-        });
+    Array<Array<int>> cluster_ids_by_group(all_indices_by_group_id.size());
+
+    /* The grain size should be larger as each group gets smaller. */
+    const int avg_group_size = domain_size / group_indexing.size();
+    const int grain_size = std::max(8192 / avg_group_size, 1);
+    threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
+      Vector<int> group_cluser_ids;
+      for (const int group_i : range) {
+        const IndexMask &group_indices = all_indices_by_group_id[group_i];
+        if (mask.bounds().intersect(group_indices.bounds()).is_empty()) {
+          continue;
+        }
+
+        group_cluser_ids.reinitialize(group_indices.size());
+        masked_cluster_ids(
+            positions, group_indices, distance_, group_cluser_ids.as_mutable_span());
+        cluster_ids_by_group[group_i] = group_cluser_ids.as_span();
+      }
+    });
 
     Array<int> cluster_ids(mask.min_array_size());
-    array_utils::fill_index_range(cluster_ids.as_mutable_span());
-    array_utils::copy(
-        gathered_cluster_ids.as_span().take_front(requered_selection_mask.min_array_size()),
-        requered_selection_mask,
-        cluster_ids.as_mutable_span().take_front(requered_selection_mask.min_array_size()));
+    /* Keep #no_cluster_value as unused value (for debug), and use rest negative range for musked
+     * values. */
+    array_utils::fill_index_range(cluster_ids.as_mutable_span(), -(domain_size + 1));
+
+    threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
+      for (const int group_i : range) {
+        const IndexMask &group_indices = all_indices_by_group_id[group_i];
+        if (mask.bounds().intersect(group_indices.bounds()).is_empty()) {
+          continue;
+        }
+
+        const int last_reqered_group_element = group_indices.iterator_to_index(
+            *group_indices.find_smaller_equal(mask.last()));
+        const IndexMask requered_group_mask = group_indices.slice(0,
+                                                                  last_reqered_group_element + 1);
+
+        const Span<int> group_ids = cluster_ids_by_group[group_i];
+
+        requered_group_mask.foreach_index(GrainSize(2048), [&](const int index, const int pos) {
+          cluster_ids[index] = requered_group_mask[group_ids[pos]];
+        });
+      }
+    });
 
     BLI_assert(!cluster_ids.as_span().contains(no_cluster_value));
     return VArray<int>::from_container(std::move(cluster_ids));
