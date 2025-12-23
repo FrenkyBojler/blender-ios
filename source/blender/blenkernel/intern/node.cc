@@ -3050,6 +3050,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
           return "NodeSocketFloatPercentage";
         case PROP_FACTOR:
           return "NodeSocketFloatFactor";
+        case PROP_MASS:
+          return "NodeSocketFloatMass";
         case PROP_ANGLE:
           return "NodeSocketFloatAngle";
         case PROP_TIME:
@@ -3217,6 +3219,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
           return "NodeTreeInterfaceSocketFloatPercentage";
         case PROP_FACTOR:
           return "NodeTreeInterfaceSocketFloatFactor";
+        case PROP_MASS:
+          return "NodeTreeInterfaceSocketFloatMass";
         case PROP_ANGLE:
           return "NodeTreeInterfaceSocketFloatAngle";
         case PROP_TIME:
