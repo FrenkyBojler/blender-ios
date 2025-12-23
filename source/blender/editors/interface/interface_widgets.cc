@@ -2121,7 +2121,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
       const auto boxes = BLF_str_selection_boxes(fstyle->uifont_id,
                                                  drawstr.begin() + ofs,
-                                                 strlen(drawstr.begin() + ofs),
+                                                 drawstr.size() - ofs,
                                                  (selsta >= ofs) ? selsta - ofs : 0,
                                                  selend - std::max<int>(ofs, selsta));
       for (auto bounds : boxes) {
@@ -2249,8 +2249,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     /* for underline drawing */
     int font_xofs, font_yofs;
 
-    int drawlen = (drawstr_left_len == INT_MAX) ? strlen(drawstr.begin() + ofs) :
-                                                  (drawstr_left_len - ofs);
+    int drawlen = (drawstr_left_len == INT_MAX) ? drawstr.size() - ofs : (drawstr_left_len - ofs);
 
     if (drawlen > 0) {
       FontStyleDrawParams params{};
