@@ -54,7 +54,7 @@ Texture *GLTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
     const auto &handle = pool_[i];
-#if 0
+#if 1
     if (handle.texture->w_ != extent.x || handle.texture->h_ != extent.y) {
       continue;
     }
@@ -142,6 +142,8 @@ void GLTexturePool::reset(bool force_free)
       handle.counter++;
     }
   }
+
+  std::printf("free=%d, acqr=%d\n", pool_.size(), acquired_.size());
 }
 
 void GLTexturePool::offset_texture_counter(Texture *tex, int offset)
