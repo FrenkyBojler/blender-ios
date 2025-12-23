@@ -10761,6 +10761,16 @@ static int ui_handle_enum_letter_press_search(PopupBlockHandle *menu, const wmEv
   return WM_UI_HANDLER_BREAK;
 }
 
+static Button *find_block_with_menu_key(const Block &block, const wmEventType event_type)
+{
+  for (const std::unique_ptr<Button> &but_iter : block.buttons) {
+    if (!(but_iter->flag & BUT_DISABLED) && but_iter->menu_key == event_type) {
+      return but_iter.get();
+    }
+  }
+  return nullptr;
+}
+
 static int ui_handle_menu_event(bContext *C,
                                 const wmEvent *event,
                                 PopupBlockHandle *menu,
@@ -11244,11 +11254,14 @@ static int ui_handle_menu_event(bContext *C,
               }
               break;
             }
-            if (Button *pop_create_but = menu->popup_create_vars.but) {
-              if (pop_create_but->rnapoin.data && pop_create_but->rnaprop) {
-                if (RNA_property_type(pop_create_but->rnaprop) == PROP_ENUM) {
-                  retval = ui_handle_enum_letter_press_search(menu, event);
-                  break;
+            Button *but_menu_key = find_block_with_menu_key(*block, event->type);
+            if (!but_menu_key) {
+              if (Button *pop_create_but = menu->popup_create_vars.but) {
+                if (pop_create_but->rnapoin.data && pop_create_but->rnaprop) {
+                  if (RNA_property_type(pop_create_but->rnaprop) == PROP_ENUM) {
+                    retval = ui_handle_enum_letter_press_search(menu, event);
+                    break;
+                  }
                 }
               }
             }
@@ -11260,20 +11273,18 @@ static int ui_handle_menu_event(bContext *C,
             }
 
             /* Accelerator keys that allow "pressing" a menu entry by pressing a single key. */
-            for (const std::unique_ptr<Button> &but_iter : block->buttons) {
-              if (!(but_iter->flag & BUT_DISABLED) && but_iter->menu_key == event->type) {
-                if (ELEM(but_iter->type,
-                         ButtonType::But,
-                         ButtonType::IconToggle,
-                         ButtonType::IconToggleN))
-                {
-                  button_execute(C, region, but_iter.get());
-                }
-                else {
-                  ui_handle_button_activate_by_type(C, region, but_iter.get());
-                }
-                return WM_UI_HANDLER_BREAK;
+            if (but_menu_key) {
+              if (ELEM(but_menu_key->type,
+                       ButtonType::But,
+                       ButtonType::IconToggle,
+                       ButtonType::IconToggleN))
+              {
+                button_execute(C, region, but_menu_key);
               }
+              else {
+                ui_handle_button_activate_by_type(C, region, but_menu_key);
+              }
+              return WM_UI_HANDLER_BREAK;
             }
           }
           default: {
