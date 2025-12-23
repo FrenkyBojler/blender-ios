@@ -11442,7 +11442,9 @@ static int ui_handle_menu_event(bContext *C,
           }
 
           /* strict check, and include the parent rect */
-          if (!menu->dotowards && !saferct && ((U.flag & USER_MENU_CLOSE_LEAVE) || level > 0)) {
+          if (!menu->dotowards && !saferct && ((U.flag & USER_MENU_CLOSE_LEAVE) || level > 0) &&
+              !(menu->mmd_panning || menu->keep_alive_timer))
+          {
             if (block->flag & BLOCK_OUT_1) {
               menu->menuretval = RETURN_OK;
             }
