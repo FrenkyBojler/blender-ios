@@ -2,19 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_mesh_types.h"
-#include "DNA_pointcloud_types.h"
-
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_index_mask_expression.hh"
 #include "BLI_kdtree.hh"
-#include "BLI_offset_indices.hh"
-
-#include "GEO_foreach_geometry.hh"
-#include "GEO_mesh_merge_by_distance.hh"
-#include "GEO_point_merge_by_distance.hh"
 
 #include "node_geometry_util.hh"
 

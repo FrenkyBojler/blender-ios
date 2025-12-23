@@ -17,6 +17,11 @@ struct Mesh;
 
 namespace blender::geometry {
 
+Mesh *create_merged_mesh(const Mesh &mesh,
+                         MutableSpan<int> vert_dest_map,
+                         int removed_vertex_count,
+                         bool do_mix_data);
+
 /**
  * Merge selected vertices into other selected vertices within the \a merge_distance. The merged
  * indices favor speed over accuracy, since the results will depend on the order of the vertices.

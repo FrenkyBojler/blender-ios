@@ -21,8 +21,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Mesh})
       .description("Point cloud or mesh to merge points of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Merge ID").hide_value().field_on_all();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Int>("Merge ID").hide_value().field_on_all();
 }
 
 static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,
@@ -77,9 +77,8 @@ static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const auto mode = params.get_input<GeometryNodeMergeByDistanceMode>("Mode");
-  const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
-  const float merge_distance = params.extract_input<float>("Distance");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  const Field<int> group_id_field = params.extract_input<Field<int>>("Merge ID");
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
@@ -90,6 +89,22 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     }
     if (const Mesh *mesh = geometry_set.get_mesh()) {
+      
+      const bke::MeshFieldContext context(*mesh, AttrDomain::Point);
+      FieldEvaluator evaluator{context, mesh.verts_num};
+      evaluator.add(selection_field);
+      evaluator.add(group_id_field);
+      evaluator.evaluate();
+      
+      const IndexMask mask = evaluator.get_evaluated_as_mask(0);
+      const VArray<int> group_id = evaluator.get_evaluated<int>(1);
+      
+      Array<int> masked_group_ids(mesh.verts_num);
+      VectorSet<int>
+      array_utils::copy(group_id, mask, masked_group_ids.as_mutable_span());
+      
+      const Mesh &new_mesh = *geometry::create_merged_mesh(*mesh, masked_group_ids, removed_vertex_count, true);
+      
       std::optional<Mesh *> result;
       switch (mode) {
         case GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL:
