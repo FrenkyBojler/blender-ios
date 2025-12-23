@@ -174,7 +174,7 @@ void transform_around_single_fallback(TransInfo *t);
  * These particular constraints benefit from this, but others don't, hence
  * this semi-hack ;-)    - Aligorith
  */
-bool constraints_list_needinv(TransInfo *t, ListBase *list);
+bool constraints_list_needinv(TransInfo *t, ListBaseT<bConstraint> *list);
 void calc_distanceCurveVerts(TransData *head, TransData *tail, bool cyclic);
 /**
  * Utility function for getting the handle data from bezier's.

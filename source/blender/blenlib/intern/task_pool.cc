@@ -170,7 +170,7 @@ struct TaskPool {
   blender::Vector<Task> suspended_tasks;
 
   /* Background task pool. */
-  ListBase background_threads;
+  ListBaseT<ThreadSlot> background_threads;
   ThreadQueue *background_queue;
   volatile bool background_is_canceling = false;
 

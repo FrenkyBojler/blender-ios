@@ -426,7 +426,10 @@ static void testvertexnearedge(ScanFillContext *sf_ctx)
   }
 }
 
-static void splitlist(ScanFillContext *sf_ctx, ListBase *tempve, ListBase *temped, ushort nr)
+static void splitlist(ScanFillContext *sf_ctx,
+                      ListBaseT<ScanFillVert> *tempve,
+                      ListBaseT<ScanFillEdge> *temped,
+                      ushort nr)
 {
   /* Everything is in temp-list, write only poly nr to fill-list. */
   BLI_movelisttolist(tempve, &sf_ctx->fillvertbase);
@@ -818,8 +821,8 @@ uint BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float n
    * - mode: & 1 is check for crossings, then create edges (TO DO )
    * - returns number of triangle faces added.
    */
-  ListBase tempve;
-  ListBase temped;
+  ListBaseT<ScanFillVert> tempve;
+  ListBaseT<ScanFillEdge> temped;
   PolyFill *pflist, *pf;
   float *min_xy_p, *max_xy_p;
   uint totfaces = 0; /* total faces added */

@@ -761,11 +761,11 @@ bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type);
 
 /* Space-data. */
 
-void BKE_spacedata_freelist(ListBase *lb);
+void BKE_spacedata_freelist(ListBaseT<SpaceLink> *lb);
 /**
  * \param lb_dst: should be empty (will be cleared).
  */
-void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src);
+void BKE_spacedata_copylist(ListBaseT<SpaceLink> *lb_dst, ListBaseT<SpaceLink> *lb_src);
 
 /**
  * Facility to set locks for drawing to survive (render) threads accessing drawing data.
@@ -801,7 +801,7 @@ ARegion *BKE_area_region_new();
  * Doesn't free the region itself.
  */
 void BKE_area_region_free(SpaceType *st, ARegion *region);
-void BKE_area_region_panels_free(ListBase *panels);
+void BKE_area_region_panels_free(ListBaseT<Panel> *panels);
 /**
  * Create and free panels.
  */
@@ -832,7 +832,8 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
  * \note this is useful for versioning where either the #Area or #SpaceLink regionbase are typical
  * inputs
  */
-ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const int region_type);
+ARegion *BKE_region_find_in_listbase_by_type(const ListBaseT<ARegion> *regionbase,
+                                             const int region_type);
 
 void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src);
 
@@ -948,7 +949,7 @@ bool BKE_screen_area_map_blend_read_data(BlendDataReader *reader, ScrAreaMap *ar
  * And as patch for 2.48 and older.
  * For the saved 2.50 files without `regiondata`.
  */
-void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBase *regions);
+void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBaseT<ARegion> *regions);
 
 /**
  * Called after lib linking process is done, to perform some validation on the read data, or some

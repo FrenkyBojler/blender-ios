@@ -32,10 +32,10 @@ using ForEachFunc = bool (*)(Strip *strip, void *user_data);
  * \param callback: query function callback, returns false if iteration should stop.
  * \param user_data: pointer to user data that can be used in the callback function.
  */
-void foreach_strip(ListBase *seqbase, ForEachFunc callback, void *user_data);
+void foreach_strip(ListBaseT<Strip> *seqbase, ForEachFunc callback, void *user_data);
 
 /** Same as above, but using a more modern FunctionRef as callback. */
-void foreach_strip(ListBase *seqbase, FunctionRef<bool(Strip *)> callback);
+void foreach_strip(ListBaseT<Strip> *seqbase, FunctionRef<bool(Strip *)> callback);
 
 /**
  * Expand set by running `strip_query_func()` for each strip, which will be used as reference.
@@ -46,11 +46,11 @@ void foreach_strip(ListBase *seqbase, FunctionRef<bool(Strip *)> callback);
  * \param strip_query_func: query function callback
  */
 void iterator_set_expand(const Scene *scene,
-                         ListBase *seqbase,
+                         ListBaseT<Strip> *seqbase,
                          VectorSet<Strip *> &strips,
                          void strip_query_func(const Scene *scene,
                                                Strip *strip_reference,
-                                               ListBase *seqbase,
+                                               ListBaseT<Strip> *seqbase,
                                                VectorSet<Strip *> &strips));
 /**
  * Query strips from seqbase. strip_reference is used by query function as filter condition.
@@ -62,10 +62,10 @@ void iterator_set_expand(const Scene *scene,
  */
 VectorSet<Strip *> query_by_reference(Strip *strip_reference,
                                       const Scene *scene,
-                                      ListBase *seqbase,
+                                      ListBaseT<Strip> *seqbase,
                                       void strip_query_func(const Scene *scene,
                                                             Strip *strip_reference,
-                                                            ListBase *seqbase,
+                                                            ListBaseT<Strip> *seqbase,
                                                             VectorSet<Strip *> &strips));
 /**
  * Query all selected strips in seqbase.
@@ -73,28 +73,28 @@ VectorSet<Strip *> query_by_reference(Strip *strip_reference,
  * \param seqbase: List in which strips are queried
  * \return set of strips
  */
-VectorSet<Strip *> query_selected_strips(ListBase *seqbase);
+VectorSet<Strip *> query_selected_strips(ListBaseT<Strip> *seqbase);
 /**
  * Query all unselected strips in seqbase.
  *
  * \param seqbase: List in which strips are queried
  * \return set of strips
  */
-VectorSet<Strip *> query_unselected_strips(ListBase *seqbase);
+VectorSet<Strip *> query_unselected_strips(ListBaseT<Strip> *seqbase);
 /**
  * Query all strips in seqbase. This does not include strips nested in meta strips.
  *
  * \param seqbase: List in which strips are queried
  * \return set of strips
  */
-VectorSet<Strip *> query_all_strips(ListBase *seqbase);
+VectorSet<Strip *> query_all_strips(ListBaseT<Strip> *seqbase);
 /**
  * Query all strips in seqbase and nested meta strips.
  *
  * \param seqbase: List in which strips are queried
  * \return set of strips
  */
-VectorSet<Strip *> query_all_strips_recursive(const ListBase *seqbase);
+VectorSet<Strip *> query_all_strips_recursive(const ListBaseT<Strip> *seqbase);
 
 /**
  * Query strips at \a timeline_frame in seqbase and nested meta strips.
@@ -104,7 +104,7 @@ VectorSet<Strip *> query_all_strips_recursive(const ListBase *seqbase);
  * \return set of strips
  */
 VectorSet<Strip *> query_strips_recursive_at_frame(const Scene *scene,
-                                                   const ListBase *seqbase,
+                                                   const ListBaseT<Strip> *seqbase,
                                                    int timeline_frame);
 
 /**
@@ -118,7 +118,7 @@ VectorSet<Strip *> query_strips_recursive_at_frame(const Scene *scene,
  */
 void query_strip_effect_chain(const Scene *scene,
                               Strip *reference_strip,
-                              ListBase *seqbase,
+                              ListBaseT<Strip> *seqbase,
                               VectorSet<Strip *> &r_strips);
 
 /**
@@ -131,7 +131,7 @@ void query_strip_effect_chain(const Scene *scene,
  */
 void query_strip_connected_and_effect_chain(const Scene *scene,
                                             Strip *reference_strip,
-                                            ListBase *seqbase,
+                                            ListBaseT<Strip> *seqbase,
                                             VectorSet<Strip *> &r_strips);
 
 /**
@@ -145,8 +145,8 @@ void query_strip_connected_and_effect_chain(const Scene *scene,
  * \note Pass \a displayed_channel of 0 to consider all channels.
  */
 VectorSet<Strip *> query_rendered_strips(const Scene *scene,
-                                         ListBase *channels,
-                                         ListBase *seqbase,
+                                         ListBaseT<SeqTimelineChannel> *channels,
+                                         ListBaseT<Strip> *seqbase,
                                          int timeline_frame,
                                          int displayed_channel);
 
@@ -154,8 +154,11 @@ VectorSet<Strip *> query_rendered_strips(const Scene *scene,
  * Strips are sorted from lowest to highest channel.
  * \copydoc #query_rendered_strips
  */
-Vector<Strip *> query_rendered_strips_sorted(
-    const Scene *scene, ListBase *channels, ListBase *seqbase, int timeline_frame, int chanshown);
+Vector<Strip *> query_rendered_strips_sorted(const Scene *scene,
+                                             ListBaseT<SeqTimelineChannel> *channels,
+                                             ListBaseT<Strip> *seqbase,
+                                             int timeline_frame,
+                                             int chanshown);
 
 /**
  * Check to see whether we cannot skip rendering this strip.

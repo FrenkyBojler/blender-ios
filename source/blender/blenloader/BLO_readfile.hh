@@ -41,7 +41,7 @@ struct wmWindowManager;
 struct WorkspaceConfigFileData {
   Main *main; /* has to be freed when done reading file data */
 
-  ListBase workspaces;
+  ListBaseT<WorkSpace> workspaces;
 };
 
 /* -------------------------------------------------------------------- */

@@ -54,7 +54,7 @@ struct Global {
    * Strings of recently opened files to show in the file menu.
    * A list of #RecentFile read from #BLENDER_HISTORY_FILE.
    */
-  ListBase recent_files;
+  ListBaseT<RecentFile> recent_files;
 
   /**
    * Set when Escape been pressed or `Ctrl-C` pressed in background mode.

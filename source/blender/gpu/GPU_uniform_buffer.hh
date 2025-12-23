@@ -31,10 +31,11 @@ blender::gpu::UniformBuf *GPU_uniformbuf_create_ex(size_t size,
 /**
  * Create UBO from inputs list.
  *
- * \param inputs: ListBase
+ * \param inputs: ListBaseT<LinkData>
  * \return nullptr if failed to create or if `inputs` is empty.
  */
-blender::gpu::UniformBuf *GPU_uniformbuf_create_from_list(ListBase *inputs, const char *name);
+blender::gpu::UniformBuf *GPU_uniformbuf_create_from_list(ListBaseT<LinkData> *inputs,
+                                                          const char *name);
 
 #define GPU_uniformbuf_create(size) GPU_uniformbuf_create_ex(size, nullptr, __func__);
 

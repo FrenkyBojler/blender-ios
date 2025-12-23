@@ -107,7 +107,7 @@ void BKE_main_clear(Main &bmain)
   MainListsArray lbarray = BKE_main_lists_get(bmain);
   int a = lbarray.size();
   while (a--) {
-    ListBase *lb = lbarray[a];
+    ListBaseT<ID> *lb = lbarray[a];
     ID *id, *id_next;
 
     for (id = static_cast<ID *>(lb->first); id != nullptr; id = id_next) {
@@ -730,7 +730,7 @@ MainLibraryWeakReferenceMap *BKE_main_library_weak_reference_create(Main *bmain)
 {
   auto *library_weak_reference_mapping = MEM_new<MainLibraryWeakReferenceMap>(__func__);
 
-  ListBase *lb;
+  ListBaseT<ID> *lb;
   FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb) {
     ID *id_iter = static_cast<ID *>(lb->first);
     if (id_iter == nullptr) {
@@ -843,7 +843,7 @@ ID *BKE_main_library_weak_reference_find(Main *bmain,
   STRNCPY(library_filepath_abs, library_filepath);
   BLI_path_abs(library_filepath_abs, BKE_main_blendfile_path(bmain));
 
-  ListBase *id_list = which_libbase(bmain, GS(library_id_name));
+  ListBaseT<ID> *id_list = which_libbase(bmain, GS(library_id_name));
   LISTBASE_FOREACH (ID *, existing_id, id_list) {
     if (!(existing_id->library_weak_reference &&
           STREQ(existing_id->library_weak_reference->library_id_name, library_id_name)))
@@ -964,7 +964,7 @@ const char *BKE_main_blendfile_path_from_library(const Library &library)
   return library.runtime->filepath_abs;
 }
 
-ListBase *which_libbase(Main *bmain, short type)
+ListBaseT<ID> *which_libbase(Main *bmain, short type)
 {
   switch ((ID_Type)type) {
     case ID_SCE:

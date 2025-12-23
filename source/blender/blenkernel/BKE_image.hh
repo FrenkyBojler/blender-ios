@@ -463,7 +463,7 @@ int BKE_image_get_tile_label(const Image *ima,
  * \param tiles: may be filled even if the result ultimately is false!
  */
 bool BKE_image_get_tile_info(char *filepath,
-                             ListBase *tiles,
+                             ListBaseT<LinkData> *tiles,
                              int *r_tile_start,
                              int *r_tile_range);
 

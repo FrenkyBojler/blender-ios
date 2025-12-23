@@ -91,7 +91,7 @@ struct RenderLayer {
 
   int rectx, recty;
 
-  ListBase passes;
+  ListBaseT<RenderPass> passes;
 };
 
 struct RenderResult {
@@ -120,10 +120,10 @@ struct RenderResult {
   rcti tilerect;
 
   /* the main buffers */
-  ListBase layers = {};
+  ListBaseT<RenderLayer> layers = {};
 
   /* multiView maps to a StringVector in OpenEXR */
-  ListBase views = {};
+  ListBaseT<RenderView> views = {};
 
   /* Render layer to display. */
   RenderLayer *renlay = nullptr;
@@ -313,7 +313,7 @@ void RE_create_render_pass(struct RenderResult *rr,
 void RE_InitState(struct Render *re,
                   struct Render *source,
                   struct RenderData *rd,
-                  ListBase *render_layers,
+                  ListBaseT<ViewLayer> *render_layers,
                   struct ViewLayer *single_layer,
                   int winx,
                   int winy,

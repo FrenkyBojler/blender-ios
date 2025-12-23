@@ -35,7 +35,7 @@ struct GapInfo {
  * \param r_gap_info: data structure describing gap, that will be filled in by this function.
  */
 void seq_time_gap_info_get(const Scene *scene,
-                           ListBase *seqbase,
+                           ListBaseT<Strip> *seqbase,
                            int initial_frame,
                            GapInfo *r_gap_info);
 void strip_time_effect_range_set(const Scene *scene, Strip *strip);

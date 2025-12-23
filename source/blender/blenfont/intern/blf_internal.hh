@@ -213,7 +213,7 @@ GlyphBLF *blf_glyph_ensure_icon(
  */
 bool blf_character_to_curves(FontBLF *font,
                              unsigned int unicode,
-                             ListBase *nurbsbase,
+                             ListBaseT<Nurb> *nurbsbase,
                              const float scale,
                              bool use_fallback,
                              float *r_advance);

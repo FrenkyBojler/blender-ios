@@ -120,9 +120,9 @@ void CryptomatteSession::init(const ViewLayer *view_layer, bool build_meta_data)
     cryptoflags = VIEW_LAYER_CRYPTOMATTE_ALL;
   }
 
-  ListBase *object_bases = build_meta_data ? BKE_view_layer_object_bases_get(
-                                                 const_cast<ViewLayer *>(view_layer)) :
-                                             nullptr;
+  ListBaseT<Base> *object_bases = build_meta_data ? BKE_view_layer_object_bases_get(
+                                                        const_cast<ViewLayer *>(view_layer)) :
+                                                    nullptr;
 
   if (cryptoflags & VIEW_LAYER_CRYPTOMATTE_OBJECT) {
     blender::bke::cryptomatte::CryptomatteLayer &objects = add_layer(

@@ -25,7 +25,7 @@ bool ED_outliner_collections_editor_poll(bContext *C);
  *
  * \param objects: Expected to be empty.
  */
-void ED_outliner_selected_objects_get(const bContext *C, ListBase *objects);
+void ED_outliner_selected_objects_get(const bContext *C, ListBaseT<LinkData> *objects);
 
 /**
  * Get base of object under cursor. Used for eyedropper tool.

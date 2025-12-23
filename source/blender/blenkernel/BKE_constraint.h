@@ -101,12 +101,14 @@ typedef struct bConstraintTypeInfo {
    * For multi-target constraints: return that list;
    * otherwise make a temporary list (returns number of targets).
    */
-  int (*get_constraint_targets)(struct bConstraint *con, ListBase *list);
+  int (*get_constraint_targets)(struct bConstraint *con, ListBaseT<bConstraintTarget> *list);
   /**
    * For single-target constraints only:
    * flush data back to source data, and the free memory used.
    */
-  void (*flush_constraint_targets)(struct bConstraint *con, ListBase *list, bool no_copy);
+  void (*flush_constraint_targets)(struct bConstraint *con,
+                                   ListBaseT<bConstraintTarget> *list,
+                                   bool no_copy);
 
   /* evaluation */
   /**
@@ -129,7 +131,7 @@ typedef struct bConstraintTypeInfo {
    */
   void (*evaluate_constraint)(struct bConstraint *con,
                               struct bConstraintOb *cob,
-                              ListBase *targets);
+                              ListBaseT<bConstraintTarget> *targets);
 } bConstraintTypeInfo;
 
 /* Function Prototypes for bConstraintTypeInfo's */
@@ -152,7 +154,7 @@ const bConstraintTypeInfo *BKE_constraint_typeinfo_from_type(int type);
 /**
  * Find the first available, non-duplicate name for a given constraint.
  */
-void BKE_constraint_unique_name(struct bConstraint *con, ListBase *list);
+void BKE_constraint_unique_name(struct bConstraint *con, ListBaseT<bConstraint> *list);
 
 /**
  * Allocate and duplicate a single constraint, outside of any object/pose context.
@@ -170,23 +172,28 @@ struct bConstraint *BKE_constraint_copy_for_pose(struct Object *ob,
  */
 struct bConstraint *BKE_constraint_copy_for_object(struct Object *ob, struct bConstraint *src);
 
-void BKE_constraints_free(ListBase *list);
+void BKE_constraints_free(ListBaseT<bConstraint> *list);
 /**
  * Free all constraints from a constraint-stack.
  */
-void BKE_constraints_free_ex(ListBase *list, bool do_id_user);
-void BKE_constraints_copy(ListBase *dst, const ListBase *src, bool do_extern);
+void BKE_constraints_free_ex(ListBaseT<bConstraint> *list, bool do_id_user);
+void BKE_constraints_copy(ListBaseT<bConstraint> *dst,
+                          const ListBaseT<bConstraint> *src,
+                          bool do_extern);
 /**
  * Duplicate all of the constraints in a constraint stack.
  */
-void BKE_constraints_copy_ex(ListBase *dst, const ListBase *src, int flag, bool do_extern);
+void BKE_constraints_copy_ex(ListBaseT<bConstraint> *dst,
+                             const ListBaseT<bConstraint> *src,
+                             int flag,
+                             bool do_extern);
 /**
  * Run the given callback on all ID-blocks in list of constraints.
  *
  * \param flag: the `IDWALK_` flags controlling the behavior of the foreach_id code, see
  * `BKE_lib_query.hh`
  */
-void BKE_constraints_id_loop(ListBase *list,
+void BKE_constraints_id_loop(ListBaseT<bConstraint> *list,
                              ConstraintIDFunc func,
                              const int flag,
                              void *userdata);
@@ -205,12 +212,12 @@ bool BKE_constraint_target_uses_bbone(struct bConstraint *con, struct bConstrain
 /**
  * Finds the 'active' constraint in a constraint stack.
  */
-struct bConstraint *BKE_constraints_active_get(ListBase *list);
+struct bConstraint *BKE_constraints_active_get(ListBaseT<bConstraint> *list);
 /**
  * Set the given constraint as the active one (clearing all the others).
  */
-void BKE_constraints_active_set(ListBase *list, struct bConstraint *con);
-struct bConstraint *BKE_constraints_find_name(ListBase *list, const char *name);
+void BKE_constraints_active_set(ListBaseT<bConstraint> *list, struct bConstraint *con);
+struct bConstraint *BKE_constraints_find_name(ListBaseT<bConstraint> *list, const char *name);
 
 /**
  * Finds the constraint that owns the given target within the object.
@@ -243,7 +250,9 @@ struct bConstraint *BKE_constraint_add_for_pose(struct Object *ob,
 /**
  * Remove the specified constraint from the given constraint stack.
  */
-bool BKE_constraint_remove_ex(ListBase *list, struct Object *ob, struct bConstraint *con);
+bool BKE_constraint_remove_ex(ListBaseT<bConstraint> *list,
+                              struct Object *ob,
+                              struct bConstraint *con);
 
 /**
  * Apply the specified constraint in the given constraint stack.
@@ -254,7 +263,7 @@ bool BKE_constraint_apply_for_object(struct Depsgraph *depsgraph,
                                      struct bConstraint *con);
 bool BKE_constraint_apply_and_remove_for_object(struct Depsgraph *depsgraph,
                                                 struct Scene *scene,
-                                                ListBase *constraints,
+                                                ListBaseT<bConstraint> *constraints,
                                                 struct Object *ob,
                                                 struct bConstraint *con);
 
@@ -265,7 +274,7 @@ bool BKE_constraint_apply_for_pose(struct Depsgraph *depsgraph,
                                    struct bConstraint *con);
 bool BKE_constraint_apply_and_remove_for_pose(struct Depsgraph *depsgraph,
                                               struct Scene *scene,
-                                              ListBase *constraints,
+                                              ListBaseT<bConstraint> *constraints,
                                               struct Object *ob,
                                               struct bConstraint *con,
                                               struct bPoseChannel *pchan);
@@ -327,7 +336,7 @@ void BKE_constraint_target_matrix_get(struct Depsgraph *depsgraph,
  * \param r_targets: Pointer to the list to be initialized with target data.
  * \returns the number of targets stored in the list.
  */
-int BKE_constraint_targets_get(struct bConstraint *con, ListBase *r_targets);
+int BKE_constraint_targets_get(struct bConstraint *con, ListBaseT<bConstraintTarget> *r_targets);
 
 /**
  * Copies changed data from the list produced by #BKE_constraint_targets_get back to the constraint
@@ -336,7 +345,9 @@ int BKE_constraint_targets_get(struct bConstraint *con, ListBase *r_targets);
  * \param targets: List of targets filled by BKE_constraint_targets_get.
  * \param no_copy: Only free memory without copying changes (read-only mode).
  */
-void BKE_constraint_targets_flush(struct bConstraint *con, ListBase *targets, bool no_copy);
+void BKE_constraint_targets_flush(struct bConstraint *con,
+                                  ListBaseT<bConstraintTarget> *targets,
+                                  bool no_copy);
 
 /**
  * Get the list of targets required for solving a constraint.
@@ -344,7 +355,7 @@ void BKE_constraint_targets_flush(struct bConstraint *con, ListBase *targets, bo
 void BKE_constraint_targets_for_solving_get(struct Depsgraph *depsgraph,
                                             struct bConstraint *con,
                                             struct bConstraintOb *ob,
-                                            ListBase *targets,
+                                            ListBaseT<bConstraintTarget> *targets,
                                             float ctime);
 
 /**
@@ -363,11 +374,11 @@ void BKE_constraint_custom_object_space_init(struct bConstraintOb *cob, struct b
  * after running this function, to sort out cob.
  */
 void BKE_constraints_solve(struct Depsgraph *depsgraph,
-                           ListBase *conlist,
+                           ListBaseT<bConstraint> *conlist,
                            struct bConstraintOb *cob,
                            float ctime);
 
-void BKE_constraint_blend_write(struct BlendWriter *writer, ListBase *conlist);
+void BKE_constraint_blend_write(struct BlendWriter *writer, ListBaseT<bConstraint> *conlist);
 void BKE_constraint_blend_read_data(struct BlendDataReader *reader,
                                     struct ID *id_owner,
-                                    ListBase *lb);
+                                    ListBaseT<bConstraint> *lb);

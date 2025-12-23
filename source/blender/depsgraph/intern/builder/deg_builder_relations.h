@@ -159,7 +159,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_constraints(ID *id,
                                  NodeType component_type,
                                  const char *component_subdata,
-                                 ListBase *constraints,
+                                 ListBaseT<bConstraint> *constraints,
                                  RootPChanMap *root_map);
   virtual void build_animdata(ID *id);
   virtual void build_animdata_curves(ID *id);
@@ -171,7 +171,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_animdata_curves_targets(ID *id,
                                              ComponentKey &adt_key,
                                              OperationNode *operation_from,
-                                             ListBase *curves);
+                                             ListBaseT<FCurve> *curves);
   virtual void build_animdata_action_targets(ID *id,
                                              int32_t slot_handle,
                                              ComponentKey &adt_key,
@@ -180,7 +180,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_animdata_nlastrip_targets(ID *id,
                                                ComponentKey &adt_key,
                                                OperationNode *operation_from,
-                                               ListBase *strips);
+                                               ListBaseT<NlaStrip> *strips);
   virtual void build_animdata_drivers(ID *id);
   virtual void build_animdata_force(ID *id);
   virtual void build_animation_images(ID *id);
@@ -236,7 +236,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_rig(Object *object);
   virtual void build_shapekeys(Key *key);
   virtual void build_armature(bArmature *armature);
-  virtual void build_armature_bones(ListBase *bones);
+  virtual void build_armature_bones(ListBaseT<Bone> *bones);
   virtual void build_armature_bone_collections(Span<BoneCollection *> collections);
   virtual void build_camera(Camera *camera);
   virtual void build_light(Light *lamp);

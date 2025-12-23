@@ -110,7 +110,7 @@ bool ABC_import(struct bContext *C,
 struct CacheArchiveHandle *ABC_create_handle(const struct Main *bmain,
                                              const char *filepath,
                                              const struct CacheFileLayer *layers,
-                                             ListBase *object_paths);
+                                             ListBaseT<CacheObjectPath> *object_paths);
 
 void ABC_free_handle(struct CacheArchiveHandle *handle);
 

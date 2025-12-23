@@ -29,7 +29,7 @@ void timeline_init_boundbox(const Scene *scene, rctf *r_rect);
  * \param seqbase: List in which strips are located
  * \param rect: output parameter to be filled with strips' boundaries
  */
-void timeline_expand_boundbox(const Scene *scene, const ListBase *seqbase, rctf *rect);
+void timeline_expand_boundbox(const Scene *scene, const ListBaseT<Strip> *seqbase, rctf *rect);
 /**
  * Define boundary rectangle of sequencer timeline and fill in rect data
  *
@@ -37,7 +37,7 @@ void timeline_expand_boundbox(const Scene *scene, const ListBase *seqbase, rctf 
  * \param seqbase: List in which strips are located
  * \param rect: data structure describing rectangle, that will be filled in by this function
  */
-void timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *r_rect);
+void timeline_boundbox(const Scene *scene, const ListBaseT<Strip> *seqbase, rctf *r_rect);
 /**
  * Find start or end position of next or previous strip.
  * \param scene: Video editing scene

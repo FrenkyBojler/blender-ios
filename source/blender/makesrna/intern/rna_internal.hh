@@ -43,7 +43,7 @@ struct ContainerDefRNA {
   void *next, *prev;
 
   ContainerRNA *cont;
-  ListBase properties;
+  ListBaseT<PropertyDefRNA> properties;
 };
 
 struct FunctionDefRNA {
@@ -102,7 +102,7 @@ struct StructDefRNA {
   const char *dnafromname;
   const char *dnafromprop;
 
-  ListBase functions;
+  ListBaseT<FunctionDefRNA> functions;
 };
 
 struct AllocDefRNA {
@@ -112,8 +112,8 @@ struct AllocDefRNA {
 
 struct BlenderDefRNA {
   struct SDNA *sdna;
-  ListBase structs;
-  ListBase allocs;
+  ListBaseT<StructDefRNA> structs;
+  ListBaseT<AllocDefRNA> allocs;
   struct StructRNA *laststruct;
   bool error;
   bool silent;

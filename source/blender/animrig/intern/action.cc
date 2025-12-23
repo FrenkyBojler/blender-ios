@@ -445,7 +445,7 @@ void Action::slot_identifier_define(Slot &slot, const StringRefNull new_identifi
 void Action::slot_identifier_propagate(Main &bmain, const Slot &slot)
 {
   /* Just loop over all animatable IDs in the main database. */
-  ListBase *lb;
+  ListBaseT<ID> *lb;
   ID *id;
   FOREACH_MAIN_LISTBASE_BEGIN (&bmain, lb) {
     FOREACH_MAIN_LISTBASE_ID_BEGIN (lb, id) {
@@ -2630,7 +2630,7 @@ Vector<FCurve *> fcurves_in_span_filtered(Span<FCurve *> fcurves,
   return found;
 }
 
-Vector<FCurve *> fcurves_in_listbase_filtered(ListBase fcurves,
+Vector<FCurve *> fcurves_in_listbase_filtered(ListBaseT<FCurve> fcurves,
                                               FunctionRef<bool(const FCurve &fcurve)> predicate)
 {
   Vector<FCurve *> found;

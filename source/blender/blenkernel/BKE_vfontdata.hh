@@ -55,7 +55,7 @@ struct VFontData {
 };
 
 struct VChar {
-  ListBase nurbsbase;
+  ListBaseT<Nurb> nurbsbase;
   float width;
 };
 

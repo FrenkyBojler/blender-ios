@@ -44,13 +44,13 @@ static CLG_LogRef LOG = {"undo.mball"};
  * \{ */
 
 struct UndoMBall {
-  ListBase editelems;
+  ListBaseT<MetaElem> editelems;
   int lastelem_index;
   size_t undo_size;
 };
 
 /* free all MetaElems from ListBaseT */
-static void freeMetaElemlist(ListBase *lb)
+static void freeMetaElemlist(ListBaseT<MetaElem> *lb)
 {
   if (lb == nullptr) {
     return;

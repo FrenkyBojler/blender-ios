@@ -292,7 +292,9 @@ int USD_get_version();
  * attempting to normalize the path. */
 void USD_path_abs(char *path, const char *basepath, bool for_import);
 
-CacheArchiveHandle *USD_create_handle(Main *bmain, const char *filepath, ListBase *object_paths);
+CacheArchiveHandle *USD_create_handle(Main *bmain,
+                                      const char *filepath,
+                                      ListBaseT<CacheObjectPath> *object_paths);
 
 void USD_free_handle(CacheArchiveHandle *handle);
 

@@ -448,7 +448,7 @@ void BKE_modifier_free(ModifierData *md);
  */
 void BKE_modifier_remove_from_list(Object *ob, ModifierData *md);
 
-void BKE_modifier_unique_name(ListBase *modifiers, ModifierData *md);
+void BKE_modifier_unique_name(ListBaseT<ModifierData> *modifiers, ModifierData *md);
 
 ModifierData *BKE_modifier_copy_ex(const ModifierData *md, int flag);
 
@@ -634,8 +634,12 @@ void BKE_modifier_deform_vertsEM(ModifierData *md,
  */
 Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval);
 
-void BKE_modifier_blend_write(BlendWriter *writer, const ID *id_owner, ListBase *modbase);
-void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object *ob);
+void BKE_modifier_blend_write(BlendWriter *writer,
+                              const ID *id_owner,
+                              ListBaseT<ModifierData> *modbase);
+void BKE_modifier_blend_read_data(BlendDataReader *reader,
+                                  ListBaseT<ModifierData> *lb,
+                                  Object *ob);
 
 namespace blender::bke {
 

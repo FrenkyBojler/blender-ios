@@ -283,7 +283,7 @@ static WorkSpaceLayout *workspace_layout_find_exec(const WorkSpace *workspace,
       BLI_findptr(&workspace->layouts, screen, offsetof(WorkSpaceLayout, screen)));
 }
 
-static void workspace_relation_add(ListBase *relation_list,
+static void workspace_relation_add(ListBaseT<WorkSpaceDataRelation> *relation_list,
                                    void *parent,
                                    const int parentid,
                                    void *data)
@@ -295,13 +295,14 @@ static void workspace_relation_add(ListBase *relation_list,
   /* add to head, if we switch back to it soon we find it faster. */
   BLI_addhead(relation_list, relation);
 }
-static void workspace_relation_remove(ListBase *relation_list, WorkSpaceDataRelation *relation)
+static void workspace_relation_remove(ListBaseT<WorkSpaceDataRelation> *relation_list,
+                                      WorkSpaceDataRelation *relation)
 {
   BLI_remlink(relation_list, relation);
   MEM_freeN(relation);
 }
 
-static void workspace_relation_ensure_updated(ListBase *relation_list,
+static void workspace_relation_ensure_updated(ListBaseT<WorkSpaceDataRelation> *relation_list,
                                               void *parent,
                                               const int parentid,
                                               void *data)
@@ -321,8 +322,8 @@ static void workspace_relation_ensure_updated(ListBase *relation_list,
   }
 }
 
-static void *workspace_relation_get_data_matching_parent(const ListBase *relation_list,
-                                                         const void *parent)
+static void *workspace_relation_get_data_matching_parent(
+    const ListBaseT<WorkSpaceDataRelation> *relation_list, const void *parent)
 {
   WorkSpaceDataRelation *relation = static_cast<WorkSpaceDataRelation *>(
       BLI_findptr(relation_list, parent, offsetof(WorkSpaceDataRelation, parent)));
@@ -481,7 +482,7 @@ void BKE_workspace_layout_remove(Main *bmain, WorkSpace *workspace, WorkSpaceLay
   BLI_freelinkN(&workspace->layouts, layout);
 }
 
-void BKE_workspace_relations_free(ListBase *relation_list)
+void BKE_workspace_relations_free(ListBaseT<WorkSpaceDataRelation> *relation_list)
 {
   for (WorkSpaceDataRelation *
            relation = static_cast<WorkSpaceDataRelation *>(relation_list->first),

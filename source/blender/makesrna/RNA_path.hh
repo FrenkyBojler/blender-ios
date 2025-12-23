@@ -224,7 +224,9 @@ struct PropertyElemRNA {
  * \return True if there was no error while resolving the path
  * \note Assumes all pointers provided are valid
  */
-bool RNA_path_resolve_elements(PointerRNA *ptr, const char *path, ListBase *r_elements);
+bool RNA_path_resolve_elements(PointerRNA *ptr,
+                               const char *path,
+                               ListBaseT<PropertyElemRNA> *r_elements);
 
 /**
  * Find the path from the structure referenced by the pointer to the runtime RNA-defined

@@ -382,7 +382,7 @@ static const char *wm_context_member_from_ptr(bContext *C, const PointerRNA *ptr
 
   /* Don't get from the context store since this is normally
    * set only for the UI and not usable elsewhere. */
-  ListBase lb = CTX_data_dir_get_ex(C, false, true, true);
+  ListBaseT<LinkData> lb = CTX_data_dir_get_ex(C, false, true, true);
   LinkData *link;
 
   const char *member_found = nullptr;
@@ -3958,12 +3958,12 @@ static int previews_id_ensure_callback(LibraryIDLinkCallbackData *cb_data)
 static wmOperatorStatus previews_ensure_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  ListBase *lb[] = {&bmain->materials.cast<ID>(),
-                    &bmain->textures.cast<ID>(),
-                    &bmain->images.cast<ID>(),
-                    &bmain->worlds.cast<ID>(),
-                    &bmain->lights.cast<ID>(),
-                    nullptr};
+  ListBaseT<ID> *lb[] = {&bmain->materials.cast<ID>(),
+                         &bmain->textures.cast<ID>(),
+                         &bmain->images.cast<ID>(),
+                         &bmain->worlds.cast<ID>(),
+                         &bmain->lights.cast<ID>(),
+                         nullptr};
   PreviewsIDEnsureData preview_id_data;
 
   /* We use ID_TAG_DOIT to check whether we have already handled a given ID or not. */
@@ -4087,7 +4087,7 @@ static uint preview_filter_to_idfilter(enum PreviewFilterID filter)
 static wmOperatorStatus previews_clear_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  ListBase *lb[] = {
+  ListBaseT<ID> *lb[] = {
       &bmain->objects.cast<ID>(),
       &bmain->collections.cast<ID>(),
       &bmain->materials.cast<ID>(),

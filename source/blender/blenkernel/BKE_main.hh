@@ -659,7 +659,7 @@ void BKE_main_library_weak_reference_add(ID *local_id,
  * #FOREACH_MAIN_LISTBASE_ID instead if you need that kind of control flow. */
 #define FOREACH_MAIN_ID_BEGIN(_bmain, _id) \
   { \
-    ListBase *_lb; \
+    ListBaseT<ID> *_lb; \
     FOREACH_MAIN_LISTBASE_BEGIN ((_bmain), _lb) { \
       FOREACH_MAIN_LISTBASE_ID_BEGIN (_lb, (_id))
 
@@ -722,10 +722,10 @@ const char *BKE_main_blendfile_path_from_library(const Library &library);
 /**
  * \return A pointer to the \a ListBaseT of given \a bmain for requested \a type ID type.
  */
-ListBase *which_libbase(Main *bmain, short type);
+ListBaseT<ID> *which_libbase(Main *bmain, short type);
 
 /** Subtracting 1, because #INDEX_ID_NULL is ignored here. */
-using MainListsArray = std::array<ListBase *, INDEX_ID_MAX - 1>;
+using MainListsArray = std::array<ListBaseT<ID> *, INDEX_ID_MAX - 1>;
 
 /**
  * Returns the pointers to all the #ListBaseT structs in given `bmain`.

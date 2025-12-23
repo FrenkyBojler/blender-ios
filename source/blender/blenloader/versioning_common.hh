@@ -53,7 +53,7 @@ short do_versions_new_to_old_idcode_get(short id_code_new);
  * first region of type \a link_after_region_type.
  * \returns null if a region of the given type already existed, otherwise the newly added region.
  */
-ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
+ARegion *do_versions_add_region_if_not_found(ListBaseT<ARegion> *regionbase,
                                              int region_type,
                                              const char *allocname,
                                              int link_after_region_type);
@@ -62,7 +62,7 @@ ARegion *do_versions_add_region_if_not_found(ListBase *regionbase,
  * first region of type \a link_after_region_type.
  * \returns either a new, or already existing region.
  */
-ARegion *do_versions_ensure_region(ListBase *regionbase,
+ARegion *do_versions_ensure_region(ListBaseT<ARegion> *regionbase,
                                    int region_type,
                                    const char *allocname,
                                    int link_after_region_type);

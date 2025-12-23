@@ -38,7 +38,7 @@ void ED_keymap_curve(wmKeyConfig *keyconf);
 
 /* `editcurve.cc` */
 
-ListBase *object_editcurve_get(Object *ob);
+ListBaseT<Nurb> *object_editcurve_get(Object *ob);
 
 KeyBlock *ED_curve_get_edit_shape_key(const Curve *cu);
 

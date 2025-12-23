@@ -70,7 +70,7 @@ void render_result_free(struct RenderResult *rr);
 /**
  * Version that's compatible with full-sample buffers.
  */
-void render_result_free_list(ListBase *lb, struct RenderResult *rr);
+void render_result_free_list(ListBaseT<RenderResult> *lb, struct RenderResult *rr);
 
 /* Single Layer Render */
 

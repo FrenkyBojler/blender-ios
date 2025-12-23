@@ -137,7 +137,7 @@ bool ED_masklayer_frames_looper(MaskLayer *mask_layer,
 /**
  * Make a listing all the mask-frames in a layer as cfraelems.
  */
-void ED_masklayer_make_cfra_list(MaskLayer *mask_layer, ListBase *elems, bool onlysel);
+void ED_masklayer_make_cfra_list(MaskLayer *mask_layer, ListBaseT<CfraElem> *elems, bool onlysel);
 
 /**
  * Check if one of the frames in this layer is selected.

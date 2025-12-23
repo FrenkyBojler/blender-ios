@@ -39,8 +39,8 @@ void sound_update(Scene *scene, bSound *sound);
 void sound_update_length(Main *bmain, Scene *scene);
 float sound_pitch_get(const Scene *scene, const Strip *strip);
 EQCurveMappingData *sound_equalizer_add(SoundEqualizerModifierData *semd, float minX, float maxX);
-void sound_blend_write(BlendWriter *writer, ListBase *soundbase);
-void sound_blend_read_data(BlendDataReader *reader, ListBase *lb);
+void sound_blend_write(BlendWriter *writer, ListBaseT<bSound> *soundbase);
+void sound_blend_read_data(BlendDataReader *reader, ListBaseT<bSound> *lb);
 
 void *sound_modifier_recreator(Strip *strip,
                                StripModifierData *smd,

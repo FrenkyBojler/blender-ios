@@ -18,10 +18,10 @@ namespace blender::deg {
 
 struct Depsgraph;
 
-ListBase *build_effector_relations(Depsgraph *graph, Collection *collection);
-ListBase *build_collision_relations(Depsgraph *graph,
-                                    Collection *collection,
-                                    unsigned int modifier_type);
+ListBaseT<EffectorRelation> *build_effector_relations(Depsgraph *graph, Collection *collection);
+ListBaseT<CollisionRelation> *build_collision_relations(Depsgraph *graph,
+                                                        Collection *collection,
+                                                        unsigned int modifier_type);
 void clear_physics_relations(Depsgraph *graph);
 
 }  // namespace blender::deg

@@ -304,8 +304,11 @@ std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member);
  * \param use_rna: Use Include the properties from #RNA_Context.
  * \param use_all: Don't skip values (currently only "scene").
  */
-ListBase CTX_data_dir_get_ex(const bContext *C, bool use_store, bool use_rna, bool use_all);
-ListBase CTX_data_dir_get(const bContext *C);
+ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
+                                        bool use_store,
+                                        bool use_rna,
+                                        bool use_all);
+ListBaseT<LinkData> CTX_data_dir_get(const bContext *C);
 int /*eContextResult*/ CTX_data_get(const bContext *C,
                                     const char *member,
                                     PointerRNA *r_ptr,

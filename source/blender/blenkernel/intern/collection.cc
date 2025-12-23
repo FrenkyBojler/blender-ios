@@ -518,13 +518,14 @@ void BKE_collection_free_data(Collection *collection)
   collection_free_data(&collection->id);
 }
 
-void BKE_collection_exporter_name_set(const ListBase *exporters,
+void BKE_collection_exporter_name_set(const ListBaseT<CollectionExport> *exporters,
                                       CollectionExport *data,
                                       const char *newname)
 {
   /* Only use the new name if it's not empty. */
   if (newname && newname[0] != '\0') {
-    ListBase list = exporters ? *exporters : ListBase{data, data};
+    ListBaseT<CollectionExport> list = exporters ? *exporters :
+                                                   ListBaseT<CollectionExport>{data, data};
 
     STRNCPY(data->name, newname);
     BLI_uniquename(
@@ -836,7 +837,7 @@ const char *BKE_collection_ui_name_get(Collection *collection)
 /** \name Object List Cache
  * \{ */
 
-static void collection_object_cache_fill(ListBase *lb,
+static void collection_object_cache_fill(ListBaseT<Base> *lb,
                                          Collection *collection,
                                          int parent_restrict,
                                          bool with_instances)
@@ -872,7 +873,7 @@ static void collection_object_cache_fill(ListBase *lb,
   }
 }
 
-ListBase BKE_collection_object_cache_get(Collection *collection)
+ListBaseT<Base> BKE_collection_object_cache_get(Collection *collection)
 {
   if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE)) {
     static blender::Mutex cache_lock;
@@ -887,7 +888,7 @@ ListBase BKE_collection_object_cache_get(Collection *collection)
   return collection->runtime->object_cache;
 }
 
-ListBase BKE_collection_object_cache_instanced_get(Collection *collection)
+ListBaseT<Base> BKE_collection_object_cache_instanced_get(Collection *collection)
 {
   if (!(collection->flag & COLLECTION_HAS_OBJECT_CACHE_INSTANCED)) {
     static blender::Mutex cache_lock;
@@ -1074,7 +1075,7 @@ bool BKE_collection_has_object_recursive(Collection *collection, Object *ob)
     return false;
   }
 
-  const ListBase objects = BKE_collection_object_cache_get(collection);
+  const ListBaseT<Base> objects = BKE_collection_object_cache_get(collection);
   return BLI_findptr(&objects, ob, offsetof(Base, object));
 }
 
@@ -1084,7 +1085,7 @@ bool BKE_collection_has_object_recursive_instanced(Collection *collection, Objec
     return false;
   }
 
-  const ListBase objects = BKE_collection_object_cache_instanced_get(collection);
+  const ListBaseT<Base> objects = BKE_collection_object_cache_instanced_get(collection);
   return BLI_findptr(&objects, ob, offsetof(Base, object));
 }
 
@@ -1093,7 +1094,7 @@ bool BKE_collection_has_object_recursive_instanced_orig_id(Collection *collectio
 {
   BLI_assert(collection_eval->id.tag & ID_TAG_COPIED_ON_EVAL);
   const Object *ob_orig = DEG_get_original(object_eval);
-  const ListBase objects = BKE_collection_object_cache_instanced_get(collection_eval);
+  const ListBaseT<Base> objects = BKE_collection_object_cache_instanced_get(collection_eval);
   LISTBASE_FOREACH (Base *, base, &objects) {
     if (DEG_get_original(base->object) == ob_orig) {
       return true;
@@ -1495,7 +1496,7 @@ CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idna
 
 void BKE_collection_exporter_remove(Collection *collection, CollectionExport *data)
 {
-  ListBase *exporters = &collection->exporters;
+  ListBaseT<CollectionExport> *exporters = &collection->exporters;
   BLI_remlink(exporters, data);
   BKE_collection_exporter_free_data(data);
 

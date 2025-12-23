@@ -166,7 +166,7 @@ typedef struct PTCacheID {
   struct PointCache *cache;
   /** Used for setting the current cache from `ptcaches` list. */
   struct PointCache **cache_ptr;
-  ListBase *ptcaches;
+  ListBaseT<PointCache> *ptcaches;
 } PTCacheID;
 
 typedef struct PTCacheBaker {
@@ -224,7 +224,7 @@ typedef struct PTCacheUndo {
   int psys_flag;
 
   /* cache stuff */
-  ListBase mem_cache;
+  ListBaseT<PTCacheMem> mem_cache;
 
   int totpoint;
 
@@ -256,7 +256,7 @@ typedef struct PTCacheEdit {
   int *mirror_cache;
 
   struct ParticleCacheKey **pathcache; /* path cache (runtime) */
-  ListBase pathcachebufs;
+  ListBaseT<LinkData> pathcachebufs;
 
   int totpoint, totframes, totcached, edited;
 } PTCacheEdit;
@@ -284,7 +284,10 @@ void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, struct Object *ob, struct Rig
  * \param scene: Optional may be NULL.
  */
 PTCacheID BKE_ptcache_id_find(struct Object *ob, struct Scene *scene, struct PointCache *cache);
-void BKE_ptcache_ids_from_object(ListBase *lb, struct Object *ob, struct Scene *scene, int duplis);
+void BKE_ptcache_ids_from_object(ListBaseT<PTCacheID> *lb,
+                                 struct Object *ob,
+                                 struct Scene *scene,
+                                 int duplis);
 
 using PointCacheIdFn = blender::FunctionRef<bool(PTCacheID &pid, ModifierData *md)>;
 void BKE_ptcache_foreach_object_cache(struct Object &ob,
@@ -349,13 +352,13 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra);
 
 /******************* Allocate & free ***************/
 
-struct PointCache *BKE_ptcache_add(ListBase *ptcaches);
-void BKE_ptcache_free_mem(ListBase *mem_cache);
+struct PointCache *BKE_ptcache_add(ListBaseT<PointCache> *ptcaches);
+void BKE_ptcache_free_mem(ListBaseT<PTCacheMem> *mem_cache);
 void BKE_ptcache_free(struct PointCache *cache);
-void BKE_ptcache_free_list(ListBase *ptcaches);
+void BKE_ptcache_free_list(ListBaseT<PointCache> *ptcaches);
 /** Returns first point cache. */
-struct PointCache *BKE_ptcache_copy_list(ListBase *ptcaches_new,
-                                         const ListBase *ptcaches_old,
+struct PointCache *BKE_ptcache_copy_list(ListBaseT<PointCache> *ptcaches_new,
+                                         const ListBaseT<PointCache> *ptcaches_old,
                                          int flag);
 
 /********************** Baking *********************/
@@ -407,8 +410,8 @@ void BKE_ptcache_invalidate(struct PointCache *cache);
 
 /********************** .blend File I/O *********************/
 
-void BKE_ptcache_blend_write(struct BlendWriter *writer, ListBase *ptcaches);
+void BKE_ptcache_blend_write(struct BlendWriter *writer, ListBaseT<PointCache> *ptcaches);
 void BKE_ptcache_blend_read_data(struct BlendDataReader *reader,
-                                 ListBase *ptcaches,
+                                 ListBaseT<PointCache> *ptcaches,
                                  struct PointCache **ocache,
                                  int force_disk);

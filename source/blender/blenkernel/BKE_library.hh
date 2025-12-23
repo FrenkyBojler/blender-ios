@@ -85,7 +85,7 @@ struct LibraryRuntime {
 /**
  * Search for given absolute filepath in all libraries in given #ListBase.
  */
-Library *search_filepath_abs(ListBase *libraries, StringRef filepath_abs);
+Library *search_filepath_abs(ListBaseT<Library> *libraries, StringRef filepath_abs);
 
 /**
  * Pack given linked ID, and all the related hierarchy.

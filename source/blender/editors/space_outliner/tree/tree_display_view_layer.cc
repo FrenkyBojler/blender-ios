@@ -66,9 +66,9 @@ bool TreeDisplayViewLayer::supports_mode_column() const
   return true;
 }
 
-ListBase TreeDisplayViewLayer::build_tree(const TreeSourceData &source_data)
+ListBaseT<TreeElement> TreeDisplayViewLayer::build_tree(const TreeSourceData &source_data)
 {
-  ListBase tree = {nullptr};
+  ListBaseT<TreeElement> tree = {nullptr};
   Scene *scene = source_data.scene;
   scene_ = scene;
   show_objects_ = !(space_outliner_.filter & SO_FILTER_NO_OBJECT);
@@ -103,7 +103,9 @@ ListBase TreeDisplayViewLayer::build_tree(const TreeSourceData &source_data)
   return tree;
 }
 
-void TreeDisplayViewLayer::add_view_layer(Scene &scene, ListBase &tree, TreeElement *parent)
+void TreeDisplayViewLayer::add_view_layer(Scene &scene,
+                                          ListBaseT<TreeElement> &tree,
+                                          TreeElement *parent)
 {
   const bool show_children = (space_outliner_.filter & SO_FILTER_NO_CHILDREN) == 0;
 
@@ -142,9 +144,10 @@ void TreeDisplayViewLayer::add_view_layer(Scene &scene, ListBase &tree, TreeElem
   }
 }
 
-void TreeDisplayViewLayer::add_layer_collections_recursive(ListBase &tree,
-                                                           ListBase &layer_collections,
-                                                           TreeElement &parent_ten)
+void TreeDisplayViewLayer::add_layer_collections_recursive(
+    ListBaseT<TreeElement> &tree,
+    ListBaseT<LayerCollection> &layer_collections,
+    TreeElement &parent_ten)
 {
   for (LayerCollection &lc : layer_collections) {
     const bool exclude = (lc.flag & LAYER_COLLECTION_EXCLUDE) != 0;
@@ -171,7 +174,7 @@ void TreeDisplayViewLayer::add_layer_collections_recursive(ListBase &tree,
   }
 }
 
-void TreeDisplayViewLayer::add_layer_collection_objects(ListBase &tree,
+void TreeDisplayViewLayer::add_layer_collection_objects(ListBaseT<TreeElement> &tree,
                                                         LayerCollection &lc,
                                                         TreeElement &ten)
 {

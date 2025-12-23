@@ -133,10 +133,10 @@ typedef struct CollisionRelation {
  * This is used by the depsgraph to build relations, as well as faster
  * lookup of colliders during evaluation.
  */
-ListBase *BKE_collision_relations_create(struct Depsgraph *depsgraph,
-                                         struct Collection *collection,
-                                         unsigned int modifier_type);
-void BKE_collision_relations_free(ListBase *relations);
+ListBaseT<CollisionRelation> *BKE_collision_relations_create(struct Depsgraph *depsgraph,
+                                                             struct Collection *collection,
+                                                             unsigned int modifier_type);
+void BKE_collision_relations_free(ListBaseT<CollisionRelation> *relations);
 
 /* Collision object lists for physics simulation evaluation. */
 
@@ -167,9 +167,9 @@ typedef struct ColliderCache {
  * Create effective list of colliders from relations built beforehand.
  * Self will be excluded.
  */
-ListBase *BKE_collider_cache_create(struct Depsgraph *depsgraph,
-                                    struct Object *self,
-                                    struct Collection *collection);
-void BKE_collider_cache_free(ListBase **colliders);
+ListBaseT<ColliderCache> *BKE_collider_cache_create(struct Depsgraph *depsgraph,
+                                                    struct Object *self,
+                                                    struct Collection *collection);
+void BKE_collider_cache_free(ListBaseT<ColliderCache> **colliders);
 
 /** \} */

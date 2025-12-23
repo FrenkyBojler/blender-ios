@@ -41,7 +41,7 @@ namespace blender::ed::greasepencil {
 Set<std::string> get_bone_deformed_vertex_group_names(const Object &object)
 {
   /* Get all vertex group names in the object. */
-  const ListBase *defbase = BKE_object_defgroup_list(&object);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(&object);
   Set<std::string> defgroups;
   LISTBASE_FOREACH (bDeformGroup *, dg, defbase) {
     defgroups.add(dg->name);
@@ -878,7 +878,7 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
 
   /* Get the locked vertex groups in the object. */
   Set<std::string> object_locked_defgroups;
-  const ListBase *defgroups = BKE_object_defgroup_list(object);
+  const ListBaseT<bDeformGroup> *defgroups = BKE_object_defgroup_list(object);
   LISTBASE_FOREACH (bDeformGroup *, dg, defgroups) {
     if ((dg->flag & DG_LOCK_WEIGHT) != 0) {
       object_locked_defgroups.add(dg->name);

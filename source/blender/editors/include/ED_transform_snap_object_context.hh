@@ -136,7 +136,7 @@ bool snap_object_project_ray_all(SnapObjectContext *sctx,
                                  const float ray_normal[3],
                                  float ray_depth,
                                  bool sort,
-                                 ListBase *r_hit_list);
+                                 ListBaseT<SnapObjectHitDepth> *r_hit_list);
 
 /**
  * Perform snapping.
@@ -215,7 +215,7 @@ bool object_project_all_view3d_ex(SnapObjectContext *sctx,
                                   const float mval[2],
                                   float ray_depth,
                                   bool sort,
-                                  ListBase *r_hit_list);
+                                  ListBaseT<SnapObjectHitDepth> *r_hit_list);
 
 #ifdef DEBUG_SNAP_TIME
 void ED_transform_snap_object_time_average_print();

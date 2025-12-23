@@ -866,7 +866,7 @@ struct ButStoreElem;
 struct ButStore {
   ButStore *next, *prev;
   Block *block;
-  ListBase items;
+  ListBaseT<ButStoreElem> items;
 };
 
 struct ButStoreElem {

@@ -121,14 +121,14 @@ void BKE_keyblock_update_from_lattice(const Lattice *lt, KeyBlock *kb);
 void BKE_keyblock_convert_from_lattice(const Lattice *lt, KeyBlock *kb);
 void BKE_keyblock_convert_to_lattice(const KeyBlock *kb, Lattice *lt);
 
-int BKE_keyblock_curve_element_count(const ListBase *nurb);
-void BKE_keyblock_curve_data_transform(const ListBase *nurb,
+int BKE_keyblock_curve_element_count(const ListBaseT<Nurb> *nurb);
+void BKE_keyblock_curve_data_transform(const ListBaseT<Nurb> *nurb,
                                        const float mat[4][4],
                                        const void *src,
                                        void *dst);
-void BKE_keyblock_update_from_curve(const Curve *cu, KeyBlock *kb, const ListBase *nurb);
-void BKE_keyblock_convert_from_curve(const Curve *cu, KeyBlock *kb, const ListBase *nurb);
-void BKE_keyblock_convert_to_curve(KeyBlock *kb, Curve *cu, ListBase *nurb);
+void BKE_keyblock_update_from_curve(const Curve *cu, KeyBlock *kb, const ListBaseT<Nurb> *nurb);
+void BKE_keyblock_convert_from_curve(const Curve *cu, KeyBlock *kb, const ListBaseT<Nurb> *nurb);
+void BKE_keyblock_convert_to_curve(KeyBlock *kb, Curve *cu, ListBaseT<Nurb> *nurb);
 
 void BKE_keyblock_update_from_mesh(const Mesh *mesh, KeyBlock *kb);
 void BKE_keyblock_convert_from_mesh(const Mesh *mesh, const Key *key, KeyBlock *kb);
@@ -198,7 +198,7 @@ void BKE_keyblock_data_set_with_mat4(Key *key,
  * transforming by \a mat.
  */
 void BKE_keyblock_curve_data_set_with_mat4(Key *key,
-                                           const ListBase *nurb,
+                                           const ListBaseT<Nurb> *nurb,
                                            int shape_index,
                                            const void *data,
                                            const blender::float4x4 &transform);

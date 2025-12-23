@@ -149,7 +149,7 @@ TEST_F(BPathTest, list_backup_restore)
 
   void *path_list_handle = BKE_bpath_list_backup(bmain, static_cast<eBPathForeachFlag>(0));
 
-  ListBase *path_list = static_cast<ListBase *>(path_list_handle);
+  ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(path_list_handle);
   EXPECT_EQ(BLI_listbase_count(path_list), 2);
 
   MEM_freeN(text->filepath);

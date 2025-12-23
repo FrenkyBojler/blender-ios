@@ -432,7 +432,7 @@ struct FCurveSegment {
  * Keys that have BEZT_FLAG_IGNORE_TAG set are treated as unselected.
  * The caller is responsible for freeing the memory.
  */
-ListBase find_fcurve_segments(FCurve *fcu);
+ListBaseT<FCurveSegment> find_fcurve_segments(FCurve *fcu);
 void clean_fcurve(bAnimListElem *ale, float thresh, bool cleardefault, bool only_selected_keys);
 void blend_to_neighbor_fcurve_segment(FCurve *fcu, FCurveSegment *segment, float factor);
 void breakdown_fcurve_segment(FCurve *fcu, FCurveSegment *segment, float factor);
@@ -532,7 +532,7 @@ void ANIM_fcurves_copybuf_free();
  *
  * \returns Whether anything was copied into the buffer.
  */
-bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data);
+bool copy_animedit_keys(bAnimContext *ac, ListBaseT<bAnimListElem> *anim_data);
 
 struct KeyframePasteContext {
   eKeyPasteOffset offset_mode;
@@ -545,7 +545,7 @@ struct KeyframePasteContext {
 };
 
 eKeyPasteError paste_animedit_keys(bAnimContext *ac,
-                                   ListBase *anim_data,
+                                   ListBaseT<bAnimListElem> *anim_data,
                                    const KeyframePasteContext &paste_context);
 
 /* ************************************************ */

@@ -138,7 +138,7 @@ struct wmEventHandler_Dropbox {
   wmEventHandler head;
 
   /** Never NULL. */
-  ListBase *dropboxes;
+  ListBaseT<wmDropBox> *dropboxes;
 };
 
 /* `wm_event_system.cc` */

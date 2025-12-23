@@ -54,7 +54,8 @@ static CLG_LogRef LOG = {"undo.armature"};
  * bones and collections together.
  */
 static void remap_ebone_bone_collection_references(
-    ListBase *edit_bones, const blender::Map<BoneCollection *, BoneCollection *> &bcoll_map)
+    ListBaseT<EditBone> *edit_bones,
+    const blender::Map<BoneCollection *, BoneCollection *> &bcoll_map)
 {
   LISTBASE_FOREACH (EditBone *, ebone, edit_bones) {
     LISTBASE_FOREACH (BoneCollectionReference *, bcoll_ref, &ebone->bone_collections) {
@@ -70,7 +71,7 @@ static void remap_ebone_bone_collection_references(
 struct UndoArmature {
   EditBone *act_edbone;
   char active_collection_name[MAX_NAME];
-  ListBase ebones;
+  ListBaseT<EditBone> ebones;
   BoneCollection **collection_array;
   int collection_array_num;
   int collection_root_count;

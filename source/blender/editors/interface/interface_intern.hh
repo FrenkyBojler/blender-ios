@@ -314,7 +314,7 @@ struct Button {
   wmOperatorType *optype = nullptr;
   PointerRNA *opptr = nullptr;
 
-  ListBase extra_op_icons = {nullptr, nullptr}; /** #ButtonExtraOpIcon */
+  ListBaseT<ButtonExtraOpIcon> extra_op_icons = {nullptr, nullptr}; /** #ButtonExtraOpIcon */
 
   /**
    * Active button data, set when the user is hovering or interacting with a button (#UI_HOVER and
@@ -535,7 +535,7 @@ struct ColorPicker {
 };
 
 struct ColorPickerData {
-  ListBase list;
+  ListBaseT<ColorPicker> list;
 };
 
 struct PieMenuData {
@@ -602,11 +602,11 @@ struct Block {
   Block *oldblock;
 
   /** Used for `UI_butstore_*` runtime function. */
-  ListBase butstore;
+  ListBaseT<ButStore> butstore;
 
   Vector<ButtonGroup> button_groups;
 
-  ListBase layouts;
+  ListBaseT<LayoutRoot> layouts;
   Layout *curlayout;
 
   Vector<std::unique_ptr<bContextStore>> contexts;
@@ -614,9 +614,9 @@ struct Block {
   /** A block can store "views" on data-sets. Currently tree-views (#AbstractTreeView) only.
    * Others are imaginable, e.g. table-views, grid-views, etc. These are stored here to support
    * state that is persistent over redraws (e.g. collapsed tree-view items). */
-  ListBase views;
+  ListBaseT<ViewLink> views;
 
-  ListBase dynamic_listeners;
+  ListBaseT<BlockDynamicListener> dynamic_listeners;
 
   std::string name;
 
@@ -686,7 +686,7 @@ struct Block {
 
   /** Pull-downs, to detect outside, can differ per case how it is created. */
   rctf safety;
-  ListBase saferct;
+  ListBaseT<SafetyRect> saferct;
 
   PopupBlockHandle *handle;
 

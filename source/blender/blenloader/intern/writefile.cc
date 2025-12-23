@@ -229,14 +229,14 @@ class ZstdWriteWrap : public WriteWrap {
 
   WriteWrap &base_wrap;
 
-  ListBase threadpool = {};
-  ListBase tasks = {};
+  ListBaseT<ThreadSlot> threadpool = {};
+  ListBaseT<ZstdWriteBlockTask> tasks = {};
   ThreadMutex mutex = {};
   ThreadCondition condition = {};
   int next_frame = 0;
   int num_frames = 0;
 
-  ListBase frames = {};
+  ListBaseT<ZstdFrame> frames = {};
 
   bool write_error = false;
 

@@ -148,7 +148,7 @@ bool ED_gpencil_layer_frames_looper(bGPDlayer *gpl,
 /**
  * Make a listing all the gp-frames in a layer as cfraelems.
  */
-void ED_gpencil_layer_make_cfra_list(bGPDlayer *gpl, ListBase *elems, bool onlysel);
+void ED_gpencil_layer_make_cfra_list(bGPDlayer *gpl, ListBaseT<CfraElem> *elems, bool onlysel);
 
 /**
  * Check if one of the frames in this layer is selected.

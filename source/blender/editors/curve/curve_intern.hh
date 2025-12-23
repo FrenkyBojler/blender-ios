@@ -156,7 +156,7 @@ void ED_curve_keyindex_update_nurb(EditNurb *editnurb, Nurb *nu, Nurb *newnu);
 /* exported for `editcurve_pen.cc` */
 
 int ed_editcurve_addvert(Curve *cu, EditNurb *editnurb, View3D *v3d, const float location_init[3]);
-bool curve_toggle_cyclic(View3D *v3d, ListBase *editnurb, int direction);
+bool curve_toggle_cyclic(View3D *v3d, ListBaseT<Nurb> *editnurb, int direction);
 void ed_dissolve_bez_segment(BezTriple *bezt_prev,
                              BezTriple *bezt_next,
                              const Nurb *nu,
@@ -165,7 +165,10 @@ void ed_dissolve_bez_segment(BezTriple *bezt_prev,
                              const uint span_step[2]);
 
 /* helper functions */
-void ed_editnurb_translate_flag(ListBase *editnurb, uint8_t flag, const float vec[3], bool is_2d);
+void ed_editnurb_translate_flag(ListBaseT<Nurb> *editnurb,
+                                uint8_t flag,
+                                const float vec[3],
+                                bool is_2d);
 /**
  * Only for #OB_SURF.
  */

@@ -78,8 +78,8 @@ struct SeqChannelDrawContext {
 
   Scene *scene;
   Editing *ed;
-  ListBase *seqbase;  /* Displayed seqbase. */
-  ListBase *channels; /* Displayed channels. */
+  ListBaseT<Strip> *seqbase;               /* Displayed seqbase. */
+  ListBaseT<SeqTimelineChannel> *channels; /* Displayed channels. */
 
   float draw_offset;
   float channel_height;
@@ -118,7 +118,7 @@ struct TimelineDrawContext {
   SpaceSeq *sseq;
   View2D *v2d;
   Editing *ed;
-  ListBase *channels;
+  ListBaseT<SeqTimelineChannel> *channels;
   GPUViewport *viewport;
   gpu::FrameBuffer *framebuffer_overlay;
   float pixelx, pixely; /* Width and height of pixel in timeline space. */

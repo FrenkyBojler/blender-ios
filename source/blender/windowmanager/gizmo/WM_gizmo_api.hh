@@ -66,7 +66,7 @@ void WM_gizmo_free(wmGizmo *gz);
  * Free \a gizmo and unlink from \a gizmolist.
  * \a gizmolist is allowed to be NULL.
  */
-void WM_gizmo_unlink(ListBase *gizmolist, wmGizmoMap *gzmap, wmGizmo *gz, bContext *C);
+void WM_gizmo_unlink(ListBaseT<wmGizmo> *gizmolist, wmGizmoMap *gzmap, wmGizmo *gz, bContext *C);
 
 /**
  * Remove from selection array without running callbacks.
@@ -346,7 +346,7 @@ wmGizmoMap *WM_gizmomap_new_from_type(const wmGizmoMapType_Params *gzmap_params)
  * Re-create the gizmos (use when changing theme settings).
  */
 void WM_gizmomap_reinit(wmGizmoMap *gzmap);
-const ListBase *WM_gizmomap_group_list(wmGizmoMap *gzmap);
+const ListBaseT<wmGizmoGroup> *WM_gizmomap_group_list(wmGizmoMap *gzmap);
 wmGizmoGroup *WM_gizmomap_group_find(wmGizmoMap *gzmap, const char *idname);
 wmGizmoGroup *WM_gizmomap_group_find_ptr(wmGizmoMap *gzmap, const wmGizmoGroupType *gzgt);
 

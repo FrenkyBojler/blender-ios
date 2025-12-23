@@ -94,8 +94,8 @@ static float bm_edgeloop_offset_length(LinkData *el_a,
 
 static void bm_bridge_best_rotation(BMEdgeLoopStore *el_store_a, BMEdgeLoopStore *el_store_b)
 {
-  ListBase *lb_a = BM_edgeloop_verts_get(el_store_a);
-  ListBase *lb_b = BM_edgeloop_verts_get(el_store_b);
+  ListBaseT<LinkData> *lb_a = BM_edgeloop_verts_get(el_store_a);
+  ListBaseT<LinkData> *lb_b = BM_edgeloop_verts_get(el_store_b);
   LinkData *el_a = static_cast<LinkData *>(lb_a->first);
   LinkData *el_b = static_cast<LinkData *>(lb_b->first);
   LinkData *el_b_first = el_b;
@@ -170,8 +170,8 @@ static void bridge_loop_pair(BMesh *bm,
     BM_edgeloop_calc_normal(bm, el_store_b);
   }
   else {
-    ListBase *lb_a = BM_edgeloop_verts_get(el_store_a);
-    ListBase *lb_b = BM_edgeloop_verts_get(el_store_b);
+    ListBaseT<LinkData> *lb_a = BM_edgeloop_verts_get(el_store_a);
+    ListBaseT<LinkData> *lb_b = BM_edgeloop_verts_get(el_store_b);
 
     /* normalizing isn't strictly needed but without we may get very large values */
     float no[3];
@@ -321,7 +321,7 @@ static void bridge_loop_pair(BMesh *bm,
     /* add twist */
     if (twist_offset != 0) {
       const int len_b = BM_edgeloop_length_get(el_store_b);
-      ListBase *lb_b = BM_edgeloop_verts_get(el_store_b);
+      ListBaseT<LinkData> *lb_b = BM_edgeloop_verts_get(el_store_b);
       LinkData *el_b = static_cast<LinkData *>(BLI_rfindlink(lb_b, mod_i(twist_offset, len_b)));
       BLI_listbase_rotate_first(lb_b, el_b);
     }
@@ -573,7 +573,7 @@ static void bridge_loop_pair(BMesh *bm,
 
 void bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
 {
-  ListBase eloops = {nullptr};
+  ListBaseT<BMEdgeLoopStore> eloops = {nullptr};
 
   /* merge-bridge support */
   const bool use_pairs = BMO_slot_bool_get(op->slots_in, "use_pairs");
@@ -623,7 +623,7 @@ void bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
   }
 
   /* Cast because of incomplete type. */
-  LISTBASE_FOREACH (Link *, el_store, reinterpret_cast<const ListBase *>(&eloops)) {
+  LISTBASE_FOREACH (Link *, el_store, reinterpret_cast<const ListBaseT<Link> *>(&eloops)) {
     Link *el_store_next = el_store->next;
 
     if (el_store_next == nullptr) {
