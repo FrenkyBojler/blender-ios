@@ -1066,7 +1066,8 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
-        selected_items = [item for item in interface.items_tree if item.select]
+        active_item = interface.active
+        selected_items = [item for item in interface.items_tree if item.select or item == active_item]
         if len(selected_items) == 0:
             return {'CANCELLED'}
 
