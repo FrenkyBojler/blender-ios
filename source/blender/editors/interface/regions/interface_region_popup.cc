@@ -598,6 +598,9 @@ static void ui_popup_block_remove(bContext *C, PopupBlockHandle *handle)
     WM_cursor_set(win, WM_CURSOR_DEFAULT);
     WM_cursor_grab_disable(win, nullptr);
   }
+  if (handle->mmb_panning_auto_scroll) {
+    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), handle->mmb_panning_auto_scroll);
+  }
 }
 
 void layout_panel_popup_scroll_apply(Panel *panel, const float dy)

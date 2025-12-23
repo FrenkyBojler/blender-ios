@@ -10827,12 +10827,27 @@ static int ui_handle_menu_event(bContext *C,
       menu->keep_alive_timer = WM_event_timer_add(
           CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_KEEP_ALIVE_THRESH);
     }
+    if (menu->mmb_panning_auto_scroll) {
+      WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), menu->mmb_panning_auto_scroll);
+      menu->mmb_panning_auto_scroll = nullptr;
+    }
   }
   /* Handle middle mouse panning. */
   else if (menu->mmb_panning && event->type == MOUSEMOVE) {
     const int delta = (menu->mmb_panning_last_y - event->xy[1]) *
                       (event->flag & WM_EVENT_SCROLL_INVERT ? 1 : -1);
-    if (delta) {
+    if (delta &&
+        (!menu->mmb_panning_auto_scroll || BLI_rcti_isect_y(&region->winrct, event->xy[1])))
+    {
+      ui_menu_scroll_apply_offset_y(region, block, delta);
+      menu->mmb_panning_last_y = event->xy[1];
+    }
+    retval = WM_UI_HANDLER_BREAK;
+  }
+  else if (event->type == TIMER && event->customdata == menu->mmb_panning_auto_scroll) {
+    if (!BLI_rcti_isect_y(&region->winrct, event->xy[1])) {
+      const int delta = (event->xy[1] > region->winrct.ymax ? -1 : 1) *
+                        (event->flag & WM_EVENT_SCROLL_INVERT ? 1 : -1);
       ui_menu_scroll_apply_offset_y(region, block, delta);
       menu->mmb_panning_last_y = event->xy[1];
     }
@@ -10881,6 +10896,11 @@ static int ui_handle_menu_event(bContext *C,
         WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
         if (U.uiflag & USER_CONTINUOUS_MOUSE && !WM_event_is_tablet(event)) {
           WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &bounds, false);
+        }
+        else if (!menu->mmb_panning_auto_scroll) {
+          static constexpr double MMB_PANNING_AUTO_SCROLL = 0.01;
+          menu->mmb_panning_auto_scroll = WM_event_timer_add(
+              CTX_wm_manager(C), CTX_wm_window(C), TIMER, MMB_PANNING_AUTO_SCROLL);
         }
       }
       retval = WM_UI_HANDLER_BREAK;
