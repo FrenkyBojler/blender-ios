@@ -1703,8 +1703,15 @@ static void region_rect_recursive(
   }
   else if (ELEM(alignment, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) {
     rcti *winrct = (region->overlap) ? overlap_remainder : remainder;
+    const int width = BLI_rcti_size_x(winrct) + 1;
+    const bool has_tabs = BKE_regiontype_uses_category_tabs(region->runtime->type);
+    const int min = UI_SCALE_FAC * (has_tabs ? UI_COMPACT_PANEL_WIDTH : UI_TOOLBAR_WIDTH);
 
-    if ((prefsizex == 0) || (rct_fits(winrct, SCREEN_AXIS_H, prefsizex) < 0)) {
+    if (width < prefsizex && width > min) {
+      region->winrct = *winrct;
+      BLI_rcti_sanitize(winrct);
+    }
+    else if (prefsizex == 0 || width < prefsizex) {
       region->flag |= RGN_FLAG_TOO_SMALL;
     }
     else {
