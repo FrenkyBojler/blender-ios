@@ -200,6 +200,14 @@ void *BKE_id_new_in_lib(Main *bmain,
                         std::optional<Library *> owner_library,
                         short type,
                         const char *name);
+
+template<typename T>
+inline T *BKE_id_new_in_lib(Main *bmain, std::optional<Library *> owner_library, const char *name)
+{
+  const ID_Type id_type = T::id_type;
+  return static_cast<T *>(BKE_id_new_in_lib(bmain, owner_library, id_type, name));
+}
+
 /**
  * Generic helper to create a new temporary empty data-block of given type,
  * *outside* of any Main database.
@@ -614,6 +622,17 @@ size_t BKE_id_multi_delete(Main *bmain, blender::Set<ID *> &ids_to_delete);
 
 /**
  * Add a 'NO_MAIN' data-block to given main (also sets user-counts of its IDs if needed).
+ *
+ *
+ * \note For linked data, calling code is also responsible to ensure that the relevant library is
+ * in the Main.
+ *
+ * \note Also supports adding packed linked IDs, these should then use as their library `lib`
+ * pointer either:
+ *   - An already valid archive library in target Main.
+ *   - A valid regular library in target Main, in which case a suitable archive library will be
+ *     selected or created.
+ *   See e.g. #BKE_main_merge for an example of adding packed linked ID into a different Main.
  */
 void BKE_libblock_management_main_add(Main *bmain, void *idv);
 /** Remove a data-block from given main (set it to 'NO_MAIN' status). */
