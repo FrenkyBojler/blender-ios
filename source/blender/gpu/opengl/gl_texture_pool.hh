@@ -9,6 +9,7 @@
 #pragma once
 
 #include "gpu_texture_pool_private.hh"
+#include "gl_texture.hh"
 
 namespace blender::gpu {
 
@@ -23,9 +24,8 @@ class GLTexturePool : public TexturePool {
   };
 
   struct TextureHandle {
-    GLTexture *texture_allocation = nullptr; /* Optional actual texture behind view. */
     GLTexture *texture = nullptr; /* Either created texture, or aliasing view over texture. */
-    bool is_texture_view;
+    GLTexture *texture_allocation = nullptr; /* Optional actual texture behind view. */
     int counter = 1;
 
     /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
@@ -38,6 +38,11 @@ class GLTexturePool : public TexturePool {
     bool operator==(const TextureHandle &o) const
     {
       return texture == o.texture;
+    }
+
+    bool is_view() const
+    {
+      return texture != nullptr && texture != texture_allocation;
     }
   };
 
