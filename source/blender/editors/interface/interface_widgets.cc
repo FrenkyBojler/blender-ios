@@ -2009,7 +2009,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
                              rcti *rect)
 {
   int drawstr_left_len = UI_MAX_DRAW_STR;
-  StringRef drawstr = but->drawstr;
+  const char *drawstr = but->drawstr.c_str();
   const char *drawstr_right = nullptr;
   bool use_right_only = false;
   const char *indeterminate_str = UI_VALUE_INDETERMINATE_CHAR;
@@ -2059,12 +2059,12 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         StringRef r = editstr.is_empty() ? StringRef("") : editstr.substr(but->pos);
         StringRef ime_str = ime_data->composite;
         drawstr_ime = fmt::format("{}{}{}", l, ime_str, r);
-        drawstr = drawstr_ime;
+        drawstr = drawstr_ime.c_str();
         int ime_width = BLF_width(
-            fstyle->uifont_id, drawstr.begin() + ofs, l.size() + ime_data->cursor_pos - ofs);
+            fstyle->uifont_id, drawstr + ofs, l.size() + ime_data->cursor_pos - ofs);
         if (ime_width > BLI_rcti_size_x(rect)) {
           ofs += BLF_str_offset_from_cursor_position(fstyle->uifont_id,
-                                                     drawstr.begin() + ofs,
+                                                     drawstr + ofs,
                                                      l.size() + ime_data->cursor_pos - ofs,
                                                      ime_width - BLI_rcti_size_x(rect));
         }
@@ -2087,7 +2087,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
            ButtonType::SearchMenu))
   {
     drawstr = indeterminate_str;
-    drawstr_left_len = drawstr.size();
+    drawstr_left_len = strlen(drawstr);
     align = UI_STYLE_TEXT_CENTER;
   }
 
@@ -2120,8 +2120,8 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       const int selend = but->selend + ime_str_pad;
 
       const auto boxes = BLF_str_selection_boxes(fstyle->uifont_id,
-                                                 drawstr.begin() + ofs,
-                                                 drawstr.size() - ofs,
+                                                 drawstr + ofs,
+                                                 strlen(drawstr + ofs),
                                                  (selsta >= ofs) ? selsta - ofs : 0,
                                                  selend - std::max<int>(ofs, selsta));
       for (auto bounds : boxes) {
@@ -2158,7 +2158,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (but_pos_ofs >= ofs) {
 
       int t = BLF_str_offset_to_cursor(fstyle->uifont_id,
-                                       drawstr.begin() + ofs,
+                                       drawstr + ofs,
                                        UI_MAX_DRAW_STR,
                                        but_pos_ofs - ofs,
                                        max_ii(1, int(U.pixelsize * 2)));
@@ -2200,7 +2200,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     }
     if (ime_data && ime_data->composite.size()) {
       /* Composite underline. */
-      widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr.begin(), ofs);
+      widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr, ofs);
     }
 #endif
   }
@@ -2214,10 +2214,10 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
   /* cut string in 2 parts - only for menu entries */
   if (but->flag & BUT_HAS_SEP_CHAR && (but->editstr == nullptr)) {
-    drawstr_right = strrchr(drawstr.begin(), UI_SEP_CHAR);
+    drawstr_right = strrchr(drawstr, UI_SEP_CHAR);
     if (drawstr_right) {
       use_drawstr_right_as_hint = true;
-      drawstr_left_len = (drawstr_right - drawstr.begin());
+      drawstr_left_len = (drawstr_right - drawstr);
       drawstr_right++;
     }
   }
@@ -2228,10 +2228,10 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       /* if we're editing or multi-drag (fake editing), then use left alignment */
       (but->editstr == nullptr) && (drawstr == but->drawstr))
   {
-    drawstr_right = strrchr(drawstr.begin() + ofs, ':');
+    drawstr_right = strrchr(drawstr + ofs, ':');
     if (drawstr_right) {
       drawstr_right++;
-      drawstr_left_len = (drawstr_right - drawstr.begin() - 1);
+      drawstr_left_len = (drawstr_right - drawstr - 1);
 
       while (*drawstr_right == ' ') {
         drawstr_right++;
@@ -2239,7 +2239,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     }
     else {
       /* no prefix, even so use only cpoin */
-      drawstr_right = drawstr.begin() + ofs;
+      drawstr_right = drawstr + ofs;
       use_right_only = true;
     }
   }
@@ -2249,14 +2249,14 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     /* for underline drawing */
     int font_xofs, font_yofs;
 
-    int drawlen = (drawstr_left_len == INT_MAX) ? drawstr.size() - ofs : (drawstr_left_len - ofs);
+    int drawlen = (drawstr_left_len == INT_MAX) ? strlen(drawstr + ofs) : (drawstr_left_len - ofs);
 
     if (drawlen > 0) {
       FontStyleDrawParams params{};
       params.align = align;
       fontstyle_draw_ex(fstyle,
                         rect,
-                        drawstr.begin() + ofs,
+                        drawstr + ofs,
                         drawlen,
                         wcol->text,
                         &params,
@@ -2265,7 +2265,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
                         nullptr);
 
       if (but->menu_key != '\0') {
-        const char *drawstr_ofs = drawstr.begin() + ofs;
+        const char *drawstr_ofs = drawstr + ofs;
         int ul_index = -1;
 
         {
