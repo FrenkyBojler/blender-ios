@@ -4,3 +4,4 @@ Referenced by issue #137794, Incorrect curve dimensions
 Referenced by pull request #137852, Fix #137794: Ignore curve radius for legacy curve object bounds
 Referenced by commit 600380cd98219cf279efadad83035c24f76da0b9, Fix #137794: Ignore curve radius for legacy curve object bounds
 Referenced by issue #143080, Bounding Box incompatibility with version 4.5
+Referenced by issue #152014, Geometry Wireframe visual glitch on grease pencil objects
