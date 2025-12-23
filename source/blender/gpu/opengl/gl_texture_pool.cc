@@ -82,8 +82,8 @@ Texture *GLTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   }
   else {
     eGPUTextureUsage usage_flag = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
-    texture_allocation = unwrap(GPU_texture_create_2d(
-        name, extent.x, extent.y, 1, format, usage_flag, nullptr));
+    texture_allocation = unwrap(
+        GPU_texture_create_2d(name, extent.x, extent.y, 1, format, usage_flag, nullptr));
   }
 
   /* Assemble texture handle, including `glTextureView`, if format aliasing is required. */
@@ -94,8 +94,8 @@ Texture *GLTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
   else {
     texture_handle.texture_allocation = texture_allocation;
     /* TODO(not_mark): figure out whether use_stencil should actually forward here. */
-    texture_handle.texture = unwrap(GPU_texture_create_view(
-        name, texture_allocation, format, 0, 1, 0, 1, false, false));
+    texture_handle.texture = unwrap(
+        GPU_texture_create_view(name, texture_allocation, format, 0, 1, 0, 1, false, false));
   }
 
   acquired_.add(texture_handle);
@@ -144,7 +144,8 @@ void GLTexturePool::reset(bool force_free)
   }
 }
 
-void GLTexturePool::offset_texture_counter(Texture *tex, int offset) {
+void GLTexturePool::offset_texture_counter(Texture *tex, int offset)
+{
   auto texture_handle = acquired_.lookup_key({unwrap(tex), {}, 1});
   texture_handle.counter += offset;
   acquired_.add_overwrite(texture_handle);

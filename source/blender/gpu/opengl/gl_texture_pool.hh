@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "gpu_texture_pool_private.hh"
 #include "gl_texture.hh"
+#include "gpu_texture_pool_private.hh"
 
 namespace blender::gpu {
 
