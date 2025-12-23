@@ -1,0 +1,1 @@
+Referenced by issue #152026, `EXCEPTION_ACCESS_VIOLATION` crashes on Windows with `rain` and `rain_restaurant` benchmarks
