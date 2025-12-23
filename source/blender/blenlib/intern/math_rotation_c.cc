@@ -1121,7 +1121,6 @@ void eulO_to_axis_angle(float axis[3], float *angle, const float eul[3], const s
   quat_to_axis_angle(axis, angle, q);
 }
 
-
 void axis_angle_normalized_to_mat3_ex(float mat[3][3],
                                       const float axis[3],
                                       const float angle_sin,
@@ -1159,8 +1158,7 @@ void axis_angle_normalized_to_mat3_ex(float mat[3][3],
 
 void axis_angle_normalized_to_mat3(float R[3][3], const float axis[3], const float angle)
 {
-  float s, c;
-  axis_angle_normalized_to_mat3_ex(R, axis, s, c);
+  axis_angle_normalized_to_mat3_ex(R, axis, sinf(angle), cosf(angle));
 }
 
 void axis_angle_to_mat3(float R[3][3], const float axis[3], const float angle)
