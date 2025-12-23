@@ -465,6 +465,11 @@ void object_sculpt_mode_enter(Main &bmain,
 
   ensure_valid_pivot(ob, *paint);
 
+  /* Reset mask visibility warning time for new sculpt session. */
+  if (ob.sculpt) {
+    ob.sculpt->mask_warning_last_shown_time = 0.0f;
+  }
+
   /* Flush object mode. */
   DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
 }

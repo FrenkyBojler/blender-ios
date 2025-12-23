@@ -31,6 +31,7 @@
 #include "BLI_span.hh"
 #include "BLI_task.h"
 #include "BLI_task.hh"
+#include "BLI_time.h"
 #include "BLI_vector.hh"
 
 #include "DNA_brush_types.h"
@@ -39,6 +40,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
@@ -64,6 +66,7 @@
 #include "BKE_subdiv_ccg.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
+#include "BLT_translation.hh"
 
 #include "NOD_texture.h"
 
@@ -5955,6 +5958,31 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (brush_type_is_mask(brush.sculpt_brush_type)) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
     BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
+
+    /* Warn user if sculpt mask display is disabled.
+     * Show warning immediately when starting a stroke, then again after 10 seconds
+     * if user continues painting in stroke mode. */
+    if (v3d && !(v3d->overlay.flag & V3D_OVERLAY_SCULPT_SHOW_MASK)) {
+      SculptSession &ss = *ob.sculpt;
+      const float current_time = float(BLI_time_now_seconds());
+      const float warning_interval = 10.0f; /* Show warning again after 10 seconds */
+
+      if (ss.mask_warning_last_shown_time == 0.0f ||
+          (current_time - ss.mask_warning_last_shown_time) >= warning_interval)
+      {
+        BKE_report(
+            op->reports,
+            RPT_WARNING,
+            RPT_("Sculpt mask display is disabled. Enable it in overlays to see the mask while "
+                 "painting"));
+        ss.mask_warning_last_shown_time = current_time;
+      }
+    }
+    else {
+      if (ob.sculpt) {
+        ob.sculpt->mask_warning_last_shown_time = 0.0f;
+      }
+    }
   }
   if (!brush_type_is_attribute_only(brush.sculpt_brush_type) &&
       report_if_shape_key_is_locked(ob, op->reports))
