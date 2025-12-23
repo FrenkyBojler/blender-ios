@@ -5260,9 +5260,10 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
   const bool can_extend = screen_geom_edge_can_extend(CTX_wm_window(C), edge);
   if (can_extend) {
     layout.separator();
+    const bool horizontal = (edge->v1->vec.y == edge->v2->vec.y);
     ptr = layout.op("SCREEN_OT_edge_merge",
                     IFACE_("Merge Edge"),
-                    ICON_NONE,
+                    horizontal ? ICON_EDGE_JOIN_H : ICON_EDGE_JOIN_V,
                     blender::wm::OpCallContext::ExecDefault,
                     UI_ITEM_NONE);
     RNA_int_set_array(&ptr, "cursor", event->xy);
