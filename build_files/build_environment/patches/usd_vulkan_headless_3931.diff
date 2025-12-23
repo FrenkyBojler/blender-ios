@@ -1,4 +1,4 @@
-commit 895d0ff8821b3a46fc9b8e3af396ed3261f10b5c
+commit aedfa981065793673eaade6645490aedb043df59
 Author: Jeroen Bakker <jeroen@blender.org>
 Date:   Mon Dec 22 13:39:27 2025 +0100
 
@@ -12,70 +12,21 @@ Date:   Mon Dec 22 13:39:27 2025 +0100
     Detected when trying to render via SSH using Vulkan.
     See https://projects.blender.org/blender/blender/issues/149631 for
     information.
+    
+    Revert instance changes
 
 diff --git a/pxr/imaging/hgiVulkan/device.cpp b/pxr/imaging/hgiVulkan/device.cpp
-index 4d6c3ec05..d7909e560 100644
+index 4d6c3ec05..6900849a7 100644
 --- a/pxr/imaging/hgiVulkan/device.cpp
 +++ b/pxr/imaging/hgiVulkan/device.cpp
-@@ -62,6 +62,9 @@ _SupportsPresentation(
+@@ -62,6 +62,10 @@ _SupportsPresentation(
                      physicalDevice, familyIndex);
  #elif defined(VK_USE_PLATFORM_XLIB_KHR)
          Display* dsp = XOpenDisplay(nullptr);
++        // Allow headless rendering
 +        if (dsp == nullptr) {
-+            return false;
++            return true;
 +        }
          VisualID visualID = XVisualIDFromVisual(
              DefaultVisual(dsp, DefaultScreen(dsp)));
          return vkGetPhysicalDeviceXlibPresentationSupportKHR(
-diff --git a/pxr/imaging/hgiVulkan/instance.cpp b/pxr/imaging/hgiVulkan/instance.cpp
-index b1e5a6dc3..3810d8fd7 100644
---- a/pxr/imaging/hgiVulkan/instance.cpp
-+++ b/pxr/imaging/hgiVulkan/instance.cpp
-@@ -101,21 +101,26 @@ HgiVulkanInstance::HgiVulkanInstance()
-     VkInstanceCreateInfo createInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-     createInfo.pApplicationInfo = &appInfo;
- 
-+    const char * surfaceExtensionName = nullptr;
-+    // Pick platform specific surface extension
-+    #if defined(VK_USE_PLATFORM_WIN32_KHR)
-+        surfaceExtensionName = VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
-+    #elif defined(VK_USE_PLATFORM_XLIB_KHR)
-+        surfaceExtensionName = VK_KHR_XLIB_SURFACE_EXTENSION_NAME;
-+    #elif defined(VK_USE_PLATFORM_METAL_EXT)
-+        surfaceExtensionName = VK_EXT_METAL_SURFACE_EXTENSION_NAME;
-+    #else
-+        #error Unsupported Platform
-+    #endif
-+
-     // Setup instance extensions.
-     std::vector<const char*> extensions = {
-         VK_KHR_SURFACE_EXTENSION_NAME,
--
--        // Pick platform specific surface extension
--        #if defined(VK_USE_PLATFORM_WIN32_KHR)
--            VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
--        #elif defined(VK_USE_PLATFORM_XLIB_KHR)
--            VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
--        #elif defined(VK_USE_PLATFORM_METAL_EXT)
--            VK_EXT_METAL_SURFACE_EXTENSION_NAME,
-+        surfaceExtensionName,
-+        
-+        #if defined(VK_USE_PLATFORM_METAL_EXT)
-             // See: https://github.com/KhronosGroup/MoltenVK/blob/main/Docs/MoltenVK_Runtime_UserGuide.md#interacting-with-the-moltenvk-runtime
-             VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
--        #else
--            #error Unsupported Platform
-         #endif
- 
-         // Extensions for interop with OpenGL
-@@ -151,8 +156,8 @@ HgiVulkanInstance::HgiVulkanInstance()
-     extensions = _RemoveUnsupportedInstanceExtensions(extensions);
- 
-     _hasPresentation = std::any_of(extensions.begin(), extensions.end(),
--        [](const char* extensionName) {
--            return strcmp(extensionName, VK_KHR_SURFACE_EXTENSION_NAME) == 0;
-+        [&](const char* extensionName) {
-+            return strcmp(extensionName, surfaceExtensionName) == 0;
-         });
- 
-     createInfo.ppEnabledLayerNames = layers.data();
