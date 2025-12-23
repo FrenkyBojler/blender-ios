@@ -90,7 +90,8 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .compositor_domain_priority(5)
       .description(
           "Height of the elliptical segments of the elliptical step function, which is used to "
-          "control the shape of the falloff. A higher value results in a smoother falloff.");
+          "control the shape of the falloff. A higher value results in a smoother falloff.")
+      .structure_type(StructureType::Dynamic);
   falloff_shape_panel.add_input<decl::Float>("Ellipse Width")
       .min(0.0f)
       .max(1.0f)
@@ -99,7 +100,8 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .compositor_domain_priority(6)
       .description(
           "Width of the elliptical segments of the elliptical step function, which is used to "
-          "control the shape of the falloff. A higher value results in a rounder falloff");
+          "control the shape of the falloff. A higher value results in a rounder falloff")
+      .structure_type(StructureType::Dynamic);
   falloff_shape_panel.add_input<decl::Float>("Inflection Midpoint")
       .min(0.0f)
       .max(1.0f)
@@ -109,7 +111,8 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .description(
           "Position of the inflection midpoint of the elliptical step function, which is used to "
           "control the shape of the falloff. It controls how big the two elliptical segments are "
-          "relative to each other");
+          "relative to each other")
+      .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &transform_panel = b.add_panel("Mask Transform").default_closed(true);
   transform_panel.add_input<decl::Float>("Rotation")
