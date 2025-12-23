@@ -566,7 +566,7 @@ void BlenderSync::sync_film(::ViewLayer &b_view_layer, ::bScreen *b_screen, ::Vi
   PointerRNA scene_rna_ptr = RNA_id_pointer_create(&b_scene->id);
   PointerRNA cscene = RNA_pointer_get(&scene_rna_ptr, "cycles");
   PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
-      b_scene->id, &RNA_ViewLayer, &b_view_layer);
+      b_scene->id, RNA_ViewLayer, &b_view_layer);
   PointerRNA crl = RNA_pointer_get(&view_layer_rna_ptr, "cycles");
 
   Film *film = scene->film;
@@ -1092,7 +1092,7 @@ DenoiseParams BlenderSync::get_denoise_params(::Scene &b_scene,
 
     if (b_view_layer) {
       PointerRNA view_layer_rna_ptr = RNA_pointer_create_id_subdata(
-          b_scene.id, &RNA_ViewLayer, b_view_layer);
+          b_scene.id, RNA_ViewLayer, b_view_layer);
       PointerRNA clayer = RNA_pointer_get(&view_layer_rna_ptr, "cycles");
       if (!get_boolean(clayer, "use_denoising")) {
         denoising.use = false;

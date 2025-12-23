@@ -31,7 +31,7 @@ class BlenderSmokeLoader : public VDBImageLoader {
         b_domain(object_fluid_gas_domain_find(b_ob)),
         attribute(attribute)
   {
-    domain_rna_ptr = RNA_pointer_create_discrete(&b_ob.id, &RNA_FluidDomainSettings, b_domain);
+    domain_rna_ptr = RNA_pointer_create_discrete(&b_ob.id, RNA_FluidDomainSettings, b_domain);
     mesh_texture_space(*static_cast<const ::Mesh *>(b_ob.data), texspace_loc, texspace_size);
   }
 

@@ -94,7 +94,7 @@ DeviceInfo blender_device_info(::UserDef &b_preferences,
   PointerRNA cpreferences;
   LISTBASE_FOREACH (bAddon *, b_addon, &b_preferences.addons) {
     if (STREQ(b_addon->module, "cycles")) {
-      PointerRNA addon_rna_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Addon, b_addon);
+      PointerRNA addon_rna_ptr = RNA_pointer_create_discrete(nullptr, RNA_Addon, b_addon);
       cpreferences = RNA_pointer_get(&addon_rna_ptr, "preferences");
       break;
     }
