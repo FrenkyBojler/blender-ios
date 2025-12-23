@@ -1670,6 +1670,8 @@ static int idproperty_type_get(IDProperty *prop)
           BLI_assert_unreachable();
           return -1;
       }
+    case IDP_ID:
+      return IDP_UI_DATA_DATABLOCK;
     default:
       BLI_assert_unreachable();
       return -1;
@@ -1722,6 +1724,10 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
       type = IDP_ARRAY;
       subtype = IDP_BOOLEAN;
       ui_data_type = IDP_UI_DATA_TYPE_BOOLEAN;
+      break;
+    case IDP_UI_DATA_DATABLOCK:
+      type = IDP_ID;
+      ui_data_type = IDP_UI_DATA_TYPE_ID;
       break;
     default:
       BLI_assert_unreachable();
@@ -3044,6 +3050,19 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "string IDProperty UI", "UI data for a string ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_STRING, RNA_def_property_string_sdna);
+
+  srna = RNA_def_struct(brna, "IDPropertyUIDataID", nullptr);
+  RNA_def_struct_ui_text(srna, "ID IDProperty UI", "UI data for an ID ID property");
+  RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
+
+  prop = RNA_def_property(srna, "id_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "id_type");
+  RNA_def_property_ui_text(prop, "Type", "Type of this data-block");
+  RNA_def_property_enum_items(prop, rna_enum_id_type_items);
+
+  prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "base.description");
+  RNA_def_property_ui_text(prop, "Description", "Tooltip description for this property");
 }
 
 void RNA_def_ID(BlenderRNA *brna)

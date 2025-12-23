@@ -2013,6 +2013,8 @@ void IDP_TryConvertProperty(IDProperty *src,
         }
         return 0;
       }
+      case IDP_UI_DATA_TYPE_ID:
+        return 0;
       default:
         break;
     }
@@ -2074,6 +2076,8 @@ void IDP_TryConvertProperty(IDProperty *src,
       IDP_AssignString(src, str.c_str());
       break;
     }
+    case IDP_UI_DATA_TYPE_ID:
+      src->data.pointer = nullptr;
     default:
       break;
   }

@@ -257,6 +257,9 @@ void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
         return &RNA_IDPropertyUIDataBool;
       case IDP_STRING:
         return &RNA_IDPropertyUIDataString;
+      case IDP_ID:
+        return &RNA_IDPropertyUIDataID;
+        ;
       default:
         BLI_assert_unreachable();
     }
@@ -269,6 +272,7 @@ void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
   layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
 
   PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
+
   if (ELEM(srna, &RNA_IDPropertyUIDataInt, &RNA_IDPropertyUIDataFloat)) {
     if (active_prop->type == IDP_ARRAY) {
       layout->prop(&prop_ptr, "length", UI_ITEM_NONE, "Length", ICON_NONE);
@@ -290,6 +294,11 @@ void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
     layout->prop(&propui_ptr, "max", UI_ITEM_NONE, "Hard Max", ICON_NONE);
     layout->prop(&propui_ptr, "step", UI_ITEM_NONE, "Step", ICON_NONE);
   }
+
+  if (srna == &RNA_IDPropertyUIDataID) {
+    layout->prop(&propui_ptr, "id_type", UI_ITEM_NONE, "ID type", ICON_NONE);
+  }
+
   layout->prop(&propui_ptr, "description", UI_ITEM_NONE, "Description", ICON_NONE);
 }
 
