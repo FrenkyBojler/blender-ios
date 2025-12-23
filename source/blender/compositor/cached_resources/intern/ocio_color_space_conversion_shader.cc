@@ -325,13 +325,17 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
 
     shader_create_info_.local_group_size(16, 16);
     shader_create_info_.sampler(0, ImageType::Float2D, input_sampler_name());
+    shader_create_info_.builtins(BuiltinBits::GLOBAL_INVOCATION_ID);
     shader_create_info_.image(0,
                               Result::gpu_texture_format(ResultType::Color, precision_),
                               Qualifier::write,
                               ImageReadWriteType::Float2D,
                               output_image_name());
     shader_create_info_.compute_source("gpu_shader_compositor_ocio_processor.glsl");
-    shader_create_info_.compute_source_generated += GPU_shader_preprocess_source(shader_code_);
+    shader_create_info_.generated_sources.append(
+        {"gpu_shader_compositor_ocio_processor_lib.glsl",
+         {},
+         GPU_shader_preprocess_source(shader_code_, shader_create_info_)});
 
     GPUShaderCreateInfo *info = reinterpret_cast<GPUShaderCreateInfo *>(&shader_create_info_);
     shader_ = GPU_shader_create_from_info(info);
@@ -418,7 +422,7 @@ class GPUShaderCreator : public OCIO::GpuShaderCreator {
   /* The processor shader and the ShaderCreateInfo used to construct it. Constructed and
    * initialized in the finalize() method. */
   gpu::Shader *shader_ = nullptr;
-  ShaderCreateInfo shader_create_info_ = ShaderCreateInfo("OCIO Processor");
+  ShaderCreateInfo shader_create_info_ = ShaderCreateInfo("OCIO_Processor");
 
   /* Stores the generated OCIOMain function as well as a number of helper functions. Initialized in
    * the createShaderText() method. */

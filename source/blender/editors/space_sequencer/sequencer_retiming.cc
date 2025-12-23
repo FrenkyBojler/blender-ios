@@ -26,7 +26,6 @@
 #include "SEQ_retiming.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
 #include "WM_api.hh"
@@ -35,7 +34,6 @@
 
 #include "UI_view2d.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -72,7 +70,7 @@ bool sequencer_retiming_mode_is_active(const bContext *C)
 static void sequencer_retiming_data_show_selection(ListBase *seqbase)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) == 0) {
+    if ((strip->flag & SEQ_SELECT) == 0) {
       continue;
     }
     if (!seq::retiming_is_allowed(strip)) {
@@ -85,7 +83,7 @@ static void sequencer_retiming_data_show_selection(ListBase *seqbase)
 static void sequencer_retiming_data_hide_selection(ListBase *seqbase)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) == 0) {
+    if ((strip->flag & SEQ_SELECT) == 0) {
       continue;
     }
     if (!seq::retiming_is_allowed(strip)) {
@@ -217,8 +215,8 @@ static bool retiming_key_add_new_for_strip(bContext *C,
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
-  const float frame_index = (BKE_scene_frame_get(scene) - seq::time_start_frame_get(strip)) *
-                            seq::time_media_playback_rate_factor_get(strip, scene_fps);
+  const float frame_index = (BKE_scene_frame_get(scene) - strip->content_start()) *
+                            strip->media_playback_rate_factor(scene_fps);
   const SeqRetimingKey *key = seq::retiming_find_segment_start_key(strip, frame_index);
 
   if (key != nullptr && seq::retiming_key_is_transition_start(key)) {
@@ -226,7 +224,7 @@ static bool retiming_key_add_new_for_strip(bContext *C,
     return false;
   }
 
-  const float end_frame = strip->start + seq::time_strip_length_get(scene, strip);
+  const float end_frame = strip->start + strip->length(scene);
   if (strip->start > timeline_frame || end_frame < timeline_frame) {
     return false;
   }
@@ -238,7 +236,7 @@ static bool retiming_key_add_new_for_strip(bContext *C,
 
 static wmOperatorStatus retiming_key_add_from_selection(bContext *C,
                                                         wmOperator *op,
-                                                        blender::Span<Strip *> strips,
+                                                        Span<Strip *> strips,
                                                         const int timeline_frame)
 {
   bool inserted = false;
@@ -261,7 +259,7 @@ static wmOperatorStatus retiming_key_add_to_editable_strips(bContext *C,
   Editing *ed = seq::editing_get(scene);
   bool inserted = false;
 
-  blender::Map selection = seq::retiming_selection_get(ed);
+  Map selection = seq::retiming_selection_get(ed);
   if (selection.is_empty()) {
     return OPERATOR_CANCELLED;
   }
@@ -286,7 +284,7 @@ static wmOperatorStatus sequencer_retiming_key_add_exec(bContext *C, wmOperator 
   }
 
   wmOperatorStatus ret_val;
-  blender::VectorSet<Strip *> strips = selected_strips_from_context(C);
+  VectorSet<Strip *> strips = selected_strips_from_context(C);
   if (!strips.is_empty()) {
     ret_val = retiming_key_add_from_selection(C, op, strips, timeline_frame);
   }
@@ -373,7 +371,7 @@ static bool freeze_frame_add_from_strip_selection(bContext *C,
                                                   const int duration)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  blender::VectorSet<Strip *> strips = selected_strips_from_context(C);
+  VectorSet<Strip *> strips = selected_strips_from_context(C);
   strips.remove_if([&](Strip *strip) { return !seq::retiming_is_allowed(strip); });
   const int timeline_frame = BKE_scene_frame_get(scene);
   bool success = false;
@@ -392,7 +390,7 @@ static bool freeze_frame_add_from_retiming_selection(const bContext *C,
   Scene *scene = CTX_data_sequencer_scene(C);
   bool success = false;
 
-  blender::Map selection = seq::retiming_selection_get(seq::editing_get(scene));
+  Map selection = seq::retiming_selection_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
     const int timeline_frame = seq::retiming_key_timeline_frame_get(scene, item.value, item.key);
@@ -501,7 +499,7 @@ static bool transition_add_from_retiming_selection(const bContext *C,
   Scene *scene = CTX_data_sequencer_scene(C);
   bool success = false;
 
-  blender::Map selection = seq::retiming_selection_get(seq::editing_get(scene));
+  Map selection = seq::retiming_selection_get(seq::editing_get(scene));
 
   for (auto item : selection.items()) {
     const int timeline_frame = seq::retiming_key_timeline_frame_get(scene, item.value, item.key);
@@ -570,8 +568,8 @@ static wmOperatorStatus sequencer_retiming_key_delete_exec(bContext *C, wmOperat
 {
   Scene *scene = CTX_data_sequencer_scene(C);
 
-  blender::Map selection = seq::retiming_selection_get(seq::editing_get(scene));
-  blender::Vector<Strip *> strips_to_handle;
+  Map selection = seq::retiming_selection_get(seq::editing_get(scene));
+  Vector<Strip *> strips_to_handle;
 
   if (!sequencer_retiming_mode_is_active(C) || selection.size() == 0) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -582,7 +580,7 @@ static wmOperatorStatus sequencer_retiming_key_delete_exec(bContext *C, wmOperat
   }
 
   for (Strip *strip : strips_to_handle) {
-    blender::Vector<SeqRetimingKey *> keys_to_delete;
+    Vector<SeqRetimingKey *> keys_to_delete;
     for (auto item : selection.items()) {
       if (item.value != strip) {
         continue;
@@ -650,7 +648,7 @@ static float strip_speed_get(bContext *C, const wmOperator * /*op*/)
 {
   /* Strip mode. */
   if (!sequencer_retiming_mode_is_active(C)) {
-    blender::VectorSet<Strip *> strips = selected_strips_from_context(C);
+    VectorSet<Strip *> strips = selected_strips_from_context(C);
     if (strips.size() == 1) {
       Strip *strip = strips[0];
       SeqRetimingKey *key = ensure_left_and_right_keys(C, strip);
@@ -659,7 +657,7 @@ static float strip_speed_get(bContext *C, const wmOperator * /*op*/)
   }
 
   Scene *scene = CTX_data_sequencer_scene(C);
-  blender::Map selection = seq::retiming_selection_get(seq::editing_get(scene));
+  Map selection = seq::retiming_selection_get(seq::editing_get(scene));
   /* Retiming mode. */
   if (selection.size() == 1) {
     for (auto item : selection.items()) {
@@ -673,7 +671,7 @@ static float strip_speed_get(bContext *C, const wmOperator * /*op*/)
 static wmOperatorStatus strip_speed_set_exec(bContext *C, const wmOperator *op)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  blender::VectorSet<Strip *> strips = selected_strips_from_context(C);
+  VectorSet<Strip *> strips = selected_strips_from_context(C);
   strips.remove_if([&](Strip *strip) { return !seq::retiming_is_allowed(strip); });
 
   for (Strip *strip : strips) {
@@ -682,6 +680,7 @@ static wmOperatorStatus strip_speed_set_exec(bContext *C, const wmOperator *op)
     if (key == nullptr) {
       continue;
     }
+
     /* TODO: it would be nice to multiply speed with complex retiming by a factor. */
     seq::retiming_key_speed_set(
         scene, strip, key, RNA_float_get(op->ptr, "speed") / 100.0f, false);
@@ -700,7 +699,7 @@ static wmOperatorStatus strip_speed_set_exec(bContext *C, const wmOperator *op)
 
 static wmOperatorStatus segment_speed_set_exec(const bContext *C,
                                                const wmOperator *op,
-                                               blender::Map<SeqRetimingKey *, Strip *> selection)
+                                               Map<SeqRetimingKey *, Strip *> selection)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
@@ -732,7 +731,7 @@ static wmOperatorStatus sequencer_retiming_segment_speed_set_exec(bContext *C, w
     return strip_speed_set_exec(C, op);
   }
 
-  blender::Map selection = seq::retiming_selection_get(seq::editing_get(scene));
+  Map selection = seq::retiming_selection_get(seq::editing_get(scene));
 
   /* Retiming mode. */
   if (selection.size() > 0) {
@@ -825,7 +824,7 @@ static bool select_connected_keys(const Scene *scene,
 
   const int frame = seq::retiming_key_timeline_frame_get(scene, source_owner, source);
   bool changed = false;
-  blender::VectorSet<Strip *> connections = seq::connected_strips_get(source_owner);
+  VectorSet<Strip *> connections = seq::connected_strips_get(source_owner);
   for (Strip *connection : connections) {
     SeqRetimingKey *con_key = seq::retiming_key_get_by_timeline_frame(scene, connection, frame);
 
@@ -898,10 +897,10 @@ static void realize_fake_keys_in_rect(bContext *C, Strip *strip, const rctf &rec
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
 
-  const int content_start = seq::time_start_frame_get(strip);
-  const int left_key_frame = max_ii(content_start, seq::time_left_handle_frame_get(scene, strip));
-  const int content_end = seq::time_content_end_frame_get(scene, strip);
-  const int right_key_frame = min_ii(content_end, seq::time_right_handle_frame_get(scene, strip));
+  const int content_start = strip->content_start();
+  const int left_key_frame = max_ii(content_start, strip->left_handle());
+  const int content_end = strip->content_end(scene);
+  const int right_key_frame = min_ii(content_end, strip->right_handle(scene));
 
   /* Realize "fake" keys. */
   if (left_key_frame > rectf.xmin && left_key_frame < rectf.xmax) {
@@ -915,7 +914,7 @@ static void realize_fake_keys_in_rect(bContext *C, Strip *strip, const rctf &rec
 wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
-  const View2D *v2d = UI_view2d_fromcontext(C);
+  const View2D *v2d = blender::ui::view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
@@ -931,9 +930,9 @@ wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op)
 
   rctf rectf;
   WM_operator_properties_border_to_rctf(op, &rectf);
-  UI_view2d_region_to_view_rctf(v2d, &rectf, &rectf);
+  blender::ui::view2d_region_to_view_rctf(v2d, &rectf, &rectf);
 
-  blender::Set<SeqRetimingKey *> and_keys;
+  Set<SeqRetimingKey *> and_keys;
 
   for (Strip *strip : sequencer_visible_strips_get(C)) {
     if (strip->channel < rectf.ymin || strip->channel > rectf.ymax) {
@@ -946,8 +945,8 @@ wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op)
 
     for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
       const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip, &key);
-      const int strip_start = seq::time_left_handle_frame_get(scene, strip);
-      const int strip_end = seq::time_right_handle_frame_get(scene, strip);
+      const int strip_start = strip->left_handle();
+      const int strip_end = strip->right_handle(scene);
       if (key_frame < strip_start || key_frame > strip_end) {
         continue;
       }
@@ -1000,7 +999,7 @@ wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   int action = RNA_enum_get(op->ptr, "action");
 
-  blender::VectorSet<Strip *> strips = all_strips_from_context(C);
+  VectorSet<Strip *> strips = all_strips_from_context(C);
 
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;

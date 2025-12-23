@@ -14,6 +14,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_setalpha_cc {
@@ -50,7 +52,7 @@ static void cmp_node_setalpha_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_setalpha(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but allocated for forward compatibility. */
-  NodeSetAlpha *settings = MEM_callocN<NodeSetAlpha>(__func__);
+  NodeSetAlpha *settings = MEM_new_for_free<NodeSetAlpha>(__func__);
   node->storage = settings;
 }
 
@@ -65,18 +67,25 @@ static int node_gpu_material(GPUMaterial *material,
   return GPU_stack_link(material, node, "node_composite_set_alpha", inputs, outputs);
 }
 
+static float4 set_alpha(const float4 &color, const float alpha, const MenuValue &type)
+{
+  switch (CMPNodeSetAlphaMode(type.value)) {
+    case CMP_NODE_SETALPHA_MODE_APPLY:
+      return color * alpha;
+    case CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA:
+      return float4(color.xyz(), alpha);
+  }
+  return color;
+}
+
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function = mf::build::SI3_SO<float4, float, MenuValue, float4>(
+  static auto function = mf::build::SI3_SO<Color, float, MenuValue, Color>(
       "Set Alpha",
-      [](const float4 &color, const float alpha, const MenuValue type) -> float4 {
-        switch (CMPNodeSetAlphaMode(type.value)) {
-          case CMP_NODE_SETALPHA_MODE_APPLY:
-            return color * alpha;
-          case CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA:
-            return float4(color.xyz(), alpha);
-        }
-        return color;
+      [](const Color &color, const float alpha, const MenuValue &type) -> Color {
+        return Color(set_alpha(float4(color), alpha, type));
       },
       mf::build::exec_presets::AllSpanOrSingle());
 

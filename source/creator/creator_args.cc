@@ -47,7 +47,7 @@
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 #  include "BKE_scene.hh"
-#  include "BKE_sound.h"
+#  include "BKE_sound.hh"
 
 #  include "GPU_context.hh"
 #  ifdef WITH_OPENGL_BACKEND
@@ -763,8 +763,9 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-gpu-compile-shaders");
   BLI_args_print_arg_doc(ba, "--debug-gpu-shader-debug-info");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-shader-source");
   if (defs.with_renderdoc) {
-    BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
     BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
   }
   if (defs.with_vulkan_backend) {
@@ -826,7 +827,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--register-allusers");
   BLI_args_print_arg_doc(ba, "--unregister");
   BLI_args_print_arg_doc(ba, "--unregister-allusers");
-  /* Windows only.  */
+  /* Windows only. */
   BLI_args_print_arg_doc(ba, "--qos");
 
   BLI_args_print_arg_doc(ba, "--version");
@@ -1533,15 +1534,25 @@ static const char arg_handle_debug_gpu_scope_capture_set_doc[] =
 static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, void * /*data*/)
 {
   if (argc > 1) {
-#  ifdef WITH_RENDERDOC
     STRNCPY(G.gpu_debug_scope_name, argv[1]);
-#  else
-    UNUSED_VARS(argc, argv);
-    BLI_assert_unreachable();
-#  endif
     return 1;
   }
   fprintf(stderr, "\nError: you must specify a scope name to capture.\n");
+  return 0;
+}
+
+static const char arg_handle_debug_gpu_shader_source_doc[] =
+    "\n"
+    "\tSave the compiled GPU shader source code for the given shader name.\n"
+    "\tThe given name can contain leading or trailing wildcard \"*\" to match multiple shaders."
+    "\tFiles are saved in the current working directory inside a directory named \"Shaders\".";
+static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void * /*data*/)
+{
+  if (argc > 1) {
+    STRNCPY(G.gpu_debug_shader_source_name, argv[1]);
+    return 1;
+  }
+  fprintf(stderr, "\nError: you must specify a shader name to capture.\n");
   return 0;
 }
 
@@ -3016,12 +3027,14 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                "--debug-gpu-compile-shaders",
                CB(arg_handle_debug_gpu_compile_shaders_set),
                nullptr);
+  BLI_args_add(ba,
+               nullptr,
+               "--debug-gpu-scope-capture",
+               CB(arg_handle_debug_gpu_scope_capture_set),
+               nullptr);
+  BLI_args_add(
+      ba, nullptr, "--debug-gpu-shader-source", CB(arg_handle_debug_gpu_shader_source), nullptr);
   if (defs.with_renderdoc) {
-    BLI_args_add(ba,
-                 nullptr,
-                 "--debug-gpu-scope-capture",
-                 CB(arg_handle_debug_gpu_scope_capture_set),
-                 nullptr);
     BLI_args_add(
         ba, nullptr, "--debug-gpu-renderdoc", CB(arg_handle_debug_gpu_renderdoc_set), nullptr);
   }

@@ -65,7 +65,12 @@ struct VKSubImageRange {
 VkImageAspectFlags to_vk_image_aspect_flag_bits(const TextureFormat format);
 VkImageAspectFlags to_vk_image_aspect_flag_bits(const GPUFrameBufferBits buffers);
 VkFormat to_vk_format(const TextureFormat format);
+BLI_INLINE VkFormat to_vk_format(const TextureTargetFormat format)
+{
+  return to_vk_format(to_texture_format(format));
+}
 TextureFormat to_gpu_format(const VkFormat format);
+std::string to_gpu_format_string(VkFormat format);
 VkFormat to_vk_format(const GPUVertCompType type,
                       const uint32_t size,
                       const GPUVertFetchMode fetch_mode);

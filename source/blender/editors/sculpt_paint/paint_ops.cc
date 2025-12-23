@@ -343,7 +343,7 @@ static wmOperatorStatus palette_sort_exec(bContext *C, wmOperator *op)
   const int totcol = BLI_listbase_count(&palette->colors);
 
   if (totcol > 0) {
-    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(totcol, __func__);
+    color_array = MEM_new_array_for_free<tPaletteColorHSV>(totcol, __func__);
     /* Put all colors in an array. */
     int t = 0;
     LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
@@ -1113,6 +1113,9 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
   /* paint stroke */
   keymap = paint_stroke_modal_keymap(keyconf);
   WM_modalkeymap_assign(keymap, "SCULPT_OT_brush_stroke");
+  WM_modalkeymap_assign(keymap, "PAINT_OT_vertex_paint");
+  WM_modalkeymap_assign(keymap, "PAINT_OT_weight_paint");
+  WM_modalkeymap_assign(keymap, "PAINT_OT_image_paint");
 
   /* Curves Sculpt mode. */
   keymap = WM_keymap_ensure(keyconf, "Sculpt Curves", SPACE_EMPTY, RGN_TYPE_WINDOW);

@@ -22,13 +22,13 @@
 #include "BLT_translation.hh"
 
 #include "BKE_fcurve.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_prototypes.hh"
 
 #include "libmv-capi.h"
-#include "tracking_private.h"
+#include "tracking_private.hh"
 
 struct MovieReconstructContext {
   libmv_Tracks *tracks;
@@ -39,7 +39,7 @@ struct MovieReconstructContext {
   libmv_Reconstruction *reconstruction;
 
   char object_name[MAX_NAME];
-  short motion_flag;
+  TrackingMotionFlag motion_flag;
 
   libmv_CameraIntrinsicsOptions camera_intrinsics_options;
 
@@ -162,8 +162,9 @@ static bool reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context,
   reconstruction->camnr = 0;
   reconstruction->cameras = nullptr;
 
-  MovieReconstructedCamera *reconstructed_cameras = MEM_calloc_arrayN<MovieReconstructedCamera>(
-      (efra - sfra + 1), "temp reconstructed camera");
+  MovieReconstructedCamera *reconstructed_cameras =
+      MEM_new_array_for_free<MovieReconstructedCamera>((efra - sfra + 1),
+                                                       "temp reconstructed camera");
 
   for (int a = sfra; a <= efra; a++) {
     double matd[4][4];
@@ -213,8 +214,8 @@ static bool reconstruct_retrieve_libmv_tracks(MovieReconstructContext *context,
 
   if (reconstruction->camnr) {
     const size_t size = reconstruction->camnr * sizeof(MovieReconstructedCamera);
-    reconstruction->cameras = MEM_calloc_arrayN<MovieReconstructedCamera>(reconstruction->camnr,
-                                                                          "reconstructed camera");
+    reconstruction->cameras = MEM_new_array_for_free<MovieReconstructedCamera>(
+        reconstruction->camnr, "reconstructed camera");
     memcpy(reconstruction->cameras, reconstructed_cameras, size);
   }
 
@@ -244,7 +245,8 @@ static int reconstruct_retrieve_libmv(MovieReconstructContext *context, MovieTra
 static int reconstruct_refine_intrinsics_get_flags(MovieTracking *tracking,
                                                    MovieTrackingObject *tracking_object)
 {
-  const int refine = tracking->settings.refine_camera_intrinsics;
+  const TrackingRefineCameraFlag refine = TrackingRefineCameraFlag(
+      tracking->settings.refine_camera_intrinsics);
   int flags = 0;
 
   if ((tracking_object->flag & TRACKING_OBJECT_CAMERA) == 0) {
@@ -333,7 +335,7 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(
   int sfra = INT_MAX, efra = INT_MIN;
 
   STRNCPY_UTF8(context->object_name, tracking_object->name);
-  context->motion_flag = tracking->settings.motion_flag;
+  context->motion_flag = TrackingMotionFlag(tracking->settings.motion_flag);
 
   context->select_keyframes = (tracking->settings.reconstruction_flag &
                                TRACKING_USE_KEYFRAME_SELECTION) != 0;

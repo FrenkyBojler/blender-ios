@@ -430,6 +430,12 @@ void EDBM_preselect_elem_update_preview(
 void EDBM_preselect_action_set(EditMesh_PreSelElem *psel, eEditMesh_PreSelPreviewAction action);
 eEditMesh_PreSelPreviewAction EDBM_preselect_action_get(EditMesh_PreSelElem *psel);
 
+/**
+ * Extrudes individual edges.
+ */
+bool EDBM_extrude_edges_indiv(BMEditMesh *em, wmOperator *op, char hflag, bool use_normal_flip);
+bool EDBM_smooth_vert(BMEditMesh *em, wmOperator *op);
+
 /* `mesh_ops.cc` */
 
 void ED_operatortypes_mesh();
@@ -531,7 +537,7 @@ int ED_mesh_uv_add(
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh);
 bool ED_mesh_color_ensure(Mesh *mesh, const char *name);
-int ED_mesh_color_add(
+std::string ED_mesh_color_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
 void ED_mesh_report_mirror(ReportList &reports, int totmirr, int totfail);

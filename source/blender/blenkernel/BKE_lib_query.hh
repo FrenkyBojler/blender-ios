@@ -21,6 +21,7 @@
 
 #include "DNA_ID.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 
 #include <array>
@@ -123,7 +124,7 @@ enum LibraryForeachIDCallbackFlag {
   IDWALK_CB_HASH_IGNORE = (1 << 19),
 
 };
-ENUM_OPERATORS(LibraryForeachIDCallbackFlag, IDWALK_CB_HASH_IGNORE);
+ENUM_OPERATORS(LibraryForeachIDCallbackFlag);
 
 enum {
   IDWALK_RET_NOP = 0,
@@ -241,7 +242,7 @@ enum LibraryForeachIDFlag {
    */
   IDWALK_DO_DEPRECATED_POINTERS = (1 << 11),
 };
-ENUM_OPERATORS(LibraryForeachIDFlag, IDWALK_DO_DEPRECATED_POINTERS);
+ENUM_OPERATORS(LibraryForeachIDFlag);
 
 /**
  * Check whether current iteration over ID usages should be stopped or not.

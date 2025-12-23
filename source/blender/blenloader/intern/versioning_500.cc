@@ -19,9 +19,9 @@
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -145,9 +145,11 @@ void version_system_idprops_generate(Main *bmain)
     }
   }
 }
-/* Separate callback for nodes, because they had the split implemented later. */
 void version_system_idprops_nodes_generate(Main *bmain)
 {
+  /* Separate callback for nodes,
+   * because they had the split implemented later. */
+
   FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
     LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
       idprops_process(node->prop, &node->system_properties);
@@ -155,9 +157,11 @@ void version_system_idprops_nodes_generate(Main *bmain)
   }
   FOREACH_NODETREE_END;
 }
-/* Separate callback for non-root bones, because they were missed in the initial implementation. */
 void version_system_idprops_children_bones_generate(Main *bmain)
 {
+  /* Separate callback for non-root bones,
+   * because they were missed in the initial implementation. */
+
   LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
     /* There is no way to iterate directly over all bones of an armature currently, use a recursive
      * approach instead. */
@@ -309,7 +313,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
       switch (node->type_legacy) {
         case SH_NODE_COMBRGB_LEGACY: {
           node->type_legacy = FN_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "FunctionNodeCombineColor");
           node->storage = storage;
@@ -317,7 +321,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case SH_NODE_SEPRGB_LEGACY: {
           node->type_legacy = FN_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "FunctionNodeSeparateColor");
 
@@ -375,7 +379,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
       switch (node->type_legacy) {
         case CMP_NODE_COMBRGBA_LEGACY: {
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
@@ -383,7 +387,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_COMBHSVA_LEGACY: {
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
           STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
@@ -391,7 +395,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_COMBYCCA_LEGACY: {
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
           storage->ycc_mode = node->custom1;
           STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
@@ -400,7 +404,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_COMBYUVA_LEGACY: {
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
           STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
@@ -408,7 +412,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_SEPRGBA_LEGACY: {
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
@@ -416,7 +420,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_SEPHSVA_LEGACY: {
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
           STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
@@ -424,7 +428,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_SEPYCCA_LEGACY: {
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
           storage->ycc_mode = node->custom1;
           STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
@@ -433,7 +437,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_SEPYUVA_LEGACY: {
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
           STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
@@ -487,7 +491,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
       switch (node->type_legacy) {
         case SH_NODE_COMBRGB_LEGACY: {
           node->type_legacy = SH_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "ShaderNodeCombineColor");
           node->storage = storage;
@@ -495,7 +499,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case SH_NODE_COMBHSV_LEGACY: {
           node->type_legacy = SH_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_HSV;
           STRNCPY_UTF8(node->idname, "ShaderNodeCombineColor");
           node->storage = storage;
@@ -503,7 +507,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case SH_NODE_SEPRGB_LEGACY: {
           node->type_legacy = SH_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "ShaderNodeSeparateColor");
           node->storage = storage;
@@ -511,7 +515,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case SH_NODE_SEPHSV_LEGACY: {
           node->type_legacy = SH_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_HSV;
           STRNCPY_UTF8(node->idname, "ShaderNodeSeparateColor");
           node->storage = storage;
@@ -1216,7 +1220,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
         STRNCPY_UTF8(node->idname, "ShaderNodeMapRange");
 
         /* Transfer options from node to NodeMapRange storage. */
-        NodeMapRange *data = MEM_callocN<NodeMapRange>(__func__);
+        NodeMapRange *data = MEM_new_for_free<NodeMapRange>(__func__);
         data->clamp = node->custom1;
         data->data_type = CD_PROP_FLOAT;
         data->interpolation_type = NODE_MAP_RANGE_LINEAR;
@@ -1235,7 +1239,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
         STRNCPY_UTF8(node->idname, "ShaderNodeMix");
 
         /* Transfer options from node to NodeShaderMix storage. */
-        NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
+        NodeShaderMix *data = MEM_new_for_free<NodeShaderMix>(__func__);
         data->data_type = SOCK_RGBA;
         data->factor_mode = NODE_MIX_MODE_UNIFORM;
         data->clamp_factor = 0;
@@ -1525,14 +1529,14 @@ static void do_version_sun_beams(bNodeTree &node_tree, bNode &node)
  * interface, so we ensure a default interface with a single input and output. This is only for
  * root trees used as scene compositing node groups, for other node trees, we remove all composite
  * nodes since they are no longer supported inside groups. */
-static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode &node)
+static bNode *do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode &node)
 {
   blender::bke::node_tree_set_type(node_tree);
 
   /* Remove inactive nodes. */
   if (!(node.flag & NODE_DO_OUTPUT)) {
     version_node_remove(node_tree, node);
-    return;
+    return nullptr;
   }
 
   bNodeSocket *old_image_input = blender::bke::node_find_socket(node, SOCK_IN, "Image");
@@ -1562,6 +1566,8 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
   }
 
   version_node_remove(node_tree, node);
+
+  return group_output_node;
 }
 
 /* The file output node started using item accessors, so we need to free socket storage and copy
@@ -1583,7 +1589,7 @@ static void do_version_file_output_node(bNode &node)
   data->file_name = BLI_strdup_null(file_name);
 
   data->items_count = BLI_listbase_count(&node.inputs);
-  data->items = MEM_calloc_arrayN<NodeCompositorFileOutputItem>(data->items_count, __func__);
+  data->items = MEM_new_array_for_free<NodeCompositorFileOutputItem>(data->items_count, __func__);
   int i = 0;
   LISTBASE_FOREACH_INDEX (bNodeSocket *, input, &node.inputs, i) {
     NodeImageMultiFileSocket *old_item_data = static_cast<NodeImageMultiFileSocket *>(
@@ -2033,23 +2039,23 @@ static void initialize_missing_closure_and_bundle_node_storage(bNodeTree &ntree)
     }
     switch (node->type_legacy) {
       case NODE_CLOSURE_INPUT: {
-        node->storage = MEM_callocN<NodeClosureInput>(__func__);
+        node->storage = MEM_new_for_free<NodeClosureInput>(__func__);
         break;
       }
       case NODE_CLOSURE_OUTPUT: {
-        node->storage = MEM_callocN<NodeClosureOutput>(__func__);
+        node->storage = MEM_new_for_free<NodeClosureOutput>(__func__);
         break;
       }
       case NODE_EVALUATE_CLOSURE: {
-        node->storage = MEM_callocN<NodeEvaluateClosure>(__func__);
+        node->storage = MEM_new_for_free<NodeEvaluateClosure>(__func__);
         break;
       }
       case NODE_COMBINE_BUNDLE: {
-        node->storage = MEM_callocN<NodeCombineBundle>(__func__);
+        node->storage = MEM_new_for_free<NodeCombineBundle>(__func__);
         break;
       }
       case NODE_SEPARATE_BUNDLE: {
-        node->storage = MEM_callocN<NodeSeparateBundle>(__func__);
+        node->storage = MEM_new_for_free<NodeSeparateBundle>(__func__);
         break;
       }
     }
@@ -2145,7 +2151,7 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
         *ntree, new_output_cycles, SOCK_IN, "NodeSocketVector", "Displacement");
     version_node_add_socket(*ntree, new_output_cycles, SOCK_IN, "NodeSocketFloat", "Thickness");
     /* We don't activate the output explicitly to avoid having two active outputs. We assume
-     * `node_tree.get_output_node('Cycles')` will return this node.  */
+     * `node_tree.get_output_node('Cycles')` will return this node. */
     new_output_cycles.custom1 = SHD_OUTPUT_CYCLES;
 
     bNode &shader_cycles = *blender::bke::node_add_static_node(
@@ -2311,7 +2317,7 @@ static void version_dynamic_viewer_node_items(bNodeTree &ntree)
       continue;
     }
     storage->items_num = 2;
-    storage->items = MEM_calloc_arrayN<NodeGeometryViewerItem>(2, __func__);
+    storage->items = MEM_new_array_for_free<NodeGeometryViewerItem>(2, __func__);
     NodeGeometryViewerItem &geometry_item = storage->items[0];
     geometry_item.name = BLI_strdup("Geometry");
     geometry_item.socket_type = SOCK_GEOMETRY;
@@ -2489,6 +2495,9 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
 static bool window_has_sequence_editor_open(const wmWindow *win)
 {
   bScreen *screen = WM_window_get_active_screen(win);
+  if (!screen) {
+    return false;
+  }
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
       if (sl->spacetype == SPACE_SEQ) {
@@ -2517,11 +2526,9 @@ static void sequencer_substitute_transform_effects(Scene *scene)
       transform->scale_x *= tv->ScalexIni;
       transform->scale_y *= tv->ScaleyIni;
       transform->rotation += tv->rotIni;
-      blender::seq::EffectHandle sh = blender::seq::strip_effect_handle_get(strip);
-      sh.free(strip, true);
+      blender::seq::effect_free(strip);
       strip->type = STRIP_TYPE_GAUSSIAN_BLUR;
-      sh = blender::seq::strip_effect_handle_get(strip);
-      sh.init(strip);
+      blender::seq::effect_ensure_initialized(strip);
       GaussianBlurVars *gv = static_cast<GaussianBlurVars *>(strip->effectdata);
       gv->size_x = gv->size_y = 0.0f;
       blender::seq::edit_strip_name_set(scene, strip, "Transform Placeholder (Migrated)");
@@ -2687,10 +2694,20 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
         node_tree->tree_interface.add_socket(
             DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
+        bNode *active_group_output = nullptr;
         LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_COMPOSITE_DEPRECATED) {
-            do_version_composite_node_in_scene_tree(*node_tree, *node);
+            active_group_output = do_version_composite_node_in_scene_tree(*node_tree, *node);
           }
+        }
+        if (active_group_output) {
+          LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+            if (node->type_legacy == NODE_GROUP_OUTPUT) {
+              node->flag &= ~NODE_DO_OUTPUT;
+            }
+          }
+
+          active_group_output->flag |= NODE_DO_OUTPUT;
         }
       }
     }
@@ -2761,7 +2778,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 101)) {
-    const uint8_t default_flags = DNA_struct_default_get(ToolSettings)->fix_to_cam_flag;
+    const uint8_t default_flags = ToolSettings().fix_to_cam_flag;
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (!scene->toolsettings) {
         continue;
@@ -2828,7 +2845,7 @@ static void remove_in_and_out_node_panel_recursive(bNodeTreeInterfacePanel &pane
       continue;
     }
 
-    bNodeTreeInterfaceSocket *new_output = MEM_callocN<bNodeTreeInterfaceSocket>(__func__);
+    bNodeTreeInterfaceSocket *new_output = MEM_new_for_free<bNodeTreeInterfaceSocket>(__func__);
     new_output->item.item_type = NODE_INTERFACE_SOCKET;
     new_output->name = BLI_strdup_null(socket->name);
     new_output->description = BLI_strdup_null(socket->description);
@@ -2957,6 +2974,227 @@ static void do_version_adaptive_subdivision(Main *bmain)
   }
 }
 
+static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
+{
+  using namespace blender::bke;
+
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
+    if (node->type_legacy != SH_NODE_TEX_GRADIENT) {
+      continue;
+    }
+    auto *data = static_cast<NodeTexGradient *>(node->storage);
+    if (!ELEM(data->gradient_type, SHD_BLEND_LINEAR, SHD_BLEND_QUADRATIC, SHD_BLEND_DIAGONAL)) {
+      /* Nothing to do. No changes for other gradient types. */
+      continue;
+    }
+
+    bNodeSocket *factor_output = node_find_socket(*node, SOCK_OUT, "Fac");
+    bNodeSocket *color_output = node_find_socket(*node, SOCK_OUT, "Color");
+    bNodeSocket *vector_input = node_find_socket(*node, SOCK_IN, "Vector");
+
+    bool is_factor_output_linked = false;
+    bool is_color_output_linked = false;
+    bNodeLink *vector_input_link = nullptr;
+
+    LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
+      if (link->fromsock == factor_output) {
+        is_factor_output_linked = true;
+      }
+      else if (link->fromsock == color_output) {
+        is_color_output_linked = true;
+      }
+      else if (link->tosock == vector_input) {
+        vector_input_link = link;
+      }
+    }
+
+    if (!is_factor_output_linked && !is_color_output_linked) {
+      /* Node is not linked, nothing to do. */
+      continue;
+    }
+
+    bNode *gradient_node = nullptr;
+    bNodeSocket *gradient_socket = nullptr;
+
+    bNode &separate = version_node_add_empty(*node_tree, "ShaderNodeSeparateXYZ");
+    bNodeSocket &separate_input = version_node_add_socket(
+        *node_tree, separate, SOCK_IN, "NodeSocketVector", "Vector");
+    bNodeSocket &separate_x_output = version_node_add_socket(
+        *node_tree, separate, SOCK_OUT, "NodeSocketFloat", "X");
+    bNodeSocket &separate_y_output = version_node_add_socket(
+        *node_tree, separate, SOCK_OUT, "NodeSocketFloat", "Y");
+    version_node_add_socket(*node_tree, separate, SOCK_OUT, "NodeSocketFloat", "Z");
+
+    copy_v2_v2(separate.location, node->location);
+
+    switch (data->gradient_type) {
+      case SHD_BLEND_LINEAR: {
+        /* Gradient = X */
+        gradient_node = &separate;
+        gradient_socket = &separate_x_output;
+        break;
+      }
+      case SHD_BLEND_QUADRATIC: {
+        /* Gradient = (max(X, 0))^2 */
+        bNode &max = version_node_add_empty(*node_tree, "ShaderNodeMath");
+        bNodeSocket &max_input_a = version_node_add_socket(
+            *node_tree, max, SOCK_IN, "NodeSocketFloat", "Value");
+        bNodeSocket &max_input_b = version_node_add_socket(
+            *node_tree, max, SOCK_IN, "NodeSocketFloat", "Value_001");
+        version_node_add_socket(*node_tree, max, SOCK_IN, "NodeSocketFloat", "Value_002");
+
+        bNodeSocket &max_output = version_node_add_socket(
+            *node_tree, max, SOCK_OUT, "NodeSocketFloat", "Value");
+
+        max.location[0] = separate.location[0] + 20.0f;
+        max.location[1] = separate.location[1];
+
+        max.custom1 = NODE_MATH_MAXIMUM;
+
+        version_node_add_link(*node_tree, separate, separate_x_output, max, max_input_a);
+        max_input_b.default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
+
+        bNode &multiply = version_node_add_empty(*node_tree, "ShaderNodeMath");
+
+        bNodeSocket &multiply_input_a = version_node_add_socket(
+            *node_tree, multiply, SOCK_IN, "NodeSocketFloat", "Value");
+        bNodeSocket &multiply_input_b = version_node_add_socket(
+            *node_tree, multiply, SOCK_IN, "NodeSocketFloat", "Value_001");
+        version_node_add_socket(*node_tree, multiply, SOCK_IN, "NodeSocketFloat", "Value_002");
+
+        bNodeSocket &multiply_output = version_node_add_socket(
+            *node_tree, multiply, SOCK_OUT, "NodeSocketFloat", "Value");
+
+        multiply.location[0] = max.location[0] + 20.0f;
+        multiply.location[1] = max.location[1];
+        multiply.custom1 = NODE_MATH_MULTIPLY;
+
+        version_node_add_link(*node_tree, max, max_output, multiply, multiply_input_a);
+        version_node_add_link(*node_tree, max, max_output, multiply, multiply_input_b);
+
+        gradient_node = &multiply;
+        gradient_socket = &multiply_output;
+        break;
+      }
+      case SHD_BLEND_DIAGONAL: {
+        /* Gradient = (X + Y) * 0.5. */
+        bNode &add = version_node_add_empty(*node_tree, "ShaderNodeMath");
+        bNodeSocket &add_input_a = version_node_add_socket(
+            *node_tree, add, SOCK_IN, "NodeSocketFloat", "Value");
+        bNodeSocket &add_input_b = version_node_add_socket(
+            *node_tree, add, SOCK_IN, "NodeSocketFloat", "Value_001");
+        version_node_add_socket(*node_tree, add, SOCK_IN, "NodeSocketFloat", "Value_002");
+
+        bNodeSocket &add_output = version_node_add_socket(
+            *node_tree, add, SOCK_OUT, "NodeSocketFloat", "Value");
+
+        add.location[0] = separate.location[0] + 20.0f;
+        add.location[1] = separate.location[1];
+        add.custom1 = NODE_MATH_ADD;
+
+        version_node_add_link(*node_tree, separate, separate_x_output, add, add_input_a);
+        version_node_add_link(*node_tree, separate, separate_y_output, add, add_input_b);
+
+        bNode &multiply = version_node_add_empty(*node_tree, "ShaderNodeMath");
+        bNodeSocket &multiply_input_a = version_node_add_socket(
+            *node_tree, multiply, SOCK_IN, "NodeSocketFloat", "Value");
+        bNodeSocket &multiply_input_b = version_node_add_socket(
+            *node_tree, multiply, SOCK_IN, "NodeSocketFloat", "Value_001");
+        version_node_add_socket(*node_tree, multiply, SOCK_IN, "NodeSocketFloat", "Value_002");
+
+        bNodeSocket &multiply_output = version_node_add_socket(
+            *node_tree, multiply, SOCK_OUT, "NodeSocketFloat", "Value");
+
+        copy_v2_v2(multiply.location, node->location);
+        multiply.location[0] = add.location[0] + 20.0f;
+        multiply.location[1] = add.location[1];
+
+        multiply.custom1 = NODE_MATH_MULTIPLY;
+
+        version_node_add_link(*node_tree, add, add_output, multiply, multiply_input_a);
+
+        static_cast<bNodeSocketValueFloat *>(multiply_input_b.default_value)->value = 0.5f;
+
+        gradient_node = &multiply;
+        gradient_socket = &multiply_output;
+        break;
+      }
+    }
+
+    if (is_factor_output_linked) {
+      /* Output socket can be connected to multiple nodes, so consider all links. */
+      LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
+        if (link->fromsock == factor_output) {
+          version_node_add_link(
+              *node_tree, *gradient_node, *gradient_socket, *link->tonode, *link->tosock);
+          node_remove_link(node_tree, *link);
+        }
+      }
+    }
+
+    if (is_color_output_linked) {
+      bNode &combine = version_node_add_empty(*node_tree, "FunctionNodeCombineColor");
+      bNodeSocket &combine_red = version_node_add_socket(
+          *node_tree, combine, SOCK_IN, "NodeSocketFloat", "Red");
+      bNodeSocket &combine_green = version_node_add_socket(
+          *node_tree, combine, SOCK_IN, "NodeSocketFloat", "Green");
+      bNodeSocket &combine_blue = version_node_add_socket(
+          *node_tree, combine, SOCK_IN, "NodeSocketFloat", "Blue");
+      bNodeSocket &combine_alpha = version_node_add_socket(
+          *node_tree, combine, SOCK_IN, "NodeSocketFloat", "Alpha");
+
+      bNodeSocket &combine_output = version_node_add_socket(
+          *node_tree, combine, SOCK_OUT, "NodeSocketColor", "Color");
+
+      NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
+      storage->mode = NODE_COMBSEP_COLOR_RGB;
+      combine.storage = storage;
+
+      combine.location[0] = gradient_node->location[0] + 20.0f;
+      combine.location[1] = gradient_node->location[1];
+
+      version_node_add_link(*node_tree, *gradient_node, *gradient_socket, combine, combine_red);
+      version_node_add_link(*node_tree, *gradient_node, *gradient_socket, combine, combine_green);
+      version_node_add_link(*node_tree, *gradient_node, *gradient_socket, combine, combine_blue);
+
+      static_cast<bNodeSocketValueFloat *>(combine_alpha.default_value)->value = 1.0f;
+
+      LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
+        if (link->fromsock == color_output) {
+          version_node_add_link(*node_tree, combine, combine_output, *link->tonode, *link->tosock);
+          node_remove_link(node_tree, *link);
+        }
+      }
+
+      gradient_node = &combine;
+      gradient_socket = &combine_output;
+    }
+
+    if (vector_input_link) {
+      version_node_add_link(*node_tree,
+                            *vector_input_link->fromnode,
+                            *vector_input_link->fromsock,
+                            separate,
+                            separate_input);
+      node_remove_link(node_tree, *vector_input_link);
+    }
+    else {
+      /* Gradient texture's input in geometry nodes defaults to using Input Position if it's not
+       * connected. */
+      bNode &position = version_node_add_empty(*node_tree, "GeometryNodeInputPosition");
+      bNodeSocket &position_output = version_node_add_socket(
+          *node_tree, position, SOCK_OUT, "NodeSocketVector", "Position");
+      position.location[0] = separate.location[0] - 20.0f;
+      position.location[1] = separate.location[1] - 20.0f;
+
+      version_node_add_link(*node_tree, position, position_output, separate, separate_input);
+    }
+
+    node_tree_set_type(*node_tree);
+    version_node_remove(*node_tree, *node);
+  }
+}
+
 void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   using namespace blender;
@@ -3008,7 +3246,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeDisplaceData *data = MEM_callocN<NodeDisplaceData>(__func__);
+        NodeDisplaceData *data = MEM_new_for_free<NodeDisplaceData>(__func__);
         data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
         node->storage = data;
       }
@@ -3235,7 +3473,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeTransformData *data = MEM_callocN<NodeTransformData>(__func__);
+        NodeTransformData *data = MEM_new_for_free<NodeTransformData>(__func__);
         data->interpolation = node->custom1;
         data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
@@ -3418,7 +3656,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeRotateData *data = MEM_callocN<NodeRotateData>(__func__);
+        NodeRotateData *data = MEM_new_for_free<NodeRotateData>(__func__);
         data->interpolation = node->custom1;
         data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
@@ -3460,7 +3698,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeMapUVData *data = MEM_callocN<NodeMapUVData>(__func__);
+        NodeMapUVData *data = MEM_new_for_free<NodeMapUVData>(__func__);
         data->interpolation = node->custom2;
         data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
@@ -3481,7 +3719,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeCornerPinData *data = MEM_callocN<NodeCornerPinData>(__func__);
+        NodeCornerPinData *data = MEM_new_for_free<NodeCornerPinData>(__func__);
         data->interpolation = node->custom1;
         data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
@@ -4082,7 +4320,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 113)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
     /* Clear mute flag on node types that set ntype->no_muting = true. */
     static const Set<std::string> no_muting_nodes = {"CompositorNodeViewer",
                                                      "NodeClosureInput",
@@ -4133,6 +4371,17 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
          * added through the Python API. Remove these interface sockets here before they cause
          * problems further down the line. */
         version_node_tree_clear_interface(*node_tree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 117)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_GEOMETRY) {
+        /* Gradient Texture node did not clamp results for the Compositor CPU and geometry nodes.
+         * The compositor is not versioned to unify it with GPU backend. */
+        do_version_texture_gradient_clamp(node_tree);
       }
     }
     FOREACH_NODETREE_END;

@@ -6,8 +6,6 @@
  * \ingroup spseq
  */
 
-#include <cstring>
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -23,7 +21,6 @@
 #include "ED_sequencer.hh"
 
 #include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
 
 #include "sequencer_intern.hh"
 
@@ -60,6 +57,10 @@ static void metadata_panel_context_draw(const bContext *C, Panel *panel)
 
   Scene *scene = CTX_data_sequencer_scene(C);
   SpaceSeq *space_sequencer = CTX_wm_space_seq(C);
+  if (!scene || !space_sequencer) {
+    return;
+  }
+
   /* NOTE: We can only reliably show metadata for the original (current)
    * frame when split view is used. */
   const bool show_split = (scene->ed &&

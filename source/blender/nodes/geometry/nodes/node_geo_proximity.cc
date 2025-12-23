@@ -47,14 +47,14 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Whether the sampling was successful. It can fail when the sampled group is empty");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "target_element", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "target_element", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void geo_proximity_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryProximity *node_storage = MEM_callocN<NodeGeometryProximity>(__func__);
+  NodeGeometryProximity *node_storage = MEM_new_for_free<NodeGeometryProximity>(__func__);
   node_storage->target_element = GEO_NODE_PROX_TARGET_FACES;
   node->storage = node_storage;
 }

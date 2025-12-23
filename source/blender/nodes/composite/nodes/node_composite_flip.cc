@@ -72,7 +72,7 @@ class FlipOperation : public NodeOperation {
     result.allocate_texture(domain);
     result.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input.unbind_as_texture();
     result.unbind_as_image();
@@ -90,8 +90,8 @@ class FlipOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
-    parallel_for(domain.size, [&](const int2 texel) {
+    const int2 size = domain.data_size;
+    parallel_for(domain.data_size, [&](const int2 texel) {
       int2 flipped_texel = texel;
       if (flip_x) {
         flipped_texel.x = size.x - texel.x - 1;
@@ -99,18 +99,18 @@ class FlipOperation : public NodeOperation {
       if (flip_y) {
         flipped_texel.y = size.y - texel.y - 1;
       }
-      output.store_pixel(texel, input.load_pixel<float4>(flipped_texel));
+      output.store_pixel(texel, input.load_pixel<Color>(flipped_texel));
     });
   }
 
   bool get_flip_x()
   {
-    return this->get_input("Flip X").get_single_value_default(false);
+    return this->get_input("Flip X").get_single_value_default<bool>();
   }
 
   bool get_flip_y()
   {
-    return this->get_input("Flip Y").get_single_value_default(false);
+    return this->get_input("Flip Y").get_single_value_default<bool>();
   }
 };
 

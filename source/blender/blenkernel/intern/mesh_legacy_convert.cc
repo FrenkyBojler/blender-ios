@@ -12,6 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_customdata_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -32,6 +33,7 @@
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
@@ -591,12 +593,6 @@ static void update_active_fdata_layers(Mesh &mesh, CustomData *fdata_legacy, Cus
 
     act = CustomData_get_render_layer(ldata, CD_PROP_FLOAT2);
     CustomData_set_layer_render(fdata_legacy, CD_MTFACE, act);
-
-    act = CustomData_get_clone_layer(ldata, CD_PROP_FLOAT2);
-    CustomData_set_layer_clone(fdata_legacy, CD_MTFACE, act);
-
-    act = CustomData_get_stencil_layer(ldata, CD_PROP_FLOAT2);
-    CustomData_set_layer_stencil(fdata_legacy, CD_MTFACE, act);
   }
 
   if (CustomData_has_layer(ldata, CD_PROP_BYTE_COLOR)) {
@@ -615,12 +611,6 @@ static void update_active_fdata_layers(Mesh &mesh, CustomData *fdata_legacy, Cus
         CustomData_set_layer_render(fdata_legacy, CD_MCOL, act);
       }
     }
-
-    act = CustomData_get_clone_layer(ldata, CD_PROP_BYTE_COLOR);
-    CustomData_set_layer_clone(fdata_legacy, CD_MCOL, act);
-
-    act = CustomData_get_stencil_layer(ldata, CD_PROP_BYTE_COLOR);
-    CustomData_set_layer_stencil(fdata_legacy, CD_MCOL, act);
   }
 }
 
@@ -767,12 +757,6 @@ static void CustomData_bmesh_do_versions_update_active_layers(CustomData *fdata_
 
     act = CustomData_get_render_layer(fdata_legacy, CD_MTFACE);
     CustomData_set_layer_render(corner_data, CD_PROP_FLOAT2, act);
-
-    act = CustomData_get_clone_layer(fdata_legacy, CD_MTFACE);
-    CustomData_set_layer_clone(corner_data, CD_PROP_FLOAT2, act);
-
-    act = CustomData_get_stencil_layer(fdata_legacy, CD_MTFACE);
-    CustomData_set_layer_stencil(corner_data, CD_PROP_FLOAT2, act);
   }
 
   if (CustomData_has_layer(fdata_legacy, CD_MCOL)) {
@@ -781,12 +765,6 @@ static void CustomData_bmesh_do_versions_update_active_layers(CustomData *fdata_
 
     act = CustomData_get_render_layer(fdata_legacy, CD_MCOL);
     CustomData_set_layer_render(corner_data, CD_PROP_BYTE_COLOR, act);
-
-    act = CustomData_get_clone_layer(fdata_legacy, CD_MCOL);
-    CustomData_set_layer_clone(corner_data, CD_PROP_BYTE_COLOR, act);
-
-    act = CustomData_get_stencil_layer(fdata_legacy, CD_MCOL);
-    CustomData_set_layer_stencil(corner_data, CD_PROP_BYTE_COLOR, act);
   }
 }
 
@@ -2070,7 +2048,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   bNodeTree *group = node_tree_add_in_lib(
       &bmain, owner_library, DATA_("Auto Smooth"), "GeometryNodeTree");
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 

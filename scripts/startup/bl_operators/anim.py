@@ -223,7 +223,7 @@ class NLA_OT_bake(Operator):
         default=False,
     )
     clear_constraints: BoolProperty(
-        name="Clear Constraints",
+        name="Clear Local Constraints",
         description=(
             "Remove all constraints from keyed object/bones. "
             "To get a correct bake with this setting Visual Keying should be enabled"
@@ -392,8 +392,10 @@ class UpdateAnimatedTransformConstraint(Operator):
 
     use_convert_to_radians: BoolProperty(
         name="Convert to Radians",
-        description="Convert f-curves/drivers affecting rotations to radians.\n"
-                    "Warning: Use this only once",
+        description=(
+            "Convert f-curves/drivers affecting rotations to radians.\n"
+            "Warning: Use this only once"
+        ),
         default=True,
     )
 

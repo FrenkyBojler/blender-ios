@@ -35,6 +35,7 @@
 #include "RNA_types.hh"
 
 #include "bpy.hh"
+#include "bpy_audaspace.hh"
 #include "bpy_capi_utils.hh"
 #include "bpy_intern_string.hh"
 #include "bpy_path.hh"
@@ -125,6 +126,8 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
   if (py_call_level == 1) {
     BPY_context_update(C);
 
+    pyrna_context_init(C);
+
 #ifdef TIME_PY_RUN
     if (bpy_timer_count == 0) {
       /* Record time from the beginning. */
@@ -138,7 +141,7 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
   }
 }
 
-void bpy_context_clear(bContext * /*C*/, const PyGILState_STATE *gilstate)
+void bpy_context_clear(bContext *C, const PyGILState_STATE *gilstate)
 {
   py_call_level--;
 
@@ -155,6 +158,8 @@ void bpy_context_clear(bContext * /*C*/, const PyGILState_STATE *gilstate)
 #if 0
     BPY_context_set(nullptr);
 #endif
+
+    pyrna_context_clear(C);
 
 #ifdef TIME_PY_RUN
     bpy_timer_run_tot += BLI_time_now_seconds() - bpy_timer_run;
@@ -270,11 +275,6 @@ void BPY_context_set(bContext *C)
 extern "C" PyObject *Manta_initPython();
 #endif
 
-#ifdef WITH_AUDASPACE_PY
-/* Defined in `AUD_C-API.cpp`. */
-extern "C" PyObject *AUD_initPython();
-#endif
-
 #ifdef WITH_CYCLES
 /* Defined in `cycles` module. */
 static PyObject *CCL_initPython()
@@ -309,7 +309,7 @@ static _inittab bpy_internal_modules[] = {
     {"manta", Manta_initPython},
 #endif
 #ifdef WITH_AUDASPACE_PY
-    {"aud", AUD_initPython},
+    {"aud", BPyInit_audaspace},
 #endif
 #ifdef WITH_CYCLES
     {"_cycles", CCL_initPython},

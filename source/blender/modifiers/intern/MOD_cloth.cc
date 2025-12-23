@@ -15,7 +15,6 @@
 #include "BLT_translation.hh"
 
 #include "DNA_cloth_types.h"
-#include "DNA_defaults.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
@@ -48,11 +47,9 @@ static void init_data(ModifierData *md)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(clmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(clmd, DNA_struct_default_get(ClothModifierData), modifier);
-  clmd->sim_parms = DNA_struct_default_alloc(ClothSimSettings);
-  clmd->coll_parms = DNA_struct_default_alloc(ClothCollSettings);
+  INIT_DEFAULT_STRUCT_AFTER(clmd, modifier);
+  clmd->sim_parms = MEM_new_for_free<ClothSimSettings>(__func__);
+  clmd->coll_parms = MEM_new_for_free<ClothCollSettings>(__func__);
 
   clmd->point_cache = BKE_ptcache_add(&clmd->ptcaches);
 
@@ -250,11 +247,11 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }

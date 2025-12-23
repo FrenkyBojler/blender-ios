@@ -554,7 +554,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
                          eV3DSelectObjectFilter select_filter,
                          const bool do_material_slot_selection)
 {
-  bThemeState theme_state;
+  blender::ui::theme::bThemeState theme_state;
   const wmWindowManager *wm = CTX_wm_manager(vc->C);
   Depsgraph *depsgraph = vc->depsgraph;
   Scene *scene = vc->scene;
@@ -647,8 +647,8 @@ int view3d_gpu_select_ex(const ViewContext *vc,
   }
 
   /* Tools may request depth outside of regular drawing code. */
-  UI_Theme_Store(&theme_state);
-  UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  blender::ui::theme::theme_store(&theme_state);
+  blender::ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   /* All of the queries need to be perform on the drawing context. */
   DRW_gpu_context_enable();
@@ -731,7 +731,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
 
   DRW_gpu_context_disable();
 
-  UI_Theme_Restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
 
   return hits;
 }
@@ -882,7 +882,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
     }
   }
 
-  v3d->localvd = MEM_mallocN<View3D>("localview");
+  v3d->localvd = MEM_new_for_free<View3D>("localview");
   *v3d->localvd = blender::dna::shallow_copy(*v3d);
   v3d->local_view_uid = local_view_bit;
 
@@ -895,8 +895,8 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
       Object *camera_old = nullptr;
       float dist_new, ofs_new[3];
 
-      rv3d->localvd = MEM_mallocN<RegionView3D>("localview region");
-      memcpy(rv3d->localvd, rv3d, sizeof(RegionView3D));
+      rv3d->localvd = MEM_new_for_free<RegionView3D>("localview region",
+                                                     blender::dna::shallow_copy(*rv3d));
 
       if (frame_selected) {
         float mid[3];

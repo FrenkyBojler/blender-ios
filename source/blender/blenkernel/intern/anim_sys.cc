@@ -137,7 +137,7 @@ KeyingSet *BKE_keyingset_add(
   KeyingSet *ks;
 
   /* allocate new KeyingSet */
-  ks = MEM_callocN<KeyingSet>("KeyingSet");
+  ks = MEM_new_for_free<KeyingSet>("KeyingSet");
 
   STRNCPY_UTF8(ks->idname, (idname) ? idname : (name) ? name : DATA_("KeyingSet"));
   STRNCPY_UTF8(ks->name, (name) ? name : (idname) ? idname : DATA_("Keying Set"));
@@ -192,7 +192,7 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks,
   }
 
   /* allocate a new KeyingSet Path */
-  ksp = MEM_callocN<KS_Path>("KeyingSet Path");
+  ksp = MEM_new_for_free<KS_Path>("KeyingSet Path");
 
   /* just store absolute info */
   ksp->id = id;
@@ -303,12 +303,12 @@ void BKE_keyingsets_blend_write(BlendWriter *writer, ListBase *list)
 {
   LISTBASE_FOREACH (KeyingSet *, ks, list) {
     /* KeyingSet */
-    BLO_write_struct(writer, KeyingSet, ks);
+    writer->write_struct(ks);
 
     /* Paths */
     LISTBASE_FOREACH (KS_Path *, ksp, &ks->paths) {
       /* Path */
-      BLO_write_struct(writer, KS_Path, ksp);
+      writer->write_struct(ksp);
 
       if (ksp->rna_path) {
         BLO_write_string(writer, ksp->rna_path);
@@ -1182,24 +1182,6 @@ static void nlavalidmask_free(NlaValidMask *mask)
 
 /* ---------------------- */
 
-/* Hashing functions for NlaEvalChannelKey. */
-static uint nlaevalchan_keyhash(const void *ptr)
-{
-  const NlaEvalChannelKey *key = static_cast<const NlaEvalChannelKey *>(ptr);
-  uint hash = BLI_ghashutil_ptrhash(key->ptr.data);
-  return hash ^ BLI_ghashutil_ptrhash(key->prop);
-}
-
-static bool nlaevalchan_keycmp(const void *a, const void *b)
-{
-  const NlaEvalChannelKey *A = static_cast<const NlaEvalChannelKey *>(a);
-  const NlaEvalChannelKey *B = static_cast<const NlaEvalChannelKey *>(b);
-
-  return ((A->ptr.data != B->ptr.data) || (A->prop != B->prop));
-}
-
-/* ---------------------- */
-
 /* Allocate a new blending value snapshot for the channel. */
 static NlaEvalChannelSnapshot *nlaevalchan_snapshot_new(NlaEvalChannel *nec)
 {
@@ -1347,8 +1329,7 @@ static void nlaeval_init(NlaEvalData *nlaeval)
   memset(nlaeval, 0, sizeof(*nlaeval));
 
   nlaeval->path_hash = BLI_ghash_str_new("NlaEvalData::path_hash");
-  nlaeval->key_hash = BLI_ghash_new(
-      nlaevalchan_keyhash, nlaevalchan_keycmp, "NlaEvalData::key_hash");
+  nlaeval->key_hash = MEM_new<Map<NlaEvalChannelKey, NlaEvalChannel *>>("NlaEvalData::key_hash");
 }
 
 static void nlaeval_free(NlaEvalData *nlaeval)
@@ -1366,7 +1347,7 @@ static void nlaeval_free(NlaEvalData *nlaeval)
 
   BLI_freelistN(&nlaeval->channels);
   BLI_ghash_free(nlaeval->path_hash, nullptr, nullptr);
-  BLI_ghash_free(nlaeval->key_hash, nullptr, nullptr);
+  MEM_delete(nlaeval->key_hash);
 }
 
 /* ---------------------- */
@@ -1508,50 +1489,39 @@ static NlaEvalChannel *nlaevalchan_verify_key(NlaEvalData *nlaeval,
                                               const char *path,
                                               NlaEvalChannelKey *key)
 {
-  /* Look it up in the key hash. */
-  NlaEvalChannel **p_key_nec;
-  NlaEvalChannelKey **p_key;
-  bool found_key = BLI_ghash_ensure_p_ex(
-      nlaeval->key_hash, key, (void ***)&p_key, (void ***)&p_key_nec);
+  return nlaeval->key_hash->lookup_or_add_cb(*key, [&]() {
+    /* Create the channel. */
+    bool is_array = RNA_property_array_check(key->prop);
+    int length = is_array ? RNA_property_array_length(&key->ptr, key->prop) : 1;
 
-  if (found_key) {
-    return *p_key_nec;
-  }
+    NlaEvalChannel *nec = static_cast<NlaEvalChannel *>(
+        MEM_callocN(sizeof(NlaEvalChannel) + sizeof(float) * length, "NlaEvalChannel"));
 
-  /* Create the channel. */
-  bool is_array = RNA_property_array_check(key->prop);
-  int length = is_array ? RNA_property_array_length(&key->ptr, key->prop) : 1;
+    /* Initialize the channel. */
+    nec->rna_path = path;
+    new (&nec->key) NlaEvalChannelKey(*key);
 
-  NlaEvalChannel *nec = static_cast<NlaEvalChannel *>(
-      MEM_callocN(sizeof(NlaEvalChannel) + sizeof(float) * length, "NlaEvalChannel"));
+    nec->owner = nlaeval;
+    nec->index = nlaeval->num_channels++;
+    nec->is_array = is_array;
 
-  /* Initialize the channel. */
-  nec->rna_path = path;
-  new (&nec->key) NlaEvalChannelKey(*key);
+    nec->mix_mode = nlaevalchan_detect_mix_mode(key, length);
 
-  nec->owner = nlaeval;
-  nec->index = nlaeval->num_channels++;
-  nec->is_array = is_array;
+    nlavalidmask_init(&nec->domain, length);
 
-  nec->mix_mode = nlaevalchan_detect_mix_mode(key, length);
+    nec->base_snapshot.channel = nec;
+    nec->base_snapshot.length = length;
+    nec->base_snapshot.is_base = true;
 
-  nlavalidmask_init(&nec->domain, length);
+    nlaevalchan_get_default_values(nec, nec->base_snapshot.values);
 
-  nec->base_snapshot.channel = nec;
-  nec->base_snapshot.length = length;
-  nec->base_snapshot.is_base = true;
+    /* Store channel in data structures. */
+    BLI_addtail(&nlaeval->channels, nec);
 
-  nlaevalchan_get_default_values(nec, nec->base_snapshot.values);
+    *nlaeval_snapshot_ensure_slot(&nlaeval->base_snapshot, nec) = &nec->base_snapshot;
 
-  /* Store channel in data structures. */
-  BLI_addtail(&nlaeval->channels, nec);
-
-  *nlaeval_snapshot_ensure_slot(&nlaeval->base_snapshot, nec) = &nec->base_snapshot;
-
-  *p_key_nec = nec;
-  *p_key = &nec->key;
-
-  return nec;
+    return nec;
+  });
 }
 
 /* Verify that an appropriate NlaEvalChannel for this path exists. */
@@ -3747,7 +3717,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 
   if (ctx == nullptr) {
     /* Allocate and evaluate a new context. */
-    ctx = MEM_callocN<NlaKeyframingContext>("NlaKeyframingContext");
+    ctx = MEM_new_for_free<NlaKeyframingContext>("NlaKeyframingContext");
     ctx->adt = adt;
 
     nlaeval_init(&ctx->lower_eval_data);
@@ -3763,7 +3733,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
                                            PointerRNA *prop_ptr,
                                            PropertyRNA *prop,
-                                           const blender::MutableSpan<float> values,
+                                           const MutableSpan<float> values,
                                            int index,
                                            const AnimationEvalContext *anim_eval_context,
                                            bool *r_force_all,
@@ -4306,7 +4276,7 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
 void BKE_time_markers_blend_write(BlendWriter *writer, ListBase /* TimeMarker */ &markers)
 {
   LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
-    BLO_write_struct(writer, TimeMarker, marker);
+    writer->write_struct(marker);
 
     if (marker->prop != nullptr) {
       IDP_BlendWrite(writer, marker->prop);

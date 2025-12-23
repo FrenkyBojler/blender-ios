@@ -78,8 +78,6 @@ class GLStateManager : public StateManager {
   void image_unbind(Texture *tex) override;
   void image_unbind_all() override;
 
-  void texture_unpack_row_length_set(uint len) override;
-
   uint64_t bound_texture_slots();
   uint8_t bound_image_slots();
 
@@ -93,7 +91,6 @@ class GLStateManager : public StateManager {
   static void set_facing(bool invert);
   static void set_backface_culling(GPUFaceCullTest test);
   static void set_provoking_vert(GPUProvokingVertex vert);
-  static void set_shadow_bias(bool enable);
   static void set_clip_control(bool enable);
   static void set_blend(GPUBlend value);
 
