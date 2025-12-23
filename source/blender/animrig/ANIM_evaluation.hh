@@ -120,7 +120,7 @@ class EvaluationResult {
   {
     PropIdentifier key(rna_path, array_index);
     AnimatedProperty anim_prop(value, prop_rna);
-    result_.add_overwrite(key, anim_prop);
+    result_.add_overwrite(std::move(key), std::move(anim_prop));
   }
 
   void store(const StringRefNull rna_path,
@@ -129,8 +129,8 @@ class EvaluationResult {
              PathResolvedRNA &&prop_rna)
   {
     PropIdentifier key(rna_path, array_index);
-    AnimatedProperty anim_prop(value, prop_rna);
-    result_.add_overwrite(key, anim_prop);
+    AnimatedProperty anim_prop(value, std::move(prop_rna));
+    result_.add_overwrite(std::move(key), std::move(anim_prop));
   }
 
   AnimatedProperty value(const StringRefNull rna_path, const int array_index) const
