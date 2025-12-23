@@ -603,8 +603,8 @@ void bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
   if (use_merge) {
     bool match = true;
     const int eloop_len = BM_edgeloop_length_get(static_cast<BMEdgeLoopStore *>(eloops.first));
-    LISTBASE_FOREACH (LinkData *, el_store, &eloops) {
-      if (eloop_len != BM_edgeloop_length_get((BMEdgeLoopStore *)el_store)) {
+    LISTBASE_FOREACH (BMEdgeLoopStore *, el_store, &eloops) {
+      if (eloop_len != BM_edgeloop_length_get(el_store)) {
         match = false;
         break;
       }
@@ -622,12 +622,13 @@ void bmo_bridge_loops_exec(BMesh *bm, BMOperator *op)
     BM_mesh_edgeloops_calc_order(bm, &eloops, use_pairs);
   }
 
-  LISTBASE_FOREACH (LinkData *, el_store, &eloops) {
-    LinkData *el_store_next = el_store->next;
+  /* Cast because of incomplete type. */
+  LISTBASE_FOREACH (Link *, el_store, reinterpret_cast<const ListBase *>(&eloops)) {
+    Link *el_store_next = el_store->next;
 
     if (el_store_next == nullptr) {
       if (use_cyclic && (count > 2)) {
-        el_store_next = static_cast<LinkData *>(eloops.first);
+        el_store_next = static_cast<Link *>(eloops.first);
       }
       else {
         break;

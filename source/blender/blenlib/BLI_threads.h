@@ -30,20 +30,20 @@ void BLI_threadapi_exit(void);
  * \param tot: When 0 only initializes `malloc` mutex in a safe way (see sequence.c)
  * problem otherwise: scene render will kill of the mutex!
  */
-void BLI_threadpool_init(struct ListBase *threadbase, void *(*do_thread)(void *), int tot);
+void BLI_threadpool_init(ListBase *threadbase, void *(*do_thread)(void *), int tot);
 /**
  * Amount of available threads.
  */
-int BLI_available_threads(struct ListBase *threadbase);
+int BLI_available_threads(ListBase *threadbase);
 /**
  * Returns thread number, for sample patterns or threadsafe tables.
  */
-int BLI_threadpool_available_thread_index(struct ListBase *threadbase);
-void BLI_threadpool_insert(struct ListBase *threadbase, void *callerdata);
-void BLI_threadpool_remove(struct ListBase *threadbase, void *callerdata);
-void BLI_threadpool_remove_index(struct ListBase *threadbase, int index);
-void BLI_threadpool_clear(struct ListBase *threadbase);
-void BLI_threadpool_end(struct ListBase *threadbase);
+int BLI_threadpool_available_thread_index(ListBase *threadbase);
+void BLI_threadpool_insert(ListBase *threadbase, void *callerdata);
+void BLI_threadpool_remove(ListBase *threadbase, void *callerdata);
+void BLI_threadpool_remove_index(ListBase *threadbase, int index);
+void BLI_threadpool_clear(ListBase *threadbase);
+void BLI_threadpool_end(ListBase *threadbase);
 int BLI_thread_is_main(void);
 
 /* System Information */

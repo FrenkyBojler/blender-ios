@@ -210,7 +210,7 @@ struct ImageFrameRange {
   ListBase udim_tiles;
 
   /* Temporary data. */
-  ListBase frames; /* ImageFrame. */
+  ListBase frames;
 };
 
 struct ImageFrame {

@@ -3958,11 +3958,11 @@ static int previews_id_ensure_callback(LibraryIDLinkCallbackData *cb_data)
 static wmOperatorStatus previews_ensure_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  ListBase *lb[] = {&bmain->materials,
-                    &bmain->textures,
-                    &bmain->images,
-                    &bmain->worlds,
-                    &bmain->lights,
+  ListBase *lb[] = {&bmain->materials.cast<ID>(),
+                    &bmain->textures.cast<ID>(),
+                    &bmain->images.cast<ID>(),
+                    &bmain->worlds.cast<ID>(),
+                    &bmain->lights.cast<ID>(),
                     nullptr};
   PreviewsIDEnsureData preview_id_data;
 
@@ -4088,13 +4088,13 @@ static wmOperatorStatus previews_clear_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   ListBase *lb[] = {
-      &bmain->objects,
-      &bmain->collections,
-      &bmain->materials,
-      &bmain->worlds,
-      &bmain->lights,
-      &bmain->textures,
-      &bmain->images,
+      &bmain->objects.cast<ID>(),
+      &bmain->collections.cast<ID>(),
+      &bmain->materials.cast<ID>(),
+      &bmain->worlds.cast<ID>(),
+      &bmain->lights.cast<ID>(),
+      &bmain->textures.cast<ID>(),
+      &bmain->images.cast<ID>(),
       nullptr,
   };
 

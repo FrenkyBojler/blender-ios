@@ -3332,8 +3332,8 @@ bool EDBM_select_interior_faces(BMEditMesh *em)
             }
 
             /* Merge the groups. */
-            LISTBASE_FOREACH (LinkData *, n, &fgroup_listbase[i_b]) {
-              BMFace *f_iter = static_cast<BMFace *>(n->data);
+            LISTBASE_FOREACH (BMFaceLink *, n, &fgroup_listbase[i_b]) {
+              BMFace *f_iter = n->face;
               BM_elem_index_set(f_iter, i_a);
             }
             BLI_movelisttolist(&fgroup_listbase[i_a], &fgroup_listbase[i_b]);

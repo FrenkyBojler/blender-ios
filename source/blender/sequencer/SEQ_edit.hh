@@ -77,7 +77,7 @@ Strip *edit_strip_split(Main *bmain,
  * Find gap after initial_frame and move strips on right side to close the gap
  *
  * \param scene: Scene in which strips are located
- * \param seqbase: ListBase in which strips are located
+ * \param seqbase: List in which strips are located
  * \param initial_frame: frame on timeline from where gaps are searched for
  * \param remove_all_gaps: remove all gaps instead of one gap
  * \return true if gap is removed, otherwise false

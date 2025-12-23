@@ -818,7 +818,8 @@ uint BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float n
    * - mode: & 1 is check for crossings, then create edges (TO DO )
    * - returns number of triangle faces added.
    */
-  ListBase tempve, temped;
+  ListBase tempve;
+  ListBase temped;
   PolyFill *pflist, *pf;
   float *min_xy_p, *max_xy_p;
   uint totfaces = 0; /* total faces added */

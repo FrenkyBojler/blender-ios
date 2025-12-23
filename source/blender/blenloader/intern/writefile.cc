@@ -222,7 +222,11 @@ bool RawWriteWrap::write(const void *buf, size_t buf_len)
   return ::write(file_handle, buf, buf_len) == buf_len;
 }
 
+struct ThreadSlot;
+
 class ZstdWriteWrap : public WriteWrap {
+  struct ZstdWriteBlockTask;
+
   WriteWrap &base_wrap;
 
   ListBase threadpool = {};
@@ -244,7 +248,6 @@ class ZstdWriteWrap : public WriteWrap {
   bool write(const void *buf, size_t buf_len) override;
 
  private:
-  struct ZstdWriteBlockTask;
   void write_task(ZstdWriteBlockTask *task);
   void write_u32_le(uint32_t val);
   void write_seekable_frames();

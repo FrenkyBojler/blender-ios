@@ -111,7 +111,7 @@ struct EditBone {
   EditBone *bbone_child = nullptr;
 
   ::BoneColor color; /* MUST be named the same as in bPoseChannel and Bone structs. */
-  ListBase /*BoneCollectionReference*/ bone_collections = {};
+  ListBase bone_collections = {};
 
   /* Used to store temporary data */
   union {

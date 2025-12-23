@@ -2218,7 +2218,7 @@ struct PreviewRestartQueueEntry {
   ID *id;
 };
 
-static ListBase /* #PreviewRestartQueueEntry */ G_restart_previews_queue;
+static ListBase G_restart_previews_queue;
 
 void ED_preview_restart_queue_free()
 {

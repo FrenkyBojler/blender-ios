@@ -1404,7 +1404,7 @@ static inline bool fcurve_span_must_be_selected(const eAnimFilter_Flags filter_m
  *    for example in the case of drivers.
  */
 static size_t animfilter_fcurves_span(bAnimContext *ac,
-                                      ListBase * /*bAnimListElem*/ anim_data,
+                                      ListBase *anim_data,
                                       Span<FCurve *> fcurves,
                                       const animrig::slot_handle_t slot_handle,
                                       const eAnimFilter_Flags filter_mode,
@@ -1582,7 +1582,7 @@ static size_t animfilter_act_group(bAnimContext *ac,
 }
 
 size_t ANIM_animfilter_action_slot(bAnimContext *ac,
-                                   ListBase * /* bAnimListElem */ anim_data,
+                                   ListBase *anim_data,
                                    animrig::Action &action,
                                    animrig::Slot &slot,
                                    const eAnimFilter_Flags filter_mode,

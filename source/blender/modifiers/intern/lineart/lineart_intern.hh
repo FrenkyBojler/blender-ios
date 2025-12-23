@@ -130,7 +130,7 @@ void lineart_main_load_geometries(struct Depsgraph *depsgraph,
                                   struct LineartData *ld,
                                   bool allow_duplicates,
                                   bool do_shadow_casting,
-                                  struct ListBase *shadow_elns,
+                                  ListBase *shadow_elns,
                                   blender::Set<const Object *> *included_objects);
 /**
  * The calculated view vector will point towards the far-plane from the camera position.
@@ -164,7 +164,7 @@ bool lineart_main_try_generate_shadow(struct Depsgraph *depsgraph,
                                       struct LineartStaticMemPool *shadow_data_pool,
                                       struct LineartElementLinkNode **r_veln,
                                       struct LineartElementLinkNode **r_eeln,
-                                      struct ListBase *r_calculated_edges_eln_list,
+                                      ListBase *r_calculated_edges_eln_list,
                                       struct LineartData **r_shadow_ld_if_reproject);
 bool lineart_main_try_generate_shadow_v3(struct Depsgraph *depsgraph,
                                          struct Scene *scene,
@@ -173,7 +173,7 @@ bool lineart_main_try_generate_shadow_v3(struct Depsgraph *depsgraph,
                                          struct LineartStaticMemPool *shadow_data_pool,
                                          struct LineartElementLinkNode **r_veln,
                                          struct LineartElementLinkNode **r_eeln,
-                                         struct ListBase *r_calculated_edges_eln_list,
+                                         ListBase *r_calculated_edges_eln_list,
                                          struct LineartData **r_shadow_ld_if_reproject);
 /**
  * Does the 3rd stage reprojection, will not re-load objects because #shadow_ld is not deleted.
@@ -188,8 +188,8 @@ void lineart_main_transform_and_add_shadow(struct LineartData *ld,
                                            struct LineartElementLinkNode *veln,
                                            struct LineartElementLinkNode *eeln);
 
-LineartElementLinkNode *lineart_find_matching_eln(struct ListBase *shadow_elns, int obindex);
-LineartElementLinkNode *lineart_find_matching_eln_obj(struct ListBase *elns, struct Object *ob);
+LineartElementLinkNode *lineart_find_matching_eln(ListBase *shadow_elns, int obindex);
+LineartElementLinkNode *lineart_find_matching_eln_obj(ListBase *elns, struct Object *ob);
 LineartEdge *lineart_find_matching_edge(struct LineartElementLinkNode *shadow_eln,
                                         uint64_t edge_identifier);
 /**
@@ -199,8 +199,7 @@ LineartEdge *lineart_find_matching_edge(struct LineartElementLinkNode *shadow_el
 void lineart_register_shadow_cuts(struct LineartData *ld,
                                   struct LineartEdge *e,
                                   struct LineartEdge *shadow_edge);
-void lineart_register_intersection_shadow_cuts(struct LineartData *ld,
-                                               struct ListBase *shadow_elns);
+void lineart_register_intersection_shadow_cuts(struct LineartData *ld, ListBase *shadow_elns);
 
 bool lineart_edge_from_triangle(const struct LineartTriangle *tri,
                                 const struct LineartEdge *e,

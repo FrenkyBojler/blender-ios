@@ -53,6 +53,11 @@ enum {
 
 using CollectionObjectMap = blender::Map<const Object *, CollectionObject *>;
 
+struct CollectionParent {
+  struct CollectionParent *next, *prev;
+  struct Collection *collection;
+};
+
 namespace blender::bke {
 
 struct CollectionRuntime {
@@ -77,16 +82,11 @@ struct CollectionRuntime {
 
 }  // namespace blender::bke
 
-struct CollectionParent {
-  struct CollectionParent *next, *prev;
-  struct Collection *collection;
-};
-
 /* Collections */
 
 /**
- * Add a collection to a collection ListBase and synchronize all render layers
- * The ListBase is NULL when the collection is to be added to the master collection
+ * Add a collection to a collection ListBaseT and synchronize all render layers
+ * The ListBaseT is NULL when the collection is to be added to the master collection
  */
 Collection *BKE_collection_add(Main *bmain,
                                Collection *collection_parent,

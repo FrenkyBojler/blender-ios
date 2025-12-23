@@ -7156,7 +7156,7 @@ static wmOperatorStatus space_workspace_cycle_invoke(bContext *C,
   const eScreenCycle direction = eScreenCycle(RNA_enum_get(op->ptr, "direction"));
   WorkSpace *workspace_src = WM_window_get_active_workspace(win);
 
-  Vector<ID *> ordered = BKE_id_ordered_list(&bmain->workspaces);
+  Vector<ID *> ordered = BKE_id_ordered_list(&bmain->workspaces.cast<ID>());
   if (ordered.size() == 1) {
     return OPERATOR_CANCELLED;
   }

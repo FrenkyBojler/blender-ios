@@ -66,7 +66,7 @@ struct wmXrSessionState {
   bool is_navigation_dirty;
 
   /** Last known controller data. */
-  ListBase controllers; /* #wmXrController. */
+  ListBase controllers;
 
   /** The currently active action set that will be updated on calls to
    * #wm_xr_session_actions_update(). If NULL, all action sets will be treated as active and
@@ -93,7 +93,7 @@ struct wmXrRuntimeData {
   wmXrSessionState session_state;
   wmXrSessionExitFn exit_fn;
 
-  ListBase actionmaps; /* #XrActionMap. */
+  ListBase actionmaps;
   short actactionmap;
   short selactionmap;
 };
@@ -106,7 +106,7 @@ struct wmXrViewportPair {
 
 struct wmXrSurfaceData {
   /** Off-screen buffers/viewports for each view. */
-  ListBase viewports; /* #wmXrViewportPair. */
+  ListBase viewports;
 
   /** Dummy region type for controller draw callback. */
   struct ARegionType *controller_art;

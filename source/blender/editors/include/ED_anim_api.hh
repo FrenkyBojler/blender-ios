@@ -566,7 +566,7 @@ ENUM_OPERATORS(eAnimFilter_Flags);
  * \return The number of items added to `anim_data`.
  */
 size_t ANIM_animfilter_action_slot(bAnimContext *ac,
-                                   ListBase * /* bAnimListElem */ anim_data,
+                                   ListBase *anim_data,
                                    blender::animrig::Action &action,
                                    blender::animrig::Slot &slot,
                                    eAnimFilter_Flags filter_mode,

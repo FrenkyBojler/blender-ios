@@ -53,10 +53,7 @@ using namespace blender;
 /** \name Channel List
  * \{ */
 
-void draw_channel_names(bContext *C,
-                        bAnimContext *ac,
-                        ARegion *region,
-                        const ListBase /*bAnimListElem*/ &anim_data)
+void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *region, const ListBase &anim_data)
 {
   bAnimListElem *ale;
   View2D *v2d = &region->v2d;
@@ -314,7 +311,7 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
 static void draw_keyframes(bAnimContext *ac,
                            View2D *v2d,
                            SpaceAction *saction,
-                           ListBase &anim_data)
+                           const ListBase &anim_data)
 {
   /* Draw keyframes
    * 1) Only channels that are visible in the Action Editor get drawn/evaluated.

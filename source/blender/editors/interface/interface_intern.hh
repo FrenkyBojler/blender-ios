@@ -616,7 +616,7 @@ struct Block {
    * state that is persistent over redraws (e.g. collapsed tree-view items). */
   ListBase views;
 
-  ListBase dynamic_listeners; /* #BlockDynamicListener */
+  ListBase dynamic_listeners;
 
   std::string name;
 
@@ -686,7 +686,6 @@ struct Block {
 
   /** Pull-downs, to detect outside, can differ per case how it is created. */
   rctf safety;
-  /** #SafetyRect list */
   ListBase saferct;
 
   PopupBlockHandle *handle;

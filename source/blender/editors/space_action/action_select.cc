@@ -1143,7 +1143,7 @@ static void columnselect_action_keys(bAnimContext *ac, short mode)
           switch (ale->type) {
             case ANIMTYPE_GPLAYER:
               ED_gpencil_layer_make_cfra_list(
-                  static_cast<bGPDlayer *>(ale->data), &ked.list, true);
+                  static_cast<bGPDlayer *>(ale->data), static_cast<ListBase *>(&ked.list), true);
               break;
             case ANIMTYPE_GREASE_PENCIL_LAYER:
               blender::ed::greasepencil ::create_keyframe_edit_data_selected_frames_list(
@@ -1161,7 +1161,8 @@ static void columnselect_action_keys(bAnimContext *ac, short mode)
 
         LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
           if (ale->datatype == ALE_GPFRAME) {
-            ED_gpencil_layer_make_cfra_list(static_cast<bGPDlayer *>(ale->data), &ked.list, true);
+            ED_gpencil_layer_make_cfra_list(
+                static_cast<bGPDlayer *>(ale->data), static_cast<ListBase *>(&ked.list), true);
           }
           else {
             ked.data = ale;
@@ -1182,7 +1183,7 @@ static void columnselect_action_keys(bAnimContext *ac, short mode)
       break;
 
     case ACTKEYS_COLUMNSEL_MARKERS_COLUMN: /* list of selected markers */
-      ED_markers_make_cfra_list(ac->markers, &ked.list, true);
+      ED_markers_make_cfra_list(ac->markers, static_cast<ListBase *>(&ked.list), true);
       break;
 
     default: /* invalid option */

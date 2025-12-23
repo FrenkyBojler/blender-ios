@@ -64,7 +64,4 @@ typedef struct FixedSizeBoxPack {
  * larger boxes should come first, though how exactly size is best defined (e.g. area, perimeter)
  * depends on the particular application.
  */
-void BLI_box_pack_2d_fixedarea(struct ListBase *boxes,
-                               int width,
-                               int height,
-                               struct ListBase *packed);
+void BLI_box_pack_2d_fixedarea(ListBase *boxes, int width, int height, ListBase *packed);

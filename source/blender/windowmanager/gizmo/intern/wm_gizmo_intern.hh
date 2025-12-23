@@ -98,7 +98,7 @@ struct wmGizmoMapSelectState {
 
 struct wmGizmoMap {
   wmGizmoMapType *type;
-  ListBase groups; /* #wmGizmoGroup. */
+  ListBase groups;
 
   /* Private, update tagging (enum defined in C source). */
   char update_flag[WM_GIZMOMAP_DRAWSTEP_MAX];

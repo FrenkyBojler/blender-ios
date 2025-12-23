@@ -434,7 +434,7 @@ void key_curve_normal_weights(const float t, float data[4], const KeyInterpolati
  * false means interpolate.
  */
 static bool get_keys_for_absolute_eval(float eval_time,
-                                       const ListBase * /* KeyBlock */ keyblocks,
+                                       const ListBase *keyblocks,
                                        KeyBlock *r_target_keys[4],
                                        float r_weights[4])
 {

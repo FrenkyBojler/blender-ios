@@ -1804,8 +1804,9 @@ static bool keyframe_time_differs(BezTriple *keyframes[3])
 }
 
 /* Find groups of `rotation_euler` channels. */
-static ListBase /*tEulerFilter*/ euler_filter_group_channels(
-    const ListBase /*bAnimListElem*/ *anim_data, ReportList *reports, int *r_num_groups)
+static ListBase euler_filter_group_channels(const ListBase *anim_data,
+                                            ReportList *reports,
+                                            int *r_num_groups)
 {
   ListBase euler_groups = {nullptr, nullptr};
   tEulerFilter *euf = nullptr;
@@ -1980,7 +1981,7 @@ static bool euler_filter_single_channel(FCurve *fcu)
   return is_modified;
 }
 
-static void euler_filter_perform_filter(ListBase /*tEulerFilter*/ *eulers,
+static void euler_filter_perform_filter(ListBase *eulers,
                                         ReportList *reports,
                                         int *r_curves_filtered,
                                         int *r_curves_seen)

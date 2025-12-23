@@ -383,7 +383,7 @@ static void write_slots(BlendWriter *writer, Span<animrig::Slot *> slots)
 /**
  * Create a listbase from a Span of channel groups.
  *
- * \note this does NOT transfer ownership of the pointers. The ListBase should
+ * \note this does NOT transfer ownership of the pointers. The ListBaseT should
  * not be freed, but given to
  * `action_blend_write_clear_legacy_channel_groups_listbase()` below.
  *
@@ -443,7 +443,7 @@ static void action_blend_write_clear_legacy_channel_groups_listbase(ListBase &li
 /**
  * Create a listbase from a Span of F-Curves.
  *
- * \note this does NOT transfer ownership of the pointers. The ListBase should not be freed,
+ * \note this does NOT transfer ownership of the pointers. The ListBaseT should not be freed,
  * but given to `action_blend_write_clear_legacy_fcurves_listbase()` below.
  *
  * \warning This code is modifying actual '`Main`' data in-place, which is
@@ -546,7 +546,7 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
      *
      * Note that the FCurves themselves have been written as part of the layered
      * animation writing code called above. Writing them again as part of the
-     * handling of the legacy `action.fcurves` ListBase would corrupt the
+     * handling of the legacy `action.fcurves` ListBaseT would corrupt the
      * blend-file by generating two `BHead` `DATA` blocks with the same old
      * address for the same ID.
      */

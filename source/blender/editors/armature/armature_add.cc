@@ -996,7 +996,7 @@ static void mirror_bone_collection_assignments(bArmature &armature,
 {
   BLI_assert_msg(armature.edbo != nullptr, "Expecting the armature to be in edit mode");
   char name_flip[64];
-  /* Avoiding modification of the ListBase in the iteration. */
+  /* Avoiding modification of the ListBaseT in the iteration. */
   blender::Vector<BoneCollection *> unassign_collections;
   blender::Vector<BoneCollection *> assign_collections;
 

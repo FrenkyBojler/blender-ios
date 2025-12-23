@@ -5948,11 +5948,8 @@ bool BKE_constraint_apply_for_object(Depsgraph *depsgraph,
   return true;
 }
 
-bool BKE_constraint_apply_and_remove_for_object(Depsgraph *depsgraph,
-                                                Scene *scene,
-                                                ListBase /*bConstraint*/ *constraints,
-                                                Object *ob,
-                                                bConstraint *con)
+bool BKE_constraint_apply_and_remove_for_object(
+    Depsgraph *depsgraph, Scene *scene, ListBase *constraints, Object *ob, bConstraint *con)
 {
   if (!BKE_constraint_apply_for_object(depsgraph, scene, ob, con)) {
     return false;
@@ -6012,7 +6009,7 @@ bool BKE_constraint_apply_for_pose(
 
 bool BKE_constraint_apply_and_remove_for_pose(Depsgraph *depsgraph,
                                               Scene *scene,
-                                              ListBase /*bConstraint*/ *constraints,
+                                              ListBase *constraints,
                                               Object *ob,
                                               bConstraint *con,
                                               bPoseChannel *pchan)

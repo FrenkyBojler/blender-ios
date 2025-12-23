@@ -582,7 +582,7 @@ static void prepare_channel_for_drawing(ChannelListElement *elem)
 
 /** List of channels that are actually drawn because they are in view. */
 struct ChannelDrawList {
-  ListBase /*ChannelListElement*/ channels;
+  ListBase channels;
 };
 
 ChannelDrawList *ED_channel_draw_list_create()
@@ -605,7 +605,7 @@ static void channel_list_draw_blocks(ChannelDrawList *channel_list, View2D *v2d)
   }
 }
 
-static int channel_visible_key_len(const View2D *v2d, const ListBase * /*ActKeyColumn*/ keys)
+static int channel_visible_key_len(const View2D *v2d, const ListBase *keys)
 {
   /* count keys */
   uint len = 0;

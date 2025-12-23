@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_listBase.h"
+
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
@@ -618,7 +620,7 @@ bool BKE_workspace_owner_id_check(const WorkSpace *workspace, const char *owner_
 
 void BKE_workspace_id_tag_all_visible(Main *bmain, int tag)
 {
-  BKE_main_id_tag_listbase(&bmain->workspaces, tag, false);
+  BKE_main_id_tag_listbase(&bmain->workspaces.cast<ID>(), tag, false);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);

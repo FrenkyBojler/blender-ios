@@ -464,7 +464,7 @@ static void delete_bp_from_nurb(const BPoint *bp, Nurb *nu, EditNurb *editnurb)
 }
 
 /**
- * Get closest vertex in all nurbs in given #ListBase to a given point.
+ * Get closest vertex in all nurbs in given #ListBaseT to a given point.
  * Returns true if point is found.
  */
 static bool get_closest_vertex_to_point_in_nurbs(const ViewContext *vc,

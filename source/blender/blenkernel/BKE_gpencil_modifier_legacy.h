@@ -47,5 +47,5 @@ void BKE_gpencil_modifiers_foreach_ID_link(struct Object *ob,
                                            void *user_data);
 
 void BKE_gpencil_modifier_blend_read_data(struct BlendDataReader *reader,
-                                          struct ListBase *lb,
+                                          ListBase *lb,
                                           struct Object *ob);

@@ -575,7 +575,7 @@ void data_xform_by_mat4(XFormObjectData &xod_base, const float4x4 &transform)
 
       Key *key = cu->key;
       const int key_index = -1;
-      ListBase *nurb = nullptr;
+      const ListBase *nurb = nullptr;
 
       if (xod.is_edit_mode) {
         EditNurb *editnurb = cu->editnurb;

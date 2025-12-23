@@ -720,7 +720,7 @@ const char *BKE_main_blendfile_path_from_global();
 const char *BKE_main_blendfile_path_from_library(const Library &library);
 
 /**
- * \return A pointer to the \a ListBase of given \a bmain for requested \a type ID type.
+ * \return A pointer to the \a ListBaseT of given \a bmain for requested \a type ID type.
  */
 ListBase *which_libbase(Main *bmain, short type);
 
@@ -728,12 +728,12 @@ ListBase *which_libbase(Main *bmain, short type);
 using MainListsArray = std::array<ListBase *, INDEX_ID_MAX - 1>;
 
 /**
- * Returns the pointers to all the #ListBase structs in given `bmain`.
+ * Returns the pointers to all the #ListBaseT structs in given `bmain`.
  *
  * This is useful for generic traversal of all the blocks in a #Main (by traversing all the lists
  * in turn), without worrying about block types.
  *
- * \note The order of each ID type #ListBase in the array is determined by the `INDEX_ID_<IDTYPE>`
+ * \note The order of each ID type #ListBaseT in the array is determined by the `INDEX_ID_<IDTYPE>`
  * enum definitions in `DNA_ID.h`. See also the #FOREACH_MAIN_ID_BEGIN macro in `BKE_main.hh`
  */
 MainListsArray BKE_main_lists_get(Main &bmain);

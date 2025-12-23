@@ -621,7 +621,7 @@ void BKE_autotrack_context_start(AutoTrackContext *context)
 /* NOTE: This is a TLS in a sense that this struct is never accessed from multiple threads, and
  * that threads are re-using the struct as much as possible. */
 struct AutoTrackTLS {
-  ListBase results; /* Elements of `AutoTrackTrackingResult`. */
+  ListBase results;
 };
 
 static void autotrack_context_step_cb(void *__restrict userdata,

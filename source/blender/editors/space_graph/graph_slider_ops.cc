@@ -1777,14 +1777,6 @@ void GRAPH_OT_scale_average(wmOperatorType *ot)
 /** \name Gauss Smooth Operator
  * \{ */
 
-/* It is necessary to store data for smoothing when running in modal, because the sampling of
- * FCurves shouldn't be done on every update. */
-struct tGaussOperatorData {
-  double *kernel;
-  ListBase segment_links; /* tFCurveSegmentLink */
-  ListBase anim_data;     /* bAnimListElem */
-};
-
 /* Store data to smooth an FCurve segment. */
 struct tFCurveSegmentLink {
   tFCurveSegmentLink *next, *prev;
@@ -1796,6 +1788,14 @@ struct tFCurveSegmentLink {
   /* Array of y-values of the FCurve segment at regular intervals. */
   float *samples;
   int sample_count;
+};
+
+/* It is necessary to store data for smoothing when running in modal, because the sampling of
+ * FCurves shouldn't be done on every update. */
+struct tGaussOperatorData {
+  double *kernel;
+  ListBase segment_links;
+  ListBase anim_data;
 };
 
 /* Allocates data that has to be freed after. */
@@ -2037,8 +2037,8 @@ void GRAPH_OT_gaussian_smooth(wmOperatorType *ot)
 
 struct tBtwOperatorData {
   ButterworthCoefficients *coefficients;
-  ListBase segment_links; /* tFCurveSegmentLink */
-  ListBase anim_data;     /* bAnimListElem */
+  ListBase segment_links;
+  ListBase anim_data;
 };
 
 static int btw_calculate_sample_count(const BezTriple *right_bezt,

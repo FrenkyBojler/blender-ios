@@ -4273,7 +4273,7 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
   }
 }
 
-void BKE_time_markers_blend_write(BlendWriter *writer, ListBase /* TimeMarker */ &markers)
+void BKE_time_markers_blend_write(BlendWriter *writer, ListBase &markers)
 {
   LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
     writer->write_struct(marker);
@@ -4284,7 +4284,7 @@ void BKE_time_markers_blend_write(BlendWriter *writer, ListBase /* TimeMarker */
   }
 }
 
-void BKE_time_markers_blend_read(BlendDataReader *reader, ListBase /* TimeMarker */ &markers)
+void BKE_time_markers_blend_read(BlendDataReader *reader, ListBase &markers)
 {
   BLO_read_struct_list(reader, TimeMarker, &markers);
   LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
@@ -4293,9 +4293,7 @@ void BKE_time_markers_blend_read(BlendDataReader *reader, ListBase /* TimeMarker
   }
 }
 
-void BKE_copy_time_markers(ListBase /* TimeMarker */ &markers_dst,
-                           const ListBase /* TimeMarker */ &markers_src,
-                           const int flag)
+void BKE_copy_time_markers(ListBase &markers_dst, const ListBase &markers_src, int flag)
 {
   BLI_duplicatelist(&markers_dst, &markers_src);
   LISTBASE_FOREACH (TimeMarker *, marker, &markers_dst) {

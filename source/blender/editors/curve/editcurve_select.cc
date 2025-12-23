@@ -12,6 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_ghash.h"
 #include "BLI_heap_simple.h"
 #include "BLI_kdtree.hh"
 #include "BLI_listbase.h"

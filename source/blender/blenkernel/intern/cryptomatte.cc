@@ -58,13 +58,12 @@ CryptomatteSession::CryptomatteSession(const Main *bmain)
   if (!BLI_listbase_is_empty(&bmain->objects)) {
     blender::bke::cryptomatte::CryptomatteLayer &objects = add_layer(
         RE_PASSNAME_CRYPTOMATTE_OBJECT);
-    LISTBASE_FOREACH (ID *, id, &bmain->objects) {
-      objects.add_ID(*id);
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      objects.add_ID(object->id);
     }
 
     blender::bke::cryptomatte::CryptomatteLayer &assets = add_layer(RE_PASSNAME_CRYPTOMATTE_ASSET);
-    LISTBASE_FOREACH (ID *, id, &bmain->objects) {
-      const Object *asset_object = reinterpret_cast<Object *>(id);
+    LISTBASE_FOREACH (Object *, asset_object, &bmain->objects) {
       while (asset_object->parent != nullptr) {
         asset_object = asset_object->parent;
       }
@@ -74,8 +73,8 @@ CryptomatteSession::CryptomatteSession(const Main *bmain)
   if (!BLI_listbase_is_empty(&bmain->materials)) {
     blender::bke::cryptomatte::CryptomatteLayer &materials = add_layer(
         RE_PASSNAME_CRYPTOMATTE_MATERIAL);
-    LISTBASE_FOREACH (ID *, id, &bmain->materials) {
-      materials.add_ID(*id);
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      materials.add_ID(material->id);
     }
   }
 }

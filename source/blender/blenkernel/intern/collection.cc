@@ -524,7 +524,7 @@ void BKE_collection_exporter_name_set(const ListBase *exporters,
 {
   /* Only use the new name if it's not empty. */
   if (newname && newname[0] != '\0') {
-    const ListBase list = exporters ? *exporters : BLI_listbase_from_link((Link *)data);
+    ListBase list = exporters ? *exporters : ListBase{data, data};
 
     STRNCPY(data->name, newname);
     BLI_uniquename(
@@ -1048,7 +1048,7 @@ static bool collection_object_cyclic_check_internal(Object *object, Collection *
 bool BKE_collection_object_cyclic_check(Main *bmain, Object *object, Collection *collection)
 {
   /* first flag all collections */
-  BKE_main_id_tag_listbase(&bmain->collections, ID_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->collections.cast<ID>(), ID_TAG_DOIT, true);
 
   return collection_object_cyclic_check_internal(object, collection);
 }
@@ -2519,7 +2519,7 @@ void BKE_scene_objects_iterator_next(BLI_Iterator *iter)
     iter->current = cob->ob;
   }
   else {
-    /* if this is the last object of this ListBase look at the next Collection */
+    /* if this is the last object of this ListBaseT look at the next Collection */
     Collection *collection;
     BKE_scene_collections_iterator_next(&data->scene_collection_iter);
     do {

@@ -56,8 +56,8 @@ typedef struct DispList {
   int totindex; /* indexed array drawing surfaces */
 } DispList;
 
-DispList *BKE_displist_find(struct ListBase *lb, int type);
-void BKE_displist_free(struct ListBase *lb);
+DispList *BKE_displist_find(ListBase *lb, int type);
+void BKE_displist_free(ListBase *lb);
 
 void BKE_displist_make_curveTypes(struct Depsgraph *depsgraph,
                                   const struct Scene *scene,
@@ -67,8 +67,8 @@ void BKE_displist_make_curveTypes(struct Depsgraph *depsgraph,
 void BKE_curve_calc_modifiers_pre(struct Depsgraph *depsgraph,
                                   const struct Scene *scene,
                                   struct Object *ob,
-                                  struct ListBase *source_nurb,
-                                  struct ListBase *target_nurb,
+                                  ListBase *source_nurb,
+                                  ListBase *target_nurb,
                                   bool for_render);
 bool BKE_displist_surfindex_get(
     const struct DispList *dl, int a, int *b, int *p1, int *p2, int *p3, int *p4);
@@ -79,8 +79,8 @@ bool BKE_displist_surfindex_get(
  * This is also used to initialize #DispList.nors (one normal per display list).
  * \param flip_normal: Flip the normal (same as passing \a normal_proj negated).
  */
-void BKE_displist_fill(const struct ListBase *dispbase,
-                       struct ListBase *to,
+void BKE_displist_fill(const ListBase *dispbase,
+                       ListBase *to,
                        const float normal_proj[3],
                        bool flip_normal);
 
@@ -90,4 +90,4 @@ float BKE_displist_calc_taper(struct Depsgraph *depsgraph,
                               int cur,
                               int tot);
 
-void BKE_displist_minmax(const struct ListBase *dispbase, float min[3], float max[3]);
+void BKE_displist_minmax(const ListBase *dispbase, float min[3], float max[3]);

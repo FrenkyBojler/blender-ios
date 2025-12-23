@@ -20,9 +20,9 @@ struct RuntimeStruct {
 };
 
 /* NOTE: This type must exist in order for the SDNA to be considered valid. */
-typedef struct ListBase {
+struct ListBase {
   void *first, *last;
-} ListBase;
+};
 
 struct TestStruct {
 #ifdef __cplusplus

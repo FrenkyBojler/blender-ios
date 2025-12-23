@@ -215,10 +215,10 @@ static void array_shift_range(
 
 bool Action::is_empty() const
 {
-  /* The check for emptiness has to include the check for an empty `groups` ListBase because of the
-   * animation filtering code. With the functions `rearrange_action_channels` and
+  /* The check for emptiness has to include the check for an empty `groups` ListBaseT because of
+   * the animation filtering code. With the functions `rearrange_action_channels` and
    * `join_groups_action_temp` the ownership of FCurves is temporarily transferred to the `groups`
-   * ListBase leaving `curves` potentially empty. */
+   * ListBaseT leaving `curves` potentially empty. */
   return this->layer_array_num == 0 && this->slot_array_num == 0 &&
          BLI_listbase_is_empty(&this->curves) && BLI_listbase_is_empty(&this->groups);
 }
@@ -2630,7 +2630,7 @@ Vector<FCurve *> fcurves_in_span_filtered(Span<FCurve *> fcurves,
   return found;
 }
 
-Vector<FCurve *> fcurves_in_listbase_filtered(ListBase /* FCurve * */ fcurves,
+Vector<FCurve *> fcurves_in_listbase_filtered(ListBase fcurves,
                                               FunctionRef<bool(const FCurve &fcurve)> predicate)
 {
   Vector<FCurve *> found;

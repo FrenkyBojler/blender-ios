@@ -630,7 +630,7 @@ class AnimDataConvertor {
 /**
  * Find vertex groups that have assigned vertices in this drawing.
  * Returns:
- * - ListBase with used vertex group names (bDeformGroup)
+ * - ListBase with used vertex group names
  * - Array of indices in the new vertex group list for remapping
  */
 static void find_used_vertex_groups(const bGPDframe &gpf,

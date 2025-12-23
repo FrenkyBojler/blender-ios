@@ -618,7 +618,7 @@ static void versioning_replace_splitviewer(bNodeTree *ntree)
 }
 
 static void version_socket_identifier_suffixes_for_dynamic_types(
-    ListBase sockets, const char *separator, const std::optional<int> total = std::nullopt)
+    const ListBase &sockets, const char *separator, const std::optional<int> total = std::nullopt)
 {
   int index = 0;
   LISTBASE_FOREACH (bNodeSocket *, socket, &sockets) {

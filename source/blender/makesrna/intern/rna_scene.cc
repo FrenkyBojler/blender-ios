@@ -2225,7 +2225,7 @@ static void rna_Scene_simplify_update_impl(Main *bmain,
   Scene *sce_iter;
   Base *base;
 
-  BKE_main_id_tag_listbase(&bmain->objects, ID_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->objects.cast<ID>(), ID_TAG_DOIT, true);
   FOREACH_SCENE_OBJECT_BEGIN (sce, ob) {
     object_simplify_update(sce, ob, update_normals, depsgraph);
   }

@@ -521,7 +521,7 @@ static const int *object_defgroup_active_index_get_p(const Object *ob)
 ListBase *BKE_id_defgroup_list_get_mutable(ID *id)
 {
   /* Cast away const just for the accessor. */
-  return (ListBase *)BKE_id_defgroup_list_get(id);
+  return const_cast<ListBase *>(BKE_id_defgroup_list_get(id));
 }
 
 bDeformGroup *BKE_object_defgroup_find_name(const Object *ob, const StringRef name)

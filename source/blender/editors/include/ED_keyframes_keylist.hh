@@ -55,7 +55,7 @@ struct ActKeyBlockInfo {
 
 /** Keyframe Column Struct. */
 struct ActKeyColumn {
-  /* ListBase linkage */
+  /* ListBaseT linkage */
   ActKeyColumn *next, *prev;
 
   /* sorting-tree linkage */
@@ -147,7 +147,7 @@ const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, float cf
 const ActKeyColumn *ED_keylist_find_any_between(const AnimKeylist *keylist,
                                                 const blender::Bounds<float> frame_range);
 bool ED_keylist_is_empty(const AnimKeylist *keylist);
-const ListBase /*ActKeyColumn*/ *ED_keylist_listbase(const AnimKeylist *keylist);
+const ListBase *ED_keylist_listbase(const AnimKeylist *keylist);
 bool ED_keylist_all_keys_frame_range(const AnimKeylist *keylist,
                                      blender::Bounds<float> *r_frame_range);
 /**

@@ -83,8 +83,7 @@ void strip_unique_name_set(Scene *scene, ListBase *seqbasep, Strip *strip)
   char *dot;
   sui.strip = strip;
   STRNCPY(sui.name_src, strip->name + 2);
-  STRNCPY(sui.name_dest, strip->name + 2);
-
+  STRNCPY(sui.name_dest, sui.name_src);
   sui.count = 1;
   sui.match = 1; /* assume the worst to start the loop */
 

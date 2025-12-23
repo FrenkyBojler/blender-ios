@@ -80,7 +80,7 @@ void add_load_data_init(
  *
  * \param bmain: Main reference
  * \param scene: Scene where strips will be added
- * \param seqbase: ListBase where strips will be added
+ * \param seqbase: List where strips will be added
  * \param load_data: SeqLoadData with information necessary to create strip
  * \return created strip
  */
@@ -91,7 +91,7 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
  *
  * \param bmain: Main reference
  * \param scene: Scene where strips will be added
- * \param seqbase: ListBase where strips will be added
+ * \param seqbase: List where strips will be added
  * \param load_data: SeqLoadData with information necessary to create strip
  * \return created strip
  */
@@ -112,7 +112,7 @@ void add_sound_av_sync(Main *bmain, Scene *scene, Strip *strip, LoadData *load_d
  * Add meta strip.
  *
  * \param scene: Scene where strips will be added
- * \param seqbase: ListBase where strips will be added
+ * \param seqbase: List where strips will be added
  * \param load_data: SeqLoadData with information necessary to create strip
  * \return created strip
  */
@@ -122,7 +122,7 @@ Strip *add_meta_strip(Scene *scene, ListBase *seqbase, LoadData *load_data);
  *
  * \param bmain: Main reference
  * \param scene: Scene where strips will be added
- * \param seqbase: ListBase where strips will be added
+ * \param seqbase: List where strips will be added
  * \param load_data: SeqLoadData with information necessary to create strip
  * \return created strip
  */
@@ -131,7 +131,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
  * Add scene strip.
  *
  * \param scene: Scene where strips will be added
- * \param seqbase: ListBase where strips will be added
+ * \param seqbase: List where strips will be added
  * \param load_data: SeqLoadData with information necessary to create strip
  * \return created strip
  */
@@ -140,7 +140,7 @@ Strip *add_scene_strip(Scene *scene, ListBase *seqbase, LoadData *load_data);
  * Add movieclip strip.
  *
  * \param scene: Scene where strips will be added
- * \param seqbase: ListBase where strips will be added
+ * \param seqbase: List where strips will be added
  * \param load_data: SeqLoadData with information necessary to create strip
  * \return created strip
  */
@@ -149,7 +149,7 @@ Strip *add_movieclip_strip(Scene *scene, ListBase *seqbase, LoadData *load_data)
  * Add mask strip.
  *
  * \param scene: Scene where strips will be added
- * \param seqbase: ListBase where strips will be added
+ * \param seqbase: List where strips will be added
  * \param load_data: SeqLoadData with information necessary to create strip
  * \return created strip
  */
@@ -158,7 +158,7 @@ Strip *add_mask_strip(Scene *scene, ListBase *seqbase, LoadData *load_data);
  * Add effect strip.
  *
  * \param scene: Scene where strips will be added
- * \param seqbase: ListBase where strips will be added
+ * \param seqbase: List where strips will be added
  * \param load_data: SeqLoadData with information necessary to create strip
  * \return created strip
  */

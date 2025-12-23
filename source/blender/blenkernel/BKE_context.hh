@@ -265,7 +265,7 @@ void CTX_wm_operator_poll_msg_clear(bContext *C);
 
 /* Data Context
  *
- * - The dir #ListBase consists of #LinkData items.
+ * - The dir #ListBaseT consists of #LinkData items.
  */
 
 /** Data type, needed so we can tell between a NULL pointer and an empty list. */

@@ -286,7 +286,7 @@ struct GPUUniformAttr {
 };
 
 struct GPUUniformAttrList {
-  ListBase list; /* GPUUniformAttr */
+  ListBase list;
 
   /* List length and hash code precomputed for fast lookup and comparison. */
   unsigned int count, hash_code;

@@ -1699,9 +1699,9 @@ struct FrameLink {
   float frame;
 };
 
-static void propagate_curve_values(ListBase /*tPChanFCurveLink*/ *pflinks,
+static void propagate_curve_values(ListBase *pflinks,
                                    const float source_frame,
-                                   ListBase /*FrameLink*/ *target_frames)
+                                   ListBase *target_frames)
 {
   using namespace blender::animrig;
   const KeyframeSettings settings = get_keyframe_settings(true);
@@ -1759,7 +1759,7 @@ static float find_last_key(ListBase *pflinks)
   return target_frame;
 }
 
-static void get_selected_marker_positions(Scene *scene, ListBase /*FrameLink*/ *target_frames)
+static void get_selected_marker_positions(Scene *scene, ListBase *target_frames)
 {
   ListBase selected_markers = {nullptr, nullptr};
   ED_markers_make_cfra_list(&scene->markers, &selected_markers, true);
@@ -1774,7 +1774,7 @@ static void get_selected_marker_positions(Scene *scene, ListBase /*FrameLink*/ *
 static void get_keyed_frames_in_range(ListBase *pflinks,
                                       const float start_frame,
                                       const float end_frame,
-                                      ListBase /*FrameLink*/ *target_frames)
+                                      ListBase *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
@@ -1797,7 +1797,7 @@ static void get_keyed_frames_in_range(ListBase *pflinks,
   ED_keylist_free(keylist);
 }
 
-static void get_selected_frames(ListBase *pflinks, ListBase /*FrameLink*/ *target_frames)
+static void get_selected_frames(ListBase *pflinks, ListBase *target_frames)
 {
   AnimKeylist *keylist = ED_keylist_create();
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {

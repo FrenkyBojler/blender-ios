@@ -247,11 +247,9 @@ static void idproperties_fix_groups_lengths_recurse(IDProperty *prop)
   }
 }
 
-static void idproperties_fix_group_lengths(ListBase idlist)
+template<typename T> static void idproperties_fix_group_lengths(const ListBase &idlist)
 {
-  ID *id;
-
-  for (id = static_cast<ID *>(idlist.first); id; id = static_cast<ID *>(id->next)) {
+  LISTBASE_FOREACH (ID *, id, idlist.cast<ID>()) {
     if (id->properties) {
       idproperties_fix_groups_lengths_recurse(id->properties);
     }

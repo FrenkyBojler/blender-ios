@@ -589,9 +589,7 @@ static int bone_children_clear_transflag(bPose &pose, bPoseChannel &pose_bone)
 /* Updates all `POSE_RUNTIME_TRANSFORM` flags.
  * Returns total number of bones with `POSE_RUNTIME_TRANSFORM`.
  * NOTE: `transform_convert_pose_transflags_update` has a similar logic. */
-static int armature_bone_transflags_update(Object &ob,
-                                           bArmature *arm,
-                                           ListBase /* bPoseChannel */ *lb)
+static int armature_bone_transflags_update(Object &ob, bArmature *arm, ListBase *lb)
 {
   int total = 0;
 

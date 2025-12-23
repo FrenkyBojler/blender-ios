@@ -229,7 +229,7 @@ static void wm_event_custom_free(wmEvent *event)
     return;
   }
 
-  /* NOTE: pointer to #ListBase struct elsewhere. */
+  /* NOTE: pointer to #ListBaseT struct elsewhere. */
   if (event->custom == EVT_DATA_DRAGDROP) {
     ListBase *lb = static_cast<ListBase *>(event->customdata);
     WM_drag_free_list(lb);
@@ -3529,7 +3529,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
             /* Other drop custom types allowed. */
             if (event->custom == EVT_DATA_DRAGDROP) {
-              ListBase *lb = (ListBase *)event->customdata;
+              ListBase *lb = static_cast<ListBase *>(event->customdata);
               LISTBASE_FOREACH_MUTABLE (wmDrag *, drag, lb) {
                 if (!wm_drag_asset_path_exists(drag).value_or(true)) {
                   continue;
@@ -4105,7 +4105,7 @@ static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *even
     }
   }
 
-  return wm_handlers_do(C, event, &region->runtime->handlers);
+  return wm_handlers_do(C, event, static_cast<ListBase *>(&region->runtime->handlers));
 }
 
 /**
@@ -4324,7 +4324,7 @@ void wm_event_do_handlers(bContext *C)
 
             if ((action & WM_HANDLER_BREAK) == 0) {
               wm_region_mouse_co(C, event); /* Only invalidates `event->mval` in this case. */
-              action |= wm_handlers_do(C, event, &area->handlers);
+              action |= wm_handlers_do(C, event, static_cast<ListBase *>(&area->handlers));
             }
             CTX_wm_area_set(C, nullptr);
 

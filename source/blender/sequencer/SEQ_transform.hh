@@ -69,7 +69,7 @@ void strip_channel_set(Strip *strip, int channel);
  * Move strips and markers (if not locked) that start after timeline_frame by delta frames
  *
  * \param scene: Scene in which strips are located
- * \param seqbase: ListBase in which strips are located
+ * \param seqbase: List in which strips are located
  * \param delta: offset in frames to be applied
  * \param timeline_frame: frame on timeline from where strips are moved
  */

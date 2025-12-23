@@ -747,7 +747,6 @@ static UndoImageHandle *uhandle_ensure(ListBase *undo_handles, Image *image, Ima
 struct ImageUndoStep {
   UndoStep step;
 
-  /** #UndoImageHandle */
   ListBase handles;
 
   /**

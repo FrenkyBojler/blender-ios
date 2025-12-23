@@ -70,7 +70,7 @@ void render_result_free(struct RenderResult *rr);
 /**
  * Version that's compatible with full-sample buffers.
  */
-void render_result_free_list(struct ListBase *lb, struct RenderResult *rr);
+void render_result_free_list(ListBase *lb, struct RenderResult *rr);
 
 /* Single Layer Render */
 
@@ -123,7 +123,7 @@ void render_result_rect_get_pixels(struct RenderResult *rr,
                                    int view_id);
 
 /**
- * Create a new views #ListBase in rr without duplicating the memory pointers.
+ * Create a new views #ListBaseT in rr without duplicating the memory pointers.
  */
 void render_result_views_shallowcopy(struct RenderResult *dst, struct RenderResult *src);
 /**

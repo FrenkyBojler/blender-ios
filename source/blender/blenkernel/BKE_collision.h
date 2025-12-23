@@ -15,6 +15,7 @@ struct BVHTree;
 struct Collection;
 struct CollisionModifierData;
 struct Depsgraph;
+struct ListBase;
 struct Object;
 
 /* -------------------------------------------------------------------- */
@@ -132,10 +133,10 @@ typedef struct CollisionRelation {
  * This is used by the depsgraph to build relations, as well as faster
  * lookup of colliders during evaluation.
  */
-struct ListBase *BKE_collision_relations_create(struct Depsgraph *depsgraph,
-                                                struct Collection *collection,
-                                                unsigned int modifier_type);
-void BKE_collision_relations_free(struct ListBase *relations);
+ListBase *BKE_collision_relations_create(struct Depsgraph *depsgraph,
+                                         struct Collection *collection,
+                                         unsigned int modifier_type);
+void BKE_collision_relations_free(ListBase *relations);
 
 /* Collision object lists for physics simulation evaluation. */
 
@@ -166,9 +167,9 @@ typedef struct ColliderCache {
  * Create effective list of colliders from relations built beforehand.
  * Self will be excluded.
  */
-struct ListBase *BKE_collider_cache_create(struct Depsgraph *depsgraph,
-                                           struct Object *self,
-                                           struct Collection *collection);
-void BKE_collider_cache_free(struct ListBase **colliders);
+ListBase *BKE_collider_cache_create(struct Depsgraph *depsgraph,
+                                    struct Object *self,
+                                    struct Collection *collection);
+void BKE_collider_cache_free(ListBase **colliders);
 
 /** \} */

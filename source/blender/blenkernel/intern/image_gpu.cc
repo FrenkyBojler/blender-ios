@@ -190,7 +190,8 @@ static blender::gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *m
     BLI_box_pack_2d_fixedarea(&boxes, arraywidth, arrayheight, &packed);
     BLI_assert(packed.first != nullptr);
 
-    LISTBASE_FOREACH (PackTile *, packtile, &packed) {
+    for (const FixedSizeBoxPack &fixedpack : packed) {
+      const PackTile *packtile = reinterpret_cast<const PackTile *>(&fixedpack);
       ImageTile *tile = packtile->tile;
       ImageTile_Runtime *tile_runtime = &tile->runtime;
       int *tileoffset = tile_runtime->tilearray_offset;

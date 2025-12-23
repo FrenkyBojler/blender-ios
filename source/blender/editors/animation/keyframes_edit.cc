@@ -897,7 +897,9 @@ static short snap_bezier_nearmarker(KeyframeEditData *ked, BezTriple *bezt)
 {
   if (bezt->f2 & SELECT) {
     BKE_fcurve_keyframe_move_time_with_handles(
-        bezt, float(ED_markers_find_nearest_marker_time(&ked->list, bezt->vec[1][0])));
+        bezt,
+        float(ED_markers_find_nearest_marker_time(static_cast<ListBase *>(&ked->list),
+                                                  bezt->vec[1][0])));
   }
   return 0;
 }

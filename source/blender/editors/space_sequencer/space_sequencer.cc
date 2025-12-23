@@ -421,7 +421,6 @@ static bool sequencer_main_region_poll(const RegionPollParams *params)
 static void sequencer_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
-  ListBase *lb;
 
   view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
@@ -440,7 +439,7 @@ static void sequencer_main_region_init(wmWindowManager *wm, ARegion *region)
       &region->runtime->handlers, keymap, WM_event_handler_region_v2d_mask_no_marker_poll);
 
   /* Add drop boxes. */
-  lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
+  ListBase *lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
 
   WM_event_add_dropbox_handler(&region->runtime->handlers, lb);
 }

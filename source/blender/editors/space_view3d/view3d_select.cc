@@ -1741,7 +1741,7 @@ static bool object_mouse_select_menu(bContext *C,
     /** The scale isn't defined, simply use for sorting. */
     uint depth_id;
   };
-  ListBase base_ref_list = {nullptr, nullptr}; /* List of #BaseRefWithDepth. */
+  ListBase base_ref_list = {nullptr, nullptr};
 
   /* handle base->object->select_id */
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
@@ -4407,7 +4407,7 @@ static bool do_pose_box_select(bContext *C,
   const int hits = view3d_gpu_select(vc, &buffer, rect, VIEW3D_SELECT_ALL, select_filter);
   /*
    * NOTE(@theeth): Regarding the logic use here.
-   * The buffer and #ListBase have the same relative order, which makes the selection
+   * The buffer and #ListBaseT have the same relative order, which makes the selection
    * very simple. Loop through both data sets at the same time, if the color
    * is the same as the object, we have a hit and can move to the next color
    * and object pair, if not, just move to the next object,
