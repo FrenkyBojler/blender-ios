@@ -271,7 +271,17 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   bfd->main = nullptr;
   BLO_blendfiledata_free(bfd);
 
+  // todo(habib): more efficient way of deleting scene if it doesn't exist in bmain_dst
+  Set<StringRef> src_scenes;
+  LISTBASE_FOREACH (Scene *, scene, &bmain_src->scenes) {
+    src_scenes.add(scene->id.name);
+  }
   Main *bmain_dst = CTX_data_main(C);
+  Set<StringRef> dst_scenes;
+  LISTBASE_FOREACH (Scene *, scene, &bmain_dst->scenes) {
+    dst_scenes.add(scene->id.name);
+  }
+
   MainMergeReport merge_reports = {};
   /* Frees bmain_src. */
   BKE_main_merge(bmain_dst, &bmain_src, merge_reports);
@@ -315,6 +325,11 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   };
   BKE_id_delete(bmain_dst, &from_tree->id);
+  LISTBASE_FOREACH (Scene *, scene, &bmain_dst->scenes) {
+    if (src_scenes.contains(scene->id.name) && !dst_scenes.contains(scene->id.name)) {
+      BKE_id_delete(bmain_dst, &scene->id);
+    }
+  }
 
   BKE_main_ensure_invariants(*bmain_dst);
   /* Pasting nodes can create arbitrary new relations because nodes can reference IDs. */
