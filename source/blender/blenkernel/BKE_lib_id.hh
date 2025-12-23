@@ -39,6 +39,7 @@
 #include "BLI_vector.hh"
 
 #include "DNA_ID.h"
+#include "DNA_listBase.h"
 #include "DNA_userdef_enums.h"
 
 struct BlendWriter;
@@ -47,7 +48,6 @@ struct GHash;
 struct ID;
 struct ID_Readfile_Data;
 struct Library;
-struct ListBase;
 struct Main;
 struct PointerRNA;
 struct PropertyRNA;

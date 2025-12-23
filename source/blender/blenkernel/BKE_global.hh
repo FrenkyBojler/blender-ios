@@ -14,6 +14,7 @@
 #include "DNA_listBase.h"
 
 struct Main;
+struct RecentFile;
 
 /**
  * Global data, typically accessed from #G.

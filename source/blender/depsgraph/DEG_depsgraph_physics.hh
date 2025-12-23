@@ -10,13 +10,16 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include "DEG_depsgraph.hh"
 
 struct Collection;
+struct CollisionRelation;
 struct DepsNodeHandle;
 struct Depsgraph;
+struct EffectorRelation;
 struct EffectorWeights;
-struct ListBase;
 struct ModifierData;
 struct Object;
 

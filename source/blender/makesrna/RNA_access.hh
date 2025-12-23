@@ -14,6 +14,8 @@
 #include <stdarg.h>
 #include <string>
 
+#include "DNA_listBase.h"
+
 #include "RNA_types.hh"
 
 #include "BLI_compiler_attrs.h"
@@ -26,7 +28,6 @@ struct IDOverrideLibrary;
 struct IDOverrideLibraryProperty;
 struct IDOverrideLibraryPropertyOperation;
 struct IDProperty;
-struct ListBase;
 struct Main;
 struct ReportList;
 struct Scene;

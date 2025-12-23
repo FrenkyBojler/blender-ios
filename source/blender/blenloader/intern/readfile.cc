@@ -53,6 +53,7 @@
 #include "BLI_endian_defines.h"
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_memarena.h"
 #include "BLI_set.hh"

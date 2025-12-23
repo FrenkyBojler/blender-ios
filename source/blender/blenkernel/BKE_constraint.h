@@ -8,11 +8,12 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 struct BlendDataReader;
 struct BlendWriter;
 struct Depsgraph;
 struct ID;
-struct ListBase;
 struct Object;
 struct Scene;
 struct bConstraint;

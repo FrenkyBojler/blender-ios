@@ -8,9 +8,11 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
+struct bAnimListElem;
 struct ARegion;
 struct ARegionType;
-struct ListBase;
 struct Object;
 struct Scene;
 struct SpaceAction;

@@ -10,6 +10,7 @@
 
 #include "BLI_span.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_windowmanager_enums.h"
 
 struct BPoint;
@@ -18,7 +19,6 @@ struct BezTriple;
 struct Curve;
 struct EditNurb;
 struct KeyBlock;
-struct ListBase;
 struct Main;
 struct Nurb;
 struct Object;

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 /** \file
  * \ingroup sequencer
  */
@@ -16,7 +18,6 @@ struct bSound;
 struct StripModifierData;
 struct BlendWriter;
 struct BlendDataReader;
-struct ListBase;
 struct SoundEqualizerModifierData;
 
 namespace blender::seq {

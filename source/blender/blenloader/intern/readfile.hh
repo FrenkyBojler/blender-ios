@@ -33,6 +33,7 @@ struct BlendfileLinkAppendContext;
 struct BlendFileReadParams;
 struct BlendFileReadReport;
 struct BLOCacheStorage;
+struct BHeadN;
 struct BHeadSort;
 struct DNA_ReconstructInfo;
 struct IDNameLib_Map;

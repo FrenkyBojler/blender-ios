@@ -12,6 +12,8 @@
 
 #include "BLI_compiler_attrs.h"
 
+#include "DNA_listBase.h"
+
 #include "rna_internal_types.hh"
 
 #include "UI_resources.hh" /* IWYU pragma: export */
@@ -30,6 +32,7 @@ struct FreestyleModuleConfig;
 struct Main;
 struct MTex;
 struct Object;
+struct PropertyDefRNA;
 struct ReportList;
 struct SDNA;
 struct ViewLayer;

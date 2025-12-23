@@ -8,14 +8,17 @@
  * \ingroup sequencer
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
-struct ListBase;
 struct Scene;
 struct Strip;
+struct SeqTimelineChannel;
+struct TimeMarker;
 
 namespace blender::seq {
 

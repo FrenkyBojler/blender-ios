@@ -22,6 +22,7 @@ struct bToolRef;
 struct WorkSpace;
 struct WorkSpaceInstanceHook;
 struct WorkSpaceLayout;
+struct WorkSpaceDataRelation;
 
 namespace blender::bke {
 

@@ -7,7 +7,8 @@
  * \ingroup bke
  */
 
-struct ListBase;
+#include "DNA_listBase.h"
+
 struct bAddon;
 
 #ifdef __RNA_TYPES_H__

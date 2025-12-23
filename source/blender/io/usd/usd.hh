@@ -10,13 +10,15 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
+
 #include "RNA_types.hh"
 
 struct bContext;
 struct CacheArchiveHandle;
+struct CacheObjectPath;
 struct CacheReader;
-struct ListBase;
 struct Mesh;
 struct Object;
 struct ReportList;

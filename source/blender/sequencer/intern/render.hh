@@ -8,17 +8,18 @@
  * \ingroup sequencer
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
-#include "BLI_vector.hh"
 
 struct Depsgraph;
 struct ImBuf;
 struct LinkNode;
-struct ListBase;
 struct Mask;
-struct Scene;
 struct RenderData;
+struct Scene;
+struct SeqTimelineChannel;
 struct Strip;
 
 namespace blender::seq {

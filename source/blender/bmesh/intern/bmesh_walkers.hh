@@ -16,6 +16,8 @@
  * NOTE: do NOT modify topology while walking a mesh!
  */
 
+struct BMwGenericWalker;
+
 enum BMWOrder {
   BMW_DEPTH_FIRST,
   BMW_BREADTH_FIRST,

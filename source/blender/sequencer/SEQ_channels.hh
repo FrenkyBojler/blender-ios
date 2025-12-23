@@ -8,8 +8,9 @@
  * \ingroup sequencer
  */
 
+#include "DNA_listBase.h"
+
 struct Editing;
-struct ListBase;
 struct SeqTimelineChannel;
 struct Strip;
 

@@ -104,7 +104,9 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+struct BArrayState;
 struct BChunkList;
+struct BChunkRef;
 
 /* -------------------------------------------------------------------- */
 /** \name Defines

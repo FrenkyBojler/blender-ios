@@ -52,6 +52,7 @@ struct WorkSpaceLayout;
 struct wmDrag;
 struct wmDropBox;
 struct wmEvent;
+struct wmEventHandler;
 struct wmEventHandler_Dropbox;
 struct wmEventHandler_Keymap;
 struct wmEventHandler_Op;

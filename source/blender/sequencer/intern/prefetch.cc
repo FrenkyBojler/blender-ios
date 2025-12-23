@@ -47,6 +47,10 @@
 #include "prefetch.hh"
 #include "render.hh"
 
+struct RenderResult;
+struct Scene;
+struct ThreadSlot;
+
 namespace blender::seq {
 
 struct PrefetchJob {

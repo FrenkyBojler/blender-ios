@@ -8,10 +8,12 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 struct ClothModifierData;
 struct Depsgraph;
+struct EffectorCache;
 struct Implicit_Data;
-struct ListBase;
 struct Object;
 
 enum eMassSpringSolverStatus {

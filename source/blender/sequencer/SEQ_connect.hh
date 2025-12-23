@@ -9,9 +9,10 @@
  */
 
 #include "BLI_vector_set.hh"
+#include "DNA_listBase.h"
 
 struct Strip;
-struct ListBase;
+struct StripConnection;
 
 namespace blender::seq {
 

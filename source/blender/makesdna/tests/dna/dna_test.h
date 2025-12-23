@@ -10,6 +10,7 @@
 #pragma once
 
 struct Library;
+struct TestStruct;
 
 /* Structure that is to be skipped from SDNA. */
 #

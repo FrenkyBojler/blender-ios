@@ -60,6 +60,8 @@
  * - it puts timer to sleep (or removes?)
  */
 
+struct ThreadSlot;
+
 struct wmJob {
   wmJob *next, *prev;
 

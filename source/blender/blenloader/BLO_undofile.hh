@@ -11,8 +11,9 @@
 
 #include "BLI_filereader.h"
 #include "BLI_implicit_sharing.hh"
-#include "BLI_listbase.h"
 #include "BLI_map.hh"
+
+#include "DNA_listBase.h"
 
 struct Main;
 struct Scene;

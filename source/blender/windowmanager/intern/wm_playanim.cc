@@ -210,6 +210,8 @@ struct PlayDisplayContext {
 #endif
 };
 
+struct PlayAnimPict;
+
 /**
  * The current state of the player.
  *

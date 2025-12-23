@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 struct AnimData;
-struct ListBase;
+struct TreeElement;
 
 namespace blender::ed::outliner {
 

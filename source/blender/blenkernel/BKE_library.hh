@@ -10,6 +10,7 @@
  */
 
 #include "DNA_ID.h"
+#include "DNA_listBase.h"
 
 #include "BLI_map.hh"
 #include "BLI_set.hh"
@@ -18,7 +19,6 @@
 #include "BKE_main.hh"
 
 struct FileData;
-struct ListBase;
 struct Main;
 struct UniqueName_Map;
 

@@ -8,6 +8,8 @@
  */
 
 #include "BLI_compiler_attrs.h"
+
+#include "DNA_listBase.h"
 #include "DNA_shader_fx_types.h" /* Needed for all enum type definitions. */
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
@@ -17,7 +19,6 @@ struct BlendDataReader;
 struct BlendWriter;
 struct ID;
 struct IDTypeForeachColorFunctionCallback;
-struct ListBase;
 struct ModifierUpdateDepsgraphContext;
 struct Object;
 struct ShaderFxData;

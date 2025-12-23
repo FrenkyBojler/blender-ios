@@ -2,10 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_vector.hh"
+#include "DNA_listBase.h"
 
 struct bAnimContext;
-struct ListBase;
+struct bAnimListElem;
 
 namespace blender::ed::graph {
 

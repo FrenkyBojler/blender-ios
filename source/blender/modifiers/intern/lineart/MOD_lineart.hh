@@ -22,7 +22,14 @@
 
 struct LineartBoundingArea;
 struct LineartEdge;
+struct LineartEdgeChain;
+struct LineartEdgeChainItem;
+struct LineartEdgeSegment;
+struct LineartElementLinkNode;
+struct LineartShadowSegment;
+struct LineartStaticMemPoolNode;
 struct LineartVert;
+struct LinkData;
 struct Mesh;
 struct Object;
 

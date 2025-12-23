@@ -13,6 +13,8 @@
 #include <stdbool.h>
 
 struct ScanFillVert;
+struct ScanFillEdge;
+struct ScanFillFace;
 
 typedef struct ScanFillContext {
   ListBase fillvertbase;

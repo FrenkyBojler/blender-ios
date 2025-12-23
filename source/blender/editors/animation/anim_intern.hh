@@ -8,11 +8,14 @@
 
 #pragma once
 
-struct ListBase;
+#include "DNA_listBase.h"
+
 struct wmOperatorType;
 
 /* size of string buffers used for animation channel displayed names */
 #define ANIM_CHAN_NAME_SIZE 256
+
+struct KeyingSet;
 
 /* KeyingSets/Keyframing Interface ------------- */
 

@@ -10,9 +10,10 @@
 
 #include "BLI_compiler_compat.h"
 
+#include "DNA_listBase.h"
+
 #include "BKE_tracking.hh"
 
-struct ListBase;
 struct MovieClip;
 struct SpaceClip;
 struct bContext;

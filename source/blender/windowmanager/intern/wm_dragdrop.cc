@@ -68,6 +68,7 @@
 #include <fmt/format.h>
 /* ****************************************************** */
 
+struct wmDropBoxMap;
 static ListBase dropboxes = {nullptr, nullptr};
 
 static void wm_drag_free_asset_data(wmDragAsset **asset_data);

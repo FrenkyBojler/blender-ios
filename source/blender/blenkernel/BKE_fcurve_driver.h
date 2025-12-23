@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 struct AnimationEvalContext;
 struct ChannelDriver;
 struct DriverTarget;

@@ -8,12 +8,13 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
 
 struct Camera;
 struct ImBuf;
-struct ListBase;
 struct MovieClip;
 struct MovieClipUser;
 struct MovieDistortion;

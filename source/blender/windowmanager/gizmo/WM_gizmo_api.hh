@@ -18,10 +18,11 @@
 
 #include "BLI_string_ref.hh"
 
+#include "DNA_listBase.h"
+
 struct ARegion;
 struct bContext;
 struct IDProperty;
-struct ListBase;
 struct Main;
 struct PointerRNA;
 struct PropertyRNA;

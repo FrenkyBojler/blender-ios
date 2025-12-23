@@ -12,7 +12,6 @@
 
 #include "ANIM_action.hh"
 
-struct ListBase;
 struct Scene;
 struct Strip;
 struct SeqAnimationBackup;

@@ -267,6 +267,8 @@ struct LoopSeamData {
   float corner_dist_sq[2];
 };
 
+struct VertSeam;
+
 /* Main projection painting struct passed to all projection painting functions */
 struct ProjPaintState {
   View3D *v3d;

@@ -19,7 +19,7 @@
 
 struct GPUNode;
 struct GPUOutput;
-struct ListBase;
+struct GPUInput;
 
 enum GPUDataSource {
   GPU_SOURCE_OUTPUT,

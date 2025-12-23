@@ -8,9 +8,13 @@
  * \ingroup bmesh
  */
 
+#include "DNA_listBase.h"
+
 #include "BKE_customdata.hh"
 
 #include "bmesh_class.hh"
+
+struct BMLoopList;
 
 /**
  * When copying between different BMesh objects,

@@ -16,7 +16,6 @@ struct ARegionType;
 struct BlendDataReader;
 struct BlendWriter;
 struct ImBuf;
-struct ListBase;
 struct Strip;
 struct StripModifierData;
 struct ID;

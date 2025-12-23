@@ -32,7 +32,6 @@ struct EditBone;
 struct ID;
 struct Image;
 struct LayerCollection;
-struct ListBase;
 struct Main;
 struct Mask;
 struct MovieClip;

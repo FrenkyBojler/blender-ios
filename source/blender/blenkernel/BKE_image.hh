@@ -7,6 +7,8 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_compiler_attrs.h"
 #include "BLI_mutex.hh"
 
@@ -35,7 +37,6 @@ struct ImagePool;
 struct ImageTile;
 struct ImbFormatOptions;
 struct Library;
-struct ListBase;
 struct Main;
 struct MovieCache;
 struct Object;

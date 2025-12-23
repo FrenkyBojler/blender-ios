@@ -9,9 +9,10 @@
  */
 
 #include "DNA_curves_types.h"
+#include "DNA_listBase.h"
 
 struct Curve;
-struct ListBase;
+struct Nurb;
 
 namespace blender::bke {
 

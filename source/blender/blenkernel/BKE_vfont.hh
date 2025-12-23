@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
 
@@ -12,10 +14,10 @@
 
 struct CharInfo;
 struct Curve;
-struct ListBase;
 struct Main;
 struct Object;
 struct VFont;
+struct Nurb;
 
 struct CharTrans {
   blender::float2 offset;

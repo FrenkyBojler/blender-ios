@@ -24,6 +24,8 @@ struct ParticleKey;
 struct ParticleSettings;
 struct ParticleSystem;
 struct ParticleSystemModifierData;
+struct ColliderCache;
+struct EffectorCache;
 
 struct BVHTreeRay;
 struct BVHTreeRayHit;

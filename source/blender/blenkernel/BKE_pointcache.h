@@ -10,7 +10,8 @@
 
 #include "BLI_function_ref.hh"
 
-#include "DNA_boid_types.h"       /* for #BoidData */
+#include "DNA_boid_types.h" /* for #BoidData */
+#include "DNA_listBase.h"
 #include "DNA_particle_types.h"   /* for KDTree3d */
 #include "DNA_pointcache_types.h" /* for #BPHYS_TOT_DATA */
 
@@ -65,13 +66,14 @@ struct BlendWriter;
 struct ClothModifierData;
 struct DynamicPaintSurface;
 struct FluidModifierData;
-struct ListBase;
+struct LinkData;
 struct Main;
 struct ModifierData;
 struct Object;
 struct ParticleKey;
 struct ParticleSystem;
 struct PointCache;
+struct PTCacheMem;
 struct RigidBodyWorld;
 struct Scene;
 struct SoftBody;

@@ -4,12 +4,13 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 /** \file
  * \ingroup sequencer
  */
 
 struct Editing;
-struct ListBase;
 struct Main;
 struct Scene;
 struct Strip;

@@ -10,9 +10,10 @@
 
 #include <cstddef>
 
+#include "DNA_listBase.h"
+
 #include "BLI_enum_flags.hh"
 
-struct ListBase;
 struct Main;
 struct MovieClip;
 struct ReportList;

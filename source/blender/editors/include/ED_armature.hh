@@ -11,6 +11,7 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_span.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_windowmanager_enums.h"
 
 struct Base;
@@ -18,7 +19,6 @@ struct Bone;
 struct Depsgraph;
 struct EditBone;
 struct GPUSelectResult;
-struct ListBase;
 struct Main;
 struct Mesh;
 struct MeshDeformModifierData;

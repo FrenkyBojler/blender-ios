@@ -11,6 +11,7 @@
 #include "BLI_sys_types.h"
 
 #include "DNA_curve_types.h"
+#include "DNA_listBase.h"
 
 /* internal exports only */
 struct BPoint;
@@ -19,7 +20,6 @@ struct BezTriple;
 struct Curve;
 struct EditNurb;
 struct GHash;
-struct ListBase;
 struct Nurb;
 struct Object;
 struct View3D;

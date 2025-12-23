@@ -21,6 +21,7 @@ struct ARegionType;
 struct bContextDataResult;
 struct FileAssetSelectParams;
 struct FileSelectParams;
+struct FolderList;
 struct Main;
 struct SpaceFile;
 struct View2D;

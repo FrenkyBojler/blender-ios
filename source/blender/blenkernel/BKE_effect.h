@@ -7,9 +7,11 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 struct Collection;
 struct Depsgraph;
-struct ListBase;
+struct ColliderCache;
 struct RNG;
 struct Object;
 struct ParticleData;

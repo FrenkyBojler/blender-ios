@@ -17,6 +17,7 @@
 #include "RNA_define.hh"
 
 #include "DNA_anim_types.h"
+#include "DNA_listBase.h"
 #include "DNA_node_types.h"
 
 struct ARegion;
@@ -25,7 +26,6 @@ struct bNodeSocket;
 struct bNodeTree;
 struct ID;
 struct IDProperty;
-struct ListBase;
 struct Main;
 struct ViewLayer;
 struct SceneRenderLayer;

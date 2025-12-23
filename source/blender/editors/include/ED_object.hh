@@ -17,6 +17,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
 
@@ -26,7 +27,6 @@ struct EnumPropertyItem;
 struct ID;
 struct KeyBlock;
 struct GpencilModifierData;
-struct ListBase;
 struct Main;
 struct ModifierData;
 struct Object;

@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <optional>
 
+#include "DNA_listBase.h"
 #include "RNA_path.hh"
 #include "RNA_types.hh"
 

@@ -8,8 +8,11 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 struct Collection;
-struct ListBase;
+struct CollisionRelation;
+struct EffectorRelation;
 
 namespace blender::deg {
 

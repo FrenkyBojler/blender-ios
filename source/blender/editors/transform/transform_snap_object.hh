@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_kdopbvh.hh"
@@ -29,7 +30,6 @@ struct BMFace;
 struct BMVert;
 struct Depsgraph;
 struct ID;
-struct ListBase;
 struct Object;
 struct RegionView3D;
 struct Scene;

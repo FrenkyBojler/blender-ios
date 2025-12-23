@@ -8,7 +8,8 @@
  * \ingroup bke
  */
 
-struct ListBase;
+#include "DNA_listBase.h"
+
 struct bUserMenu;
 struct bUserMenuItem;
 

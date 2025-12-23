@@ -8,7 +8,8 @@
  * \ingroup sequencer
  */
 
-struct ListBase;
+#include "DNA_listBase.h"
+
 struct Scene;
 struct Strip;
 struct rctf;

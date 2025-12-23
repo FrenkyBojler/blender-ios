@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include "BLI_span.hh"
 
 /** \file
  * \ingroup sequencer
  */
 
-struct ListBase;
 struct Scene;
 struct Strip;
 

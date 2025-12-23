@@ -8,11 +8,13 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 struct ID;
-struct ListBase;
 struct PointerRNA;
 
 struct Brush;
+struct CfraElem;
 struct GP_SpaceConversion;
 struct bGPDframe;
 struct bGPDlayer;

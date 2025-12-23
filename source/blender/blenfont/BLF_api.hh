@@ -18,6 +18,8 @@
 #include "BLI_sys_types.h"
 #include "BLI_vector.hh"
 
+#include "DNA_listBase.h"
+
 /** Name of sub-directory inside #BLENDER_DATAFILES that contains font files. */
 #define BLF_DATAFILES_FONTS_DIR "fonts"
 
@@ -27,7 +29,7 @@
 /** File name of the default fixed-pitch font. */
 #define BLF_DEFAULT_MONOSPACED_FONT "DejaVuSansMono.woff2"
 
-struct ListBase;
+struct Nurb;
 struct ResultBLF;
 struct rcti;
 struct rctf;

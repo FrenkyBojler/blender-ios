@@ -19,7 +19,6 @@ struct ColorManagedDisplaySettings;
 struct ColorManagedViewSettings;
 struct ExrHandle;
 struct ImBuf;
-struct ListBase;
 struct Render;
 struct RenderData;
 struct RenderLayer;

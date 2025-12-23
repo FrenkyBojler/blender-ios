@@ -21,6 +21,7 @@
 
 struct AssetLibraryReference;
 struct AssetMetaData;
+struct AssetTag;
 struct bContext;
 namespace blender::asset_system {
 class AssetLibrary;

@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include "BLI_index_mask.hh"
 
 #include "ED_grease_pencil.hh"
@@ -17,8 +19,8 @@
 
 struct BMEditMesh;
 struct BMesh;
+struct bConstraint;
 struct BezTriple;
-struct ListBase;
 struct Object;
 struct TransData;
 struct TransDataCurveHandleFlags;

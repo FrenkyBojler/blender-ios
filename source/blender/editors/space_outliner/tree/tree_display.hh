@@ -22,13 +22,14 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include <cstdint>
 #include <memory>
 
 struct ID;
 struct LayerCollection;
 struct Library;
-struct ListBase;
 struct Main;
 struct Scene;
 struct Strip;

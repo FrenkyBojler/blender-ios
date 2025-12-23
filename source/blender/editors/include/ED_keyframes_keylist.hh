@@ -12,6 +12,7 @@
 #include "BLI_math_vector_types.hh"
 
 #include "DNA_curve_types.h"
+#include "DNA_listBase.h"
 
 #include "ANIM_action.hh"
 
@@ -21,7 +22,6 @@ struct FCurve;
 struct GreasePencil;
 struct GreasePencilLayer;
 struct GreasePencilLayerTreeGroup;
-struct ListBase;
 struct MaskLayer;
 struct Object;
 struct Scene;

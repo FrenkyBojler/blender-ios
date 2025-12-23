@@ -14,10 +14,12 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_listBase.h"
+
 struct FontBLF;
 struct GlyphBLF;
 struct GlyphCacheBLF;
-struct ListBase;
+struct Nurb;
 struct ResultBLF;
 struct rcti;
 struct rctf;

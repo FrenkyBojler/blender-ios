@@ -16,6 +16,7 @@
 
 struct bNode;
 struct bNodeStack;
+struct bNodeThreadStack;
 struct bNodeTree;
 
 /* Node execution data */

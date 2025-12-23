@@ -9,6 +9,8 @@
 
 #include "BLI_math_vector_types.hh"
 
+#include "DNA_listBase.h"
+
 struct BVHTree;
 struct Collection;
 struct CollisionModifierData;

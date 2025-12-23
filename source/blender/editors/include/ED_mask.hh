@@ -8,9 +8,11 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
 #include "DNA_mask_types.h"
 
 struct ARegion;
+struct CfraElem;
 struct Depsgraph;
 struct KeyframeEditData;
 struct MaskLayer;

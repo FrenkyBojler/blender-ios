@@ -14,9 +14,9 @@
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
-#include "DNA_modifier_types.h" /* Needed for all enum type definitions. */
-
 #include "DNA_customdata_types.h"
+#include "DNA_listBase.h"
+#include "DNA_modifier_types.h" /* Needed for all enum type definitions. */
 
 namespace blender::bke {
 struct GeometrySet;
@@ -31,7 +31,6 @@ struct DepsNodeHandle;
 struct Depsgraph;
 struct ID;
 struct IDTypeForeachColorFunctionCallback;
-struct ListBase;
 struct Main;
 struct Mesh;
 struct ModifierData;

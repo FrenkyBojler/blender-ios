@@ -189,6 +189,8 @@ bool ED_image_save_all_modified(const bContext *C, ReportList *reports);
 
 /* `image_sequence.cc` */
 
+struct ImageFrame;
+
 struct ImageFrameRange {
   ImageFrameRange *next, *prev;
 

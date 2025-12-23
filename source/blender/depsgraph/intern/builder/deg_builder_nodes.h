@@ -13,6 +13,8 @@
 #include "BLI_set.hh"
 
 #include "DNA_armature_types.h"
+#include "DNA_listBase.h"
+
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_key.h"
 #include "intern/builder/deg_builder_map.h"
@@ -36,11 +38,11 @@ struct Key;
 struct LayerCollection;
 struct Light;
 struct LightProbe;
-struct ListBase;
 struct Main;
 struct Mask;
 struct Material;
 struct MovieClip;
+struct NlaStrip;
 struct Object;
 struct ParticleSettings;
 struct Scene;

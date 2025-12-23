@@ -8,7 +8,8 @@
 
 #pragma once
 
-struct ListBase;
+#include "DNA_listBase.h"
+
 struct Scene;
 struct ScrArea;
 struct TimeMarker;
@@ -17,6 +18,7 @@ struct bContext;
 struct wmKeyConfig;
 struct ARegion;
 struct ViewLayer;
+struct CfraElem;
 
 /* -------------------------------------------------------------------- */
 /** \name Drawing API

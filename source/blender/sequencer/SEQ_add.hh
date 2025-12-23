@@ -10,9 +10,10 @@
 
 #include "BLI_enum_flags.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_scene_enums.h"
+#include "DNA_sequence_types.h"
 
-struct ListBase;
 struct Main;
 struct Mask;
 struct MovieClip;

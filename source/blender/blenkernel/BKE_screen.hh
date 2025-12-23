@@ -17,6 +17,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_listBase.h"
+#include "DNA_space_types.h"
 #include "DNA_vec_types.h"
 
 #include "RNA_types.hh"
@@ -37,17 +39,21 @@ struct Block;
 }  // namespace blender::ui
 
 struct ARegion;
+struct ARegionType;
 struct AssetShelfType;
 struct BlendDataReader;
 struct BlendLibReader;
 struct BlendWriter;
 struct Header;
+struct HeaderType;
 struct ID;
 struct LayoutPanelState;
 struct LibraryForeachIDData;
-struct ListBase;
 struct Menu;
 struct Panel;
+struct PanelType;
+struct PanelCategoryDyn;
+struct RegionDrawCB;
 struct Scene;
 struct ScrArea;
 struct ScrAreaMap;
@@ -61,6 +67,7 @@ struct bContext;
 struct bScreen;
 struct uiList;
 struct wmDrawBuffer;
+struct wmEventHandler;
 struct wmGizmoMap;
 struct wmKeyConfig;
 struct wmMsgBus;

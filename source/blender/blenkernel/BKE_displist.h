@@ -9,6 +9,10 @@
  * \brief display list (or rather multi purpose list) stuff.
  */
 
+#include "DNA_listBase.h"
+
+struct Nurb;
+
 /** #DispList.type */
 enum {
   /** A closed polygon (that can be filled). */
@@ -37,7 +41,6 @@ enum {
 /* prototypes */
 
 struct Depsgraph;
-struct ListBase;
 struct Object;
 struct Scene;
 

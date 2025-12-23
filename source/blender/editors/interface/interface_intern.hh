@@ -42,6 +42,7 @@ struct LayoutPanelHeader;
 struct Main;
 struct Scene;
 namespace blender::ui {
+struct SafetyRect;
 struct HandleButtonData;
 struct Layout;
 struct UndoStack_Text;
@@ -589,6 +590,9 @@ struct BlockDynamicListener {
 };
 
 enum class BlockAlertLevel : int8_t { None, Info, Success, Warning, Error };
+
+struct ButStore;
+struct ViewLink;
 
 struct Block {
   Block *next, *prev;

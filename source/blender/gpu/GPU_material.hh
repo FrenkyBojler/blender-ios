@@ -23,6 +23,7 @@
 
 struct GHash;
 struct GPUMaterial;
+struct GPUInput;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUPass;
@@ -32,7 +33,6 @@ class UniformBuf;
 }  // namespace blender::gpu
 struct Image;
 struct ImageUser;
-struct ListBase;
 struct Main;
 struct Material;
 struct Scene;

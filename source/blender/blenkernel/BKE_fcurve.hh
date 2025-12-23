@@ -13,6 +13,7 @@
 #include "BLI_string_ref.hh"
 
 #include "DNA_curve_types.h"
+#include "DNA_listBase.h"
 
 struct ChannelDriver;
 struct FCM_EnvelopeData;

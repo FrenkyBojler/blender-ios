@@ -8,11 +8,12 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 struct BlendDataReader;
 struct Brush;
 struct CurveMapping;
 struct Depsgraph;
-struct ListBase;
 struct MDeformVert;
 struct Main;
 struct Material;
@@ -28,6 +29,7 @@ struct bGPDlayer;
 struct bGPDlayer_Mask;
 struct bGPDstroke;
 struct bGPdata;
+struct bGPDpalette;
 
 #define GPENCIL_SIMPLIFY(scene) \
   ((scene->r.mode & R_SIMPLIFY) && (scene->r.simplify_gpencil & SIMPLIFY_GPENCIL_ENABLE))

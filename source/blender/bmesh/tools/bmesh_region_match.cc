@@ -81,6 +81,9 @@ struct BMElemIndexEq {
 using BMFaceIndexSet =
     blender::Set<BMFace *, 4, blender::DefaultProbingStrategy, BMElemIndexHash, BMElemIndexEq>;
 
+struct UIDFaceStep;
+struct UIDFaceStepItem;
+
 struct UIDWalk {
 
   /* List of faces we can step onto (UIDFaceStep's) */

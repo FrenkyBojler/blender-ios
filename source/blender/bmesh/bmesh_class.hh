@@ -21,9 +21,11 @@
  * these are ifdef'd because they use more memory and can't be saved in DNA currently */
 // #define USE_BMESH_HOLES
 
+struct BMEditSelection;
 struct BMEdge;
 struct BMFace;
 struct BMLoop;
+struct BMOpError;
 struct BMVert;
 struct BMesh;
 

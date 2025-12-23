@@ -83,6 +83,45 @@ struct Curves;
 struct PointCloud;
 struct Volume;
 
+struct Brush;
+struct CacheFile;
+struct Camera;
+struct Collection;
+struct Curve;
+struct Curves;
+struct FreestyleLineStyle;
+struct GreasePencil;
+struct Image;
+struct Key;
+struct Lattice;
+struct Light;
+struct LightProbe;
+struct Mask;
+struct Material;
+struct Mesh;
+struct MetaBall;
+struct MovieClip;
+struct Object;
+struct PaintCurve;
+struct Palette;
+struct ParticleSettings;
+struct PointCloud;
+struct Scene;
+struct Speaker;
+struct Tex;
+struct Text;
+struct VFont;
+struct Volume;
+struct WorkSpace;
+struct World;
+struct bAction;
+struct bArmature;
+struct bGPdata;
+struct bNodeTree;
+struct bScreen;
+struct bSound;
+struct wmWindowManager;
+
 /**
  * Blender thumbnail, as written to the `.blend` file (width, height, and data as char RGBA).
  */

@@ -21,13 +21,13 @@
 #include "DNA_listBase.h"
 
 struct BezTriple;
-struct BezTriple;
+struct BevList;
 struct BMEditMesh;
 struct BPoint;
 struct Curve;
 struct Depsgraph;
+struct DispList;
 struct GHash;
-struct ListBase;
 struct Main;
 struct MDeformVert;
 struct Nurb;

@@ -123,7 +123,7 @@ struct RenderResult {
   ListBase layers = {};
 
   /* multiView maps to a StringVector in OpenEXR */
-  ListBase views = {}; /* RenderView */
+  ListBase views = {};
 
   /* Render layer to display. */
   RenderLayer *renlay = nullptr;

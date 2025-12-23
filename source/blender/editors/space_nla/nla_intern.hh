@@ -8,12 +8,14 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 struct ARegion;
 struct ARegionType;
-struct ListBase;
 struct PointerRNA;
 struct SpaceNla;
 struct bAnimContext;
+struct bAnimListElem;
 struct bContext;
 struct wmKeyConfig;
 struct wmOperatorType;

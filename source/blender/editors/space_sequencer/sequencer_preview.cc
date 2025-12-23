@@ -28,6 +28,8 @@
 
 namespace blender::ed::vse {
 
+struct PreviewJobAudio;
+
 struct PreviewJob {
   ListBase previews;
   ThreadMutex *mutex;

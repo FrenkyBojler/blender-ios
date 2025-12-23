@@ -8,8 +8,9 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 struct Base;
-struct ListBase;
 struct SpaceOutliner;
 struct bContext;
 struct ID;

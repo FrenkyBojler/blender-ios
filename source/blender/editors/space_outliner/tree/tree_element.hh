@@ -12,10 +12,10 @@
 #include <optional>
 
 #include "BLI_string_ref.hh"
+#include "DNA_listBase.h"
 #include "UI_resources.hh"
 
 struct ID;
-struct ListBase;
 struct SpaceOutliner;
 
 namespace blender::ed::outliner {

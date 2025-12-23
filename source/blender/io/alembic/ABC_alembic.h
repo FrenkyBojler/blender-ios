@@ -14,8 +14,8 @@
 
 struct CacheArchiveHandle;
 struct CacheFileLayer;
+struct CacheObjectPath;
 struct CacheReader;
-struct ListBase;
 struct Main;
 struct Mesh;
 struct Object;

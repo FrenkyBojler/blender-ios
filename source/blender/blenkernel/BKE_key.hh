@@ -12,6 +12,7 @@
 #include "BLI_span.hh"
 
 #include "DNA_key_types.h"
+#include "DNA_listBase.h"
 
 /** \file
  * \ingroup bke
@@ -21,9 +22,9 @@ struct ID;
 struct Key;
 struct KeyBlock;
 struct Lattice;
-struct ListBase;
 struct Main;
 struct Mesh;
+struct Nurb;
 struct Object;
 
 void BKE_key_free_nolib(Key *key);

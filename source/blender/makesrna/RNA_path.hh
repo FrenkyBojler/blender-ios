@@ -18,9 +18,10 @@
 #include <optional>
 #include <string>
 
+#include "DNA_listBase.h"
+
 #include "RNA_types.hh"
 
-struct ListBase;
 struct IDProperty;
 
 /**

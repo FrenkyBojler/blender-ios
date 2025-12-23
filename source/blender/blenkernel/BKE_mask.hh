@@ -8,6 +8,7 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
 #include "DNA_mask_types.h"
 
 #ifndef SELECT
@@ -18,7 +19,6 @@ struct BezTriple;
 struct Depsgraph;
 struct Image;
 struct ImageUser;
-struct ListBase;
 struct Main;
 struct MovieClip;
 struct MovieClipUser;

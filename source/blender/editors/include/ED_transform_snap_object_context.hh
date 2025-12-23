@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
 #include "DNA_scene_types.h"
 
 // #define DEBUG_SNAP_TIME
@@ -18,7 +19,6 @@ struct BMVert;
 
 struct ARegion;
 struct Depsgraph;
-struct ListBase;
 struct Object;
 struct Scene;
 struct View3D;

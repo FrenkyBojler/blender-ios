@@ -29,6 +29,8 @@
 #  include <tbb/task_group.h>
 #endif
 
+struct ThreadSlot;
+
 /**
  * Task
  *

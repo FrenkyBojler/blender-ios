@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include "BLI_function_ref.hh"
 #include "BLI_vector_list.hh"
 
@@ -23,7 +25,6 @@ struct BMVert;
 struct BMesh;
 struct Image;
 struct ImageUser;
-struct ListBase;
 struct Main;
 struct Object;
 struct Scene;

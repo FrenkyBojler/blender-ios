@@ -15,6 +15,7 @@
 #include "ED_anim_api.hh" /* for enum eAnimFilter_Flags */
 
 #include "DNA_curve_types.h"
+#include "DNA_listBase.h"
 
 struct BezTriple;
 struct ButterworthCoefficients;

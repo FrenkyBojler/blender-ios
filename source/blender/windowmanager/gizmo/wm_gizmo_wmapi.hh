@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 struct bContext;
 struct wmEvent;
 struct wmEventHandler_Gizmo;
@@ -24,7 +26,6 @@ struct wmGizmoGroup;
 struct wmGizmoMap;
 struct wmKeyConfig;
 struct wmOperatorType;
-struct ListBase;
 
 /* -------------------------------------------------------------------- */
 /** \name #wmGizmo

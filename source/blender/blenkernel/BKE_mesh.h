@@ -12,6 +12,7 @@
 #include "BLI_array.hh"
 #include "BLI_string_ref.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 
 struct BMesh;
@@ -23,7 +24,6 @@ struct CustomData_MeshMasks;
 struct Depsgraph;
 struct KeyBlock;
 struct LinkNode;
-struct ListBase;
 struct MDeformVert;
 struct MDisps;
 struct MFace;
@@ -32,6 +32,8 @@ struct MemArena;
 struct Mesh;
 struct Object;
 struct Scene;
+struct DispList;
+struct Nurb;
 
 /* TODO: Move to `BKE_mesh_types.hh` when possible. */
 enum eMeshBatchDirtyMode : int8_t {

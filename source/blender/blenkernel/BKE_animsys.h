@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+#include "DNA_listBase.h"
+
 #include "BLI_bit_vector.hh"
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
@@ -23,12 +25,12 @@ struct ID;
 struct KS_Path;
 struct KeyingSet;
 struct LibraryForeachIDData;
-struct ListBase;
 struct Main;
 struct NlaKeyframingContext;
 struct PathResolvedRNA;
 struct PointerRNA;
 struct PropertyRNA;
+struct TimeMarker;
 struct bAction;
 struct bActionGroup;
 

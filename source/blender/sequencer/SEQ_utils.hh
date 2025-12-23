@@ -8,12 +8,13 @@
  * \ingroup sequencer
  */
 
+#include "DNA_listBase.h"
 #include "DNA_scene_types.h"
 
 struct bSound;
-struct ListBase;
 struct Mask;
 struct Scene;
+struct SeqTimelineChannel;
 struct Strip;
 struct StripElem;
 

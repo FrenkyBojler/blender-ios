@@ -98,6 +98,7 @@
 #include "BLI_endian_defines.h"
 #include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_math_matrix.h"
 #include "BLI_multi_value_map.hh"

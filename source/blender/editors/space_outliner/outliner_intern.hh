@@ -26,7 +26,6 @@ struct Collection;
 struct EditBone;
 struct ID;
 struct LayerCollection;
-struct ListBase;
 struct Main;
 struct Object;
 struct Scene;

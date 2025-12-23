@@ -10,12 +10,13 @@
 
 #include <pthread.h>
 
+#include "BLI_listbase.h"
 #include "BLI_sys_types.h"
 
 /** For tables, button in UI, etc. */
 #define BLENDER_MAX_THREADS 1024
 
-struct ListBase;
+struct ThreadSlot;
 
 /* Threading API */
 

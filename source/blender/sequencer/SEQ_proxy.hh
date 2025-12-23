@@ -16,7 +16,6 @@
 #include "IMB_imbuf_enums.h"
 
 struct Depsgraph;
-struct ListBase;
 struct Main;
 struct Scene;
 struct Strip;

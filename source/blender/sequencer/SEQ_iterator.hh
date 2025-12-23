@@ -10,9 +10,10 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_vector_set.hh"
+#include "DNA_listBase.h"
 
-struct ListBase;
 struct Scene;
+struct SeqTimelineChannel;
 struct Strip;
 
 namespace blender::seq {

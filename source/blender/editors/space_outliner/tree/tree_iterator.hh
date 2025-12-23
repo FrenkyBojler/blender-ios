@@ -8,9 +8,10 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include "BLI_function_ref.hh"
 
-struct ListBase;
 struct SpaceOutliner;
 
 namespace blender::ed::outliner {

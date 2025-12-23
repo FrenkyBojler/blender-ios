@@ -13,6 +13,7 @@
 #include "intern/depsgraph_type.hh"
 
 #include "DNA_ID.h"
+#include "DNA_listBase.h"
 
 #include "BLI_span.hh"
 
@@ -43,11 +44,11 @@ struct Key;
 struct LayerCollection;
 struct Light;
 struct LightProbe;
-struct ListBase;
 struct Main;
 struct Mask;
 struct Material;
 struct MovieClip;
+struct NlaStrip;
 struct Object;
 struct ParticleSettings;
 struct ParticleSystem;

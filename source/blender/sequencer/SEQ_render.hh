@@ -8,16 +8,17 @@
  * \ingroup sequencer
  */
 
+#include "DNA_listBase.h"
 #include "DNA_space_enums.h"
 
 struct Depsgraph;
 struct GPUOffScreen;
 struct GPUViewport;
 struct ImBuf;
-struct ListBase;
 struct Main;
 struct Render;
 struct Scene;
+struct SeqTimelineChannel;
 struct Strip;
 struct StripElem;
 

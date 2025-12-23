@@ -17,7 +17,7 @@
 
 #include "BLI_compiler_attrs.h"
 
-struct ListBase;
+#include "DNA_listBase.h"
 
 /**
  * Sanity check to ensure correct API use in debug mode.

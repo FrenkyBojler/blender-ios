@@ -23,6 +23,7 @@ struct Object;
 struct wmWindow;
 struct wmWindowManager;
 struct wmXrActionSet;
+struct wmXrController;
 struct wmXrData;
 
 struct wmXrSessionState {

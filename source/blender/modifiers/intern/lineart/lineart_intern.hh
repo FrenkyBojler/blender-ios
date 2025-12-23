@@ -9,11 +9,11 @@
 #pragma once
 
 #include "BLI_linklist.h"
-#include "BLI_listbase.h"
 #include "BLI_set.hh"
 #include "BLI_threads.h"
 
 #include "DNA_lineart_types.h"
+#include "DNA_listBase.h"
 
 #include <math.h>
 #include <string.h>
@@ -23,6 +23,7 @@ struct LineartEdge;
 struct LineartData;
 struct LineartStaticMemPool;
 struct LineartStaticMemPoolNode;
+struct LineartElementLinkNode;
 struct GreasePencilLineartModifierData;
 
 void *lineart_list_append_pointer_pool(ListBase *h, struct LineartStaticMemPool *smp, void *data);

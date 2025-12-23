@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
 #include "DNA_meshdata_types.h"
 
 #include "BLI_math_vector_types.hh"
@@ -21,7 +22,6 @@
 struct BlendDataReader;
 struct BlendWriter;
 struct ID;
-struct ListBase;
 struct MDeformVert;
 struct MDeformWeight;
 struct Object;

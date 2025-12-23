@@ -10,10 +10,12 @@
 
 #include "bmesh_class.hh"
 
+#include "DNA_listBase.h"
+
 #include "BLI_set.hh"
 
 struct BMEdgeLoopStore;
-struct ListBase;
+struct LinkData;
 
 /* multiple edgeloops (ListBase) */
 /**

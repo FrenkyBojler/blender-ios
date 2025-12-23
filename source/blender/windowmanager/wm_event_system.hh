@@ -16,6 +16,7 @@ struct GHOST_TabletData;
 struct ScrArea;
 struct wmEvent;
 struct wmKeyMap;
+struct wmDropBox;
 struct wmKeyMapItem;
 
 namespace blender::wm {

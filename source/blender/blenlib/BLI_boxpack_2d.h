@@ -8,9 +8,7 @@
  * \ingroup bli
  */
 
-#include <stdbool.h>
-
-struct ListBase;
+#include "DNA_listBase.h"
 
 /* Box Packer */
 

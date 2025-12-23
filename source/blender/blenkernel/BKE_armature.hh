@@ -17,12 +17,13 @@
 #include "BLI_set.hh"
 
 #include "DNA_armature_types.h"
+#include "DNA_listBase.h"
 
+struct bDeformGroup;
 struct BMEditMesh;
 struct Bone;
 struct Depsgraph;
 struct IDProperty;
-struct ListBase;
 struct Main;
 struct Mesh;
 struct Object;

@@ -104,6 +104,7 @@ struct wmDrag;
 struct wmDropBox;
 struct wmEvent;
 struct wmOperator;
+struct wmOperatorTypeMacro;
 struct wmWindowManager;
 
 #include <memory>
@@ -802,7 +803,7 @@ struct wmEvent {
    *
    * - #EVT_ACTIONZONE_AREA / #EVT_ACTIONZONE_FULLSCREEN / #EVT_ACTIONZONE_FULLSCREEN:
    *   Uses #sActionzoneData.
-   * - #EVT_DROP: uses #ListBase of #wmDrag (also #wmEvent::custom == #EVT_DATA_DRAGDROP).
+   * - #EVT_DROP: uses #ListBase (also #wmEvent::custom == #EVT_DATA_DRAGDROP).
    *   Typically set to #wmWindowManger::drags.
    * - #EVT_FILESELECT: uses #wmOperator.
    * - #EVT_XR_ACTION: uses #wmXrActionData (also #wmEvent::custom == #EVT_DATA_XR).

@@ -15,6 +15,7 @@
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_sequence_types.h"
 
 #include "RNA_access.hh"
@@ -31,6 +32,7 @@ struct ColorManagedViewSettings;
 struct ColorManagedDisplaySettings;
 struct Scene;
 struct SeqRetimingKey;
+struct SeqTimelineChannel;
 struct Strip;
 struct SpaceSeq;
 struct StripElem;
@@ -42,7 +44,6 @@ struct wmOperator;
 struct wmOperatorType;
 struct ScrArea;
 struct Editing;
-struct ListBase;
 
 namespace blender::ed::asset {
 struct AssetItemTree;
