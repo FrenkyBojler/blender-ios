@@ -10804,7 +10804,7 @@ static int ui_handle_menu_event(bContext *C,
 #endif
 
   /* Remove the #menu::keep_alive_timer once the mouse is withing the popup.  */
-  if (!menu->mmd_panning && inside) {
+  if (!menu->mmb_panning && inside) {
     if (menu->keep_alive_timer) {
       WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_alive_timer);
       menu->keep_alive_timer = nullptr;
@@ -10817,10 +10817,10 @@ static int ui_handle_menu_event(bContext *C,
     retval = WM_UI_HANDLER_BREAK;
   }
 
-  if (menu->mmd_panning && event->type == MIDDLEMOUSE && event->val == KM_RELEASE) {
+  if (menu->mmb_panning && event->type == MIDDLEMOUSE && event->val == KM_RELEASE) {
     WM_cursor_set(win, WM_CURSOR_DEFAULT);
     WM_cursor_grab_disable(win, nullptr);
-    menu->mmd_panning = false;
+    menu->mmb_panning = false;
     if (!inside) {
       /* Set the threshold to prevent from closing the menu when middle mouse button panning
        * finished outside the menu bounds. */
@@ -10829,12 +10829,12 @@ static int ui_handle_menu_event(bContext *C,
     }
   }
   /* Handle middle mouse panning. */
-  else if (menu->mmd_panning && event->type == MOUSEMOVE) {
-    const int delta = (menu->mmd_panning_last_y - event->xy[1]) *
+  else if (menu->mmb_panning && event->type == MOUSEMOVE) {
+    const int delta = (menu->mmb_panning_last_y - event->xy[1]) *
                       (event->flag & WM_EVENT_SCROLL_INVERT ? 1 : -1);
     if (delta) {
       ui_menu_scroll_apply_offset_y(region, block, delta);
-      menu->mmd_panning_last_y = event->xy[1];
+      menu->mmb_panning_last_y = event->xy[1];
     }
     retval = WM_UI_HANDLER_BREAK;
   }
@@ -10850,34 +10850,36 @@ static int ui_handle_menu_event(bContext *C,
     }
   }
   /* Don't auto-scroll while panning with the middle mouse button. */
-  else if (event->type == TIMER && !menu->mmd_panning && !menu->keep_alive_timer) {
+  else if (event->type == TIMER && !menu->mmb_panning && !menu->keep_alive_timer) {
     if (event->customdata == menu->scrolltimer) {
       ui_menu_scroll_to_y(region, block, my);
     }
   }
-  else if (event->type == MIDDLEMOUSE && (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM))) {
+  else if (event->type == MIDDLEMOUSE) {
     /* Let parent menus to handle middle mouse panning if the mouse is not withing the current
      * menu. */
-    if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0)) {
+    if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0) ||
+        !(block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)))
+    {
     }
     else {
-      menu->mmd_panning = event->val == KM_PRESS;
-      if (menu->mmd_panning) {
+      menu->mmb_panning = event->val == KM_PRESS;
+      if (menu->mmb_panning) {
         but = region_find_active_but(region);
         if (but) {
           but->active->cancel = true;
           button_activate_exit(C, but, but->active, false, false);
         }
       }
-      menu->mmd_panning_last_y = event->xy[1];
+      menu->mmb_panning_last_y = event->xy[1];
       menu->retvalue = 0;
-      if (menu->mmd_panning) {
+      if (menu->mmb_panning) {
         rctf rectf;
         block_to_window_rctf(menu->region, block, &rectf, &block->rect);
         rcti bounds;
         BLI_rcti_rctf_copy(&bounds, &rectf);
         WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
-        if (U.uiflag & USER_CONTINUOUS_MOUSE) {
+        if (U.uiflag & USER_CONTINUOUS_MOUSE && !WM_event_is_tablet(event)) {
           WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &bounds, false);
         }
       }
@@ -11443,7 +11445,7 @@ static int ui_handle_menu_event(bContext *C,
 
           /* strict check, and include the parent rect */
           if (!menu->dotowards && !saferct && ((U.flag & USER_MENU_CLOSE_LEAVE) || level > 0) &&
-              !(menu->mmd_panning || menu->keep_alive_timer))
+              !(menu->mmb_panning || menu->keep_alive_timer))
           {
             if (block->flag & BLOCK_OUT_1) {
               menu->menuretval = RETURN_OK;
@@ -12168,7 +12170,7 @@ static bool ui_can_activate_other_menu(Button *but, Button *but_other, const wmE
   if (data->menu && data->menu->region) {
     PopupBlockHandle *submenu = data->menu;
     while (submenu) {
-      if (submenu->mmd_panning || submenu->keep_alive_timer) {
+      if (submenu->mmb_panning || submenu->keep_alive_timer) {
         return false;
       }
       Button *but = region_find_active_but(submenu->region);
