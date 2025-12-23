@@ -522,47 +522,52 @@ static void ui_colorpicker_tooltips(const char **r_area_tooltip, const char **r_
 {
   static thread_local char buf_area_tooltip[128];
 
+  const char *name_hue = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Hue");
+  const char *name_sat = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Saturation");
+  const char *name_val = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value");
+  const char *name_light = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Lightness");
+  const char *name_color = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Color");
+
+  const char *axis_x = nullptr;
+  const char *axis_y = nullptr;
+  const char *slider = nullptr;
+
   switch (U.color_picker_type) {
-    case USER_CP_CIRCLE_HSV:
     case USER_CP_CIRCLE_HSL:
-      SNPRINTF_UTF8(buf_area_tooltip,
-                    "%s/%s",
-                    CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Hue"),
-                    CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Saturation"));
-      *r_area_tooltip = buf_area_tooltip;
-      *r_slider_tooltip = (U.color_picker_type == USER_CP_CIRCLE_HSL) ?
-                          CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Lightness") :
-                          CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value");
+      axis_x = name_hue;
+      axis_y = name_sat;
+      slider = name_light;
+      break;
+    case USER_CP_CIRCLE_HSV:
+      axis_x = name_hue;
+      axis_y = name_sat;
+      slider = name_val;
       break;
     case USER_CP_SQUARE_SV:
-      SNPRINTF_UTF8(buf_area_tooltip,
-                    "%s/%s",
-                    CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Saturation"),
-                    CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value"));
-      *r_area_tooltip = buf_area_tooltip;
-      *r_slider_tooltip = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Hue");
+      axis_x = name_sat;
+      axis_y = name_val;
+      slider = name_hue;
       break;
     case USER_CP_SQUARE_HS:
-      SNPRINTF_UTF8(buf_area_tooltip,
-                    "%s/%s",
-                    CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Hue"),
-                    CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Saturation"));
-      *r_area_tooltip = buf_area_tooltip;
-      *r_slider_tooltip = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value");
+      axis_x = name_hue;
+      axis_y = name_sat;
+      slider = name_val;
       break;
     case USER_CP_SQUARE_HV:
-      SNPRINTF_UTF8(buf_area_tooltip,
-                    "%s/%s",
-                    CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Hue"),
-                    CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value"));
-      *r_area_tooltip = buf_area_tooltip;
-      *r_slider_tooltip = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Saturation");
+      axis_x = name_hue;
+      axis_y = name_val;
+      slider = name_sat;
       break;
     default:
-      *r_area_tooltip = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Color");
-      *r_slider_tooltip = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value");
-      break;
+      *r_area_tooltip = name_color;
+      *r_slider_tooltip = name_val;
+      return;
   }
+
+  SNPRINTF_UTF8(buf_area_tooltip, "%s/%s", axis_x, axis_y);
+
+  *r_area_tooltip = buf_area_tooltip;
+  *r_slider_tooltip = slider;
 }
 
 static void ui_colorpicker_circle(Block *block,
