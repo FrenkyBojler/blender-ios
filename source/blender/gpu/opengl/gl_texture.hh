@@ -16,9 +16,12 @@
 
 namespace blender::gpu {
 
+class GLTexturePool;
+
 class GLTexture : public Texture {
   friend class GLStateManager;
   friend class GLFrameBuffer;
+  friend class GLTexturePool;
 
  private:
   /**
