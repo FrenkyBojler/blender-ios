@@ -91,9 +91,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.socket_type, 0);
   SocketValueVariant output_value = socket_value->value;
   if (socket_value->type->type != stype->type) {
-    params.set_output("Bundle", std::move(bundle));
-    params.set_default_remaining_outputs();
-    return;
+    if (std::optional<SocketValueVariant> converted_value = implicitly_convert_socket_value(
+            *socket_value->type, output_value, *stype))
+    {
+      output_value = std::move(*converted_value);
+    }
+    else {
+      params.set_output("Bundle", std::move(bundle));
+      params.set_default_remaining_outputs();
+      return;
+    }
   }
 
   if (remove) {
