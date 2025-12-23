@@ -198,7 +198,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     assert isinstance(rna_item, property_type)
 
     items = list(rna_item.items())
-    items.sort()
 
     # TODO: Allow/support adding new custom props to overrides.
     # if use_edit and not is_lib_override:

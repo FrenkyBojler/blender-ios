@@ -6,6 +6,8 @@
  * \ingroup edinterface
  */
 
+#include <fmt/format.h>
+
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
@@ -40,6 +42,104 @@ class IDPropertyView : public AbstractTreeView {
 
  private:
   ID *id_;
+};
+
+struct DragDropData {
+  ID *id_;
+  IDProperty *prop_;
+
+  DragDropData() = default;
+  DragDropData(ID *id, IDProperty *prop) : id_(id), prop_(prop) {}
+};
+
+class IDPropertyDragController : public ui::AbstractViewItemDragController {
+ private:
+  DragDropData drag_data_;
+
+ public:
+  IDPropertyDragController(IDPropertyView &view, ID *id, IDProperty *prop)
+      : AbstractViewItemDragController(view), drag_data_(id, prop)
+  {
+  }
+
+  std::optional<eWM_DragDataType> get_drag_type() const override
+  {
+    return WM_DRAG_IDPROPERTY;
+  }
+
+  void *create_drag_data() const override
+  {
+    DragDropData *drag_data = MEM_callocN<DragDropData>(__func__);
+    *drag_data = drag_data_;
+    return drag_data;
+  }
+};
+
+class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
+ private:
+  DragDropData drop_data_;
+
+ public:
+  IDPropertyDropTarget(ui::AbstractTreeViewItem &item,
+                       ui::DropBehavior behavior,
+                       ID *id,
+                       IDProperty *prop)
+      : TreeViewItemDropTarget(item, behavior), drop_data_(id, prop)
+  {
+  }
+
+  bool can_drop(const wmDrag &drag, const char ** /*r_disabled_hint*/) const override
+  {
+    return drag.type == WM_DRAG_IDPROPERTY;
+  }
+
+  std::string drop_tooltip(const ui::DragInfo &drag_info) const override
+  {
+    DragDropData *drag_data = static_cast<DragDropData *>(drag_info.drag_data.poin);
+    const StringRef drag_name = drag_data->prop_->name;
+    const StringRef drop_name = drop_data_.prop_->name;
+
+    switch (drag_info.drop_location) {
+      case ui::DropLocation::Into:
+        BLI_assert_unreachable();
+        break;
+      case ui::DropLocation::Before:
+        return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
+      case ui::DropLocation::After:
+        return fmt::format(fmt::runtime(TIP_("Move {} below {}")), drag_name, drop_name);
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+
+    return "";
+  }
+
+  bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
+  {
+    DragDropData *drag_data = static_cast<DragDropData *>(drag_info.drag_data.poin);
+    BLI_remlink(&drag_data->id_->properties->data.group, drag_data->prop_);
+
+    switch (drag_info.drop_location) {
+      case ui::DropLocation::Into:
+        BLI_assert_unreachable();
+        break;
+      case ui::DropLocation::Before:
+        BLI_insertlinkafter(
+            &drag_data->id_->properties->data.group, drop_data_.prop_->prev, drag_data->prop_);
+        break;
+      case ui::DropLocation::After:
+        BLI_insertlinkbefore(
+            &drag_data->id_->properties->data.group, drop_data_.prop_->next, drag_data->prop_);
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(C, "Drop Active IDProperty");
+    return true;
+  }
 };
 
 class IDPropertyItem : public AbstractTreeViewItem {
@@ -93,6 +193,18 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
     ED_undo_push(&C, "Set Active IDProperty");
   }
+
+  std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
+  {
+    return std::make_unique<IDPropertyDragController>(
+        static_cast<IDPropertyView &>(get_tree_view()), id_, property_);
+  }
+
+  std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
+  {
+    return std::make_unique<IDPropertyDropTarget>(
+        *this, ui::DropBehavior::Reorder, id_, property_);
+  }
 };
 
 void IDPropertyView::build_tree()
@@ -116,7 +228,7 @@ void template_tree(ui::Layout *layout, bContext *C, ID *id)
   Block *block = layout->block();
 
   ui::AbstractTreeView *tree_view = block_add_view(
-      *block, "Shape Key Tree View", std::make_unique<IDPropertyView>(id));
+      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(id));
   tree_view->set_context_menu_title("ID Property");
   tree_view->set_default_rows(4);
 
