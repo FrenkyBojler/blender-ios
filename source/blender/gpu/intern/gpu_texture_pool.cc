@@ -107,7 +107,5 @@ void TexturePoolImpl::reset(bool force_free)
       tex.unused_cycles_count++;
     }
   }
-
-  std::printf("TexturePoolImpl: pool_=%d, acquired_=%d\n", pool_.size(), acquired_.size());
 }
 }  // namespace blender::gpu
