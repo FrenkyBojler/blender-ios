@@ -46,7 +46,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
-    output_value.reference_pass_all();
+    output_value.dependent_field();
   }
 
   input_value.structure_type(StructureType::Dynamic);
