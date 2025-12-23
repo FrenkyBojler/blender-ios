@@ -194,10 +194,10 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_input_attachmen
                   uint32_t(layer_range.size())};
     }
 
-  access_info.images.append({texture->vk_image_handle(),
-                             resource_binding.access_mask,
-                             to_vk_image_aspect_flag_bits(texture->device_format_get()),
-                             subimage});
+    access_info.images.append({texture->vk_image_handle(),
+                               resource_binding.access_mask,
+                               to_vk_image_aspect_flag_bits(texture->device_format_get()),
+                               subimage});
   }
 }
 
