@@ -220,7 +220,13 @@ bool ED_operator_scene_editable(bContext *C)
 bool ED_operator_sequencer_scene_editable(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  if (scene == nullptr || !BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+  if (scene == nullptr) {
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
+    return false;
+  }
+
+  if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+    CTX_wm_operator_poll_msg_set(C, "Sequencer scene not editable");
     return false;
   }
   return true;
@@ -2290,6 +2296,7 @@ static void area_move_exit(bContext *C, wmOperator *op)
   md->win = CTX_wm_window(C);
   md->draw_callback = WM_draw_cb_activate(md->win, area_move_out_draw_cb, md);
 
+  BKE_screen_remove_double_scredges(CTX_wm_screen(C));
   ED_workspace_status_text(C, nullptr);
 
   screen_modal_action_end();
@@ -2716,6 +2723,8 @@ static void area_split_exit(bContext *C, wmOperator *op)
   WM_cursor_modal_restore(CTX_wm_window(C));
   WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
   ED_workspace_status_text(C, nullptr);
+
+  BKE_screen_remove_double_scredges(CTX_wm_screen(C));
 
   screen_modal_action_end();
 }
@@ -4250,7 +4259,7 @@ static void area_join_draw_cb(const wmWindow *win, void *userdata)
   if (sd->sa1 == sd->sa2 && sd->split_fac > 0.0f) {
     screen_draw_split_preview(sd->sa1, sd->split_dir, sd->split_fac);
   }
-  else if (sd->sa2 && sd->dir != SCREEN_DIR_NONE) {
+  else if (sd->sa2 && (sd->sa1 != sd->sa2)) {
     screen_draw_join_highlight(win, sd->sa1, sd->sa2, sd->dir, factor);
   }
 }

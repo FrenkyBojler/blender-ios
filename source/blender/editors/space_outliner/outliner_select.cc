@@ -439,6 +439,12 @@ static void tree_element_camera_activate(bContext *C, Scene *scene, TreeElement 
 {
   Object *ob = (Object *)outliner_search_back(te, ID_OB);
 
+  if (ob == nullptr) {
+    /* Happens in "Blender File" view (there is simply no object up in the hierarchy in this case).
+     */
+    return;
+  }
+
   scene->camera = ob;
 
   Main *bmain = CTX_data_main(C);
@@ -564,7 +570,7 @@ static void tree_element_posechannel_activate(bContext *C,
       }
 
       LISTBASE_FOREACH (bPoseChannel *, pchannel, &ob_iter->pose->chanbase) {
-        pchannel->flag &= ~POSE_SELECTED_ALL;
+        blender::animrig::bone_deselect(pchannel);
       }
 
       if (ob != ob_iter) {
@@ -574,11 +580,11 @@ static void tree_element_posechannel_activate(bContext *C,
   }
 
   if ((set == OL_SETSEL_EXTEND) && (pchan->flag & POSE_SELECTED)) {
-    pchan->flag &= ~POSE_SELECTED_ALL;
+    blender::animrig::bone_deselect(pchan);
   }
   else {
     if (blender::animrig::bone_is_visible(arm, pchan)) {
-      pchan->flag |= POSE_SELECTED_ALL;
+      blender::animrig::bone_select(pchan);
     }
     arm->act_bone = pchan->bone;
   }

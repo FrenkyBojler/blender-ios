@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2025-12-22 09:32+0000\n"
 "PO-Revision-Date: 2025-07-23 15:14+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -9167,6 +9167,22 @@ msgid "Collection"
 msgstr "Kolekcja"
 
 
+msgid "Font"
+msgstr "Czcionka"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Sound"
+msgstr "Dźwięk"
+
+
 msgid "Collection Negation"
 msgstr "Kolekcja negacji"
 
@@ -9702,10 +9718,6 @@ msgstr "Rozdzielczość V"
 
 msgid "Path"
 msgstr "Ścieżka"
-
-
-msgid "Font"
-msgstr "Czcionka"
 
 
 msgid "Selected Bold"
@@ -10592,10 +10604,6 @@ msgstr "Wycisz głośnik"
 msgctxt "Sound"
 msgid "Pitch"
 msgstr "Wysokość"
-
-
-msgid "Sound"
-msgstr "Dźwięk"
 
 
 msgctxt "Text"
@@ -11523,8 +11531,20 @@ msgid "Use Material Mask"
 msgstr "Używa maski materiału"
 
 
-msgid "Mask"
-msgstr "Maska"
+msgid "Local View"
+msgstr "Widok lokalny"
+
+
+msgid "Viewpoint"
+msgstr "Punkt obserwacji"
+
+
+msgid "Navigation"
+msgstr "Nawigacja"
+
+
+msgid "Select Linked"
+msgstr "Zaznacz powiązane"
 
 
 msgid "Assign Material"
@@ -11541,6 +11561,10 @@ msgstr "Światło"
 
 msgid "Light Probe"
 msgstr "Sonda świetlna"
+
+
+msgid "Layout"
+msgstr "Układ"
 
 
 msgid "Rigid Body"
@@ -11567,8 +11591,8 @@ msgid "Clean Up"
 msgstr "Sprzątanie"
 
 
-msgid "Layout"
-msgstr "Układ"
+msgid "Keying"
+msgstr "Kluczowanie"
 
 
 msgid "Asset"
@@ -11577,10 +11601,6 @@ msgstr "Prefabrykat"
 
 msgid "Convert"
 msgstr "Konwertuj"
-
-
-msgid "Keying"
-msgstr "Kluczowanie"
 
 
 msgid "Utilities"
@@ -11603,24 +11623,12 @@ msgid "Merge"
 msgstr "Scal"
 
 
-msgid "Text"
-msgstr "Tekst"
-
-
 msgid "Read"
 msgstr "Odczyt"
 
 
 msgid "Write"
 msgstr "Zapis"
-
-
-msgid "Snap"
-msgstr "Przyciągnij"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proporcjonalne edytowanie spadku"
 
 
 msgid "Gizmo"
@@ -11631,28 +11639,20 @@ msgid "Import"
 msgstr "Importuj"
 
 
+msgid "Snap"
+msgstr "Przyciągnij"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proporcjonalne edytowanie spadku"
+
+
 msgid "Deprecated"
 msgstr "Przestarzałe"
 
 
 msgid "Mirror"
 msgstr "Odbicie lustrzane"
-
-
-msgid "Local View"
-msgstr "Widok lokalny"
-
-
-msgid "Viewpoint"
-msgstr "Punkt obserwacji"
-
-
-msgid "Navigation"
-msgstr "Nawigacja"
-
-
-msgid "Select Linked"
-msgstr "Zaznacz powiązane"
 
 
 msgid "Catalog"
@@ -17242,6 +17242,14 @@ msgid "Palette Color"
 msgstr "Kolor palety"
 
 
+msgid "Curve Edit Mode"
+msgstr "Tryb edycji krzywej"
+
+
+msgid "Transform Orientations"
+msgstr "Orientacje przekształcenia"
+
+
 msgid "Active Tool"
 msgstr "Aktywne narzędzie"
 
@@ -17264,14 +17272,6 @@ msgstr "Tryb edycji siatki"
 
 msgid "Measurement"
 msgstr "Pomiar"
-
-
-msgid "Curve Edit Mode"
-msgstr "Tryb edycji krzywej"
-
-
-msgid "Transform Orientations"
-msgstr "Orientacje przekształcenia"
 
 
 msgid "Aperture"
@@ -19942,6 +19942,11 @@ msgstr "Użyj obiektu"
 
 
 msgctxt "WindowManager"
+msgid "Snap"
+msgstr "Przyciągaj"
+
+
+msgctxt "WindowManager"
 msgid "Forward"
 msgstr "Do przodu"
 
@@ -20064,11 +20069,6 @@ msgstr "Początek"
 msgctxt "WindowManager"
 msgid "Move"
 msgstr "Przesunięcie"
-
-
-msgctxt "WindowManager"
-msgid "Snap"
-msgstr "Przyciągaj"
 
 
 msgctxt "WindowManager"
@@ -23029,6 +23029,14 @@ msgid "particles"
 msgstr "cząstki"
 
 
+msgid "Mesh has no UV data"
+msgstr "Siatka nie posiada danych UV"
+
+
+msgid "Mesh has no VCol data"
+msgstr "Siatka nie posiada danych VCol"
+
+
 msgid "%i frames found!"
 msgstr "Odnaleziono %i klatek!"
 
@@ -25844,10 +25852,6 @@ msgid "OneDrive"
 msgstr "OneDrive"
 
 
-msgid "Movies"
-msgstr "Filmy"
-
-
 msgid "Cursor X"
 msgstr "Kursor X"
 
@@ -27313,14 +27317,6 @@ msgstr "Obiekt '%s' nie obsługuje kształtów"
 
 msgid "Object '%s' could not create internal data for finding nearest point"
 msgstr "Obiekt '%s' nie zdołał stworzyć wewnętrznych danych do znalezienia najbliższego punktu"
-
-
-msgid "Mesh has no UV data"
-msgstr "Siatka nie posiada danych UV"
-
-
-msgid "Mesh has no VCol data"
-msgstr "Siatka nie posiada danych VCol"
 
 
 msgid "Constraint '%s' not found in pose bone '%s'"

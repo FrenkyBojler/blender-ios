@@ -537,6 +537,26 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
       break;
     }
+    case SOCK_FONT: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "fonts", name, ICON_FONT_DATA);
+      break;
+    }
+    case SOCK_SCENE: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "scenes", name, ICON_SCENE);
+      break;
+    }
+    case SOCK_TEXT_ID: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "texts", name, ICON_TEXT);
+      break;
+    }
+    case SOCK_MASK: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "masks", name, ICON_NONE);
+      break;
+    }
+    case SOCK_SOUND: {
+      row.prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "sounds", name, ICON_SOUND);
+      break;
+    }
     case SOCK_IMAGE: {
       PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, rna_path.c_str());
       if (prop && RNA_property_type(prop) == PROP_POINTER) {
@@ -717,7 +737,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items().drop_front(skip_first ? 1 : 0))
   {
-    switch (NodeTreeInterfaceItemType(item->item_type)) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_PANEL: {
         const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
         draw_interface_panel_as_panel(ctx, layout, sub_interface_panel);

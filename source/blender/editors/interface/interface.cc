@@ -2260,7 +2260,7 @@ void block_draw(const bContext *C, Block *block)
                        &style,
                        block,
                        &rect,
-                       panel_category_is_visible(region),
+                       panel_category_tabs_is_visible(region),
                        panel_should_show_background(region, block->panel->type),
                        region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE);
   }
@@ -2287,6 +2287,17 @@ void block_draw(const bContext *C, Block *block)
     /* Optimization: Don't draw buttons that are not visible (outside view bounds). */
     if (!ui_but_pixelrect_in_view(region, &rect)) {
       continue;
+    }
+
+    /* Don't draw buttons that are wider than enclosing panel. #150173 */
+    if (block->panel && block->panel->sizex > 0) {
+      int panel_width = int(ceil(float(block->panel->sizex) * UI_SCALE_FAC / block->aspect));
+      if (panel_should_show_background(region, block->panel->type)) {
+        panel_width -= int(floor(UI_PANEL_MARGIN_X / block->aspect * 2.0f));
+      }
+      if (BLI_rcti_size_x(&rect) > panel_width) {
+        continue;
+      }
     }
 
     /* XXX: figure out why invalid coordinates happen when closing render window */
@@ -3862,7 +3873,7 @@ Block *block_begin(const bContext *C,
     STRNCPY_UTF8(block->display_device, scene->display_settings.display_device);
 
     /* Copy to avoid crash when scene gets deleted with UI still open. */
-    UnitSettings *unit = MEM_callocN<UnitSettings>(__func__);
+    UnitSettings *unit = MEM_new_for_free<UnitSettings>(__func__);
     memcpy(unit, &scene->unit, sizeof(scene->unit));
     block->unit = unit;
   }
@@ -4264,46 +4275,6 @@ static std::unique_ptr<Button> ui_but_new(const ButtonType type)
   }
 
   but->type = type;
-  return but;
-}
-
-Button *button_change_type(Button *but, ButtonType new_type)
-{
-  if (but->type == new_type) {
-    /* Nothing to do. */
-    return but;
-  }
-
-  const int64_t but_index = but->block->but_index(but);
-
-  /* Remove old button address */
-  std::unique_ptr<Button> old_but_ptr = std::move(but->block->buttons[but_index]);
-
-  /* Button may have pointer to a member within itself, this will have to be updated. */
-  const bool has_poin_ptr_to_self = but->poin == (char *)but;
-
-  /* Copy construct button with the new type. */
-  but->block->buttons[but_index] = ui_but_new(new_type);
-  but = but->block->buttons[but_index].get();
-  *but = *old_but_ptr;
-  /* We didn't mean to override this :) */
-  but->type = new_type;
-  if (has_poin_ptr_to_self) {
-    but->poin = (char *)but;
-  }
-
-  if (but->layout) {
-    const bool found_layout = layout_replace_but_ptr(but->layout, old_but_ptr.get(), but);
-    BLI_assert(found_layout);
-    UNUSED_VARS_NDEBUG(found_layout);
-    button_group_replace_but_ptr(but->layout->block(), old_but_ptr.get(), but);
-  }
-#ifdef WITH_PYTHON
-  if (editsource_enable_check()) {
-    editsource_but_replace(old_but_ptr.get(), but);
-  }
-#endif
-
   return but;
 }
 
@@ -6160,13 +6131,13 @@ void button_func_rename_set(Button *but, ButtonHandleRenameFunc func, void *arg1
 void button_func_rename_full_set(Button *but,
                                  std::function<void(std::string &new_name)> rename_full_func)
 {
-  but->rename_full_func = rename_full_func;
+  but->rename_full_func = std::move(rename_full_func);
 }
 
 void button_func_drawextra_set(Block *block,
                                std::function<void(const bContext *C, rcti *rect)> func)
 {
-  block->drawextra = func;
+  block->drawextra = std::move(func);
 }
 
 void button_func_set(Button *but, ButtonHandleFunc func, void *arg1, void *arg2)
@@ -6246,7 +6217,7 @@ void button_func_tooltip_custom_set(Button *but,
 
 void button_func_pushed_state_set(Button *but, std::function<bool(const Button &)> func)
 {
-  but->pushed_state_func = func;
+  but->pushed_state_func = std::move(func);
   button_update(but);
 }
 
