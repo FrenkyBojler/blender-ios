@@ -2291,9 +2291,9 @@ void block_draw(const bContext *C, Block *block)
 
     /* Don't draw buttons that are wider than enclosing panel. #150173 */
     if (block->panel && block->panel->sizex > 0) {
-      int panel_width = (block->panel->sizex * UI_SCALE_FAC / block->aspect);
+      int panel_width = int(ceil(float(block->panel->sizex) * UI_SCALE_FAC / block->aspect));
       if (panel_should_show_background(region, block->panel->type)) {
-        panel_width -= int(UI_PANEL_MARGIN_X / block->aspect * 2.0f);
+        panel_width -= int(floor(UI_PANEL_MARGIN_X / block->aspect * 2.0f));
       }
       if (BLI_rcti_size_x(&rect) > panel_width) {
         continue;
@@ -3873,7 +3873,7 @@ Block *block_begin(const bContext *C,
     STRNCPY_UTF8(block->display_device, scene->display_settings.display_device);
 
     /* Copy to avoid crash when scene gets deleted with UI still open. */
-    UnitSettings *unit = MEM_callocN<UnitSettings>(__func__);
+    UnitSettings *unit = MEM_new_for_free<UnitSettings>(__func__);
     memcpy(unit, &scene->unit, sizeof(scene->unit));
     block->unit = unit;
   }

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2025-12-22 09:32+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -5211,6 +5211,22 @@ msgid "Collection"
 msgstr "Samling"
 
 
+msgid "Font"
+msgstr "Typsnitt"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Mask"
+msgstr "Mask"
+
+
+msgid "Sound"
+msgstr "Ljud"
+
+
 msgid "Exclusive"
 msgstr "Exklusiv"
 
@@ -6255,10 +6271,6 @@ msgstr "Redigera format"
 
 msgid "Text on Curve"
 msgstr "Text på kurva"
-
-
-msgid "Font"
-msgstr "Typsnitt"
 
 
 msgid "X Offset"
@@ -7348,10 +7360,6 @@ msgstr "Cachning"
 msgctxt "Sound"
 msgid "Mute"
 msgstr "Tyst"
-
-
-msgid "Sound"
-msgstr "Ljud"
 
 
 msgid "Minimum Volume"
@@ -9331,16 +9339,32 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
-msgid "Mask"
-msgstr "Mask"
+msgid "Local View"
+msgstr "Lokal vy"
 
 
-msgid "Assign Material"
-msgstr "Tilldela material"
+msgid "Viewpoint"
+msgstr "Visningspunkt"
+
+
+msgid "Navigation"
+msgstr "Navigering"
+
+
+msgid "Align View"
+msgstr "Justera vy"
+
+
+msgid "Align View to Active"
+msgstr "Justera vy till aktiv"
 
 
 msgid "Select More/Less"
 msgstr "Markera mera/mindre"
+
+
+msgid "Assign Material"
+msgstr "Tilldela material"
 
 
 msgid "Metaball"
@@ -9353,6 +9377,10 @@ msgstr "Ljus"
 
 msgid "Light Probe"
 msgstr "Ljussond"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Add Image"
@@ -9375,6 +9403,10 @@ msgid "Track"
 msgstr "Spår"
 
 
+msgid "Adjust"
+msgstr "Justera"
+
+
 msgid "Quick Effects"
 msgstr "Snabbeffekter"
 
@@ -9387,10 +9419,6 @@ msgid "Clean Up"
 msgstr "Städa upp"
 
 
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Asset"
 msgstr "Tillgång"
 
@@ -9401,10 +9429,6 @@ msgstr "Konvertera"
 
 msgid "Link/Transfer Data"
 msgstr "Länka/överför data"
-
-
-msgid "Adjust"
-msgstr "Justera"
 
 
 msgid "Utilities"
@@ -9427,16 +9451,12 @@ msgid "Merge"
 msgstr "Sammanfoga"
 
 
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Text"
-msgstr "Text"
-
-
 msgid "Read"
 msgstr "Läs"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
 
 
 msgid "Write"
@@ -9447,20 +9467,20 @@ msgid "Primitives"
 msgstr "Primitiver"
 
 
-msgid "Pivot Point"
-msgstr "Fast punkt"
-
-
-msgid "Snap"
-msgstr "Snäpp"
-
-
 msgid "Instances"
 msgstr "Instanser"
 
 
 msgid "Import"
 msgstr "Importera"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
+
+
+msgid "Snap"
+msgstr "Snäpp"
 
 
 msgid "Deprecated"
@@ -9473,26 +9493,6 @@ msgstr "UV"
 
 msgid "Mirror"
 msgstr "Spegla"
-
-
-msgid "Local View"
-msgstr "Lokal vy"
-
-
-msgid "Viewpoint"
-msgstr "Visningspunkt"
-
-
-msgid "Navigation"
-msgstr "Navigering"
-
-
-msgid "Align View"
-msgstr "Justera vy"
-
-
-msgid "Align View to Active"
-msgstr "Justera vy till aktiv"
 
 
 msgid "Animals"
@@ -21371,6 +21371,10 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
+msgid "Stroke Placement"
+msgstr "Streckplacering"
+
+
 msgid "VR"
 msgstr "VR"
 
@@ -21397,10 +21401,6 @@ msgstr "Visningsnod"
 
 msgid "Measurement"
 msgstr "Mätning"
-
-
-msgid "Stroke Placement"
-msgstr "Streckplacering"
 
 
 msgid "Import Settings"
@@ -23010,10 +23010,6 @@ msgid "Chinese (Traditional) - 繁體中文"
 msgstr "Kinesiska (traditionell) - 繁體中文"
 
 
-msgid "Croatian - Hrvatski"
-msgstr "Kroatiska - Hrvatski"
-
-
 msgid "Czech - Čeština"
 msgstr "Tjeckiska - Čeština"
 
@@ -23058,10 +23054,6 @@ msgid "Greek - Ελληνικά"
 msgstr "Grekiska - Ελληνικά"
 
 
-msgid "Hausa - Hausa"
-msgstr "Hausa - Hausa"
-
-
 msgid "Hebrew - תירִבְעִ"
 msgstr "Hebreiska - תירִבְעִ"
 
@@ -23086,10 +23078,6 @@ msgid "Japanese - 日本語"
 msgstr "Japanska - 日本語"
 
 
-msgid "Khmer - ខ្មែរ"
-msgstr "Khmer - ខ្មែរ"
-
-
 msgid "Korean - 한국어"
 msgstr "Koreanska - 한국어"
 
@@ -23104,10 +23092,6 @@ msgstr "Litauiska - Lietuviškai"
 
 msgid "Malayalam - മലയാളം"
 msgstr "Malayalam - മലയാളം"
-
-
-msgid "Nepali - नेपाली"
-msgstr "Nepali - नेपाली"
 
 
 msgid "Persian - ﯽﺳﺭﺎﻓ"
@@ -25529,6 +25513,16 @@ msgstr "Öka segment"
 
 
 msgctxt "WindowManager"
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgctxt "WindowManager"
+msgid "Precision"
+msgstr "Precision"
+
+
+msgctxt "WindowManager"
 msgid "Lock Angle"
 msgstr "Lås vinkel"
 
@@ -25566,11 +25560,6 @@ msgstr "Hoppa"
 msgctxt "WindowManager"
 msgid "Jump (Off)"
 msgstr "Hoppa (av)"
-
-
-msgctxt "WindowManager"
-msgid "Precision"
-msgstr "Precision"
 
 
 msgctxt "WindowManager"
@@ -25736,11 +25725,6 @@ msgstr "Börja"
 msgctxt "WindowManager"
 msgid "Move"
 msgstr "Flytta"
-
-
-msgctxt "WindowManager"
-msgid "Snap"
-msgstr "Snäpp"
 
 
 msgctxt "WindowManager"
@@ -26246,12 +26230,12 @@ msgid "Use Geometry Nodes"
 msgstr "Använd geometrinoder"
 
 
-msgid "Node {} deleted"
-msgstr "Noden {} togs bort"
-
-
 msgid "{} does not exist"
 msgstr "{} finns inte"
+
+
+msgid "Node {} deleted"
+msgstr "Noden {} togs bort"
 
 
 msgid "Deleted {} nodes"
@@ -30559,10 +30543,6 @@ msgid "CombinedAction"
 msgstr "CombinedAction"
 
 
-msgid "Active action is not layered"
-msgstr "Aktiv åtgärd är inte uppdelad i lager"
-
-
 msgid "<invalid>"
 msgstr "<ogiltig>"
 
@@ -31884,10 +31864,6 @@ msgstr "Videor"
 
 msgid "OneDrive"
 msgstr "OneDrive"
-
-
-msgid "Movies"
-msgstr "Filmer"
 
 
 msgid "Interpolation:"
@@ -34356,26 +34332,6 @@ msgstr "filer"
 
 msgid "microphone"
 msgstr "mikrofon"
-
-
-msgid "Estonian - Eesti keel"
-msgstr "Estniska - Eesti keel"
-
-
-msgid "Amharic - አማርኛ"
-msgstr "Amhariska - አማርኛ"
-
-
-msgid "Uzbek (Latin) - Oʻzbek"
-msgstr "Uzbekiska (latin) - Oʻzbek"
-
-
-msgid "Uzbek (Cyrillic) - Ўзбек"
-msgstr "Uzbekisk (kyrilliska) - Ўзбек"
-
-
-msgid "Kazakh - Қазақша"
-msgstr "Kazakiska - Қазақша"
 
 
 msgid "Add & Subtract"

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2025-12-22 09:32+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -4644,6 +4644,18 @@ msgid "Shader"
 msgstr "Senčenja"
 
 
+msgid "Font"
+msgstr "Font"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Sound"
+msgstr "Zvuk"
+
+
 msgid "Freestyle Line Set"
 msgstr "Zbirka slobodoručnih linija"
 
@@ -5512,10 +5524,6 @@ msgstr "Objekta fonta"
 
 msgid "Text on Curve"
 msgstr "Tekst na krivoj"
-
-
-msgid "Font"
-msgstr "Font"
 
 
 msgid "Font Bold"
@@ -7232,10 +7240,6 @@ msgid "Pitch"
 msgstr "Visina tona"
 
 
-msgid "Sound"
-msgstr "Zvuk"
-
-
 msgid "Maximum Volume"
 msgstr "Maksimalna jačina"
 
@@ -8485,16 +8489,28 @@ msgid "Dots"
 msgstr "Tufne"
 
 
-msgid "Mask"
-msgstr "Maska"
-
-
 msgid "Material slot in an object"
 msgstr "Slot materijala u objektu"
 
 
 msgid "Material slot name"
 msgstr "Naziv slota materijala"
+
+
+msgid "Local View"
+msgstr "Lokalni pogled"
+
+
+msgid "Navigation"
+msgstr "Navigacija"
+
+
+msgid "Align View"
+msgstr "Poravnaj pogled"
+
+
+msgid "Select Linked"
+msgstr "Izaberi povezano"
 
 
 msgid "Metaball"
@@ -8529,10 +8545,6 @@ msgid "Show/Hide"
 msgstr "Prikaži/sakrij"
 
 
-msgid "Hooks"
-msgstr "Udice"
-
-
 msgid "Keying"
 msgstr "Zbirka tastera"
 
@@ -8541,16 +8553,20 @@ msgid "Tracking"
 msgstr "Praćenje"
 
 
+msgid "Hooks"
+msgstr "Udice"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
 msgid "Clear Transform"
 msgstr "Očisti transformacije"
 
 
 msgid "In-Betweens"
 msgstr "U međuvremenu"
-
-
-msgid "Math"
-msgstr "Matematika"
 
 
 msgid "Propagate"
@@ -8589,12 +8605,12 @@ msgid "Bone Roll"
 msgstr "Rolna kostiju"
 
 
-msgid "Snap"
-msgstr "Lepljenje"
-
-
 msgid "Import"
 msgstr "Uvoz"
+
+
+msgid "Snap"
+msgstr "Lepljenje"
 
 
 msgid "UV"
@@ -8607,22 +8623,6 @@ msgstr "Ogledalo"
 
 msgid "UV Mapping"
 msgstr "UV Mapiranje"
-
-
-msgid "Local View"
-msgstr "Lokalni pogled"
-
-
-msgid "Navigation"
-msgstr "Navigacija"
-
-
-msgid "Align View"
-msgstr "Poravnaj pogled"
-
-
-msgid "Select Linked"
-msgstr "Izaberi povezano"
 
 
 msgid "Basic"
@@ -19135,12 +19135,12 @@ msgid "Restrict"
 msgstr "Ograniči"
 
 
-msgid "Motion Tracking"
-msgstr "Praćenje pokreta"
-
-
 msgid "Transform Orientations"
 msgstr "Transformacija orijentacija"
+
+
+msgid "Motion Tracking"
+msgstr "Praćenje pokreta"
 
 
 msgid "Bone Constraints"
