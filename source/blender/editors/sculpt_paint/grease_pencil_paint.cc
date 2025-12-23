@@ -1136,11 +1136,11 @@ struct PaintOperationExecutor {
       const float3 origin = pto->placement_.project(guide.origin);
       GPUVertFormat *format3d = immVertexFormat();
       const uint pos3d = GPU_vertformat_attr_add(
-          format3d, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+          format3d, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
       const uint col3d = GPU_vertformat_attr_add(
-          format3d, "color", blender::gpu::VertAttrType::SFLOAT_32_32);
+          format3d, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
       const uint siz3d = GPU_vertformat_attr_add(
-          format3d, "size", blender::gpu::VertAttrType::SFLOAT_32_32);
+          format3d, "size", blender::gpu::VertAttrType::SFLOAT_32);
       immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
       GPU_program_point_size(true);
       immBegin(GPU_PRIM_POINTS, 1);
@@ -1153,7 +1153,7 @@ struct PaintOperationExecutor {
     }
     /* Guide lines. */
     const uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
     GPU_matrix_push_projection();
     GPU_matrix_push();
     GPU_matrix_identity_set();
