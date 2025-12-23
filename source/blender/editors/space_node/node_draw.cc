@@ -2846,7 +2846,7 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
                                           const int color_id)
 {
   ColorTheme4f color_header;
-  /* Use node backdrop alpha to control header*/
+  /* Use node backdrop alpha to control header. */
   ColorTheme4f color_alpha;
   ui::theme::get_color_4fv(TH_NODE, color_alpha);
   const float alpha = std::clamp(color_alpha.a, 0.4f, 1.0f);
