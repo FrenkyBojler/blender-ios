@@ -131,21 +131,27 @@ Texture *VKTexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUT
       device.vk_handle(), texture_handle.texture->vk_image_, &memory_requirements);
 
 #if 0
-  /* Search for the largest compatible allocation. */
+  /* Search for the smallest compatible allocation. */
   int64_t match_index = -1;
-  VkDeviceSize match_size = memory_requirements.size;
+  VkDeviceSize match_size = std::numeric_limits<VkDeviceSize>::max();
   for (uint64_t i : pool_.index_range()) {
     const auto &handle = pool_[i];
-    if (handle.allocation_info.size >= match_size) {
-      /* `memory_requirements.memoryTypeBits` has bits set for every type of supported memory;
-       * only one needs to match for the allocation to be compatible to the image. */
-      if (bool(handle.allocation_info.memoryType & memory_requirements.memoryTypeBits)) {
-        match_size = handle.allocation_info.size;
-        match_index = i;
-      }
+    if (handle.allocation_info.size < memory_requirements.size) {
+      continue;
     }
+    if (handle.allocation_info.size > match_size) {
+      continue;
+    }
+    /* `memory_requirements.memoryTypeBits` has bits set for every type of supported memory;
+     * only one needs to match for the allocation to be compatible to the image. */
+    if ((handle.allocation_info.memoryType & memory_requirements.memoryTypeBits) == 0) {
+      continue;  
+    }
+
+    match_index = i;
+    match_size = handle.allocation_info.size;
   }
-#else
+#else /* Naive, but works slightly better. */
   /* Search for the first compatible allocation */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {

@@ -12,7 +12,7 @@
 
 namespace blender::gpu {
 
-class VKTexturePool final : public TexturePool {
+class VKTexturePool : public TexturePool {
   /* Defer deallocation enough cycles to avoid interleaved calls to different viewport render
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
@@ -60,10 +60,10 @@ class VKTexturePool final : public TexturePool {
   ~VKTexturePool();
   Texture *acquire_texture(int2 extent,
                            TextureFormat format,
-                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) final;
-  void release_texture(Texture *tex) final;
-  void reset(bool force_free = false) final;
-  void offset_texture_counter(Texture *tex, int offset) final;
+                           eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) override;
+  void release_texture(Texture *tex) override;
+  void reset(bool force_free = false) override;
+  void offset_texture_counter(Texture *tex, int offset) override;
 };
 
 }  // namespace blender::gpu
