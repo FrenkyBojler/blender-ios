@@ -187,10 +187,8 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
     ID *id_dst = nullptr;
     const ID_Type id_type = GS((id_src)->name);
 
-    const bool is_root_compositing_node_group = (id_type == ID_NT && id_src == &copy_tree->id);
-    if (is_root_compositing_node_group) {
-      /* A scene may contain a compositing node tree which references the scene itself. Don't
-       * add compositing node trees in this case to avoid circular dependencies. */
+    if (id_src == &copy_tree->id) {
+      /* #copy_tree is just a container for the copied nodes, so it can be safely ignored. */
       return IDWALK_RET_NOP;
     }
 
@@ -199,17 +197,19 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
                      PartialWriteContext::IDAddOptions /*options*/) {
           ID *id_deps_src = *cb_deps_data->id_pointer;
           const ID_Type id_type = GS((id_deps_src)->name);
-          if (ELEM(id_type, ID_NT, ID_MA, ID_CO, ID_MC) ||
-              (cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL))
-          {  // todo(habib): cover all IDs (invert cond?)
-            printf("\t Added id:\t %s\n", id_deps_src->name);
+          if (id_type == ID_SCE) {
+            /* Note: Scenes referenced in the Render Layers node are cleared. At this stage, we
+             * don't know if the target blender instance will have a scene with identical name, so
+             * they are saved in the copy buffer as empty scenes. The pasting code deletes the
+             * extra scenes, see #node_clipboard_paste_exec(). */
+            return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
+          }
+          else {
+            /* All ID datablocks exposed through nodes are added here. */
             return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
           }
-          printf("\t Cleared id:\t %s\n", id_deps_src->name);
-          return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
         };
 
-    printf("copy_buffer.id_add: %s\n", id_src->name);
     id_dst = copy_buffer.id_add(
         id_src, {PartialWriteContext::IDAddOperations::NOP}, partial_write_dependencies_filter_cb);
 
@@ -271,7 +271,9 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   bfd->main = nullptr;
   BLO_blendfiledata_free(bfd);
 
-  // todo(habib): more efficient way of deleting scene if it doesn't exist in bmain_dst
+  /* We don't want to paste scenes referenced by the Render Layers node if they don't exist in the
+   * destination bmain. Because #BKE_main_merge() frees bmain_src, we need to keep track of them
+   * separately.  */
   Set<StringRef> src_scenes;
   LISTBASE_FOREACH (Scene *, scene, &bmain_src->scenes) {
     src_scenes.add(scene->id.name);
@@ -285,6 +287,13 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   MainMergeReport merge_reports = {};
   /* Frees bmain_src. */
   BKE_main_merge(bmain_dst, &bmain_src, merge_reports);
+
+  LISTBASE_FOREACH (Scene *, scene, &bmain_dst->scenes) {
+    /* All scenes added through merging the two bmains are removed. */
+    if (src_scenes.contains(scene->id.name) && !dst_scenes.contains(scene->id.name)) {
+      BKE_id_delete(bmain_dst, &scene->id);
+    }
+  }
 
   bNodeTree *from_tree = nullptr;
   FOREACH_NODETREE_BEGIN (bmain_dst, node_tree, id) {
@@ -325,11 +334,6 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   };
   BKE_id_delete(bmain_dst, &from_tree->id);
-  LISTBASE_FOREACH (Scene *, scene, &bmain_dst->scenes) {
-    if (src_scenes.contains(scene->id.name) && !dst_scenes.contains(scene->id.name)) {
-      BKE_id_delete(bmain_dst, &scene->id);
-    }
-  }
 
   BKE_main_ensure_invariants(*bmain_dst);
   /* Pasting nodes can create arbitrary new relations because nodes can reference IDs. */
