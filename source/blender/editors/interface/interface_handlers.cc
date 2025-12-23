@@ -565,10 +565,10 @@ static ButtonMultiState *ui_multibut_lookup(HandleButtonData *data, const Button
 #endif
 
 /* buttons clipboard */
-static ColorBand but_copypaste_coba = {};
-static CurveMapping but_copypaste_curve = {};
+static ColorBand but_copypaste_coba;
+static CurveMapping but_copypaste_curve;
 static bool but_copypaste_curve_alive = false;
-static CurveProfile but_copypaste_profile = {};
+static CurveProfile but_copypaste_profile;
 static bool but_copypaste_profile_alive = false;
 
 /** \} */
@@ -4644,6 +4644,13 @@ static bool ui_do_but_extra_operator_icon(bContext *C,
   if (event->val != KM_RELEASE) {
     /* Still swallow events on the icon. */
     return true;
+  }
+  if (event->type == event->prev_press_type) {
+    /* Release should be close to the press. #151371. */
+    const float icon_size = 0.8f * BLI_rctf_size_y(&but->rect);
+    if (abs(event->prev_press_xy[0] - event->xy[0]) > icon_size) {
+      return true;
+    }
   }
 
   ED_region_tag_redraw(data->region);

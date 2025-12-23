@@ -576,21 +576,6 @@ void blo_readfile_invalidate(FileData *fd, Main *bmain, const char *message)
 /** \name File Parsing
  * \{ */
 
-struct BlendDataReader {
-  FileData *fd;
-
-  /**
-   * The key is the old address id referencing shared data that's written to a file, typically an
-   * array. The corresponding value is the shared data at run-time.
-   */
-  blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
-};
-
-struct BlendLibReader {
-  FileData *fd;
-  Main *main;
-};
-
 static BHeadN *get_bhead(FileData *fd)
 {
   BHeadN *new_bhead = nullptr;
@@ -2851,6 +2836,7 @@ static void read_undo_tag_all_noundo_ids(FileData *fd)
           ID *id = *cb_data->id_pointer;
 
           BLI_assert(BLO_readfile_id_runtime_tags(*id_owner).used_by_no_undo_id);
+          UNUSED_VARS_NDEBUG(id_owner);
           if (!id || BLO_readfile_id_runtime_tags(*id).used_by_no_undo_id) {
             return IDWALK_RET_NOP;
           }

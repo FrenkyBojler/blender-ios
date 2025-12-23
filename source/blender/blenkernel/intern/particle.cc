@@ -7,6 +7,7 @@
  */
 
 /* Allow using deprecated functionality for .blend file I/O. */
+#include "BKE_report.hh"
 #define DNA_DEPRECATED_ALLOW
 
 #include <algorithm>
@@ -16,8 +17,6 @@
 #include <optional>
 
 #include "MEM_guardedalloc.h"
-
-#include "DNA_defaults.h"
 
 #include "DNA_cloth_types.h"
 #include "DNA_collection_types.h"
@@ -92,9 +91,7 @@ static void fluid_free_settings(SPHFluidSettings *fluid);
 static void particle_settings_init(ID *id)
 {
   ParticleSettings *particle_settings = (ParticleSettings *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(particle_settings, id));
-
-  MEMCPY_STRUCT_AFTER(particle_settings, DNA_struct_default_get(ParticleSettings), id);
+  INIT_DEFAULT_STRUCT_AFTER(particle_settings, id);
 
   particle_settings->effector_weights = BKE_effector_add_weights(nullptr);
   particle_settings->pd = BKE_partdeflect_new(PFIELD_NULL);
@@ -225,35 +222,35 @@ static void particle_settings_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void write_boid_state(BlendWriter *writer, BoidState *state)
 {
-  BLO_write_struct(writer, BoidState, state);
+  writer->write_struct(state);
 
   LISTBASE_FOREACH (BoidRule *, rule, &state->rules) {
     switch (rule->type) {
       case eBoidRuleType_Goal:
       case eBoidRuleType_Avoid:
-        BLO_write_struct(writer, BoidRuleGoalAvoid, rule);
+        writer->write_struct_cast<BoidRuleGoalAvoid>(rule);
         break;
       case eBoidRuleType_AvoidCollision:
-        BLO_write_struct(writer, BoidRuleAvoidCollision, rule);
+        writer->write_struct_cast<BoidRuleAvoidCollision>(rule);
         break;
       case eBoidRuleType_FollowLeader:
-        BLO_write_struct(writer, BoidRuleFollowLeader, rule);
+        writer->write_struct_cast<BoidRuleFollowLeader>(rule);
         break;
       case eBoidRuleType_AverageSpeed:
-        BLO_write_struct(writer, BoidRuleAverageSpeed, rule);
+        writer->write_struct_cast<BoidRuleAverageSpeed>(rule);
         break;
       case eBoidRuleType_Fight:
-        BLO_write_struct(writer, BoidRuleFight, rule);
+        writer->write_struct_cast<BoidRuleFight>(rule);
         break;
       default:
-        BLO_write_struct(writer, BoidRule, rule);
+        writer->write_struct(rule);
         break;
     }
   }
 #if 0
   BoidCondition *cond = state->conditions.first;
   for (; cond; cond = cond->next) {
-    BLO_write_struct(writer, BoidCondition, cond);
+    writer->write_struct(cond);
   }
 #endif
 }
@@ -266,9 +263,9 @@ static void particle_settings_blend_write(BlendWriter *writer, ID *id, const voi
   BLO_write_id_struct(writer, ParticleSettings, id_address, &part->id);
   BKE_id_blend_write(writer, &part->id);
 
-  BLO_write_struct(writer, PartDeflect, part->pd);
-  BLO_write_struct(writer, PartDeflect, part->pd2);
-  BLO_write_struct(writer, EffectorWeights, part->effector_weights);
+  writer->write_struct(part->pd);
+  writer->write_struct(part->pd2);
+  writer->write_struct(part->effector_weights);
 
   if (part->clumpcurve) {
     BKE_curvemapping_blend_write(writer, part->clumpcurve);
@@ -294,23 +291,23 @@ static void particle_settings_blend_write(BlendWriter *writer, ID *id, const voi
         FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
       }
     }
-    BLO_write_struct(writer, ParticleDupliWeight, dw);
+    writer->write_struct(dw);
   }
 
   if (part->boids && part->phystype == PART_PHYS_BOIDS) {
-    BLO_write_struct(writer, BoidSettings, part->boids);
+    writer->write_struct(part->boids);
 
     LISTBASE_FOREACH (BoidState *, state, &part->boids->states) {
       write_boid_state(writer, state);
     }
   }
   if (part->fluid && part->phystype == PART_PHYS_FLUID) {
-    BLO_write_struct(writer, SPHFluidSettings, part->fluid);
+    writer->write_struct(part->fluid);
   }
 
   for (int a = 0; a < MAX_MTEX; a++) {
     if (part->mtex[a]) {
-      BLO_write_struct(writer, MTex, part->mtex[a]);
+      writer->write_struct(part->mtex[a]);
     }
   }
 }
@@ -799,7 +796,7 @@ void psys_check_group_weights(ParticleSettings *part)
     }
 
     if (!dw) {
-      dw = MEM_callocN<ParticleDupliWeight>("ParticleDupliWeight");
+      dw = MEM_new_for_free<ParticleDupliWeight>("ParticleDupliWeight");
       dw->ob = object;
       dw->count = 1;
       BLI_addtail(&part->instance_weights, dw);
@@ -3931,7 +3928,7 @@ static ModifierData *object_add_or_copy_particle_system(
     psys->flag &= ~PSYS_CURRENT;
   }
 
-  psys = MEM_callocN<ParticleSystem>("particle_system");
+  psys = MEM_new_for_free<ParticleSystem>("particle_system");
   psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
   BLI_addtail(&ob->particlesystem, psys);
   psys_unique_name(ob, psys, name);
@@ -5281,6 +5278,262 @@ void psys_apply_hair_lattice(Depsgraph *depsgraph, Scene *scene, Object *ob, Par
   psys_sim_data_free(&sim);
 }
 
+void BKE_particle_co_hair(const ParticleSystem *particlesystem,
+                          const Object *object,
+                          int particle_no,
+                          int step,
+                          float n_co[3])
+{
+  ParticleSettings *part = nullptr;
+  ParticleData *pars = nullptr;
+  ParticleCacheKey *cache = nullptr;
+  int totchild = 0;
+  int totpart;
+  int max_k = 0;
+
+  if (particlesystem == nullptr) {
+    return;
+  }
+
+  part = particlesystem->part;
+  pars = particlesystem->particles;
+  totpart = particlesystem->totcached;
+  totchild = particlesystem->totchildcache;
+
+  if (part == nullptr || pars == nullptr) {
+    return;
+  }
+
+  if (ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR, PART_DRAW_NOT)) {
+    return;
+  }
+
+  /* can happen for disconnected/global hair */
+  if (part->type == PART_HAIR && !particlesystem->childcache) {
+    totchild = 0;
+  }
+
+  if (particle_no < totpart && particlesystem->pathcache) {
+    cache = particlesystem->pathcache[particle_no];
+    max_k = int(cache->segments);
+  }
+  else if (particle_no < totpart + totchild && particlesystem->childcache) {
+    cache = particlesystem->childcache[particle_no - totpart];
+
+    if (cache->segments < 0) {
+      max_k = 0;
+    }
+    else {
+      max_k = int(cache->segments);
+    }
+  }
+  else {
+    return;
+  }
+
+  /* Strands key loop data stored in cache + step->co. */
+  if (step >= 0 && step <= max_k) {
+    copy_v3_v3(n_co, (cache + step)->co);
+    mul_m4_v3(particlesystem->imat, n_co);
+    mul_m4_v3(object->object_to_world().ptr(), n_co);
+  }
+}
+
+/* return < 0 means invalid (no matching tessellated face could be found). */
+static int tessfaceidx_on_emitter(ParticleSystem *particlesystem,
+                                  ParticleSystemModifierData *modifier,
+                                  ParticleData *particle,
+                                  int particle_no,
+                                  float (**r_fuv)[4])
+{
+  ParticleSettings *part = nullptr;
+  int totpart;
+  int totchild = 0;
+  int totface;
+  int totvert;
+  int num = -1;
+
+  BKE_mesh_tessface_ensure(modifier->mesh_final); /* BMESH - UNTIL MODIFIER IS UPDATED FOR POLYS */
+  totface = modifier->mesh_final->totface_legacy;
+  totvert = modifier->mesh_final->verts_num;
+
+  /* 1. check that everything is ok & updated */
+  if (!particlesystem || !totface) {
+    return num;
+  }
+
+  part = particlesystem->part;
+  /* NOTE: only hair, keyed and baked particles may have cached items... */
+  totpart = particlesystem->totcached != 0 ? particlesystem->totcached : particlesystem->totpart;
+  totchild = particlesystem->totchildcache != 0 ? particlesystem->totchildcache :
+                                                  particlesystem->totchild;
+
+  /* can happen for disconnected/global hair */
+  if (part->type == PART_HAIR && !particlesystem->childcache) {
+    totchild = 0;
+  }
+
+  if (particle_no >= totpart + totchild) {
+    return num;
+  }
+
+  /* 2. get matching face index. */
+  if (particle_no < totpart) {
+    num = (ELEM(particle->num_dmcache, DMCACHE_ISCHILD, DMCACHE_NOTFOUND)) ? particle->num :
+                                                                             particle->num_dmcache;
+
+    if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME)) {
+      if (num != DMCACHE_NOTFOUND && num < totface) {
+        *r_fuv = &particle->fuv;
+        return num;
+      }
+    }
+    else if (part->from == PART_FROM_VERT) {
+      if (num != DMCACHE_NOTFOUND && num < totvert) {
+        const MFace *mface = static_cast<const MFace *>(
+            CustomData_get_layer(&modifier->mesh_final->fdata_legacy, CD_MFACE));
+
+        *r_fuv = &particle->fuv;
+
+        /* This finds the first face to contain the emitting vertex,
+         * this is not ideal, but is mostly fine as UV seams generally
+         * map to equal-colored parts of a texture */
+        for (int i = 0; i < totface; i++, mface++) {
+          if (ELEM(num, mface->v1, mface->v2, mface->v3, mface->v4)) {
+            return i;
+          }
+        }
+      }
+    }
+  }
+  else {
+    ChildParticle *cpa = particlesystem->child + particle_no - totpart;
+    num = cpa->num;
+
+    if (part->childtype == PART_CHILD_FACES) {
+      if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME, PART_FROM_VERT)) {
+        if (num != DMCACHE_NOTFOUND && num < totface) {
+          *r_fuv = &cpa->fuv;
+          return num;
+        }
+      }
+    }
+    else {
+      ParticleData *parent = particlesystem->particles + cpa->parent;
+      num = parent->num_dmcache;
+
+      if (num == DMCACHE_NOTFOUND) {
+        num = parent->num;
+      }
+
+      if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME)) {
+        if (num != DMCACHE_NOTFOUND && num < totface) {
+          *r_fuv = &parent->fuv;
+          return num;
+        }
+      }
+      else if (part->from == PART_FROM_VERT) {
+        if (num != DMCACHE_NOTFOUND && num < totvert) {
+          const MFace *mface = static_cast<const MFace *>(
+              CustomData_get_layer(&modifier->mesh_final->fdata_legacy, CD_MFACE));
+
+          *r_fuv = &parent->fuv;
+
+          /* This finds the first face to contain the emitting vertex,
+           * this is not ideal, but is mostly fine as UV seams generally
+           * map to equal-colored parts of a texture */
+          for (int i = 0; i < totface; i++, mface++) {
+            if (ELEM(num, mface->v1, mface->v2, mface->v3, mface->v4)) {
+              return i;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return -1;
+}
+
+void BKE_particle_uv_on_emitter(ParticleSystem *particlesystem,
+                                ReportList *reports,
+                                ParticleSystemModifierData *modifier,
+                                ParticleData *particle,
+                                int particle_no,
+                                int uv_no,
+                                float r_uv[2])
+{
+  if (modifier->mesh_final == nullptr) {
+    BKE_report(reports, RPT_ERROR, "Object was not yet evaluated");
+    zero_v2(r_uv);
+    return;
+  }
+  if (modifier->mesh_final->uv_map_names().is_empty()) {
+    BKE_report(reports, RPT_ERROR, "Mesh has no UV data");
+    zero_v2(r_uv);
+    return;
+  }
+
+  {
+    float (*fuv)[4];
+    /* Note all sanity checks are done in this helper func. */
+    const int num = tessfaceidx_on_emitter(particlesystem, modifier, particle, particle_no, &fuv);
+
+    if (num < 0) {
+      /* No matching face found. */
+      zero_v2(r_uv);
+    }
+    else {
+      const MFace *mfaces = static_cast<const MFace *>(
+          CustomData_get_layer(&modifier->mesh_final->fdata_legacy, CD_MFACE));
+      const MFace *mface = &mfaces[num];
+      const MTFace *mtface = (const MTFace *)CustomData_get_layer_n(
+          &modifier->mesh_final->fdata_legacy, CD_MTFACE, uv_no);
+
+      psys_interpolate_uvs(&mtface[num], mface->v4, *fuv, r_uv);
+    }
+  }
+}
+
+void BKE_particle_mcol_on_emitter(ParticleSystem *particlesystem,
+                                  ReportList *reports,
+                                  ParticleSystemModifierData *modifier,
+                                  ParticleData *particle,
+                                  int particle_no,
+                                  int vcol_no,
+                                  float r_mcol[3])
+{
+  if (!CustomData_has_layer(&modifier->mesh_final->corner_data, CD_PROP_BYTE_COLOR)) {
+    BKE_report(reports, RPT_ERROR, "Mesh has no VCol data");
+    zero_v3(r_mcol);
+    return;
+  }
+
+  {
+    float (*fuv)[4];
+    /* Note all sanity checks are done in this helper func. */
+    const int num = tessfaceidx_on_emitter(particlesystem, modifier, particle, particle_no, &fuv);
+
+    if (num < 0) {
+      /* No matching face found. */
+      zero_v3(r_mcol);
+    }
+    else {
+      const MFace *mfaces = static_cast<const MFace *>(
+          CustomData_get_layer(&modifier->mesh_final->fdata_legacy, CD_MFACE));
+      const MFace *mface = &mfaces[num];
+      const MCol *mc = (const MCol *)CustomData_get_layer_n(
+          &modifier->mesh_final->fdata_legacy, CD_MCOL, vcol_no);
+      MCol mcol;
+
+      psys_interpolate_mcol(&mc[num * 4], mface->v4, *fuv, &mcol);
+      r_mcol[0] = float(mcol.b) / 255.0f;
+      r_mcol[1] = float(mcol.g) / 255.0f;
+      r_mcol[2] = float(mcol.r) / 255.0f;
+    }
+  }
+}
+
 /* Draw Engine */
 
 void (*BKE_particle_batch_cache_dirty_tag_cb)(ParticleSystem *psys, int mode) = nullptr;
@@ -5302,7 +5555,7 @@ void BKE_particle_batch_cache_free(ParticleSystem *psys)
 void BKE_particle_system_blend_write(BlendWriter *writer, ListBase *particles)
 {
   LISTBASE_FOREACH (ParticleSystem *, psys, particles) {
-    BLO_write_struct(writer, ParticleSystem, psys);
+    writer->write_struct(psys);
 
     if (psys->particles) {
       BLO_write_struct_array(writer, ParticleData, psys->totpart, psys->particles);
@@ -5327,7 +5580,7 @@ void BKE_particle_system_blend_write(BlendWriter *writer, ListBase *particles)
       }
     }
     LISTBASE_FOREACH (ParticleTarget *, pt, &psys->targets) {
-      BLO_write_struct(writer, ParticleTarget, pt);
+      writer->write_struct(pt);
     }
 
     if (psys->child) {
@@ -5335,9 +5588,9 @@ void BKE_particle_system_blend_write(BlendWriter *writer, ListBase *particles)
     }
 
     if (psys->clmd) {
-      BLO_write_struct(writer, ClothModifierData, psys->clmd);
-      BLO_write_struct(writer, ClothSimSettings, psys->clmd->sim_parms);
-      BLO_write_struct(writer, ClothCollSettings, psys->clmd->coll_parms);
+      writer->write_struct(psys->clmd);
+      writer->write_struct(psys->clmd->sim_parms);
+      writer->write_struct(psys->clmd->coll_parms);
     }
 
     BKE_ptcache_blend_write(writer, &psys->ptcaches);
