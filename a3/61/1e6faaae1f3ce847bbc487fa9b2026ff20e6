@@ -1,1 +1,2 @@
 Referenced by issue #149784, 5.0: Candidates for corrective releases
+Referenced by issue #152026, `EXCEPTION_ACCESS_VIOLATION` crashes on Windows with `rain` and `rain_restaurant` benchmarks
