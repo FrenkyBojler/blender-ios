@@ -955,19 +955,29 @@ class NodeSet {
 };
 
 class NodeSetInterface {
+ public:
+  struct InterfaceSocketData {
+    NodeSocketPair origin;
+    Vector<MutableNodeSocketPair> links;
+    bool hidden = false;
+    bool collapsed = false;
+  };
+  struct InterfacePanelData {
+    bool collapsed = false;
+  };
+
  private:
-  Map<const bNodeTreeInterfaceSocket *, NodeSocketPair> socket_by_interface_;
-  Map<const bNodeTreeInterfaceSocket *, Vector<MutableNodeSocketPair>> links_by_interface_;
+  Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> socket_data_;
+  Map<const bNodeTreeInterfacePanel *, InterfacePanelData> panel_data_;
 
  public:
-  const Map<const bNodeTreeInterfaceSocket *, NodeSocketPair> &socket_by_interface() const
+  const Map<const bNodeTreeInterfaceSocket *, InterfaceSocketData> &socket_data() const
   {
-    return socket_by_interface_;
+    return socket_data_;
   }
-  const Map<const bNodeTreeInterfaceSocket *, Vector<MutableNodeSocketPair>> &links_by_interface()
-      const
+  const Map<const bNodeTreeInterfacePanel *, InterfacePanelData> &panel_data() const
   {
-    return links_by_interface_;
+    return panel_data_;
   }
 
   static NodeSetInterface from_nodes(const NodeSet &node_set, bNodeTree &dst_tree)
@@ -981,8 +991,8 @@ class NodeSetInterface {
         /* Inputs generate one item, based on the source socket. */
         const bNodeTreeInterfaceSocket *interface = add_interface_from_socket(
             src_tree, dst_tree, src_socket.socket);
-        result.socket_by_interface_.add(interface, src_socket);
-        result.links_by_interface_.add(interface, links_by_socket.lookup(&src_socket.socket));
+        result.socket_data_.add(interface,
+                                {src_socket, links_by_socket.lookup(&src_socket.socket)});
       }
       else {
         /* Output sockets generate an item for each link, based on the target socket. */
@@ -994,37 +1004,44 @@ class NodeSetInterface {
         for (const MutableNodeSocketPair &src_link : linked_sockets) {
           const bNodeTreeInterfaceSocket *interface = add_interface_from_socket(
               src_tree, dst_tree, src_link.socket);
-          result.socket_by_interface_.add(interface, src_socket);
-          result.links_by_interface_.add(interface, {src_link});
+          result.socket_data_.add(interface, {src_socket, {src_link}});
         }
       }
     }
     return result;
   }
 
-  // static NodeSetInterface from_node_declaration(const bNode &src_node, bNodeTree &dst_tree)
-  // {
-  //   BLI_assert(src_node.declaration() != nullptr);
-  //   const nodes::NodeDeclaration &node_decl = *src_node.declaration();
-  //   for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
-  //     add_declaration_item_recursive(dst_tree, src_node, *item_decl, nullptr);
-  //   }
-  // }
+  static NodeSetInterface from_node_declaration(const bNode &src_node, bNodeTree &dst_tree)
+  {
+    BLI_assert(src_node.declaration() != nullptr);
+    const nodes::NodeDeclaration &node_decl = *src_node.declaration();
+
+    NodeSetInterface result;
+    for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
+      result.add_declaration_item_recursive(dst_tree, src_node, *item_decl, nullptr);
+    }
+
+    return result;
+  }
 
   void connect_group_node(bNode &group_node) const
   {
     bNodeTree &tree = group_node.owner_tree();
 
-    /* Connect the group node to external sockets. */
-    for (const auto &item : socket_by_interface_.items()) {
-      const bNodeSocket &socket = item.value.socket;
-      const Span<MutableNodeSocketPair> linked_sockets = links_by_interface_.lookup(item.key);
+    for (const auto &item : socket_data_.items()) {
+      const bNodeSocket &socket = item.value.origin.socket;
+
+      /* Connect the group node to external sockets. */
+      /* Keep old socket visibility. */
+      const Span<MutableNodeSocketPair> linked_sockets = item.value.links;
       if (socket.is_input()) {
         bNodeSocket *group_node_input = node_group_find_input_socket(&group_node,
                                                                      item.key->identifier);
         for (const MutableNodeSocketPair &link : linked_sockets) {
           bke::node_add_link(tree, link.node, link.socket, group_node, *group_node_input);
         }
+        SET_FLAG_FROM_TEST(group_node_input->flag, item.value.hidden, SOCK_HIDDEN);
+        SET_FLAG_FROM_TEST(group_node_input->flag, item.value.collapsed, SOCK_COLLAPSED);
       }
       else {
         bNodeSocket *group_node_output = node_group_find_output_socket(&group_node,
@@ -1032,54 +1049,72 @@ class NodeSetInterface {
         for (const MutableNodeSocketPair &link : linked_sockets) {
           bke::node_add_link(tree, group_node, *group_node_output, link.node, link.socket);
         }
+        SET_FLAG_FROM_TEST(group_node_output->flag, item.value.hidden, SOCK_HIDDEN);
+        SET_FLAG_FROM_TEST(group_node_output->flag, item.value.collapsed, SOCK_COLLAPSED);
+      }
+    }
+
+    /* Keep old panel collapse status. */
+    MutableSpan<bNodePanelState> panel_states = group_node.panel_states();
+    for (const auto &item : panel_data_.items()) {
+      for (bNodePanelState &new_panel_state : panel_states) {
+        if (new_panel_state.identifier == item.key->identifier) {
+          SET_FLAG_FROM_TEST(new_panel_state.flag, item.value.collapsed, NODE_PANEL_COLLAPSED);
+        }
       }
     }
   }
 
  private:
-  // static void add_declaration_item_recursive(bNodeTree &group,
-  //                                            const bNode &src_node,
-  //                                            const nodes::ItemDeclaration &item_decl,
-  //                                            bNodeTreeInterfacePanel *parent)
-  // {
-  //   if (const nodes::SocketDeclaration *socket_decl =
-  //           dynamic_cast<const nodes::SocketDeclaration *>(&item_decl))
-  //   {
-  //     const bNodeSocket &socket = src_node.socket_by_decl(*socket_decl);
-  //     if (!socket.is_available()) {
-  //       return;
-  //     }
-  //     bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
-  //         group, src_node, socket);
-  //     if (!io_socket) {
-  //       return;
-  //     }
-  //     group.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
-  //     if (socket.is_input()) {
-  //       r_mapping.new_index_by_src_socket.add_new(&socket, r_mapping.num_inputs++);
-  //       r_mapping.exposed_input_indices.append(socket.index());
-  //     }
-  //     else {
-  //       r_mapping.new_index_by_src_socket.add_new(&socket, r_mapping.num_outputs++);
-  //       r_mapping.exposed_output_indices.append(socket.index());
-  //     }
-  //   }
-  //   else if (const nodes::PanelDeclaration *panel_decl =
-  //                dynamic_cast<const nodes::PanelDeclaration *>(&item_decl))
-  //   {
-  //     NodeTreeInterfacePanelFlag flag{};
-  //     if (panel_decl->default_collapsed) {
-  //       flag |= NODE_INTERFACE_PANEL_DEFAULT_CLOSED;
-  //     }
-  //     bNodeTreeInterfacePanel *io_panel = group.tree_interface.add_panel(
-  //         panel_decl->name, panel_decl->description, flag, parent);
-  //     r_mapping.new_by_old_panel_identifier.add_new(panel_decl->identifier,
-  //     io_panel->identifier); for (const nodes::ItemDeclaration *child_item_decl :
-  //     panel_decl->items) {
-  //       add_declaration_item_recursive(group, src_node, *child_item_decl, io_panel);
-  //     }
-  //   }
-  // }
+  void add_declaration_item_recursive(bNodeTree &dst_tree,
+                                      const bNode &src_node,
+                                      const nodes::ItemDeclaration &item_decl,
+                                      bNodeTreeInterfacePanel *parent)
+  {
+    const Span<bNodePanelState> panel_states = src_node.panel_states();
+
+    if (const nodes::SocketDeclaration *socket_decl =
+            dynamic_cast<const nodes::SocketDeclaration *>(&item_decl))
+    {
+      const bNodeSocket &socket = src_node.socket_by_decl(*socket_decl);
+      if (!socket.is_available()) {
+        return;
+      }
+      bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
+          dst_tree, src_node, socket);
+      if (io_socket) {
+        dst_tree.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
+
+        const NodeSocketPair origin = {src_node, socket};
+        const bool hidden = socket.flag & SOCK_HIDDEN;
+        const bool collapsed = socket.flag & SOCK_COLLAPSED;
+        socket_data_.add(io_socket, {origin, {}, hidden, collapsed});
+      }
+    }
+    else if (const nodes::PanelDeclaration *panel_decl =
+                 dynamic_cast<const nodes::PanelDeclaration *>(&item_decl))
+    {
+      NodeTreeInterfacePanelFlag flag{};
+      if (panel_decl->default_collapsed) {
+        flag |= NODE_INTERFACE_PANEL_DEFAULT_CLOSED;
+      }
+      bNodeTreeInterfacePanel *io_panel = dst_tree.tree_interface.add_panel(
+          panel_decl->name, panel_decl->description, flag, parent);
+      if (io_panel) {
+        bool collapsed = false;
+        for (const bNodePanelState panel_state : panel_states) {
+          if (panel_state.identifier == panel_decl->identifier) {
+            collapsed = panel_state.is_collapsed();
+          }
+        }
+        panel_data_.add(io_panel, {collapsed});
+
+        for (const nodes::ItemDeclaration *child_item_decl : panel_decl->items) {
+          add_declaration_item_recursive(dst_tree, src_node, *child_item_decl, io_panel);
+        }
+      }
+    }
+  }
 };
 
 /**
@@ -1182,11 +1217,11 @@ class NodeSetCopy {
     }
     io_nodes.input_node = bke::node_add_static_node(&C, tree_, NODE_GROUP_INPUT);
 
-    for (const auto &item : node_set_io.links_by_interface().items()) {
-      const NodeSocketPair &socket = node_set_io.socket_by_interface().lookup(item.key);
-      bNode *new_node = node_map_.lookup(&socket.node);
-      bNodeSocket *new_socket = socket_map_.lookup(&socket.socket);
-      if (socket.socket.is_input()) {
+    for (const auto &item : node_set_io.socket_data().items()) {
+      const NodeSocketPair &origin = item.value.origin;
+      bNode *new_node = node_map_.lookup(&origin.node);
+      bNodeSocket *new_socket = socket_map_.lookup(&origin.socket);
+      if (origin.socket.is_input()) {
         bNodeSocket *group_input_socket = node_group_input_find_socket(io_nodes.input_node,
                                                                        item.key->identifier);
         BLI_assert(group_input_socket);
