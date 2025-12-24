@@ -281,6 +281,8 @@ void main()
     bounding_box_bottom_left_corner -= texel;
   }
   float masked_maximum = -FLT_MAX;
+  int2 chosen_pixel_coordinates = int2(0);
+  float chosen_mask_value = 0.0f;
   if (is_dilate) {
     for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
       for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++) {
@@ -296,18 +298,34 @@ void main()
                                                                 ellipse_height,
                                                                 ellipse_width,
                                                                 inflection_midpoint);
+        int2 iteration_pixel_coordinates = int2(
+            floored_mod(float2(texel + int2(x, y)), float2(domain_data_size)));
+        float iteration_masked_maximum =
+            rounded_square_mask * texture_load(input_image_tx, iteration_pixel_coordinates).x;
         /* Only operate on the support of the rounded square mask. */
-        if (rounded_square_mask != 0.0f) {
-          masked_maximum = max(masked_maximum,
-                               rounded_square_mask *
-                                   texture_load(input_image_tx,
-                                                int2(floored_mod(float2(texel + int2(x, y)),
-                                                                 float2(domain_data_size))))
-                                       .x);
+        if ((rounded_square_mask != 0.0f) &&
+            ((iteration_masked_maximum > masked_maximum) ||
+             ((iteration_masked_maximum == masked_maximum) &&
+              ((square(iteration_pixel_coordinates.x) + square(iteration_pixel_coordinates.y)) <
+               (square(chosen_pixel_coordinates.x) + square(chosen_pixel_coordinates.y))))))
+        {
+          chosen_mask_value = rounded_square_mask;
+          chosen_pixel_coordinates = iteration_pixel_coordinates;
+          masked_maximum = iteration_masked_maximum;
         }
       }
     }
-    imageStore(output_image_img, texel, float4(masked_maximum));
+    if (output_chosen_mask_value_should_compute) {
+      imageStore(output_chosen_mask_value_img, texel, float4(chosen_mask_value));
+    }
+    if (output_chosen_pixel_should_compute) {
+      imageStore(output_chosen_pixel_img,
+                 texel,
+                 float4(chosen_pixel_coordinates.x, chosen_pixel_coordinates.y, 0.0f, 0.0f));
+    }
+    if (output_image_should_compute) {
+      imageStore(output_image_img, texel, float4(masked_maximum));
+    }
   }
   else {
     for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
@@ -324,18 +342,34 @@ void main()
                                                                 ellipse_height,
                                                                 ellipse_width,
                                                                 inflection_midpoint);
+        int2 iteration_pixel_coordinates = int2(
+            floored_mod(float2(texel + int2(x, y)), float2(domain_data_size)));
+        float iteration_masked_maximum =
+            rounded_square_mask *
+            (1.0f - texture_load(input_image_tx, iteration_pixel_coordinates).x);
         /* Only operate on the support of the rounded square mask. */
-        if (rounded_square_mask != 0.0f) {
-          masked_maximum = max(
-              masked_maximum,
-              rounded_square_mask *
-                  (1.0f - texture_load(input_image_tx,
-                                       int2(floored_mod(float2(texel + int2(x, y)),
-                                                        float2(domain_data_size))))
-                              .x));
+        if ((rounded_square_mask != 0.0f) &&
+            ((iteration_masked_maximum > masked_maximum) ||
+             ((iteration_masked_maximum == masked_maximum) &&
+              ((square(iteration_pixel_coordinates.x) + square(iteration_pixel_coordinates.y)) <
+               (square(chosen_pixel_coordinates.x) + square(chosen_pixel_coordinates.y))))))
+        {
+          chosen_mask_value = rounded_square_mask;
+          chosen_pixel_coordinates = iteration_pixel_coordinates;
+          masked_maximum = iteration_masked_maximum;
         }
       }
     }
-    imageStore(output_image_img, texel, float4(1.0f - masked_maximum));
+    if (output_chosen_mask_value_should_compute) {
+      imageStore(output_chosen_mask_value_img, texel, float4(chosen_mask_value));
+    }
+    if (output_chosen_pixel_should_compute) {
+      imageStore(output_chosen_pixel_img,
+                 texel,
+                 float4(chosen_pixel_coordinates.x, chosen_pixel_coordinates.y, 0.0f, 0.0f));
+    }
+    if (output_image_should_compute) {
+      imageStore(output_image_img, texel, float4(1.0f - masked_maximum));
+    }
   }
 }

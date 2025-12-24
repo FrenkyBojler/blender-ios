@@ -36,15 +36,23 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .default_value(0.5f)
       .min(0.0f)
       .max(1.0f)
+      .hide_value()
       .compositor_domain_priority(0)
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+  b.add_output<decl::Vector>("Chosen Pixel")
+      .dimensions(2)
+      .description("The integer coordinates of the pixel that was chosen during the operation")
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Chosen Mask Value")
+      .description(
+          "The value of the rounded square mask at the pixel that was chosen during the operation")
+      .structure_type(StructureType::Dynamic);
 
   b.add_input<decl::Bool>("Keep Seamless")
       .default_value(false)
       .description(
           "When enabled, the operation keeps the output mask seamless for a seamless input mask.");
-
   b.add_input<decl::Vector>("Constant Part Size")
       .dimensions(2)
       .default_value({0.0f, 0.0f, 0.0f})
@@ -142,6 +150,8 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_falloff_width = get_input("Width");
     const Result &input_translation = get_input("Translation");
     Result &output_image = this->get_result("Image");
+    Result &output_chosen_pixel = this->get_result("Chosen Pixel");
+    Result &output_chosen_mask_value = this->get_result("Chosen Mask Value");
 
     if (input_translation.is_single_value()) {
       if (math::floored_mod(input_translation.get_single_value<float2>(), float2(1.0f, 1.0f)) ==
@@ -150,6 +160,14 @@ class MaskedMaximumOperation : public NodeOperation {
         if (input_image.is_single_value()) {
           /* Operation does nothing and the input can be passed through. */
           output_image.share_data(input_image);
+          if (output_chosen_pixel.should_compute()) {
+            output_chosen_pixel.allocate_single_value();
+            output_chosen_pixel.set_single_value(float2(0.0f, 0.0f));
+          }
+          if (output_chosen_pixel.should_compute()) {
+            output_chosen_mask_value.allocate_single_value();
+            output_chosen_mask_value.set_single_value(1.0f);
+          }
           return;
         }
         if (input_size.is_single_value() && input_falloff_width.is_single_value()) {
@@ -160,26 +178,56 @@ class MaskedMaximumOperation : public NodeOperation {
           if (rounded_square_mask_support_size < 1.0f) {
             /* Operation does nothing and the input can be passed through. */
             output_image.share_data(input_image);
+            if (output_chosen_pixel.should_compute()) {
+              output_chosen_pixel.allocate_single_value();
+              output_chosen_pixel.set_single_value(float2(0.0f, 0.0f));
+            }
+            if (output_chosen_pixel.should_compute()) {
+              output_chosen_mask_value.allocate_single_value();
+              output_chosen_mask_value.set_single_value(1.0f);
+            }
             return;
           }
         }
       }
     }
 
+    const Domain domain = compute_domain();
+    if (output_image.should_compute()) {
+      output_image.allocate_texture(domain);
+    }
+    if (output_chosen_pixel.should_compute()) {
+      output_chosen_pixel.allocate_texture(domain);
+    }
+    if (output_chosen_mask_value.should_compute()) {
+      output_chosen_mask_value.allocate_texture(domain);
+    }
+
     if (this->context().use_gpu()) {
-      this->execute_gpu(input_image, output_image);
+      this->execute_gpu(
+          domain, input_image, output_image, output_chosen_pixel, output_chosen_mask_value);
     }
     else {
-      this->execute_cpu(input_image, output_image);
+      this->execute_cpu(
+          domain, input_image, output_image, output_chosen_pixel, output_chosen_mask_value);
     }
   }
 
-  void execute_gpu(const Result &input_image, Result &output_image)
+  void execute_gpu(const Domain domain,
+                   const Result &input_image,
+                   Result &output_image,
+                   Result &output_chosen_pixel,
+                   Result &output_chosen_mask_value)
   {
     gpu::Shader *shader = context().get_shader("compositor_masked_maximum");
     GPU_shader_bind(shader);
 
-    const Domain domain = compute_domain();
+    GPU_shader_uniform_1b(shader, "output_image_should_compute", output_image.should_compute());
+    GPU_shader_uniform_1b(
+        shader, "output_chosen_pixel_should_compute", output_chosen_pixel.should_compute());
+    GPU_shader_uniform_1b(shader,
+                          "output_chosen_mask_value_should_compute",
+                          output_chosen_mask_value.should_compute());
 
     GPU_shader_uniform_2iv(shader, "domain_data_size", domain.data_size);
     GPU_shader_uniform_1b(
@@ -214,8 +262,17 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_translation = get_input("Translation");
     input_translation.bind_as_texture(shader, "input_translation_tx");
 
-    output_image.allocate_texture(domain);
-    output_image.bind_as_image(shader, "output_image_img");
+    if (output_image.should_compute()) {
+      output_image.bind_as_image(shader, "output_image_img");
+    }
+
+    if (output_chosen_pixel.should_compute()) {
+      output_chosen_pixel.bind_as_image(shader, "output_chosen_pixel_img");
+    }
+
+    if (output_chosen_mask_value.should_compute()) {
+      output_chosen_mask_value.bind_as_image(shader, "output_chosen_mask_value_img");
+    }
 
     compute_dispatch_threads_at_least(shader, domain.data_size);
 
@@ -230,14 +287,23 @@ class MaskedMaximumOperation : public NodeOperation {
     input_inflection_midpoint.unbind_as_texture();
     input_rotation.unbind_as_texture();
     input_translation.unbind_as_texture();
-    output_image.unbind_as_image();
+    if (output_image.should_compute()) {
+      output_image.unbind_as_image();
+    }
+    if (output_chosen_pixel.should_compute()) {
+      output_chosen_pixel.unbind_as_image();
+    }
+    if (output_chosen_mask_value.should_compute()) {
+      output_chosen_mask_value.unbind_as_image();
+    }
   }
 
-  void execute_cpu(const Result &input_image, Result &output_image)
+  void execute_cpu(const Domain domain,
+                   const Result &input_image,
+                   Result &output_image,
+                   Result &output_chosen_pixel,
+                   Result &output_chosen_mask_value)
   {
-    Domain domain = this->compute_domain();
-    output_image.allocate_texture(domain);
-
     parallel_for(domain.data_size, [&](const int2 texel) {
       float2 size = get_input("Constant Part Size").load_pixel_zero<float2, true>(texel);
       bool is_dilate = (size.x >= 0.0f) && (size.y >= 0.0f);
@@ -310,6 +376,8 @@ class MaskedMaximumOperation : public NodeOperation {
         bounding_box_bottom_left_corner -= texel;
       }
       float masked_maximum = -FLT_MAX;
+      int2 chosen_pixel_coordinates = int2(0);
+      float chosen_mask_value = 0.0f;
       if (is_dilate) {
         for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++)
         {
@@ -328,17 +396,34 @@ class MaskedMaximumOperation : public NodeOperation {
                                                                     ellipse_height,
                                                                     ellipse_width,
                                                                     inflection_midpoint);
+            int2 iteration_pixel_coordinates = int2(
+                math::floored_mod(float2(texel + int2(x, y)), float2(domain.data_size)));
+            float iteration_masked_maximum = rounded_square_mask *
+                                             input_image.load_pixel_zero<float, true>(
+                                                 iteration_pixel_coordinates);
             /* Only operate on the support of the rounded square mask. */
-            if (rounded_square_mask != 0.0f) {
-              masked_maximum = math::max(
-                  masked_maximum,
-                  rounded_square_mask *
-                      input_image.load_pixel_zero<float, true>(int2(math::floored_mod(
-                          float2(texel + int2(x, y)), float2(domain.data_size)))));
+            if ((rounded_square_mask != 0.0f) && ((iteration_masked_maximum > masked_maximum) ||
+                                                  ((iteration_masked_maximum == masked_maximum) &&
+                                                   ((math::square(iteration_pixel_coordinates.x) +
+                                                     math::square(iteration_pixel_coordinates.y)) <
+                                                    (math::square(chosen_pixel_coordinates.x) +
+                                                     math::square(chosen_pixel_coordinates.y))))))
+            {
+              chosen_mask_value = rounded_square_mask;
+              chosen_pixel_coordinates = iteration_pixel_coordinates;
+              masked_maximum = iteration_masked_maximum;
             }
           }
         }
-        output_image.store_pixel(texel, masked_maximum);
+        if (output_chosen_mask_value.should_compute()) {
+          output_chosen_mask_value.store_pixel(texel, chosen_mask_value);
+        }
+        if (output_chosen_pixel.should_compute()) {
+          output_chosen_pixel.store_pixel(texel, float2(chosen_pixel_coordinates));
+        }
+        if (output_image.should_compute()) {
+          output_image.store_pixel(texel, masked_maximum);
+        }
       }
       else {
         for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++)
@@ -358,17 +443,34 @@ class MaskedMaximumOperation : public NodeOperation {
                                                                     ellipse_height,
                                                                     ellipse_width,
                                                                     inflection_midpoint);
+            int2 iteration_pixel_coordinates = int2(
+                math::floored_mod(float2(texel + int2(x, y)), float2(domain.data_size)));
+            float iteration_masked_maximum = rounded_square_mask *
+                                             (1.0f - input_image.load_pixel_zero<float, true>(
+                                                         iteration_pixel_coordinates));
             /* Only operate on the support of the rounded square mask. */
-            if (rounded_square_mask != 0.0f) {
-              masked_maximum = math::max(
-                  masked_maximum,
-                  rounded_square_mask *
-                      (1.0f - input_image.load_pixel_zero<float, true>(
-                                  math::floored_mod(texel + int2(x, y), domain.data_size))));
+            if ((rounded_square_mask != 0.0f) && ((iteration_masked_maximum > masked_maximum) ||
+                                                  ((iteration_masked_maximum == masked_maximum) &&
+                                                   ((math::square(iteration_pixel_coordinates.x) +
+                                                     math::square(iteration_pixel_coordinates.y)) <
+                                                    (math::square(chosen_pixel_coordinates.x) +
+                                                     math::square(chosen_pixel_coordinates.y))))))
+            {
+              chosen_mask_value = rounded_square_mask;
+              chosen_pixel_coordinates = iteration_pixel_coordinates;
+              masked_maximum = iteration_masked_maximum;
             }
           }
         }
-        output_image.store_pixel(texel, 1.0f - masked_maximum);
+        if (output_chosen_mask_value.should_compute()) {
+          output_chosen_mask_value.store_pixel(texel, chosen_mask_value);
+        }
+        if (output_chosen_pixel.should_compute()) {
+          output_chosen_pixel.store_pixel(texel, float2(chosen_pixel_coordinates));
+        }
+        if (output_image.should_compute()) {
+          output_image.store_pixel(texel, 1.0f - masked_maximum);
+        }
       }
     });
   }

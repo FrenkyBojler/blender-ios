@@ -37,6 +37,10 @@ float pow8f(float x)
   return pow2f(pow4f(x));
 }
 
+int square(int v)
+{
+  return v * v;
+}
 float square(float v)
 {
   return v * v;
