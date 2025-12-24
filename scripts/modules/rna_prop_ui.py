@@ -226,6 +226,10 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
     to_dict = getattr(value, "to_dict", None)
     to_list = getattr(value, "to_list", None)
 
+    props = col.operator("wm.properties_remove", text="", icon='REMOVE')
+    props.data_path = context_member
+    props.property_name = key
+
     is_datablock = value is None or isinstance(value, bpy.types.ID)
 
     if to_dict:

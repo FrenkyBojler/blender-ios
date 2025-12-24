@@ -136,6 +136,9 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
         BLI_assert_unreachable();
         break;
     }
+
+    drag_data->id_->idprop_active_index = BLI_findindex(&drag_data->id_->properties->data.group,
+                                                        drag_data->prop_);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
     ED_undo_push(C, "Drop Active IDProperty");
     return true;

@@ -1775,6 +1775,15 @@ static void rna_IDPropertyUIDataID_id_type_set(PointerRNA *ptr, int value)
   ui_data->id_type = value;
 }
 
+static void rna_IDProperty_length_set(PointerRNA *ptr, int value)
+{
+  IDProperty *prop = static_cast<IDProperty *>(ptr->data);
+  if (prop->type == IDP_ARRAY) {
+    IDP_ResizeArray(prop, value);
+  }
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
+}
+
 #else
 
 static void rna_def_ID_properties(BlenderRNA *brna)
@@ -3026,6 +3035,8 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   prop = RNA_def_property(srna, "length", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "len");
   RNA_def_property_ui_text(prop, "Length", "Length of array");
+  RNA_def_property_range(prop, 1, INT_MAX);
+  RNA_def_property_int_funcs(prop, nullptr, "rna_IDProperty_length_set", nullptr);
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
   RNA_def_struct_ui_text(srna, "float IDProperty UI", "UI data for a float ID property");
