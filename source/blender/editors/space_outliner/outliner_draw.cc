@@ -3591,6 +3591,11 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
           y = *starty;
         }
       }
+      else if (ELEM(tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
+        draw_hierarchy_line = true;
+        is_object_line = true;
+        y = *starty;
+      }
 
       outliner_draw_hierarchy_lines_recursive(pos,
                                               space_outliner,
