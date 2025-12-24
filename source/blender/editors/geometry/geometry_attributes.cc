@@ -56,11 +56,7 @@ namespace blender::ed::geometry {
 
 static bool is_normalized_float_attribute_name(const StringRef name)
 {
-  return ELEM(name,
-              "bevel_weight_vert",
-              "bevel_weight_edge",
-              "crease_vert",
-              "crease_edge");
+  return ELEM(name, "bevel_weight_vert", "bevel_weight_edge", "crease_vert", "crease_edge");
 }
 
 static void rna_value_float_range(
@@ -121,7 +117,8 @@ void register_rna_properties_for_attribute_types(StructRNA &srna)
 
   PropertyRNA *prop = RNA_def_float(
       &srna, "value_float", 0.0f, -FLT_MAX, FLT_MAX, "Value", "", -FLT_MAX, FLT_MAX);
-  RNA_def_property_float_funcs_runtime(prop, nullptr, nullptr, rna_value_float_range, nullptr, nullptr);
+  RNA_def_property_float_funcs_runtime(
+      prop, nullptr, nullptr, rna_value_float_range, nullptr, nullptr);
 
   prop = RNA_def_string(&srna, "active_attribute_name", nullptr, 256, "Active Attribute Name", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);

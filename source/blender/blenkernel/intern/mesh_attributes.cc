@@ -897,20 +897,22 @@ static GeometryAttributeProviders create_attribute_providers_for_mesh()
       "Normalized Float Validate",
       [](float value) { return std::clamp(value, 0.0f, 1.0f); },
       mf::build::exec_presets::AllSpanOrSingle());
-  static BuiltinCustomDataLayerProvider bevel_weight_vert("bevel_weight_vert",
-                                                          AttrDomain::Point,
-                                                          CD_PROP_FLOAT,
-                                                          BuiltinAttributeProvider::Deletable,
-                                                          point_access,
-                                                          tag_component_positions_changed,
-                                                          AttributeValidator{&normalized_float_clamp});
-  static BuiltinCustomDataLayerProvider bevel_weight_edge("bevel_weight_edge",
-                                                          AttrDomain::Edge,
-                                                          CD_PROP_FLOAT,
-                                                          BuiltinAttributeProvider::Deletable,
-                                                          edge_access,
-                                                          tag_component_positions_changed,
-                                                          AttributeValidator{&normalized_float_clamp});
+  static BuiltinCustomDataLayerProvider bevel_weight_vert(
+      "bevel_weight_vert",
+      AttrDomain::Point,
+      CD_PROP_FLOAT,
+      BuiltinAttributeProvider::Deletable,
+      point_access,
+      tag_component_positions_changed,
+      AttributeValidator{&normalized_float_clamp});
+  static BuiltinCustomDataLayerProvider bevel_weight_edge(
+      "bevel_weight_edge",
+      AttrDomain::Edge,
+      CD_PROP_FLOAT,
+      BuiltinAttributeProvider::Deletable,
+      edge_access,
+      tag_component_positions_changed,
+      AttributeValidator{&normalized_float_clamp});
   static BuiltinCustomDataLayerProvider crease_vert("crease_vert",
                                                     AttrDomain::Point,
                                                     CD_PROP_FLOAT,
