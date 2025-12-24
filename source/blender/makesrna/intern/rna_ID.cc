@@ -1680,7 +1680,7 @@ static int idproperty_type_get(IDProperty *prop)
 
 static int rna_IDProperty_type_get(PointerRNA *ptr)
 {
-  IDProperty *prop = (IDProperty *)ptr->data;
+  IDProperty *prop = static_cast<IDProperty *>(ptr->data);
   if (prop) {
     return idproperty_type_get(prop);
   }
@@ -1689,7 +1689,7 @@ static int rna_IDProperty_type_get(PointerRNA *ptr)
 
 static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
 {
-  IDProperty *prop = (IDProperty *)ptr->data;
+  IDProperty *prop = static_cast<IDProperty *>(ptr->data);
   char type = -1, subtype = 0;
   eIDPropertyUIDataType ui_data_type = IDP_UI_DATA_TYPE_FLOAT;
 
@@ -1742,14 +1742,14 @@ static void rna_IDProperty_type_set(PointerRNA *ptr, int value)
 static int rna_idproperty_ui_default_array_length(const PointerRNA *ptr,
                                                   int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)ptr->data;
+  IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
   length[0] = ui_data->default_array_len;
   return length[0];
 }
 
 static void rna_idproperty_ui_default_array_float_get(PointerRNA *ptr, float *values)
 {
-  IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)ptr->data;
+  IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
   for (int i = 0; i < ui_data->default_array_len; i++) {
     values[i] = (float)ui_data->default_array[i];
   }
@@ -1757,7 +1757,7 @@ static void rna_idproperty_ui_default_array_float_get(PointerRNA *ptr, float *va
 
 static void rna_idproperty_ui_default_array_float_set(PointerRNA *ptr, const float *values)
 {
-  IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)ptr->data;
+  IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(ptr->data);
   for (int i = 0; i < ui_data->default_array_len; i++) {
     ui_data->default_array[i] = (double)values[i];
   }

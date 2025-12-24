@@ -137,6 +137,7 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
         break;
     }
 
+    /* Change active index after drop. */
     drag_data->id_->idprop_active_index = BLI_findindex(&drag_data->id_->properties->data.group,
                                                         drag_data->prop_);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
@@ -223,10 +224,9 @@ void IDPropertyView::build_tree()
 
 void template_tree(ui::Layout *layout, bContext *C, ID *id)
 {
-  //   Object *ob = CTX_data_active_object(C);
-  //   if (ob == nullptr) {
-  //     return;
-  //   }
+  if (id == nullptr) {
+    return;
+  }
 
   Block *block = layout->block();
 
@@ -238,7 +238,7 @@ void template_tree(ui::Layout *layout, bContext *C, ID *id)
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
 
-void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
+void draw_id_properties_value(ui::Layout *layout, bContext */*C*/, ID *id)
 {
   if (!id->properties) {
     return;
@@ -262,7 +262,6 @@ void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id)
         return &RNA_IDPropertyUIDataString;
       case IDP_ID:
         return &RNA_IDPropertyUIDataID;
-        ;
       default:
         BLI_assert_unreachable();
     }

@@ -156,35 +156,6 @@ def rna_idprop_ui_create(
     item.property_overridable_library_set(prop_path, overridable)
 
 
-def get_property_type(item, property_name):
-
-    prop_value = item[property_name]
-
-    prop_type, is_array = rna_idprop_value_item_type(prop_value)
-    if prop_type == int:
-        if is_array:
-            return 'INT_ARRAY'
-        return 'INT'
-    elif prop_type == float:
-        if is_array:
-            return 'FLOAT_ARRAY'
-        return 'FLOAT'
-    elif prop_type == bool:
-        if is_array:
-            return 'BOOL_ARRAY'
-        return 'BOOL'
-    elif prop_type == str:
-        if is_array:
-            return 'PYTHON'
-        return 'STRING'
-    elif prop_type == type(None) or issubclass(prop_type, bpy.types.ID):
-        if is_array:
-            return 'PYTHON'
-        return 'DATA_BLOCK'
-
-    return 'PYTHON'
-
-
 def draw(layout, context, context_member, property_type, *, use_edit=True):
     rna_item, context_member = rna_idprop_context_value(context, context_member, property_type)
     # poll should really get this...
@@ -199,15 +170,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
 
     items = list(rna_item.items())
 
-    # TODO: Allow/support adding new custom props to overrides.
-    # if use_edit and not is_lib_override:
-    #     row = layout.row()
-    #     props = row.operator("wm.properties_add", text="New", icon='ADD')
-    #     props.data_path = context_member
-    #     del row
-    #     layout.separator()
-
-    show_developer_ui = context.preferences.view.show_developer_ui
     rna_properties = {prop.identifier for prop in rna_item.bl_rna.properties if prop.is_runtime} if items else None
 
     row = layout.row()
@@ -259,68 +221,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 
     layout.draw_id_properties_value(rna_item.id_data)
-
-    return
-
-    layout.use_property_decorate = False
-
-    for key, value in items:
-        is_rna = (key in rna_properties)
-
-        # Only show API defined properties to developers.
-        if is_rna and not show_developer_ui:
-            continue
-
-        to_dict = getattr(value, "to_dict", None)
-        to_list = getattr(value, "to_list", None)
-        is_datablock = value is None or isinstance(value, bpy.types.ID)
-
-        if to_dict:
-            value = to_dict()
-        elif to_list:
-            value = to_list()
-
-        split = layout.split(factor=0.4, align=True)
-        label_row = split.row()
-        label_row.alignment = 'RIGHT'
-        label_row.label(text=key, translate=False)
-
-        value_row = split.row(align=True)
-        value_column = value_row.column(align=True)
-
-        is_long_array = to_list and len(value) >= MAX_DISPLAY_ROWS
-
-        if is_rna:
-            value_column.prop(rna_item, key, text="")
-        elif to_dict or is_long_array:
-            props = value_column.operator("wm.properties_edit_value", text="Edit Value")
-            props.data_path = context_member
-            props.property_name = key
-        elif is_datablock:
-            value_column.template_ID(rna_item, rna_idprop_quote_path(key), text="")
-        else:
-            value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
-
-        operator_row = value_row.row(align=True)
-        operator_row.alignment = 'RIGHT'
-
-        # Do not allow editing of overridden properties (we cannot use a poll function
-        # of the operators here since they have no access to the specific property).
-        operator_row.enabled = not (is_lib_override and key in rna_item.id_data.override_library.reference)
-
-        if use_edit:
-            if is_rna:
-                operator_row.label(text="API Defined")
-            elif is_lib_override:
-                operator_row.active = False
-                operator_row.label(text="", icon='DECORATE_LIBRARY_OVERRIDE')
-            else:
-                props = operator_row.operator("wm.properties_edit", text="", icon='PREFERENCES', emboss=False)
-                props.data_path = context_member
-                props.property_name = key
-                props = operator_row.operator("wm.properties_remove", text="", icon='X', emboss=False)
-                props.data_path = context_member
-                props.property_name = key
 
 
 class PropertyPanel:
