@@ -7,6 +7,7 @@
  */
 
 #include <cstdlib>
+#include <unordered_map>
 
 #include "MEM_guardedalloc.h"
 
