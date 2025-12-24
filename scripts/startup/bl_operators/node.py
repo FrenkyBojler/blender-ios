@@ -449,6 +449,10 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
         options={'SKIP_SAVE'},
     )
 
+    @classmethod
+    def poll(cls, context):
+        return not context.space_data.edit_tree.library
+
     @staticmethod
     def get_zone_pair(tree, node):
         # Get paired output node.
