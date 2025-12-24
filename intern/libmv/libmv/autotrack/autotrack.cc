@@ -245,21 +245,33 @@ bool AutoTrack::GetMarker(int clip,
   return tracks_.GetMarker(clip, frame, track, markers);
 }
 
-void AutoTrack::GetMarkersInFrame(int clip, int frame, libmv::vector<mv::Marker>* markers) {
+void AutoTrack::GetMarkersInFrame(int clip,
+                                  int frame,
+                                  libmv::vector<mv::Marker>* markers) {
   return tracks_.GetMarkersInFrame(clip, frame, markers);
 }
 
-void AutoTrack::DetectFeaturesInFrame(int clip, int frame, const libmv::DetectOptions& options) {
+void AutoTrack::DetectFeaturesInFrame(int clip,
+                                      int frame,
+                                      const libmv::DetectOptions& options) {
   vector<libmv::Feature> detected_features;
 
-  // FIXME: if we don't pass a region, the [image data?] is somehow corrupted and all (current and future) tracking operations fail
+  // FIXME: if we don't pass a region, the [image data?] is somehow corrupted
+  // and all (current and future) tracking operations fail
   libmv::FloatImage float_image;
   int width, height;
   frame_accessor_->GetClipDimensions(clip, frame, &width, &height);
   Region region;
   region.min = Vec2f(0, 0);
   region.max = Vec2f(static_cast<float>(width), static_cast<float>(height));
-  FrameAccessor::Key frame_key = frame_accessor_->GetImage(clip, frame, mv::FrameAccessor::InputMode::RGBA, 0, &region, nullptr, &float_image);
+  FrameAccessor::Key frame_key =
+      frame_accessor_->GetImage(clip,
+                                frame,
+                                mv::FrameAccessor::InputMode::RGBA,
+                                0,
+                                &region,
+                                nullptr,
+                                &float_image);
 
   if (!frame_key) {
     return;
@@ -295,20 +307,21 @@ void AutoTrack::DetectFeaturesInFrame(int clip, int frame, const libmv::DetectOp
     float search_size = 71.0f;
 
     float half_pattern_size = pattern_size / 2.0f;
-    marker.patch.coordinates <<
-      feature.x - half_pattern_size, feature.y - half_pattern_size,
-      feature.x + half_pattern_size, feature.y - half_pattern_size,
-      feature.x + half_pattern_size, feature.y + half_pattern_size,
-      feature.x - half_pattern_size, feature.y + half_pattern_size;
+    marker.patch.coordinates << feature.x - half_pattern_size,
+        feature.y - half_pattern_size, feature.x + half_pattern_size,
+        feature.y - half_pattern_size, feature.x + half_pattern_size,
+        feature.y + half_pattern_size, feature.x - half_pattern_size,
+        feature.y + half_pattern_size;
 
     float search_margin = search_size / 2.0f;
-    marker.search_region.min = Vec2f(feature.x - search_margin,
-                                    feature.y - search_margin);
-    marker.search_region.max = Vec2f(feature.x + search_margin,
-                                    feature.y + search_margin);
+    marker.search_region.min =
+        Vec2f(feature.x - search_margin, feature.y - search_margin);
+    marker.search_region.max =
+        Vec2f(feature.x + search_margin, feature.y + search_margin);
 
     AddMarker(marker);
-    // TODO: we need a way to sync the new track so frame accessor can do masking.
+    // TODO: we need a way to sync the new track so frame accessor can do
+    // masking.
   }
 }
 
@@ -321,7 +334,7 @@ void AutoTrack::DetectAndTrack(const DetectAndTrackOptions& options) {
   for (int clip = 0; clip < num_clips; ++clip) {
     int num_frames = frame_accessor_->NumFrames(clip);
     if (num_frames < 2)
-      continue; // nothing to track
+      continue;  // nothing to track
     vector<Marker> this_frame_markers;
     for (int frame = 1; frame < num_frames; ++frame) {
       if (!options.step_callback(options.user_data, frame) || Cancelled()) {
@@ -356,16 +369,19 @@ void AutoTrack::DetectAndTrack(const DetectAndTrackOptions& options) {
           Vec2f patch_max = marker.patch.coordinates.colwise().maxCoeff();
 
           float margin = static_cast<float>(this->options.track_region.margin);
-          float margin_left = std::max(marker.center.x() - patch_min.x(), margin);
-          float margin_top = std::max(patch_max.y() - marker.center.y(), margin);
-          float margin_right = std::max(patch_max.x() - marker.center.x(), margin);
-          float margin_bottom = std::max(marker.center.y() - patch_min.y(), margin);
+          float margin_left =
+              std::max(marker.center.x() - patch_min.x(), margin);
+          float margin_top =
+              std::max(patch_max.y() - marker.center.y(), margin);
+          float margin_right =
+              std::max(patch_max.x() - marker.center.x(), margin);
+          float margin_bottom =
+              std::max(marker.center.y() - patch_min.y(), margin);
 
           if (marker.center.x() < margin_left ||
               marker.center.x() > frame_width - margin_right ||
               marker.center.y() < margin_bottom ||
-              marker.center.y() > frame_height - margin_top)
-          {
+              marker.center.y() > frame_height - margin_top) {
             continue;
           }
 

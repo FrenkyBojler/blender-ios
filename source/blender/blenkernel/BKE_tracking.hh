@@ -579,7 +579,7 @@ void BKE_tracking_refine_marker(MovieClip *clip,
  * 2D tracking using auto-track pipeline.
  */
 
-typedef bool (* DetectAndTrackStepCallback)(void* user_data, int frame);
+typedef bool (*DetectAndTrackStepCallback)(void *user_data, int frame);
 
 struct AutoTrackContext *BKE_autotrack_context_new(MovieClip *clip,
                                                    MovieClipUser *user,
@@ -595,7 +595,7 @@ void BKE_autotrack_context_detect_and_track(AutoTrackContext *context,
                                             int margin,
                                             int min_distance,
                                             double threshold,
-                                            void* user_data,
+                                            void *user_data,
                                             DetectAndTrackStepCallback callback);
 
 /* --------------------------------------------------------------------

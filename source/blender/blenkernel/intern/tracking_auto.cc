@@ -15,10 +15,10 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
-#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -900,24 +900,24 @@ void BKE_autotrack_context_free(AutoTrackContext *context)
   MEM_freeN(context);
 }
 
-void BKE_autotrack_context_detect_and_track(
-  AutoTrackContext *context,
-  int min_features,
-  int margin,
-  int min_distance,
-  double threshold,
-  void* user_data,
-  DetectAndTrackStepCallback step_callback
-)
+void BKE_autotrack_context_detect_and_track(AutoTrackContext *context,
+                                            int min_features,
+                                            int margin,
+                                            int min_distance,
+                                            double threshold,
+                                            void *user_data,
+                                            DetectAndTrackStepCallback step_callback)
 {
-  MovieClip* clip = context->autotrack_clips[0].clip;
+  MovieClip *clip = context->autotrack_clips[0].clip;
 
   // setup options
   libmv_TrackRegionOptions options;
   options.direction = LIBMV_TRACK_REGION_FORWARD;
   options.motion_model = clip->tracking.settings.default_motion_model;
-  options.use_brute = ((clip->tracking.settings.default_algorithm_flag & TRACK_ALGORITHM_FLAG_USE_BRUTE) != 0);
-  options.use_normalization = ((clip->tracking.settings.default_algorithm_flag & TRACK_ALGORITHM_FLAG_USE_NORMALIZATION) != 0);
+  options.use_brute = ((clip->tracking.settings.default_algorithm_flag &
+                        TRACK_ALGORITHM_FLAG_USE_BRUTE) != 0);
+  options.use_normalization = ((clip->tracking.settings.default_algorithm_flag &
+                                TRACK_ALGORITHM_FLAG_USE_NORMALIZATION) != 0);
   options.num_iterations = 50;
   options.minimum_correlation = clip->tracking.settings.default_minimum_correlation;
   options.sigma = 0.9;
@@ -932,19 +932,17 @@ void BKE_autotrack_context_detect_and_track(
   detect_options.harris_threshold = threshold;
 
   // run tracker
-  libmv_Marker* markers = nullptr;
+  libmv_Marker *markers = nullptr;
   size_t num_markers = 0;
 
-  libmv_autoDetectAndTrack(
-    context->autotrack,
-    &options,
-    &detect_options,
-    min_features,
-    &markers,
-    num_markers,
-    user_data,
-    step_callback
-  );
+  libmv_autoDetectAndTrack(context->autotrack,
+                           &options,
+                           &detect_options,
+                           min_features,
+                           &markers,
+                           num_markers,
+                           user_data,
+                           step_callback);
 
   std::unordered_map<int, MovieTrackingTrack *> tracks;
 
@@ -954,11 +952,13 @@ void BKE_autotrack_context_detect_and_track(
   for (int i = 0; i < num_markers; i++) {
     AutoTrackClip autotrack_clip = context->autotrack_clips[markers[i].clip];
 
-    MovieTrackingMarker marker = libmv_marker_to_dna_marker(markers[i], autotrack_clip.width, autotrack_clip.height);
+    MovieTrackingMarker marker = libmv_marker_to_dna_marker(
+        markers[i], autotrack_clip.width, autotrack_clip.height);
 
     if (tracks.find(markers[i].track) != tracks.end()) {
       BKE_tracking_marker_insert(tracks[markers[i].track], &marker);
-    } else {
+    }
+    else {
       const MovieTrackingSettings *settings = &autotrack_clip.clip->tracking.settings;
 
       MovieTrackingTrack *track = MEM_callocN<MovieTrackingTrack>("add_marker_exec track");

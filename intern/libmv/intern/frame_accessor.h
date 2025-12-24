@@ -24,18 +24,15 @@ typedef enum {
   LIBMV_IMAGE_MODE_RGBA,
 } libmv_InputMode;
 
-typedef int (*libmv_GetClipLenCallback)(
-  libmv_FrameAccessorUserData* user_data,
-  int clip
-);
+typedef int (*libmv_GetClipLenCallback)(libmv_FrameAccessorUserData* user_data,
+                                        int clip);
 
 typedef void (*libmv_GetClipDimensionsCallback)(
-  libmv_FrameAccessorUserData* user_data,
-  int clip,
-  int frame,
-  int* width,
-  int* height
-);
+    libmv_FrameAccessorUserData* user_data,
+    int clip,
+    int frame,
+    int* width,
+    int* height);
 
 typedef libmv_CacheKey (*libmv_GetImageCallback)(
     libmv_FrameAccessorUserData* user_data,

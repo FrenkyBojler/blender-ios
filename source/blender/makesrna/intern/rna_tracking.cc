@@ -1058,7 +1058,9 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "default_detect_min_features");
   RNA_def_property_range(prop, 0, 300);
   RNA_def_property_ui_text(
-      prop, "Minimum Features", "More features will be detected if the number of active tracks falls below this number");
+      prop,
+      "Minimum Features",
+      "More features will be detected if the number of active tracks falls below this number");
 
   /* default_detect_margin */
   prop = RNA_def_property(srna, "default_detect_margin", PROP_INT, PROP_PIXEL);
@@ -1066,15 +1068,16 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "default_detect_margin");
   RNA_def_property_range(prop, 0, 300);
   RNA_def_property_ui_text(
-      prop, "Margin", "Only features further than margin pixels from the image edges are considered");
+      prop,
+      "Margin",
+      "Only features further than margin pixels from the image edges are considered");
 
   /* default_detect_min_distance */
   prop = RNA_def_property(srna, "default_detect_min_distance", PROP_INT, PROP_PIXEL);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_int_sdna(prop, nullptr, "default_detect_min_distance");
   RNA_def_property_range(prop, 0, 300);
-  RNA_def_property_ui_text(
-      prop, "Distance", "Minimal distance accepted between two features");
+  RNA_def_property_ui_text(prop, "Distance", "Minimal distance accepted between two features");
 
   /* default_detect_threshold */
   prop = RNA_def_property(srna, "default_detect_threshold", PROP_FLOAT, PROP_NONE);

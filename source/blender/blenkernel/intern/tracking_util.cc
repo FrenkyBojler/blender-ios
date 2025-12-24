@@ -784,8 +784,7 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
   return final_ibuf;
 }
 
-static int accessor_get_clip_len_callback(libmv_FrameAccessorUserData *user_data,
-                                          int clip_index)
+static int accessor_get_clip_len_callback(libmv_FrameAccessorUserData *user_data, int clip_index)
 {
   TrackingImageAccessor *accessor = (TrackingImageAccessor *)user_data;
 
@@ -794,11 +793,8 @@ static int accessor_get_clip_len_callback(libmv_FrameAccessorUserData *user_data
   return accessor->clips[clip_index]->len;
 }
 
-static void accessor_get_clip_dimensions_callback(libmv_FrameAccessorUserData *user_data,
-                                                  int clip_index,
-                                                  int frame,
-                                                  int* width,
-                                                  int* height)
+static void accessor_get_clip_dimensions_callback(
+    libmv_FrameAccessorUserData *user_data, int clip_index, int frame, int *width, int *height)
 {
   TrackingImageAccessor *accessor = (TrackingImageAccessor *)user_data;
 

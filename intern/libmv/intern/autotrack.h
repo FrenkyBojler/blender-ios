@@ -5,11 +5,11 @@
 #ifndef LIBMV_C_API_AUTOTRACK_H_
 #define LIBMV_C_API_AUTOTRACK_H_
 
+#include "intern/detector.h"
 #include "intern/frame_accessor.h"
 #include "intern/region.h"
 #include "intern/track_region.h"
 #include "intern/tracksN.h"
-#include "intern/detector.h"
 
 #ifdef __cplusplus
 extern "C" {

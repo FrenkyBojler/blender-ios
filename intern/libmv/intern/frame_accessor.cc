@@ -16,13 +16,14 @@ using mv::FrameAccessor;
 using mv::Region;
 
 struct LibmvFrameAccessor : public FrameAccessor {
-  LibmvFrameAccessor(libmv_FrameAccessorUserData* user_data,
-                     libmv_GetClipLenCallback get_clip_len_callback,
-                     libmv_GetClipDimensionsCallback get_clip_dimensions_callback,
-                     libmv_GetImageCallback get_image_callback,
-                     libmv_ReleaseImageCallback release_image_callback,
-                     libmv_GetMaskForTrackCallback get_mask_for_track_callback,
-                     libmv_ReleaseMaskCallback release_mask_callback)
+  LibmvFrameAccessor(
+      libmv_FrameAccessorUserData* user_data,
+      libmv_GetClipLenCallback get_clip_len_callback,
+      libmv_GetClipDimensionsCallback get_clip_dimensions_callback,
+      libmv_GetImageCallback get_image_callback,
+      libmv_ReleaseImageCallback release_image_callback,
+      libmv_GetMaskForTrackCallback get_mask_for_track_callback,
+      libmv_ReleaseMaskCallback release_mask_callback)
       : user_data_(user_data),
         get_clip_len_callback_(get_clip_len_callback),
         get_clip_dimensions_callback_(get_clip_dimensions_callback),
@@ -128,9 +129,7 @@ struct LibmvFrameAccessor : public FrameAccessor {
 
   int NumClips() { return 1; }
 
-  int NumFrames(int clip) {
-    return get_clip_len_callback_(user_data_, clip);
-  }
+  int NumFrames(int clip) { return get_clip_len_callback_(user_data_, clip); }
 
   libmv_FrameAccessorUserData* user_data_;
   libmv_GetClipLenCallback get_clip_len_callback_;

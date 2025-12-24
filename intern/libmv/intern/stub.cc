@@ -346,14 +346,15 @@ int libmv_autoTrackGetMarker(libmv_AutoTrack* /*libmv_autotrack*/,
   return 0;
 }
 
-void libmv_autoDetectAndTrack(libmv_AutoTrack* /*libmv_autotrack*/,
-                              const libmv_TrackRegionOptions* /*libmv_options*/,
-                              libmv_DetectOptions* /*detect_options*/,
-                              int /*min_features*/,
-                              libmv_Marker** /*libmv_markers*/,
-                              size_t& /*num_markers*/,
-                              void* /*user_data*/,
-                              libmv_DetectAndTrackStepCallback /*step_callback*/) {
+void libmv_autoDetectAndTrack(
+    libmv_AutoTrack* /*libmv_autotrack*/,
+    const libmv_TrackRegionOptions* /*libmv_options*/,
+    libmv_DetectOptions* /*detect_options*/,
+    int /*min_features*/,
+    libmv_Marker** /*libmv_markers*/,
+    size_t& /*num_markers*/,
+    void* /*user_data*/,
+    libmv_DetectAndTrackStepCallback /*step_callback*/) {
 }
 
 /* ************ frame accessor ************ */

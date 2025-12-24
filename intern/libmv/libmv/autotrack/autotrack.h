@@ -25,8 +25,8 @@
 
 #include "libmv/autotrack/region.h"
 #include "libmv/autotrack/tracks.h"
-#include "libmv/tracking/track_region.h"
 #include "libmv/simple_pipeline/detect.h"
+#include "libmv/tracking/track_region.h"
 
 namespace libmv {
 class CameraIntrinsics;
@@ -98,7 +98,9 @@ class AutoTrack {
   void AddMarker(const Marker& tracked_marker);
   void SetMarkers(vector<Marker>* markers);
   bool GetMarker(int clip, int frame, int track, Marker* marker) const;
-  void GetMarkersInFrame(int clip, int frame, libmv::vector<mv::Marker>* markers);
+  void GetMarkersInFrame(int clip,
+                         int frame,
+                         libmv::vector<mv::Marker>* markers);
   libmv::vector<mv::Marker> Markers();
 
   // TODO(keir): Implement frame matching! This could be very cool for loop
@@ -160,8 +162,9 @@ class AutoTrack {
   };
   void DetectAndTrack(const DetectAndTrackOptions& options);
 
-  void DetectFeaturesInFrame(
-      int clip, int frame, const libmv::DetectOptions& options);
+  void DetectFeaturesInFrame(int clip,
+                             int frame,
+                             const libmv::DetectOptions& options);
 
   // Does not take ownership of the given listener, but keeps a reference to it.
   void AddListener(OperationListener* listener) { (void)listener; }  // XXX

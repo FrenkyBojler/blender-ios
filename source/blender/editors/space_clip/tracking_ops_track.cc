@@ -536,11 +536,13 @@ struct AutoTrackJobUserData {
   wmJobWorkerStatus *worker_status;
 };
 
-static bool auto_track_callback(void *user_data_void, int frame) {
+static bool auto_track_callback(void *user_data_void, int frame)
+{
   AutoTrackJobUserData *user_data = (AutoTrackJobUserData *)user_data_void;
 
   user_data->worker_status->do_update = true;
-  user_data->worker_status->progress = float(frame - user_data->job->sfra) / (user_data->job->efra - user_data->job->sfra);
+  user_data->worker_status->progress = float(frame - user_data->job->sfra) /
+                                       (user_data->job->efra - user_data->job->sfra);
 
   user_data->job->lastfra = frame;
 
@@ -550,7 +552,8 @@ static bool auto_track_callback(void *user_data_void, int frame) {
 
   if (user_data->worker_status->stop || auto_track_testbreak()) {
     return false;
-  } else {
+  }
+  else {
     return true;
   }
 }
@@ -565,15 +568,13 @@ static void auto_track_startjob(void *atv, wmJobWorkerStatus *worker_status)
   user_data.job = atj;
   user_data.worker_status = worker_status;
 
-  BKE_autotrack_context_detect_and_track(
-    atj->context,
-    atj->min_features,
-    atj->margin,
-    atj->min_distance,
-    atj->threshold / 100000.0f,
-    (void *)&user_data,
-    auto_track_callback
-  );
+  BKE_autotrack_context_detect_and_track(atj->context,
+                                         atj->min_features,
+                                         atj->margin,
+                                         atj->min_distance,
+                                         atj->threshold / 100000.0f,
+                                         (void *)&user_data,
+                                         auto_track_callback);
 }
 
 static void auto_track_updatejob(void *atv)
@@ -671,9 +672,7 @@ static wmOperatorStatus auto_track_exec(bContext *C, wmOperator *op)
   return auto_track(C, op, false);
 }
 
-static wmOperatorStatus auto_track_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static wmOperatorStatus auto_track_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   return auto_track(C, op, true);
 }
