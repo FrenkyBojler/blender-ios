@@ -893,6 +893,39 @@ static GeometryAttributeProviders create_attribute_providers_for_mesh()
                                                        tag_material_index_changed,
                                                        AttributeValidator{&material_index_clamp});
 
+  static const auto normalized_float_clamp = mf::build::SI1_SO<float, float>(
+      "Normalized Float Validate",
+      [](float value) { return std::clamp(value, 0.0f, 1.0f); },
+      mf::build::exec_presets::AllSpanOrSingle());
+  static BuiltinCustomDataLayerProvider bevel_weight_vert("bevel_weight_vert",
+                                                          AttrDomain::Point,
+                                                          CD_PROP_FLOAT,
+                                                          BuiltinAttributeProvider::Deletable,
+                                                          point_access,
+                                                          tag_component_positions_changed,
+                                                          AttributeValidator{&normalized_float_clamp});
+  static BuiltinCustomDataLayerProvider bevel_weight_edge("bevel_weight_edge",
+                                                          AttrDomain::Edge,
+                                                          CD_PROP_FLOAT,
+                                                          BuiltinAttributeProvider::Deletable,
+                                                          edge_access,
+                                                          tag_component_positions_changed,
+                                                          AttributeValidator{&normalized_float_clamp});
+  static BuiltinCustomDataLayerProvider crease_vert("crease_vert",
+                                                    AttrDomain::Point,
+                                                    CD_PROP_FLOAT,
+                                                    BuiltinAttributeProvider::Deletable,
+                                                    point_access,
+                                                    tag_component_sharpness_changed,
+                                                    AttributeValidator{&normalized_float_clamp});
+  static BuiltinCustomDataLayerProvider crease_edge("crease_edge",
+                                                    AttrDomain::Edge,
+                                                    CD_PROP_FLOAT,
+                                                    BuiltinAttributeProvider::Deletable,
+                                                    edge_access,
+                                                    tag_component_sharpness_changed,
+                                                    AttributeValidator{&normalized_float_clamp});
+
   static const auto int2_index_clamp = mf::build::SI1_SO<int2, int2>(
       "Index Validate",
       [](int2 value) { return math::max(value, int2(0)); },
@@ -951,6 +984,10 @@ static GeometryAttributeProviders create_attribute_providers_for_mesh()
                                      &corner_vert,
                                      &corner_edge,
                                      &material_index,
+                                     &bevel_weight_vert,
+                                     &bevel_weight_edge,
+                                     &crease_vert,
+                                     &crease_edge,
                                      &sharp_face,
                                      &sharp_edge},
                                     {&corner_custom_data,

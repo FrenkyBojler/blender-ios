@@ -152,6 +152,7 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
 
   AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
+  RNA_string_set(op->ptr, "active_attribute_name", name.data());
   const bke::CurvesGeometry &curves = active_curves_id.geometry.wrap();
   const bke::AttributeAccessor attributes = curves.attributes();
   const bke::GAttributeReader attribute = attributes.lookup(name);
@@ -195,6 +196,7 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
 
   AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
+  RNA_string_set(op->ptr, "active_attribute_name", name.data());
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
   const bke::AttributeMetaData meta_data = *curves.attributes().lookup_meta_data(name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);

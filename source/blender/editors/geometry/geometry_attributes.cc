@@ -31,6 +31,8 @@
 
 #include "BLT_translation.hh"
 
+#include "BLI_string_ref.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -51,6 +53,36 @@
 #include "geometry_intern.hh"
 
 namespace blender::ed::geometry {
+
+static bool is_normalized_float_attribute_name(const StringRef name)
+{
+  return ELEM(name,
+              "bevel_weight_vert",
+              "bevel_weight_edge",
+              "crease_vert",
+              "crease_edge");
+}
+
+static void rna_value_float_range(
+    PointerRNA *ptr, PropertyRNA *, float *min, float *max, float *softmin, float *softmax)
+{
+  char active_attribute_name[256];
+  RNA_string_get(ptr, "active_attribute_name", active_attribute_name);
+  const StringRef active_name(active_attribute_name);
+
+  if (is_normalized_float_attribute_name(active_name)) {
+    *min = 0.0f;
+    *max = 1.0f;
+    *softmin = 0.0f;
+    *softmax = 1.0f;
+    return;
+  }
+
+  *min = -FLT_MAX;
+  *max = FLT_MAX;
+  *softmin = -FLT_MAX;
+  *softmax = FLT_MAX;
+}
 
 StringRefNull rna_property_name_for_type(const bke::AttrType type)
 {
@@ -87,7 +119,13 @@ void register_rna_properties_for_attribute_types(StructRNA &srna)
 {
   static blender::float4 color_default(1);
 
-  RNA_def_float(&srna, "value_float", 0.0f, -FLT_MAX, FLT_MAX, "Value", "", -FLT_MAX, FLT_MAX);
+  PropertyRNA *prop = RNA_def_float(
+      &srna, "value_float", 0.0f, -FLT_MAX, FLT_MAX, "Value", "", -FLT_MAX, FLT_MAX);
+  RNA_def_property_float_funcs_runtime(prop, nullptr, nullptr, rna_value_float_range, nullptr, nullptr);
+
+  prop = RNA_def_string(&srna, "active_attribute_name", nullptr, 256, "Active Attribute Name", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   RNA_def_float_array(&srna,
                       "value_float_vector_2d",
                       2,

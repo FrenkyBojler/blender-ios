@@ -213,6 +213,7 @@ static wmOperatorStatus mesh_set_attribute_invoke(bContext *C,
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
 
   const StringRef name = *BKE_attributes_active_name_get(owner);
+  RNA_string_set(op->ptr, "active_attribute_name", name.data());
   const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name);
   const bke::AttrType data_type = attr.type;
   const bke::AttrDomain domain = attr.domain;
@@ -247,6 +248,7 @@ static void mesh_set_attribute_ui(bContext *C, wmOperator *op)
   Mesh *mesh = ED_mesh_context(C);
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
+  RNA_string_set(op->ptr, "active_attribute_name", name.data());
   const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(attr.type);
   layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);

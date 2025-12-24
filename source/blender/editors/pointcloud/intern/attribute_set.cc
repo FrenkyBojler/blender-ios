@@ -139,6 +139,7 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
   AttributeOwner owner = AttributeOwner::from_id(&active_pointcloud.id);
   const bke::AttributeAccessor attributes = active_pointcloud.attributes();
   const StringRef name = *BKE_attributes_active_name_get(owner);
+  RNA_string_set(op->ptr, "active_attribute_name", name.data());
   const bke::GAttributeReader attribute = attributes.lookup(name);
 
   IndexMaskMemory memory;
@@ -179,6 +180,7 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
 
   AttributeOwner owner = AttributeOwner::from_id(&pointcloud.id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
+  RNA_string_set(op->ptr, "active_attribute_name", name.data());
   const bke::AttributeMetaData meta_data = *pointcloud.attributes().lookup_meta_data(name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);
   layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
