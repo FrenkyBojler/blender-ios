@@ -19,17 +19,17 @@
 
 namespace blender::math {
 
-BLI_INLINE int wrap_coord(float u, int size, InterpWrapMode wrap)
+BLI_INLINE int32_t wrap_coord(float u, int32_t size, InterpWrapMode wrap)
 {
   if (u >= 0) {
     if (u < float(size)) {
-      return int(u);
+      return int32_t(u);
     }
     switch (wrap) {
       default: /* case InterpWrapMode::Extend: */
         return size - 1;
       case InterpWrapMode::Repeat:
-        return int(unsigned(u) % unsigned(size));
+        return int32_t(uint32_t(u) % uint32_t(size));
       case InterpWrapMode::Border:
         return -1;
     }
@@ -38,7 +38,7 @@ BLI_INLINE int wrap_coord(float u, int size, InterpWrapMode wrap)
     default: /* case InterpWrapMode::Extend: */
       return 0;
     case InterpWrapMode::Repeat: {
-      int x = int(unsigned(-floorf(u)) % unsigned(size));
+      int32_t x = int32_t(uint32_t(-floorf(u)) % uint32_t(size));
       return x ? size - x : 0;
     }
     case InterpWrapMode::Border:
@@ -491,10 +491,10 @@ BLI_INLINE uchar4 bilinear_byte_impl(const uchar *buffer, int width, int height,
     row4 = (x2 > width - 1 || y2 > height - 1) ? empty : buffer + (int64_t(width) * y2 + x2) * 4;
   }
   else {
-    x1 = blender::math::clamp(x1, 0, width - 1);
-    x2 = blender::math::clamp(x2, 0, width - 1);
-    y1 = blender::math::clamp(y1, 0, height - 1);
-    y2 = blender::math::clamp(y2, 0, height - 1);
+    x1 = clamp(x1, 0, width - 1);
+    x2 = clamp(x2, 0, width - 1);
+    y1 = clamp(y1, 0, height - 1);
+    y2 = clamp(y2, 0, height - 1);
     row1 = buffer + (int64_t(width) * y1 + x1) * 4;
     row2 = buffer + (int64_t(width) * y2 + x1) * 4;
     row3 = buffer + (int64_t(width) * y1 + x2) * 4;

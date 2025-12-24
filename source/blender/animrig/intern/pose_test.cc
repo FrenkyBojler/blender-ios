@@ -69,11 +69,11 @@ class PoseTest : public testing::Test {
     bArmature *armature = BKE_armature_add(bmain, "ArmatureA");
     obj_armature_a->data = armature;
 
-    Bone *bone = MEM_callocN<Bone>("BONE");
+    Bone *bone = MEM_new_for_free<Bone>("BONE");
     STRNCPY(bone->name, "BoneA");
     BLI_addtail(&armature->bonebase, bone);
 
-    bone = MEM_callocN<Bone>("BONE");
+    bone = MEM_new_for_free<Bone>("BONE");
     STRNCPY(bone->name, "BoneB");
     BLI_addtail(&armature->bonebase, bone);
 
@@ -82,11 +82,11 @@ class PoseTest : public testing::Test {
     armature = BKE_armature_add(bmain, "ArmatureB");
     obj_armature_b->data = armature;
 
-    bone = MEM_callocN<Bone>("BONE");
+    bone = MEM_new_for_free<Bone>("BONE");
     STRNCPY(bone->name, "BoneA");
     BLI_addtail(&armature->bonebase, bone);
 
-    bone = MEM_callocN<Bone>("BONE");
+    bone = MEM_new_for_free<Bone>("BONE");
     STRNCPY(bone->name, "BoneB");
     BLI_addtail(&armature->bonebase, bone);
 
@@ -261,8 +261,7 @@ TEST_F(PoseTest, apply_action_multiple_objects)
   bPoseChannel *arm_b_bone_a = BKE_pose_channel_find_name(obj_armature_b->pose, "BoneA");
   bPoseChannel *arm_b_bone_b = BKE_pose_channel_find_name(obj_armature_b->pose, "BoneB");
 
-  blender::Vector<bPoseChannel *> all_bones = {
-      arm_a_bone_a, arm_a_bone_b, arm_b_bone_a, arm_b_bone_b};
+  Vector<bPoseChannel *> all_bones = {arm_a_bone_a, arm_a_bone_b, arm_b_bone_a, arm_b_bone_b};
 
   for (bPoseChannel *pose_bone : all_bones) {
     pose_bone->flag &= ~POSE_SELECTED;
@@ -360,8 +359,7 @@ TEST_F(PoseTest, apply_action_multiple_objects_single_slot)
   bPoseChannel *arm_b_bone_a = BKE_pose_channel_find_name(obj_armature_b->pose, "BoneA");
   bPoseChannel *arm_b_bone_b = BKE_pose_channel_find_name(obj_armature_b->pose, "BoneB");
 
-  blender::Vector<bPoseChannel *> all_bones = {
-      arm_a_bone_a, arm_a_bone_b, arm_b_bone_a, arm_b_bone_b};
+  Vector<bPoseChannel *> all_bones = {arm_a_bone_a, arm_a_bone_b, arm_b_bone_a, arm_b_bone_b};
 
   for (bPoseChannel *pose_bone : all_bones) {
     pose_bone->flag &= ~POSE_SELECTED;

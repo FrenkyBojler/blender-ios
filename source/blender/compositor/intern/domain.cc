@@ -61,30 +61,32 @@ bool operator!=(const Domain &a, const Domain &b)
   return !(a == b);
 }
 
-math::InterpWrapMode map_extension_mode_to_wrap_mode(ExtensionMode mode)
+math::InterpWrapMode map_extension_mode_to_wrap_mode(Extension mode)
 {
   switch (mode) {
-    case ExtensionMode::Clip:
+    case Extension::Clip:
       return math::InterpWrapMode::Border;
-    case ExtensionMode::Repeat:
+
+    case Extension::Repeat:
       return math::InterpWrapMode::Repeat;
-    case ExtensionMode::Extend:
+
+    case Extension::Extend:
       return math::InterpWrapMode::Extend;
   }
   BLI_assert_unreachable();
   return math::InterpWrapMode::Border;
 }
 
-GPUSamplerExtendMode map_extension_mode_to_extend_mode(ExtensionMode mode)
+GPUSamplerExtendMode map_extension_mode_to_extend_mode(Extension mode)
 {
   switch (mode) {
-    case ExtensionMode::Clip:
+    case Extension::Clip:
       return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 
-    case ExtensionMode::Extend:
+    case Extension::Extend:
       return GPU_SAMPLER_EXTEND_MODE_EXTEND;
 
-    case ExtensionMode::Repeat:
+    case Extension::Repeat:
       return GPU_SAMPLER_EXTEND_MODE_REPEAT;
   }
 

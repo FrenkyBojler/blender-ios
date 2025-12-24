@@ -135,7 +135,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   bool fast = (nearest || options.sampler == math::Sampler::Bilinear);
   bool anisotropic = options.sampler == math::Sampler::Anisotropic;
 
-  const char *shader_name;
+  const char *shader_name = nullptr;
   switch (input.type()) {
     case ResultType::Float:
     case ResultType::Float2:
@@ -270,7 +270,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
     parallel_for(size, [&](const int2 texel) {
       float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
       float4 sample = sample_area(source, uv, dPdx, dPdy);
-      output.store_pixel_generic_type(texel, sample);
+      output.store_pixel(texel, sample);
     });
     return;
   }
@@ -281,7 +281,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
   parallel_for(size, [&](const int2 texel) {
     float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
     float4 sample = sample_rect(source, uv, wh);
-    output.store_pixel_generic_type(texel, sample);
+    output.store_pixel(texel, sample);
   });
 }
 

@@ -43,6 +43,7 @@ set(SRC
   COM_shader_operation.hh
   COM_simple_operation.hh
   COM_static_cache_manager.hh
+  COM_undefined_node_operation.hh
   COM_utilities.hh
 
   intern/COM_compositor.cc
@@ -67,6 +68,7 @@ set(SRC
   intern/shader_operation.cc
   intern/simple_operation.cc
   intern/static_cache_manager.cc
+  intern/undefined_node_operation.cc
   intern/utilities.cc
 
   algorithms/intern/compute_preview.cc
@@ -215,6 +217,7 @@ set(GLSL_SRC
   shaders/infos/compositor_premultiply_alpha_infos.hh
   shaders/infos/compositor_read_input_infos.hh
   shaders/infos/compositor_realize_on_domain_infos.hh
+  shaders/infos/compositor_relative_to_pixel_infos.hh
   shaders/infos/compositor_sample_pixel_infos.hh
   shaders/infos/compositor_scale_variable_infos.hh
   shaders/infos/compositor_smaa_infos.hh
@@ -316,6 +319,9 @@ set(GLSL_SRC
   shaders/compositor_radial_lens_distortion.glsl
   shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
+  shaders/compositor_relative_to_pixel_float.glsl
+  shaders/compositor_relative_to_pixel_float_per_dimension.glsl
+  shaders/compositor_relative_to_pixel_vector.glsl
   shaders/compositor_sample_pixel.glsl
   shaders/compositor_scale_variable.glsl
   shaders/compositor_smaa_blending_weight_calculation.glsl

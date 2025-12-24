@@ -23,8 +23,8 @@ enum class Interpolation : uint8_t {
   Anisotropic,
 };
 
-/* Possible extension modes when computing samples in the domain's exterior. */
-enum class ExtensionMode : uint8_t {
+/* Possible extensions when computing samples in the domain's exterior. */
+enum class Extension : uint8_t {
   /* Areas outside of the image are filled with zero. */
   Clip,
   /* Areas outside of the image are filled with the closest boundary pixel in the image. */
@@ -46,9 +46,9 @@ struct RealizationOptions {
    * value at those arbitrary locations. */
   Interpolation interpolation = Interpolation::Bilinear;
   /* The extend mode for the x-axis. Defaults to Zero padding. */
-  ExtensionMode extension_x = ExtensionMode::Clip;
+  Extension extension_x = Extension::Clip;
   /* The extend mode for the y-axis. Defaults to Zero padding. */
-  ExtensionMode extension_y = ExtensionMode::Clip;
+  Extension extension_y = Extension::Clip;
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -199,8 +199,8 @@ class Domain {
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
 
-math::InterpWrapMode map_extension_mode_to_wrap_mode(ExtensionMode mode);
-GPUSamplerExtendMode map_extension_mode_to_extend_mode(ExtensionMode mode);
+math::InterpWrapMode map_extension_mode_to_wrap_mode(Extension mode);
+GPUSamplerExtendMode map_extension_mode_to_extend_mode(Extension mode);
 GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode);
 
 }  // namespace blender::compositor

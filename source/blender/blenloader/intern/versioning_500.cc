@@ -19,9 +19,9 @@
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -145,9 +145,11 @@ void version_system_idprops_generate(Main *bmain)
     }
   }
 }
-/* Separate callback for nodes, because they had the split implemented later. */
 void version_system_idprops_nodes_generate(Main *bmain)
 {
+  /* Separate callback for nodes,
+   * because they had the split implemented later. */
+
   FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
     LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
       idprops_process(node->prop, &node->system_properties);
@@ -155,9 +157,11 @@ void version_system_idprops_nodes_generate(Main *bmain)
   }
   FOREACH_NODETREE_END;
 }
-/* Separate callback for non-root bones, because they were missed in the initial implementation. */
 void version_system_idprops_children_bones_generate(Main *bmain)
 {
+  /* Separate callback for non-root bones,
+   * because they were missed in the initial implementation. */
+
   LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
     /* There is no way to iterate directly over all bones of an armature currently, use a recursive
      * approach instead. */
@@ -309,7 +313,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
       switch (node->type_legacy) {
         case SH_NODE_COMBRGB_LEGACY: {
           node->type_legacy = FN_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "FunctionNodeCombineColor");
           node->storage = storage;
@@ -317,7 +321,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case SH_NODE_SEPRGB_LEGACY: {
           node->type_legacy = FN_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "FunctionNodeSeparateColor");
 
@@ -375,7 +379,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
       switch (node->type_legacy) {
         case CMP_NODE_COMBRGBA_LEGACY: {
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
@@ -383,7 +387,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_COMBHSVA_LEGACY: {
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
           STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
@@ -391,7 +395,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_COMBYCCA_LEGACY: {
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
           storage->ycc_mode = node->custom1;
           STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
@@ -400,7 +404,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_COMBYUVA_LEGACY: {
           node->type_legacy = CMP_NODE_COMBINE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
           STRNCPY_UTF8(node->idname, "CompositorNodeCombineColor");
           node->storage = storage;
@@ -408,7 +412,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_SEPRGBA_LEGACY: {
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
@@ -416,7 +420,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_SEPHSVA_LEGACY: {
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_HSV;
           STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
@@ -424,7 +428,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_SEPYCCA_LEGACY: {
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YCC;
           storage->ycc_mode = node->custom1;
           STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
@@ -433,7 +437,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case CMP_NODE_SEPYUVA_LEGACY: {
           node->type_legacy = CMP_NODE_SEPARATE_COLOR;
-          NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+          NodeCMPCombSepColor *storage = MEM_new_for_free<NodeCMPCombSepColor>(__func__);
           storage->mode = CMP_NODE_COMBSEP_COLOR_YUV;
           STRNCPY_UTF8(node->idname, "CompositorNodeSeparateColor");
           node->storage = storage;
@@ -487,7 +491,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
       switch (node->type_legacy) {
         case SH_NODE_COMBRGB_LEGACY: {
           node->type_legacy = SH_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "ShaderNodeCombineColor");
           node->storage = storage;
@@ -495,7 +499,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case SH_NODE_COMBHSV_LEGACY: {
           node->type_legacy = SH_NODE_COMBINE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_HSV;
           STRNCPY_UTF8(node->idname, "ShaderNodeCombineColor");
           node->storage = storage;
@@ -503,7 +507,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case SH_NODE_SEPRGB_LEGACY: {
           node->type_legacy = SH_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_RGB;
           STRNCPY_UTF8(node->idname, "ShaderNodeSeparateColor");
           node->storage = storage;
@@ -511,7 +515,7 @@ static void versioning_replace_legacy_combined_and_separate_color_nodes(bNodeTre
         }
         case SH_NODE_SEPHSV_LEGACY: {
           node->type_legacy = SH_NODE_SEPARATE_COLOR;
-          NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+          NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
           storage->mode = NODE_COMBSEP_COLOR_HSV;
           STRNCPY_UTF8(node->idname, "ShaderNodeSeparateColor");
           node->storage = storage;
@@ -1216,7 +1220,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
         STRNCPY_UTF8(node->idname, "ShaderNodeMapRange");
 
         /* Transfer options from node to NodeMapRange storage. */
-        NodeMapRange *data = MEM_callocN<NodeMapRange>(__func__);
+        NodeMapRange *data = MEM_new_for_free<NodeMapRange>(__func__);
         data->clamp = node->custom1;
         data->data_type = CD_PROP_FLOAT;
         data->interpolation_type = NODE_MAP_RANGE_LINEAR;
@@ -1235,7 +1239,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
         STRNCPY_UTF8(node->idname, "ShaderNodeMix");
 
         /* Transfer options from node to NodeShaderMix storage. */
-        NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
+        NodeShaderMix *data = MEM_new_for_free<NodeShaderMix>(__func__);
         data->data_type = SOCK_RGBA;
         data->factor_mode = NODE_MIX_MODE_UNIFORM;
         data->clamp_factor = 0;
@@ -1585,7 +1589,7 @@ static void do_version_file_output_node(bNode &node)
   data->file_name = BLI_strdup_null(file_name);
 
   data->items_count = BLI_listbase_count(&node.inputs);
-  data->items = MEM_calloc_arrayN<NodeCompositorFileOutputItem>(data->items_count, __func__);
+  data->items = MEM_new_array_for_free<NodeCompositorFileOutputItem>(data->items_count, __func__);
   int i = 0;
   LISTBASE_FOREACH_INDEX (bNodeSocket *, input, &node.inputs, i) {
     NodeImageMultiFileSocket *old_item_data = static_cast<NodeImageMultiFileSocket *>(
@@ -2035,23 +2039,23 @@ static void initialize_missing_closure_and_bundle_node_storage(bNodeTree &ntree)
     }
     switch (node->type_legacy) {
       case NODE_CLOSURE_INPUT: {
-        node->storage = MEM_callocN<NodeClosureInput>(__func__);
+        node->storage = MEM_new_for_free<NodeClosureInput>(__func__);
         break;
       }
       case NODE_CLOSURE_OUTPUT: {
-        node->storage = MEM_callocN<NodeClosureOutput>(__func__);
+        node->storage = MEM_new_for_free<NodeClosureOutput>(__func__);
         break;
       }
       case NODE_EVALUATE_CLOSURE: {
-        node->storage = MEM_callocN<NodeEvaluateClosure>(__func__);
+        node->storage = MEM_new_for_free<NodeEvaluateClosure>(__func__);
         break;
       }
       case NODE_COMBINE_BUNDLE: {
-        node->storage = MEM_callocN<NodeCombineBundle>(__func__);
+        node->storage = MEM_new_for_free<NodeCombineBundle>(__func__);
         break;
       }
       case NODE_SEPARATE_BUNDLE: {
-        node->storage = MEM_callocN<NodeSeparateBundle>(__func__);
+        node->storage = MEM_new_for_free<NodeSeparateBundle>(__func__);
         break;
       }
     }
@@ -2313,7 +2317,7 @@ static void version_dynamic_viewer_node_items(bNodeTree &ntree)
       continue;
     }
     storage->items_num = 2;
-    storage->items = MEM_calloc_arrayN<NodeGeometryViewerItem>(2, __func__);
+    storage->items = MEM_new_array_for_free<NodeGeometryViewerItem>(2, __func__);
     NodeGeometryViewerItem &geometry_item = storage->items[0];
     geometry_item.name = BLI_strdup("Geometry");
     geometry_item.socket_type = SOCK_GEOMETRY;
@@ -2774,7 +2778,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 101)) {
-    const uint8_t default_flags = DNA_struct_default_get(ToolSettings)->fix_to_cam_flag;
+    const uint8_t default_flags = ToolSettings().fix_to_cam_flag;
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (!scene->toolsettings) {
         continue;
@@ -2841,7 +2845,7 @@ static void remove_in_and_out_node_panel_recursive(bNodeTreeInterfacePanel &pane
       continue;
     }
 
-    bNodeTreeInterfaceSocket *new_output = MEM_callocN<bNodeTreeInterfaceSocket>(__func__);
+    bNodeTreeInterfaceSocket *new_output = MEM_new_for_free<bNodeTreeInterfaceSocket>(__func__);
     new_output->item.item_type = NODE_INTERFACE_SOCKET;
     new_output->name = BLI_strdup_null(socket->name);
     new_output->description = BLI_strdup_null(socket->description);
@@ -3142,7 +3146,7 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       bNodeSocket &combine_output = version_node_add_socket(
           *node_tree, combine, SOCK_OUT, "NodeSocketColor", "Color");
 
-      NodeCombSepColor *storage = MEM_callocN<NodeCombSepColor>(__func__);
+      NodeCombSepColor *storage = MEM_new_for_free<NodeCombSepColor>(__func__);
       storage->mode = NODE_COMBSEP_COLOR_RGB;
       combine.storage = storage;
 
@@ -3242,7 +3246,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeDisplaceData *data = MEM_callocN<NodeDisplaceData>(__func__);
+        NodeDisplaceData *data = MEM_new_for_free<NodeDisplaceData>(__func__);
         data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
         node->storage = data;
       }
@@ -3469,7 +3473,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeTransformData *data = MEM_callocN<NodeTransformData>(__func__);
+        NodeTransformData *data = MEM_new_for_free<NodeTransformData>(__func__);
         data->interpolation = node->custom1;
         data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
@@ -3652,7 +3656,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeRotateData *data = MEM_callocN<NodeRotateData>(__func__);
+        NodeRotateData *data = MEM_new_for_free<NodeRotateData>(__func__);
         data->interpolation = node->custom1;
         data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
@@ -3694,7 +3698,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeMapUVData *data = MEM_callocN<NodeMapUVData>(__func__);
+        NodeMapUVData *data = MEM_new_for_free<NodeMapUVData>(__func__);
         data->interpolation = node->custom2;
         data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;
@@ -3715,7 +3719,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeCornerPinData *data = MEM_callocN<NodeCornerPinData>(__func__);
+        NodeCornerPinData *data = MEM_new_for_free<NodeCornerPinData>(__func__);
         data->interpolation = node->custom1;
         data->extension_x = CMP_NODE_EXTENSION_MODE_CLIP;
         data->extension_y = CMP_NODE_EXTENSION_MODE_CLIP;

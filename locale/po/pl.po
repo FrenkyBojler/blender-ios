@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-02 11:29+0000\n"
+"POT-Creation-Date: 2025-12-22 09:32+0000\n"
 "PO-Revision-Date: 2025-07-23 15:14+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -9167,6 +9167,22 @@ msgid "Collection"
 msgstr "Kolekcja"
 
 
+msgid "Font"
+msgstr "Czcionka"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Sound"
+msgstr "Dźwięk"
+
+
 msgid "Collection Negation"
 msgstr "Kolekcja negacji"
 
@@ -9702,10 +9718,6 @@ msgstr "Rozdzielczość V"
 
 msgid "Path"
 msgstr "Ścieżka"
-
-
-msgid "Font"
-msgstr "Czcionka"
 
 
 msgid "Selected Bold"
@@ -10592,10 +10604,6 @@ msgstr "Wycisz głośnik"
 msgctxt "Sound"
 msgid "Pitch"
 msgstr "Wysokość"
-
-
-msgid "Sound"
-msgstr "Dźwięk"
 
 
 msgctxt "Text"
@@ -11523,8 +11531,44 @@ msgid "Use Material Mask"
 msgstr "Używa maski materiału"
 
 
-msgid "Mask"
-msgstr "Maska"
+msgid "Local View"
+msgstr "Widok lokalny"
+
+
+msgid "Viewpoint"
+msgstr "Punkt obserwacji"
+
+
+msgid "Navigation"
+msgstr "Nawigacja"
+
+
+msgid "Select Linked"
+msgstr "Zaznacz powiązane"
+
+
+msgid "Assign Material"
+msgstr "Przypisanie materiału"
+
+
+msgid "Metaball"
+msgstr "Metakula"
+
+
+msgid "Light"
+msgstr "Światło"
+
+
+msgid "Light Probe"
+msgstr "Sonda świetlna"
+
+
+msgid "Layout"
+msgstr "Układ"
+
+
+msgid "Rigid Body"
+msgstr "Bryła sztywna"
 
 
 msgid "Apply"
@@ -11547,32 +11591,16 @@ msgid "Clean Up"
 msgstr "Sprzątanie"
 
 
+msgid "Keying"
+msgstr "Kluczowanie"
+
+
 msgid "Asset"
 msgstr "Prefabrykat"
 
 
 msgid "Convert"
 msgstr "Konwertuj"
-
-
-msgid "Bone Collections"
-msgstr "Kolekcja kości"
-
-
-msgid "Layout"
-msgstr "Układ"
-
-
-msgid "Face Data"
-msgstr "Dane ściany"
-
-
-msgid "Merge"
-msgstr "Scal"
-
-
-msgid "Keying"
-msgstr "Kluczowanie"
 
 
 msgid "Utilities"
@@ -11583,20 +11611,16 @@ msgid "Math"
 msgstr "Matematyka"
 
 
-msgid "Text"
-msgstr "Tekst"
+msgid "Bone Collections"
+msgstr "Kolekcja kości"
 
 
-msgid "Metaball"
-msgstr "Metakula"
+msgid "Face Data"
+msgstr "Dane ściany"
 
 
-msgid "Snap"
-msgstr "Przyciągnij"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proporcjonalne edytowanie spadku"
+msgid "Merge"
+msgstr "Scal"
 
 
 msgid "Read"
@@ -11607,52 +11631,28 @@ msgid "Write"
 msgstr "Zapis"
 
 
-msgid "Mirror"
-msgstr "Odbicie lustrzane"
-
-
-msgid "Local View"
-msgstr "Widok lokalny"
-
-
-msgid "Viewpoint"
-msgstr "Punkt obserwacji"
-
-
-msgid "Navigation"
-msgstr "Nawigacja"
-
-
 msgid "Gizmo"
 msgstr "Gizmo"
-
-
-msgid "Select Linked"
-msgstr "Zaznacz powiązane"
 
 
 msgid "Import"
 msgstr "Importuj"
 
 
+msgid "Snap"
+msgstr "Przyciągnij"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proporcjonalne edytowanie spadku"
+
+
 msgid "Deprecated"
 msgstr "Przestarzałe"
 
 
-msgid "Assign Material"
-msgstr "Przypisanie materiału"
-
-
-msgid "Light"
-msgstr "Światło"
-
-
-msgid "Light Probe"
-msgstr "Sonda świetlna"
-
-
-msgid "Rigid Body"
-msgstr "Bryła sztywna"
+msgid "Mirror"
+msgstr "Odbicie lustrzane"
 
 
 msgid "Catalog"
@@ -11677,10 +11677,6 @@ msgstr "Zbliżenie"
 
 msgid "Console"
 msgstr "Konsola"
-
-
-msgid "Languages..."
-msgstr "Języki..."
 
 
 msgid "Add Attribute"
@@ -13395,11 +13391,6 @@ msgstr "Edytuj właściwość"
 msgctxt "Operator"
 msgid "Edit Property Value"
 msgstr "Edytuj wartość właściwości"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Zapisz informacje o systemie"
 
 
 msgctxt "Operator"
@@ -17251,6 +17242,14 @@ msgid "Palette Color"
 msgstr "Kolor palety"
 
 
+msgid "Curve Edit Mode"
+msgstr "Tryb edycji krzywej"
+
+
+msgid "Transform Orientations"
+msgstr "Orientacje przekształcenia"
+
+
 msgid "Active Tool"
 msgstr "Aktywne narzędzie"
 
@@ -17273,14 +17272,6 @@ msgstr "Tryb edycji siatki"
 
 msgid "Measurement"
 msgstr "Pomiar"
-
-
-msgid "Curve Edit Mode"
-msgstr "Tryb edycji krzywej"
-
-
-msgid "Transform Orientations"
-msgstr "Orientacje przekształcenia"
 
 
 msgid "Aperture"
@@ -19951,6 +19942,11 @@ msgstr "Użyj obiektu"
 
 
 msgctxt "WindowManager"
+msgid "Snap"
+msgstr "Przyciągaj"
+
+
+msgctxt "WindowManager"
 msgid "Forward"
 msgstr "Do przodu"
 
@@ -20073,11 +20069,6 @@ msgstr "Początek"
 msgctxt "WindowManager"
 msgid "Move"
 msgstr "Przesunięcie"
-
-
-msgctxt "WindowManager"
-msgid "Snap"
-msgstr "Przyciągaj"
 
 
 msgctxt "WindowManager"
@@ -21100,11 +21091,6 @@ msgstr "Filtruj według typu:"
 
 
 msgctxt "Operator"
-msgid "Move..."
-msgstr "Przesuń..."
-
-
-msgctxt "Operator"
 msgid "Snap"
 msgstr "Przyciągaj"
 
@@ -21648,11 +21634,6 @@ msgstr "Kontrola prędkości"
 msgctxt "Operator"
 msgid "Gaussian Blur"
 msgstr "Rozmycie Gaussa"
-
-
-msgctxt "Operator"
-msgid "Insert Keyframe with Keying Set"
-msgstr "Wstaw klatkę kluczową z zestawem kluczowania"
 
 
 msgctxt "Operator"
@@ -22456,11 +22437,6 @@ msgstr "Głośnik"
 
 
 msgctxt "Operator"
-msgid "Mesh Plane"
-msgstr "Siatka płaszczyzny"
-
-
-msgctxt "Operator"
 msgid "Bake Action..."
 msgstr "Akcja przeliczenia..."
 
@@ -22615,11 +22591,6 @@ msgstr "Zmień nazwę aktywnej kości..."
 
 
 msgctxt "Operator"
-msgid "Sort Elements..."
-msgstr "Sortuj elementy..."
-
-
-msgctxt "Operator"
 msgid "Extrude Vertices"
 msgstr "Wydłuż wierzchołki"
 
@@ -22687,16 +22658,6 @@ msgstr "Brak kolekcji do instancji"
 msgctxt "Operator"
 msgid "Collection Instance"
 msgstr "Instancja kolekcji"
-
-
-msgctxt "Operator"
-msgid "Reference"
-msgstr "Odniesienie"
-
-
-msgctxt "Operator"
-msgid "Background"
-msgstr "Tło"
 
 
 msgctxt "Operator"
@@ -23066,6 +23027,14 @@ msgstr "DaneCząsteczek"
 
 msgid "particles"
 msgstr "cząstki"
+
+
+msgid "Mesh has no UV data"
+msgstr "Siatka nie posiada danych UV"
+
+
+msgid "Mesh has no VCol data"
+msgstr "Siatka nie posiada danych VCol"
 
 
 msgid "%i frames found!"
@@ -23774,16 +23743,6 @@ msgstr "Nie klawiaturowe skróty"
 
 msgid "Pin"
 msgstr "Przypnij"
-
-
-msgctxt "Operator"
-msgid "Change Shortcut"
-msgstr "Zmień skrót"
-
-
-msgctxt "Operator"
-msgid "Assign Shortcut"
-msgstr "Przypisz skrót"
 
 
 msgctxt "Operator"
@@ -25893,10 +25852,6 @@ msgid "OneDrive"
 msgstr "OneDrive"
 
 
-msgid "Movies"
-msgstr "Filmy"
-
-
 msgid "Cursor X"
 msgstr "Kursor X"
 
@@ -27364,14 +27319,6 @@ msgid "Object '%s' could not create internal data for finding nearest point"
 msgstr "Obiekt '%s' nie zdołał stworzyć wewnętrznych danych do znalezienia najbliższego punktu"
 
 
-msgid "Mesh has no UV data"
-msgstr "Siatka nie posiada danych UV"
-
-
-msgid "Mesh has no VCol data"
-msgstr "Siatka nie posiada danych VCol"
-
-
 msgid "Constraint '%s' not found in pose bone '%s'"
 msgstr "Nie odnaleziono ogranicznika '%s' w kości pozy (pose bone) '%s'"
 
@@ -28101,18 +28048,6 @@ msgstr "Właściwość musi być typu integer lub float"
 
 msgid "Property must be a none, distance, factor, percentage, angle, or pixel"
 msgstr "Właściwość musi być typu żaden, distans, współczynnik, odsetek, kąt lub piksel"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', at position %d"
-msgstr "Rejestracja operator class: '%s', nieprawidłowe bl_idname '%s', w pozycji %d"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', is too long, maximum length is %d"
-msgstr "Rejestracja operator class: '%s', nieprawidłowe bl_idname, '%s' jest za długie, maksymalna długość: %d"
-
-
-msgid "Registering operator class: '%s', invalid bl_idname '%s', must contain 1 '.' character"
-msgstr "Rejestracja operator class '%s', nieprawidłowe bl_idname '%s', musi zawierać 1 znak '.'"
 
 
 msgid "Cannot read %s '%s': %s"
