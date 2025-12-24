@@ -88,11 +88,10 @@ extern const PointerRNA PointerRNA_NULL = {};
 void RNA_init()
 {
   BlenderRNA &brna = RNA_blender_rna_get();
-  brna = rna_blender_rna_create();
 
   brna.structs_map.reserve(2048);
 
-  for (StructRNA *srna : RNA_blender_rna_get().structs) {
+  for (std::unique_ptr<StructRNA> &srna : RNA_blender_rna_get().structs) {
     if (!srna->cont.prop_lookup_set) {
       srna->cont.prop_lookup_set =
           MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(
@@ -105,24 +104,24 @@ void RNA_init()
       }
     }
     BLI_assert(srna->flag & STRUCT_PUBLIC_NAMESPACE);
-    brna.structs_map.add(srna->identifier, srna);
+    brna.structs_map.add(srna->identifier, srna.get());
   }
 }
 
 void RNA_bpy_exit()
 {
 #ifdef WITH_PYTHON
-  for (StructRNA *srna : RNA_blender_rna_get().structs) {
+  for (std::unique_ptr<StructRNA> &srna : RNA_blender_rna_get().structs) {
     /* NOTE(@ideasman42): each call locks the Python's GIL. Only locking/unlocking once
      * is possible but gives barely measurable speedup (< ~1millisecond) so leave as-is. */
-    BPY_free_srna_pytype(srna);
+    BPY_free_srna_pytype(srna.get());
   }
 #endif
 }
 
 void RNA_exit()
 {
-  for (StructRNA *srna : RNA_blender_rna_get().structs) {
+  for (std::unique_ptr<StructRNA> &srna : RNA_blender_rna_get().structs) {
     MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
   }
 

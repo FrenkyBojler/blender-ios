@@ -2886,7 +2886,7 @@ static const char *rna_property_subtype_unit(PropertySubType type)
 
 static void rna_generate_struct_rna_prototypes(BlenderRNA *brna, FILE *f)
 {
-  for (const StructRNA *srna : brna->structs) {
+  for (const std::unique_ptr<StructRNA> &srna : brna->structs) {
     fprintf(f, "extern struct StructRNA *RNA_%s;\n", srna->identifier);
   }
 }
@@ -2894,7 +2894,7 @@ static void rna_generate_struct_rna_prototypes(BlenderRNA *brna, FILE *f)
 static void rna_generate_struct_register_prototypes(BlenderRNA *brna, FILE *f)
 {
   fprintf(f, "struct BlenderRNA;\n");
-  for (const StructRNA *srna : brna->structs) {
+  for (const std::unique_ptr<StructRNA> &srna : brna->structs) {
     fprintf(f, "void register_struct_%s(BlenderRNA &brna);\n", srna->identifier);
   }
 }
@@ -2905,10 +2905,15 @@ static void rna_generate_blender(BlenderRNA *brna, FILE *f)
           "BlenderRNA rna_blender_rna_create()\n"
           "{\n"
           "\tBlenderRNA brna{};\n");
-  for (StructRNA *srna : brna->structs) {
-    fprintf(f, "\tRNA_%s = MEM_new<StructRNA>(__func__);\n", srna->identifier);
+  /* Allocate the structs before creating their definitions, so they can reference each other out
+   * of their definition order.*/
+  for (std::unique_ptr<StructRNA> &srna : brna->structs) {
+    fprintf(f,
+            "\tbrna.structs.append(std::make_unique<StructRNA>());\n"
+            "\tRNA_%s = brna.structs.last().get();\n",
+            srna->identifier);
   }
-  for (StructRNA *srna : brna->structs) {
+  for (std::unique_ptr<StructRNA> &srna : brna->structs) {
     fprintf(f, "\tregister_struct_%s(brna);\n", srna->identifier);
   }
   fprintf(f,
@@ -2917,7 +2922,7 @@ static void rna_generate_blender(BlenderRNA *brna, FILE *f)
   fprintf(f,
           "BlenderRNA &RNA_blender_rna_get()\n"
           "{\n"
-          "\tstatic BlenderRNA BLENDER_RNA;\n");
+          "\tstatic BlenderRNA BLENDER_RNA = rna_blender_rna_create();\n");
   /* structs_map is created by RNA_init(). */
   fprintf(f,
           "\treturn BLENDER_RNA;\n"
@@ -2933,7 +2938,7 @@ static void rna_generate_external_property_prototypes(BlenderRNA *brna, FILE *f)
   /* NOTE: Generate generic `PropertyRNA &` references. The actual, type-refined properties data
    * are static variables in their translation units (the `_gen.cc` files), which are assigned to
    * these public generic `PointerRNA &` references. */
-  for (StructRNA *srna : brna->structs) {
+  for (std::unique_ptr<StructRNA> &srna : brna->structs) {
     LISTBASE_FOREACH (PropertyRNA *, prop, &srna->cont.properties) {
       fprintf(f, "extern PropertyRNA &rna_%s_%s;\n", srna->identifier, prop->identifier);
     }
@@ -4032,11 +4037,7 @@ static void rna_generate_struct_register_func(BlenderRNA * /*brna*/, StructRNA *
     fprintf(f, "(FunctionRNA *)&rna_%s_%s_func};\n", srna->identifier, func->identifier);
   }
 
-  fprintf(f,
-          "\tbrna.structs.append(srna);\n"
-          "};\n");
-
-  fprintf(f, "\n");
+  fprintf(f, "};\n\n");
 }
 
 struct RNAProcessItem {

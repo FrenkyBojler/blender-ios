@@ -175,9 +175,10 @@ void rna_freelistN(ListBase *listbase)
   listbase->first = listbase->last = nullptr;
 }
 
-static void rna_brna_structs_add(BlenderRNA *brna, StructRNA *srna)
+static void rna_brna_structs_add(BlenderRNA *brna, std::unique_ptr<StructRNA> srna_ptr)
 {
-  brna->structs.append(srna);
+  StructRNA *srna = srna_ptr.get();
+  brna->structs.append(std::move(srna_ptr));
 
   /* This exception is only needed for pre-processing.
    * otherwise we don't allow empty names. */
@@ -198,9 +199,14 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
   RNA_def_struct_free_pointers(nullptr, srna);
 
   if (srna->flag & STRUCT_RUNTIME) {
-    brna->structs.remove(brna->structs.first_index_of(srna));
+    /* Reverse iteration because runtime structs should be at the end. */
+    for (int i = brna->structs.size(); i > 0; i--) {
+      if (brna->structs[i].get() == srna) {
+        brna->structs.remove(i);
+        break;
+      }
+    }
   }
-  MEM_delete(srna);
 }
 #endif
 
@@ -870,7 +876,7 @@ void RNA_free(BlenderRNA *brna)
   if (DefRNA.preprocess) {
     RNA_define_free(brna);
 
-    for (StructRNA *srna : brna->structs) {
+    for (std::unique_ptr<StructRNA> &srna : brna->structs) {
       for (func = static_cast<FunctionRNA *>(srna->functions.first); func;
            func = static_cast<FunctionRNA *>(func->cont.next))
       {
@@ -881,16 +887,12 @@ void RNA_free(BlenderRNA *brna)
       rna_freelistN(&srna->functions);
     }
 
-    for (StructRNA *srna : brna->structs) {
-      MEM_delete(srna);
-    }
-
     MEM_delete(brna);
   }
   else {
     /* Reverse iteration to make removing from vector faster. */
     for (auto srna = brna->structs.rbegin(); srna != brna->structs.rend(); srna++) {
-      RNA_struct_free(brna, *srna);
+      RNA_struct_free(brna, srna->get());
     }
   }
 
@@ -952,7 +954,8 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
     }
   }
 
-  srna = MEM_new<StructRNA>(__func__);
+  auto srna_ptr = std::make_unique<StructRNA>();
+  srna = srna_ptr.get();
   DefRNA.laststruct = srna;
 
   if (srnafrom) {
@@ -993,7 +996,7 @@ StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRN
     RNA_def_struct_flag(srna, STRUCT_PUBLIC_NAMESPACE);
   }
 
-  rna_brna_structs_add(brna, srna);
+  rna_brna_structs_add(brna, std::move(srna_ptr));
 
   if (DefRNA.preprocess) {
     ds = MEM_callocN<StructDefRNA>("StructDefRNA");
