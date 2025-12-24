@@ -46,6 +46,7 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
+#include "ED_asset.hh"
 #include "ED_asset_indexer.hh"
 #include "ED_fileselect.hh"
 
@@ -423,8 +424,19 @@ int filelist_geticon_file_type(FileList *filelist, const int index, const bool i
 
 int ED_file_icon(const FileDirEntry *file)
 {
-  return file->preview_icon_id ? file->preview_icon_id :
-                                 filelist_geticon_file_type_ex(nullptr, file, false, false);
+  if (file->preview_icon_id) {
+    return file->preview_icon_id;
+  }
+
+  if (file->asset) {
+    file->asset->ensure_previewable();
+    const int asset_icon = blender::ed::asset::asset_preview_icon_id(*file->asset);
+    if (asset_icon != ICON_NONE) {
+      return asset_icon;
+    }
+  }
+
+  return filelist_geticon_file_type_ex(nullptr, file, false, false);
 }
 
 bool filelist_intern_entry_is_main_file(const FileListInternEntry *intern_entry)
