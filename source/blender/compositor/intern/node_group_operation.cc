@@ -25,10 +25,9 @@
 
 namespace blender::compositor {
 
-NodeGroupOperation::NodeGroupOperation(Context &context, const bNode &node)
-    : NodeOperation(context, node)
+NodeGroupOperation::NodeGroupOperation(Context &context, const bNodeTree &node_group)
+    : Operation(context), node_group_(node_group)
 {
-  const bNodeTree &node_group = *reinterpret_cast<const bNodeTree *>(node.id);
   node_group.ensure_topology_cache();
   for (const bNodeSocket *output : node_group.all_output_sockets()) {
     if (!is_socket_available(output)) {
@@ -51,9 +50,8 @@ NodeGroupOperation::NodeGroupOperation(Context &context, const bNode &node)
 
 void NodeGroupOperation::execute()
 {
-  const bNodeTree &node_group = *reinterpret_cast<const bNodeTree *>(this->node().id);
   const Schedule schedule = compute_schedule(
-      this->context(), node_group, this->context().needed_outputs());
+      this->context(), node_group_, this->context().needed_outputs());
   CompileState compile_state(this->context(), schedule);
 
   for (const bNode *node : schedule) {

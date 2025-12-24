@@ -80,15 +80,17 @@ namespace blender::compositor {
  * pixel node, so the compile unit is considered complete and is compiled first, adding the first
  * pixel operation to the operations stream and resetting the compile unit. Finally, node 6 is
  * compiled into a node operation similar to nodes 1 and 2 and added to the operations stream. */
-class NodeGroupOperation : public NodeOperation {
+class NodeGroupOperation : public Operation {
  private:
+  const bNodeTree &node_group_;
+
   /* The compiled operations stream, which contains all compiled operations so far. */
   Vector<std::unique_ptr<Operation>> operations_stream_;
 
  public:
-  /* Populate the output results based on the node outputs and populate the input descriptors based
-   * on the node inputs. */
-  NodeGroupOperation(Context &context, const bNode &node);
+  /* Populate the output results based on the node group interface outputs and populate the input
+   * descriptors based on the node group interface inputs. */
+  NodeGroupOperation(Context &context, const bNodeTree &node_group);
 
   /* Calls the evaluate method of the operation, but also measures the execution time and stores it
    * in the context's profile data. */
