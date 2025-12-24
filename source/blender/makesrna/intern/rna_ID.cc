@@ -1763,6 +1763,18 @@ static void rna_idproperty_ui_default_array_float_set(PointerRNA *ptr, const flo
   }
 }
 
+static void rna_IDPropertyUIDataID_id_type_set(PointerRNA *ptr, int value)
+{
+  IDPropertyUIDataID *ui_data = static_cast<IDPropertyUIDataID *>(ptr->data);
+  ID *id = ptr->owner_id;
+  IDProperty *active_prop = static_cast<IDProperty *>(
+      BLI_findlink(&id->properties->data.group, id->idprop_active_index));
+  if (ui_data->id_type != value) {
+    active_prop->data.pointer = nullptr;
+  }
+  ui_data->id_type = value;
+}
+
 #else
 
 static void rna_def_ID_properties(BlenderRNA *brna)
@@ -3059,6 +3071,8 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "id_type");
   RNA_def_property_ui_text(prop, "Type", "Type of this data-block");
   RNA_def_property_enum_items(prop, rna_enum_id_type_items);
+  RNA_def_property_enum_funcs(prop, nullptr, "rna_IDPropertyUIDataID_id_type_set", nullptr);
+  RNA_def_property_enum_default(prop, ID_OB);
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "base.description");

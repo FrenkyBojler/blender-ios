@@ -134,7 +134,7 @@ struct IDPropertyUIDataID {
    * However, when defined/edited from the UI (Custom Properties panel), it must/will be defined,
    * as generic 'Any ID type' selection is a TODO UI-wise.
    */
-  short id_type = 0;
+  short id_type = ID_OB;
   char _pad[6] = {};
 };
 
