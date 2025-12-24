@@ -143,10 +143,6 @@ Mesh *USDShapeReader::read_mesh(Mesh *existing_mesh,
   /* Should have a good set of data by this point-- copy over. */
   Mesh *active_mesh = mesh_from_prim(existing_mesh, params, usd_face_indices, usd_face_counts);
 
-  if (active_mesh == existing_mesh) {
-    return existing_mesh;
-  }
-
   Span<int> face_indices = Span(usd_face_indices.cdata(), usd_face_indices.size());
   Span<int> face_counts = Span(usd_face_counts.cdata(), usd_face_counts.size());
 
@@ -165,6 +161,11 @@ Mesh *USDShapeReader::read_mesh(Mesh *existing_mesh,
   }
 
   bke::mesh_calc_edges(*active_mesh, false, false);
+
+  if (params.read_flags & MOD_MESHSEQ_READ_COLOR) {
+    apply_primvars_to_mesh(active_mesh, params.motion_sample_time);
+  }
+
   return active_mesh;
 }
 
@@ -256,14 +257,6 @@ Mesh *USDShapeReader::mesh_from_prim(Mesh *existing_mesh,
 
   MutableSpan<float3> vert_positions = active_mesh->vert_positions_for_write();
   vert_positions.copy_from(Span(positions.cdata(), positions.size()).cast<float3>());
-
-  if (params.read_flags & MOD_MESHSEQ_READ_COLOR) {
-    if (active_mesh != existing_mesh) {
-      /* Clear the primvar map to force attributes to be reloaded. */
-      this->primvar_time_varying_map_.clear();
-    }
-    apply_primvars_to_mesh(active_mesh, params.motion_sample_time);
-  }
 
   return active_mesh;
 }
