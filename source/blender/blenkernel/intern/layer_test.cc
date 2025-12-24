@@ -16,6 +16,7 @@
 #include "CLG_log.h"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
 namespace blender::bke::tests {
@@ -24,6 +25,7 @@ TEST(view_layer, aov_unique_names)
 {
   /* Set Up */
   CLG_init();
+  RNA_init();
   BKE_idtype_init();
   BKE_appdir_init();
   IMB_init();
@@ -78,6 +80,7 @@ TEST(view_layer, aov_unique_names)
   IDType_ID_SCE.free_data(&scene.id);
   IMB_exit();
   BKE_appdir_exit();
+  RNA_exit();
   CLG_exit();
 }
 
@@ -117,6 +120,7 @@ TEST(view_layer, aov_conflict)
 {
   /* Set Up */
   CLG_init();
+  RNA_init();
   BKE_appdir_init();
   IMB_init();
   RE_engines_init();
@@ -162,6 +166,7 @@ TEST(view_layer, aov_conflict)
   IDType_ID_SCE.free_data(&scene.id);
   IMB_exit();
   BKE_appdir_exit();
+  RNA_exit();
   CLG_exit();
 }
 
