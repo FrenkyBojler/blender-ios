@@ -2610,7 +2610,7 @@ static void widget_active_color(uiWidgetColors *wcol)
 {
   const bool dark = (srgb_to_grayscale_byte(wcol->text) > srgb_to_grayscale_byte(wcol->inner));
   color_mul_hsl_v3(wcol->inner, 1.0f, 1.15f, dark ? 1.2f : 1.1f);
-  color_blend_v4_v4v4(wcol->outline, wcol->outline, wcol->outline_sel, 0.5f);
+    color_blend_v4_v4v4(wcol->outline, wcol->outline, wcol->outline_sel, 0.5f);
   color_mul_hsl_v3(wcol->outline_sel, 1.0f, 1.15f, 1.15f);
   color_mul_hsl_v3(wcol->text, 1.0f, 1.15f, dark ? 1.25f : 0.8f);
 }
@@ -2906,7 +2906,6 @@ static void widget_state_menu_item(WidgetType *wt,
   }
   else if (state->but_flag & UI_HOVER) {
     /* Regular hover. */
-    color_blend_v3_v3(wt->wcol.inner, wt->wcol.text, 0.2f);
     color_blend_v3_v3(wt->wcol.outline, wt->wcol.outline_sel, 0.5f);
     copy_v3_v3_uchar(wt->wcol.text, wt->wcol.text_sel);
     wt->wcol.inner[3] = 255;
