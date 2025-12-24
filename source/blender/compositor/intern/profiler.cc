@@ -8,8 +8,6 @@
 
 #include "BKE_node.hh"
 
-#include "NOD_derived_node_tree.hh"
-
 #include "COM_profiler.hh"
 
 namespace blender::compositor {

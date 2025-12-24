@@ -151,7 +151,7 @@ class GroupInputOperation : public NodeOperation {
 namespace blender::nodes {
 
 compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
-                                                                DNode node)
+                                                                const bNode &node)
 {
   return new node_composite_group_input_cc::GroupInputOperation(context, node);
 }

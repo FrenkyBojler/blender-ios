@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_derived_node_tree.hh"
-
 #include "BKE_node.hh"
 
 #include "COM_context.hh"
@@ -13,8 +11,6 @@
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
-
-using namespace nodes::derived_node_tree_types;
 
 class UndefinedNodeOperation : public NodeOperation {
  public:
@@ -35,7 +31,7 @@ class UndefinedNodeOperation : public NodeOperation {
   }
 };
 
-NodeOperation *get_undefined_node_operation(Context &context, DNode node)
+NodeOperation *get_undefined_node_operation(Context &context, const bNode &node)
 {
   return new UndefinedNodeOperation(context, node);
 }

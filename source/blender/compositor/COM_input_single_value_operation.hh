@@ -6,15 +6,11 @@
 
 #include "BLI_string_ref.hh"
 
-#include "NOD_derived_node_tree.hh"
-
 #include "COM_context.hh"
 #include "COM_operation.hh"
 #include "COM_result.hh"
 
 namespace blender::compositor {
-
-using namespace nodes::derived_node_tree_types;
 
 /* ------------------------------------------------------------------------------------------------
  * Input Single Value Operation
@@ -27,10 +23,10 @@ class InputSingleValueOperation : public Operation {
   /* The identifier of the output. */
   static const StringRef output_identifier_;
   /* The input socket whose value will be computed as the operation's result. */
-  DInputSocket input_socket_;
+  const bNodeSocket &input_socket_;
 
  public:
-  InputSingleValueOperation(Context &context, DInputSocket input_socket);
+  InputSingleValueOperation(Context &context, const bNodeSocket &input_socket);
 
   /* Allocate a single value result and set its value to the default value of the input socket. */
   void execute() override;

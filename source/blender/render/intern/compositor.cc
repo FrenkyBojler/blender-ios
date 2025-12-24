@@ -16,6 +16,7 @@
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_scene.hh"
 
 #include "DRW_engine.hh"

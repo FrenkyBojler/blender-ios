@@ -8,16 +8,12 @@
 
 #include "DNA_node_types.h"
 
-#include "NOD_derived_node_tree.hh"
-
 #include "COM_context.hh"
 #include "COM_operation.hh"
 #include "COM_result.hh"
 #include "COM_scheduler.hh"
 
 namespace blender::compositor {
-
-using namespace nodes::derived_node_tree_types;
 
 /* ------------------------------------------------------------------------------------------------
  * Node Operation
@@ -31,12 +27,12 @@ using namespace nodes::derived_node_tree_types;
 class NodeOperation : public Operation {
  private:
   /* The node that this operation represents. */
-  DNode node_;
+  const bNode &node_;
 
  public:
   /* Populate the output results based on the node outputs and populate the input descriptors based
    * on the node inputs. */
-  NodeOperation(Context &context, DNode node);
+  NodeOperation(Context &context, const bNode &node);
 
   /* Calls the evaluate method of the operation, but also measures the execution time and stores it
    * in the context's profile data. */

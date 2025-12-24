@@ -57,7 +57,6 @@ struct bNodeTreeExec;
 namespace blender {
 class CPPType;
 namespace nodes {
-class DNode;
 class NodeMultiFunctionBuilder;
 class GeoNodeExecParams;
 class NodeDeclaration;
@@ -139,7 +138,7 @@ using NodeGatherAddOperationsFunction =
 
 using NodeGetCompositorOperationFunction =
     blender::compositor::NodeOperation *(*)(blender::compositor::Context & context,
-                                            blender::nodes::DNode node);
+                                            const bNode &node);
 using NodeExtraInfoFunction = void (*)(blender::nodes::NodeExtraInfoParams &params);
 using NodeInverseElemEvalFunction =
     void (*)(blender::nodes::value_elem::InverseElemEvalParams &params);

@@ -22,9 +22,9 @@ using namespace blender::compositor;
 
 class GroupOutputOperation : public NodeOperation {
  public:
-  GroupOutputOperation(Context &context, DNode node) : NodeOperation(context, node)
+  GroupOutputOperation(Context &context, const bNode &node) : NodeOperation(context, node)
   {
-    for (const bNodeSocket *input : node->input_sockets()) {
+    for (const bNodeSocket *input : node.input_sockets()) {
       if (!is_socket_available(input)) {
         continue;
       }
@@ -63,7 +63,7 @@ class GroupOutputOperation : public NodeOperation {
 namespace blender::nodes {
 
 compositor::NodeOperation *get_group_output_compositor_operation(compositor::Context &context,
-                                                                 DNode node)
+                                                                 const bNode &node)
 {
   return new node_composite_group_output_cc::GroupOutputOperation(context, node);
 }

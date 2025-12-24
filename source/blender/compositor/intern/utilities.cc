@@ -10,7 +10,8 @@
 
 #include "DNA_node_types.h"
 
-#include "NOD_derived_node_tree.hh"
+#include "BKE_node.hh"
+
 #include "NOD_node_declaration.hh"
 
 #include "GPU_compute.hh"
@@ -21,48 +22,17 @@
 
 namespace blender::compositor {
 
-using namespace nodes::derived_node_tree_types;
-using TargetSocketPathInfo = DOutputSocket::TargetSocketPathInfo;
-
 bool is_socket_available(const bNodeSocket *socket)
 {
   return socket->is_available() && StringRef(socket->idname) != "NodeSocketVirtual";
 }
 
-DSocket get_input_origin_socket(DInputSocket input)
+const bNodeSocket *get_output_linked_to_input(const bNodeSocket &input)
 {
-  /* The input is unlinked. Return the socket itself. */
-  if (!input->is_logically_linked()) {
-    return input;
+  if (!input.is_logically_linked()) {
+    return nullptr;
   }
-
-  /* Only a single origin socket is guaranteed to exist. */
-  DSocket socket;
-  input.foreach_origin_socket([&](const DSocket origin) { socket = origin; });
-
-  /* The origin socket might be null if it is an output of a group node whose group has no Group
-   * Output node. The input is thus considered to be unlinked logically. */
-  if (!socket) {
-    return input;
-  }
-
-  return socket;
-}
-
-DOutputSocket get_output_linked_to_input(DInputSocket input)
-{
-  /* Get the origin socket of this input, which will be an output socket if the input is linked
-   * to an output. */
-  const DSocket origin = get_input_origin_socket(input);
-
-  /* If the origin socket is an input, that means the input is unlinked, so return a null output
-   * socket. */
-  if (origin->is_input()) {
-    return DOutputSocket();
-  }
-
-  /* Now that we know the origin is an output, return a derived output from it. */
-  return DOutputSocket(origin);
+  return input.logically_linked_sockets()[0];
 }
 
 ResultType socket_data_type_to_result_type(const eNodeSocketDatatype data_type,
@@ -115,40 +85,37 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
   return socket_data_type_to_result_type(socket_type);
 }
 
-bool is_output_linked_to_node_conditioned(DOutputSocket output, FunctionRef<bool(DNode)> condition)
+bool is_output_linked_to_node_conditioned(const bNodeSocket &output,
+                                          FunctionRef<bool(const bNode &)> condition)
 {
-  bool condition_satisfied = false;
-  output.foreach_target_socket(
-      [&](DInputSocket target, const TargetSocketPathInfo & /*path_info*/) {
-        if (condition(target.node())) {
-          condition_satisfied = true;
-          return;
-        }
-      });
-  return condition_satisfied;
+  for (const bNodeSocket *input : output.logically_linked_sockets()) {
+    if (condition(input->owner_node())) {
+      return true;
+    }
+  }
+  return false;
 }
 
-int number_of_inputs_linked_to_output_conditioned(DOutputSocket output,
-                                                  FunctionRef<bool(DInputSocket)> condition)
+int number_of_inputs_linked_to_output_conditioned(const bNodeSocket &output,
+                                                  FunctionRef<bool(const bNodeSocket &)> condition)
 {
-  if (!output->is_logically_linked()) {
+  if (!output.is_logically_linked()) {
     return 0;
   }
 
   int count = 0;
-  output.foreach_target_socket(
-      [&](DInputSocket target, const TargetSocketPathInfo & /*path_info*/) {
-        if (condition(target)) {
-          count++;
-        }
-      });
+  for (const bNodeSocket *input : output.logically_linked_sockets()) {
+    if (condition(*input)) {
+      count++;
+    }
+  }
   return count;
 }
 
-bool is_pixel_node(DNode node)
+bool is_pixel_node(const bNode &node)
 {
-  BLI_assert(bool(node->typeinfo->gpu_fn) == bool(node->typeinfo->build_multi_function));
-  return node->typeinfo->gpu_fn && node->typeinfo->build_multi_function;
+  BLI_assert(bool(node.typeinfo->gpu_fn) == bool(node.typeinfo->build_multi_function));
+  return node.typeinfo->gpu_fn && node.typeinfo->build_multi_function;
 }
 
 static ImplicitInput get_implicit_input(const nodes::SocketDeclaration *socket_declaration)
@@ -208,13 +175,13 @@ void compute_dispatch_threads_at_least(gpu::Shader *shader, int2 threads_range, 
   GPU_compute_dispatch(shader, groups_to_dispatch.x, groups_to_dispatch.y, 1);
 }
 
-bool is_node_preview_needed(const DNode &node)
+bool is_node_preview_needed(const bNode &node)
 {
-  if (!(node->flag & NODE_PREVIEW)) {
+  if (!(node.flag & NODE_PREVIEW)) {
     return false;
   }
 
-  if (node->flag & NODE_COLLAPSED) {
+  if (node.flag & NODE_COLLAPSED) {
     return false;
   }
 
@@ -228,23 +195,19 @@ bool is_node_preview_needed(const DNode &node)
   return true;
 }
 
-DOutputSocket find_preview_output_socket(const DNode &node)
+const bNodeSocket *find_preview_output_socket(const bNode &node)
 {
   if (!is_node_preview_needed(node)) {
-    return DOutputSocket();
+    return nullptr;
   }
 
-  for (const bNodeSocket *output : node->output_sockets()) {
-    if (!is_socket_available(output)) {
-      continue;
-    }
-
-    if (output->is_logically_linked()) {
-      return DOutputSocket(node.context(), output);
+  for (const bNodeSocket *output : node.output_sockets()) {
+    if (is_socket_available(output) && output->is_logically_linked()) {
+      return output;
     }
   }
 
-  return DOutputSocket();
+  return nullptr;
 }
 
 }  // namespace blender::compositor

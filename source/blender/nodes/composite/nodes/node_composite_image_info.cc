@@ -35,7 +35,7 @@ using namespace blender::compositor;
 
 class ImageInfoOperation : public NodeOperation {
  public:
-  ImageInfoOperation(Context &context, DNode node) : NodeOperation(context, node)
+  ImageInfoOperation(Context &context, const bNode &node) : NodeOperation(context, node)
   {
     InputDescriptor &image_descriptor = this->get_input_descriptor("Image");
     image_descriptor.skip_type_conversion = true;
@@ -118,7 +118,7 @@ class ImageInfoOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new ImageInfoOperation(context, node);
 }

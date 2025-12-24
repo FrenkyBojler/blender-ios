@@ -9,105 +9,43 @@
 #include "BLI_stack.hh"
 #include "BLI_vector.hh"
 
-#include "NOD_derived_node_tree.hh"
-
 #include "COM_context.hh"
 #include "COM_scheduler.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
 
-using namespace nodes::derived_node_tree_types;
-
-/* Returns true if any of the node group nodes that make up this tree context are muted. */
-static bool is_tree_context_muted(const DTreeContext &tree_context)
-{
-  /* Root contexts are never muted. */
-  if (tree_context.is_root()) {
-    return false;
-  }
-
-  /* The node group that represents this context is muted. */
-  if (tree_context.parent_node()->is_muted()) {
-    return true;
-  }
-
-  /* Recursively check parent contexts up until the root context. */
-  return is_tree_context_muted(*tree_context.parent_context());
-}
-
-/* Find the active viewer node in the given tree context. Returns a null node if no active node was
- * found. */
-static DNode find_viewer_node_in_context(const DTreeContext &tree_context)
-{
-  /* Do not return viewer nodes that are inside muted contexts. */
-  if (is_tree_context_muted(tree_context)) {
-    return DNode();
-  }
-
-  for (const bNode *node : tree_context.btree().nodes_by_type("CompositorNodeViewer")) {
-    if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
-      return DNode(&tree_context, node);
-    }
-  }
-
-  return DNode();
-}
-
-/* Add all File Output nodes inside the given tree_context recursively to the node stack. */
-static void add_file_output_nodes(const DTreeContext &tree_context, Stack<DNode> &node_stack)
-{
-  for (const bNode *node : tree_context.btree().nodes_by_type("CompositorNodeOutputFile")) {
-    if (node->is_muted()) {
-      continue;
-    }
-
-    node_stack.push(DNode(&tree_context, node));
-  }
-
-  for (const bNode *node : tree_context.btree().group_nodes()) {
-    if (node->is_muted()) {
-      continue;
-    }
-
-    const bNodeTree *group_tree = reinterpret_cast<const bNodeTree *>(node->id);
-    if (!group_tree) {
-      continue;
-    }
-
-    add_file_output_nodes(*tree_context.child_context(*node), node_stack);
-  }
-}
-
 /* Add the output nodes whose result should be computed to the given stack. This includes File
  * Output, Group Output, and Viewer nodes. */
 static void add_output_nodes(const Context &context,
-                             const DerivedNodeTree &tree,
-                             Stack<DNode> &node_stack)
+                             const bNodeTree &node_group,
+                             OutputTypes needed_outputs,
+                             Stack<const bNode *> &node_stack)
 {
-  const DTreeContext &root_context = tree.root_context();
-
-  if (flag_is_set(context.needed_outputs(), OutputTypes::FileOutput)) {
-    add_file_output_nodes(root_context, node_stack);
-  }
-
-  if (flag_is_set(context.needed_outputs(), OutputTypes::Composite)) {
-    for (const bNode *node : root_context.btree().nodes_by_type("NodeGroupOutput")) {
-      if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
-        node_stack.push(DNode(&root_context, node));
-        break;
+  if (flag_is_set(needed_outputs, OutputTypes::FileOutput)) {
+    for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile")) {
+      if (!node->is_muted()) {
+        node_stack.push(node);
       }
     }
   }
 
-  if (flag_is_set(context.needed_outputs(), OutputTypes::Viewer)) {
-    /* Check if the active context has a viewer node, if not, check the root context. */
-    DNode viewer_node = find_viewer_node_in_context(tree.active_context());
-    if (!viewer_node) {
-      viewer_node = find_viewer_node_in_context(tree.root_context());
+  if (flag_is_set(needed_outputs, OutputTypes::Composite)) {
+    const bNode *output_node = node_group.group_output_node();
+    if (output_node && !output_node->is_muted()) {
+      node_stack.push(output_node);
+    }
+  }
+
+  if (flag_is_set(needed_outputs, OutputTypes::Viewer)) {
+    const bNode *viewer_node = nullptr;
+    for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
+      if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
+        viewer_node = node;
+        break;
+      }
     }
 
-    /* No viewer node in either contexts. */
     if (!viewer_node) {
       return;
     }
@@ -127,7 +65,7 @@ static void add_output_nodes(const Context &context,
 /* A type representing a mapping that associates each node with a heuristic estimation of the
  * number of intermediate buffers needed to compute it and all of its dependencies. See the
  * compute_number_of_needed_buffers function for more information. */
-using NeededBuffers = Map<DNode, int>;
+using NeededBuffers = Map<const bNode *, int>;
 
 /* Compute a heuristic estimation of the number of intermediate buffers needed to compute each node
  * and all of its dependencies for all nodes that the given node depends on. The output is a map
@@ -178,14 +116,14 @@ using NeededBuffers = Map<DNode, int>;
  *   implementation because it rarely affects the output and is done by very few nodes.
  * - The compiler may decide to compiler the schedule differently depending on runtime information
  *   which we can merely speculate at scheduling-time as described above. */
-static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes)
+static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &output_nodes)
 {
   NeededBuffers needed_buffers;
 
-  /* A stack of nodes used to traverse the node tree starting from the output nodes. */
-  Stack<DNode> node_stack = output_nodes;
+  /* A stack of nodes used to traverse the node group starting from the output nodes. */
+  Stack<const bNode *> node_stack = output_nodes;
 
-  /* Traverse the node tree in a post order depth first manner and compute the number of needed
+  /* Traverse the node group in a post order depth first manner and compute the number of needed
    * buffers for each node. Post order traversal guarantee that all the node dependencies of each
    * node are computed before it. This is done by pushing all the uncomputed node dependencies to
    * the node stack first and only popping and computing the node when all its node dependencies
@@ -194,34 +132,34 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
     /* Do not pop the node immediately, as it may turn out that we can't compute its number of
      * needed buffers just yet because its dependencies weren't computed, it will be popped later
      * when needed. */
-    DNode &node = node_stack.peek();
+    const bNode &node = *node_stack.peek();
 
     /* Go over the node dependencies connected to the inputs of the node and push them to the node
      * stack if they were not computed already. */
-    Set<DNode> pushed_nodes;
-    for (const bNodeSocket *input : node->input_sockets()) {
-      const DInputSocket dinput{node.context(), input};
-
+    Set<const bNode *> pushed_nodes;
+    for (const bNodeSocket *input : node.input_sockets()) {
       if (!is_socket_available(input)) {
         continue;
       }
 
       /* Get the output linked to the input. If it is null, that means the input is unlinked and
        * has no dependency node. */
-      const DOutputSocket doutput = get_output_linked_to_input(dinput);
-      if (!doutput) {
+      const bNodeSocket *output = get_output_linked_to_input(*input);
+      if (!output) {
         continue;
       }
 
       /* The node dependency was already computed or pushed before, so skip it. */
-      if (needed_buffers.contains(doutput.node()) || pushed_nodes.contains(doutput.node())) {
+      if (needed_buffers.contains(&output->owner_node()) ||
+          pushed_nodes.contains(&output->owner_node()))
+      {
         continue;
       }
 
       /* The output node needs to be computed, push the node dependency to the node stack and
        * indicate that it was pushed. */
-      node_stack.push(doutput.node());
-      pushed_nodes.add_new(doutput.node());
+      node_stack.push(&output->owner_node());
+      pushed_nodes.add_new(&output->owner_node());
     }
 
     /* If any of the node dependencies were pushed, that means that not all of them were computed
@@ -237,39 +175,35 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
      * buffers needed to compute the most demanding of the node dependencies. */
     int number_of_input_buffers = 0;
     int buffers_needed_by_dependencies = 0;
-    for (const bNodeSocket *input : node->input_sockets()) {
-      const DInputSocket dinput{node.context(), input};
-
+    for (const bNodeSocket *input : node.input_sockets()) {
       if (!is_socket_available(input)) {
         continue;
       }
 
       /* Get the output linked to the input. If it is null, that means the input is unlinked.
        * Unlinked inputs do not take a buffer, so skip those inputs. */
-      const DOutputSocket doutput = get_output_linked_to_input(dinput);
-      if (!doutput) {
+      const bNodeSocket *output = get_output_linked_to_input(*input);
+      if (!output) {
         continue;
       }
 
       /* Since this input is linked, if the link is not between two pixel nodes, it means that the
        * node takes a buffer through this input and so we increment the number of input buffers. */
-      if (!is_pixel_node(node) || !is_pixel_node(doutput.node())) {
+      if (!is_pixel_node(node) || !is_pixel_node(output->owner_node())) {
         number_of_input_buffers++;
       }
 
       /* If the number of buffers needed by the node dependency is more than the total number of
        * buffers needed by the dependencies, then update the latter to be the former. This is
        * computing the "d" in the aforementioned equation "max(n + m, d)". */
-      const int buffers_needed_by_dependency = needed_buffers.lookup(doutput.node());
+      const int buffers_needed_by_dependency = needed_buffers.lookup(&output->owner_node());
       buffers_needed_by_dependencies = std::max(buffers_needed_by_dependency,
                                                 buffers_needed_by_dependencies);
     }
 
     /* Compute the number of buffers that will be computed/output by this node. */
     int number_of_output_buffers = 0;
-    for (const bNodeSocket *output : node->output_sockets()) {
-      const DOutputSocket doutput{node.context(), output};
-
+    for (const bNodeSocket *output : node.output_sockets()) {
       if (!is_socket_available(output)) {
         continue;
       }
@@ -281,7 +215,7 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
 
       /* If any of the links is not between two pixel nodes, it means that the node outputs
        * a buffer through this output and so we increment the number of output buffers. */
-      if (!is_output_linked_to_node_conditioned(doutput, is_pixel_node) || !is_pixel_node(node)) {
+      if (!is_output_linked_to_node_conditioned(*output, is_pixel_node) || !is_pixel_node(node)) {
         number_of_output_buffers++;
       }
     }
@@ -291,7 +225,7 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
      * "max(n + m, d)". */
     const int total_buffers = std::max(number_of_input_buffers + number_of_output_buffers,
                                        buffers_needed_by_dependencies);
-    needed_buffers.add(node, total_buffers);
+    needed_buffers.add(&node, total_buffers);
   }
 
   return needed_buffers;
@@ -312,23 +246,25 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<DNode> &output_nodes
  * doesn't always guarantee an optimal evaluation order, as the optimal evaluation order is very
  * difficult to compute, however, this method works well in most cases. Moreover it assumes that
  * all buffers will have roughly the same size, which may not always be the case. */
-Schedule compute_schedule(const Context &context, const DerivedNodeTree &tree)
+Schedule compute_schedule(const Context &context,
+                          const bNodeTree &node_group,
+                          OutputTypes needed_outputs)
 {
   Schedule schedule;
 
-  /* Validate node tree. */
-  if (tree.has_link_cycles()) {
-    context.set_info_message("Compositor node tree has cyclic links.");
+  /* Validate node group. */
+  if (node_group.has_available_link_cycle()) {
+    context.set_info_message("Compositor node group has cyclic links.");
     return schedule;
   }
 
-  /* A stack of nodes used to traverse the node tree starting from the output nodes. */
-  Stack<DNode> node_stack;
+  /* A stack of nodes used to traverse the node group starting from the output nodes. */
+  Stack<const bNode *> node_stack;
 
   /* Add the output nodes whose result should be computed to the stack. */
-  add_output_nodes(context, tree, node_stack);
+  add_output_nodes(context, node_group, needed_outputs, node_stack);
 
-  /* No output nodes, the node tree has no effect, return an empty schedule. */
+  /* No output nodes, the node group has no effect, return an empty schedule. */
   if (node_stack.is_empty()) {
     return schedule;
   }
@@ -336,7 +272,7 @@ Schedule compute_schedule(const Context &context, const DerivedNodeTree &tree)
   /* Compute the number of buffers needed by each node connected to the outputs. */
   const NeededBuffers needed_buffers = compute_number_of_needed_buffers(node_stack);
 
-  /* Traverse the node tree in a post order depth first manner, scheduling the nodes in an order
+  /* Traverse the node group in a post order depth first manner, scheduling the nodes in an order
    * informed by the number of buffers needed by each node. Post order traversal guarantee that all
    * the node dependencies of each node are scheduled before it. This is done by pushing all the
    * unscheduled node dependencies to the node stack first and only popping and scheduling the node
@@ -344,35 +280,33 @@ Schedule compute_schedule(const Context &context, const DerivedNodeTree &tree)
   while (!node_stack.is_empty()) {
     /* Do not pop the node immediately, as it may turn out that we can't schedule it just yet
      * because its dependencies weren't scheduled, it will be popped later when needed. */
-    DNode &node = node_stack.peek();
+    const bNode &node = *node_stack.peek();
 
     /* Compute the nodes directly connected to the node inputs sorted by their needed buffers such
      * that the node with the lowest number of needed buffers comes first. Note that we actually
      * want the node with the highest number of needed buffers to be schedule first, but since
      * those are pushed to the traversal stack, we need to push them in reverse order. */
-    Vector<DNode> sorted_dependency_nodes;
-    for (const bNodeSocket *input : node->input_sockets()) {
-      const DInputSocket dinput{node.context(), input};
-
+    Vector<const bNode *> sorted_dependency_nodes;
+    for (const bNodeSocket *input : node.input_sockets()) {
       if (!is_socket_available(input)) {
         continue;
       }
 
       /* Get the output linked to the input. If it is null, that means the input is unlinked and
        * has no dependency node, so skip it. */
-      const DOutputSocket doutput = get_output_linked_to_input(dinput);
-      if (!doutput) {
+      const bNodeSocket *output = get_output_linked_to_input(*input);
+      if (!output) {
         continue;
       }
 
       /* The dependency node was added before, so skip it. The number of dependency nodes is very
        * small, typically less than 3, so a linear search is okay. */
-      if (sorted_dependency_nodes.contains(doutput.node())) {
+      if (sorted_dependency_nodes.contains(&output->owner_node())) {
         continue;
       }
 
       /* The dependency node was already schedule, so skip it. */
-      if (schedule.contains(doutput.node())) {
+      if (schedule.contains(&output->owner_node())) {
         continue;
       }
 
@@ -380,7 +314,7 @@ Schedule compute_schedule(const Context &context, const DerivedNodeTree &tree)
        * typically less than 3, so insertion sort is okay. */
       int insertion_position = 0;
       for (int i = 0; i < sorted_dependency_nodes.size(); i++) {
-        if (needed_buffers.lookup(doutput.node()) >
+        if (needed_buffers.lookup(&output->owner_node()) >
             needed_buffers.lookup(sorted_dependency_nodes[i]))
         {
           insertion_position++;
@@ -389,11 +323,11 @@ Schedule compute_schedule(const Context &context, const DerivedNodeTree &tree)
           break;
         }
       }
-      sorted_dependency_nodes.insert(insertion_position, doutput.node());
+      sorted_dependency_nodes.insert(insertion_position, &output->owner_node());
     }
 
     /* Push the sorted dependency nodes to the node stack in order. */
-    for (const DNode &dependency_node : sorted_dependency_nodes) {
+    for (const bNode *dependency_node : sorted_dependency_nodes) {
       node_stack.push(dependency_node);
     }
 

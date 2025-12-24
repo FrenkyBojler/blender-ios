@@ -31,6 +31,7 @@ set(SRC
   COM_input_single_value_operation.hh
   COM_meta_data.hh
   COM_multi_function_procedure_operation.hh
+  COM_node_group_operation.hh
   COM_node_operation.hh
   COM_operation.hh
   COM_pixel_operation.hh
@@ -56,6 +57,7 @@ set(SRC
   intern/input_single_value_operation.cc
   intern/meta_data.cc
   intern/multi_function_procedure_operation.cc
+  intern/node_group_operation.cc
   intern/node_operation.cc
   intern/operation.cc
   intern/pixel_operation.cc
