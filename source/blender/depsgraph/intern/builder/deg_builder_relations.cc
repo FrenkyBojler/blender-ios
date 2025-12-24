@@ -3760,4 +3760,9 @@ void DepsgraphRelationBuilder::constraint_walk(bConstraint * /*con*/,
   data->builder->build_id(id);
 }
 
+Set<const ID *> DepsgraphRelationBuilder::get_built_ids() const
+{
+  return built_map_.get_ids();
+}
+
 }  // namespace blender::deg
