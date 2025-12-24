@@ -940,10 +940,14 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem solver_items[] = {
-    {TRACKING_MOTION_INCREMENTAL, "INCREMENTAL", 0, "Incremental", "Solve motion frame-by-frame"},
-    {TRACKING_MOTION_MODAL, "MODAL", 0, "Tripod", "Solve tripod motion"},
-    {TRACKING_MOTION_GLOBAL, "GLOBAL", 0, "Global", "Solve motion altogether"},
-    {0, nullptr, 0, nullptr, nullptr},
+      {TRACKING_MOTION_INCREMENTAL,
+       "INCREMENTAL",
+       0,
+       "Incremental",
+       "Solve motion frame-by-frame"},
+      {TRACKING_MOTION_MODAL, "MODAL", 0, "Tripod", "Solve tripod motion"},
+      {TRACKING_MOTION_GLOBAL, "GLOBAL", 0, "Global", "Solve motion altogether"},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   srna = RNA_def_struct(brna, "MovieTrackingSettings", nullptr);
@@ -1041,9 +1045,7 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, solver_items);
   RNA_def_property_ui_text(
-      prop,
-      "Solver",
-      "Use a solver based on the type of motion in the scene");
+      prop, "Solver", "Use a solver based on the type of motion in the scene");
 
   /* default_limit_frames */
   prop = RNA_def_property(srna, "default_frames_limit", PROP_INT, PROP_NONE);

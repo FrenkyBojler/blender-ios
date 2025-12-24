@@ -41,33 +41,32 @@ namespace {
 // both projective and euclidean reconstruction.
 // FIXME(MatthiasF): OOP would achieve the same goal while avoiding
 // template bloat and making interface changes much easier.
-void EuclideanPipelineRoutines::Bundle(const Tracks& tracks,
-                    EuclideanReconstruction* reconstruction) {
+void EuclideanPipelineRoutines::Bundle(
+    const Tracks& tracks, EuclideanReconstruction* reconstruction) {
   EuclideanBundle(tracks, reconstruction);
 }
 
 bool EuclideanPipelineRoutines::Resect(const vector<Marker>& markers,
-                    EuclideanReconstruction* reconstruction,
-                    bool final_pass) {
+                                       EuclideanReconstruction* reconstruction,
+                                       bool final_pass) {
   return EuclideanResect(markers, reconstruction, final_pass);
 }
 
-bool EuclideanPipelineRoutines::Intersect(const vector<Marker>& markers,
-                      EuclideanReconstruction* reconstruction) {
+bool EuclideanPipelineRoutines::Intersect(
+    const vector<Marker>& markers, EuclideanReconstruction* reconstruction) {
   return EuclideanIntersect(markers, reconstruction);
 }
 
-Marker EuclideanPipelineRoutines::ProjectMarker(const EuclideanPoint& point,
-                            const EuclideanCamera& camera,
-                            const CameraIntrinsics& intrinsics) {
+Marker EuclideanPipelineRoutines::ProjectMarker(
+    const EuclideanPoint& point,
+    const EuclideanCamera& camera,
+    const CameraIntrinsics& intrinsics) {
   Vec3 projected = camera.R * point.X + camera.t;
   projected /= projected(2);
 
   Marker reprojected_marker;
-  intrinsics.ApplyIntrinsics(projected(0),
-                              projected(1),
-                              &reprojected_marker.x,
-                              &reprojected_marker.y);
+  intrinsics.ApplyIntrinsics(
+      projected(0), projected(1), &reprojected_marker.x, &reprojected_marker.y);
 
   reprojected_marker.image = camera.image;
   reprojected_marker.track = point.track;

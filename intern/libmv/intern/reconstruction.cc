@@ -345,7 +345,8 @@ libmv_Reconstruction* libmv_solveGlobal(
   /* Actual reconstruction. */
   update_callback.invoke(0, "Initial reconstruction");
 
-  GlobalCompleteReconstruction(normalized_tracks, &reconstruction, camera_intrinsics, &update_callback);
+  GlobalCompleteReconstruction(
+      normalized_tracks, &reconstruction, camera_intrinsics, &update_callback);
 
   /* Refinement. */
   if (libmv_reconstruction_options->refine_intrinsics) {

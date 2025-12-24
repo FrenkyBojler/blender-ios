@@ -22,9 +22,9 @@
 #define LIBMV_SIMPLE_PIPELINE_PIPELINE_H_
 
 #include "libmv/simple_pipeline/callbacks.h"
+#include "libmv/simple_pipeline/camera_intrinsics.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/simple_pipeline/tracks.h"
-#include "libmv/simple_pipeline/camera_intrinsics.h"
 
 namespace libmv {
 
@@ -48,7 +48,7 @@ struct EuclideanPipelineRoutines {
                               const EuclideanCamera& camera,
                               const CameraIntrinsics& intrinsics);
 };
-}
+}  // namespace
 
 /*!
     Estimate camera poses and scene 3D coordinates for all frames and tracks.

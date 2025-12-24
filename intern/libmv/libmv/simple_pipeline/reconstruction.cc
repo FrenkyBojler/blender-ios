@@ -124,24 +124,35 @@ map<uint64_t, ImagePair> EuclideanReconstruction::AllImagePairs() const {
 void EuclideanReconstruction::InsertImagePair(ImagePair pair) {
   uint64_t id;
   if (pair.camera_id_1 > pair.camera_id_2) {
-    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) * pair.camera_id_2 + pair.camera_id_1;
+    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) *
+             pair.camera_id_2 +
+         pair.camera_id_1;
   } else {
-    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) * pair.camera_id_1 + pair.camera_id_2;
+    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) *
+             pair.camera_id_1 +
+         pair.camera_id_2;
   }
   image_pairs_[id] = pair;
 }
 
-ImagePair* EuclideanReconstruction::ImagePairForImages(int camera_id_1, int camera_id_2) {
+ImagePair* EuclideanReconstruction::ImagePairForImages(int camera_id_1,
+                                                       int camera_id_2) {
   return const_cast<ImagePair*>(
-    static_cast<const EuclideanReconstruction*>(this)->ImagePairForImages(camera_id_1, camera_id_2));
+      static_cast<const EuclideanReconstruction*>(this)->ImagePairForImages(
+          camera_id_1, camera_id_2));
 }
 
-const ImagePair* EuclideanReconstruction::ImagePairForImages(int camera_id_1, int camera_id_2) const {
+const ImagePair* EuclideanReconstruction::ImagePairForImages(
+    int camera_id_1, int camera_id_2) const {
   uint64_t id;
   if (camera_id_1 > camera_id_2) {
-    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) * camera_id_2 + camera_id_1;
+    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) *
+             camera_id_2 +
+         camera_id_1;
   } else {
-    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) * camera_id_1 + camera_id_2;
+    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) *
+             camera_id_1 +
+         camera_id_2;
   }
   if (image_pairs_.find(id) == image_pairs_.end()) {
     return NULL;
