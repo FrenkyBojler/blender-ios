@@ -10740,7 +10740,7 @@ static int handle_menu_mmb_event(bContext *C,
   int my = event->xy[1];
   window_to_block(region, block, &mx, &my);
 
-  /* check if mouse is inside block */
+  /* Check if mouse is inside block. */
   const bool inside = BLI_rctf_isect_pt(&block->rect, mx, my);
 
   int retval = WM_UI_HANDLER_CONTINUE;
@@ -10772,22 +10772,21 @@ static int handle_menu_mmb_event(bContext *C,
       WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), menu->mmb_panning_auto_scroll);
       menu->mmb_panning_auto_scroll = nullptr;
     }
+    retval = WM_UI_HANDLER_BREAK;
   }
   /* Handle middle mouse panning. */
   else if (menu->mmb_panning && event->type == MOUSEMOVE) {
     const int delta = (menu->mmb_panning_last_y - event->xy[1]) *
                       (event->flag & WM_EVENT_SCROLL_INVERT ? 1 : -1);
-    if (delta &&
-        (!menu->mmb_panning_auto_scroll || BLI_rcti_isect_y(&region->winrct, event->xy[1])))
-    {
+    if (delta && (!menu->mmb_panning_auto_scroll || inside)) {
       ui_menu_scroll_apply_offset_y(region, block, delta);
       menu->mmb_panning_last_y = event->xy[1];
     }
     retval = WM_UI_HANDLER_BREAK;
   }
   else if (event->type == TIMER && event->customdata == menu->mmb_panning_auto_scroll) {
-    if (!BLI_rcti_isect_y(&region->winrct, event->xy[1])) {
-      const int delta = (event->xy[1] > region->winrct.ymax ? -1 : 1) *
+    if (!inside) {
+      const int delta = (my > BLI_rctf_cent_y(&block->rect) ? -1 : 1) *
                         (event->flag & WM_EVENT_SCROLL_INVERT ? 1 : -1);
       ui_menu_scroll_apply_offset_y(region, block, delta);
       menu->mmb_panning_last_y = event->xy[1];
@@ -10803,35 +10802,34 @@ static int handle_menu_mmb_event(bContext *C,
     if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0) ||
         !(block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)))
     {
+      return WM_UI_HANDLER_CONTINUE;
     }
-    else {
-      menu->mmb_panning = event->val == KM_PRESS;
-      if (menu->mmb_panning) {
-        but = region_find_active_but(region);
-        if (but) {
-          but->active->cancel = true;
-          button_activate_exit(C, but, but->active, false, false);
-        }
+    menu->mmb_panning = event->val == KM_PRESS;
+    if (menu->mmb_panning) {
+      but = region_find_active_but(region);
+      if (but) {
+        but->active->cancel = true;
+        button_activate_exit(C, but, but->active, false, false);
       }
-      menu->mmb_panning_last_y = event->xy[1];
-      menu->retvalue = 0;
-      if (menu->mmb_panning) {
-        rctf rectf;
-        block_to_window_rctf(menu->region, block, &rectf, &block->rect);
-        rcti bounds;
-        BLI_rcti_rctf_copy(&bounds, &rectf);
-        WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
-        if (U.uiflag & USER_CONTINUOUS_MOUSE && !WM_event_is_tablet(event)) {
-          WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &bounds, false);
-        }
-        else if (!menu->mmb_panning_auto_scroll) {
-          static constexpr double MMB_PANNING_AUTO_SCROLL = 0.01;
-          menu->mmb_panning_auto_scroll = WM_event_timer_add(
-              CTX_wm_manager(C), CTX_wm_window(C), TIMER, MMB_PANNING_AUTO_SCROLL);
-        }
-      }
-      retval = WM_UI_HANDLER_BREAK;
     }
+    menu->mmb_panning_last_y = event->xy[1];
+    menu->retvalue = 0;
+    if (menu->mmb_panning) {
+      rctf rectf;
+      block_to_window_rctf(menu->region, block, &rectf, &block->rect);
+      rcti bounds;
+      BLI_rcti_rctf_copy(&bounds, &rectf);
+      WM_cursor_set(win, WM_CURSOR_NS_SCROLL);
+      if (U.uiflag & USER_CONTINUOUS_MOUSE && !WM_event_is_tablet(event)) {
+        WM_cursor_grab_enable(CTX_wm_window(C), WM_CURSOR_WRAP_XY, &bounds, false);
+      }
+      else if (!menu->mmb_panning_auto_scroll) {
+        static constexpr double MMB_PANNING_AUTO_SCROLL = 0.01;
+        menu->mmb_panning_auto_scroll = WM_event_timer_add(
+            CTX_wm_manager(C), CTX_wm_window(C), TIMER, MMB_PANNING_AUTO_SCROLL);
+      }
+    }
+    retval = WM_UI_HANDLER_BREAK;
   }
   return retval;
 }
