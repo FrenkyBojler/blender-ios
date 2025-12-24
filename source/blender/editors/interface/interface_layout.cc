@@ -6008,7 +6008,7 @@ static void ui_layout_introspect_items(fmt::appender ds, Span<const Item *> item
   fmt::format_to(ds, "]");
 }
 
-std::string UI_layout_introspect(Layout *layout)
+std::string layout_introspect(Layout *layout)
 {
   fmt::memory_buffer buffer;
   Vector<Item *> layout_dummy_list(1, layout);

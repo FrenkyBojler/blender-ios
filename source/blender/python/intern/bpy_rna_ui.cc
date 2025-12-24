@@ -32,7 +32,7 @@ static PyObject *bpy_rna_uilayout_introspect(PyObject *self)
   BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
   blender::ui::Layout *layout = pyrna->ptr->data_as<blender::ui::Layout>();
 
-  std::string expr = UI_layout_introspect(layout);
+  std::string expr = layout_introspect(layout);
   PyObject *main_mod = PyC_MainModule_Backup();
   PyObject *py_dict = PyC_DefaultNameSpace("<introspect>");
   PyObject *result = PyRun_String(expr.c_str(), Py_eval_input, py_dict, py_dict);
