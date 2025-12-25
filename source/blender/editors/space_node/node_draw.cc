@@ -3701,11 +3701,36 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   const FrameNodeLayout frame_layout = frame_node_layout(node);
 
-  /* Title color. */
-  int color_id = node_get_colorid(tree_draw_ctx, node);
-  uchar color[3];
-  ui::theme::get_color_blend_shade_3ubv(TH_TEXT, color_id, 0.4f, 10, color);
-  BLF_color3ubv(fontid, color);
+  /* Calculate frame background color to determine text contrast. */
+  float bgcolor[4];
+  if (node.flag & NODE_CUSTOM_COLOR) {
+    rgba_float_args_set(bgcolor, node.color[0], node.color[1], node.color[2], 1.0f);
+  }
+  else {
+    /* Checking for Nested Frames */
+    int depth = 0;
+    for (const bNode *parent = node.parent; parent; parent = parent->parent) {
+      depth++;
+    }
+    if (depth % 2 == 0) {
+      ui::theme::get_color_4fv(TH_NODE_FRAME, bgcolor);
+    }
+    else {
+      ui::theme::get_color_shade_4fv(TH_NODE_FRAME, 20, bgcolor);
+    }
+  }
+
+  /* The Text color changes according to background color */
+  uchar text_color[3];
+  if (srgb_to_grayscale(bgcolor) > 0.5f) {
+    /* Light background -> dark text. */
+    text_color[0] = text_color[1] = text_color[2] = 0;
+  }
+  else {
+    /* Dark background -> light text. */
+    text_color[0] = text_color[1] = text_color[2] = 255;
+  }
+  BLF_color3ubv(fontid, text_color);
 
   const float label_width = BLF_width(fontid, node.label, strlen(node.label));
 
