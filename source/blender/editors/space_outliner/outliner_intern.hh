@@ -10,6 +10,8 @@
 
 #include <memory>
 
+#include "DNA_listBase.h"
+
 #include "BLI_function_ref.hh"
 
 #include "RNA_types.hh"
@@ -36,6 +38,7 @@ struct bPoseChannel;
 struct View2D;
 struct wmKeyConfig;
 struct wmOperatorType;
+struct WorkSpace;
 
 namespace blender::bke::outliner::treehash {
 class TreeHash;
@@ -79,6 +82,25 @@ enum TreeTraversalAction {
   TRAVERSE_SKIP_CHILDS,
 };
 
+/* #TreeElement::flag */
+enum TreeElementFlag {
+  TE_ACTIVE = (1 << 0),
+  /* Closed items display their children as icon within the row. TE_ICONROW is for
+   * these child-items that are visible but only within the row of the closed parent. */
+  TE_ICONROW = (1 << 1),
+  /** Treat the element as if it had children, e.g. draw an icon to un-collapse it, even if it
+   * doesn't. Used where children are lazy-built only if the parent isn't collapsed (see
+   * #AbstractTreeDisplay::is_lazy_built()). */
+  TE_PRETEND_HAS_CHILDREN = (1 << 2),
+  TE_FREE_NAME = (1 << 3),
+  TE_DRAGGING = (1 << 4),
+  TE_CHILD_NOT_IN_COLLECTION = (1 << 6),
+  /* Child elements of the same type in the icon-row are drawn merged as one icon.
+   * This flag is set for an element that is part of these merged child icons. */
+  TE_ICONROW_MERGED = (1 << 7),
+};
+ENUM_OPERATORS(TreeElementFlag);
+
 using TreeTraversalFunc = TreeTraversalAction (*)(TreeElement *te, void *customdata);
 
 struct TreeElement {
@@ -95,7 +117,7 @@ struct TreeElement {
   ListBase subtree;
   int xs, ys;                /* Do selection. */
   TreeStoreElem *store_elem; /* Element in tree store. */
-  short flag;                /* Flag for non-saved stuff. */
+  TreeElementFlag flag;      /* Flag for non-saved stuff. */
   short index;               /* Index for data arrays. */
   short idcode;              /* From TreeStore id. */
   short xend;                /* Width of item display, for select. */
@@ -138,7 +160,7 @@ struct TreeElementIcon {
         ID_CV, \
         ID_PT, \
         ID_VO, \
-        ID_GP) || /* Only in 'blendfile' mode ... :/ */ \
+        ID_GP) || /* Only in blend-file mode ... :/ */ \
    ELEM(GS((_id)->name), \
         ID_SCR, \
         ID_WM, \
@@ -151,24 +173,6 @@ struct TreeElementIcon {
         ID_WS, \
         ID_MSK, \
         ID_PC))
-
-/* TreeElement->flag */
-enum {
-  TE_ACTIVE = (1 << 0),
-  /* Closed items display their children as icon within the row. TE_ICONROW is for
-   * these child-items that are visible but only within the row of the closed parent. */
-  TE_ICONROW = (1 << 1),
-  /** Treat the element as if it had children, e.g. draw an icon to un-collapse it, even if it
-   * doesn't. Used where children are lazy-built only if the parent isn't collapsed (see
-   * #AbstractTreeDisplay::is_lazy_built()). */
-  TE_PRETEND_HAS_CHILDREN = (1 << 2),
-  TE_FREE_NAME = (1 << 3),
-  TE_DRAGGING = (1 << 4),
-  TE_CHILD_NOT_IN_COLLECTION = (1 << 6),
-  /* Child elements of the same type in the icon-row are drawn merged as one icon.
-   * This flag is set for an element that is part of these merged child icons. */
-  TE_ICONROW_MERGED = (1 << 7),
-};
 
 /* button events */
 #define OL_NAMEBUTTON 1
@@ -233,9 +237,13 @@ enum eOLSetState {
  * Also so we can have one place to assign these variables.
  */
 struct TreeViewContext {
+  /* Workspace. */
+  WorkSpace *workspace;
+
   /* Scene level. */
   Scene *scene;
   ViewLayer *view_layer;
+  LayerCollection *layer_collection;
 
   /* Object level. */
   /** Avoid `BKE_view_layer_active_object_get` everywhere. */
@@ -272,6 +280,7 @@ void outliner_free_tree_element(TreeElement *element, ListBase *parent_subtree);
  * Main entry point for building the tree data-structure that the outliner represents.
  */
 void outliner_build_tree(Main *mainvar,
+                         WorkSpace *workspace,
                          Scene *scene,
                          ViewLayer *view_layer,
                          SpaceOutliner *space_outliner,
@@ -292,7 +301,10 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
 
 /* `outliner_draw.cc` */
 
-void draw_outliner(const bContext *C);
+/**
+ * \param do_rebuild: When false, only the scroll position changed since last draw.
+ */
+void draw_outliner(const bContext *C, bool do_rebuild);
 
 void outliner_tree_dimensions(SpaceOutliner *space_outliner, int *r_width, int *r_height);
 
@@ -319,7 +331,7 @@ int tree_element_id_type_to_index(TreeElement *te);
  * Generic call for non-id data to make active in UI
  */
 void tree_element_type_active_set(bContext *C,
-                                  const TreeViewContext *tvc,
+                                  const TreeViewContext &tvc,
                                   TreeElement *te,
                                   TreeStoreElem *tselem,
                                   eOLSetState set,
@@ -327,19 +339,18 @@ void tree_element_type_active_set(bContext *C,
 /**
  * Generic call for non-id data to check the active state in UI.
  */
-eOLDrawState tree_element_type_active_state_get(const bContext *C,
-                                                const TreeViewContext *tvc,
+eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
                                                 const TreeElement *te,
                                                 const TreeStoreElem *tselem);
 /**
  * Generic call for ID data check or make/check active in UI.
  */
 void tree_element_activate(bContext *C,
-                           const TreeViewContext *tvc,
+                           const TreeViewContext &tvc,
                            TreeElement *te,
                            eOLSetState set,
                            bool handle_all_types);
-eOLDrawState tree_element_active_state_get(const TreeViewContext *tvc,
+eOLDrawState tree_element_active_state_get(const TreeViewContext &tvc,
                                            const TreeElement *te,
                                            const TreeStoreElem *tselem);
 
@@ -371,15 +382,18 @@ bool outliner_is_co_within_mode_column(SpaceOutliner *space_outliner, const floa
 /**
  * Toggle the item's interaction mode if supported.
  */
-void outliner_item_mode_toggle(bContext *C, TreeViewContext *tvc, TreeElement *te, bool do_extend);
+void outliner_item_mode_toggle(bContext *C,
+                               const TreeViewContext &tvc,
+                               TreeElement *te,
+                               bool do_extend);
 
 /* `outliner_edit.cc` */
-using outliner_operation_fn = blender::FunctionRef<void(bContext *C,
-                                                        ReportList *reports,
-                                                        Scene *scene,
-                                                        TreeElement *te,
-                                                        TreeStoreElem *tsep,
-                                                        TreeStoreElem *tselem)>;
+using outliner_operation_fn = FunctionRef<void(bContext *C,
+                                               ReportList *reports,
+                                               Scene *scene,
+                                               TreeElement *te,
+                                               TreeStoreElem *tsep,
+                                               TreeStoreElem *tselem)>;
 
 /**
  * \param recurse_selected: Set to false for operations which are already
@@ -477,6 +491,7 @@ void OUTLINER_OT_lib_relocate(wmOperatorType *ot);
 void OUTLINER_OT_lib_reload(wmOperatorType *ot);
 
 void OUTLINER_OT_id_delete(wmOperatorType *ot);
+void OUTLINER_OT_id_linked_relocate(wmOperatorType *ot);
 
 void OUTLINER_OT_show_one_level(wmOperatorType *ot);
 void OUTLINER_OT_show_active(wmOperatorType *ot);
@@ -503,6 +518,10 @@ void OUTLINER_OT_orphans_manage(wmOperatorType *ot);
 
 /* `outliner_query.cc` */
 
+/**
+ * Iterate over the entire tree (including collapsed sub-elements),
+ * probing if any of the elements has a warning to be displayed.
+ */
 bool outliner_shows_mode_column(const SpaceOutliner &space_outliner);
 bool outliner_has_element_warnings(const SpaceOutliner &space_outliner);
 
@@ -607,7 +626,10 @@ TreeElement *outliner_find_parent_element(ListBase *lb,
 /**
  * Find tree-store that refers to given ID.
  */
-TreeElement *outliner_find_id(SpaceOutliner *space_outliner, ListBase *lb, const ID *id);
+TreeElement *outliner_find_id(SpaceOutliner *space_outliner,
+                              ListBase *lb,
+                              const ID *id,
+                              TreeElementFlag exclude_flags);
 TreeElement *outliner_find_posechannel(ListBase *lb, const bPoseChannel *pchan);
 TreeElement *outliner_find_editbone(ListBase *lb, const EditBone *ebone);
 TreeElement *outliner_search_back_te(TreeElement *te, short idcode);
@@ -658,7 +680,9 @@ void outliner_tag_redraw_avoid_rebuild_on_open_change(const SpaceOutliner *space
 /**
  * If outliner is dirty sync selection from view layer and sequencer.
  */
-void outliner_sync_selection(const bContext *C, SpaceOutliner *space_outliner);
+void outliner_sync_selection(const bContext *C,
+                             const TreeViewContext &tvc,
+                             SpaceOutliner *space_outliner);
 
 /* `outliner_context.cc` */
 

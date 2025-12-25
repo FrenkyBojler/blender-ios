@@ -6,11 +6,8 @@
  * \ingroup edsculpt
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_hash.h"
-#include "BLI_task.h"
 #include "BLI_time.h"
 
 #include "DNA_object_types.h"
@@ -21,7 +18,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "WM_api.hh"
@@ -67,12 +64,10 @@ void write_mask_mesh(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<Vector<int>> all_index_data;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i) {
     Vector<int> &index_data = all_index_data.local();
-    node_mask.slice(range).foreach_index(GrainSize(1), [&](const int i) {
-      write_fn(mask.span, hide::node_visible_verts(nodes[i], hide_vert, index_data));
-      bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
-    });
+    write_fn(mask.span, hide::node_visible_verts(nodes[i], hide_vert, index_data));
+    bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
   });
   pbvh.tag_masks_changed(node_mask);
   mask.finish();
@@ -109,7 +104,7 @@ static void init_mask_grids(
   BKE_subdiv_ccg_average_grids(subdiv_ccg);
 }
 
-static int sculpt_mask_init_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
 {
   const View3D *v3d = CTX_wm_view3d(C);
   const Base *base = CTX_data_active_base(C);
@@ -242,6 +237,7 @@ static int sculpt_mask_init_exec(bContext *C, wmOperator *op)
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       const int offset = CustomData_get_offset_named(&ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+      undo::push_nodes(depsgraph, ob, node_mask, undo::Type::Mask);
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
           if (BM_elem_flag_test(vert, BM_ELEM_HIDDEN)) {

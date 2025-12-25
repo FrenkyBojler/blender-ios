@@ -20,19 +20,21 @@ struct bContext;
 struct BlendDataReader;
 struct BlendWriter;
 struct RegionAssetShelf;
-struct uiLayout;
 
 namespace blender::asset_system {
 class AssetCatalogPath;
 }
 
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
+
 namespace blender::ed::asset::shelf {
 
-void build_asset_view(uiLayout &layout,
+void build_asset_view(ui::Layout &layout,
                       const AssetLibraryReference &library_ref,
                       const AssetShelf &shelf,
-                      const bContext &C,
-                      const ARegion &region);
+                      const bContext &C);
 
 void catalog_selector_panel_register(ARegionType *region_type);
 void popover_panel_register(ARegionType *region_type);
@@ -44,7 +46,7 @@ void send_redraw_notifier(const bContext &C);
 AssetShelfType *ensure_shelf_has_type(AssetShelf &shelf);
 AssetShelf *create_shelf_from_type(AssetShelfType &type);
 
-void library_selector_draw(const bContext *C, uiLayout *layout, AssetShelf &shelf);
+void library_selector_draw(const bContext *C, ui::Layout &layout, AssetShelf &shelf);
 
 /**
  * Deep-copies \a shelf_regiondata into newly allocated memory. Must be freed using

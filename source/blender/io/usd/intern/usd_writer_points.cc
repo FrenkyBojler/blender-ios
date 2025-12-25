@@ -6,9 +6,11 @@
 #include "usd_attribute_utils.hh"
 #include "usd_utils.hh"
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_report.hh"
 
+#include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 
 #include <pxr/base/vt/array.h>
@@ -21,11 +23,11 @@ void USDPointsWriter::do_write(HierarchyContext &context)
 {
   const pxr::UsdStageRefPtr stage = usd_export_context_.stage;
   const pxr::SdfPath &usd_path = usd_export_context_.usd_path;
-  const pxr::UsdTimeCode timecode = get_export_time_code();
+  const pxr::UsdTimeCode time = get_export_time_code();
 
   const PointCloud *points = static_cast<const PointCloud *>(context.object->data);
   Span<pxr::GfVec3f> positions = points->positions().cast<pxr::GfVec3f>();
-  VArray<float> radii = *points->attributes().lookup<float>("radius", bke::AttrDomain::Point);
+  VArray<float> radii = points->radius();
 
   const pxr::UsdGeomPoints usd_points = pxr::UsdGeomPoints::Define(stage, usd_path);
 
@@ -36,7 +38,7 @@ void USDPointsWriter::do_write(HierarchyContext &context)
   if (!attr_positions.HasValue()) {
     attr_positions.Set(usd_positions, pxr::UsdTimeCode::Default());
   }
-  usd_value_writer_.SetAttribute(attr_positions, usd_positions, timecode);
+  usd_value_writer_.SetAttribute(attr_positions, usd_positions, time);
 
   if (!radii.is_empty()) {
     pxr::VtArray<float> usd_widths;
@@ -49,14 +51,14 @@ void USDPointsWriter::do_write(HierarchyContext &context)
     if (!attr_widths.HasValue()) {
       attr_widths.Set(usd_widths, pxr::UsdTimeCode::Default());
     }
-    usd_value_writer_.SetAttribute(attr_widths, usd_widths, timecode);
+    usd_value_writer_.SetAttribute(attr_widths, usd_widths, time);
   }
 
-  this->write_velocities(points, usd_points, timecode);
-  this->write_custom_data(points, usd_points, timecode);
+  this->write_ids(points, usd_points, time);
+  this->write_velocities(points, usd_points, time);
+  this->write_custom_data(points, usd_points, time);
 
-  const pxr::UsdPrim usd_prim = usd_points.GetPrim();
-  this->set_extents(usd_prim, timecode);
+  this->author_extent(usd_points, points->bounds_min_max(), time);
 }
 
 static std::optional<pxr::TfToken> convert_blender_domain_to_usd(
@@ -71,65 +73,72 @@ static std::optional<pxr::TfToken> convert_blender_domain_to_usd(
   }
 }
 
-void USDPointsWriter::write_generic_data(const PointCloud *points,
-                                         const StringRef attribute_id,
-                                         const bke::AttributeMetaData &meta_data,
+void USDPointsWriter::write_generic_data(const bke::AttributeIter &attr,
                                          const pxr::UsdGeomPoints &usd_points,
-                                         const pxr::UsdTimeCode timecode)
+                                         const pxr::UsdTimeCode time)
 {
-  const std::optional<pxr::TfToken> pv_interp = convert_blender_domain_to_usd(meta_data.domain);
-  const std::optional<pxr::SdfValueTypeName> pv_type = convert_blender_type_to_usd(
-      meta_data.data_type);
+  const std::optional<pxr::TfToken> pv_interp = convert_blender_domain_to_usd(attr.domain);
+  const std::optional<pxr::SdfValueTypeName> pv_type = convert_blender_type_to_usd(attr.data_type);
 
   if (!pv_interp || !pv_type) {
     BKE_reportf(this->reports(),
                 RPT_WARNING,
                 "Attribute '%s' (Blender domain %d, type %d) cannot be converted to USD",
-                std::string(attribute_id).c_str(),
-                int(meta_data.domain),
-                meta_data.data_type);
+                attr.name.c_str(),
+                int(attr.domain),
+                int(attr.data_type));
     return;
   }
 
-  const GVArray attribute = *points->attributes().lookup(
-      attribute_id, meta_data.domain, meta_data.data_type);
+  const GVArray attribute = *attr.get();
   if (attribute.is_empty()) {
     return;
   }
 
   const pxr::TfToken pv_name(
-      make_safe_name(attribute_id, usd_export_context_.export_params.allow_unicode));
+      make_safe_name(attr.name, usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_points);
 
   pxr::UsdGeomPrimvar pv_attr = pv_api.CreatePrimvar(pv_name, *pv_type, *pv_interp);
 
-  copy_blender_attribute_to_primvar(
-      attribute, meta_data.data_type, timecode, pv_attr, usd_value_writer_);
+  copy_blender_attribute_to_primvar(attribute, attr.data_type, time, pv_attr, usd_value_writer_);
 }
 
 void USDPointsWriter::write_custom_data(const PointCloud *points,
                                         const pxr::UsdGeomPoints &usd_points,
-                                        const pxr::UsdTimeCode timecode)
+                                        const pxr::UsdTimeCode time)
 {
   const bke::AttributeAccessor attributes = points->attributes();
 
-  attributes.for_all([&](const StringRef attribute_id, const bke::AttributeMetaData &meta_data) {
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     /* Skip "internal" Blender properties and attributes dealt with elsewhere. */
-    if (attribute_id[0] == '.' || bke::attribute_name_is_anonymous(attribute_id) ||
-        ELEM(attribute_id, "position", "radius", "id", "velocity"))
+    if (iter.name[0] == '.' || bke::attribute_name_is_anonymous(iter.name) ||
+        ELEM(iter.name, "position", "radius", "id", "velocity"))
     {
-      return true;
+      return;
     }
 
-    this->write_generic_data(points, attribute_id, meta_data, usd_points, timecode);
-
-    return true;
+    this->write_generic_data(iter, usd_points, time);
   });
+}
+
+void USDPointsWriter::write_ids(const PointCloud *points,
+                                const pxr::UsdGeomPoints &usd_points,
+                                const pxr::UsdTimeCode time)
+{
+  const VArraySpan ids = *points->attributes().lookup<int>("id", blender::bke::AttrDomain::Point);
+  if (ids.is_empty()) {
+    return;
+  }
+
+  pxr::VtInt64Array usd_ids(ids.begin(), ids.end());
+  pxr::UsdAttribute attr_ids = usd_points.CreateIdsAttr(pxr::VtValue(), true);
+  set_attribute(attr_ids, usd_ids, time, usd_value_writer_);
 }
 
 void USDPointsWriter::write_velocities(const PointCloud *points,
                                        const pxr::UsdGeomPoints &usd_points,
-                                       const pxr::UsdTimeCode timecode)
+                                       const pxr::UsdTimeCode time)
 {
   const VArraySpan velocity = *points->attributes().lookup<float3>(
       "velocity", blender::bke::AttrDomain::Point);
@@ -146,22 +155,7 @@ void USDPointsWriter::write_velocities(const PointCloud *points,
     attr_vel.Set(usd_velocities, pxr::UsdTimeCode::Default());
   }
 
-  usd_value_writer_.SetAttribute(attr_vel, usd_velocities, timecode);
-}
-
-void USDPointsWriter::set_extents(const pxr::UsdPrim &prim, const pxr::UsdTimeCode timecode)
-{
-  pxr::UsdGeomBoundable boundable(prim);
-
-  pxr::VtArray<pxr::GfVec3f> extent;
-  pxr::UsdGeomBoundable::ComputeExtentFromPlugins(boundable, timecode, &extent);
-
-  pxr::UsdAttribute attr_extent = boundable.CreateExtentAttr(pxr::VtValue(), true);
-  if (!attr_extent.HasValue()) {
-    attr_extent.Set(extent, pxr::UsdTimeCode::Default());
-  }
-
-  usd_value_writer_.SetAttribute(attr_extent, extent, timecode);
+  usd_value_writer_.SetAttribute(attr_vel, usd_velocities, time);
 }
 
 }  // namespace blender::io::usd

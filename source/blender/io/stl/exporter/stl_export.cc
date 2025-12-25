@@ -6,7 +6,6 @@
  * \ingroup stl
  */
 
-#include <cstdio>
 #include <memory>
 
 #include "BKE_context.hh"
@@ -21,6 +20,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 
@@ -34,6 +34,9 @@
 #include "stl_data.hh"
 #include "stl_export.hh"
 #include "stl_export_writer.hh"
+
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.stl"};
 
 namespace blender::io::stl {
 
@@ -49,7 +52,7 @@ void export_frame(Depsgraph *depsgraph,
       writer = std::make_unique<FileWriter>(export_params.filepath, export_params.ascii_format);
     }
     catch (const std::runtime_error &ex) {
-      fprintf(stderr, "%s\n", ex.what());
+      CLOG_ERROR(&LOG, "Error: %s", ex.what());
       BKE_reportf(export_params.reports,
                   RPT_ERROR,
                   "STL Export: Cannot open file '%s'",
@@ -103,19 +106,19 @@ void export_frame(Depsgraph *depsgraph,
         writer = std::make_unique<FileWriter>(filepath, export_params.ascii_format);
       }
       catch (const std::runtime_error &ex) {
-        fprintf(stderr, "%s\n", ex.what());
+        CLOG_ERROR(&LOG, "Error: %s", ex.what());
         BKE_reportf(
             export_params.reports, RPT_ERROR, "STL Export: Cannot open file '%s'", filepath);
         return;
       }
     }
 
-    Object *obj_eval = DEG_get_evaluated_object(depsgraph, object);
-    Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
-                                                 BKE_object_get_pre_modified_mesh(obj_eval);
+    Object *obj_eval = DEG_get_evaluated(depsgraph, object);
+    const Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
+                                                       BKE_object_get_pre_modified_mesh(obj_eval);
 
     /* Ensure data exists if currently in edit mode. */
-    BKE_mesh_wrapper_ensure_mdata(mesh);
+    BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(mesh));
 
     /* Calculate transform. */
     float global_scale = export_params.global_scale * scene_unit_scale;

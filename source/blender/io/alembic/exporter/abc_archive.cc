@@ -20,7 +20,7 @@
 #include <Alembic/AbcGeom/ArchiveBounds.h>
 
 #ifdef WIN32
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 
 #  include "utfconv.hh"
@@ -163,7 +163,7 @@ ABCArchive::ABCArchive(const Main *bmain,
                        const std::string &filepath)
     : archive(nullptr)
 {
-  double scene_fps = FPS;
+  double scene_fps = scene->frames_per_second();
   MetaData abc_metadata = create_abc_metadata(bmain, scene_fps);
 
   /* Create the Archive. */

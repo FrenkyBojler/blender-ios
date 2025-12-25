@@ -23,6 +23,10 @@ static int node_shader_gpu_bsdf_transparent(GPUMaterial *mat,
 {
   if (in[0].link || !is_zero_v3(in[0].vec)) {
     GPU_material_flag_set(mat, GPU_MATFLAG_TRANSPARENT);
+
+    if (in[0].might_be_tinted()) {
+      GPU_material_flag_set(mat, GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED);
+    }
   }
   return GPU_stack_link(mat, node, "node_bsdf_transparent", in, out);
 }
@@ -58,11 +62,17 @@ void register_node_type_sh_bsdf_transparent()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BSDF_TRANSPARENT, "Transparent BSDF", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, "ShaderNodeBsdfTransparent", SH_NODE_BSDF_TRANSPARENT);
+  ntype.ui_name = "Transparent BSDF";
+  ntype.ui_description =
+      "Transparency without refraction, passing straight through the surface as if there were no "
+      "geometry";
+  ntype.enum_name_legacy = "BSDF_TRANSPARENT";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_transparent;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

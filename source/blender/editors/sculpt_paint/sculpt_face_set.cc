@@ -24,9 +24,10 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_task.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
+
+#include "BLT_translation.hh"
 
 #include "DNA_customdata_types.h"
 #include "DNA_object_types.h"
@@ -42,7 +43,8 @@
 #include "BKE_mesh_mapping.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "DEG_depsgraph.hh"
@@ -54,7 +56,6 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_hide.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_boundary.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_intern.hh"
@@ -100,7 +101,8 @@ int find_next_available_id(Object &object)
       const int cd_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
       if (cd_offset == -1) {
-        return 1;
+        /* Default face set ID is 1, so the next available id should never be 1 */
+        return 2;
       }
       int next_face_set = 1;
       BMIter iter;
@@ -140,8 +142,8 @@ int active_update_and_get(bContext *C, Object &ob, const float mval[2])
     return SCULPT_FACE_SET_NONE;
   }
 
-  SculptCursorGeometryInfo gi;
-  if (!SCULPT_cursor_geometry_info_update(C, &gi, mval, false)) {
+  CursorGeometryInfo gi;
+  if (!cursor_geometry_info_update(C, &gi, mval, false)) {
     return SCULPT_FACE_SET_NONE;
   }
 
@@ -157,7 +159,7 @@ bool create_face_sets_mesh(Object &object)
   }
   attributes.add<int>(".sculpt_face_set",
                       bke::AttrDomain::Face,
-                      bke::AttributeInitVArray(VArray<int>::ForSingle(1, mesh.faces_num)));
+                      bke::AttributeInitVArray(VArray<int>::from_single(1, mesh.faces_num)));
   mesh.face_sets_color_default = 1;
   return true;
 }
@@ -168,7 +170,7 @@ bke::SpanAttributeWriter<int> ensure_face_sets_mesh(Mesh &mesh)
   if (!attributes.contains(".sculpt_face_set")) {
     attributes.add<int>(".sculpt_face_set",
                         bke::AttrDomain::Face,
-                        bke::AttributeInitVArray(VArray<int>::ForSingle(1, mesh.faces_num)));
+                        bke::AttributeInitVArray(VArray<int>::from_single(1, mesh.faces_num)));
     mesh.face_sets_color_default = 1;
   }
   return attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set", bke::AttrDomain::Face);
@@ -301,45 +303,41 @@ static void face_sets_update(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<TLS> all_tls;
   if (pbvh.type() == bke::pbvh::Type::Mesh) {
     MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-    threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+    node_mask.foreach_index(GrainSize(1), [&](const int i) {
       TLS &tls = all_tls.local();
-      node_mask.slice(range).foreach_index([&](const int i) {
-        const Span<int> faces = nodes[i].faces();
+      const Span<int> faces = nodes[i].faces();
 
-        tls.new_face_sets.resize(faces.size());
-        MutableSpan<int> new_face_sets = tls.new_face_sets;
-        array_utils::gather(face_sets.span.as_span(), faces, new_face_sets);
-        calc_face_sets(faces, new_face_sets);
-        if (array_utils::indexed_data_equal<int>(face_sets.span, faces, new_face_sets)) {
-          return;
-        }
+      tls.new_face_sets.resize(faces.size());
+      MutableSpan<int> new_face_sets = tls.new_face_sets;
+      gather_data_mesh(face_sets.span.as_span(), faces, new_face_sets);
+      calc_face_sets(faces, new_face_sets);
+      if (array_utils::indexed_data_equal<int>(face_sets.span, faces, new_face_sets)) {
+        return;
+      }
 
-        undo::push_node(depsgraph, object, &nodes[i], undo::Type::FaceSet);
-        array_utils::scatter(new_face_sets.as_span(), faces, face_sets.span);
-        node_changed[i] = true;
-      });
+      undo::push_node(depsgraph, object, &nodes[i], undo::Type::FaceSet);
+      scatter_data_mesh(new_face_sets.as_span(), faces, face_sets.span);
+      node_changed[i] = true;
     });
   }
   else if (pbvh.type() == bke::pbvh::Type::Grids) {
     MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-    threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+    node_mask.foreach_index(GrainSize(1), [&](const int i) {
       TLS &tls = all_tls.local();
-      node_mask.slice(range).foreach_index([&](const int i) {
-        const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
-            *ss.subdiv_ccg, nodes[i], tls.face_indices);
+      const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
+          *ss.subdiv_ccg, nodes[i], tls.face_indices);
 
-        tls.new_face_sets.resize(faces.size());
-        MutableSpan<int> new_face_sets = tls.new_face_sets;
-        array_utils::gather(face_sets.span.as_span(), faces, new_face_sets);
-        calc_face_sets(faces, new_face_sets);
-        if (array_utils::indexed_data_equal<int>(face_sets.span, faces, new_face_sets)) {
-          return;
-        }
+      tls.new_face_sets.resize(faces.size());
+      MutableSpan<int> new_face_sets = tls.new_face_sets;
+      gather_data_mesh(face_sets.span.as_span(), faces, new_face_sets);
+      calc_face_sets(faces, new_face_sets);
+      if (array_utils::indexed_data_equal<int>(face_sets.span, faces, new_face_sets)) {
+        return;
+      }
 
-        undo::push_node(depsgraph, object, &nodes[i], undo::Type::FaceSet);
-        array_utils::scatter(new_face_sets.as_span(), faces, face_sets.span);
-        node_changed[i] = true;
-      });
+      undo::push_node(depsgraph, object, &nodes[i], undo::Type::FaceSet);
+      scatter_data_mesh(new_face_sets.as_span(), faces, face_sets.span);
+      node_changed[i] = true;
     });
   }
 
@@ -385,19 +383,17 @@ static void clear_face_sets(const Depsgraph &depsgraph, Object &object, const In
   else if (pbvh.type() == bke::pbvh::Type::Grids) {
     threading::EnumerableThreadSpecific<Vector<int>> all_face_indices;
     MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-    threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+    node_mask.foreach_index(GrainSize(1), [&](const int i) {
       Vector<int> &face_indices = all_face_indices.local();
-      node_mask.slice(range).foreach_index([&](const int i) {
-        const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
-            *ss.subdiv_ccg, nodes[i], face_indices);
-        if (std::any_of(faces.begin(), faces.end(), [&](const int face) {
-              return face_sets[face] != default_face_set;
-            }))
-        {
-          undo::push_node(depsgraph, object, &nodes[i], undo::Type::FaceSet);
-          node_changed[i] = true;
-        }
-      });
+      const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
+          *ss.subdiv_ccg, nodes[i], face_indices);
+      if (std::any_of(faces.begin(), faces.end(), [&](const int face) {
+            return face_sets[face] != default_face_set;
+          }))
+      {
+        undo::push_node(depsgraph, object, &nodes[i], undo::Type::FaceSet);
+        node_changed[i] = true;
+      }
     });
   }
   IndexMaskMemory memory;
@@ -405,7 +401,7 @@ static void clear_face_sets(const Depsgraph &depsgraph, Object &object, const In
   attributes.remove(".sculpt_face_set");
 }
 
-static int create_op_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
@@ -438,31 +434,64 @@ static int create_op_exec(bContext *C, wmOperator *op)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
   switch (mode) {
     case CreateMode::Masked: {
-      const OffsetIndices faces = mesh.faces();
-      const Span<int> corner_verts = mesh.corner_verts();
-      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
-                                                                  bke::AttrDomain::Face);
-      const VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask",
-                                                               bke::AttrDomain::Point);
-      if (!mask.is_empty()) {
-        face_sets_update(depsgraph,
-                         object,
-                         node_mask,
-                         [&](const Span<int> indices, MutableSpan<int> face_sets) {
-                           for (const int i : indices.index_range()) {
-                             if (!hide_poly.is_empty() && hide_poly[indices[i]]) {
-                               continue;
+      if (pbvh.type() == bke::pbvh::Type::Mesh) {
+        const OffsetIndices faces = mesh.faces();
+        const Span<int> corner_verts = mesh.corner_verts();
+        const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+                                                                    bke::AttrDomain::Face);
+        const VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask",
+                                                                 bke::AttrDomain::Point);
+        if (!mask.is_empty()) {
+          face_sets_update(depsgraph,
+                           object,
+                           node_mask,
+                           [&](const Span<int> indices, MutableSpan<int> face_sets) {
+                             for (const int i : indices.index_range()) {
+                               if (!hide_poly.is_empty() && hide_poly[indices[i]]) {
+                                 continue;
+                               }
+                               const Span<int> face_verts = corner_verts.slice(faces[indices[i]]);
+                               if (!std::any_of(face_verts.begin(),
+                                                face_verts.end(),
+                                                [&](const int vert) { return mask[vert] > 0.5f; }))
+                               {
+                                 continue;
+                               }
+                               face_sets[i] = next_face_set;
                              }
-                             const Span<int> face_verts = corner_verts.slice(faces[indices[i]]);
-                             if (!std::any_of(face_verts.begin(),
-                                              face_verts.end(),
-                                              [&](const int vert) { return mask[vert] > 0.5f; }))
-                             {
-                               continue;
+                           });
+        }
+      }
+      else if (pbvh.type() == bke::pbvh::Type::Grids) {
+        const OffsetIndices<int> faces = mesh.faces();
+        const SculptSession &ss = *object.sculpt;
+        const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+        const int grid_area = subdiv_ccg.grid_area;
+        const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+                                                                    bke::AttrDomain::Face);
+        const Span<float> masks = subdiv_ccg.masks;
+        if (!masks.is_empty()) {
+          face_sets_update(depsgraph,
+                           object,
+                           node_mask,
+                           [&](const Span<int> indices, MutableSpan<int> face_sets) {
+                             for (const int i : indices.index_range()) {
+                               if (!hide_poly.is_empty() && hide_poly[indices[i]]) {
+                                 continue;
+                               }
+
+                               const Span<float> face_masks = masks.slice(
+                                   bke::ccg::face_range(faces, grid_area, indices[i]));
+                               if (!std::any_of(face_masks.begin(),
+                                                face_masks.end(),
+                                                [&](const float mask) { return mask > 0.5f; }))
+                               {
+                                 continue;
+                               }
+                               face_sets[i] = next_face_set;
                              }
-                             face_sets[i] = next_face_set;
-                           }
-                         });
+                           });
+        }
       }
       break;
     }
@@ -512,7 +541,7 @@ static int create_op_exec(bContext *C, wmOperator *op)
           depsgraph, object, node_mask, [&](const Span<int> indices, MutableSpan<int> face_sets) {
             for (const int i : indices.index_range()) {
               if (select_poly[indices[i]]) {
-                if (!hide_poly.is_empty() && hide_poly[i]) {
+                if (!hide_poly.is_empty() && hide_poly[indices[i]]) {
                   continue;
                 }
                 face_sets[i] = next_face_set;
@@ -535,7 +564,7 @@ void SCULPT_OT_face_sets_create(wmOperatorType *ot)
 {
   ot->name = "Create Face Set";
   ot->idname = "SCULPT_OT_face_sets_create";
-  ot->description = "Create a new Face Set";
+  ot->description = "Create a new face set";
 
   ot->exec = create_op_exec;
   ot->poll = SCULPT_mode_poll;
@@ -547,22 +576,22 @@ void SCULPT_OT_face_sets_create(wmOperatorType *ot)
        "MASKED",
        0,
        "Face Set from Masked",
-       "Create a new Face Set from the masked faces"},
+       "Create a new face set from the masked faces"},
       {int(CreateMode::Visible),
        "VISIBLE",
        0,
        "Face Set from Visible",
-       "Create a new Face Set from the visible vertices"},
+       "Create a new face set from the visible vertices"},
       {int(CreateMode::All),
        "ALL",
        0,
        "Face Set Full Mesh",
-       "Create an unique Face Set with all faces in the sculpt"},
+       "Create an unique face set with all faces in the sculpt"},
       {int(CreateMode::Selection),
        "SELECTION",
        0,
        "Face Set from Edit Mode Selection",
-       "Create an Face Set corresponding to the Edit Mode face selection"},
+       "Create an face set corresponding to the Edit Mode face selection"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_enum(ot->srna, "mode", modes, int(CreateMode::Masked), "Mode", "");
@@ -669,7 +698,7 @@ Set<int> gather_hidden_face_sets(const Span<bool> hide_poly, const Span<int> fac
   return hidden_face_sets;
 }
 
-static int init_op_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
@@ -742,7 +771,7 @@ static int init_op_exec(bContext *C, wmOperator *op)
     }
     case InitMode::UVSeams: {
       const VArraySpan<bool> uv_seams = *mesh->attributes().lookup_or_default<bool>(
-          ".uv_seam", bke::AttrDomain::Edge, false);
+          "uv_seam", bke::AttrDomain::Edge, false);
       init_flood_fill(ob,
                       [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
                         return !uv_seams[edge];
@@ -798,7 +827,7 @@ void SCULPT_OT_face_sets_init(wmOperatorType *ot)
 {
   ot->name = "Init Face Sets";
   ot->idname = "SCULPT_OT_face_sets_init";
-  ot->description = "Initializes all Face Sets in the mesh";
+  ot->description = "Initializes all face sets in the mesh";
 
   ot->exec = init_op_exec;
   ot->poll = SCULPT_mode_poll;
@@ -810,42 +839,42 @@ void SCULPT_OT_face_sets_init(wmOperatorType *ot)
        "LOOSE_PARTS",
        0,
        "Face Sets from Loose Parts",
-       "Create a Face Set per loose part in the mesh"},
+       "Create a face set per loose part in the mesh"},
       {int(InitMode::Materials),
        "MATERIALS",
        0,
        "Face Sets from Material Slots",
-       "Create a Face Set per Material Slot"},
+       "Create a face set per material slot"},
       {int(InitMode::Normals),
        "NORMALS",
        0,
        "Face Sets from Mesh Normals",
-       "Create Face Sets for Faces that have similar normal"},
+       "Create face sets for faces that have similar normal"},
       {int(InitMode::UVSeams),
        "UV_SEAMS",
        0,
        "Face Sets from UV Seams",
-       "Create Face Sets using UV Seams as boundaries"},
+       "Create face sets using UV seams as boundaries"},
       {int(InitMode::Creases),
        "CREASES",
        0,
        "Face Sets from Edge Creases",
-       "Create Face Sets using Edge Creases as boundaries"},
+       "Create face sets using edge creases as boundaries"},
       {int(InitMode::BevelWeight),
        "BEVEL_WEIGHT",
        0,
        "Face Sets from Bevel Weight",
-       "Create Face Sets using Bevel Weights as boundaries"},
+       "Create face sets using bevel weights as boundaries"},
       {int(InitMode::SharpEdges),
        "SHARP_EDGES",
        0,
        "Face Sets from Sharp Edges",
-       "Create Face Sets using Sharp Edges as boundaries"},
+       "Create face sets using sharp edges as boundaries"},
       {int(InitMode::FaceSetBoundaries),
        "FACE_SET_BOUNDARIES",
        0,
        "Face Sets from Face Set Boundaries",
-       "Create a Face Set per isolated Face Set"},
+       "Create a face set per isolated face set"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_enum(ot->srna, "mode", modes, int(InitMode::LooseParts), "Mode", "");
@@ -856,7 +885,7 @@ void SCULPT_OT_face_sets_init(wmOperatorType *ot)
       0.0f,
       1.0f,
       "Threshold",
-      "Minimum value to consider a certain attribute a boundary when creating the Face Sets",
+      "Minimum value to consider a certain attribute a boundary when creating the face sets",
       0.0f,
       1.0f);
 }
@@ -889,45 +918,41 @@ static void face_hide_update(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<TLS> all_tls;
   if (pbvh.type() == bke::pbvh::Type::Mesh) {
     MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-    threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+    node_mask.foreach_index(GrainSize(1), [&](const int i) {
       TLS &tls = all_tls.local();
-      node_mask.slice(range).foreach_index([&](const int i) {
-        const Span<int> faces = nodes[i].faces();
+      const Span<int> faces = nodes[i].faces();
 
-        tls.new_hide.resize(faces.size());
-        MutableSpan<bool> new_hide = tls.new_hide;
-        array_utils::gather(hide_poly.span.as_span(), faces, new_hide);
-        calc_hide(faces, new_hide);
-        if (array_utils::indexed_data_equal<bool>(hide_poly.span, faces, new_hide)) {
-          return;
-        }
+      tls.new_hide.resize(faces.size());
+      MutableSpan<bool> new_hide = tls.new_hide;
+      gather_data_mesh(hide_poly.span.as_span(), faces, new_hide);
+      calc_hide(faces, new_hide);
+      if (array_utils::indexed_data_equal<bool>(hide_poly.span, faces, new_hide)) {
+        return;
+      }
 
-        undo::push_node(depsgraph, object, &nodes[i], undo::Type::HideFace);
-        array_utils::scatter(new_hide.as_span(), faces, hide_poly.span);
-        node_changed[i] = true;
-      });
+      undo::push_node(depsgraph, object, &nodes[i], undo::Type::HideFace);
+      scatter_data_mesh(new_hide.as_span(), faces, hide_poly.span);
+      node_changed[i] = true;
     });
   }
   else if (pbvh.type() == bke::pbvh::Type::Grids) {
     MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-    threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+    node_mask.foreach_index(GrainSize(1), [&](const int i) {
       TLS &tls = all_tls.local();
-      node_mask.slice(range).foreach_index([&](const int i) {
-        const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
-            *ss.subdiv_ccg, nodes[i], tls.face_indices);
+      const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
+          *ss.subdiv_ccg, nodes[i], tls.face_indices);
 
-        tls.new_hide.resize(faces.size());
-        MutableSpan<bool> new_hide = tls.new_hide;
-        array_utils::gather(hide_poly.span.as_span(), faces, new_hide);
-        calc_hide(faces, new_hide);
-        if (array_utils::indexed_data_equal<bool>(hide_poly.span, faces, new_hide)) {
-          return;
-        }
+      tls.new_hide.resize(faces.size());
+      MutableSpan<bool> new_hide = tls.new_hide;
+      gather_data_mesh(hide_poly.span.as_span(), faces, new_hide);
+      calc_hide(faces, new_hide);
+      if (array_utils::indexed_data_equal<bool>(hide_poly.span, faces, new_hide)) {
+        return;
+      }
 
-        undo::push_node(depsgraph, object, &nodes[i], undo::Type::HideFace);
-        array_utils::scatter(new_hide.as_span(), faces, hide_poly.span);
-        node_changed[i] = true;
-      });
+      undo::push_node(depsgraph, object, &nodes[i], undo::Type::HideFace);
+      scatter_data_mesh(new_hide.as_span(), faces, hide_poly.span);
+      node_changed[i] = true;
     });
   }
 
@@ -957,7 +982,7 @@ static void show_all(Depsgraph &depsgraph, Object &object, const IndexMask &node
   }
 }
 
-static int change_visibility_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
@@ -1040,19 +1065,24 @@ static int change_visibility_exec(bContext *C, wmOperator *op)
   /* For modes that use the cursor active vertex, update the rotation origin for viewport
    * navigation. */
   if (ELEM(mode, VisibilityMode::Toggle, VisibilityMode::ShowActive)) {
-    UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
-
-    float location[3];
-    copy_v3_v3(location, ss.active_vert_position(depsgraph, object));
-    mul_m4_v3(object.object_to_world().ptr(), location);
-    copy_v3_v3(ups->average_stroke_accum, location);
-    ups->average_stroke_counter = 1;
-    ups->last_stroke_valid = true;
+    Paint *paint = BKE_paint_get_active_from_context(C);
+    bke::PaintRuntime *paint_runtime = paint->runtime;
+    if (std::holds_alternative<std::monostate>(ss.active_vert())) {
+      paint_runtime->last_stroke_valid = false;
+    }
+    else {
+      float location[3];
+      copy_v3_v3(location, ss.active_vert_position(depsgraph, object));
+      mul_m4_v3(object.object_to_world().ptr(), location);
+      copy_v3_v3(paint_runtime->average_stroke_accum, location);
+      paint_runtime->average_stroke_counter = 1;
+      paint_runtime->last_stroke_valid = true;
+    }
   }
 
   undo::push_end(object);
 
-  bke::pbvh::update_visibility(object, pbvh);
+  pbvh.update_visibility(object);
 
   islands::invalidate(*object.sculpt);
   hide::tag_update_visibility(*C);
@@ -1060,7 +1090,7 @@ static int change_visibility_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int change_visibility_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus change_visibility_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
 
@@ -1070,12 +1100,12 @@ static int change_visibility_invoke(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_CANCELLED;
   }
 
-  /* Update the active vertex and Face Set using the cursor position to avoid relying on the paint
+  /* Update the active vertex and face set using the cursor position to avoid relying on the paint
    * cursor updates. */
-  SculptCursorGeometryInfo sgi;
+  CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  SCULPT_vertex_random_access_ensure(ob);
-  SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+  vert_random_access_ensure(ob);
+  cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   return change_visibility_exec(C, op);
 }
@@ -1084,7 +1114,7 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
 {
   ot->name = "Face Sets Visibility";
   ot->idname = "SCULPT_OT_face_set_change_visibility";
-  ot->description = "Change the visibility of the Face Sets of the sculpt";
+  ot->description = "Change the visibility of the face sets of the sculpt";
 
   ot->exec = change_visibility_exec;
   ot->invoke = change_visibility_invoke;
@@ -1097,23 +1127,23 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
        "TOGGLE",
        0,
        "Toggle Visibility",
-       "Hide all Face Sets except for the active one"},
+       "Hide all face sets except for the active one"},
       {int(VisibilityMode::ShowActive),
        "SHOW_ACTIVE",
        0,
        "Show Active Face Set",
-       "Show Active Face Set"},
+       "Show the active face set"},
       {int(VisibilityMode::HideActive),
        "HIDE_ACTIVE",
        0,
-       "Hide Active Face Sets",
-       "Hide Active Face Sets"},
+       "Hide Active Face Set",
+       "Hide the active face set"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_enum(ot->srna, "mode", modes, int(VisibilityMode::Toggle), "Mode", "");
 }
 
-static int randomize_colors_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus randomize_colors_exec(bContext *C, wmOperator * /*op*/)
 {
   Object &ob = *CTX_data_active_object(C);
 
@@ -1158,7 +1188,7 @@ void SCULPT_OT_face_sets_randomize_colors(wmOperatorType *ot)
 {
   ot->name = "Randomize Face Sets Colors";
   ot->idname = "SCULPT_OT_face_sets_randomize_colors";
-  ot->description = "Generates a new set of random colors to render the Face Sets in the viewport";
+  ot->description = "Generates a new set of random colors to render the face sets in the viewport";
 
   ot->exec = randomize_colors_exec;
   ot->poll = SCULPT_mode_poll;
@@ -1332,7 +1362,7 @@ static void edit_fairing(const Depsgraph &depsgraph,
   const PositionDeformData position_data(depsgraph, ob);
   const Span<float3> positions = position_data.eval;
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const BitSpan boundary_verts = ss.vertex_info.boundary;
+  const BitSpan boundary_verts = ss.boundary_info_cache->verts;
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
   const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
@@ -1363,19 +1393,17 @@ static void edit_fairing(const Depsgraph &depsgraph,
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+  node_mask.foreach_index(GrainSize(1), [&](const int i) {
     LocalData &tls = all_tls.local();
-    node_mask.slice(range).foreach_index([&](const int i) {
-      const Span<int> verts = nodes[i].verts();
-      tls.translations.resize(verts.size());
-      const MutableSpan<float3> translations = tls.translations;
-      for (const int i : verts.index_range()) {
-        translations[i] = new_positions[verts[i]] - positions[verts[i]];
-      }
-      scale_translations(translations, strength);
-      clip_and_lock_translations(sd, ss, positions, verts, translations);
-      position_data.deform(translations, verts);
-    });
+    const Span<int> verts = nodes[i].verts();
+    tls.translations.resize(verts.size());
+    const MutableSpan<float3> translations = tls.translations;
+    for (const int i : verts.index_range()) {
+      translations[i] = new_positions[verts[i]] - positions[verts[i]];
+    }
+    scale_translations(translations, strength);
+    clip_and_lock_translations(sd, ss, positions, verts, translations);
+    position_data.deform(translations, verts);
   });
 }
 
@@ -1398,7 +1426,7 @@ static bool edit_is_operation_valid(const Object &object,
       return false;
     }
     if (check_single_face_set(object, !modify_hidden)) {
-      /* Cancel the operator if the mesh only contains one Face Set to avoid deleting the
+      /* Cancel the operator if the mesh only contains one face set to avoid deleting the
        * entire object. */
       return false;
     }
@@ -1436,6 +1464,7 @@ static void edit_modify_geometry(
   undo::geometry_begin(scene, ob, op);
   delete_geometry(ob, active_face_set, modify_hidden);
   undo::geometry_end(ob);
+  BKE_sculptsession_free_pbvh(ob);
   BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
@@ -1456,8 +1485,6 @@ static void edit_modify_coordinates(
   undo::push_begin(scene, ob, op);
   undo::push_nodes(depsgraph, ob, node_mask, undo::Type::Position);
 
-  pbvh.tag_positions_changed(node_mask);
-
   switch (mode) {
     case EditMode::FairPositions:
       edit_fairing(depsgraph, sd, ob, active_face_set, MESH_FAIRING_DEPTH_POSITION, strength);
@@ -1469,7 +1496,8 @@ static void edit_modify_coordinates(
       BLI_assert_unreachable();
   }
 
-  bke::pbvh::update_bounds(depsgraph, ob, pbvh);
+  pbvh.tag_positions_changed(node_mask);
+  pbvh.update_bounds(depsgraph, ob);
   flush_update_step(C, UpdateType::Position);
   flush_update_done(C, ob, UpdateType::Position);
   undo::push_end(ob);
@@ -1491,7 +1519,7 @@ static bool edit_op_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static int edit_op_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edit_op_exec(bContext *C, wmOperator *op)
 {
   if (!edit_op_init(C, op)) {
     return OPERATOR_CANCELLED;
@@ -1524,7 +1552,7 @@ static int edit_op_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int edit_op_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edit_op_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Object &ob = *CTX_data_active_object(C);
@@ -1537,12 +1565,12 @@ static int edit_op_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
-  /* Update the current active Face Set and Vertex as the operator can be used directly from the
+  /* Update the current active face set and Vertex as the operator can be used directly from the
    * tool without brush cursor. */
-  SculptCursorGeometryInfo sgi;
+  CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  if (!SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false)) {
-    /* The cursor is not over the mesh. Cancel to avoid editing the last updated Face Set ID. */
+  if (!cursor_geometry_info_update(C, &cgi, mval_fl, false)) {
+    /* The cursor is not over the mesh. Cancel to avoid editing the last updated face set ID. */
     return OPERATOR_CANCELLED;
   }
   RNA_int_set(op->ptr, "active_face_set", active_face_set_get(ob));
@@ -1554,7 +1582,7 @@ void SCULPT_OT_face_sets_edit(wmOperatorType *ot)
 {
   ot->name = "Edit Face Set";
   ot->idname = "SCULPT_OT_face_set_edit";
-  ot->description = "Edits the current active Face Set";
+  ot->description = "Edits the current active face set";
 
   ot->invoke = edit_op_invoke;
   ot->exec = edit_op_exec;
@@ -1571,33 +1599,34 @@ void SCULPT_OT_face_sets_edit(wmOperatorType *ot)
        "GROW",
        0,
        "Grow Face Set",
-       "Grows the Face Sets boundary by one face based on mesh topology"},
+       "Grows the face set boundary by one face based on mesh topology"},
       {int(EditMode::Shrink),
        "SHRINK",
        0,
        "Shrink Face Set",
-       "Shrinks the Face Sets boundary by one face based on mesh topology"},
+       "Shrinks the face set boundary by one face based on mesh topology"},
       {int(EditMode::DeleteGeometry),
        "DELETE_GEOMETRY",
        0,
        "Delete Geometry",
-       "Deletes the faces that are assigned to the Face Set"},
+       "Deletes the faces that are assigned to the face set"},
       {int(EditMode::FairPositions),
        "FAIR_POSITIONS",
        0,
        "Fair Positions",
-       "Creates a smooth as possible geometry patch from the Face Set minimizing changes in "
+       "Creates a smooth as possible geometry patch from the face set minimizing changes in "
        "vertex positions"},
       {int(EditMode::FairTangency),
        "FAIR_TANGENCY",
        0,
        "Fair Tangency",
-       "Creates a smooth as possible geometry patch from the Face Set minimizing changes in "
+       "Creates a smooth as possible geometry patch from the face set minimizing changes in "
        "vertex tangents"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_enum(ot->srna, "mode", modes, int(EditMode::Grow), "Mode", "");
-  RNA_def_float(ot->srna, "strength", 1.0f, 0.0f, 1.0f, "Strength", "", 0.0f, 1.0f);
+  prop = RNA_def_float(ot->srna, "strength", 1.0f, 0.0f, 1.0f, "Strength", "", 0.0f, 1.0f);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
 
   ot->prop = RNA_def_boolean(ot->srna,
                              "modify_hidden",
@@ -1676,31 +1705,29 @@ static void gesture_apply_mesh(gesture::GestureData &gesture_data, const IndexMa
   }
   else if (pbvh.type() == bke::pbvh::Type::Grids) {
     MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-    threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+    node_mask.foreach_index(GrainSize(1), [&](const int i) {
       TLS &tls = all_tls.local();
-      node_mask.slice(range).foreach_index([&](const int i) {
-        undo::push_node(depsgraph, *gesture_data.vc.obact, &nodes[i], undo::Type::FaceSet);
-        const Span<int> node_faces = bke::pbvh::node_face_indices_calc_grids(
-            *ss.subdiv_ccg, nodes[i], tls.face_indices);
+      undo::push_node(depsgraph, *gesture_data.vc.obact, &nodes[i], undo::Type::FaceSet);
+      const Span<int> node_faces = bke::pbvh::node_face_indices_calc_grids(
+          *ss.subdiv_ccg, nodes[i], tls.face_indices);
 
-        bool any_updated = false;
-        for (const int face : node_faces) {
-          if (!hide_poly.is_empty() && hide_poly[face]) {
-            continue;
-          }
-          const Span<int> face_verts = corner_verts.slice(faces[face]);
-          const float3 face_center = bke::mesh::face_center_calc(positions, face_verts);
-          const float3 face_normal = bke::mesh::face_normal_calc(positions, face_verts);
-          if (!gesture::is_affected(gesture_data, face_center, face_normal)) {
-            continue;
-          }
-          face_sets.span[face] = new_face_set;
-          any_updated = true;
+      bool any_updated = false;
+      for (const int face : node_faces) {
+        if (!hide_poly.is_empty() && hide_poly[face]) {
+          continue;
         }
-        if (any_updated) {
-          node_changed[i] = true;
+        const Span<int> face_verts = corner_verts.slice(faces[face]);
+        const float3 face_center = bke::mesh::face_center_calc(positions, face_verts);
+        const float3 face_normal = bke::mesh::face_normal_calc(positions, face_verts);
+        if (!gesture::is_affected(gesture_data, face_center, face_normal)) {
+          continue;
         }
-      });
+        face_sets.span[face] = new_face_set;
+        any_updated = true;
+      }
+      if (any_updated) {
+        node_changed[i] = true;
+      }
     });
   }
 
@@ -1714,36 +1741,32 @@ static void gesture_apply_bmesh(gesture::GestureData &gesture_data, const IndexM
   FaceSetOperation *face_set_operation = (FaceSetOperation *)gesture_data.operation;
   const Depsgraph &depsgraph = *gesture_data.vc.depsgraph;
   const int new_face_set = face_set_operation->new_face_set_id;
-  SculptSession &ss = *gesture_data.ss;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*gesture_data.vc.obact);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  BMesh *bm = ss.bm;
-  const int offset = CustomData_get_offset_named(&bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
+  const int offset = face_set::ensure_face_sets_bmesh(*gesture_data.vc.obact);
 
   Array<bool> node_changed(node_mask.min_array_size(), false);
 
-  threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
-    node_mask.slice(range).foreach_index([&](const int i) {
-      undo::push_node(depsgraph, *gesture_data.vc.obact, &nodes[i], undo::Type::FaceSet);
+  node_mask.foreach_index(GrainSize(1), [&](const int i) {
+    undo::push_node(depsgraph, *gesture_data.vc.obact, &nodes[i], undo::Type::FaceSet);
 
-      bool any_updated = false;
-      for (BMFace *face : BKE_pbvh_bmesh_node_faces(&nodes[i])) {
-        if (BM_elem_flag_test(face, BM_ELEM_HIDDEN)) {
-          continue;
-        }
-        float3 center;
-        BM_face_calc_center_median(face, center);
-        if (!gesture::is_affected(gesture_data, center, face->no)) {
-          continue;
-        }
-        BM_ELEM_CD_SET_INT(face, offset, new_face_set);
-        any_updated = true;
+    bool any_updated = false;
+    for (BMFace *face : BKE_pbvh_bmesh_node_faces(&nodes[i])) {
+      if (BM_elem_flag_test(face, BM_ELEM_HIDDEN)) {
+        continue;
       }
+      float3 center;
+      BM_face_calc_center_median(face, center);
+      if (!gesture::is_affected(gesture_data, center, face->no)) {
+        continue;
+      }
+      BM_ELEM_CD_SET_INT(face, offset, new_face_set);
+      any_updated = true;
+    }
 
-      if (any_updated) {
-        node_changed[i] = true;
-      }
-    });
+    if (any_updated) {
+      node_changed[i] = true;
+    }
   });
 
   IndexMaskMemory memory;
@@ -1776,7 +1799,7 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator & /*op
 {
   Object &object = *gesture_data.vc.obact;
   gesture_data.operation = reinterpret_cast<gesture::Operation *>(
-      MEM_cnew<FaceSetOperation>(__func__));
+      MEM_callocN<FaceSetOperation>(__func__));
 
   FaceSetOperation *face_set_operation = (FaceSetOperation *)gesture_data.operation;
 
@@ -1787,7 +1810,7 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator & /*op
   face_set_operation->new_face_set_id = face_set::find_next_available_id(object);
 }
 
-static int gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const View3D *v3d = CTX_wm_view3d(C);
   const Base *base = CTX_data_active_base(C);
@@ -1798,7 +1821,7 @@ static int gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static int gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
   if (!gesture_data) {
@@ -1809,7 +1832,7 @@ static int gesture_box_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const View3D *v3d = CTX_wm_view3d(C);
   const Base *base = CTX_data_active_base(C);
@@ -1820,7 +1843,7 @@ static int gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *even
   return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static int gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
   if (!gesture_data) {
@@ -1831,7 +1854,7 @@ static int gesture_lasso_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const View3D *v3d = CTX_wm_view3d(C);
   const Base *base = CTX_data_active_base(C);
@@ -1842,7 +1865,7 @@ static int gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event
   return WM_gesture_straightline_active_side_invoke(C, op, event);
 }
 
-static int gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
   if (!gesture_data) {
@@ -1853,7 +1876,7 @@ static int gesture_line_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const View3D *v3d = CTX_wm_view3d(C);
   const Base *base = CTX_data_active_base(C);
@@ -1864,7 +1887,7 @@ static int gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *e
   return WM_gesture_polyline_invoke(C, op, event);
 }
 
-static int gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
   if (!gesture_data) {

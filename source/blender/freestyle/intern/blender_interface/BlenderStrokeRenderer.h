@@ -67,7 +67,7 @@ class BlenderStrokeRenderer : public StrokeRenderer {
   float _z, _z_delta;
   uint _mesh_id;
   bool _use_shading_nodes;
-  struct GHash *_nodetree_hash;
+  mutable blender::Map<bNodeTree *, Material *> _nodetree_hash;
 
   static const char *uvNames[];
 
@@ -81,9 +81,7 @@ class BlenderStrokeRenderer : public StrokeRenderer {
 
   vector<StrokeRep *> _strokeReps;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:BlenderStrokeRenderer")
-#endif
 };
 
 } /* namespace Freestyle */

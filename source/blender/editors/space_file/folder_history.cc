@@ -11,10 +11,8 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
-
-#include "BKE_context.hh"
 
 #include "DNA_space_types.h"
 
@@ -70,7 +68,7 @@ void folderlist_pushdir(ListBase *folderlist, const char *dir)
   }
 
   /* create next folder element */
-  folder = MEM_cnew<FolderList>(__func__);
+  folder = MEM_callocN<FolderList>(__func__);
   folder->foldername = BLI_strdup(dir);
 
   /* add it to the end of the list */
@@ -121,9 +119,9 @@ void folderlist_free(ListBase *folderlist)
   }
 }
 
-static ListBase folderlist_duplicate(ListBase *folderlist)
+static ListBaseT<FolderList> folderlist_duplicate(ListBaseT<FolderList> *folderlist)
 {
-  ListBase folderlistn = {nullptr};
+  ListBaseT<FolderList> folderlistn = {nullptr};
 
   BLI_duplicatelist(&folderlistn, folderlist);
 
@@ -155,7 +153,7 @@ void folder_history_list_ensure_for_active_browse_mode(SpaceFile *sfile)
   FileFolderHistory *history = folder_history_find(sfile, (eFileBrowse_Mode)sfile->browse_mode);
 
   if (!history) {
-    history = MEM_cnew<FileFolderHistory>(__func__);
+    history = MEM_new_for_free<FileFolderHistory>(__func__);
     history->browse_mode = sfile->browse_mode;
     BLI_addtail(&sfile->folder_histories, history);
   }
@@ -184,9 +182,9 @@ void folder_history_list_free(SpaceFile *sfile)
   }
 }
 
-ListBase folder_history_list_duplicate(ListBase *listbase)
+ListBaseT<FileFolderHistory> folder_history_list_duplicate(ListBaseT<FileFolderHistory> *listbase)
 {
-  ListBase histories = {nullptr};
+  ListBaseT<FileFolderHistory> histories = {nullptr};
 
   LISTBASE_FOREACH (FileFolderHistory *, history, listbase) {
     FileFolderHistory *history_new = static_cast<FileFolderHistory *>(MEM_dupallocN(history));

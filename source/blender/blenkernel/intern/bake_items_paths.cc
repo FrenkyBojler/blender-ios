@@ -5,7 +5,7 @@
 #include "BKE_bake_items_paths.hh"
 
 #include "BLI_fileops.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
@@ -22,7 +22,7 @@ std::string frame_to_file_name(const SubFrame &frame)
 std::optional<SubFrame> file_name_to_frame(const StringRef file_name)
 {
   char modified_file_name[FILE_MAX];
-  file_name.copy(modified_file_name);
+  file_name.copy_utf8_truncated(modified_file_name);
   BLI_string_replace_char(modified_file_name, '_', '.');
   try {
     const SubFrame frame = std::stof(modified_file_name);

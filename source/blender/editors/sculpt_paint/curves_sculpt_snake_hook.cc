@@ -2,23 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <algorithm>
-
 #include "curves_sculpt_intern.hh"
 
-#include "BLI_kdtree.h"
-#include "BLI_length_parameterize.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_rand.hh"
 #include "BLI_vector.hh"
 
 #include "DEG_depsgraph.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
-#include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
@@ -30,7 +23,6 @@
 #include "DNA_curves_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -61,7 +53,8 @@ class SnakeHookOperation : public CurvesSculptStrokeOperation {
   friend struct SnakeHookOperatorExecutor;
 
  public:
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 /**
@@ -72,7 +65,7 @@ struct SnakeHookOperatorExecutor {
   SnakeHookOperation *self_ = nullptr;
   CurvesSculptCommonContext ctx_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -92,29 +85,27 @@ struct SnakeHookOperatorExecutor {
   float2 brush_pos_re_;
   float2 brush_pos_diff_re_;
 
-  SnakeHookOperatorExecutor(const bContext &C) : ctx_(C) {}
+  SnakeHookOperatorExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(SnakeHookOperation &self,
-               const bContext &C,
-               const StrokeExtension &stroke_extension)
+  void execute(SnakeHookOperation &self, const StrokeExtension &stroke_extension)
   {
     BLI_SCOPED_DEFER([&]() { self.last_mouse_position_re_ = stroke_extension.mouse_position; });
 
     self_ = &self;
-    object_ = CTX_data_active_object(&C);
+    object_ = ctx_.object;
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
 
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
 
     const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
 
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
-    if (curves_->curves_num() == 0) {
+    if (curves_->is_empty()) {
       return;
     }
 
@@ -129,7 +120,7 @@ struct SnakeHookOperatorExecutor {
     brush_pos_diff_re_ = brush_pos_re_ - brush_pos_prev_re_;
 
     if (stroke_extension.is_first) {
-      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
+      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.uiflag & USER_ORBIT_SELECTION)) {
         std::optional<CurvesBrush3D> brush_3d = sample_curves_3d_brush(*ctx_.depsgraph,
                                                                        *ctx_.region,
                                                                        *ctx_.v3d,
@@ -139,6 +130,9 @@ struct SnakeHookOperatorExecutor {
                                                                        brush_radius_base_re_);
         if (brush_3d.has_value()) {
           self_->brush_3d_ = *brush_3d;
+          remember_stroke_position(
+              *curves_sculpt_,
+              math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
         }
       }
       return;
@@ -295,11 +289,11 @@ struct SnakeHookOperatorExecutor {
   }
 };
 
-void SnakeHookOperation::on_stroke_extended(const bContext &C,
+void SnakeHookOperation::on_stroke_extended(const PaintStroke &stroke,
                                             const StrokeExtension &stroke_extension)
 {
-  SnakeHookOperatorExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  SnakeHookOperatorExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_snake_hook_operation()

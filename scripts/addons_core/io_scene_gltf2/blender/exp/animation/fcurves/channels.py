@@ -7,7 +7,7 @@ import typing
 from .....io.exp.user_extensions import export_user_extensions
 from .....io.com import gltf2_io
 from ....exp.cache import cached
-from ....com.data_path import get_target_object_path, get_target_property_name, get_rotation_modes, get_object_from_datapath, skip_sk
+from ....com.data_path import get_target_object_path, get_target_property_name, get_rotation_modes, get_object_from_datapath, skip_sk, get_channelbag_for_slot
 from ....com.conversion import get_target, get_channel_from_target
 from .channel_target import gather_fcurve_channel_target
 from .sampler import gather_animation_fcurves_sampler
@@ -17,11 +17,12 @@ from .sampler import gather_animation_fcurves_sampler
 def gather_animation_fcurves_channels(
         obj_uuid: int,
         blender_action: bpy.types.Action,
+        slot_identifier: str,
         export_settings
 ):
 
     channels_to_perform, to_be_sampled, extra_channels_to_perform = get_channel_groups(
-        obj_uuid, blender_action, export_settings)
+        obj_uuid, blender_action, blender_action.slots[slot_identifier], export_settings)
 
     custom_range = None
     if blender_action.use_frame_range:
@@ -50,20 +51,22 @@ def gather_animation_fcurves_channels(
     return channels, to_be_sampled, extra_samplers
 
 
-def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, export_settings, no_sample_option=False):
+def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, slot: bpy.types.ActionSlot, export_settings, no_sample_option=False):
     # no_sample_option is used when we want to retrieve all SK channels, to be evaluate.
     targets = {}
     targets_extra = {}
 
     blender_object = export_settings['vtree'].nodes[obj_uuid].blender_object
 
-    # When mutliple rotation mode detected, keep the currently used
+    # When multiple rotation mode detected, keep the currently used
     multiple_rotation_mode_detected = {}
 
     # When both normal and delta are used --> Set to to_be_sampled list
     to_be_sampled = []  # (object_uuid , type , prop, optional(bone.name) )
 
-    for fcurve in blender_action.fcurves:
+    channelbag = get_channelbag_for_slot(blender_action, slot)
+    fcurves = channelbag.fcurves if channelbag else []
+    for fcurve in fcurves:
         type_ = None
         # In some invalid files, channel hasn't any keyframes ... this channel need to be ignored
         if len(fcurve.keyframe_points) == 0:
@@ -71,7 +74,7 @@ def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, export_s
         try:
             # example of target_property : location, rotation_quaternion, value
             target_property = get_target_property_name(fcurve.data_path)
-        except:
+        except Exception as _e:
             export_settings['log'].warning(
                 "Invalid animation fcurve data path on action {}".format(
                     blender_action.name))
@@ -108,7 +111,7 @@ def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, export_s
                         continue
                     target = blender_object.data.shape_keys
                     type_ = "SK"
-            except ValueError as e:
+            except ValueError as _e:
                 # if the object is a mesh and the action target path can not be resolved, we know that this is a morph
                 # animation.
                 if blender_object.type == "MESH":
@@ -118,7 +121,7 @@ def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, export_s
                             continue
                         target = blender_object.data.shape_keys
                         type_ = "SK"
-                    except:
+                    except Exception as _e:
                         # Something is wrong, for example a bone animation is linked to an object mesh...
                         export_settings['log'].warning(
                             "Invalid animation fcurve data path on action {}".format(
@@ -144,7 +147,7 @@ def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, export_s
                 target_property = fcurve.data_path
             target_data = targets_extra.get(target, {})
             target_data['type'] = type_
-            target_data['bone'] = target.name
+            target_data['bone'] = target.name if type_ == "BONE" else None
             target_data['obj_uuid'] = obj_uuid
             target_properties = target_data.get('properties', {})
             channels = target_properties.get(target_property, [])
@@ -247,9 +250,8 @@ def __get_channel_group_sorted(channels: typing.Tuple[bpy.types.FCurve], blender
             for sk_c in channels:
                 try:
                     sk_name = blender_object.data.shape_keys.path_resolve(get_target_object_path(sk_c.data_path)).name
-                    idx = shapekeys_idx[sk_name]
                     idx_channel_mapping.append((shapekeys_idx[sk_name], sk_c))
-                except:
+                except Exception as _e:
                     # Something is wrong. For example, an armature action linked to a mesh object
                     continue
 
@@ -292,7 +294,7 @@ def __gather_animation_fcurve_channel(obj_uuid: str,
         )
 
         blender_object = export_settings['vtree'].nodes[obj_uuid].blender_object
-        export_user_extensions('animation_gather_fcurve_channel_target', export_settings, blender_object, bone)
+        export_user_extensions('animation_gather_fcurve_channel', export_settings, blender_object, bone, channel_group)
 
         return animation_channel
     return None

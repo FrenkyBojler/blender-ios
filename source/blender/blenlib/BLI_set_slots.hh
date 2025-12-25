@@ -19,6 +19,7 @@
  * destructor might not be called in that case.
  */
 
+#include "BLI_hash_tables.hh"
 #include "BLI_memory_utils.hh"
 #include "BLI_string_ref.hh"
 
@@ -311,7 +312,15 @@ template<typename Key, typename KeyInfo> class IntrusiveSetSlot {
   bool contains(const ForwardKey &key, const IsEqual &is_equal, const uint64_t /*hash*/) const
   {
     BLI_assert(KeyInfo::is_not_empty_or_removed(key));
-    return is_equal(key_, key);
+    if constexpr (std::is_same_v<std::decay_t<IsEqual>, DefaultEquality<Key>>) {
+      return is_equal(key_, key);
+    }
+    else {
+      if (KeyInfo::is_not_empty_or_removed(key_)) {
+        return is_equal(key_, key);
+      }
+      return false;
+    }
   }
 
   template<typename ForwardKey> void occupy(ForwardKey &&key, const uint64_t /*hash*/)

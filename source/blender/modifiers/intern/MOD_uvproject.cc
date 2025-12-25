@@ -12,23 +12,23 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_uvproject.h"
 
 #include "BLT_translation.hh"
 
 #include "DNA_camera_types.h"
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_camera.h"
 #include "BKE_customdata.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
+#include "BKE_uvproject.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -45,9 +45,7 @@ static void init_data(ModifierData *md)
 {
   UVProjectModifierData *umd = (UVProjectModifierData *)md;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(umd, modifier));
-
-  MEMCPY_STRUCT_AFTER(umd, DNA_struct_default_get(UVProjectModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(umd, modifier);
 }
 
 static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cddata_masks)
@@ -93,7 +91,7 @@ static blender::bke::SpanAttributeWriter<blender::float2> get_uv_attribute(
   using namespace blender;
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (md_name.is_empty()) {
-    const StringRef name = CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2);
+    const StringRef name = mesh.active_uv_map_name();
     return attributes.lookup_or_add_for_write_span<float2>(name.is_empty() ? "Float2" : name,
                                                            bke::AttrDomain::Corner);
   }
@@ -148,8 +146,8 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
     if (projectors[i].ob->type == OB_CAMERA) {
       const Camera *cam = (const Camera *)projectors[i].ob->data;
       if (cam->type == CAM_PANO) {
-        projectors[i].uci = BLI_uvproject_camera_info(projectors[i].ob, nullptr, aspx, aspy);
-        BLI_uvproject_camera_info_scale(
+        projectors[i].uci = BKE_uvproject_camera_info(projectors[i].ob, nullptr, aspx, aspy);
+        BKE_uvproject_camera_info_scale(
             static_cast<ProjCameraInfo *>(projectors[i].uci), scax, scay);
         free_uci = true;
       }
@@ -215,7 +213,7 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
       if (projectors[0].uci) {
         for (const int corner : face) {
           const int vert = corner_verts[corner];
-          BLI_uvproject_from_camera(
+          BKE_uvproject_from_camera(
               mloop_uv[corner], coords[vert], static_cast<ProjCameraInfo *>(projectors[0].uci));
         }
       }
@@ -254,7 +252,7 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
       if (best_projector->uci) {
         for (const int corner : face) {
           const int vert = corner_verts[corner];
-          BLI_uvproject_from_camera(
+          BKE_uvproject_from_camera(
               mloop_uv[corner], coords[vert], static_cast<ProjCameraInfo *>(best_projector->uci));
         }
       }
@@ -295,17 +293,16 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *sub;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemPointerR(layout, ptr, "uv_layer", &obj_data_ptr, "uv_layers", nullptr, ICON_GROUP_UVS);
+  layout.prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
   /* Aspect and Scale are only used for camera projectors. */
   bool has_camera = false;
@@ -318,23 +315,23 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   }
   RNA_END;
 
-  sub = uiLayoutColumn(layout, true);
-  uiLayoutSetActive(sub, has_camera);
-  uiItemR(sub, ptr, "aspect_x", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(sub, ptr, "aspect_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
+  blender::ui::Layout *sub = &layout.column(true);
+  sub->active_set(has_camera);
+  sub->prop(ptr, "aspect_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "aspect_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
-  sub = uiLayoutColumn(layout, true);
-  uiLayoutSetActive(sub, has_camera);
-  uiItemR(sub, ptr, "scale_x", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(sub, ptr, "scale_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
+  sub = &layout.column(true);
+  sub->active_set(has_camera);
+  sub->prop(ptr, "scale_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "scale_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
-  uiItemR(layout, ptr, "projector_count", UI_ITEM_NONE, IFACE_("Projectors"), ICON_NONE);
+  layout.prop(ptr, "projector_count", UI_ITEM_NONE, IFACE_("Projectors"), ICON_NONE);
   RNA_BEGIN (ptr, projector_ptr, "projectors") {
-    uiItemR(layout, &projector_ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(&projector_ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   RNA_END;
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -376,4 +373,5 @@ ModifierTypeInfo modifierType_UVProject = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -11,10 +11,6 @@
 #include "BPy_Convert.h"
 #include "BPy_Interface0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -29,8 +25,7 @@ int BinaryPredicate0D_Init(PyObject *module)
   if (PyType_Ready(&BinaryPredicate0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&BinaryPredicate0D_Type);
-  PyModule_AddObject(module, "BinaryPredicate0D", (PyObject *)&BinaryPredicate0D_Type);
+  PyModule_AddObjectRef(module, "BinaryPredicate0D", (PyObject *)&BinaryPredicate0D_Type);
 
   return 0;
 }
@@ -61,7 +56,6 @@ PyDoc_STRVAR(
     "   :type inter2: :class:`Interface0D`\n"
     "   :return: True or false.\n"
     "   :rtype: bool\n");
-
 static int BinaryPredicate0D___init__(BPy_BinaryPredicate0D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -119,8 +113,7 @@ PyDoc_STRVAR(
     BinaryPredicate0D_name_doc,
     "The name of the binary 0D predicate.\n"
     "\n"
-    ":type: str");
-
+    ":type: str\n");
 static PyObject *BinaryPredicate0D_name_get(BPy_BinaryPredicate0D *self, void * /*closure*/)
 {
   return PyUnicode_FromString(Py_TYPE(self)->tp_name);
@@ -179,7 +172,3 @@ PyTypeObject BinaryPredicate0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

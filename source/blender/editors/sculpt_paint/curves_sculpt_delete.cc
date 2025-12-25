@@ -2,21 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <algorithm>
-
 #include "curves_sculpt_intern.hh"
 
-#include "BLI_kdtree.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_rand.hh"
 #include "BLI_vector.hh"
 
 #include "DEG_depsgraph.hh"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
-#include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
@@ -28,7 +22,6 @@
 #include "DNA_curves_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -59,7 +52,8 @@ class DeleteOperation : public CurvesSculptStrokeOperation {
   friend struct DeleteOperationExecutor;
 
  public:
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 struct DeleteOperationExecutor {
@@ -73,7 +67,7 @@ struct DeleteOperationExecutor {
   IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -82,12 +76,12 @@ struct DeleteOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  DeleteOperationExecutor(const bContext &C) : ctx_(C) {}
+  DeleteOperationExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(DeleteOperation &self, const bContext &C, const StrokeExtension &stroke_extension)
+  void execute(DeleteOperation &self, const StrokeExtension &stroke_extension)
   {
     self_ = &self;
-    object_ = CTX_data_active_object(&C);
+    object_ = ctx_.object;
 
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
@@ -96,7 +90,7 @@ struct DeleteOperationExecutor {
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
 
     brush_pos_re_ = stroke_extension.mouse_position;
@@ -106,7 +100,7 @@ struct DeleteOperationExecutor {
     const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
 
     if (stroke_extension.is_first) {
-      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
+      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.uiflag & USER_ORBIT_SELECTION)) {
         this->initialize_spherical_brush_reference_point();
       }
       const bke::crazyspace::GeometryDeformation deformation =
@@ -261,15 +255,18 @@ struct DeleteOperationExecutor {
                                                                    brush_radius_base_re_);
     if (brush_3d.has_value()) {
       self_->brush_3d_ = *brush_3d;
+      remember_stroke_position(
+          *curves_sculpt_,
+          math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
     }
   }
 };
 
-void DeleteOperation::on_stroke_extended(const bContext &C,
+void DeleteOperation::on_stroke_extended(const PaintStroke &stroke,
                                          const StrokeExtension &stroke_extension)
 {
-  DeleteOperationExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  DeleteOperationExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_delete_operation()

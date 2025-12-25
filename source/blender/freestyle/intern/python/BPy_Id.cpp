@@ -10,10 +10,6 @@
 
 #include "BPy_Convert.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -29,8 +25,7 @@ int Id_Init(PyObject *module)
     return -1;
   }
 
-  Py_INCREF(&Id_Type);
-  PyModule_AddObject(module, "Id", (PyObject *)&Id_Type);
+  PyModule_AddObjectRef(module, "Id", (PyObject *)&Id_Type);
   return 0;
 }
 
@@ -52,7 +47,6 @@ PyDoc_STRVAR(
     "   :type first: int\n"
     "   :arg second: The second number.\n"
     "   :type second: int\n");
-
 static int Id_init(BPy_Id *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -113,8 +107,7 @@ PyDoc_STRVAR(
     Id_first_doc,
     "The first number constituting the Id.\n"
     "\n"
-    ":type: int");
-
+    ":type: int\n");
 static PyObject *Id_first_get(BPy_Id *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->id->getFirst());
@@ -136,8 +129,7 @@ PyDoc_STRVAR(
     Id_second_doc,
     "The second number constituting the Id.\n"
     "\n"
-    ":type: int");
-
+    ":type: int\n");
 static PyObject *Id_second_get(BPy_Id *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->id->getSecond());
@@ -204,7 +196,3 @@ PyTypeObject Id_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

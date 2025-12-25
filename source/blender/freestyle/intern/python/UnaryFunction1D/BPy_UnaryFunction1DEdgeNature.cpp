@@ -14,10 +14,6 @@
 
 #include "UnaryFunction1D_Nature_EdgeNature/BPy_CurveNatureF1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -33,15 +29,13 @@ int UnaryFunction1DEdgeNature_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction1DEdgeNature_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction1DEdgeNature_Type);
-  PyModule_AddObject(
+  PyModule_AddObjectRef(
       module, "UnaryFunction1DEdgeNature", (PyObject *)&UnaryFunction1DEdgeNature_Type);
 
   if (PyType_Ready(&CurveNatureF1D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&CurveNatureF1D_Type);
-  PyModule_AddObject(module, "CurveNatureF1D", (PyObject *)&CurveNatureF1D_Type);
+  PyModule_AddObjectRef(module, "CurveNatureF1D", (PyObject *)&CurveNatureF1D_Type);
 
   return 0;
 }
@@ -64,7 +58,6 @@ PyDoc_STRVAR(
     "\n"
     "   :arg integration_type: An integration method.\n"
     "   :type integration_type: :class:`IntegrationType`\n");
-
 static int UnaryFunction1DEdgeNature___init__(BPy_UnaryFunction1DEdgeNature *self,
                                               PyObject *args,
                                               PyObject *kwds)
@@ -135,8 +128,7 @@ PyDoc_STRVAR(
     integration_type_doc,
     "The integration method.\n"
     "\n"
-    ":type: :class:`IntegrationType`");
-
+    ":type: :class:`IntegrationType`\n");
 static PyObject *integration_type_get(BPy_UnaryFunction1DEdgeNature *self, void * /*closure*/)
 {
   return BPy_IntegrationType_from_IntegrationType(self->uf1D_edgenature->getIntegrationType());
@@ -207,7 +199,3 @@ PyTypeObject UnaryFunction1DEdgeNature_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

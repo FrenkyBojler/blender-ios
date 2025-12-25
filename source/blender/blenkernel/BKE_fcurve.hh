@@ -9,7 +9,9 @@
  */
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
 #include "BLI_string_ref.hh"
+
 #include "DNA_curve_types.h"
 
 struct ChannelDriver;
@@ -212,7 +214,7 @@ int BKE_fcm_envelope_find_index(FCM_EnvelopeData *array,
 #define BEZT_BINARYSEARCH_THRESH 0.01f /* was 0.00001, but giving errors */
 
 /* -------- Data Management  -------- */
-FCurve *BKE_fcurve_create(void);
+FCurve *BKE_fcurve_create();
 /**
  * Frees the F-Curve itself too, so make sure #BLI_remlink is called before calling this.
  */
@@ -253,10 +255,10 @@ void BKE_fcurve_foreach_id(FCurve *fcu, LibraryForeachIDData *data);
  * in the list of F-Curves provided.
  *
  * \note ONLY use this on a list of F-Curves that is NOT from an Action. Example
- * of a good use would be on adt->drivers, or nlastrip->fcurves.
+ * of a good use would be on `adt->drivers`, or `nlastrip->fcurves`.
  *
- * \see blender::animrig::fcurve_find_in_action
- * \see blender::animrig::fcurve_find_in_action_slot
+ * \see #blender::animrig::fcurve_find_in_action
+ * \see #blender::animrig::fcurve_find_in_action_slot
  */
 FCurve *BKE_fcurve_find(ListBase *list, const char rna_path[], int array_index);
 
@@ -287,7 +289,6 @@ FCurve *id_data_find_fcurve(
  * Find an F-Curve from its rna path and index.
  *
  * The search order is as follows. The first match will be returned:
- *   - Animation
  *   - Action
  *   - Drivers
  *
@@ -348,15 +349,17 @@ int BKE_fcurve_bezt_binarysearch_index(const BezTriple array[],
 /**
  * Cached f-curve look-ups, use when this needs to be done many times.
  */
-FCurvePathCache *BKE_fcurve_pathcache_create(ListBase *list);
+FCurvePathCache *BKE_fcurve_pathcache_create(blender::Span<FCurve *> fcurves);
 void BKE_fcurve_pathcache_destroy(FCurvePathCache *fcache);
-FCurve *BKE_fcurve_pathcache_find(FCurvePathCache *fcache, const char rna_path[], int array_index);
+FCurve *BKE_fcurve_pathcache_find(const FCurvePathCache *fcache,
+                                  const char rna_path[],
+                                  int array_index);
 /**
  * Fill in an array of F-Curve, leave NULL when not found.
  *
  * \return The number of F-Curves found.
  */
-int BKE_fcurve_pathcache_find_array(FCurvePathCache *fcache,
+int BKE_fcurve_pathcache_find_array(const FCurvePathCache *fcache,
                                     const char *rna_path,
                                     FCurve **fcurve_result,
                                     int fcurve_result_len);
@@ -445,13 +448,13 @@ void BKE_fcurve_deselect_all_keys(FCurve &fcu);
 bool BKE_fcurve_is_cyclic(const FCurve *fcu);
 
 /* Type of infinite cycle for a curve. */
-typedef enum eFCU_Cycle_Type {
+enum eFCU_Cycle_Type {
   FCU_CYCLE_NONE = 0,
   /* The cycle repeats identically to the base range. */
   FCU_CYCLE_PERFECT,
   /* The cycle accumulates the change between start and end keys. */
   FCU_CYCLE_OFFSET,
-} eFCU_Cycle_Type;
+};
 
 /**
  * Checks if the F-Curve has a Cycles modifier, and returns the type of the cycle behavior.
@@ -474,10 +477,15 @@ bool BKE_fcurve_bezt_subdivide_handles(BezTriple *bezt,
 /**
  * Resize the FCurve 'bezt' array to fit the given length.
  *
+ * This potentially moves the entire array, and thus pointers from before this call should be
+ * considered invalid / dangling.
+ *
  * \param new_totvert: new number of elements in the FCurve's `bezt` array.
- * Constraint: `0 <= new_totvert <= fcu->totvert`
+ *
+ * \note When increasing the size of the array, newly added elements (that is, in the
+ * [old_totvert..new_totvert] interval) are zero-initialized.
  */
-void BKE_fcurve_bezt_shrink(FCurve *fcu, int new_totvert);
+void BKE_fcurve_bezt_resize(FCurve *fcu, int new_totvert);
 
 /**
  * Merge the two given BezTriple arrays `a` and `b` into a newly allocated BezTriple array of size
@@ -496,7 +504,8 @@ BezTriple *BKE_bezier_array_merge(
  */
 void BKE_fcurve_delete_key(FCurve *fcu, int index);
 
-/** Delete an index range of keyframes from an F-curve. This is more performant than individually
+/**
+ * Delete an index range of keyframes from an F-curve. This is more performant than individually
  * removing keys.
  * Has a complexity of O(N) with respect to number of keys in `fcu`.
  *
@@ -557,6 +566,23 @@ void BKE_fcurve_handles_recalc(FCurve *fcu);
  * (if caller does not operate on selection).
  */
 void BKE_fcurve_handles_recalc_ex(FCurve *fcu, eBezTriple_Flag handle_sel_flag);
+
+enum class HandleSide {
+  LEFT,
+  RIGHT,
+};
+
+/**
+ * For the given keyframe, update the handle mode of one side to be in a valid state based on the
+ * opposite side. For example if one side is set to "Aligned" the other has to copy that, otherwise
+ * it wouldn't be actually aligned. This is useful in cases where the user explcitly sets on handle
+ * type.
+ *
+ * \param side: The source side from which to update the handle flags. This side will not be
+ * affected.
+ */
+void BKE_fcurve_update_handle_flag_from_opposite(BezTriple &key, HandleSide source_side);
+
 /**
  * Update handles, making sure the handle-types are valid (e.g. correctly deduced from an "Auto"
  * type), and recalculating their position vectors.
@@ -583,7 +609,7 @@ bool test_time_fcurve(FCurve *fcu);
  * than the horizontal distance between (v1-v4).
  * This is to prevent curve loops.
  *
- * This function is very similar to BKE_curve_correct_bezpart(), but allows a steeper tangent for
+ * This function is very similar to #BKE_curve_correct_bezpart(), but allows a steeper tangent for
  * more snappy animations. This is not desired for other areas in which curves are used, though.
  */
 void BKE_fcurve_correct_bezpart(const float v1[2], float v2[2], float v3[2], const float v4[2]);
@@ -649,7 +675,7 @@ void BKE_fmodifiers_blend_read_data(BlendDataReader *reader, ListBase *fmodifier
 
 /**
  * Write the FCurve's data to the writer.
- * If this is used to write an FCurve, be sure to call `BLO_write_struct(writer, FCurve, fcurve);`
+ * If this is used to write an FCurve, be sure to call `writer->write_struct(fcurve);`
  * before calling this function.
  */
 void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu);
