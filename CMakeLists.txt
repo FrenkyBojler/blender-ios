@@ -395,8 +395,8 @@ if(UNIX AND NOT (APPLE OR HAIKU))
   mark_as_advanced(WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    option(WITH_GHOST_WAYLAND_LIBDECOR "Optionally build with LibDecor window decorations" ON)
-    mark_as_advanced(WITH_GHOST_WAYLAND_LIBDECOR)
+    option(WITH_GHOST_CSD "Enable client side decorations with Wayland" ON)
+    mark_as_advanced(WITH_GHOST_CSD)
 
     option(WITH_GHOST_WAYLAND_DYNLOAD "Enable runtime dynamic WAYLAND libraries loading" ON)
     mark_as_advanced(WITH_GHOST_WAYLAND_DYNLOAD)
@@ -407,6 +407,11 @@ this can be used to differentiate Blender instances by version or branch for exa
     )
     mark_as_advanced(WITH_GHOST_WAYLAND_APP_ID)
   endif()
+endif()
+
+# Only used for WAYLAND, avoid having to check for WAYLAND everywhere by setting as disabled.
+if(NOT DEFINED WITH_GHOST_CSD)
+  set(WITH_GHOST_CSD OFF)
 endif()
 
 if(WITH_GHOST_X11)
@@ -1627,6 +1632,17 @@ endif()
 
 if(NOT WITH_SYSTEM_EIGEN3)
   set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
+endif()
+if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
+  # See also:
+  #   - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in extern/Eigen3/Eigen/src/Core/util/Memory.h
+  #   - Report: https://projects.blender.org/blender/blender/issues/152010
+  #
+  # NOTE: It seems to only affect GCC and its sanitizer library - but best be on the safe side here,
+  #       and do that for all compilers and systems.
+  message(DEBUG "Forcing Eigen to use their own allocator code because `WITH_COMPILER_ASAN` is enabled but "
+                "`WITH_COMPILER_ASAN_EXTERN` is disabled, which can cause mismatch usages of Eigen allocators." )
+  add_definitions(-DEIGEN_MALLOC_ALREADY_ALIGNED=0)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -2850,7 +2866,6 @@ if(FIRST_RUN)
     endif()
     if(WITH_GHOST_WAYLAND)
       info_cfg_option(WITH_GHOST_WAYLAND_DYNLOAD)
-      info_cfg_option(WITH_GHOST_WAYLAND_LIBDECOR)
     endif()
   endif()
 

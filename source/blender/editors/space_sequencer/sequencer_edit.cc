@@ -209,6 +209,7 @@ bool sequencer_strip_has_path_poll(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
     return false;
   }
   Editing *ed = seq::editing_get(scene);
@@ -2156,6 +2157,19 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
   if (OPERATOR_CANCELLED == gesture_return) {
     scene->ed->runtime.flag &= ~SEQ_SHOW_TRANSFORM_PREVIEW;
   }
+
+  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+
+  /* Set preview frame to the opposite side when moving the box. */
+  if (gesture && gesture->move) {
+    rctf box_rect;
+    WM_operator_properties_border_to_rctf(op, &box_rect);
+    ui::view2d_region_to_view_rctf(v2d, &box_rect, &box_rect);
+    scene->ed->runtime.transform_preview_frame = (mouse_frame == int(box_rect.xmin)) ?
+                                                     int(box_rect.xmax) :
+                                                     int(box_rect.xmin);
+  }
+
   return gesture_return;
 }
 
@@ -3379,6 +3393,10 @@ void SEQUENCER_OT_change_effect_type(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
 {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
@@ -3414,7 +3432,7 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
     if (strip->data->stripdata) {
       MEM_freeN(strip->data->stripdata);
     }
-    strip->data->stripdata = se = MEM_calloc_arrayN<StripElem>(len, "stripelem");
+    strip->data->stripdata = se = MEM_new_array_for_free<StripElem>(len, "stripelem");
 
     if (use_placeholders) {
       sequencer_image_strip_reserve_frames(op, se, len, minext_frameme, numdigits);
@@ -3661,6 +3679,10 @@ static bool strip_get_text_strip_cb(Strip *strip, void *user_data)
 
 static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator *op)
 {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip, *strip_next;
   Editing *ed = seq::editing_get(scene);
@@ -3744,6 +3766,7 @@ static bool sequencer_strip_is_text_poll(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
     return false;
   }
   Editing *ed = seq::editing_get(scene);
