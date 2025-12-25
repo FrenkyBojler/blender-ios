@@ -28,22 +28,15 @@ namespace blender::compositor {
 NodeGroupOperation::NodeGroupOperation(Context &context, const bNodeTree &node_group)
     : Operation(context), node_group_(node_group)
 {
-  node_group.ensure_topology_cache();
-  for (const bNodeSocket *output : node_group.all_output_sockets()) {
-    if (!is_socket_available(output)) {
-      continue;
-    }
-
-    const ResultType result_type = get_node_socket_result_type(output);
+  node_group.ensure_interface_cache();
+  for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
+    const ResultType result_type = get_node_interface_socket_result_type(*output);
     this->populate_result(output->identifier, context.create_result(result_type));
   }
 
-  for (const bNodeSocket *input : node_group.all_input_sockets()) {
-    if (!is_socket_available(input)) {
-      continue;
-    }
-
-    const InputDescriptor input_descriptor = input_descriptor_from_input_socket(input);
+  for (const bNodeTreeInterfaceSocket *input : node_group.interface_inputs()) {
+    const InputDescriptor input_descriptor = input_descriptor_from_interface_input(node_group,
+                                                                                   *input);
     this->declare_input_descriptor(input->identifier, input_descriptor);
   }
 }
@@ -71,6 +64,18 @@ void NodeGroupOperation::execute()
       this->evaluate_node(*node, compile_state);
     }
   }
+
+  /* TODO. */
+  const bNode &group_output_node = *node_group_.group_output_node();
+  for (const bNodeSocket *input : group_output_node.input_sockets()) {
+    Result &output_result = this->get_result(input->identifier);
+    const bNodeSocket *linked_output = get_output_linked_to_input(*input);
+    if (linked_output) {
+      /* The input is linked. So map the input to the result we get from the output. */
+      Result &result = compile_state.get_result_from_output_socket(*linked_output);
+      output_result.share_data(result);
+    }
+  }
 }
 
 static NodeOperation *get_node_operation(Context &context, const bNode &node)
@@ -85,6 +90,11 @@ static NodeOperation *get_node_operation(Context &context, const bNode &node)
 
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
 {
+  /* TODO. */
+  if (node.is_group_input()) {
+    return;
+  }
+
   NodeOperation *operation = get_node_operation(this->context(), node);
 
   compile_state.map_node_to_node_operation(node, operation);
@@ -112,6 +122,13 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
 
     const bNodeSocket *output = get_output_linked_to_input(*input);
     if (output) {
+      /* TODO. */
+      if (output->owner_node().is_group_input()) {
+        Result &result = this->get_input(output->identifier);
+        operation->map_input_to_result(input->identifier, &result);
+        continue;
+      }
+
       /* The input is linked. So map the input to the result we get from the output. */
       Result &result = compile_state.get_result_from_output_socket(*output);
       operation->map_input_to_result(input->identifier, &result);

@@ -253,6 +253,7 @@ Schedule compute_schedule(const Context &context,
   Schedule schedule;
 
   /* Validate node group. */
+  node_group.ensure_topology_cache();
   if (node_group.has_available_link_cycle()) {
     context.set_info_message("Compositor node group has cyclic links.");
     return schedule;

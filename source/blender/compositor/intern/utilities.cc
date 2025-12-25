@@ -85,6 +85,17 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
   return socket_data_type_to_result_type(socket_type);
 }
 
+ResultType get_node_interface_socket_result_type(const bNodeTreeInterfaceSocket &socket)
+{
+  const eNodeSocketDatatype socket_type = socket.socket_typeinfo()->type;
+  if (socket_type == SOCK_VECTOR) {
+    return socket_data_type_to_result_type(
+        socket_type, static_cast<bNodeSocketValueVector *>(socket.socket_data)->dimensions);
+  }
+
+  return socket_data_type_to_result_type(socket_type);
+}
+
 bool is_output_linked_to_node_conditioned(const bNodeSocket &output,
                                           FunctionRef<bool(const bNode &)> condition)
 {
@@ -140,7 +151,6 @@ static int get_domain_priority(const bNodeSocket *input,
 
 InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket)
 {
-  using namespace nodes;
   InputDescriptor input_descriptor;
   input_descriptor.type = get_node_socket_result_type(socket);
 
@@ -150,17 +160,33 @@ InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket)
 
   /* Not every node has a declaration, in which case we assume the default values for the rest of
    * the properties. */
-  const NodeDeclaration *node_declaration = socket->owner_node().declaration();
+  const nodes::NodeDeclaration *node_declaration = socket->owner_node().declaration();
   if (!node_declaration) {
     return input_descriptor;
   }
-  const SocketDeclaration *socket_declaration = node_declaration->inputs[socket->index()];
+  const nodes::SocketDeclaration *socket_declaration = node_declaration->inputs[socket->index()];
   input_descriptor.domain_priority = get_domain_priority(socket, socket_declaration);
   input_descriptor.expects_single_value = socket_declaration->structure_type ==
-                                          StructureType::Single;
+                                          nodes::StructureType::Single;
   input_descriptor.realization_mode = static_cast<InputRealizationMode>(
       socket_declaration->compositor_realization_mode());
   input_descriptor.implicit_input = get_implicit_input(socket_declaration);
+
+  return input_descriptor;
+}
+
+InputDescriptor input_descriptor_from_interface_input(const bNodeTree &node_group,
+                                                      const bNodeTreeInterfaceSocket &socket)
+{
+  InputDescriptor input_descriptor;
+  input_descriptor.type = get_node_interface_socket_result_type(socket);
+  input_descriptor.domain_priority = node_group.interface_input_index(socket);
+  input_descriptor.expects_single_value = socket.structure_type ==
+                                          NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE;
+  input_descriptor.realization_mode = InputRealizationMode::OperationDomain;
+  input_descriptor.implicit_input = socket.default_input == NODE_DEFAULT_INPUT_POSITION_FIELD ?
+                                        ImplicitInput::TextureCoordinates :
+                                        ImplicitInput::None;
 
   return input_descriptor;
 }
@@ -185,12 +211,15 @@ bool is_node_preview_needed(const bNode &node)
     return false;
   }
 
+#if 0
+
   /* Only compute previews for nodes in the active context. */
   if (node.context()->instance_key().value !=
       node.context()->derived_tree().active_context().instance_key().value)
   {
     return false;
   }
+#endif
 
   return true;
 }

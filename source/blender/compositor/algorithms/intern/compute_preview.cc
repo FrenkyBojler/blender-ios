@@ -140,6 +140,7 @@ void compute_preview(Context &context, const bNode &node, const Result &input_re
 
   const int2 preview_size = compute_preview_size(input_result.domain().data_size);
 
+#if 0
   bke::bNodePreview *preview = bke::node_preview_verify(
       root_tree->runtime->previews, node.instance_key(), preview_size.x, preview_size.y, true);
 
@@ -149,6 +150,7 @@ void compute_preview(Context &context, const bNode &node, const Result &input_re
   else {
     compute_preview_cpu(context, input_result, preview);
   }
+#endif
 }
 
 }  // namespace blender::compositor

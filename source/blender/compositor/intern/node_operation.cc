@@ -52,10 +52,12 @@ void NodeOperation::evaluate()
   const timeit::TimePoint before_time = timeit::Clock::now();
   Operation::evaluate();
   const timeit::TimePoint after_time = timeit::Clock::now();
+#if 0
   if (this->context().profiler()) {
     this->context().profiler()->set_node_evaluation_time(this->node().instance_key(),
                                                          after_time - before_time);
   }
+#endif
   if (this->context().use_gpu()) {
     GPU_debug_group_end();
   }
