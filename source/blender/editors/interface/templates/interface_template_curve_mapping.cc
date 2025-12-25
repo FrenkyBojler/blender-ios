@@ -723,7 +723,7 @@ static void curvemap_buttons_layout(Layout *layout,
                    UI_UNIT_Y,
                    &crp->last_pt->x,
                    bounds.xmin + crp->last_pt->x - selection_bounds.xmin,
-                   bounds.xmax - crp->last_pt->x + selection_bounds.xmax,
+                   bounds.xmax + crp->last_pt->x - selection_bounds.xmax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
@@ -749,7 +749,7 @@ static void curvemap_buttons_layout(Layout *layout,
                    UI_UNIT_Y,
                    &crp->last_pt->y,
                    bounds.ymin + crp->last_pt->y - selection_bounds.ymin,
-                   bounds.ymax - crp->last_pt->y + selection_bounds.ymax,
+                   bounds.ymax + crp->last_pt->y - selection_bounds.ymax,
                    "");
     button_number_step_size_set(bt, 1);
     button_number_precision_set(bt, 5);
