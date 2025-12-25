@@ -69,14 +69,20 @@ void NodeGroupOperation::execute()
   }
 
   /* TODO. */
-  const bNode &group_output_node = *node_group_.group_output_node();
-  for (const bNodeSocket *input : group_output_node.input_sockets()) {
-    Result &output_result = this->get_result(input->identifier);
-    const bNodeSocket *linked_output = get_output_linked_to_input(*input);
-    if (linked_output) {
-      /* The input is linked. So map the input to the result we get from the output. */
-      Result &result = compile_state.get_result_from_output_socket(*linked_output);
-      output_result.share_data(result);
+  if (flag_is_set(this->context().needed_outputs(), OutputTypes::Composite)) {
+    const bNode &group_output_node = *node_group_.group_output_node();
+    for (const bNodeSocket *input : group_output_node.input_sockets()) {
+      if (!is_socket_available(input)) {
+        continue;
+      }
+
+      Result &output_result = this->get_result(input->identifier);
+      const bNodeSocket *linked_output = get_output_linked_to_input(*input);
+      if (linked_output) {
+        /* The input is linked. So map the input to the result we get from the output. */
+        Result &result = compile_state.get_result_from_output_socket(*linked_output);
+        output_result.share_data(result);
+      }
     }
   }
 }

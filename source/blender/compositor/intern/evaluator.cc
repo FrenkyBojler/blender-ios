@@ -31,7 +31,7 @@ void Evaluator::evaluate()
       const ResultType input_type = get_node_interface_socket_result_type(*input);
       Result invalid_result = context_.create_result(input_type);
       invalid_result.allocate_invalid();
-      inputs.append(std::make_unique<Result>(input_result));
+      inputs.append(std::make_unique<Result>(invalid_result));
     }
 
     node_group_operation.map_input_to_result(input->identifier, inputs.last().get());
