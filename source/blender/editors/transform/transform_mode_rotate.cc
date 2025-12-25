@@ -45,9 +45,64 @@ struct RotateMatrixCache {
   float mat[3][3];
 };
 
+/* Return exact sin/cos values for angles near 90 degree increments to avoid floating
+ * point errors. */
+static bool get_exact_sincos_quarter_turn(float angle, float *r_sin, float *r_cos)
+{
+  const float quarter = float(M_PI_2);
+  const float turns = angle / quarter;
+  const float snapped_turns = roundf(turns);
+
+  /* Tolerance for snapping. */
+  if (fabsf(turns - snapped_turns) < 1e-4f) {
+    /* Rotation repeats every four quarter turns. k is the index of the quarter rotation.
+     * For 90 degrees, snapped_turns will be 1, and 1 % 4 = 1, so a k=1 corresponds to a 90
+     * degree rotation. For 180 degrees, snapped_turns is 2, 2 % 4 = 2 so a k=2 gives the 180
+     * degree case and so on. Negative angles produce negative remainders so 4 is added to wrap
+     * back into the positive range. */
+    int k = int(snapped_turns) % 4;
+    if (k < 0) {
+      k += 4;
+    }
+    
+    switch (k) {
+      case 0:
+        *r_cos = 1.0f;
+        *r_sin = 0.0f;
+        return true;
+      case 1:
+        *r_cos = 0.0f;
+        *r_sin = 1.0f;
+        return true;
+      case 2:
+        *r_cos = -1.0f;
+        *r_sin = 0.0f;
+        return true;
+      case 3:
+        *r_cos = 0.0f;
+        *r_sin = -1.0f;
+        return true;
+    }
+  }
+  return false;
+}
+
+static void axis_angle_normalized_to_mat3_exact(float mat[3][3],
+                                                const float axis[3],
+                                                const float angle)
+{
+  float s, c;
+  if (get_exact_sincos_quarter_turn(angle, &s, &c)) {
+    axis_angle_normalized_to_mat3_ex(mat, axis, s, c);
+  }
+  else {
+    axis_angle_normalized_to_mat3(mat, axis, angle);
+  }
+}
+
 static void rmat_cache_init(RotateMatrixCache *rmc, const float angle, const float axis[3])
 {
-  axis_angle_normalized_to_mat3(rmc->mat, axis, angle);
+  axis_angle_normalized_to_mat3_exact(rmc->mat, axis, angle);
   rmc->do_update_matrix = 0;
 }
 
@@ -59,7 +114,7 @@ static void rmat_cache_reset(RotateMatrixCache *rmc)
 static void rmat_cache_update(RotateMatrixCache *rmc, const float axis[3], const float angle)
 {
   if (rmc->do_update_matrix > 0) {
-    axis_angle_normalized_to_mat3(rmc->mat, axis, angle);
+    axis_angle_normalized_to_mat3_exact(rmc->mat, axis, angle);
     rmc->do_update_matrix--;
   }
 }
@@ -112,7 +167,7 @@ static void transdata_elem_rotate(const TransInfo *t,
     for (float angle_progress = angle_step; fabsf(angle_progress) < fabsf(angle_final);
          angle_progress += angle_step)
     {
-      axis_angle_normalized_to_mat3(rmc->mat, axis_final, angle_progress);
+      axis_angle_normalized_to_mat3_exact(rmc->mat, axis_final, angle_progress);
       ElementRotation(t, tc, td, td_ext, rmc->mat, t->around);
     }
     rmat_cache_reset(rmc);
@@ -341,7 +396,7 @@ static void applyRotationMatrix(TransInfo *t, float mat_xform[4][4])
 
   float mat3[3][3];
   float mat4[4][4];
-  axis_angle_normalized_to_mat3(mat3, axis_final, angle_final);
+  axis_angle_normalized_to_mat3_exact(mat3, axis_final, angle_final);
   copy_m4_m3(mat4, mat3);
   transform_pivot_set_m4(mat4, t->center_global);
   mul_m4_m4m4(mat_xform, mat4, mat_xform);
