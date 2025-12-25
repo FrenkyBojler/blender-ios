@@ -44,6 +44,10 @@ void Evaluator::evaluate()
     return;
   }
   context_.write_output(node_group_operation.get_result(output->identifier));
+
+  for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
+    node_group_operation.get_result(output->identifier).release();
+  }
 }
 
 }  // namespace blender::compositor

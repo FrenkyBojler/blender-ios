@@ -45,11 +45,12 @@ class GroupNodeOperation : public NodeOperation {
     node_group_operation.evaluate();
 
     for (const bNodeTreeInterfaceSocket *output : node_group->interface_outputs()) {
-      const Result &node_group_result = node_group_operation.get_result(output->identifier);
+      Result &node_group_result = node_group_operation.get_result(output->identifier);
       Result &group_node_result = this->get_result(output->identifier);
       if (group_node_result.should_compute()) {
         group_node_result.share_data(node_group_result);
       }
+      node_group_result.release();
     }
   }
 

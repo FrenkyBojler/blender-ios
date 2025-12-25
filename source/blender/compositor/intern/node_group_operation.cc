@@ -82,6 +82,7 @@ void NodeGroupOperation::execute()
         /* The input is linked. So map the input to the result we get from the output. */
         Result &result = compile_state.get_result_from_output_socket(*linked_output);
         output_result.share_data(result);
+        result.release();
       }
     }
   }
@@ -139,8 +140,9 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
     if (output) {
       /* TODO. */
       if (output->owner_node().is_group_input()) {
-        Result &result = this->get_input(output->identifier);
-        operation->map_input_to_result(input->identifier, &result);
+        Result &input_result = this->get_input(output->identifier);
+        operation->map_input_to_result(input->identifier, &input_result);
+        input_result.increment_reference_count();
         continue;
       }
 
