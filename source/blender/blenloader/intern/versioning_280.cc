@@ -13,16 +13,15 @@
 #include <cfloat>
 #include <cstring>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.h"
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
-
-#include "DNA_defaults.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -57,6 +56,7 @@
 #include "DNA_text_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
 
@@ -83,6 +83,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
 #include "BKE_rigidbody.h"
@@ -152,7 +153,7 @@ static void do_version_workspaces_create_from_screens(Main *bmain)
     if (workspace == nullptr) {
       continue; /* Not much we can do. */
     }
-    BKE_workspace_layout_add(bmain, workspace, screen, screen->id.name + 2);
+    BKE_workspace_layout_add(bmain, *workspace, *screen, screen->id.name + 2);
   }
 
   bmain->is_locked_for_linking = true;
@@ -239,7 +240,7 @@ static void do_version_workspaces_after_lib_link(Main *bmain)
       }
 
       win->scene = scene;
-      STRNCPY(win->view_layer_name, layer->name);
+      STRNCPY_UTF8(win->view_layer_name, layer->name);
 
       /* Deprecated from now on! */
       win->screen = nullptr;
@@ -276,7 +277,7 @@ static void do_version_layers_to_collections(Main *bmain, Scene *scene)
         if (collections[layer] == nullptr) {
           char name[MAX_ID_NAME - 2];
 
-          SNPRINTF(name, DATA_("Collection %d"), layer + 1);
+          SNPRINTF_UTF8(name, DATA_("Collection %d"), layer + 1);
 
           Collection *collection = BKE_collection_add(bmain, collection_master, name);
           collection->id.lib = scene->id.lib;
@@ -616,13 +617,13 @@ static void do_version_constraints_copy_rotation_mix_mode(ListBase *lb)
 static void do_versions_seq_alloc_transform_and_crop(ListBase *seqbase)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD) == 0) {
+    if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD) == 0) {
       if (strip->data->transform == nullptr) {
-        strip->data->transform = MEM_callocN<StripTransform>("StripTransform");
+        strip->data->transform = MEM_new_for_free<StripTransform>("StripTransform");
       }
 
       if (strip->data->crop == nullptr) {
-        strip->data->crop = MEM_callocN<StripCrop>("StripCrop");
+        strip->data->crop = MEM_new_for_free<StripCrop>("StripCrop");
       }
 
       if (strip->seqbase.first != nullptr) {
@@ -777,11 +778,11 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
               smd->type);
 
           if (smti) {
-            if (smd->type == seqModifierType_Curves) {
+            if (smd->type == eSeqModifierType_Curves) {
               CurvesModifierData *cmd = (CurvesModifierData *)smd;
               callback(&cmd->curve_mapping);
             }
-            else if (smd->type == seqModifierType_HueCorrect) {
+            else if (smd->type == eSeqModifierType_HueCorrect) {
               HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
               callback(&hcmd->curve_mapping);
             }
@@ -835,8 +836,8 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
   FOREACH_NODETREE_END;
 
   LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-    if (brush->curve) {
-      callback(brush->curve);
+    if (brush->curve_distance_falloff) {
+      callback(brush->curve_distance_falloff);
     }
     if (brush->gpencil_settings) {
       if (brush->gpencil_settings->curve_sensitivity) {
@@ -1192,8 +1193,8 @@ static void image_node_colorspace(bNode *node)
   enum { SHD_COLORSPACE_NONE = 0 };
   Image *image = (Image *)node->id;
   if (color_space == SHD_COLORSPACE_NONE) {
-    STRNCPY(image->colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
+    STRNCPY_UTF8(image->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
   }
 }
 
@@ -1930,8 +1931,8 @@ static void update_voronoi_node_fac_output(bNodeTree *ntree)
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->type_legacy == SH_NODE_TEX_VORONOI) {
       bNodeSocket *facOutput = static_cast<bNodeSocket *>(BLI_findlink(&node->outputs, 1));
-      STRNCPY(facOutput->identifier, "Distance");
-      STRNCPY(facOutput->name, "Distance");
+      STRNCPY_UTF8(facOutput->identifier, "Distance");
+      STRNCPY_UTF8(facOutput->name, "Distance");
     }
   }
 }
@@ -2160,7 +2161,7 @@ static void update_noise_and_wave_distortion(bNodeTree *ntree)
         mulNode->custom1 = NODE_MATH_MULTIPLY;
         mulNode->locx_legacy = node->locx_legacy;
         mulNode->locy_legacy = node->locy_legacy - 240.0f;
-        mulNode->flag |= NODE_HIDDEN;
+        mulNode->flag |= NODE_COLLAPSED;
         bNodeSocket *mulSockA = static_cast<bNodeSocket *>(BLI_findlink(&mulNode->inputs, 0));
         bNodeSocket *mulSockB = static_cast<bNodeSocket *>(BLI_findlink(&mulNode->inputs, 1));
         *version_cycles_node_socket_float_value(mulSockB) = 0.5f;
@@ -2251,7 +2252,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
 
           if (*collection_hidden == nullptr) {
             char name[MAX_ID_NAME];
-            SNPRINTF(name, DATA_("Hidden %d"), coll_idx + 1);
+            SNPRINTF_UTF8(name, DATA_("Hidden %d"), coll_idx + 1);
             *collection_hidden = BKE_collection_add(bmain, collection, name);
             (*collection_hidden)->flag |= COLLECTION_HIDE_VIEWPORT | COLLECTION_HIDE_RENDER;
           }
@@ -2485,7 +2486,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         block->data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
-        float(*newptr)[3] = static_cast<float(*)[3]>(block->data);
+        float (*newptr)[3] = static_cast<float (*)[3]>(block->data);
 
         LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
           if (nu->bezt) {
@@ -3033,7 +3034,7 @@ enum class eNTreeDoVersionErrors : int8_t {
   NTREE_DOVERSION_NEED_OUTPUT = (1 << 0),
   NTREE_DOVERSION_TRANSPARENCY_EMISSION = (1 << 1),
 };
-ENUM_OPERATORS(eNTreeDoVersionErrors, ~int8_t{});
+ENUM_OPERATORS(eNTreeDoVersionErrors);
 
 /* NOLINTNEXTLINE: readability-function-size */
 void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
@@ -3095,14 +3096,14 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           if (node->type_legacy == 194 /* SH_NODE_EEVEE_METALLIC */ &&
               STREQ(node->idname, "ShaderNodeOutputMetallic"))
           {
-            STRNCPY(node->idname, "ShaderNodeEeveeMetallic");
+            STRNCPY_UTF8(node->idname, "ShaderNodeEeveeMetallic");
             error |= eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT;
           }
 
           else if (node->type_legacy == SH_NODE_EEVEE_SPECULAR &&
                    STREQ(node->idname, "ShaderNodeOutputSpecular"))
           {
-            STRNCPY(node->idname, "ShaderNodeEeveeSpecular");
+            STRNCPY_UTF8(node->idname, "ShaderNodeEeveeSpecular");
             error |= eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT;
           }
 
@@ -3110,14 +3111,14 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
                    STREQ(node->idname, "ShaderNodeOutputEeveeMaterial"))
           {
             node->type_legacy = SH_NODE_OUTPUT_MATERIAL;
-            STRNCPY(node->idname, "ShaderNodeOutputMaterial");
+            STRNCPY_UTF8(node->idname, "ShaderNodeOutputMaterial");
           }
 
           else if (node->type_legacy == 194 /* SH_NODE_EEVEE_METALLIC */ &&
                    STREQ(node->idname, "ShaderNodeEeveeMetallic"))
           {
             node->type_legacy = SH_NODE_BSDF_PRINCIPLED;
-            STRNCPY(node->idname, "ShaderNodeBsdfPrincipled");
+            STRNCPY_UTF8(node->idname, "ShaderNodeBsdfPrincipled");
             node->custom1 = SHD_GLOSSY_MULTI_GGX;
             error |= eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION;
           }
@@ -3126,9 +3127,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");
@@ -3138,9 +3137,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           "nodes.\n");
     }
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");
@@ -3177,7 +3174,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             BKE_curvemap_reset(gset.cur_falloff->cm,
                                &gset.cur_falloff->clipr,
                                CURVE_PRESET_GAUSS,
-                               CURVEMAP_SLOPE_POSITIVE);
+                               CurveMapSlopeType::Positive);
           }
         }
       }
@@ -3278,7 +3275,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
      * as scene render engine. */
     if (MAIN_VERSION_FILE_ATLEAST(bmain, 280, 0)) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
+        STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
       }
     }
   }
@@ -3287,10 +3284,8 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     /* Blender Internal removal */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (STR_ELEM(scene->r.engine, "BLENDER_RENDER", "BLENDER_GAME")) {
-        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
+        STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
       }
-
-      scene->r.bake_mode = 0;
     }
 
     LISTBASE_FOREACH (Tex *, tex, &bmain->textures) {
@@ -3461,7 +3456,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      const int _value = IDP_Int(_idprop); \
+      const int _value = IDP_int_get(_idprop); \
       if (_value) { \
         scene->eevee.flag |= _flag; \
       } \
@@ -3476,7 +3471,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      scene->eevee._name = IDP_Int(_idprop); \
+      scene->eevee._name = IDP_int_get(_idprop); \
     } \
   } \
   ((void)0)
@@ -3485,7 +3480,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   { \
     IDProperty *_idprop = IDP_GetPropertyFromGroup(_props, #_name); \
     if (_idprop != nullptr) { \
-      scene->eevee._name = IDP_Float(_idprop); \
+      scene->eevee._name = IDP_float_get(_idprop); \
     } \
   } \
   ((void)0)
@@ -3769,8 +3764,8 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (Image *, ima, &bmain->images) {
         if (ima->type == IMA_TYPE_R_RESULT) {
           for (int i = 0; i < 8; i++) {
-            RenderSlot *slot = MEM_callocN<RenderSlot>("Image Render Slot Init");
-            SNPRINTF(slot->name, "Slot %d", i + 1);
+            RenderSlot *slot = MEM_new_for_free<RenderSlot>("Image Render Slot Init");
+            SNPRINTF_UTF8(slot->name, "Slot %d", i + 1);
             BLI_addtail(&ima->renderslots, slot);
           }
         }
@@ -3861,7 +3856,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         if (rbw->shared == nullptr) {
-          rbw->shared = MEM_callocN<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
+          rbw->shared = MEM_new_for_free<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
           BKE_rigidbody_world_init_runtime(rbw);
         }
 
@@ -3885,7 +3880,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           continue;
         }
         if (sb->shared == nullptr) {
-          sb->shared = MEM_callocN<SoftBody_Shared>("SoftBody_Shared");
+          sb->shared = MEM_new_for_free<SoftBody_Shared>("SoftBody_Shared");
         }
 
         /* Move shared pointers from deprecated location to current location */
@@ -4553,7 +4548,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           BKE_curvemap_reset(gset.cur_primitive->cm,
                              &gset.cur_primitive->clipr,
                              CURVE_PRESET_BELL,
-                             CURVEMAP_SLOPE_POSITIVE);
+                             CurveMapSlopeType::Positive);
         }
       }
     }
@@ -4639,7 +4634,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       }
 
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_update_flags_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_update_flags_cb, nullptr);
       }
     }
 
@@ -4655,14 +4650,15 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      ob->flag &= ~(OB_FLAG_USE_SIMULATION_CACHE | OB_FLAG_UNUSED_12);
+      ob->flag &= ~(OB_FLAG_USE_SIMULATION_CACHE | OB_FLAG_ACTIVE_CLIPBOARD);
       ob->transflag &= ~(OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK | OB_TRANSFLAG_UNUSED_1);
       ob->shapeflag &= ~OB_SHAPE_FLAG_UNUSED_1;
     }
 
     LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      me->flag &= ~(ME_FLAG_UNUSED_0 | ME_FLAG_UNUSED_1 | ME_FLAG_UNUSED_3 | ME_FLAG_UNUSED_4 |
-                    ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 | ME_REMESH_REPROJECT_ATTRIBUTES);
+      me->flag &= ~(ME_FLAG_UNUSED_0 | ME_FLAG_UNUSED_1 | ME_FLAG_UV_SELECT_SYNC_VALID |
+                    ME_FLAG_UNUSED_4 | ME_FLAG_UNUSED_6 | ME_FLAG_UNUSED_7 |
+                    ME_REMESH_REPROJECT_ATTRIBUTES);
     }
 
     LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
@@ -4846,15 +4842,15 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
        * properly initialized previously. This is mere copy of #scene_init_data code. */
       if (scene->r.im_format.view_settings.look[0] == '\0') {
         BKE_color_managed_display_settings_init(&scene->r.im_format.display_settings);
-        BKE_color_managed_view_settings_init_render(
+        BKE_color_managed_view_settings_init(
             &scene->r.im_format.view_settings, &scene->r.im_format.display_settings, "Filmic");
       }
 
       if (scene->r.bake.im_format.view_settings.look[0] == '\0') {
         BKE_color_managed_display_settings_init(&scene->r.bake.im_format.display_settings);
-        BKE_color_managed_view_settings_init_render(&scene->r.bake.im_format.view_settings,
-                                                    &scene->r.bake.im_format.display_settings,
-                                                    "Filmic");
+        BKE_color_managed_view_settings_init(&scene->r.bake.im_format.view_settings,
+                                             &scene->r.bake.im_format.display_settings,
+                                             "Filmic");
       }
     }
   }
@@ -4896,7 +4892,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           /* Fix missing version patching from earlier changes. */
           if (STREQ(node->idname, "ShaderNodeOutputLamp")) {
-            STRNCPY(node->idname, "ShaderNodeOutputLight");
+            STRNCPY_UTF8(node->idname, "ShaderNodeOutputLight");
           }
           if (node->type_legacy == SH_NODE_BSDF_PRINCIPLED && node->custom2 == 0) {
             node->custom2 = SHD_SUBSURFACE_BURLEY;
@@ -5258,17 +5254,17 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       view_settings = &scene->view_settings;
 
       if (STREQ(view_settings->view_transform, "Default")) {
-        STRNCPY(view_settings->view_transform, "Standard");
+        STRNCPY_UTF8(view_settings->view_transform, "Standard");
       }
       else if (STR_ELEM(view_settings->view_transform, "RRT", "Film")) {
-        STRNCPY(view_settings->view_transform, "Filmic");
+        STRNCPY_UTF8(view_settings->view_transform, "Filmic");
       }
       else if (STREQ(view_settings->view_transform, "Log")) {
-        STRNCPY(view_settings->view_transform, "Filmic Log");
+        STRNCPY_UTF8(view_settings->view_transform, "Filmic Log");
       }
 
       if (STREQ(view_settings->look, "Filmic - Base Contrast")) {
-        STRNCPY(view_settings->look, "None");
+        STRNCPY_UTF8(view_settings->look, "None");
       }
     }
   }
@@ -5750,7 +5746,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     /* Add primary tile to images. */
     if (!DNA_struct_member_exists(fd->filesdna, "Image", "ListBase", "tiles")) {
       LISTBASE_FOREACH (Image *, ima, &bmain->images) {
-        ImageTile *tile = MEM_callocN<ImageTile>("Image Tile");
+        ImageTile *tile = MEM_new_for_free<ImageTile>("Image Tile");
         tile->tile_number = 1001;
         BLI_addtail(&ima->tiles, tile);
       }
@@ -6169,13 +6165,13 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
 
     if (!DNA_struct_exists(fd->filesdna, "XrSessionSettings")) {
       LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
-        const View3D *v3d_default = DNA_struct_default_get(View3D);
+        const View3D v3d_default = {};
 
-        wm->xr.session_settings.shading = v3d_default->shading;
+        wm->xr.session_settings.shading = v3d_default.shading;
         wm->xr.session_settings.draw_flags = (V3D_OFSDRAW_SHOW_GRIDFLOOR |
                                               V3D_OFSDRAW_SHOW_ANNOTATION);
-        wm->xr.session_settings.clip_start = v3d_default->clip_start;
-        wm->xr.session_settings.clip_end = v3d_default->clip_end;
+        wm->xr.session_settings.clip_start = v3d_default.clip_start;
+        wm->xr.session_settings.clip_end = v3d_default.clip_end;
 
         wm->xr.session_settings.flag = XR_SESSION_USE_POSITION_TRACKING;
       }

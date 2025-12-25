@@ -55,15 +55,15 @@ class Instance : public DrawEngine {
     return "Select ID Debug";
   }
 
-  void init() final{};
-  void begin_sync() final{};
+  void init() final {};
+  void begin_sync() final {};
   void object_sync(blender::draw::ObjectRef & /*ob_ref*/,
-                   blender::draw::Manager & /*manager*/) final{};
-  void end_sync() final{};
+                   blender::draw::Manager & /*manager*/) final {};
+  void end_sync() final {};
 
   void draw(blender::draw::Manager &manager) final
   {
-    GPUTexture *texture_u32 = DRW_engine_select_texture_get();
+    gpu::Texture *texture_u32 = DRW_engine_select_texture_get();
     if (texture_u32 == nullptr) {
       return;
     }

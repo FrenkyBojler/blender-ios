@@ -110,7 +110,6 @@ static void bezt_to_transdata(TransData *td,
   memset(td->axismtx, 0, sizeof(td->axismtx));
   td->axismtx[2][2] = 1.0f;
 
-  td->ext = nullptr;
   td->val = nullptr;
 
   /* Store AnimData info in td->extra, for applying mapping when flushing.
@@ -382,7 +381,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
     float xscale, yscale;
 
     /* Apply scale factors to x and y axes of space-conversion matrices. */
-    UI_view2d_scale_get(v2d, &xscale, &yscale);
+    blender::ui::view2d_scale_get(v2d, &xscale, &yscale);
 
     /* `mtx` is data to global (i.e. view) conversion. */
     mul_v3_fl(mtx[0], xscale);

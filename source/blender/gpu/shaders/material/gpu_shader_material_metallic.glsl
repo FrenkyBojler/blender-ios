@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_math_vector_safe_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
+
 float3 fresnel_conductor(float cosi, float3 eta, float3 k)
 {
 
@@ -27,9 +30,11 @@ void node_bsdf_metallic(float4 base_color,
                         float3 N,
                         float3 T,
                         float weight,
+                        float thin_film_thickness,
+                        float thin_film_ior,
                         const float do_multiscatter,
                         const float use_complex_ior,
-                        out Closure result)
+                        Closure &result)
 {
   float3 F0 = base_color.rgb;
   float3 F82 = edge_tint.rgb;

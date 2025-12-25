@@ -8,11 +8,13 @@
 
 #include "node_shader_util.hh"
 
+#include "BLI_math_base.h"
+
 #include "FN_multi_function_builder.hh"
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_clamp_cc {
@@ -26,9 +28,9 @@ static void sh_node_clamp_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Result");
 }
 
-static void node_shader_buts_clamp(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_clamp(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "clamp_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "clamp_type", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_clamp(bNodeTree * /*ntree*/, bNode *node)

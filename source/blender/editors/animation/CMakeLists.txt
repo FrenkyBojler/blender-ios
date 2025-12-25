@@ -8,12 +8,12 @@ set(INC
   ../space_graph
   ../../asset_system
   ../../makesrna
-  ../../../../extern/fmtlib/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
+  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -67,6 +67,7 @@ add_dependencies(bf_editor_animation bf_rna)
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    anim_draw_test.cc
     anim_filter_test.cc
     keyframes_general_test.cc
     keyframes_keylist_test.cc

@@ -16,7 +16,7 @@
 
 #include "DNA_material_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_shader_util.hh"
@@ -107,26 +107,26 @@ static void sh_node_mix_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Rotation>("Result", "Result_Rotation");
 };
 
-static void sh_node_mix_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void sh_node_mix_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   const NodeShaderMix &data = node_storage(*static_cast<const bNode *>(ptr->data));
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
   switch (data.data_type) {
     case SOCK_FLOAT:
       break;
     case SOCK_VECTOR:
-      layout->prop(ptr, "factor_mode", UI_ITEM_NONE, "", ICON_NONE);
+      layout.prop(ptr, "factor_mode", UI_ITEM_NONE, "", ICON_NONE);
       break;
     case SOCK_RGBA:
-      layout->prop(ptr, "blend_type", UI_ITEM_NONE, "", ICON_NONE);
-      layout->prop(ptr, "clamp_result", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "blend_type", UI_ITEM_NONE, "", ICON_NONE);
+      layout.prop(ptr, "clamp_result", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SOCK_ROTATION:
       break;
     default:
       BLI_assert_unreachable();
   }
-  layout->prop(ptr, "clamp_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "clamp_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void sh_node_mix_label(const bNodeTree * /*ntree*/,
@@ -139,12 +139,12 @@ static void sh_node_mix_label(const bNodeTree * /*ntree*/,
     const char *name;
     bool enum_label = RNA_enum_name(rna_enum_ramp_blend_items, storage.blend_type, &name);
     if (!enum_label) {
-      name = "Unknown";
+      name = N_("Unknown");
     }
     BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
     return;
   }
-  BLI_strncpy_utf8(label, "Mix", label_maxncpy);
+  BLI_strncpy_utf8(label, IFACE_("Mix"), label_maxncpy);
 }
 
 static int sh_node_mix_ui_class(const bNode *node)
@@ -292,7 +292,7 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_mix_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
+  NodeShaderMix *data = MEM_new_for_free<NodeShaderMix>(__func__);
   data->data_type = SOCK_FLOAT;
   data->factor_mode = NODE_MIX_MODE_UNIFORM;
   data->clamp_factor = 1;
@@ -465,7 +465,7 @@ class MixColorFunction : public mf::MultiFunction {
 
     if (clamp_result_) {
       mask.foreach_index_optimized<int64_t>(
-          [&](const int64_t i) { clamp_v3(results[i], 0.0f, 1.0f); });
+          [&](const int64_t i) { clamp_v4(results[i], 0.0f, 1.0f); });
     }
   }
 };

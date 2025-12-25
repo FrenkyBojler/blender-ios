@@ -12,7 +12,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -201,7 +201,7 @@ static void ruler_item_as_string(
         ruler_item->co[0], ruler_item->co[1], ruler_item->co[2]);
 
     if (unit.system == USER_UNIT_NONE) {
-      BLI_snprintf(
+      BLI_snprintf_utf8(
           numstr, numstr_size, "%.*f" BLI_STR_UTF8_DEGREE_SIGN, prec, RAD2DEGF(ruler_angle));
     }
     else {
@@ -213,7 +213,7 @@ static void ruler_item_as_string(
     const float ruler_len = len_v3v3(ruler_item->co[0], ruler_item->co[2]);
 
     if (unit.system == USER_UNIT_NONE) {
-      BLI_snprintf(numstr, numstr_size, "%.*f", prec, ruler_len);
+      BLI_snprintf_utf8(numstr, numstr_size, "%.*f", prec, ruler_len);
     }
     else {
       BKE_unit_value_as_string_scaled(
@@ -555,7 +555,7 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
     int j;
 
     /* allocate memory for a new stroke */
-    gps = MEM_callocN<bGPDstroke>("gp_stroke");
+    gps = MEM_new_for_free<bGPDstroke>("gp_stroke");
     if (ruler_item->flag & RULERITEM_USE_ANGLE) {
       gps->totpoints = 3;
       pt = gps->points = (bGPDspoint *)MEM_callocN(sizeof(bGPDspoint) * gps->totpoints,
@@ -712,8 +712,8 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   BLF_size(blf_mono_font, 14.0f * UI_SCALE_FAC);
   BLF_rotation(blf_mono_font, 0.0f);
 
-  UI_GetThemeColor3ubv(TH_TEXT, color_text);
-  UI_GetThemeColor3ubv(TH_WIRE, color_wire);
+  blender::ui::theme::get_color_3ubv(TH_TEXT, color_text);
+  blender::ui::theme::get_color_3ubv(TH_WIRE, color_wire);
 
   /* Avoid white on white text. (TODO: Fix by using theme). */
   if (int(color_text[0]) + int(color_text[1]) + int(color_text[2]) > 127 * 3 * 0.6f) {
@@ -1391,10 +1391,9 @@ static wmOperatorStatus view3d_ruler_add_invoke(bContext *C, wmOperator *op, con
 
   /* This is a little weak, but there is no real good way to tweak directly. */
   WM_gizmo_highlight_set(gzmap, &ruler_item->gz);
-  if (WM_operator_name_call(
-          C, "GIZMOGROUP_OT_gizmo_tweak", WM_OP_INVOKE_REGION_WIN, nullptr, event) ==
-      OPERATOR_RUNNING_MODAL)
-  {
+  const wmOperatorStatus status = WM_operator_name_call(
+      C, "GIZMOGROUP_OT_gizmo_tweak", blender::wm::OpCallContext::InvokeRegionWin, nullptr, event);
+  if (status == OPERATOR_RUNNING_MODAL) {
     RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
     RulerInteraction *inter = static_cast<RulerInteraction *>(ruler_item->gz.interaction_data);
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);

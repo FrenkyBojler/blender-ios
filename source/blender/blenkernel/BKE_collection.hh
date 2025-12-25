@@ -10,8 +10,11 @@
 
 #include "BLI_ghash.h"
 #include "BLI_iterator.h"
+#include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 
+#include "DNA_collection_types.h"
 #include "DNA_listBase.h"
 #include "DNA_userdef_enums.h"
 
@@ -48,6 +51,8 @@ enum {
   COLLECTION_TAG_COLLECTION_OBJECT_DIRTY = (1 << 1),
 };
 
+using CollectionObjectMap = blender::Map<const Object *, CollectionObject *>;
+
 namespace blender::bke {
 
 struct CollectionRuntime {
@@ -65,7 +70,7 @@ struct CollectionRuntime {
   ListBase parents = {};
 
   /** An optional map for faster lookups on #Collection.gobject */
-  GHash *gobject_hash = nullptr;
+  CollectionObjectMap *gobject_hash = nullptr;
 
   uint8_t tag = 0;
 };
@@ -110,6 +115,21 @@ void BKE_collection_add_from_collection(Main *bmain,
  * Free (or release) any data used by this collection (does not free the collection itself).
  */
 void BKE_collection_free_data(Collection *collection);
+
+/**
+ * Add a new collection exporter to the collection.
+ */
+CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idname, char *label);
+
+/**
+ * Remove a collection exporter from the collection.
+ */
+void BKE_collection_exporter_remove(Collection *collection, CollectionExport *data);
+
+/**
+ * Move a collection exporter from one position to another.
+ */
+bool BKE_collection_exporter_move(Collection *collection, const int from, const int to);
 
 /**
  * Assigns a unique name to the collection exporter.
@@ -159,6 +179,13 @@ Collection *BKE_collection_duplicate(Main *bmain,
 
 #define BKE_SCENE_COLLECTION_NAME "Scene Collection"
 Collection *BKE_collection_master_add(Scene *scene);
+
+/**
+ * Check if the collection contains any geometry that can be rendered. Otherwise there's nothing to
+ * display in the preview, so don't generate one.
+ * Objects and sub-collections hidden in the render will be skipped.
+ */
+bool BKE_collection_contains_geometry_recursive(const Collection *collection);
 
 /* Collection Objects */
 
@@ -295,15 +322,21 @@ Base *BKE_collection_or_layer_objects(const Scene *scene,
 /* Editing. */
 
 /**
- * Return Scene Collection for a given index.
- *
- * The index is calculated from top to bottom counting the children before the siblings.
+ * Return Scene Collection for a given session_uid.
  */
-Collection *BKE_collection_from_index(Scene *scene, int index);
+Collection *BKE_collection_from_session_uid(Scene *scene, uint64_t session_uid);
+/**
+ * Return Collection for a given session_uid and its owner Scene.
+ */
+Collection *BKE_collection_from_session_uid(Main *bmain,
+                                            uint64_t session_uid,
+                                            Scene **r_scene = nullptr);
+
 /**
  * The automatic/fallback name of a new collection.
  */
-void BKE_collection_new_name_get(Collection *collection_parent, char *rname);
+void BKE_collection_new_name_get(Collection *collection_parent,
+                                 char r_name[/*MAX_ID_NAME - 2*/ 256]);
 /**
  * The name to show in the interface.
  */
@@ -453,13 +486,14 @@ void BKE_scene_objects_iterator_next_ex(BLI_Iterator *iter);
 void BKE_scene_objects_iterator_end_ex(BLI_Iterator *iter);
 
 /**
- * Generate a new #GSet (or extend given `objects_gset` if not NULL) with all objects referenced by
+ * Generate a new #Set (or extend given `objects_set` if not NULL) with all objects referenced by
  * all collections of given `scene`.
  *
  * \note This will include objects without a base currently
  * (because they would belong to excluded collections only e.g.).
  */
-GSet *BKE_scene_objects_as_gset(Scene *scene, GSet *objects_gset);
+blender::Set<Object *> *BKE_scene_objects_as_set(Scene *scene,
+                                                 blender::Set<Object *> *objects_set);
 
 #define FOREACH_SCENE_COLLECTION_BEGIN(scene, _instance) \
   ITER_BEGIN (BKE_scene_collections_iterator_begin, \

@@ -16,6 +16,7 @@
 #include "DNA_object_enums.h"
 #include "DNA_scene_types.h"
 
+#include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_screen.hh"
 
@@ -216,7 +217,7 @@ static void keymap_grease_pencil_edit_mode(wmKeyConfig *keyconf)
 static void keymap_grease_pencil_paint_mode(wmKeyConfig *keyconf)
 {
   wmKeyMap *keymap = WM_keymap_ensure(
-      keyconf, "Grease Pencil Paint Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
+      keyconf, "Grease Pencil Draw Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = grease_pencil_painting_poll;
 }
 
@@ -320,6 +321,7 @@ void ED_operatortypes_grease_pencil()
   ED_operatortypes_grease_pencil_lineart();
   ED_operatortypes_grease_pencil_trace();
   ED_operatortypes_grease_pencil_bake_animation();
+  ED_operatortypes_grease_pencil_pen();
 }
 
 void ED_operatormacros_grease_pencil()
@@ -372,4 +374,5 @@ void ED_keymap_grease_pencil(wmKeyConfig *keyconf)
   ED_primitivetool_modal_keymap(keyconf);
   ED_filltool_modal_keymap(keyconf);
   ED_interpolatetool_modal_keymap(keyconf);
+  ED_grease_pencil_pentool_modal_keymap(keyconf);
 }

@@ -18,7 +18,7 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -54,16 +54,16 @@ void nla_action_get_color(AnimData *adt, bAction *act, float color[4])
 {
   if (adt && (adt->flag & ADT_NLA_EDIT_ON)) {
     /* greenish color (same as tweaking strip) */
-    UI_GetThemeColor4fv(TH_NLA_TWEAK, color);
+    ui::theme::get_color_4fv(TH_NLA_TWEAK, color);
   }
   else {
     if (act) {
       /* reddish color - same as dope-sheet summary */
-      UI_GetThemeColor4fv(TH_ANIM_ACTIVE, color);
+      ui::theme::get_color_4fv(TH_ANIM_ACTIVE, color);
     }
     else {
       /* grayish-red color */
-      UI_GetThemeColor4fv(TH_ANIM_INACTIVE, color);
+      ui::theme::get_color_4fv(TH_ANIM_INACTIVE, color);
     }
   }
 
@@ -250,7 +250,7 @@ static void nla_strip_get_color_inside(AnimData *adt, NlaStrip *strip, float col
         /* Active strip tweak - tweak theme is applied only to active edit strip,
          * not linked-duplicates.
          */
-        UI_GetThemeColor3fv(TH_NLA_TWEAK, color);
+        ui::theme::get_color_3fv(TH_NLA_TWEAK, color);
         break;
       }
 
@@ -258,35 +258,35 @@ static void nla_strip_get_color_inside(AnimData *adt, NlaStrip *strip, float col
         /* Non-active strip tweak - display warning theme
          * for non active linked-duplicates.
          */
-        UI_GetThemeColor3fv(TH_NLA_TWEAK_DUPLI, color);
+        ui::theme::get_color_3fv(TH_NLA_TWEAK_DUPLI, color);
         break;
       }
       if (strip->flag & NLASTRIP_FLAG_SELECT) {
         /* selected. */
-        UI_GetThemeColor3fv(TH_STRIP_SELECT, color);
+        ui::theme::get_color_3fv(TH_STRIP_SELECT, color);
         break;
       }
 
       /* unselected - use standard strip theme. */
-      UI_GetThemeColor3fv(TH_STRIP, color);
+      ui::theme::get_color_3fv(TH_STRIP, color);
       break;
 
     case NLASTRIP_TYPE_META:
       /* Meta Strip. */
-      UI_GetThemeColor3fv(is_selected ? TH_NLA_META_SEL : TH_NLA_META, color);
+      ui::theme::get_color_3fv(is_selected ? TH_NLA_META_SEL : TH_NLA_META, color);
       break;
     case NLASTRIP_TYPE_TRANSITION: {
       /* Transition Strip. */
-      UI_GetThemeColor3fv(is_selected ? TH_NLA_TRANSITION_SEL : TH_NLA_TRANSITION, color);
+      ui::theme::get_color_3fv(is_selected ? TH_NLA_TRANSITION_SEL : TH_NLA_TRANSITION, color);
       break;
     }
     case NLASTRIP_TYPE_SOUND:
       /* Sound Strip. */
-      UI_GetThemeColor3fv(is_selected ? TH_NLA_SOUND_SEL : TH_NLA_SOUND, color);
+      ui::theme::get_color_3fv(is_selected ? TH_NLA_SOUND_SEL : TH_NLA_SOUND, color);
       break;
     default: {
       /* default to unselected theme. */
-      UI_GetThemeColor3fv(TH_STRIP, color);
+      ui::theme::get_color_3fv(TH_STRIP, color);
     } break;
   }
 }
@@ -489,13 +489,13 @@ static void nla_draw_strip(SpaceNla *snla,
     immUnbindProgram();
 
     /* strip is in normal track */
-    UI_draw_roundbox_corner_set(UI_CNR_ALL); /* all corners rounded */
+    blender::ui::draw_roundbox_corner_set(blender::ui::CNR_ALL); /* all corners rounded */
     rctf rect;
     rect.xmin = strip->start;
     rect.xmax = strip->end;
     rect.ymin = yminc;
     rect.ymax = ymaxc;
-    UI_draw_roundbox_4fv(&rect, true, 0.0f, color);
+    blender::ui::draw_roundbox_4fv(&rect, true, 0.0f, color);
 
     /* restore current vertex format & program (roundbox trashes it) */
     shdr_pos = GPU_vertformat_attr_add(
@@ -557,7 +557,7 @@ static void nla_draw_strip(SpaceNla *snla,
     rect.xmax = strip->end;
     rect.ymin = yminc;
     rect.ymax = ymaxc;
-    UI_draw_roundbox_4fv(&rect, false, 0.0f, color);
+    blender::ui::draw_roundbox_4fv(&rect, false, 0.0f, color);
 
     /* restore current vertex format & program (roundbox trashes it) */
     shdr_pos = nla_draw_use_dashed_outlines(color, muted);
@@ -634,10 +634,10 @@ static void nla_draw_strip_text(AnimData *adt,
 
   /* just print the name and the range */
   if (strip->flag & NLASTRIP_FLAG_TEMP_META) {
-    str_len = STRNCPY_RLEN(str, DATA_("Temp-Meta"));
+    str_len = STRNCPY_UTF8_RLEN(str, DATA_("Temp-Meta"));
   }
   else {
-    str_len = STRNCPY_RLEN(str, strip->name);
+    str_len = STRNCPY_UTF8_RLEN(str, strip->name);
   }
 
   /* set text color - if colors (see above) are light, draw black text, otherwise draw white */
@@ -667,7 +667,7 @@ static void nla_draw_strip_text(AnimData *adt,
   rect.ymax = ymaxc;
 
   /* add this string to the cache of texts to draw */
-  UI_view2d_text_cache_add_rectf(v2d, &rect, str, str_len, col);
+  blender::ui::view2d_text_cache_add_rectf(v2d, &rect, str, str_len, col);
 }
 
 /**
@@ -689,12 +689,13 @@ static void nla_draw_strip_frames_text(
    * while also preserving some accuracy, since we do use floats. */
 
   /* start frame */
-  numstr_len = SNPRINTF_RLEN(numstr, "%.1f", strip->start);
-  UI_view2d_text_cache_add(v2d, strip->start - 1.0f, ymaxc + ytol, numstr, numstr_len, col);
+  numstr_len = SNPRINTF_UTF8_RLEN(numstr, "%.1f", strip->start);
+  blender::ui::view2d_text_cache_add(
+      v2d, strip->start - 1.0f, ymaxc + ytol, numstr, numstr_len, col);
 
   /* end frame */
-  numstr_len = SNPRINTF_RLEN(numstr, "%.1f", strip->end);
-  UI_view2d_text_cache_add(v2d, strip->end, ymaxc + ytol, numstr, numstr_len, col);
+  numstr_len = SNPRINTF_UTF8_RLEN(numstr, "%.1f", strip->end);
+  blender::ui::view2d_text_cache_add(v2d, strip->end, ymaxc + ytol, numstr, numstr_len, col);
 }
 
 /* ---------------------- */
@@ -949,6 +950,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
         case ANIMTYPE_DSHAIR:
         case ANIMTYPE_DSPOINTCLOUD:
         case ANIMTYPE_DSVOLUME:
+        case ANIMTYPE_DSLIGHTPROBE:
         case ANIMTYPE_SHAPEKEY:
         case ANIMTYPE_GPLAYER:
         case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
@@ -981,7 +983,7 @@ void draw_nla_track_list(const bContext *C,
 
   /* need to do a view-sync here, so that the keys area doesn't jump around
    * (it must copy this) */
-  UI_view2d_sync(nullptr, ac->area, v2d, V2D_LOCK_COPY);
+  blender::ui::view2d_sync(nullptr, ac->area, v2d, V2D_LOCK_COPY);
 
   /* draw tracks */
   { /* first pass: just the standard GL-drawing for backdrop + text */
@@ -1003,7 +1005,7 @@ void draw_nla_track_list(const bContext *C,
     }
   }
   { /* second pass: UI widgets */
-    uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t track_index = 0;
     float ymax = NLATRACK_FIRST_TOP(ac);
 
@@ -1027,8 +1029,8 @@ void draw_nla_track_list(const bContext *C,
       }
     }
 
-    UI_block_end(C, block);
-    UI_block_draw(C, block);
+    block_end(C, block);
+    block_draw(C, block);
 
     GPU_blend(GPU_BLEND_NONE);
   }

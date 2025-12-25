@@ -10,7 +10,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_collection_types.h"
@@ -47,6 +47,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 
 #include "object_intern.hh"
 
@@ -94,7 +95,7 @@ static const EnumPropertyItem *collection_object_active_itemf(bContext *C,
     collection = nullptr;
     while ((collection = BKE_collection_object_find(bmain, scene, collection, ob))) {
       item_tmp.identifier = item_tmp.name = collection->id.name + 2;
-      item_tmp.icon = UI_icon_color_from_collection(collection);
+      item_tmp.icon = ui::icon_color_from_collection(collection);
       item_tmp.value = i;
       RNA_enum_item_add(&item, &totitem, &item_tmp);
       i++;
@@ -445,8 +446,7 @@ void COLLECTION_OT_create(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(
-      ot->srna, "name", "Collection", MAX_ID_NAME - 2, "Name", "Name of the new collection");
+  RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "Name of the new collection");
 }
 
 static bool collection_exporter_common_check(const Collection *collection)
@@ -477,7 +477,6 @@ static wmOperatorStatus collection_exporter_add_exec(bContext *C, wmOperator *op
 {
   using namespace blender;
   Collection *collection = CTX_data_collection(C);
-  ListBase *exporters = &collection->exporters;
 
   char name[MAX_ID_NAME - 2]; /* id name */
   RNA_string_get(op->ptr, "name", name);
@@ -494,19 +493,7 @@ static wmOperatorStatus collection_exporter_add_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  /* Add a new #CollectionExport item to our handler list and fill it with #FileHandlerType
-   * information. Also load in the operator's properties now as well. */
-  CollectionExport *data = MEM_callocN<CollectionExport>("CollectionExport");
-  STRNCPY(data->fh_idname, fh->idname);
-
-  BKE_collection_exporter_name_set(exporters, data, fh->label);
-
-  IDPropertyTemplate val{};
-  data->export_properties = IDP_New(IDP_GROUP, &val, "export_properties");
-  data->flag |= IO_HANDLER_PANEL_OPEN;
-
-  BLI_addtail(exporters, data);
-  collection->active_exporter_index = BLI_listbase_count(exporters) - 1;
+  BKE_collection_exporter_add(collection, fh->idname, fh->label);
 
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
@@ -521,7 +508,7 @@ static void COLLECTION_OT_exporter_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Exporter";
-  ot->description = "Add Exporter";
+  ot->description = "Add exporter to the exporter list";
   ot->idname = "COLLECTION_OT_exporter_add";
 
   /* API callbacks. */
@@ -545,14 +532,7 @@ static wmOperatorStatus collection_exporter_remove_exec(bContext *C, wmOperator 
     return OPERATOR_CANCELLED;
   }
 
-  BLI_remlink(exporters, data);
-  BKE_collection_exporter_free_data(data);
-
-  MEM_freeN(data);
-
-  const int count = BLI_listbase_count(exporters);
-  const int new_index = count == 0 ? 0 : std::min(collection->active_exporter_index, count - 1);
-  collection->active_exporter_index = new_index;
+  BKE_collection_exporter_remove(collection, data);
 
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
@@ -568,14 +548,14 @@ static wmOperatorStatus collection_exporter_remove_invoke(bContext *C,
                                                           const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ALERT_ICON_NONE, false);
+      C, op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ui::AlertIcon::None, false);
 }
 
 static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Remove Exporter";
-  ot->description = "Remove Exporter";
+  ot->description = "Remove exporter from the exporter list";
   ot->idname = "COLLECTION_OT_exporter_remove";
 
   /* API callbacks. */
@@ -587,6 +567,52 @@ static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Exporter index", 0, INT_MAX);
+}
+
+static wmOperatorStatus collection_exporter_move_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender;
+  Collection *collection = CTX_data_collection(C);
+  const int dir = RNA_enum_get(op->ptr, "direction");
+  const int from = collection->active_exporter_index;
+
+  /* Move Up/down to index. */
+  const int to = from + dir;
+
+  if (!BKE_collection_exporter_move(collection, from, to)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  collection->active_exporter_index = to;
+  return OPERATOR_FINISHED;
+}
+
+static void COLLECTION_OT_exporter_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem exporter_move[] = {
+      {-1, "UP", 0, "Up", ""},
+      {1, "DOWN", 0, "Down", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* identifiers */
+  ot->name = "Move Exporter";
+  ot->description = "Move exporter up or down in the exporter list";
+  ot->idname = "COLLECTION_OT_exporter_move";
+
+  /* API callbacks. */
+  ot->exec = collection_exporter_move_exec;
+  ot->poll = collection_exporter_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_enum(ot->srna,
+               "direction",
+               exporter_move,
+               0,
+               "Direction",
+               "Direction to move the active exporter");
 }
 
 static wmOperatorStatus collection_exporter_export(bContext *C,
@@ -644,7 +670,7 @@ static wmOperatorStatus collection_exporter_export(bContext *C,
   RNA_string_set(&properties, "filepath", filepath);
   RNA_string_set(&properties, "collection", collection_name);
   wmOperatorStatus op_result = WM_operator_name_call_ptr(
-      C, ot, WM_OP_EXEC_DEFAULT, &properties, nullptr);
+      C, ot, wm::OpCallContext::ExecDefault, &properties, nullptr);
 
   /* Free the "last used" properties that were just set from the collection export and restore the
    * original "last used" properties. */
@@ -823,34 +849,34 @@ static void WM_OT_collection_export_all(wmOperatorType *ot)
 
 static void collection_exporter_menu_draw(const bContext * /*C*/, Menu *menu)
 {
-  using namespace blender;
-  uiLayout *layout = menu->layout;
+  ui::Layout &layout = *menu->layout;
 
   /* Add all file handlers capable of being exported to the menu. */
   bool at_least_one = false;
   for (const auto &fh : bke::file_handlers()) {
     if (WM_operatortype_find(fh->export_operator, true)) {
-      PointerRNA op_ptr = layout->op("COLLECTION_OT_exporter_add", fh->label, ICON_NONE);
+      PointerRNA op_ptr = layout.op("COLLECTION_OT_exporter_add", fh->label, ICON_NONE);
       RNA_string_set(&op_ptr, "name", fh->idname);
       at_least_one = true;
     }
   }
 
   if (!at_least_one) {
-    layout->label(IFACE_("No file handlers available"), ICON_NONE);
+    layout.label(IFACE_("No file handlers available"), ICON_NONE);
   }
 }
 
 void collection_exporter_register()
 {
   MenuType *mt = MEM_callocN<MenuType>(__func__);
-  STRNCPY(mt->idname, "COLLECTION_MT_exporter_add");
-  STRNCPY(mt->label, N_("Add Exporter"));
+  STRNCPY_UTF8(mt->idname, "COLLECTION_MT_exporter_add");
+  STRNCPY_UTF8(mt->label, N_("Add Exporter"));
   mt->draw = collection_exporter_menu_draw;
 
   WM_menutype_add(mt);
   WM_operatortype_append(COLLECTION_OT_exporter_add);
   WM_operatortype_append(COLLECTION_OT_exporter_remove);
+  WM_operatortype_append(COLLECTION_OT_exporter_move);
   WM_operatortype_append(COLLECTION_OT_exporter_export);
   WM_operatortype_append(COLLECTION_OT_export_all);
   WM_operatortype_append(WM_OT_collection_export_all);

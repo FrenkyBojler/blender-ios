@@ -598,7 +598,7 @@ static void rna_Curve_body_set(PointerRNA *ptr, const char *value)
   cu->str = MEM_malloc_arrayN<char>(len_bytes + sizeof(char32_t), "str");
   memcpy(cu->str, value, len_bytes + 1);
 
-  cu->strinfo = MEM_calloc_arrayN<CharInfo>((len_chars + 4), "strinfo");
+  cu->strinfo = MEM_new_array_for_free<CharInfo>((len_chars + 4), "strinfo");
 }
 
 static void rna_Nurb_update_cyclic_u(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -683,7 +683,7 @@ static void rna_Curve_spline_bezpoints_add(ID *id, Nurb *nu, ReportList *reports
 
 static Nurb *rna_Curve_spline_new(Curve *cu, int type)
 {
-  Nurb *nu = MEM_callocN<Nurb>("spline.new");
+  Nurb *nu = MEM_new_for_free<Nurb>("spline.new");
 
   if (type == CU_BEZIER) {
     BezTriple *bezt = MEM_callocN<BezTriple>("spline.new.bezt");
@@ -1056,7 +1056,7 @@ static void rna_def_path(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(
       prop,
       "Clamp",
-      "Clamp the curve path children so they can't travel past the start/end point of the curve");
+      "Clamp the curve path children so they cannot travel past the start/end point of the curve");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "use_stretch", PROP_BOOLEAN, PROP_NONE);
@@ -1164,7 +1164,7 @@ static void rna_def_font(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_items(prop, prop_overflow_items);
   RNA_def_property_enum_default(prop, CU_OVERFLOW_NONE);
   RNA_def_property_ui_text(
-      prop, "Textbox Overflow", "Handle the text behavior when it doesn't fit in the text boxes");
+      prop, "Textbox Overflow", "Handle the text behavior when it does not fit in the text boxes");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   /* number values */
@@ -1407,14 +1407,6 @@ static void rna_def_charinfo(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Underline", "");
   RNA_def_property_ui_icon(prop, ICON_UNDERLINE, 0);
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-
-  /* probably there is no reason to expose this */
-#  if 0
-  prop = RNA_def_property(srna, "use_wrap", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", CU_CHINFO_WRAP);
-  RNA_def_property_ui_text(prop, "Wrap", "");
-  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-#  endif
 
   prop = RNA_def_property(srna, "use_small_caps", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", CU_CHINFO_SMALLCAPS);

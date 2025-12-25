@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/workbench_volume_info.hh"
+#include "infos/workbench_volume_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(workbench_volume)
 FRAGMENT_SHADER_CREATE_INFO(workbench_volume_slice)
@@ -13,7 +13,10 @@ FRAGMENT_SHADER_CREATE_INFO(workbench_volume_smoke)
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
+#include "gpu_shader_math_vector_compare_lib.glsl"
+#include "gpu_shader_math_vector_reduce_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
 #include "workbench_common_lib.glsl"
 
 float phase_function_isotropic()
@@ -121,7 +124,7 @@ float4 flag_to_color(uint flag)
 #  define sample_volume_texture sample_closest
 #endif
 
-void volume_properties(float3 ls_pos, out float3 scattering, out float extinction)
+void volume_properties(float3 ls_pos, float3 &scattering, float &extinction)
 {
   float3 co = ls_pos * 0.5f + 0.5f;
 #ifdef USE_COBA
@@ -185,7 +188,7 @@ void volume_properties(float3 ls_pos, out float3 scattering, out float extinctio
 #endif
 }
 
-void eval_volume_step(inout float3 Lscat, float extinction, float step_len, out float Tr)
+void eval_volume_step(float3 &Lscat, float extinction, float step_len, float &Tr)
 {
   Lscat *= phase_function_isotropic();
   /* Evaluate Scattering */

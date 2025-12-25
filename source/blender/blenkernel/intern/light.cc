@@ -14,7 +14,6 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -24,7 +23,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -40,12 +39,12 @@
 
 #include "BLO_read_write.hh"
 
+#include "NOD_defaults.hh"
+
 static void light_init_data(ID *id)
 {
   Light *la = (Light *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(la, id));
-
-  MEMCPY_STRUCT_AFTER(la, DNA_struct_default_get(Light), id);
+  INIT_DEFAULT_STRUCT_AFTER(la, id);
 }
 
 /**
@@ -115,17 +114,19 @@ static void light_free_data(ID *id)
 static void light_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Light *lamp = reinterpret_cast<Light *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   if (lamp->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data, BKE_library_foreach_ID_embedded(data, (ID **)&lamp->nodetree));
   }
+}
 
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, lamp->ipo, IDWALK_CB_USER);
-  }
+static void light_foreach_working_space_color(ID *id, const IDTypeForeachColorFunctionCallback &fn)
+{
+  Light *la = (Light *)id;
+
+  fn.single(&la->r);
 }
 
 static void light_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -137,6 +138,9 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (la->type == LA_AREA) {
     la->energy_deprecated /= M_PI_4;
   }
+
+  /* Forward compatibiilty for Use Nodes. */
+  la->use_nodes = true;
 
   /* write LibData */
   BLO_write_id_struct(writer, Light, id_address, &la->id);
@@ -180,6 +184,7 @@ IDTypeInfo IDType_ID_LA = {
     /*foreach_id*/ light_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ light_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ light_blend_write,
@@ -196,6 +201,8 @@ Light *BKE_light_add(Main *bmain, const char *name)
   Light *la;
 
   la = BKE_id_new<Light>(bmain, name);
+
+  blender::nodes::node_tree_shader_default(nullptr, bmain, &la->id);
 
   return la;
 }

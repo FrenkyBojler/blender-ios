@@ -25,6 +25,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -42,6 +43,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_undo_system.hh"
 
 #include "DEG_depsgraph.hh"
@@ -53,7 +55,7 @@
 
 #include "WM_api.hh"
 
-static CLG_LogRef LOG = {"ed.image.undo"};
+static CLG_LogRef LOG = {"undo.image"};
 
 /* -------------------------------------------------------------------- */
 /** \name Thread Locking
@@ -111,22 +113,22 @@ struct PaintTileKey {
 };
 
 struct PaintTile {
-  Image *image;
-  ImBuf *ibuf;
+  Image *image = nullptr;
+  ImBuf *ibuf = nullptr;
   /* For 2D image painting the ImageUser uses most of the values.
    * Even though views and passes are stored they are currently not supported for painting.
    * For 3D projection painting this only uses a tile & frame number.
    * The scene pointer must be cleared (or temporarily set it as needed, but leave cleared). */
   ImageUser iuser;
   union {
-    float *fp;
+    float *fp = nullptr;
     uint8_t *byte_ptr;
     void *pt;
   } rect;
-  uint16_t *mask;
-  bool valid;
-  bool use_float;
-  int x_tile, y_tile;
+  uint16_t *mask = nullptr;
+  bool valid = false;
+  bool use_float = false;
+  int x_tile = 0, y_tile = 0;
 };
 
 static void ptile_free(PaintTile *ptile)
@@ -242,7 +244,7 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
     *tmpibuf = imbuf_alloc_temp_tile();
   }
 
-  PaintTile *ptile = MEM_callocN<PaintTile>("PaintTile");
+  PaintTile *ptile = MEM_new_for_free<PaintTile>("PaintTile");
 
   ptile->image = image;
   ptile->ibuf = ibuf;
@@ -719,7 +721,7 @@ static UndoImageHandle *uhandle_lookup(ListBase *undo_handles, const Image *imag
 static UndoImageHandle *uhandle_add(ListBase *undo_handles, Image *image, ImageUser *iuser)
 {
   BLI_assert(uhandle_lookup(undo_handles, image, iuser->tile) == nullptr);
-  UndoImageHandle *uh = MEM_callocN<UndoImageHandle>(__func__);
+  UndoImageHandle *uh = MEM_new_for_free<UndoImageHandle>(__func__);
   uh->image_ref.ptr = image;
   uh->iuser = *iuser;
   uh->iuser.scene = nullptr;
@@ -1024,6 +1026,17 @@ static void image_undosys_step_decode(
     blender::ed::object::mode_set_ex(C, OB_MODE_TEXTURE_PAINT, false, nullptr);
   }
 
+  /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this paint
+   * mode, however, because the image isn't connected as part of the shader nodes, the draw code
+   * is unaware of the corresponding image tag. See #150957 for more details. */
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  if (object && object->type == OB_MESH && scene &&
+      scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_IMAGE)
+  {
+    DEG_id_tag_update(&object->id, ID_RECALC_SHADING);
+  }
+
   /* Refresh texture slots. */
   ED_editors_init_for_undo(bmain);
 }
@@ -1143,7 +1156,7 @@ void ED_image_undo_push_begin_with_image_all_udims(const char *name,
 
     ED_image_undo_push(image, ibuf, iuser, us);
 
-    // Release the image buffer to avoid leaking memory
+    /* Release the image buffer to avoid leaking memory. */
     BKE_image_release_ibuf(image, ibuf, nullptr);
   }
 }

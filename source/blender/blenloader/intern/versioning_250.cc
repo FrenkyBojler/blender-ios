@@ -26,6 +26,7 @@
 #include "DNA_fluid_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -49,6 +50,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_anim_data.hh"
@@ -554,9 +556,9 @@ static bNodeSocket *do_versions_node_group_add_socket_2_56_2(bNodeTree *ngroup,
                                                              int in_out)
 {
   //  bNodeSocketType *stype = ntreeGetSocketType(type);
-  bNodeSocket *gsock = MEM_callocN<bNodeSocket>("bNodeSocket");
+  bNodeSocket *gsock = MEM_new_for_free<bNodeSocket>("bNodeSocket");
 
-  STRNCPY(gsock->name, name);
+  STRNCPY_UTF8(gsock->name, name);
   gsock->type = type;
 
   gsock->next = gsock->prev = nullptr;
@@ -595,7 +597,7 @@ static void do_versions_socket_default_value_259(bNodeSocket *sock)
 
   switch (sock->type) {
     case SOCK_FLOAT:
-      valfloat = MEM_callocN<bNodeSocketValueFloat>("default socket value");
+      valfloat = MEM_new_for_free<bNodeSocketValueFloat>("default socket value");
       valfloat->value = sock->ns.vec[0];
       valfloat->min = sock->ns.min;
       valfloat->max = sock->ns.max;
@@ -603,7 +605,7 @@ static void do_versions_socket_default_value_259(bNodeSocket *sock)
       sock->default_value = valfloat;
       break;
     case SOCK_VECTOR:
-      valvector = MEM_callocN<bNodeSocketValueVector>("default socket value");
+      valvector = MEM_new_for_free<bNodeSocketValueVector>("default socket value");
       copy_v3_v3(valvector->value, sock->ns.vec);
       valvector->min = sock->ns.min;
       valvector->max = sock->ns.max;
@@ -611,7 +613,7 @@ static void do_versions_socket_default_value_259(bNodeSocket *sock)
       sock->default_value = valvector;
       break;
     case SOCK_RGBA:
-      valrgba = MEM_callocN<bNodeSocketValueRGBA>("default socket value");
+      valrgba = MEM_new_for_free<bNodeSocketValueRGBA>("default socket value");
       copy_v4_v4(valrgba->value, sock->ns.vec);
       sock->default_value = valrgba;
       break;
@@ -647,7 +649,7 @@ static bool strip_set_sat_cb(Strip *strip, void * /*user_data*/)
 
 static bool strip_set_pitch_cb(Strip *strip, void * /*user_data*/)
 {
-  strip->pitch = 1.0f;
+  strip->pitch_legacy = 1.0f;
   return true;
 }
 
@@ -670,7 +672,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_sound_proxy_update_cb, bmain);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_sound_proxy_update_cb, bmain);
       }
     }
 
@@ -684,7 +686,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
      */
     LISTBASE_FOREACH (Material *, ma, &bmain->materials) {
       if (ma->nodetree && ma->nodetree->id.name[0] == '\0') {
-        STRNCPY(ma->nodetree->id.name, "NTShader Nodetree");
+        STRNCPY_UTF8(ma->nodetree->id.name, "NTShader Nodetree");
       }
     }
 
@@ -692,7 +694,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
       enum { R_PANORAMA = (1 << 10) };
       if (sce->nodetree && sce->nodetree->id.name[0] == '\0') {
-        STRNCPY(sce->nodetree->id.name, "NTCompositing Nodetree");
+        STRNCPY_UTF8(sce->nodetree->id.name, "NTCompositing Nodetree");
       }
 
       /* move to cameras */
@@ -715,7 +717,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Tex *, tx, &bmain->textures) {
       if (tx->nodetree) {
         if (tx->nodetree->id.name[0] == '\0') {
-          STRNCPY(tx->nodetree->id.name, "NTTexture Nodetree");
+          STRNCPY_UTF8(tx->nodetree->id.name, "NTTexture Nodetree");
         }
 
         /* which_output 0 is now "not specified" */
@@ -808,7 +810,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         if (ts->autokey_mode == 0) {
           ts->autokey_mode = 2; /* 'add/replace' but not on */
         }
-        ts->uv_selectmode = UV_SELECT_VERTEX;
+        ts->uv_selectmode = UV_SELECT_VERT;
         ts->vgroup_weight = 1.0f;
       }
     }
@@ -1329,7 +1331,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
         sce->r.ffcodecdata.audio_codec = 0x0; /* `CODEC_ID_NONE` */
       }
       if (sce->ed) {
-        blender::seq::for_each_callback(&sce->ed->seqbase, strip_set_volume_cb, nullptr);
+        blender::seq::foreach_strip(&sce->ed->seqbase, strip_set_volume_cb, nullptr);
       }
     }
 
@@ -1390,8 +1392,8 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 252, 1)) {
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if (brush->curve) {
-        brush->curve->preset = CURVE_PRESET_SMOOTH;
+      if (brush->curve_distance_falloff) {
+        brush->curve_distance_falloff->preset = CURVE_PRESET_SMOOTH;
       }
     }
 
@@ -1554,7 +1556,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_set_sat_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_set_sat_cb, nullptr);
       }
     }
 
@@ -1574,8 +1576,8 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
       }
 
       /* bad radius */
-      if (brush->unprojected_radius == 0) {
-        brush->unprojected_radius = 0.125f;
+      if (brush->unprojected_size == 0) {
+        brush->unprojected_size = 0.125f;
       }
 
       /* unusable size */
@@ -1835,7 +1837,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
              * have to create these directly here.
              * These links are updated again in subsequent do_version!
              */
-            bNodeLink *link = MEM_callocN<bNodeLink>("link");
+            bNodeLink *link = MEM_new_for_free<bNodeLink>("link");
             BLI_addtail(&ntree->links, link);
             link->fromnode = nullptr;
             link->fromsock = gsock;
@@ -1860,7 +1862,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
              * have to create these directly here.
              * These links are updated again in subsequent do_version!
              */
-            bNodeLink *link = MEM_callocN<bNodeLink>("link");
+            bNodeLink *link = MEM_new_for_free<bNodeLink>("link");
             BLI_addtail(&ntree->links, link);
             link->fromnode = node;
             link->fromsock = sock;
@@ -1985,7 +1987,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
       scene->r.ffcodecdata.audio_channels = 2;
       scene->audio.volume = 1.0f;
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_set_pitch_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_set_pitch_cb, nullptr);
       }
     }
 

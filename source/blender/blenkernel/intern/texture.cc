@@ -29,7 +29,6 @@
 #include "BKE_node_legacy_types.hh"
 #include "DNA_brush_types.h"
 #include "DNA_color_types.h"
-#include "DNA_defaults.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -39,7 +38,7 @@
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -59,10 +58,7 @@
 static void texture_init_data(ID *id)
 {
   Tex *texture = (Tex *)id;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(texture, id));
-
-  MEMCPY_STRUCT_AFTER(texture, DNA_struct_default_get(Tex), id);
+  INIT_DEFAULT_STRUCT_AFTER(texture, id);
 
   BKE_imageuser_default(&texture->iuser);
 }
@@ -136,7 +132,6 @@ static void texture_free_data(ID *id)
 static void texture_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Tex *texture = reinterpret_cast<Tex *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   if (texture->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
@@ -144,10 +139,6 @@ static void texture_foreach_id(ID *id, LibraryForeachIDData *data)
         data, BKE_library_foreach_ID_embedded(data, (ID **)&texture->nodetree));
   }
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, texture->ima, IDWALK_CB_USER);
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, texture->ipo, IDWALK_CB_USER);
-  }
 }
 
 static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -160,7 +151,7 @@ static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_addr
 
   /* direct data */
   if (tex->coba) {
-    BLO_write_struct(writer, ColorBand, tex->coba);
+    writer->write_struct(tex->coba);
   }
 
   /* nodetree is integral part of texture, no libdata */
@@ -207,6 +198,7 @@ IDTypeInfo IDType_ID_TE = {
     /*foreach_id*/ texture_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ texture_blend_write,
@@ -228,7 +220,7 @@ void BKE_texture_mtex_foreach_id(LibraryForeachIDData *data, MTex *mtex)
 
 TexMapping *BKE_texture_mapping_add(int type)
 {
-  TexMapping *texmap = MEM_callocN<TexMapping>("TexMapping");
+  TexMapping *texmap = MEM_new_for_free<TexMapping>("TexMapping");
 
   BKE_texture_mapping_default(texmap, type);
 
@@ -331,7 +323,7 @@ void BKE_texture_mapping_init(TexMapping *texmap)
 
 ColorMapping *BKE_texture_colormapping_add()
 {
-  ColorMapping *colormap = MEM_callocN<ColorMapping>("ColorMapping");
+  ColorMapping *colormap = MEM_new_for_free<ColorMapping>("ColorMapping");
 
   BKE_texture_colormapping_default(colormap);
 
@@ -384,7 +376,7 @@ Tex *BKE_texture_add(Main *bmain, const char *name)
 
 void BKE_texture_mtex_default(MTex *mtex)
 {
-  *mtex = blender::dna::shallow_copy(*DNA_struct_default_get(MTex));
+  *mtex = blender::dna::shallow_copy(MTex());
 }
 
 /* ------------------------------------------------------------------------- */
@@ -393,7 +385,7 @@ MTex *BKE_texture_mtex_add()
 {
   MTex *mtex;
 
-  mtex = MEM_callocN<MTex>("BKE_texture_mtex_add");
+  mtex = MEM_new_for_free<MTex>("BKE_texture_mtex_add");
 
   BKE_texture_mtex_default(mtex);
 

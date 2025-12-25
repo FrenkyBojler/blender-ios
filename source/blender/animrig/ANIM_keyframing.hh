@@ -16,7 +16,8 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
+
+#include "BKE_report.hh"
 
 #include "RNA_path.hh"
 #include "RNA_types.hh"
@@ -151,7 +152,7 @@ void update_autoflags_fcurve_direct(FCurve *fcu, PropertyType prop_type);
 CombinedKeyingResult insert_keyframes(Main *bmain,
                                       PointerRNA *struct_pointer,
                                       std::optional<StringRefNull> channel_group,
-                                      const blender::Span<RNAPath> rna_paths,
+                                      const Span<RNAPath> rna_paths,
                                       std::optional<float> scene_frame,
                                       const AnimationEvalContext &anim_eval_context,
                                       eBezTriple_KeyframeType key_type,

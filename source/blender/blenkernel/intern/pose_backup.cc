@@ -78,7 +78,7 @@ static void pose_backup_create(const Object *ob,
       return;
     }
 
-    PoseChannelBackup *chan_bak = MEM_callocN<PoseChannelBackup>("PoseChannelBackup");
+    PoseChannelBackup *chan_bak = MEM_new_for_free<PoseChannelBackup>("PoseChannelBackup");
     chan_bak->pchan = pchan;
     chan_bak->olddata = blender::dna::shallow_copy(*chan_bak->pchan);
     chan_bak->owner = ob;
@@ -109,7 +109,7 @@ static blender::Set<bPoseChannel *> armature_find_selected_pose_bones(
   for (Object *obj : objects) {
     /* Iterate over the selected bones to fill the set of bone names. */
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &obj->pose->chanbase) {
-      if (pose_bone->bone->flag & BONE_SELECTED) {
+      if (pose_bone->flag & POSE_SELECTED) {
         selected_bones.add(pose_bone);
       }
       else {
@@ -147,8 +147,7 @@ PoseBackup *BKE_pose_backup_create_selected_bones(blender::Span<Object *> object
   pose_backup->is_bone_selection_relevant = !selected_bones.is_empty();
 
   for (Object *ob : objects) {
-    const bArmature *armature = static_cast<const bArmature *>(ob->data);
-    const BoneNameSet selected_bone_names = BKE_armature_find_selected_bone_names(armature);
+    const BoneNameSet selected_bone_names = BKE_pose_channel_find_selected_names(ob);
     pose_backup_create(ob, const_cast<bAction *>(action), selected_bone_names, *pose_backup);
   }
 

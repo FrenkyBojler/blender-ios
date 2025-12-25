@@ -15,7 +15,7 @@
 
 #include "py_capi_utils.hh"
 
-#include "python_compat.hh"
+#include "python_compat.hh" /* IWYU pragma: keep. */
 
 #include "imbuf_py_api.hh" /* own include */
 
@@ -72,7 +72,7 @@ static int py_imbuf_valid_check(Py_ImBuf *self)
 PyDoc_STRVAR(
     /* Wrap. */
     py_imbuf_resize_doc,
-    ".. method:: resize(size, method='FAST')\n"
+    ".. method:: resize(size, *, method='FAST')\n"
     "\n"
     "   Resize the image.\n"
     "\n"
@@ -257,7 +257,7 @@ PyDoc_STRVAR(
     py_imbuf_size_doc,
     "size of the image in pixels.\n"
     "\n"
-    ":type: pair of ints");
+    ":type: tuple[int, int]\n");
 static PyObject *py_imbuf_size_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
@@ -270,7 +270,7 @@ PyDoc_STRVAR(
     py_imbuf_ppm_doc,
     "pixels per meter.\n"
     "\n"
-    ":type: pair of floats");
+    ":type: tuple[float, float]\n");
 static PyObject *py_imbuf_ppm_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
@@ -303,7 +303,7 @@ PyDoc_STRVAR(
     py_imbuf_filepath_doc,
     "filepath associated with this image.\n"
     "\n"
-    ":type: str");
+    ":type: str\n");
 static PyObject *py_imbuf_filepath_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
@@ -322,13 +322,16 @@ static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void * /*closu
 
   ImBuf *ibuf = self->ibuf;
   const Py_ssize_t value_str_len_max = sizeof(ibuf->filepath);
+  PyObject *value_coerce = nullptr;
   Py_ssize_t value_str_len;
-  const char *value_str = PyUnicode_AsUTF8AndSize(value, &value_str_len);
+  const char *value_str = PyC_UnicodeAsBytesAndSize(value, &value_str_len, &value_coerce);
   if (value_str_len >= value_str_len_max) {
     PyErr_Format(PyExc_TypeError, "filepath length over %zd", value_str_len_max - 1);
+    Py_XDECREF(value_coerce);
     return -1;
   }
   memcpy(ibuf->filepath, value_str, value_str_len + 1);
+  Py_XDECREF(value_coerce);
   return 0;
 }
 
@@ -337,7 +340,7 @@ PyDoc_STRVAR(
     py_imbuf_planes_doc,
     "Number of bits associated with this image.\n"
     "\n"
-    ":type: int");
+    ":type: int\n");
 static PyObject *py_imbuf_planes_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
@@ -350,7 +353,7 @@ PyDoc_STRVAR(
     py_imbuf_channels_doc,
     "Number of bit-planes.\n"
     "\n"
-    ":type: int");
+    ":type: int\n");
 static PyObject *py_imbuf_channels_get(Py_ImBuf *self, void * /*closure*/)
 {
   PY_IMBUF_CHECK_OBJ(self);
@@ -403,7 +406,7 @@ static PyObject *py_imbuf_repr(Py_ImBuf *self)
 
 static Py_hash_t py_imbuf_hash(Py_ImBuf *self)
 {
-  return _Py_HashPointer(self->ibuf);
+  return Py_HashPointer(self->ibuf);
 }
 
 PyTypeObject Py_ImBuf_Type = {
@@ -578,7 +581,7 @@ static PyObject *imbuf_load_from_memory_impl(const char *buffer,
       reinterpret_cast<const uchar *>(buffer), buffer_size, flags, "<imbuf.load_from_buffer>");
 
   if (ibuf == nullptr) {
-    PyErr_Format(PyExc_ValueError, "load_from_buffer: Unable to load image from memory");
+    PyErr_SetString(PyExc_ValueError, "load_from_buffer: Unable to load image from memory");
     return nullptr;
   }
 
@@ -650,7 +653,7 @@ static PyObject *imbuf_write_impl(ImBuf *ibuf, const char *filepath)
 PyDoc_STRVAR(
     /* Wrap. */
     M_imbuf_write_doc,
-    ".. function:: write(image, filepath=image.filepath)\n"
+    ".. function:: write(image, *, filepath=image.filepath)\n"
     "\n"
     "   Write an image.\n"
     "\n"
@@ -781,7 +784,6 @@ PyDoc_STRVAR(
     "\n"
     "   Image buffer is also the structure used by :class:`bpy.types.Image`\n"
     "   ID type to store and manipulate image data at runtime.\n");
-
 static PyModuleDef IMB_types_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "imbuf.types",

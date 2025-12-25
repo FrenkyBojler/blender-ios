@@ -172,7 +172,8 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
     case ANIMTYPE_PALETTE:
     case ANIMTYPE_DSHAIR:
     case ANIMTYPE_DSPOINTCLOUD:
-    case ANIMTYPE_DSVOLUME: {
+    case ANIMTYPE_DSVOLUME:
+    case ANIMTYPE_DSLIGHTPROBE: {
       /* sanity checking... */
       if (ale->adt) {
         /* select/deselect */
@@ -315,15 +316,15 @@ static wmOperatorStatus nlatracks_mouseclick_invoke(bContext *C,
   }
 
   /* Figure out which track user clicked in. */
-  UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
-  UI_view2d_listview_view_to_cell(NLATRACK_NAMEWIDTH,
-                                  NLATRACK_STEP(snla),
-                                  0,
-                                  NLATRACK_FIRST_TOP(&ac),
-                                  x,
-                                  y,
-                                  nullptr,
-                                  &track_index);
+  blender::ui::view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
+  blender::ui::view2d_listview_view_to_cell(NLATRACK_NAMEWIDTH,
+                                            NLATRACK_STEP(snla),
+                                            0,
+                                            NLATRACK_FIRST_TOP(&ac),
+                                            x,
+                                            y,
+                                            nullptr,
+                                            &track_index);
 
   /* handle mouse-click in the relevant track then */
   notifierFlags = mouse_nla_tracks(C, &ac, track_index, selectmode);

@@ -201,9 +201,7 @@ void merge_layers(const GreasePencil &src_grease_pencil,
         BLI_assert(duration >= 0);
         dst_frames.add_or_modify(
             item.key,
-            [&](InsertKeyframe *frame) {
-              *frame = {item.value, duration};
-            },
+            [&](InsertKeyframe *frame) { *frame = {item.value, duration}; },
             [&](InsertKeyframe *frame) {
               /* The destination frame is always an implicit hold if at least on of the source
                * frame is an implicit hold. */
@@ -332,7 +330,7 @@ void merge_layers(const GreasePencil &src_grease_pencil,
   const bke::AttributeAccessor src_attributes = src_grease_pencil.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst_grease_pencil.attributes_for_write();
   src_attributes.foreach_attribute([&](const blender::bke::AttributeIter &iter) {
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     bke::GAttributeReader src_attribute = iter.get();

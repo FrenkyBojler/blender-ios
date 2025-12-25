@@ -61,14 +61,6 @@ if(WITH_BINRELOC)
   add_subdirectory(binreloc)
 endif()
 
-if(WITH_LZO AND NOT WITH_SYSTEM_LZO)
-  add_subdirectory(lzo)
-endif()
-
-if(WITH_LZMA)
-  add_subdirectory(lzma)
-endif()
-
 if(WITH_CYCLES OR WITH_OPENSUBDIV)
   if((WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX) AND WITH_CUDA_DYNLOAD)
     add_subdirectory(cuew)
@@ -86,7 +78,7 @@ if(WITH_LIBMV)
   add_subdirectory(ceres)
 endif()
 
-if(WITH_LIBMV OR WITH_GTESTS OR (WITH_CYCLES AND WITH_CYCLES_LOGGING))
+if(WITH_LIBMV OR WITH_GTESTS)
   if(NOT WITH_SYSTEM_GFLAGS)
     add_subdirectory(gflags)
   endif()

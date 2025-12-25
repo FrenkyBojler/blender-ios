@@ -15,7 +15,9 @@
 
 #include "GPU_framebuffer.hh"
 
-struct GPUTexture;
+namespace blender::gpu {
+class Texture;
+}
 
 enum GPUAttachmentType : int {
   GPU_FB_DEPTH_ATTACHMENT = 0,
@@ -102,7 +104,7 @@ class FrameBuffer {
 
   virtual void bind(bool enabled_srgb) = 0;
   virtual bool check(char err_out[256]) = 0;
-  virtual void clear(eGPUFrameBufferBits buffers,
+  virtual void clear(GPUFrameBufferBits buffers,
                      const float clear_col[4],
                      float clear_depth,
                      uint clear_stencil) = 0;
@@ -113,14 +115,14 @@ class FrameBuffer {
 
   virtual void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls) = 0;
 
-  virtual void read(eGPUFrameBufferBits planes,
+  virtual void read(GPUFrameBufferBits planes,
                     eGPUDataFormat format,
                     const int area[4],
                     int channel_len,
                     int slot,
                     void *r_data) = 0;
 
-  virtual void blit_to(eGPUFrameBufferBits planes,
+  virtual void blit_to(GPUFrameBufferBits planes,
                        int src_slot,
                        FrameBuffer *dst,
                        int dst_slot,
@@ -148,9 +150,6 @@ class FrameBuffer {
   void attachment_set(GPUAttachmentType type, const GPUAttachment &new_attachment);
   void attachment_remove(GPUAttachmentType type);
 
-  void recursive_downsample(int max_lvl,
-                            void (*callback)(void *user_data, int level),
-                            void *user_data);
   uint get_bits_per_pixel();
 
   /* Sets the size after creation. */
@@ -231,15 +230,20 @@ class FrameBuffer {
     scissor_set(scissor_rect);
   }
 
-  GPUTexture *depth_tex() const
+  inline const GPUAttachment &depth_attachment() const
   {
     if (attachments_[GPU_FB_DEPTH_ATTACHMENT].tex) {
-      return attachments_[GPU_FB_DEPTH_ATTACHMENT].tex;
+      return attachments_[GPU_FB_DEPTH_ATTACHMENT];
     }
-    return attachments_[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex;
+    return attachments_[GPU_FB_DEPTH_STENCIL_ATTACHMENT];
+  }
+
+  blender::gpu::Texture *depth_tex() const
+  {
+    return depth_attachment().tex;
   };
 
-  GPUTexture *color_tex(int slot) const
+  blender::gpu::Texture *color_tex(int slot) const
   {
     return attachments_[GPU_FB_COLOR_ATTACHMENT0 + slot].tex;
   };
@@ -264,20 +268,6 @@ class FrameBuffer {
     return color_attachments_bits_;
   }
 };
-
-/* Syntactic sugar. */
-static inline GPUFrameBuffer *wrap(FrameBuffer *vert)
-{
-  return reinterpret_cast<GPUFrameBuffer *>(vert);
-}
-static inline FrameBuffer *unwrap(GPUFrameBuffer *vert)
-{
-  return reinterpret_cast<FrameBuffer *>(vert);
-}
-static inline const FrameBuffer *unwrap(const GPUFrameBuffer *vert)
-{
-  return reinterpret_cast<const FrameBuffer *>(vert);
-}
 
 #undef DEBUG_NAME_LEN
 

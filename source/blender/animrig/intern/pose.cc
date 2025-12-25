@@ -21,8 +21,8 @@ namespace blender::animrig {
 
 namespace {
 
-using ActionApplier = blender::FunctionRef<void(
-    PointerRNA *, bAction *, slot_handle_t, const AnimationEvalContext *)>;
+using ActionApplier =
+    FunctionRef<void(PointerRNA *, bAction *, slot_handle_t, const AnimationEvalContext *)>;
 
 void pose_apply_restore_fcurves(const Span<FCurve *> fcurves)
 {
@@ -67,9 +67,8 @@ void pose_apply(Object *ob,
     return;
   }
 
-  const bArmature *armature = static_cast<bArmature *>(ob->data);
   const blender::bke::BoneNameSet selected_bone_names =
-      blender::bke::BKE_armature_find_selected_bone_names(armature);
+      blender::bke::BKE_pose_channel_find_selected_names(ob);
 
   /* Mute all FCurves that are not associated with selected bones. This separates the concept of
    * bone selection from the FCurve evaluation code. */
@@ -121,14 +120,14 @@ void pose_apply_action_blend_all_bones(Object *ob,
   animsys_blend_in_action(&pose_owner_ptr, action, slot_handle, anim_eval_context, blend_factor);
 }
 
-bool any_bone_selected(const blender::Span<const Object *> objects)
+bool any_bone_selected(const Span<const Object *> objects)
 {
   for (const Object *obj : objects) {
     if (!obj->pose) {
       continue;
     }
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &obj->pose->chanbase) {
-      if (pose_bone->bone->flag & BONE_SELECTED) {
+      if (pose_bone->flag & POSE_SELECTED) {
         return true;
       }
     }
@@ -136,7 +135,7 @@ bool any_bone_selected(const blender::Span<const Object *> objects)
   return false;
 }
 
-void pose_apply_action(const blender::Span<Object *> objects,
+void pose_apply_action(const Span<Object *> objects,
                        Action &pose_action,
                        const AnimationEvalContext *anim_eval_context,
                        const float blend_factor)

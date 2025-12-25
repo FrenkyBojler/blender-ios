@@ -21,6 +21,7 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -255,6 +256,8 @@ static short ob_keyframes_loop(KeyframeEditData *ked,
   ac.ads = ads;
   ac.data = &dummy_chan;
   ac.datatype = ANIMCONT_CHANNEL;
+  ac.filters.flag = eDopeSheet_FilterFlag(ads->filterflag);
+  ac.filters.flag2 = eDopeSheet_FilterFlag2(ads->filterflag2);
 
   /* get F-Curves to take keyframes from */
   filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
@@ -305,6 +308,8 @@ static short scene_keyframes_loop(KeyframeEditData *ked,
   ac.ads = ads;
   ac.data = &dummy_chan;
   ac.datatype = ANIMCONT_CHANNEL;
+  ac.filters.flag = eDopeSheet_FilterFlag(ads->filterflag);
+  ac.filters.flag2 = eDopeSheet_FilterFlag2(ads->filterflag2);
 
   /* get F-Curves to take keyframes from */
   filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
@@ -466,50 +471,6 @@ short ANIM_animchannel_keyframes_loop(KeyframeEditData *ked,
   return 0;
 }
 
-short ANIM_animchanneldata_keyframes_loop(KeyframeEditData *ked,
-                                          bDopeSheet *ads,
-                                          void *data,
-                                          int keytype,
-                                          KeyframeEditFunc key_ok,
-                                          KeyframeEditFunc key_cb,
-                                          FcuEditFunc fcu_cb)
-{
-  /* sanity checks */
-  if (data == nullptr) {
-    return 0;
-  }
-
-  /* method to use depends on the type of keyframe data */
-  switch (keytype) {
-    /* direct keyframe data (these loops are exposed) */
-    case ALE_FCURVE: /* F-Curve */
-      return ANIM_fcurve_keyframes_loop(ked, static_cast<FCurve *>(data), key_ok, key_cb, fcu_cb);
-
-    /* indirect 'summaries' (these are not exposed directly)
-     * NOTE: must keep this code in sync with the drawing code and also the filtering code!
-     */
-    case ALE_GROUP: /* action group */
-      return agrp_keyframes_loop(ked, static_cast<bActionGroup *>(data), key_ok, key_cb, fcu_cb);
-    case ALE_ACTION_LAYERED:
-    case ALE_ACTION_SLOT:
-      /* This function is only used in nlaedit_apply_scale_exec(). Since the NLA has no support for
-       * layered Actions in strips, there is no need to implement this here. */
-      return 0;
-    case ALE_ACT: /* action */
-      return action_legacy_keyframes_loop(
-          ked, static_cast<bAction *>(data), key_ok, key_cb, fcu_cb);
-    case ALE_OB: /* object */
-      return ob_keyframes_loop(ked, ads, static_cast<Object *>(data), key_ok, key_cb, fcu_cb);
-    case ALE_SCE: /* scene */
-      return scene_keyframes_loop(ked, ads, static_cast<Scene *>(data), key_ok, key_cb, fcu_cb);
-    case ALE_ALL: /* 'all' (DopeSheet summary) */
-      return summary_keyframes_loop(
-          ked, static_cast<bAnimContext *>(data), key_ok, key_cb, fcu_cb);
-  }
-
-  return 0;
-}
-
 void ANIM_animdata_keyframe_callback(bAnimContext *ac,
                                      eAnimFilter_Flags filter,
                                      KeyframeEditFunc callback_fn)
@@ -576,7 +537,7 @@ static bool handles_visible(KeyframeEditData *ked, BezTriple *bezt)
 static short keyframe_ok_checks(
     KeyframeEditData *ked,
     BezTriple *bezt,
-    blender::FunctionRef<bool(KeyframeEditData *ked, BezTriple *bezt, const int index)> check)
+    FunctionRef<bool(KeyframeEditData *ked, BezTriple *bezt, const int index)> check)
 {
   short ok = 0;
   if (check(ked, bezt, 1)) {
@@ -913,7 +874,7 @@ static short snap_bezier_nearest(KeyframeEditData * /*ked*/, BezTriple *bezt)
 static short snap_bezier_nearestsec(KeyframeEditData *ked, BezTriple *bezt)
 {
   const Scene *scene = ked->scene;
-  const float secf = float(FPS);
+  const float secf = float(scene->frames_per_second());
 
   if (bezt->f2 & SELECT) {
     BKE_fcurve_keyframe_move_time_with_handles(bezt, floorf(bezt->vec[1][0] / secf + 0.5f) * secf);
@@ -1123,21 +1084,10 @@ KeyframeEditFunc ANIM_editkeyframes_mirror(short mode)
 /* Sets the selected bezier handles to type 'auto' */
 static short set_bezier_auto(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* If the key is selected, always apply to both handles. */
-  if (bezt->f2 & SELECT) {
+  if (BEZT_ISSEL_ANY(bezt)) {
+    /* Setting one handle to `HD_AUTO` is not a valid state. Both need to be the same. */
     bezt->h1 = bezt->h2 = HD_AUTO;
   }
-  else {
-    if (bezt->f1 & SELECT) {
-      bezt->h1 = HD_AUTO;
-    }
-    if (bezt->f3 & SELECT) {
-      bezt->h2 = HD_AUTO;
-    }
-
-    ENSURE_HANDLES_MATCH(bezt);
-  }
-
   return 0;
 }
 
@@ -1146,21 +1096,10 @@ static short set_bezier_auto(KeyframeEditData * /*ked*/, BezTriple *bezt)
  */
 static short set_bezier_auto_clamped(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* If the key is selected, always apply to both handles. */
-  if (bezt->f2 & SELECT) {
+  if (BEZT_ISSEL_ANY(bezt)) {
+    /* Setting one handle to `HD_AUTO_ANIM` is not a valid state. Both need to be the same. */
     bezt->h1 = bezt->h2 = HD_AUTO_ANIM;
   }
-  else {
-    if (bezt->f1 & SELECT) {
-      bezt->h1 = HD_AUTO_ANIM;
-    }
-    if (bezt->f3 & SELECT) {
-      bezt->h2 = HD_AUTO_ANIM;
-    }
-
-    ENSURE_HANDLES_MATCH(bezt);
-  }
-
   return 0;
 }
 
@@ -1174,9 +1113,11 @@ static short set_bezier_vector(KeyframeEditData * /*ked*/, BezTriple *bezt)
   else {
     if (bezt->f1 & SELECT) {
       bezt->h1 = HD_VECT;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, HandleSide::LEFT);
     }
     if (bezt->f3 & SELECT) {
       bezt->h2 = HD_VECT;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, HandleSide::RIGHT);
     }
   }
 
@@ -1203,19 +1144,10 @@ static short bezier_isfree(KeyframeEditData * /*ked*/, BezTriple *bezt)
 /* Sets selected bezier handles to type 'align' */
 static short set_bezier_align(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* If the key is selected, always apply to both handles. */
-  if (bezt->f2 & SELECT) {
+  if (BEZT_ISSEL_ANY(bezt)) {
+    /* Setting one handle to `HD_ALIGN` is not a valid state. Both need to be the same. */
     bezt->h1 = bezt->h2 = HD_ALIGN;
   }
-  else {
-    if (bezt->f1 & SELECT) {
-      bezt->h1 = HD_ALIGN;
-    }
-    if (bezt->f3 & SELECT) {
-      bezt->h2 = HD_ALIGN;
-    }
-  }
-
   return 0;
 }
 
@@ -1229,9 +1161,11 @@ static short set_bezier_free(KeyframeEditData * /*ked*/, BezTriple *bezt)
   else {
     if (bezt->f1 & SELECT) {
       bezt->h1 = HD_FREE;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, HandleSide::LEFT);
     }
     if (bezt->f3 & SELECT) {
       bezt->h2 = HD_FREE;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, HandleSide::RIGHT);
     }
   }
 

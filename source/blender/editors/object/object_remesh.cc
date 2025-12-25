@@ -160,12 +160,13 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   BKE_mesh_nomain_to_mesh(new_mesh, mesh, ob);
+  /* Spatially organize the mesh after remesh. */
+  blender::bke::mesh_apply_spatial_organization(*mesh);
 
   if (ob->mode == OB_MODE_SCULPT) {
     sculpt_paint::undo::geometry_end(*ob);
     BKE_sculptsession_free_pbvh(*ob);
   }
-
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
@@ -315,7 +316,7 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
       pos3d, cd->preview_plane[1], cd->preview_plane[2], cd->preview_plane[0], cd->voxel_size);
 
   /* Draw text */
-  const uiStyle *style = UI_style_get();
+  const uiStyle *style = ui::style_get();
   const uiFontStyle *fstyle = &style->widget;
   const int fontid = fstyle->uifont_id;
   float strwidth, strheight;
@@ -449,8 +450,6 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
   cd->active_object = active_object;
   cd->init_mval[0] = event->mval[0];
   cd->init_mval[1] = event->mval[1];
-  cd->init_voxel_size = mesh->remesh_voxel_size;
-  cd->voxel_size = mesh->remesh_voxel_size;
   cd->slow_mode = false;
   op->customdata = cd;
 
@@ -516,6 +515,9 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
                               len_v3v3(cd->preview_plane[3], cd->preview_plane[0])) *
                        0.5f;
   cd->voxel_size_min = cd->voxel_size_max / VOXEL_SIZE_EDIT_MAX_GRIDS_LINES;
+  cd->init_voxel_size = clamp_f(
+      mesh->remesh_voxel_size, max_ff(cd->voxel_size_min, 0.0001f), cd->voxel_size_max);
+  cd->voxel_size = cd->init_voxel_size;
 
   /* Matrix calculation to position the text in 3D space. */
   float text_pos[3];
@@ -779,7 +781,7 @@ static void quadriflow_update_job(void *customdata, float progress, int *cancel)
 
 static Mesh *remesh_symmetry_bisect(Mesh *mesh, eSymmetryAxes symmetry_axes)
 {
-  MirrorModifierData mmd = {{nullptr}};
+  MirrorModifierData mmd = {};
   mmd.tolerance = QUADRIFLOW_MIRROR_BISECT_TOLERANCE;
 
   Mesh *mesh_bisect, *mesh_bisect_temp;
@@ -813,7 +815,7 @@ static Mesh *remesh_symmetry_bisect(Mesh *mesh, eSymmetryAxes symmetry_axes)
 
 static Mesh *remesh_symmetry_mirror(Object *ob, Mesh *mesh, eSymmetryAxes symmetry_axes)
 {
-  MirrorModifierData mmd = {{nullptr}};
+  MirrorModifierData mmd = {};
   mmd.tolerance = QUADRIFLOW_MIRROR_BISECT_TOLERANCE;
   Mesh *mesh_mirror, *mesh_mirror_temp;
 
@@ -913,7 +915,6 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
     sculpt_paint::undo::geometry_end(*ob);
     BKE_sculptsession_free_pbvh(*ob);
   }
-
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
 
   worker_status->do_update = true;
@@ -927,12 +928,14 @@ static void quadriflow_end_job(void *customdata)
   Object *ob = qj->owner;
 
   if (qj->is_nonblocking_job) {
-    WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
+    WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
   }
 
   ReportList *reports = qj->worker_status->reports;
   switch (qj->status) {
     case QUADRIFLOW_STATUS_SUCCESS:
+      /* Spatially organize the mesh after remesh. */
+      bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       BKE_reportf(reports, RPT_INFO, "QuadriFlow: Remeshing completed");
       break;
@@ -1010,7 +1013,7 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
     wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                                 CTX_wm_window(C),
                                 CTX_data_scene(C),
-                                "QuadriFlow Remesh",
+                                "Remeshing with QuadriFlow...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_QUADRIFLOW_REMESH);
 
@@ -1018,7 +1021,7 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
     WM_jobs_timer(wm_job, 0.1, NC_GEOM | ND_DATA, NC_GEOM | ND_DATA);
     WM_jobs_callbacks(wm_job, quadriflow_start_job, nullptr, nullptr, quadriflow_end_job);
 
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_locked_interface_set(CTX_wm_manager(C), true);
 
     WM_jobs_start(CTX_wm_manager(C), wm_job);
   }

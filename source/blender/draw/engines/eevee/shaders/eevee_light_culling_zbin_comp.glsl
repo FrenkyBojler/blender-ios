@@ -8,17 +8,13 @@
  * For this reason, we only dispatch 1 thread group.
  */
 
-#include "infos/eevee_light_culling_info.hh"
+#include "infos/eevee_light_culling_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_light_culling_zbin)
 
 #include "draw_view_lib.glsl"
 #include "eevee_light_iter_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
-
-/* Fits the limit of 32KB. */
-shared uint zbin_max[CULLING_ZBIN_COUNT];
-shared uint zbin_min[CULLING_ZBIN_COUNT];
 
 void main()
 {
@@ -40,7 +36,7 @@ void main()
     LightData light = light_buf[index];
     float3 P = light_position_get(light);
     /* TODO(fclem): Could have better bounds for spot and area lights. */
-    float radius = light_local_data_get(light).influence_radius_max;
+    float radius = light.local().local.influence_radius_max;
     float z_dist = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
     int z_min = culling_z_to_zbin(
         light_cull_buf.zbin_scale, light_cull_buf.zbin_bias, z_dist + radius);

@@ -29,9 +29,7 @@ void DepsgraphRelationBuilder::build_scene_render(Scene *scene, ViewLayer *view_
     build_scene_sequencer(scene);
     build_scene_speakers(scene, view_layer);
   }
-  if (scene->camera != nullptr) {
-    build_object(scene->camera);
-  }
+  build_scene_camera(scene);
 }
 
 void DepsgraphRelationBuilder::build_scene_camera(Scene *scene)
@@ -55,6 +53,7 @@ void DepsgraphRelationBuilder::build_scene_parameters(Scene *scene)
   /* TODO(sergey): Trace as a scene parameters. */
 
   build_idproperties(scene->id.properties);
+  build_idproperties(scene->id.system_properties);
   build_parameters(&scene->id);
   OperationKey parameters_eval_key(
       &scene->id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EXIT);

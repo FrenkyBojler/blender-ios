@@ -73,10 +73,12 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blenloader
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::gpu
   bf_imbuf_openimageio
   PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_intern_memutil
   PRIVATE bf::imbuf::opencolorio
@@ -168,5 +170,4 @@ if(WITH_GTESTS)
     tests/IMB_transform_test.cc
   )
   blender_add_test_suite_lib(imbuf "${TEST_SRC}" "${INC}" "${INC_SYS}" "${LIB}")
-  add_subdirectory(tests/performance)
 endif()

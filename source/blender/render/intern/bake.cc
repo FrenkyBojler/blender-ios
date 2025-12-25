@@ -52,6 +52,7 @@
 #include <climits>
 #include <cstring>
 
+#include "BLI_string_ref.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_index_range.hh"
@@ -88,18 +89,10 @@ struct BakeDataZSpan {
   float dv_dx, dv_dy;
 };
 
-/**
- * struct wrapping up tangent space data
- */
-struct TSpace {
-  float tangent[3];
-  float sign;
-};
-
 struct TriTessFace {
   const float *positions[3];
   const float *vert_normals[3];
-  const TSpace *tspace[3];
+  blender::float4 tspace[3];
   const float *loop_normal[3];
   float normal[3]; /* for flat faces */
   bool is_smooth;
@@ -150,7 +143,7 @@ void RE_bake_margin(ImBuf *ibuf,
                     const int margin,
                     const char margin_type,
                     const Mesh *mesh,
-                    char const *uv_layer,
+                    const blender::StringRef uv_layer,
                     const float uv_offset[2])
 {
   /* margin */
@@ -460,9 +453,9 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
   uint mpoly_prev = UINT_MAX;
   blender::float3 no;
 
-  const blender::Span<blender::float3> positions = mesh->vert_positions();
-  const blender::OffsetIndices faces = mesh->faces();
-  const blender::Span<int> corner_verts = mesh->corner_verts();
+  const Span<blender::float3> positions = mesh->vert_positions();
+  const OffsetIndices faces = mesh->faces();
+  const Span<int> corner_verts = mesh->corner_verts();
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray<bool> sharp_faces =
       attributes.lookup_or_default<bool>("sharp_face", bke::AttrDomain::Face, false).varray;
@@ -472,7 +465,7 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
   triangles = MEM_calloc_arrayN<TriTessFace>(tottri, __func__);
 
   const bool calculate_normal = BKE_mesh_face_normals_are_dirty(mesh);
-  blender::Span<blender::float3> precomputed_normals;
+  Span<blender::float3> precomputed_normals;
   if (!calculate_normal) {
     precomputed_normals = mesh->face_normals();
   }
@@ -485,20 +478,28 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
     blender::bke::mesh::corner_tris_calc(positions, faces, corner_verts, {corner_tris, tottri});
   }
 
-  const TSpace *tspace = nullptr;
-  blender::Span<blender::float3> corner_normals;
+  Array<float4> tspace;
+  Span<blender::float3> corner_normals;
   if (tangent) {
-    BKE_mesh_calc_loop_tangents(mesh_eval, true, nullptr, 0);
-
-    tspace = static_cast<const TSpace *>(
-        CustomData_get_layer(&mesh_eval->corner_data, CD_TANGENT));
-    BLI_assert(tspace);
+    const StringRef active_uv_map = mesh_eval->active_uv_map_name();
+    const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_map, bke::AttrDomain::Corner);
+    Array<Array<float4>> result = bke::mesh::calc_uv_tangents(positions,
+                                                              faces,
+                                                              corner_verts,
+                                                              {corner_tris, tottri},
+                                                              mesh->corner_tri_faces(),
+                                                              VArraySpan(sharp_faces),
+                                                              mesh->vert_normals(),
+                                                              mesh->face_normals(),
+                                                              mesh->corner_normals(),
+                                                              {uv_map});
+    tspace = std::move(result[0]);
 
     corner_normals = mesh_eval->corner_normals();
   }
 
-  const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
-  const blender::Span<int> tri_faces = mesh->corner_tri_faces();
+  const Span<blender::float3> vert_normals = mesh->vert_normals();
+  const Span<int> tri_faces = mesh->corner_tri_faces();
   for (i = 0; i < tottri; i++) {
     const int3 &tri = corner_tris[i];
     const int face_i = tri_faces[i];
@@ -512,9 +513,9 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
     triangles[i].is_smooth = !sharp_faces[face_i];
 
     if (tangent) {
-      triangles[i].tspace[0] = &tspace[tri[0]];
-      triangles[i].tspace[1] = &tspace[tri[1]];
-      triangles[i].tspace[2] = &tspace[tri[2]];
+      triangles[i].tspace[0] = tspace[tri[0]];
+      triangles[i].tspace[1] = tspace[tri[1]];
+      triangles[i].tspace[2] = tspace[tri[2]];
     }
 
     if (!corner_normals.is_empty()) {
@@ -710,21 +711,20 @@ void RE_bake_pixels_populate(Mesh *mesh,
                              BakePixel pixel_array[],
                              const size_t pixels_num,
                              const BakeTargets *targets,
-                             const char *uv_layer)
+                             const blender::StringRef uv_layer)
 {
   using namespace blender;
-  const float(*mloopuv)[2];
-  if ((uv_layer == nullptr) || (uv_layer[0] == '\0')) {
-    mloopuv = static_cast<const float(*)[2]>(
-        CustomData_get_layer(&mesh->corner_data, CD_PROP_FLOAT2));
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  VArraySpan<float2> uv_map;
+  if (uv_layer.is_empty()) {
+    const StringRef active_layer_name = mesh->active_uv_map_name();
+    uv_map = *attributes.lookup<float2>(active_layer_name, bke::AttrDomain::Corner);
   }
   else {
-    int uv_id = CustomData_get_named_layer(&mesh->corner_data, CD_PROP_FLOAT2, uv_layer);
-    mloopuv = static_cast<const float(*)[2]>(
-        CustomData_get_layer_n(&mesh->corner_data, CD_PROP_FLOAT2, uv_id));
+    uv_map = *attributes.lookup<float2>(uv_layer, bke::AttrDomain::Corner);
   }
 
-  if (mloopuv == nullptr) {
+  if (uv_map.is_empty()) {
     return;
   }
 
@@ -748,8 +748,7 @@ void RE_bake_pixels_populate(Mesh *mesh,
   blender::bke::mesh::corner_tris_calc(
       mesh->vert_positions(), mesh->faces(), mesh->corner_verts(), {corner_tris, tottri});
 
-  const blender::Span<int> tri_faces = mesh->corner_tri_faces();
-  const bke::AttributeAccessor attributes = mesh->attributes();
+  const Span<int> tri_faces = mesh->corner_tri_faces();
   const VArraySpan material_indices = *attributes.lookup<int>("material_index",
                                                               bke::AttrDomain::Face);
 
@@ -775,7 +774,7 @@ void RE_bake_pixels_populate(Mesh *mesh,
       /* Compute triangle vertex UV coordinates. */
       float vec[3][2];
       for (int a = 0; a < 3; a++) {
-        const float *uv = mloopuv[tri[a]];
+        const float2 &uv = uv_map[tri[a]];
 
         /* NOTE(@ideasman42): workaround for pixel aligned UVs which are common and can screw
          * up our intersection tests where a pixel gets in between 2 faces or the middle of a quad,
@@ -900,7 +899,7 @@ void RE_bake_normal_world_to_tangent(const BakePixel pixel_array[],
     is_smooth = triangle->is_smooth;
 
     for (j = 0; j < 3; j++) {
-      const TSpace *ts;
+      const blender::float4 *ts;
 
       if (is_smooth) {
         if (triangle->loop_normal[j]) {
@@ -911,9 +910,9 @@ void RE_bake_normal_world_to_tangent(const BakePixel pixel_array[],
         }
       }
 
-      ts = triangle->tspace[j];
-      copy_v3_v3(tangents[j], ts->tangent);
-      signs[j] = ts->sign;
+      ts = &triangle->tspace[j];
+      copy_v3_v3(tangents[j], ts->xyz());
+      signs[j] = ts->w;
     }
 
     u = pixel_array[i].uv[0];
@@ -1056,7 +1055,7 @@ int RE_pass_depth(const eScenePassType pass_type)
   return 4;
 
   switch (pass_type) {
-    case SCE_PASS_Z:
+    case SCE_PASS_DEPTH:
     case SCE_PASS_AO:
     case SCE_PASS_MIST: {
       return 1;
