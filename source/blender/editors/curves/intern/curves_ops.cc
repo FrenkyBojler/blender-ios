@@ -1383,8 +1383,8 @@ static wmOperatorStatus exec(bContext *C, wmOperator * /*op*/)
 
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
         "cyclic", bke::AttrDomain::Curve);
-    selection.foreach_index(GrainSize(4096),
-                            [&](const int i) { cyclic.span[i] = !cyclic.span[i]; });
+    selection.foreach_index_optimized<int>(GrainSize(4096),
+                                           [&](const int i) { cyclic.span[i] = !cyclic.span[i]; });
     cyclic.finish();
 
     if (!cyclic.span.contains(true)) {

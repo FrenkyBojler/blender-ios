@@ -56,7 +56,7 @@ static bool apply_color_operation_for_mode(const VertexColorMode mode,
                                        object, info.drawing, info.layer_index, memory);
       if (!points.is_empty()) {
         MutableSpan<ColorGeometry4f> vertex_colors = info.drawing.vertex_colors_for_write();
-        points.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
+        points.foreach_index_optimized<int64_t>(GrainSize(4096), [&](const int64_t point_i) {
           ColorGeometry4f &color = vertex_colors[point_i];
           if (color.a > 0.0f) {
             color = fn(color);
@@ -75,7 +75,7 @@ static bool apply_color_operation_for_mode(const VertexColorMode mode,
                                         object, info.drawing, info.layer_index, memory);
       if (!strokes.is_empty()) {
         MutableSpan<ColorGeometry4f> fill_colors = info.drawing.fill_colors_for_write();
-        strokes.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
+        strokes.foreach_index_optimized<int64_t>(GrainSize(1024), [&](const int64_t curve_i) {
           ColorGeometry4f &color = fill_colors[curve_i];
           if (color.a > 0.0f) {
             color = fn(color);
