@@ -9,7 +9,7 @@
 
 namespace blender::compositor {
 
-/* Returns an instance of a new UndefinedNodeOperation. */
-NodeOperation *get_undefined_node_operation(Context &context, const bNode &node);
+/* Returns an instance of a new GroupNodeOperation. */
+NodeOperation *get_group_node_operation(Context &context, const bNode &node);
 
 }  // namespace blender::compositor

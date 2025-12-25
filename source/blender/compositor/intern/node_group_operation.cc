@@ -10,6 +10,7 @@
 
 #include "COM_compile_state.hh"
 #include "COM_context.hh"
+#include "COM_group_node_operation.hh"
 #include "COM_implicit_input_operation.hh"
 #include "COM_input_descriptor.hh"
 #include "COM_input_single_value_operation.hh"
@@ -81,17 +82,22 @@ void NodeGroupOperation::execute()
 static NodeOperation *get_node_operation(Context &context, const bNode &node)
 {
   const char *disabled_hint = nullptr;
-  if (node.typeinfo->poll(node.typeinfo, &node.owner_tree(), &disabled_hint)) {
-    return node.typeinfo->get_compositor_operation(context, node);
+  if (!node.typeinfo->poll(node.typeinfo, &node.owner_tree(), &disabled_hint)) {
+    return get_undefined_node_operation(context, node);
   }
 
-  return get_undefined_node_operation(context, node);
+  /* TODO. */
+  if (node.is_group()) {
+    return get_group_node_operation(context, node);
+  }
+
+  return node.typeinfo->get_compositor_operation(context, node);
 }
 
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
 {
   /* TODO. */
-  if (node.is_group_input()) {
+  if (node.is_group_input() || node.is_group_output()) {
     return;
   }
 
