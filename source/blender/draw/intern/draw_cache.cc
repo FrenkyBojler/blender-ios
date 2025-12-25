@@ -38,8 +38,6 @@
 #include "draw_cache_impl.hh"
 #include "draw_context_private.hh"
 
-// TODO(Tri): revert file
-
 /* -------------------------------------------------------------------- */
 /** \name Internal Defines
  * \{ */
@@ -81,10 +79,6 @@ void DRW_vertbuf_create_wiredata(gpu::VertBuf *vbo, const int vert_len)
 }
 
 /** \} */
-
-// static Object *drw_object_lod_select(const Object *ob, const DRWContext *draw_ctx)
-// {
-// }
 
 /* -------------------------------------------------------------------- */
 /** \name Common Object API
@@ -150,33 +144,13 @@ gpu::Batch *DRW_cache_object_surface_get(Object *ob)
       return nullptr;
   }
 }
-// gpu::Batch *DRW_cache_object_surface_get(Object *ob)
-// {
-//   const DRWContext *draw_ctx = DRW_context_get();
-//   Object *draw_ob = drw_object_lod_select(ob, draw_ctx);
-
-//   CLOG_INFO(&LOG_DRAW_LOD,
-//             "Surface batch: %s -> %s",
-//             ob->id.name + 2,
-//             draw_ob->id.name + 2);
-
-//   switch (draw_ob->type) {
-//     case OB_MESH:
-//       return DRW_cache_mesh_surface_get(draw_ob);
-//     default:
-//       return nullptr;
-//   }
-// }
 
 Span<gpu::Batch *> DRW_cache_object_surface_material_get(Object *ob,
                                                          const Span<const GPUMaterial *> materials)
 {
-  const DRWContext *draw_ctx = DRW_context_get();
-  Object *draw_ob = DRW_object_lod_select(ob, draw_ctx);
-
-  switch (draw_ob->type) {
+  switch (ob->type) {
     case OB_MESH:
-      return DRW_cache_mesh_surface_shaded_get(draw_ob, materials);
+      return DRW_cache_mesh_surface_shaded_get(ob, materials);
     default:
       return {};
   }
@@ -568,7 +542,7 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, Task
                            DRW_object_use_hide_faces(ob)) ||
                           ((mode == CTX_MODE_EDIT_MESH) && (ob->mode == OB_MODE_EDIT))));
 
-  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob); 
+  Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob);
   /* Try getting the mesh first and if that fails, try getting the curve data.
    * If the curves are surfaces or have certain modifiers applied to them,
    * they will have mesh data of the final result. */
