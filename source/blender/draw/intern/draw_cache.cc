@@ -23,13 +23,6 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_quaternion.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-
-#include "CLG_log.h"
-
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_mesh_wrapper.hh"
@@ -44,6 +37,8 @@
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
 #include "draw_context_private.hh"
+
+// TODO(Tri): revert file
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Defines
@@ -87,55 +82,9 @@ void DRW_vertbuf_create_wiredata(gpu::VertBuf *vbo, const int vert_len)
 
 /** \} */
 
-/* -------------------------------------------------------------------- */
-/** \name LOD Selection (Draw-only)
- * \{ */
-
-static CLG_LogRef LOG_DRAW_LOD = {"draw.lod"};
-
-static Object *drw_object_lod_select(const Object *ob, const DRWContext *draw_ctx)
-{
-  if (BLI_listbase_is_empty(&ob->lod_items)) {
-    return const_cast<Object *>(ob);
-  }
-
-  if (!draw_ctx || !draw_ctx->rv3d) {
-    CLOG_INFO(&LOG_DRAW_LOD, "No RV3D for object %s", ob->id.name + 2);
-    return const_cast<Object *>(ob);
-  }
-
-  const float3 cam_pos = draw_ctx->rv3d->viewinv[3];
-  const float3 ob_pos = ob->object_to_world().location();
-  const float dist = math::distance(cam_pos, ob_pos);
-
-  Object *best = const_cast<Object *>(ob);
-
-  int i = 0;
-  LISTBASE_FOREACH (Lod *, lod, &ob->lod_items) {
-    if (lod->target) {
-      CLOG_INFO(&LOG_DRAW_LOD,
-                "LOD[%d] target=%s dist=%.2f threshold=%.2f",
-                i,
-                lod->target->id.name + 2,
-                dist,
-                lod->distance);
-
-      if (dist >= lod->distance) {
-        best = lod->target;
-      }
-    }
-    i++;
-  }
-
-  CLOG_INFO(&LOG_DRAW_LOD,
-            "Selected draw object: %s (base: %s)",
-            best->id.name + 2,
-            ob->id.name + 2);
-
-  return best;
-}
-
-/** \} */
+// static Object *drw_object_lod_select(const Object *ob, const DRWContext *draw_ctx)
+// {
+// }
 
 /* -------------------------------------------------------------------- */
 /** \name Common Object API
@@ -223,7 +172,7 @@ Span<gpu::Batch *> DRW_cache_object_surface_material_get(Object *ob,
                                                          const Span<const GPUMaterial *> materials)
 {
   const DRWContext *draw_ctx = DRW_context_get();
-  Object *draw_ob = drw_object_lod_select(ob, draw_ctx);
+  Object *draw_ob = DRW_object_lod_select(ob, draw_ctx);
 
   switch (draw_ob->type) {
     case OB_MESH:
