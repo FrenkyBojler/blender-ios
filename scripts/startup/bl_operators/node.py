@@ -451,7 +451,14 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
 
     @classmethod
     def poll(cls, context):
-        return not context.space_data.edit_tree.library
+        if not context.space_data.edit_tree:
+            return False
+
+        # Check if we're inside a node_tree coming from a library
+        if context.space_data.edit_tree.library:
+            return False
+
+        return True
 
     @staticmethod
     def get_zone_pair(tree, node):
