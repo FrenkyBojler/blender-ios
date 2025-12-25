@@ -85,7 +85,9 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .compositor_domain_priority(4)
-      .description("Value at the outer boundary of the falloff part of the rounded square mask")
+      .description(
+          "Value at the outer boundary of the falloff part of the rounded square mask. A higher "
+          "boundary value results in a more aggressive effect")
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_shape_panel =
@@ -306,12 +308,26 @@ class MaskedMaximumOperation : public NodeOperation {
   {
     parallel_for(domain.data_size, [&](const int2 texel) {
       float2 size = get_input("Constant Part Size").load_pixel_zero<float2, true>(texel);
+      float domain_diagonal_length = math::sqrt(math::square(float(domain.data_size.x)) +
+                                                math::square(float(domain.data_size.y)));
+      /* In principle, absolute size values greater than domain_diagonal_length can still result in
+       * different outputs, however, to prevent extremely long computation times, they are clamped.
+       */
+      size = float2(
+          math::clamp(
+              size.x, -math::ceil(domain_diagonal_length), math::ceil(domain_diagonal_length)),
+          math::clamp(
+              size.y, -math::ceil(domain_diagonal_length), math::ceil(domain_diagonal_length)));
       bool is_dilate = (size.x >= 0.0f) && (size.y >= 0.0f);
       float2 abs_size = math::abs(size);
       float roundness = math::clamp(
           get_input("Roundness").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      float falloff_width = math::max(get_input("Width").load_pixel_zero<float, true>(texel),
-                                      0.0f);
+      /* In principle, falloff_width values greater than domain_diagonal_length can still result in
+       * different outputs, however, to prevent extremely long computation times, they are clamped.
+       */
+      float falloff_width = math::clamp(get_input("Width").load_pixel_zero<float, true>(texel),
+                                        0.0f,
+                                        math::ceil(domain_diagonal_length));
       float falloff_boundary_value = math::clamp(
           get_input("Boundary Value").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_height = math::clamp(

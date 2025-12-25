@@ -217,10 +217,21 @@ void main()
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
   float4 size = texture_load(input_size_tx, texel);
+  float domain_diagonal_length = sqrt(square(float(domain_data_size.x)) +
+                                      square(float(domain_data_size.y)));
+  /* In principle, absolute size values greater than domain_diagonal_length can still result in
+   * different outputs, however, to prevent extremely long computation times, they are clamped. */
+  size = float4(clamp(size.x, -ceil(domain_diagonal_length), ceil(domain_diagonal_length)),
+                clamp(size.y, -ceil(domain_diagonal_length), ceil(domain_diagonal_length)),
+                0.0f,
+                0.0f);
   bool is_dilate = (size.x >= 0.0f) && (size.y >= 0.0f);
   float2 abs_size = float2(abs(size.x), abs(size.y));
   float roundness = clamp(texture_load(input_roundness_tx, texel).x, 0.0f, 1.0f);
-  float falloff_width = max(texture_load(input_falloff_width_tx, texel).x, 0.0f);
+  /* In principle, falloff_width values greater than domain_diagonal_length can still result in
+   * different outputs, however, to prevent extremely long computation times, they are clamped. */
+  float falloff_width = clamp(
+      texture_load(input_falloff_width_tx, texel).x, 0.0f, ceil(domain_diagonal_length));
   float falloff_boundary_value = clamp(
       texture_load(input_falloff_boundary_value_tx, texel).x, 0.0f, 1.0f);
   float ellipse_height = clamp(texture_load(input_ellipse_height_tx, texel).x, 0.0f, 1.0f);
