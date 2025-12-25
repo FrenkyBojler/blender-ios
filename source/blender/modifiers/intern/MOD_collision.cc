@@ -14,7 +14,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -26,7 +25,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
@@ -38,10 +37,7 @@
 static void init_data(ModifierData *md)
 {
   CollisionModifierData *collmd = (CollisionModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(collmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(collmd, DNA_struct_default_get(CollisionModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(collmd, modifier);
 }
 
 static void free_data(ModifierData *md)
@@ -133,17 +129,18 @@ static void deform_verts(ModifierData *md,
         mul_m4_v3(ob->object_to_world().ptr(), collmd->x[i]);
       }
 
-      collmd->xnew = static_cast<float(*)[3]>(MEM_dupallocN(collmd->x)); /* Frame end position. */
-      collmd->current_x = static_cast<float(*)[3]>(MEM_dupallocN(collmd->x));    /* Inter-frame. */
-      collmd->current_xnew = static_cast<float(*)[3]>(MEM_dupallocN(collmd->x)); /* Inter-frame. */
-      collmd->current_v = static_cast<float(*)[3]>(MEM_dupallocN(collmd->x));    /* Inter-frame. */
+      collmd->xnew = static_cast<float (*)[3]>(MEM_dupallocN(collmd->x)); /* Frame end position. */
+      collmd->current_x = static_cast<float (*)[3]>(MEM_dupallocN(collmd->x)); /* Inter-frame. */
+      collmd->current_xnew = static_cast<float (*)[3]>(
+          MEM_dupallocN(collmd->x));                                           /* Inter-frame. */
+      collmd->current_v = static_cast<float (*)[3]>(MEM_dupallocN(collmd->x)); /* Inter-frame. */
 
       collmd->mvert_num = mvert_num;
 
       {
         const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
         collmd->tri_num = corner_tris.size();
-        int(*vert_tris)[3] = MEM_malloc_arrayN<int[3]>(collmd->tri_num, __func__);
+        int (*vert_tris)[3] = MEM_malloc_arrayN<int[3]>(collmd->tri_num, __func__);
         blender::bke::mesh::vert_tris_from_corner_tris(
             mesh->corner_verts(),
             corner_tris,
@@ -163,7 +160,7 @@ static void deform_verts(ModifierData *md,
     }
     else if (mvert_num == collmd->mvert_num) {
       /* put positions to old positions */
-      float(*temp)[3] = collmd->x;
+      float (*temp)[3] = collmd->x;
       collmd->x = collmd->xnew;
       collmd->xnew = temp;
       collmd->time_x = collmd->time_xnew;
@@ -229,11 +226,11 @@ static void update_depsgraph(ModifierData * /*md*/, const ModifierUpdateDepsgrap
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -304,4 +301,5 @@ ModifierTypeInfo modifierType_Collision = {
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -10,7 +10,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -58,7 +57,7 @@
 #include "CLG_log.h"
 
 #ifdef WITH_OPENVDB
-static CLG_LogRef LOG = {"bke.volume"};
+static CLG_LogRef LOG = {"geom.volume"};
 #endif
 
 #define VOLUME_FRAME_NONE INT_MAX
@@ -133,9 +132,8 @@ void BKE_volumes_init()
 static void volume_init_data(ID *id)
 {
   Volume *volume = (Volume *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(volume, id));
 
-  MEMCPY_STRUCT_AFTER(volume, DNA_struct_default_get(Volume), id);
+  INIT_DEFAULT_STRUCT_AFTER(volume, id);
 
   volume->runtime = MEM_new<blender::bke::VolumeRuntime>(__func__);
 
@@ -293,6 +291,7 @@ IDTypeInfo IDType_ID_VO = {
     /*foreach_id*/ volume_foreach_id,
     /*foreach_cache*/ volume_foreach_cache,
     /*foreach_path*/ volume_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ volume_blend_write,
@@ -493,12 +492,12 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain)
   char filepath[FILE_MAX];
   volume_filepath_get(bmain, volume, filepath);
 
-  CLOG_INFO(&LOG, 1, "Volume %s: load %s", volume_name, filepath);
+  CLOG_INFO(&LOG, "Volume %s: load %s", volume_name, filepath);
 
   /* Test if file exists. */
   if (!BLI_exists(filepath)) {
     grids.error_msg = BLI_path_basename(filepath) + std::string(" not found");
-    CLOG_INFO(&LOG, 1, "Volume %s: %s", volume_name, grids.error_msg.c_str());
+    CLOG_INFO(&LOG, "Volume %s: %s", volume_name, grids.error_msg.c_str());
     return false;
   }
 
@@ -507,7 +506,7 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain)
 
   if (!grids_from_file.error_message.empty()) {
     grids.error_msg = grids_from_file.error_message;
-    CLOG_INFO(&LOG, 1, "Volume %s: %s", volume_name, grids.error_msg.c_str());
+    CLOG_INFO(&LOG, "Volume %s: %s", volume_name, grids.error_msg.c_str());
     return false;
   }
 
@@ -539,7 +538,7 @@ void BKE_volume_unload(Volume *volume)
   VolumeGridVector &grids = *volume->runtime->grids;
   if (grids.filepath[0] != '\0') {
     const char *volume_name = volume->id.name + 2;
-    CLOG_INFO(&LOG, 1, "Volume %s: unload", volume_name);
+    CLOG_INFO(&LOG, "Volume %s: unload", volume_name);
     grids.clear_all();
   }
 #else
@@ -1077,8 +1076,12 @@ std::optional<blender::Bounds<float3>> BKE_volume_grid_bounds(openvdb::GridBase:
     return std::nullopt;
   }
 
-  openvdb::BBoxd bbox = grid->transform().indexToWorld(coordbbox);
+  openvdb::BBoxd index_bbox = {
+      openvdb::BBoxd(coordbbox.min().asVec3d(), coordbbox.max().asVec3d())};
+  /* Add half voxel padding that is expected by volume rendering code. */
+  index_bbox.expand(0.5);
 
+  const openvdb::BBoxd bbox = grid->transform().indexToWorld(index_bbox);
   return blender::Bounds<float3>{float3(bbox.min().asPointer()), float3(bbox.max().asPointer())};
 }
 

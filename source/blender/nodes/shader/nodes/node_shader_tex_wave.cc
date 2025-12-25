@@ -14,7 +14,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_wave_cc {
@@ -51,26 +51,26 @@ static void sh_node_tex_wave_declare(NodeDeclarationBuilder &b)
           "Position of the wave along the Bands Direction.\n"
           "This can be used as an input for more control over the distortion");
   b.add_output<decl::Color>("Color").no_muted_links();
-  b.add_output<decl::Float>("Fac").no_muted_links();
+  b.add_output<decl::Float>("Factor", "Fac").no_muted_links();
 }
 
-static void node_shader_buts_tex_wave(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_tex_wave(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "wave_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "wave_type", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   int type = RNA_enum_get(ptr, "wave_type");
   if (type == SHD_WAVE_BANDS) {
-    layout->prop(ptr, "bands_direction", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout.prop(ptr, "bands_direction", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
   else { /* SHD_WAVE_RINGS */
-    layout->prop(ptr, "rings_direction", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout.prop(ptr, "rings_direction", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
 
-  layout->prop(ptr, "wave_profile", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "wave_profile", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_tex_wave(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexWave *tex = MEM_callocN<NodeTexWave>(__func__);
+  NodeTexWave *tex = MEM_new_for_free<NodeTexWave>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->wave_type = SHD_WAVE_BANDS;
@@ -349,6 +349,7 @@ void register_node_type_sh_tex_wave()
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_wave;
   ntype.build_multi_function = file_ns::sh_node_wave_tex_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
+  blender::bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

@@ -42,7 +42,7 @@ GPUVertFormat *immVertexFormat()
   return &imm->vertex_format;
 }
 
-void immBindShader(GPUShader *shader)
+void immBindShader(blender::gpu::Shader *shader)
 {
   BLI_assert(imm->shader == nullptr);
 
@@ -58,9 +58,9 @@ void immBindShader(GPUShader *shader)
   GPU_matrix_bind(shader);
 }
 
-void immBindBuiltinProgram(eGPUBuiltinShader shader_id)
+void immBindBuiltinProgram(GPUBuiltinShader shader_id)
 {
-  GPUShader *shader = GPU_shader_get_builtin_shader(shader_id);
+  blender::gpu::Shader *shader = GPU_shader_get_builtin_shader(shader_id);
   immBindShader(shader);
   imm->builtin_shader_bound = shader_id;
 }
@@ -78,7 +78,7 @@ bool immIsShaderBound()
   return imm->shader != nullptr;
 }
 
-GPUShader *immGetShader()
+blender::gpu::Shader *immGetShader()
 {
   return imm->shader;
 }
@@ -135,7 +135,7 @@ static void wide_line_workaround_start(GPUPrimType prim_type)
     return;
   }
 
-  eGPUBuiltinShader polyline_sh;
+  GPUBuiltinShader polyline_sh;
   switch (*imm->builtin_shader_bound) {
     case GPU_SHADER_3D_CLIPPED_UNIFORM_COLOR:
       polyline_sh = GPU_SHADER_3D_POLYLINE_CLIPPED_UNIFORM_COLOR;
@@ -271,7 +271,7 @@ void immEnd()
     imm->batch = nullptr; /* don't free, batch belongs to caller */
   }
   else {
-    Context::get()->assert_framebuffer_shader_compatibility(unwrap(imm->shader));
+    Context::get()->assert_framebuffer_shader_compatibility(imm->shader);
     imm->end();
   }
 
@@ -615,7 +615,7 @@ void immUniform4fv(const char *name, const float data[4])
 
 void immUniformArray4fv(const char *name, const float *data, int count)
 {
-  GPU_shader_uniform_4fv_array(imm->shader, name, count, (const float(*)[4])data);
+  GPU_shader_uniform_4fv_array(imm->shader, name, count, (const float (*)[4])data);
 }
 
 void immUniformMatrix4fv(const char *name, const float data[4][4])
@@ -628,19 +628,19 @@ void immUniform1i(const char *name, int x)
   GPU_shader_uniform_1i(imm->shader, name, x);
 }
 
-void immBindTexture(const char *name, GPUTexture *tex)
+void immBindTexture(const char *name, blender::gpu::Texture *tex)
 {
   int binding = GPU_shader_get_sampler_binding(imm->shader, name);
   GPU_texture_bind(tex, binding);
 }
 
-void immBindTextureSampler(const char *name, GPUTexture *tex, GPUSamplerState state)
+void immBindTextureSampler(const char *name, blender::gpu::Texture *tex, GPUSamplerState state)
 {
   int binding = GPU_shader_get_sampler_binding(imm->shader, name);
   GPU_texture_bind_ex(tex, state, binding);
 }
 
-void immBindUniformBuf(const char *name, GPUUniformBuf *ubo)
+void immBindUniformBuf(const char *name, blender::gpu::UniformBuf *ubo)
 {
   int binding = GPU_shader_get_ubo_binding(imm->shader, name);
   GPU_uniformbuf_bind(ubo, binding);
@@ -710,14 +710,14 @@ void immUniformColor4ubv(const uchar rgba[4])
 void immUniformThemeColor(int color_id)
 {
   float color[4];
-  UI_GetThemeColor4fv(color_id, color);
+  blender::ui::theme::get_color_4fv(color_id, color);
   immUniformColor4fv(color);
 }
 
 void immUniformThemeColorAlpha(int color_id, float a)
 {
   float color[4];
-  UI_GetThemeColor3fv(color_id, color);
+  blender::ui::theme::get_color_3fv(color_id, color);
   color[3] = a;
   immUniformColor4fv(color);
 }
@@ -725,42 +725,42 @@ void immUniformThemeColorAlpha(int color_id, float a)
 void immUniformThemeColor3(int color_id)
 {
   float color[3];
-  UI_GetThemeColor3fv(color_id, color);
+  blender::ui::theme::get_color_3fv(color_id, color);
   immUniformColor3fv(color);
 }
 
 void immUniformThemeColorShade(int color_id, int offset)
 {
   float color[4];
-  UI_GetThemeColorShade4fv(color_id, offset, color);
+  blender::ui::theme::get_color_shade_4fv(color_id, offset, color);
   immUniformColor4fv(color);
 }
 
 void immUniformThemeColorShadeAlpha(int color_id, int color_offset, int alpha_offset)
 {
   float color[4];
-  UI_GetThemeColorShadeAlpha4fv(color_id, color_offset, alpha_offset, color);
+  blender::ui::theme::get_color_shade_alpha_4fv(color_id, color_offset, alpha_offset, color);
   immUniformColor4fv(color);
 }
 
 void immUniformThemeColorBlendShade(int color_id1, int color_id2, float fac, int offset)
 {
   float color[4];
-  UI_GetThemeColorBlendShade4fv(color_id1, color_id2, fac, offset, color);
+  blender::ui::theme::get_color_blend_shade_4fv(color_id1, color_id2, fac, offset, color);
   immUniformColor4fv(color);
 }
 
 void immUniformThemeColorBlend(int color_id1, int color_id2, float fac)
 {
   uint8_t color[3];
-  UI_GetThemeColorBlend3ubv(color_id1, color_id2, fac, color);
+  blender::ui::theme::get_color_blend_3ubv(color_id1, color_id2, fac, color);
   immUniformColor3ubv(color);
 }
 
 void immThemeColorShadeAlpha(int colorid, int coloffset, int alphaoffset)
 {
   uchar col[4];
-  UI_GetThemeColorShadeAlpha4ubv(colorid, coloffset, alphaoffset, col);
+  blender::ui::theme::get_color_shade_alpha_4ubv(colorid, coloffset, alphaoffset, col);
   immUniformColor4ub(col[0], col[1], col[2], col[3]);
 }
 

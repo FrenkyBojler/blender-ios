@@ -4,7 +4,8 @@
 
 #include "node_geometry_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_input_normal_cc {
 
@@ -17,9 +18,9 @@ static void node_declare(NodeDeclarationBuilder &b)
           "For meshes, outputs normals without custom normal attributes taken into account");
 }
 
-static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "legacy_corner_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "legacy_corner_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

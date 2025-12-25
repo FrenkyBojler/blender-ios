@@ -12,6 +12,8 @@
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
 
+#include <string>
+
 struct AnimData;
 struct BlendDataReader;
 struct BlendWriter;
@@ -80,20 +82,23 @@ struct KS_Path *BKE_keyingset_find_path(struct KeyingSet *ks,
                                         int array_index,
                                         int group_mode);
 
-/* Copy all KeyingSets in the given list */
+/** Copy all KeyingSets in the given list. */
 void BKE_keyingsets_copy(struct ListBase *newlist, const struct ListBase *list);
 
-/** Process the ID pointers inside a scene's keyingsets, in see `BKE_lib_query.hh` for details. */
+/**
+ * Process the ID pointers inside a scene's keying-sets, in.
+ * see `BKE_lib_query.hh` for details.
+ */
 void BKE_keyingsets_foreach_id(struct LibraryForeachIDData *data,
                                const struct ListBase *keyingsets);
 
-/* Free the given Keying Set path */
+/** Free the given Keying Set path. */
 void BKE_keyingset_free_path(struct KeyingSet *ks, struct KS_Path *ksp);
 
-/* Free data for KeyingSet but not set itself */
+/** Free data for KeyingSet but not set itself. */
 void BKE_keyingset_free_paths(struct KeyingSet *ks);
 
-/* Free all the KeyingSets in the given list */
+/** Free all the KeyingSets in the given list. */
 void BKE_keyingsets_free(struct ListBase *list);
 
 void BKE_keyingsets_blend_write(struct BlendWriter *writer, struct ListBase *list);
@@ -131,6 +136,7 @@ char *BKE_animsys_fix_rna_path_rename(struct ID *owner_id,
  */
 void BKE_action_fix_paths_rename(struct ID *owner_id,
                                  struct bAction *act,
+                                 int32_t /*slot_handle_t*/ slot_handle,
                                  const char *prefix,
                                  const char *oldName,
                                  const char *newName,
@@ -204,24 +210,37 @@ bool BKE_animdata_drivers_remove_for_rna_struct(struct ID &owner_id,
 
 /* -------------------------------------- */
 
-typedef struct AnimationBasePathChange {
-  struct AnimationBasePathChange *next, *prev;
-  const char *src_basepath;
-  const char *dst_basepath;
-} AnimationBasePathChange;
+struct AnimationBasePathChange {
+  std::string src_basepath;
+  std::string dst_basepath;
+};
 
 /**
- * Move animation data from source to destination if its paths are based on `basepaths`.
+ * Copy any animation data under the base paths from the #src_id animation data to the #dst_id
+ * animation data. Animation data in #dst_id is created if necessary. If #dst_id has an assigned
+ * action it may be modified or an empty action is assigned if none exists. F-Curves are copied to
+ * the action assigned to #dst_id and drivers are copied to the animation data.
  *
- * Transfer the animation data from `srcID` to `dstID` where the `srcID` animation data
- * is based off `basepath`, creating new #AnimData and associated data as necessary.
- *
- * \param basepaths: A list of #AnimationBasePathChange.
+ * \param basepaths: List of base path pairs to transfer.
  */
-void BKE_animdata_transfer_by_basepath(struct Main *bmain,
-                                       struct ID *srcID,
-                                       struct ID *dstID,
-                                       struct ListBase *basepaths);
+void BKE_animdata_copy_by_basepath(Main &bmain,
+                                   const ID &src_id,
+                                   ID &dst_id,
+                                   blender::Span<AnimationBasePathChange> basepaths);
+
+/**
+ * Move any animation data under the base paths from the #src_id animation data to the #dst_id
+ * animation data. Animation data in #dst_id is created if necessary. If #dst_id has an assigned
+ * action it may be modified or an empty action is assigned if none exists. F-Curves are removed
+ * from the action assigned to #src_id and added to the action assigned to #dst_id. Drivers are
+ * removed from the animation data in #src_id and moved to animation data in #dst_id.
+ *
+ * \param basepaths: List of base path pairs to transfer.
+ */
+void BKE_animdata_move_by_basepath(Main &bmain,
+                                   ID &src_id,
+                                   ID &dst_id,
+                                   blender::Span<AnimationBasePathChange> basepaths);
 
 /* ------------ NLA Keyframing --------------- */
 
@@ -291,7 +310,7 @@ bool BKE_animsys_read_from_rna_path(struct PathResolvedRNA *anim_rna, float *r_v
 /**
  * Write the given value to a setting using RNA, and return success.
  *
- * \param force_write When false, this function will only call the RNA setter when `value` is
+ * \param force_write: When false, this function will only call the RNA setter when `value` is
  * different from the property's current value. When true, this function will skip that check and
  * always call the RNA setter.
  */
@@ -341,14 +360,16 @@ void animsys_evaluate_action(struct PointerRNA *ptr,
                              const struct AnimationEvalContext *anim_eval_context,
                              bool flush_to_original);
 
-/* Evaluate action, and blend the result into the current values (instead of overwriting fully). */
+/**
+ * Evaluate action, and blend the result into the current values (instead of overwriting fully).
+ */
 void animsys_blend_in_action(struct PointerRNA *ptr,
                              struct bAction *act,
                              int32_t action_slot_handle,
                              const AnimationEvalContext *anim_eval_context,
                              float blend_factor);
 
-/* Evaluate Action Group */
+/** Evaluate Action Group. */
 void animsys_evaluate_action_group(struct PointerRNA *ptr,
                                    struct bAction *act,
                                    struct bActionGroup *agrp,

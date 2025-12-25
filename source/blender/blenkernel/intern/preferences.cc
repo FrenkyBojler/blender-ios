@@ -25,7 +25,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_userdef_types.h"
 
 #define U BLI_STATIC_ASSERT(false, "Global 'U' not allowed, only use arguments passed in!")
@@ -60,10 +59,12 @@ bUserAssetLibrary *BKE_preferences_asset_library_add(UserDef *userdef,
                                                      const char *name,
                                                      const char *dirpath)
 {
-  bUserAssetLibrary *library = DNA_struct_default_alloc(bUserAssetLibrary);
+  bUserAssetLibrary *library = MEM_new_for_free<bUserAssetLibrary>(__func__);
 
   BLI_addtail(&userdef->asset_libraries, library);
-
+  if (userdef->experimental.no_data_block_packing) {
+    library->import_method = ASSET_IMPORT_APPEND_REUSE;
+  }
   if (name) {
     BKE_preferences_asset_library_name_set(userdef, library, name);
   }
@@ -182,7 +183,7 @@ bUserExtensionRepo *BKE_preferences_extension_repo_add(UserDef *userdef,
                                                        const char *module,
                                                        const char *custom_dirpath)
 {
-  bUserExtensionRepo *repo = DNA_struct_default_alloc(bUserExtensionRepo);
+  bUserExtensionRepo *repo = MEM_new_for_free<bUserExtensionRepo>(__func__);
   BLI_addtail(&userdef->extension_repos, repo);
 
   /* Set the unique ID-name. */
@@ -213,6 +214,9 @@ bUserExtensionRepo *BKE_preferences_extension_repo_add(UserDef *userdef,
 
 void BKE_preferences_extension_repo_remove(UserDef *userdef, bUserExtensionRepo *repo)
 {
+  if (repo->access_token) {
+    MEM_freeN(repo->access_token);
+  }
   BLI_freelinkN(&userdef->extension_repos, repo);
 }
 
@@ -467,13 +471,19 @@ void BKE_preferences_extension_remote_to_name(const char *remote_url,
     /* Skip the `://`. */
     remote_url += (offset + 3);
 
-    if (is_win32) {
-      if (is_file) {
+    if (is_file) {
+      if (is_win32) {
         /* Skip the slash prefix for: `/C:/`,
          * not *required* but seems like a bug if it's not done. */
         if (remote_url[0] == '/' && isalpha(remote_url[1]) && (remote_url[2] == ':')) {
           remote_url += 1;
         }
+      }
+    }
+    else {
+      /* Skip the `www` as it's not useful information. */
+      if (BLI_str_startswith(remote_url, "www.")) {
+        remote_url += 4;
       }
     }
   }
@@ -546,7 +556,7 @@ void BKE_preferences_extension_repo_write_data(BlendWriter *writer, const bUserE
 static bUserAssetShelfSettings *asset_shelf_settings_new(UserDef *userdef,
                                                          const char *shelf_idname)
 {
-  bUserAssetShelfSettings *settings = DNA_struct_default_alloc(bUserAssetShelfSettings);
+  bUserAssetShelfSettings *settings = MEM_new_for_free<bUserAssetShelfSettings>(__func__);
   BLI_addtail(&userdef->asset_shelves_settings, settings);
   STRNCPY(settings->shelf_idname, shelf_idname);
   BLI_assert(BLI_listbase_is_empty(&settings->enabled_catalog_paths));

@@ -13,7 +13,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
@@ -25,7 +24,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -81,7 +80,7 @@ struct WeightedNormalData {
   blender::OffsetIndices<int> faces;
   blender::Span<blender::float3> face_normals;
   blender::VArraySpan<bool> sharp_faces;
-  const int *face_strength;
+  blender::VArray<int> face_strength;
 
   const MDeformVert *dvert;
   int defgrp_index;
@@ -106,8 +105,6 @@ static bool check_item_face_strength(WeightedNormalData *wn_data,
                                      WeightedNormalDataAggregateItem *item_data,
                                      const int face_index)
 {
-  BLI_assert(wn_data->face_strength != nullptr);
-
   const int mp_strength = wn_data->face_strength[face_index];
 
   if (mp_strength > item_data->curr_strength) {
@@ -183,16 +180,16 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
   using namespace blender;
   const int verts_num = wn_data->verts_num;
 
-  const blender::Span<blender::float3> positions = wn_data->vert_positions;
-  const blender::OffsetIndices faces = wn_data->faces;
-  const blender::Span<int> corner_verts = wn_data->corner_verts;
-  const blender::Span<int> corner_edges = wn_data->corner_edges;
+  const Span<blender::float3> positions = wn_data->vert_positions;
+  const OffsetIndices faces = wn_data->faces;
+  const Span<int> corner_verts = wn_data->corner_verts;
+  const Span<int> corner_edges = wn_data->corner_edges;
 
   MutableSpan<short2> clnors = wn_data->clnors;
-  const blender::Span<int> loop_to_face = wn_data->loop_to_face;
+  const Span<int> loop_to_face = wn_data->loop_to_face;
 
-  const blender::Span<blender::float3> face_normals = wn_data->face_normals;
-  const int *face_strength = wn_data->face_strength;
+  const Span<blender::float3> face_normals = wn_data->face_normals;
+  const VArray<int> face_strength = wn_data->face_strength;
 
   const MDeformVert *dvert = wn_data->dvert;
 
@@ -203,7 +200,7 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
 
   const bool keep_sharp = (wnmd->flag & MOD_WEIGHTEDNORMAL_KEEP_SHARP) != 0;
   const bool use_face_influence = (wnmd->flag & MOD_WEIGHTEDNORMAL_FACE_INFLUENCE) != 0 &&
-                                  face_strength != nullptr;
+                                  bool(face_strength);
   const bool has_vgroup = dvert != nullptr;
 
   blender::Array<blender::float3> corner_normals;
@@ -464,10 +461,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   result = (Mesh *)BKE_id_copy_ex(nullptr, &mesh->id, nullptr, LIB_ID_COPY_LOCALIZE);
 
   const int verts_num = result->verts_num;
-  const blender::Span<blender::float3> positions = mesh->vert_positions();
+  const Span<blender::float3> positions = mesh->vert_positions();
   const OffsetIndices faces = result->faces();
-  const blender::Span<int> corner_verts = mesh->corner_verts();
-  const blender::Span<int> corner_edges = mesh->corner_edges();
+  const Span<int> corner_verts = mesh->corner_verts();
+  const Span<int> corner_edges = mesh->corner_edges();
 
   /* Right now:
    * If weight = 50 then all faces are given equal weight.
@@ -517,8 +514,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   wn_data.faces = faces;
   wn_data.face_normals = mesh->face_normals_true();
   wn_data.sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
-  wn_data.face_strength = static_cast<const int *>(CustomData_get_layer_named(
-      &result->face_data, CD_PROP_INT32, MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID));
+  wn_data.face_strength = *attributes.lookup<int>(MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID,
+                                                  bke::AttrDomain::Face);
 
   wn_data.dvert = dvert;
   wn_data.defgrp_index = defgrp_index;
@@ -552,10 +549,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 static void init_data(ModifierData *md)
 {
   WeightedNormalModifierData *wnmd = (WeightedNormalModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wnmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wnmd, DNA_struct_default_get(WeightedNormalModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wnmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -573,22 +567,21 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "weight", UI_ITEM_NONE, IFACE_("Weight"), ICON_NONE);
-  layout->prop(ptr, "thresh", UI_ITEM_NONE, IFACE_("Threshold"), ICON_NONE);
+  layout.prop(ptr, "weight", UI_ITEM_NONE, IFACE_("Weight"), ICON_NONE);
+  layout.prop(ptr, "thresh", UI_ITEM_NONE, IFACE_("Threshold"), ICON_NONE);
 
-  col = &layout->column(false);
-  col->prop(ptr, "keep_sharp", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "use_face_influence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(ptr, "keep_sharp", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "use_face_influence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
@@ -634,4 +627,5 @@ ModifierTypeInfo modifierType_WeightedNormal = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

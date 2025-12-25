@@ -10,15 +10,24 @@ namespace blender::nodes::node_composite_image_coordinates_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").hide_value().compositor_realization_mode(
-      CompositorInputRealizationMode::None);
+  b.add_input<decl::Color>("Image")
+      .hide_value()
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
+      .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Vector>("Uniform").dimensions(2).description(
-      "Zero centered coordinates normalizes along the larger dimension for uniform scaling");
+  b.add_output<decl::Vector>("Uniform")
+      .dimensions(2)
+      .structure_type(StructureType::Dynamic)
+      .description(
+          "Zero centered coordinates normalizes along the larger dimension for uniform scaling");
   b.add_output<decl::Vector>("Normalized")
       .dimensions(2)
+      .structure_type(StructureType::Dynamic)
       .description("Normalized coordinates with half pixel offsets");
-  b.add_output<decl::Vector>("Pixel").dimensions(2).description("Integer pixel coordinates");
+  b.add_output<decl::Vector>("Pixel")
+      .dimensions(2)
+      .structure_type(StructureType::Dynamic)
+      .description("Integer pixel coordinates");
 }
 
 using namespace blender::compositor;
@@ -54,21 +63,21 @@ class ImageCoordinatesOperation : public NodeOperation {
 
     if (uniform_coordinates_result.should_compute()) {
       const Result &uniform_coordinates = this->context().cache_manager().image_coordinates.get(
-          this->context(), domain.size, CoordinatesType::Uniform);
+          this->context(), domain.data_size, CoordinatesType::Uniform);
       uniform_coordinates_result.wrap_external(uniform_coordinates);
       uniform_coordinates_result.transform(domain.transformation);
     }
 
     if (normalized_coordinates_result.should_compute()) {
       const Result &normalized_coordinates = this->context().cache_manager().image_coordinates.get(
-          this->context(), domain.size, CoordinatesType::Normalized);
+          this->context(), domain.data_size, CoordinatesType::Normalized);
       normalized_coordinates_result.wrap_external(normalized_coordinates);
       normalized_coordinates_result.transform(domain.transformation);
     }
 
     if (pixel_coordinates_result.should_compute()) {
       const Result &pixel_coordinates = this->context().cache_manager().image_coordinates.get(
-          this->context(), domain.size, CoordinatesType::Pixel);
+          this->context(), domain.data_size, CoordinatesType::Pixel);
       pixel_coordinates_result.wrap_external(pixel_coordinates);
       pixel_coordinates_result.transform(domain.transformation);
     }

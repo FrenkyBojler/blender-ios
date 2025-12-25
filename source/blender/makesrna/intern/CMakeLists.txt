@@ -223,13 +223,13 @@ set(SRC_RNA_INC
 
 set(SRC
   makesrna.cc
+  makesrna_utils.cc
   rna_define.cc
   ${DEFSRC}
   ${APISRC}
-  ../../../../intern/clog/clog.c
-  # Needed for defaults.
-  ../../../../release/datafiles/userdef/userdef_default.c
-  ../../../../release/datafiles/userdef/userdef_default_theme.c
+  ../../../../intern/clog/clog.cc
+
+  makesrna_utils.hh
 )
 
 set(INC
@@ -253,6 +253,7 @@ set(INC
   ../../io/usd
   ../../modifiers
   ../../nodes
+  ../../nodes/composite/include
   ../../nodes/function/include
   ../../nodes/geometry/include
   ../../sequencer
@@ -263,7 +264,6 @@ set(INC
   ../../render
   ../../../../intern/clog
   ../../../../intern/cycles/blender
-  ../../../../extern/fmtlib/include
   ../../../../intern/memutil
   ../../../../intern/mantaflow/extern
 
@@ -273,7 +273,7 @@ set(INC
 )
 
 set(INC_SYS
-
+  ../../../../extern/fmtlib/include
 )
 
 if(WITH_CYCLES)
@@ -387,23 +387,6 @@ if(WITH_OPENSUBDIV)
   )
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-endif()
-
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB)
-
-  if(WITH_OPENVDB_BLOSC)
-    add_definitions(-DWITH_OPENVDB_BLOSC)
-  endif()
-endif()
 
 if(WITH_INPUT_NDOF)
   add_definitions(-DWITH_INPUT_NDOF)
@@ -442,6 +425,7 @@ target_link_libraries(makesrna PRIVATE bf_dna)
 target_link_libraries(makesrna PRIVATE bf::intern::atomic)
 target_link_libraries(makesrna PRIVATE bf::intern::guardedalloc)
 target_link_libraries(makesrna PRIVATE bf_dna_blenlib)
+target_link_libraries(makesrna PRIVATE bf_dna_defaults)
 target_link_libraries(makesrna PRIVATE bf::dependencies::optional::tbb)
 
 if(WIN32 AND NOT UNIX)
@@ -464,6 +448,7 @@ add_custom_command(
 # Build bf_rna
 set(SRC
   rna_access.cc
+  rna_define.cc
   rna_access_compare_override.cc
   rna_path.cc
   ${GENSRC}
@@ -471,14 +456,16 @@ set(SRC
   ${SRC_RNA_INC}
   rna_access_internal.hh
   rna_curves_utils.hh
+  rna_defaults.hh
   rna_internal.hh
   rna_internal_types.hh
-  rna_mesh_utils.hh
+  rna_screen_utils.hh
 )
 
 set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::dna
+  PRIVATE bf::dependencies::optional::openvdb
   PRIVATE bf::dependencies::optional::tbb
   PRIVATE extern_fmtlib
   bf_editor_space_api
@@ -505,3 +492,18 @@ set(LIB
 )
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+target_compile_definitions(bf_rna PRIVATE RNA_RUNTIME)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    makesrna_test.cc
+  )
+  set(TEST_LIB
+    ${LIB}
+  )
+  set(TEST_COMMON_SRC
+    makesrna_utils.cc
+  )
+  blender_add_test_suite_lib(bf_makesrna "${TEST_SRC}" "${INC}" "${INC_SYS}" "${TEST_LIB}" "${TEST_COMMON_SRC}")
+endif()

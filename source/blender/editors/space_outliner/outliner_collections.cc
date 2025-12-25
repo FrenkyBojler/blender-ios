@@ -242,6 +242,7 @@ static TreeTraversalAction collection_find_selected_to_add(TreeElement *te, void
 
 static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
 {
+  WorkSpace *workspace = CTX_wm_workspace(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ARegion *region = CTX_wm_region(C);
   Main *bmain = CTX_data_main(C);
@@ -251,7 +252,7 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   CollectionNewData data{};
 
   if (RNA_boolean_get(op->ptr, "nested")) {
-    outliner_build_tree(bmain, scene, view_layer, space_outliner, region);
+    outliner_build_tree(bmain, workspace, scene, view_layer, space_outliner, region);
 
     outliner_tree_traverse(space_outliner,
                            &space_outliner->tree,
@@ -273,7 +274,7 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   }
 
   if (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) {
-    BKE_report(op->reports, RPT_ERROR, "Can't add a new collection to linked/override scene");
+    BKE_report(op->reports, RPT_ERROR, "Cannot add a new collection to linked/override scene");
     return OPERATOR_CANCELLED;
   }
 
@@ -645,11 +646,16 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  int failed_count = 0;
   LISTBASE_FOREACH (LinkData *, link, &selected_collections.selected_array) {
     TreeElement *te = static_cast<TreeElement *>(link->data);
     Collection *collection = outliner_collection_from_tree_element(te);
     Collection *parent = (te->parent) ? outliner_collection_from_tree_element(te->parent) :
                                         nullptr;
+    if (!parent) {
+      failed_count += 1;
+      continue;
+    }
     CollectionChild *child = BKE_collection_child_find(parent, collection);
 
     /* We are allowed to duplicated linked collections (they will become local IDs then),
@@ -676,17 +682,19 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
       }
     }
 
-    if (parent == nullptr) {
-      BKE_report(op->reports,
-                 RPT_WARNING,
-                 "Could not find a valid parent collection for the new duplicate, "
-                 "it won't be linked to any view layer");
-    }
-
     const eDupli_ID_Flags dupli_flags = (eDupli_ID_Flags)(USER_DUP_OBJECT |
                                                           (linked ? 0 : U.dupflag));
     BKE_collection_duplicate(
         bmain, parent, child, collection, dupli_flags, LIB_ID_DUPLICATE_IS_ROOT_ID);
+  }
+
+  if (failed_count != 0) {
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "Unable to duplicate %d of the selected collections. "
+                "Could not find a valid parent collection for the new duplicate, "
+                "they won't be linked to any view layer",
+                failed_count);
   }
 
   BLI_freelistN(&selected_collections.selected_array);
@@ -1621,7 +1629,7 @@ static wmOperatorStatus outliner_color_tag_set_exec(bContext *C, wmOperator *op)
       continue;
     }
     if (!BKE_id_is_editable(CTX_data_main(C), &collection->id)) {
-      BKE_report(op->reports, RPT_WARNING, "Can't add a color tag to a linked collection");
+      BKE_report(op->reports, RPT_WARNING, "Cannot add a color tag to a linked collection");
       continue;
     }
 

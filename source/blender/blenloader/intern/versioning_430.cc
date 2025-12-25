@@ -12,14 +12,13 @@
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
@@ -61,7 +60,7 @@ static void update_paint_modes_for_brush_assets(Main &bmain)
   LISTBASE_FOREACH (WorkSpace *, workspace, &bmain.workspaces) {
     LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
       if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
-        STRNCPY(tref->idname, "builtin.brush");
+        STRNCPY_UTF8(tref->idname, "builtin.brush");
         continue;
       }
       if (tref->space_type != SPACE_VIEW3D) {
@@ -84,7 +83,7 @@ static void update_paint_modes_for_brush_assets(Main &bmain)
       {
         continue;
       }
-      STRNCPY(tref->idname, "builtin.brush");
+      STRNCPY_UTF8(tref->idname, "builtin.brush");
     }
   }
 }
@@ -98,14 +97,14 @@ static void fix_built_in_curve_attribute_defaults(Main *bmain)
   LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
     const int curves_num = curves->geometry.curve_num;
     if (int *resolutions = static_cast<int *>(CustomData_get_layer_named_for_write(
-            &curves->geometry.curve_data, CD_PROP_INT32, "resolution", curves_num)))
+            &curves->geometry.curve_data_legacy, CD_PROP_INT32, "resolution", curves_num)))
     {
       for (int &resolution : blender::MutableSpan{resolutions, curves_num}) {
         resolution = std::max(resolution, 1);
       }
     }
     if (int8_t *nurb_orders = static_cast<int8_t *>(CustomData_get_layer_named_for_write(
-            &curves->geometry.curve_data, CD_PROP_INT8, "nurbs_order", curves_num)))
+            &curves->geometry.curve_data_legacy, CD_PROP_INT8, "nurbs_order", curves_num)))
     {
       for (int8_t &nurbs_order : blender::MutableSpan{nurb_orders, curves_num}) {
         nurbs_order = std::max<int8_t>(nurbs_order, 1);
@@ -129,11 +128,11 @@ static void node_reroute_add_storage(bNodeTree &tree)
        * identifiers were sometimes all lower case. Fixing those wrong socket identifiers is
        * important because otherwise they loose links now that the reroute node also uses node
        * declarations. */
-      STRNCPY(input.identifier, "Input");
-      STRNCPY(output.identifier, "Output");
+      STRNCPY_UTF8(input.identifier, "Input");
+      STRNCPY_UTF8(output.identifier, "Output");
 
-      NodeReroute *data = MEM_callocN<NodeReroute>(__func__);
-      STRNCPY(data->type_idname, input.idname);
+      NodeReroute *data = MEM_new_for_free<NodeReroute>(__func__);
+      STRNCPY_UTF8(data->type_idname, input.idname);
       node->storage = data;
     }
   }
@@ -189,7 +188,7 @@ static void hide_simulation_node_skip_socket_value(Main &bmain)
       input_node.locx_legacy = node->locx_legacy - 25;
       input_node.locy_legacy = node->locy_legacy;
 
-      NodeInputBool *input_node_storage = MEM_callocN<NodeInputBool>(__func__);
+      NodeInputBool *input_node_storage = MEM_new_for_free<NodeInputBool>(__func__);
       input_node.storage = input_node_storage;
       input_node_storage->boolean = true;
 
@@ -281,7 +280,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 13)) {
-    Camera default_cam = *DNA_struct_default_get(Camera);
+    Camera default_cam;
     LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
       camera->central_cylindrical_range_u_min = default_cam.central_cylindrical_range_u_min;
       camera->central_cylindrical_range_u_max = default_cam.central_cylindrical_range_u_max;
@@ -308,7 +307,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
 
         /* Initialize node format color space if it is not set. */
-        NodeImageMultiFile *storage = static_cast<NodeImageMultiFile *>(node->storage);
+        NodeCompositorFileOutput *storage = static_cast<NodeCompositorFileOutput *>(node->storage);
         if (storage->format.linear_colorspace_settings.name[0] == '\0') {
           BKE_image_format_update_color_space_for_type(&storage->format);
         }
@@ -483,7 +482,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         continue;
       }
       LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-        if (ELEM(node->type_legacy, CMP_NODE_VIEWER, CMP_NODE_COMPOSITE)) {
+        if (ELEM(node->type_legacy, CMP_NODE_VIEWER, CMP_NODE_COMPOSITE_DEPRECATED)) {
           node->flag &= ~NODE_PREVIEW;
         }
       }
@@ -508,7 +507,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (tref->space_type != SPACE_SEQ) {
           continue;
         }
-        STRNCPY(tref->idname, "builtin.select_box");
+        STRNCPY_UTF8(tref->idname, "builtin.select_box");
       }
     }
   }

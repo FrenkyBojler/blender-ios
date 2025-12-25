@@ -40,10 +40,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-
 #include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_heap_simple.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -52,19 +51,19 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_deform.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -129,7 +128,7 @@ enum SkinNodeFlag {
   SEAM_FRAME = 4,
   FLIP_NORMAL = 8,
 };
-ENUM_OPERATORS(SkinNodeFlag, FLIP_NORMAL);
+ENUM_OPERATORS(SkinNodeFlag);
 
 struct Frame {
   /* Index in the vertex array */
@@ -932,7 +931,9 @@ static Mesh *subdivide_base(const Mesh *orig)
   }
 
   /* Copy original vertex data */
-  CustomData_copy_data(&orig->vert_data, &result->vert_data, 0, 0, orig_vert_num);
+  blender::bke::LegacyMeshInterpolator vert_interp(
+      *orig, *result, blender::bke::AttrDomain::Point);
+  vert_interp.copy(0, 0, orig_vert_num);
 
   /* Subdivide edges */
   int result_edge_i = 0;
@@ -1816,7 +1817,7 @@ enum eSkinErrorFlag {
   SKIN_ERROR_NO_VALID_ROOT = (1 << 0),
   SKIN_ERROR_HULL = (1 << 1),
 };
-ENUM_OPERATORS(eSkinErrorFlag, SKIN_ERROR_HULL);
+ENUM_OPERATORS(eSkinErrorFlag);
 
 static BMesh *build_skin(SkinNode *skin_nodes,
                          int verts_num,
@@ -1970,10 +1971,7 @@ static Mesh *final_skin(SkinModifierData *smd, Mesh *mesh, eSkinErrorFlag *r_err
 static void init_data(ModifierData *md)
 {
   SkinModifierData *smd = (SkinModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SkinModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 
   /* Enable in editmode by default. */
   md->mode |= eModifierMode_Editmode;
@@ -2010,46 +2008,46 @@ static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cd
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  blender::ui::Layout &layout = *panel->layout;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   PointerRNA op_ptr;
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "branch_smoothing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "branch_smoothing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = &layout->row(true, IFACE_("Symmetry"));
+  blender::ui::Layout *row = &layout.row(true, IFACE_("Symmetry"));
   row->prop(ptr, "use_x_symmetry", toggles_flag, std::nullopt, ICON_NONE);
   row->prop(ptr, "use_y_symmetry", toggles_flag, std::nullopt, ICON_NONE);
   row->prop(ptr, "use_z_symmetry", toggles_flag, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = &layout->row(false);
+  row = &layout.row(false);
   row->op("OBJECT_OT_skin_armature_create", IFACE_("Create Armature"), ICON_NONE);
   row->op("MESH_OT_customdata_skin_add", std::nullopt, ICON_NONE);
 
-  row = &layout->row(false);
+  row = &layout.row(false);
   op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
                    IFACE_("Mark Loose"),
                    ICON_NONE,
-                   WM_OP_EXEC_DEFAULT,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 0); /* SKIN_LOOSE_MARK */
   op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
                    IFACE_("Clear Loose"),
                    ICON_NONE,
-                   WM_OP_EXEC_DEFAULT,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 1); /* SKIN_LOOSE_CLEAR */
 
-  layout->op("OBJECT_OT_skin_root_mark", IFACE_("Mark Root"), ICON_NONE);
-  layout->op("OBJECT_OT_skin_radii_equalize", IFACE_("Equalize Radii"), ICON_NONE);
+  layout.op("OBJECT_OT_skin_root_mark", IFACE_("Mark Root"), ICON_NONE);
+  layout.op("OBJECT_OT_skin_radii_equalize", IFACE_("Equalize Radii"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -2092,4 +2090,5 @@ ModifierTypeInfo modifierType_Skin = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

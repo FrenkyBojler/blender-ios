@@ -13,13 +13,13 @@
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
 
-#include "FX_shader_types.h"
-#include "FX_ui_common.h"
+#include "FX_shader_types.hh"
+#include "FX_ui_common.hh"
 
 static void init_data(ShaderFxData *fx)
 {
@@ -34,17 +34,17 @@ static void copy_data(const ShaderFxData *md, ShaderFxData *target)
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  blender::ui::Layout &layout = *panel->layout;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA *ptr = shaderfx_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  row = &layout->row(true, IFACE_("Axis"));
-  row->prop(ptr, "use_flip_x", toggles_flag, std::nullopt, ICON_NONE);
-  row->prop(ptr, "use_flip_y", toggles_flag, std::nullopt, ICON_NONE);
+  blender::ui::Layout &row = layout.row(true, IFACE_("Axis"));
+  row.prop(ptr, "use_flip_x", toggles_flag, std::nullopt, ICON_NONE);
+  row.prop(ptr, "use_flip_y", toggles_flag, std::nullopt, ICON_NONE);
 
   shaderfx_panel_end(layout, ptr);
 }
@@ -69,5 +69,6 @@ ShaderFxTypeInfo shaderfx_Type_Flip = {
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
     /*foreach_ID_link*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*panel_register*/ panel_register,
 };

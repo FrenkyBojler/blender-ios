@@ -6,6 +6,7 @@
 
 #include "BLI_hash.hh"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "DNA_array_utils.hh"
 
@@ -18,7 +19,7 @@ namespace blender::ed::spreadsheet {
 
 SpreadsheetTableIDGeometry *spreadsheet_table_id_new_geometry()
 {
-  auto *table_id = MEM_callocN<SpreadsheetTableIDGeometry>(__func__);
+  auto *table_id = MEM_new_for_free<SpreadsheetTableIDGeometry>(__func__);
   table_id->base.type = SPREADSHEET_TABLE_ID_TYPE_GEOMETRY;
   return table_id;
 }
@@ -33,6 +34,12 @@ void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
   dst.layer_index = src.layer_index;
   dst.instance_ids = static_cast<SpreadsheetInstanceID *>(MEM_dupallocN(src.instance_ids));
   dst.instance_ids_num = src.instance_ids_num;
+  dst.bundle_path = MEM_new_array_for_free<SpreadsheetBundlePathElem>(src.bundle_path_num,
+                                                                      __func__);
+  for (const int i : IndexRange(src.bundle_path_num)) {
+    dst.bundle_path[i].identifier = BLI_strdup_null(src.bundle_path[i].identifier);
+  }
+  dst.bundle_path_num = src.bundle_path_num;
 }
 
 SpreadsheetTableID *spreadsheet_table_id_copy(const SpreadsheetTableID &src_table_id)
@@ -55,6 +62,10 @@ void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
       auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
       BKE_viewer_path_clear(&table_id_->viewer_path);
       MEM_SAFE_FREE(table_id_->instance_ids);
+      for (const int i : IndexRange(table_id_->bundle_path_num)) {
+        MEM_SAFE_FREE(table_id_->bundle_path[i].identifier);
+      }
+      MEM_SAFE_FREE(table_id_->bundle_path);
       break;
     }
   }
@@ -72,6 +83,11 @@ void spreadsheet_table_id_blend_write_content_geometry(BlendWriter *writer,
   BKE_viewer_path_blend_write(writer, &table_id->viewer_path);
   BLO_write_struct_array(
       writer, SpreadsheetInstanceID, table_id->instance_ids_num, table_id->instance_ids);
+  BLO_write_struct_array(
+      writer, SpreadsheetBundlePathElem, table_id->bundle_path_num, table_id->bundle_path);
+  for (const int i : IndexRange(table_id->bundle_path_num)) {
+    BLO_write_string(writer, table_id->bundle_path[i].identifier);
+  }
 }
 
 void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTableID *table_id)
@@ -79,7 +95,7 @@ void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTabl
   switch (eSpreadsheetTableIDType(table_id->type)) {
     case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
       const auto *table_id_ = reinterpret_cast<const SpreadsheetTableIDGeometry *>(table_id);
-      BLO_write_struct(writer, SpreadsheetTableIDGeometry, table_id_);
+      writer->write_struct(table_id_);
       spreadsheet_table_id_blend_write_content_geometry(writer, table_id_);
       break;
     }
@@ -94,6 +110,11 @@ void spreadsheet_table_id_blend_read(BlendDataReader *reader, SpreadsheetTableID
       BKE_viewer_path_blend_read_data(reader, &table_id_->viewer_path);
       BLO_read_struct_array(
           reader, SpreadsheetInstanceID, table_id_->instance_ids_num, &table_id_->instance_ids);
+      BLO_read_struct_array(
+          reader, SpreadsheetBundlePathElem, table_id_->bundle_path_num, &table_id_->bundle_path);
+      for (const int i : IndexRange(table_id_->bundle_path_num)) {
+        BLO_read_string(reader, &table_id_->bundle_path[i].identifier);
+      }
       break;
     }
   }
@@ -137,8 +158,9 @@ bool spreadsheet_table_id_match(const SpreadsheetTableID &a, const SpreadsheetTa
              a_.geometry_component_type == b_.geometry_component_type &&
              a_.attribute_domain == b_.attribute_domain &&
              a_.object_eval_state == b_.object_eval_state && a_.layer_index == b_.layer_index &&
-             blender::Span(a_.instance_ids, a_.instance_ids_num) ==
-                 blender::Span(b_.instance_ids, b_.instance_ids_num);
+             Span(a_.instance_ids, a_.instance_ids_num) ==
+                 Span(b_.instance_ids, b_.instance_ids_num) &&
+             Span(a_.bundle_path, a_.bundle_path_num) == Span(b_.bundle_path, b_.bundle_path_num);
     }
   }
   return true;
@@ -146,7 +168,7 @@ bool spreadsheet_table_id_match(const SpreadsheetTableID &a, const SpreadsheetTa
 
 SpreadsheetTable *spreadsheet_table_new(SpreadsheetTableID *table_id)
 {
-  SpreadsheetTable *spreadsheet_table = MEM_callocN<SpreadsheetTable>(__func__);
+  SpreadsheetTable *spreadsheet_table = MEM_new_for_free<SpreadsheetTable>(__func__);
   spreadsheet_table->id = table_id;
   return spreadsheet_table;
 }
@@ -155,7 +177,8 @@ SpreadsheetTable *spreadsheet_table_copy(const SpreadsheetTable &src_table)
 {
   SpreadsheetTable *new_table = spreadsheet_table_new(spreadsheet_table_id_copy(*src_table.id));
   new_table->num_columns = src_table.num_columns;
-  new_table->columns = MEM_calloc_arrayN<SpreadsheetColumn *>(src_table.num_columns, __func__);
+  new_table->columns = MEM_new_array_for_free<SpreadsheetColumn *>(src_table.num_columns,
+                                                                   __func__);
   for (const int i : IndexRange(src_table.num_columns)) {
     new_table->columns[i] = spreadsheet_column_copy(src_table.columns[i]);
   }
@@ -174,7 +197,7 @@ void spreadsheet_table_free(SpreadsheetTable *table)
 
 void spreadsheet_table_blend_write(BlendWriter *writer, const SpreadsheetTable *table)
 {
-  BLO_write_struct(writer, SpreadsheetTable, table);
+  writer->write_struct(table);
   spreadsheet_table_id_blend_write(writer, table->id);
   BLO_write_pointer_array(writer, table->num_columns, table->columns);
   for (const int i : IndexRange(table->num_columns)) {
@@ -223,7 +246,7 @@ const SpreadsheetTable *spreadsheet_table_find(const SpaceSpreadsheet &sspreadsh
 
 void spreadsheet_table_add(SpaceSpreadsheet &sspreadsheet, SpreadsheetTable *table)
 {
-  SpreadsheetTable **new_tables = MEM_calloc_arrayN<SpreadsheetTable *>(
+  SpreadsheetTable **new_tables = MEM_new_array_for_free<SpreadsheetTable *>(
       sspreadsheet.num_tables + 1, __func__);
   std::copy_n(sspreadsheet.tables, sspreadsheet.num_tables, new_tables);
   new_tables[sspreadsheet.num_tables] = table;

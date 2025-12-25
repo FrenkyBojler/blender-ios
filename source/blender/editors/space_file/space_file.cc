@@ -12,7 +12,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -47,7 +47,7 @@
 #include "file_indexer.hh"
 #include "file_intern.hh" /* own include */
 #include "filelist.hh"
-#include "fsmenu.h"
+#include "fsmenu.hh"
 
 /* ******************** default callbacks for file space ***************** */
 
@@ -56,7 +56,7 @@ static SpaceLink *file_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   ARegion *region;
   SpaceFile *sfile;
 
-  sfile = MEM_callocN<SpaceFile>("initfile");
+  sfile = MEM_new_for_free<SpaceFile>("initfile");
   sfile->spacetype = SPACE_FILE;
 
   /* header */
@@ -254,7 +254,7 @@ static void file_refresh(const bContext *C, ScrArea *area)
   }
 
   if (ED_fileselect_is_asset_browser(sfile)) {
-    const bool use_asset_indexer = !USER_EXPERIMENTAL_TEST(&U, no_asset_indexing);
+    const bool use_asset_indexer = !USER_DEVELOPER_TOOL_TEST(&U, no_asset_indexing);
     filelist_setindexer(
         sfile->files, use_asset_indexer ? &asset::index::file_indexer_asset : &file_indexer_noop);
   }
@@ -435,18 +435,26 @@ static void file_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, blender::ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
+
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 
   /* Truncate, otherwise these can be on ".5" and give fuzzy text. #77696. */
   region->v2d.cur.ymin = trunc(region->v2d.cur.ymin);
   region->v2d.cur.ymax = trunc(region->v2d.cur.ymax);
 
   /* own keymaps */
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser Main", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "File Browser Main", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
+
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Asset Browser Main", SPACE_FILE, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
+  keymap->poll = [](bContext *C) { return ED_operator_asset_browsing_active(C); };
 }
 
 static void file_main_region_listener(const wmRegionListenerParams *listener_params)
@@ -548,7 +556,7 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* Allow dynamically sliders to be set, saves notifiers etc. */
 
@@ -575,17 +583,17 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
     }
   }
   /* v2d has initialized flag, so this call will only set the mask correct */
-  UI_view2d_region_reinit(v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(v2d, blender::ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* sets tile/border settings in sfile */
   file_calc_previews(C, region);
 
   /* set view */
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* on first read, find active file */
   if (params->highlight_file == -1) {
-    const wmEvent *event = CTX_wm_window(C)->eventstate;
+    const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
     file_highlight_set(sfile, region, event->xy[0], event->xy[1]);
   }
 
@@ -594,12 +602,14 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* scrollers */
   rcti view_rect;
   ED_fileselect_layout_maskrect(sfile->layout, v2d, &view_rect);
-  UI_view2d_scrollers_draw(v2d, &view_rect);
+  blender::ui::view2d_scrollers_draw(v2d, &view_rect);
+
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &view_rect);
 }
 
 static void file_operatortypes()
@@ -649,7 +659,7 @@ static void file_keymap(wmKeyConfig *keyconf)
   WM_keymap_ensure(keyconf, "File Browser Buttons", SPACE_FILE, RGN_TYPE_WINDOW);
 }
 
-static bool file_ui_region_poll(const RegionPollParams *params)
+static bool file_region_poll(const RegionPollParams *params)
 {
   const SpaceFile *sfile = (SpaceFile *)params->area->spacedata.first;
   /* Always visible except when browsing assets. */
@@ -676,7 +686,7 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   /* own keymaps */
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -726,7 +736,7 @@ static void file_header_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_header_init(region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -736,7 +746,7 @@ static void file_header_region_draw(const bContext *C, ARegion *region)
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
-static void file_ui_region_init(wmWindowManager *wm, ARegion *region)
+static void file_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
@@ -744,14 +754,15 @@ static void file_ui_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser Buttons", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "File Browser Buttons", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
-static void file_ui_region_draw(const bContext *C, ARegion *region)
+static void file_region_draw(const bContext *C, ARegion *region)
 {
   ED_region_panels(C, region);
 }
@@ -764,7 +775,7 @@ static void file_execution_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "File Browser", SPACE_FILE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -773,7 +784,7 @@ static void file_execution_region_draw(const bContext *C, ARegion *region)
   ED_region_panels(C, region);
 }
 
-static void file_ui_region_listener(const wmRegionListenerParams *listener_params)
+static void file_region_listener(const wmRegionListenerParams *listener_params)
 {
   ARegion *region = listener_params->region;
   const wmNotifier *wmn = listener_params->notifier;
@@ -929,12 +940,12 @@ static void file_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   SpaceFile *sfile = (SpaceFile *)sl;
 
-  BLO_write_struct(writer, SpaceFile, sl);
+  writer->write_struct_cast<SpaceFile>(sl);
   if (sfile->params) {
-    BLO_write_struct(writer, FileSelectParams, sfile->params);
+    writer->write_struct(sfile->params);
   }
   if (sfile->asset_params) {
-    BLO_write_struct(writer, FileAssetSelectParams, sfile->asset_params);
+    writer->write_struct(sfile->asset_params);
   }
 }
 
@@ -944,7 +955,7 @@ void ED_spacetype_file()
   ARegionType *art;
 
   st->spaceid = SPACE_FILE;
-  STRNCPY(st->name, "File");
+  STRNCPY_UTF8(st->name, "File");
 
   st->create = file_create;
   st->free = file_free;
@@ -992,10 +1003,10 @@ void ED_spacetype_file()
   art = MEM_callocN<ARegionType>("spacetype file region");
   art->regionid = RGN_TYPE_UI;
   art->keymapflag = ED_KEYMAP_UI;
-  art->poll = file_ui_region_poll;
-  art->listener = file_ui_region_listener;
-  art->init = file_ui_region_init;
-  art->draw = file_ui_region_draw;
+  art->poll = file_region_poll;
+  art->listener = file_region_listener;
+  art->init = file_region_init;
+  art->draw = file_region_draw;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: execution */
@@ -1003,7 +1014,7 @@ void ED_spacetype_file()
   art->regionid = RGN_TYPE_EXECUTE;
   art->keymapflag = ED_KEYMAP_UI;
   art->poll = file_execution_region_poll;
-  art->listener = file_ui_region_listener;
+  art->listener = file_region_listener;
   art->init = file_execution_region_init;
   art->draw = file_execution_region_draw;
   BLI_addhead(&st->regiontypes, art);
@@ -1060,6 +1071,7 @@ void ED_file_read_bookmarks()
   fsmenu_free();
 
   fsmenu_read_system(ED_fsmenu_get(), true);
+  fsmenu_add_common_platform_directories(ED_fsmenu_get());
 
   if (cfgdir.has_value()) {
     char filepath[FILE_MAX];

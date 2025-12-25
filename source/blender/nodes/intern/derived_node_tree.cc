@@ -324,6 +324,10 @@ static const DTreeContext *find_active_context_recursive(const DTreeContext *con
   /* For each of the group nodes, compute their instance key and contexts and call this function
    * recursively. */
   for (const bNode *group_node : context->btree().group_nodes()) {
+    /* No valid context exists for node groups without node trees. */
+    if (!group_node->id) {
+      continue;
+    }
     const DTreeContext *child_context = context->child_context(*group_node);
     const DTreeContext *found_context = find_active_context_recursive(child_context);
 
@@ -350,7 +354,14 @@ const DTreeContext &DerivedNodeTree::active_context() const
     return root_context();
   }
 
-  return *find_active_context_recursive(&root_context());
+  const DTreeContext *found_context = find_active_context_recursive(&root_context());
+  if (found_context == nullptr) {
+    /* There should always be a valid active context. */
+    BLI_assert_unreachable();
+    return root_context();
+  }
+
+  return *found_context;
 }
 
 /* Each nested node group gets its own cluster. Just as node groups, clusters can be nested. */

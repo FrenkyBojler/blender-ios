@@ -15,7 +15,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
-#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_material_types.h"
@@ -31,6 +30,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_multi_value_map.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 
 #include "BKE_anim_data.hh"
@@ -156,7 +156,7 @@ static void versioning_update_noise_texture_node(bNodeTree *ntree)
       clamp_node->custom1 = NODE_CLAMP_MINMAX;
       clamp_node->locx_legacy = node->locx_legacy;
       clamp_node->locy_legacy = node->locy_legacy - 300.0f;
-      clamp_node->flag |= NODE_HIDDEN;
+      clamp_node->flag |= NODE_COLLAPSED;
       bNodeSocket *clamp_socket_value = blender::bke::node_find_socket(
           *clamp_node, SOCK_IN, "Value");
       bNodeSocket *clamp_socket_min = blender::bke::node_find_socket(*clamp_node, SOCK_IN, "Min");
@@ -189,9 +189,9 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       continue;
     }
 
-    STRNCPY(node->idname, "ShaderNodeTexNoise");
+    STRNCPY_UTF8(node->idname, "ShaderNodeTexNoise");
     node->type_legacy = SH_NODE_TEX_NOISE;
-    NodeTexNoise *data = MEM_callocN<NodeTexNoise>(__func__);
+    NodeTexNoise *data = MEM_new_for_free<NodeTexNoise>(__func__);
     data->base = (static_cast<NodeTexMusgrave *>(node->storage))->base;
     data->dimensions = (static_cast<NodeTexMusgrave *>(node->storage))->dimensions;
     data->normalize = false;
@@ -252,7 +252,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       min_node->custom1 = NODE_MATH_MINIMUM;
       min_node->locx_legacy = node->locx_legacy;
       min_node->locy_legacy = node->locy_legacy - 320.0f;
-      min_node->flag |= NODE_HIDDEN;
+      min_node->flag |= NODE_COLLAPSED;
       bNodeSocket *min_socket_A = static_cast<bNodeSocket *>(BLI_findlink(&min_node->inputs, 0));
       bNodeSocket *min_socket_B = static_cast<bNodeSocket *>(BLI_findlink(&min_node->inputs, 1));
       bNodeSocket *min_socket_out = blender::bke::node_find_socket(*min_node, SOCK_OUT, "Value");
@@ -262,7 +262,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       sub1_node->custom1 = NODE_MATH_SUBTRACT;
       sub1_node->locx_legacy = node->locx_legacy;
       sub1_node->locy_legacy = node->locy_legacy - 360.0f;
-      sub1_node->flag |= NODE_HIDDEN;
+      sub1_node->flag |= NODE_COLLAPSED;
       bNodeSocket *sub1_socket_A = static_cast<bNodeSocket *>(BLI_findlink(&sub1_node->inputs, 0));
       bNodeSocket *sub1_socket_B = static_cast<bNodeSocket *>(BLI_findlink(&sub1_node->inputs, 1));
       bNodeSocket *sub1_socket_out = blender::bke::node_find_socket(*sub1_node, SOCK_OUT, "Value");
@@ -286,7 +286,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
         greater_node->custom1 = NODE_MATH_GREATER_THAN;
         greater_node->locx_legacy = node->locx_legacy;
         greater_node->locy_legacy = node->locy_legacy - 400.0f;
-        greater_node->flag |= NODE_HIDDEN;
+        greater_node->flag |= NODE_COLLAPSED;
         bNodeSocket *greater_socket_A = static_cast<bNodeSocket *>(
             BLI_findlink(&greater_node->inputs, 0));
         bNodeSocket *greater_socket_B = static_cast<bNodeSocket *>(
@@ -309,7 +309,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
         clamp_node->custom1 = NODE_CLAMP_MINMAX;
         clamp_node->locx_legacy = node->locx_legacy;
         clamp_node->locy_legacy = node->locy_legacy + 40.0f;
-        clamp_node->flag |= NODE_HIDDEN;
+        clamp_node->flag |= NODE_COLLAPSED;
         bNodeSocket *clamp_socket_value = blender::bke::node_find_socket(
             *clamp_node, SOCK_IN, "Value");
         bNodeSocket *clamp_socket_min = blender::bke::node_find_socket(
@@ -324,7 +324,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
         mul_node->custom1 = NODE_MATH_MULTIPLY;
         mul_node->locx_legacy = node->locx_legacy;
         mul_node->locy_legacy = node->locy_legacy + 80.0f;
-        mul_node->flag |= NODE_HIDDEN;
+        mul_node->flag |= NODE_COLLAPSED;
         bNodeSocket *mul_socket_A = static_cast<bNodeSocket *>(BLI_findlink(&mul_node->inputs, 0));
         bNodeSocket *mul_socket_B = static_cast<bNodeSocket *>(BLI_findlink(&mul_node->inputs, 1));
         bNodeSocket *mul_socket_out = blender::bke::node_find_socket(*mul_node, SOCK_OUT, "Value");
@@ -341,7 +341,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
           sub2_node->custom2 = SHD_MATH_CLAMP;
           sub2_node->locx_legacy = node->locx_legacy;
           sub2_node->locy_legacy = node->locy_legacy + 120.0f;
-          sub2_node->flag |= NODE_HIDDEN;
+          sub2_node->flag |= NODE_COLLAPSED;
           bNodeSocket *sub2_socket_A = static_cast<bNodeSocket *>(
               BLI_findlink(&sub2_node->inputs, 0));
           bNodeSocket *sub2_socket_B = static_cast<bNodeSocket *>(
@@ -354,7 +354,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
           add_node->custom1 = NODE_MATH_ADD;
           add_node->locx_legacy = node->locx_legacy;
           add_node->locy_legacy = node->locy_legacy + 160.0f;
-          add_node->flag |= NODE_HIDDEN;
+          add_node->flag |= NODE_COLLAPSED;
           bNodeSocket *add_socket_A = static_cast<bNodeSocket *>(
               BLI_findlink(&add_node->inputs, 0));
           bNodeSocket *add_socket_B = static_cast<bNodeSocket *>(
@@ -406,7 +406,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
           mul_node->custom1 = NODE_MATH_MULTIPLY;
           mul_node->locx_legacy = node->locx_legacy;
           mul_node->locy_legacy = node->locy_legacy + 40.0f;
-          mul_node->flag |= NODE_HIDDEN;
+          mul_node->flag |= NODE_COLLAPSED;
           bNodeSocket *mul_socket_A = static_cast<bNodeSocket *>(
               BLI_findlink(&mul_node->inputs, 0));
           bNodeSocket *mul_socket_B = static_cast<bNodeSocket *>(
@@ -424,7 +424,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
             add_node->custom1 = NODE_MATH_ADD;
             add_node->locx_legacy = node->locx_legacy;
             add_node->locy_legacy = node->locy_legacy + 80.0f;
-            add_node->flag |= NODE_HIDDEN;
+            add_node->flag |= NODE_COLLAPSED;
             bNodeSocket *add_socket_A = static_cast<bNodeSocket *>(
                 BLI_findlink(&add_node->inputs, 0));
             bNodeSocket *add_socket_B = static_cast<bNodeSocket *>(
@@ -482,7 +482,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       max1_node->custom1 = NODE_MATH_MAXIMUM;
       max1_node->locx_legacy = node->locx_legacy;
       max1_node->locy_legacy = node->locy_legacy - 400.0f + locy_offset;
-      max1_node->flag |= NODE_HIDDEN;
+      max1_node->flag |= NODE_COLLAPSED;
       bNodeSocket *max1_socket_A = static_cast<bNodeSocket *>(BLI_findlink(&max1_node->inputs, 0));
       bNodeSocket *max1_socket_B = static_cast<bNodeSocket *>(BLI_findlink(&max1_node->inputs, 1));
       bNodeSocket *max1_socket_out = blender::bke::node_find_socket(*max1_node, SOCK_OUT, "Value");
@@ -492,7 +492,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       mul_node->custom1 = NODE_MATH_MULTIPLY;
       mul_node->locx_legacy = node->locx_legacy;
       mul_node->locy_legacy = node->locy_legacy - 360.0f + locy_offset;
-      mul_node->flag |= NODE_HIDDEN;
+      mul_node->flag |= NODE_COLLAPSED;
       bNodeSocket *mul_socket_A = static_cast<bNodeSocket *>(BLI_findlink(&mul_node->inputs, 0));
       bNodeSocket *mul_socket_B = static_cast<bNodeSocket *>(BLI_findlink(&mul_node->inputs, 1));
       bNodeSocket *mul_socket_out = blender::bke::node_find_socket(*mul_node, SOCK_OUT, "Value");
@@ -502,7 +502,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       pow_node->custom1 = NODE_MATH_POWER;
       pow_node->locx_legacy = node->locx_legacy;
       pow_node->locy_legacy = node->locy_legacy - 320.0f + locy_offset;
-      pow_node->flag |= NODE_HIDDEN;
+      pow_node->flag |= NODE_COLLAPSED;
       bNodeSocket *pow_socket_A = static_cast<bNodeSocket *>(BLI_findlink(&pow_node->inputs, 0));
       bNodeSocket *pow_socket_B = static_cast<bNodeSocket *>(BLI_findlink(&pow_node->inputs, 1));
       bNodeSocket *pow_socket_out = blender::bke::node_find_socket(*pow_node, SOCK_OUT, "Value");
@@ -526,7 +526,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
         max2_node->custom1 = NODE_MATH_MAXIMUM;
         max2_node->locx_legacy = node->locx_legacy;
         max2_node->locy_legacy = node->locy_legacy - 440.0f + locy_offset;
-        max2_node->flag |= NODE_HIDDEN;
+        max2_node->flag |= NODE_COLLAPSED;
         bNodeSocket *max2_socket_A = static_cast<bNodeSocket *>(
             BLI_findlink(&max2_node->inputs, 0));
         bNodeSocket *max2_socket_B = static_cast<bNodeSocket *>(
@@ -554,7 +554,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       max2_node->custom1 = NODE_MATH_MAXIMUM;
       max2_node->locx_legacy = node->locx_legacy;
       max2_node->locy_legacy = node->locy_legacy - 360.0f + locy_offset;
-      max2_node->flag |= NODE_HIDDEN;
+      max2_node->flag |= NODE_COLLAPSED;
       bNodeSocket *max2_socket_A = static_cast<bNodeSocket *>(BLI_findlink(&max2_node->inputs, 0));
       bNodeSocket *max2_socket_B = static_cast<bNodeSocket *>(BLI_findlink(&max2_node->inputs, 1));
       bNodeSocket *max2_socket_out = blender::bke::node_find_socket(*max2_node, SOCK_OUT, "Value");
@@ -564,7 +564,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       pow_node->custom1 = NODE_MATH_POWER;
       pow_node->locx_legacy = node->locx_legacy;
       pow_node->locy_legacy = node->locy_legacy - 320.0f + locy_offset;
-      pow_node->flag |= NODE_HIDDEN;
+      pow_node->flag |= NODE_COLLAPSED;
       bNodeSocket *pow_socket_A = static_cast<bNodeSocket *>(BLI_findlink(&pow_node->inputs, 0));
       bNodeSocket *pow_socket_B = static_cast<bNodeSocket *>(BLI_findlink(&pow_node->inputs, 1));
       bNodeSocket *pow_socket_out = blender::bke::node_find_socket(*pow_node, SOCK_OUT, "Value");
@@ -598,7 +598,7 @@ static void versioning_replace_splitviewer(bNodeTree *ntree)
       continue;
     }
 
-    STRNCPY(node->idname, "CompositorNodeSplit");
+    STRNCPY_UTF8(node->idname, "CompositorNodeSplit");
     node->type_legacy = CMP_NODE_SPLIT;
     MEM_freeN(node->storage);
     node->storage = nullptr;
@@ -691,9 +691,9 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
     return;
   }
   socket.type = SOCK_ROTATION;
-  STRNCPY(socket.idname, "NodeSocketRotation");
+  STRNCPY_UTF8(socket.idname, "NodeSocketRotation");
   auto *old_value = static_cast<bNodeSocketValueVector *>(socket.default_value);
-  auto *new_value = MEM_callocN<bNodeSocketValueRotation>(__func__);
+  auto *new_value = MEM_new_for_free<bNodeSocketValueRotation>(__func__);
   copy_v3_v3(new_value->value_euler, old_value->value);
   socket.default_value = new_value;
   MEM_freeN(old_value);
@@ -901,7 +901,7 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 7)) {
     if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "volumetric_ray_depth")) {
-      SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
+      SceneEEVEE default_eevee;
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->eevee.volumetric_ray_depth = default_eevee.volumetric_ray_depth;
       }
@@ -932,7 +932,7 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "gtao_thickness")) {
-      SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
+      SceneEEVEE default_eevee;
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->eevee.gtao_thickness = default_eevee.gtao_thickness;
         scene->eevee.fast_gi_bias = default_eevee.fast_gi_bias;
@@ -940,7 +940,7 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "data_display_size")) {
-      LightProbe default_probe = *DNA_struct_default_get(LightProbe);
+      LightProbe default_probe;
       LISTBASE_FOREACH (LightProbe *, probe, &bmain->lightprobes) {
         probe->data_display_size = default_probe.data_display_size;
       }
@@ -1052,7 +1052,7 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == CMP_NODE_MAP_UV) {
-            node->custom2 = CMP_NODE_MAP_UV_FILTERING_ANISOTROPIC;
+            node->custom2 = CMP_NODE_INTERPOLATION_ANISOTROPIC;
           }
         }
       }
@@ -1061,13 +1061,13 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 14)) {
-    const Brush *default_brush = DNA_struct_default_get(Brush);
+    const Brush default_brush;
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      brush->automasking_start_normal_limit = default_brush->automasking_start_normal_limit;
-      brush->automasking_start_normal_falloff = default_brush->automasking_start_normal_falloff;
+      brush->automasking_start_normal_limit = default_brush.automasking_start_normal_limit;
+      brush->automasking_start_normal_falloff = default_brush.automasking_start_normal_falloff;
 
-      brush->automasking_view_normal_limit = default_brush->automasking_view_normal_limit;
-      brush->automasking_view_normal_falloff = default_brush->automasking_view_normal_falloff;
+      brush->automasking_view_normal_limit = default_brush.automasking_view_normal_limit;
+      brush->automasking_view_normal_falloff = default_brush.automasking_view_normal_falloff;
     }
   }
 
@@ -1089,7 +1089,7 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Sculpt *sculpt = scene->toolsettings->sculpt;
       if (sculpt != nullptr) {
-        Sculpt default_sculpt = *DNA_struct_default_get(Sculpt);
+        Sculpt default_sculpt = {};
         sculpt->automasking_boundary_edges_propagation_steps =
             default_sculpt.automasking_boundary_edges_propagation_steps;
       }
@@ -1155,8 +1155,7 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 18)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_filter_bilinear_to_auto, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_filter_bilinear_to_auto, nullptr);
       }
     }
   }

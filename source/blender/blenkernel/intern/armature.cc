@@ -26,11 +26,9 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_span.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
-
-#include "DNA_defaults.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
@@ -85,9 +83,7 @@ static void copy_bonechildren_custom_handles(Bone *bone_dst, bArmature *arm_dst)
 static void armature_init_data(ID *id)
 {
   bArmature *armature = (bArmature *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(armature, id));
-
-  MEMCPY_STRUCT_AFTER(armature, DNA_struct_default_get(bArmature), id);
+  INIT_DEFAULT_STRUCT_AFTER(armature, id);
 }
 
 /**
@@ -295,7 +291,7 @@ static void write_bone(BlendWriter *writer, Bone *bone)
   /* Write this bone, except for its runtime data. */
   const Bone_Runtime runtime_backup = bone->runtime;
   bone->runtime = Bone_Runtime{};
-  BLO_write_struct(writer, Bone, bone);
+  writer->write_struct(bone);
   bone->runtime = runtime_backup;
 
   /* Write ID Properties -- and copy this comment EXACTLY for easy finding
@@ -303,8 +299,9 @@ static void write_bone(BlendWriter *writer, Bone *bone)
   if (bone->prop) {
     IDP_BlendWrite(writer, bone->prop);
   }
-  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
-   * the matching call to #BLO_read_struct). */
+  if (bone->system_properties) {
+    IDP_BlendWrite(writer, bone->system_properties);
+  }
 
   /* Write Children */
   LISTBASE_FOREACH (Bone *, cbone, &bone->childbase) {
@@ -315,15 +312,16 @@ static void write_bone(BlendWriter *writer, Bone *bone)
 static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll)
 {
   /* Write this bone collection. */
-  BLO_write_struct(writer, BoneCollection, bcoll);
+  writer->write_struct(bcoll);
 
   /* Write ID Properties -- and copy this comment EXACTLY for easy finding
    * of library blocks that implement this. */
   if (bcoll->prop) {
     IDP_BlendWrite(writer, bcoll->prop);
   }
-  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
-   * the matching call to #BLO_read_struct). */
+  if (bcoll->system_properties) {
+    IDP_BlendWrite(writer, bcoll->system_properties);
+  }
 
   BLO_write_struct_list(writer, BoneCollectionMember, &bcoll->bones);
 }
@@ -518,6 +516,7 @@ IDTypeInfo IDType_ID_AR = {
     /*foreach_id*/ armature_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ armature_blend_write,
@@ -885,15 +884,11 @@ bool BKE_armature_bone_flag_test_recursive(const Bone *bone, int flag)
 bool bone_autoside_name(
     char name[MAXBONENAME], int /*strip_number*/, short axis, float head, float tail)
 {
-  uint len;
-  char basename[MAXBONENAME] = "";
-  const char *extension = nullptr;
-
-  len = strlen(name);
+  char basename[MAXBONENAME];
+  uint len = STRNCPY_UTF8_RLEN(basename, name);
   if (len == 0) {
     return false;
   }
-  STRNCPY(basename, name);
 
   /* Figure out extension to append:
    * - The extension to append is based upon the axis that we are working on.
@@ -903,6 +898,7 @@ bool bone_autoside_name(
    *   -> Otherwise, extension is added from perspective of object based on which side tail goes to
    * - If head is non-zero, extension is added from perspective of object based on side head is on
    */
+  const char *extension = nullptr;
   if (axis == 2) {
     /* z-axis - vertical (top/bottom) */
     if (IS_EQF(head, 0.0f)) {
@@ -1002,7 +998,8 @@ bool bone_autoside_name(
 
     /* Subtract 1 from #MAXBONENAME for the null byte. Add 1 to the extension for the '.' */
     const int basename_maxncpy = (MAXBONENAME - 1) - (1 + strlen(extension));
-    BLI_snprintf(name, MAXBONENAME, "%.*s.%s", basename_maxncpy, basename, extension);
+    BLI_str_utf8_truncate_at_size(basename, basename_maxncpy);
+    BLI_snprintf_utf8(name, MAXBONENAME, "%s.%s", basename, extension);
 
     return true;
   }
@@ -1022,7 +1019,7 @@ static void equalize_cubic_bezier(const float control[4][3],
                                   const float *segment_scales,
                                   float *r_t_points)
 {
-  float(*coords)[3] = static_cast<float(*)[3]>(BLI_array_alloca(coords, temp_segments + 1));
+  float (*coords)[3] = static_cast<float (*)[3]>(BLI_array_alloca(coords, temp_segments + 1));
   float *pdist = static_cast<float *>(BLI_array_alloca(pdist, temp_segments + 1));
 
   /* Compute the first pass of bezier point coordinates. */
@@ -1667,13 +1664,13 @@ static void allocate_bbone_cache(bPoseChannel *pchan,
                                                        "bPoseChannel_Runtime::bbone_pose_mats");
     runtime->bbone_deform_mats = MEM_malloc_arrayN<Mat4>(
         2 + uint(segments), "bPoseChannel_Runtime::bbone_deform_mats");
-    runtime->bbone_dual_quats = MEM_malloc_arrayN<DualQuat>(
+    runtime->bbone_dual_quats = MEM_new_array_for_free<DualQuat>(
         1 + uint(segments), "bPoseChannel_Runtime::bbone_dual_quats");
   }
 
   /* If the segment count changed, the array was deallocated and nulled above. */
   if (use_boundaries && !runtime->bbone_segment_boundaries) {
-    runtime->bbone_segment_boundaries = MEM_malloc_arrayN<bPoseChannel_BBoneSegmentBoundary>(
+    runtime->bbone_segment_boundaries = MEM_new_array_for_free<bPoseChannel_BBoneSegmentBoundary>(
         1 + uint(segments), "bPoseChannel_Runtime::bbone_segment_boundaries");
   }
   else if (!use_boundaries) {
@@ -1860,7 +1857,7 @@ static void find_bbone_segment_index_straight(const bPoseChannel *pchan,
                                               float *r_blend_next)
 {
   const Mat4 *mats = pchan->runtime.bbone_deform_mats;
-  const float(*mat)[4] = mats[0].mat;
+  const float (*mat)[4] = mats[0].mat;
 
   /* Transform co to bone space and get its y component. */
   const float y = mat[0][1] * co[0] + mat[1][1] * co[1] + mat[2][1] * co[2] + mat[3][1];
@@ -2884,7 +2881,7 @@ void BKE_pose_rebuild(Main *bmain, Object *ob, bArmature *arm, const bool do_id_
   /* only done here */
   if (ob->pose == nullptr) {
     /* create new pose */
-    ob->pose = MEM_callocN<bPose>("new pose");
+    ob->pose = MEM_new_for_free<bPose>("new pose");
 
     /* set default settings for animviz */
     animviz_settings_init(&ob->pose->avs);
@@ -2909,8 +2906,8 @@ void BKE_pose_rebuild(Main *bmain, Object *ob, bArmature *arm, const bool do_id_
     /* Find the custom B-Bone handles. */
     BKE_pchan_rebuild_bbone_handles(pose, pchan);
     /* Re-validate that we are still using a valid pchan form custom transform. */
-    /* Note that we could store pointers of freed pchan in a GSet to speed this up, however this is
-     * supposed to be a rarely used feature, so for now assuming that always building that GSet
+    /* Note that we could store pointers of freed pchan in a set to speed this up, however this is
+     * supposed to be a rarely used feature, so for now assuming that always building that set
      * would be less optimal. */
     if (pchan->custom_tx != nullptr && BLI_findindex(&pose->chanbase, pchan->custom_tx) == -1) {
       pchan->custom_tx = nullptr;
@@ -3133,7 +3130,7 @@ void BKE_pose_where_is(Depsgraph *depsgraph, Scene *scene, Object *ob)
 /** \name Calculate Bounding Box (Armature & Pose)
  * \{ */
 
-std::optional<blender::Bounds<blender::float3>> BKE_armature_min_max(const Object *ob)
+std::optional<Bounds<blender::float3>> BKE_armature_min_max(const Object *ob)
 {
   return BKE_pose_minmax(ob, false);
 }
@@ -3146,7 +3143,19 @@ void BKE_pchan_minmax(const Object *ob,
 {
   using namespace blender;
   const bArmature *arm = static_cast<const bArmature *>(ob->data);
-  Object *ob_custom = (arm->flag & ARM_NO_CUSTOM) ? nullptr : pchan->custom;
+
+  Object *ob_custom = nullptr;
+  if (!(arm->flag & ARM_NO_CUSTOM) && pchan->custom) {
+    /* This should not be possible, protected against in RNA code and
+     * BKE_pose_blend_read_after_liblink(). Just for safety do another check
+     * here, as otherwise this code can end in an infinite loop. */
+    BLI_assert(pchan->custom->type != OB_ARMATURE);
+
+    if (pchan->custom->type != OB_ARMATURE) {
+      ob_custom = pchan->custom;
+    }
+  }
+
   const bPoseChannel *pchan_tx = (ob_custom && pchan->custom_tx) ? pchan->custom_tx : pchan;
 
   std::optional<Bounds<float3>> bb_custom;
@@ -3183,8 +3192,7 @@ void BKE_pchan_minmax(const Object *ob,
   }
 }
 
-std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob,
-                                                                const bool use_select)
+std::optional<Bounds<blender::float3>> BKE_pose_minmax(const Object *ob, const bool use_select)
 {
   if (!ob->pose) {
     return std::nullopt;
@@ -3203,10 +3211,12 @@ std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob
     if (!pchan->bone) {
       continue;
     }
-    if (!blender::animrig::bone_is_visible_pchan(arm, pchan)) {
+    /* Despite `bone_is_selected` also checking for visibility we need to check visibility
+     * manually due to `use_select` potentially ignoring selection state. */
+    if (!blender::animrig::bone_is_visible(arm, pchan)) {
       continue;
     }
-    if (use_select && !(pchan->bone->flag & BONE_SELECTED)) {
+    if (use_select && !blender::animrig::bone_is_selected(arm, pchan)) {
       continue;
     }
 
@@ -3218,7 +3228,7 @@ std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob
     return std::nullopt;
   }
 
-  return blender::Bounds<blender::float3>(min, max);
+  return Bounds<blender::float3>(min, max);
 }
 
 /** \} */
@@ -3271,34 +3281,33 @@ bPoseChannel *BKE_armature_splineik_solver_find_root(bPoseChannel *pchan,
 /** \name implementations of DNA struct C++ methods.
  * \{ */
 
-blender::Span<const BoneCollection *> bArmature::collections_span() const
+Span<const BoneCollection *> bArmature::collections_span() const
 {
-  return blender::Span(collection_array, collection_array_num);
+  return Span(collection_array, collection_array_num);
 }
 
-blender::Span<BoneCollection *> bArmature::collections_span()
+Span<BoneCollection *> bArmature::collections_span()
 {
-  return blender::Span(collection_array, collection_array_num);
+  return Span(collection_array, collection_array_num);
 }
 
-blender::Span<const BoneCollection *> bArmature::collections_roots() const
+Span<const BoneCollection *> bArmature::collections_roots() const
 {
-  return blender::Span(collection_array, collection_root_count);
+  return Span(collection_array, collection_root_count);
 }
-blender::Span<BoneCollection *> bArmature::collections_roots()
+Span<BoneCollection *> bArmature::collections_roots()
 {
-  return blender::Span(collection_array, collection_root_count);
-}
-
-blender::Span<const BoneCollection *> bArmature::collection_children(
-    const BoneCollection *parent) const
-{
-  return blender::Span(&collection_array[parent->child_index], parent->child_count);
+  return Span(collection_array, collection_root_count);
 }
 
-blender::Span<BoneCollection *> bArmature::collection_children(BoneCollection *parent)
+Span<const BoneCollection *> bArmature::collection_children(const BoneCollection *parent) const
 {
-  return blender::Span(&collection_array[parent->child_index], parent->child_count);
+  return Span(&collection_array[parent->child_index], parent->child_count);
+}
+
+Span<BoneCollection *> bArmature::collection_children(BoneCollection *parent)
+{
+  return Span(&collection_array[parent->child_index], parent->child_count);
 }
 
 bool BoneCollection::is_visible() const

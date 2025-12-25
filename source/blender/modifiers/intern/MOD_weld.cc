@@ -21,19 +21,17 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -55,12 +53,7 @@ static Span<MDeformVert> get_vertex_group(const Mesh &mesh, const int defgrp_ind
   if (defgrp_index == -1) {
     return {};
   }
-  const MDeformVert *vertex_group = static_cast<const MDeformVert *>(
-      CustomData_get_layer(&mesh.vert_data, CD_MDEFORMVERT));
-  if (!vertex_group) {
-    return {};
-  }
-  return {vertex_group, mesh.verts_num};
+  return mesh.deform_verts();
 }
 
 static IndexMask selected_indices_from_vertex_group(Span<MDeformVert> vertex_group,
@@ -134,10 +127,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, 
 static void init_data(ModifierData *md)
 {
   WeldModifierData *wmd = (WeldModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WeldModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -152,18 +142,18 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   int weld_mode = RNA_enum_get(ptr, "mode");
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
   if (weld_mode == MOD_WELD_MODE_CONNECTED) {
-    layout->prop(ptr, "loose_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "loose_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
@@ -211,4 +201,5 @@ ModifierTypeInfo modifierType_Weld = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

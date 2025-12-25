@@ -26,6 +26,7 @@
 
 #include "ANIM_armature_iter.hh"
 #include "ANIM_bone_collections.hh"
+#include "WM_api.hh"
 
 #include "intern/bone_collections_internal.hh"
 
@@ -58,7 +59,7 @@ BoneCollection *ANIM_bonecoll_new(const char *name)
 
   /* NOTE: the collection name may change after the collection is added to an
    * armature, to ensure it is unique within the armature. */
-  BoneCollection *bcoll = MEM_callocN<BoneCollection>(__func__);
+  BoneCollection *bcoll = MEM_new_for_free<BoneCollection>(__func__);
 
   STRNCPY_UTF8(bcoll->name, name);
   bcoll->flags = default_flags;
@@ -88,7 +89,7 @@ void ANIM_bonecoll_free(BoneCollection *bcoll, const bool do_id_user_count)
 static void add_reverse_pointers(BoneCollection *bcoll)
 {
   LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
-    BoneCollectionReference *ref = MEM_callocN<BoneCollectionReference>(__func__);
+    BoneCollectionReference *ref = MEM_new_for_free<BoneCollectionReference>(__func__);
     ref->bcoll = bcoll;
     BLI_addtail(&member->bone->runtime.collections, ref);
   }
@@ -591,7 +592,7 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
   if (name[0] == '\0') {
     /* Refuse to have nameless collections. The name of the active collection is stored in DNA, and
      * an empty string means 'no active collection'. */
-    STRNCPY(bcoll->name, DATA_(bonecoll_default_name));
+    STRNCPY_UTF8(bcoll->name, DATA_(bonecoll_default_name));
   }
   else {
     STRNCPY_UTF8(bcoll->name, name);
@@ -700,6 +701,7 @@ void ANIM_armature_bonecoll_remove_from_index(bArmature *armature, int index)
      * solo'ing should still be active on the armature. */
     ANIM_armature_refresh_solo_active(armature);
   }
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 }
 
 void ANIM_armature_bonecoll_remove(bArmature *armature, BoneCollection *bcoll)
@@ -863,14 +865,14 @@ void ANIM_armature_bonecoll_is_expanded_set(BoneCollection *bcoll, bool is_expan
 /* Store the bone's membership on the collection. */
 static void add_membership(BoneCollection *bcoll, Bone *bone)
 {
-  BoneCollectionMember *member = MEM_callocN<BoneCollectionMember>(__func__);
+  BoneCollectionMember *member = MEM_new_for_free<BoneCollectionMember>(__func__);
   member->bone = bone;
   BLI_addtail(&bcoll->bones, member);
 }
 /* Store reverse membership on the bone. */
 static void add_reference(Bone *bone, BoneCollection *bcoll)
 {
-  BoneCollectionReference *ref = MEM_callocN<BoneCollectionReference>(__func__);
+  BoneCollectionReference *ref = MEM_new_for_free<BoneCollectionReference>(__func__);
   ref->bcoll = bcoll;
   BLI_addtail(&bone->runtime.collections, ref);
 }
@@ -902,7 +904,7 @@ bool ANIM_armature_bonecoll_assign_editbone(BoneCollection *bcoll, EditBone *ebo
   /* Store membership on the edit bone. Bones will be rebuilt when the armature
    * goes out of edit mode, and by then the newly created bones will be added to
    * the actual collection on the Armature. */
-  BoneCollectionReference *ref = MEM_callocN<BoneCollectionReference>(__func__);
+  BoneCollectionReference *ref = MEM_new_for_free<BoneCollectionReference>(__func__);
   ref->bcoll = bcoll;
   BLI_addtail(&ebone->bone_collections, ref);
 
@@ -996,8 +998,9 @@ void ANIM_armature_bonecoll_reconstruct(bArmature *armature)
 static bool any_bone_collection_visible(const bArmature *armature,
                                         const ListBase /*BoneCollectionRef*/ *collection_refs)
 {
-  /* Special case: when a bone is not in any collection, it is visible. */
-  if (BLI_listbase_is_empty(collection_refs)) {
+  /* Special case: Hide bone when solo is active and it doesn't belong to any collection, see:
+   * #137090. */
+  if (BLI_listbase_is_empty(collection_refs) && !(armature->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     return true;
   }
 
@@ -1272,7 +1275,7 @@ void bonecolls_copy_expanded_flag(Span<BoneCollection *> bcolls_dest,
     }
 
     /* Try to find by name as a last resort. This function only works with
-     * non-const pointers, hence the const_cast.  */
+     * non-const pointers, hence the const_cast. */
     const BoneCollection *bcoll = bonecolls_get_by_name(bcolls_source, name);
     return bcoll;
   };
@@ -1386,7 +1389,7 @@ int armature_bonecoll_move_to_parent(bArmature *armature,
 
 /* Utility functions for Armature edit-mode undo. */
 
-blender::Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_membership(
+Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_membership(
     BoneCollection ***bcoll_array_dst,
     int *bcoll_array_dst_num,
     BoneCollection **bcoll_array_src,
@@ -1399,7 +1402,7 @@ blender::Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_mem
   *bcoll_array_dst = MEM_malloc_arrayN<BoneCollection *>(bcoll_array_src_num, __func__);
   *bcoll_array_dst_num = bcoll_array_src_num;
 
-  blender::Map<BoneCollection *, BoneCollection *> bcoll_map{};
+  Map<BoneCollection *, BoneCollection *> bcoll_map{};
   for (int i = 0; i < bcoll_array_src_num; i++) {
     BoneCollection *bcoll_src = bcoll_array_src[i];
     BoneCollection *bcoll_dst = static_cast<BoneCollection *>(MEM_dupallocN(bcoll_src));

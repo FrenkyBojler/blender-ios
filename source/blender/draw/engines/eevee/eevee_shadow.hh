@@ -17,9 +17,9 @@
 
 #include "eevee_camera.hh"
 #include "eevee_material.hh"
-#include "eevee_shader.hh"
-#include "eevee_shader_shared.hh"
+#include "eevee_shadow_shared.hh"
 #include "eevee_sync.hh"
+#include "eevee_uniform_shared.hh"
 
 namespace blender::eevee {
 
@@ -58,6 +58,15 @@ enum class ShadowTechnique {
   TILE_COPY = 1,
 };
 
+using ShadowStatisticsBuf = draw::StorageBuffer<ShadowStatistics>;
+using ShadowPagesInfoDataBuf = draw::StorageBuffer<ShadowPagesInfoData>;
+using ShadowPageHeapBuf = draw::StorageVectorBuffer<uint, SHADOW_MAX_PAGE>;
+using ShadowPageCacheBuf = draw::StorageArrayBuffer<uint2, SHADOW_MAX_PAGE, true>;
+using ShadowTileMapDataBuf = draw::StorageVectorBuffer<ShadowTileMapData, SHADOW_MAX_TILEMAP>;
+using ShadowTileMapClipBuf = draw::StorageArrayBuffer<ShadowTileMapClip, SHADOW_MAX_TILEMAP, true>;
+using ShadowTileDataBuf = draw::StorageArrayBuffer<ShadowTileDataPacked, SHADOW_MAX_TILE, true>;
+using ShadowRenderViewBuf = draw::StorageArrayBuffer<ShadowRenderView, SHADOW_VIEW_MAX, true>;
+
 /* -------------------------------------------------------------------- */
 /** \name Tile-Map
  *
@@ -76,10 +85,10 @@ struct ShadowTileMap : public ShadowTileMapData {
   /** Cube face index. */
   eCubeFace cubeface = Z_NEG;
   /** Cached, used for detecting updates. */
-  float4x4 object_mat;
+  float4x4 object_mat = float4x4::identity();
 
  public:
-  ShadowTileMap(int tiles_index_)
+  ShadowTileMap(int tiles_index_) : ShadowTileMapData{}
   {
     tiles_index = tiles_index_;
     /* For now just the same index. */
@@ -169,7 +178,7 @@ struct ShadowTileMapPool {
 
 /* Can be either a shadow caster or a shadow receiver. */
 struct ShadowObject {
-  ResourceHandle resource_handle = {0};
+  ResourceHandleRange resource_handle = {};
   bool used = true;
 };
 
@@ -180,6 +189,9 @@ struct ShadowObject {
  *
  * Manages shadow atlas and shadow region data.
  * \{ */
+
+class ShadowPunctual;
+class ShadowDirectional;
 
 class ShadowModule {
   friend ShadowPunctual;
@@ -219,7 +231,7 @@ class ShadowModule {
   PassMain::Sub *tilemap_usage_transparent_ps_ = nullptr;
   gpu::Batch *box_batch_ = nullptr;
   /* Source texture for depth buffer analysis. */
-  GPUTexture *src_depth_tx_ = nullptr;
+  gpu::Texture *src_depth_tx_ = nullptr;
 
   Framebuffer usage_tag_fb;
 
@@ -260,7 +272,7 @@ class ShadowModule {
   /** \name Page Management
    * \{ */
 
-  static constexpr eGPUTextureFormat atlas_type = GPU_R32UI;
+  static constexpr gpu::TextureFormat atlas_type = gpu::TextureFormat::UINT_32;
   /** Atlas containing all physical pages. */
   Texture atlas_tx_ = {"shadow_atlas_tx_"};
 
@@ -351,7 +363,7 @@ class ShadowModule {
   /** Register a shadow caster or receiver. */
   void sync_object(const Object *ob,
                    const ObjectHandle &handle,
-                   const ResourceHandle &resource_handle,
+                   const ResourceHandleRange &resource_handle,
                    bool is_alpha_blend,
                    bool has_transparent_shadows);
   void end_sync();
@@ -366,7 +378,7 @@ class ShadowModule {
   void set_view(View &view, int2 extent);
 
   void debug_end_sync();
-  void debug_draw(View &view, GPUFrameBuffer *view_fb);
+  void debug_draw(View &view, gpu::FrameBuffer *view_fb);
 
   template<typename PassType> void bind_resources(PassType &pass)
   {
@@ -421,9 +433,9 @@ class ShadowPunctual : public NonCopyable, NonMovable {
   Vector<ShadowTileMap *> tilemaps_;
 
  public:
-  ShadowPunctual(ShadowModule &module) : shadows_(module){};
+  ShadowPunctual(ShadowModule &module) : shadows_(module) {};
   ShadowPunctual(ShadowPunctual &&other)
-      : shadows_(other.shadows_), tilemaps_(std::move(other.tilemaps_)){};
+      : shadows_(other.shadows_), tilemaps_(std::move(other.tilemaps_)) {};
 
   ~ShadowPunctual()
   {
@@ -450,9 +462,9 @@ class ShadowDirectional : public NonCopyable, NonMovable {
   IndexRange levels_range = IndexRange(0);
 
  public:
-  ShadowDirectional(ShadowModule &module) : shadows_(module){};
+  ShadowDirectional(ShadowModule &module) : shadows_(module) {};
   ShadowDirectional(ShadowDirectional &&other)
-      : shadows_(other.shadows_), tilemaps_(std::move(other.tilemaps_)){};
+      : shadows_(other.shadows_), tilemaps_(std::move(other.tilemaps_)) {};
 
   ~ShadowDirectional()
   {

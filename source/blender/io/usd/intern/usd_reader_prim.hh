@@ -13,8 +13,6 @@
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 
-#include "WM_types.hh"
-
 #include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usd/prim.h>
 
@@ -46,18 +44,18 @@ struct ImportSettings {
 
   /* Map a USD material prim path to a Blender material.
    * This map is updated by readers during stage traversal. */
-  mutable blender::Map<pxr::SdfPath, Material *> usd_path_to_mat{};
+  mutable Map<pxr::SdfPath, Material *> usd_path_to_mat{};
   /* Map a material name to Blender material.
    * This map is updated by readers during stage traversal. */
-  mutable blender::Map<std::string, Material *> mat_name_to_mat{};
+  mutable Map<std::string, Material *> mat_name_to_mat{};
   /* Map a USD material prim path to a Blender material to be
    * converted by invoking the 'on_material_import' USD hook.
    * This map is updated by readers during stage traversal. */
-  mutable blender::Map<pxr::SdfPath, Material *> usd_path_to_mat_for_hook{};
+  mutable Map<pxr::SdfPath, Material *> usd_path_to_mat_for_hook{};
   /* Set of paths to USD material primitives that can be converted by the
    * 'on_material_import' USD hook. For efficiency this set should
    * be populated prior to stage traversal. */
-  mutable blender::Set<pxr::SdfPath> mat_import_hook_sources{};
+  mutable Set<pxr::SdfPath> mat_import_hook_sources{};
 
   /* We use the stage metersPerUnit to convert camera properties from USD scene units to the
    * correct millimeter scale that Blender uses for camera parameters. */
@@ -94,7 +92,7 @@ class USDPrimReader {
   virtual bool valid() const;
 
   virtual void create_object(Main *bmain) = 0;
-  virtual void read_object_data(Main * /*bmain*/, double /*motionSampleTime*/){};
+  virtual void read_object_data(Main * /*bmain*/, pxr::UsdTimeCode /*time*/) {};
 
   Object *object() const;
   void object(Object *ob);
@@ -109,10 +107,7 @@ class USDPrimReader {
   }
 
   /** Get the wmJobWorkerStatus-provided `reports` list pointer, to use with the BKE_report API. */
-  ReportList *reports() const
-  {
-    return import_params_.worker_status ? import_params_.worker_status->reports : nullptr;
-  }
+  ReportList *reports() const;
 
   /* Since readers might be referenced through handles
    * maintained by modifiers and constraints, we provide
@@ -175,10 +170,10 @@ class USDPrimReader {
    *
    * \param merge_with_parent: If true, set the properties of the prim's parent
    *                           on the object ID
-   * \param motionSampleTime: The time code for sampling the USD attributes.
+   * \param time: The time code for sampling the USD attributes.
    */
   void set_props(bool merge_with_parent = false,
-                 pxr::UsdTimeCode motionSampleTime = pxr::UsdTimeCode::Default());
+                 pxr::UsdTimeCode time = pxr::UsdTimeCode::Default());
 };
 
 }  // namespace blender::io::usd

@@ -242,6 +242,7 @@ struct StrokeCache {
   /* TODO: Clean this up! */
   ViewContext *vc = nullptr;
   const Brush *brush = nullptr;
+  const Paint *paint = nullptr;
 
   float special_rotation = 0.0f;
   float3 grab_delta = float3(0);
@@ -461,7 +462,7 @@ void flush_update_done(const bContext *C, Object &ob, UpdateType update_type);
 }  // namespace blender::ed::sculpt_paint
 
 /**
- * Should be used after modifying the mask or Face Sets IDs.
+ * Should be used after modifying the mask or face set IDs.
  */
 void SCULPT_tag_update_overlays(bContext *C);
 /** \} */
@@ -478,11 +479,29 @@ namespace blender::ed::sculpt_paint {
  * TODO: This should be updated to return std::optional<float3>
  */
 bool stroke_get_location_bvh(bContext *C, float out[3], const float mval[2], bool force_original);
+bool stroke_get_location_bvh(Depsgraph &depsgraph,
+                             ViewContext &vc,
+                             const Sculpt &sd,
+                             const Brush *brush,
+                             float out[3],
+                             const float mval[2],
+                             bool force_original);
+
+struct ActiveElementInfo {
+  ActiveVert vert = {};
+  int active_face_idx = -1;
+  int active_grid_idx = -1;
+};
+
+/**
+ * Retrieve the active vertex and active grid or face index.
+ *
+ * \note This API assumes that we are only interested in the current bounds of the BVH tree. */
+std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const float2 &mval);
 
 struct CursorGeometryInfo {
   float3 location;
   float3 normal;
-  float3 active_vertex_co;
 };
 
 /**
@@ -495,6 +514,13 @@ bool cursor_geometry_info_update(bContext *C,
                                  CursorGeometryInfo *out,
                                  const float2 &mval,
                                  bool use_sampled_normal);
+bool cursor_geometry_info_update(Depsgraph &depsgraph,
+                                 const Sculpt &sd,
+                                 ViewContext &vc,
+                                 const Base *base,
+                                 CursorGeometryInfo *out,
+                                 const float2 &mval,
+                                 bool use_sampled_normal);
 
 void geometry_preview_lines_update(Depsgraph &depsgraph,
                                    Object &object,
@@ -503,7 +529,9 @@ void geometry_preview_lines_update(Depsgraph &depsgraph,
 
 }  // namespace blender::ed::sculpt_paint
 
-void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush &brush);
+void SCULPT_stroke_modifiers_check(
+    Depsgraph &depsgraph, RegionView3D *rv3d, const Sculpt &sd, Object &ob, const Brush *brush);
+void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush *brush);
 namespace blender::ed::sculpt_paint {
 float raycast_init(ViewContext *vc,
                    const float2 &mval,
@@ -852,11 +880,11 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
          brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
 }
 
-void ensure_valid_pivot(const Object &ob, Scene &scene);
+void ensure_valid_pivot(const Object &ob, Paint &paint);
 
 /** Retrieve or calculate the object space radius depending on brush settings. */
 float object_space_radius_get(const ViewContext &vc,
-                              const Scene &scene,
+                              const Paint &paint,
                               const Brush &brush,
                               const float3 &location,
                               float scale_factor = 1.0);
@@ -879,8 +907,7 @@ bool SCULPT_paint_image_canvas_get(PaintModeSettings &paint_mode_settings,
                                    Object &ob,
                                    Image **r_image,
                                    ImageUser **r_image_user) ATTR_NONNULL();
-void SCULPT_do_paint_brush_image(const Scene &scene,
-                                 const Depsgraph &depsgraph,
+void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,
@@ -935,8 +962,11 @@ void SCULPT_OT_face_set_polyline_gesture(wmOperatorType *ot);
 namespace blender::ed::sculpt_paint {
 
 void SCULPT_OT_set_pivot_position(wmOperatorType *ot);
+void SCULPT_OT_paint_mask_extract(wmOperatorType *ot);
+void SCULPT_OT_face_set_extract(wmOperatorType *ot);
+void SCULPT_OT_paint_mask_slice(wmOperatorType *ot);
 
-}
+}  // namespace blender::ed::sculpt_paint
 
 namespace blender::ed::sculpt_paint::filter {
 

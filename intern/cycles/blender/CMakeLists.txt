@@ -5,7 +5,8 @@
 set(INC
   ..
   ../../../source/blender/makesrna
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -53,11 +54,15 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenkernel
+  PRIVATE bf::depsgraph
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::imbuf
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::clog
+  PRIVATE bf::nodes
   PRIVATE bf::render
   cycles_bvh
   cycles_device
@@ -72,13 +77,6 @@ set(LIB
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
 )
-
-if(WITH_CYCLES_LOGGING)
-  list(APPEND LIB
-    ${GLOG_LIBRARIES}
-    ${GFLAGS_LIBRARIES}
-  )
-endif()
 
 set(ADDON_FILES
   addon/__init__.py
@@ -109,25 +107,11 @@ if(WITH_TBB)
 endif()
 
 if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
   list(APPEND INC
     ../../openvdb
   )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
   list(APPEND LIB
     ${OPENVDB_LIBRARIES}
-  )
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-  list(APPEND INC_SYS
-    ${ALEMBIC_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${ALEMBIC_LIBRARIES}
   )
 endif()
 

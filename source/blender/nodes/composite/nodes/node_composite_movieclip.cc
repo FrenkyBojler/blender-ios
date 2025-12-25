@@ -13,14 +13,13 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
-
-#include "DNA_defaults.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "GPU_texture.hh"
 
@@ -33,8 +32,8 @@ namespace blender::nodes::node_composite_movieclip_cc {
 
 static void cmp_node_movieclip_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Alpha");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
   b.add_output<decl::Float>("Offset X");
   b.add_output<decl::Float>("Offset Y");
   b.add_output<decl::Float>("Scale");
@@ -45,7 +44,7 @@ static void init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
   Scene *scene = CTX_data_scene(C);
-  MovieClipUser *user = DNA_struct_default_alloc(MovieClipUser);
+  MovieClipUser *user = MEM_new_for_free<MovieClipUser>(__func__);
 
   node->id = (ID *)scene->clip;
   id_us_plus(node->id);
@@ -53,25 +52,16 @@ static void init(const bContext *C, PointerRNA *ptr)
   user->framenr = 1;
 }
 
-static void node_composit_buts_movieclip(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_movieclip(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 }
 
-static void node_composit_buts_movieclip_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_movieclip_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-  PointerRNA clipptr;
-
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
-
-  if (!node->id) {
-    return;
-  }
-
-  clipptr = RNA_pointer_get(ptr, "clip");
-
-  uiTemplateColorspaceSettings(layout, &clipptr, "colorspace_settings");
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  uiTemplateMovieClip(&layout, C, ptr, "clip", false);
 }
 
 using namespace blender::compositor;
@@ -112,7 +102,7 @@ class MovieClipOperation : public NodeOperation {
     else {
       parallel_for(size, [&](const int2 texel) {
         int64_t pixel_index = (int64_t(texel.y) * size.x + texel.x) * 4;
-        result.store_pixel(texel, float4(movie_clip_buffer->float_buffer.data + pixel_index));
+        result.store_pixel(texel, Color(movie_clip_buffer->float_buffer.data + pixel_index));
       });
     }
   }
@@ -244,12 +234,12 @@ class MovieClipOperation : public NodeOperation {
 
   MovieClip *get_movie_clip()
   {
-    return reinterpret_cast<MovieClip *>(bnode().id);
+    return reinterpret_cast<MovieClip *>(node().id);
   }
 
   MovieClipUser *get_movie_clip_user()
   {
-    return static_cast<MovieClipUser *>(bnode().storage);
+    return static_cast<MovieClipUser *>(node().storage);
   }
 };
 
@@ -269,7 +259,7 @@ static void register_node_type_cmp_movieclip()
   cmp_node_type_base(&ntype, "CompositorNodeMovieClip", CMP_NODE_MOVIECLIP);
   ntype.ui_name = "Movie Clip";
   ntype.ui_description =
-      "Input image or movie from a movie clip datablock, typically used for motion tracking";
+      "Input image or movie from a movie clip data-block, typically used for motion tracking";
   ntype.enum_name_legacy = "MOVIECLIP";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::cmp_node_movieclip_declare;

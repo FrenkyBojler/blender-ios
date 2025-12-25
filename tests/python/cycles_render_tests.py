@@ -22,6 +22,12 @@ BLOCKLIST_ALL = [
     "visibility_particles.blend",
     # Temporarily blocked for 4.4 lib upgrade, due to PNG alpha minor difference.
     "image_log_osl.blend",
+    # Tests for EEVEE-only setting (duplicates from the Cycles perspective)
+    "camera_depth_of_field_jittered.blend",
+    "shadow_resolution.blend",
+    "shadow_min_pool_size.blend",
+    "shadow_resolution_scale.blend",
+    "shader_to_rgb_transparent.blend",
 ]
 
 # Blocklist for device + build configuration that does not support OSL at all.
@@ -39,7 +45,7 @@ BLOCKLIST_OSL_LIMITED = []
 # So blocking these tests doesn't lose any test permutations.
 BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     # AOVs are not supported. See 73266
-    'aov_position.blend',
+    'aov_.*.blend',
     'render_passes_aov.*.blend',
     # Image sampling is different from SVM. There are OSL variants of these tests
     'image_byte.*.blend',
@@ -57,6 +63,8 @@ BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     # Tests that need investigating into why they're failing:
     # Noise differences due to Principled BSDF mixing/layering used in some of these scenes
     'render_passes_.*.blend',
+    # OSL can not specify parameters when reading attribute, which we need for stochastic sampling
+    'volume_tricubic_interpolation.blend',
 ]
 
 BLOCKLIST_OPTIX = [
@@ -70,6 +78,8 @@ BLOCKLIST_OPTIX_OSL_LIMITED = [
     'image_.*_osl.blend',
     # OptiX OSL doesn't support the trace function
     'osl_trace_shader.blend',
+    # Noise functions do not return color with OptiX OSL
+    'osl_camera_advanced.blend',
 ]
 
 # Blocklist for SVM tests that fail when forced to run with OptiX OSL
@@ -81,6 +91,7 @@ BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
     'principled_bsdf_bevel_emission_137420.blend',
     # Dicing tests use wireframe node which doesn't appear to be supported with OptiX OSL
     'dicing_camera.blend',
+    'object_dicing.blend',
     'offscreen_dicing.blend',
     'panorama_dicing.blend',
     # The mapping of the UDIM texture is incorrect. Need to investigate why.
@@ -91,6 +102,13 @@ BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
 
 
 BLOCKLIST_METAL = []
+
+BLOCKLIST_METAL_RT = [
+    # Metal RT uses different parameterization for linear curves.
+    # See discussion in #146072
+    # https://projects.blender.org/blender/blender/issues/146072#issuecomment-1699788
+    'hair_linear_close_up.blend',
+]
 
 if platform.system() == "Darwin":
     version, _, _ = platform.mac_ver()
@@ -106,7 +124,6 @@ BLOCKLIST_GPU = [
     'image_log.blend',
     'glass_mix_40964.blend',
     'filter_glossy_refraction_45609.blend',
-    'smoke_color.blend',
     'bevel_mblur.blend',
     # Inconsistency between Embree and Hair primitive on GPU.
     'denoise_hair.blend',
@@ -127,29 +144,39 @@ BLOCKLIST_GPU = [
 
 
 class CyclesReport(render_report.Report):
-    def __init__(self, title, output_dir, oiiotool, device=None, blocklist=[], osl=False):
+    def __init__(self, title, output_dir, oiiotool, device=None, blocklist=[], osl=False, ray_marching=False):
         # Split device name in format "<device_type>[-<RT>]" into individual
         # tokens, setting the RT suffix to an empty string if its not specified.
         self.device, suffix = (device.split("-") + [""])[:2]
         self.use_hwrt = (suffix == "RT")
         self.osl = osl
+        self.ray_marching = ray_marching
 
         variation = self.device
         if suffix:
             variation += ' ' + suffix
         if self.osl:
             variation += ' OSL'
+        if ray_marching:
+            variation += ' Ray Marching'
 
         super().__init__(title, output_dir, oiiotool, variation, blocklist)
 
+        self.set_pixelated(True)
+        self.set_reference_dir("cycles_renders")
+        if device == 'CPU':
+            self.set_compare_engine('eevee')
+        else:
+            self.set_compare_engine('cycles', 'CPU')
+
     def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
-        return arguments_cb(filepath, base_output_filepath, self.use_hwrt, self.osl)
+        return arguments_cb(filepath, base_output_filepath, self.use_hwrt, self.osl, self.ray_marching)
 
     def _get_arguments_suffix(self):
         return ['--', '--cycles-device', self.device] if self.device else []
 
 
-def get_arguments(filepath, output_filepath, use_hwrt=False, osl=False):
+def get_arguments(filepath, output_filepath, use_hwrt=False, osl=False, ray_marching=False):
     dirname = os.path.dirname(filepath)
     basedir = os.path.dirname(dirname)
     subject = os.path.basename(dirname)
@@ -190,6 +217,9 @@ def get_arguments(filepath, output_filepath, use_hwrt=False, osl=False):
     if osl:
         args.extend(["--python-expr", "import bpy; bpy.context.scene.cycles.shading_system = True"])
 
+    if ray_marching:
+        args.extend(["--python-expr", "import bpy; bpy.context.scene.cycles.volume_biased = True"])
+
     if subject == 'bake':
         args.extend(['--python', os.path.join(basedir, "util", "render_bake.py")])
     elif subject == 'denoise_animation':
@@ -212,6 +242,13 @@ def create_argparse():
     parser.add_argument("--osl", default='none', type=str, choices=["none", "limited", "all"])
     parser.add_argument('--batch', default=False, action='store_true')
     return parser
+
+
+def test_volume_ray_marching(args, device, blocklist):
+    # Default volume rendering algorithm is null scattering, but we also want to test ray marching
+    report = CyclesReport('Cycles', args.outdir, args.oiiotool, device, blocklist, args.osl == 'all', ray_marching=True)
+    report.set_reference_dir("cycles_ray_marching_renders")
+    return report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
 
 def main():
@@ -238,16 +275,14 @@ def main():
             blocklist += BLOCKLIST_OPTIX_OSL_LIMITED
         elif args.osl == 'all':
             blocklist += BLOCKLIST_OPTIX_OSL_ALL
+
     if device == 'METAL':
         blocklist += BLOCKLIST_METAL
+    if device == 'METAL-RT':
+        blocklist += BLOCKLIST_METAL
+        blocklist += BLOCKLIST_METAL_RT
 
     report = CyclesReport('Cycles', args.outdir, args.oiiotool, device, blocklist, args.osl == 'all')
-    report.set_pixelated(True)
-    report.set_reference_dir("cycles_renders")
-    if device == 'CPU':
-        report.set_compare_engine('eevee')
-    else:
-        report.set_compare_engine('cycles', 'CPU')
 
     # Increase threshold for motion blur, see #78777.
     #
@@ -266,11 +301,27 @@ def main():
         report.set_fail_threshold(0.032)
 
     # Layer mixing is different between SVM and OSL, so a few tests have
-    # noticably different noise causing OSL Principled BSDF tests to fail.
+    # noticeably different noise causing OSL Principled BSDF tests to fail.
     if ((args.osl == 'all') and (test_dir_name == 'principled_bsdf')):
         report.set_fail_threshold(0.06)
 
+    # Volume scattering probability guiding renders differently on different platforms
+    if (test_dir_name in {'shadow_catcher', 'light'}):
+        report.set_fail_threshold(0.038)
+    if (test_dir_name in {'light', 'camera'}):
+        report.set_fail_threshold(0.02)
+        report.set_fail_percent(4)
+    if (test_dir_name in {'volume', 'openvdb'}):
+        report.set_fail_threshold(0.048)
+        report.set_fail_percent(3)
+    # OSL blackbody output is a little different.
+    if (test_dir_name in {'colorspace'}):
+        report.set_fail_threshold(0.05)
+
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
+
+    if (test_dir_name == 'volume'):
+        ok = ok and test_volume_ray_marching(args, device, blocklist)
 
     sys.exit(not ok)
 

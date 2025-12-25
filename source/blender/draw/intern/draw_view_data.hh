@@ -34,26 +34,28 @@ class Manager;
 }  // namespace blender::draw
 
 struct DRWTextStore;
-struct GPUFrameBuffer;
-struct GPUTexture;
+namespace blender::gpu {
+class FrameBuffer;
+class Texture;
+}  // namespace blender::gpu
 struct GPUViewport;
 struct ListBase;
 
 /** Buffer and textures used by the viewport by default. */
 struct DefaultFramebufferList {
-  GPUFrameBuffer *default_fb;
-  GPUFrameBuffer *overlay_fb;
-  GPUFrameBuffer *in_front_fb;
-  GPUFrameBuffer *color_only_fb;
-  GPUFrameBuffer *depth_only_fb;
-  GPUFrameBuffer *overlay_only_fb;
+  blender::gpu::FrameBuffer *default_fb;
+  blender::gpu::FrameBuffer *overlay_fb;
+  blender::gpu::FrameBuffer *in_front_fb;
+  blender::gpu::FrameBuffer *color_only_fb;
+  blender::gpu::FrameBuffer *depth_only_fb;
+  blender::gpu::FrameBuffer *overlay_only_fb;
 };
 
 struct DefaultTextureList {
-  GPUTexture *color;
-  GPUTexture *color_overlay;
-  GPUTexture *depth;
-  GPUTexture *depth_in_front;
+  blender::gpu::Texture *color;
+  blender::gpu::Texture *color_overlay;
+  blender::gpu::Texture *depth;
+  blender::gpu::Texture *depth_in_front;
 };
 
 struct DRWViewData {

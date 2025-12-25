@@ -31,12 +31,12 @@ static void sh_node_tex_checker_declare(NodeDeclarationBuilder &b)
           "Overall texture scale.\n"
           "The scale is a factor of the bounding box of the face divided by the Scale value");
   b.add_output<decl::Color>("Color");
-  b.add_output<decl::Float>("Fac");
+  b.add_output<decl::Float>("Factor", "Fac");
 }
 
 static void node_shader_init_tex_checker(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexChecker *tex = MEM_callocN<NodeTexChecker>(__func__);
+  NodeTexChecker *tex = MEM_new_for_free<NodeTexChecker>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
 
@@ -118,7 +118,7 @@ NODE_SHADER_MATERIALX_BEGIN
   }
   NodeItem value1 = val(1.0f);
   NodeItem value2 = val(0.0f);
-  if (STREQ(socket_out_->name, "Color")) {
+  if (STREQ(socket_out_->identifier, "Color")) {
     value1 = get_input_value("Color1", NodeItem::Type::Color3);
     value2 = get_input_value("Color2", NodeItem::Type::Color3);
   }

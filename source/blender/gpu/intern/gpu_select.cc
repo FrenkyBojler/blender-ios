@@ -24,7 +24,7 @@
  * \{ */
 
 /* Internal algorithm used */
-enum eGPUSelectAlgo {
+enum GPUSelectAlgo {
   /**
    * `glBegin/EndQuery(GL_SAMPLES_PASSED... )`, `gpu_select_query.c`
    * Only sets 4th component (ID) correctly.
@@ -43,9 +43,9 @@ struct GPUSelectState {
   /* To ignore selection id calls when not initialized */
   bool select_is_active;
   /* mode of operation */
-  eGPUSelectMode mode;
+  GPUSelectMode mode;
   /* internal algorithm for selection */
-  eGPUSelectAlgo algorithm;
+  GPUSelectAlgo algorithm;
   /* allow GPU_select_begin/end without drawing */
   bool use_cache;
   /**
@@ -69,7 +69,7 @@ static GPUSelectState g_select_state = {false};
 
 static void gpu_select_begin_ex(GPUSelectBuffer *buffer,
                                 const rcti *input,
-                                eGPUSelectMode mode,
+                                GPUSelectMode mode,
                                 int oldhits,
                                 bool use_select_next)
 {
@@ -131,13 +131,13 @@ static void gpu_select_begin_ex(GPUSelectBuffer *buffer,
 
 void GPU_select_begin_next(GPUSelectBuffer *buffer,
                            const rcti *input,
-                           eGPUSelectMode mode,
+                           GPUSelectMode mode,
                            int oldhits)
 {
   gpu_select_begin_ex(buffer, input, mode, oldhits, true);
 }
 
-void GPU_select_begin(GPUSelectBuffer *buffer, const rcti *input, eGPUSelectMode mode, int oldhits)
+void GPU_select_begin(GPUSelectBuffer *buffer, const rcti *input, GPUSelectMode mode, int oldhits)
 {
   gpu_select_begin_ex(buffer, input, mode, oldhits, false);
 }
@@ -286,6 +286,8 @@ void GPU_select_buffer_stride_realign(const rcti *src, const rcti *dst, uint *r_
   const int src_y = BLI_rcti_size_y(src);
   const int dst_x = BLI_rcti_size_x(dst);
   const int dst_y = BLI_rcti_size_y(dst);
+
+  BLI_assert(dst_x > 0 && dst_y > 0);
 
   int last_px_id = src_x * (y + dst_y - 1) + (x + dst_x - 1);
   memset(&r_buf[last_px_id + 1], 0, (src_x * src_y - (last_px_id + 1)) * sizeof(*r_buf));

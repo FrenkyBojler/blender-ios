@@ -59,9 +59,6 @@ enum eSplitMethod {
 /**
  * Split Strip at timeline_frame in two.
  *
- * \param bmain: Main in which Strip is located
- * \param scene: Scene in which Strip is located
- * \param seqbase: ListBase in which Strip is located
  * \param strip: Strip to be split
  * \param timeline_frame: frame at which strip is split.
  * \param method: affects type of offset to be applied to resize Strip
@@ -73,6 +70,7 @@ Strip *edit_strip_split(Main *bmain,
                         Strip *strip,
                         int timeline_frame,
                         eSplitMethod method,
+                        bool ignore_connections,
                         const char **r_error);
 /**
  * Find gap after initial_frame and move strips on right side to close the gap

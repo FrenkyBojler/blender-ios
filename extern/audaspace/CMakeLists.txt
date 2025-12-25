@@ -23,7 +23,7 @@ endif()
 
 project(audaspace)
 
-set(AUDASPACE_VERSION 1.6)
+set(AUDASPACE_VERSION 1.8)
 set(AUDASPACE_LONG_VERSION ${AUDASPACE_VERSION}.0)
 
 if(DEFINED AUDASPACE_CMAKE_CFG)
@@ -92,6 +92,8 @@ set(SRC
 	src/fx/VolumeReader.cpp
 	src/fx/VolumeSound.cpp
 	src/fx/VolumeStorage.cpp
+	src/fx/Echo.cpp
+	src/fx/EchoReader.cpp
 	src/generator/Sawtooth.cpp
 	src/generator/SawtoothReader.cpp
 	src/generator/Silence.cpp
@@ -206,6 +208,8 @@ set(PUBLIC_HDR
 	include/fx/VolumeReader.h
 	include/fx/VolumeSound.h
 	include/fx/VolumeStorage.h
+	include/fx/Echo.h
+	include/fx/EchoReader.h
 	include/generator/Sawtooth.h
 	include/generator/SawtoothReader.h
 	include/generator/Silence.h
@@ -288,6 +292,7 @@ if(AUDASPACE_STANDALONE)
 	option(WITH_LIBSNDFILE "Build With LibSndFile" TRUE)
 	option(WITH_OPENAL "Build With OpenAL" TRUE)
 	option(WITH_PYTHON "Build With Python Library" TRUE)
+	option(WITH_RUBBERBAND "Build With Rubber Band Library" TRUE)
 	option(WITH_SDL "Build With SDL" TRUE)
 	option(WITH_STRICT_DEPENDENCIES "Error and abort instead of warning if a library is not found." FALSE)
 	if(APPLE)
@@ -792,6 +797,43 @@ if(WITH_PYTHON)
 	endif()
 endif()
 
+# Rubber Band Library
+if(WITH_RUBBERBAND)
+	if(AUDASPACE_STANDALONE)
+		find_package(Rubberband ${PACKAGE_OPTION})
+	endif()
+
+	if(RUBBERBAND_FOUND)
+		set(RUBBERBAND_SRC
+			src/fx/TimeStretchPitchScale.cpp
+			src/fx/TimeStretchPitchScaleReader.cpp
+			src/fx/AnimateableTimeStretchPitchScale.cpp
+			src/fx/AnimateableTimeStretchPitchScaleReader.cpp
+		)
+		set(RUBBERBAND_HDR
+			include/fx/TimeStretchPitchScale.h
+			include/fx/TimeStretchPitchScaleReader.h
+			include/fx/AnimateableTimeStretchPitchScale.h
+			include/fx/AnimateableTimeStretchPitchScaleReader.h
+		)
+
+		add_definitions(-DWITH_RUBBERBAND)
+
+		list(APPEND INCLUDE ${RUBBERBAND_INCLUDE_DIRS})
+		list(APPEND LIBRARIES ${RUBBERBAND_LIBRARIES})
+
+		list(APPEND SRC ${RUBBERBAND_SRC})
+		list(APPEND HDR ${RUBBERBAND_HDR})
+	else()
+		if(AUDASPACE_STANDALONE)
+			set(WITH_RUBBERBAND FALSE CACHE BOOL "Build with Rubber Band" FORCE)
+		else()
+			set(WITH_RUBBERBAND FALSE)
+		endif()
+		message(WARNING "Rubber Band Library not found, time-stretching and pitch-scaling functionality will not be built.")
+	endif()
+endif()
+
 # SDL
 if(WITH_SDL)
 	if(AUDASPACE_STANDALONE)
@@ -1140,6 +1182,7 @@ endif()
 
 if(WITH_PYTHON)
 	set(PYTHON_SRC
+		bindings/python/PyAnimateableProperty.cpp
 		bindings/python/PyAPI.cpp
 		bindings/python/PyDevice.cpp
 		bindings/python/PyDynamicMusic.cpp
@@ -1152,6 +1195,7 @@ if(WITH_PYTHON)
 		bindings/python/PyThreadPool.cpp
 	)
 	set(PYTHON_HDR
+		bindings/python/PyAnimateableProperty.h
 		bindings/python/PyAPI.h
 		bindings/python/PyDevice.h
 		bindings/python/PyDynamicMusic.h

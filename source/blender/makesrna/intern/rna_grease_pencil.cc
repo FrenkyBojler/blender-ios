@@ -398,6 +398,17 @@ static PointerRNA rna_GreasePencilTreeNode_parent_layer_group_get(PointerRNA *pt
       *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(node->parent));
 }
 
+static int rna_GreasePencilTreeNode_channel_color_editable(const PointerRNA * /*ptr*/,
+                                                           const char **r_info)
+{
+  if (U.animation_flag & USER_ANIM_SHOW_CHANNEL_GROUP_COLORS) {
+    return PROP_EDITABLE;
+  }
+
+  *r_info = TIP_("Channel colors are disabled in Animation Preferences");
+  return 0;
+}
+
 static void rna_iterator_grease_pencil_layers_begin(CollectionPropertyIterator *iter,
                                                     PointerRNA *ptr)
 {
@@ -516,7 +527,7 @@ static void rna_GreasePencilLayer_tint_color_set(PointerRNA *ptr, const float *v
           grease_pencil.attributes_for_write().lookup_or_add_for_write_span<ColorGeometry4f>(
               "tint_color",
               bke::AttrDomain::Layer,
-              bke::AttributeInitVArray(VArray<ColorGeometry4f>::ForSingle(
+              bke::AttributeInitVArray(VArray<ColorGeometry4f>::from_single(
                   ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f), grease_pencil.layers().size()))))
   {
     copy_v3_v3(tint_colors.span[layer_idx], values);
@@ -549,7 +560,7 @@ static void rna_GreasePencilLayer_tint_factor_set(PointerRNA *ptr, const float v
           grease_pencil.attributes_for_write().lookup_or_add_for_write_span<ColorGeometry4f>(
               "tint_color",
               bke::AttrDomain::Layer,
-              bke::AttributeInitVArray(VArray<ColorGeometry4f>::ForSingle(
+              bke::AttributeInitVArray(VArray<ColorGeometry4f>::from_single(
                   ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f), grease_pencil.layers().size()))))
   {
     tint_colors.span[layer_idx][3] = value;
@@ -583,7 +594,7 @@ static void rna_GreasePencilLayer_radius_offset_set(PointerRNA *ptr, const float
               "radius_offset",
               bke::AttrDomain::Layer,
               bke::AttributeInitVArray(
-                  VArray<float>::ForSingle(0.0f, grease_pencil.layers().size()))))
+                  VArray<float>::from_single(0.0f, grease_pencil.layers().size()))))
   {
     radius_offsets.span[layer_idx] = value;
     radius_offsets.finish();
@@ -972,6 +983,7 @@ static void rna_def_grease_pencil_tree_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "channel_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "color");
   RNA_def_property_array(prop, 3);
+  RNA_def_property_editable_func(prop, "rna_GreasePencilTreeNode_channel_color_editable");
   RNA_def_property_ui_text(prop, "Channel Color", "Color of the channel in the dope sheet");
   RNA_def_property_update(prop, NC_GPENCIL | NA_EDITED, nullptr);
 
@@ -1006,8 +1018,6 @@ static void rna_def_grease_pencil_layer(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
-
-  static const float scale_defaults[3] = {1.0f, 1.0f, 1.0f};
 
   static const EnumPropertyItem rna_enum_layer_blend_modes_items[] = {
       {GP_LAYER_BLEND_NONE, "REGULAR", 0, "Regular", ""},
@@ -1142,7 +1152,6 @@ static void rna_def_grease_pencil_layer(BlenderRNA *brna)
   prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_array(prop, 3);
   RNA_def_property_float_sdna(prop, nullptr, "scale");
-  RNA_def_property_float_array_default(prop, scale_defaults);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 3);
   RNA_def_property_ui_text(prop, "Scale", "Scale of the layer");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
@@ -1426,7 +1435,7 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  srna = RNA_def_struct(brna, "GreasePencilv3", "ID");
+  srna = RNA_def_struct(brna, "GreasePencil", "ID");
   RNA_def_struct_sdna(srna, "GreasePencil");
   RNA_def_struct_ui_text(srna, "Grease Pencil", "Grease Pencil data-block");
   RNA_def_struct_ui_icon(srna, ICON_OUTLINER_DATA_GREASEPENCIL);

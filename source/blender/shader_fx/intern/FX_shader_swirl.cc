@@ -14,15 +14,17 @@
 #include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
-#include "UI_interface.hh"
+#include "DNA_screen_types.h"
+
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
 
-#include "FX_shader_types.h"
-#include "FX_ui_common.h"
+#include "FX_shader_types.hh"
+#include "FX_ui_common.hh"
 
 #include "DEG_depsgraph_build.hh"
 
@@ -63,15 +65,15 @@ static void foreach_ID_link(ShaderFxData *fx, Object *ob, IDWalkFunc walk, void 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = shaderfx_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   shaderfx_panel_end(layout, ptr);
 }
@@ -96,5 +98,6 @@ ShaderFxTypeInfo shaderfx_Type_Swirl = {
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_working_space_color*/ nullptr,
     /*panel_register*/ panel_register,
 };

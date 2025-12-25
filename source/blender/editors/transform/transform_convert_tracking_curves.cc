@@ -14,9 +14,9 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 #include "BLI_math_matrix.h"
 
 #include "ED_clip.hh"
@@ -77,7 +77,6 @@ static void markerToTransCurveDataInit(TransData *td,
   memset(td->axismtx, 0, sizeof(td->axismtx));
   td->axismtx[2][2] = 1.0f;
 
-  td->ext = nullptr;
   td->val = nullptr;
 
   td->flag |= TD_SELECTED;
