@@ -136,9 +136,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     });
 
     Array<int> cluster_ids(mask.min_array_size());
-    /* Keep #no_cluster_value as unused value (for debug), and use rest negative range for musked
-     * values. */
-    array_utils::fill_index_range(cluster_ids.as_mutable_span(), -(domain_size + 1));
+    array_utils::fill_index_range(cluster_ids.as_mutable_span());
 
     threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
       Vector<int> mask_indices;
@@ -158,9 +156,10 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
 
         const Span<int> group_ids = cluster_ids_by_group[group_i];
 
-        requered_group_mask.foreach_index(GrainSize(2048), [&](const int index, const int pos) {
-          cluster_ids[index] = mask_indices[group_ids[pos]];
-        });
+        requered_group_mask.foreach_index_optimized<int>(
+            GrainSize(2048), [&](const int index, const int pos) {
+              cluster_ids[index] = mask_indices[group_ids[pos]];
+            });
       }
     });
 
