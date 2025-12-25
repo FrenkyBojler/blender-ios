@@ -5,6 +5,9 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "BLI_map.hh"
+#include "BLI_task.hh"
+
 #include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_merge_by_distance.hh"
 #include "GEO_point_merge_by_distance.hh"
@@ -25,99 +28,96 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Merge ID").hide_value().field_on_all();
 }
 
-static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,
-                                                const float merge_distance,
-                                                const Field<bool> &selection_field,
-                                                const AttributeFilter &attribute_filter)
+static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &context,
+                                                      const Field<int> &group_id_field,
+                                                      const Field<bool> &selection_field,
+                                                      const int domain_size,
+                                                      Array<int> &r_roots)
 {
-  const bke::PointCloudFieldContext context{src_points};
-  FieldEvaluator evaluator{context, src_points.totpoint};
-  evaluator.add(selection_field);
+  FieldEvaluator evaluator(context, domain_size);
+  evaluator.add(group_id_field);
+  evaluator.set_selection(selection_field);
   evaluator.evaluate();
 
-  const IndexMask selection = evaluator.get_evaluated_as_mask(0);
-  if (selection.is_empty()) {
-    return nullptr;
-  }
-
-  return geometry::point_merge_by_distance(
-      src_points, merge_distance, selection, attribute_filter);
-}
-
-static std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
-                                                              const float merge_distance,
-                                                              const Field<bool> &selection_field)
-{
-  Array<bool> selection(mesh.verts_num);
-  const bke::MeshFieldContext context{mesh, AttrDomain::Point};
-  FieldEvaluator evaluator{context, mesh.verts_num};
-  evaluator.add_with_destination(selection_field, selection.as_mutable_span());
-  evaluator.evaluate();
-
-  return geometry::mesh_merge_by_distance_connected(mesh, selection, merge_distance, false);
-}
-
-static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
-                                                        const float merge_distance,
-                                                        const Field<bool> &selection_field)
-{
-  const bke::MeshFieldContext context{mesh, AttrDomain::Point};
-  FieldEvaluator evaluator{context, mesh.verts_num};
-  evaluator.add(selection_field);
-  evaluator.evaluate();
-
-  const IndexMask selection = evaluator.get_evaluated_as_mask(0);
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
   if (selection.is_empty()) {
     return std::nullopt;
   }
 
-  return geometry::mesh_merge_by_distance_all(mesh, selection, merge_distance);
+  const VArraySpan<int> group_id = evaluator.get_evaluated<int>(0);
+  Map<int, int> group_id_to_root;
+  selection.foreach_index_optimized<int>(
+      [&](const int index) { group_id_to_root.add(group_id[index], index); });
+
+  if ((selection.size() == domain_size) && (group_id_to_root.size() == 1)) {
+    /* TODO: Separate implementation of MergeAll?.. */
+    r_roots.reinitialize(domain_size);
+    r_roots.fill(0);
+    return domain_size - 1;
+  }
+
+  if (group_id_to_root.size() == domain_size) {
+    BLI_assert(selection.size() == domain_size);
+    return std::nullopt;
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask unselected = selection.complement(IndexRange(domain_size), memory);
+
+  r_roots.reinitialize(domain_size);
+#ifndef NDEBUG
+  r_roots.as_mutable_span().fill(-1);
+#endif
+
+  unselected.foreach_index_optimized<int>(GrainSize(1024),
+                                          [&](const int index) { r_roots[index] = index; });
+  if (group_id_to_root.size() == 1) {
+    BLI_assert(group_id_to_root.lookup(group_id[selection.first()]) == selection.first());
+    index_mask::masked_fill<int>(r_roots.as_mutable_span(), selection.first(), selection);
+  }
+  else {
+    selection.foreach_index_optimized<int>(GrainSize(1024), [&](const int index) {
+      r_roots[index] = group_id_to_root.lookup(group_id[index]);
+    });
+  }
+
+  BLI_assert(!r_roots.as_span().contains(-1));
+
+  return domain_size - (group_id_to_root.size()) - unselected.size();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<int> group_id_field = params.extract_input<Field<int>>("Merge ID");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+
+  const AttributeFilter &attribute_filter = params.get_attribute_filter("Geometry");
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
-      PointCloud *result = pointcloud_merge_by_distance(
-          *pointcloud, merge_distance, selection, params.get_attribute_filter("Geometry"));
-      if (result) {
-        geometry_set.replace_pointcloud(result);
+      const bke::PointCloudFieldContext context(*pointcloud);
+      Array<int> masked_group_ids;
+      const std::optional<int> total_merge_ops = masked_ids_to_merging_roots(
+          context, group_id_field, selection_field, pointcloud->totpoint, masked_group_ids);
+      if (total_merge_ops.has_value()) {
+        PointCloud *new_pointcloud = geometry::point_merge_by_distance(*pointcloud,
+                                                                       masked_group_ids.as_span(),
+                                                                       pointcloud->totpoint -
+                                                                           *total_merge_ops,
+                                                                       attribute_filter);
+        geometry_set.replace_pointcloud(new_pointcloud);
       }
     }
     if (const Mesh *mesh = geometry_set.get_mesh()) {
-      
       const bke::MeshFieldContext context(*mesh, AttrDomain::Point);
-      FieldEvaluator evaluator{context, mesh.verts_num};
-      evaluator.add(selection_field);
-      evaluator.add(group_id_field);
-      evaluator.evaluate();
-      
-      const IndexMask mask = evaluator.get_evaluated_as_mask(0);
-      const VArray<int> group_id = evaluator.get_evaluated<int>(1);
-      
-      Array<int> masked_group_ids(mesh.verts_num);
-      VectorSet<int>
-      array_utils::copy(group_id, mask, masked_group_ids.as_mutable_span());
-      
-      const Mesh &new_mesh = *geometry::create_merged_mesh(*mesh, masked_group_ids, removed_vertex_count, true);
-      
-      std::optional<Mesh *> result;
-      switch (mode) {
-        case GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL:
-          result = mesh_merge_by_distance_all(*mesh, merge_distance, selection);
-          break;
-        case GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED:
-          result = mesh_merge_by_distance_connected(*mesh, merge_distance, selection);
-          break;
-        default:
-          BLI_assert_unreachable();
-      }
-      if (result) {
-        geometry_set.replace_mesh(*result);
+      Array<int> masked_group_ids;
+      const std::optional<int> total_merge_ops = masked_ids_to_merging_roots(
+          context, group_id_field, selection_field, mesh->verts_num, masked_group_ids);
+      if (total_merge_ops.has_value()) {
+        Mesh *new_mesh = geometry::create_merged_mesh(
+            *mesh, masked_group_ids.as_mutable_span(), *total_merge_ops, true);
+        geometry_set.replace_mesh(new_mesh);
       }
     }
   });

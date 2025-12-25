@@ -21,8 +21,16 @@ namespace blender::geometry {
  * indices favor speed over accuracy, since the results will depend on the order of the points.
  */
 PointCloud *point_merge_by_distance(const PointCloud &src_points,
-                                    const float merge_distance,
+                                    float merge_distance,
                                     const IndexMask &selection,
+                                    const bke::AttributeFilter &attribute_filter);
+
+/**
+ * The same as above but merging roots can be provided explicitly.
+ */
+PointCloud *point_merge_by_distance(const PointCloud &src_points,
+                                    Span<int> root_indices,
+                                    int total_roots,
                                     const bke::AttributeFilter &attribute_filter);
 
 }  // namespace blender::geometry

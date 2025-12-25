@@ -141,6 +141,7 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
     array_utils::fill_index_range(cluster_ids.as_mutable_span(), -(domain_size + 1));
 
     threading::parallel_for(IndexRange(groups_num), grain_size, [&](const IndexRange range) {
+      Vector<int> mask_indices;
       for (const int group_i : range) {
         const IndexMask &group_indices = all_indices_by_group_id[group_i];
         if (mask.bounds().intersect(group_indices.bounds()).is_empty()) {
@@ -152,10 +153,13 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
         const IndexMask requered_group_mask = group_indices.slice(0,
                                                                   last_reqered_group_element + 1);
 
+        mask_indices.reinitialize(requered_group_mask.size());
+        requered_group_mask.to_indices(mask_indices.as_mutable_span());
+
         const Span<int> group_ids = cluster_ids_by_group[group_i];
 
         requered_group_mask.foreach_index(GrainSize(2048), [&](const int index, const int pos) {
-          cluster_ids[index] = requered_group_mask[group_ids[pos]];
+          cluster_ids[index] = mask_indices[group_ids[pos]];
         });
       }
     });
