@@ -52,15 +52,36 @@ void NodeOperation::evaluate()
   const timeit::TimePoint before_time = timeit::Clock::now();
   Operation::evaluate();
   const timeit::TimePoint after_time = timeit::Clock::now();
-#if 0
   if (this->context().profiler()) {
-    this->context().profiler()->set_node_evaluation_time(this->node().instance_key(),
-                                                         after_time - before_time);
+    this->context().profiler()->set_node_evaluation_time(instance_key_, after_time - before_time);
   }
-#endif
   if (this->context().use_gpu()) {
     GPU_debug_group_end();
   }
+}
+
+void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
+{
+  for (const bNodeSocket *output : this->node().output_sockets()) {
+    if (!is_socket_available(output)) {
+      continue;
+    }
+
+    const int reference_count = number_of_inputs_linked_to_output_conditioned(
+        *output, [&](const bNodeSocket &input) { return schedule.contains(&input.owner_node()); });
+
+    this->get_result(output->identifier).set_reference_count(reference_count);
+  }
+}
+
+void NodeOperation::set_instance_key(const bNodeInstanceKey &instance_key)
+{
+  instance_key_ = instance_key;
+}
+
+const bNodeInstanceKey &NodeOperation::get_instance_key() const
+{
+  return instance_key_;
 }
 
 void NodeOperation::compute_preview()
@@ -70,9 +91,19 @@ void NodeOperation::compute_preview()
   {
     const Result *result = get_preview_result();
     if (result) {
-      compositor::compute_preview(context(), this->node(), *result);
+      compositor::compute_preview(context(), this->get_instance_key(), *result);
     }
   }
+}
+
+const bNode &NodeOperation::node() const
+{
+  return node_;
+}
+
+bool NodeOperation::should_compute_output(StringRef identifier)
+{
+  return this->get_result(identifier).should_compute();
 }
 
 Result *NodeOperation::get_preview_result()
@@ -108,30 +139,6 @@ Result *NodeOperation::get_preview_result()
 
   BLI_assert_unreachable();
   return nullptr;
-}
-
-void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
-{
-  for (const bNodeSocket *output : this->node().output_sockets()) {
-    if (!is_socket_available(output)) {
-      continue;
-    }
-
-    const int reference_count = number_of_inputs_linked_to_output_conditioned(
-        *output, [&](const bNodeSocket &input) { return schedule.contains(&input.owner_node()); });
-
-    this->get_result(output->identifier).set_reference_count(reference_count);
-  }
-}
-
-const bNode &NodeOperation::node() const
-{
-  return node_;
-}
-
-bool NodeOperation::should_compute_output(StringRef identifier)
-{
-  return this->get_result(identifier).should_compute();
 }
 
 }  // namespace blender::compositor

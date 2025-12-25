@@ -211,21 +211,12 @@ bool is_node_preview_needed(const bNode &node)
     return false;
   }
 
-#if 0
-
-  /* Only compute previews for nodes in the active context. */
-  if (node.context()->instance_key().value !=
-      node.context()->derived_tree().active_context().instance_key().value)
-  {
-    return false;
-  }
-#endif
-
   return true;
 }
 
 const bNodeSocket *find_preview_output_socket(const bNode &node)
 {
+  /* TODO: Needed outputs. */
   if (!is_node_preview_needed(node)) {
     return nullptr;
   }

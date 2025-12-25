@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "BKE_node.hh"
+
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
@@ -67,6 +69,8 @@ class PixelOperation : public Operation {
   PixelCompileUnit compile_unit_;
   /* A reference to the node execution schedule that is being compiled. */
   const Schedule &schedule_;
+  /* TODO. */
+  bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_NONE;
   /* A map that associates the identifier of each input of the operation with the output socket it
    * is linked to. This is needed to help the compiler establish links between operations. */
   Map<std::string, const bNodeSocket *> inputs_to_linked_outputs_map_;
@@ -140,6 +144,9 @@ class PixelOperation : public Operation {
    *
    * The node execution schedule is given as an input. */
   void compute_results_reference_counts(const Schedule &schedule);
+
+  /* TODO. */
+  void set_instance_key(const bNodeInstanceKey &instance_key);
 };
 
 }  // namespace blender::compositor

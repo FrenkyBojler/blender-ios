@@ -28,7 +28,8 @@ class GroupNodeOperation : public NodeOperation {
       return;
     }
 
-    NodeGroupOperation node_group_operation(this->context(), *node_group);
+    NodeGroupOperation node_group_operation(
+        this->context(), *node_group, this->get_instance_key());
 
     Vector<std::unique_ptr<Result>> inputs;
     node_group->ensure_interface_cache();

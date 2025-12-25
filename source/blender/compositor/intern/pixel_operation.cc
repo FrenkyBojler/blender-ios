@@ -40,7 +40,9 @@ void PixelOperation::compute_preview()
 {
   for (const bNodeSocket *output : preview_outputs_) {
     Result &result = get_result(get_output_identifier_from_output_socket(*output));
-    compositor::compute_preview(context(), output->owner_node(), result);
+    const bNodeInstanceKey instance_key = bke::node_instance_key(
+        instance_key_, &output->owner_node().owner_tree(), &output->owner_node());
+    compositor::compute_preview(context(), instance_key, result);
     /* Preview results gets as an extra reference in pixel operations as can be seen in the
      * compute_results_reference_counts method, so release it after computing preview. */
     result.release();
@@ -86,6 +88,11 @@ void PixelOperation::compute_results_reference_counts(const Schedule &schedule)
 
     get_result(item.value).set_reference_count(reference_count);
   }
+}
+
+void PixelOperation::set_instance_key(const bNodeInstanceKey &instance_key)
+{
+  instance_key_ = instance_key;
 }
 
 }  // namespace blender::compositor

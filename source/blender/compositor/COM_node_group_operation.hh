@@ -6,6 +6,8 @@
 
 #include "DNA_node_types.h"
 
+#include "BKE_node.hh"
+
 #include "COM_compile_state.hh"
 #include "COM_context.hh"
 #include "COM_node_operation.hh"
@@ -83,6 +85,7 @@ namespace blender::compositor {
 class NodeGroupOperation : public Operation {
  private:
   const bNodeTree &node_group_;
+  const bNodeInstanceKey instance_key_;
 
   /* The compiled operations stream, which contains all compiled operations so far. */
   Vector<std::unique_ptr<Operation>> operations_stream_;
@@ -90,7 +93,9 @@ class NodeGroupOperation : public Operation {
  public:
   /* Populate the output results based on the node group interface outputs and populate the input
    * descriptors based on the node group interface inputs. */
-  NodeGroupOperation(Context &context, const bNodeTree &node_group);
+  NodeGroupOperation(Context &context,
+                     const bNodeTree &node_group,
+                     const bNodeInstanceKey instance_key = bke::NODE_INSTANCE_KEY_BASE);
 
   /* Calls the evaluate method of the operation, but also measures the execution time and stores it
    * in the context's profile data. */

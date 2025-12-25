@@ -26,8 +26,10 @@
 
 namespace blender::compositor {
 
-NodeGroupOperation::NodeGroupOperation(Context &context, const bNodeTree &node_group)
-    : Operation(context), node_group_(node_group)
+NodeGroupOperation::NodeGroupOperation(Context &context,
+                                       const bNodeTree &node_group,
+                                       const bNodeInstanceKey instance_key)
+    : Operation(context), node_group_(node_group), instance_key_(instance_key)
 {
   node_group.ensure_interface_cache();
   for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
@@ -102,6 +104,7 @@ void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_
   }
 
   NodeOperation *operation = get_node_operation(this->context(), node);
+  operation->set_instance_key(bke::node_instance_key(instance_key_, &node_group_, &node));
 
   compile_state.map_node_to_node_operation(node, operation);
 
@@ -210,6 +213,7 @@ void NodeGroupOperation::evaluate_pixel_compile_unit(CompileState &compile_state
   }
 
   PixelOperation *operation = create_pixel_operation(this->context(), compile_state);
+  operation->set_instance_key(instance_key_);
 
   for (const bNode *node : compile_unit) {
     compile_state.map_node_to_pixel_operation(*node, operation);

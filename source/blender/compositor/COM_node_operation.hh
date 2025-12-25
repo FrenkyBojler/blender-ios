@@ -8,6 +8,8 @@
 
 #include "DNA_node_types.h"
 
+#include "BKE_node.hh"
+
 #include "COM_context.hh"
 #include "COM_operation.hh"
 #include "COM_result.hh"
@@ -28,6 +30,8 @@ class NodeOperation : public Operation {
  private:
   /* The node that this operation represents. */
   const bNode &node_;
+  /* TODO. */
+  bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_NONE;
 
  public:
   /* Populate the output results based on the node outputs and populate the input descriptors based
@@ -43,6 +47,10 @@ class NodeOperation : public Operation {
    * computed as the number of inputs whose node is part of the schedule and is linked to the
    * output corresponding to each result. The node execution schedule is given as an input. */
   void compute_results_reference_counts(const Schedule &schedule);
+
+  /* TODO. */
+  void set_instance_key(const bNodeInstanceKey &instance_key);
+  const bNodeInstanceKey &get_instance_key() const;
 
  protected:
   /* Compute a node preview using the result returned from the get_preview_result method. */
