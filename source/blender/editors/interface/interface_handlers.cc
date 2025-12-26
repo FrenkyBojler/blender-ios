@@ -9785,11 +9785,12 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
           WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
           data->autoopentimer = nullptr;
 
-            /* Check if we are in a Dialog or Temporary region */
-            bool is_dialog_context = (region->regiontype == RGN_TYPE_TEMPORARY &&  !block_is_menu(block));
+          const bool is_dialog_context = (region->regiontype == RGN_TYPE_TEMPORARY &&
+                                          !block_is_menu(block));
 
-            /* Only auto-open if we are NOT in a dialog context */
-         if (!is_dialog_context && (button_contains_point_px(but, region, event->xy) || but->active)) {
+          if (!is_dialog_context &&
+              (button_contains_point_px(but, region, event->xy) || but->active))
+          {
             button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
           }
         }
