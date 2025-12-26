@@ -10,7 +10,6 @@
 
 #include "COM_domain.hh"
 #include "GPU_texture.hh"
-#include <utility>
 
 namespace blender::compositor {
 

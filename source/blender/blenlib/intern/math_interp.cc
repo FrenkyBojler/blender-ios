@@ -1070,9 +1070,8 @@ SampleArea sample_area(const SamplerSource &source)
     case Sampler::Bspline:
       return sample_bspline_a;
     case Sampler::Anisotropic:
-      if (source.wrap_x == InterpWrapMode::Border && source.wrap_y == InterpWrapMode::Border)
-        return sample_anisotropic_clip;
-      return sample_anisotropic;
+      return source.wrap_x == InterpWrapMode::Border && source.wrap_y == InterpWrapMode::Border ?
+        sample_anisotropic_clip : sample_anisotropic;
   }
 }
 

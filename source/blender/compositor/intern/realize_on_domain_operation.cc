@@ -7,12 +7,9 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_timeit.hh"
-#include "BLI_utildefines.h"
 
 #include "GPU_capabilities.hh"
 #include "GPU_shader.hh"
-#include "GPU_state.hh"
 #include "GPU_texture.hh"
 
 #include "COM_context.hh"
