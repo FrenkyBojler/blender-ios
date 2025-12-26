@@ -59,11 +59,6 @@ class Context : public compositor::Context {
     return *scene_;
   }
 
-  const bNodeTree &get_node_tree() const override
-  {
-    return *scene_->compositing_node_group;
-  }
-
   bool use_gpu() const override
   {
     return true;
@@ -294,8 +289,7 @@ class Instance : public DrawEngine {
 
     /* Execute Compositor render commands. */
     {
-      compositor::Evaluator evaluator(context);
-      evaluator.evaluate();
+      evaluate(context, *DRW_context_get()->scene->compositing_node_group);
       context.cache_manager().reset();
     }
 

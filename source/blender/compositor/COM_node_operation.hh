@@ -32,6 +32,7 @@ class NodeOperation : public Operation {
   const bNode &node_;
   /* TODO. */
   bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_NONE;
+  Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
 
  public:
   /* Populate the output results based on the node outputs and populate the input descriptors based
@@ -51,6 +52,9 @@ class NodeOperation : public Operation {
   /* TODO. */
   void set_instance_key(const bNodeInstanceKey &instance_key);
   const bNodeInstanceKey &get_instance_key() const;
+
+  void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> &node_previews);
+  Map<bNodeInstanceKey, bke::bNodePreview> &get_node_previews();
 
  protected:
   /* Compute a node preview using the result returned from the get_preview_result method. */

@@ -85,6 +85,7 @@ namespace blender::compositor {
 class NodeGroupOperation : public Operation {
  private:
   const bNodeTree &node_group_;
+  Map<bNodeInstanceKey, bke::bNodePreview> &node_previews_;
   const bNodeInstanceKey instance_key_;
 
   /* The compiled operations stream, which contains all compiled operations so far. */
@@ -95,6 +96,7 @@ class NodeGroupOperation : public Operation {
    * descriptors based on the node group interface inputs. */
   NodeGroupOperation(Context &context,
                      const bNodeTree &node_group,
+                     Map<bNodeInstanceKey, bke::bNodePreview> &node_previews,
                      const bNodeInstanceKey instance_key = bke::NODE_INSTANCE_KEY_BASE);
 
   /* Calls the evaluate method of the operation, but also measures the execution time and stores it

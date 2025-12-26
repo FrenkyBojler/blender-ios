@@ -4,26 +4,13 @@
 
 #pragma once
 
+#include "DNA_node_types.h"
+
 #include "COM_context.hh"
 
 namespace blender::compositor {
 
-/* ------------------------------------------------------------------------------------------------
- * Evaluator
- *
- * TODO. */
-class Evaluator {
- private:
-  /* A reference to the compositor context. */
-  Context &context_;
-
- public:
-  /* Construct an evaluator from a context. */
-  Evaluator(Context &context);
-
-  /* Evaluates the compositor node tree by compiling it into an operations stream and evaluating
-   * it. */
-  void evaluate();
-};
+/* Evaluates the given compositor node group in the given context. */
+void evaluate(Context &context, const bNodeTree &node_group);
 
 }  // namespace blender::compositor

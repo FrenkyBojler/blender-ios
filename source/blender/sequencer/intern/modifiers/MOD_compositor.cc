@@ -42,7 +42,6 @@ namespace blender::seq {
 class CompositorContext : public compositor::Context {
  private:
   const RenderData &render_data_;
-  const SequencerCompositorModifierData *modifier_data_;
 
   ImBuf *image_buffer_;
   ImBuf *mask_buffer_;
@@ -53,13 +52,11 @@ class CompositorContext : public compositor::Context {
  public:
   CompositorContext(compositor::StaticCacheManager &cache_manager,
                     const RenderData &render_data,
-                    const SequencerCompositorModifierData *modifier_data,
                     ImBuf *image_buffer,
                     ImBuf *mask_buffer,
                     const Strip &strip)
       : compositor::Context(cache_manager),
         render_data_(render_data),
-        modifier_data_(modifier_data),
         image_buffer_(image_buffer),
         mask_buffer_(mask_buffer),
         xform_(float3x3::identity()),
@@ -80,11 +77,6 @@ class CompositorContext : public compositor::Context {
   const Scene &get_scene() const override
   {
     return *render_data_.scene;
-  }
-
-  const bNodeTree &get_node_tree() const override
-  {
-    return *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph, modifier_data_->node_group);
   }
 
   compositor::OutputTypes needed_outputs() const override
@@ -232,14 +224,11 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   /* TODO: Should be persistent across evaluations. */
   compositor::StaticCacheManager cache_manager;
 
-  CompositorContext com_context(cache_manager,
-                                context.render_data,
-                                modifier_data,
-                                context.image,
-                                linear_mask,
-                                context.strip);
-  compositor::Evaluator evaluator(com_context);
-  evaluator.evaluate();
+  CompositorContext com_context(
+      cache_manager, context.render_data, context.image, linear_mask, context.strip);
+  const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(context.render_data.depsgraph,
+                                                              modifier_data->node_group);
+  evaluate(com_context, node_group);
   com_context.cache_manager().reset();
 
   context.result_translation += com_context.get_result_translation();

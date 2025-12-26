@@ -55,9 +55,6 @@ class Context {
   /* Get the compositing scene. */
   virtual const Scene &get_scene() const = 0;
 
-  /* Get the node tree used for compositing. */
-  virtual const bNodeTree &get_node_tree() const = 0;
-
   /* Returns all output types that should be computed. */
   virtual OutputTypes needed_outputs() const = 0;
 

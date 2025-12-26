@@ -6,6 +6,8 @@
 
 #include "BLI_vector.hh"
 
+#include "BKE_node_runtime.hh"
+
 #include "COM_context.hh"
 #include "COM_evaluator.hh"
 #include "COM_node_group_operation.hh"
@@ -13,23 +15,20 @@
 
 namespace blender::compositor {
 
-Evaluator::Evaluator(Context &context) : context_(context) {}
-
-void Evaluator::evaluate()
+void evaluate(Context &context, const bNodeTree &node_group)
 {
-  const bNodeTree &node_group = context_.get_node_tree();
-  NodeGroupOperation node_group_operation(context_, node_group);
+  NodeGroupOperation node_group_operation(context, node_group, node_group.runtime->previews);
 
   Vector<std::unique_ptr<Result>> inputs;
   node_group.ensure_interface_cache();
   for (const bNodeTreeInterfaceSocket *input : node_group.interface_inputs()) {
-    const Result input_result = context_.get_input(input->identifier);
+    const Result input_result = context.get_input(input->identifier);
     if (input_result.is_allocated()) {
       inputs.append(std::make_unique<Result>(input_result));
     }
     else {
       const ResultType input_type = get_node_interface_socket_result_type(*input);
-      Result invalid_result = context_.create_result(input_type);
+      Result invalid_result = context.create_result(input_type);
       invalid_result.allocate_invalid();
       inputs.append(std::make_unique<Result>(invalid_result));
     }
@@ -43,7 +42,7 @@ void Evaluator::evaluate()
   if (StringRef(output->socket_type) != "NodeSocketColor") {
     return;
   }
-  context_.write_output(node_group_operation.get_result(output->identifier));
+  context.write_output(node_group_operation.get_result(output->identifier));
 
   for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
     node_group_operation.get_result(output->identifier).release();

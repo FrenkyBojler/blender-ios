@@ -110,11 +110,6 @@ class Context : public compositor::Context {
     return *input_data_.scene;
   }
 
-  const bNodeTree &get_node_tree() const override
-  {
-    return *input_data_.node_tree;
-  }
-
   bool use_gpu() const override
   {
     return this->get_render_data().compositor_device == SCE_COMPOSITOR_DEVICE_GPU;
@@ -474,6 +469,14 @@ class Context : public compositor::Context {
       GPU_finish();
     }
   }
+
+  bool is_canceled() const override
+  {
+    if (!input_data_.node_tree->runtime->test_break) {
+      return false;
+    }
+    return input_data_.node_tree->runtime->test_break(input_data_.node_tree->runtime->tbh);
+  }
 };
 
 /* Render Compositor */
@@ -548,8 +551,7 @@ class Compositor {
     }
 
     {
-      compositor::Evaluator evaluator(context);
-      evaluator.evaluate();
+      evaluate(context, *input_data.node_tree);
 
       /* Reset the cache, but only if the evaluation did not get canceled, because in that case, we
        * wouldn't want to invalidate the cache because not all operations that use cached resources

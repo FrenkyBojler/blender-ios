@@ -71,6 +71,7 @@ class PixelOperation : public Operation {
   const Schedule &schedule_;
   /* TODO. */
   bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_NONE;
+  Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
   /* A map that associates the identifier of each input of the operation with the output socket it
    * is linked to. This is needed to help the compiler establish links between operations. */
   Map<std::string, const bNodeSocket *> inputs_to_linked_outputs_map_;
@@ -147,6 +148,8 @@ class PixelOperation : public Operation {
 
   /* TODO. */
   void set_instance_key(const bNodeInstanceKey &instance_key);
+
+  void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> &node_previews);
 };
 
 }  // namespace blender::compositor
