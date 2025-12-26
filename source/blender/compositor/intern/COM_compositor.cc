@@ -52,7 +52,7 @@ void COM_execute(Render *render,
                  const char *view_name,
                  blender::compositor::RenderContext *render_context,
                  blender::compositor::Profiler *profiler,
-                 blender::compositor::OutputTypes needed_outputs)
+                 blender::compositor::NodeGroupOutputTypes needed_outputs)
 {
   std::scoped_lock lock(g_compositor_mutex);
 

@@ -79,11 +79,12 @@ class CompositorContext : public compositor::Context {
     return *render_data_.scene;
   }
 
-  compositor::OutputTypes needed_outputs() const override
+  compositor::NodeGroupOutputTypes needed_outputs() const
   {
-    compositor::OutputTypes needed_outputs = compositor::OutputTypes::Composite;
+    compositor::NodeGroupOutputTypes needed_outputs =
+        compositor::NodeGroupOutputTypes::GroupOutputNode;
     if (!render_data_.render) {
-      needed_outputs |= compositor::OutputTypes::Viewer;
+      needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
     }
     return needed_outputs;
   }
@@ -228,7 +229,7 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
       cache_manager, context.render_data, context.image, linear_mask, context.strip);
   const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(context.render_data.depsgraph,
                                                               modifier_data->node_group);
-  evaluate(com_context, node_group);
+  evaluate(com_context, node_group, com_context.needed_outputs());
   com_context.cache_manager().reset();
 
   context.result_translation += com_context.get_result_translation();

@@ -81,6 +81,7 @@
 
 #include "COM_compositor.hh"
 #include "COM_context.hh"
+#include "COM_node_group_operation.hh"
 #include "COM_profiler.hh"
 
 namespace blender::ed::space_node {
@@ -109,7 +110,7 @@ struct CompoJob {
   bool cancelled;
 
   compositor::Profiler profiler;
-  compositor::OutputTypes needed_outputs;
+  compositor::NodeGroupOutputTypes needed_outputs;
 };
 
 float node_socket_calculate_height(const bNodeSocket &socket)
@@ -321,10 +322,11 @@ static bool is_compositing_possible(const bContext *C)
 
 /* Returns the compositor outputs that need to be computed because their result is visible to the
  * user or required by the render pipeline. */
-static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext *C,
-                                                                      Scene *scene_owner)
+static blender::compositor::NodeGroupOutputTypes get_compositor_needed_outputs(const bContext *C,
+                                                                               Scene *scene_owner)
 {
-  blender::compositor::OutputTypes needed_outputs = blender::compositor::OutputTypes::None;
+  blender::compositor::NodeGroupOutputTypes needed_outputs =
+      blender::compositor::NodeGroupOutputTypes::None;
 
   wmWindowManager *window_manager = CTX_wm_manager(C);
   LISTBASE_FOREACH (wmWindow *, window, &window_manager->windows) {
@@ -337,10 +339,10 @@ static blender::compositor::OutputTypes get_compositor_needed_outputs(const bCon
       if (space_link->spacetype == SPACE_NODE) {
         const SpaceNode *space_node = reinterpret_cast<const SpaceNode *>(space_link);
         if (space_node->flag & SNODE_BACKDRAW) {
-          needed_outputs |= blender::compositor::OutputTypes::Viewer;
+          needed_outputs |= blender::compositor::NodeGroupOutputTypes::ViewerNode;
         }
         if (space_node->overlay.flag & SN_OVERLAY_SHOW_PREVIEWS) {
-          needed_outputs |= blender::compositor::OutputTypes::Previews;
+          needed_outputs |= blender::compositor::NodeGroupOutputTypes::NodePreviews;
         }
       }
       else if (space_link->spacetype == SPACE_IMAGE) {
@@ -354,23 +356,23 @@ static blender::compositor::OutputTypes get_compositor_needed_outputs(const bCon
         if (image->type == IMA_TYPE_R_RESULT && scene_owner->r.scemode & R_DOCOMP &&
             !RE_seq_render_active(scene_owner, &scene_owner->r))
         {
-          needed_outputs |= blender::compositor::OutputTypes::Composite;
+          needed_outputs |= blender::compositor::NodeGroupOutputTypes::GroupOutputNode;
         }
         else if (image->type == IMA_TYPE_COMPOSITE) {
-          needed_outputs |= blender::compositor::OutputTypes::Viewer;
+          needed_outputs |= blender::compositor::NodeGroupOutputTypes::ViewerNode;
         }
       }
       else if (space_link->spacetype == SPACE_SEQ) {
         const SpaceSeq *space_sequencer = reinterpret_cast<const SpaceSeq *>(space_link);
         if (ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
-          needed_outputs |= blender::compositor::OutputTypes::Viewer;
+          needed_outputs |= blender::compositor::NodeGroupOutputTypes::ViewerNode;
         }
       }
 
       /* All outputs are already needed, return early. */
-      if (needed_outputs ==
-          (blender::compositor::OutputTypes::Composite | blender::compositor::OutputTypes::Viewer |
-           blender::compositor::OutputTypes::Previews))
+      if (needed_outputs == (blender::compositor::NodeGroupOutputTypes::GroupOutputNode |
+                             blender::compositor::NodeGroupOutputTypes::ViewerNode |
+                             blender::compositor::NodeGroupOutputTypes::NodePreviews))
       {
         return needed_outputs;
       }
@@ -385,10 +387,11 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   /* None of the outputs are needed except maybe previews, so no need to execute the compositor.
    * Previews are not considered because they are a secondary output that needs another output to
    * be computed with. */
-  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C, scene_owner);
+  blender::compositor::NodeGroupOutputTypes needed_outputs = get_compositor_needed_outputs(
+      C, scene_owner);
   if (ELEM(needed_outputs,
-           blender::compositor::OutputTypes::None,
-           blender::compositor::OutputTypes::Previews))
+           blender::compositor::NodeGroupOutputTypes::None,
+           blender::compositor::NodeGroupOutputTypes::NodePreviews))
   {
     return;
   }

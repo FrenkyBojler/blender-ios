@@ -9,6 +9,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_vector_set.hh"
 
 #include "DNA_customdata_types.h"
 
@@ -23,7 +24,6 @@
 #include "COM_context.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
-#include "COM_scheduler.hh"
 #include "COM_shader_node.hh"
 #include "COM_shader_operation.hh"
 #include "COM_utilities.hh"
@@ -34,7 +34,7 @@ namespace blender::compositor {
 
 ShaderOperation::ShaderOperation(Context &context,
                                  PixelCompileUnit &compile_unit,
-                                 const Schedule &schedule)
+                                 const VectorSet<const bNode *> &schedule)
     : PixelOperation(context, compile_unit, schedule)
 {
   material_ = GPU_material_from_callbacks(

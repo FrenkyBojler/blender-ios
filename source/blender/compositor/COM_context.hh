@@ -25,16 +25,6 @@
 
 namespace blender::compositor {
 
-/* Enumerates the possible outputs that the compositor can compute. */
-enum class OutputTypes : uint8_t {
-  None = 0,
-  Composite = 1 << 0,
-  Viewer = 1 << 1,
-  FileOutput = 1 << 2,
-  Previews = 1 << 3,
-};
-ENUM_OPERATORS(OutputTypes)
-
 /* ------------------------------------------------------------------------------------------------
  * Context
  *
@@ -54,9 +44,6 @@ class Context {
 
   /* Get the compositing scene. */
   virtual const Scene &get_scene() const = 0;
-
-  /* Returns all output types that should be computed. */
-  virtual OutputTypes needed_outputs() const = 0;
 
   /* Returns the domain that the inputs and outputs of the context will be in. Note that the inputs
    * might be larger than this domain, and relevant input operations need to crop the inputs to

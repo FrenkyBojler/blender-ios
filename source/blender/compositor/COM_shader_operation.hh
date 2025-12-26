@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "BLI_map.hh"
+#include "BLI_vector_set.hh"
 
 #include "GPU_material.hh"
 #include "GPU_shader.hh"
@@ -16,7 +17,6 @@
 #include "COM_context.hh"
 #include "COM_input_descriptor.hh"
 #include "COM_pixel_operation.hh"
-#include "COM_scheduler.hh"
 #include "COM_shader_node.hh"
 
 namespace blender::compositor {
@@ -67,7 +67,9 @@ class ShaderOperation : public PixelOperation {
  public:
   /* Construct and compile a GPU material from the given shader compile unit and execution schedule
    * by calling GPU_material_from_callbacks with the appropriate callbacks. */
-  ShaderOperation(Context &context, PixelCompileUnit &compile_unit, const Schedule &schedule);
+  ShaderOperation(Context &context,
+                  PixelCompileUnit &compile_unit,
+                  const VectorSet<const bNode *> &schedule);
 
   /* Free the GPU material. */
   ~ShaderOperation() override;

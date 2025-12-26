@@ -4,6 +4,8 @@
 
 #include <limits>
 
+#include "BLI_vector_set.hh"
+
 #include "DNA_node_types.h"
 
 #include "COM_compile_state.hh"
@@ -13,17 +15,16 @@
 #include "COM_node_operation.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
-#include "COM_scheduler.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
 
-CompileState::CompileState(const Context &context, const Schedule &schedule)
+CompileState::CompileState(const Context &context, const VectorSet<const bNode *> &schedule)
     : context_(context), schedule_(schedule)
 {
 }
 
-const Schedule &CompileState::get_schedule()
+const VectorSet<const bNode *> &CompileState::get_schedule()
 {
   return schedule_;
 }

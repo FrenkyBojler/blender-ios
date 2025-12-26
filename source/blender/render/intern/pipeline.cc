@@ -61,6 +61,7 @@
 
 #include "COM_compositor.hh"
 #include "COM_context.hh"
+#include "COM_node_group_operation.hh"
 #include "COM_render_context.hh"
 
 #include "DEG_depsgraph.hh"
@@ -1272,12 +1273,12 @@ static void do_render_compositor(Render *re)
           /* If we have consistent depsgraph now would be a time to update them. */
         }
 
-        blender::compositor::OutputTypes needed_outputs =
-            blender::compositor::OutputTypes::Composite |
-            blender::compositor::OutputTypes::FileOutput;
+        blender::compositor::NodeGroupOutputTypes needed_outputs =
+            blender::compositor::NodeGroupOutputTypes::GroupOutputNode |
+            blender::compositor::NodeGroupOutputTypes::FileOutputNode;
         if (!G.background) {
-          needed_outputs |= blender::compositor::OutputTypes::Viewer |
-                            blender::compositor::OutputTypes::Previews;
+          needed_outputs |= blender::compositor::NodeGroupOutputTypes::ViewerNode |
+                            blender::compositor::NodeGroupOutputTypes::NodePreviews;
         }
 
         CLOG_STR_INFO(&LOG, "Executing compositor");

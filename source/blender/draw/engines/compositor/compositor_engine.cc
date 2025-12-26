@@ -27,6 +27,7 @@
 #include "COM_context.hh"
 #include "COM_domain.hh"
 #include "COM_evaluator.hh"
+#include "COM_node_group_operation.hh"
 #include "COM_result.hh"
 #include "COM_utilities.hh"
 
@@ -64,9 +65,10 @@ class Context : public compositor::Context {
     return true;
   }
 
-  compositor::OutputTypes needed_outputs() const override
+  compositor::NodeGroupOutputTypes needed_outputs() const
   {
-    return compositor::OutputTypes::Composite | compositor::OutputTypes::Viewer;
+    return compositor::NodeGroupOutputTypes::GroupOutputNode |
+           compositor::NodeGroupOutputTypes::ViewerNode;
   }
 
   /* The viewport compositor does not support viewer outputs, so treat viewers as composite
@@ -289,7 +291,8 @@ class Instance : public DrawEngine {
 
     /* Execute Compositor render commands. */
     {
-      evaluate(context, *DRW_context_get()->scene->compositing_node_group);
+      evaluate(
+          context, *DRW_context_get()->scene->compositing_node_group, context.needed_outputs());
       context.cache_manager().reset();
     }
 

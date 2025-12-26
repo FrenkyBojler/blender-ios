@@ -5,6 +5,7 @@
 #include "BLI_assert.h"
 #include "BLI_string_ref.hh"
 #include "BLI_timeit.hh"
+#include "BLI_vector_set.hh"
 
 #include "DNA_node_types.h"
 
@@ -18,7 +19,6 @@
 #include "COM_node_operation.hh"
 #include "COM_operation.hh"
 #include "COM_result.hh"
-#include "COM_scheduler.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
@@ -60,7 +60,7 @@ void NodeOperation::evaluate()
   }
 }
 
-void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
+void NodeOperation::compute_results_reference_counts(const VectorSet<const bNode *> &schedule)
 {
   for (const bNodeSocket *output : this->node().output_sockets()) {
     if (!is_socket_available(output)) {
@@ -89,16 +89,14 @@ void NodeOperation::set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> &
   node_previews_ = &node_previews;
 }
 
-Map<bNodeInstanceKey, bke::bNodePreview> &NodeOperation::get_node_previews()
+Map<bNodeInstanceKey, bke::bNodePreview> *NodeOperation::get_node_previews()
 {
-  return *node_previews_;
+  return node_previews_;
 }
 
 void NodeOperation::compute_preview()
 {
-  if (flag_is_set(this->context().needed_outputs(), OutputTypes::Previews) &&
-      is_node_preview_needed(this->node()))
-  {
+  if (node_previews_ && is_node_preview_needed(this->node())) {
     const Result *result = get_preview_result();
     if (result) {
       compositor::compute_preview(context(), *node_previews_, this->get_instance_key(), *result);

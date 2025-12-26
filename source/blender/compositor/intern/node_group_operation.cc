@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_string_ref.hh"
+#include "BLI_vector_set.hh"
 
 #include "DNA_node_types.h"
 
@@ -28,10 +29,12 @@ namespace blender::compositor {
 
 NodeGroupOperation::NodeGroupOperation(Context &context,
                                        const bNodeTree &node_group,
+                                       const NodeGroupOutputTypes needed_outputs,
                                        Map<bNodeInstanceKey, bke::bNodePreview> &node_previews,
                                        const bNodeInstanceKey instance_key)
     : Operation(context),
       node_group_(node_group),
+      needed_outputs_(needed_outputs),
       node_previews_(node_previews),
       instance_key_(instance_key)
 {
@@ -50,8 +53,8 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
 
 void NodeGroupOperation::execute()
 {
-  const Schedule schedule = compute_schedule(
-      this->context(), node_group_, this->context().needed_outputs());
+  const VectorSet<const bNode *> schedule = compute_schedule(
+      this->context(), node_group_, needed_outputs_);
   CompileState compile_state(this->context(), schedule);
 
   for (const bNode *node : schedule) {
@@ -73,7 +76,7 @@ void NodeGroupOperation::execute()
   }
 
   /* TODO. */
-  if (flag_is_set(this->context().needed_outputs(), OutputTypes::Composite)) {
+  if (flag_is_set(needed_outputs_, NodeGroupOutputTypes::GroupOutputNode)) {
     const bNode &group_output_node = *node_group_.group_output_node();
     for (const bNodeSocket *input : group_output_node.input_sockets()) {
       if (!is_socket_available(input)) {
@@ -92,7 +95,9 @@ void NodeGroupOperation::execute()
   }
 }
 
-static NodeOperation *get_node_operation(Context &context, const bNode &node)
+static NodeOperation *get_node_operation(Context &context,
+                                         const bNode &node,
+                                         const NodeGroupOutputTypes needed_outputs)
 {
   const char *disabled_hint = nullptr;
   if (!node.typeinfo->poll(node.typeinfo, &node.owner_tree(), &disabled_hint)) {
@@ -101,7 +106,7 @@ static NodeOperation *get_node_operation(Context &context, const bNode &node)
 
   /* TODO. */
   if (node.is_group()) {
-    return get_group_node_operation(context, node);
+    return get_group_node_operation(context, node, needed_outputs);
   }
 
   return node.typeinfo->get_compositor_operation(context, node);
@@ -114,7 +119,7 @@ void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_
     return;
   }
 
-  NodeOperation *operation = get_node_operation(this->context(), node);
+  NodeOperation *operation = get_node_operation(this->context(), node, needed_outputs_);
   operation->set_instance_key(bke::node_instance_key(instance_key_, &node_group_, &node));
   operation->set_node_previews(node_previews_);
 
@@ -173,7 +178,7 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
  * state. Deleting the operation is the caller's responsibility. */
 static PixelOperation *create_pixel_operation(Context &context, CompileState &compile_state)
 {
-  const Schedule &schedule = compile_state.get_schedule();
+  const VectorSet<const bNode *> &schedule = compile_state.get_schedule();
   PixelCompileUnit &compile_unit = compile_state.get_pixel_compile_unit();
 
   /* Use multi-function procedure to execute the pixel compile unit for CPU contexts or if the

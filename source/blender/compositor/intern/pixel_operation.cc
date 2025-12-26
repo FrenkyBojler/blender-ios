@@ -7,20 +7,20 @@
 
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_vector_set.hh"
 
 #include "COM_algorithm_compute_preview.hh"
 #include "COM_context.hh"
 #include "COM_operation.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
-#include "COM_scheduler.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
 
 PixelOperation::PixelOperation(Context &context,
                                PixelCompileUnit &compile_unit,
-                               const Schedule &schedule)
+                               const VectorSet<const bNode *> &schedule)
     : Operation(context), compile_unit_(compile_unit), schedule_(schedule)
 {
 }
@@ -70,7 +70,7 @@ int PixelOperation::get_internal_input_reference_count(const StringRef &identifi
   return inputs_to_reference_counts_map_.lookup(identifier);
 }
 
-void PixelOperation::compute_results_reference_counts(const Schedule &schedule)
+void PixelOperation::compute_results_reference_counts(const VectorSet<const bNode *> &schedule)
 {
   for (const auto item : output_sockets_to_output_identifiers_map_.items()) {
     int reference_count = number_of_inputs_linked_to_output_conditioned(

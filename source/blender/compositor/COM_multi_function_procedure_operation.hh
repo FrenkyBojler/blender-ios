@@ -9,6 +9,7 @@
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 #include "FN_multi_function_procedure.hh"
 #include "FN_multi_function_procedure_builder.hh"
@@ -19,7 +20,6 @@
 #include "COM_context.hh"
 #include "COM_input_descriptor.hh"
 #include "COM_pixel_operation.hh"
-#include "COM_scheduler.hh"
 
 namespace blender::compositor {
 
@@ -61,7 +61,7 @@ class MultiFunctionProcedureOperation : public PixelOperation {
    * unit and execution schedule. */
   MultiFunctionProcedureOperation(Context &context,
                                   PixelCompileUnit &compile_unit,
-                                  const Schedule &schedule);
+                                  const VectorSet<const bNode *> &schedule);
 
   /* Calls the multi-function procedure executor on the domain of the operator passing in the
    * inputs and outputs as parameters. */

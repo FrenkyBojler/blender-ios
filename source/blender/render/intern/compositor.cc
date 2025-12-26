@@ -56,7 +56,7 @@ class ContextInputData {
   std::string view_name;
   compositor::RenderContext *render_context;
   compositor::Profiler *profiler;
-  compositor::OutputTypes needed_outputs;
+  compositor::NodeGroupOutputTypes needed_outputs;
 
   ContextInputData(const Scene &scene,
                    const RenderData &render_data,
@@ -64,7 +64,7 @@ class ContextInputData {
                    const char *view_name,
                    compositor::RenderContext *render_context,
                    compositor::Profiler *profiler,
-                   compositor::OutputTypes needed_outputs)
+                   compositor::NodeGroupOutputTypes needed_outputs)
       : scene(&scene),
         render_data(&render_data),
         node_tree(&node_tree),
@@ -115,7 +115,7 @@ class Context : public compositor::Context {
     return this->get_render_data().compositor_device == SCE_COMPOSITOR_DEVICE_GPU;
   }
 
-  compositor::OutputTypes needed_outputs() const override
+  compositor::NodeGroupOutputTypes needed_outputs() const
   {
     return input_data_.needed_outputs;
   }
@@ -551,7 +551,7 @@ class Compositor {
     }
 
     {
-      evaluate(context, *input_data.node_tree);
+      evaluate(context, *input_data.node_tree, context.needed_outputs());
 
       /* Reset the cache, but only if the evaluation did not get canceled, because in that case, we
        * wouldn't want to invalidate the cache because not all operations that use cached resources
@@ -603,7 +603,7 @@ void Render::compositor_execute(const Scene &scene,
                                 const char *view_name,
                                 blender::compositor::RenderContext *render_context,
                                 blender::compositor::Profiler *profiler,
-                                blender::compositor::OutputTypes needed_outputs)
+                                blender::compositor::NodeGroupOutputTypes needed_outputs)
 {
   std::unique_lock lock(this->compositor_mutex);
 
@@ -640,7 +640,7 @@ void RE_compositor_execute(Render &render,
                            const char *view_name,
                            blender::compositor::RenderContext *render_context,
                            blender::compositor::Profiler *profiler,
-                           blender::compositor::OutputTypes needed_outputs)
+                           blender::compositor::NodeGroupOutputTypes needed_outputs)
 {
   render.compositor_execute(
       scene, render_data, node_tree, view_name, render_context, profiler, needed_outputs);

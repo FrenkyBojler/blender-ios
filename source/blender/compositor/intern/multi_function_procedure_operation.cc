@@ -14,6 +14,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 #include "FN_multi_function.hh"
 #include "FN_multi_function_builder.hh"
@@ -37,14 +38,12 @@
 #include "COM_multi_function_procedure_operation.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
-#include "COM_scheduler.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
 
-MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(Context &context,
-                                                                 PixelCompileUnit &compile_unit,
-                                                                 const Schedule &schedule)
+MultiFunctionProcedureOperation::MultiFunctionProcedureOperation(
+    Context &context, PixelCompileUnit &compile_unit, const VectorSet<const bNode *> &schedule)
     : PixelOperation(context, compile_unit, schedule), procedure_builder_(procedure_)
 {
   this->build_procedure();

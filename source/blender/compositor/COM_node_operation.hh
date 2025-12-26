@@ -5,6 +5,7 @@
 #pragma once
 
 #include "BLI_string_ref.hh"
+#include "BLI_vector_set.hh"
 
 #include "DNA_node_types.h"
 
@@ -13,7 +14,6 @@
 #include "COM_context.hh"
 #include "COM_operation.hh"
 #include "COM_result.hh"
-#include "COM_scheduler.hh"
 
 namespace blender::compositor {
 
@@ -47,14 +47,14 @@ class NodeOperation : public Operation {
    * reference counts of the results are the number of operations that use those results, which is
    * computed as the number of inputs whose node is part of the schedule and is linked to the
    * output corresponding to each result. The node execution schedule is given as an input. */
-  void compute_results_reference_counts(const Schedule &schedule);
+  void compute_results_reference_counts(const VectorSet<const bNode *> &schedule);
 
   /* TODO. */
   void set_instance_key(const bNodeInstanceKey &instance_key);
   const bNodeInstanceKey &get_instance_key() const;
 
   void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> &node_previews);
-  Map<bNodeInstanceKey, bke::bNodePreview> &get_node_previews();
+  Map<bNodeInstanceKey, bke::bNodePreview> *get_node_previews();
 
  protected:
   /* Compute a node preview using the result returned from the get_preview_result method. */

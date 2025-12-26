@@ -12,7 +12,6 @@
 
 #include "COM_context.hh"
 #include "COM_operation.hh"
-#include "COM_scheduler.hh"
 
 namespace blender::compositor {
 
@@ -68,7 +67,7 @@ class PixelOperation : public Operation {
   /* The compile unit that will be compiled into this pixel operation. */
   PixelCompileUnit compile_unit_;
   /* A reference to the node execution schedule that is being compiled. */
-  const Schedule &schedule_;
+  const VectorSet<const bNode *> &schedule_;
   /* TODO. */
   bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_NONE;
   Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
@@ -100,7 +99,9 @@ class PixelOperation : public Operation {
   VectorSet<const bNodeSocket *> preview_outputs_;
 
  public:
-  PixelOperation(Context &context, PixelCompileUnit &compile_unit, const Schedule &schedule);
+  PixelOperation(Context &context,
+                 PixelCompileUnit &compile_unit,
+                 const VectorSet<const bNode *> &schedule);
 
   /* Returns the maximum number of outputs that the PixelOperation can have. Pixel compile units
    * need to be split into smaller units if the numbers of outputs they have is more than the
@@ -144,7 +145,7 @@ class PixelOperation : public Operation {
    * they are referenced and released by the compute_preview method.
    *
    * The node execution schedule is given as an input. */
-  void compute_results_reference_counts(const Schedule &schedule);
+  void compute_results_reference_counts(const VectorSet<const bNode *> &schedule);
 
   /* TODO. */
   void set_instance_key(const bNodeInstanceKey &instance_key);

@@ -8,6 +8,7 @@
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 #include "COM_context.hh"
 #include "COM_scheduler.hh"
@@ -19,10 +20,10 @@ namespace blender::compositor {
  * Output, Group Output, and Viewer nodes. */
 static void add_output_nodes(const Context &context,
                              const bNodeTree &node_group,
-                             OutputTypes needed_outputs,
+                             NodeGroupOutputTypes needed_outputs,
                              Stack<const bNode *> &node_stack)
 {
-  if (flag_is_set(needed_outputs, OutputTypes::FileOutput)) {
+  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::FileOutputNode)) {
     for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile")) {
       if (!node->is_muted()) {
         node_stack.push(node);
@@ -30,14 +31,14 @@ static void add_output_nodes(const Context &context,
     }
   }
 
-  if (flag_is_set(needed_outputs, OutputTypes::Composite)) {
+  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::GroupOutputNode)) {
     const bNode *output_node = node_group.group_output_node();
     if (output_node && !output_node->is_muted()) {
       node_stack.push(output_node);
     }
   }
 
-  if (flag_is_set(needed_outputs, OutputTypes::Viewer)) {
+  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::ViewerNode)) {
     const bNode *viewer_node = nullptr;
     for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
       if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
@@ -246,11 +247,11 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &outp
  * doesn't always guarantee an optimal evaluation order, as the optimal evaluation order is very
  * difficult to compute, however, this method works well in most cases. Moreover it assumes that
  * all buffers will have roughly the same size, which may not always be the case. */
-Schedule compute_schedule(const Context &context,
-                          const bNodeTree &node_group,
-                          OutputTypes needed_outputs)
+VectorSet<const bNode *> compute_schedule(const Context &context,
+                                          const bNodeTree &node_group,
+                                          NodeGroupOutputTypes needed_outputs)
 {
-  Schedule schedule;
+  VectorSet<const bNode *> schedule;
 
   /* Validate node group. */
   node_group.ensure_topology_cache();

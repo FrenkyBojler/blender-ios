@@ -17,8 +17,16 @@
 namespace blender::compositor {
 
 class GroupNodeOperation : public NodeOperation {
+ private:
+  const NodeGroupOutputTypes needed_outputs_;
+
  public:
-  using NodeOperation::NodeOperation;
+  GroupNodeOperation(Context &context,
+                     const bNode &node,
+                     const NodeGroupOutputTypes needed_outputs)
+      : NodeOperation(context, node), needed_outputs_(needed_outputs)
+  {
+  }
 
   void execute() override
   {
@@ -28,8 +36,13 @@ class GroupNodeOperation : public NodeOperation {
       return;
     }
 
-    NodeGroupOperation node_group_operation(
-        this->context(), *node_group, this->get_node_previews(), this->get_instance_key());
+    const NodeGroupOutputTypes needed_outputs = needed_outputs_ |
+                                                NodeGroupOutputTypes::GroupOutputNode;
+    NodeGroupOperation node_group_operation(this->context(),
+                                            *node_group,
+                                            needed_outputs,
+                                            *this->get_node_previews(),
+                                            this->get_instance_key());
 
     Vector<std::unique_ptr<Result>> inputs;
     node_group->ensure_interface_cache();
@@ -72,9 +85,11 @@ class GroupNodeOperation : public NodeOperation {
   }
 };
 
-NodeOperation *get_group_node_operation(Context &context, const bNode &node)
+NodeOperation *get_group_node_operation(Context &context,
+                                        const bNode &node,
+                                        const NodeGroupOutputTypes &needed_outputs)
 {
-  return new GroupNodeOperation(context, node);
+  return new GroupNodeOperation(context, node, needed_outputs);
 }
 
 }  // namespace blender::compositor

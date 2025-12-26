@@ -27,7 +27,7 @@
 namespace blender::compositor {
 class RenderContext;
 class Profiler;
-enum class OutputTypes : uint8_t;
+enum class NodeGroupOutputTypes : uint8_t;
 }  // namespace blender::compositor
 
 struct bNodeTree;
@@ -54,7 +54,7 @@ struct BaseRender {
                                   const char *view_name,
                                   blender::compositor::RenderContext *render_context,
                                   blender::compositor::Profiler *profiler,
-                                  blender::compositor::OutputTypes needed_outputs) = 0;
+                                  blender::compositor::NodeGroupOutputTypes needed_outputs) = 0;
   virtual void compositor_free() = 0;
 
   /**
@@ -99,7 +99,7 @@ struct ViewRender : public BaseRender {
                           const char * /*view_name*/,
                           blender::compositor::RenderContext * /*render_context*/,
                           blender::compositor::Profiler * /*profiler*/,
-                          blender::compositor::OutputTypes /*needed_outputs*/) override
+                          blender::compositor::NodeGroupOutputTypes /*needed_outputs*/) override
   {
   }
   void compositor_free() override {}
@@ -127,7 +127,7 @@ struct Render : public BaseRender {
                           const char *view_name,
                           blender::compositor::RenderContext *render_context,
                           blender::compositor::Profiler *profiler,
-                          blender::compositor::OutputTypes needed_outputs) override;
+                          blender::compositor::NodeGroupOutputTypes needed_outputs) override;
   void compositor_free() override;
 
   bool prepare_viewlayer(struct ViewLayer *view_layer, struct Depsgraph *depsgraph) override;

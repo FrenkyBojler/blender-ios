@@ -17,6 +17,17 @@
 
 namespace blender::compositor {
 
+/* Enumerates the possible node group outputs can be computed. Those can be combined into a bit
+ * flag. */
+enum class NodeGroupOutputTypes : uint8_t {
+  None = 0,
+  GroupOutputNode = 1 << 0,
+  ViewerNode = 1 << 1,
+  FileOutputNode = 1 << 2,
+  NodePreviews = 1 << 3,
+};
+ENUM_OPERATORS(NodeGroupOutputTypes)
+
 /* ------------------------------------------------------------------------------------------------
  * Node Group Operation
  *
@@ -85,6 +96,7 @@ namespace blender::compositor {
 class NodeGroupOperation : public Operation {
  private:
   const bNodeTree &node_group_;
+  const NodeGroupOutputTypes needed_outputs_;
   Map<bNodeInstanceKey, bke::bNodePreview> &node_previews_;
   const bNodeInstanceKey instance_key_;
 
@@ -96,6 +108,7 @@ class NodeGroupOperation : public Operation {
    * descriptors based on the node group interface inputs. */
   NodeGroupOperation(Context &context,
                      const bNodeTree &node_group,
+                     const NodeGroupOutputTypes needed_outputs,
                      Map<bNodeInstanceKey, bke::bNodePreview> &node_previews,
                      const bNodeInstanceKey instance_key = bke::NODE_INSTANCE_KEY_BASE);
 
