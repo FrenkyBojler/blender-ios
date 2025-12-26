@@ -6731,7 +6731,7 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
     /* Write the specific data */
     if (cti && con->data) {
       /* firstly, just write the plain con->data struct */
-      BLO_write_struct_by_name(writer, cti->struct_name, con->data);
+      writer->write_struct_by_name(cti->struct_name, con->data);
 
       /* do any constraint specific stuff */
       switch (con->type) {
@@ -6740,7 +6740,7 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
 
           /* write targets */
           LISTBASE_FOREACH (bConstraintTarget *, ct, &data->targets) {
-            BLO_write_struct(writer, bConstraintTarget, ct);
+            writer->write_struct(ct);
           }
 
           break;
@@ -6763,7 +6763,7 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
     }
 
     /* Write the constraint */
-    BLO_write_struct(writer, bConstraint, con);
+    writer->write_struct(con);
   }
 }
 

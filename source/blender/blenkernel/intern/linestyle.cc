@@ -215,36 +215,33 @@ static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modif
       default:
         struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, m);
   }
   LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_AlongStroke *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_AlongStroke *)m)->color_ramp);
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp);
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp);
         break;
       case LS_MODIFIER_MATERIAL:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Material *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Material *)m)->color_ramp);
         break;
       case LS_MODIFIER_TANGENT:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Tangent *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Tangent *)m)->color_ramp);
         break;
       case LS_MODIFIER_NOISE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Noise *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Noise *)m)->color_ramp);
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_CreaseAngle *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_CreaseAngle *)m)->color_ramp);
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_Curvature_3D *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Curvature_3D *)m)->color_ramp);
         break;
     }
   }
@@ -282,7 +279,7 @@ static void write_linestyle_alpha_modifiers(BlendWriter *writer, ListBase *modif
       default:
         struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, m);
   }
   LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
@@ -351,7 +348,7 @@ static void write_linestyle_thickness_modifiers(BlendWriter *writer, ListBase *m
       default:
         struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, m);
   }
   LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
@@ -433,7 +430,7 @@ static void write_linestyle_geometry_modifiers(BlendWriter *writer, ListBase *mo
       default:
         struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, m);
   }
 }
 
@@ -450,7 +447,7 @@ static void linestyle_blend_write(BlendWriter *writer, ID *id, const void *id_ad
   write_linestyle_geometry_modifiers(writer, &linestyle->geometry_modifiers);
   for (int a = 0; a < MAX_MTEX; a++) {
     if (linestyle->mtex[a]) {
-      BLO_write_struct(writer, MTex, linestyle->mtex[a]);
+      writer->write_struct(linestyle->mtex[a]);
     }
   }
   if (linestyle->nodetree) {
