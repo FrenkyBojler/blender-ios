@@ -302,8 +302,8 @@ static void node_input_from_rect(bNode *node,
 
   RNA_int_set(&x_input_rna_pointer, "default_value", int(xmin));
   RNA_int_set(&y_input_rna_pointer, "default_value", int(ymin));
-  RNA_int_set(&width_input_rna_pointer, "default_value", int(width));
-  RNA_int_set(&height_input_rna_pointer, "default_value", int(height));
+  RNA_int_set(&width_input_rna_pointer, "default_value", int(math::round(width)));
+  RNA_int_set(&height_input_rna_pointer, "default_value", int(math::round(height)));
 }
 
 /* scale callbacks */
@@ -393,6 +393,11 @@ static void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gz
   RNA_enum_set(crop_group->border->ptr,
                "transform",
                ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
+
+  RNA_enum_set(crop_group->border->ptr,
+               "draw_options",
+               ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE |
+                   ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES);
 
   gzgroup->customdata = crop_group;
   gzgroup->customdata_free = [](void *customdata) {
