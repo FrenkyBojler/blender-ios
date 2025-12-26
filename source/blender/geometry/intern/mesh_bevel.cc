@@ -3612,10 +3612,10 @@ static float2 interp_uv_2d(const Span<float2> &positions,
   const int face_size = positions.size();
   BLI_assert(face_size >= 3 && values.size() == face_size);
   Array<float, 20> bary_weights(face_size);
-    interp_weights_poly_v2(bary_weights.data(),
-                           reinterpret_cast<float (*)[2]>(const_cast<float2 *>(positions.data())),
-                           face_size,
-                           interp_pos);
+  interp_weights_poly_v2(bary_weights.data(),
+                         reinterpret_cast<float (*)[2]>(const_cast<float2 *>(positions.data())),
+                         face_size,
+                         interp_pos);
   float2 ans(0.0f, 0.0f);
   for (const int i : IndexRange(face_size)) {
     ans += bary_weights[i] * values[i];
@@ -3642,6 +3642,7 @@ static void calculate_adj_face_uvs(const int f,
   const int num_fverts = fverts.size();
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
   int2 anchor_owner = pat.face_anchor_owner(f);
+  const bool is_center_f = (f == 0) && ((pat.num_segs % 2) == 1);
   fmt::println("anchor_owner= {}, {}", anchor_owner[0], anchor_owner[1]);
   SmallIntArray possible_over_faces = mesh_faces_for_anchors(bv, anchor_owner, bs);
   print_span(possible_over_faces.as_span(), "possible_over_faces");
@@ -3651,13 +3652,20 @@ static void calculate_adj_face_uvs(const int f,
   Array<float3, 20> alt_over_pos(num_fverts);
   for (const int i : fverts.index_range()) {
     const float3 pos = bs.newvert_positions()[fverts[i]];
-    find_over_faces(pos,
-                    possible_over_faces,
-                    bs,
-                    &over_face[i],
-                    &over_pos[i],
-                    &alt_over_face[i],
-                    &alt_over_pos[i]);
+    if (is_center_f) {
+      SmallIntArray a_over_faces = mesh_faces_for_anchors(bv, int2(i, -1), bs);
+      find_over_faces(
+          pos, a_over_faces, bs, &over_face[i], &over_pos[i], &alt_over_face[i], &alt_over_pos[i]);
+    }
+    else {
+      find_over_faces(pos,
+                      possible_over_faces,
+                      bs,
+                      &over_face[i],
+                      &over_pos[i],
+                      &alt_over_face[i],
+                      &alt_over_pos[i]);
+    }
     // DEBUG!!
     fmt::println("i={}, nv={}, pos=({},{},{}), over_f={}, over_pos=({},{},{})",
                  i,
