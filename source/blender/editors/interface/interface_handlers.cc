@@ -419,6 +419,7 @@ struct HandleButtonData {
 
   TextEdit text_edit;
   bool text_select_on_drag_activation = false;
+  wmTimer *text_select_auto_scroll = nullptr;
 
   double value = 0.0f;
   double origvalue = 0.0f;
@@ -3189,11 +3190,9 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
   fontstyle_set(&fstyle);
   int line_under_mouse = textbox->line_scroll +
                          (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines);
-  /* Allow moving the cursor one line up or down of visible lines. */
   line_under_mouse = std::clamp<int>(
-      line_under_mouse,
-      std::max<int>(0, textbox->line_scroll - 1),
-      std::min<int>(textbox->line_scroll + textbox->visible_lines, lines.size() - 1));
+      line_under_mouse, textbox->line_scroll, textbox->line_scroll + textbox->visible_lines - 1);
+  line_under_mouse = std::clamp<int>(line_under_mouse, 0, lines.size() - 1);
 
   const StringRef line = lines[line_under_mouse];
 
@@ -3214,7 +3213,8 @@ static void textbox_textedit_set_cursor_pos(Button *button, const ARegion *regio
   }
 #endif
   textbox->pos = position;
-  textbox_scroll_to_cursor(textbox);
+  /* Do not scroll to cursor now, wait the HandleButtonData::text_select_auto_scroll timer or the
+   * #LEFTMOUSE release event for scrolling to the cursor. */
 }
 
 /**
@@ -4011,7 +4011,9 @@ static int ui_do_but_textedit(
                                                               nullptr;
   int prev_pos = but->pos;
   const bool text_select_on_drag_activation = data->text_select_on_drag_activation;
-  data->text_select_on_drag_activation = false;
+  if (event->type != INBETWEEN_MOUSEMOVE) {
+    data->text_select_on_drag_activation = false;
+  }
   switch (event->type) {
     case MOUSEMOVE:
     case MOUSEPAN:
@@ -4444,11 +4446,40 @@ static int ui_do_but_textedit(
 }
 
 static int ui_do_but_textedit_select(
-    bContext *C, Block * /*block*/, Button *but, HandleButtonData *data, const wmEvent *event)
+    bContext *C, Block *block, Button *but, HandleButtonData *data, const wmEvent *event)
 {
   int retval = WM_UI_HANDLER_CONTINUE;
+  ButtonTextBox *textbox = but->type == ButtonType::TextBox ? static_cast<ButtonTextBox *>(but) :
+                                                              nullptr;
 
   switch (event->type) {
+    case TIMER: {
+      if (!textbox || event->customdata != data->text_select_auto_scroll) {
+        break;
+      }
+      rctf rect;
+      block_to_window_rctf(data->region, block, &rect, &but->rect);
+      const float grip_factor = ButtonTextBox::grip_height_factor /
+                                (textbox->visible_lines + ButtonTextBox::grip_height_factor);
+      rect.ymin = rect.ymin + BLI_rctf_size_y(&rect) * grip_factor;
+      if (BLI_rctf_isect_y(&rect, event->xy[1])) {
+        break;
+      }
+      retval = WM_UI_HANDLER_BREAK;
+      textbox_add_scroll(textbox, (rect.ymax < event->xy[1] ? -1 : 1));
+      ui_textedit_set_cursor_select(but, data, float2(event->xy));
+      break;
+    }
+    case WHEELUPMOUSE:
+    case WHEELDOWNMOUSE: {
+      if (!textbox) {
+        break;
+      }
+      textbox_add_scroll(textbox, (event->type == WHEELUPMOUSE ? -1 : 1));
+      ui_textedit_set_cursor_select(but, data, float2(event->xy));
+      retval = WM_UI_HANDLER_BREAK;
+      break;
+    }
     case MOUSEMOVE: {
       ui_textedit_set_cursor_select(but, data, float2(event->xy));
       retval = WM_UI_HANDLER_BREAK;
@@ -4456,6 +4487,9 @@ static int ui_do_but_textedit_select(
     }
     case LEFTMOUSE:
       if (event->val == KM_RELEASE) {
+        if (textbox) {
+          textbox_scroll_to_cursor(textbox);
+        }
         button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
       }
       retval = WM_UI_HANDLER_BREAK;
@@ -9084,6 +9118,14 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
   else {
     but->flag |= UI_SELECT;
     button_tooltip_timer_remove(C, but);
+  }
+
+  if (state == BUTTON_STATE_TEXT_SELECTING && but->type == ButtonType::TextBox) {
+    data->text_select_auto_scroll = WM_event_timer_add(data->wm, data->window, TIMER, 0.1f);
+  }
+  else if (state != BUTTON_STATE_TEXT_SELECTING && data->text_select_auto_scroll) {
+    WM_event_timer_remove(data->wm, data->window, data->text_select_auto_scroll);
+    data->text_select_auto_scroll = nullptr;
   }
 
   /* text editing */
