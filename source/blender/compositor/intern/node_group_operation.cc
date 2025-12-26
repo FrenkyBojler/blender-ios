@@ -132,7 +132,10 @@ static NodeOperation *get_node_operation(Context &context,
   }
 
   if (node.is_group()) {
-    return get_group_node_operation(context, node, needed_outputs);
+    /* Make sure the GroupOutputNode output is always enabled for node group operations used by
+     * group nodes. */
+    return get_group_node_operation(
+        context, node, needed_outputs | NodeGroupOutputTypes::GroupOutputNode);
   }
 
   return node.typeinfo->get_compositor_operation(context, node);

@@ -18,6 +18,7 @@ namespace blender::compositor {
 
 class GroupNodeOperation : public NodeOperation {
  private:
+  /* The node group outputs needed by the caller. */
   const NodeGroupOutputTypes needed_outputs_;
 
  public:
@@ -36,14 +37,28 @@ class GroupNodeOperation : public NodeOperation {
       return;
     }
 
-    const NodeGroupOutputTypes needed_outputs = needed_outputs_ |
-                                                NodeGroupOutputTypes::GroupOutputNode;
-    NodeGroupOperation node_group_operation(this->context(),
-                                            *node_group,
-                                            needed_outputs,
-                                            this->get_node_previews(),
-                                            this->get_instance_key());
+    NodeGroupOperation operation(this->context(),
+                                 *node_group,
+                                 needed_outputs_,
+                                 this->get_node_previews(),
+                                 this->get_instance_key());
 
+    Vector<std::unique_ptr<Result>> inputs = this->map_inputs(operation);
+    operation.evaluate();
+    this->write_outputs(operation);
+
+    /* Free the temporary inputs. */
+    for (std::unique_ptr<Result> &input : inputs) {
+      input->release();
+    }
+  }
+
+  /* Maps the input results of the node group operation to this group node inputs. Temporary input
+   * results that wrap the node group inputs are created and returned to be later freed after
+   * evaluation. */
+  Vector<std::unique_ptr<Result>> map_inputs(Operation &operation)
+  {
+    const bNodeTree *node_group = this->get_node_group();
     Vector<std::unique_ptr<Result>> inputs;
     node_group->ensure_interface_cache();
     for (const bNodeTreeInterfaceSocket *input : node_group->interface_inputs()) {
@@ -52,13 +67,19 @@ class GroupNodeOperation : public NodeOperation {
           node_input_result.type(), node_input_result.precision());
       node_group_input_result.wrap_external(node_input_result);
       inputs.append(std::make_unique<Result>(node_group_input_result));
-      node_group_operation.map_input_to_result(input->identifier, inputs.last().get());
+      operation.map_input_to_result(input->identifier, inputs.last().get());
     }
+    return inputs;
+  }
 
-    node_group_operation.evaluate();
-
+  /* Writes the output results of the node group operation to this group node operation by sharing
+   * its data. */
+  void write_outputs(Operation &operation)
+  {
+    const bNodeTree *node_group = this->get_node_group();
+    node_group->ensure_interface_cache();
     for (const bNodeTreeInterfaceSocket *output : node_group->interface_outputs()) {
-      Result &node_group_result = node_group_operation.get_result(output->identifier);
+      Result &node_group_result = operation.get_result(output->identifier);
       Result &group_node_result = this->get_result(output->identifier);
       if (group_node_result.should_compute()) {
         group_node_result.share_data(node_group_result);
@@ -70,6 +91,7 @@ class GroupNodeOperation : public NodeOperation {
   void execute_invalid()
   {
     const bNodeTree *node_group = this->get_node_group();
+    node_group->ensure_interface_cache();
     for (const bNodeTreeInterfaceSocket *output : node_group->interface_outputs()) {
       Result &group_node_result = this->get_result(output->identifier);
       if (group_node_result.should_compute()) {

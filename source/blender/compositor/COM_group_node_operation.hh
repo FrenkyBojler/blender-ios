@@ -10,7 +10,7 @@
 
 namespace blender::compositor {
 
-/* Returns an instance of a new GroupNodeOperation. */
+/* Returns an instance of a new GroupNodeOperation for the given node and needed outputs. */
 NodeOperation *get_group_node_operation(Context &context,
                                         const bNode &node,
                                         const NodeGroupOutputTypes &needed_outputs);
