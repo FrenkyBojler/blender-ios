@@ -133,7 +133,7 @@ static int2 compute_preview_size(int2 size)
 }
 
 void compute_preview(Context &context,
-                     Map<bNodeInstanceKey, bke::bNodePreview> &node_previews,
+                     Map<bNodeInstanceKey, bke::bNodePreview> *node_previews,
                      const bNodeInstanceKey &node_instance_key,
                      const Result &input_result)
 {
@@ -144,7 +144,7 @@ void compute_preview(Context &context,
   const int2 preview_size = compute_preview_size(input_result.domain().data_size);
 
   bke::bNodePreview *preview = bke::node_preview_verify(
-      node_previews, node_instance_key, preview_size.x, preview_size.y, true);
+      *node_previews, node_instance_key, preview_size.x, preview_size.y, true);
 
   if (context.use_gpu()) {
     compute_preview_gpu(context, input_result, preview);

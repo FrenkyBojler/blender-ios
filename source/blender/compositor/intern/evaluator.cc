@@ -20,7 +20,7 @@ void evaluate(Context &context,
               const NodeGroupOutputTypes needed_outputs)
 {
   NodeGroupOperation node_group_operation(
-      context, node_group, needed_outputs, node_group.runtime->previews);
+      context, node_group, needed_outputs, &node_group.runtime->previews);
 
   Vector<std::unique_ptr<Result>> inputs;
   node_group.ensure_interface_cache();

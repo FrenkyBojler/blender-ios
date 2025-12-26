@@ -41,7 +41,7 @@ class GroupNodeOperation : public NodeOperation {
     NodeGroupOperation node_group_operation(this->context(),
                                             *node_group,
                                             needed_outputs,
-                                            *this->get_node_previews(),
+                                            this->get_node_previews(),
                                             this->get_instance_key());
 
     Vector<std::unique_ptr<Result>> inputs;

@@ -84,9 +84,9 @@ const bNodeInstanceKey &NodeOperation::get_instance_key() const
   return instance_key_;
 }
 
-void NodeOperation::set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> &node_previews)
+void NodeOperation::set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews)
 {
-  node_previews_ = &node_previews;
+  node_previews_ = node_previews;
 }
 
 Map<bNodeInstanceKey, bke::bNodePreview> *NodeOperation::get_node_previews()
@@ -99,7 +99,7 @@ void NodeOperation::compute_preview()
   if (node_previews_ && is_node_preview_needed(this->node())) {
     const Result *result = get_preview_result();
     if (result) {
-      compositor::compute_preview(context(), *node_previews_, this->get_instance_key(), *result);
+      compositor::compute_preview(context(), node_previews_, this->get_instance_key(), *result);
     }
   }
 }

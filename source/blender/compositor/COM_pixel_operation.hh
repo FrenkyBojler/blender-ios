@@ -150,7 +150,7 @@ class PixelOperation : public Operation {
   /* TODO. */
   void set_instance_key(const bNodeInstanceKey &instance_key);
 
-  void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> &node_previews);
+  void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews);
 };
 
 }  // namespace blender::compositor

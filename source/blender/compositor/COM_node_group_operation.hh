@@ -31,12 +31,12 @@ ENUM_OPERATORS(NodeGroupOutputTypes)
 /* ------------------------------------------------------------------------------------------------
  * Node Group Operation
  *
- * The node group operation represents and evaluates a group node. It compiles the node group of
- * the group node into an operations stream, evaluating the operations in the process. It should be
- * noted that operations are eagerly evaluated as soon as they are compiled, as opposed to
- * compiling the whole operations stream and then evaluating it in a separate step. This is done
- * because the evaluator uses the evaluated results of previously compiled operations to compile
- * the operations that follow them in an optimized manner.
+ * The node group operation represents and evaluates a group node. It compiles the node group into
+ * an operations stream, evaluating the operations in the process. It should be noted that
+ * operations are eagerly evaluated as soon as they are compiled, as opposed to compiling the whole
+ * operations stream and then evaluating it in a separate step. This is done because the evaluator
+ * uses the evaluated results of previously compiled operations to compile the operations that
+ * follow them in an optimized manner.
  *
  * Evaluation starts by computing an optimized node execution schedule by calling the
  * compute_schedule function, see the discussion in COM_scheduler.hh for more details. For the node
@@ -96,10 +96,15 @@ ENUM_OPERATORS(NodeGroupOutputTypes)
 class NodeGroupOperation : public Operation {
  private:
   const bNodeTree &node_group_;
+  /* The node group outputs that should be computed. See NodeGroupOutputTypes for more details. */
   const NodeGroupOutputTypes needed_outputs_;
-  Map<bNodeInstanceKey, bke::bNodePreview> &node_previews_;
-  const bNodeInstanceKey instance_key_;
-
+  /* A map that associates each node instance identified by its node instance key to its node
+   * preview. This could be nullptr if node previews are not needed. */
+  Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
+  /* A node instance key that identifies the particular group node that uses this node group. If
+   * this node group operation represents a top-level standalone node group with no associated
+   * group node, this will be bke::NODE_INSTANCE_KEY_BASE. */
+  const bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
   /* The compiled operations stream, which contains all compiled operations so far. */
   Vector<std::unique_ptr<Operation>> operations_stream_;
 
@@ -109,14 +114,17 @@ class NodeGroupOperation : public Operation {
   NodeGroupOperation(Context &context,
                      const bNodeTree &node_group,
                      const NodeGroupOutputTypes needed_outputs,
-                     Map<bNodeInstanceKey, bke::bNodePreview> &node_previews,
+                     Map<bNodeInstanceKey, bke::bNodePreview> *node_previews,
                      const bNodeInstanceKey instance_key = bke::NODE_INSTANCE_KEY_BASE);
 
-  /* Calls the evaluate method of the operation, but also measures the execution time and stores it
-   * in the context's profile data. */
+  /* Compile and evaluate the node group. */
   void execute() override;
 
  private:
+  /* Called after all nodes are evaluated to write the group output node's results from the node
+   * outputs they are linked to. */
+  void write_outputs(CompileState &compile_state);
+
   /* Compile the given node into a node operation, map each input to the result of the output
    * linked to it, update the compile state, add the newly created operation to the operations
    * stream, and evaluate the operation. */
@@ -131,6 +139,10 @@ class NodeGroupOperation : public Operation {
                                                   NodeOperation *operation,
                                                   CompileState &compile_state);
 
+  /* Adds and evaluates a new input single operation that corresponds to the given unlinked input.
+   * The result of operation is returned. */
+  Result &evaluate_input_single_value_operation(const bNodeSocket &input);
+
   /* Compile the pixel compile unit into a pixel operation, map each input of the operation to
    * the result of the output linked to it, update the compile state, add the newly created
    * operation to the operations stream, evaluate the operation, and finally reset the pixel
@@ -141,6 +153,12 @@ class NodeGroupOperation : public Operation {
    * also correct the reference counts of the results, see the implementation for more details. */
   void map_pixel_operation_inputs_to_their_results(PixelOperation *operation,
                                                    CompileState &compile_state);
+
+  /* Maps the input of the given operation with the given identifier to the result of the given
+   * output of the group input node it is linked to. */
+  Result &map_operation_input_to_group_input(Operation &operation,
+                                             const StringRef input_identifier,
+                                             const bNodeSocket &output);
 
   /* Cancels the evaluation by informing the static cache manager of the cancellation and freeing
    * the results of the operations that were already evaluated, that's because later operations

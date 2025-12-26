@@ -53,7 +53,7 @@ class NodeOperation : public Operation {
   void set_instance_key(const bNodeInstanceKey &instance_key);
   const bNodeInstanceKey &get_instance_key() const;
 
-  void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> &node_previews);
+  void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews);
   Map<bNodeInstanceKey, bke::bNodePreview> *get_node_previews();
 
  protected:

@@ -30,7 +30,7 @@ namespace blender::compositor {
 NodeGroupOperation::NodeGroupOperation(Context &context,
                                        const bNodeTree &node_group,
                                        const NodeGroupOutputTypes needed_outputs,
-                                       Map<bNodeInstanceKey, bke::bNodePreview> &node_previews,
+                                       Map<bNodeInstanceKey, bke::bNodePreview> *node_previews,
                                        const bNodeInstanceKey instance_key)
     : Operation(context),
       node_group_(node_group),
@@ -39,15 +39,21 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
       instance_key_(instance_key)
 {
   node_group.ensure_interface_cache();
-  for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
-    const ResultType result_type = get_node_interface_socket_result_type(*output);
-    this->populate_result(output->identifier, context.create_result(result_type));
-  }
-
   for (const bNodeTreeInterfaceSocket *input : node_group.interface_inputs()) {
     const InputDescriptor input_descriptor = input_descriptor_from_interface_input(node_group,
                                                                                    *input);
     this->declare_input_descriptor(input->identifier, input_descriptor);
+  }
+
+  /* The outputs connected to the group output node are not needed, so no need to declare results
+   * for them.  */
+  if (!flag_is_set(needed_outputs_, NodeGroupOutputTypes::GroupOutputNode)) {
+    return;
+  }
+
+  for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
+    const ResultType result_type = get_node_interface_socket_result_type(*output);
+    this->populate_result(output->identifier, context.create_result(result_type));
   }
 }
 
@@ -75,23 +81,44 @@ void NodeGroupOperation::execute()
     }
   }
 
-  /* TODO. */
-  if (flag_is_set(needed_outputs_, NodeGroupOutputTypes::GroupOutputNode)) {
-    const bNode &group_output_node = *node_group_.group_output_node();
-    for (const bNodeSocket *input : group_output_node.input_sockets()) {
-      if (!is_socket_available(input)) {
-        continue;
-      }
+  this->write_outputs(compile_state);
+}
 
-      Result &output_result = this->get_result(input->identifier);
-      const bNodeSocket *linked_output = get_output_linked_to_input(*input);
-      if (linked_output) {
-        /* The input is linked. So map the input to the result we get from the output. */
-        Result &result = compile_state.get_result_from_output_socket(*linked_output);
-        output_result.share_data(result);
-        result.release();
-      }
+void NodeGroupOperation::write_outputs(CompileState &compile_state)
+{
+  if (!flag_is_set(needed_outputs_, NodeGroupOutputTypes::GroupOutputNode)) {
+    return;
+  }
+
+  const bNode *group_output_node = node_group_.group_output_node();
+  if (!group_output_node) {
+    return;
+  }
+
+  for (const bNodeSocket *input : group_output_node->input_sockets()) {
+    if (!is_socket_available(input)) {
+      continue;
     }
+
+    Result &output_result = this->get_result(input->identifier);
+    if (!output_result.should_compute()) {
+      continue;
+    }
+
+    const bNodeSocket *linked_output = get_output_linked_to_input(*input);
+    /* If the input is linked, get the input result from the linked output, if not, get an input
+     * single value result for it. */
+    Result *input_result = linked_output ?
+                               &compile_state.get_result_from_output_socket(*linked_output) :
+                               &this->evaluate_input_single_value_operation(*input);
+
+    /* So share the data of the result we get from the output with the result of the operation. */
+    output_result.share_data(*input_result);
+
+    /* Node operations typically call release of the results after execution, but the group
+     * output node is an implicit node that doesn't have a corresponding node operation, so we
+     * need to release the result here. */
+    input_result->release();
   }
 }
 
@@ -104,7 +131,6 @@ static NodeOperation *get_node_operation(Context &context,
     return get_undefined_node_operation(context, node);
   }
 
-  /* TODO. */
   if (node.is_group()) {
     return get_group_node_operation(context, node, needed_outputs);
   }
@@ -114,7 +140,9 @@ static NodeOperation *get_node_operation(Context &context,
 
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
 {
-  /* TODO. */
+  /* Group input and group output nodes are implicit nodes and do not have corresponding
+   * operations. The group output node is handled in the write_outputs method, while the group
+   * input node is handled in the map_operation_input_to_group_input method. */
   if (node.is_group_input() || node.is_group_output()) {
     return;
   }
@@ -148,11 +176,10 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
 
     const bNodeSocket *output = get_output_linked_to_input(*input);
     if (output) {
-      /* TODO. */
+      /* The input is linked to a group input node, which is a special case since the result comes
+       * from the node group operation input itself. */
       if (output->owner_node().is_group_input()) {
-        Result &input_result = this->get_input(output->identifier);
-        operation->map_input_to_result(input->identifier, &input_result);
-        input_result.increment_reference_count();
+        this->map_operation_input_to_group_input(*operation, input->identifier, *output);
         continue;
       }
 
@@ -164,14 +191,20 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
 
     /* Otherwise, the input is unlinked. So map the input to the result of a newly created Input
      * Single Value Operation. */
-    InputSingleValueOperation *input_operation = new InputSingleValueOperation(this->context(),
-                                                                               *input);
-    operation->map_input_to_result(input->identifier, &input_operation->get_result());
-
-    operations_stream_.append(std::unique_ptr<InputSingleValueOperation>(input_operation));
-
-    input_operation->evaluate();
+    Result *input_single_value_result = &this->evaluate_input_single_value_operation(*input);
+    operation->map_input_to_result(input->identifier, input_single_value_result);
   }
+}
+
+Result &NodeGroupOperation::evaluate_input_single_value_operation(const bNodeSocket &input)
+{
+  BLI_assert(!input.is_logically_linked());
+
+  InputSingleValueOperation *input_operation = new InputSingleValueOperation(this->context(),
+                                                                             input);
+  operations_stream_.append(std::unique_ptr<InputSingleValueOperation>(input_operation));
+  input_operation->evaluate();
+  return input_operation->get_result();
 }
 
 /* Create one of the concrete subclasses of the PixelOperation based on the context and compile
@@ -253,14 +286,27 @@ void NodeGroupOperation::map_pixel_operation_inputs_to_their_results(PixelOperat
                                                                      CompileState &compile_state)
 {
   for (const auto item : operation->get_inputs_to_linked_outputs_map().items()) {
-    Result &result = compile_state.get_result_from_output_socket(*item.value);
-    operation->map_input_to_result(item.key, &result);
+    const bNodeSocket &output = *item.value;
+    const StringRef input_identifier = item.key;
+
+    /* The input is linked to a group input node, which is a special case since the result comes
+     * from the node group operation input itself. */
+    Result *input_result = nullptr;
+    if (output.owner_node().is_group_input()) {
+      input_result = &this->map_operation_input_to_group_input(
+          *operation, input_identifier, output);
+    }
+    else {
+      input_result = &compile_state.get_result_from_output_socket(output);
+      operation->map_input_to_result(input_identifier, input_result);
+    }
 
     /* Correct the reference count of the result in case multiple of the result's outgoing links
      * corresponds to a single input in the pixel operation. See the description of the member
      * inputs_to_reference_counts_map_ variable for more information. */
-    const int internal_reference_count = operation->get_internal_input_reference_count(item.key);
-    result.decrement_reference_count(internal_reference_count - 1);
+    const int internal_reference_count = operation->get_internal_input_reference_count(
+        input_identifier);
+    input_result->decrement_reference_count(internal_reference_count - 1);
   }
 
   for (const auto item : operation->get_implicit_inputs_to_input_identifiers_map().items()) {
@@ -272,6 +318,19 @@ void NodeGroupOperation::map_pixel_operation_inputs_to_their_results(PixelOperat
 
     input_operation->evaluate();
   }
+}
+
+Result &NodeGroupOperation::map_operation_input_to_group_input(Operation &operation,
+                                                               const StringRef input_identifier,
+                                                               const bNodeSocket &output)
+{
+  BLI_assert(output.owner_node().is_group_input());
+
+  Result &input_result = this->get_input(output.identifier);
+  operation.map_input_to_result(input_identifier, &input_result);
+  input_result.increment_reference_count();
+
+  return input_result;
 }
 
 void NodeGroupOperation::cancel_evaluation()
