@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -295,15 +296,15 @@ static void node_input_from_rect(bNode *node,
   PointerRNA height_input_rna_pointer = RNA_pointer_create_discrete(
       nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(height_input));
 
-  const float xmin = rect->xmin * dims.x - offset.x;
-  const float width = rect->xmax * dims.x - offset.x - xmin;
-  const float ymin = rect->ymin * dims.y - offset.y;
-  const float height = rect->ymax * dims.y - offset.y - ymin;
+  const float xmin = math::round(rect->xmin * dims.x - offset.x);
+  const float width = math::round(rect->xmax * dims.x - offset.x - xmin);
+  const float ymin = math::round(rect->ymin * dims.y - offset.y);
+  const float height = math::round(rect->ymax * dims.y - offset.y - ymin);
 
   RNA_int_set(&x_input_rna_pointer, "default_value", int(xmin));
   RNA_int_set(&y_input_rna_pointer, "default_value", int(ymin));
-  RNA_int_set(&width_input_rna_pointer, "default_value", int(math::round(width)));
-  RNA_int_set(&height_input_rna_pointer, "default_value", int(math::round(height)));
+  RNA_int_set(&width_input_rna_pointer, "default_value", int(width));
+  RNA_int_set(&height_input_rna_pointer, "default_value", int(height));
 }
 
 /* scale callbacks */
@@ -393,11 +394,6 @@ static void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gz
   RNA_enum_set(crop_group->border->ptr,
                "transform",
                ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
-
-  RNA_enum_set(crop_group->border->ptr,
-               "draw_options",
-               ED_GIZMO_CAGE_DRAW_FLAG_XFORM_CENTER_HANDLE |
-                   ED_GIZMO_CAGE_DRAW_FLAG_CORNER_HANDLES);
 
   gzgroup->customdata = crop_group;
   gzgroup->customdata_free = [](void *customdata) {
