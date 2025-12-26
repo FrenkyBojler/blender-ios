@@ -9785,8 +9785,8 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, Button *but
           WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
           data->autoopentimer = nullptr;
 
-          const bool is_dialog_context = (region->regiontype == RGN_TYPE_TEMPORARY &&
-                                          !block_is_menu(block));
+          const bool is_dialog_context = region->regiontype == RGN_TYPE_TEMPORARY &&
+                                          !block_is_menu(block);
 
           if (!is_dialog_context &&
               (button_contains_point_px(but, region, event->xy) || but->active))
