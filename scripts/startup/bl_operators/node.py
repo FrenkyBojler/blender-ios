@@ -252,6 +252,12 @@ class NodeSwapOperator(NodeOperator):
         if (context.area is None) or (context.area.type != "NODE_EDITOR"):
             return False
 
+        if context.space_data.edit_tree is None:
+            return False
+
+        if context.space_data.edit_tree.library is not None:
+            return False
+
         if len(context.selected_nodes) <= 0:
             cls.poll_message_set("No nodes selected.")
             return False
@@ -448,17 +454,6 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
         description="If provided, all outputs that are named differently will be hidden",
         options={'SKIP_SAVE'},
     )
-
-    @classmethod
-    def poll(cls, context):
-        if not context.space_data.edit_tree:
-            return False
-
-        # Check if we're inside a node_tree coming from a library
-        if context.space_data.edit_tree.library:
-            return False
-
-        return True
 
     @staticmethod
     def get_zone_pair(tree, node):
