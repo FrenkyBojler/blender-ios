@@ -19,7 +19,6 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -1187,7 +1186,6 @@ static void seq_prefetch_wm_notify(const bContext *C, Scene *scene)
 static void draw_seq_timeline_channels(const TimelineDrawContext &ctx)
 {
   View2D *v2d = ctx.v2d;
-  ui::view2d_view_ortho(v2d);
 
   GPU_blend(GPU_BLEND_ALPHA);
   uchar4 color;
@@ -1767,14 +1765,17 @@ static void draw_timeline_grid(const TimelineDrawContext &ctx)
     return;
   }
 
-  const Scene *scene = ctx.scene;
-  if (scene == nullptr) {
+  if (ctx.scene == nullptr) {
     /* If we don't have a scene available, pick what we defined as default for frame-rate to show
      * *something*. */
-    scene = DNA_struct_default_get(Scene);
+    Scene scene = {};
+    ui::view2d_draw_lines_x__discrete_frames_or_seconds(
+        ctx.v2d, &scene, (ctx.sseq->flag & SEQ_DRAWFRAMES) == 0, false);
   }
-  ui::view2d_draw_lines_x__discrete_frames_or_seconds(
-      ctx.v2d, scene, (ctx.sseq->flag & SEQ_DRAWFRAMES) == 0, false);
+  else {
+    ui::view2d_draw_lines_x__discrete_frames_or_seconds(
+        ctx.v2d, ctx.scene, (ctx.sseq->flag & SEQ_DRAWFRAMES) == 0, false);
+  }
 }
 
 static void draw_timeline_markers(const TimelineDrawContext &ctx)
@@ -1788,6 +1789,7 @@ static void draw_timeline_markers(const TimelineDrawContext &ctx)
 
   ui::view2d_view_orthoSpecial(ctx.region, ctx.v2d, true);
   ED_markers_draw(ctx.C, DRAW_MARKERS_MARGIN);
+  ui::view2d_view_ortho(ctx.v2d);
 }
 
 static void draw_timeline_gizmos(const TimelineDrawContext &ctx)
@@ -1823,18 +1825,22 @@ void draw_timeline_seq(const bContext *C, const ARegion *region)
 
   draw_timeline_pre_view_callbacks(ctx);
   ui::theme::frame_buffer_clear(TH_BACK);
+
+  ui::view2d_view_ortho(ctx.v2d);
   draw_seq_timeline_channels(ctx);
   draw_timeline_grid(ctx);
   draw_timeline_sfra_efra(ctx);
   draw_seq_strips(ctx, strips_batch);
   draw_timeline_markers(ctx);
-  ui::view2d_view_ortho(ctx.v2d);
   if (ctx.scene) {
     ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);
   }
-  ui::view2d_view_restore(C);
-  draw_timeline_gizmos(ctx);
   draw_timeline_post_view_callbacks(ctx);
+  ui::view2d_view_restore(C);
+
+  draw_timeline_gizmos(ctx);
+
+  ui::view2d_view_ortho(ctx.v2d);
   if (ctx.scene) {
     const int fps = round_db_to_int(ctx.scene->frames_per_second());
     ED_time_scrub_draw(region, ctx.scene, !(ctx.sseq->flag & SEQ_DRAWFRAMES), true, fps);

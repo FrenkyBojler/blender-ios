@@ -10,7 +10,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_utf8.h"
 
-#include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
@@ -79,7 +78,7 @@ static void init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  NodeTrackPosData *data = MEM_callocN<NodeTrackPosData>(__func__);
+  NodeTrackPosData *data = MEM_new_for_free<NodeTrackPosData>(__func__);
   node->storage = data;
 
   const Scene *scene = CTX_data_scene(C);
@@ -299,20 +298,20 @@ class TrackPositionOperation : public NodeOperation {
     MovieTracking *movie_tracking = &movie_clip->tracking;
 
     MovieTrackingObject *movie_tracking_object = BKE_tracking_object_get_named(
-        movie_tracking, node_storage(bnode()).tracking_object);
+        movie_tracking, node_storage(node()).tracking_object);
     if (!movie_tracking_object) {
       return nullptr;
     }
 
     return BKE_tracking_object_find_track_with_name(movie_tracking_object,
-                                                    node_storage(bnode()).track_name);
+                                                    node_storage(node()).track_name);
   }
 
   /* Get the size of the movie clip at the evaluation frame. This is constant for all frames in
    * most cases. */
   int2 get_size()
   {
-    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+    MovieClipUser user = {};
     BKE_movieclip_user_set_frame(&user, get_frame());
 
     int2 size;
@@ -354,7 +353,7 @@ class TrackPositionOperation : public NodeOperation {
 
   MovieClip *get_movie_clip()
   {
-    return (MovieClip *)bnode().id;
+    return (MovieClip *)node().id;
   }
 };
 
