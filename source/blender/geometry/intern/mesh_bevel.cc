@@ -3612,20 +3612,10 @@ static float2 interp_uv_2d(const Span<float2> &positions,
   const int face_size = positions.size();
   BLI_assert(face_size >= 3 && values.size() == face_size);
   Array<float, 20> bary_weights(face_size);
-  if (face_size == 3) {
-    barycentric_weights_v2(
-        positions[0], positions[1], positions[2], interp_pos, bary_weights.data());
-  }
-  else if (face_size == 4) {
-    barycentric_weights_v2_quad(
-        positions[0], positions[1], positions[2], positions[3], interp_pos, bary_weights.data());
-  }
-  else {
     interp_weights_poly_v2(bary_weights.data(),
                            reinterpret_cast<float (*)[2]>(const_cast<float2 *>(positions.data())),
                            face_size,
                            interp_pos);
-  }
   float2 ans(0.0f, 0.0f);
   for (const int i : IndexRange(face_size)) {
     ans += bary_weights[i] * values[i];
