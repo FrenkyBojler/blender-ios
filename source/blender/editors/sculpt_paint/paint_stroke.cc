@@ -954,6 +954,25 @@ void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
   if (print_pressure_status_enabled()) {
     ED_workspace_status_text(C, nullptr);
   }
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->sculpt) {
+    SculptSession &ss = *ob->sculpt;
+    StrokeCache *cache = ss.cache;
+
+    if (cache && cache->alt_mask) {
+      Paint *paint = BKE_paint_get_active_from_context(C);
+
+      blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
+
+      if (cache->prev_brush) {
+        paint->brush = cache->prev_brush;
+      }
+
+      cache->alt_mask = false;
+      cache->prev_brush = nullptr;
+    }
+  }
+  
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
 
   /* reset rotation here to avoid doing so in cursor display */
@@ -971,24 +990,6 @@ void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
     this->redraw(true);
 
     this->done(is_cancel);
-  }
-
-    /* Ensure ALT mask is always restored when stroke ends */
-  if (Object *ob = CTX_data_active_object(C)) {
-    if (ob->sculpt && ob->sculpt->cache) {
-      StrokeCache *cache = ob->sculpt->cache;
-
-      if (cache->alt_mask) {
-        blender::ed::sculpt_paint::mask_brush_toggle_off(this->paint, cache);
-
-        if (cache->prev_brush) {
-          this->paint->brush = cache->prev_brush;
-          cache->prev_brush = nullptr;
-        }
-
-        cache->alt_mask = false;
-      }
-    }
   }
 
   this->free(C, op);
@@ -1456,9 +1457,9 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       else if (cache->alt_mask) {
           printf("[ALT] Stroke mode = MASK OFF\n");
           blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
-          if (cache->prev_brush) {
-            paint->brush = cache->prev_brush;  // restore
-          }
+          // if (cache->prev_brush) {
+          //   paint->brush = cache->prev_brush;  // restore
+          // }
           cache->alt_mask = false;
       }
   }
