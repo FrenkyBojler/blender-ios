@@ -15,6 +15,7 @@
 #include "DNA_anim_types.h"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
 #include "BLI_listbase.h"
@@ -55,6 +56,8 @@ class CopyDriversToSelected : public testing::Test {
 
     /* To make id_can_have_animdata() and friends work, the `id_types` array needs to be set up. */
     BKE_idtype_init();
+
+    RNA_init();
   }
 
   static void TearDownTestSuite()
@@ -120,6 +123,7 @@ class CopyDriversToSelected : public testing::Test {
   void TearDown() override
   {
     BKE_main_free(bmain);
+    RNA_exit();
   }
 };
 
