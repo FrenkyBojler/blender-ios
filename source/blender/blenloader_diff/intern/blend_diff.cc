@@ -293,6 +293,38 @@ static DiffLines write_diff_sdna(const DiffOptions &options,
   return diff;
 }
 
+enum class ContextType {
+  Member,
+  CollectionIndex,
+  CollectionIdentifier,
+};
+
+struct Context {
+  const Context *parent = nullptr;
+  StringRefNull name;
+  bool is_in_collection = false;
+
+  std::string to_string() const
+  {
+    Vector<const Context *> contexts;
+    for (const Context *context = this; context; context = context->parent) {
+      contexts.append(context);
+    }
+    std::reverse(contexts.begin(), contexts.end());
+    std::string result;
+    result += contexts[0]->name;
+    for (const Context *context : contexts.as_span().drop_front(1)) {
+      if (context->is_in_collection) {
+        result += fmt::format("[{}]", context->name);
+      }
+      else {
+        result += fmt::format(".{}", context->name);
+      }
+    }
+    return result;
+  }
+};
+
 struct DataWithStruct {
   const void *data = nullptr;
   const Struct *sdna_struct = nullptr;
@@ -301,7 +333,9 @@ struct DataWithStruct {
 struct BlockMatch {
   const BlendBlock *old_block = nullptr;
   const BlendBlock *new_block = nullptr;
-  std::string context;
+
+  const Context *old_context = nullptr;
+  const Context *new_context = nullptr;
 };
 
 static std::string primitive_value_to_string(const PrimitiveValue &value)
@@ -390,6 +424,7 @@ static std::pair<std::string, std::string> format_string_elements_char_align(
 
 class IdDiffer {
  private:
+  ResourceScope scope_;
   DiffLines &diff_;
   const DiffOptions &options_;
 
@@ -436,11 +471,29 @@ class IdDiffer {
   {
   }
 
+  const Context &init_context(const Context *parent,
+                              const StringRef name,
+                              const bool is_in_collection)
+  {
+    return scope_.construct<Context>(Context{
+        .parent = parent,
+        .name = scope_.allocator().copy_string(name),
+        .is_in_collection = is_in_collection,
+    });
+  }
+
   void run()
   {
-    const std::string root_context = fmt::format(
-        "{}[\"{}\"]", new_.id_data.sdna_struct->type->name, new_.id_data.name.c_str());
-    matches_to_process_.push({old_.id_data.id_block, new_.id_data.id_block, root_context});
+    const Context &old_root_context = this->init_context(
+        nullptr,
+        fmt::format("{}[\"{}\"]", old_.id_data.sdna_struct->type->name, old_.id_data.name.c_str()),
+        false);
+    const Context &new_root_context = this->init_context(
+        nullptr,
+        fmt::format("{}[\"{}\"]", new_.id_data.sdna_struct->type->name, new_.id_data.name.c_str()),
+        false);
+    matches_to_process_.push(
+        {old_.id_data.id_block, new_.id_data.id_block, &old_root_context, &new_root_context});
 
     while (!matches_to_process_.is_empty()) {
       const BlockMatch match = matches_to_process_.pop();
@@ -448,7 +501,8 @@ class IdDiffer {
       if (match.old_block->bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX &&
           match.new_block->bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX)
       {
-        this->diff_raw_buffer(*match.old_block, *match.new_block, match.context);
+        this->diff_raw_buffer(
+            *match.old_block, *match.new_block, *match.old_context, *match.new_context);
         continue;
       }
 
@@ -460,8 +514,14 @@ class IdDiffer {
         continue;
       }
       if (match.old_block->bhead.nr == 1 && match.new_block->bhead.nr == 1) {
-        this->diff_struct(
-            *match.old_block, *match.new_block, 0, 0, *old_struct, *new_struct, match.context);
+        this->diff_struct(*match.old_block,
+                          *match.new_block,
+                          0,
+                          0,
+                          *old_struct,
+                          *new_struct,
+                          *match.old_context,
+                          *match.new_context);
       }
       else {
         this->diff_struct_array(*match.old_block,
@@ -472,7 +532,8 @@ class IdDiffer {
                                 *new_struct,
                                 match.old_block->bhead.nr,
                                 match.new_block->bhead.nr,
-                                match.context);
+                                *match.old_context,
+                                *match.new_context);
       }
     }
   }
@@ -518,7 +579,8 @@ class IdDiffer {
 
   void diff_raw_buffer(const BlendBlock &old_block,
                        const BlendBlock &new_block,
-                       const StringRef context)
+                       const Context &old_context,
+                       const Context &new_context)
   {
     if (!old_block.type || !new_block.type) {
       return;
@@ -554,7 +616,8 @@ class IdDiffer {
                                   *new_sdna_type.opt_struct,
                                   old_num,
                                   new_num,
-                                  context);
+                                  old_context,
+                                  new_context);
         }
       }
       if (old_block.type->cpp_base_type && new_block.type->cpp_base_type) {
@@ -574,7 +637,8 @@ class IdDiffer {
         const int64_t new_num = new_block.bhead.len / cpp_type.size;
         this->diff_GSpan(GSpan{cpp_type, old_block.data, old_num},
                          GSpan{cpp_type, new_block.data, new_num},
-                         context);
+                         old_context,
+                         new_context);
       }
       return;
     }
@@ -599,7 +663,7 @@ class IdDiffer {
         const uint64_t address = blend_query::read_address(new_block.data + i * pointer_size);
         new_pointees.append(this->lookup_pointee(new_, address));
       }
-      this->diff_block_list(old_pointees, new_pointees, context);
+      this->diff_block_list(old_pointees, new_pointees, old_context, new_context);
       return;
     }
   }
@@ -610,16 +674,18 @@ class IdDiffer {
                    const int64_t new_struct_offset,
                    const Struct &old_struct,
                    const Struct &new_struct,
-                   const StringRef context)
+                   const Context &old_context,
+                   const Context &new_context)
   {
     const StringRef type_name = old_struct.type->name;
     if (type_name != new_struct.type->name) {
-      diff_.change(fmt::format("{} <type> = {}", context, old_struct.type->name),
-                   fmt::format("{} <type> = {}", context, new_struct.type->name));
+      diff_.change(fmt::format("{} <type> = {}", old_context.to_string(), old_struct.type->name),
+                   fmt::format("{} <type> = {}", new_context.to_string(), new_struct.type->name));
       return;
     }
     if (type_name == "ListBase") {
-      this->diff_ListBase(old_block, new_block, old_struct_offset, new_struct_offset, context);
+      this->diff_ListBase(
+          old_block, new_block, old_struct_offset, new_struct_offset, old_context, new_context);
       return;
     }
     if (type_name == "IDProperty") {
@@ -631,7 +697,8 @@ class IdDiffer {
                             new_struct_offset,
                             old_struct,
                             new_struct,
-                            context);
+                            old_context,
+                            new_context);
     }
 
     for (const StructMember *old_member : old_struct.members) {
@@ -647,7 +714,8 @@ class IdDiffer {
                                new_struct_offset + new_member->offset_in_struct,
                                *old_member,
                                *new_member,
-                               context);
+                               old_context,
+                               new_context);
     }
   }
 
@@ -657,7 +725,8 @@ class IdDiffer {
                           const int64_t new_member_offset,
                           const StructMember &old_member,
                           const StructMember &new_member,
-                          const StringRef context)
+                          const Context &old_context,
+                          const Context &new_context)
   {
     const StringRef type_name = old_member.type->name;
     const StructMember::Category category = old_member.category;
@@ -674,21 +743,28 @@ class IdDiffer {
     if (options_.ignore_member(new_member)) {
       return;
     }
+    const Context &old_member_context = this->init_context(&old_context, name, false);
+    const Context &new_member_context = this->init_context(&new_context, name, false);
     const bool is_array = elem_num > 1;
     switch (category) {
       case rich_sdna::StructMember::Category::Struct: {
         const Struct &old_substruct = *old_member.type->opt_struct;
         const Struct &new_substruct = *new_member.type->opt_struct;
         for (const int i : IndexRange(elem_num)) {
-          const std::string sub_context = is_array ? fmt::format("{}.{}[{}]", context, name, i) :
-                                                     fmt::format("{}.{}", context, name);
+          const Context *old_sub_context = &old_member_context;
+          const Context *new_sub_context = &new_member_context;
+          if (is_array) {
+            old_sub_context = &this->init_context(&old_member_context, std::to_string(i), true);
+            new_sub_context = &this->init_context(&new_member_context, std::to_string(i), true);
+          }
           this->diff_struct(old_block,
                             new_block,
                             old_member_offset + i * old_member.elem_size,
                             new_member_offset + i * new_member.elem_size,
                             old_substruct,
                             new_substruct,
-                            sub_context);
+                            *old_sub_context,
+                            *new_sub_context);
         }
         break;
       }
@@ -706,8 +782,8 @@ class IdDiffer {
             if (old_str == new_str) {
               break;
             }
-            diff_.change(fmt::format("{}.{} = \"{}\"", context, name, *old_str),
-                         fmt::format("{}.{} = \"{}\"", context, name, *new_str));
+            diff_.change(fmt::format("{} = \"{}\"", old_member_context.to_string(), *old_str),
+                         fmt::format("{} = \"{}\"", new_member_context.to_string(), *new_str));
             break;
           }
         }
@@ -721,7 +797,7 @@ class IdDiffer {
                 *cpp_type,
                 reinterpret_cast<const float *>(new_block.data + new_member_offset),
                 elem_num};
-            this->diff_GSpan(old_values, new_values, fmt::format("{}.{}", context, name));
+            this->diff_GSpan(old_values, new_values, old_member_context, new_member_context);
             break;
           }
         }
@@ -744,10 +820,17 @@ class IdDiffer {
           if (this->consider_primitive_values_equal(old_value, new_value)) {
             continue;
           }
-          const std::string sub_context = is_array ? fmt::format("{}.{}[{}]", context, name, i) :
-                                                     fmt::format("{}.{}", context, name);
-          diff_.change(fmt::format("{} = {}", sub_context, primitive_value_to_string(old_value)),
-                       fmt::format("{} = {}", sub_context, primitive_value_to_string(new_value)));
+          const Context *old_sub_context = &old_member_context;
+          const Context *new_sub_context = &new_member_context;
+          if (is_array) {
+            old_sub_context = &this->init_context(&old_member_context, std::to_string(i), true);
+            new_sub_context = &this->init_context(&new_member_context, std::to_string(i), true);
+          }
+          diff_.change(
+              fmt::format(
+                  "{} = {}", old_sub_context->to_string(), primitive_value_to_string(old_value)),
+              fmt::format(
+                  "{} = {}", new_sub_context->to_string(), primitive_value_to_string(new_value)));
         }
         break;
       }
@@ -762,14 +845,22 @@ class IdDiffer {
           if (!old_pointee && !new_pointee) {
             continue;
           }
-          const std::string sub_context = is_array ? fmt::format("{}.{}[{}]", context, name, i) :
-                                                     fmt::format("{}.{}", context, name);
+          const Context *old_sub_context = &old_member_context;
+          const Context *new_sub_context = &new_member_context;
+          if (is_array) {
+            old_sub_context = &this->init_context(&old_member_context, std::to_string(i), true);
+            new_sub_context = &this->init_context(&new_member_context, std::to_string(i), true);
+          }
           PointeeToStringOptions options;
           options.include_identifier = true;
           const std::string old_line = fmt::format(
-              "{} = {}", sub_context, this->pointee_to_string(old_, old_pointee, options));
+              "{} = {}",
+              old_sub_context->to_string(),
+              this->pointee_to_string(old_, old_pointee, options));
           const std::string new_line = fmt::format(
-              "{} = {}", sub_context, this->pointee_to_string(new_, new_pointee, options));
+              "{} = {}",
+              new_sub_context->to_string(),
+              this->pointee_to_string(new_, new_pointee, options));
           if (old_line != new_line) {
             diff_.change(old_line, new_line);
           }
@@ -781,7 +872,7 @@ class IdDiffer {
           }
           if (old_pointee.block && new_pointee.block) {
             this->tag_potentially_corresponding_blocks(
-                *old_pointee.block, *new_pointee.block, sub_context);
+                *old_pointee.block, *new_pointee.block, *old_sub_context, *new_sub_context);
           }
         }
         break;
@@ -808,7 +899,8 @@ class IdDiffer {
                      const BlendBlock &new_block,
                      const int64_t old_struct_offset,
                      const int64_t new_struct_offset,
-                     const StringRef context)
+                     const Context &old_context,
+                     const Context &new_context)
   {
     const uint64_t old_first_address = *reinterpret_cast<const uint64_t *>(old_block.data +
                                                                            old_struct_offset);
@@ -818,7 +910,7 @@ class IdDiffer {
                                                                            old_);
     const Vector<Pointee> new_pointees = this->gather_linked_list_pointees(new_first_address,
                                                                            new_);
-    this->diff_block_list(old_pointees, new_pointees, context);
+    this->diff_block_list(old_pointees, new_pointees, old_context, new_context);
   }
 
   void diff_struct_array(const BlendBlock &old_block,
@@ -829,7 +921,8 @@ class IdDiffer {
                          const Struct &new_struct,
                          const int64_t old_num,
                          const int64_t new_num,
-                         const StringRef context)
+                         const Context &old_context,
+                         const Context &new_context)
   {
     Vector<DataWithStruct> old_structs;
     Vector<DataWithStruct> new_structs;
@@ -841,14 +934,16 @@ class IdDiffer {
       new_structs.append(
           {new_block.data + new_offset + i * new_struct.type->size_in_bytes, &new_struct});
     }
-    this->diff_struct_list(old_block, new_block, old_structs, new_structs, context);
+    this->diff_struct_list(
+        old_block, new_block, old_structs, new_structs, old_context, new_context);
   }
 
   void diff_struct_list(const BlendBlock &old_block,
                         const BlendBlock &new_block,
                         const Span<DataWithStruct> old_structs,
                         const Span<DataWithStruct> new_structs,
-                        const StringRef context)
+                        const Context &old_context,
+                        const Context &new_context)
   {
     struct Item {
       DataWithStruct data_with_struct;
@@ -871,8 +966,10 @@ class IdDiffer {
       if (!old_struct_map.add(*identifier, {old_struct, i})) {
         const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
             old_, old_struct.data, *old_struct.sdna_struct, i, true);
-        diff_.info(
-            fmt::format("Duplicate in List: {}: {} ({})", context, *identifier, user_identifier));
+        diff_.info(fmt::format("Duplicate in List: {}: {} ({})",
+                               new_context.to_string(),
+                               *identifier,
+                               user_identifier));
       }
     }
 
@@ -886,25 +983,31 @@ class IdDiffer {
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           new_, new_struct.data, *new_struct.sdna_struct, i, true);
       if (!new_struct_map.add(identifier, {new_struct, i})) {
-        diff_.info(
-            fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
+        diff_.info(fmt::format("Duplicate in List: {}: {} ({})",
+                               new_context.to_string(),
+                               identifier,
+                               user_identifier));
       }
       if (const Item *old_item = old_struct_map.lookup_ptr(identifier)) {
         const DataWithStruct &old_struct = old_item->data_with_struct;
+        const Context &old_sub_context = this->init_context(&old_context, user_identifier, true);
+        const Context &new_sub_context = this->init_context(&new_context, user_identifier, true);
         this->diff_struct(old_block,
                           new_block,
                           intptr_t(old_struct.data) - intptr_t(old_block.data),
                           intptr_t(new_struct.data) - intptr_t(new_block.data),
                           *old_struct.sdna_struct,
                           *new_struct.sdna_struct,
-                          fmt::format("{}[{}]", context, user_identifier));
+                          old_sub_context,
+                          new_sub_context);
         if (i != old_item->index) {
           order_changed = true;
         }
       }
       else {
+        const Context &new_sub_context = this->init_context(&new_context, user_identifier, true);
         diff_.add(fmt::format(
-            "{}[{}] = {}(...)", context, user_identifier, new_struct.sdna_struct->type->name));
+            "{} = {}(...)", new_sub_context.to_string(), new_struct.sdna_struct->type->name));
       }
     }
 
@@ -918,15 +1021,16 @@ class IdDiffer {
         }
         const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
             old_, old_struct.data, *old_struct.sdna_struct, i, true);
+        const Context &old_sub_context = this->init_context(&old_context, user_identifier, true);
         diff_.remove(fmt::format(
-            "{}[{}] = {}(...)", context, user_identifier, old_struct.sdna_struct->type->name));
+            "{} = {}(...)", old_sub_context.to_string(), old_struct.sdna_struct->type->name));
       }
     }
 
     if (old_structs.size() != new_structs.size() || order_changed) {
-      diff_.change(fmt::format("{} <length> = {}", context, old_structs.size()),
+      diff_.change(fmt::format("{} <length> = {}", old_context.to_string(), old_structs.size()),
                    fmt::format("{} <length> = {}{}",
-                               context,
+                               new_context.to_string(),
                                new_structs.size(),
                                order_changed ? " (order changed)" : ""));
     }
@@ -934,7 +1038,8 @@ class IdDiffer {
 
   void diff_block_list(const Span<Pointee> old_pointees,
                        const Span<Pointee> new_pointees,
-                       const StringRef context)
+                       const Context &old_context,
+                       const Context &new_context)
   {
     struct Item {
       Pointee pointee;
@@ -954,8 +1059,10 @@ class IdDiffer {
       if (!old_pointee_map.add(identifier, {old_pointee, i})) {
         const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
             old_, old_pointee.block->data, old_struct, i, true);
-        diff_.info(
-            fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
+        diff_.info(fmt::format("Duplicate in List: {}: {} ({})",
+                               new_context.to_string(),
+                               identifier,
+                               user_identifier));
       }
     }
 
@@ -979,24 +1086,28 @@ class IdDiffer {
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           new_, new_pointee.block->data, new_struct, i, true);
       if (!new_pointee_map.add(identifier, {new_pointee, i})) {
-        diff_.info(
-            fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
+        diff_.info(fmt::format("Duplicate in List: {}: {} ({})",
+                               new_context.to_string(),
+                               identifier,
+                               user_identifier));
       }
       if (const Item *old_item = old_pointee_map.lookup_ptr(identifier)) {
         if (!new_pointee.id_data && !old_item->pointee.id_data) {
           const BlendBlock &old_pointee = *old_item->pointee.block;
+          const Context &old_sub_context = this->init_context(&old_context, user_identifier, true);
+          const Context &new_sub_context = this->init_context(&new_context, user_identifier, true);
           this->tag_potentially_corresponding_blocks(
-              old_pointee, *new_pointee.block, fmt::format("{}[{}]", context, user_identifier));
+              old_pointee, *new_pointee.block, old_sub_context, new_sub_context);
         }
         if (i != old_item->index) {
           order_changed = true;
         }
       }
       else {
+        const Context &new_sub_context = this->init_context(&new_context, user_identifier, true);
         diff_.add(
-            fmt::format("{}[{}] = {}",
-                        context,
-                        user_identifier,
+            fmt::format("{} = {}",
+                        new_sub_context.to_string(),
                         this->pointee_to_string(new_, new_pointee, pointee_to_string_options)));
       }
     }
@@ -1015,27 +1126,30 @@ class IdDiffer {
       }
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_pointee.block->data, old_struct, i, true);
+      const Context &old_sub_context = this->init_context(&old_context, user_identifier, true);
       diff_.remove(
-          fmt::format("{}[{}] = {}",
-                      context,
-                      user_identifier,
+          fmt::format("{} = {}",
+                      old_sub_context.to_string(),
                       this->pointee_to_string(old_, old_pointee, pointee_to_string_options)));
     }
 
     if (old_pointees.size() != new_pointees.size() || order_changed) {
-      diff_.change(fmt::format("{} <length> = {}", context, old_pointees.size()),
+      diff_.change(fmt::format("{} <length> = {}", old_context.to_string(), old_pointees.size()),
                    fmt::format("{} <length> = {}{}",
-                               context,
+                               new_context.to_string(),
                                new_pointees.size(),
                                order_changed ? " (order changed)" : ""));
     }
   }
 
-  void diff_GSpan(const GSpan old_span, const GSpan new_span, const StringRef context)
+  void diff_GSpan(const GSpan old_span,
+                  const GSpan new_span,
+                  const Context &old_context,
+                  const Context &new_context)
   {
     if (old_span.size() != new_span.size()) {
-      diff_.change(fmt::format("{} <length> = {}", context, old_span.size()),
-                   fmt::format("{} <length> = {}", context, new_span.size()));
+      diff_.change(fmt::format("{} <length> = {}", old_context.to_string(), old_span.size()),
+                   fmt::format("{} <length> = {}", new_context.to_string(), new_span.size()));
       return;
     }
     const CPPType &type = old_span.type();
@@ -1065,24 +1179,28 @@ class IdDiffer {
           type.is_any<float>() ?
               format_string_elements_char_align(old_value_strings, new_value_strings) :
               format_string_elements_right_align(old_value_strings, new_value_strings);
-      diff_.change(fmt::format("{} = [{}]", context, value_strings.first),
-                   fmt::format("{} = [{}]", context, value_strings.second));
+      diff_.change(fmt::format("{} = [{}]", old_context.to_string(), value_strings.first),
+                   fmt::format("{} = [{}]", new_context.to_string(), value_strings.second));
       return;
     }
     if (changed_indices.size() > options_.max_array_changes) {
-      diff_.change(fmt::format("{} <length> = {}x {}", context, old_span.size(), type.name()),
-                   fmt::format("{} <length> = {}x {} ({} indices changed)",
-                               context,
-                               new_span.size(),
-                               type.name(),
-                               changed_indices.size()));
+      diff_.change(
+          fmt::format(
+              "{} <length> = {}x {}", old_context.to_string(), old_span.size(), type.name()),
+          fmt::format("{} <length> = {}x {} ({} indices changed)",
+                      new_context.to_string(),
+                      new_span.size(),
+                      type.name(),
+                      changed_indices.size()));
       return;
     }
     for (const int64_t i : changed_indices) {
       const void *old_value = old_span[i];
       const void *new_value = new_span[i];
-      diff_.change(fmt::format("{}[{}] = {}", context, i, type.to_string(old_value)),
-                   fmt::format("{}[{}] = {}", context, i, type.to_string(new_value)));
+      const Context &old_sub_context = this->init_context(&old_context, std::to_string(i), true);
+      const Context &new_sub_context = this->init_context(&new_context, std::to_string(i), true);
+      diff_.change(fmt::format("{} = {}", old_sub_context.to_string(), type.to_string(old_value)),
+                   fmt::format("{} = {}", new_sub_context.to_string(), type.to_string(new_value)));
     }
   }
 
@@ -1092,7 +1210,8 @@ class IdDiffer {
                        const int new_struct_offset,
                        const Struct &old_IDProperty,
                        const Struct &new_IDProperty,
-                       const StringRef context)
+                       const Context &old_context,
+                       const Context &new_context)
   {
     const BlendValue old_prop{&old_.id_data,
                               MemType::from_sdna_type(*old_IDProperty.type),
@@ -1132,9 +1251,11 @@ class IdDiffer {
     if (old_value == new_value) {
       return;
     }
+    const Context &old_sub_context = this->init_context(&old_context, "decoded_value", true);
+    const Context &new_sub_context = this->init_context(&new_context, "decoded_value", true);
     diff_.change(
-        fmt::format("{}.decoded_value = {}", context, primitive_value_to_string(old_value)),
-        fmt::format("{}.decoded_value = {}", context, primitive_value_to_string(new_value)));
+        fmt::format("{} = {}", old_sub_context.to_string(), primitive_value_to_string(old_value)),
+        fmt::format("{} = {}", new_sub_context.to_string(), primitive_value_to_string(new_value)));
   }
 
   Vector<Pointee> gather_linked_list_pointees(const uint64_t first_address,
@@ -1263,7 +1384,8 @@ class IdDiffer {
 
   void tag_potentially_corresponding_blocks(const BlendBlock &old_block,
                                             const BlendBlock &new_block,
-                                            const StringRef context)
+                                            const Context &old_context,
+                                            const Context &new_context)
   {
     /* A block can only be matched at most once. */
     if (old_by_new_.contains(&new_block)) {
@@ -1291,7 +1413,7 @@ class IdDiffer {
     }
     old_by_new_.add_new(&new_block, &old_block);
     new_by_old_.add_new(&old_block, &new_block);
-    matches_to_process_.push({&old_block, &new_block, context});
+    matches_to_process_.push({&old_block, &new_block, &old_context, &new_context});
   }
 
   std::optional<bool> data_blocks_have_consistent_identifier(const BlendBlock &old_block,
