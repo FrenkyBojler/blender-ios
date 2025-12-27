@@ -1478,6 +1478,26 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       last_world_space_position_ = math::transform_point(this->vc.obact->object_to_world(),
                                                          last_world_space_position_);
     }
+    /* Decide stroke mode BEFORE stroke starts. */
+    if (!stroke_started_ && mode == PaintMode::Sculpt) {
+      int stroke_mode = BRUSH_STROKE_NORMAL;
+
+      if (event->modifier & KM_ALT) {
+        stroke_mode = BRUSH_STROKE_MASK;
+      }
+      else if (event->modifier & KM_SHIFT) {
+        stroke_mode = BRUSH_STROKE_SMOOTH;
+      }
+      else if (event->modifier & KM_CTRL) {
+        stroke_mode = BRUSH_STROKE_INVERT;
+      }
+
+      stroke_mode_ = stroke_mode;
+
+      /* THIS IS THE CRITICAL LINE YOU WERE MISSING */
+      RNA_enum_set(op->ptr, "stroke_mode", stroke_mode);
+    }
+
     stroke_started_ = this->test_start(op, sample_average.mouse);
 
     if (stroke_started_) {
@@ -1534,22 +1554,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
         WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke_cursor_));
         stroke_cursor_ = nullptr;
       }
-    }
-  }
-
-  /* Handles modifier-based stroke mode toggling for sculpt. */
-  if (mode == PaintMode::Sculpt) {
-    if (event->modifier & KM_ALT) {
-      stroke_mode_ = BRUSH_STROKE_MASK;
-    }
-    else if (event->modifier & KM_SHIFT) {
-      stroke_mode_ = BRUSH_STROKE_SMOOTH;
-    }
-    else if (event->modifier & KM_CTRL) {
-      stroke_mode_ = BRUSH_STROKE_INVERT;
-    }
-    else {
-      stroke_mode_ = BRUSH_STROKE_NORMAL;
     }
   }
 
