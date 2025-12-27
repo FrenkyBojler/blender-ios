@@ -5332,6 +5332,21 @@ def km_sculpt(params):
              ("relative_asset_identifier", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Mask"),
              ("use_toggle", True)
          ]}),
+         # Mask brush strokes
+        ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
+         {"properties": [
+            ("mode", 'MASK')
+         ]}),
+
+        ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True, "shift": True},
+         {"properties": [
+            ("mode", 'MASK')
+         ]}),
+
+        ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True, "ctrl": True},
+         {"properties": [
+            ("mode", 'MASK')
+         ]}),
         *_template_asset_shelf_popup("VIEW3D_AST_brush_sculpt", params.spacebar_action),
     ])
 
