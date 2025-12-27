@@ -145,6 +145,11 @@ void vert_random_access_ensure(Object &object)
     BM_mesh_elem_table_ensure(ss.bm, BM_VERT);
   }
 }
+/* Switch to mask brush during a stroke */
+void mask_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache);
+
+/* Restore brush back after mask stroke ends */
+void mask_brush_toggle_off(Paint *paint, StrokeCache *cache);
 }  // namespace blender::ed::sculpt_paint
 
 int SCULPT_vertex_count_get(const Object &object)
@@ -3957,7 +3962,7 @@ static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
   }
 }
 
-static void mask_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
+void mask_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
 {
   Main *bmain = CTX_data_main(C);
   Brush *cur_brush = BKE_paint_brush(paint);
@@ -3981,7 +3986,7 @@ static void mask_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *c
   BKE_curvemapping_init(mask_brush->curve_distance_falloff);
 }
 
-static void mask_brush_toggle_off(Paint *paint, StrokeCache *cache)
+void mask_brush_toggle_off(Paint *paint, StrokeCache *cache)
 {
   Brush &brush = *BKE_paint_brush(paint);
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {

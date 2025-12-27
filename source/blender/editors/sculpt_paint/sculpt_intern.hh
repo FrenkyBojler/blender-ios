@@ -122,6 +122,8 @@ enum class UpdateType {
   Image,
   FaceSet,
 };
+void mask_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache);
+void mask_brush_toggle_off(Paint *paint, StrokeCache *cache);
 
 }  // namespace blender::ed::sculpt_paint
 
