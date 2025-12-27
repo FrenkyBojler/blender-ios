@@ -1394,12 +1394,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 {
   /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
   this->evil_C = C;
-
-   /*Mask Toggle*/
-  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
-  StrokeCache *cache = ss.cache;
   // if (event->modifier & KM_ALT) {
   //     stroke_mode_ = BRUSH_STROKE_MASK;
   //     if (!cache->mask_switched) {
@@ -1422,6 +1416,29 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     this->stroke_done(C, op, true);
     return OPERATOR_CANCELLED;
   }
+  
+   /*Mask Toggle*/
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Object &ob = *CTX_data_active_object(C);
+  SculptSession &ss = *ob.sculpt;
+  StrokeCache *cache = ss.cache;
+  // Paint *paint = BKE_paint_get_active_from_context(C);
+
+  // ALT mask toggle (runs every event)
+  if (event->modifier & KM_ALT) {
+      stroke_mode_ = BRUSH_STROKE_MASK;
+      if (!cache->alt_mask) {
+        printf("[ALT] Stroke mode = MASK ON\n");
+        blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
+        cache->alt_mask = true;
+      }
+  } 
+  else if (cache->alt_mask) {
+    printf("[ALT] Stroke mode = MASK OFF\n");
+    blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
+    cache->alt_mask = false;
+  }
+  
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
   bool first_dab = false;
@@ -1525,24 +1542,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       /* StrokeTestStart often updates the currently active brush so we need to re-retrieve it
        * here. */
       br = BKE_paint_brush(paint);
-      // Inside the main modal loop, after stroke_started_ is initialized
-      if (event->modifier & KM_ALT) {
-          stroke_mode_ = BRUSH_STROKE_MASK;
-          if (!stroke_started_) {
-              // optional: nothing yet, wait for stroke to start
-          } else if (!ss.cache->alt_mask) {
-              // ALT pressed and mask not active yet
-              Paint *paint = BKE_paint_get_active_from_context(C);
-              blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, ss.cache);
-              ss.cache->alt_mask = true;
-          }
-      } else if (ss.cache->alt_mask) {
-          // ALT released, restore brush
-          Paint *paint = BKE_paint_get_active_from_context(C);
-          blender::ed::sculpt_paint::mask_brush_toggle_off(paint, ss.cache);
-          ss.cache->alt_mask = false;
-      }
-
       if (paint_supports_smooth_stroke(*br, mode, stroke_mode_)) {
 
         stroke_cursor_ = WM_paint_cursor_activate(
