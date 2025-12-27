@@ -1425,20 +1425,21 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   // Paint *paint = BKE_paint_get_active_from_context(C);
 
   // ALT mask toggle (runs every event)
-  if (event->modifier & KM_ALT) {
-      stroke_mode_ = BRUSH_STROKE_MASK;
-      if (!cache->alt_mask) {
-        printf("[ALT] Stroke mode = MASK ON\n");
-        blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
-        cache->alt_mask = true;
+  if (cache) {
+      if (event->modifier & KM_ALT) {
+          stroke_mode_ = BRUSH_STROKE_MASK;
+          if (!cache->alt_mask) {
+              printf("[ALT] Stroke mode = MASK ON\n");
+              blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
+              cache->alt_mask = true;
+          }
+      } else if (cache->alt_mask) {
+          printf("[ALT] Stroke mode = MASK OFF\n");
+          blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
+          cache->alt_mask = false;
       }
-  } 
-  else if (cache->alt_mask) {
-    printf("[ALT] Stroke mode = MASK OFF\n");
-    blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
-    cache->alt_mask = false;
   }
-  
+
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
   bool first_dab = false;
