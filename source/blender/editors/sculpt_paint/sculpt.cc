@@ -5908,6 +5908,25 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
 
   op->customdata = stroke;
 
+  PaintMode mode = BKE_paintmode_get_active_from_context(C);
+
+  /*For ALT-> Mask toggle*/
+  if (mode == PaintMode::Sculpt) {
+      int stroke_mode = BRUSH_STROKE_NORMAL;
+
+      if (event->modifier & KM_ALT) {
+          stroke_mode = BRUSH_STROKE_MASK;
+      }
+      else if (event->modifier & KM_SHIFT) {
+          stroke_mode = BRUSH_STROKE_SMOOTH;
+      }
+      else if (event->modifier & KM_CTRL) {
+          stroke_mode = BRUSH_STROKE_INVERT;
+      }
+
+      RNA_enum_set(op->ptr, "stroke_mode", stroke_mode);
+  }
+
   /* For tablet rotation. */
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
