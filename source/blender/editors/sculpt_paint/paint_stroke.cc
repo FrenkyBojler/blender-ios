@@ -1432,38 +1432,39 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   /* ALT mask toggle with Shift/Ctrl support */
   if (cache) {
       // ALT pressed
-      if (event->modifier & KM_ALT) {
-          // Activate mask brush if not already
-          if (!cache->alt_mask) {
-              cache->prev_brush = BKE_paint_brush(paint); // Store previous brush
-              blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
-              cache->alt_mask = true;
-              printf("[ALT] Mask mode ON\n");
-          }
+    if (event->modifier & KM_ALT) {
+      if (!cache->alt_mask) {
+          cache->prev_brush = BKE_paint_brush(paint);
+          blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
+          cache->alt_mask = true;
+          printf("[ALT] Mask mode ON\n");
+      }
 
-          // Determine stroke mode
-          if (event->modifier & KM_SHIFT) {
-              stroke_mode_ = BRUSH_STROKE_SMOOTH;
-          }
-          else if (event->modifier & KM_CTRL) {
-              stroke_mode_ = BRUSH_STROKE_INVERT;
-              cache->invert = true;
-          }
-          else {
-              stroke_mode_ = BRUSH_STROKE_MASK;
-              cache->invert = false;
-          }
-      }
-      // ALT released
-      else if (cache->alt_mask) {
-          blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
-          if (cache->prev_brush) {
-              paint->brush = cache->prev_brush; // restore previous brush
-          }
-          cache->alt_mask = false;
+      // Determine stroke mode with modifier priority
+      if (event->modifier & KM_SHIFT) {
+          stroke_mode_ = BRUSH_STROKE_SMOOTH;
           cache->invert = false;
-          printf("[ALT] Mask mode OFF\n");
       }
+      else if (event->modifier & KM_CTRL) {
+          stroke_mode_ = BRUSH_STROKE_INVERT;
+          cache->invert = true;
+      }
+      else {
+          stroke_mode_ = BRUSH_STROKE_MASK;
+          cache->invert = false;
+      }
+    }
+
+    // ALT released
+    else if (cache->alt_mask) {
+        blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
+        if (cache->prev_brush) {
+            paint->brush = cache->prev_brush; // restore previous brush
+        }
+        cache->alt_mask = false;
+        cache->invert = false;
+        printf("[ALT] Mask mode OFF\n");
+    }
   }
 
 
