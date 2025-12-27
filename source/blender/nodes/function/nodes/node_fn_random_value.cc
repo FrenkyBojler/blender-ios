@@ -41,8 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
             .min(0.0f)
             .max(1.0f)
             .default_value(0.5f)
-            .subtype(PROP_FACTOR)
-            .make_available([](bNode &node) { node_storage(node).data_type = CD_PROP_BOOL; });
+            .subtype(PROP_FACTOR);
         break;
       default:
         BLI_assert_unreachable();
@@ -92,7 +91,6 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  const NodeDeclaration &declaration = *params.node_type().static_declaration;
   const std::optional<eCustomDataType> type = node_type_from_other_socket(params.other_socket());
   if (!type) {
     return;
@@ -110,7 +108,11 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Max");
       });
     }
-    search_link_ops_for_declarations(params, declaration.inputs.as_span().take_back(3));
+    params.add_item(IFACE_("Probability"), [type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("FunctionNodeRandomValue");
+      node_storage(node).data_type = *type;
+      params.update_and_connect_available_socket(node, "Probability");
+    });
   }
   else {
     params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {

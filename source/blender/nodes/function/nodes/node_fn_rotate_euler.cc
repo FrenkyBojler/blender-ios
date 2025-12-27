@@ -25,19 +25,11 @@ static void node_declare(NodeDeclarationBuilder &b)
     const auto type = FunctionNodeRotateEulerType(node->custom1);
     switch (type) {
       case FN_NODE_ROTATE_EULER_TYPE_EULER:
-        b.add_input<decl::Vector>("Rotate By").subtype(PROP_EULER).make_available([](bNode &node) {
-          node.custom1 = FN_NODE_ROTATE_EULER_TYPE_EULER;
-        });
+        b.add_input<decl::Vector>("Rotate By").subtype(PROP_EULER);
         break;
       case FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE: {
-        const auto enable_axis_angle = [](bNode &node) {
-          node.custom1 = FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE;
-        };
-        b.add_input<decl::Vector>("Axis")
-            .default_value({0.0, 0.0, 1.0})
-            .subtype(PROP_XYZ)
-            .make_available(enable_axis_angle);
-        b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE).make_available(enable_axis_angle);
+        b.add_input<decl::Vector>("Axis").default_value({0.0, 0.0, 1.0}).subtype(PROP_XYZ);
+        b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE);
         break;
       }
       default:
@@ -52,6 +44,52 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "rotation_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout.prop(ptr, "space", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+}
+
+static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
+{
+  const auto other_type = eNodeSocketDatatype(params.other_socket().type);
+  const bool can_connect_to_vector = params.node_tree().typeinfo->validate_link(other_type,
+                                                                                SOCK_VECTOR);
+  if (can_connect_to_vector) {
+    params.add_item(IFACE_("Rotation (By Euler)"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_EULER);
+      params.update_and_connect_available_socket(node, "Rotation");
+    });
+    params.add_item(IFACE_("Rotation (By Axis Angle)"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
+      params.update_and_connect_available_socket(node, "Rotation");
+    });
+  }
+
+  if (params.in_out() == SOCK_OUT) {
+    return;
+  }
+
+  if (can_connect_to_vector) {
+    params.add_item(IFACE_("Rotate By"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_EULER);
+      params.update_and_connect_available_socket(node, "Rotate By");
+    });
+    params.add_item(IFACE_("Axis"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
+      params.update_and_connect_available_socket(node, "Axis");
+    });
+  }
+
+  const bool can_connect_to_float = params.node_tree().typeinfo->validate_link(other_type,
+                                                                               SOCK_FLOAT);
+  if (can_connect_to_float) {
+    params.add_item(IFACE_("Angle"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("FunctionNodeRotateEuler");
+      node.custom1 = int(FN_NODE_ROTATE_EULER_TYPE_AXIS_ANGLE);
+      params.update_and_connect_available_socket(node, "Angle");
+    });
+  }
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
@@ -139,6 +177,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.build_multi_function = node_build_multi_function;
+  ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.deprecation_notice = N_("Use the \"Rotate Rotation\" node instead");
   blender::bke::node_register_type(ntype);
 }
