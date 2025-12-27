@@ -109,7 +109,6 @@ using blender::Vector;
 static CLG_LogRef LOG = {"sculpt"};
 
 namespace blender::ed::sculpt_paint {
-
 /* TODO: This should be moved to either BKE_paint.hh or BKE_brush.hh */
 float object_space_radius_get(const ViewContext &vc,
                               const Paint &paint,
@@ -5878,6 +5877,24 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
 
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   Brush &brush = *BKE_paint_brush(&sd.paint);
+
+  Brush *saved_brush = nullptr;
+
+  /* Alt = temporary Mask brush */
+  if (event->modifier & KM_ALT) {
+    Main *bmain = CTX_data_main(C);
+
+    /* Save current brush */
+    saved_brush = BKE_paint_brush(&sd.paint);
+
+    /* Find default sculpt mask brush */
+    Brush *mask_brush = (Brush *)BKE_libblock_find_name(
+        bmain, ID_BR, "Mask");
+
+    if (mask_brush) {
+      BKE_paint_brush_set(&sd.paint, mask_brush);
+    }
+  }
 
   if (brush_type_is_paint(brush.sculpt_brush_type) &&
       !color_supported_check(scene, ob, op->reports))
