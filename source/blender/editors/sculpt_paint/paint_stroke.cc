@@ -1463,38 +1463,47 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   //         cache->alt_mask = false;
   //     }
   // }
-  /* ALT mask toggle */
+
+/* Mask Toggle */
   if (cache) {
-    const bool alt = (event->modifier & KM_ALT) != 0;
+    const bool alt = event->modifier & KM_ALT;
+    const bool shift = event->modifier & KM_SHIFT;
+    const bool ctrl = event->modifier & KM_CTRL;
 
     if (alt) {
-      /* Always force mask stroke while ALT is held */
-      stroke_mode_ = BRUSH_STROKE_MASK;
+      /* Decide stroke mode */
+      if (ctrl) {
+        stroke_mode_ = BRUSH_STROKE_INVERT;   // ALT + CTRL
+      }
+      else if (shift) {
+        stroke_mode_ = BRUSH_STROKE_SMOOTH;   // ALT + SHIFT
+      }
+      else {
+        stroke_mode_ = BRUSH_STROKE_MASK;     // ALT
+      }
 
       if (!cache->alt_mask) {
-        /* Store previous brush only once */
         cache->prev_brush = BKE_paint_brush(paint);
-
-        printf("[ALT] Mask ON\n");
         blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
-
         cache->alt_mask = true;
       }
+
+      /* IMPORTANT: sync invert state */
+      cache->invert = (stroke_mode_ == BRUSH_STROKE_INVERT);
     }
     else if (cache->alt_mask) {
-      /* ALT released → restore original brush */
-      printf("[ALT] Mask OFF\n");
-
+      /* ALT released → restore */
       blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
 
       if (cache->prev_brush) {
         paint->brush = cache->prev_brush;
-        cache->prev_brush = nullptr;
       }
 
       cache->alt_mask = false;
+      cache->invert = false;
     }
   }
+
 
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
