@@ -86,7 +86,6 @@ set(SRC
   intern/index_mask_expression.cc
   intern/index_range.cc
   intern/jitter_2d.cc
-  intern/kdtree_impl.hh
   intern/lasso_2d.cc
   intern/lazy_threading.cc
   intern/length_parameterize.cc
@@ -284,6 +283,7 @@ set(SRC
   BLI_linklist_lockfree.h
   BLI_linklist_stack.h
   BLI_listbase.h
+  BLI_listbase_iterator.hh
   BLI_listbase_wrapper.hh
   BLI_map.hh
   BLI_map_slots.hh

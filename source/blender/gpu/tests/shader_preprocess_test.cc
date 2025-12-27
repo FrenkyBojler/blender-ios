@@ -22,7 +22,6 @@ static std::string process_test_string(std::string str,
       str,
       "test.glsl",
       false,
-      true,
       [&](int /*err_line*/, int /*err_char*/, const std::string & /*line*/, const char *err_msg) {
         if (first_error.empty()) {
           first_error = err_msg;
@@ -127,6 +126,300 @@ static void test_preprocess_include()
 }
 GPU_TEST(preprocess_include);
 
+static void test_preprocess_union()
+{
+  using namespace shader;
+  using namespace std;
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  union {
+    union_t<uint4> a;
+    union_t<int4> b;
+    union_t<float4> c;
+  };
+};
+)";
+    string expect =
+        R"(
+#line 3
+
+#define T_union0_host_shared_ T_union0
+#line 3
+struct                 T_union0 {
+  float4 data0;
+
+};
+#line 2
+
+#define T_host_shared_ T
+#line 2
+struct                 T {
+         T_union0_host_shared_ union0;
+#line 38
+};
+#ifndef GPU_METAL
+uint4 _a(const T this_);
+void _a_set_(_ref(T ,this_), uint4 value);
+int4 _b(const T this_);
+void _b_set_(_ref(T ,this_), int4 value);
+float4 _c(const T this_);
+void _c_set_(_ref(T ,this_), float4 value);
+#endif
+#line 9
+uint4 _a(const T this_)       {
+  uint4 val;
+  val = floatBitsToUint(this_.union0.data0);
+  return val;
+}
+#line 15
+void _a_set_(_ref(T ,this_), uint4 value) {
+  this_.union0.data0 = uintBitsToFloat(value);
+}
+#line 19
+int4 _b(const T this_)       {
+  int4 val;
+  val = floatBitsToInt(this_.union0.data0);
+  return val;
+}
+#line 25
+void _b_set_(_ref(T ,this_), int4 value) {
+  this_.union0.data0 = intBitsToFloat(value);
+}
+#line 29
+float4 _c(const T this_)       {
+  float4 val;
+  val = this_.union0.data0;
+  return val;
+}
+#line 35
+void _c_set_(_ref(T ,this_), float4 value) {
+  this_.union0.data0 = value;
+}
+#line 39
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  float2 foo;
+  float2 bar;
+  union {
+    union_t<uint4> a;
+  };
+  union {
+    union_t<uint4> b;
+  };
+};
+)";
+    string expect =
+        R"(
+#line 5
+
+#define T_union0_host_shared_ T_union0
+#line 5
+struct                 T_union0 {
+  float4 data0;
+
+};
+#line 8
+
+#define T_union1_host_shared_ T_union1
+#line 8
+struct                 T_union1 {
+  float4 data0;
+
+};
+#line 2
+
+#define T_host_shared_ T
+#line 2
+struct                 T {
+  float2 foo;
+  float2 bar;
+         T_union0_host_shared_ union0;
+#line 8
+         T_union1_host_shared_ union1;
+#line 31
+};
+#ifndef GPU_METAL
+uint4 _a(const T this_);
+void _a_set_(_ref(T ,this_), uint4 value);
+uint4 _b(const T this_);
+void _b_set_(_ref(T ,this_), uint4 value);
+#endif
+#line 12
+uint4 _a(const T this_)       {
+  uint4 val;
+  val = floatBitsToUint(this_.union0.data0);
+  return val;
+}
+#line 18
+void _a_set_(_ref(T ,this_), uint4 value) {
+  this_.union0.data0 = uintBitsToFloat(value);
+}
+#line 22
+uint4 _b(const T this_)       {
+  uint4 val;
+  val = floatBitsToUint(this_.union1.data0);
+  return val;
+}
+#line 28
+void _b_set_(_ref(T ,this_), uint4 value) {
+  this_.union1.data0 = uintBitsToFloat(value);
+}
+#line 32
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] B {
+  packed_float3 a;
+  float b;
+};
+
+struct [[host_shared]] A {
+  struct B e;
+};
+
+struct [[host_shared]] T {
+  union {
+    union_t<A> a;
+  };
+};
+)";
+    string expect = R"(
+
+#define B_host_shared_ B
+#line 2
+struct                 B {
+  packed_float3 a;
+  float b;
+};
+#line 8
+#define A_host_shared_ A
+#line 7
+struct                 A {
+         B_host_shared_ e;
+};
+#line 12
+
+#define T_union0_host_shared_ T_union0
+#line 12
+struct                 T_union0 {
+  float4 data0;
+
+};
+#line 11
+
+#define T_host_shared_ T
+#line 11
+struct                 T {
+         T_union0_host_shared_ union0;
+#line 27
+};
+#ifndef GPU_METAL
+A _a(const T this_);
+void _a_set_(_ref(T ,this_), A value);
+#endif
+#line 16
+A _a(const T this_)       {
+  A val;
+  val.e.a = this_.union0.data0.xyz;
+  val.e.b = this_.union0.data0.w;
+  return val;
+}
+#line 23
+void _a_set_(_ref(T ,this_), A value) {
+  this_.union0.data0.xyz = value.e.a;
+  this_.union0.data0.w = value.e.b;
+}
+#line 28
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  union {
+    union_t<float4x4> a;
+  };
+};
+)";
+    string expect = R"(
+#line 3
+
+#define T_union0_host_shared_ T_union0
+#line 3
+struct                 T_union0 {
+  float4 data0;
+  float4 data1;
+  float4 data2;
+  float4 data3;
+
+};
+#line 2
+
+#define T_host_shared_ T
+#line 2
+struct                 T {
+         T_union0_host_shared_ union0;
+#line 22
+};
+#ifndef GPU_METAL
+float4x4 _a(const T this_);
+void _a_set_(_ref(T ,this_), float4x4 value);
+#endif
+#line 7
+float4x4 _a(const T this_)       {
+  float4x4 val;
+  val[0] = this_.union0.data0;
+  val[1] = this_.union0.data1;
+  val[2] = this_.union0.data2;
+  val[3] = this_.union0.data3;
+  return val;
+}
+#line 16
+void _a_set_(_ref(T ,this_), float4x4 value) {
+  this_.union0.data0 = value[0];
+  this_.union0.data1 = value[1];
+  this_.union0.data2 = value[2];
+  this_.union0.data3 = value[3];
+}
+#line 23
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct [[host_shared]] T {
+  union {
+    uint a;
+  };
+};
+)";
+    string error;
+    process_test_string(input, error);
+    EXPECT_EQ(error,
+              "All union members must have their type wrapped using the union_t<T> template.");
+  }
+}
+GPU_TEST(preprocess_union);
+
 static void test_preprocess_unroll()
 {
   using namespace shader;
@@ -134,14 +427,34 @@ static void test_preprocess_unroll()
 
   {
     string input = R"(
-[[gpu::unroll]] for (int i = 2; i < 4; i++) { content += i; })";
+[[unroll]] for (int i = 2; i < 4; i++) { content += i; })";
     string expect = R"(
 
 {
 #line 2
-                                            { content += 2; }
+                                       { content += 2; }
 #line 2
-                                            { content += 3; }
+                                       { content += 3; }
+#line 2
+                                                       })";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+[[unroll]] for (int i = 2; i < 4; i++, y++) { content += i; })";
+    string expect = R"(
+               {int i = 2;
+#line 2
+                                            { content += i; }
+#line 2
+                                  i++, y++;
+#line 2
+                                            { content += i; }
+#line 2
+                                  i++, y++;
 #line 2
                                                             })";
     string error;
@@ -151,19 +464,23 @@ static void test_preprocess_unroll()
   }
   {
     string input = R"(
-[[gpu::unroll]] for (int i = 2; i < 4; i++, y++) { content += i; })";
+[[unroll]] for (int i = 2; i < 4 && i < y; i++, y++) { cont += i; })";
     string expect = R"(
-                    {int i = 2;
+               {int i = 2;
 #line 2
-                                                 { content += i; }
+                        if(i < 4 && i < y)
 #line 2
-                                       i++, y++;
+                                                     { cont += i; }
 #line 2
-                                                 { content += i; }
+                                           i++, y++;
 #line 2
-                                       i++, y++;
+                        if(i < 4 && i < y)
 #line 2
-                                                                 })";
+                                                     { cont += i; }
+#line 2
+                                           i++, y++;
+#line 2
+                                                                  })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
@@ -171,44 +488,20 @@ static void test_preprocess_unroll()
   }
   {
     string input = R"(
-[[gpu::unroll]] for (int i = 2; i < 4 && i < y; i++, y++) { cont += i; })";
-    string expect = R"(
-                    {int i = 2;
-#line 2
-                             if(i < 4 && i < y)
-#line 2
-                                                          { cont += i; }
-#line 2
-                                                i++, y++;
-#line 2
-                             if(i < 4 && i < y)
-#line 2
-                                                          { cont += i; }
-#line 2
-                                                i++, y++;
-#line 2
-                                                                       })";
-    string error;
-    string output = process_test_string(input, error);
-    EXPECT_EQ(output, expect);
-    EXPECT_EQ(error, "");
-  }
-  {
-    string input = R"(
-[[gpu::unroll(2)]] for (; i < j;) { content += i; })";
+[[unroll(2)]] for (; i < j;) { content += i; })";
     string expect = R"(
 
 {
 #line 2
-                       if(i < j)
+                  if(i < j)
 #line 2
-                                  { content += i; }
+                             { content += i; }
 #line 2
-                       if(i < j)
+                  if(i < j)
 #line 2
-                                  { content += i; }
+                             { content += i; }
 #line 2
-                                                  })";
+                                             })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
@@ -216,102 +509,102 @@ static void test_preprocess_unroll()
   }
   {
     string input = R"(
-[[gpu::unroll(2)]] for (; i < j;) { [[gpu::unroll(2)]] for (; j < k;) {} })";
+[[unroll(2)]] for (; i < j;) { [[unroll(2)]] for (; j < k;) {} })";
     string expect = R"(
 
 {
 #line 2
-                       if(i < j)
+                  if(i < j)
 #line 2
-                                  {
+                             {
 {
 #line 2
-                                                           if(j < k)
+                                                 if(j < k)
 #line 2
-                                                                      {}
+                                                            {}
 #line 2
-                                                           if(j < k)
+                                                 if(j < k)
 #line 2
-                                                                      {}
+                                                            {}
 #line 2
-                                                                       } }
+                                                             } }
 #line 2
-                       if(i < j)
+                  if(i < j)
 #line 2
-                                  {
+                             {
 {
 #line 2
-                                                           if(j < k)
+                                                 if(j < k)
 #line 2
-                                                                      {}
+                                                            {}
 #line 2
-                                                           if(j < k)
+                                                 if(j < k)
 #line 2
-                                                                      {}
+                                                            {}
 #line 2
-                                                                       } }
+                                                             } }
 #line 2
-                                                                         })";
+                                                               })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
   {
-    string input = R"([[gpu::unroll(2)]] for (; i < j;) { break; })";
+    string input = R"([[unroll(2)]] for (; i < j;) { break; })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(error, "Unrolled loop cannot contain \"break\" statement.");
   }
   {
-    string input = R"([[gpu::unroll(2)]] for (; i < j;) { continue; })";
+    string input = R"([[unroll(2)]] for (; i < j;) { continue; })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(error, "Unrolled loop cannot contain \"continue\" statement.");
   }
   {
     string input = R"(
-[[gpu::unroll(2)]] for (; i < j;) { for (; j < k;) {break;continue;} })";
+[[unroll(2)]] for (; i < j;) { for (; j < k;) {break;continue;} })";
     string expect = R"(
 
 {
 #line 2
-                       if(i < j)
+                  if(i < j)
 #line 2
-                                  { for (; j < k;) {break;continue;} }
+                             { for (; j < k;) {break;continue;} }
 #line 2
-                       if(i < j)
+                  if(i < j)
 #line 2
-                                  { for (; j < k;) {break;continue;} }
+                             { for (; j < k;) {break;continue;} }
 #line 2
-                                                                     })";
+                                                                })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
   {
-    string input = R"([[gpu::unroll]] for (int i = 3; i > 2; i++) {})";
+    string input = R"([[unroll]] for (int i = 3; i > 2; i++) {})";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(error, "Unsupported condition in unrolled loop.");
   }
   {
     string input = R"(
-[[gpu::unroll_define(2)]] for (int i = 0; i < DEFINE; i++) { a = i; })";
+[[unroll_define(2)]] for (int i = 0; i < DEFINE; i++) { a = i; })";
     string expect = R"(
 
 {
 #if DEFINE > 0
 #line 2
-                                                           { a = 0; }
+                                                      { a = 0; }
 #endif
 #if DEFINE > 1
 #line 2
-                                                           { a = 1; }
+                                                      { a = 1; }
 #endif
 #line 2
-                                                                    })";
+                                                               })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
@@ -540,6 +833,42 @@ static void test_preprocess_reference()
   }
 }
 GPU_TEST(preprocess_reference);
+
+static void test_preprocess_cleanup()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+#line 2
+int b = 0;          
+            
+#if 0
+           
+int a = 1;
+#elif 1
+#line 321
+#line 321
+int a = 0;          
+#endif
+)";
+    string expect = R"(
+int b = 0;
+
+#if 0
+#elif 1
+#line 321
+int a = 0;
+#endif
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_cleanup);
 
 static void test_preprocess_default_arguments()
 {
@@ -771,14 +1100,14 @@ struct SRT {
 #line 16
 };
 #ifndef GPU_METAL
-void method(_ref(SRT ,this_), int t);
+void _method(_ref(SRT ,this_), int t);
 SRT SRT_new_();
 #endif
 #line 5
 
 #if defined(CREATE_INFO_SRT)
 #line 5
-  void method(_ref(SRT ,this_), int t) {
+  void _method(_ref(SRT ,this_), int t) {
     srt_access(SRT, a);
   }
 #endif
@@ -1217,14 +1546,14 @@ int _pad;};
 
 #ifndef GPU_METAL
 NS_S NS_S_static_method(NS_S s);
-NS_S other_method(_ref(NS_S ,this_), int s);
+NS_S _other_method(_ref(NS_S ,this_), int s);
 #endif
 #line 4
          NS_S NS_S_static_method(NS_S s) {
     return NS_S(0);
   }
-  NS_S other_method(_ref(NS_S ,this_), int s) {
-    some_method(this_);
+  NS_S _other_method(_ref(NS_S ,this_), int s) {
+    _some_method(this_);
     return NS_S(0);
   }
 #line 13
@@ -1265,9 +1594,60 @@ enum class enum_class : int {
 };
 )";
     string expect = R"(
-#define enum_class int
+#line 3
 constant static constexpr int enum_class_VALUE = 0;
-#line 5
+
+#define enum_class int
+#line 2
+
+
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+
+  {
+    string input = R"(
+enum E : int { A, B = 2, C, D = 1, E };
+)";
+    string expect = R"(
+constant static constexpr int A = 0;
+#line 2
+constant static constexpr int B = 2;
+#line 2
+constant static constexpr int C = B + 1;
+#line 2
+constant static constexpr int D = 1;
+#line 2
+constant static constexpr int E = D + 1;
+
+#define E int
+#line 2
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+enum class enum_class : int {
+  VALUE = 0,
+};
+)";
+    string expect = R"(
+#line 3
+constant static constexpr int enum_class_VALUE = 0;
+
+#define enum_class int
+#line 2
+
+
+
 )";
     string error;
     string output = process_test_string(input, error);
@@ -1553,8 +1933,8 @@ struct S {
 
 #ifndef GPU_METAL
 S S_construct();
-S function(_ref(S ,this_), int i);
-int size(const S this_);
+S _function(_ref(S ,this_), int i);
+int _size(const S this_);
 #endif
 #line 8
          S S_construct()
@@ -1566,14 +1946,14 @@ int size(const S this_);
   }
 
   #line 18
-  S function(_ref(S ,this_), int i)
+  S _function(_ref(S ,this_), int i)
   {
     this_.member = i;
     this_.this_member++;
     return this_;
   }
 
-  int size(const S this_)
+  int _size(const S this_)
   {
     return this_.member;
   }
@@ -1581,15 +1961,15 @@ int size(const S this_);
 void main()
 {
   S s = S_construct();
-  f(f);
-  f(f(0));
-  f(f());
-  t(l.o);
-  t(o(l, 0));
-  t(o(l));
-  o(l[0]);
-  t(l.o[0]);
-  o(l).t[0];
+  _f(f);
+  _f(f(0));
+  _f(f());
+  _t(l.o);
+  _t(_o(l, 0));
+  _t(_o(l));
+  _o(l[0]);
+  _t(l.o[0]);
+  _o(l).t[0];
 }
 )";
     string error;
@@ -1614,13 +1994,13 @@ struct A {
 #line 8
 };
 #ifndef GPU_METAL
-float fn1(_ref(A ,this_));
-float fn2(_ref(A ,this_));
+float _fn1(_ref(A ,this_));
+float _fn2(_ref(A ,this_));
 float A_fn3();
 #endif
 #line 5
-  float fn1(_ref(A ,this_)) { return this_.a; }
-  float fn2(_ref(A ,this_)) { int fn2; return fn1(this_); }
+  float _fn1(_ref(A ,this_)) { return this_.a; }
+  float _fn2(_ref(A ,this_)) { int fn2; return _fn1(this_); }
          float A_fn3() { int a; return a; }
 #line 9
 )";
@@ -1663,9 +2043,7 @@ class S {
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error,
-              "Method name matching swizzles and vector component "
-              "accessor are forbidden.");
+    EXPECT_EQ(error, "Method name matching swizzles accessor are forbidden.");
   }
 }
 GPU_TEST(preprocess_struct_methods);
@@ -2019,6 +2397,112 @@ GPU_SHADER_CREATE_END()
   }
 }
 GPU_TEST(preprocess_pipeline_description);
+
+static void test_preprocess_initializer_list()
+{
+  using namespace std;
+  using namespace shader::parser;
+
+  {
+    string input = R"(
+T fn1() { return T{1, 2}; }
+T fn2() { return T{1, 2, }; }
+T fn3() { return T{.a=1, .b=2}; }
+T fn4() { return T{.a=1, .b=2, }; }
+T fn5() { return {1, 2}; }
+T fn6() { return {1, 2, }; }
+T fn7() { return {.a=1, .b=2}; }
+T fn8() { return {.a=1, .b=2, }; }
+void fn() {
+  T t1=T{1, 2};
+  T t2=T{1, 2, };
+  T t3=T{.a=1, .b=2};
+  T t4=T{.a=1, .b=2, };
+  T t5={1, 2};
+  T t6={1, 2, };
+  T t7={.a=1, .b=2};
+  T t8={.a=1, .b=2, };
+  T t9=T{.a=1, .b=T{0, 2}.x};
+  T t10=T{1, T{0, 2}.x};
+}
+)";
+    string expect = R"(
+T fn1() { return _ctor(T) 1, 2 _rotc() ; }
+T fn2() { return _ctor(T) 1, 2   _rotc() ; }
+T fn3() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return T_tmp;}; }
+T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return T_tmp;}; }
+T fn5() { return _ctor(T) 1, 2 _rotc() ; }
+T fn6() { return _ctor(T) 1, 2   _rotc() ; }
+T fn7() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return _tmp;}; }
+T fn8() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return _tmp;}; }
+void fn() {
+  T t1=_ctor(T) 1, 2 _rotc() ;
+  T t2=_ctor(T) 1, 2   _rotc() ;
+  T t3;   t3.a=1;  t3.b=2;
+  T t4;   t4.a=1;  t4.b=2  ;
+  T t5=_ctor(T) 1, 2 _rotc() ;
+  T t6=_ctor(T) 1, 2   _rotc() ;
+  T t7;   t7.a=1;  t7.b=2;
+  T t8;   t8.a=1;  t8.b=2  ;
+  T t9;   t9.a=1;  t9.b=_ctor(T) 0, 2 _rotc() .x;
+  T t10=_ctor(T) 1, _ctor(T) 0, 2 _rotc() .x _rotc() ;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+void fn() {
+  T t9={1, T{.a=1, .b=2}.a};
+}
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Designated initializers are only supported in assignments");
+  }
+  {
+    string input = R"(
+void fn() {
+  T t10={1, float4{0}};
+}
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(
+        error,
+        "Aggregate is error prone for built-in vector and matrix types, use constructors instead");
+  }
+  {
+    string input = R"(
+void fn() {
+  T t11={.a=1, .b=T{.a=1, .b=2}.a};
+}
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Nested initializer lists are not supported");
+  }
+  {
+    string input = R"(
+void fn() {
+  T t12={.a=1, .b=float4{0}};
+}
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(
+        error,
+        "Aggregate is error prone for built-in vector and matrix types, use constructors instead");
+  }
+}
+GPU_TEST(preprocess_initializer_list);
 
 static void test_preprocess_parser()
 {
