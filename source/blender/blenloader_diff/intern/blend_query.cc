@@ -363,7 +363,7 @@ void BlendQuery::gather_raw_buffer_types__struct_member(const BlendId *id,
           else {
             mem_type.elem_size = sdna_.sdna->pointer_size;
           }
-          block_mem_types_.add(other_block, mem_type);
+          const_cast<BlendBlock *>(other_block)->type = mem_type;
         }
       }
       break;
@@ -398,7 +398,7 @@ void BlendQuery::gather_raw_buffer_types__attribute(const BlendId *id,
   if (!cpp_type) {
     return;
   }
-  block_mem_types_.add(array_block, MemType::from_cpp_type(*cpp_type));
+  const_cast<BlendBlock *>(array_block)->type = MemType::from_cpp_type(*cpp_type);
 }
 
 BlendValue BlendQuery::lookup(const BlendId *id,
@@ -476,12 +476,12 @@ BlendValue BlendQuery::lookup(const BlendValue &in, const LookupPathElem &path_e
           if (other_block->type) {
             return {in.id, *other_block->type, other_block->bhead.nr, other_block->data};
           }
-          if (const MemType *mem_type = this->lookup_block_type(*other_block)) {
-            if (other_block->bhead.len % mem_type->elem_size != 0) {
+          if (other_block->type) {
+            if (other_block->bhead.len % other_block->type->elem_size != 0) {
               return BlendValue::none();
             }
-            const int64_t elem_num = other_block->bhead.len / mem_type->elem_size;
-            return {in.id, *mem_type, elem_num, other_block->data};
+            const int64_t elem_num = other_block->bhead.len / other_block->type->elem_size;
+            return {in.id, *other_block->type, elem_num, other_block->data};
           }
         }
         if (in.type.pointer_level >= 2) {

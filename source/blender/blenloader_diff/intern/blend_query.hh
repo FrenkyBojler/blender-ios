@@ -116,7 +116,6 @@ class BlendQuery {
   Vector<BlendBlock> blocks_;
   Vector<BlendId> ids_;
   Map<uint64_t, const BlendId *> id_by_address_;
-  Map<const BlendBlock *, MemType> block_mem_types_;
 
  public:
   static std::unique_ptr<BlendQuery> from_file(StringRef path);
@@ -126,7 +125,6 @@ class BlendQuery {
   Span<BlendId> ids() const;
 
   const BlendId *lookup_id(const uint64_t address) const;
-  const MemType *lookup_block_type(const BlendBlock &block) const;
 
   BlendValue lookup(const BlendValue &in, const LookupPathElem &path_elem) const;
   BlendValue lookup(const BlendValue &in, const Span<LookupPathElem> &path) const;
@@ -166,11 +164,6 @@ inline const BlendId *BlendQuery::lookup_id(const uint64_t address) const
 inline const BlendBlock *BlendId::lookup_internal_block(const uint64_t address) const
 {
   return this->internal_block_by_address.lookup_default(address, nullptr);
-}
-
-inline const MemType *BlendQuery::lookup_block_type(const BlendBlock &block) const
-{
-  return block_mem_types_.lookup_ptr(&block);
 }
 
 }  // namespace blender::blend_query

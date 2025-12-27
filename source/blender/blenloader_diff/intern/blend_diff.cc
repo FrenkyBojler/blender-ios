@@ -520,19 +520,17 @@ class IdDiffer {
                        const BlendBlock &new_block,
                        const StringRef context)
   {
-    const MemType *old_mem_type = old_.blend.lookup_block_type(old_block);
-    const MemType *new_mem_type = new_.blend.lookup_block_type(new_block);
-    if (!old_mem_type || !new_mem_type) {
+    if (!old_block.type || !new_block.type) {
       return;
     }
-    const int pointer_level = old_mem_type->pointer_level;
-    if (pointer_level != new_mem_type->pointer_level) {
+    const int pointer_level = old_block.type->pointer_level;
+    if (pointer_level != new_block.type->pointer_level) {
       return;
     }
     if (pointer_level == 0) {
-      if (old_mem_type->sdna_base_type && new_mem_type->sdna_base_type) {
-        const Type &old_sdna_type = *old_mem_type->sdna_base_type;
-        const Type &new_sdna_type = *new_mem_type->sdna_base_type;
+      if (old_block.type->sdna_base_type && new_block.type->sdna_base_type) {
+        const Type &old_sdna_type = *old_block.type->sdna_base_type;
+        const Type &new_sdna_type = *new_block.type->sdna_base_type;
         if (old_sdna_type.name != new_sdna_type.name) {
           return;
         }
@@ -559,9 +557,9 @@ class IdDiffer {
                                   context);
         }
       }
-      if (old_mem_type->cpp_base_type && new_mem_type->cpp_base_type) {
-        const CPPType &old_cpp_type = *old_mem_type->cpp_base_type;
-        const CPPType &new_cpp_type = *new_mem_type->cpp_base_type;
+      if (old_block.type->cpp_base_type && new_block.type->cpp_base_type) {
+        const CPPType &old_cpp_type = *old_block.type->cpp_base_type;
+        const CPPType &new_cpp_type = *new_block.type->cpp_base_type;
         if (old_cpp_type != new_cpp_type) {
           return;
         }
@@ -1223,9 +1221,9 @@ class IdDiffer {
     const BlendBlock &block = *pointee.block;
     if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
       const Span<char> bytes{block.data, block.bhead.len};
-      if (const MemType *buffer_type = blend_data.blend.lookup_block_type(block)) {
-        if (buffer_type->sdna_base_type) {
-          if (buffer_type->pointer_level == 0 && buffer_type->sdna_base_type->name == "char" &&
+      if (block.type) {
+        if (block.type->sdna_base_type) {
+          if (block.type->pointer_level == 0 && block.type->sdna_base_type->name == "char" &&
               bytes.size() <= 128)
           {
             if (std::optional<std::string> str = try_convert_char_array_to_readable_string(bytes))
@@ -1233,13 +1231,13 @@ class IdDiffer {
               return fmt::format("\"{}\"", *str);
             }
           }
-          if (buffer_type->pointer_level == 1) {
+          if (block.type->pointer_level == 1) {
             return fmt::format(
-                "{}x {}", block.bhead.len / sizeof(void *), buffer_type->sdna_base_type->name);
+                "{}x {}", block.bhead.len / sizeof(void *), block.type->sdna_base_type->name);
           }
-          if (buffer_type->pointer_level == 2) {
+          if (block.type->pointer_level == 2) {
             return fmt::format(
-                "{}x {} *", block.bhead.len / sizeof(void *), buffer_type->sdna_base_type->name);
+                "{}x {} *", block.bhead.len / sizeof(void *), block.type->sdna_base_type->name);
           }
         }
       }
