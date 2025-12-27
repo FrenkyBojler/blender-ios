@@ -129,12 +129,22 @@ static IndexRange extend_curves_geometry(bke::CurvesGeometry &curves, const NSVG
     if (path->npts == 0) {
       continue;
     }
-    const bool closed = path->closed;
     BLI_assert(path->npts >= 1 && path->npts == int(path->npts / 3) * 3 + 1);
     /* nanosvg converts everything to bezier curves, points come in triplets. Round up to the
-     * next full integer, since there is one point without handles (3*n+1 points in total).
-     * Remove one point for cyclical curves. */
-    const int point_num = (path->npts + 2) / 3 - (closed ? 1 : 0);
+     * next full integer, since there is one point without handles (3*n+1 points in total). */
+    int point_num = (path->npts + 2) / 3;
+
+    /* 2D vectors in triplets: [control point, left handle, right handle]. */
+    const Span<float2> svg_path_data = Span<float>(path->pts, 2 * path->npts).cast<float2>();
+
+    /* Extra points can be at the end of the path, so loop through until they are gone. */
+    const float2 pos_first = svg_path_data.first();
+    float2 pos_last = svg_path_data[(point_num - 1) * 3];
+    while (math::almost_equal_relative(pos_first, pos_last, 1e-6f)) {
+      point_num--;
+      pos_last = svg_path_data[(point_num - 1) * 3];
+    }
+
     new_curve_offsets.append(point_num);
   }
   if (new_curve_offsets.is_empty()) {
