@@ -1395,6 +1395,33 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
   this->evil_C = C;
 
+   /*Mask Toggle*/
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Object &ob = *CTX_data_active_object(C);
+  SculptSession &ss = *ob.sculpt;
+  StrokeCache *cache = ss.cache;
+  if ((event->modifier & KM_ALT) && event->type == LEFTMOUSE) {
+      stroke_mode_ = BRUSH_STROKE_MASK;
+      printf("[ALT] Stroke mode = MASK\n");
+      if (!stroke_started_ && ss.cache) {
+          Paint *paint = BKE_paint_get_active_from_context(C);
+          blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, ss.cache); 
+      }
+    }
+    else if (event->modifier & KM_SHIFT) {
+        // stroke_mode_ = BRUSH_STROKE_SMOOTH;
+        blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, ss.cache); 
+        printf("[SHIFT] Stroke mode = SMOOTH\n");
+    }
+    else if (event->modifier & KM_CTRL) {
+        stroke_mode_ = BRUSH_STROKE_INVERT;
+        printf("[CTRL] Stroke mode = INVERT\n");
+    }
+    else {
+        stroke_mode_ = BRUSH_STROKE_NORMAL;
+    }
+  
+
   Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *br = this->brush = BKE_paint_brush(paint);
   if (paint == nullptr || br == nullptr) {
@@ -1413,34 +1440,30 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   {
     return OPERATOR_RUNNING_MODAL;
   }
-  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
-  StrokeCache *cache = ss.cache;
+ 
+  // if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+  //     if (event->modifier & KM_ALT) {
+  //         stroke_mode_ = BRUSH_STROKE_MASK;
+  //         printf("[ALT] Stroke mode = MASK\n");
 
-  // Keep this at the very start of modal()
-  if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      if (event->modifier & KM_ALT) {
-          stroke_mode_ = BRUSH_STROKE_MASK;
-          printf("[ALT] Stroke mode = MASK\n");
-
-          if (!stroke_started_ && ss.cache) {
-              // Paint *paint = BKE_paint_get_active_from_context(C);
-              blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, ss.cache); 
-          }
-      }
-      else if (event->modifier & KM_SHIFT) {
-          stroke_mode_ = BRUSH_STROKE_SMOOTH;
-          printf("[SHIFT] Stroke mode = SMOOTH\n");
-      }
-      else if (event->modifier & KM_CTRL) {
-          stroke_mode_ = BRUSH_STROKE_INVERT;
-          printf("[CTRL] Stroke mode = INVERT\n");
-      }
-      else {
-          stroke_mode_ = BRUSH_STROKE_NORMAL;
-      }
-  }
+  //         if (!stroke_started_ && ss.cache) {
+  //             // Paint *paint = BKE_paint_get_active_from_context(C);
+  //             blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, ss.cache); 
+  //         }
+  //     }
+  //     else if (event->modifier & KM_SHIFT) {
+  //         // stroke_mode_ = BRUSH_STROKE_SMOOTH;
+  //         blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, ss.cache); 
+  //         printf("[SHIFT] Stroke mode = SMOOTH\n");
+  //     }
+  //     else if (event->modifier & KM_CTRL) {
+  //         stroke_mode_ = BRUSH_STROKE_INVERT;
+  //         printf("[CTRL] Stroke mode = INVERT\n");
+  //     }
+  //     else {
+  //         stroke_mode_ = BRUSH_STROKE_NORMAL;
+  //     }
+  // }
 
   /* see if tablet affects event. Line, anchored and drag dot strokes do not support pressure */
   const float tablet_pressure = WM_event_tablet_data(event, &pen_flip_, nullptr);
