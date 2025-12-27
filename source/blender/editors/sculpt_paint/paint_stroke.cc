@@ -1409,8 +1409,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       }
     }
     else if (event->modifier & KM_SHIFT) {
-        // stroke_mode_ = BRUSH_STROKE_SMOOTH;
-        blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, ss.cache); 
+        stroke_mode_ = BRUSH_STROKE_SMOOTH;
         printf("[SHIFT] Stroke mode = SMOOTH\n");
     }
     else if (event->modifier & KM_CTRL) {
