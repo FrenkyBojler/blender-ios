@@ -954,24 +954,24 @@ void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
   if (print_pressure_status_enabled()) {
     ED_workspace_status_text(C, nullptr);
   }
-  // Object *ob = CTX_data_active_object(C);
-  // if (ob && ob->sculpt) {
-  //   SculptSession &ss = *ob->sculpt;
-  //   StrokeCache *cache = ss.cache;
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->sculpt) {
+    SculptSession &ss = *ob->sculpt;
+    StrokeCache *cache = ss.cache;
 
-  //   if (cache && cache->alt_mask) {
-  //     Paint *paint = BKE_paint_get_active_from_context(C);
+    if (cache && cache->alt_mask) {
+      Paint *paint = BKE_paint_get_active_from_context(C);
 
-  //     blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
+      blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
 
-  //     if (cache->prev_brush) {
-  //       paint->brush = cache->prev_brush;
-  //     }
+      if (cache->prev_brush) {
+        paint->brush = cache->prev_brush;
+      }
 
-  //     cache->alt_mask = false;
-  //     cache->prev_brush = nullptr;
-  //   }
-  // }
+      cache->alt_mask = false;
+      cache->prev_brush = nullptr;
+    }
+  }
 
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
 
