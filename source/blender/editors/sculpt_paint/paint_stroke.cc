@@ -1414,6 +1414,22 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_RUNNING_MODAL;
   }
 
+    /* Decide stroke mode BEFORE stroke starts (sculpt only). */
+  if (event->modifier & KM_ALT) {
+    stroke_mode_ = BRUSH_STROKE_MASK;
+    printf("[ALT] Stroke mode = MASK\n");
+  }
+  else if (event->modifier & KM_SHIFT) {
+    stroke_mode_ = BRUSH_STROKE_MASK;
+    printf("Smooth\n");
+  }
+  else if (event->modifier & KM_CTRL) {
+    stroke_mode_ = BRUSH_STROKE_INVERT;
+    printf("Invert\n");
+  }
+  else {
+    stroke_mode_ = BRUSH_STROKE_NORMAL;
+  }
   /* see if tablet affects event. Line, anchored and drag dot strokes do not support pressure */
   const float tablet_pressure = WM_event_tablet_data(event, &pen_flip_, nullptr);
   float pressure = ((br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0f :
@@ -1477,23 +1493,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       last_world_space_position_ = math::transform_point(this->vc.obact->object_to_world(),
                                                          last_world_space_position_);
     }
-      /* Decide stroke mode BEFORE stroke starts (sculpt only). */
-      if (event->modifier & KM_ALT) {
-        stroke_mode_ = BRUSH_STROKE_MASK;
-        printf("[ALT] Stroke mode = MASK\n");
-      }
-      else if (event->modifier & KM_SHIFT) {
-        stroke_mode_ = BRUSH_STROKE_MASK;
-        printf("Smooth\n");
-      }
-      else if (event->modifier & KM_CTRL) {
-        stroke_mode_ = BRUSH_STROKE_INVERT;
-        printf("Invert\n");
-      }
-      else {
-        stroke_mode_ = BRUSH_STROKE_NORMAL;
-      }
-
     stroke_started_ = this->test_start(op, sample_average.mouse);
 
     if (stroke_started_) {
