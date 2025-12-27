@@ -291,6 +291,29 @@ static const Map<StringRef, PrimitiveTypeInfo> &get_primitive_type_map()
   return map;
 }
 
+static void init_has_pointer_member_recursive(Struct &sdna_struct)
+{
+  for (const StructMember *sdna_member : sdna_struct.members) {
+    switch (sdna_member->category) {
+      case StructMember::Category::Struct: {
+        init_has_pointer_member_recursive(const_cast<Struct &>(*sdna_member->type->opt_struct));
+        if (sdna_member->type->opt_struct->has_pointer_member_recursive) {
+          sdna_struct.has_pointer_member_recursive = true;
+          return;
+        }
+        return;
+      }
+      case StructMember::Category::Primitive: {
+        continue;
+      }
+      case StructMember::Category::Pointer: {
+        sdna_struct.has_pointer_member_recursive = true;
+        return;
+      }
+    }
+  }
+}
+
 std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const int64_t buffer_size)
 {
   const std::optional<ParsedSdnaBuffer> parsed = parse_sdna_buffer(buffer, buffer_size);
@@ -394,6 +417,9 @@ std::unique_ptr<RichSDNA> RichSDNA::from_sdna_buffer(const void *buffer, const i
     if (offset != sdna_struct.type->size_in_bytes) {
       return nullptr;
     }
+  }
+  for (const Struct *sdna_struct : rich_sdna->structs) {
+    init_has_pointer_member_recursive(const_cast<Struct &>(*sdna_struct));
   }
 
   return rich_sdna;

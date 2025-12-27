@@ -73,6 +73,7 @@ class Struct {
  public:
   const Type *type;
   CustomIDVectorSet<const StructMember *, StructMemberIdentifierGetter> members;
+  bool has_pointer_member_recursive = false;
 
   std::optional<int64_t> offset_of(const StringRef name) const
   {

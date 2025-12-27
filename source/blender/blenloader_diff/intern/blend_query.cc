@@ -264,6 +264,9 @@ void BlendQuery::gather_raw_buffer_types()
         continue;
       }
       const Struct &sdna_struct = *block.type->sdna_base_type->opt_struct;
+      if (!sdna_struct.has_pointer_member_recursive) {
+        continue;
+      }
       for (const int64_t i : IndexRange(block.bhead.nr)) {
         this->gather_raw_buffer_types__struct(
             &id, sdna_struct, block.data + i * sdna_struct.type->size_in_bytes);
@@ -276,6 +279,9 @@ void BlendQuery::gather_raw_buffer_types__struct(const BlendId *id,
                                                  const Struct &sdna_struct,
                                                  const char *data)
 {
+  if (!sdna_struct.has_pointer_member_recursive) {
+    return;
+  }
   if (sdna_struct.type->name == "Attribute") {
     this->gather_raw_buffer_types__attribute(id, sdna_struct, data);
   }
