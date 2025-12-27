@@ -1477,30 +1477,92 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       last_world_space_position_ = math::transform_point(this->vc.obact->object_to_world(),
                                                          last_world_space_position_);
     }
-      /* Decide stroke mode BEFORE stroke starts (sculpt only). */
-    if (mode == PaintMode::Sculpt) {
-      if (event->modifier & KM_ALT) {
-        stroke_mode_ = BRUSH_STROKE_MASK;
-        printf("[ALT-MASK] Using MASK stroke mode\n");
-      }
-      else if (event->modifier & KM_SHIFT) {
-        stroke_mode_ = BRUSH_STROKE_MASK;
-        printf("[SHIFT] Using SMOOTH stroke mode\n");
-      }
-      else if (event->modifier & KM_CTRL) {
-        stroke_mode_ = BRUSH_STROKE_INVERT;
-        printf("[CTRL] Using INVERT stroke mode\n");
-      }
-      else {
-        stroke_mode_ = BRUSH_STROKE_NORMAL;
-      }
-    }
     stroke_started_ = this->test_start(op, sample_average.mouse);
 
     if (stroke_started_) {
       /* StrokeTestStart often updates the currently active brush so we need to re-retrieve it
        * here. */
       br = BKE_paint_brush(paint);
+
+      /* ALT -> temporary Mask brush handling  */
+      if (mode == PaintMode::Sculpt) {
+        Object *ob = CTX_data_active_object(C);
+        if (ob && ob->sculpt && ob->sculpt->cache) {
+          Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+          StrokeCache *cache = ob->sculpt->cache;
+          Brush *cur_brush = BKE_paint_brush(&sd.paint);
+
+          const bool want_mask = (event->modifier & KM_ALT);
+
+          if (want_mask && !cache->alt_mask) {
+            /* Turn ON mask mode for this stroke. Save the previous brush state. */
+            cache->alt_mask = true;
+
+            /* If the current brush *is* already a Mask brush, preserve its tool state. */
+            if (cur_brush && cur_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+              cache->saved_mask_brush_tool = cur_brush->mask_tool;
+            }
+            else {
+              /* Switch to Mask brush by name, preserving size and active brush. */
+              Main *bmain = CTX_data_main(C);
+
+              /* Save current active brush so we can restore later. */
+              cache->saved_active_brush = cur_brush;
+
+              /* Try to set essentials to the "Mask" brush (same as mask_brush_toggle_on). */
+              BKE_paint_brush_set_essentials(bmain, &sd.paint, "Mask");
+              Brush *mask_brush = BKE_paint_brush(&sd.paint);
+
+              if (mask_brush) {
+                /* Preserve sizing: set mask brush size to previous brush size, and remember mask's size. */
+                int cur_brush_size = BKE_brush_size_get(&sd.paint, cur_brush);
+                cache->saved_smooth_size = (mask_brush) ? BKE_brush_size_get(&sd.paint, mask_brush) : 0;
+                BKE_brush_size_set(&sd.paint, mask_brush, cur_brush_size);
+
+                /* Initialize any mask-specific falloff mapping the same way Aimee's code did. */
+                BKE_curvemapping_init(mask_brush->curve_distance_falloff);
+
+                printf("[ALT-MASK] switched to Mask brush for stroke\n");
+              }
+              else {
+                /* If we failed to find a Mask brush, restore the previously active brush
+                  and mark we didn't switch. */
+                if (cache->saved_active_brush) {
+                  BKE_paint_brush_set(&sd.paint, cache->saved_active_brush);
+                }
+                cache->saved_active_brush = nullptr;
+                cache->alt_mask = false;
+              }
+            }
+
+            /* Refresh local brush pointer to use the just-switched mask brush for following code. */
+            br = BKE_paint_brush(paint);
+          }
+          else if (!want_mask && cache->alt_mask) {
+            /* Turn OFF mask mode — restore the saved brush/tool state. */
+            cache->alt_mask = false;
+
+            Brush *active_brush = BKE_paint_brush(&sd.paint);
+            /* If the mask brush had a saved tool setting, restore it. */
+            if (active_brush && active_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+              active_brush->mask_tool = cache->saved_mask_brush_tool;
+            }
+
+            /* If we saved an active brush before toggling, restore it and size. */
+            if (cache->saved_active_brush) {
+              Brush &active = *BKE_paint_brush(&sd.paint);
+              BKE_brush_size_set(&sd.paint, &active, cache->saved_smooth_size);
+              BKE_paint_brush_set(&sd.paint, cache->saved_active_brush);
+              cache->saved_active_brush = nullptr;
+              printf("[ALT-MASK] restored previous brush for stroke\n");
+            }
+
+            /* Refresh local brush pointer after restoring. */
+            br = BKE_paint_brush(paint);
+          }
+          /* else: no state change (either not pressed or already in correct state) */
+        }
+      }
 
       if (paint_supports_smooth_stroke(*br, mode, stroke_mode_)) {
 
