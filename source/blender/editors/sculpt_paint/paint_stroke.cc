@@ -1537,6 +1537,22 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     }
   }
 
+  /* Handles modifier-based stroke mode toggling for sculpt. */
+  if (mode == PaintMode::Sculpt) {
+    if (event->modifier & KM_ALT) {
+      stroke_mode_ = BRUSH_STROKE_MASK;
+    }
+    else if (event->modifier & KM_SHIFT) {
+      stroke_mode_ = BRUSH_STROKE_SMOOTH;
+    }
+    else if (event->modifier & KM_CTRL) {
+      stroke_mode_ = BRUSH_STROKE_INVERT;
+    }
+    else {
+      stroke_mode_ = BRUSH_STROKE_NORMAL;
+    }
+  }
+
   float2 mouse;
   if (event->type == event_type_ && !first_modal) {
     if (event->val == KM_RELEASE) {
