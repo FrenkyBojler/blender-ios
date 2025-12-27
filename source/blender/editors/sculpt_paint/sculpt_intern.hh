@@ -399,15 +399,22 @@ struct StrokeCache {
   bool alt_smooth = false;
 
     /**
-   * Whether the modifier key that controls masking is active currently.
-   * Switches the active brush to the mask brush during the stroke.
+   * Temporary state for modifier-based mask interaction.
    *
-   * \see BrushStrokeMode::BRUSH_STROKE_MASK.
+   * When ALT is held during a sculpt stroke, the active brush is temporarily
+   * replaced with the mask brush. The original brush is restored on ALT release.
+   *
+   * Modifier combinations:
+   * - ALT           : Mask Draw
+   * - ALT + CTRL    : Mask Invert
+   * - ALT + SHIFT   : Mask Smooth
+   *
+   * Note: Mask smoothing is controlled via BrushMaskTool, not BrushStrokeMode.
    */
   bool alt_mask = false;
-  /*Stores the previous brush being used while atl-> mask toggle*/
+  /** Brush active before ALT-based mask toggle. */
   Brush *prev_brush = nullptr;
-  
+
   float plane_trim_squared = 0.0f;
 
   bool supports_gravity = false;

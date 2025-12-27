@@ -5332,29 +5332,12 @@ def km_sculpt(params):
              ("relative_asset_identifier", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Mask"),
              ("use_toggle", True)
          ]}),
-        #  ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
-        #  {"properties": [
-        #     ("mode", 'MASK')
-        #  ]}),
-
-        # ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True, "shift": True},
-        #  {"properties": [
-        #     ("mode", 'MASK')
-        #  ]}),
-
-        # ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True, "ctrl": True},
-        #  {"properties": [
-        #     ("mode", 'MASK')
-        #  ]}),
         # Mask toggle (Alt+LMB)
         ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True}, None),
-
         # Smooth mask (Alt+Shift+LMB)
         ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True, "shift": True}, None),
-
         # Invert mask (Alt+Ctrl+LMB)
         ("sculpt.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True, "ctrl": True}, None),
-
         *_template_asset_shelf_popup("VIEW3D_AST_brush_sculpt", params.spacebar_action),
     ])
 

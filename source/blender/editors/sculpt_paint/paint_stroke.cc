@@ -954,6 +954,9 @@ void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
   if (print_pressure_status_enabled()) {
     ED_workspace_status_text(C, nullptr);
   }
+  /* Ensure temporary mask brush is always restored when a stroke ends.
+  * This handles cases where ALT is still held or the stroke is cancelled.
+  */
   Object *ob = CTX_data_active_object(C);
   if (ob && ob->sculpt) {
     SculptSession &ss = *ob->sculpt;
@@ -1423,49 +1426,23 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_CANCELLED;
   }
   
-   /*Mask Toggle*/
+  /* Modifier-based mask handling.
+  *
+  * This logic relies on operator stroke modes and mask tools instead of
+  * hardcoded behavior. The mask brush is enabled once on ALT press and
+  * restored on ALT release.
+  *
+  * IMPORTANT:
+  * - Mask Draw / Invert use stroke modes.
+  * - Mask Smooth uses BrushMaskTool (BRUSH_MASK_SMOOTH),
+  *   not BRUSH_STROKE_SMOOTH.
+  *
+  * This avoids enum misuse, invalid RNA states, and crashes.
+  */
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
   StrokeCache *cache = ss.cache;
-  // Paint *paint = BKE_paint_get_active_from_context(C);
-  /* ALT mask toggle with Shift/Ctrl support */
-  // if (cache) {
-  //     // ALT pressed
-  //   if (event->modifier & KM_ALT) {
-  //     if (!cache->alt_mask) {
-  //         cache->prev_brush = BKE_paint_brush(paint);
-  //         blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
-  //         cache->alt_mask = true;
-  //         printf("[ALT] Mask mode ON\n");
-  //     }
-
-  //     // Determine stroke mode with modifier priority
-  //     if (event->modifier & KM_SHIFT) {
-  //         stroke_mode_ = BRUSH_STROKE_SMOOTH;
-  //         cache->invert = false;
-  //     }
-  //     else if (event->modifier & KM_CTRL) {
-  //         stroke_mode_ = BRUSH_STROKE_INVERT;
-  //         cache->invert = true;
-  //     }
-  //     else {
-  //         stroke_mode_ = BRUSH_STROKE_MASK;
-  //         cache->invert = false;
-  //     }
-  //   }
-
-  //   // ALT released
-  //   else if (cache->alt_mask) {
-  //       blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
-  //       if (cache->prev_brush) {
-  //           paint->brush = cache->prev_brush; // restore previous brush
-  //       }
-  //       cache->alt_mask = false;
-  //       cache->invert = false;
-  //       printf("[ALT] Mask mode OFF\n");
-  //   }
-  // }
   if (cache) {
     if (event->modifier & KM_ALT) {
 
@@ -1507,27 +1484,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       cache->invert = false;
     }
   }
-
- /* ALT mask toggle (runs every event)*/
-  // if (cache) {
-  //     if (event->modifier & KM_ALT) {
-  //         stroke_mode_ = BRUSH_STROKE_MASK;
-  //         if (!cache->alt_mask) {
-  //           cache->prev_brush = BKE_paint_brush(paint); // Stores the previous brush
-  //           printf("[ALT] Stroke mode = MASK ON\n");
-  //           blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
-  //           cache->alt_mask = true;
-  //         }
-  //     } 
-  //     else if (cache->alt_mask) {
-  //         printf("[ALT] Stroke mode = MASK OFF\n");
-  //         blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
-  //         if (cache->prev_brush) {
-  //           paint->brush = cache->prev_brush;  // restore
-  //         }
-  //         cache->alt_mask = false;
-  //     }
-  // }
 
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
