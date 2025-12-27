@@ -972,7 +972,7 @@ void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
       cache->prev_brush = nullptr;
     }
   }
-  
+
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
 
   /* reset rotation here to avoid doing so in cursor display */
@@ -1457,9 +1457,9 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       else if (cache->alt_mask) {
           printf("[ALT] Stroke mode = MASK OFF\n");
           blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
-          // if (cache->prev_brush) {
-          //   paint->brush = cache->prev_brush;  // restore
-          // }
+          if (cache->prev_brush) {
+            paint->brush = cache->prev_brush;  // restore
+          }
           cache->alt_mask = false;
       }
   }
