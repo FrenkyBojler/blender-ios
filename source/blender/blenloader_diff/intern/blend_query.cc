@@ -260,10 +260,14 @@ void BlendQuery::gather_raw_buffer_types()
       if (!block.type->sdna_base_type) {
         continue;
       }
-      if (!block.type->sdna_base_type->opt_struct) {
+      const MemType &mem_type = *block.type;
+      if (mem_type.pointer_level != 0) {
         continue;
       }
-      const Struct &sdna_struct = *block.type->sdna_base_type->opt_struct;
+      if (!mem_type.sdna_base_type->opt_struct) {
+        continue;
+      }
+      const Struct &sdna_struct = *mem_type.sdna_base_type->opt_struct;
       if (!sdna_struct.has_pointer_member_recursive) {
         continue;
       }
@@ -479,9 +483,6 @@ BlendValue BlendQuery::lookup(const BlendValue &in, const LookupPathElem &path_e
     if (in.id) {
       if (const BlendBlock *other_block = in.id->lookup_internal_block(address)) {
         if (in.type.pointer_level == 1) {
-          if (other_block->type) {
-            return {in.id, *other_block->type, other_block->bhead.nr, other_block->data};
-          }
           if (other_block->type) {
             if (other_block->bhead.len % other_block->type->elem_size != 0) {
               return BlendValue::none();
