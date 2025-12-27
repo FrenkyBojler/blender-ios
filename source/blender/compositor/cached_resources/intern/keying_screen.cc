@@ -16,15 +16,14 @@
 
 #include "IMB_imbuf.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
 #include "GPU_shader.hh"
 #include "GPU_storage_buffer.hh"
 
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "COM_context.hh"
 #include "COM_keying_screen.hh"
@@ -117,7 +116,7 @@ static void compute_marker_points(MovieClip *movie_clip,
 /* Get a MovieClipUser with an initialized clip frame number. */
 static MovieClipUser get_movie_clip_user(Context &context, MovieClip *movie_clip)
 {
-  MovieClipUser movie_clip_user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser movie_clip_user = {};
   const int scene_frame = context.get_frame_number();
   const int clip_frame = BKE_movieclip_remap_scene_to_clip_frame(movie_clip, scene_frame);
   BKE_movieclip_user_set_frame(&movie_clip_user, clip_frame);

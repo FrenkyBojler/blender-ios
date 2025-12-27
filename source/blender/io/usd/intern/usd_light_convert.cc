@@ -41,7 +41,6 @@
 #include "DNA_world_types.h"
 
 #include <cmath>
-#include <cstdint>
 #include <string>
 
 #include "CLG_log.h"
@@ -120,7 +119,7 @@ static Image *load_image(std::string tex_path, Main *bmain, const USDImportParam
 /* Create a new node of type 'new_node_type' and connect it
  * as an upstream source to 'dst_node' with the given sockets. */
 static bNode *append_node(bNode *dst_node,
-                          int16_t new_node_type,
+                          int new_node_type,
                           const StringRef out_sock,
                           const StringRef in_sock,
                           bNodeTree *ntree,
@@ -432,6 +431,11 @@ static bool node_search(bNode *fromnode, bNode * /*tonode*/, void *userdata, boo
     NodeTexImage *tex = static_cast<NodeTexImage *>(fromnode->storage);
     res.image = reinterpret_cast<Image *>(fromnode->id);
     res.iuser = &tex->iuser;
+
+    /* Always adjust for rotational differences between Blender and USD. */
+    res.transform =
+        pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
+        pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0));
   }
   else if (!res.image && !res.mult_found && fromnode->type_legacy == SH_NODE_VECTOR_MATH) {
     if (fromnode->custom1 == NODE_VECTOR_MATH_MULTIPLY) {
@@ -453,10 +457,9 @@ static bool node_search(bNode *fromnode, bNode * /*tonode*/, void *userdata, boo
           socket->default_value);
       /* Convert radians to degrees. */
       pxr::GfVec3f rot(rot_value->value);
-      mul_v3_fl(rot.data(), 180.0f / M_PI);
-      res.transform =
-          pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
-          pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0)) *
+      rot *= 180.0f / M_PI;
+
+      res.transform *=
           pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -rot[2])) *
           pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 1.0, 0.0), -rot[1])) *
           pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -rot[0]));

@@ -33,6 +33,7 @@ class AssetRepresentation;
 
 namespace blender::ui {
 struct Layout;
+struct Block;
 }  // namespace blender::ui
 
 struct ARegion;
@@ -58,7 +59,6 @@ struct View3DShading;
 struct WorkSpace;
 struct bContext;
 struct bScreen;
-struct uiBlock;
 struct uiList;
 struct wmDrawBuffer;
 struct wmGizmoMap;
@@ -68,6 +68,12 @@ struct wmNotifier;
 struct wmTimer;
 struct wmWindow;
 struct wmWindowManager;
+struct RegionDrawCB;
+struct PanelType;
+struct HeaderType;
+struct ARegionType;
+struct wmEventHandler;
+struct PanelCategoryDyn;
 
 /* spacetype has everything stored to get an editor working, it gets initialized via
  * #ED_spacetypes_init() in `editors/space_api/spacetypes.cc` */
@@ -162,7 +168,7 @@ struct SpaceType {
   void (*blend_write)(BlendWriter *writer, SpaceLink *space_link);
 
   /** Region type definitions. */
-  ListBase regiontypes;
+  ListBaseT<ARegionType> regiontypes;
 
   /* read and write... */
 
@@ -201,6 +207,21 @@ struct RegionPollParams {
   /** Full context, if WM context above is not enough. */
   const bContext *context;
 };
+
+enum class ARegionTypeFlag {
+  /**
+   * Use panel categories, where #PanelType.category and #ARegion.panels_category_active define
+   * which panels are visible. Available categories are collected during layout and cached in
+   * #ARegion.panels_category_active.
+   */
+  UsePanelCategories = (1 << 0),
+  /**
+   * Same as #UsePanelCategories, plus panel drawing will draw tabs for the categories in this
+   * region.
+   */
+  UsePanelCategoryTabs = (1 << 1),
+};
+ENUM_OPERATORS(ARegionTypeFlag)
 
 /* #ARegionType::lock */
 enum ARegionDrawLockFlags {
@@ -283,14 +304,16 @@ struct ARegionType {
    */
   void (*on_view2d_changed)(const bContext *C, ARegion *region);
 
+  ARegionTypeFlag flag;
+
   /** Custom drawing callbacks. */
-  ListBase drawcalls;
+  ListBaseT<RegionDrawCB> drawcalls;
 
   /** Panels type definitions. */
-  ListBase paneltypes;
+  ListBaseT<PanelType> paneltypes;
 
   /** Header type definitions. */
-  ListBase headertypes;
+  ListBaseT<HeaderType> headertypes;
 
   /** Hardcoded constraints, smaller than these values region is not visible. */
   int minsizex, minsizey;
@@ -304,7 +327,7 @@ struct ARegionType {
    * Set as bitflag value in #ARegionDrawLockFlags.
    */
   short do_lock, lock;
-  /** Don't handle gizmos events behind #uiBlock's with #UI_BLOCK_CLIP_EVENTS flag set. */
+  /** Don't handle gizmos events behind #ui::Block's with #BLOCK_CLIP_EVENTS flag set. */
   bool clip_gizmo_events_by_ui;
   /** Call cursor function on each move event. */
   short event_cursor;
@@ -381,7 +404,7 @@ struct PanelType {
 
   /** Sub panels. */
   PanelType *parent;
-  ListBase children;
+  ListBaseT<LinkData> children;
 
   /** RNA integration. */
   ExtensionRNA rna_ext;
@@ -445,10 +468,10 @@ struct Panel_Runtime {
   PointerRNA *custom_data_ptr = nullptr;
 
   /**
-   * Pointer to the panel's block. Useful when changes to panel #uiBlocks
+   * Pointer to the panel's block. Useful when changes to panel #ui::Blocks
    * need some context from traversal of the panel "tree".
    */
-  uiBlock *block = nullptr;
+  blender::ui::Block *block = nullptr;
 
   /** Non-owning pointer. The context is stored in the block. */
   bContextStore *context = nullptr;
@@ -484,13 +507,11 @@ struct ARegionRuntime {
   /** Panel category to use between 'layout' and 'draw'. */
   const char *category = nullptr;
 
-  /** Maps #uiBlock::name to uiBlock for faster lookups. */
-  Map<std::string, uiBlock *> block_name_map;
-  /** #uiBlock. */
-  ListBase uiblocks = {};
+  /** Maps #ui::Block::name to ui::Block for faster lookups. */
+  Map<std::string, blender::ui::Block *> block_name_map;
+  ListBaseT<ui::Block> uiblocks = {};
 
-  /** #wmEventHandler. */
-  ListBase handlers = {};
+  ListBaseT<wmEventHandler> handlers = {};
 
   /** Use this string to draw info. */
   char *headerstr = nullptr;
@@ -504,7 +525,7 @@ struct ARegionRuntime {
   wmDrawBuffer *draw_buffer = nullptr;
 
   /** Panel categories runtime. */
-  ListBase panels_category = {};
+  ListBaseT<PanelCategoryDyn> panels_category = {};
 
   /** Region is currently visible on screen. */
   short visible = 0;
@@ -526,7 +547,7 @@ struct ARegionRuntime {
 /** Draw an item in the `ui_list`. */
 using uiListDrawItemFunc = void (*)(uiList *ui_list,
                                     const bContext *C,
-                                    blender::ui::Layout *layout,
+                                    blender::ui::Layout &layout,
                                     PointerRNA *dataptr,
                                     PointerRNA *itemptr,
                                     int icon,
@@ -538,7 +559,7 @@ using uiListDrawItemFunc = void (*)(uiList *ui_list,
 /** Draw the filtering part of an uiList. */
 using uiListDrawFilterFunc = void (*)(uiList *ui_list,
                                       const bContext *C,
-                                      blender::ui::Layout *layout);
+                                      blender::ui::Layout &layout);
 
 /** Filter items of an uiList. */
 using uiListFilterItemsFunc = void (*)(uiList *ui_list,
@@ -699,7 +720,7 @@ struct AssetShelfType {
   void (*draw_context_menu)(const bContext *C,
                             const AssetShelfType *shelf_type,
                             const blender::asset_system::AssetRepresentation *asset,
-                            blender::ui::Layout *layout);
+                            blender::ui::Layout &layout);
 
   const AssetWeakReference *(*get_active_asset)(const AssetShelfType *shelf_type);
 
@@ -716,6 +737,9 @@ void BKE_spacetype_register(std::unique_ptr<SpaceType> st);
 bool BKE_spacetype_exists(int spaceid);
 /** Only for quitting blender. */
 void BKE_spacetypes_free();
+
+bool BKE_regiontype_uses_categories(const ARegionType *region_type);
+bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type);
 
 /* Space-data. */
 
@@ -791,6 +815,9 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
  * inputs
  */
 ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const int region_type);
+
+void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src);
+
 /**
  * Find a region of type \a region_type in the currently active space of \a area.
  *
@@ -821,6 +848,10 @@ ARegion *BKE_screen_find_main_region_at_xy(const bScreen *screen, int space_type
  */
 ScrArea *BKE_screen_find_area_from_space(const bScreen *screen,
                                          const SpaceLink *sl) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(1, 2);
+ARegion *BKE_screen_find_region_in_space(const bScreen *screen,
+                                         const SpaceLink *sl,
+                                         int region_type) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1, 2);
 /**
  * \note used to get proper RNA paths for spaces (editors).
@@ -870,6 +901,11 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
  */
 void BKE_screen_free_data(bScreen *screen);
 void BKE_screen_area_map_free(ScrAreaMap *area_map) ATTR_NONNULL();
+
+/**
+ * bScreen copying. Assumes that #screen_dst is cleared and can be fully overwritten.
+ */
+void BKE_screen_copy_data(bScreen *screen_dst, const bScreen *screen_src);
 
 ScrEdge *BKE_screen_find_edge(const bScreen *screen, ScrVert *v1, ScrVert *v2);
 void BKE_screen_sort_scrvert(ScrVert **v1, ScrVert **v2);

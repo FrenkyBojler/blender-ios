@@ -15,7 +15,7 @@
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 
 #include "BLT_translation.hh"
 
@@ -1035,7 +1035,7 @@ static SlideSplineCurvatureData *slide_spline_curvature_customdata(bContext *C,
     return nullptr;
   }
 
-  slide_data = MEM_callocN<SlideSplineCurvatureData>("slide curvature slide");
+  slide_data = MEM_new_for_free<SlideSplineCurvatureData>("slide curvature slide");
   slide_data->event_invoke_type = event->type;
   slide_data->mask = mask;
   slide_data->mask_layer = mask_layer;
@@ -1396,7 +1396,7 @@ static void delete_feather_points(MaskSplinePoint *point)
     MaskSplinePointUW *new_uw;
     int j = 0;
 
-    new_uw = MEM_calloc_arrayN<MaskSplinePointUW>(count, "new mask uw points");
+    new_uw = MEM_new_array_for_free<MaskSplinePointUW>(count, "new mask uw points");
 
     for (int i = 0; i < point->tot_uw; i++) {
       if ((point->uw[i].flag & SELECT) == 0) {
@@ -1435,7 +1435,7 @@ static wmOperatorStatus delete_exec(bContext *C, wmOperator * /*op*/)
       for (int i = 0; i < spline->tot_point; i++) {
         MaskSplinePoint *point = &spline->points[i];
 
-        if (!MASKPOINT_ISSEL_ANY(point)) {
+        if (!BKE_mask_point_selected(point)) {
           count++;
         }
       }
@@ -1461,12 +1461,12 @@ static wmOperatorStatus delete_exec(bContext *C, wmOperator * /*op*/)
       else {
         MaskSplinePoint *new_points;
 
-        new_points = MEM_calloc_arrayN<MaskSplinePoint>(count, "deleteMaskPoints");
+        new_points = MEM_new_array_for_free<MaskSplinePoint>(count, "deleteMaskPoints");
 
         for (int i = 0, j = 0; i < tot_point_orig; i++) {
           MaskSplinePoint *point = &spline->points[i];
 
-          if (!MASKPOINT_ISSEL_ANY(point)) {
+          if (!BKE_mask_point_selected(point)) {
             if (point == mask_layer->act_point) {
               mask_layer->act_point = &new_points[j];
             }
@@ -1627,7 +1627,7 @@ static wmOperatorStatus mask_normals_make_consistent_exec(bContext *C, wmOperato
       for (int i = 0; i < spline->tot_point; i++) {
         MaskSplinePoint *point = &spline->points[i];
 
-        if (MASKPOINT_ISSEL_ANY(point)) {
+        if (BKE_mask_point_selected(point)) {
           BKE_mask_calc_handle_point_auto(spline, point, false);
           changed = true;
           changed_layer = true;
@@ -1687,7 +1687,7 @@ static wmOperatorStatus set_handle_type_exec(bContext *C, wmOperator *op)
       for (int i = 0; i < spline->tot_point; i++) {
         MaskSplinePoint *point = &spline->points[i];
 
-        if (MASKPOINT_ISSEL_ANY(point)) {
+        if (BKE_mask_point_selected(point)) {
           BezTriple *bezt = &point->bezt;
 
           if (bezt->f2 & SELECT) {
@@ -1870,7 +1870,7 @@ static wmOperatorStatus mask_feather_weight_clear_exec(bContext *C, wmOperator *
       for (int i = 0; i < spline->tot_point; i++) {
         MaskSplinePoint *point = &spline->points[i];
 
-        if (MASKPOINT_ISSEL_ANY(point)) {
+        if (BKE_mask_point_selected(point)) {
           BezTriple *bezt = &point->bezt;
           bezt->weight = 0.0f;
           changed = true;
@@ -2007,7 +2007,7 @@ static wmOperatorStatus mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
       while (i < spline->tot_point) {
         int start = i, end = -1;
         /* Find next selected segment. */
-        while (MASKPOINT_ISSEL_ANY(point)) {
+        while (BKE_mask_point_selected(point)) {
           BKE_mask_point_select_set(point, false);
           end = i;
           if (i >= spline->tot_point - 1) {
@@ -2037,8 +2037,8 @@ static wmOperatorStatus mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
           /* Allocate new points and copy them from old spline. */
           new_spline->tot_point = end - start + 1;
-          new_spline->points = MEM_calloc_arrayN<MaskSplinePoint>(new_spline->tot_point,
-                                                                  "duplicated mask points");
+          new_spline->points = MEM_new_array_for_free<MaskSplinePoint>(new_spline->tot_point,
+                                                                       "duplicated mask points");
 
           memcpy(new_spline->points,
                  spline->points + start,

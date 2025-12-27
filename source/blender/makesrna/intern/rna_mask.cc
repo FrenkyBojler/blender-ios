@@ -6,7 +6,6 @@
  * \ingroup RNA
  */
 
-#include <climits>
 #include <cstdlib>
 
 #include "DNA_mask_types.h"
@@ -27,14 +26,13 @@
 #  include <algorithm>
 #  include <fmt/format.h>
 
-#  include "DNA_defaults.h"
 #  include "DNA_movieclip_types.h"
 
 #  include "BLI_math_vector.h"
 
-#  include "BKE_mask.h"
-#  include "BKE_movieclip.h"
-#  include "BKE_tracking.h"
+#  include "BKE_mask.hh"
+#  include "BKE_movieclip.hh"
+#  include "BKE_tracking.hh"
 
 #  include "DEG_depsgraph.hh"
 
@@ -71,7 +69,7 @@ static void rna_Mask_update_parent(Main *bmain, Scene *scene, PointerRNA *ptr)
           if (track) {
             MovieTrackingMarker *marker = BKE_tracking_marker_get(track, clip_framenr);
             float marker_pos_ofs[2], parmask_pos[2];
-            MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+            MovieClipUser user = {};
 
             BKE_movieclip_user_set_frame(&user, scene->r.cfra);
 
@@ -426,7 +424,7 @@ static bool rna_MaskSplinePoint_handle_single_select_get(PointerRNA *ptr)
 {
   MaskSplinePoint *point = (MaskSplinePoint *)ptr->data;
 
-  return MASKPOINT_ISSEL_HANDLE(point, MASK_WHICH_HANDLE_STICK);
+  return BKE_mask_point_is_handle_selected(point, MASK_WHICH_HANDLE_STICK);
 }
 
 static MaskSpline *rna_MaskLayer_spline_new(ID *id, MaskLayer *mask_layer)
@@ -570,8 +568,8 @@ static void rna_MaskSpline_point_remove(ID *id,
 
   point_index = point - spline->points;
 
-  new_point_array = MEM_malloc_arrayN<MaskSplinePoint>(size_t(spline->tot_point) - 1,
-                                                       "remove mask point");
+  new_point_array = MEM_new_array_for_free<MaskSplinePoint>(size_t(spline->tot_point) - 1,
+                                                            "remove mask point");
 
   memcpy(new_point_array, spline->points, sizeof(MaskSplinePoint) * point_index);
   memcpy(new_point_array + point_index,
