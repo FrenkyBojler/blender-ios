@@ -23,7 +23,6 @@
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
-#include "DNA_attribute_types.h"
 #include "DNA_node_types.h"
 #include "DNA_rich_sdna.hh"
 #include "DNA_sdna_types.h"
@@ -43,7 +42,7 @@ using blend_query::BlendBlock;
 using blend_query::BlendId;
 using blend_query::BlendQuery;
 using blend_query::BlendValue;
-using blend_query::RawBufferType;
+using blend_query::MemType;
 
 struct DiffOptions {
   ResourceScope scope_;
@@ -521,19 +520,19 @@ class IdDiffer {
                        const BlendBlock &new_block,
                        const StringRef context)
   {
-    const RawBufferType *old_raw_type = old_.blend.lookup_raw_buffer_type(old_block);
-    const RawBufferType *new_raw_type = new_.blend.lookup_raw_buffer_type(new_block);
-    if (!old_raw_type || !new_raw_type) {
+    const MemType *old_mem_type = old_.blend.lookup_block_type(old_block);
+    const MemType *new_mem_type = new_.blend.lookup_block_type(new_block);
+    if (!old_mem_type || !new_mem_type) {
       return;
     }
-    const int pointer_level = old_raw_type->pointer_level;
-    if (pointer_level != new_raw_type->pointer_level) {
+    const int pointer_level = old_mem_type->pointer_level;
+    if (pointer_level != new_mem_type->pointer_level) {
       return;
     }
     if (pointer_level == 0) {
-      if (old_raw_type->sdna_base_type && new_raw_type->sdna_base_type) {
-        const Type &old_sdna_type = *old_raw_type->sdna_base_type;
-        const Type &new_sdna_type = *new_raw_type->sdna_base_type;
+      if (old_mem_type->sdna_base_type && new_mem_type->sdna_base_type) {
+        const Type &old_sdna_type = *old_mem_type->sdna_base_type;
+        const Type &new_sdna_type = *new_mem_type->sdna_base_type;
         if (old_sdna_type.name != new_sdna_type.name) {
           return;
         }
@@ -560,9 +559,9 @@ class IdDiffer {
                                   context);
         }
       }
-      if (old_raw_type->cpp_base_type && new_raw_type->cpp_base_type) {
-        const CPPType &old_cpp_type = *old_raw_type->cpp_base_type;
-        const CPPType &new_cpp_type = *new_raw_type->cpp_base_type;
+      if (old_mem_type->cpp_base_type && new_mem_type->cpp_base_type) {
+        const CPPType &old_cpp_type = *old_mem_type->cpp_base_type;
+        const CPPType &new_cpp_type = *new_mem_type->cpp_base_type;
         if (old_cpp_type != new_cpp_type) {
           return;
         }
@@ -1098,11 +1097,11 @@ class IdDiffer {
                        const StringRef context)
   {
     const BlendValue old_prop{&old_.id_data,
-                              RawBufferType::from_sdna_type(*old_IDProperty.type),
+                              MemType::from_sdna_type(*old_IDProperty.type),
                               1,
                               old_block.data + old_struct_offset};
     const BlendValue new_prop{&new_.id_data,
-                              RawBufferType::from_sdna_type(*new_IDProperty.type),
+                              MemType::from_sdna_type(*new_IDProperty.type),
                               1,
                               new_block.data + new_struct_offset};
 
@@ -1224,7 +1223,7 @@ class IdDiffer {
     const BlendBlock &block = *pointee.block;
     if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
       const Span<char> bytes{block.data, block.bhead.len};
-      if (const RawBufferType *buffer_type = blend_data.blend.lookup_raw_buffer_type(block)) {
+      if (const MemType *buffer_type = blend_data.blend.lookup_block_type(block)) {
         if (buffer_type->sdna_base_type) {
           if (buffer_type->pointer_level == 0 && buffer_type->sdna_base_type->name == "char" &&
               bytes.size() <= 128)
@@ -1346,7 +1345,7 @@ class IdDiffer {
                                                    const bool ui_identifier = false) const
   {
     const BlendValue bstruct{&blend_data.id_data,
-                             RawBufferType::from_sdna_type(*sdna_struct.type),
+                             MemType::from_sdna_type(*sdna_struct.type),
                              1,
                              static_cast<const char *>(data)};
     if (is_specific_id_struct(sdna_struct)) {

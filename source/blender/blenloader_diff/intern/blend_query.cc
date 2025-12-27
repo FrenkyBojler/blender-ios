@@ -346,16 +346,16 @@ void BlendQuery::gather_raw_buffer_types__struct_member(const BlendId *id,
             /* This has a type already. */
             continue;
           }
-          RawBufferType raw_buffer_type;
-          raw_buffer_type.sdna_base_type = sdna_member.type;
-          raw_buffer_type.pointer_level = pointer_level - 1;
-          if (raw_buffer_type.pointer_level == 0) {
-            raw_buffer_type.elem_size = sdna_member.type->size_in_bytes;
+          MemType mem_type;
+          mem_type.sdna_base_type = sdna_member.type;
+          mem_type.pointer_level = pointer_level - 1;
+          if (mem_type.pointer_level == 0) {
+            mem_type.elem_size = sdna_member.type->size_in_bytes;
           }
           else {
-            raw_buffer_type.elem_size = sdna_.sdna->pointer_size;
+            mem_type.elem_size = sdna_.sdna->pointer_size;
           }
-          raw_buffer_types_.add(other_block, raw_buffer_type);
+          block_mem_types_.add(other_block, mem_type);
         }
       }
       break;
@@ -390,7 +390,7 @@ void BlendQuery::gather_raw_buffer_types__attribute(const BlendId *id,
   if (!cpp_type) {
     return;
   }
-  raw_buffer_types_.add(array_block, RawBufferType::from_cpp_type(*cpp_type));
+  block_mem_types_.add(array_block, MemType::from_cpp_type(*cpp_type));
 }
 
 BlendValue BlendQuery::lookup(const BlendId *id,
@@ -398,10 +398,7 @@ BlendValue BlendQuery::lookup(const BlendId *id,
                               const char *data,
                               const Span<LookupPathElem> &path) const
 {
-  RawBufferType in_raw_buffer_type;
-  in_raw_buffer_type.sdna_base_type = sdna_struct.type;
-  in_raw_buffer_type.elem_size = sdna_struct.type->size_in_bytes;
-  const BlendValue in = {id, in_raw_buffer_type, 1, data};
+  const BlendValue in = {id, MemType::from_sdna_type(*sdna_struct.type), 1, data};
   return this->lookup(in, path);
 }
 
@@ -449,14 +446,13 @@ BlendValue BlendQuery::lookup(const BlendValue &in, const LookupPathElem &path_e
       case rich_sdna::StructMember::Category::Struct:
       case rich_sdna::StructMember::Category::Primitive: {
         return {in.id,
-                RawBufferType::from_sdna_type(*member->type),
+                MemType::from_sdna_type(*member->type),
                 member->elem_num,
                 in.data + member->offset_in_struct};
       }
       case rich_sdna::StructMember::Category::Pointer:
         return {in.id,
-                RawBufferType::from_sdna_type(*member->type,
-                                              pointer_level_from_name(member->raw_name)),
+                MemType::from_sdna_type(*member->type, pointer_level_from_name(member->raw_name)),
                 member->elem_num,
                 in.data + member->offset_in_struct};
     }
@@ -471,26 +467,26 @@ BlendValue BlendQuery::lookup(const BlendValue &in, const LookupPathElem &path_e
         if (in.type.pointer_level == 1) {
           if (other_block->sdna_struct) {
             return {in.id,
-                    RawBufferType::from_sdna_type(*other_block->sdna_struct->type),
+                    MemType::from_sdna_type(*other_block->sdna_struct->type),
                     other_block->bhead.nr,
                     other_block->data};
           }
-          if (const RawBufferType *raw_buffer_type = this->lookup_raw_buffer_type(*other_block)) {
-            if (other_block->bhead.len % raw_buffer_type->elem_size != 0) {
+          if (const MemType *mem_type = this->lookup_block_type(*other_block)) {
+            if (other_block->bhead.len % mem_type->elem_size != 0) {
               return BlendValue::none();
             }
-            const int64_t elem_num = other_block->bhead.len / raw_buffer_type->elem_size;
-            return {in.id, *raw_buffer_type, elem_num, other_block->data};
+            const int64_t elem_num = other_block->bhead.len / mem_type->elem_size;
+            return {in.id, *mem_type, elem_num, other_block->data};
           }
         }
         if (in.type.pointer_level >= 2) {
-          RawBufferType raw_buffer_type = in.type;
-          raw_buffer_type.pointer_level--;
-          if (other_block->bhead.len % raw_buffer_type.elem_size != 0) {
+          MemType mem_type = in.type;
+          mem_type.pointer_level--;
+          if (other_block->bhead.len % mem_type.elem_size != 0) {
             return BlendValue::none();
           }
           const int64_t elem_num = other_block->bhead.len / sdna_.sdna->pointer_size;
-          return {in.id, raw_buffer_type, elem_num, other_block->data};
+          return {in.id, mem_type, elem_num, other_block->data};
         }
       }
       if (const BlendId *other_id = id_by_address_.lookup_default(address, nullptr)) {
@@ -498,7 +494,7 @@ BlendValue BlendQuery::lookup(const BlendValue &in, const LookupPathElem &path_e
           return BlendValue::none();
         }
         return {other_id,
-                RawBufferType::from_sdna_type(*other_id->sdna_struct->type),
+                MemType::from_sdna_type(*other_id->sdna_struct->type),
                 1,
                 other_id->id_block->data};
       }

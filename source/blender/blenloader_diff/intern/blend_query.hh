@@ -41,31 +41,31 @@ struct BlendId {
   const BlendBlock *lookup_internal_block(const uint64_t address) const;
 };
 
-struct RawBufferType {
+struct MemType {
   const Type *sdna_base_type = nullptr;
   const CPPType *cpp_base_type = nullptr;
   int pointer_level = 0;
   int elem_size = 0;
 
-  static RawBufferType from_sdna_type(const Type &sdna_type, const int pointer_level = 0)
+  static MemType from_sdna_type(const Type &sdna_type, const int pointer_level = 0)
   {
-    RawBufferType raw_buffer_type;
-    raw_buffer_type.sdna_base_type = &sdna_type;
-    raw_buffer_type.elem_size = sdna_type.size_in_bytes;
-    raw_buffer_type.pointer_level = pointer_level;
-    return raw_buffer_type;
+    MemType mem_type;
+    mem_type.sdna_base_type = &sdna_type;
+    mem_type.elem_size = sdna_type.size_in_bytes;
+    mem_type.pointer_level = pointer_level;
+    return mem_type;
   }
 
-  static RawBufferType from_cpp_type(const CPPType &cpp_type, const int pointer_level = 0)
+  static MemType from_cpp_type(const CPPType &cpp_type, const int pointer_level = 0)
   {
-    RawBufferType raw_buffer_type;
-    raw_buffer_type.cpp_base_type = &cpp_type;
-    raw_buffer_type.elem_size = cpp_type.size;
-    raw_buffer_type.pointer_level = pointer_level;
-    return raw_buffer_type;
+    MemType mem_type;
+    mem_type.cpp_base_type = &cpp_type;
+    mem_type.elem_size = cpp_type.size;
+    mem_type.pointer_level = pointer_level;
+    return mem_type;
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_3(RawBufferType, sdna_base_type, cpp_base_type, pointer_level)
+  BLI_STRUCT_EQUALITY_OPERATORS_3(MemType, sdna_base_type, cpp_base_type, pointer_level)
 };
 
 struct BlendSDNA {
@@ -83,7 +83,7 @@ using LookupPathElem = std::variant<int64_t, StringRef, Deref>;
 
 struct BlendValue {
   const BlendId *id = nullptr;
-  RawBufferType type;
+  MemType type;
   int64_t size = 0;
   const char *data = nullptr;
 
@@ -116,7 +116,7 @@ class BlendQuery {
   Vector<BlendBlock> blocks_;
   Vector<BlendId> ids_;
   Map<uint64_t, const BlendId *> id_by_address_;
-  Map<const BlendBlock *, RawBufferType> raw_buffer_types_;
+  Map<const BlendBlock *, MemType> block_mem_types_;
 
  public:
   static std::unique_ptr<BlendQuery> from_file(StringRef path);
@@ -126,7 +126,7 @@ class BlendQuery {
   Span<BlendId> ids() const;
 
   const BlendId *lookup_id(const uint64_t address) const;
-  const RawBufferType *lookup_raw_buffer_type(const BlendBlock &block) const;
+  const MemType *lookup_block_type(const BlendBlock &block) const;
 
   BlendValue lookup(const BlendValue &in, const LookupPathElem &path_elem) const;
   BlendValue lookup(const BlendValue &in, const Span<LookupPathElem> &path) const;
@@ -168,9 +168,9 @@ inline const BlendBlock *BlendId::lookup_internal_block(const uint64_t address) 
   return this->internal_block_by_address.lookup_default(address, nullptr);
 }
 
-inline const RawBufferType *BlendQuery::lookup_raw_buffer_type(const BlendBlock &block) const
+inline const MemType *BlendQuery::lookup_block_type(const BlendBlock &block) const
 {
-  return raw_buffer_types_.lookup_ptr(&block);
+  return block_mem_types_.lookup_ptr(&block);
 }
 
 }  // namespace blender::blend_query
