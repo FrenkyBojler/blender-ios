@@ -63,6 +63,7 @@ def run(args):
                 print(f"Diff is correct")
                 continue
 
+        failed_tests.append(case)
         if update_tests:
             print(f"Test is outdated, updating {case.name}")
             Path(diff_path).write_text(actual_diff)
