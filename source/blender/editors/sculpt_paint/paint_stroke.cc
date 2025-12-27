@@ -1484,7 +1484,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
         printf("[ALT-MASK] Using MASK stroke mode\n");
       }
       else if (event->modifier & KM_SHIFT) {
-        stroke_mode_ = BRUSH_STROKE_SMOOTH;
+        stroke_mode_ = BRUSH_STROKE_MASK;
         printf("[SHIFT] Using SMOOTH stroke mode\n");
       }
       else if (event->modifier & KM_CTRL) {
