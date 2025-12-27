@@ -1,1 +1,1 @@
-Referenced by issue #152130, Node API: Crash when assigning a node parent frame from another node tree
+Referenced by issue #152130, Node API: Assert fails when assigning a node parent frame from another node tree
