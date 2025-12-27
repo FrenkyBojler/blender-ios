@@ -25,22 +25,6 @@ struct BlendId;
 struct BlendSDNA;
 class BlendQuery;
 
-struct BlendBlock {
-  BHead bhead;
-  const char *data = nullptr;
-  const Struct *sdna_struct = nullptr;
-};
-
-struct BlendId {
-  std::string name;
-  const Struct *sdna_struct = nullptr;
-  const BlendBlock *id_block = nullptr;
-  Span<BlendBlock> internal_blocks;
-  Map<uint64_t, const BlendBlock *> internal_block_by_address;
-
-  const BlendBlock *lookup_internal_block(const uint64_t address) const;
-};
-
 struct MemType {
   const Type *sdna_base_type = nullptr;
   const CPPType *cpp_base_type = nullptr;
@@ -66,6 +50,22 @@ struct MemType {
   }
 
   BLI_STRUCT_EQUALITY_OPERATORS_3(MemType, sdna_base_type, cpp_base_type, pointer_level)
+};
+
+struct BlendBlock {
+  BHead bhead;
+  const char *data = nullptr;
+  std::optional<MemType> type;
+};
+
+struct BlendId {
+  std::string name;
+  const Struct *sdna_struct = nullptr;
+  const BlendBlock *id_block = nullptr;
+  Span<BlendBlock> internal_blocks;
+  Map<uint64_t, const BlendBlock *> internal_block_by_address;
+
+  const BlendBlock *lookup_internal_block(const uint64_t address) const;
 };
 
 struct BlendSDNA {

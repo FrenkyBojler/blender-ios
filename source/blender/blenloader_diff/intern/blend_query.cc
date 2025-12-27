@@ -187,15 +187,16 @@ std::unique_ptr<BlendQuery> BlendQuery::from_reader(FileReader &reader)
     if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
       continue;
     }
-    block.sdna_struct = blend->sdna_.sdna->try_find_struct(block.bhead.SDNAnr);
-    if (!block.sdna_struct) {
+    const Struct *sdna_struct = blend->sdna_.sdna->try_find_struct(block.bhead.SDNAnr);
+    if (!sdna_struct) {
       return nullptr;
     }
-    const int64_t expected_size = block.sdna_struct->type->size_in_bytes * block.bhead.nr;
+    const int64_t expected_size = sdna_struct->type->size_in_bytes * block.bhead.nr;
     const int64_t actual_size = block.bhead.len;
     if (expected_size != actual_size) {
       return nullptr;
     }
+    block.type = MemType::from_sdna_type(*sdna_struct->type);
   }
 
   {
@@ -253,12 +254,19 @@ void BlendQuery::gather_raw_buffer_types()
   for (const BlendId &id : this->ids_) {
     this->gather_raw_buffer_types__struct(&id, *id.sdna_struct, id.id_block->data);
     for (const BlendBlock &block : id.internal_blocks) {
-      if (!block.sdna_struct) {
+      if (!block.type) {
         continue;
       }
+      if (!block.type->sdna_base_type) {
+        continue;
+      }
+      if (!block.type->sdna_base_type->opt_struct) {
+        continue;
+      }
+      const Struct &sdna_struct = *block.type->sdna_base_type->opt_struct;
       for (const int64_t i : IndexRange(block.bhead.nr)) {
         this->gather_raw_buffer_types__struct(
-            &id, *block.sdna_struct, block.data + i * block.sdna_struct->type->size_in_bytes);
+            &id, sdna_struct, block.data + i * sdna_struct.type->size_in_bytes);
       }
     }
   }
@@ -342,7 +350,7 @@ void BlendQuery::gather_raw_buffer_types__struct_member(const BlendId *id,
       for (const int64_t i : IndexRange(sdna_member.elem_num)) {
         const uint64_t address = read_address(data + i * sdna_member.elem_size);
         if (const BlendBlock *other_block = id->lookup_internal_block(address)) {
-          if (other_block->sdna_struct) {
+          if (other_block->type) {
             /* This has a type already. */
             continue;
           }
@@ -465,11 +473,8 @@ BlendValue BlendQuery::lookup(const BlendValue &in, const LookupPathElem &path_e
     if (in.id) {
       if (const BlendBlock *other_block = in.id->lookup_internal_block(address)) {
         if (in.type.pointer_level == 1) {
-          if (other_block->sdna_struct) {
-            return {in.id,
-                    MemType::from_sdna_type(*other_block->sdna_struct->type),
-                    other_block->bhead.nr,
-                    other_block->data};
+          if (other_block->type) {
+            return {in.id, *other_block->type, other_block->bhead.nr, other_block->data};
           }
           if (const MemType *mem_type = this->lookup_block_type(*other_block)) {
             if (other_block->bhead.len % mem_type->elem_size != 0) {
