@@ -76,8 +76,8 @@ struct OrigMeshData {
   OrigMeshData(const Mesh &mesh)
       : active_color(mesh.active_color_attribute),
         default_color(mesh.default_color_attribute),
-        active_uv_map(CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)),
-        default_uv_map(CustomData_get_render_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)),
+        active_uv_map(mesh.active_uv_map_name()),
+        default_uv_map(mesh.default_uv_map_name()),
         face_set_default(mesh.face_sets_color_default),
         face_set_seed(mesh.face_sets_color_seed),
         attributes(mesh.attributes())
@@ -1571,6 +1571,10 @@ static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
       &builder, GPU_PRIM_LINES, 2 * totgrid * display_gridsize * (display_gridsize - 1), INT_MAX);
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
+  /* The buffer might contain hidden elements which are not initialized but still accounted. We
+   * don't count them to skip from allocation, so must fill that gaps by 0 to hide redundant edges.
+   */
+  data.fill(uint2(0));
 
   if (use_flat_layout) {
     create_lines_index_grids_flat_layout(

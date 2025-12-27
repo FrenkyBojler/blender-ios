@@ -14,7 +14,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -38,10 +37,7 @@
 static void init_data(ModifierData *md)
 {
   CollisionModifierData *collmd = (CollisionModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(collmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(collmd, DNA_struct_default_get(CollisionModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(collmd, modifier);
 }
 
 static void free_data(ModifierData *md)
@@ -230,11 +226,11 @@ static void update_depsgraph(ModifierData * /*md*/, const ModifierUpdateDepsgrap
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }

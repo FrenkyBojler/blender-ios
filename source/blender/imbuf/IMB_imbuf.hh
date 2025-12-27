@@ -20,7 +20,6 @@ struct ImBuf;
 struct rctf;
 struct rcti;
 
-struct GSet;
 struct ImageFormatData;
 struct Stereo3dFormat;
 
@@ -568,6 +567,9 @@ blender::gpu::Texture *IMB_create_gpu_texture(const char *name,
 blender::gpu::TextureFormat IMB_gpu_get_texture_format(const ImBuf *ibuf,
                                                        bool high_bitdepth,
                                                        bool use_grayscale);
+
+bool IMB_gpu_get_compressed_format(const ImBuf *ibuf,
+                                   blender::gpu::TextureFormat *r_texture_format);
 
 /**
  * Ensures that values stored in the float rect can safely loaded into half float gpu textures.

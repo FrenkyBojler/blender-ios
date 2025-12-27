@@ -12,7 +12,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -28,6 +27,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
+#include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -1936,31 +1936,31 @@ static const EnumPropertyItem pinned_islands_method_items[] = {
 
 static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   {
-    layout->prop(op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = &layout->row(true);
-    sub->active_set(RNA_boolean_get(op->ptr, "rotate"));
-    sub->prop(op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->separator();
+    layout.prop(op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    blender::ui::Layout &row = layout.row(true);
+    row.active_set(RNA_boolean_get(op->ptr, "rotate"));
+    row.prop(op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.separator();
   }
-  layout->prop(op->ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->separator();
+  layout.prop(op->ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.separator();
   {
-    layout->prop(op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = &layout->row(true);
-    sub->active_set(RNA_boolean_get(op->ptr, "pin"));
-    sub->prop(op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
-    layout->separator();
+    layout.prop(op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    blender::ui::Layout &row = layout.row(true);
+    row.active_set(RNA_boolean_get(op->ptr, "pin"));
+    row.prop(op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
+    layout.separator();
   }
-  layout->prop(op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->separator();
+  layout.prop(op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.separator();
 }
 
 static wmOperatorStatus uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2823,6 +2823,8 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
+  const bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
+
   int reported_errors = 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
@@ -2841,6 +2843,12 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
   if (CTX_wm_space_image(C)) {
     /* Inside the UV Editor, only unwrap selected UVs. */
+    if (sync_selection) {
+      /* It's important to include unselected faces so they are taken into account
+       * when unwrapping adjacent UV's, so it's possible to select part of an island
+       * without it becoming disconnected from the unselected region, see: #148536. */
+      options.only_selected_faces = false;
+    }
     options.only_selected_uvs = true;
     options.pin_unselected = true;
   }
@@ -2932,17 +2940,15 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
 static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   /* Main draw call */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
 
-  uiLayout *col;
-
-  col = &layout->column(true);
+  blender::ui::Layout *col = &layout.column(true);
   col->prop(&ptr, "method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   bool is_slim = RNA_enum_get(op->ptr, "method") == UVCALC_UNWRAP_METHOD_MINIMUM_STRETCH;
 
@@ -2954,7 +2960,7 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
     col->prop(&ptr, "use_weights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (RNA_boolean_get(op->ptr, "use_weights")) {
-      col = &layout->column(true);
+      col = &layout.column(true);
       col->prop(&ptr, "weight_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       col->prop(&ptr, "weight_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
@@ -2974,7 +2980,7 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 
 void UV_OT_unwrap(wmOperatorType *ot)
 {
-  const ToolSettings *tool_settings_default = DNA_struct_default_get(ToolSettings);
+  const ToolSettings tool_settings_default = {};
 
   static const EnumPropertyItem method_items[] = {
       {UVCALC_UNWRAP_METHOD_ANGLE, "ANGLE_BASED", 0, "Angle Based", ""},
@@ -3001,13 +3007,13 @@ void UV_OT_unwrap(wmOperatorType *ot)
       ot->srna,
       "method",
       method_items,
-      tool_settings_default->unwrapper,
+      tool_settings_default.unwrapper,
       "Method",
       "Unwrapping method (Angle Based usually gives better results than Conformal, while "
       "being somewhat slower)");
   RNA_def_boolean(ot->srna,
                   "fill_holes",
-                  tool_settings_default->uvcalc_flag & UVCALC_FILLHOLES,
+                  tool_settings_default.uvcalc_flag & UVCALC_FILLHOLES,
                   "Fill Holes",
                   "Virtually fill holes in mesh before unwrapping, to better avoid overlaps and "
                   "preserve symmetry");
@@ -3032,14 +3038,14 @@ void UV_OT_unwrap(wmOperatorType *ot)
   /* SLIM only */
   RNA_def_boolean(ot->srna,
                   "no_flip",
-                  tool_settings_default->uvcalc_flag & UVCALC_UNWRAP_NO_FLIP,
+                  tool_settings_default.uvcalc_flag & UVCALC_UNWRAP_NO_FLIP,
                   "No Flip",
                   "Prevent flipping UV's, "
                   "flipping may lower distortion depending on the position of pins");
 
   RNA_def_int(ot->srna,
               "iterations",
-              tool_settings_default->uvcalc_iterations,
+              tool_settings_default.uvcalc_iterations,
               0,
               10000,
               "Iterations",
@@ -3049,19 +3055,19 @@ void UV_OT_unwrap(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna,
                   "use_weights",
-                  tool_settings_default->uvcalc_flag & UVCALC_UNWRAP_USE_WEIGHTS,
+                  tool_settings_default.uvcalc_flag & UVCALC_UNWRAP_USE_WEIGHTS,
                   "Importance Weights",
                   "Whether to take into account per-vertex importance weights");
   RNA_def_string(ot->srna,
                  "weight_group",
-                 tool_settings_default->uvcalc_weight_group,
+                 tool_settings_default.uvcalc_weight_group,
                  MAX_ID_NAME,
                  "Weight Group",
                  "Vertex group name for importance weights (modulating the deform)");
   RNA_def_float(
       ot->srna,
       "weight_factor",
-      tool_settings_default->uvcalc_weight_factor,
+      tool_settings_default.uvcalc_weight_factor,
       -10000.0,
       10000.0,
       "Weight Factor",

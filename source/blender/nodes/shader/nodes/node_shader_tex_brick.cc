@@ -76,23 +76,27 @@ static void sh_node_tex_brick_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Factor", "Fac");
 }
 
-static void node_shader_buts_tex_brick(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_tex_brick(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayout *col;
-
-  col = &layout->column(true);
-  col->prop(
-      ptr, "offset", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, IFACE_("Offset"), ICON_NONE);
-  col->prop(ptr, "offset_frequency", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
-
-  col = &layout->column(true);
-  col->prop(ptr, "squash", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Squash"), ICON_NONE);
-  col->prop(ptr, "squash_frequency", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  {
+    ui::Layout &col = layout.column(true);
+    col.prop(ptr,
+             "offset",
+             ui::ITEM_R_SPLIT_EMPTY_NAME | ui::ITEM_R_SLIDER,
+             IFACE_("Offset"),
+             ICON_NONE);
+    col.prop(ptr, "offset_frequency", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  }
+  {
+    ui::Layout &col = layout.column(true);
+    col.prop(ptr, "squash", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Squash"), ICON_NONE);
+    col.prop(ptr, "squash_frequency", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  }
 }
 
 static void node_shader_init_tex_brick(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexBrick *tex = MEM_callocN<NodeTexBrick>(__func__);
+  NodeTexBrick *tex = MEM_new_for_free<NodeTexBrick>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
 

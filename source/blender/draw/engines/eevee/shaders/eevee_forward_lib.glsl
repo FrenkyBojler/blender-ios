@@ -27,15 +27,15 @@
 #  error Closure data count and eval count must match
 #endif
 
-void forward_lighting_eval(float thickness, out float3 radiance, out float3 transmittance)
+void forward_lighting_eval(float thickness, float3 &radiance, float3 &transmittance)
 {
   float vPz = dot(drw_view_forward(), g_data.P) - dot(drw_view_forward(), drw_view_position());
   float3 V = drw_world_incident_vector(g_data.P);
 
   ClosureLightStack stack;
   for (int i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
-    ClosureUndetermined cl = g_closure_get(i);
-    closure_light_set(stack, i, closure_light_new(cl, V));
+    ClosureUndetermined cl = g_closure_get(uchar(i));
+    closure_light_set(stack, uchar(i), closure_light_new(cl, V));
   }
 
   /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT

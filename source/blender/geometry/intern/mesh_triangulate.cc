@@ -556,7 +556,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
 
   /* Use ordered vertex triplets (a < b < c) to represent all new triangles.
    * #TriKey knows indices of the face and points into #ordered_vert_tris, but probe can be done
-   * without #TriKey but dirrectly with a triplet so probe not necessary to be a part of
+   * without #TriKey but directly with a triplet so probe not necessary to be a part of
    * #ordered_vert_tris. */
   VectorSet<TriKey,
             4,
@@ -706,7 +706,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   if (src_mesh.no_overlapping_topology()) {
     mesh->tag_overlapping_none();
   }
-  BLI_assert(BKE_mesh_is_valid(mesh));
+  BLI_assert(bke::mesh_is_valid(*mesh));
   return mesh;
 }
 

@@ -798,7 +798,6 @@ static void rna_def_material_lineart(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialLineArt_update");
 
   prop = RNA_def_property(srna, "mat_occlusion", PROP_INT, PROP_NONE);
-  RNA_def_property_int_default(prop, 1);
   RNA_def_property_ui_range(prop, 0.0f, 5.0f, 1.0f, 1);
   RNA_def_property_ui_text(
       prop,
@@ -1227,7 +1226,7 @@ void rna_def_mtex_common(BlenderRNA *brna,
 
   prop = RNA_def_property(srna, "active_texture", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Texture");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   if (activeeditable) {
     RNA_def_property_editable_func(prop, activeeditable);
   }

@@ -20,6 +20,7 @@
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -99,6 +100,16 @@ static bool test_projected_edge_dist(const DistProjectedAABBPrecalc *precalc,
   float near_co[3];
   closest_ray_to_segment_v3(precalc->ray_origin, precalc->ray_direction, va, vb, near_co);
   return test_projected_vert_dist(precalc, clip_plane, clip_plane_len, is_persp, near_co, nearest);
+}
+
+static bool test_projected_face_midpoint_dist(const DistProjectedAABBPrecalc *precalc,
+                                              const float (*clip_plane)[4],
+                                              const int clip_plane_len,
+                                              const bool is_persp,
+                                              const float center[3],
+                                              BVHTreeNearest *nearest)
+{
+  return test_projected_vert_dist(precalc, clip_plane, clip_plane_len, is_persp, center, nearest);
 }
 
 SnapData::SnapData(SnapObjectContext *sctx, const float4x4 &obmat)
@@ -378,6 +389,14 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
     }
   }
 
+  /* For curves and surfaces in edit mode, use their original data when snapping.
+   * Only use the evaluated mesh when snapping to the final geometry. */
+  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_SURF) && BKE_object_is_in_editmode(ob_eval) &&
+      edit_mode_type != SNAP_GEOM_FINAL)
+  {
+    return static_cast<const ID *>(ob_eval->data);
+  }
+
   /* Get evaluated mesh including subdivision. This may come from a mesh object,
    * or another object type that has modifiers producing a mesh. */
   if (Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval)) {
@@ -385,6 +404,19 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
   }
 
   return static_cast<const ID *>(ob_eval->data);
+}
+
+/**
+ * Mesh used for snapping (`dupli-list` instances).
+ * A version of #data_for_snap for instances.
+ */
+static const ID *data_for_snap_dupli(ID *ob_data)
+{
+  if (GS(ob_data->name) == ID_ME) {
+    Mesh *mesh = blender::id_cast<Mesh *>(ob_data);
+    return reinterpret_cast<const ID *>(BKE_mesh_wrapper_ensure_subdivision(mesh));
+  }
+  return ob_data;
 }
 
 /** \} */
@@ -482,12 +514,10 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
       object_duplilist(sctx->runtime.depsgraph, sctx->scene, obj_eval, nullptr, duplilist);
       for (DupliObject &dupli_ob : duplilist) {
         BLI_assert(DEG_is_evaluated(dupli_ob.ob));
-        if ((tmp = sob_callback(sctx,
-                                dupli_ob.ob,
-                                dupli_ob.ob_data,
-                                float4x4(dupli_ob.mat),
-                                is_object_active,
-                                false)) != SCE_SNAP_TO_NONE)
+        const ID *ob_data = dupli_ob.ob_data ? data_for_snap_dupli(dupli_ob.ob_data) : nullptr;
+        if ((tmp = sob_callback(
+                 sctx, dupli_ob.ob, ob_data, float4x4(dupli_ob.mat), is_object_active, false)) !=
+            SCE_SNAP_TO_NONE)
         {
           ret = tmp;
         }
@@ -826,6 +856,26 @@ void cb_snap_edge(void *userdata,
   }
 }
 
+void cb_snap_face_midpoint(void *userdata,
+                           const int face_index,
+                           const DistProjectedAABBPrecalc *precalc,
+                           const float (*clip_plane)[4],
+                           const int clip_plane_len,
+                           BVHTreeNearest *nearest)
+{
+  SnapData *data = static_cast<SnapData *>(userdata);
+
+  float3 center;
+  data->get_face_center(face_index, center);
+
+  if (test_projected_face_midpoint_dist(
+          precalc, clip_plane, clip_plane_len, data->is_persp, center, nearest))
+  {
+    data->copy_face_no(face_index, nearest->no);
+    nearest->index = face_index;
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1150,7 +1200,7 @@ static bool snap_object_context_runtime_init(SnapObjectContext *sctx,
         }
 
         if (!sctx->grid.use_init_co) {
-          memset(sctx->grid.planes, 0, sizeof(sctx->grid.planes));
+          memset(reinterpret_cast<void *>(sctx->grid.planes), 0, sizeof(sctx->grid.planes));
           sctx->grid.planes[0][2] = 1.0f;
           if (math::abs(sctx->runtime.ray_dir[0]) < math::abs(sctx->runtime.ray_dir[1])) {
             sctx->grid.planes[1][1] = 1.0f;
@@ -1420,7 +1470,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (snap_to_flag & (SCE_SNAP_TO_POINT | SNAP_TO_EDGE_ELEMENTS)) {
+  if (snap_to_flag & (SCE_SNAP_TO_POINT | SNAP_TO_EDGE_ELEMENTS | SCE_SNAP_TO_FACE_MIDPOINT)) {
     eSnapMode elem_test, elem = SCE_SNAP_TO_NONE;
 
     /* Remove what has already been computed. */
@@ -1437,7 +1487,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
 
     if (use_occlusion_plane && has_hit) {
-      /* Compute the new clip_pane but do not add it yet. */
+      /* Compute the new clip plane but do not add it yet. */
       BLI_ASSERT_UNIT_V3(sctx->ret.no);
       sctx->runtime.occlusion_plane = occlusion_plane_create(
           sctx->runtime.ray_dir, sctx->ret.loc, sctx->ret.no);

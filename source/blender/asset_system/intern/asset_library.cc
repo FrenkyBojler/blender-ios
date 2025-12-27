@@ -79,8 +79,7 @@ std::string AS_asset_library_root_path_from_library_ref(
   return AssetLibraryService::root_path_from_library_ref(library_reference);
 }
 
-std::string AS_asset_library_find_suitable_root_path_from_path(
-    const blender::StringRefNull input_path)
+std::string AS_asset_library_find_suitable_root_path_from_path(const StringRefNull input_path)
 {
   if (bUserAssetLibrary *preferences_lib = BKE_preferences_asset_library_containing_path(
           &U, input_path.c_str()))
@@ -288,11 +287,10 @@ std::weak_ptr<AssetRepresentation> AssetLibrary::add_external_asset(
       relative_asset_path, name, id_type, std::move(metadata), *this));
 }
 
-std::weak_ptr<AssetRepresentation> AssetLibrary::add_local_id_asset(StringRef relative_asset_path,
-                                                                    ID &id)
+std::weak_ptr<AssetRepresentation> AssetLibrary::add_local_id_asset(ID &id)
 {
   return asset_storage_.local_id_assets.lookup_key_or_add(
-      std::make_shared<AssetRepresentation>(relative_asset_path, id, *this));
+      std::make_shared<AssetRepresentation>(id, *this));
 }
 
 bool AssetLibrary::remove_asset(AssetRepresentation &asset)

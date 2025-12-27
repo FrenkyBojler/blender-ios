@@ -491,13 +491,13 @@ class NodeTreeMainUpdater {
     relations_.ensure_group_node_users();
 
     Set<bNodeTree *> reachable_trees;
-    VectorSet<bNodeTree *> trees_to_check = root_ntrees;
+    Stack<bNodeTree *> trees_to_check = root_ntrees;
 
     while (!trees_to_check.is_empty()) {
       bNodeTree *ntree = trees_to_check.pop();
       if (reachable_trees.add(ntree)) {
         for (const TreeNodePair &pair : relations_.get_group_node_users(ntree)) {
-          trees_to_check.add(pair.first);
+          trees_to_check.push(pair.first);
         }
       }
     }
@@ -1397,7 +1397,9 @@ class NodeTreeMainUpdater {
     };
 
     const bNodeTreeZones *fallback_zones = nullptr;
-    if (ntree.type == NTREE_GEOMETRY && !ntree.zones() && ntree.runtime->last_valid_zones) {
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_SHADER) && !ntree.zones() &&
+        ntree.runtime->last_valid_zones)
+    {
       fallback_zones = ntree.runtime->last_valid_zones.get();
     }
 
@@ -1955,8 +1957,8 @@ class NodeTreeMainUpdater {
     }
 
     /* Allocate new array for the nested node references contained in the node tree. */
-    bNestedNodeRef *new_refs = MEM_malloc_arrayN<bNestedNodeRef>(size_t(new_path_by_id.size()),
-                                                                 __func__);
+    bNestedNodeRef *new_refs = MEM_new_array_for_free<bNestedNodeRef>(
+        size_t(new_path_by_id.size()), __func__);
     int index = 0;
     for (const auto item : new_path_by_id.items()) {
       bNestedNodeRef &ref = new_refs[index];

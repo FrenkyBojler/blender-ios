@@ -14,7 +14,6 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -40,12 +39,12 @@
 
 #include "BLO_read_write.hh"
 
+#include "NOD_defaults.hh"
+
 static void light_init_data(ID *id)
 {
   Light *la = (Light *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(la, id));
-
-  MEMCPY_STRUCT_AFTER(la, DNA_struct_default_get(Light), id);
+  INIT_DEFAULT_STRUCT_AFTER(la, id);
 }
 
 /**
@@ -140,6 +139,9 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     la->energy_deprecated /= M_PI_4;
   }
 
+  /* Forward compatibiilty for Use Nodes. */
+  la->use_nodes = true;
+
   /* write LibData */
   BLO_write_id_struct(writer, Light, id_address, &la->id);
   BKE_id_blend_write(writer, &la->id);
@@ -199,6 +201,8 @@ Light *BKE_light_add(Main *bmain, const char *name)
   Light *la;
 
   la = BKE_id_new<Light>(bmain, name);
+
+  blender::nodes::node_tree_shader_default(nullptr, bmain, &la->id);
 
   return la;
 }
