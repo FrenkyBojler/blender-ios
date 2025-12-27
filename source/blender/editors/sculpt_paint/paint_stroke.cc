@@ -1478,7 +1478,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
                                                          last_world_space_position_);
     }
       /* Decide stroke mode BEFORE stroke starts (sculpt only). */
-    if (mode == PaintMode::Sculpt) {
       if (event->modifier & KM_ALT) {
         stroke_mode_ = BRUSH_STROKE_MASK;
         printf("[ALT] Stroke mode = MASK\n");
@@ -1494,7 +1493,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       else {
         stroke_mode_ = BRUSH_STROKE_NORMAL;
       }
-    }
 
     stroke_started_ = this->test_start(op, sample_average.mouse);
 
