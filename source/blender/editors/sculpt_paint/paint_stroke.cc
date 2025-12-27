@@ -1477,6 +1477,24 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       last_world_space_position_ = math::transform_point(this->vc.obact->object_to_world(),
                                                          last_world_space_position_);
     }
+      /* Decide stroke mode BEFORE stroke starts (sculpt only). */
+    if (mode == PaintMode::Sculpt) {
+      if (event->modifier & KM_ALT) {
+        stroke_mode_ = BRUSH_STROKE_MASK;
+        printf("[ALT-MASK] Using MASK stroke mode\n");
+      }
+      else if (event->modifier & KM_SHIFT) {
+        stroke_mode_ = BRUSH_STROKE_SMOOTH;
+        printf("[SHIFT] Using SMOOTH stroke mode\n");
+      }
+      else if (event->modifier & KM_CTRL) {
+        stroke_mode_ = BRUSH_STROKE_INVERT;
+        printf("[CTRL] Using INVERT stroke mode\n");
+      }
+      else {
+        stroke_mode_ = BRUSH_STROKE_NORMAL;
+      }
+    }
     stroke_started_ = this->test_start(op, sample_average.mouse);
 
     if (stroke_started_) {

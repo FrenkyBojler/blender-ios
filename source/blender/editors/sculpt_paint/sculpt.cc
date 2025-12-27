@@ -145,7 +145,6 @@ void vert_random_access_ensure(Object &object)
     BM_mesh_elem_table_ensure(ss.bm, BM_VERT);
   }
 }
-static Brush *g_alt_mask_saved_brush = nullptr;
 }  // namespace blender::ed::sculpt_paint
 
 int SCULPT_vertex_count_get(const Object &object)
@@ -5879,36 +5878,6 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   Brush &brush = *BKE_paint_brush(&sd.paint);
 
-  /* --- Temporary Alt Mask Brush --- */
-  static Brush *saved_brush = nullptr;
-
-  if (event->modifier & KM_ALT) {
-    printf("[ALT-MASK] ALT detected in invoke()\n");
-
-    Main *bmain = CTX_data_main(C);
-    Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-
-    /* Save current brush only once */
-    if (!saved_brush) {
-      saved_brush = BKE_paint_brush(&sd.paint);
-      printf("[ALT-MASK] Saved brush: %s\n",
-            saved_brush ? saved_brush->id.name + 2 : "NULL");
-    }
-
-    /* Find the default Mask brush by name */
-    Brush *mask_brush = (Brush *)BKE_libblock_find_name(
-        bmain, ID_BR, "Mask");
-
-    if (mask_brush) {
-      printf("[ALT-MASK] Switching to Mask brush\n");
-      BKE_paint_brush_set(&sd.paint, mask_brush);
-    }
-    else {
-      printf("[ALT-MASK] ERROR: Mask brush not found\n");
-    }
-  }
-
-
   if (brush_type_is_paint(brush.sculpt_brush_type) &&
       !color_supported_check(scene, ob, op->reports))
   {
@@ -5997,18 +5966,6 @@ static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wm
 {
   SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
   const wmOperatorStatus retval = stroke->modal(C, op, event);
-
-  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
-    if (g_alt_mask_saved_brush) {
-      Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-      BKE_paint_brush_set(&sd.paint, g_alt_mask_saved_brush);
-      printf("[ALT-MASK] Restored brush: %s\n",
-            g_alt_mask_saved_brush->id.name + 2);
-      g_alt_mask_saved_brush = nullptr;
-    }
-
-    MEM_delete(stroke);
-  }
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
