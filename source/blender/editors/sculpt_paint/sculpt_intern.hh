@@ -405,6 +405,8 @@ struct StrokeCache {
    * \see BrushStrokeMode::BRUSH_STROKE_MASK.
    */
   bool alt_mask = false;
+  /*Stores the previous brush being used while atl-> mask toggle*/
+  Brush *prev_brush = nullptr;
   
   float plane_trim_squared = 0.0f;
 

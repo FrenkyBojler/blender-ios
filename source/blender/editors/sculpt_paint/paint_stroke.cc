@@ -1429,13 +1429,18 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       if (event->modifier & KM_ALT) {
           stroke_mode_ = BRUSH_STROKE_MASK;
           if (!cache->alt_mask) {
-              printf("[ALT] Stroke mode = MASK ON\n");
-              blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
-              cache->alt_mask = true;
+            cache->prev_brush = BKE_paint_brush(paint); // Stores the previous brush
+            printf("[ALT] Stroke mode = MASK ON\n");
+            blender::ed::sculpt_paint::mask_brush_toggle_on(C, paint, cache);
+            cache->alt_mask = true;
           }
-      } else if (cache->alt_mask) {
+      } 
+      else if (cache->alt_mask) {
           printf("[ALT] Stroke mode = MASK OFF\n");
           blender::ed::sculpt_paint::mask_brush_toggle_off(paint, cache);
+          if (cache->prev_brush) {
+            paint->brush = cache->prev_brush;  // restore
+          }
           cache->alt_mask = false;
       }
   }
