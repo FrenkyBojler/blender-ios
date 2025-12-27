@@ -248,7 +248,7 @@ static void *make_socket_data(const StringRef socket_type)
   void *socket_data = nullptr;
   socket_data_to_static_type_tag(socket_type, [&socket_data](auto type_tag) {
     using SocketDataType = typename decltype(type_tag)::type;
-    SocketDataType *new_socket_data = MEM_callocN<SocketDataType>(__func__);
+    SocketDataType *new_socket_data = MEM_new_for_free<SocketDataType>(__func__);
     socket_data_init_impl(*new_socket_data);
     socket_data = new_socket_data;
   });
@@ -344,75 +344,75 @@ static void socket_data_copy_ptr(bNodeTreeInterfaceSocket &dst,
 
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueFloat &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueFloat, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueInt &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueInt, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueBoolean &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueBoolean, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueRotation &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueRotation, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueVector &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueVector, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueRGBA &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueRGBA, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueString &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueString, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueObject &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueObject, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueImage &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueImage, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueCollection &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueCollection, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueTexture &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueTexture, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMaterial &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueMaterial, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueFont &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueFont, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueScene &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueScene, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueText &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueText, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMask &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueMask, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueSound &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueSound, &data);
+  writer->write_struct(&data);
 }
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &data)
 {
-  BLO_write_struct(writer, bNodeSocketValueMenu, &data);
+  writer->write_struct(&data);
 }
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)
@@ -655,7 +655,7 @@ static void item_copy(bNodeTreeInterfaceItem &dst,
                       const int flag,
                       UidGeneratorFn generate_uid)
 {
-  switch (NodeTreeInterfaceItemType(dst.item_type)) {
+  switch (eNodeTreeInterfaceItemType(dst.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &dst_socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(dst);
       const bNodeTreeInterfaceSocket &src_socket =
@@ -693,7 +693,7 @@ static void item_copy(bNodeTreeInterfaceItem &dst,
 
 static void item_free(bNodeTreeInterfaceItem &item, const bool do_id_user)
 {
-  switch (NodeTreeInterfaceItemType(item.item_type)) {
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
 
@@ -730,7 +730,7 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item);
 
 static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 {
-  switch (NodeTreeInterfaceItemType(item.item_type)) {
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
       BLO_write_string(writer, socket.name);
@@ -760,7 +760,7 @@ static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 
 void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 {
-  switch (NodeTreeInterfaceItemType(item.item_type)) {
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       /* Forward compatible writing of older single value only flag. To be removed in 5.0. */
       bNodeTreeInterfaceSocket &socket = get_item_as<bNodeTreeInterfaceSocket>(item);
@@ -768,11 +768,11 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
                          socket.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
                          NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY);
 
-      BLO_write_struct(writer, bNodeTreeInterfaceSocket, &item);
+      writer->write_struct_cast<bNodeTreeInterfaceSocket>(&item);
       break;
     }
     case NODE_INTERFACE_PANEL: {
-      BLO_write_struct(writer, bNodeTreeInterfacePanel, &item);
+      writer->write_struct_cast<bNodeTreeInterfacePanel>(&item);
       break;
     }
   }
@@ -782,7 +782,7 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 
 static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item)
 {
-  switch (NodeTreeInterfaceItemType(item.item_type)) {
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
       BLO_read_string(reader, &socket.name);
@@ -834,7 +834,7 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
 
 static void item_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceItem &item)
 {
-  switch (NodeTreeInterfaceItemType(item.item_type)) {
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
 
@@ -859,7 +859,7 @@ static void item_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceItem &
 /* Move all child items to the new parent. */
 static Span<bNodeTreeInterfaceItem *> item_children(bNodeTreeInterfaceItem &item)
 {
-  switch (NodeTreeInterfaceItemType(item.item_type)) {
+  switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       return {};
     }
@@ -1333,7 +1333,7 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
     return nullptr;
   }
 
-  bNodeTreeInterfaceSocket *new_socket = MEM_callocN<bNodeTreeInterfaceSocket>(__func__);
+  bNodeTreeInterfaceSocket *new_socket = MEM_new_for_free<bNodeTreeInterfaceSocket>(__func__);
   BLI_assert(new_socket);
 
   /* Init common socket properties. */
@@ -1415,7 +1415,7 @@ static bNodeTreeInterfacePanel *make_panel(const int uid,
 {
   BLI_assert(!name.is_empty());
 
-  bNodeTreeInterfacePanel *new_panel = MEM_callocN<bNodeTreeInterfacePanel>(__func__);
+  bNodeTreeInterfacePanel *new_panel = MEM_new_for_free<bNodeTreeInterfacePanel>(__func__);
   new_panel->item.item_type = NODE_INTERFACE_PANEL;
   new_panel->name = BLI_strdupn(name.data(), name.size());
   new_panel->description = description.is_empty() ?

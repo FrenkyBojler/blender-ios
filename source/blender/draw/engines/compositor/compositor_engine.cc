@@ -12,6 +12,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
+#include "DNA_layer_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
@@ -295,6 +296,7 @@ class Instance : public DrawEngine {
     {
       compositor::Evaluator evaluator(context);
       evaluator.evaluate();
+      context.cache_manager().reset();
     }
 
 #if defined(__APPLE__)
