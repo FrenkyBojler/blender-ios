@@ -2,10 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_instances.hh"
 
-#include "attribute_access_intern.hh"
 #include "attribute_storage_access.hh"
 
 namespace blender::bke {
@@ -28,15 +26,6 @@ static const auto &builtin_attributes()
 {
   static auto attributes = []() {
     Map<StringRef, AttrBuiltinInfo> map;
-
-    /**
-     * IDs of the instances. They are used for consistency over multiple frames for things like
-     * motion blur. Proper stable ID data that actually helps when rendering can only be generated
-     * in some situations, so this vector is allowed to be empty, in which case the index of each
-     * instance will be used for the final ID.
-     */
-    AttrBuiltinInfo id(bke::AttrDomain::Instance, bke::AttrType::Int32);
-    map.add_new("id", std::move(id));
 
     AttrBuiltinInfo instance_transform(bke::AttrDomain::Instance, bke::AttrType::Float4x4);
     instance_transform.deletable = false;
@@ -159,8 +148,12 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     if (storage.lookup(name)) {
       return false;
     }
-    Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer);
-    storage.add(name, domain, type, std::move(data));
+    storage.add(name, domain, type, attribute_init_to_data(type, domain_size, initializer));
+    if (initializer.type != AttributeInit::Type::Construct) {
+      if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
+        (*fn)(owner);
+      }
+    }
     return true;
   };
 

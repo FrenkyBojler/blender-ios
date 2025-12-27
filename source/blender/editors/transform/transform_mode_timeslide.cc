@@ -12,7 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_nla.hh"
 #include "BKE_unit.hh"
@@ -53,10 +53,10 @@ static void headerTimeSlide(TransInfo *t, const float sval, char str[UI_MAX_DRAW
     val = 2.0f * (cval - sval) / (maxx - minx);
     CLAMP(val, -1.0f, 1.0f);
 
-    BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", val);
+    BLI_snprintf_utf8(&tvec[0], NUM_STR_REP_LEN, "%.4f", val);
   }
 
-  BLI_snprintf(str, UI_MAX_DRAW_STR, IFACE_("TimeSlide: %s"), &tvec[0]);
+  BLI_snprintf_utf8(str, UI_MAX_DRAW_STR, IFACE_("TimeSlide: %s"), &tvec[0]);
 }
 
 static void applyTimeSlideValue(TransInfo *t, float sval, float cval)
@@ -138,8 +138,8 @@ static void applyTimeSlide(TransInfo *t)
   char str[UI_MAX_DRAW_STR];
 
   /* Calculate mouse co-ordinates. */
-  UI_view2d_region_to_view(v2d, t->mval[0], t->mval[1], &cval[0], &cval[1]);
-  UI_view2d_region_to_view(v2d, t->mouse.imval[0], t->mouse.imval[1], &sval[0], &sval[1]);
+  ui::view2d_region_to_view(v2d, t->mval[0], t->mval[1], &cval[0], &cval[1]);
+  ui::view2d_region_to_view(v2d, t->mouse.imval[0], t->mouse.imval[1], &sval[0], &sval[1]);
 
   /* `t->values_final[0]` stores `cval[0]`,
    * which is the current mouse-pointer location (in frames). */

@@ -26,6 +26,8 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
   const T *data_ = nullptr;
 
  public:
+  using element_type = T;
+
   ImplicitSharingPtr() = default;
 
   explicit ImplicitSharingPtr(const T *data) : data_(data) {}
@@ -115,6 +117,23 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
   uint64_t hash() const
   {
     return get_default_hash(data_);
+  }
+
+  /**
+   * If there is only a single user of the data, return a mutable reference to it directly.
+   * Otherwise call #copy which is expected to return a new implicitly shared pointer that always
+   * has a single user.
+   */
+  T &ensure_mutable_inplace()
+  {
+    BLI_assert(data_);
+    if (!data_->is_mutable()) {
+      /* The data is shared and therefore immutable. Make a mutable copy.*/
+      *this = data_->copy();
+    }
+    BLI_assert(data_->is_mutable());
+    data_->tag_ensured_mutable();
+    return const_cast<T &>(*data_);
   }
 
   static uint64_t hash_as(const T *data)
@@ -218,5 +237,9 @@ class ImplicitSharingPtrAndData {
     return this->sharing_info.has_value();
   }
 };
+
+template<typename T> static constexpr bool is_ImplicitSharingPtr_strong_v = false;
+template<typename T>
+static constexpr bool is_ImplicitSharingPtr_strong_v<ImplicitSharingPtr<T, true>> = true;
 
 }  // namespace blender

@@ -15,6 +15,7 @@
 #include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 
+#include "MEM_guardedalloc.h"
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -29,7 +30,7 @@ NODE_STORAGE_FUNCS(NodeGeometryStringToCurves)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("String").hide_label();
+  b.add_input<decl::String>("String").optional_label();
   b.add_input<decl::Float>("Size").default_value(1.0f).min(0.0f).subtype(PROP_DISTANCE);
   b.add_input<decl::Float>("Character Spacing").default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>("Word Spacing").default_value(1.0f).min(0.0f);
@@ -60,20 +61,20 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  uiTemplateID(layout, C, ptr, "font", nullptr, "FONT_OT_open", "FONT_OT_unlink");
-  layout->prop(ptr, "overflow", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "align_x", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "align_y", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "pivot_mode", UI_ITEM_NONE, IFACE_("Pivot Point"), ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  template_id(&layout, C, ptr, "font", nullptr, "FONT_OT_open", "FONT_OT_unlink");
+  layout.prop(ptr, "overflow", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "align_x", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "align_y", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "pivot_mode", UI_ITEM_NONE, IFACE_("Pivot Point"), ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryStringToCurves *data = MEM_callocN<NodeGeometryStringToCurves>(__func__);
+  NodeGeometryStringToCurves *data = MEM_new_for_free<NodeGeometryStringToCurves>(__func__);
 
   data->overflow = GEO_NODE_STRING_TO_CURVES_MODE_OVERFLOW;
   data->align_x = GEO_NODE_STRING_TO_CURVES_ALIGN_X_LEFT;
@@ -186,7 +187,7 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
   cu.linedist = line_spacing;
   cu.vfont = vfont;
   cu.overflow = overflow;
-  cu.tb = MEM_calloc_arrayN<TextBox>(MAXTEXTBOX, __func__);
+  cu.tb = MEM_new_array_for_free<TextBox>(MAXTEXTBOX, __func__);
   cu.tb->w = textbox_w;
   cu.tb->h = textbox_h;
   cu.totbox = 1;
@@ -198,29 +199,37 @@ static std::optional<TextLayout> get_text_layout(GeoNodeExecParams &params)
   /* The reason for the additional character here is unknown, but reflects other code elsewhere. */
   cu.str = MEM_malloc_arrayN<char>(len_bytes + sizeof(char32_t), __func__);
   memcpy(cu.str, layout.text.c_str(), len_bytes + 1);
-  cu.strinfo = MEM_calloc_arrayN<CharInfo>(len_chars + 1, __func__);
+  cu.strinfo = MEM_new_array_for_free<CharInfo>(len_chars + 1, __func__);
 
   CharTrans *chartransdata = nullptr;
   int text_len;
   bool text_free;
   const char32_t *r_text = nullptr;
+  float final_font_size = 0.0f;
   /* Mode FO_DUPLI used because it doesn't create curve splines. */
-  BKE_vfont_to_curve_ex(
-      nullptr, &cu, FO_DUPLI, nullptr, &r_text, &text_len, &text_free, &chartransdata);
+  BKE_vfont_to_curve_ex(nullptr,
+                        cu,
+                        FO_DUPLI,
+                        nullptr,
+                        &r_text,
+                        &text_len,
+                        &text_free,
+                        &chartransdata,
+                        &final_font_size);
 
   if (text_free) {
     MEM_freeN(r_text);
   }
 
   Span<CharInfo> info{cu.strinfo, text_len};
-  layout.final_font_size = cu.fsize_realtime;
+  layout.final_font_size = final_font_size;
   layout.positions.reserve(text_len);
 
   for (const int i : IndexRange(text_len)) {
     CharTrans &ct = chartransdata[i];
-    layout.positions.append(float2(ct.xof, ct.yof) * layout.final_font_size);
+    layout.positions.append(ct.offset * layout.final_font_size);
 
-    if ((info[i].flag & CU_CHINFO_OVERFLOW) && (cu.overflow == CU_OVERFLOW_TRUNCATE)) {
+    if (ct.is_overflow && (cu.overflow == CU_OVERFLOW_TRUNCATE)) {
       const int offset = BLI_str_utf8_offset_from_index(
           layout.text.c_str(), layout.text.size(), i + 1);
       layout.truncated_text = layout.text.substr(offset);
@@ -271,7 +280,9 @@ static Map<int, int> create_curve_instances(GeoNodeExecParams &params,
     CharInfo charinfo = {0};
     charinfo.mat_nr = 1;
 
-    BKE_vfont_char_build(&cu, &cu.nurb, layout.char_codes[i], &charinfo, 0, 0, 0, i, 1);
+    const float2 char_offset = {0, 0};
+    BKE_vfont_char_build(
+        cu, &cu.nurb, layout.char_codes[i], &charinfo, false, char_offset, 0, i, 1);
     Curves *curves_id = bke::curve_legacy_to_curves(cu);
     if (curves_id == nullptr) {
       if (pivot_required) {

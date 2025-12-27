@@ -4,11 +4,9 @@
 
 #include "DNA_pointcloud_types.h"
 
-#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_pointcloud.hh"
 
-#include "attribute_access_intern.hh"
 #include "attribute_storage_access.hh"
 
 namespace blender::bke {
@@ -154,8 +152,12 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     if (storage.lookup(name)) {
       return false;
     }
-    Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer);
-    storage.add(name, domain, type, std::move(data));
+    storage.add(name, domain, type, attribute_init_to_data(type, domain_size, initializer));
+    if (initializer.type != AttributeInit::Type::Construct) {
+      if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
+        (*fn)(owner);
+      }
+    }
     return true;
   };
 

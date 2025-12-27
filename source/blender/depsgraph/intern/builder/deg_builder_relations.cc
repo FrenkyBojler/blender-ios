@@ -32,7 +32,6 @@
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_effect_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_key_types.h"
 #include "DNA_light_types.h"
@@ -41,7 +40,6 @@
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_force_types.h"
@@ -59,11 +57,9 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
-#include "BKE_armature.hh"
 #include "BKE_collection.hh"
 #include "BKE_collision.h"
 #include "BKE_constraint.h"
-#include "BKE_curve.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_gpencil_modifier_legacy.h"
@@ -79,15 +75,9 @@
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_object.hh"
-#include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_rigidbody.h"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 #include "BKE_shrinkwrap.hh"
-#include "BKE_sound.h"
-#include "BKE_tracking.h"
-#include "BKE_world.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -105,7 +95,6 @@
 #include "intern/builder/deg_builder_relations_drivers.h"
 #include "intern/debug/deg_debug.h"
 #include "intern/depsgraph_physics.hh"
-#include "intern/depsgraph_tag.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
 
 #include "intern/node/deg_node.hh"
@@ -599,7 +588,6 @@ void DepsgraphRelationBuilder::build_id(ID *id)
       break;
 
     case ID_LI:
-    case ID_IP:
     case ID_SCR:
     case ID_VF:
     case ID_BR:
@@ -1528,6 +1516,16 @@ void DepsgraphRelationBuilder::build_constraints(ID *id,
 
           /* NOTE: obdata eval now doesn't necessarily depend on the
            * object's transform. */
+          ComponentKey target_transform_key(&ct->tar->id, NodeType::TRANSFORM);
+          add_relation(target_transform_key, constraint_op_key, cti->name);
+        }
+        else if (con->type == CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE) {
+          /* Constraints which require the target object geometry attributes. */
+          ComponentKey target_key(&ct->tar->id, NodeType::GEOMETRY);
+          add_relation(target_key, constraint_op_key, cti->name);
+
+          /* NOTE: The target object's transform is used when the 'Apply target transform' flag
+           * is set.*/
           ComponentKey target_transform_key(&ct->tar->id, NodeType::TRANSFORM);
           add_relation(target_transform_key, constraint_op_key, cti->name);
         }
@@ -2891,8 +2889,7 @@ void DepsgraphRelationBuilder::build_armature_bones(ListBase *bones)
   }
 }
 
-void DepsgraphRelationBuilder::build_armature_bone_collections(
-    blender::Span<BoneCollection *> collections)
+void DepsgraphRelationBuilder::build_armature_bone_collections(Span<BoneCollection *> collections)
 {
   for (BoneCollection *bcoll : collections) {
     build_idproperties(bcoll->prop);
@@ -2991,6 +2988,33 @@ void DepsgraphRelationBuilder::build_nodetree_socket(bNodeSocket *socket)
       build_material(material);
     }
   }
+  else if (socket->type == SOCK_FONT) {
+    VFont *font = ((bNodeSocketValueFont *)socket->default_value)->value;
+    if (font != nullptr) {
+      build_vfont(font);
+    }
+  }
+  else if (socket->type == SOCK_SCENE) {
+    Scene *scene = ((bNodeSocketValueScene *)socket->default_value)->value;
+    if (scene != nullptr) {
+      build_scene_parameters(scene);
+    }
+  }
+  else if (socket->type == SOCK_TEXT_ID) {
+    /* Text data-blocks don't use the depsgraph. */
+  }
+  else if (socket->type == SOCK_MASK) {
+    Mask *mask = ((bNodeSocketValueMask *)socket->default_value)->value;
+    if (mask != nullptr) {
+      build_mask(mask);
+    }
+  }
+  else if (socket->type == SOCK_SOUND) {
+    bSound *sound = ((bNodeSocketValueSound *)socket->default_value)->value;
+    if (sound != nullptr) {
+      build_sound(sound);
+    }
+  }
 }
 
 void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
@@ -3027,6 +3051,14 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
     }
     LISTBASE_FOREACH (bNodeSocket *, socket, &bnode->outputs) {
       build_nodetree_socket(socket);
+    }
+
+    if (ntree->type == NTREE_SHADER && bnode->is_type("ShaderNodeAttribute")) {
+      NodeShaderAttribute *attr = static_cast<NodeShaderAttribute *>(bnode->storage);
+      if (attr->type == SHD_ATTRIBUTE_VIEW_LAYER && STREQ(attr->name, "frame_current")) {
+        TimeSourceKey time_src_key;
+        add_relation(time_src_key, ntree_output_key, "TimeSrc -> Node");
+      }
     }
 
     ID *id = bnode->id;
@@ -3434,6 +3466,21 @@ static bool strip_build_prop_cb(Strip *strip, void *user_data)
     ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
     cd->builder->build_scene_speakers(strip->scene, sequence_view_layer);
   }
+  LISTBASE_FOREACH (StripModifierData *, modifier, &strip->modifiers) {
+    if (modifier->type != eSeqModifierType_Compositor) {
+      continue;
+    }
+
+    const SequencerCompositorModifierData *modifier_data =
+        reinterpret_cast<SequencerCompositorModifierData *>(modifier);
+    if (!modifier_data->node_group) {
+      continue;
+    }
+    cd->builder->build_nodetree(modifier_data->node_group);
+    OperationKey node_tree_key(
+        &modifier_data->node_group->id, NodeType::NTREE_OUTPUT, OperationCode::NTREE_OUTPUT);
+    cd->builder->add_relation(node_tree_key, cd->sequencer_key, "Modifier's Node Group");
+  }
   /* TODO(sergey): Movie clip, camera, mask. */
   return true;
 }
@@ -3456,7 +3503,7 @@ void DepsgraphRelationBuilder::build_scene_sequencer(Scene *scene)
 
   Seq_build_prop_cb_data cb_data = {this, sequencer_key, false};
 
-  seq::for_each_callback(&scene->ed->seqbase, strip_build_prop_cb, &cb_data);
+  seq::foreach_strip(&scene->ed->seqbase, strip_build_prop_cb, &cb_data);
   if (cb_data.has_audio_strips) {
     add_relation(sequencer_key, scene_audio_key, "Sequencer -> Audio");
   }
@@ -3665,8 +3712,8 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
   }
 
 #if 0
-  /* NOTE: Relation is disabled since AnimationBackup() is disabled.
-   * See comment in  AnimationBackup:init_from_id(). */
+  /* NOTE: Relation is disabled since #AnimationBackup() is disabled.
+   * See comment in #AnimationBackup:init_from_id(). */
 
   /* Copy-on-eval of write will iterate over f-curves to store current values corresponding
    * to their RNA path. This means that action must be copied prior to the ID's copy-on-evaluation,

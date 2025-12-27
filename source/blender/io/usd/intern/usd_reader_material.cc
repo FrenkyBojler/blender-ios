@@ -6,7 +6,6 @@
 #include "usd_asset_utils.hh"
 #include "usd_hash_types.hh"
 #include "usd_reader_utils.hh"
-#include "usd_utils.hh"
 
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -26,11 +25,14 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
 #include "DNA_material_types.h"
 
 #include "IMB_colormanagement.hh"
+
+#include "WM_types.hh"
 
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/usd/ar/packageUtils.h>
@@ -178,8 +180,20 @@ static void add_udim_tiles(Image *image, const blender::Vector<int> &indices)
 {
   image->source = IMA_SRC_TILED;
 
+  /* All images are created with a default, 1001, first tile. If this tile does not end up being
+   * used, it should be removed. */
+  ImageTile *first_tile = BKE_image_get_tile(image, 0);
+  bool remove_first = true;
+
   for (int tile_number : indices) {
     BKE_image_add_tile(image, tile_number, nullptr);
+    if (tile_number == first_tile->tile_number) {
+      remove_first = false;
+    }
+  }
+
+  if (remove_first) {
+    BKE_image_remove_tile(image, first_tile);
   }
 }
 
@@ -249,7 +263,7 @@ static pxr::TfToken get_source_color_space(const pxr::UsdShadeShader &usd_shader
 
   pxr::VtValue color_space_val;
   if (color_space_input.Get(&color_space_val) && color_space_val.IsHolding<pxr::TfToken>()) {
-    return color_space_val.Get<pxr::TfToken>();
+    return color_space_val.UncheckedGet<pxr::TfToken>();
   }
 
   return pxr::TfToken();
@@ -272,7 +286,7 @@ static int get_image_extension(const pxr::UsdShadeShader &usd_shader, const int 
     return default_value;
   }
 
-  pxr::TfToken wrap_val = wrap_input_val.Get<pxr::TfToken>();
+  pxr::TfToken wrap_val = wrap_input_val.UncheckedGet<pxr::TfToken>();
 
   if (wrap_val == usdtokens::repeat) {
     return SHD_IMAGE_EXTENSION_REPEAT;
@@ -329,6 +343,8 @@ static void set_viewport_material_props(Material *mtl, const pxr::UsdShadeShader
         diffuse_color_input.GetAttr().Get(&val) && val.IsHolding<pxr::GfVec3f>())
     {
       pxr::GfVec3f color = val.UncheckedGet<pxr::GfVec3f>();
+      /* Note: The material is expected to be rendered by the Workbench render engine (Viewport
+       * Display), so no need to define a material node tree. */
       mtl->r = color[0];
       mtl->g = color[1];
       mtl->b = color[2];
@@ -340,7 +356,7 @@ static void set_viewport_material_props(Material *mtl, const pxr::UsdShadeShader
     if (metallic_input.GetAttr().HasAuthoredValue() && metallic_input.GetAttr().Get(&val) &&
         val.IsHolding<float>())
     {
-      mtl->metallic = val.Get<float>();
+      mtl->metallic = val.UncheckedGet<float>();
     }
   }
 
@@ -349,7 +365,7 @@ static void set_viewport_material_props(Material *mtl, const pxr::UsdShadeShader
     if (roughness_input.GetAttr().HasAuthoredValue() && roughness_input.GetAttr().Get(&val) &&
         val.IsHolding<float>())
     {
-      mtl->roughness = val.Get<float>();
+      mtl->roughness = val.UncheckedGet<float>();
     }
   }
 }
@@ -414,7 +430,7 @@ float2 NodePlacementContext::compute_node_loc(const int column)
 }
 
 std::string NodePlacementContext::get_key(const pxr::UsdShadeShader &usd_shader,
-                                          const blender::StringRef tag) const
+                                          const StringRef tag) const
 {
   std::string key = usd_shader.GetPath().GetAsString();
   if (!tag.is_empty()) {
@@ -425,14 +441,14 @@ std::string NodePlacementContext::get_key(const pxr::UsdShadeShader &usd_shader,
 }
 
 bNode *NodePlacementContext::get_cached_node(const pxr::UsdShadeShader &usd_shader,
-                                             const blender::StringRef tag) const
+                                             const StringRef tag) const
 {
   return node_cache_.lookup_default(get_key(usd_shader, tag), nullptr);
 }
 
 void NodePlacementContext::cache_node(const pxr::UsdShadeShader &usd_shader,
                                       bNode *node,
-                                      const blender::StringRef tag)
+                                      const StringRef tag)
 {
   node_cache_.add_new(get_key(usd_shader, tag), node);
 }
@@ -440,6 +456,11 @@ void NodePlacementContext::cache_node(const pxr::UsdShadeShader &usd_shader,
 USDMaterialReader::USDMaterialReader(const USDImportParams &params, Main &bmain)
     : params_(params), bmain_(bmain)
 {
+}
+
+ReportList *USDMaterialReader::reports() const
+{
+  return params_.worker_status ? params_.worker_status->reports : nullptr;
 }
 
 Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_material,
@@ -453,6 +474,8 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
 
   /* Create the material. */
   Material *mtl = BKE_material_add(&bmain_, mtl_name.c_str());
+  mtl->nodetree = blender::bke::node_tree_add_tree_embedded(
+      &bmain_, &mtl->id, "USD Material Node Tree", "ShaderNodeTree");
   id_us_min(&mtl->id);
 
   if (read_usd_preview) {
@@ -494,9 +517,11 @@ void USDMaterialReader::import_usd_preview_nodes(Material *mtl,
    * and output shaders. */
 
   /* Add the node tree. */
-  bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
-      nullptr, &mtl->id, "Shader Nodetree", "ShaderNodeTree");
-  mtl->use_nodes = true;
+  bNodeTree *ntree = mtl->nodetree;
+  if (mtl->nodetree == nullptr) {
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        nullptr, &mtl->id, "Shader Nodetree", "ShaderNodeTree");
+  }
 
   /* Create the Principled BSDF shader node. */
   bNode *principled = add_node(ntree, SH_NODE_BSDF_PRINCIPLED, {0.0f, 300.0f});
@@ -1291,7 +1316,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
     return;
   }
 
-  const pxr::SdfAssetPath &asset_path = file_val.Get<pxr::SdfAssetPath>();
+  const pxr::SdfAssetPath &asset_path = file_val.UncheckedGet<pxr::SdfAssetPath>();
   std::string file_path = asset_path.GetResolvedPath();
 
   if (file_path.empty()) {
@@ -1338,7 +1363,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
 
   /* If this is a UDIM texture, this will store the
    * UDIM tile indices. */
-  blender::Vector<int> udim_tiles;
+  Vector<int> udim_tiles;
 
   if (is_udim_path(file_path)) {
     udim_tiles = get_udim_tiles(file_path);
@@ -1376,13 +1401,13 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   if (color_space == usdtokens::auto_) {
     /* If it's auto, determine whether to apply color correction based
      * on incoming connection (passed in from outer functions). */
-    STRNCPY(image->colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(
-                extra.is_color_corrected ? COLOR_ROLE_DEFAULT_BYTE : COLOR_ROLE_DATA));
+    STRNCPY_UTF8(image->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(
+                     extra.is_color_corrected ? COLOR_ROLE_DEFAULT_BYTE : COLOR_ROLE_DATA));
   }
 
   else if (color_space == usdtokens::sRGB) {
-    STRNCPY(image->colorspace_settings.name, IMB_colormanagement_srgb_colorspace_name_get());
+    STRNCPY_UTF8(image->colorspace_settings.name, IMB_colormanagement_srgb_colorspace_name_get());
   }
 
   /*
@@ -1391,8 +1416,8 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
    * On write, we are *only* using the correct, lower-case "raw" token.
    */
   else if (ELEM(color_space, usdtokens::RAW, usdtokens::raw)) {
-    STRNCPY(image->colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
+    STRNCPY_UTF8(image->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
   }
 
   NodeTexImage *storage = static_cast<NodeTexImage *>(tex_image->storage);
@@ -1538,20 +1563,19 @@ void USDMaterialReader::convert_usd_primvar_reader_generic(const pxr::UsdShadeSh
   }
 }
 
-void build_material_map(const Main *bmain, blender::Map<std::string, Material *> &r_mat_map)
+void build_material_map(const Main *bmain, Map<std::string, Material *> &r_mat_map)
 {
   BLI_assert_msg(r_mat_map.is_empty(), "The incoming material map should be empty");
 
   LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-    std::string usd_name = make_safe_name(material->id.name + 2, true);
-    r_mat_map.add_new(usd_name, material);
+    r_mat_map.add_new(material->id.name + 2, material);
   }
 }
 
 Material *find_existing_material(const pxr::SdfPath &usd_mat_path,
                                  const USDImportParams &params,
-                                 const blender::Map<std::string, Material *> &mat_map,
-                                 const blender::Map<pxr::SdfPath, Material *> &usd_path_to_mat)
+                                 const Map<std::string, Material *> &mat_map,
+                                 const Map<pxr::SdfPath, Material *> &usd_path_to_mat)
 {
   if (params.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
     /* Check if we've already created the Blender material with a modified name. */

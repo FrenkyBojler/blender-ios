@@ -24,7 +24,7 @@
 #ifndef MATH_STANDALONE
 #  include "MEM_guardedalloc.h"
 
-#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 #endif
 
 #ifdef _WIN32
@@ -33,7 +33,6 @@
 
 #if PY_VERSION_HEX < 0x030d0000 /* <3.13 */
 #  define PyLong_AsInt _PyLong_AsInt
-#  define PyUnicode_CompareWithASCIIString _PyUnicode_EqualToASCIIString
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -591,7 +590,7 @@ void PyC_ObSpitStr(char *result, size_t result_maxncpy, PyObject *var)
   /* No name, creator of string can manage that. */
   const char *null_str = "<null>";
   if (var == nullptr) {
-    BLI_snprintf(result, result_maxncpy, "%s", null_str);
+    BLI_strncpy_utf8(result, null_str, result_maxncpy);
   }
   else {
     const PyTypeObject *type = Py_TYPE(var);
@@ -601,13 +600,13 @@ void PyC_ObSpitStr(char *result, size_t result_maxncpy, PyObject *var)
        * but this may be used for generating errors - so don't for now. */
       PyErr_Clear();
     }
-    BLI_snprintf(result,
-                 result_maxncpy,
-                 " ref=%d, ptr=%p, type=%s, value=%.200s",
-                 int(var->ob_refcnt),
-                 (void *)var,
-                 type ? type->tp_name : null_str,
-                 var_str ? PyUnicode_AsUTF8(var_str) : "<error>");
+    BLI_snprintf_utf8(result,
+                      result_maxncpy,
+                      " ref=%d, ptr=%p, type=%s, value=%.200s",
+                      int(var->ob_refcnt),
+                      (void *)var,
+                      type ? type->tp_name : null_str,
+                      var_str ? PyUnicode_AsUTF8(var_str) : "<error>");
     if (var_str != nullptr) {
       Py_DECREF(var_str);
     }
@@ -1331,37 +1330,35 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
 
 void *PyC_RNA_AsPointer(PyObject *value, const char *type_name)
 {
-  PyObject *as_pointer;
-  PyObject *pointer;
-
-  if (STREQ(Py_TYPE(value)->tp_name, type_name) &&
-      (as_pointer = PyObject_GetAttrString(value, "as_pointer")) != nullptr &&
-      PyCallable_Check(as_pointer))
-  {
-    void *result = nullptr;
-
-    /* must be a 'type_name' object */
-    pointer = PyObject_CallObject(as_pointer, nullptr);
-    Py_DECREF(as_pointer);
-
-    if (!pointer) {
-      PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
-      return nullptr;
-    }
-    result = PyLong_AsVoidPtr(pointer);
-    Py_DECREF(pointer);
-    if (!result) {
-      PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
-    }
-
-    return result;
+  if (!STREQ(Py_TYPE(value)->tp_name, type_name)) {
+    PyErr_Format(PyExc_TypeError,
+                 "expected '%.200s' type found '%.200s' instead",
+                 type_name,
+                 Py_TYPE(value)->tp_name);
+    return nullptr;
   }
 
-  PyErr_Format(PyExc_TypeError,
-               "expected '%.200s' type found '%.200s' instead",
-               type_name,
-               Py_TYPE(value)->tp_name);
-  return nullptr;
+  PyObject *as_pointer = PyObject_GetAttrString(value, "as_pointer");
+  if ((as_pointer == nullptr) || !PyCallable_Check(as_pointer)) {
+    PyErr_Format(PyExc_TypeError, "Invalid %.200s pointer", type_name);
+    return nullptr;
+  }
+
+  /* Must be a `type_name` object. */
+  PyObject *pointer = PyObject_CallObject(as_pointer, nullptr);
+  Py_DECREF(as_pointer);
+
+  if (pointer == nullptr) {
+    PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
+    return nullptr;
+  }
+  void *result = PyLong_AsVoidPtr(pointer);
+  Py_DECREF(pointer);
+  if (!result) {
+    PyErr_SetString(PyExc_SystemError, "value.as_pointer() failed");
+  }
+
+  return result;
 }
 
 /** \} */

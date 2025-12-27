@@ -22,10 +22,16 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_output<decl::String>("String").custom_draw([](CustomSocketDrawParams &params) {
-    params.layout.alignment_set(blender::ui::LayoutAlign::Expand);
+    params.layout.alignment_set(ui::LayoutAlign::Expand);
     PropertyRNA *prop = RNA_struct_find_property(&params.node_ptr, "string");
-    params.layout.prop(
-        &params.node_ptr, prop, -1, 0, UI_ITEM_NONE, "", ICON_NONE, IFACE_("String"));
+    params.layout.prop(&params.node_ptr,
+                       prop,
+                       -1,
+                       0,
+                       ui::ITEM_R_SPLIT_EMPTY_NAME,
+                       "",
+                       ICON_NONE,
+                       IFACE_("String"));
   });
 }
 
@@ -39,7 +45,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->storage = MEM_callocN<NodeInputString>(__func__);
+  node->storage = MEM_new_for_free<NodeInputString>(__func__);
 }
 
 static void node_storage_free(bNode *node)
@@ -94,7 +100,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
     /* Adapt width of the new node to its content. */
     const StringRef string = static_cast<NodeInputString *>(node.storage)->string;
-    const uiFontStyle &fstyle = UI_style_get()->widget;
+    const uiFontStyle &fstyle = blender::ui::style_get()->widget;
     BLF_size(fstyle.uifont_id, fstyle.points);
     const float width = BLF_width(fstyle.uifont_id, string.data(), string.size()) + 40.0f;
     node.width = std::clamp(width, 140.0f, 1000.0f);
@@ -107,6 +113,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeInputString", FN_NODE_INPUT_STRING);
   ntype.ui_name = "String";
+  ntype.ui_description = "Provide a string value that can be connected to other nodes in the tree";
   ntype.enum_name_legacy = "INPUT_STRING";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;

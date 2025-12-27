@@ -11,6 +11,8 @@
 
 #include "BLI_index_mask.hh"
 
+#include "ED_grease_pencil.hh"
+
 #include "transform.hh"
 
 struct BMEditMesh;
@@ -93,6 +95,8 @@ struct TransDataVertSlideVert {
  * Used for both curves and grease pencil objects.
  */
 struct CurvesTransformData {
+  Vector<ed::greasepencil::MutableDrawingInfo> drawings;
+
   IndexMaskMemory memory;
   Vector<IndexMask> selection_by_layer;
 
@@ -148,7 +152,7 @@ void transform_convert_mesh_customdatacorrect_init(TransInfo *t);
 
 /* `transform_convert_sequencer.cc` */
 
-void transform_convert_sequencer_channel_clamp(TransInfo *t, float r_val[2]);
+bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2]);
 
 /********************* intern **********************/
 
@@ -217,9 +221,13 @@ void create_aligned_handles_masks(const bke::CurvesGeometry &curves,
                                   Span<IndexMask> points_to_transform_per_attr,
                                   int curve_index,
                                   TransCustomData &custom_data);
-void calculate_aligned_handles(const TransCustomData &custom_data,
-                               bke::CurvesGeometry &curves,
-                               int curve_index);
+void calculate_single_aligned_handles(const TransCustomData &custom_data,
+                                      bke::CurvesGeometry &curves,
+                                      int curve_index);
+bool update_handle_types_for_transform(eTfmMode mode,
+                                       const std::array<IndexMask, 3> &selection_per_attribute,
+                                       const IndexMask &bezier_points,
+                                       bke::CurvesGeometry &curves);
 
 }  // namespace curves
 
@@ -234,7 +242,6 @@ extern TransConvertTypeInfo TransConvertType_Pose;
 
 /**
  * Sets transform flags in the bones.
- * Returns total number of bones with #BONE_TRANSFORM.
  */
 void transform_convert_pose_transflags_update(Object *ob, int mode, short around);
 

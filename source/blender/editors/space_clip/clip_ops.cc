@@ -19,7 +19,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h" /* min/max frames */
 #include "DNA_userdef_types.h"
 
@@ -38,9 +37,9 @@
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_report.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -170,7 +169,7 @@ static void open_init(bContext *C, wmOperator *op)
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
-  UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void open_cancel(bContext * /*C*/, wmOperator *op)
@@ -278,7 +277,7 @@ static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent *
   if (clip) {
     STRNCPY(dirpath, clip->filepath);
 
-    BLI_path_abs(dirpath, CTX_data_main(C)->filepath);
+    BLI_path_abs(dirpath, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
     BLI_path_parent_dir(dirpath);
   }
   else {
@@ -385,7 +384,7 @@ static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
   op->customdata = vpd = MEM_callocN<ViewPanData>("ClipViewPanData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -565,7 +564,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   op->customdata = vpd = MEM_callocN<ViewZoomData>("ClipViewZoomData");
 
   /* Grab will be set when running from gizmo. */
-  vpd->own_cursor = (win->grabcursor == 0);
+  vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
@@ -1107,7 +1106,8 @@ static int frame_from_event(bContext *C, const wmEvent *event)
   else {
     float viewx, viewy;
 
-    UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
+    blender::ui::view2d_region_to_view(
+        &region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 
     framenr = round_fl_to_int(viewx);
   }
@@ -1190,7 +1190,7 @@ struct ProxyJob {
   Scene *scene;
   Main *main;
   MovieClip *clip;
-  int clip_flag;
+  MovieClipFlag clip_flag;
   bool stop;
   MovieProxyBuilder *proxy_builder;
 };
@@ -1323,7 +1323,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
   std::lock_guard lock(queue->mutex);
   if (!*queue->stop && queue->cfra <= queue->efra) {
-    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+    MovieClipUser user = {};
     char filepath[FILE_MAX];
     int file;
 
@@ -1537,7 +1537,7 @@ static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        scene,
-                       "Building Proxies",
+                       "Building proxies...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
@@ -1545,7 +1545,7 @@ static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/
   pj->scene = scene;
   pj->main = CTX_data_main(C);
   pj->clip = clip;
-  pj->clip_flag = clip->flag & MCLIP_TIMECODE_FLAGS;
+  pj->clip_flag = MovieClipFlag(clip->flag & MCLIP_TIMECODE_FLAGS);
 
   if (clip->anim) {
     pj->proxy_builder = MOV_proxy_builder_start(clip->anim,

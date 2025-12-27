@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
@@ -14,11 +14,13 @@
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_bvhutils.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -90,7 +92,7 @@ bool curves_sculpt_poll_view3d(bContext *C)
 float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_extension)
 {
   if (BKE_brush_use_size_pressure(&brush)) {
-    return stroke_extension.pressure;
+    return BKE_curvemapping_evaluateF(brush.curve_size, 0, stroke_extension.pressure);
   }
   return 1.0f;
 }
@@ -99,13 +101,13 @@ float brush_radius_get(const Paint &paint,
                        const Brush &brush,
                        const StrokeExtension &stroke_extension)
 {
-  return BKE_brush_size_get(&paint, &brush) * brush_radius_factor(brush, stroke_extension);
+  return BKE_brush_radius_get(&paint, &brush) * brush_radius_factor(brush, stroke_extension);
 }
 
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension)
 {
   if (BKE_brush_use_alpha_pressure(&brush)) {
-    return stroke_extension.pressure;
+    return BKE_curvemapping_evaluateF(brush.curve_strength, 0, stroke_extension.pressure);
   }
   return 1.0f;
 }
@@ -118,14 +120,24 @@ float brush_strength_get(const Paint &paint,
 }
 
 static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
-    bContext &C, wmOperator &op, const StrokeExtension &stroke_start)
+    wmOperator &op,
+    Scene &scene,
+    Depsgraph &depsgraph,
+    ARegion &region,
+    View3D &v3d,
+    const Object &object,
+    const StrokeExtension &stroke_start)
 {
   const BrushStrokeMode mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
 
-  const Scene &scene = *CTX_data_scene(&C);
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
-  switch (brush.curves_sculpt_brush_type) {
+  const eBrushCurvesSculptType brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
+                                                CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
+                                                eBrushCurvesSculptType(
+                                                    brush.curves_sculpt_brush_type);
+
+  switch (brush_type) {
     case CURVES_SCULPT_BRUSH_TYPE_COMB:
       return new_comb_operation();
     case CURVES_SCULPT_BRUSH_TYPE_DELETE:
@@ -135,17 +147,17 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
     case CURVES_SCULPT_BRUSH_TYPE_ADD:
       return new_add_operation();
     case CURVES_SCULPT_BRUSH_TYPE_GROW_SHRINK:
-      return new_grow_shrink_operation(mode, C);
+      return new_grow_shrink_operation(mode, scene);
     case CURVES_SCULPT_BRUSH_TYPE_SELECTION_PAINT:
-      return new_selection_paint_operation(mode, C);
+      return new_selection_paint_operation(mode, scene);
     case CURVES_SCULPT_BRUSH_TYPE_PINCH:
-      return new_pinch_operation(mode, C);
+      return new_pinch_operation(mode, scene);
     case CURVES_SCULPT_BRUSH_TYPE_SMOOTH:
       return new_smooth_operation();
     case CURVES_SCULPT_BRUSH_TYPE_PUFF:
       return new_puff_operation();
     case CURVES_SCULPT_BRUSH_TYPE_DENSITY:
-      return new_density_operation(mode, C, stroke_start);
+      return new_density_operation(mode, scene, depsgraph, region, v3d, object, stroke_start);
     case CURVES_SCULPT_BRUSH_TYPE_SLIDE:
       return new_slide_operation();
   }
@@ -153,59 +165,71 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
   return {};
 }
 
-struct SculptCurvesBrushStrokeData {
-  std::unique_ptr<CurvesSculptStrokeOperation> operation;
-  PaintStroke *stroke;
+struct SculptCurvesBrushStroke final : public PaintStroke {
+  SculptCurvesBrushStroke(bContext *C, wmOperator *op, const int event_type)
+      : PaintStroke(C, op, event_type)
+  {
+  }
+
+  bool get_location(float out[3], const float mouse[2], bool force_original) override;
+  bool test_start(wmOperator *op, const float mouse[2]) override;
+  void redraw(bool final) override;
+  bool test_cancel() override;
+  void update_step(wmOperator *op, PointerRNA *itemptr) override;
+  void done(bool is_cancel) override;
+
+ private:
+  std::unique_ptr<CurvesSculptStrokeOperation> operation_;
 };
 
-static bool stroke_get_location(bContext *C,
-                                float out[3],
-                                const float mouse[2],
-                                bool /*force_original*/)
+bool SculptCurvesBrushStroke::get_location(float out[3],
+                                           const float mouse[2],
+                                           bool /*force_original*/)
 {
   out[0] = mouse[0];
   out[1] = mouse[1];
   out[2] = 0;
-  UNUSED_VARS(C);
   return true;
 }
 
-static bool stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
+bool SculptCurvesBrushStroke::test_start(wmOperator * /*op*/, const float /*mouse*/[2])
 {
-  UNUSED_VARS(C, op, mouse);
   return true;
 }
 
-static void stroke_update_step(bContext *C,
-                               wmOperator *op,
-                               PaintStroke * /*stroke*/,
-                               PointerRNA *stroke_element)
+void SculptCurvesBrushStroke::update_step(wmOperator *op, PointerRNA *stroke_element)
 {
-  SculptCurvesBrushStrokeData *op_data = static_cast<SculptCurvesBrushStrokeData *>(
-      op->customdata);
-
   StrokeExtension stroke_extension;
   RNA_float_get_array(stroke_element, "mouse", stroke_extension.mouse_position);
   stroke_extension.pressure = RNA_float_get(stroke_element, "pressure");
   stroke_extension.reports = op->reports;
 
-  if (!op_data->operation) {
+  if (!operation_) {
     stroke_extension.is_first = true;
-    op_data->operation = start_brush_operation(*C, *op, stroke_extension);
+    operation_ = start_brush_operation(*op,
+                                       *this->vc.scene,
+                                       *this->vc.depsgraph,
+                                       *this->vc.region,
+                                       *this->vc.v3d,
+                                       *this->object,
+                                       stroke_extension);
   }
   else {
     stroke_extension.is_first = false;
   }
 
-  if (op_data->operation) {
-    op_data->operation->on_stroke_extended(*C, stroke_extension);
+  if (operation_) {
+    operation_->on_stroke_extended(*this, stroke_extension);
   }
 }
 
-static void stroke_done(const bContext *C, PaintStroke *stroke)
+void SculptCurvesBrushStroke::redraw(bool /*final*/) {}
+bool SculptCurvesBrushStroke::test_cancel()
 {
-  UNUSED_VARS(C, stroke);
+  return false;
 }
+
+void SculptCurvesBrushStroke::done(const bool /*is_cancel*/) {}
 
 static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
                                                     wmOperator *op,
@@ -218,15 +242,8 @@ static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  SculptCurvesBrushStrokeData *op_data = MEM_new<SculptCurvesBrushStrokeData>(__func__);
-  op_data->stroke = paint_stroke_new(C,
-                                     op,
-                                     stroke_get_location,
-                                     stroke_test_start,
-                                     stroke_update_step,
-                                     nullptr,
-                                     stroke_done,
-                                     event->type);
+  SculptCurvesBrushStroke *op_data = MEM_new<SculptCurvesBrushStroke>(
+      __func__, C, op, event->type);
   op->customdata = op_data;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
@@ -234,7 +251,7 @@ static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
 
   if (retval == OPERATOR_FINISHED) {
     if (op->customdata != nullptr) {
-      paint_stroke_free(C, op, op_data->stroke);
+      op_data->free(C, op);
       MEM_delete(op_data);
     }
     return OPERATOR_FINISHED;
@@ -248,9 +265,8 @@ static wmOperatorStatus sculpt_curves_stroke_modal(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  SculptCurvesBrushStrokeData *op_data = static_cast<SculptCurvesBrushStrokeData *>(
-      op->customdata);
-  wmOperatorStatus retval = paint_stroke_modal(C, op, event, &op_data->stroke);
+  SculptCurvesBrushStroke *op_data = static_cast<SculptCurvesBrushStroke *>(op->customdata);
+  wmOperatorStatus retval = op_data->modal(C, op, event);
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(op_data);
     op->customdata = nullptr;
@@ -261,9 +277,8 @@ static wmOperatorStatus sculpt_curves_stroke_modal(bContext *C,
 static void sculpt_curves_stroke_cancel(bContext *C, wmOperator *op)
 {
   if (op->customdata != nullptr) {
-    SculptCurvesBrushStrokeData *op_data = static_cast<SculptCurvesBrushStrokeData *>(
-        op->customdata);
-    paint_stroke_cancel(C, op, op_data->stroke);
+    SculptCurvesBrushStroke *op_data = static_cast<SculptCurvesBrushStroke *>(op->customdata);
+    op_data->cancel(C, op);
     MEM_delete(op_data);
   }
 }
@@ -303,10 +318,6 @@ static void curves_sculptmode_enter(bContext *C)
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, PaintMode::SculptCurves);
 
   BKE_paint_brushes_ensure(CTX_data_main(C), paint);
-
-  /* Setup cursor color. BKE_paint_init() could be used, but creates an additional brush. */
-  copy_v3_v3_uchar(paint->paint_cursor_col, PAINT_CURSOR_SCULPT_CURVES);
-  paint->paint_cursor_col[3] = 128;
 
   ED_paint_cursor_start(&curves_sculpt->paint, curves_sculpt_poll_view3d);
   paint_init_pivot(ob, scene, paint);
@@ -468,17 +479,17 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
 
 static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "constant_per_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "partial", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "constant_per_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "partial", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "partial")) {
-    layout->prop(op->ptr, "min", UI_ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
+    layout.prop(op->ptr, "min", ui::ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
   }
   else {
-    layout->prop(op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+    layout.prop(op->ptr, "probability", ui::ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
   }
 }
 
@@ -650,13 +661,13 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
       1024 < curve_op_data.selected_points.size() + curve_op_data.unselected_points.size(),
       [&]() {
         /* Build KD-tree for the selected points. */
-        KDTree_3d *kdtree = BLI_kdtree_3d_new(curve_op_data.selected_points.size());
-        BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
+        KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.selected_points.size());
+        BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
         curve_op_data.selected_points.foreach_index([&](const int point_i) {
           const float3 &position = positions[point_i];
-          BLI_kdtree_3d_insert(kdtree, point_i, position);
+          kdtree_3d_insert(kdtree, point_i, position);
         });
-        BLI_kdtree_3d_balance(kdtree);
+        kdtree_3d_balance(kdtree);
 
         /* For each unselected point, compute the distance to the closest selected point. */
         curve_op_data.distances_to_selected.reinitialize(curve_op_data.unselected_points.size());
@@ -666,20 +677,20 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
                 const int point_i = curve_op_data.unselected_points[i];
                 const float3 &position = positions[point_i];
                 KDTreeNearest_3d nearest;
-                BLI_kdtree_3d_find_nearest(kdtree, position, &nearest);
+                kdtree_3d_find_nearest(kdtree, position, &nearest);
                 curve_op_data.distances_to_selected[i] = nearest.dist;
               }
             });
       },
       [&]() {
         /* Build KD-tree for the unselected points. */
-        KDTree_3d *kdtree = BLI_kdtree_3d_new(curve_op_data.unselected_points.size());
-        BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
+        KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.unselected_points.size());
+        BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
         curve_op_data.unselected_points.foreach_index([&](const int point_i) {
           const float3 &position = positions[point_i];
-          BLI_kdtree_3d_insert(kdtree, point_i, position);
+          kdtree_3d_insert(kdtree, point_i, position);
         });
-        BLI_kdtree_3d_balance(kdtree);
+        kdtree_3d_balance(kdtree);
 
         /* For each selected point, compute the distance to the closest unselected point. */
         curve_op_data.distances_to_unselected.reinitialize(curve_op_data.selected_points.size());
@@ -689,7 +700,7 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
                 const int point_i = curve_op_data.selected_points[i];
                 const float3 &position = positions[point_i];
                 KDTreeNearest_3d nearest;
-                BLI_kdtree_3d_find_nearest(kdtree, position, &nearest);
+                kdtree_3d_find_nearest(kdtree, position, &nearest);
                 curve_op_data.distances_to_unselected[i] = nearest.dist;
               }
             });
@@ -785,7 +796,7 @@ static wmOperatorStatus select_grow_modal(bContext *C, wmOperator *op, const wmE
               ".selection",
               bke::AttrDomain(curves_id.selection_domain),
               bke::cpp_type_to_attribute_type(curve_op_data->original_selection.type()),
-              bke::AttributeInitVArray(GVArray::ForSpan(curve_op_data->original_selection)));
+              bke::AttributeInitVArray(GVArray::from_span(curve_op_data->original_selection)));
         }
 
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -861,7 +872,7 @@ struct MinDistanceEditData {
   float initial_minimum_distance;
 
   /** The operator uses a new cursor, but the existing cursors should be restored afterwards. */
-  ListBase orig_paintcursors;
+  ListBaseT<wmPaintCursor> orig_paintcursors;
   void *cursor;
 
   /** Store the viewport region in case the operator was called from the header. */
@@ -875,7 +886,7 @@ static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
   ARegion *region = op_data.region;
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
-  const float brush_radius = BKE_brush_size_get(paint, op_data.brush);
+  const float brush_radius = BKE_brush_radius_get(paint, op_data.brush);
 
   float3 tangent_x_cu = math::cross(op_data.normal_cu, float3{0, 0, 1});
   if (math::is_zero(tangent_x_cu)) {
@@ -948,7 +959,7 @@ static void min_distance_edit_draw(bContext *C,
 
   float4 circle_col = float4(op_data.brush->add_col);
   float circle_alpha = op_data.brush->cursor_overlay_alpha;
-  float brush_radius_re = BKE_brush_size_get(paint, op_data.brush);
+  float brush_radius_re = BKE_brush_radius_get(paint, op_data.brush);
 
   /* Draw the grid. */
   GPU_matrix_push();
@@ -1096,8 +1107,8 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
 
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
-  op_data->orig_paintcursors = wm->paintcursors;
-  BLI_listbase_clear(&wm->paintcursors);
+  op_data->orig_paintcursors = wm->runtime->paintcursors;
+  BLI_listbase_clear(&wm->runtime->paintcursors);
 
   /* Add minimum distance paint cursor. */
   op_data->cursor = WM_paint_cursor_activate(
@@ -1122,7 +1133,7 @@ static wmOperatorStatus min_distance_edit_modal(bContext *C, wmOperator *op, con
     /* Remove cursor. */
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(op_data.cursor));
     /* Restore original paint cursors. */
-    wm->paintcursors = op_data.orig_paintcursors;
+    wm->runtime->paintcursors = op_data.orig_paintcursors;
 
     ED_region_tag_redraw(region);
     MEM_delete(&op_data);

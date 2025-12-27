@@ -219,12 +219,6 @@ bool allow_procedural_attribute_access(StringRef attribute_name)
   if (attribute_name == ".reference_index") {
     return false;
   }
-  if (attribute_name.startswith("." UV_VERTSEL_NAME ".")) {
-    return false;
-  }
-  if (attribute_name.startswith("." UV_EDGESEL_NAME ".")) {
-    return false;
-  }
   if (attribute_name.startswith("." UV_PINNED_NAME ".")) {
     return false;
   }
@@ -423,7 +417,7 @@ GAttributeReader BuiltinCustomDataLayerProvider::try_get_for_read(const void *ow
   const int element_num = custom_data_access_.get_element_num(owner);
   if (element_num == 0) {
     if (this->layer_exists(*custom_data)) {
-      return {GVArray::ForSpan({type, nullptr, 0}), domain_, nullptr};
+      return {GVArray::from_span({type, nullptr, 0}), domain_, nullptr};
     }
     return {};
   }
@@ -433,7 +427,7 @@ GAttributeReader BuiltinCustomDataLayerProvider::try_get_for_read(const void *ow
     return {};
   }
   const CustomDataLayer &layer = custom_data->layers[index];
-  return {GVArray::ForSpan({type, layer.data, element_num}), domain_, layer.sharing_info};
+  return {GVArray::from_span({type, layer.data, element_num}), domain_, layer.sharing_info};
 }
 
 GAttributeWriter BuiltinCustomDataLayerProvider::try_get_for_write(void *owner) const
@@ -453,7 +447,7 @@ GAttributeWriter BuiltinCustomDataLayerProvider::try_get_for_write(void *owner) 
   const int element_num = custom_data_access_.get_element_num(owner);
   if (element_num == 0) {
     if (this->layer_exists(*custom_data)) {
-      return {GVMutableArray::ForSpan({type, nullptr, 0}), domain_, std::move(tag_modified_fn)};
+      return {GVMutableArray::from_span({type, nullptr, 0}), domain_, std::move(tag_modified_fn)};
     }
     return {};
   }
@@ -462,7 +456,8 @@ GAttributeWriter BuiltinCustomDataLayerProvider::try_get_for_write(void *owner) 
   if (data == nullptr) {
     return {};
   }
-  return {GVMutableArray::ForSpan({type, data, element_num}), domain_, std::move(tag_modified_fn)};
+  return {
+      GVMutableArray::from_span({type, data, element_num}), domain_, std::move(tag_modified_fn)};
 }
 
 bool BuiltinCustomDataLayerProvider::try_delete(void *owner) const
@@ -539,7 +534,7 @@ GAttributeReader CustomDataAttributeProvider::try_get_for_read(const void *owner
       continue;
     }
     GSpan data{*type, layer.data, element_num};
-    return {GVArray::ForSpan(data), domain_, layer.sharing_info};
+    return {GVArray::from_span(data), domain_, layer.sharing_info};
   }
   return {};
 }
@@ -568,7 +563,7 @@ GAttributeWriter CustomDataAttributeProvider::try_get_for_write(void *owner,
       tag_modified_fn = custom_data_access_.get_tag_modified_function(owner, attribute_id);
     }
     GMutableSpan data{*type, layer.data, element_num};
-    return {GVMutableArray::ForSpan(data), domain_, tag_modified_fn};
+    return {GVMutableArray::from_span(data), domain_, tag_modified_fn};
   }
   return {};
 }
@@ -649,7 +644,7 @@ bool CustomDataAttributeProvider::foreach_attribute(
         const CPPType *type = custom_data_type_to_cpp_type(cd_type);
         BLI_assert(type);
         GSpan data{*type, layer.data, custom_data_access_.get_element_num(owner)};
-        return GAttributeReader{GVArray::ForSpan(data), domain_, layer.sharing_info};
+        return GAttributeReader{GVArray::from_span(data), domain_, layer.sharing_info};
       };
 
       const AttrType data_type = *custom_data_type_to_attr_type(cd_type);
@@ -731,6 +726,7 @@ GAttributeReader AttributeAccessor::lookup(const StringRef attribute_id,
 GAttributeReader AttributeIter::get(std::optional<AttrDomain> domain,
                                     std::optional<AttrType> data_type) const
 {
+  BLI_assert(this->accessor != nullptr);
   return adapt_domain_and_type_if_necessary(this->get(), domain, data_type, *accessor);
 }
 
@@ -746,9 +742,9 @@ GAttributeReader AttributeAccessor::lookup_or_default(const StringRef attribute_
   const CPPType &type = attribute_type_to_cpp_type(data_type);
   const int64_t domain_size = this->domain_size(domain);
   if (default_value == nullptr) {
-    return {GVArray::ForSingleRef(type, domain_size, type.default_value()), domain, nullptr};
+    return {GVArray::from_single_ref(type, domain_size, type.default_value()), domain, nullptr};
   }
-  return {GVArray::ForSingle(type, domain_size, default_value), domain, nullptr};
+  return {GVArray::from_single(type, domain_size, default_value), domain, nullptr};
 }
 
 bool AttributeAccessor::contains(const StringRef attribute_id) const
@@ -928,7 +924,7 @@ bool MutableAttributeAccessor::rename(const StringRef old_attribute_id,
 fn::GField AttributeValidator::validate_field_if_necessary(const fn::GField &field) const
 {
   if (function) {
-    auto validate_op = fn::FieldOperation::Create(*function, {field});
+    auto validate_op = fn::FieldOperation::from(*function, {field});
     return fn::GField(validate_op);
   }
   return field;
@@ -937,12 +933,12 @@ fn::GField AttributeValidator::validate_field_if_necessary(const fn::GField &fie
 Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes,
-    const AttrDomainMask domain_mask,
+    Span<AttrDomain> domains,
     const bke::AttributeFilter &attribute_filter)
 {
   Vector<AttributeTransferData> attributes;
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (!(ATTR_DOMAIN_AS_MASK(iter.domain) & domain_mask)) {
+    if (!domains.contains(iter.domain)) {
       return;
     }
     if (iter.data_type == AttrType::String) {
@@ -954,6 +950,10 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     GVArray src = *iter.get();
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
+    /* Skip unsupported attributes. */
+    if (!dst) {
+      return;
+    }
     attributes.append({std::move(src), iter.name, {iter.domain, iter.data_type}, std::move(dst)});
   });
   return attributes;
@@ -1135,10 +1135,29 @@ void copy_attributes_group_to_group(const AttributeAccessor src_attributes,
       return;
     }
     const GVArraySpan src = *iter.get(src_domain);
+    const bool dst_already_exists = dst_attributes.contains(iter.name);
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, dst_domain, iter.data_type);
     if (!dst) {
       return;
+    }
+    if (!dst_already_exists) {
+      /* Skip filling with the default value if all of the data is going to be filled. */
+      if (!(dst_offsets.total_size() == dst.span.size() && selection.size() == dst_offsets.size()))
+      {
+        const CPPType &type = dst.span.type();
+        if (dst_attributes.is_builtin(iter.name)) {
+          if (const GPointer value = dst_attributes.get_builtin_default(iter.name)) {
+            type.fill_construct_n(value.get(), dst.span.data(), dst.span.size());
+          }
+          else {
+            type.fill_construct_n(type.default_value(), dst.span.data(), dst.span.size());
+          }
+        }
+        else {
+          type.fill_construct_n(type.default_value(), dst.span.data(), dst.span.size());
+        }
+      }
     }
     array_utils::copy_group_to_group(src_offsets, dst_offsets, selection, src, dst.span);
     dst.finish();
@@ -1150,6 +1169,13 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
                                   const AttributeFilter &attribute_filter,
                                   const IndexRange range)
 {
+  /* While it is valid to call this function for any valid range which can be placed in target
+   * domain, it is computationally costly to perform this loop. This check is COW elision and not
+   * just loop skip. */
+  if (range.is_empty()) {
+    return;
+  }
+
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain != domain) {
       return;
@@ -1163,9 +1189,47 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     const CPPType &type = attribute.span.type();
     GMutableSpan data = attribute.span.slice(range);
-    type.fill_assign_n(type.default_value(), data.data(), data.size());
+    if (attributes.is_builtin(iter.name)) {
+      if (const GPointer value = attributes.get_builtin_default(iter.name)) {
+        type.fill_assign_n(value.get(), data.data(), data.size());
+      }
+      else {
+        type.fill_assign_n(type.default_value(), data.data(), data.size());
+      }
+    }
+    else {
+      type.fill_assign_n(type.default_value(), data.data(), data.size());
+    }
     attribute.finish();
   });
+}
+
+void transform_custom_normal_attribute(const float4x4 &transform,
+                                       MutableAttributeAccessor &attributes)
+{
+  const GAttributeReader normals = attributes.lookup("custom_normal");
+  if (!normals) {
+    return;
+  }
+  if (!normals.varray.type().is<float3>()) {
+    return;
+  }
+  if (normals.sharing_info->is_mutable()) {
+    SpanAttributeWriter<float3> normals = attributes.lookup_for_write_span<float3>(
+        "custom_normal");
+    math::transform_normals(float3x3(transform), normals.span);
+    normals.finish();
+  }
+  else {
+    /* It's a bit faster to combine transforming and copying the attribute if it's shared. */
+    float3 *new_data = MEM_malloc_arrayN<float3>(size_t(normals.varray.size()), __func__);
+    math::transform_normals(VArraySpan(normals.varray.typed<float3>()),
+                            float3x3(transform),
+                            {new_data, normals.varray.size()});
+    const AttrDomain domain = normals.domain;
+    attributes.remove("custom_normal");
+    attributes.add<float3>("custom_normal", domain, AttributeInitMoveArray(new_data));
+  }
 }
 
 }  // namespace blender::bke

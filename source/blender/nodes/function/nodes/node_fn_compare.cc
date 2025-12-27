@@ -45,10 +45,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::String>("A", "A_STR")
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .hide_label();
+      .optional_label();
   b.add_input<decl::String>("B", "B_STR")
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .hide_label();
+      .optional_label();
 
   b.add_input<decl::Float>("C").default_value(0.9f);
   b.add_input<decl::Float>("Angle").default_value(0.0872665f).subtype(PROP_ANGLE);
@@ -57,14 +57,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Result");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   const NodeFunctionCompare &data = node_storage(*static_cast<const bNode *>(ptr->data));
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
   if (data.data_type == SOCK_VECTOR) {
-    layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+    layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   }
-  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
@@ -99,7 +99,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeFunctionCompare *data = MEM_callocN<NodeFunctionCompare>(__func__);
+  NodeFunctionCompare *data = MEM_new_for_free<NodeFunctionCompare>(__func__);
   data->operation = NODE_COMPARE_GREATER_THAN;
   data->data_type = SOCK_FLOAT;
   data->mode = NODE_COMPARE_MODE_ELEMENT;
@@ -738,6 +738,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
   ntype.ui_name = "Compare";
+  ntype.ui_description = "Perform a comparison operation on the two given inputs";
   ntype.enum_name_legacy = "COMPARE";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

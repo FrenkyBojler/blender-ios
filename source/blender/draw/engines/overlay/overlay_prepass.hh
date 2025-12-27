@@ -43,7 +43,7 @@ class ImagePrepass : Overlay {
     ps_.draw(res.shapes.image_quad.get());
   }
 
-  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view) final
+  void draw_on_render(gpu::FrameBuffer *framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -130,6 +130,10 @@ class Prepass : Overlay {
 
   void particle_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res, const State &state)
   {
+    if (state.skip_particles) {
+      return;
+    }
+
     Object *ob = ob_ref.object;
 
     ResourceHandleRange handle = {};
@@ -251,10 +255,14 @@ class Prepass : Overlay {
         geom_single = pointcloud_sub_pass_setup(*pointcloud_ps_, ob_ref.object);
         pass = pointcloud_ps_;
         break;
-      case OB_CURVES:
-        geom_single = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object);
+      case OB_CURVES: {
+        const char *error = nullptr;
+        /* The error string will always have been printed by the engine already.
+         * No need to display it twice. */
+        geom_single = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object, error);
         pass = curves_ps_;
         break;
+      }
       case OB_GREASE_PENCIL:
         if (!res.is_selection() && state.is_render_depth_available) {
           /* Disable during display, only enable for selection.
@@ -279,10 +287,16 @@ class Prepass : Overlay {
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     for (int material_id : geom_list.index_range()) {
+      /* Meshes with more than 16 materials can have nullptr in the geometry list as materials are
+       * not filled for unused materials indices. We should actually use `material_indices_used`
+       * but these are only available for meshes. */
+      if (geom_list[material_id] == nullptr) {
+        continue;
+      }
+
       select::ID select_id = use_material_slot_selection_ ?
                                  res.select_id(ob_ref, (material_id + 1) << 16) :
                                  res.select_id(ob_ref);
-
       if (res.is_selection() && (pass == mesh_ps_)) {
         /* Conservative shader needs expanded draw-call. */
         pass->draw_expand(

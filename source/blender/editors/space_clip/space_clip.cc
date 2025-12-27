@@ -6,9 +6,8 @@
  * \ingroup spclip
  */
 
+#include <cfloat>
 #include <cstring>
-
-#include "DNA_defaults.h"
 
 #include "DNA_mask_types.h"
 #include "DNA_movieclip_types.h"
@@ -18,16 +17,17 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_screen.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -158,9 +158,7 @@ static void clip_area_sync_frame_from_scene(ScrArea *area, const Scene *scene)
 static SpaceLink *clip_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
   ARegion *region;
-  SpaceClip *sc;
-
-  sc = DNA_struct_default_alloc(SpaceClip);
+  SpaceClip *sc = MEM_new_for_free<SpaceClip>(__func__);
 
   /* header */
   region = BKE_area_region_new();
@@ -582,7 +580,7 @@ static void clip_refresh(const bContext *C, ScrArea *area)
 
 static void CLIP_GGT_navigate(wmGizmoGroupType *gzgt)
 {
-  VIEW2D_GGT_navigate_impl(gzgt, "CLIP_GGT_navigate");
+  blender::ui::VIEW2D_GGT_navigate_impl(gzgt, "CLIP_GGT_navigate");
 }
 
 static void clip_gizmos()
@@ -657,18 +655,19 @@ static void clip_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  /* NOTE: don't use `UI_view2d_region_reinit(&region->v2d, ...)`
+  /* NOTE: don't use `view2d_region_reinit(&region->v2d, ...)`
    * since the space clip manages its own v2d in #movieclip_main_area_set_view2d */
 
   /* mask polls mode */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -706,7 +705,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* data... */
   movieclip_main_area_set_view2d(C, region);
@@ -717,7 +716,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   clip_draw_main(C, sc, region);
 
   /* TODO(sergey): would be nice to find a way to de-duplicate all this space conversions */
-  UI_view2d_view_to_region_fl(&region->v2d, 0.0f, 0.0f, &x, &y);
+  blender::ui::view2d_view_to_region_fl(&region->v2d, 0.0f, 0.0f, &x, &y);
   ED_space_clip_get_size(sc, &width, &height);
   ED_space_clip_get_zoom(sc, region, &zoomx, &zoomy);
   ED_space_clip_get_aspect(sc, &aspx, &aspy);
@@ -731,9 +730,10 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
       ED_mask_draw_region(CTX_data_expect_evaluated_depsgraph(C),
                           mask,
                           region,
-                          sc->mask_info.draw_flag,
-                          sc->mask_info.draw_type,
-                          eMaskOverlayMode(sc->mask_info.overlay_mode),
+                          sc->overlay.flag & SC_SHOW_OVERLAYS,
+                          MaskDrawFlag(sc->mask_info.draw_flag),
+                          MaskDrawType(sc->mask_info.draw_type),
+                          MaskOverlayMode(sc->mask_info.overlay_mode),
                           sc->mask_info.blend_factor,
                           mask_width,
                           mask_height,
@@ -749,7 +749,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   show_cursor |= sc->mode == SC_MODE_MASKEDIT;
   show_cursor |= sc->around == V3D_AROUND_CURSOR;
 
-  if (show_cursor) {
+  if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->overlay.flag & SC_SHOW_CURSOR && show_cursor) {
     GPU_matrix_push();
     GPU_matrix_translate_2f(x, y);
     GPU_matrix_scale_2f(zoomx, zoomy);
@@ -761,7 +761,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
 
   clip_draw_cache_and_notes(C, sc, region);
 
-  if (sc->flag & SC_SHOW_ANNOTATION) {
+  if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->flag & SC_SHOW_ANNOTATION) {
     /* Grease Pencil */
     clip_draw_grease_pencil((bContext *)C, true);
   }
@@ -777,9 +777,9 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   // GPU_matrix_pop_projection();
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
-  if (sc->flag & SC_SHOW_ANNOTATION) {
+  if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->flag & SC_SHOW_ANNOTATION) {
     /* draw Grease Pencil - screen space only */
     clip_draw_grease_pencil((bContext *)C, false);
   }
@@ -822,21 +822,25 @@ static void clip_preview_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(
+      &region->v2d, blender::ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Time Scrub", SPACE_CLIP, RGN_TYPE_PREVIEW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Clip Time Scrub", SPACE_CLIP, RGN_TYPE_PREVIEW);
   WM_event_add_keymap_handler_poll(
       &region->runtime->handlers, keymap, ED_time_scrub_event_in_region_poll);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Graph Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Clip Graph Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -853,9 +857,9 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
+  blender::ui::theme::frame_buffer_clear(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* data... */
   clip_draw_graph(sc, region, scene);
@@ -867,10 +871,11 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   ANIM_draw_cfra(C, v2d, cfra_flag);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true, fps);
 
   /* current frame indicator */
   ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS, !minimized);
@@ -879,7 +884,7 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   if (!minimized) {
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
-    UI_view2d_scrollers_draw(v2d, &scroller_mask);
+    blender::ui::view2d_scrollers_draw(v2d, &scroller_mask);
   }
   else {
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
@@ -890,7 +895,7 @@ static void graph_region_draw(const bContext *C, ARegion *region)
     rcti rect;
     BLI_rcti_init(
         &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-    UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_TEXT);
+    blender::ui::view2d_draw_scale_y__values(region, v2d, &rect, TH_TEXT, 10);
   }
 }
 
@@ -908,13 +913,13 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
+  blender::ui::theme::frame_buffer_clear(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* time grid */
   if (!minimized) {
-    UI_view2d_draw_lines_x__discrete_frames_or_seconds(
+    blender::ui::view2d_draw_lines_x__discrete_frames_or_seconds(
         v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
   }
 
@@ -928,10 +933,11 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   ANIM_draw_cfra(C, v2d, cfra_flag);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, sc->flag & SC_SHOW_SECONDS, true, fps);
 
   /* current frame indicator */
   ED_time_scrub_draw_current_frame(region, scene, sc->flag & SC_SHOW_SECONDS, !minimized);
@@ -939,7 +945,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
   /* scrollers */
   if (!minimized) {
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
-    UI_view2d_scrollers_draw(v2d, nullptr);
+    blender::ui::view2d_scrollers_draw(v2d, nullptr);
   }
   else {
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
@@ -979,9 +985,10 @@ static void clip_channels_region_init(wmWindowManager *wm, ARegion *region)
   /* ensure the 2d view sync works - main region has bottom scroller */
   region->v2d.scroll = V2D_SCROLL_BOTTOM;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, blender::ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Clip Dopesheet Editor", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -996,15 +1003,15 @@ static void clip_channels_region_draw(const bContext *C, ARegion *region)
   }
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* data... */
   clip_draw_dopesheet_channels(C, region);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 }
 
 static void clip_channels_region_listener(const wmRegionListenerParams * /*params*/) {}
@@ -1067,7 +1074,7 @@ static void clip_tools_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -1131,7 +1138,7 @@ static void clip_properties_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Clip", SPACE_CLIP, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -1211,7 +1218,7 @@ static void clip_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *
 
 static void clip_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceClip, sl);
+  writer->write_struct_cast<SpaceClip>(sl);
 }
 
 /** \} */
@@ -1226,7 +1233,7 @@ void ED_spacetype_clip()
   ARegionType *art;
 
   st->spaceid = SPACE_CLIP;
-  STRNCPY(st->name, "Clip");
+  STRNCPY_UTF8(st->name, "Clip");
 
   st->create = clip_create;
   st->free = clip_free;
@@ -1284,6 +1291,7 @@ void ED_spacetype_clip()
   /* regions: tools */
   art = MEM_callocN<ARegionType>("spacetype clip region tools");
   art->regionid = RGN_TYPE_TOOLS;
+  art->flag = ARegionTypeFlag::UsePanelCategoryTabs;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_FRAMES | ED_KEYMAP_UI;
   art->poll = clip_tools_region_poll;
@@ -1318,7 +1326,7 @@ void ED_spacetype_clip()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: hud */
-  art = ED_area_type_hud(st->spaceid);
+  art = blender::ui::ED_area_type_hud(st->spaceid);
   BLI_addhead(&st->regiontypes, art);
 
   BKE_spacetype_register(std::move(st));

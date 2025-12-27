@@ -9,16 +9,15 @@
 #include "BLI_array.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
-#include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -44,14 +43,19 @@ NODE_STORAGE_FUNCS(NodePlaneTrackDeformData)
 static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_input<decl::Color>("Image")
+      .hide_value()
+      .compositor_realization_mode(CompositorInputRealizationMode::Transforms)
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
   b.add_output<decl::Float>("Plane").structure_type(StructureType::Dynamic);
 
-  b.add_layout([](uiLayout *layout, bContext *C, PointerRNA *ptr) {
+  b.add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
     bNode *node = ptr->data_as<bNode>();
 
-    uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+    template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
     if (node->id) {
       MovieClip *clip = reinterpret_cast<MovieClip *>(node->id);
@@ -60,8 +64,8 @@ static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
       PointerRNA tracking_ptr = RNA_pointer_create_discrete(
           &clip->id, &RNA_MovieTracking, tracking);
 
-      uiLayout *col = &layout->column(false);
-      col->prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
+      ui::Layout &col = layout.column(false);
+      col.prop_search(ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
 
       tracking_object = BKE_tracking_object_get_named(tracking,
                                                       node_storage(*node).tracking_object);
@@ -69,17 +73,14 @@ static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
         PointerRNA object_ptr = RNA_pointer_create_discrete(
             &clip->id, &RNA_MovieTrackingObject, tracking_object);
 
-        col->prop_search(ptr, "plane_track_name", &object_ptr, "plane_tracks", "", ICON_ANIM_DATA);
+        col.prop_search(ptr, "plane_track_name", &object_ptr, "plane_tracks", "", ICON_ANIM_DATA);
       }
       else {
-        layout->prop(ptr, "plane_track_name", UI_ITEM_NONE, "", ICON_ANIM_DATA);
+        layout.prop(ptr, "plane_track_name", UI_ITEM_NONE, "", ICON_ANIM_DATA);
       }
     }
   });
 
-  b.add_input<decl::Color>("Image")
-      .compositor_realization_mode(CompositorInputRealizationMode::Transforms)
-      .structure_type(StructureType::Dynamic);
   PanelDeclarationBuilder &motion_blur_panel = b.add_panel("Motion Blur").default_closed(true);
   motion_blur_panel.add_input<decl::Bool>("Motion Blur")
       .default_value(false)
@@ -102,7 +103,7 @@ static void init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  NodePlaneTrackDeformData *data = MEM_callocN<NodePlaneTrackDeformData>(__func__);
+  NodePlaneTrackDeformData *data = MEM_new_for_free<NodePlaneTrackDeformData>(__func__);
   node->storage = data;
 
   const Scene *scene = CTX_data_scene(C);
@@ -114,10 +115,10 @@ static void init(const bContext *C, PointerRNA *ptr)
     id_us_plus(&clip->id);
 
     const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-    STRNCPY(data->tracking_object, tracking_object->name);
+    STRNCPY_UTF8(data->tracking_object, tracking_object->name);
 
     if (tracking_object->active_plane_track) {
-      STRNCPY(data->plane_track_name, tracking_object->active_plane_track->name);
+      STRNCPY_UTF8(data->plane_track_name, tracking_object->active_plane_track->name);
     }
   }
 }
@@ -159,7 +160,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
 
   void execute_gpu(const Array<float4x4> homography_matrices)
   {
-    GPUUniformBuf *homography_matrices_buffer = GPU_uniformbuf_create_ex(
+    gpu::UniformBuf *homography_matrices_buffer = GPU_uniformbuf_create_ex(
         homography_matrices.size() * sizeof(float4x4),
         homography_matrices.data(),
         "Plane Track Deform Homography Matrices");
@@ -188,10 +189,10 @@ class PlaneTrackDeformOperation : public NodeOperation {
   }
 
   void compute_plane_gpu(const Array<float4x4> &homography_matrices,
-                         GPUUniformBuf *homography_matrices_buffer,
+                         gpu::UniformBuf *homography_matrices_buffer,
                          Result &plane_mask)
   {
-    GPUShader *shader = context().get_shader("compositor_plane_deform_motion_blur");
+    gpu::Shader *shader = context().get_shader("compositor_plane_deform_motion_blur");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "number_of_motion_blur_samples", homography_matrices.size());
@@ -214,7 +215,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     plane_mask.unbind_as_texture();
@@ -224,9 +225,9 @@ class PlaneTrackDeformOperation : public NodeOperation {
   }
 
   Result compute_plane_mask_gpu(const Array<float4x4> &homography_matrices,
-                                GPUUniformBuf *homography_matrices_buffer)
+                                gpu::UniformBuf *homography_matrices_buffer)
   {
-    GPUShader *shader = context().get_shader("compositor_plane_deform_motion_blur_mask");
+    gpu::Shader *shader = context().get_shader("compositor_plane_deform_motion_blur_mask");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "number_of_motion_blur_samples", homography_matrices.size());
@@ -239,7 +240,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
     plane_mask.allocate_texture(domain);
     plane_mask.bind_as_image(shader, "mask_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     plane_mask.unbind_as_image();
     GPU_uniformbuf_unbind(homography_matrices_buffer);
@@ -277,7 +278,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     parallel_for(size, [&](const int2 texel) {
       float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
 
@@ -297,8 +298,8 @@ class PlaneTrackDeformOperation : public NodeOperation {
         float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
         float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
 
-        float4 sampled_color = input.sample_ewa_extended(
-            projected_coordinates, x_gradient, y_gradient);
+        float4 sampled_color = float4(
+            input.sample_ewa(projected_coordinates, x_gradient, y_gradient, Extension::Extend));
         accumulated_color += sampled_color;
       }
 
@@ -307,7 +308,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
       /* Premultiply the mask value as an alpha. */
       float4 plane_color = accumulated_color * plane_mask.load_pixel<float>(texel);
 
-      output.store_pixel(texel, plane_color);
+      output.store_pixel(texel, Color(plane_color));
     });
   }
 
@@ -317,7 +318,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
     Result plane_mask = context().create_result(ResultType::Float);
     plane_mask.allocate_texture(domain);
 
-    const int2 size = domain.size;
+    const int2 size = domain.data_size;
     parallel_for(size, [&](const int2 texel) {
       float2 coordinates = (float2(texel) + float2(0.5f)) / float2(size);
 
@@ -396,19 +397,19 @@ class PlaneTrackDeformOperation : public NodeOperation {
     }
 
     MovieTrackingObject *tracking_object = BKE_tracking_object_get_named(
-        &movie_clip->tracking, node_storage(bnode()).tracking_object);
+        &movie_clip->tracking, node_storage(node()).tracking_object);
 
     if (!tracking_object) {
       return nullptr;
     }
 
     return BKE_tracking_object_find_plane_track_with_name(tracking_object,
-                                                          node_storage(bnode()).plane_track_name);
+                                                          node_storage(node()).plane_track_name);
   }
 
   int2 get_movie_clip_size()
   {
-    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+    MovieClipUser user = {};
     BKE_movieclip_user_set_frame(&user, context().get_frame_number());
 
     int2 size;
@@ -419,24 +420,24 @@ class PlaneTrackDeformOperation : public NodeOperation {
   int get_motion_blur_samples()
   {
     const int samples = math::clamp(
-        this->get_input("Motion Blur Samples").get_single_value_default(16), 1, 64);
+        this->get_input("Motion Blur Samples").get_single_value_default<int>(), 1, 64);
     return this->use_motion_blur() ? samples : 1;
   }
 
   float get_motion_blur_shutter()
   {
     return math::clamp(
-        this->get_input("Motion Blur Shutter").get_single_value_default(0.5f), 0.0f, 1.0f);
+        this->get_input("Motion Blur Shutter").get_single_value_default<float>(), 0.0f, 1.0f);
   }
 
   bool use_motion_blur()
   {
-    return this->get_input("Motion Blur").get_single_value_default(false);
+    return this->get_input("Motion Blur").get_single_value_default<bool>();
   }
 
   MovieClip *get_movie_clip()
   {
-    return reinterpret_cast<MovieClip *>(bnode().id);
+    return reinterpret_cast<MovieClip *>(node().id);
   }
 };
 

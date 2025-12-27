@@ -33,7 +33,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Geometry>("Curves")
+      .supported_type(GeometryComponent::Type::Curve)
+      .description("Curves to deform");
   b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
 }
 
@@ -286,7 +288,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                              TIP_("Evaluated surface missing attribute: \"rest_position\""));
     return;
   }
-  if (curves.surface_uv_coords().is_empty() && curves.curves_num() > 0) {
+  if (!curves.surface_uv_coords() && curves.curves_num() > 0) {
     pass_through_input();
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Curves are not attached to any UV map"));

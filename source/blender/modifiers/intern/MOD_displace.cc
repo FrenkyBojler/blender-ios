@@ -14,7 +14,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -50,10 +49,7 @@
 static void init_data(ModifierData *md)
 {
   DisplaceModifierData *dmd = (DisplaceModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(dmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(dmd, DNA_struct_default_get(DisplaceModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(dmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -160,7 +156,7 @@ static void displaceModifier_do_task(void *__restrict userdata,
   int defgrp_index = data->defgrp_index;
   int direction = data->direction;
   bool use_global_direction = data->use_global_direction;
-  float(*tex_co)[3] = data->tex_co;
+  float (*tex_co)[3] = data->tex_co;
   blender::MutableSpan<blender::float3> positions = data->positions;
 
   /* When no texture is used, we fall back to white. */
@@ -251,7 +247,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
   const MDeformVert *dvert;
   int direction = dmd->direction;
   int defgrp_index;
-  float(*tex_co)[3];
+  float (*tex_co)[3];
   float weight = 1.0f; /* init value unused but some compilers may complain */
   const bool use_global_direction = dmd->space == MOD_DISP_SPACE_GLOBAL;
 
@@ -276,7 +272,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
                            ctx,
                            ob,
                            mesh,
-                           reinterpret_cast<float(*)[3]>(positions.data()),
+                           reinterpret_cast<float (*)[3]>(positions.data()),
                            tex_co);
 
     MOD_init_texture((MappingInfoModifierData *)dmd, ctx);
@@ -300,7 +296,7 @@ static void displaceModifier_do(DisplaceModifierData *dmd,
     data.vert_normals = mesh->vert_normals_true();
   }
   else if (direction == MOD_DISP_DIR_CLNOR) {
-    data.vert_normals = mesh->corner_normals();
+    data.vert_normals = mesh->vert_normals();
   }
   else if (ELEM(direction, MOD_DISP_DIR_X, MOD_DISP_DIR_Y, MOD_DISP_DIR_Z, MOD_DISP_DIR_RGB_XYZ) &&
            use_global_direction)
@@ -335,8 +331,7 @@ static void deform_verts(ModifierData *md,
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -347,11 +342,11 @@ static void panel_draw(const bContext *C, Panel *panel)
   bool has_texture = !RNA_pointer_is_null(&texture_ptr);
   int texture_coords = RNA_enum_get(ptr, "texture_coords");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
+  template_id(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
-  col = &layout->column(false);
+  blender::ui::Layout *col = &layout.column(false);
   col->active_set(has_texture);
   col->prop(ptr, "texture_coords", UI_ITEM_NONE, IFACE_("Coordinates"), ICON_NONE);
   if (texture_coords == MOD_DISP_MAP_OBJECT) {
@@ -373,9 +368,9 @@ static void panel_draw(const bContext *C, Panel *panel)
     col->prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
   }
 
-  layout->separator();
+  layout.separator();
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->prop(ptr, "direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (ELEM(RNA_enum_get(ptr, "direction"),
            MOD_DISP_DIR_X,
@@ -386,13 +381,13 @@ static void panel_draw(const bContext *C, Panel *panel)
     col->prop(ptr, "space", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  layout->separator();
+  layout.separator();
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "mid_level", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(col, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
+  modifier_vgroup_ui(*col, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -435,4 +430,5 @@ ModifierTypeInfo modifierType_Displace = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

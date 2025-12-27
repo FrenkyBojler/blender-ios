@@ -72,7 +72,7 @@ static bool script_test_modal_operators(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->modalhandlers) {
+    LISTBASE_FOREACH (wmEventHandler *, handler_base, &win->runtime->modalhandlers) {
       if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
         if (handler->op != nullptr) {
@@ -96,7 +96,7 @@ static wmOperatorStatus script_reload_exec(bContext *C, wmOperator *op)
 
   /* clear running operators */
   if (script_test_modal_operators(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Can't reload with running modal operators");
+    BKE_report(op->reports, RPT_ERROR, "Cannot reload with running modal operators");
     return OPERATOR_CANCELLED;
   }
 

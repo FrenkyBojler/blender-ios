@@ -223,7 +223,7 @@ static int rna_Image_gl_load(
     BKE_image_multilayer_index(image->rr, &iuser);
   }
 
-  GPUTexture *tex = BKE_image_get_gpu_texture(image, &iuser);
+  blender::gpu::Texture *tex = BKE_image_get_gpu_texture(image, &iuser);
 
   if (tex == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Failed to load image texture '%s'", image->id.name + 2);
@@ -241,7 +241,7 @@ static int rna_Image_gl_touch(
 
   BKE_image_tag_time(image);
 
-  if (image->gputexture[TEXTARGET_2D][0] == nullptr) {
+  if (image->runtime->gputexture[TEXTARGET_2D][0] == nullptr) {
     error = rna_Image_gl_load(image, reports, frame, layer_index, pass_index);
   }
 

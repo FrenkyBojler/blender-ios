@@ -12,7 +12,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -38,10 +37,7 @@
 static void init_data(ModifierData *md)
 {
   SurfaceModifierData *surmd = (SurfaceModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(surmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(surmd, DNA_struct_default_get(SurfaceModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(surmd, modifier);
 }
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
@@ -159,11 +155,11 @@ static void deform_verts(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -214,4 +210,5 @@ ModifierTypeInfo modifierType_Surface = {
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -58,13 +58,10 @@
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
 #include "BKE_curve.hh"
-#include "BKE_effect.h"
 #include "BKE_fcurve_driver.h"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
-#include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
@@ -72,12 +69,11 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_light.h"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_material.hh"
-#include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -86,9 +82,8 @@
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
-#include "BKE_shader_fx.h"
-#include "BKE_sound.h"
-#include "BKE_tracking.h"
+#include "BKE_shader_fx.hh"
+#include "BKE_sound.hh"
 #include "BKE_volume.hh"
 #include "BKE_world.h"
 
@@ -385,13 +380,14 @@ void DepsgraphNodeBuilder::begin_build()
      * check whether an evaluated copy is needed based on a scalar value which does not lead to
      * access of possibly deleted memory. */
     IDInfo id_info{};
-    if (deg_eval_copy_is_needed(id_node->id_type) && deg_eval_copy_is_expanded(id_node->id_cow) &&
-        id_node->id_orig != id_node->id_cow)
-    {
-      id_info.id_cow = id_node->id_cow;
-    }
-    else {
-      id_info.id_cow = nullptr;
+    if (deg_eval_copy_is_needed(id_node->id_type) && id_node->id_orig != id_node->id_cow) {
+      if (deg_eval_copy_is_expanded(id_node->id_cow)) {
+        id_info.id_cow = id_node->id_cow;
+      }
+      else {
+        /* This ID has not been expanded yet. Don't reuse it like already expanded IDs. */
+        MEM_SAFE_FREE(id_node->id_cow);
+      }
     }
     id_info.previously_visible_components_mask = id_node->visible_components_mask;
     id_info.previous_eval_flags = id_node->eval_flags;
@@ -493,12 +489,13 @@ void DepsgraphNodeBuilder::update_invalid_cow_pointers()
    * code), but cannot really be avoided currently. */
 
   for (const IDNode *id_node : graph_->id_nodes) {
-    if (id_node->previously_visible_components_mask == 0) {
-      /* Newly added node/ID, no need to check it. */
-      continue;
-    }
     if (ELEM(id_node->id_cow, id_node->id_orig, nullptr)) {
       /* Node/ID with no copy-on-eval data, no need to check it. */
+      continue;
+    }
+    if (!deg_eval_copy_is_expanded(id_node->id_cow)) {
+      /* Copy-on-eval data is not expanded yet, so this is a newly added node/ID that has not been
+       * evaluated yet. */
       continue;
     }
     if ((id_node->id_cow->recalc & ID_RECALC_SYNC_TO_EVAL) != 0) {
@@ -658,7 +655,6 @@ void DepsgraphNodeBuilder::build_id(ID *id, const bool force_be_visible)
       break;
 
     case ID_LI:
-    case ID_IP:
     case ID_SCR:
     case ID_VF:
     case ID_BR:
@@ -952,6 +948,12 @@ void DepsgraphNodeBuilder::build_object_modifiers(Object *object)
             Object *ob_eval = reinterpret_cast<Object *>(id_node->id_cow);
             ModifierData *md_eval = reinterpret_cast<ModifierData *>(
                 BLI_findlink(&ob_eval->modifiers, modifier_index));
+            if (!md_eval) {
+              /* The modifiers may not be available on the evaluated object if the object has an
+               * error that turned it into an Empty. Modifiers are not copied on this object type.
+               * Also see #142290. */
+              return;
+            }
             /* Set flag that the modifier can check when it is evaluated. */
             const bool is_user_modified = modifier_node->flag & DEPSOP_FLAG_USER_MODIFIED;
             SET_FLAG_FROM_TEST(md_eval->flag, is_user_modified, eModifierFlag_UserModified);
@@ -1899,8 +1901,7 @@ void DepsgraphNodeBuilder::build_armature_bones(ListBase *bones)
   }
 }
 
-void DepsgraphNodeBuilder::build_armature_bone_collections(
-    blender::Span<BoneCollection *> collections)
+void DepsgraphNodeBuilder::build_armature_bone_collections(Span<BoneCollection *> collections)
 {
   for (BoneCollection *bcoll : collections) {
     build_idproperties(bcoll->prop);
@@ -1959,6 +1960,21 @@ void DepsgraphNodeBuilder::build_nodetree_socket(bNodeSocket *socket)
   }
   else if (socket->type == SOCK_MATERIAL) {
     build_id((ID *)((bNodeSocketValueMaterial *)socket->default_value)->value);
+  }
+  else if (socket->type == SOCK_FONT) {
+    build_id((ID *)((bNodeSocketValueFont *)socket->default_value)->value);
+  }
+  else if (socket->type == SOCK_SCENE) {
+    build_id((ID *)((bNodeSocketValueScene *)socket->default_value)->value);
+  }
+  else if (socket->type == SOCK_TEXT_ID) {
+    /* Text data-blocks don't use the depsgraph. */
+  }
+  else if (socket->type == SOCK_MASK) {
+    build_id((ID *)((bNodeSocketValueMask *)socket->default_value)->value);
+  }
+  else if (socket->type == SOCK_SOUND) {
+    build_id((ID *)((bNodeSocketValueSound *)socket->default_value)->value);
   }
 }
 
@@ -2316,6 +2332,18 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
     ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
     nb->build_scene_speakers(strip->scene, sequence_view_layer);
   }
+  LISTBASE_FOREACH (StripModifierData *, modifier, &strip->modifiers) {
+    if (modifier->type != eSeqModifierType_Compositor) {
+      continue;
+    }
+
+    const SequencerCompositorModifierData *modifier_data =
+        reinterpret_cast<SequencerCompositorModifierData *>(modifier);
+    if (!modifier_data->node_group) {
+      continue;
+    }
+    nb->build_nodetree(modifier_data->node_group);
+  }
   /* TODO(sergey): Movie clip, scene, camera, mask. */
   return true;
 }
@@ -2337,7 +2365,7 @@ void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
                        seq::eval_strips(depsgraph, scene_cow, &scene_cow->ed->seqbase);
                      });
   /* Make sure data for sequences is in the graph. */
-  seq::for_each_callback(&scene->ed->seqbase, strip_node_build_cb, this);
+  seq::foreach_strip(&scene->ed->seqbase, strip_node_build_cb, this);
 }
 
 void DepsgraphNodeBuilder::build_scene_audio(Scene *scene)

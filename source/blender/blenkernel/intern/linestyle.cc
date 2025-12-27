@@ -15,7 +15,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
+#include "DNA_layer_types.h"
 #include "DNA_material_types.h" /* for ramp blend */
 #include "DNA_object_types.h"
 #include "DNA_sdna_type_ids.hh"
@@ -24,6 +24,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -49,10 +50,7 @@ using blender::dna::sdna_struct_id_get;
 static void linestyle_init_data(ID *id)
 {
   FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(linestyle, id));
-
-  MEMCPY_STRUCT_AFTER(linestyle, DNA_struct_default_get(FreestyleLineStyle), id);
+  INIT_DEFAULT_STRUCT_AFTER(linestyle, id);
 
   BKE_linestyle_geometry_modifier_add(linestyle, nullptr, LS_MODIFIER_SAMPLING);
 }
@@ -73,7 +71,7 @@ static void linestyle_copy_data(Main *bmain,
 
   for (int a = 0; a < MAX_MTEX; a++) {
     if (linestyle_src->mtex[a]) {
-      linestyle_dst->mtex[a] = MEM_callocN<MTex>(__func__);
+      linestyle_dst->mtex[a] = MEM_new_for_free<MTex>(__func__);
       *linestyle_dst->mtex[a] = blender::dna::shallow_copy(*linestyle_src->mtex[a]);
     }
   }
@@ -177,6 +175,14 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void linestyle_foreach_working_space_color(ID *id,
+                                                  const IDTypeForeachColorFunctionCallback &fn)
+{
+  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
+
+  fn.single(&linestyle->r);
+}
+
 static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modifiers)
 {
   LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
@@ -209,36 +215,33 @@ static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modif
       default:
         struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, m);
   }
   LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
       case LS_MODIFIER_ALONG_STROKE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_AlongStroke *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_AlongStroke *)m)->color_ramp);
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp);
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp);
         break;
       case LS_MODIFIER_MATERIAL:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Material *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Material *)m)->color_ramp);
         break;
       case LS_MODIFIER_TANGENT:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Tangent *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Tangent *)m)->color_ramp);
         break;
       case LS_MODIFIER_NOISE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Noise *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Noise *)m)->color_ramp);
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_CreaseAngle *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_CreaseAngle *)m)->color_ramp);
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_Curvature_3D *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Curvature_3D *)m)->color_ramp);
         break;
     }
   }
@@ -276,7 +279,7 @@ static void write_linestyle_alpha_modifiers(BlendWriter *writer, ListBase *modif
       default:
         struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, m);
   }
   LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
@@ -345,7 +348,7 @@ static void write_linestyle_thickness_modifiers(BlendWriter *writer, ListBase *m
       default:
         struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, m);
   }
   LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
     switch (m->type) {
@@ -427,7 +430,7 @@ static void write_linestyle_geometry_modifiers(BlendWriter *writer, ListBase *mo
       default:
         struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, m);
   }
 }
 
@@ -444,7 +447,7 @@ static void linestyle_blend_write(BlendWriter *writer, ID *id, const void *id_ad
   write_linestyle_geometry_modifiers(writer, &linestyle->geometry_modifiers);
   for (int a = 0; a < MAX_MTEX; a++) {
     if (linestyle->mtex[a]) {
-      BLO_write_struct(writer, MTex, linestyle->mtex[a]);
+      writer->write_struct(linestyle->mtex[a]);
     }
   }
   if (linestyle->nodetree) {
@@ -665,6 +668,7 @@ IDTypeInfo IDType_ID_LS = {
     /*foreach_id*/ linestyle_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ linestyle_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ linestyle_blend_write,
@@ -717,7 +721,7 @@ static LineStyleModifier *new_modifier(const char *name, int type, size_t size)
   }
   m = (LineStyleModifier *)MEM_callocN(size, "line style modifier");
   m->type = type;
-  STRNCPY(m->name, DATA_(name));
+  STRNCPY_UTF8(m->name, DATA_(name));
   m->influence = 1.0f;
   m->flags = LS_MODIFIER_ENABLED | LS_MODIFIER_EXPANDED;
 

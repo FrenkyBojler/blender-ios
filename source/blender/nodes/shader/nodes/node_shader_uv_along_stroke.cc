@@ -14,9 +14,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("UV");
 }
 
-static void node_shader_buts_uvalongstroke(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_uvalongstroke(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "use_tips", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_tips", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 }  // namespace blender::nodes::node_shader_uv_along_stroke_cc
@@ -30,6 +30,7 @@ void register_node_type_sh_uvalongstroke()
 
   sh_node_type_base(&ntype, "ShaderNodeUVAlongStroke", SH_NODE_UVALONGSTROKE);
   ntype.ui_name = "UV Along Stroke";
+  ntype.ui_description = "UV coordinates that map a texture along the stroke length";
   ntype.enum_name_legacy = "UVALONGSTROKE";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::node_declare;

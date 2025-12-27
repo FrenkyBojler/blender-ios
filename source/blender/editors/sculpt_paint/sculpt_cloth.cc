@@ -45,7 +45,6 @@
 
 #include "ED_sculpt.hh"
 
-#include "brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_face_set.hh"
@@ -65,7 +64,6 @@
 #include "bmesh.hh"
 
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 
 namespace blender::ed::sculpt_paint::cloth {
@@ -1127,7 +1125,7 @@ static void cloth_brush_collision_cb(void *userdata,
   ClothBrushCollision *col = (ClothBrushCollision *)userdata;
   CollisionModifierData *col_data = col->col_data;
   const int3 vert_tri = col_data->vert_tris[index];
-  float(*positions)[3] = col_data->x;
+  float (*positions)[3] = col_data->x;
   float *tri[3], no[3], co[3];
 
   tri[0] = positions[vert_tri[0]];
@@ -2525,7 +2523,7 @@ void SCULPT_OT_cloth_filter(wmOperatorType *ot)
                              "use_face_sets",
                              false,
                              "Use Face Sets",
-                             "Apply the filter only to the Face Set under the cursor");
+                             "Apply the filter only to the face set under the cursor");
   ot->prop = RNA_def_boolean(ot->srna,
                              "use_collisions",
                              false,

@@ -150,7 +150,7 @@ def _fake_module(mod_name, mod_path, speedy=True):
     try:
         ast_data = ast.parse(data, filename=mod_path)
     except Exception:
-        print("Syntax error 'ast.parse' can't read:", repr(mod_path))
+        print("Syntax error 'ast.parse' cannot read:", repr(mod_path))
         import traceback
         traceback.print_exc()
         ast_data = None
@@ -332,7 +332,7 @@ def enable(module_name, *, default_set=False, persistent=False, refresh_handled=
     import os
     import sys
     import importlib
-    from bpy_restrict_state import RestrictBlend
+    from _bpy_restrict_state import RestrictBlend
 
     if handle_error is None:
         def handle_error(ex):

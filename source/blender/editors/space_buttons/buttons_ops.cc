@@ -56,7 +56,7 @@ static wmOperatorStatus buttons_start_filter_exec(bContext *C, wmOperator * /*op
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
-  UI_textbutton_activate_rna(C, region, space, "search_filter");
+  blender::ui::textbutton_activate_rna(C, region, space, "search_filter");
 
   return OPERATOR_FINISHED;
 }
@@ -147,11 +147,12 @@ static wmOperatorStatus context_menu_invoke(bContext *C,
                                             wmOperator * /*op*/,
                                             const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Context Menu"), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
+      C, IFACE_("Context Menu"), ICON_NONE);
+  blender::ui::Layout &layout = *popup_menu_layout(pup);
 
-  layout->menu("INFO_MT_area", std::nullopt, ICON_NONE);
-  UI_popup_menu_end(C, pup);
+  layout.menu("INFO_MT_area", std::nullopt, ICON_NONE);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -216,7 +217,7 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
     /* Check relative paths are supported here as this option will be hidden
      * when it's not supported. In this case the value may have been enabled
      * by default or from the last-used setting.
-     * Either way, don't use the blend-file relative prefix when it's not supported.  */
+     * Either way, don't use the blend-file relative prefix when it's not supported. */
     const PropertySubType prop_subtype = RNA_property_subtype(fbo->prop);
     const bool is_relative = BLI_path_is_rel(path);
     const bool make_relative = RNA_boolean_get(op->ptr, "relative_path") &&
@@ -296,7 +297,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     return OPERATOR_CANCELLED;
   }
 
-  UI_context_active_but_prop_get_filebrowser(C, &ptr, &prop, &is_undo, &is_userdef);
+  blender::ui::context_active_but_prop_get_filebrowser(C, &ptr, &prop, &is_undo, &is_userdef);
 
   if (!prop) {
     return OPERATOR_CANCELLED;
@@ -321,7 +322,6 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
    * Alt+Click to browse a folder in the OS's browser. */
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
-    PointerRNA props_ptr;
 
     if (event->modifier & KM_ALT) {
       char *lslash = (char *)BLI_path_slash_rfind(path);
@@ -330,9 +330,9 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
       }
     }
 
-    WM_operator_properties_create_ptr(&props_ptr, ot);
+    PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&props_ptr, "filepath", path);
-    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     MEM_freeN(path);

@@ -16,7 +16,6 @@
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
@@ -30,6 +29,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_fcurve.hh"
@@ -541,7 +541,7 @@ static bool versioning_convert_seq_text_anchor(Strip *strip, void * /*user_data*
 
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   data->anchor_x = data->align;
-  data->anchor_y = data->align_y;
+  data->anchor_y = data->align_y_legacy;
   data->align = SEQ_TEXT_ALIGN_X_LEFT;
 
   return true;
@@ -614,7 +614,7 @@ static void remove_triangulate_node_min_size_input(bNodeTree *tree)
     }
 
     bNode &greater_or_equal = version_node_add_empty(*tree, "FunctionNodeCompare");
-    auto *compare_storage = MEM_callocN<NodeFunctionCompare>(__func__);
+    auto *compare_storage = MEM_new_for_free<NodeFunctionCompare>(__func__);
     compare_storage->operation = NODE_COMPARE_GREATER_EQUAL;
     compare_storage->data_type = SOCK_INT;
     greater_or_equal.storage = compare_storage;
@@ -780,7 +780,7 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Editing *ed = blender::seq::editing_get(scene);
       if (ed != nullptr) {
-        blender::seq::for_each_callback(&ed->seqbase, versioning_convert_seq_text_anchor, nullptr);
+        blender::seq::foreach_strip(&ed->seqbase, versioning_convert_seq_text_anchor, nullptr);
       }
     }
   }
@@ -840,7 +840,7 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
       LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
         if (tref->space_type == SPACE_IMAGE && tref->mode == SI_MODE_PAINT) {
-          STRNCPY(tref->idname, "builtin.brush");
+          STRNCPY_UTF8(tref->idname, "builtin.brush");
         }
       }
     }
@@ -886,7 +886,7 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Editing *ed = blender::seq::editing_get(scene);
       if (ed != nullptr) {
-        blender::seq::for_each_callback(&ed->seqbase, versioning_clear_strip_unused_flag, scene);
+        blender::seq::foreach_strip(&ed->seqbase, versioning_clear_strip_unused_flag, scene);
       }
     }
   }
@@ -899,7 +899,7 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
           if (node->type_legacy == SH_NODE_MIX_SHADER) {
             LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
               if (STREQ(socket->identifier, "Shader.001")) {
-                STRNCPY(socket->identifier, "Shader_001");
+                STRNCPY_UTF8(socket->identifier, "Shader_001");
               }
             }
           }
@@ -953,15 +953,15 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 26)) {
-    const Brush *default_brush = DNA_struct_default_get(Brush);
+    const Brush default_brush;
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if ((brush->mask_stencil_dimension[0] == 0) && (brush->mask_stencil_dimension[1] == 0)) {
-        brush->mask_stencil_dimension[0] = default_brush->mask_stencil_dimension[0];
-        brush->mask_stencil_dimension[1] = default_brush->mask_stencil_dimension[1];
+        brush->mask_stencil_dimension[0] = default_brush.mask_stencil_dimension[0];
+        brush->mask_stencil_dimension[1] = default_brush.mask_stencil_dimension[1];
       }
       if ((brush->mask_stencil_pos[0] == 0) && (brush->mask_stencil_pos[1] == 0)) {
-        brush->mask_stencil_pos[0] = default_brush->mask_stencil_pos[0];
-        brush->mask_stencil_pos[1] = default_brush->mask_stencil_pos[1];
+        brush->mask_stencil_pos[0] = default_brush.mask_stencil_pos[0];
+        brush->mask_stencil_pos[1] = default_brush.mask_stencil_pos[1];
       }
     }
   }

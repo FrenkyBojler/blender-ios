@@ -14,14 +14,14 @@ namespace blender::nodes::node_geo_image_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Image>("Image").custom_draw([](CustomSocketDrawParams &params) {
-    params.layout.alignment_set(blender::ui::LayoutAlign::Expand);
-    uiTemplateID(&params.layout,
-                 &params.C,
-                 &params.node_ptr,
-                 "image",
-                 "IMAGE_OT_new",
-                 "IMAGE_OT_open",
-                 nullptr);
+    params.layout.alignment_set(ui::LayoutAlign::Expand);
+    template_id(&params.layout,
+                &params.C,
+                &params.node_ptr,
+                "image",
+                "IMAGE_OT_new",
+                "IMAGE_OT_open",
+                nullptr);
   });
 }
 

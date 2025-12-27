@@ -65,6 +65,7 @@
 #include "BKE_world.h"
 
 #include "NOD_composite.hh"
+#include "NOD_defaults.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -187,10 +188,7 @@ static bool material_slot_populated_poll(bContext *C)
   if (ob_active == nullptr) {
     return false;
   }
-  if (ob_active->actcol <= 0) {
-    return false;
-  }
-  return true;
+  return ob_active->actcol > 0;
 }
 /** \} */
 
@@ -371,10 +369,11 @@ static wmOperatorStatus material_slot_assign_exec(bContext *C, wmOperator * /*op
       }
     }
     else if (ob->type == OB_FONT) {
-      EditFont *ef = ((Curve *)ob->data)->editfont;
+      const Curve *cu = static_cast<const Curve *>(ob->data);
+      EditFont *ef = cu->editfont;
       int i, selstart, selend;
 
-      if (ef && BKE_vfont_select_get(ob, &selstart, &selend)) {
+      if (ef && BKE_vfont_select_get(cu, &selstart, &selend)) {
         for (i = selstart; i <= selend; i++) {
           changed = true;
           ef->textbufinfo[i].mat_nr = mat_nr_active;
@@ -836,7 +835,7 @@ static wmOperatorStatus new_material_exec(bContext *C, wmOperator * /*op*/)
   PropertyRNA *prop;
 
   /* hook into UI */
-  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   Object *ob = static_cast<Object *>((prop && RNA_struct_is_a(ptr.type, &RNA_Object)) ? ptr.data :
                                                                                         nullptr);
@@ -855,8 +854,7 @@ static wmOperatorStatus new_material_exec(bContext *C, wmOperator * /*op*/)
     else {
       ma = BKE_gpencil_material_add(bmain, name);
     }
-    ED_node_shader_default(C, &ma->id);
-    ma->use_nodes = true;
+    blender::nodes::node_tree_shader_default(C, bmain, &ma->id);
   }
 
   if (prop) {
@@ -923,7 +921,7 @@ static wmOperatorStatus new_texture_exec(bContext *C, wmOperator *op)
   }
 
   /* hook into UI */
-  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   bool linked_id_created = false;
   if (prop) {
@@ -985,12 +983,11 @@ static wmOperatorStatus new_world_exec(bContext *C, wmOperator * /*op*/)
   }
   else {
     wo = BKE_world_add(bmain, CTX_DATA_(BLT_I18NCONTEXT_ID_WORLD, "World"));
-    ED_node_shader_default(C, &wo->id);
-    wo->use_nodes = true;
+    blender::nodes::node_tree_shader_default(C, bmain, &wo->id);
   }
 
   /* hook into UI */
-  UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   if (prop) {
     /* when creating new ID blocks, use is already 1, but RNA
@@ -1152,9 +1149,9 @@ static wmOperatorStatus view_layer_add_aov_exec(bContext *C, wmOperator * /*op*/
     engine = nullptr;
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1204,9 +1201,9 @@ static wmOperatorStatus view_layer_remove_aov_exec(bContext *C, wmOperator * /*o
     engine = nullptr;
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1256,9 +1253,9 @@ static wmOperatorStatus view_layer_add_lightgroup_exec(bContext *C, wmOperator *
 
   BKE_view_layer_add_lightgroup(view_layer, name);
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1306,9 +1303,9 @@ static wmOperatorStatus view_layer_remove_lightgroup_exec(bContext *C, wmOperato
 
   BKE_view_layer_remove_lightgroup(view_layer, view_layer->active_lightgroup);
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1370,9 +1367,9 @@ static wmOperatorStatus view_layer_add_used_lightgroups_exec(bContext *C, wmOper
     }
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1413,9 +1410,9 @@ static wmOperatorStatus view_layer_remove_unused_lightgroups_exec(bContext *C, w
     }
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1542,7 +1539,7 @@ static wmOperatorStatus lightprobe_cache_bake_invoke(bContext *C,
       wm, win, bmain, view_layer, scene, probes, data->report, scene->r.cfra, 0);
   if (wm_job == nullptr) {
     MEM_delete(data);
-    BKE_report(op->reports, RPT_WARNING, "Can't bake light probe while rendering");
+    BKE_report(op->reports, RPT_WARNING, "Cannot bake light probe while rendering");
     return OPERATOR_CANCELLED;
   }
 
@@ -2720,9 +2717,14 @@ static wmOperatorStatus copy_material_exec(bContext *C, wmOperator *op)
   if (ma == nullptr) {
     return OPERATOR_CANCELLED;
   }
+  if (ID_IS_PACKED(&ma->id)) {
+    /* Direct link/append of packed IDs is not supported currently, so neither is their
+     * copy/pasting. */
+    return OPERATOR_CANCELLED;
+  }
 
   Main *bmain = CTX_data_main(C);
-  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
+  PartialWriteContext copybuffer{*bmain};
 
   /* Add the material to the copybuffer (and all of its dependencies). */
   copybuffer.id_add(
@@ -2903,7 +2905,6 @@ static wmOperatorStatus paste_material_exec(bContext *C, wmOperator *op)
   SWAP_MEMBER(spec);
   SWAP_MEMBER(roughness);
   SWAP_MEMBER(metallic);
-  SWAP_MEMBER(use_nodes);
   SWAP_MEMBER(index);
   SWAP_MEMBER(nodetree);
   SWAP_MEMBER(line_col);
@@ -3029,7 +3030,7 @@ static void paste_mtex_copybuf(ID *id)
 
   if (mtex) {
     if (*mtex == nullptr) {
-      *mtex = MEM_callocN<MTex>("mtex copy");
+      *mtex = MEM_new_for_free<MTex>("mtex copy");
     }
     else if ((*mtex)->tex) {
       id_us_min(&(*mtex)->tex->id);

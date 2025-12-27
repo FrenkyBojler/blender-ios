@@ -25,6 +25,7 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -161,7 +162,6 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
 {
   Nurb *nu = static_cast<Nurb *>(editnurb->nurbs.first);
   Nurb *orignu = static_cast<Nurb *>(origBase->first);
-  GHash *gh;
   BezTriple *bezt, *origbezt;
   BPoint *bp, *origbp;
   CVKeyIndex *keyIndex;
@@ -171,7 +171,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
     return;
   }
 
-  gh = BLI_ghash_ptr_new("editNurb keyIndex");
+  auto *gh = MEM_new<CVKeyIndexMap>("editNurb keyIndex");
 
   while (orignu) {
     if (orignu->bezt) {
@@ -188,7 +188,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
             MEM_mallocN(sizeof(*origbezt), __func__));
         *origbezt_cpy = *origbezt;
         keyIndex = init_cvKeyIndex(origbezt_cpy, key_index, nu_index, pt_index, vertex_index);
-        BLI_ghash_insert(gh, bezt, keyIndex);
+        gh->add(bezt, keyIndex);
         key_index += KEYELEM_FLOAT_LEN_BEZTRIPLE;
         vertex_index += 3;
         bezt++;
@@ -209,7 +209,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
         BPoint *origbp_cpy = MEM_mallocN<BPoint>(__func__);
         *origbp_cpy = *origbp;
         keyIndex = init_cvKeyIndex(origbp_cpy, key_index, nu_index, pt_index, vertex_index);
-        BLI_ghash_insert(gh, bp, keyIndex);
+        gh->add(bp, keyIndex);
         key_index += KEYELEM_FLOAT_LEN_BPOINT;
         bp++;
         origbp++;
@@ -228,12 +228,12 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
 
 static CVKeyIndex *getCVKeyIndex(EditNurb *editnurb, const void *cv)
 {
-  return static_cast<CVKeyIndex *>(BLI_ghash_lookup(editnurb->keyindex, cv));
+  return editnurb->keyindex->lookup_default(cv, nullptr);
 }
 
 static CVKeyIndex *popCVKeyIndex(EditNurb *editnurb, const void *cv)
 {
-  return static_cast<CVKeyIndex *>(BLI_ghash_popkey(editnurb->keyindex, cv, nullptr));
+  return editnurb->keyindex->pop_default(cv, nullptr);
 }
 
 static BezTriple *getKeyIndexOrig_bezt(EditNurb *editnurb, const BezTriple *bezt)
@@ -336,7 +336,7 @@ static void keyIndex_updateCV(EditNurb *editnurb, char *cv, char *newcv, int cou
     index = popCVKeyIndex(editnurb, cv);
 
     if (index) {
-      BLI_ghash_insert(editnurb->keyindex, newcv, index);
+      editnurb->keyindex->add(newcv, index);
     }
 
     newcv += size;
@@ -370,10 +370,10 @@ static void keyIndex_swap(EditNurb *editnurb, void *a, void *b)
   CVKeyIndex *index2 = popCVKeyIndex(editnurb, b);
 
   if (index2) {
-    BLI_ghash_insert(editnurb->keyindex, a, index2);
+    editnurb->keyindex->add(a, index2);
   }
   if (index1) {
-    BLI_ghash_insert(editnurb->keyindex, b, index1);
+    editnurb->keyindex->add(b, index1);
   }
 }
 
@@ -543,22 +543,20 @@ static void keyData_switchDirectionNurb(Curve *cu, Nurb *nu)
   }
 }
 
-GHash *ED_curve_keyindex_hash_duplicate(GHash *keyindex)
+CVKeyIndexMap *ED_curve_keyindex_hash_duplicate(CVKeyIndexMap *keyindex)
 {
-  GHash *gh;
-  GHashIterator gh_iter;
+  CVKeyIndexMap *gh = MEM_new<CVKeyIndexMap>("dupli_keyIndex gh");
+  gh->reserve(keyindex->size());
 
-  gh = BLI_ghash_ptr_new_ex("dupli_keyIndex gh", BLI_ghash_len(keyindex));
-
-  GHASH_ITER (gh_iter, keyindex) {
-    void *cv = BLI_ghashIterator_getKey(&gh_iter);
-    CVKeyIndex *index = static_cast<CVKeyIndex *>(BLI_ghashIterator_getValue(&gh_iter));
+  for (const auto &item : keyindex->items()) {
+    const void *cv = item.key;
+    CVKeyIndex *index = item.value;
     CVKeyIndex *newIndex = MEM_mallocN<CVKeyIndex>("dupli_keyIndexHash index");
 
     memcpy(newIndex, index, sizeof(CVKeyIndex));
     newIndex->orig_cv = MEM_dupallocN(index->orig_cv);
 
-    BLI_ghash_insert(gh, cv, newIndex);
+    gh->add(cv, newIndex);
   }
 
   return gh;
@@ -604,8 +602,14 @@ static void calc_keyHandles(ListBase *nurb, float *key)
         prevfp = nullptr;
       }
 
-      nextp = bezt + 1;
-      nextfp = fp + KEYELEM_FLOAT_LEN_BEZTRIPLE;
+      if (nu->pntsu > 1) {
+        nextp = bezt + 1;
+        nextfp = fp + KEYELEM_FLOAT_LEN_BEZTRIPLE;
+      }
+      else {
+        nextp = nullptr;
+        nextfp = nullptr;
+      }
 
       while (a--) {
         key_to_bezt(fp, bezt, &cur);
@@ -664,7 +668,7 @@ static void calc_shapeKeys(Object *obedit, ListBase *newnurbs)
   Nurb *newnu;
   int totvert = BKE_keyblock_curve_element_count(&editnurb->nurbs);
 
-  float(*ofs)[3] = nullptr;
+  float (*ofs)[3] = nullptr;
   std::optional<blender::Array<bool>> dependent;
   const float *oldkey, *ofp;
   float *newkey;
@@ -968,23 +972,23 @@ static void fcurve_path_rename(const char *orig_rna_path,
       pt_index = 0;
 
       while (a--) {
-        SNPRINTF(rna_path, "splines[%d].bezier_points[%d]", nu_index, pt_index);
+        SNPRINTF_UTF8(rna_path, "splines[%d].bezier_points[%d]", nu_index, pt_index);
 
         keyIndex = getCVKeyIndex(editnurb, bezt);
         if (keyIndex) {
-          SNPRINTF(orig_rna_path,
-                   "splines[%d].bezier_points[%d]",
-                   keyIndex->nu_index,
-                   keyIndex->pt_index);
+          SNPRINTF_UTF8(orig_rna_path,
+                        "splines[%d].bezier_points[%d]",
+                        keyIndex->nu_index,
+                        keyIndex->pt_index);
 
           if (keyIndex->switched) {
             char handle_path[64], orig_handle_path[64];
-            SNPRINTF(orig_handle_path, "%s.handle_left", orig_rna_path);
-            SNPRINTF(handle_path, "%s.handle_right", rna_path);
+            SNPRINTF_UTF8(orig_handle_path, "%s.handle_left", orig_rna_path);
+            SNPRINTF_UTF8(handle_path, "%s.handle_right", rna_path);
             fcurve_path_rename(orig_handle_path, handle_path, orig_curves, processed_fcurves);
 
-            SNPRINTF(orig_handle_path, "%s.handle_right", orig_rna_path);
-            SNPRINTF(handle_path, "%s.handle_left", rna_path);
+            SNPRINTF_UTF8(orig_handle_path, "%s.handle_right", orig_rna_path);
+            SNPRINTF_UTF8(handle_path, "%s.handle_left", rna_path);
             fcurve_path_rename(orig_handle_path, handle_path, orig_curves, processed_fcurves);
           }
 
@@ -1014,11 +1018,11 @@ static void fcurve_path_rename(const char *orig_rna_path,
       pt_index = 0;
 
       while (a--) {
-        SNPRINTF(rna_path, "splines[%d].points[%d]", nu_index, pt_index);
+        SNPRINTF_UTF8(rna_path, "splines[%d].points[%d]", nu_index, pt_index);
 
         keyIndex = getCVKeyIndex(editnurb, bp);
         if (keyIndex) {
-          SNPRINTF(
+          SNPRINTF_UTF8(
               orig_rna_path, "splines[%d].points[%d]", keyIndex->nu_index, keyIndex->pt_index);
           fcurve_path_rename(orig_rna_path, rna_path, orig_curves, processed_fcurves);
 
@@ -1072,8 +1076,8 @@ static void fcurve_path_rename(const char *orig_rna_path,
     }
 
     if (keyIndex) {
-      SNPRINTF(rna_path, "splines[%d]", nu_index);
-      SNPRINTF(orig_rna_path, "splines[%d]", keyIndex->nu_index);
+      SNPRINTF_UTF8(rna_path, "splines[%d]", nu_index);
+      SNPRINTF_UTF8(orig_rna_path, "splines[%d]", keyIndex->nu_index);
       fcurve_path_rename(orig_rna_path, rna_path, orig_curves, processed_fcurves);
     }
   }
@@ -1107,22 +1111,15 @@ int ED_curve_updateAnimPaths(Main *bmain, Curve *cu)
 
   if (adt->action != nullptr) {
     blender::animrig::Action &action = adt->action->wrap();
-    const bool is_action_legacy = action.is_action_legacy();
 
     Vector<FCurve *> fcurves_to_process = blender::animrig::legacy::fcurves_for_assigned_action(
         adt);
 
     Vector<FCurve *> fcurves_to_remove = curve_rename_fcurves(cu, fcurves_to_process);
     for (FCurve *fcurve : fcurves_to_remove) {
-      if (is_action_legacy) {
-        action_groups_remove_channel(adt->action, fcurve);
-        BKE_fcurve_free(fcurve);
-      }
-      else {
-        const bool remove_ok = blender::animrig::action_fcurve_remove(action, *fcurve);
-        BLI_assert(remove_ok);
-        UNUSED_VARS_NDEBUG(remove_ok);
-      }
+      const bool remove_ok = blender::animrig::action_fcurve_remove(action, *fcurve);
+      BLI_assert(remove_ok);
+      UNUSED_VARS_NDEBUG(remove_ok);
     }
 
     BKE_action_groups_reconstruct(adt->action);
@@ -1301,7 +1298,7 @@ void ED_curve_editnurb_load(Main *bmain, Object *obedit)
 
   if (ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) {
     Curve *cu = static_cast<Curve *>(obedit->data);
-    ListBase newnurb = {nullptr, nullptr}, oldnurb = cu->nurb;
+    ListBaseT<Nurb> newnurb = {nullptr, nullptr}, oldnurb = cu->nurb;
 
     remap_hooks_and_vertex_parents(bmain, obedit);
 
@@ -1349,7 +1346,7 @@ void ED_curve_editnurb_make(Object *obedit)
       BKE_curve_editNurb_keyIndex_free(&editnurb->keyindex);
     }
     else {
-      editnurb = MEM_callocN<EditNurb>("editnurb");
+      editnurb = MEM_new_for_free<EditNurb>("editnurb");
       cu->editnurb = editnurb;
     }
 
@@ -3460,6 +3457,17 @@ void CURVE_OT_reveal(wmOperatorType *ot)
 /** \name Subdivide Operator
  * \{ */
 
+static void interp_bpoint(BPoint *bp_target,
+                          const BPoint *bp_a,
+                          const BPoint *bp_b,
+                          const float factor)
+{
+  interp_v4_v4v4(bp_target->vec, bp_a->vec, bp_b->vec, factor);
+  bp_target->tilt = interpf(bp_a->tilt, bp_b->tilt, factor);
+  bp_target->weight = interpf(bp_a->weight, bp_b->weight, factor);
+  bp_target->radius = interpf(bp_a->radius, bp_b->radius, factor);
+}
+
 /**
  * Divide the line segments associated with the currently selected
  * curve nodes (Bezier or NURB). If there are no valid segment
@@ -3523,6 +3531,9 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
               BEZT_ISSEL_ANY_HIDDENHANDLES(v3d, nextbezt))
           {
             float prevvec[3][3];
+            float prev_tilt = bezt->tilt;
+            float prev_radius = bezt->radius;
+            float prev_weight = bezt->weight;
 
             memcpy(prevvec, bezt->vec, sizeof(float[9]));
 
@@ -3553,10 +3564,12 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
                 copy_v3_v3(nextbezt->vec[0], vec + 6);
               }
 
-              beztn->radius = (bezt->radius + nextbezt->radius) / 2;
-              beztn->weight = (bezt->weight + nextbezt->weight) / 2;
+              beztn->tilt = prev_tilt = interpf(nextbezt->tilt, prev_tilt, factor);
+              beztn->radius = prev_radius = interpf(nextbezt->radius, prev_radius, factor);
+              beztn->weight = prev_weight = interpf(nextbezt->weight, prev_weight, factor);
 
               memcpy(prevvec, beztn->vec, sizeof(float[9]));
+
               beztn++;
             }
           }
@@ -3618,8 +3631,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
               factor = float(i + 1) / (number_cuts + 1);
 
               memcpy(bpn, nextbp, sizeof(BPoint));
-              interp_v4_v4v4(bpn->vec, bp->vec, nextbp->vec, factor);
-              bpn->radius = interpf(bp->radius, nextbp->radius, factor);
+              interp_bpoint(bpn, bp, nextbp, factor);
               bpn++;
             }
           }
@@ -3719,7 +3731,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
               for (int i = 0; i < number_cuts; i++) {
                 factor = float(i + 1) / (number_cuts + 1);
                 *bpn = *bp;
-                interp_v4_v4v4(bpn->vec, prevbp->vec, bp->vec, factor);
+                interp_bpoint(bpn, prevbp, bp, factor);
                 bpn++;
               }
             }
@@ -3737,7 +3749,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
             for (int i = 0; i < number_cuts; i++) {
               factor = float(i + 1) / (number_cuts + 1);
               *tmp = *bp;
-              interp_v4_v4v4(tmp->vec, prevbp->vec, bp->vec, factor);
+              interp_bpoint(tmp, prevbp, bp, factor);
               tmp += countu;
             }
             bp++;
@@ -3787,7 +3799,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
                    * node. (is it?)
                    */
                   *bpn = *prevbp;
-                  interp_v4_v4v4(bpn->vec, prevbp->vec, bp->vec, factor);
+                  interp_bpoint(bpn, prevbp, bp, factor);
                   bpn++;
 
                   prevbp++;
@@ -3835,7 +3847,7 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
                     factor = float(i + 1) / (number_cuts + 1);
                     prevbp = bp - 1;
                     *bpn = *prevbp;
-                    interp_v4_v4v4(bpn->vec, prevbp->vec, bp->vec, factor);
+                    interp_bpoint(bpn, prevbp, bp, factor);
                     bpn++;
                   }
                 }
@@ -4036,10 +4048,10 @@ void CURVE_OT_handle_type_set(wmOperatorType *ot)
 {
   /* keep in sync with graphkeys_handle_type_items */
   static const EnumPropertyItem editcurve_handle_type_items[] = {
-      {HD_AUTO, "AUTOMATIC", 0, "Automatic", ""},
-      {HD_VECT, "VECTOR", 0, "Vector", ""},
-      {5, "ALIGNED", 0, "Aligned", ""},
-      {6, "FREE_ALIGN", 0, "Free", ""},
+      {HD_AUTO, "AUTOMATIC", ICON_HANDLE_AUTO, "Automatic", ""},
+      {HD_VECT, "VECTOR", ICON_HANDLE_VECTOR, "Vector", ""},
+      {5, "ALIGNED", ICON_HANDLE_ALIGNED, "Aligned", ""},
+      {6, "FREE_ALIGN", ICON_HANDLE_FREE, "Free", ""},
       {3, "TOGGLE_FREE_ALIGN", 0, "Toggle Free/Align", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -5554,7 +5566,7 @@ int ed_editcurve_addvert(Curve *cu, EditNurb *editnurb, View3D *v3d, const float
     Nurb *nurb_new;
     if (!nu) {
       /* Bezier as default. */
-      nurb_new = MEM_callocN<Nurb>("BLI_editcurve_addvert new_bezt_nurb 2");
+      nurb_new = MEM_new_for_free<Nurb>("BLI_editcurve_addvert new_bezt_nurb 2");
       nurb_new->type = CU_BEZIER;
       nurb_new->resolu = cu->resolu;
       nurb_new->orderu = 4;
@@ -5947,17 +5959,16 @@ static wmOperatorStatus toggle_cyclic_invoke(bContext *C,
 {
   Object *obedit = CTX_data_edit_object(C);
   ListBase *editnurb = object_editcurve_get(obedit);
-  uiPopupMenu *pup;
-  uiLayout *layout;
 
   if (obedit->type == OB_SURF) {
     LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (nu->pntsu > 1 || nu->pntsv > 1) {
         if (nu->type == CU_NURBS) {
-          pup = UI_popup_menu_begin(C, IFACE_("Direction"), ICON_NONE);
-          layout = UI_popup_menu_layout(pup);
-          uiItemsEnumO(layout, op->type->idname, "direction");
-          UI_popup_menu_end(C, pup);
+          blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
+              C, IFACE_("Direction"), ICON_NONE);
+          blender::ui::Layout &layout = *popup_menu_layout(pup);
+          layout.op_enum(op->type->idname, "direction");
+          popup_menu_end(C, pup);
           return OPERATOR_INTERFACE;
         }
       }

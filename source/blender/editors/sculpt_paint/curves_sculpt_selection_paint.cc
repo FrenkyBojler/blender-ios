@@ -50,7 +50,8 @@ class SelectionPaintOperation : public CurvesSculptStrokeOperation {
       : use_select_(use_select), clear_selection_(clear_selection)
   {
   }
-  void on_stroke_extended(const bContext &C, const StrokeExtension &stroke_extension) override;
+  void on_stroke_extended(const PaintStroke &stroke,
+                          const StrokeExtension &stroke_extension) override;
 };
 
 struct SelectionPaintOperationExecutor {
@@ -75,14 +76,12 @@ struct SelectionPaintOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  SelectionPaintOperationExecutor(const bContext &C) : ctx_(C) {}
+  SelectionPaintOperationExecutor(const PaintStroke &stroke) : ctx_(stroke) {}
 
-  void execute(SelectionPaintOperation &self,
-               const bContext &C,
-               const StrokeExtension &stroke_extension)
+  void execute(SelectionPaintOperation &self, const StrokeExtension &stroke_extension)
   {
     self_ = &self;
-    object_ = CTX_data_active_object(&C);
+    object_ = ctx_.object;
 
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
@@ -96,7 +95,7 @@ struct SelectionPaintOperationExecutor {
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(&curves_sculpt_->paint, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
     brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
 
@@ -384,17 +383,16 @@ struct SelectionPaintOperationExecutor {
   }
 };
 
-void SelectionPaintOperation::on_stroke_extended(const bContext &C,
+void SelectionPaintOperation::on_stroke_extended(const PaintStroke &stroke,
                                                  const StrokeExtension &stroke_extension)
 {
-  SelectionPaintOperationExecutor executor{C};
-  executor.execute(*this, C, stroke_extension);
+  SelectionPaintOperationExecutor executor{stroke};
+  executor.execute(*this, stroke_extension);
 }
 
 std::unique_ptr<CurvesSculptStrokeOperation> new_selection_paint_operation(
-    const BrushStrokeMode brush_mode, const bContext &C)
+    const BrushStrokeMode brush_mode, const Scene &scene)
 {
-  Scene &scene = *CTX_data_scene(&C);
   Brush &brush = *BKE_paint_brush(&scene.toolsettings->curves_sculpt->paint);
   const bool use_select = ELEM(brush_mode, BRUSH_STROKE_INVERT) ==
                           ((brush.flag & BRUSH_DIR_IN) != 0);

@@ -14,15 +14,14 @@
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
-#include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_world_types.h"
 
@@ -31,6 +30,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -46,14 +46,14 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_texture.h"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 
 #include "BLO_read_write.hh"
 
@@ -147,16 +147,16 @@ static void version_bonelayers_to_bonecollections(Main *bmain)
       if (arm_idprops) {
         /* See if we can use the layer name from the Bone Manager add-on. This is a popular add-on
          * for managing bone layers and giving them names. */
-        SNPRINTF(custom_prop_name, "layer_name_%u", layer);
+        SNPRINTF_UTF8(custom_prop_name, "layer_name_%u", layer);
         IDProperty *prop = IDP_GetPropertyFromGroup(arm_idprops, custom_prop_name);
-        if (prop != nullptr && prop->type == IDP_STRING && IDP_String(prop)[0] != '\0') {
-          SNPRINTF(bcoll_name, "Layer %u - %s", layer + 1, IDP_String(prop));
+        if (prop != nullptr && prop->type == IDP_STRING && IDP_string_get(prop)[0] != '\0') {
+          SNPRINTF_UTF8(bcoll_name, "Layer %u - %s", layer + 1, IDP_string_get(prop));
         }
       }
       if (bcoll_name[0] == '\0') {
         /* Either there was no name defined in the custom property, or
          * it was the empty string. */
-        SNPRINTF(bcoll_name, "Layer %u", layer + 1);
+        SNPRINTF_UTF8(bcoll_name, "Layer %u", layer + 1);
       }
 
       /* Create a new bone collection for this layer. */
@@ -298,10 +298,10 @@ static bool versioning_convert_strip_speed_factor(Strip *strip, void *user_data)
 
   last_key->strip_frame_index = (strip->len) / speed_factor;
 
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND) {
     const int prev_length = strip->len - strip->startofs - strip->endofs;
-    const float left_handle = blender::seq::time_left_handle_frame_get(scene, strip);
-    blender::seq::time_right_handle_frame_set(scene, strip, left_handle + prev_length);
+    const float left_handle = strip->left_handle();
+    strip->right_handle_set(scene, left_handle + prev_length);
   }
 
   return true;
@@ -318,7 +318,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
       }
     }
 
-    /* XXX This was added several years ago in 'lib_link` code of Scene... Should be safe enough
+    /* XXX This was added several years ago in `lib_link` code of Scene... Should be safe enough
      * here. */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->nodetree) {
@@ -326,7 +326,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
       }
     }
 
-    /* XXX This was added many years ago (1c19940198) in 'lib_link` code of particles as a bug-fix.
+    /* XXX This was added many years ago (1c19940198) in `lib_link` code of particles as a bug-fix.
      * But this is actually versioning. Should be safe enough here. */
     LISTBASE_FOREACH (ParticleSettings *, part, &bmain->particles) {
       if (!part->effector_weights) {
@@ -391,8 +391,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Editing *ed = blender::seq::editing_get(scene);
       if (ed != nullptr) {
-        blender::seq::for_each_callback(
-            &ed->seqbase, versioning_convert_strip_speed_factor, scene);
+        blender::seq::foreach_strip(&ed->seqbase, versioning_convert_strip_speed_factor, scene);
       }
     }
   }
@@ -464,7 +463,7 @@ static void versioning_replace_legacy_glossy_node(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->type_legacy == SH_NODE_BSDF_GLOSSY_LEGACY) {
-      STRNCPY(node->idname, "ShaderNodeBsdfAnisotropic");
+      STRNCPY_UTF8(node->idname, "ShaderNodeBsdfAnisotropic");
       node->type_legacy = SH_NODE_BSDF_GLOSSY;
     }
   }
@@ -516,7 +515,8 @@ static void version_mesh_crease_generic(Main &bmain)
         {
           bNodeSocket *socket = blender::bke::node_find_socket(*node, SOCK_IN, "Name");
           if (STREQ(socket->default_value_typed<bNodeSocketValueString>()->value, "crease")) {
-            STRNCPY(socket->default_value_typed<bNodeSocketValueString>()->value, "crease_edge");
+            STRNCPY_UTF8(socket->default_value_typed<bNodeSocketValueString>()->value,
+                         "crease_edge");
           }
         }
       }
@@ -531,7 +531,7 @@ static void version_mesh_crease_generic(Main &bmain)
       if (IDProperty *settings = reinterpret_cast<NodesModifierData *>(md)->settings.properties) {
         LISTBASE_FOREACH (IDProperty *, prop, &settings->data.group) {
           if (blender::StringRef(prop->name).endswith("_attribute_name")) {
-            if (STREQ(IDP_String(prop), "crease")) {
+            if (STREQ(IDP_string_get(prop), "crease")) {
               IDP_AssignString(prop, "crease_edge");
             }
           }
@@ -613,13 +613,13 @@ static void version_replace_velvet_sheen_node(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->type_legacy == SH_NODE_BSDF_SHEEN) {
-      STRNCPY(node->idname, "ShaderNodeBsdfSheen");
+      STRNCPY_UTF8(node->idname, "ShaderNodeBsdfSheen");
 
       bNodeSocket *sigmaInput = blender::bke::node_find_socket(*node, SOCK_IN, "Sigma");
       if (sigmaInput != nullptr) {
         node->custom1 = SHD_SHEEN_ASHIKHMIN;
-        STRNCPY(sigmaInput->identifier, "Roughness");
-        STRNCPY(sigmaInput->name, "Roughness");
+        STRNCPY_UTF8(sigmaInput->identifier, "Roughness");
+        STRNCPY_UTF8(sigmaInput->name, "Roughness");
       }
     }
   }
@@ -666,7 +666,7 @@ static void version_replace_principled_hair_model(bNodeTree *ntree)
     if (node->type_legacy != SH_NODE_BSDF_HAIR_PRINCIPLED) {
       continue;
     }
-    NodeShaderHairPrincipled *data = MEM_callocN<NodeShaderHairPrincipled>(__func__);
+    NodeShaderHairPrincipled *data = MEM_new_for_free<NodeShaderHairPrincipled>(__func__);
     data->model = SHD_PRINCIPLED_HAIR_CHIANG;
     data->parametrization = node->custom1;
 
@@ -677,7 +677,7 @@ static void version_replace_principled_hair_model(bNodeTree *ntree)
 static bNodeTreeInterfaceItem *legacy_socket_move_to_interface(bNodeSocket &legacy_socket,
                                                                const eNodeSocketInOut in_out)
 {
-  bNodeTreeInterfaceSocket *new_socket = MEM_callocN<bNodeTreeInterfaceSocket>(__func__);
+  bNodeTreeInterfaceSocket *new_socket = MEM_new_for_free<bNodeTreeInterfaceSocket>(__func__);
   new_socket->item.item_type = NODE_INTERFACE_SOCKET;
 
   /* Move reusable data. */
@@ -1171,7 +1171,7 @@ static void enable_geometry_nodes_is_modifier(Main &bmain)
         return true;
       }
       if (!group->geometry_node_asset_traits) {
-        group->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+        group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
       }
       group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
       return false;
@@ -1387,7 +1387,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == SH_NODE_TEX_NOISE) {
             if (!node->storage) {
-              NodeTexNoise *tex = MEM_callocN<NodeTexNoise>(__func__);
+              NodeTexNoise *tex = MEM_new_for_free<NodeTexNoise>(__func__);
               BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
               BKE_texture_colormapping_default(&tex->base.color_mapping);
               tex->dimensions = 3;
@@ -1414,7 +1414,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
     /* Panorama properties shared with Eevee. */
     if (!DNA_struct_member_exists(fd->filesdna, "Camera", "float", "fisheye_fov")) {
-      Camera default_cam = *DNA_struct_default_get(Camera);
+      Camera default_cam = {};
       LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
         IDProperty *ccam = version_cycles_properties_from_ID(&camera->id);
         if (ccam) {
@@ -1635,7 +1635,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "shadow_step_count")) {
-      SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
+      SceneEEVEE default_scene_eevee = {};
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->eevee.shadow_ray_count = default_scene_eevee.shadow_ray_count;
         scene->eevee.shadow_step_count = default_scene_eevee.shadow_step_count;

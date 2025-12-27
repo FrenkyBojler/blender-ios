@@ -181,7 +181,9 @@ ccl_device_inline
               case PRIMITIVE_CURVE_THICK:
               case PRIMITIVE_MOTION_CURVE_THICK:
               case PRIMITIVE_CURVE_RIBBON:
-              case PRIMITIVE_MOTION_CURVE_RIBBON: {
+              case PRIMITIVE_MOTION_CURVE_RIBBON:
+              case PRIMITIVE_CURVE_THICK_LINEAR:
+              case PRIMITIVE_MOTION_CURVE_THICK_LINEAR: {
                 if ((type & PRIMITIVE_MOTION) && kernel_data.bvh.use_bvh_steps) {
                   const float2 prim_time = kernel_data_fetch(prim_time, prim_addr);
                   if (ray->time < prim_time.x || ray->time > prim_time.y) {
@@ -275,7 +277,7 @@ ccl_device_inline
 
                   if (*r_num_recorded_hits >= max_record_hits) {
                     /* If the maximum number of hits is reached, find the furthest intersection to
-                     replace it with the next closer one. We want N closest intersections. */
+                     * replace it with the next closer one. We want N closest intersections. */
                     isect_index = 0;
                     tmax_hits = INTEGRATOR_STATE_ARRAY(state, shadow_isect, 0, t);
                     for (uint i = 1; i < max_record_hits; ++i) {

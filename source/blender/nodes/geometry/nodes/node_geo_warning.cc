@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Bool>("Show").default_value(true).hide_value();
   b.add_output<decl::Bool>("Show").align_with_previous();
-  b.add_input<decl::String>("Message").hide_label();
+  b.add_input<decl::String>("Message").optional_label();
 }
 
 class LazyFunctionForWarningNode : public LazyFunction {
@@ -69,11 +69,11 @@ class LazyFunctionForWarningNode : public LazyFunction {
   }
 };
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "warning_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "warning_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_rna(StructRNA *srna)

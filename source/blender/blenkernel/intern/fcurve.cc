@@ -18,6 +18,7 @@
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
+#include "DNA_curve_types.h"
 
 #include "BLI_easing.h"
 #include "BLI_ghash.h"
@@ -29,6 +30,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
+#include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
 
@@ -53,7 +55,7 @@
 #define SMALL -1.0e-10
 #define SELECT 1
 
-static CLG_LogRef LOG = {"bke.fcurve"};
+static CLG_LogRef LOG = {"anim.fcurve"};
 
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Data Create
@@ -61,7 +63,7 @@ static CLG_LogRef LOG = {"bke.fcurve"};
 
 FCurve *BKE_fcurve_create()
 {
-  FCurve *fcu = MEM_callocN<FCurve>(__func__);
+  FCurve *fcu = MEM_new_for_free<FCurve>(__func__);
   return fcu;
 }
 
@@ -431,7 +433,6 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
                                                  bool *r_replace)
 {
   int start = 0, end = arraylen;
-  int loopbreaker = 0, maxloop = arraylen * 2;
 
   /* Initialize replace-flag first. */
   *r_replace = false;
@@ -466,10 +467,7 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
     return arraylen;
   }
 
-  /* Most of the time, this loop is just to find where to put it
-   * 'loopbreaker' is just here to prevent infinite loops.
-   */
-  for (loopbreaker = 0; (start <= end) && (loopbreaker < maxloop); loopbreaker++) {
+  while (start <= end) {
     /* Compute and get midpoint. */
 
     /* We calculate the midpoint this way to avoid int overflows... */
@@ -487,22 +485,9 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
     if (frame > midfra) {
       start = mid + 1;
     }
-    else if (frame < midfra) {
+    else {
       end = mid - 1;
     }
-  }
-
-  /* Print error if loop-limit exceeded. */
-  if (loopbreaker == (maxloop - 1)) {
-    CLOG_ERROR(&LOG, "search taking too long");
-
-    /* Include debug info. */
-    CLOG_ERROR(&LOG,
-               "\tround = %d: start = %d, end = %d, arraylen = %d",
-               loopbreaker,
-               start,
-               end,
-               arraylen);
   }
 
   /* Not found, so return where to place it. */
@@ -767,27 +752,24 @@ float *BKE_fcurves_calc_keyed_frames_ex(FCurve **fcurve_array,
   /* Use `1e-3f` as the smallest possible value since these are converted to integers
    * and we can be sure `MAXFRAME / 1e-3f < INT_MAX` as it's around half the size. */
   const double interval_db = max_ff(interval, 1e-3f);
-  GSet *frames_unique = BLI_gset_int_new(__func__);
+  blender::VectorSet<int> frames_unique;
   for (int fcurve_index = 0; fcurve_index < fcurve_array_len; fcurve_index++) {
     const FCurve *fcu = fcurve_array[fcurve_index];
     for (int i = 0; i < fcu->totvert; i++) {
       const BezTriple *bezt = &fcu->bezt[i];
       const double value = round(double(bezt->vec[1][0]) / interval_db);
       BLI_assert(value > INT_MIN && value < INT_MAX);
-      BLI_gset_add(frames_unique, POINTER_FROM_INT(int(value)));
+      frames_unique.add(int(value));
     }
   }
 
-  const size_t frames_len = BLI_gset_len(frames_unique);
+  const size_t frames_len = frames_unique.size();
   float *frames = MEM_malloc_arrayN<float>(frames_len, __func__);
 
-  GSetIterator gs_iter;
-  int i = 0;
-  GSET_ITER_INDEX (gs_iter, frames_unique, i) {
-    const int value = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
+  for (const int i : frames_unique.index_range()) {
+    const int value = frames_unique[i];
     frames[i] = double(value) * interval_db;
   }
-  BLI_gset_free(frames_unique, nullptr);
 
   qsort(frames, frames_len, sizeof(*frames), BLI_sortutil_cmp_float);
   *r_frames_len = frames_len;
@@ -1000,8 +982,7 @@ void fcurve_store_samples(FCurve *fcu, void *data, int start, int end, FcuSample
 
   /* Set up sample data. */
   FPoint *new_fpt;
-  FPoint *fpt = new_fpt = MEM_calloc_arrayN<FPoint>(size_t(end) - size_t(start) + 1,
-                                                    "FPoint Samples");
+  FPoint *fpt = new_fpt = MEM_calloc_arrayN<FPoint>((end - start + 1), "FPoint Samples");
 
   /* Use the sampling callback at 1-frame intervals from start to end frames. */
   for (int cfra = start; cfra <= end; cfra++, fpt++) {
@@ -1250,6 +1231,42 @@ void BKE_fcurve_handles_recalc_ex(FCurve *fcu, eBezTriple_Flag handle_sel_flag)
   /* Do a second pass for auto handle: compute the handle to have 0 acceleration step. */
   if (fcu->auto_smoothing != FCURVE_SMOOTH_NONE) {
     BKE_nurb_handle_smooth_fcurve(fcu->bezt, fcu->totvert, cycle);
+  }
+}
+
+void BKE_fcurve_update_handle_flag_from_opposite(BezTriple &key, const HandleSide source_side)
+{
+  eBezTriple_Handle source;
+  uint8_t *target;
+  switch (source_side) {
+    case HandleSide::LEFT: {
+      source = eBezTriple_Handle(key.h1);
+      target = &key.h2;
+      break;
+    }
+    case HandleSide::RIGHT: {
+      source = eBezTriple_Handle(key.h2);
+      target = &key.h1;
+      break;
+    }
+  }
+
+  switch (source) {
+    /* Need to ensure that both sides are the same. */
+    case HD_AUTO:
+    case HD_ALIGN:
+    case HD_AUTO_ANIM:
+    case HD_ALIGN_DOUBLESIDE:
+      *target = source;
+      break;
+
+    case HD_FREE:
+    case HD_VECT:
+      /* If the source was set to either of those, the handle has to be either free or vector. */
+      if (!ELEM(*target, HD_FREE, HD_VECT)) {
+        *target = HD_FREE;
+      }
+      break;
   }
 }
 
@@ -1632,7 +1649,7 @@ void BKE_fcurve_bezt_resize(FCurve *fcu, const int new_totvert)
    * of the fields will actually be updated by the caller. */
   const int old_totvert = fcu->totvert;
   if (new_totvert > old_totvert) {
-    memset(&fcu->bezt[old_totvert], 0, sizeof(fcu->bezt[0]) * (new_totvert - old_totvert));
+    std::fill_n(fcu->bezt + old_totvert, new_totvert - old_totvert, BezTriple{});
   }
 
   fcu->totvert = new_totvert;
@@ -2478,7 +2495,7 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBase *fmodifiers)
     /* Write the specific data */
     if (fmi && fcm->data) {
       /* firstly, just write the plain fmi->data struct */
-      BLO_write_struct_by_name(writer, fmi->struct_name, fcm->data);
+      writer->write_struct_by_name(fmi->struct_name, fcm->data);
 
       /* do any modifier specific stuff */
       switch (fcm->type) {
@@ -2517,7 +2534,13 @@ void BKE_fmodifiers_blend_read_data(BlendDataReader *reader, ListBase *fmodifier
       fcm->data = BLO_read_struct_by_name_array(reader, fmi->struct_name, 1, fcm->data);
     }
     else {
-      BLI_assert_unreachable();
+      /* This can happen when the blend file has data for a modifier that doesn't exist in this
+       * Blender version (when the blend file is newer). */
+      BLO_reportf_wrap(BLO_read_data_reports(reader),
+                       RPT_WARNING,
+                       RPT_("F-Curve modifier lost on '%s[%d]' because it has an unknown type"),
+                       curve->rna_path,
+                       curve->array_index);
       fcm->data = nullptr;
     }
     fcm->curve = curve;
@@ -2558,7 +2581,7 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
   if (fcu->driver) {
     ChannelDriver *driver = fcu->driver;
 
-    BLO_write_struct(writer, ChannelDriver, driver);
+    writer->write_struct(driver);
 
     /* variables */
     BLO_write_struct_list(writer, DriverVar, &driver->variables);

@@ -10,6 +10,7 @@
 
 #include <cstring>
 
+#include "DNA_layer_types.h"
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -23,7 +24,6 @@
 #include "BKE_animsys.h"
 #include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idprop.hh"
-#include "BKE_ipo.h"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_library.hh"
@@ -34,6 +34,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 #include "ANIM_versioning.hh"
@@ -134,10 +135,10 @@ static void change_node_socket_name(ListBase *sockets, const char *old_name, con
 {
   LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {
     if (STREQ(socket->name, old_name)) {
-      STRNCPY(socket->name, new_name);
+      STRNCPY_UTF8(socket->name, new_name);
     }
     if (STREQ(socket->identifier, old_name)) {
-      STRNCPY(socket->identifier, new_name);
+      STRNCPY_UTF8(socket->identifier, new_name);
     }
   }
 }
@@ -238,7 +239,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
 {
   blender::bke::bNodeType *ntype = blender::bke::node_type_find(idname);
 
-  bNode *node = MEM_callocN<bNode>(__func__);
+  bNode *node = MEM_new_for_free<bNode>(__func__);
   node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
   blender::bke::node_unique_id(ntree, *node);
@@ -253,6 +254,56 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   node->color[0] = node->color[1] = node->color[2] = 0.608;
 
   node->type_legacy = ntype->type_legacy;
+
+  BKE_ntree_update_tag_node_new(&ntree, node);
+  return *node;
+}
+
+bNode &version_node_add_unknown(bNodeTree &ntree,
+                                blender::bke::bNodeType &ntype,
+                                const char *idname,
+                                const int16_t legacy_type,
+                                const std::string &ui_name,
+                                const std::string &ui_description,
+                                const std::string &enum_name_legacy,
+                                const short nclass,
+                                const float width,
+                                const float height,
+                                const bool no_muting)
+{
+  using namespace blender::bke;
+
+  ntype.idname = idname;
+  ntype.type_legacy = legacy_type;
+  ntype.height = height;
+  ntype.width = width;
+  node_type_size_preset(ntype, eNodeSizePreset::Default);
+  ntype.minheight = 30.0f;
+  ntype.maxheight = FLT_MAX;
+
+  ntype.ui_name = ui_name;
+  ntype.ui_description = ui_description;
+  ntype.enum_name_legacy = enum_name_legacy.c_str();
+  ntype.nclass = nclass;
+  ntype.no_muting = no_muting;
+  ntype.ui_name = ui_name;
+
+  bNode *node = MEM_new_for_free<bNode>(__func__);
+  node->runtime = MEM_new<bNodeRuntime>(__func__);
+  BLI_addtail(&ntree.nodes, node);
+  node_unique_id(ntree, *node);
+  node->typeinfo = &ntype;
+
+  STRNCPY(node->idname, idname);
+  DATA_(ntype.ui_name).copy_utf8_truncated(node->name);
+  node_unique_name(ntree, *node);
+
+  node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
+  node->width = ntype.width;
+  node->height = ntype.height;
+  node->color[0] = node->color[1] = node->color[2] = 0.608f;
+
+  node->type_legacy = ntype.type_legacy;
 
   BKE_ntree_update_tag_node_new(&ntree, node);
   return *node;
@@ -275,15 +326,15 @@ bNodeSocket &version_node_add_socket(bNodeTree &ntree,
 {
   blender::bke::bNodeSocketType *stype = blender::bke::node_socket_type_find(idname);
 
-  bNodeSocket *socket = MEM_callocN<bNodeSocket>(__func__);
+  bNodeSocket *socket = MEM_new_for_free<bNodeSocket>(__func__);
   socket->runtime = MEM_new<blender::bke::bNodeSocketRuntime>(__func__);
   socket->in_out = in_out;
   socket->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
   socket->type = stype->type;
 
-  STRNCPY(socket->idname, idname);
-  STRNCPY(socket->identifier, identifier);
-  STRNCPY(socket->name, identifier);
+  STRNCPY_UTF8(socket->idname, idname);
+  STRNCPY_UTF8(socket->identifier, identifier);
+  STRNCPY_UTF8(socket->name, identifier);
 
   if (in_out == SOCK_IN) {
     BLI_addtail(&node.inputs, socket);
@@ -310,7 +361,7 @@ bNodeLink &version_node_add_link(
   bNode &node_to = node_b;
   bNodeSocket &socket_to = socket_b;
 
-  bNodeLink *link = MEM_callocN<bNodeLink>(__func__);
+  bNodeLink *link = MEM_new_for_free<bNodeLink>(__func__);
   link->fromnode = &node_from;
   link->fromsock = &socket_from;
   link->tonode = &node_to;
@@ -336,6 +387,11 @@ bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
   }
   return blender::bke::node_add_static_socket(
       *ntree, *node, eNodeSocketInOut(in_out), type, subtype, identifier, name);
+}
+
+void version_node_tree_clear_interface(bNodeTree &ntree)
+{
+  ntree.tree_interface.clear_items();
 }
 
 void version_node_id(bNodeTree *ntree, const int node_type, const char *new_name)
@@ -373,18 +429,14 @@ void version_node_socket_index_animdata(Main *bmain,
           continue;
         }
 
-        const size_t node_name_length = strlen(node->name);
-        const size_t node_name_escaped_max_length = (node_name_length * 2);
-        char *node_name_escaped = MEM_malloc_arrayN<char>(node_name_escaped_max_length + 1,
-                                                          "escaped name");
-        BLI_str_escape(node_name_escaped, node->name, node_name_escaped_max_length);
+        char node_name_escaped[sizeof(node->name) * 2];
+        BLI_str_escape(node_name_escaped, node->name, sizeof(node_name_escaped));
         char *rna_path_prefix = BLI_sprintfN("nodes[\"%s\"].inputs", node_name_escaped);
 
         const int new_index = input_index + socket_index_offset;
         BKE_animdata_fix_paths_rename_all_ex(
             bmain, owner_id, rna_path_prefix, nullptr, nullptr, input_index, new_index, false);
         MEM_freeN(rna_path_prefix);
-        MEM_freeN(node_name_escaped);
       }
     }
     FOREACH_NODETREE_END;
@@ -525,19 +577,19 @@ IDProperty *version_cycles_properties_from_render_layer(SceneRenderLayer *render
 float version_cycles_property_float(IDProperty *idprop, const char *name, float default_value)
 {
   IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_FLOAT);
-  return (prop) ? IDP_Float(prop) : default_value;
+  return (prop) ? IDP_float_get(prop) : default_value;
 }
 
 int version_cycles_property_int(IDProperty *idprop, const char *name, int default_value)
 {
   IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT);
-  return (prop) ? IDP_Int(prop) : default_value;
+  return (prop) ? IDP_int_get(prop) : default_value;
 }
 
 void version_cycles_property_int_set(IDProperty *idprop, const char *name, int value)
 {
   if (IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT)) {
-    IDP_Int(prop) = value;
+    IDP_int_set(prop, value);
   }
   else {
     IDP_AddToGroup(idprop, blender::bke::idprop::create(name, value).release());
@@ -658,6 +710,15 @@ bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines)
   return true;
 }
 
+bNodeTree *version_get_scene_compositor_node_tree(Main *bmain, Scene *scene)
+{
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 4)) {
+    return scene->nodetree;
+  }
+
+  return scene->compositing_node_group;
+}
+
 static bool blendfile_or_libraries_versions_atleast(Main *bmain,
                                                     const short versionfile,
                                                     const short subversionfile)
@@ -708,7 +769,9 @@ void do_versions_after_setup(Main *new_bmain,
    * the versions of all the linked libraries. */
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
-    do_versions_ipos_to_layered_actions(new_bmain);
+    /* This happens here, because at this point in the versioning code there's
+     * 'reports' available. */
+    reports->pre_animato_file_loaded = true;
   }
 
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 250, 0)) {
@@ -764,8 +827,8 @@ void do_versions_after_setup(Main *new_bmain,
 
       BKE_libblock_management_main_add(new_bmain, ntree);
 
-      /* Note: The user count remains zero at this point. It will get automatically updated after
-       * blend file reading is done.*/
+      /* NOTE: The user count remains zero at this point. It will get automatically updated after
+       * blend file reading is done. */
     }
   }
 }

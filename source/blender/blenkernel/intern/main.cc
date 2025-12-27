@@ -38,12 +38,13 @@
 #include "BKE_main_namemap.hh"
 #include "BKE_report.hh"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 using namespace blender::bke;
 
-static CLG_LogRef LOG = {"bke.main"};
+static CLG_LogRef LOG = {"lib.main"};
 
 Main::Main()
 {
@@ -88,6 +89,7 @@ Main::~Main()
 Main *BKE_main_new()
 {
   Main *bmain = MEM_new<Main>(__func__);
+  IMB_colormanagement_working_space_init_default(bmain);
   return bmain;
 }
 
@@ -123,7 +125,6 @@ void BKE_main_clear(Main &bmain)
 
       switch ((eID_Index)a) {
         CASE_ID_INDEX(INDEX_ID_LI);
-        CASE_ID_INDEX(INDEX_ID_IP);
         CASE_ID_INDEX(INDEX_ID_AC);
         CASE_ID_INDEX(INDEX_ID_GD_LEGACY);
         CASE_ID_INDEX(INDEX_ID_NT);
@@ -252,6 +253,17 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
     return true;
   }
 
+  /* Linked packed IDs only match with other packed IDs, and only if their deephashes are
+   * identical. */
+  if (ID_IS_PACKED(id_1) && ID_IS_PACKED(id_2)) {
+    BLI_assert_msg(false, "No packed ID should be passed to this function currently.");
+    return (id_1->deep_hash == id_2->deep_hash);
+  }
+  if (ID_IS_PACKED(id_1) || ID_IS_PACKED(id_2)) {
+    BLI_assert_msg(false, "No packed ID should be passed to this function currently.");
+    return false;
+  }
+
   if (id_1->lib && id_2->lib) {
     if (id_1->lib == id_2->lib) {
       return true;
@@ -290,19 +302,20 @@ static void main_merge_add_id_to_move(Main *bmain_dst,
                                       const bool is_library,
                                       MainMergeReport &reports)
 {
-  const bool is_id_src_linked(id_src->lib);
+  const bool is_id_src_linked = ID_IS_LINKED(id_src);
   bool is_id_src_from_bmain_dst = false;
   if (is_id_src_linked) {
     BLI_assert(!is_library);
-    UNUSED_VARS_NDEBUG(is_library);
+    Library *ref_src_library = ID_IS_PACKED(id_src) ? id_src->lib->archive_parent_library :
+                                                      id_src->lib;
+    BLI_assert((ref_src_library->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
     blender::Vector<ID *> id_src_lib_dst = id_map_dst.lookup_default(
-        id_src->lib->runtime->filepath_abs, {});
+        ref_src_library->runtime->filepath_abs, {});
     /* The current library of the source ID would be remapped to null, which means that it comes
      * from the destination Main. */
     is_id_src_from_bmain_dst = !id_src_lib_dst.is_empty() && !id_src_lib_dst[0];
   }
-  std::cout << id_src->name << " is linked from dst Main: " << is_id_src_from_bmain_dst << "\n";
-  std::cout.flush();
+  CLOG_DEBUG(&LOG, "ID '%s' is linked from dst Main: %d", id_src->name, is_id_src_from_bmain_dst);
 
   if (is_id_src_from_bmain_dst) {
     /* Do not move an ID supposed to be from `bmain_dst` (used as library in `bmain_src`) into
@@ -310,15 +323,29 @@ static void main_merge_add_id_to_move(Main *bmain_dst,
      * e.g. in case `bmain_dst` has been updated since it file was loaded as library in
      * `bmain_src`. */
     CLOG_WARN(&LOG,
-              "ID '%s' defined in source Main as linked from destination Main (file '%s') not "
-              "found in given destination Main",
+              "ID '%s' defined in source Main as linked from destination Main (file '%s'), but "
+              "not found in given destination Main, will be skipped",
               id_src->name,
               bmain_dst->filepath);
     id_remapper.add(id_src, nullptr);
     reports.num_unknown_ids++;
   }
   else {
-    ids_to_move.append(id_src);
+    if (is_library) {
+      /* Archive libraries are never moved.
+       * When moved, regular libraries need to see their vector of owned archive libraries cleared,
+       * since these will remain in the source Main. */
+      Library *lib_src = blender::id_cast<Library *>(id_src);
+      BLI_assert((lib_src->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
+      lib_src->runtime->archived_libraries.clear();
+      /* Libraries should be added to destination Main before any other ID, to ensure that
+       * potential packed IDs can find the required owner 'regular' library for their archive
+       * library containers. */
+      ids_to_move.prepend(id_src);
+    }
+    else {
+      ids_to_move.append(id_src);
+    }
   }
 }
 
@@ -327,14 +354,28 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
   Main *bmain_src = *r_bmain_src;
   /* NOTE: Dedicated mapping type is needed here, to handle properly the library cases. */
   blender::Map<std::string, blender::Vector<ID *>> id_map_dst;
+  /* Packed IDs are only matched by their deep hashes, and can only match with other packed IDS, so
+   * they have their own dedicated mapping. */
+  blender::Map<IDHash, ID *> id_packed_map_dst;
   ID *id_iter_dst, *id_iter_src;
   FOREACH_MAIN_ID_BEGIN (bmain_dst, id_iter_dst) {
     if (GS(id_iter_dst->name) == ID_LI) {
       /* Libraries need specific handling, as we want to check them by their filepath, not the IDs
        * themselves. */
       Library *lib_dst = reinterpret_cast<Library *>(id_iter_dst);
+      if (lib_dst->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        /* Archive libraries are never merged per-se, since they are only 'namespace' containers
+         * for packed linked data. Existing matching archive libraries will be re-used for packed
+         * IDs in the destination Main, or new ones will be created as needed. */
+        BLI_assert(lib_dst->archive_parent_library);
+        continue;
+      }
       BLI_assert(!id_map_dst.contains(lib_dst->runtime->filepath_abs));
       id_map_dst.add(lib_dst->runtime->filepath_abs, {id_iter_dst});
+    }
+    else if (ID_IS_PACKED(id_iter_dst)) {
+      BLI_assert(!id_packed_map_dst.contains(id_iter_dst->deep_hash));
+      id_packed_map_dst.add_new(id_iter_dst->deep_hash, id_iter_dst);
     }
     else {
       id_map_dst.lookup_or_add(id_iter_dst->name, {}).append(id_iter_dst);
@@ -354,44 +395,70 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
 
   FOREACH_MAIN_ID_BEGIN (bmain_src, id_iter_src) {
     const bool is_library = GS(id_iter_src->name) == ID_LI;
+    const bool is_packed = ID_IS_PACKED(id_iter_src);
+    BLI_assert(!is_packed || !is_library);
+    BLI_assert(!is_library || !ID_IS_LINKED(id_iter_src));
+    BLI_assert(!is_packed || ID_IS_LINKED(id_iter_src));
 
-    blender::Vector<ID *> ids_dst = id_map_dst.lookup_default(
-        is_library ? reinterpret_cast<Library *>(id_iter_src)->runtime->filepath_abs :
-                     id_iter_src->name,
-        {});
     if (is_library) {
-      BLI_assert(ids_dst.size() <= 1);
-    }
-    if (ids_dst.is_empty()) {
-      main_merge_add_id_to_move(
-          bmain_dst, id_map_dst, id_iter_src, id_remapper, ids_to_move, is_library, reports);
-      continue;
-    }
-
-    bool src_has_match_in_dst = false;
-    for (ID *id_iter_dst : ids_dst) {
-      if (are_ids_from_different_mains_matching(bmain_dst, id_iter_dst, bmain_src, id_iter_src)) {
-        /* There should only ever be one potential match, never more. */
-        BLI_assert(!src_has_match_in_dst);
-        if (!src_has_match_in_dst) {
-          if (is_library) {
-            id_remapper_libraries.add(id_iter_src, id_iter_dst);
-            reports.num_remapped_libraries++;
-          }
-          else {
-            id_remapper.add(id_iter_src, id_iter_dst);
-            reports.num_remapped_ids++;
-          }
-          src_has_match_in_dst = true;
-        }
-#ifdef NDEBUG /* In DEBUG builds, keep looping to ensure there is only one match. */
-        break;
-#endif
+      Library *lib_src = reinterpret_cast<Library *>(id_iter_src);
+      if (lib_src->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        BLI_assert(lib_src->archive_parent_library);
+        continue;
       }
     }
-    if (!src_has_match_in_dst) {
-      main_merge_add_id_to_move(
-          bmain_dst, id_map_dst, id_iter_src, id_remapper, ids_to_move, is_library, reports);
+
+    if (is_packed) {
+      ID *id_packed_dst = id_packed_map_dst.lookup_default(id_iter_src->deep_hash, nullptr);
+      if (id_packed_dst) {
+        id_remapper.add(id_iter_src, id_packed_dst);
+        reports.num_remapped_ids++;
+      }
+      else {
+        main_merge_add_id_to_move(
+            bmain_dst, id_map_dst, id_iter_src, id_remapper, ids_to_move, is_library, reports);
+      }
+    }
+    else {
+      blender::Vector<ID *> ids_dst = id_map_dst.lookup_default(
+          is_library ? reinterpret_cast<Library *>(id_iter_src)->runtime->filepath_abs :
+                       id_iter_src->name,
+          {});
+      if (is_library) {
+        BLI_assert(ids_dst.size() <= 1);
+      }
+      if (ids_dst.is_empty()) {
+        main_merge_add_id_to_move(
+            bmain_dst, id_map_dst, id_iter_src, id_remapper, ids_to_move, is_library, reports);
+        continue;
+      }
+
+      bool src_has_match_in_dst = false;
+      for (ID *id_iter_dst : ids_dst) {
+        if (are_ids_from_different_mains_matching(bmain_dst, id_iter_dst, bmain_src, id_iter_src))
+        {
+          /* There should only ever be one potential match, never more. */
+          BLI_assert(!src_has_match_in_dst);
+          if (!src_has_match_in_dst) {
+            if (is_library) {
+              id_remapper_libraries.add(id_iter_src, id_iter_dst);
+              reports.num_remapped_libraries++;
+            }
+            else {
+              id_remapper.add(id_iter_src, id_iter_dst);
+              reports.num_remapped_ids++;
+            }
+            src_has_match_in_dst = true;
+          }
+#ifdef NDEBUG /* In DEBUG builds, keep looping to ensure there is only one match. */
+          break;
+#endif
+        }
+      }
+      if (!src_has_match_in_dst) {
+        main_merge_add_id_to_move(
+            bmain_dst, id_map_dst, id_iter_src, id_remapper, ids_to_move, is_library, reports);
+      }
     }
   }
   FOREACH_MAIN_ID_END;
@@ -416,17 +483,28 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
     }
   }
 
-  /* Libraries need to be remapped before moving IDs into `bmain_dst`, to ensure that the sorting
-   * of inserted IDs is correct. Note that no bmain is given here, so this is only a 'raw'
-   * remapping. */
-  BKE_libblock_relink_multiple(nullptr,
-                               ids_to_move,
-                               ID_REMAP_TYPE_REMAP,
-                               id_remapper_libraries,
-                               ID_REMAP_DO_LIBRARY_POINTERS);
-
   for (ID *id_iter_src : ids_to_move) {
     BKE_libblock_management_main_remove(bmain_src, id_iter_src);
+    if (ID_IS_PACKED(id_iter_src)) {
+      /* Set the packed ID's library back to the regular library, so that the call to
+       * #BKE_libblock_management_main_add() later in that function can select or create a suitable
+       * archive library for it in `bmain_dst`. */
+      id_iter_src->lib = id_iter_src->lib->archive_parent_library;
+    }
+    /* Libraries need to be remapped:
+     *  - _After_ removing IDs from the old source Main, to ensure that they get properly removed
+     *    from the expected namemap.
+     *  - _Before_ moving them into `bmain_dst`, to ensure that the sorting of inserted IDs is
+     *    correct. */
+    if (ID_IS_LINKED(id_iter_src)) {
+      /* Note that no bmain is given here, so this is only a 'raw' remapping. */
+      BKE_libblock_relink_multiple(nullptr,
+                                   blender::Span(&id_iter_src, 1),
+                                   ID_REMAP_TYPE_REMAP,
+                                   id_remapper_libraries,
+                                   ID_REMAP_DO_LIBRARY_POINTERS);
+      BLI_assert(id_iter_src->lib);
+    }
     BKE_libblock_management_main_add(bmain_dst, id_iter_src);
   }
 
@@ -472,12 +550,14 @@ bool BKE_main_is_empty(Main *bmain)
 
 bool BKE_main_has_issues(const Main *bmain)
 {
-  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file;
+  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file ||
+         bmain->colorspace.is_missing_opencolorio_config;
 }
 
 bool BKE_main_needs_overwrite_confirm(const Main *bmain)
 {
-  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file;
+  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file ||
+         bmain->colorspace.is_missing_opencolorio_config;
 }
 
 void BKE_main_lock(Main *bmain)
@@ -498,47 +578,42 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
   const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
 
   if (*id_pointer) {
-    MainIDRelationsEntry **entry_p;
 
     /* Add `id_pointer` as child of `self_id`. */
     {
-      if (!BLI_ghash_ensure_p(
-              bmain_relations->relations_from_pointers, self_id, (void ***)&entry_p))
-      {
-        *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
-        (*entry_p)->session_uid = self_id->session_uid;
-      }
-      else {
-        BLI_assert((*entry_p)->session_uid == self_id->session_uid);
-      }
+      MainIDRelationsEntry *entry = bmain_relations->relations_from_pointers->lookup_or_add_cb(
+          self_id, [&]() {
+            auto *entry = MEM_callocN<MainIDRelationsEntry>(__func__);
+            entry->session_uid = self_id->session_uid;
+            return entry;
+          });
+      BLI_assert(entry->session_uid == self_id->session_uid);
       MainIDRelationsEntryItem *to_id_entry = static_cast<MainIDRelationsEntryItem *>(
           BLI_mempool_alloc(bmain_relations->entry_items_pool));
-      to_id_entry->next = (*entry_p)->to_ids;
+      to_id_entry->next = entry->to_ids;
       to_id_entry->id_pointer.to = id_pointer;
       to_id_entry->session_uid = (*id_pointer != nullptr) ? (*id_pointer)->session_uid :
                                                             MAIN_ID_SESSION_UID_UNSET;
       to_id_entry->usage_flag = cb_flag;
-      (*entry_p)->to_ids = to_id_entry;
+      entry->to_ids = to_id_entry;
     }
 
     /* Add `self_id` as parent of `id_pointer`. */
     if (*id_pointer != nullptr) {
-      if (!BLI_ghash_ensure_p(
-              bmain_relations->relations_from_pointers, *id_pointer, (void ***)&entry_p))
-      {
-        *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
-        (*entry_p)->session_uid = (*id_pointer)->session_uid;
-      }
-      else {
-        BLI_assert((*entry_p)->session_uid == (*id_pointer)->session_uid);
-      }
+      MainIDRelationsEntry *entry = bmain_relations->relations_from_pointers->lookup_or_add_cb(
+          *id_pointer, [&]() {
+            auto *entry = MEM_callocN<MainIDRelationsEntry>(__func__);
+            entry->session_uid = (*id_pointer)->session_uid;
+            return entry;
+          });
+      BLI_assert(entry->session_uid == (*id_pointer)->session_uid);
       MainIDRelationsEntryItem *from_id_entry = static_cast<MainIDRelationsEntryItem *>(
           BLI_mempool_alloc(bmain_relations->entry_items_pool));
-      from_id_entry->next = (*entry_p)->from_ids;
+      from_id_entry->next = entry->from_ids;
       from_id_entry->id_pointer.from = self_id;
       from_id_entry->session_uid = self_id->session_uid;
       from_id_entry->usage_flag = cb_flag;
-      (*entry_p)->from_ids = from_id_entry;
+      entry->from_ids = from_id_entry;
     }
   }
 
@@ -552,8 +627,8 @@ void BKE_main_relations_create(Main *bmain, const short flag)
   }
 
   bmain->relations = MEM_mallocN<MainIDRelations>(__func__);
-  bmain->relations->relations_from_pointers = BLI_ghash_new(
-      BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+  bmain->relations->relations_from_pointers =
+      MEM_new<blender::Map<const ID *, MainIDRelationsEntry *>>(__func__);
   bmain->relations->entry_items_pool = BLI_mempool_create(
       sizeof(MainIDRelationsEntryItem), 128, 128, BLI_MEMPOOL_NOP);
 
@@ -567,14 +642,14 @@ void BKE_main_relations_create(Main *bmain, const short flag)
                                                   IDWALK_NOP);
 
     /* Ensure all IDs do have an entry, even if they are not connected to any other. */
-    MainIDRelationsEntry **entry_p;
-    if (!BLI_ghash_ensure_p(bmain->relations->relations_from_pointers, id, (void ***)&entry_p)) {
-      *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
-      (*entry_p)->session_uid = id->session_uid;
-    }
-    else {
-      BLI_assert((*entry_p)->session_uid == id->session_uid);
-    }
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup_or_add_cb(
+        id, [&]() {
+          auto *entry = MEM_callocN<MainIDRelationsEntry>(__func__);
+          entry->session_uid = id->session_uid;
+          return entry;
+        });
+    BLI_assert(entry->session_uid == id->session_uid);
+    UNUSED_VARS_NDEBUG(entry);
 
     BKE_library_foreach_ID_link(
         nullptr, id, main_relations_create_idlink_cb, bmain->relations, idwalk_flag);
@@ -585,9 +660,10 @@ void BKE_main_relations_create(Main *bmain, const short flag)
 void BKE_main_relations_free(Main *bmain)
 {
   if (bmain->relations != nullptr) {
-    if (bmain->relations->relations_from_pointers != nullptr) {
-      BLI_ghash_free(bmain->relations->relations_from_pointers, nullptr, MEM_freeN);
+    for (MainIDRelationsEntry *entry : bmain->relations->relations_from_pointers->values()) {
+      MEM_freeN(entry);
     }
+    MEM_delete(bmain->relations->relations_from_pointers);
     BLI_mempool_destroy(bmain->relations->entry_items_pool);
     MEM_freeN(bmain->relations);
     bmain->relations = nullptr;
@@ -599,14 +675,7 @@ void BKE_main_relations_tag_set(Main *bmain, const eMainIDRelationsEntryTags tag
   if (bmain->relations == nullptr) {
     return;
   }
-
-  GHashIterator *gh_iter;
-  for (gh_iter = BLI_ghashIterator_new(bmain->relations->relations_from_pointers);
-       !BLI_ghashIterator_done(gh_iter);
-       BLI_ghashIterator_step(gh_iter))
-  {
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghashIterator_getValue(gh_iter));
+  for (MainIDRelationsEntry *entry : bmain->relations->relations_from_pointers->values()) {
     if (value) {
       entry->tags |= tag;
     }
@@ -614,21 +683,20 @@ void BKE_main_relations_tag_set(Main *bmain, const eMainIDRelationsEntryTags tag
       entry->tags &= ~tag;
     }
   }
-  BLI_ghashIterator_free(gh_iter);
 }
 
-GSet *BKE_main_gset_create(Main *bmain, GSet *gset)
+blender::Set<const ID *> *BKE_main_set_create(Main *bmain, blender::Set<const ID *> *set)
 {
-  if (gset == nullptr) {
-    gset = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+  if (set == nullptr) {
+    set = MEM_new<blender::Set<const ID *>>(__func__);
   }
 
   ID *id;
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    BLI_gset_add(gset, id);
+    set->add(id);
   }
   FOREACH_MAIN_ID_END;
-  return gset;
+  return set;
 }
 
 /* Utils for ID's library weak reference API. */
@@ -714,7 +782,15 @@ void BKE_main_library_weak_reference_add_item(
   BLI_assert(BKE_idtype_idcode_append_is_reusable(GS(new_id->name)));
 
   const LibWeakRefKey key{library_filepath, library_id_name};
-  library_weak_reference_mapping->map.add_new(key, new_id);
+  /* With packed IDs and archive libraries, it is now possible to have several instances of the
+   * (originally) same linked ID made local at the same time in an append operation, so it is
+   * possible to get the same key several time here. And `Map::add_new` cannot be used safely
+   * anymore.
+   *
+   * Simply consider the first added one as valid, there is no good way to determine the 'best' one
+   * to keep around for append-or-reuse operations anyway - and the whole append-and-reuse may be
+   * deprecated soon too. */
+  library_weak_reference_mapping->map.add(key, new_id);
 
   BKE_main_library_weak_reference_add(new_id, library_filepath, library_id_name);
 }
@@ -794,7 +870,7 @@ void BKE_main_library_weak_reference_add(ID *local_id,
                                          const char *library_id_name)
 {
   if (local_id->library_weak_reference == nullptr) {
-    local_id->library_weak_reference = MEM_callocN<LibraryWeakReference>(__func__);
+    local_id->library_weak_reference = MEM_new_for_free<LibraryWeakReference>(__func__);
   }
 
   STRNCPY(local_id->library_weak_reference->library_filepath, library_filepath);
@@ -883,6 +959,11 @@ const char *BKE_main_blendfile_path_from_global()
   return BKE_main_blendfile_path(G_MAIN);
 }
 
+const char *BKE_main_blendfile_path_from_library(const Library &library)
+{
+  return library.runtime->filepath_abs;
+}
+
 ListBase *which_libbase(Main *bmain, short type)
 {
   switch ((ID_Type)type) {
@@ -910,8 +991,6 @@ ListBase *which_libbase(Main *bmain, short type)
       return &(bmain->lights);
     case ID_CA:
       return &(bmain->cameras);
-    case ID_IP:
-      return &(bmain->ipo);
     case ID_KE:
       return &(bmain->shapekeys);
     case ID_WO:
@@ -975,8 +1054,6 @@ MainListsArray BKE_main_lists_get(Main &bmain)
   MainListsArray lb{};
   /* Libraries may be accessed from pretty much any other ID. */
   lb[INDEX_ID_LI] = &bmain.libraries;
-
-  lb[INDEX_ID_IP] = &bmain.ipo;
 
   /* Moved here to avoid problems when freeing with animato (aligorith). */
   lb[INDEX_ID_AC] = &bmain.actions;

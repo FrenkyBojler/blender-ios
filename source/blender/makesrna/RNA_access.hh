@@ -17,6 +17,7 @@
 #include "RNA_types.hh"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 
@@ -32,7 +33,7 @@ struct Scene;
 struct bContext;
 
 /* Types */
-extern BlenderRNA BLENDER_RNA;
+BlenderRNA &RNA_blender_rna_get();
 
 /* Pointer
  *
@@ -155,7 +156,7 @@ bool RNA_struct_system_idprops_check(StructRNA *srna);
  * (e.g. by assigning an IDP_GROUP containing some IDP_ID pointers...).
  *
  * \note This is currently giving results for both user-defined and system-defined IDProperties,
- * there is no distinction for this between both storages.
+ * there is no distinction for this between both kinds of storage.
  */
 bool RNA_struct_idprops_contains_datablock(const StructRNA *type);
 /**
@@ -214,8 +215,12 @@ PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifi
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
 const ListBase *RNA_struct_type_functions(StructRNA *srna);
 
-char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len)
-    ATTR_WARN_UNUSED_RESULT;
+[[nodiscard]] char *RNA_struct_name_get_alloc_ex(
+    PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop);
+[[nodiscard]] char *RNA_struct_name_get_alloc(PointerRNA *ptr,
+                                              char *fixedbuf,
+                                              int fixedlen,
+                                              int *r_len);
 
 /**
  * Use when registering structs with the #STRUCT_PUBLIC_NAMESPACE flag.
@@ -234,6 +239,8 @@ bool RNA_struct_bl_idname_ok_or_report(ReportList *reports,
 
 const char *RNA_property_identifier(const PropertyRNA *prop);
 const char *RNA_property_description(PropertyRNA *prop);
+
+const DeprecatedRNA *RNA_property_deprecated(const PropertyRNA *prop);
 
 PropertyType RNA_property_type(PropertyRNA *prop);
 PropertySubType RNA_property_subtype(PropertyRNA *prop);
@@ -270,10 +277,16 @@ int RNA_property_array_item_index(PropertyRNA *prop, char name);
  */
 int RNA_property_string_maxlength(PropertyRNA *prop);
 
-const char *RNA_property_ui_name(const PropertyRNA *prop);
-const char *RNA_property_ui_name_raw(const PropertyRNA *prop);
-const char *RNA_property_ui_description(const PropertyRNA *prop);
-const char *RNA_property_ui_description_raw(const PropertyRNA *prop);
+/**
+ * \return true when the string is stored as UTF-8. Otherwise this is e.g. a byte string.
+ */
+bool RNA_property_string_is_utf8(PropertyRNA *prop);
+
+const char *RNA_property_ui_name(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
+const char *RNA_property_ui_name_raw(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
+const char *RNA_property_ui_description(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
+const char *RNA_property_ui_description_raw(const PropertyRNA *prop,
+                                            const PointerRNA *ptr = nullptr);
 const char *RNA_property_translation_context(const PropertyRNA *prop);
 int RNA_property_ui_icon(const PropertyRNA *prop);
 
@@ -535,10 +548,14 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
                                                            PropertyRNA *prop);
 
 /**
- * \return the length without `\0` terminator.
+ * \return The final length without `\0` terminator (might differ from the length of the stored
+ * string, when a `get_transform` callback is defined).
  */
 int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop);
-void RNA_property_string_get_default(PropertyRNA *prop, char *value, int value_maxncpy);
+void RNA_property_string_get_default(PointerRNA *ptr,
+                                     PropertyRNA *prop,
+                                     char *value,
+                                     int value_maxncpy);
 char *RNA_property_string_get_default_alloc(PointerRNA *ptr,
                                             PropertyRNA *prop,
                                             char *fixedbuf,
@@ -562,7 +579,21 @@ int RNA_property_enum_get_default(PointerRNA *ptr, PropertyRNA *prop);
 int RNA_property_enum_step(
     const bContext *C, PointerRNA *ptr, PropertyRNA *prop, int from_value, int step);
 
+/**
+ * WARNING: _may_ create data in IDPGroup backend storage case.
+ * While creation of data itself is mutex-protected, potential concurrent _accesses_ to the same
+ * property are not, so threaded calls to #RNA_property_pointer_get() remain highly unsafe.
+ */
 PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop) ATTR_NONNULL(1, 2);
+/**
+ * Same as above, but never creates an empty IDPGroup property for Pointer runtime properties that
+ * are not set yet.
+ *
+ * Ideally this should never be done ever, as it is intrinsically not thread-safe,
+ * but for the time being at least provide a way to avoid this bad behavior.
+ */
+PointerRNA RNA_property_pointer_get_never_create(PointerRNA *ptr, PropertyRNA *prop)
+    ATTR_NONNULL(1, 2);
 void RNA_property_pointer_set(PointerRNA *ptr,
                               PropertyRNA *prop,
                               PointerRNA ptr_value,
@@ -683,6 +714,12 @@ bool RNA_enum_icon_from_value(const EnumPropertyItem *item, int value, int *r_ic
 bool RNA_enum_name_from_value(const EnumPropertyItem *item, int value, const char **r_name);
 
 void RNA_string_get(PointerRNA *ptr, const char *name, char *value);
+/**
+ * Retrieve string from a string property, or an empty string if the property does not exist.
+ * \note This mostly exists as a C++ replacement for #RNA_string_get_alloc or a simpler replacement
+ * for the overload with a return pointer argument with easy support for arbitrary length strings.
+ */
+std::string RNA_string_get(PointerRNA *ptr, const char *name);
 char *RNA_string_get_alloc(PointerRNA *ptr,
                            const char *name,
                            char *fixedbuf,
@@ -767,8 +804,8 @@ void RNA_collection_clear(PointerRNA *ptr, const char *name);
  * without the RNA considering it to be "set", see #IDP_FLAG_GHOST.
  * This is used for operators, where executing an operator that has run previously
  * will re-use the last value (unless #PROP_SKIP_SAVE property is set).
- * In this case, the presence of the an existing value shouldn't prevent it being initialized
- * from the context. Even though the this value will be returned if it's requested,
+ * In this case, the presence of an existing value shouldn't prevent it being initialized
+ * from the context. Even though this value will be returned if it's requested,
  * it's not considered to be set (as it would if the menu item or key-map defined it's value).
  * Set `use_ghost` to true for default behavior, otherwise false to check if there is a value
  * exists internally and would be returned on request.
@@ -924,7 +961,7 @@ enum eRNAOverrideMatch {
   /** Tag for restoration of property's value(s) to reference ones, if needed and possible. */
   RNA_OVERRIDE_COMPARE_TAG_FOR_RESTORE = 1 << 18,
 };
-ENUM_OPERATORS(eRNAOverrideMatch, RNA_OVERRIDE_COMPARE_TAG_FOR_RESTORE)
+ENUM_OPERATORS(eRNAOverrideMatch)
 
 enum eRNAOverrideMatchResult {
   RNA_OVERRIDE_MATCH_RESULT_INIT = 0,
@@ -942,7 +979,7 @@ enum eRNAOverrideMatchResult {
   /** Some properties were reset to reference values. */
   RNA_OVERRIDE_MATCH_RESULT_RESTORED = 1 << 2,
 };
-ENUM_OPERATORS(eRNAOverrideMatchResult, RNA_OVERRIDE_MATCH_RESULT_RESTORED)
+ENUM_OPERATORS(eRNAOverrideMatchResult)
 
 enum eRNAOverrideStatus {
   /** The property is overridable. */
@@ -954,7 +991,7 @@ enum eRNAOverrideStatus {
   /** The override status of this property is locked. */
   RNA_OVERRIDE_STATUS_LOCKED = 1 << 3,
 };
-ENUM_OPERATORS(eRNAOverrideStatus, RNA_OVERRIDE_STATUS_LOCKED)
+ENUM_OPERATORS(eRNAOverrideStatus)
 
 /**
  * Check whether reference and local overridden data match (are the same),
