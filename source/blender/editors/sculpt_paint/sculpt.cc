@@ -5907,48 +5907,6 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   stroke = MEM_new<SculptPaintStroke>(__func__, C, op, event->type);
 
   op->customdata = stroke;
-
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
-
-  /* For ALT / SHIFT / CTRL toggles in Sculpt mode */
-  if (mode == PaintMode::Sculpt) {
-    SculptSession &ss = *ob.sculpt;
-    StrokeCache *cache = ss.cache;
-
-    // ALT -> Mask
-    if (event->modifier & KM_ALT) {
-        printf("[DEBUG] ALT detected: stroke_mode = MASK\n");
-        CLOG_INFO(&LOG, 0, "ALT pressed, stroke_mode set to MASK");
-        cache->alt_mask = true;
-        cache->alt_smooth = false;
-        cache->invert = false;
-    } 
-    // SHIFT -> Smooth
-    else if (event->modifier & KM_SHIFT) {
-        printf("[DEBUG] SHIFT detected: stroke_mode = SMOOTH\n");
-        CLOG_INFO(&LOG, 0, "SHIFT pressed, stroke_mode set to SMOOTH");
-        cache->alt_mask = false;
-        cache->alt_smooth = true;
-        cache->invert = false;
-    } 
-    // CTRL -> Invert
-    else if (event->modifier & KM_CTRL) {
-        printf("[DEBUG] CTRL detected: stroke_mode = INVERT\n");
-        CLOG_INFO(&LOG, 0, "CTRL pressed, stroke_mode set to INVERT");
-        cache->alt_mask = false;
-        cache->alt_smooth = false;
-        cache->invert = true;
-    } 
-    // No modifier -> Normal
-    else {
-        printf("[DEBUG] No modifier detected: stroke_mode = NORMAL\n");
-        CLOG_INFO(&LOG, 0, "No modifier pressed, stroke_mode set to NORMAL");
-        cache->alt_mask = false;
-        cache->alt_smooth = false;
-        cache->invert = false;
-    }
-  }
-
   /* For tablet rotation. */
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};

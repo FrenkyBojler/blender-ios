@@ -1409,6 +1409,52 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   bool first_modal = false;
   bool needs_redraw = false;
 
+  Object *ob = CTX_data_active_object(C);
+  if (!ob) {
+      return OPERATOR_CANCELLED;
+  }
+
+  if (mode == PaintMode::Sculpt && stroke_started_ && ob->sculpt) {
+    SculptSession *ss = ob->sculpt;
+    StrokeCache *cache = ss->cache;
+
+    if (cache) {
+      // Alt = Mask
+      if (event->modifier & KM_ALT) {
+          cache->alt_mask = true;
+          cache->alt_smooth = false;
+          cache->invert = false;
+          printf("[DEBUG] ALT pressed: Mask active\n");
+      }
+      else {
+          cache->alt_mask = false;
+      }
+
+      // Shift = Smooth
+      if (event->modifier & KM_SHIFT) {
+          cache->alt_smooth = true;
+          cache->alt_mask = false;
+          cache->invert = false;
+          printf("[DEBUG] SHIFT pressed: Smooth active\n");
+      }
+      else {
+          cache->alt_smooth = false;
+      }
+
+      // Ctrl = Invert
+      if (event->modifier & KM_CTRL) {
+          cache->invert = true;
+          cache->alt_mask = false;
+          cache->alt_smooth = false;
+          printf("[DEBUG] CTRL pressed: Invert active\n");
+      }
+      else {
+          cache->invert = false;
+      }
+    }
+  }
+
+
   if (event->type == INBETWEEN_MOUSEMOVE &&
       !paint_brush_type_require_inbetween_mouse_events(*br, mode))
   {
