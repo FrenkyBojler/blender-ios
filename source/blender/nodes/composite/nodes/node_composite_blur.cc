@@ -17,18 +17,18 @@
 
 #include "GPU_shader.hh"
 
+#include "COM_algorithm_dual_kawase_blur.hh"
 #include "COM_algorithm_pad.hh"
 #include "COM_algorithm_parallel_reduction.hh"
 #include "COM_algorithm_recursive_gaussian_blur.hh"
 #include "COM_algorithm_symmetric_separable_blur.hh"
-#include "COM_algorithm_dual_kawase_blur.hh"
 #include "COM_node_operation.hh"
 #include "COM_symmetric_blur_weights.hh"
 #include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
-constexpr int R_FILTER_DUAL_KAWASE = 8; //@TODO hack
+constexpr int R_FILTER_DUAL_KAWASE = 8;  //@TODO hack
 
 namespace blender::nodes::node_composite_blur_cc {
 

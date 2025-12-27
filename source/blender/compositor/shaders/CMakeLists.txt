@@ -36,6 +36,9 @@ set(SRC_GLSL_COMP
   compositor_displace.glsl
   compositor_double_edge_mask_compute_boundary.glsl
   compositor_double_edge_mask_compute_gradient.glsl
+  compositor_dual_kawase_downsample.glsl
+  compositor_dual_kawase_mix.glsl
+  compositor_dual_kawase_upsample.glsl
   compositor_edge_filter.glsl
   compositor_ellipse_mask.glsl
   compositor_filter.glsl

@@ -186,6 +186,7 @@ set(GLSL_SRC
   shaders/infos/compositor_directional_blur_infos.hh
   shaders/infos/compositor_displace_infos.hh
   shaders/infos/compositor_double_edge_mask_infos.hh
+  shaders/infos/compositor_dual_kawase_infos.hh
   shaders/infos/compositor_edge_filter_infos.hh
   shaders/infos/compositor_ellipse_mask_infos.hh
   shaders/infos/compositor_filter_infos.hh
@@ -258,6 +259,9 @@ set(GLSL_SRC
   shaders/compositor_displace_anisotropic.glsl
   shaders/compositor_double_edge_mask_compute_boundary.glsl
   shaders/compositor_double_edge_mask_compute_gradient.glsl
+  shaders/compositor_dual_kawase_downsample.glsl
+  shaders/compositor_dual_kawase_mix.glsl
+  shaders/compositor_dual_kawase_upsample.glsl
   shaders/compositor_edge_filter.glsl
   shaders/compositor_ellipse_mask.glsl
   shaders/compositor_filter.glsl
