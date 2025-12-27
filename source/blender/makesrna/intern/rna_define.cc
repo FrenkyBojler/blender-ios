@@ -200,7 +200,7 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
 
   if (srna->flag & STRUCT_RUNTIME) {
     /* Reverse iteration because runtime structs should be at the end. */
-    for (int i = brna->structs.size(); i > 0; i--) {
+    for (int i = brna->structs.size() - 1; i >= 0; i--) {
       if (brna->structs[i].get() == srna) {
         brna->structs.remove(i);
         break;
