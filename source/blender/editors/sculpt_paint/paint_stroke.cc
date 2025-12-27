@@ -973,6 +973,24 @@ void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
     this->done(is_cancel);
   }
 
+    /* Ensure ALT mask is always restored when stroke ends */
+  if (Object *ob = CTX_data_active_object(C)) {
+    if (ob->sculpt && ob->sculpt->cache) {
+      StrokeCache *cache = ob->sculpt->cache;
+
+      if (cache->alt_mask) {
+        blender::ed::sculpt_paint::mask_brush_toggle_off(this->paint, cache);
+
+        if (cache->prev_brush) {
+          this->paint->brush = cache->prev_brush;
+          cache->prev_brush = nullptr;
+        }
+
+        cache->alt_mask = false;
+      }
+    }
+  }
+
   this->free(C, op);
 }
 
