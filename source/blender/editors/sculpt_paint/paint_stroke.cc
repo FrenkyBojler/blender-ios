@@ -1463,29 +1463,28 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     stroke_init_ = true;
     first_modal = true;
   }
-
+    /* ALT->Mask Toggle*/
+  if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+    if (event->modifier & KM_ALT) {
+      stroke_mode_ = BRUSH_STROKE_MASK;
+      printf("[ALT] Stroke mode = MASK\n");
+    }
+    else if (event->modifier & KM_SHIFT) {
+      stroke_mode_ = BRUSH_STROKE_SMOOTH;
+      printf("Smooth\n");
+    }
+    else if (event->modifier & KM_CTRL) {
+      stroke_mode_ = BRUSH_STROKE_INVERT;
+      printf("Invert\n");
+    }
+    else {
+      stroke_mode_ = BRUSH_STROKE_NORMAL;
+    }
+  }
   /* one time stroke initialization */
   if (!stroke_started_) {
     RNA_boolean_set(op->ptr, "pen_flip", pen_flip_);
-      /* Decide stroke mode ONCE at stroke start */
-    if (event->type == event_type_ && event->val == KM_PRESS) {
-      if (event->modifier & KM_ALT) {
-        stroke_mode_ = BRUSH_STROKE_MASK;
-        printf("[Stroke Start] MASK\n");
-      }
-      else if (event->modifier & KM_SHIFT) {
-        stroke_mode_ = BRUSH_STROKE_SMOOTH;
-        printf("[Stroke Start] SMOOTH\n");
-      }
-      else if (event->modifier & KM_CTRL) {
-        stroke_mode_ = BRUSH_STROKE_INVERT;
-        printf("[Stroke Start] INVERT\n");
-      }
-      else {
-        stroke_mode_ = BRUSH_STROKE_NORMAL;
-        printf("[Stroke Start] NORMAL\n");
-      }
-    }
+
     last_pressure_ = sample_average.pressure;
     this->last_mouse_position = sample_average.mouse;
     if (paint_stroke_use_scene_spacing(*br, mode)) {
