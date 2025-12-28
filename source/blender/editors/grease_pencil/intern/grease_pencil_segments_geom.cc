@@ -365,6 +365,101 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
     attribute.dst.finish();
   }
 
+  const Array<int> point_to_curve_map = dst_curves.point_to_curve_map();
+  const VArray<int8_t> types = dst_curves.curve_types();
+  const Span<float3> src_positions = src.positions();
+  const std::optional<Span<float3>> src_handles_left = src.handle_positions_left();
+  const std::optional<Span<float3>> src_handles_right = src.handle_positions_right();
+  const MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
+  const MutableSpan<float3> dst_handles_left = dst_curves.handle_positions_left_for_write();
+  const MutableSpan<float3> dst_handles_right = dst_curves.handle_positions_right_for_write();
+
+  threading::parallel_for(point_to_interpolate.index_range(), 4096, [&](const IndexRange points) {
+    for (const int dst_i : points) {
+      const InterpolatePoint &int_point = point_to_interpolate[dst_i];
+
+      if (int_point.factor == 0.0f || int_point.factor == 1.0f) {
+        continue;
+      }
+
+      const int dst_curve_i = point_to_curve_map[dst_i];
+      if (types[dst_curve_i] != CURVE_TYPE_BEZIER) {
+        continue;
+      }
+
+      const bke::curves::bezier::Insertion insertion = bke::curves::bezier::insert(
+          src_positions[int_point.src_point_1],
+          (*src_handles_right)[int_point.src_point_1],
+          (*src_handles_left)[int_point.src_point_2],
+          src_positions[int_point.src_point_2],
+          int_point.factor);
+
+      dst_positions[dst_i] = insertion.position;
+      dst_handles_left[dst_i] = insertion.left_handle;
+      dst_handles_right[dst_i] = insertion.right_handle;
+    }
+  });
+
+  threading::parallel_for(point_to_interpolate.index_range(), 4096, [&](const IndexRange points) {
+    for (const int dst_i : points) {
+      const InterpolatePoint &int_point = point_to_interpolate[dst_i];
+      const float factor = int_point.factor;
+
+      if (factor == 0.0f || factor == 1.0f) {
+        continue;
+      }
+
+      const int dst_curve_i = point_to_curve_map[dst_i];
+      if (types[dst_curve_i] != CURVE_TYPE_BEZIER) {
+        continue;
+      }
+
+      const bool dst_cyclic = cyclic[dst_curve_i];
+      const IndexRange dst_points = dst_points_by_curve[dst_curve_i];
+
+      if (dst_cyclic || dst_i != dst_points.first()) {
+        const int dst_i_prev = (dst_i == dst_points.first()) ? dst_points.last() : (dst_i - 1);
+        const InterpolatePoint &int_point_prev = point_to_interpolate[dst_i_prev];
+        const float factor_prev = int_point_prev.factor;
+        const bool is_intersect_prev = !(factor_prev == 0.0f || factor_prev == 1.0f);
+        const float3 cet_prev = dst_positions[dst_i_prev];
+
+        if (!is_intersect_prev) {
+          dst_handles_right[dst_i_prev] = (dst_handles_right[dst_i_prev] - cet_prev) * factor +
+                                          cet_prev;
+        }
+        else {
+          /* TODO: this is not working right. */
+          /* The handles already have been scaled by `factor`, so we divide to remove. */
+          dst_handles_right[dst_i_prev] = (dst_handles_right[dst_i_prev] - cet_prev) *
+                                              (factor - factor_prev) / factor +
+                                          cet_prev;
+        }
+      }
+
+      if (dst_cyclic || dst_i != dst_points.last()) {
+        const int dst_i_next = (dst_i == dst_points.last()) ? dst_points.first() : (dst_i + 1);
+        const InterpolatePoint &int_point_next = point_to_interpolate[dst_i_next];
+        const float factor_next = int_point_next.factor;
+        const bool is_intersect_next = !(factor_next == 0.0f || factor_next == 1.0f);
+        const float3 cet_next = dst_positions[dst_i_next];
+
+        if (!is_intersect_next) {
+          dst_handles_left[dst_i_next] = (dst_handles_left[dst_i_next] - cet_next) *
+                                             (1.0f - factor) +
+                                         cet_next;
+        }
+        else {
+          /* TODO: this is not working right. */
+          /* The handles already have been scaled by `1.0f - factor`, so we divide to remove. */
+          dst_handles_left[dst_i_next] = (dst_handles_left[dst_i_next] - cet_next) *
+                                             (factor_next - factor) / (1.0f - factor) +
+                                         cet_next;
+        }
+      }
+    }
+  });
+
   return dst_curves;
 }
 
