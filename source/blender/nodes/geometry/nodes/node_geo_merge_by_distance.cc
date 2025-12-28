@@ -40,6 +40,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Menu>("Mode").static_items(mode_items).optional_label();
   b.add_input<decl::Float>("Distance").default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Bool>("Centroid Merge").default_value(true);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -50,6 +51,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,
                                                 const float merge_distance,
+                                                const bool use_centroid,
                                                 const Field<bool> &selection_field,
                                                 const AttributeFilter &attribute_filter)
 {
@@ -64,11 +66,12 @@ static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,
   }
 
   return geometry::point_merge_by_distance(
-      src_points, merge_distance, true, selection, attribute_filter);
+      src_points, merge_distance, use_centroid, selection, attribute_filter);
 }
 
 static std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
                                                               const float merge_distance,
+                                                              const bool use_centroid,
                                                               const Field<bool> &selection_field)
 {
   Array<bool> selection(mesh.verts_num);
@@ -77,11 +80,13 @@ static std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
   evaluator.add_with_destination(selection_field, selection.as_mutable_span());
   evaluator.evaluate();
 
-  return geometry::mesh_merge_by_distance_connected(mesh, selection, merge_distance, true, false);
+  return geometry::mesh_merge_by_distance_connected(
+      mesh, selection, merge_distance, use_centroid, false);
 }
 
 static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
                                                         const float merge_distance,
+                                                        const bool use_centroid,
                                                         const Field<bool> &selection_field)
 {
   const bke::MeshFieldContext context{mesh, AttrDomain::Point};
@@ -94,7 +99,7 @@ static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
     return std::nullopt;
   }
 
-  return geometry::mesh_merge_by_distance_all(mesh, selection, merge_distance, true);
+  return geometry::mesh_merge_by_distance_all(mesh, selection, merge_distance, use_centroid);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -103,11 +108,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   const auto mode = params.get_input<GeometryNodeMergeByDistanceMode>("Mode");
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const float merge_distance = params.extract_input<float>("Distance");
+  const bool use_centroid = params.extract_input<bool>("Centroid Merge");
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
-      PointCloud *result = pointcloud_merge_by_distance(
-          *pointcloud, merge_distance, selection, params.get_attribute_filter("Geometry"));
+      PointCloud *result = pointcloud_merge_by_distance(*pointcloud,
+                                                        merge_distance,
+                                                        use_centroid,
+                                                        selection,
+                                                        params.get_attribute_filter("Geometry"));
       if (result) {
         geometry_set.replace_pointcloud(result);
       }
@@ -116,10 +125,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       std::optional<Mesh *> result;
       switch (mode) {
         case GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL:
-          result = mesh_merge_by_distance_all(*mesh, merge_distance, selection);
+          result = mesh_merge_by_distance_all(*mesh, merge_distance, use_centroid, selection);
           break;
         case GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED:
-          result = mesh_merge_by_distance_connected(*mesh, merge_distance, selection);
+          result = mesh_merge_by_distance_connected(
+              *mesh, merge_distance, use_centroid, selection);
           break;
         default:
           BLI_assert_unreachable();
