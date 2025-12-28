@@ -1801,6 +1801,8 @@ static void region_rect_recursive(
           region->winrct.ymin = y + 1;
           BLI_rcti_init(remainder, 0, 0, 0, 0);
           break;
+        default:
+          BLI_assert_unreachable();
       }
 
       /* Fix any negative dimensions. This can happen when a quad split 3d view gets too small.

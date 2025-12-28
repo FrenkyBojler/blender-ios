@@ -1208,11 +1208,11 @@ static void view3d_draw_grease_pencil(const bContext * /*C*/)
 static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
 {
   const char *name = nullptr;
-  const bool locked = RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION;
+  const bool is_locked = RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION;
 
   switch (rv3d->view) {
     case RV3D_VIEW_FRONT:
-      if (locked) {
+      if (is_locked) {
         name = IFACE_("Front");
       }
       else if (rv3d->persp == RV3D_ORTHO) {
@@ -1223,7 +1223,7 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_BACK:
-      if (locked) {
+      if (is_locked) {
         name = IFACE_("Back");
       }
       else if (rv3d->persp == RV3D_ORTHO) {
@@ -1234,7 +1234,7 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_TOP:
-      if (locked) {
+      if (is_locked) {
         name = IFACE_("Top");
       }
       else if (rv3d->persp == RV3D_ORTHO) {
@@ -1245,7 +1245,7 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_BOTTOM:
-      if (locked) {
+      if (is_locked) {
         name = IFACE_("Bottom");
       }
       else if (rv3d->persp == RV3D_ORTHO) {
@@ -1256,7 +1256,7 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_RIGHT:
-      if (locked) {
+      if (is_locked) {
         name = IFACE_("Right");
       }
       else if (rv3d->persp == RV3D_ORTHO) {
@@ -1267,7 +1267,7 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_LEFT:
-      if (locked) {
+      if (is_locked) {
         name = IFACE_("Left");
       }
       else if (rv3d->persp == RV3D_ORTHO) {
