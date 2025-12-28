@@ -309,7 +309,8 @@ static void rna_NodeSocket_bl_idname_set(PointerRNA *ptr, const char *value)
   blender::bke::bNodeSocketType *ntype = sock->typeinfo;
 
   if (ntype->type != SOCK_CUSTOM) {
-    CLOG_ERROR(&LOG, "Cannot modify 'bl_idname' of built-in socket type '%s'", ntype->idname.c_str());
+    CLOG_ERROR(
+        &LOG, "Cannot modify 'bl_idname' of built-in socket type '%s'", ntype->idname.c_str());
     return;
   }
 
