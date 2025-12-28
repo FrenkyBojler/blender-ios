@@ -3981,21 +3981,25 @@ static void mask_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *c
   BKE_brush_size_set(paint, mask_brush, cur_brush_size);
   BKE_curvemapping_init(mask_brush->curve_distance_falloff);
 }
+
 static void mask_brush_toggle_off(Paint *paint, StrokeCache *cache)
 {
   Brush &brush = *BKE_paint_brush(paint);
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    brush.mask_tool = cache->saved_mask_brush_tool;
+
+  /* User was already using mask brush */
+  if (cache->saved_active_brush == nullptr) {
+    if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
+      brush.mask_tool = cache->saved_mask_brush_tool;
+    }
     return;
   }
-  /* If saved_active_brush is not set, brush was not switched/affected in
-   * mask_brush_toggle_on(). */
-  if (cache->saved_active_brush) {
-    BKE_brush_size_set(paint, &brush, cache->saved_smooth_size);
-    BKE_paint_brush_set(paint, cache->saved_active_brush);
-    cache->saved_active_brush = nullptr;
-  }
+
+  /* Restore previous brush */
+  BKE_brush_size_set(paint, &brush, cache->saved_smooth_size);
+  BKE_paint_brush_set(paint, cache->saved_active_brush);
+  cache->saved_active_brush = nullptr;
 }
+
 
 /* Initialize the stroke cache invariants from operator properties. */
 static void sculpt_update_cache_invariants(
