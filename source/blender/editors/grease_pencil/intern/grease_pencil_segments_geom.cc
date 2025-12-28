@@ -20,6 +20,7 @@
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 
 #include "ED_grease_pencil.hh"
@@ -417,114 +418,198 @@ static IntersectionPoint create_intersection(const int point_i,
 }
 
 static void find_intersections_between_curve_and_curves(
+    const bke::CurvesGeometry &curves,
     const Span<float2> screen_space_positions,
     const Span<Bounds<float2>> screen_space_bbox,
     const OffsetIndices<int> points_by_curve,
+    const OffsetIndices<int> evaluated_points_by_curve,
     const VArray<bool> &cyclic,
+    const VArray<int8_t> &types,
     const IndexMask &visible_curves,
     const int curve_i,
     Array<Vector<int>> &r_inters_per_curves,
     Vector<IntersectionPoint> &r_intersections)
 {
+  auto check_edge_edge_intersection = [&](const float2 &padded_i1,
+                                          const float2 &padded_i2,
+                                          const float2 &padded_j1,
+                                          const float2 &padded_j2,
+                                          const float2 &co_i1,
+                                          const float2 &co_i2,
+                                          const float2 &co_j1,
+                                          const float2 &co_j2,
+                                          const int curve_j,
+                                          const int seg_i,
+                                          const int seg_j,
+                                          const int eval_i,
+                                          const int eval_j,
+                                          const int point_num_i,
+                                          const int point_num_j) {
+    const auto isect = math::isect_seg_seg(padded_i1, padded_i2, padded_j1, padded_j2);
+    if (ELEM(isect.kind, isect.LINE_LINE_CROSS, isect.LINE_LINE_EXACT)) {
+      const float local_factor_i = get_intersection_distance_of_segments(
+          co_i1, co_i2, co_j1, co_j2);
+      const float local_factor_j = get_intersection_distance_of_segments(
+          co_j1, co_j2, co_i1, co_i2);
+
+      /* If the intersection is outside of the edge, skip it.
+       * Note that exactly on the edge is accepted. */
+      if (local_factor_i < 0.0f || local_factor_i > 1.0f || local_factor_j < 0.0f ||
+          local_factor_j > 1.0f)
+      {
+        return;
+      }
+
+      const float factor_i = (eval_i + local_factor_i) / float(point_num_i);
+      const float factor_j = (eval_j + local_factor_j) / float(point_num_j);
+
+      r_inters_per_curves[curve_i].append(r_intersections.size());
+      r_inters_per_curves[curve_j].append(r_intersections.size());
+      r_intersections.append(
+          create_intersection(seg_i, seg_j, factor_i, factor_j, curve_i, curve_j));
+    }
+  };
+
   const bool cyclic_i = cyclic[curve_i];
-  const IndexRange curve_points_i = points_by_curve[curve_i];
+  const IndexRange src_points_i = points_by_curve[curve_i];
+  const IndexRange eval_points_i = evaluated_points_by_curve[curve_i];
 
-  for (const int i : curve_points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
-    const int point_i1 = curve_points_i[i];
-    const int point_i2 = curve_points_i[(i + 1) % curve_points_i.size()];
+  for (const int src_i : src_points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
+    const int seg_i = src_points_i[src_i];
 
-    const float2 co_i1 = screen_space_positions[point_i1];
-    const float2 co_i2 = screen_space_positions[point_i2];
+    BLI_assert(types[curve_i] == CURVE_TYPE_BEZIER);
+    const Span<int> offsets_i = curves.bezier_evaluated_offsets_for_curve(curve_i);
+    const IndexRange eval_range_i = IndexRange::from_begin_end_inclusive(offsets_i[src_i],
+                                                                         offsets_i[src_i + 1])
+                                        .shift(eval_points_i.first());
+    const int point_num_i = eval_range_i.size() - 1;
 
-    Bounds<float2> bbox_i{math::min(co_i1, co_i2), math::max(co_i1, co_i2)};
-    bbox_i.pad(BBOX_PADDING);
+    // if (types[curve_i] != CURVE_TYPE_BEZIER)
+    // const IndexRange eval_range_i = IndexRange::from_single(seg_i);
+    // const int point_num_i = 1;
 
-    /* Add some padding to the line segment i1-i2, otherwise we could just miss an
-     * intersection. */
-    const float2 padding_i = math::normalize(co_i2 - co_i1);
-    const float2 padded_i1 = co_i1 - padding_i;
-    const float2 padded_i2 = co_i2 + padding_i;
+    for (const int eval_i : IndexRange(point_num_i)) {
+      const int eval_i1 = eval_range_i[eval_i];
+      const int eval_i2 = (eval_range_i.first() + eval_i + 1 - eval_points_i.first()) %
+                              eval_points_i.size() +
+                          eval_points_i.first();
 
-    visible_curves.foreach_index([&](const int curve_j) {
-      /* Because intersecting the curves i with j and j with i, we skip one half to avoid
-       * duplicating all the points. */
-      if (curve_i > curve_j) {
-        return;
-      }
+      const float2 co_i1 = screen_space_positions[eval_i1];
+      const float2 co_i2 = screen_space_positions[eval_i2];
 
-      /* Bounding box check: Skip curves that don't overlap segment i1-i2. */
-      if (!bounds::intersect(bbox_i, screen_space_bbox[curve_j]).has_value()) {
-        return;
-      }
+      Bounds<float2> bbox_i{math::min(co_i1, co_i2), math::max(co_i1, co_i2)};
+      bbox_i.pad(BBOX_PADDING);
 
-      const bool cyclic_j = cyclic[curve_j];
-      const IndexRange curve_points_j = points_by_curve[curve_j];
+      /* Add some padding to the line segment i1-i2, otherwise we could just miss an
+       * intersection. */
+      const float2 padding_i = math::normalize(co_i2 - co_i1);
+      const float2 padded_i1 = co_i1 - padding_i;
+      const float2 padded_i2 = co_i2 + padding_i;
 
-      for (const int j : curve_points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
-        const int point_j1 = curve_points_j[j];
-        const int point_j2 = curve_points_j[(j + 1) % curve_points_j.size()];
-
-        /* Don't self check. */
-        if (curve_i == curve_j && (point_i1 == point_j1 || point_i1 == point_j2 ||
-                                   point_i2 == point_j1 || point_i2 == point_j2))
-        {
-          continue;
+      visible_curves.foreach_index([&](const int curve_j) {
+        /* Because intersecting the curves i with j and j with i is the same, we skip one half to
+         * avoid duplicating all the points. */
+        if (curve_i > curve_j) {
+          return;
         }
 
-        const float2 co_j1 = screen_space_positions[point_j1];
-        const float2 co_j2 = screen_space_positions[point_j2];
-
-        Bounds<float2> bbox_j{math::min(co_j1, co_j2), math::max(co_j1, co_j2)};
-        bbox_j.pad(BBOX_PADDING);
-
-        /* Skip when bounding boxes of i1-i2 and j1-j2 don't overlap. */
-        if (!bounds::intersect(bbox_i, bbox_j).has_value()) {
-          continue;
+        /* Bounding box check: Skip curves that don't overlap segment i1-i2. */
+        if (!bounds::intersect(bbox_i, screen_space_bbox[curve_j]).has_value()) {
+          return;
         }
 
-        /* Add some padding to the line segment j1-j2, otherwise we could just miss an
-         * intersection. */
-        const float2 padding_j = math::normalize(co_j2 - co_j1);
-        const float2 padded_j1 = co_j1 - padding_j;
-        const float2 padded_j2 = co_j2 + padding_j;
+        const bool cyclic_j = cyclic[curve_j];
+        const IndexRange src_points_j = points_by_curve[curve_j];
+        const IndexRange eval_points_j = evaluated_points_by_curve[curve_j];
 
-        /* Check for intersection. */
-        const auto isect = math::isect_seg_seg(padded_i1, padded_i2, padded_j1, padded_j2);
-        if (ELEM(isect.kind, isect.LINE_LINE_CROSS, isect.LINE_LINE_EXACT)) {
-          const float factor_i = get_intersection_distance_of_segments(co_i1, co_i2, co_j1, co_j2);
-          const float factor_j = get_intersection_distance_of_segments(co_j1, co_j2, co_i1, co_i2);
+        for (const int src_j : src_points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
+          const int seg_j = src_points_j[src_j];
 
-          /* If the intersection is outside of the edge, skip it. Note that exactly on the edge is
-           * accepted. */
-          if (factor_i < 0.0f || factor_i > 1.0f || factor_j < 0.0f || factor_j > 1.0f) {
-            continue;
+          BLI_assert(types[curve_i] == CURVE_TYPE_BEZIER);
+          const Span<int> offsets_j = curves.bezier_evaluated_offsets_for_curve(curve_j);
+          const IndexRange eval_range_j = IndexRange::from_begin_end_inclusive(
+                                              offsets_j[src_j], offsets_j[src_j + 1])
+                                              .shift(eval_points_j.first());
+          const int point_num_j = eval_range_j.size() - 1;
+
+          // if (types[curve_i] != CURVE_TYPE_BEZIER)
+          // const IndexRange eval_range_j = IndexRange::from_single(seg_j);
+          // const int point_num_j = 1;
+
+          for (const int eval_j : IndexRange(point_num_j)) {
+            const int eval_j1 = eval_range_j[eval_j];
+            const int eval_j2 = (eval_range_j.first() + eval_j + 1 - eval_points_j.first()) %
+                                    eval_points_j.size() +
+                                eval_points_j.first();
+
+            /* Don't self check. */
+            if (curve_i == curve_j && (eval_i1 == eval_j1 || eval_i1 == eval_j2 ||
+                                       eval_i2 == eval_j1 || eval_i2 == eval_j2))
+            {
+              continue;
+            }
+
+            const float2 co_j1 = screen_space_positions[eval_j1];
+            const float2 co_j2 = screen_space_positions[eval_j2];
+
+            Bounds<float2> bbox_j{math::min(co_j1, co_j2), math::max(co_j1, co_j2)};
+            bbox_j.pad(BBOX_PADDING);
+
+            /* Skip when bounding boxes of i1-i2 and j1-j2 don't overlap. */
+            if (!bounds::intersect(bbox_i, bbox_j).has_value()) {
+              continue;
+            }
+
+            /* Add some padding to the line segment j1-j2, otherwise we could just miss an
+             * intersection. */
+            const float2 padding_j = math::normalize(co_j2 - co_j1);
+            const float2 padded_j1 = co_j1 - padding_j;
+            const float2 padded_j2 = co_j2 + padding_j;
+
+            check_edge_edge_intersection(padded_i1,
+                                         padded_i2,
+                                         padded_j1,
+                                         padded_j2,
+                                         co_i1,
+                                         co_i2,
+                                         co_j1,
+                                         co_j2,
+                                         curve_j,
+                                         seg_i,
+                                         seg_j,
+                                         eval_i,
+                                         eval_j,
+                                         point_num_i,
+                                         point_num_j);
           }
-
-          r_inters_per_curves[curve_i].append(r_intersections.size());
-          r_inters_per_curves[curve_j].append(r_intersections.size());
-          r_intersections.append(
-              create_intersection(point_i1, point_j1, factor_i, factor_j, curve_i, curve_j));
         }
-      }
-    });
+      });
+    }
   }
 }
 
 /* TODO: This method of finding intersections is O(N^2) and should replaced with something faster.
  */
-static void find_intersections_between_all_curves(const Span<float2> screen_space_positions,
-                                                  const Span<Bounds<float2>> screen_space_bbox,
-                                                  const OffsetIndices<int> points_by_curve,
-                                                  const VArray<bool> &cyclic,
-                                                  const IndexMask &visible_curves,
-                                                  Array<Vector<int>> &r_inters_per_curves,
-                                                  Vector<IntersectionPoint> &r_intersections)
+static void find_intersections_between_all_curves(
+    const bke::CurvesGeometry &curves,
+    const Span<float2> screen_space_positions,
+    const Span<Bounds<float2>> screen_space_bbox,
+    const OffsetIndices<int> points_by_curve,
+    const OffsetIndices<int> evaluated_points_by_curve,
+    const VArray<bool> &cyclic,
+    const VArray<int8_t> &types,
+    const IndexMask &visible_curves,
+    Array<Vector<int>> &r_inters_per_curves,
+    Vector<IntersectionPoint> &r_intersections)
 {
   visible_curves.foreach_index([&](const int curve_i) {
-    find_intersections_between_curve_and_curves(screen_space_positions,
+    find_intersections_between_curve_and_curves(curves,
+                                                screen_space_positions,
                                                 screen_space_bbox,
                                                 points_by_curve,
+                                                evaluated_points_by_curve,
                                                 cyclic,
+                                                types,
                                                 visible_curves,
                                                 curve_i,
                                                 r_inters_per_curves,
@@ -1121,6 +1206,37 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
   });
 }
 
+static Array<float2> compute_screen_space_positions(
+    const bke::CurvesGeometry &src,
+    const FunctionRef<float2(float3)> projection,
+    const std::optional<bke::crazyspace::GeometryDeformation> &deformation)
+{
+  // const OffsetIndices<int> src_points_by_curve = src.evaluated_points_by_curve();
+  const Span<float3> evaluated_positions = src.evaluated_positions();
+
+  Array<float2> screen_space_positions(evaluated_positions.size());
+
+  if (!deformation.has_value()) {
+    threading::parallel_for(
+        screen_space_positions.index_range(), 512, [&](const IndexRange range) {
+          for (const int i : range) {
+            screen_space_positions[i] = projection(evaluated_positions[i]);
+          }
+        });
+
+    return screen_space_positions;
+  }
+
+  /* TODO. Use deformation */
+  threading::parallel_for(screen_space_positions.index_range(), 512, [&](const IndexRange range) {
+    for (const int i : range) {
+      screen_space_positions[i] = projection(evaluated_positions[i]);
+    }
+  });
+
+  return screen_space_positions;
+}
+
 /* Compute bounding boxes of curves in screen space. The bounding boxes are used to speed
  * up the search for intersecting curves. */
 static void compute_bounding_boxes(const OffsetIndices<int> src_points_by_curve,
@@ -1141,32 +1257,42 @@ static void compute_bounding_boxes(const OffsetIndices<int> src_points_by_curve,
       });
 }
 
-bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
-                                        const Span<float2> screen_space_positions,
-                                        const Span<int2> mcoords,
-                                        const IndexMask &editable_curves,
-                                        const IndexMask &visible_curves,
-                                        const bool keep_caps)
+bke::CurvesGeometry trim_curve_segments(
+    const bke::CurvesGeometry &src,
+    const FunctionRef<float2(float3)> projection,
+    const std::optional<bke::crazyspace::GeometryDeformation> &deformation,
+    const Span<int2> mcoords,
+    const IndexMask &editable_curves,
+    const IndexMask &visible_curves,
+    const bool keep_caps)
 {
   if (src.is_empty()) {
     return src;
   }
 
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+  const OffsetIndices<int> src_eval_points_by_curve = src.evaluated_points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
+  const VArray<int8_t> types = src.curve_types();
+
+  const Array<float2> screen_space_positions = compute_screen_space_positions(
+      src, projection, deformation);
 
   Array<Bounds<float2>> screen_space_bbox(src.curves_num());
-  compute_bounding_boxes(src_points_by_curve, screen_space_positions, screen_space_bbox);
+  compute_bounding_boxes(src_eval_points_by_curve, screen_space_positions, screen_space_bbox);
 
   Vector<IntersectionPoint> intersections;
-  Array<int> all_segment_offset_data(src_points_by_curve.size() + 1);
+  Array<int> all_segment_offset_data(src.curves_num() + 1);
   Vector<Segment> all_segments;
 
-  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
-  find_intersections_between_all_curves(screen_space_positions,
+  Array<Vector<int>> inters_per_curves(src.curves_num());
+  find_intersections_between_all_curves(src,
+                                        screen_space_positions,
                                         screen_space_bbox,
                                         src_points_by_curve,
+                                        src_eval_points_by_curve,
                                         is_cyclic,
+                                        types,
                                         visible_curves,
                                         inters_per_curves,
                                         intersections);
@@ -1229,6 +1355,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
+  const VArray<int8_t> types = src.curve_types();
 
   Array<Bounds<float2>> screen_space_bbox(src.curves_num());
   compute_bounding_boxes(src_points_by_curve, screen_space_positions, screen_space_bbox);
@@ -1238,10 +1365,13 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   Vector<Segment> all_segments;
 
   Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
-  find_intersections_between_all_curves(screen_space_positions,
+  find_intersections_between_all_curves(src,
+                                        screen_space_positions,
                                         screen_space_bbox,
                                         src_points_by_curve,
+                                        src_points_by_curve,
                                         is_cyclic,
+                                        types,
                                         visible_curves,
                                         inters_per_curves,
                                         intersections);

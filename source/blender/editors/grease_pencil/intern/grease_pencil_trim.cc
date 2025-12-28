@@ -48,14 +48,9 @@ static bool execute_trim_on_drawing(const int layer_index,
   bke::crazyspace::GeometryDeformation deformation =
       bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(&ob_eval, obact, drawing);
 
-  /* Compute screen space positions. */
-  Array<float2> screen_space_positions(src.points_num());
-  threading::parallel_for(src.points_range(), 4096, [&](const IndexRange src_points) {
-    for (const int src_point : src_points) {
-      screen_space_positions[src_point] = ED_view3d_project_float_v2_m4(
-          &region, deformation.positions[src_point], projection);
-    }
-  });
+  auto projection_function = [&](const float3 &position) {
+    return ED_view3d_project_float_v2_m4(&region, position, projection);
+  };
 
   IndexMaskMemory memory;
   const IndexMask editable_strokes = blender::ed::greasepencil::retrieve_editable_strokes(
@@ -65,7 +60,13 @@ static bool execute_trim_on_drawing(const int layer_index,
 
   /* Apply trim. */
   bke::CurvesGeometry cut_strokes = ed::greasepencil::trim::trim_curve_segments(
-      src, screen_space_positions, mcoords, editable_strokes, visible_strokes, keep_caps);
+      src,
+      projection_function,
+      std::make_optional(deformation),
+      mcoords,
+      editable_strokes,
+      visible_strokes,
+      keep_caps);
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(cut_strokes);

@@ -46,6 +46,9 @@ class RandomNumberGenerator;
 namespace bke {
 enum class AttrDomain : int8_t;
 class CurvesGeometry;
+namespace crazyspace {
+struct GeometryDeformation;
+}  // namespace crazyspace
 }  // namespace bke
 }  // namespace blender
 
@@ -919,18 +922,21 @@ namespace trim {
  * Note: All editable curves must also be visible.
  *
  * \param src: Curves geometry for target curves.
- * \param screen_space_positions: Screen-space positions computed in advance.
+ * \param projection: Function for converting Curve-space positions to Screen-space positions.
+ * \param deformation: Optional deformation info.
  * \param mcoords: Screen-space points that define the lasso region.
  * \param editable_curves: Mask of all curves that can be trimmed.
  * \param visible_curves: Mask of all curves that are visible.
  * \param keep_caps: If the start and end cap attributes should *not* be set to `Flat`.
  */
-bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
-                                        Span<float2> screen_space_positions,
-                                        Span<int2> mcoords,
-                                        const IndexMask &editable_curves,
-                                        const IndexMask &visible_curves,
-                                        bool keep_caps);
+bke::CurvesGeometry trim_curve_segments(
+    const bke::CurvesGeometry &src,
+    const FunctionRef<float2(float3)> projection,
+    const std::optional<bke::crazyspace::GeometryDeformation> &deformation,
+    Span<int2> mcoords,
+    const IndexMask &editable_curves,
+    const IndexMask &visible_curves,
+    bool keep_caps);
 
 /**
  * Trim the editable curves from the start and end until intersection or self-intersection.
