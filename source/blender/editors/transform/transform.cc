@@ -527,7 +527,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
     WM_event_add_notifier(C, NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);
   }
   else if (t->spacetype == SPACE_SEQ) {
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_EDITED, nullptr);
     /* Key-frames on strips has been moved, so make sure related editors are informed. */
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
   }

@@ -29,6 +29,8 @@
 
 #include "ED_sequencer.hh"
 
+#include "SEQ_transform.hh"
+
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_mode.hh"
@@ -112,18 +114,19 @@ static void applySeqSlide(TransInfo *t)
   ED_area_status_text(t->area, str);
 }
 
-struct SeqSlideParams {
-  bool use_restore_handle_selection;
-};
-
 static void initSeqSlide(TransInfo *t, wmOperator *op)
 {
-  SeqSlideParams *ssp = MEM_callocN<SeqSlideParams>(__func__);
+  blender::seq::SeqSlideParams *ssp = MEM_callocN<blender::seq::SeqSlideParams>(__func__);
   t->custom.mode.data = ssp;
   t->custom.mode.use_free = true;
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_restore_handle_selection");
   if (op != nullptr && prop != nullptr) {
     ssp->use_restore_handle_selection = RNA_property_boolean_get(op->ptr, prop);
+  }
+
+  prop = RNA_struct_find_property(op->ptr, "is_new");
+  if (op != nullptr && prop != nullptr) {
+    ssp->is_new = RNA_property_boolean_get(op->ptr, prop);
   }
 
   Scene *scene = CTX_data_sequencer_scene(t->context);
@@ -147,13 +150,12 @@ static void initSeqSlide(TransInfo *t, wmOperator *op)
 
 bool transform_mode_edge_seq_slide_use_restore_handle_selection(const TransInfo *t)
 {
-  SeqSlideParams *ssp = static_cast<SeqSlideParams *>(t->custom.mode.data);
+  blender::seq::SeqSlideParams *ssp = static_cast<blender::seq::SeqSlideParams *>(t->custom.mode.data);
   if (ssp == nullptr) {
     return false;
   }
   return ssp->use_restore_handle_selection;
 }
-
 /** \} */
 
 TransModeInfo TransMode_seqslide = {

@@ -624,6 +624,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           SPACE_MENU_MAP(SPACE_INFO, "INFO_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_SEQ, "SEQUENCER_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_TEXT, "TEXT_MT_editor_menus");
+          // TODO: Add Captions space here
           SPACE_MENU_MAP(SPACE_ACTION, "DOPESHEET_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_NLA, "NLA_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_NODE, "NODE_MT_editor_menus");
@@ -638,6 +639,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           SPACE_MENU_NOP(SPACE_STATUSBAR);
           SPACE_MENU_NOP(SPACE_TOPBAR);
           SPACE_MENU_NOP(SPACE_SPREADSHEET);
+          SPACE_MENU_NOP(SPACE_CAPTIONS); // TODO: Should handle this
         }
       }
       for (int i = 0; i < idname_array_len; i++) {

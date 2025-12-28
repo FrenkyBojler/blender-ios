@@ -85,6 +85,7 @@ _modules = [
     "space_spreadsheet",
     "space_statusbar",
     "space_text",
+    "space_captions",
     "space_time",
     "space_topbar",
     "space_userpref",

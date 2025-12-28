@@ -577,6 +577,8 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports, RPT_INFO, "%d strips pasted", num_strips_to_paste);
 
+  WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
+
   return OPERATOR_FINISHED;
 }
 }  // namespace blender::ed::vse

@@ -134,6 +134,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case SPACE_IMAGE:
           ts = &btheme->space_image;
           break;
+        case SPACE_CAPTIONS: // TODO: Just for now, make of it's own later.
         case SPACE_TEXT:
           ts = &btheme->space_text;
           break;
@@ -1481,6 +1482,8 @@ bool UI_GetIconThemeColor4ubv(int colorid, uchar col[4])
               g_theme_state.regionid == RGN_TYPE_WINDOW) ||
              (g_theme_state.spacetype == SPACE_PROPERTIES &&
               g_theme_state.regionid == RGN_TYPE_NAV_BAR) ||
+              (g_theme_state.spacetype == SPACE_CAPTIONS &&
+              g_theme_state.regionid == RGN_TYPE_WINDOW) ||
              (g_theme_state.spacetype == SPACE_FILE && g_theme_state.regionid == RGN_TYPE_WINDOW)))
   {
     /* Only colored icons in specific places, overall UI is intended

@@ -12,6 +12,8 @@
 #include "DNA_asset_types.h"
 #include "DNA_color_types.h" /* for Histogram */
 #include "DNA_defs.h"
+#include "DNA_scene_types.h" 
+//#include "DNA_captions_types.h" /* CaptionsStripRef */
 #include "DNA_image_types.h" /* ImageUser */
 #include "DNA_listBase.h"
 #include "DNA_movieclip_types.h" /* MovieClipUser */
@@ -36,11 +38,14 @@ struct Scopes;
 struct Script;
 struct SpaceGraph;
 struct Text;
+struct Captions;
 struct bDopeSheet;
 struct bGPdata;
 struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
+struct SeqTimelineChannel;
+struct CaptionsStripRef;
 
 #ifdef __cplusplus
 namespace blender::asset_system {
@@ -75,6 +80,11 @@ struct SpaceText_Runtime;
 }  // namespace blender::ed::text
 using SpaceText_Runtime = blender::ed::text::SpaceText_Runtime;
 
+namespace blender::ed::captions {
+struct SpaceCaptions_Runtime;
+}  // namespace blender::ed::captions
+using SpaceCaptions_Runtime = blender::ed::captions::SpaceCaptions_Runtime;
+
 namespace blender::ed::spreadsheet {
 struct SpaceSpreadsheet_Runtime;
 struct SpreadsheetColumnRuntime;
@@ -86,6 +96,7 @@ typedef struct SpaceNode_Runtime SpaceNode_Runtime;
 typedef struct SpaceOutliner_Runtime SpaceOutliner_Runtime;
 typedef struct SpaceSeq_Runtime SpaceSeq_Runtime;
 typedef struct SpaceText_Runtime SpaceText_Runtime;
+typedef struct SpaceCaptions_Runtime SpaceCaptions_Runtime;
 typedef struct SpaceSpreadsheet_Runtime SpaceSpreadsheet_Runtime;
 typedef struct SpreadsheetColumnRuntime SpreadsheetColumnRuntime;
 #endif
@@ -794,6 +805,36 @@ typedef struct SpaceScript {
 
   void *but_refs;
 } SpaceScript;
+
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Captions Editor
+ * \{ */
+
+/* Captions Editor. */
+typedef struct SpaceCaptions {
+  SpaceLink *next, *prev;
+  /** Storage of regions for inactive spaces. */
+  ListBase regionbase;
+  char spacetype;
+  char link_flag;
+  char _pad0[6];
+  /* End 'SpaceLink' header. */
+
+  short flags;
+  char _pad1[6];
+  
+  ListBase current_strips;
+  struct Scene *seq_scene;
+  struct SeqTimelineChannel *active_channel;
+  char cache_dirty;
+  char _pad2[7];
+
+  /** Keep last. */
+  SpaceCaptions_Runtime *runtime;
+} SpaceCaptions;
 
 /** \} */
 

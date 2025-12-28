@@ -2193,7 +2193,7 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_REMOVED, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_ANIMCHAN, scene);
   return OPERATOR_FINISHED;
 }
@@ -3331,7 +3331,7 @@ static wmOperatorStatus sequencer_change_scene_exec(bContext *C, wmOperator *op)
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_SCENEBROWSE, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_REMOVED, scene);
 
   return OPERATOR_FINISHED;
 }

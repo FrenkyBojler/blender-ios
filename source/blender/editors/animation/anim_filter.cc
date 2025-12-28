@@ -392,6 +392,7 @@ bool ANIM_animdata_context_getdata(bAnimContext *ac)
       case SPACE_INFO:
       case SPACE_SEQ:
       case SPACE_TEXT:
+      case SPACE_CAPTIONS:
       case SPACE_SCRIPT:
       case SPACE_NODE:
       case SPACE_CONSOLE:

@@ -23,23 +23,29 @@
 
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
+#include "BLI_iterator.h"
 
 #include "DNA_action_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_sequence_types.h"
+#include "DNA_captions_types.h"
+
 
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
 
 #include "SEQ_sequencer.hh"
+#include "SEQ_relations.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "RNA_enum_types.hh"
+#include "DNA_listBase.h"
 
 const EnumPropertyItem rna_enum_geometry_component_type_items[] = {
     {int(blender::bke::GeometryComponent::Type::Mesh),
@@ -142,6 +148,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
      "Status Bar",
      "Global bar at the bottom of the "
      "screen for general status information"},
+    {SPACE_CAPTIONS,
+     "CAPTIONS_EDITOR",
+     ICON_FILE_TEXT,
+     "Captions Editor",
+     "Captions Editor for the Video Sequencer"},
 
     /* Data. */
     RNA_ENUM_ITEM_HEADING(N_("Data"), nullptr),
@@ -635,7 +646,6 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 #  include "DNA_key_types.h"
 #  include "DNA_scene_types.h"
 #  include "DNA_screen_types.h"
-#  include "DNA_sequence_types.h"
 #  include "DNA_userdef_types.h"
 
 #  include "BLI_index_range.hh"
@@ -715,6 +725,8 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
       return &RNA_SpaceSequenceEditor;
     case SPACE_TEXT:
       return &RNA_SpaceTextEditor;
+    case SPACE_CAPTIONS:
+      return &RNA_SpaceCaptionsEditor;
     case SPACE_ACTION:
       return &RNA_SpaceDopeSheetEditor;
     case SPACE_NLA:
@@ -3765,6 +3777,45 @@ static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
   return items;
 }
 
+static void rna_SpaceCaptionsEditor_current_strips_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  SpaceCaptions *scaptions = (SpaceCaptions *)ptr->data;
+  
+   // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper.
+  if (scaptions->cache_dirty) {
+    update_current_strips(scaptions->seq_scene, scaptions);
+  }
+  
+  rna_iterator_listbase_begin(iter, ptr, &scaptions->current_strips, nullptr);
+}
+
+static PointerRNA rna_SpaceCaptionsEditor_current_strips_get(CollectionPropertyIterator *iter)
+{
+    StructRNA *srna = RNA_struct_find("Strip");
+    CaptionsStripRef *ref = (CaptionsStripRef *)rna_iterator_listbase_get(iter);
+    if (ref == nullptr || ref->strip == nullptr) {
+        return PointerRNA_NULL;
+    }
+
+    if (iter->parent.data == nullptr) {
+        return PointerRNA_NULL;
+    }
+    SpaceCaptions *scaptions = (SpaceCaptions *)iter->parent.data;
+    if (scaptions->seq_scene == nullptr) {
+        return PointerRNA_NULL;
+    }
+    Scene *scene = scaptions->seq_scene;
+    PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+
+
+    return RNA_pointer_create_with_parent(scene_ptr, srna, ref->strip);
+}
+
+static void rna_SpaceCaptions_current_strips_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr)
+{
+  blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
+}
+
 #else
 
 static const EnumPropertyItem dt_uv_items[] = {
@@ -6775,6 +6826,43 @@ static void rna_def_space_text(BlenderRNA *brna)
   RNA_api_space_text(srna);
 }
 
+static void rna_def_space_captions(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+  //FunctionRNA *func;
+
+  srna = RNA_def_struct(brna, "SpaceCaptionsEditor", "Space");
+  RNA_def_struct_sdna(srna, "SpaceCaptions");
+  RNA_def_struct_ui_text(srna, "Space Captions Editor", "Captions editor space data");
+
+  /* current_captions */ 
+  prop = RNA_def_property(srna, "current_strips", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "current_strips", nullptr);
+  RNA_def_property_struct_type(prop, "Strip");
+  RNA_def_property_ui_text(
+      prop, "Current Strips", "Current text strips manipulated by the captions space");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_SpaceCaptionsEditor_current_strips_begin",
+                                    nullptr,
+                                    nullptr,
+                                    "rna_SpaceCaptionsEditor_current_strips_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER | NA_EDITED, "rna_SpaceCaptions_current_strips_update");
+
+  prop = RNA_def_property(srna, "cache_dirty", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "cache_dirty", 0);
+  RNA_def_property_ui_text(prop, "Is Cache Dirty", "Indicates whether the captions cache is dirty");
+
+
+  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
+
+  //RNA_api_space_captions(srna); // TODO: Probbably should be removed
+}
+
 static void rna_def_space_dopesheet_overlays(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -9106,6 +9194,7 @@ void RNA_def_space(BlenderRNA *brna)
   rna_def_space_image(brna);
   rna_def_space_sequencer(brna);
   rna_def_space_text(brna);
+  rna_def_space_captions(brna);
   rna_def_fileselect_entry(brna);
   rna_def_fileselect_params(brna);
   rna_def_fileselect_asset_params(brna);

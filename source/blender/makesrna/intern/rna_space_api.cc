@@ -132,6 +132,13 @@ void RNA_api_space_text(StructRNA *srna)
   RNA_def_function_output(func, parm);
 }
 
+void RNA_api_space_captions(StructRNA *srna)
+{
+  FunctionRNA *func;
+  PropertyRNA *parm;
+//  RNA_def_function_output(func, parm);
+}
+
 void rna_def_object_type_visibility_flags_common(StructRNA *srna,
                                                  int noteflag,
                                                  const char *update_func)
