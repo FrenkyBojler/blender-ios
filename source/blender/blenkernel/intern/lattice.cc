@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -24,7 +25,6 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_curve_types.h"
-#include "DNA_defaults.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_meshdata_types.h"
@@ -53,9 +53,7 @@ static void lattice_init_data(ID *id)
 {
   Lattice *lattice = (Lattice *)id;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(lattice, id));
-
-  MEMCPY_STRUCT_AFTER(lattice, DNA_struct_default_get(Lattice), id);
+  INIT_DEFAULT_STRUCT_AFTER(lattice, id);
 
   lattice->def = MEM_callocN<BPoint>("lattvert"); /* temporary */
   BKE_lattice_resize(lattice, 2, 2, 2, nullptr);  /* creates a uniform lattice */
@@ -391,6 +389,15 @@ Lattice *BKE_lattice_add(Main *bmain, const char *name)
   lt = BKE_id_new<Lattice>(bmain, name);
 
   return lt;
+}
+
+void BKE_lattice_params_copy(Lattice *lt_dst, const Lattice *lt_src)
+{
+  lt_dst->typeu = lt_src->typeu;
+  lt_dst->typev = lt_src->typev;
+  lt_dst->typew = lt_src->typew;
+  lt_dst->flag = lt_src->flag;
+  STRNCPY(lt_dst->vgroup, lt_src->vgroup);
 }
 
 static BPoint *latt_bp(Lattice *lt, int u, int v, int w)

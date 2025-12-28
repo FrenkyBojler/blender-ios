@@ -162,7 +162,7 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
 
 static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  NavigateWidgetGroup *navgroup = MEM_callocN<NavigateWidgetGroup>(__func__);
+  NavigateWidgetGroup *navgroup = MEM_new_for_free<NavigateWidgetGroup>(__func__);
 
   wmOperatorType *ot_view_axis = WM_operatortype_find("VIEW3D_OT_view_axis", true);
   wmOperatorType *ot_view_camera = WM_operatortype_find("VIEW3D_OT_view_camera", true);
@@ -180,7 +180,7 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     }
     else {
       uchar icon_color[3];
-      UI_GetThemeColor3ubv(TH_TEXT, icon_color);
+      blender::ui::theme::get_color_3ubv(TH_TEXT, icon_color);
       int color_tint, color_tint_hi;
       if (icon_color[0] > 128) {
         color_tint = -40;
@@ -194,8 +194,8 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
         gz->color[3] = 0.5f;
         gz->color_hi[3] = 0.75f;
       }
-      UI_GetThemeColorShade3fv(TH_HEADER, color_tint, gz->color);
-      UI_GetThemeColorShade3fv(TH_HEADER, color_tint_hi, gz->color_hi);
+      blender::ui::theme::get_color_shade_3fv(TH_HEADER, color_tint, gz->color);
+      blender::ui::theme::get_color_shade_3fv(TH_HEADER, color_tint_hi, gz->color_hi);
     }
 
     /* may be overwritten later */

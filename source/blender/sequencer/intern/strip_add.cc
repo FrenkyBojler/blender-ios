@@ -27,8 +27,8 @@
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
-#include "BKE_movieclip.h"
+#include "BKE_mask.hh"
+#include "BKE_movieclip.hh"
 #include "BKE_scene.hh"
 #include "BKE_sound.hh"
 
@@ -181,7 +181,7 @@ Strip *add_effect_strip(Scene *scene, ListBase *seqbase, LoadData *load_data)
   if (strip->input1 == nullptr) {
     strip->len = 1; /* Effect is generator, set non zero length. */
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
-    time_right_handle_frame_set(scene, strip, load_data->start_frame + load_data->effect.length);
+    strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
   }
 
   strip_add_set_name(scene, strip, load_data);
@@ -197,7 +197,7 @@ void add_image_set_directory(Strip *strip, const char *dirpath)
 
 void add_image_load_file(Scene *scene, Strip *strip, size_t strip_frame, const char *filename)
 {
-  StripElem *se = render_give_stripelem(scene, strip, time_start_frame_get(strip) + strip_frame);
+  StripElem *se = render_give_stripelem(scene, strip, strip->content_start() + strip_frame);
   STRNCPY(se->filename, filename);
 }
 
@@ -238,7 +238,7 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_IMAGE);
   strip->len = load_data->image.count;
   StripData *data = strip->data;
-  data->stripdata = MEM_calloc_arrayN<StripElem>(load_data->image.count, "stripelem");
+  data->stripdata = MEM_new_array_for_free<StripElem>(load_data->image.count, "stripelem");
 
   if (strip->len == 1) {
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
@@ -250,7 +250,7 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     strip->views_format = load_data->views_format;
   }
   if (load_data->stereo3d_format) {
-    strip->stereo3d_format = MEM_mallocN<Stereo3dFormat>("strip stereo3d format");
+    strip->stereo3d_format = MEM_new_for_free<Stereo3dFormat>("strip stereo3d format");
     *strip->stereo3d_format = *load_data->stereo3d_format;
   }
 
@@ -316,7 +316,7 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   }
 
   Strip *strip = strip_alloc(
-      seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_SOUND_RAM);
+      seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_SOUND);
   strip->sound = sound;
 
   /* We round the frame duration as the audio sample lengths usually does not
@@ -329,7 +329,7 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 
   StripData *data = strip->data;
   /* We only need 1 element to store the filename. */
-  StripElem *se = data->stripdata = MEM_callocN<StripElem>("stripelem");
+  StripElem *se = data->stripdata = MEM_new_for_free<StripElem>("stripelem");
   BLI_path_split_dir_file(
       load_data->path, data->dirpath, sizeof(data->dirpath), se->filename, sizeof(se->filename));
 
@@ -471,7 +471,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     strip->views_format = load_data->views_format;
   }
   if (load_data->stereo3d_format) {
-    strip->stereo3d_format = MEM_mallocN<Stereo3dFormat>("strip stereo3d format");
+    strip->stereo3d_format = MEM_new_for_free<Stereo3dFormat>("strip stereo3d format");
     *strip->stereo3d_format = *load_data->stereo3d_format;
   }
 
@@ -511,7 +511,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   StripData *data = strip->data;
   /* We only need 1 element for MOVIE strips. */
   StripElem *se;
-  data->stripdata = se = MEM_callocN<StripElem>("stripelem");
+  data->stripdata = se = MEM_new_for_free<StripElem>("stripelem");
   data->stripdata->orig_width = orig_width;
   data->stripdata->orig_height = orig_height;
   data->stripdata->orig_fps = video_fps;
@@ -533,7 +533,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
   if (ELEM(strip->type,
            STRIP_TYPE_MOVIE,
            STRIP_TYPE_IMAGE,
-           STRIP_TYPE_SOUND_RAM,
+           STRIP_TYPE_SOUND,
            STRIP_TYPE_SCENE,
            STRIP_TYPE_META,
            STRIP_TYPE_MOVIECLIP,
@@ -544,8 +544,8 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
   if (lock_range) {
     /* keep so we don't have to move the actual start and end points (only the data) */
-    prev_start_frame = time_left_handle_frame_get(scene, strip);
-    prev_end_frame = time_right_handle_frame_get(scene, strip);
+    prev_start_frame = strip->left_handle();
+    prev_end_frame = strip->right_handle(scene);
   }
 
   switch (strip->type) {
@@ -654,7 +654,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
       break;
-    case STRIP_TYPE_SOUND_RAM:
+    case STRIP_TYPE_SOUND:
 #ifdef WITH_AUDASPACE
       if (!strip->sound) {
         return;
@@ -681,7 +681,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
   free_strip_proxy(strip);
 
   if (lock_range) {
-    time_handles_frame_set(scene, strip, prev_start_frame, prev_end_frame);
+    strip->handles_set(scene, prev_start_frame, prev_end_frame);
   }
 
   relations_invalidate_cache_raw(scene, strip);
