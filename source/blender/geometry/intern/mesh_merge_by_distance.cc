@@ -1521,10 +1521,10 @@ static Set<StringRef> get_vertex_group_names(const Mesh &mesh)
   return names;
 }
 
-Mesh *create_merged_mesh(const Mesh &mesh,
-                         MutableSpan<int> vert_dest_map,
-                         const int removed_vertex_count,
-                         const bool do_mix_data)
+static Mesh *create_merged_mesh(const Mesh &mesh,
+                                MutableSpan<int> vert_dest_map,
+                                const int removed_vertex_count,
+                                const bool do_mix_data)
 {
 #ifdef USE_WELD_DEBUG_TIME
   SCOPED_TIMER(__func__);

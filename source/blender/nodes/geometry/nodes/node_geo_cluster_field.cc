@@ -82,10 +82,6 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       return VArray<int>::from_container(std::move(cluster_ids));
     };
 
-    if (distance_ == 0.0f) {
-      return default_no_clusters_to_out();
-    }
-
     const int domain_size = context.attributes()->domain_size(context.domain());
     fn::FieldEvaluator evaluator{context, domain_size};
     evaluator.add(positions_field_);
@@ -104,6 +100,31 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
       return default_no_clusters_to_out();
     }
 
+    if (distance_ == 0.0f) {
+      /* TODO: Do it really faster then explicit creation of groups for parallel processing? */
+      Map<std::pair<float3, int>, int> clasters;
+      selection.foreach_index([&](const int index) {
+        clasters.add(std::make_pair(positions[index], group_ids[index]), index);
+      });
+
+      Array<int> cluster_ids(mask.min_array_size());
+      array_utils::fill_index_range(cluster_ids.as_mutable_span());
+
+      if (clasters.size() == 1) {
+        const int first_selected = selection.first();
+        BLI_assert(clasters.lookup(std::make_pair(positions[first_selected], group_id[first_selected])) == first_selected);
+        index_mask::masked_fill<int>(cluster_ids.as_mutable_span(), first_selected, selection);
+        return VArray<int>::from_container(std::move(cluster_ids));
+      }
+
+      selection.foreach_index(GrainSize(1024), [&](const int index) {
+        cluster_ids[index] = clasters.lookup(std::make_pair(positions[index], group_ids[index]));
+      });
+
+      return VArray<int>::from_container(std::move(cluster_ids));
+    }
+
+    /* TODO: We must be able to check group_ids.is_single() and skip this at all. */
     const VectorSet<int> group_indexing(group_ids);
     const int groups_num = group_indexing.size();
 

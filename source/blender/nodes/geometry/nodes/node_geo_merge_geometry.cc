@@ -25,7 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Point cloud or mesh to merge points of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>("Merge ID").hide_value().field_on_all();
+  b.add_input<decl::Int>("Merge ID").hide_value().field_on_all().implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
 }
 
 static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &context,
@@ -50,7 +50,7 @@ static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &co
       [&](const int index) { group_id_to_root.add(group_id[index], index); });
 
   if ((selection.size() == domain_size) && (group_id_to_root.size() == 1)) {
-    /* TODO: Separate implementation of MergeAll?.. */
+    /* TODO: Separate implementation of geometry::collaps_selected_to_point?.. */
     r_roots.reinitialize(domain_size);
     r_roots.fill(0);
     return domain_size - 1;
@@ -115,7 +115,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       const std::optional<int> total_merge_ops = masked_ids_to_merging_roots(
           context, group_id_field, selection_field, mesh->verts_num, masked_group_ids);
       if (total_merge_ops.has_value()) {
-        Mesh *new_mesh = geometry::create_merged_mesh(
+        Mesh *new_mesh = geometry::mesh_merge_verts(
             *mesh, masked_group_ids.as_mutable_span(), *total_merge_ops, true);
         geometry_set.replace_mesh(new_mesh);
       }
