@@ -387,19 +387,19 @@ BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
 /** \name Text Drawing: GPU
  * \{ */
 
-typedef struct Glyph {
+struct Glyph {
   FontBLF *font = nullptr;
   GlyphCacheBLF *gc = nullptr;
   GlyphBLF *g = nullptr;
   rcti bounds; /* ft_pix */
 };
 
-typedef struct ShapingData {
+struct ShapingData {
   /* For the entire string. */
   size_t char_count = 0;
   std::u32string visual_str = {};
-  int width = 0;
-  int height = 0;
+  ft_pix width = 0;
+  ft_pix height = 0;
   hb_unicode_funcs_t *hb_ufuncs = nullptr;
   hb_buffer_t *hb_buf = nullptr;
 
@@ -409,20 +409,15 @@ typedef struct ShapingData {
     /* For each run of language/script/direction. */
     size_t char_offset = 0;
     size_t char_count = 0;
-    FontBLF *font = nullptr;
-    GlyphCacheBLF *gc = nullptr;
     hb_script_t last_script = HB_SCRIPT_LATIN;
-    hb_script_t current_script = HB_SCRIPT_LATIN;
-    uint glyph_count = 0;
-    blender::Vector<GlyphBLF *> glyphs = {};
-    hb_glyph_info_t *hb_glyph_info = nullptr;
-    hb_glyph_position_t *glyph_pos = nullptr;
   } segment;
   ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
   ~ShapingData();
   bool next_segment();
-  bool process(FontBLF *def_font, GlyphCacheBLF *gc = nullptr, ResultBLF *r_info = nullptr);
-} ShapingData;
+  bool process_segment(FontBLF *def_font,
+                       GlyphCacheBLF *gc = nullptr,
+                       ResultBLF *r_info = nullptr);
+};
 
 ShapingData::~ShapingData()
 {
@@ -435,7 +430,6 @@ bool ShapingData::next_segment()
 {
   this->segment.char_offset += this->segment.char_count;
   this->segment.char_count = 0;
-  this->segment.glyph_count = 0;
   if (this->segment.char_offset >= this->char_count - 1) {
     return false;
   }
@@ -445,16 +439,11 @@ bool ShapingData::next_segment()
     if (script != this->segment.last_script && script != HB_SCRIPT_INHERITED &&
         script != HB_SCRIPT_COMMON)
     {
-      this->segment.current_script = this->segment.last_script;
       this->segment.last_script = script;
       if (i > 0) {
         break;
       }
     }
-  }
-  /* End of string. */
-  if (!this->visual_str[i]) {
-    this->segment.current_script = this->segment.last_script;
   }
   this->segment.char_count = (i - this->segment.char_offset);
   if (this->segment.char_count == 0) {
@@ -463,13 +452,16 @@ bool ShapingData::next_segment()
   return true;
 }
 
-bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
+bool ShapingData::process_segment(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
 {
   if (!this->next_segment()) {
     return false;
   }
-  this->segment.font = font;
-  this->segment.gc = gc;
+
+  hb_glyph_info_t *hb_glyph_info = nullptr;
+  hb_glyph_position_t *glyph_pos = nullptr;
+  FontBLF *segment_font = font;
+
   if (hb_buffer_get_length(this->hb_buf) != 0) {
     hb_buffer_clear_contents(this->hb_buf);
   }
@@ -478,10 +470,11 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
                       int(this->char_count),
                       uint(this->segment.char_offset),
                       int(this->segment.char_count));
-  this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
-                                                          &this->segment.glyph_count);
-  for (unsigned int i = 0; i < this->segment.glyph_count; i++) {
-    this->segment.hb_glyph_info[i].cluster = (uint32_t)(this->segment.char_offset + i);
+
+  uint glyph_count = 0;
+  hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf, &glyph_count);
+  for (unsigned int i = 0; i < glyph_count; i++) {
+    hb_glyph_info[i].cluster = (uint32_t)(this->segment.char_offset + i);
   }
   hb_buffer_guess_segment_properties(this->hb_buf);
   hb_segment_properties_t props;
@@ -495,49 +488,46 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   if (!ELEM(
           props.script, HB_SCRIPT_COMMON, HB_SCRIPT_INHERITED, HB_SCRIPT_UNKNOWN, HB_SCRIPT_LATIN))
   {
-    this->segment.font = blf_font_script_ensure(this->segment.font,
-                                                this->visual_str[this->segment.char_offset]);
+    segment_font = blf_font_script_ensure(font, this->visual_str[this->segment.char_offset]);
   }
-  if (!this->segment.font->hb_font) {
-    this->segment.font->hb_font = hb_ft_font_create_referenced(this->segment.font->face);
-    hb_ot_font_set_funcs(this->segment.font->hb_font);
+  if (!segment_font->hb_font) {
+    segment_font->hb_font = hb_ft_font_create_referenced(segment_font->face);
+    hb_ot_font_set_funcs(segment_font->hb_font);
   }
   hb_font_set_scale(
-      this->segment.font->hb_font, ft_pix_from_float(font->size), ft_pix_from_float(font->size));
+      segment_font->hb_font, ft_pix_from_float(font->size), ft_pix_from_float(font->size));
 
-  hb_shape_full(this->segment.font->hb_font,
+  hb_shape_full(segment_font->hb_font,
                 this->hb_buf,
                 font->features.data(),
                 uint(font->features.size()),
                 nullptr);
-  this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
-                                                          &this->segment.glyph_count);
-  this->segment.glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, nullptr);
+  hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf, &glyph_count);
+  glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, nullptr);
 
   /* Unlikely. Drawing monospaced but changed mid-string to a proportional font. */
-  bool set_mono = this->segment.font != font && font->flags & BLF_MONOSPACED &&
-                  !(this->segment.font->flags & BLF_MONOSPACED);
+  bool set_mono = segment_font != font && font->flags & BLF_MONOSPACED &&
+                  !(segment_font->flags & BLF_MONOSPACED);
   if (set_mono) {
-    this->segment.font->flags |= BLF_MONOSPACED;
+    segment_font->flags |= BLF_MONOSPACED;
   }
 
-  this->segment.glyphs.resize(this->segment.glyph_count);
   int cwidth = std::max(gc->fixed_width, 1);
-  int pen_x = ft_pix_from_int(this->width);
-  int max_width = pen_x;
-  this->segment.gc = (!gc || this->segment.font != font) ?
-                         blf_glyph_cache_acquire(this->segment.font) :
-                         gc;
-  for (uint i = 0; i < this->segment.glyph_count; i++) {
-    uint32_t glyph_id = this->segment.hb_glyph_info[i].codepoint;
-    char32_t codepoint = this->visual_str[this->segment.hb_glyph_info[i].cluster];
-    GlyphBLF *g = blf_glyph_ensure(this->segment.font, this->segment.gc, codepoint, glyph_id);
-    this->segment.glyphs[i] = g;
+  int pen_x = this->width;
+  int max_width = this->width;
+  int max_height = this->height;
+  GlyphCacheBLF *segment_gc = (!gc || segment_font != font) ?
+                                  blf_glyph_cache_acquire(segment_font) :
+                                  gc;
+  for (uint i = 0; i < glyph_count; i++) {
+    uint32_t glyph_id = hb_glyph_info[i].codepoint;
+    char32_t codepoint = this->visual_str[hb_glyph_info[i].cluster];
+    GlyphBLF *g = blf_glyph_ensure(segment_font, segment_gc, codepoint, glyph_id);
     if (UNLIKELY(g == nullptr)) {
       /* Skip missing glyphs. */
       continue;
     }
-    hb_glyph_position_t *pos = &this->segment.glyph_pos[i];
+    hb_glyph_position_t *pos = &glyph_pos[i];
     const int advance = ((font->flags & BLF_MONOSPACED) ?
                              ft_pix_from_int(cwidth) * BLI_wcwidth_safe(codepoint) :
                              pos->x_advance);
@@ -548,24 +538,31 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
     pen_x = FT_PIX_ROUND(pen_x);
 #endif
 #ifdef BLF_SUBPIXEL_AA
-    this->segment.glyphs[i] = blf_glyph_ensure_subpixel(
-        this->segment.font, this->segment.gc, g, pen_x);
+    g = blf_glyph_ensure_subpixel(segment_font, segment_gc, g, pen_x);
 #endif
+
+    rcti bounds = {pen_x + glyph_pos[i].x_offset,
+                   pen_x + g->box_xmax + glyph_pos[i].x_offset,
+                   glyph_pos[i].y_offset,
+                   g->box_ymax + glyph_pos[i].y_offset};
+    this->glyphs.append({segment_font, segment_gc, g, bounds});
+
     max_width = pen_x + std::max(pos->x_advance, g->advance_x);
     pen_x += advance;
-    height = std::max(this->segment.glyphs[i]->pos[1], height);
+    max_height = std::max(ft_pix_from_int(g->pos[1]), max_height);
   }
-  this->width = ft_pix_to_int(max_width);
-  this->height += ft_pix_to_int(height);
+
+  this->width = max_width;
+  this->height = max_height;
   if (set_mono) {
-    this->segment.font->flags &= ~BLF_MONOSPACED;
+    segment_font->flags &= ~BLF_MONOSPACED;
   }
-  if (!gc || this->segment.font != font) {
-    blf_glyph_cache_release(this->segment.font);
+  if (!gc || segment_font != font) {
+    blf_glyph_cache_release(segment_font);
   }
   if (r_info) {
     r_info->lines = 1;
-    r_info->width = this->width;
+    r_info->width = ft_pix_to_int(this->width);
   }
   /* Is there more data still to process after this run? */
   return (this->char_count > (this->segment.char_offset + this->segment.char_count));
@@ -581,21 +578,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
   /* Convert input string into array of 32-bit code points. */
   BLI_str_utf8_as_utf32(this->visual_str.data(), str, this->char_count);
 
-  ft_pix pen_x = 0;
-  ft_pix pen_y = 0;
-
-  while (process(font, gc)) {
-    for (uint i = 0; i < segment.glyph_count; i++) {
-      if (segment.glyphs[i]) {
-        rcti bounds = {pen_x + segment.glyph_pos[i].x_offset,
-                       pen_x + segment.glyphs[i]->box_xmax + segment.glyph_pos[i].x_offset,
-                       pen_y + segment.glyph_pos[i].y_offset,
-                       pen_y + segment.glyphs[i]->box_ymax + segment.glyph_pos[i].y_offset};
-
-        glyphs.append({segment.font, segment.gc, segment.glyphs[i], bounds});
-      }
-      pen_x += segment.glyph_pos[i].x_advance;
-    }
+  while (process_segment(font, gc)) {
   }
 }
 
@@ -690,7 +673,7 @@ static void blf_font_draw_ex(FontBLF *font,
 
   if (r_info) {
     r_info->lines = 1;
-    r_info->width = text.width;
+    r_info->width = ft_pix_to_int(text.width);
   }
 }
 void blf_font_draw(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
@@ -1062,7 +1045,7 @@ size_t blf_font_width_to_rstrlen(
 
   int pos = 0;
   for (const Glyph &glyph : text.glyphs) {
-    if (glyph.bounds.xmin > ft_pix_from_int(text.width - width)) {
+    if (glyph.bounds.xmin > (text.width - ft_pix_from_int(width))) {
       break;
     }
     pos++;
@@ -1097,9 +1080,9 @@ static void blf_font_boundbox_ex(FontBLF *font,
   ShapingData text(font, gc, str, str_len);
 
   r_box->xmin = 0;
-  r_box->xmax = text.width;
+  r_box->xmax = ft_pix_to_int(text.width);
   r_box->ymin = pen_y;
-  r_box->ymax = pen_y + text.height;
+  r_box->ymax = ft_pix_to_int(pen_y + text.height);
 
   if (r_info) {
     r_info->lines = 1;
