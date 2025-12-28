@@ -141,7 +141,6 @@ void dual_kawase_blur(Context &context, const Result &input, Result &output, flo
   Result curr = input;
   bool curr_is_input = true;
 
-  SCOPED_TIMER(__func__);  //@TODO
   radius *= 1.0f / 3.0f;
 
   /* Downsample. */

@@ -238,7 +238,6 @@ void symmetric_separable_blur(Context &context,
                               const float2 &radius,
                               const int filter_type)
 {
-  SCOPED_TIMER(__func__);
   Result horizontal_pass_result = horizontal_pass(context, input, radius.x, filter_type);
   vertical_pass(context, input, horizontal_pass_result, output, radius, filter_type);
   horizontal_pass_result.release();

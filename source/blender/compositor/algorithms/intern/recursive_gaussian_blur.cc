@@ -60,7 +60,6 @@ void recursive_gaussian_blur(Context &context,
     return;
   }
 
-  SCOPED_TIMER(__func__);
   if (math::reduce_max(sigma) < 32.0f) {
     deriche_gaussian_blur(context, input, output, sigma);
     return;
