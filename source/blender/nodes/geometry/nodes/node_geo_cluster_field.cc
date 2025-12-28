@@ -112,7 +112,8 @@ class ClusterFieldInput final : public bke::GeometryFieldInput {
 
       if (clasters.size() == 1) {
         const int first_selected = selection.first();
-        BLI_assert(clasters.lookup(std::make_pair(positions[first_selected], group_id[first_selected])) == first_selected);
+        BLI_assert(clasters.lookup(std::make_pair(positions[first_selected],
+                                                  group_id[first_selected])) == first_selected);
         index_mask::masked_fill<int>(cluster_ids.as_mutable_span(), first_selected, selection);
         return VArray<int>::from_container(std::move(cluster_ids));
       }

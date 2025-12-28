@@ -25,7 +25,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Point cloud or mesh to merge points of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>("Merge ID").hide_value().field_on_all().implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
+  b.add_input<decl::Int>("Merge ID")
+      .hide_value()
+      .field_on_all()
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
 }
 
 static std::optional<int> masked_ids_to_merging_roots(const fn::FieldContext &context,
