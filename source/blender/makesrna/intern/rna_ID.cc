@@ -721,10 +721,10 @@ static ID *rna_ID_copy(ID *id, Main *bmain)
 
   if (newid != nullptr) {
     id_us_min(newid);
+    BKE_main_ensure_invariants(*bmain, *newid);
   }
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
-  BKE_main_ensure_invariants(*bmain, *newid);
 
   return newid;
 }
@@ -1717,13 +1717,18 @@ static void rna_def_ID_properties(BlenderRNA *brna)
       srna, "rna_PropertyGroup_register", "rna_PropertyGroup_unregister", nullptr);
   RNA_def_struct_refine_func(srna, "rna_PropertyGroup_refine");
 
-  /* important so python types can have their name used in list views
-   * however this isn't perfect because it overrides how python would set the name
-   * when we only really want this so RNA_def_struct_name_property() is set to something useful */
+  /* Important so that python types can have their name used in list views.
+   *
+   * Note that python types can override this by defining their own `name` string property, see
+   * also #pyrna_register_class.
+   */
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   // RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Name", "Unique name used in the code and scripting");
+  RNA_def_property_ui_text(prop,
+                           "Name",
+                           "Unique name used in the code and scripting, can be re-defined in "
+                           "Python sub-classes if needed");
   RNA_def_struct_name_property(srna, prop);
 }
 

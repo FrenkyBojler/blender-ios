@@ -5063,12 +5063,6 @@ static wmOperatorStatus edbm_fill_grid_exec(bContext *C, wmOperator *op)
       params.is_destructive = true;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
     }
-    else {
-      /* NOTE: Even if there were no mesh changes, #EDBM_op_finish() changed the BMesh pointer
-       * inside of edit mesh, so need to tell evaluated objects to sync new BMesh pointer to their
-       * edit mesh structures. */
-      DEG_id_tag_update(&obedit->id, 0);
-    }
   }
 
   return OPERATOR_FINISHED;
@@ -9516,6 +9510,12 @@ static void edbm_normals_tools_ui(bContext *C, wmOperator *op)
                    false);
 }
 
+static bool edbm_normals_tools_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  const int mode = RNA_enum_get(ptr, "mode");
+  return mode == EDBM_CLNOR_TOOLS_PASTE;
+}
+
 void MESH_OT_normals_tools(wmOperatorType *ot)
 {
   /* identifiers */
@@ -9527,6 +9527,7 @@ void MESH_OT_normals_tools(wmOperatorType *ot)
   ot->exec = edbm_normals_tools_exec;
   ot->poll = ED_operator_editmesh;
   ot->ui = edbm_normals_tools_ui;
+  ot->ui_poll = edbm_normals_tools_ui_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
