@@ -384,25 +384,6 @@ BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UTF8 Utilities (Internal)
- * \{ */
-
-/**
- * Only assert on invalid UTF8 handling if the strings are valid UTF8.
- */
-[[maybe_unused]] static int blf_str_is_utf8_valid_lazy_init(const char *str,
-                                                            const size_t str_len,
-                                                            int &is_utf8_valid)
-{
-  if (is_utf8_valid == -1) {
-    is_utf8_valid = BLI_str_utf8_invalid_byte(str, str_len) == -1;
-  }
-  return is_utf8_valid;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Text Drawing: GPU
  * \{ */
 
