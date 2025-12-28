@@ -22,6 +22,7 @@ namespace blender::geometry {
  */
 PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const float merge_distance,
+                                    const bool use_centroid,
                                     const IndexMask &selection,
                                     const bke::AttributeFilter &attribute_filter);
 

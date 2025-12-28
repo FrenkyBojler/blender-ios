@@ -19,6 +19,7 @@ namespace blender::geometry {
 
 PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const float merge_distance,
+                                    const bool use_centroid,
                                     const IndexMask &selection,
                                     const bke::AttributeFilter &attribute_filter)
 {
@@ -122,6 +123,29 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
 
     dst.finish();
     attribute_ids.remove_contained("id");
+  }
+
+  /* If use_centroid is true, the position attribute can be transferred with the other attributes.
+   * Otherwise, it needs to be transferred seperately, so that the position of the first point is
+   * used, not the average position. */
+  if (!use_centroid) {
+    bke::GAttributeReader src_position_attribute = src_attributes.lookup("position");
+    VArraySpan<float3> src = src_position_attribute.varray.typed<float3>();
+
+    bke::SpanAttributeWriter<float3> dst =
+        dst_attributes.lookup_or_add_for_write_only_span<float3>("position",
+                                                                 bke::AttrDomain::Point);
+
+    threading::parallel_for(IndexRange(dst_size), 1024, [&](IndexRange range) {
+      for (const int i_dst : range) {
+        int i_src = merge_map_indices[map_offsets[i_dst].first()];
+
+        dst.span[i_dst] = src[i_src];
+      }
+    });
+
+    dst.finish();
+    attribute_ids.remove_contained("position");
   }
 
   /* Transfer all other attributes. */
