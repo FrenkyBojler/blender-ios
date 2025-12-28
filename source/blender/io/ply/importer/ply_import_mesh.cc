@@ -154,7 +154,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
   /* Merge all vertices on the same location. */
   if (params.merge_verts) {
     std::optional<Mesh *> merged_mesh = blender::geometry::mesh_merge_by_distance_all(
-        *mesh, IndexMask(mesh->verts_num), 0.0001f);
+        *mesh, IndexMask(mesh->verts_num), 0.0001f, true);
     if (merged_mesh) {
       BKE_id_free(nullptr, &mesh->id);
       mesh = *merged_mesh;

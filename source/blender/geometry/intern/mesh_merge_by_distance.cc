@@ -1524,7 +1524,8 @@ static Set<StringRef> get_vertex_group_names(const Mesh &mesh)
 static Mesh *create_merged_mesh(const Mesh &mesh,
                                 MutableSpan<int> vert_dest_map,
                                 const int removed_vertex_count,
-                                const bool do_mix_data)
+                                const bool do_mix_data,
+                                const bool use_centroid)
 {
 #ifdef USE_WELD_DEBUG_TIME
   SCOPED_TIMER(__func__);
@@ -1569,10 +1570,34 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   const GroupedSpan<int> dst_to_src_verts(OffsetIndices<int>(vert_src_index_offset_data),
                                           vert_src_index_data);
 
+  Set<StringRef> exclude_attributes_vert = get_vertex_group_names(mesh);
+
+  /* If use_centroid is true, the position attribute can be transferred with the other attributes.
+   * Otherwise, it needs to be transferred seperately, so that the position of the first point is
+   * used, not the average position. */
+  if (!use_centroid) {
+    bke::GAttributeReader src_position_attribute = src_attributes.lookup("position");
+    VArraySpan<float3> src = src_position_attribute.varray.typed<float3>();
+
+    bke::SpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span<float3>(
+        "position", bke::AttrDomain::Point);
+
+    threading::parallel_for(IndexRange(result_nverts), 2048, [&](const IndexRange range) {
+      for (const int dst_index : range) {
+        const Span<int> src_indices = dst_to_src_verts[dst_index];
+        dst.span[dst_index] = src[src_indices.first()];
+      }
+    });
+
+    dst.finish();
+
+    exclude_attributes_vert.add("position");
+  }
+
   mix_attributes(src_attributes,
                  dst_to_src_verts,
                  bke::AttrDomain::Point,
-                 get_vertex_group_names(mesh),
+                 exclude_attributes_vert,
                  dst_attributes);
   mix_vertex_groups(mesh, dst_to_src_verts, *result);
   if (CustomData_has_layer(&mesh.vert_data, CD_ORIGINDEX)) {
@@ -1795,7 +1820,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
 std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
                                                  const IndexMask &selection,
-                                                 const float merge_distance)
+                                                 const float merge_distance,
+                                                 const bool use_centroid)
 {
   Array<int> vert_dest_map(mesh.verts_num, OUT_OF_CONTEXT);
 
@@ -1813,7 +1839,7 @@ std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
     return std::nullopt;
   }
 
-  return create_merged_mesh(mesh, vert_dest_map, vert_kill_len, true);
+  return create_merged_mesh(mesh, vert_dest_map, vert_kill_len, true, use_centroid);
 }
 
 struct WeldVertexCluster {
@@ -1824,6 +1850,7 @@ struct WeldVertexCluster {
 std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
                                                        Span<bool> selection,
                                                        const float merge_distance,
+                                                       const bool use_centroid,
                                                        const bool only_loose_edges)
 {
   const Span<float3> positions = mesh.vert_positions();
@@ -1884,9 +1911,11 @@ std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
     sub_v3_v3v3(edgedir, v2_cluster->co, v1_cluster->co);
     const float dist_sq = len_squared_v3(edgedir);
     if (dist_sq <= merge_dist_sq) {
-      float influence = (v2_cluster->merged_verts + 1) /
-                        float(v1_cluster->merged_verts + v2_cluster->merged_verts + 2);
-      madd_v3_v3fl(v1_cluster->co, edgedir, influence);
+      if (use_centroid) {
+        float influence = (v2_cluster->merged_verts + 1) /
+                          float(v1_cluster->merged_verts + v2_cluster->merged_verts + 2);
+        madd_v3_v3fl(v1_cluster->co, edgedir, influence);
+      }
 
       v1_cluster->merged_verts += v2_cluster->merged_verts + 1;
       vert_dest_map[v2] = v1;
@@ -1912,7 +1941,7 @@ std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
     }
   }
 
-  return create_merged_mesh(mesh, vert_dest_map, vert_kill_len, true);
+  return create_merged_mesh(mesh, vert_dest_map, vert_kill_len, true, use_centroid);
 }
 
 Mesh *mesh_merge_verts(const Mesh &mesh,
@@ -1920,7 +1949,7 @@ Mesh *mesh_merge_verts(const Mesh &mesh,
                        int vert_dest_map_len,
                        const bool do_mix_data)
 {
-  return create_merged_mesh(mesh, vert_dest_map, vert_dest_map_len, do_mix_data);
+  return create_merged_mesh(mesh, vert_dest_map, vert_dest_map_len, do_mix_data, true);
 }
 
 /** \} */

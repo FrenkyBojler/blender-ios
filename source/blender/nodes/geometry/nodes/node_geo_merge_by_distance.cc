@@ -77,7 +77,7 @@ static std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
   evaluator.add_with_destination(selection_field, selection.as_mutable_span());
   evaluator.evaluate();
 
-  return geometry::mesh_merge_by_distance_connected(mesh, selection, merge_distance, false);
+  return geometry::mesh_merge_by_distance_connected(mesh, selection, merge_distance, true, false);
 }
 
 static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
@@ -94,7 +94,7 @@ static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
     return std::nullopt;
   }
 
-  return geometry::mesh_merge_by_distance_all(mesh, selection, merge_distance);
+  return geometry::mesh_merge_by_distance_all(mesh, selection, merge_distance, true);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

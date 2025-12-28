@@ -26,7 +26,8 @@ namespace blender::geometry {
  */
 std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
                                                  const IndexMask &selection,
-                                                 float merge_distance);
+                                                 float merge_distance,
+                                                 bool use_centroid);
 
 /**
  * Merge selected vertices along edges to other selected vertices. Only vertices connected by edges
@@ -38,6 +39,7 @@ std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
 std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
                                                        Span<bool> selection,
                                                        float merge_distance,
+                                                       bool use_centroid,
                                                        bool only_loose_edges);
 
 /**
