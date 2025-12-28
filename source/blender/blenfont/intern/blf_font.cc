@@ -395,190 +395,165 @@ struct Glyph {
 };
 
 struct ShapingData {
-  /* For the entire string. */
-  size_t char_count = 0;
+  blender::Vector<Glyph> glyphs = {};
   std::u32string visual_str = {};
+  size_t char_count = 0;
   ft_pix width = 0;
   ft_pix height = 0;
-  hb_unicode_funcs_t *hb_ufuncs = nullptr;
-  hb_buffer_t *hb_buf = nullptr;
-
-  blender::Vector<Glyph> glyphs = {};
-
-  struct SegmentData {
-    /* For each run of language/script/direction. */
-    size_t char_offset = 0;
-    size_t char_count = 0;
-    hb_script_t last_script = HB_SCRIPT_LATIN;
-  } segment;
   ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
-  ~ShapingData();
-  bool next_segment();
-  bool process_segment(FontBLF *def_font,
-                       GlyphCacheBLF *gc = nullptr,
-                       ResultBLF *r_info = nullptr);
 };
-
-ShapingData::~ShapingData()
-{
-  if (this->hb_buf) {
-    hb_buffer_destroy(this->hb_buf);
-  }
-}
-
-bool ShapingData::next_segment()
-{
-  this->segment.char_offset += this->segment.char_count;
-  this->segment.char_count = 0;
-  if (this->segment.char_offset >= this->char_count - 1) {
-    return false;
-  }
-  size_t i;
-  for (i = this->segment.char_offset; i < this->char_count && this->visual_str[i]; i++) {
-    hb_script_t script = hb_unicode_script(this->hb_ufuncs, this->visual_str[i]);
-    if (script != this->segment.last_script && script != HB_SCRIPT_INHERITED &&
-        script != HB_SCRIPT_COMMON)
-    {
-      this->segment.last_script = script;
-      if (i > 0) {
-        break;
-      }
-    }
-  }
-  this->segment.char_count = (i - this->segment.char_offset);
-  if (this->segment.char_count == 0) {
-    return false;
-  }
-  return true;
-}
-
-bool ShapingData::process_segment(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
-{
-  if (!this->next_segment()) {
-    return false;
-  }
-
-  hb_glyph_info_t *hb_glyph_info = nullptr;
-  hb_glyph_position_t *glyph_pos = nullptr;
-  FontBLF *segment_font = font;
-
-  if (hb_buffer_get_length(this->hb_buf) != 0) {
-    hb_buffer_clear_contents(this->hb_buf);
-  }
-  hb_buffer_add_utf32(this->hb_buf,
-                      (uint32_t *)this->visual_str.data(),
-                      int(this->char_count),
-                      uint(this->segment.char_offset),
-                      int(this->segment.char_count));
-
-  uint glyph_count = 0;
-  hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf, &glyph_count);
-  for (unsigned int i = 0; i < glyph_count; i++) {
-    hb_glyph_info[i].cluster = (uint32_t)(this->segment.char_offset + i);
-  }
-  hb_buffer_guess_segment_properties(this->hb_buf);
-  hb_segment_properties_t props;
-  hb_buffer_get_segment_properties(this->hb_buf, &props);
-  if (ELEM(props.script, HB_SCRIPT_HAN)) {
-    const char *lang = BLT_lang_get();
-    hb_buffer_set_language(this->hb_buf, hb_language_from_string(lang, -1));
-  }
-  hb_buffer_set_cluster_level(this->hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
-  /* Can the current font handle this script? */
-  if (!ELEM(
-          props.script, HB_SCRIPT_COMMON, HB_SCRIPT_INHERITED, HB_SCRIPT_UNKNOWN, HB_SCRIPT_LATIN))
-  {
-    segment_font = blf_font_script_ensure(font, this->visual_str[this->segment.char_offset]);
-  }
-  if (!segment_font->hb_font) {
-    segment_font->hb_font = hb_ft_font_create_referenced(segment_font->face);
-    hb_ot_font_set_funcs(segment_font->hb_font);
-  }
-  hb_font_set_scale(
-      segment_font->hb_font, ft_pix_from_float(font->size), ft_pix_from_float(font->size));
-
-  hb_shape_full(segment_font->hb_font,
-                this->hb_buf,
-                font->features.data(),
-                uint(font->features.size()),
-                nullptr);
-  hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf, &glyph_count);
-  glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, nullptr);
-
-  /* Unlikely. Drawing monospaced but changed mid-string to a proportional font. */
-  bool set_mono = segment_font != font && font->flags & BLF_MONOSPACED &&
-                  !(segment_font->flags & BLF_MONOSPACED);
-  if (set_mono) {
-    segment_font->flags |= BLF_MONOSPACED;
-  }
-
-  int cwidth = std::max(gc->fixed_width, 1);
-  int pen_x = this->width;
-  int max_width = this->width;
-  int max_height = this->height;
-  GlyphCacheBLF *segment_gc = (!gc || segment_font != font) ?
-                                  blf_glyph_cache_acquire(segment_font) :
-                                  gc;
-  for (uint i = 0; i < glyph_count; i++) {
-    uint32_t glyph_id = hb_glyph_info[i].codepoint;
-    char32_t codepoint = this->visual_str[hb_glyph_info[i].cluster];
-    GlyphBLF *g = blf_glyph_ensure(segment_font, segment_gc, codepoint, glyph_id);
-    if (UNLIKELY(g == nullptr)) {
-      /* Skip missing glyphs. */
-      continue;
-    }
-    hb_glyph_position_t *pos = &glyph_pos[i];
-    const int advance = ((font->flags & BLF_MONOSPACED) ?
-                             ft_pix_from_int(cwidth) * BLI_wcwidth_safe(codepoint) :
-                             pos->x_advance);
-    if (g->box_xmin == g->box_xmax) {
-      g->box_xmax = g->box_xmin + advance;
-    }
-#ifndef BLF_SUBPIXEL_POSITION
-    pen_x = FT_PIX_ROUND(pen_x);
-#endif
-#ifdef BLF_SUBPIXEL_AA
-    g = blf_glyph_ensure_subpixel(segment_font, segment_gc, g, pen_x);
-#endif
-
-    rcti bounds = {pen_x + glyph_pos[i].x_offset,
-                   pen_x + g->box_xmax + glyph_pos[i].x_offset,
-                   glyph_pos[i].y_offset,
-                   g->box_ymax + glyph_pos[i].y_offset};
-    this->glyphs.append({segment_font, segment_gc, g, bounds});
-
-    max_width = pen_x + std::max(pos->x_advance, g->advance_x);
-    pen_x += advance;
-    max_height = std::max(ft_pix_from_int(g->pos[1]), max_height);
-  }
-
-  this->width = max_width;
-  this->height = max_height;
-  if (set_mono) {
-    segment_font->flags &= ~BLF_MONOSPACED;
-  }
-  if (!gc || segment_font != font) {
-    blf_glyph_cache_release(segment_font);
-  }
-  if (r_info) {
-    r_info->lines = 1;
-    r_info->width = ft_pix_to_int(this->width);
-  }
-  /* Is there more data still to process after this run? */
-  return (this->char_count > (this->segment.char_offset + this->segment.char_count));
-}
 
 ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len)
 {
-  this->hb_ufuncs = hb_unicode_funcs_get_default();
-  this->hb_buf = hb_buffer_create();
+  if (!str || !str[0] || !len) {
+    return;
+  }
+
+  hb_unicode_funcs_t *hb_ufuncs = hb_unicode_funcs_get_default();
+  hb_buffer_t *hb_buf = hb_buffer_create();
+
   /* Include space for null terminator. */
   this->char_count = BLI_strnlen_utf8(str, len) + 1;
   this->visual_str.resize(this->char_count, 0);
   /* Convert input string into array of 32-bit code points. */
   BLI_str_utf8_as_utf32(this->visual_str.data(), str, this->char_count);
 
-  while (process_segment(font, gc)) {
+  size_t segment_offset = 0;
+  size_t segment_count = 0;
+  hb_script_t last_script = HB_SCRIPT_LATIN;
+
+  while (this->char_count > (segment_offset + segment_count)) {
+
+    segment_offset += segment_count;
+    segment_count = 0;
+    if (segment_offset >= this->char_count - 1) {
+      break;
+    }
+
+    size_t i;
+    for (i = segment_offset; i < this->char_count && this->visual_str[i]; i++) {
+      hb_script_t script = hb_unicode_script(hb_ufuncs, this->visual_str[i]);
+      if (script != last_script && script != HB_SCRIPT_INHERITED && script != HB_SCRIPT_COMMON) {
+        last_script = script;
+        if (i > 0) {
+          break;
+        }
+      }
+    }
+    segment_count = (i - segment_offset);
+    if (segment_count == 0) {
+      break;
+    }
+
+    hb_glyph_info_t *hb_glyph_info = nullptr;
+    hb_glyph_position_t *glyph_pos = nullptr;
+    FontBLF *segment_font = font;
+
+    if (hb_buffer_get_length(hb_buf) != 0) {
+      hb_buffer_clear_contents(hb_buf);
+    }
+    hb_buffer_add_utf32(hb_buf,
+                        (uint32_t *)this->visual_str.data(),
+                        int(this->char_count),
+                        uint(segment_offset),
+                        int(segment_count));
+
+    uint glyph_count = 0;
+    hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
+    for (unsigned int i = 0; i < glyph_count; i++) {
+      hb_glyph_info[i].cluster = (uint32_t)(segment_offset + i);
+    }
+    hb_buffer_guess_segment_properties(hb_buf);
+    hb_segment_properties_t props;
+    hb_buffer_get_segment_properties(hb_buf, &props);
+    if (ELEM(props.script, HB_SCRIPT_HAN)) {
+      const char *lang = BLT_lang_get();
+      hb_buffer_set_language(hb_buf, hb_language_from_string(lang, -1));
+    }
+    hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+    /* Can the current font handle this script? */
+    if (!ELEM(props.script,
+              HB_SCRIPT_COMMON,
+              HB_SCRIPT_INHERITED,
+              HB_SCRIPT_UNKNOWN,
+              HB_SCRIPT_LATIN))
+    {
+      segment_font = blf_font_script_ensure(font, this->visual_str[segment_offset]);
+    }
+    if (!segment_font->hb_font) {
+      segment_font->hb_font = hb_ft_font_create_referenced(segment_font->face);
+      hb_ot_font_set_funcs(segment_font->hb_font);
+    }
+    hb_font_set_scale(
+        segment_font->hb_font, ft_pix_from_float(font->size), ft_pix_from_float(font->size));
+
+    hb_shape_full(segment_font->hb_font,
+                  hb_buf,
+                  font->features.data(),
+                  uint(font->features.size()),
+                  nullptr);
+    hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
+    glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
+
+    /* Unlikely. Drawing monospaced but changed mid-string to a proportional font. */
+    bool set_mono = segment_font != font && font->flags & BLF_MONOSPACED &&
+                    !(segment_font->flags & BLF_MONOSPACED);
+    if (set_mono) {
+      segment_font->flags |= BLF_MONOSPACED;
+    }
+
+    int cwidth = std::max(gc->fixed_width, 1);
+    int pen_x = this->width;
+    int max_width = this->width;
+    int max_height = this->height;
+    GlyphCacheBLF *segment_gc = (!gc || segment_font != font) ?
+                                    blf_glyph_cache_acquire(segment_font) :
+                                    gc;
+    for (uint i = 0; i < glyph_count; i++) {
+      uint32_t glyph_id = hb_glyph_info[i].codepoint;
+      char32_t codepoint = this->visual_str[hb_glyph_info[i].cluster];
+      GlyphBLF *g = blf_glyph_ensure(segment_font, segment_gc, codepoint, glyph_id);
+      if (UNLIKELY(g == nullptr)) {
+        /* Skip missing glyphs. */
+        continue;
+      }
+      hb_glyph_position_t *pos = &glyph_pos[i];
+      const int advance = ((font->flags & BLF_MONOSPACED) ?
+                               ft_pix_from_int(cwidth) * BLI_wcwidth_safe(codepoint) :
+                               pos->x_advance);
+      if (g->box_xmin == g->box_xmax) {
+        g->box_xmax = g->box_xmin + advance;
+      }
+#ifndef BLF_SUBPIXEL_POSITION
+      pen_x = FT_PIX_ROUND(pen_x);
+#endif
+#ifdef BLF_SUBPIXEL_AA
+      g = blf_glyph_ensure_subpixel(segment_font, segment_gc, g, pen_x);
+#endif
+
+      rcti bounds = {pen_x + glyph_pos[i].x_offset,
+                     pen_x + g->box_xmax + glyph_pos[i].x_offset,
+                     glyph_pos[i].y_offset,
+                     g->box_ymax + glyph_pos[i].y_offset};
+      this->glyphs.append({segment_font, segment_gc, g, bounds});
+
+      max_width = pen_x + std::max(pos->x_advance, g->advance_x);
+      pen_x += advance;
+      max_height = std::max(ft_pix_from_int(g->pos[1]), max_height);
+    }
+
+    this->width = max_width;
+    this->height = max_height;
+    if (set_mono) {
+      segment_font->flags &= ~BLF_MONOSPACED;
+    }
+    if (!gc || segment_font != font) {
+      blf_glyph_cache_release(segment_font);
+    }
+  }
+
+  if (hb_buf) {
+    hb_buffer_destroy(hb_buf);
   }
 }
 
