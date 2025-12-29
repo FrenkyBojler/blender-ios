@@ -182,7 +182,6 @@ static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
                                            const StringRef new_name,
                                            ReportList *reports)
 {
-  BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
   BMDataLayerLookup attr = BM_data_layer_lookup(bm, old_name);
   if (!attr) {
     return false;
