@@ -3245,14 +3245,13 @@ class Preprocessor {
       }
       /* Insert an alias to the type that will get referenced for shaders that enforce usage of
        * linted types. */
-      parser.insert_directive(struct_keyword.prev(),
-                              "#define " + struct_name.str() + linted_struct_suffix + " " +
-                                  struct_name.str() + "\n");
+      string directive = "#define " + struct_name.str() + linted_struct_suffix + " " +
+                         struct_name.str() + "\n";
       if (is_std140_compatible) {
-        parser.insert_directive(struct_keyword.prev(),
-                                "#define " + struct_name.str() + linted_struct_suffix +
-                                    uniform_struct_suffix + " " + struct_name.str() + "\n");
+        directive += "#define " + struct_name.str() + linted_struct_suffix +
+                     uniform_struct_suffix + " " + struct_name.str() + "\n";
       }
+      parser.insert_directive(struct_keyword.prev(), directive);
     });
     parser.apply_mutations();
   }
