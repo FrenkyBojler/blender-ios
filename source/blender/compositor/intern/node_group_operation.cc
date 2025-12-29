@@ -31,11 +31,13 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
                                        const bNodeTree &node_group,
                                        const NodeGroupOutputTypes needed_outputs,
                                        Map<bNodeInstanceKey, bke::bNodePreview> *node_previews,
+                                       const bNodeInstanceKey active_viewer_instance_key,
                                        const bNodeInstanceKey instance_key)
     : Operation(context),
       node_group_(node_group),
       needed_outputs_(needed_outputs),
       node_previews_(node_previews),
+      active_viewer_instance_key_(active_viewer_instance_key),
       instance_key_(instance_key)
 {
   node_group.ensure_interface_cache();
@@ -122,25 +124,6 @@ void NodeGroupOperation::write_outputs(CompileState &compile_state)
   }
 }
 
-static NodeOperation *get_node_operation(Context &context,
-                                         const bNode &node,
-                                         const NodeGroupOutputTypes needed_outputs)
-{
-  const char *disabled_hint = nullptr;
-  if (!node.typeinfo->poll(node.typeinfo, &node.owner_tree(), &disabled_hint)) {
-    return get_undefined_node_operation(context, node);
-  }
-
-  if (node.is_group()) {
-    /* Make sure the GroupOutputNode output is always enabled for node group operations used by
-     * group nodes. */
-    return get_group_node_operation(
-        context, node, needed_outputs | NodeGroupOutputTypes::GroupOutputNode);
-  }
-
-  return node.typeinfo->get_compositor_operation(context, node);
-}
-
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
 {
   /* Group input and group output nodes are implicit nodes and do not have corresponding
@@ -150,9 +133,14 @@ void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_
     return;
   }
 
-  NodeOperation *operation = get_node_operation(this->context(), node, needed_outputs_);
+  NodeOperation *operation = this->get_node_operation(node);
   operation->set_instance_key(bke::node_instance_key(instance_key_, &node_group_, &node));
-  operation->set_node_previews(node_previews_);
+
+  /* Only set previews if the node group is currently being viewed. Except of the node is a group
+   * node, because a child node group might currently be viewed. */
+  if (node.is_group() || instance_key_ == active_viewer_instance_key_) {
+    operation->set_node_previews(node_previews_);
+  }
 
   compile_state.map_node_to_node_operation(node, operation);
 
@@ -166,6 +154,25 @@ void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_
   operation->compute_results_reference_counts(compile_state.get_schedule());
 
   operation->evaluate();
+}
+
+NodeOperation *NodeGroupOperation::get_node_operation(const bNode &node)
+{
+  const char *disabled_hint = nullptr;
+  if (!node.typeinfo->poll(node.typeinfo, &node.owner_tree(), &disabled_hint)) {
+    return get_undefined_node_operation(this->context(), node);
+  }
+
+  if (node.is_group()) {
+    /* Make sure the GroupOutputNode output is always enabled for node group operations used by
+     * group nodes. */
+    return get_group_node_operation(this->context(),
+                                    node,
+                                    needed_outputs_ | NodeGroupOutputTypes::GroupOutputNode,
+                                    active_viewer_instance_key_);
+  }
+
+  return node.typeinfo->get_compositor_operation(this->context(), node);
 }
 
 void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode &node,
@@ -237,7 +244,7 @@ void NodeGroupOperation::evaluate_pixel_compile_unit(CompileState &compile_state
   int number_of_outputs = 0;
   for (int i : compile_unit.index_range()) {
     number_of_outputs += compile_state.compute_pixel_node_operation_outputs_count(
-        *compile_unit[i]);
+        *compile_unit[i], instance_key_ == active_viewer_instance_key_);
 
     if (number_of_outputs <= PixelOperation::maximum_number_of_outputs(this->context())) {
       continue;
@@ -268,7 +275,11 @@ void NodeGroupOperation::evaluate_pixel_compile_unit(CompileState &compile_state
 
   PixelOperation *operation = create_pixel_operation(this->context(), compile_state);
   operation->set_instance_key(instance_key_);
-  operation->set_node_previews(node_previews_);
+
+  /* Only compute previews if the node group is currently being viewed. */
+  if (instance_key_ == active_viewer_instance_key_) {
+    operation->set_node_previews(node_previews_);
+  }
 
   for (const bNode *node : compile_unit) {
     compile_state.map_node_to_pixel_operation(*node, operation);

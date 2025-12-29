@@ -216,7 +216,6 @@ bool is_node_preview_needed(const bNode &node)
 
 const bNodeSocket *find_preview_output_socket(const bNode &node)
 {
-  /* TODO: Needed outputs. */
   if (!is_node_preview_needed(node)) {
     return nullptr;
   }

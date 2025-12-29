@@ -6,6 +6,7 @@
 
 #include "BLI_vector.hh"
 
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 #include "COM_context.hh"
@@ -19,8 +20,12 @@ void evaluate(Context &context,
               const bNodeTree &node_group,
               const NodeGroupOutputTypes needed_outputs)
 {
-  NodeGroupOperation node_group_operation(
-      context, node_group, needed_outputs, &node_group.runtime->previews);
+  NodeGroupOperation node_group_operation(context,
+                                          node_group,
+                                          needed_outputs,
+                                          &node_group.runtime->previews,
+                                          node_group.active_viewer_key,
+                                          bke::NODE_INSTANCE_KEY_BASE);
 
   Vector<std::unique_ptr<Result>> inputs;
   node_group.ensure_interface_cache();

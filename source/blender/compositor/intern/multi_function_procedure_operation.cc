@@ -352,7 +352,9 @@ mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable
 void MultiFunctionProcedureOperation::assign_output_variables(const bNode &node,
                                                               Vector<mf::Variable *> &variables)
 {
-  const bNodeSocket *preview_output = find_preview_output_socket(node);
+  const bool is_node_preview_needed = this->get_node_previews() != nullptr;
+  const bNodeSocket *preview_output = is_node_preview_needed ? find_preview_output_socket(node) :
+                                                               nullptr;
 
   int available_outputs_index = 0;
   for (const bNodeSocket *output : node.output_sockets()) {

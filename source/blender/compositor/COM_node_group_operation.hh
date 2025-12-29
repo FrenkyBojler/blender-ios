@@ -101,6 +101,9 @@ class NodeGroupOperation : public Operation {
   /* A map that associates each node instance identified by its node instance key to its node
    * preview. This could be nullptr if node previews are not needed. */
   Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
+  /* The node instance key of the group node that the user is currently viewing. This could be this
+   * node group or a child of it. In case of the former, this will be equal to instance_key_. */
+  const bNodeInstanceKey active_viewer_instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
   /* A node instance key that identifies the particular group node that uses this node group. If
    * this node group operation represents a top-level standalone node group with no associated
    * group node, this will be bke::NODE_INSTANCE_KEY_BASE. */
@@ -114,8 +117,9 @@ class NodeGroupOperation : public Operation {
   NodeGroupOperation(Context &context,
                      const bNodeTree &node_group,
                      const NodeGroupOutputTypes needed_outputs,
-                     Map<bNodeInstanceKey, bke::bNodePreview> *node_previews = nullptr,
-                     const bNodeInstanceKey instance_key = bke::NODE_INSTANCE_KEY_BASE);
+                     Map<bNodeInstanceKey, bke::bNodePreview> *node_previews,
+                     const bNodeInstanceKey active_viewer_instance_key,
+                     const bNodeInstanceKey instance_key);
 
   /* Compile and evaluate the node group. */
   void execute() override;
@@ -129,6 +133,9 @@ class NodeGroupOperation : public Operation {
    * linked to it, update the compile state, add the newly created operation to the operations
    * stream, and evaluate the operation. */
   void evaluate_node(const bNode &node, CompileState &compile_state);
+
+  /* Constructs and returns a node operation that represents to the given node. */
+  NodeOperation *get_node_operation(const bNode &node);
 
   /* Map each input of the node operation to the result of the output linked to it. Unlinked inputs
    * are mapped to the result of a newly created Input Single Value Operation, which is added to

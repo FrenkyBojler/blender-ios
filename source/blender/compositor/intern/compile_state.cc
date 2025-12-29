@@ -122,9 +122,11 @@ bool CompileState::should_compile_pixel_compile_unit(const bNode &node)
   return false;
 }
 
-int CompileState::compute_pixel_node_operation_outputs_count(const bNode &node)
+int CompileState::compute_pixel_node_operation_outputs_count(const bNode &node,
+                                                             const bool is_node_preview_needed)
 {
-  const bNodeSocket *preview_output = find_preview_output_socket(node);
+  const bNodeSocket *preview_output = is_node_preview_needed ? find_preview_output_socket(node) :
+                                                               nullptr;
 
   int outputs_count = 0;
   for (const bNodeSocket *output : node.output_sockets()) {

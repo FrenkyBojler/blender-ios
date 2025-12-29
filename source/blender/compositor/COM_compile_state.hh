@@ -179,7 +179,8 @@ class CompileState {
   /* Computes the number of pixel operation outputs that will be added for this node in the current
    * pixel compile unit. This is essentially the number of outputs that will be added for the node
    * in PixelOperation::populate_results_for_node. */
-  int compute_pixel_node_operation_outputs_count(const bNode &node);
+  int compute_pixel_node_operation_outputs_count(const bNode &node,
+                                                 const bool is_node_preview_needed);
 
  private:
   /* Determines if the given pixel node operates on single values or not. The node operates on

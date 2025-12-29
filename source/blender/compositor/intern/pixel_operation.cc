@@ -95,9 +95,19 @@ void PixelOperation::set_instance_key(const bNodeInstanceKey &instance_key)
   instance_key_ = instance_key;
 }
 
+bNodeInstanceKey PixelOperation::get_instance_key()
+{
+  return instance_key_;
+}
+
 void PixelOperation::set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews)
 {
   node_previews_ = node_previews;
+}
+
+Map<bNodeInstanceKey, bke::bNodePreview> *PixelOperation::get_node_previews()
+{
+  return node_previews_;
 }
 
 }  // namespace blender::compositor

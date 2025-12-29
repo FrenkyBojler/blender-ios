@@ -10,9 +10,11 @@
 
 namespace blender::compositor {
 
-/* Returns an instance of a new GroupNodeOperation for the given node and needed outputs. */
+/* Returns an instance of a new GroupNodeOperation for the given node and needed outputs and active
+ * viewer instance key of the parent node group. */
 NodeOperation *get_group_node_operation(Context &context,
                                         const bNode &node,
-                                        const NodeGroupOutputTypes &needed_outputs);
+                                        const NodeGroupOutputTypes &needed_outputs,
+                                        const bNodeInstanceKey active_viewer_instance_key);
 
 }  // namespace blender::compositor

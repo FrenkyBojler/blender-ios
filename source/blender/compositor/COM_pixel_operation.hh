@@ -151,11 +151,13 @@ class PixelOperation : public Operation {
    * The node execution schedule is given as an input. */
   void compute_results_reference_counts(const VectorSet<const bNode *> &schedule);
 
-  /* Setter for instance_key_. */
+  /* Getter and setter for instance_key_. */
   void set_instance_key(const bNodeInstanceKey &instance_key);
+  bNodeInstanceKey get_instance_key();
 
-  /* Setter for node_previews_. */
+  /* Getter and setter for node_previews_. */
   void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews);
+  Map<bNodeInstanceKey, bke::bNodePreview> *get_node_previews();
 };
 
 }  // namespace blender::compositor
