@@ -110,6 +110,7 @@
 #include "BLI_time.h"
 
 #include "DRW_select_buffer.hh"
+// #include "BKE_object_types.hh"
 
 thread_local DRWContext *DRWContext::g_context = nullptr;
 
@@ -809,17 +810,19 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     int visibility = BKE_object_visibility(ob, eval_mode);
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
-    if (ob_visible && should_draw_object_cb(*ob)) {
-      /* NOTE: object_duplilist_preview is still handled by DEG_OBJECT_ITER,
-       * dupli_parent and dupli_object_current won't be null for these. */
+    /* LOD selection probe */
+    ObjectRef ob_ref_probe(ob, data_.dupli_parent, data_.dupli_object_current);
+    Object *lod_target = DRW_object_lod_select(ob_ref_probe, draw_ctx);
+
+    /* Draw base object only if NO LOD is active */
+    if (ob_visible && should_draw_object_cb(*ob) && !lod_target) {
       ObjectRef ob_ref(ob, data_.dupli_parent, data_.dupli_object_current);
       draw_object_cb(ob_ref);
     }
 
     bool is_preview_dupli = data_.dupli_parent && data_.dupli_object_current;
     if (is_preview_dupli) {
-      /* Don't create duplis from temporary preview objects, object_duplilist_preview already takes
-       * care of everything. (See #146194, #146211) */
+      /* object_duplilist_preview already handled by DEG iterator */
       continue;
     }
 
@@ -827,9 +830,75 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
                              ((ob->transflag & OB_DUPLI) ||
                               ob->runtime->geometry_set_eval != nullptr);
 
-    if (!instances_visible) {
+    /* Allow LOD even if instances are not visible */
+    if (!instances_visible && !lod_target) {
       continue;
     }
+
+    /* Synthetic LOD dupli */
+    if (lod_target) {
+      printf("LOD: base=%s → target=%s\n",
+            ob->id.name + 2,
+            lod_target->id.name + 2);
+
+      DupliObject lod_dupli = {};
+
+      lod_dupli.ob = lod_target;
+      lod_dupli.ob_data = static_cast<ID *>(lod_target->data);
+
+      /* Inherit transform from base object */
+      copy_m4_m4(lod_dupli.mat, ob->object_to_world().ptr());
+
+      lod_dupli.type = OB_DUPLICOLLECTION; /* arbitrary but stable */ // TODO: Change to `OB_DUPLI`
+      lod_dupli.level = 0;
+      lod_dupli.no_draw = 0;
+
+      /* Persistent identity: same logical object */
+      lod_dupli.persistent_id[0] = ob->id.session_uid;
+      lod_dupli.persistent_id[1] = 0x4C4F44; /* 'LOD' */
+      lod_dupli.persistent_id[2] = 0;
+
+      lod_dupli.random_id = BLI_hash_int(lod_dupli.persistent_id[0]);
+
+      /* Draw synthetic LOD immediately */
+      if (!evil::DEG_iterator_temp_object_from_dupli(
+              ob, &lod_dupli, eval_mode, false, &tmp_object, &tmp_runtime))
+      {
+        printf("LOD: FAILED to create temp object for %s\n",
+              lod_target->id.name + 2);
+        continue;
+      }
+
+      printf("LOD: temp object created: %s\n", tmp_object.id.name + 2);
+
+      if (!should_draw_object_cb(tmp_object)) {
+        printf("LOD: rejected by should_draw_object_cb: %s\n",
+              tmp_object.id.name + 2);
+        evil::DEG_iterator_temp_object_free_properties(&lod_dupli, &tmp_object);
+        continue;
+      }
+
+      tmp_object.light_linking = ob->light_linking;
+      SET_FLAG_FROM_TEST(tmp_object.transflag,
+                        is_negative_m4(lod_dupli.mat),
+                        OB_NEG_SCALE);
+
+      tmp_object.runtime->object_to_world = float4x4(lod_dupli.mat);
+      tmp_object.runtime->world_to_object =
+          invert(tmp_object.runtime->object_to_world);
+
+      blender::draw::ObjectRef ob_ref(&tmp_object, ob, &lod_dupli);
+      draw_object_cb(ob_ref);
+
+      printf("LOD: DRAWN %s\n", tmp_object.id.name + 2);
+
+      evil::DEG_iterator_temp_object_free_properties(&lod_dupli, &tmp_object);
+
+      /* Do NOT draw base object or its real duplis */
+      continue;
+    }
+
+    // --- --- --- --- --- --- --- ---
 
     duplilist.clear();
     object_duplilist(
@@ -1440,6 +1509,8 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
     return BKE_object_is_visible_in_viewport(v3d, &ob);
   };
 
+  // Object *draw_ob = DRW_object_lod_select(ob, &draw_ctx); // New
+
   draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
   draw_ctx.engines_data_validate();
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
@@ -1766,6 +1837,8 @@ void DRW_render_object_iter(
     return true;
   };
 
+  // Object *draw_ob = DRW_object_lod_select(ob, &draw_ctx); // New
+
   draw_ctx.sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
       if (ob_ref.is_dupli() == false) {
@@ -1992,6 +2065,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
         return true;
       };
 
+      // Object *draw_ob = DRW_object_lod_select(ob, &draw_ctx); // New
+
       foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
         drw_engines_cache_populate(ob_ref, duplis, extraction);
       });
@@ -2063,6 +2138,8 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
       drw_engines_cache_populate(ob_ref, duplis, extraction);
     }
     else {
+      // Object *draw_ob = DRW_object_lod_select(ob, &draw_ctx); // New
+
       foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
         drw_engines_cache_populate(ob_ref, duplis, extraction);
       });
@@ -2131,6 +2208,8 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
         }
         return true;
       };
+
+      // Object *draw_ob = DRW_object_lod_select(ob, &draw_ctx); // New
 
       foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
         drw_engines_cache_populate(ob_ref, duplis, extraction);
