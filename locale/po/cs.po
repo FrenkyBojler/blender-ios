@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2025-12-22 09:32+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -8131,6 +8131,22 @@ msgid "Bundle"
 msgstr "Mód Úchopu"
 
 
+msgid "Font"
+msgstr "Písmo"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Mask"
+msgstr "Maska"
+
+
+msgid "Sound"
+msgstr "Zvuk"
+
+
 msgid "Border"
 msgstr "Okraj"
 
@@ -9419,10 +9435,6 @@ msgstr "Text na křivce"
 
 msgid "Curve deforming text object"
 msgstr "Křivka deformující textový objekt"
-
-
-msgid "Font"
-msgstr "Písmo"
 
 
 msgid "Font Bold"
@@ -11601,10 +11613,6 @@ msgstr "Jméno aktuálního klíče pro tvar"
 msgctxt "Sound"
 msgid "Pitch"
 msgstr "Seškrcení"
-
-
-msgid "Sound"
-msgstr "Zvuk"
 
 
 msgid "How loud the sound is"
@@ -13818,10 +13826,6 @@ msgid "UV Factor"
 msgstr "UV Faktor"
 
 
-msgid "Mask"
-msgstr "Maska"
-
-
 msgid "Material slot in an object"
 msgstr "Přivlastnit"
 
@@ -13834,6 +13838,22 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
+msgid "Local View"
+msgstr "Lokální pohled"
+
+
+msgid "Navigation"
+msgstr "Navigace"
+
+
+msgid "Align View"
+msgstr "Zarovnat pohled"
+
+
+msgid "Select Linked"
+msgstr "Vybrat Propojené"
+
+
 msgid "Assign Material"
 msgstr "Přiřadit Materiál"
 
@@ -13844,6 +13864,10 @@ msgstr "Meta objekt"
 
 msgid "Light"
 msgstr "Světlo"
+
+
+msgid "Layout"
+msgstr "Rozložení"
 
 
 msgid "Relations"
@@ -13874,20 +13898,12 @@ msgid "Clean Up"
 msgstr "Vyčistit"
 
 
-msgid "Layout"
-msgstr "Rozložení"
+msgid "Keying"
+msgstr "Klíčovací sestava"
 
 
 msgid "Make Single User"
 msgstr "Přivlastnit"
-
-
-msgid "Hooks"
-msgstr "Háky"
-
-
-msgid "Keying"
-msgstr "Klíčovací sestava"
 
 
 msgid "Tracking"
@@ -13898,12 +13914,16 @@ msgid "Utilities"
 msgstr "Nástroje"
 
 
-msgid "Clear Transform"
-msgstr "Vyčistit transformaci"
+msgid "Hooks"
+msgstr "Háky"
 
 
 msgid "Math"
 msgstr "Matematika"
+
+
+msgid "Clear Transform"
+msgstr "Vyčistit transformaci"
 
 
 msgid "Propagate"
@@ -13930,12 +13950,16 @@ msgid "Special Characters"
 msgstr "Speciální Znaky"
 
 
-msgid "Text"
-msgstr "Text"
-
-
 msgid "Bone Roll"
 msgstr "Kost"
+
+
+msgid "Instances"
+msgstr "Instance"
+
+
+msgid "Import"
+msgstr "Importovat"
 
 
 msgid "Pivot Point"
@@ -13950,36 +13974,12 @@ msgid "Proportional Editing Falloff"
 msgstr "Způsob útlumu"
 
 
-msgid "Instances"
-msgstr "Instance"
-
-
-msgid "Import"
-msgstr "Importovat"
-
-
 msgid "Mirror"
 msgstr "Zrcadlit"
 
 
 msgid "UV Mapping"
 msgstr "UV mapování"
-
-
-msgid "Local View"
-msgstr "Lokální pohled"
-
-
-msgid "Navigation"
-msgstr "Navigace"
-
-
-msgid "Align View"
-msgstr "Zarovnat pohled"
-
-
-msgid "Select Linked"
-msgstr "Vybrat Propojené"
 
 
 msgid "Basic"
@@ -17095,12 +17095,16 @@ msgid "Instances of objects or collections"
 msgstr "Instance objektů nebo kolekcí"
 
 
-msgid "Collection Info"
-msgstr "Informace o Kolekci"
+msgid "The transformation of the vector and geometry outputs"
+msgstr "Transformace vektoru a výstupy geometrie"
 
 
 msgid "Original"
 msgstr "Originální"
+
+
+msgid "Collection Info"
+msgstr "Informace o Kolekci"
 
 
 msgid "Delete Geometry"
@@ -17149,10 +17153,6 @@ msgstr "Trojúhleníky"
 
 msgid "Object Info"
 msgstr "Informace o objektu"
-
-
-msgid "The transformation of the vector and geometry outputs"
-msgstr "Transformace vektoru a výstupy geometrie"
 
 
 msgid "Points to Volume"
@@ -30481,6 +30481,18 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
+msgid "Curve Edit Mode"
+msgstr "Editační Režim Křivky"
+
+
+msgid "Transform Orientations"
+msgstr "Orientace transformací"
+
+
+msgid "Guides"
+msgstr "Vodítka"
+
+
 msgid "Stereoscopy"
 msgstr "Stereoskopie"
 
@@ -30513,10 +30525,6 @@ msgid "Overlays"
 msgstr "Překrytí"
 
 
-msgid "Guides"
-msgstr "Vodítka"
-
-
 msgid "Motion Tracking"
 msgstr "Sledování Pohybu"
 
@@ -30527,14 +30535,6 @@ msgstr "Editační Režim Sítě"
 
 msgid "Measurement"
 msgstr "Měření"
-
-
-msgid "Curve Edit Mode"
-msgstr "Editační Režim Křivky"
-
-
-msgid "Transform Orientations"
-msgstr "Orientace transformací"
 
 
 msgid "Chain Scaling"

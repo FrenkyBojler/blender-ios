@@ -91,7 +91,7 @@ static SpaceLink *project_duplicate(SpaceLink *sl)
 
 static void project_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceProject, sl);
+  writer->write_struct_cast<SpaceProject>(sl);
 }
 
 static void project_operatortypes() {}
