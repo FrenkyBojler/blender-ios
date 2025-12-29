@@ -18,6 +18,7 @@
 
 using namespace blender::math;
 
+// TODO(Tri): Remove
 CLG_LogRef LOG_DRAW_LOD = {"draw.lod"};
 
 namespace blender::draw {
@@ -37,16 +38,13 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
             base_ob->id.name + 2,
             DEG_is_evaluated(&eval_ob->id));
 
-  /* No LODs → identity draw */
+  /* No LODs → draw base */
   if (BLI_listbase_is_empty(&base_ob->lod_items)) {
-    CLOG_INFO(&LOG_DRAW_LOD, "  no lod_items → using base");
-    return eval_ob;
+    CLOG_INFO(&LOG_DRAW_LOD, "  no lod_items → draw base");
+    return nullptr;
   }
 
-  /* ---------------------------------------------------- */
-  /* View position                                        */
-  /* ---------------------------------------------------- */
-
+  /* View position */
   float3 view_pos;
   bool have_view_pos = false;
 
@@ -68,14 +66,11 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
   }
 
   if (!have_view_pos) {
-    CLOG_WARN(&LOG_DRAW_LOD, "  no view position → fallback to base");
-    return eval_ob;
+    CLOG_WARN(&LOG_DRAW_LOD, "  no view position → draw base");
+    return nullptr;
   }
 
-  /* ---------------------------------------------------- */
-  /* Distance (evaluated transform, instance-safe)        */
-  /* ---------------------------------------------------- */
-
+  /* Distance (evaluated transform, instance-safe) */
   const float3 ob_pos = eval_ob->object_to_world().location();
   const float dist = math::distance(view_pos, ob_pos);
 
@@ -86,11 +81,8 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
             ob_pos.z,
             dist);
 
-  /* ---------------------------------------------------- */
-  /* LOD selection (original metadata → evaluated object) */
-  /* ---------------------------------------------------- */
-
-  Object *selected_eval = eval_ob;
+  // LOD selection
+  Object *selected_eval = nullptr;
 
   LISTBASE_FOREACH (Lod *, lod, &base_ob->lod_items) {
     if (!lod->target) {
@@ -98,9 +90,8 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
       continue;
     }
 
-    const ID *lod_eval_id = DEG_get_evaluated_id(
-        draw_ctx.depsgraph, &lod->target->id);
-
+    const ID *lod_eval_id = DEG_get_evaluated_id(draw_ctx.depsgraph,
+                                                &lod->target->id);
     if (!lod_eval_id) {
       CLOG_WARN(&LOG_DRAW_LOD,
                 "  LOD target %s has no evaluated ID",
@@ -120,15 +111,14 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
       selected_eval = lod_eval;
       CLOG_INFO(&LOG_DRAW_LOD,
                 "    → selecting %s",
-                selected_eval->id.name + 2);
+                lod_eval->id.name + 2);
     }
     else {
-      CLOG_INFO(&LOG_DRAW_LOD, "    → break");
       break;
     }
   }
 
-  if (selected_eval != eval_ob) {
+  if (selected_eval) {
     CLOG_INFO(&LOG_DRAW_LOD,
               "LOD RESULT: %s → %s",
               base_ob->id.name + 2,
@@ -138,7 +128,7 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
     CLOG_INFO(&LOG_DRAW_LOD, "LOD RESULT: base object");
   }
 
-  return selected_eval;
+  return selected_eval; /* nullptr == draw base */
 }
 
 } // namespace blender::draw
