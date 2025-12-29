@@ -4,11 +4,136 @@
 
 #include "GHOST_GamepadManager.hh"
 #include "GHOST_EventGamepad.hh"
+#include "GHOST_System.hh"
 #include "GHOST_WindowManager.hh"
+
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_gamecontroller.h"
+
+#include <optional>
+
+struct GHOST_Gamepad {
+  SDL_GameController *controller = nullptr;
+  GHOST_GamepadState state = {};
+  constexpr GHOST_Gamepad(SDL_GameController *controller) : controller{controller} {}
+};
 
 GHOST_GamepadManager::GHOST_GamepadManager(GHOST_System &sys)
     : system_(sys), gamepad_active_(false), gamepad_state_{}, dead_zone_(0.2)
 {
+  if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) < 0) {
+    printf("SDL_INIT_GAMECONTROLLER subsystem init error.");
+  }
+}
+GHOST_GamepadManager::~GHOST_GamepadManager()
+{
+  if (gamepad_) {
+    SDL_GameControllerClose(gamepad_->controller);
+  }
+  SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+}
+void GHOST_GamepadManager::send_gamepad_events(float dt)
+{
+  GHOST_GamepadState state = gamepad_ ? gamepad_->state : GHOST_GamepadState{};
+
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    switch (event.type) {
+      case SDL_CONTROLLERDEVICEADDED: {
+        if (!gamepad_) {
+          printf("Gamepad connected.");
+          gamepad_ = std::make_unique<GHOST_Gamepad>(SDL_GameControllerOpen(event.cdevice.which));
+        }
+        break;
+      }
+      case SDL_CONTROLLERDEVICEREMOVED: {
+        if (gamepad_ &&
+            event.cdevice.which ==
+                SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad_->controller)))
+        {
+          printf("Gamepad disconnected.");
+          SDL_GameControllerClose(gamepad_->controller);
+          gamepad_.reset();
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    if (!gamepad_) {
+      return;
+    }
+    switch (event.type) {
+      case SDL_CONTROLLERAXISMOTION: {
+        switch (event.caxis.axis) {
+          case SDL_CONTROLLER_AXIS_LEFTX:
+            state.left_thumb[0] = float(event.caxis.value) / 32767.0f;
+            break;
+          case SDL_CONTROLLER_AXIS_LEFTY:
+            state.left_thumb[1] = float(event.caxis.value) / 32767.0f;
+            break;
+          case SDL_CONTROLLER_AXIS_RIGHTX:
+            state.right_thumb[0] = float(event.caxis.value) / 32767.0f;
+            break;
+          case SDL_CONTROLLER_AXIS_RIGHTY:
+            state.right_thumb[1] = float(event.caxis.value) / 32767.0f;
+            break;
+          case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
+            state.left_trigger = float(event.caxis.value) / 32767.0f;
+            break;
+          case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
+            state.right_trigger = float(event.caxis.value) / 32767.0f;
+            break;
+          default:
+            break;
+        }
+
+        break;
+      }
+      case SDL_CONTROLLERBUTTONDOWN:
+      case SDL_CONTROLLERBUTTONUP: {
+#define button_case(button, mask) \
+  case button: { \
+    return mask; \
+  };
+        std::optional<GamepadButtonMask> mask =
+            [](SDL_GameControllerButton button) -> std::optional<GamepadButtonMask> {
+          switch (button) {
+            button_case(SDL_CONTROLLER_BUTTON_A, GamepadButtonMask::A);
+            button_case(SDL_CONTROLLER_BUTTON_B, GamepadButtonMask::B);
+            button_case(SDL_CONTROLLER_BUTTON_X, GamepadButtonMask::X);
+            button_case(SDL_CONTROLLER_BUTTON_Y, GamepadButtonMask::Y);
+            // button_case(SDL_CONTROLLER_BUTTON_BACK, GamepadButtonMask::??);
+            button_case(SDL_CONTROLLER_BUTTON_GUIDE, GamepadButtonMask::View);
+            button_case(SDL_CONTROLLER_BUTTON_START, GamepadButtonMask::Menu);
+            button_case(SDL_CONTROLLER_BUTTON_LEFTSTICK, GamepadButtonMask::LeftThumb);
+            button_case(SDL_CONTROLLER_BUTTON_RIGHTSTICK, GamepadButtonMask::RightThumb);
+            button_case(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, GamepadButtonMask::LeftShoulder);
+            button_case(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, GamepadButtonMask::RightShoulder);
+            button_case(SDL_CONTROLLER_BUTTON_DPAD_UP, GamepadButtonMask::DPadUp);
+            button_case(SDL_CONTROLLER_BUTTON_DPAD_DOWN, GamepadButtonMask::DPadDown);
+            button_case(SDL_CONTROLLER_BUTTON_DPAD_LEFT, GamepadButtonMask::DPadLeft);
+            button_case(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, GamepadButtonMask::DPadRight);
+            default:
+              break;
+          }
+          return std::nullopt;
+        }(SDL_GameControllerButton(event.cbutton.button));
+        if (!mask.has_value()) {
+          break;
+        }
+        state.button_depressed[int(*mask)] = event.cbutton.state == SDL_PRESSED;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  if (gamepad_) {
+    gamepad_->state = state;
+  }
+
+  send_gamepad_events(state, dt);
 }
 
 void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, float delta_time)
@@ -22,24 +147,26 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, flo
       val = 0.0f;
     }
   };
-  const auto is_zero_input = [this](float(&val)[2]) { return val[0] == 0.0f && val[1] == 0.0f; };
+  const auto is_zero_input = [this](float (&val)[2]) { return val[0] == 0.0f && val[1] == 0.0f; };
 
   const auto send_thumb_event =
-      [&, this](float(&old_vals)[2], float(&new_vals)[2], GHOST_TGamepadThumb thumb) -> void {
+      [&, this](float (&old_vals)[2], float (&new_vals)[2], GHOST_TGamepadThumb thumb) -> void {
     apply_death_zone(new_vals[0]);
     apply_death_zone(new_vals[1]);
-    /* Send only thumb events if there is non-zero reading or the thumb has just been released. */
+    /* Send only thumb events if there is non-zero reading or the thumb has just been released.
+     */
     if (is_zero_input(old_vals) && is_zero_input(new_vals)) {
       return;
     }
-    GHOST_EventGamepadThumb *event = new GHOST_EventGamepadThumb(now, window);
+    std::unique_ptr<GHOST_EventGamepadThumb> event = std::make_unique<GHOST_EventGamepadThumb>(
+        now, window);
     GHOST_TEventGamepadThumbData *data = (GHOST_TEventGamepadThumbData *)event->getData();
     data->value[0] = new_vals[0];
     data->value[1] = new_vals[1];
     data->thumb = thumb;
     data->action = !is_zero_input(new_vals) ? GHOST_kPress : GHOST_kRelease;
     data->dt = delta_time;
-    system_.pushEvent(event);
+    system_.pushEvent(std::move(event));
     old_vals[0] = new_vals[0];
     old_vals[1] = new_vals[1];
   };
@@ -55,13 +182,14 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, flo
     if (old_val == 0.0f && new_val == 0.0f) {
       return;
     }
-    GHOST_EventGamepadTrigger *event = new GHOST_EventGamepadTrigger(now, window);
+    std::unique_ptr<GHOST_EventGamepadTrigger> event = std::make_unique<GHOST_EventGamepadTrigger>(
+        now, window);
     GHOST_TEventGamepadTriggerData *data = (GHOST_TEventGamepadTriggerData *)event->getData();
     data->value = new_val;
     data->trigger = trigger;
     data->action = new_val ? GHOST_kPress : GHOST_kRelease;
     data->dt = delta_time;
-    system_.pushEvent(event);
+    system_.pushEvent(std::move(event));
     old_val = new_val;
   };
 
@@ -98,15 +226,16 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, flo
   for (const ButtonMap &button_map : buttons_map) {
     const bool was_depressed = gamepad_state_.button_depressed[int(button_map.mask)];
     const bool is_depressed = new_state.button_depressed[int(button_map.mask)];
-    if (was_depressed != is_depressed) {
+    if (was_depressed != is_depressed || is_depressed) {
 
-      GHOST_EventGamepadButton *event = new GHOST_EventGamepadButton(now, window);
+      std::unique_ptr<GHOST_EventGamepadButton> event = std::make_unique<GHOST_EventGamepadButton>(
+          now, window);
       GHOST_TEventGamepadButtonData *data = (GHOST_TEventGamepadButtonData *)event->getData();
 
       data->action = is_depressed ? GHOST_kPress : GHOST_kRelease;
       data->button = button_map.event_button;
 
-      system_.pushEvent(event);
+      system_.pushEvent(std::move(event));
     }
   }
   gamepad_state_.button_depressed = new_state.button_depressed;

@@ -15,6 +15,7 @@
 #include "GHOST_EventKey.hh"
 #include "GHOST_EventTrackpad.hh"
 #include "GHOST_EventWheel.hh"
+#include "GHOST_GamepadManager.hh"
 #include "GHOST_PathUtils.hh"
 #include "GHOST_TimerManager.hh"
 #include "GHOST_WaylandUtils.hh"
@@ -8122,6 +8123,11 @@ GHOST_TSuccess GHOST_SystemWayland::init()
 #ifdef WITH_INPUT_NDOF
     ndof_manager_ = new GHOST_NDOFManagerUnix(*this);
 #endif
+
+#ifdef WITH_INPUT_GAMEPAD
+    gamepad_manager_ = std::make_unique<GHOST_GamepadManager>(*this);
+#endif
+
     return GHOST_kSuccess;
   }
 

@@ -347,6 +347,10 @@ if(WITH_INPUT_NDOF)
   endif()
 endif()
 
+if(WITH_INPUT_GAMEPAD)
+  add_definitions(-DWITH_INPUT_GAMEPAD)
+endif()
+
 if(WITH_CYCLES AND WITH_CYCLES_OSL)
   if(DEFINED LIBDIR)
     set(CYCLES_OSL ${LIBDIR}/osl CACHE PATH "Path to OpenShadingLanguage installation")

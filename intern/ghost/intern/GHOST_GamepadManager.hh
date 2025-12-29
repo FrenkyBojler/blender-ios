@@ -42,11 +42,11 @@ struct GHOST_GamepadState {
 class GHOST_GamepadManager {
  public:
   GHOST_GamepadManager(GHOST_System &);
-  virtual ~GHOST_GamepadManager() = default;
+  virtual ~GHOST_GamepadManager();
   void set_dead_zone(const float);
 
   /** Once per frame checks any change in the gamepad state and send events. */
-  virtual void send_gamepad_events(float delta_time) = 0;
+  void send_gamepad_events(float delta_time);
 
  protected:
   /**
@@ -61,6 +61,7 @@ class GHOST_GamepadManager {
   void send_gamepad_events(GHOST_GamepadState new_state, float delta_time);
 
   GHOST_System &system_;
+  std::unique_ptr<struct GHOST_Gamepad> gamepad_;
   bool gamepad_active_;
   /** Gamepad snapshot. */
   GHOST_GamepadState gamepad_state_;

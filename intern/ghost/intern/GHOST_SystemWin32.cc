@@ -53,7 +53,7 @@
 #  include "GHOST_NDOFManagerWin32.hh"
 #endif
 #ifdef WITH_INPUT_GAMEPAD
-#  include "GHOST_GamepadManagerWin32.hh"
+#  include "GHOST_GamepadManager.hh"
 #endif
 
 /* Key code values not found in `winuser.h`. */
@@ -190,7 +190,7 @@ GHOST_SystemWin32::GHOST_SystemWin32() : has_performance_counter_(false), freq_(
 #endif
 
 #ifdef WITH_INPUT_GAMEPAD
-  gamepad_manager_ = std::make_unique<GHOST_GamepadManagerWin32>(*this);
+  gamepad_manager_ = std::make_unique<GHOST_GamepadManager>(*this);
 #endif
 }
 

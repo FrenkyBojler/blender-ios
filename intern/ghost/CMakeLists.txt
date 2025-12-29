@@ -142,6 +142,12 @@ if(WITH_INPUT_NDOF)
 endif()
 
 if(WITH_INPUT_GAMEPAD)
+  list(APPEND INC_SYS
+    ${SDL_INCLUDE_DIR}
+  )
+  list(APPEND LIB
+    ${SDL_LIBRARY}
+  )
   add_definitions(-DWITH_INPUT_GAMEPAD)
   list(APPEND SRC
     intern/GHOST_GamepadManager.cc
@@ -493,14 +499,6 @@ elseif(WIN32)
       intern/GHOST_NDOFManagerWin32.cc
 
       intern/GHOST_NDOFManagerWin32.hh
-    )
-  endif()
-
-  if(WITH_INPUT_GAMEPAD)
-    list(APPEND SRC
-      intern/GHOST_GamepadManagerWin32.cc
-
-      intern/GHOST_GamepadManagerWin32.hh
     )
   endif()
 endif()
