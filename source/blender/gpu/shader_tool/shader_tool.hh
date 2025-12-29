@@ -2602,7 +2602,7 @@ class Preprocessor {
       struct_scope.foreach_function(
           [&](bool, Token, Token, Scope, bool, Scope) { has_methods = true; });
       if (!has_methods) {
-        /* Avoid uneeded preprocessor directives. */
+        /* Avoid unnecessary preprocessor directives. */
         return;
       }
 
