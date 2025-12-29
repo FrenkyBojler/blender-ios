@@ -31,7 +31,7 @@ template<typename T, int Size, bool is_trivial_type> struct vec_struct_base {
   std::array<T, Size> values;
 };
 
-template<typename T> struct vec_struct_base<T, 1, false> : VecSwizzleFunc<T, 2> {
+template<typename T> struct vec_struct_base<T, 1, false> {
   T x;
 };
 
