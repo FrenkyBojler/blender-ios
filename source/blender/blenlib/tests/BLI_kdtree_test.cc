@@ -63,3 +63,31 @@ TEST(kdtree, Deduplicate)
 {
   deduplicate_test();
 }
+
+namespace blender::tests {
+
+TEST(kdtree, Balance2d)
+{
+  KDTree<float2> *tree = kdtree_new<float2>(7);
+  kdtree_insert(tree, 0, float2(-1, -1));
+  kdtree_insert(tree, 1, float2(-1, 1));
+  kdtree_insert(tree, 2, float2(1, 1));
+  kdtree_insert(tree, 3, float2(1, 1));
+  kdtree_insert(tree, 4, float2(0, 0));
+  kdtree_insert(tree, 5, float2(0.5, 0));
+  kdtree_insert(tree, 6, float2(1, 1));
+
+  kdtree_balance(tree);
+
+  EXPECT_EQ(tree->nodes[0].co, float2(-1, -1));
+  EXPECT_EQ(tree->nodes[1].co, float2(0, 0));
+  EXPECT_EQ(tree->nodes[2].co, float2(-1, 1));
+  EXPECT_EQ(tree->nodes[3].co, float2(0.5, 0));
+  EXPECT_EQ(tree->nodes[4].co, float2(1, 1));
+  EXPECT_EQ(tree->nodes[5].co, float2(1, 1));
+  EXPECT_EQ(tree->nodes[6].co, float2(1, 1));
+
+  kdtree_free(tree);
+}
+
+}  // namespace blender::tests
