@@ -228,7 +228,7 @@ static void store_layer(const eCustomDataType type,
                         BArrayCustomData &bcd)
 {
   using namespace blender;
-  int &i = index_in_type.lookup(type);
+  int &i = index_in_type.lookup_or_add(type, 0);
   BLI_SCOPED_DEFER([&]() { i++; });
 
   /* Perform a full copy on dynamic layers.
@@ -412,7 +412,7 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
   for (CustomDataLayer &layer : MutableSpan(cdata->layers, cdata->totlayer)) {
     const eCustomDataType type = eCustomDataType(layer.type);
 
-    int &i = index_in_type.lookup(type);
+    int &i = index_in_type.lookup_or_add(type, 0);
     BLI_SCOPED_DEFER([&]() { i++; });
 
     if (bcd->non_trivial_arrays.contains(type)) {
@@ -437,7 +437,7 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
   for (bke::Attribute *attribute : attributes) {
     const eCustomDataType type = *bke::attr_type_to_custom_data_type(attribute->data_type());
 
-    int &i = index_in_type.lookup(type);
+    int &i = index_in_type.lookup_or_add(type, 0);
     BLI_SCOPED_DEFER([&]() { i++; });
 
     bke::Attribute::ArrayData array_data{};
