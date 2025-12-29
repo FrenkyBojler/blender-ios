@@ -9,8 +9,6 @@
 
 #include "draw_object_infos_infos.hh"
 
-#include "workbench_shader_shared.hh"
-
 SHADER_LIBRARY_CREATE_INFO(draw_mesh)
 
 #include "draw_model_lib.glsl"
@@ -20,7 +18,6 @@ SHADER_LIBRARY_CREATE_INFO(draw_mesh)
 #include "gpu_shader_math_vector_compare_lib.glsl"
 #include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "gpu_shader_math_vector_safe_lib.glsl"
-#include "workbench_common_lib.glsl"
 
 namespace workbench::volume {
 
