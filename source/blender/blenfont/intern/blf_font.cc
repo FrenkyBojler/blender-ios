@@ -407,8 +407,8 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     return;
   }
 
-  size_t segment_offset = 0;
-  size_t segment_count = 0;
+  size_t segment_start = 0;
+  size_t segment_len = 0;
   FontBLF *segment_font = font;
   hb_script_t script = HB_SCRIPT_UNKNOWN;
   hb_script_t last_script = HB_SCRIPT_UNKNOWN;
@@ -423,16 +423,13 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
   /* Harfbuzz gets the entire string but we process it by segment,
    * portions with the same language, direction, style, etc. */
 
-  while (char_count > (segment_offset + segment_count)) {
+  while ((segment_start + segment_len) < char_count) {
 
-    segment_offset += segment_count;
-    segment_count = 0;
-    if (segment_offset >= char_count - 1) {
-      break;
-    }
+    segment_start += segment_len;
+    segment_len = 0;
 
     size_t i;
-    for (i = segment_offset; i < char_count && str32[i]; i++) {
+    for (i = segment_start; i < char_count && str32[i]; i++) {
       script = hb_unicode_script(hb_unicode_funcs_get_default(), str32[i]);
       if (script != last_script && script != HB_SCRIPT_INHERITED && script != HB_SCRIPT_COMMON) {
         last_script = script;
@@ -441,23 +438,20 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
         }
       }
     }
-    segment_count = (i - segment_offset);
-    if (segment_count == 0) {
+    segment_len = (i - segment_start);
+    if (segment_len == 0) {
       break;
     }
 
     hb_buffer_clear_contents(hb_buf);
-    hb_buffer_add_utf32(hb_buf,
-                        (uint32_t *)str32.data(),
-                        int(char_count),
-                        uint(segment_offset),
-                        int(segment_count));
+    hb_buffer_add_utf32(
+        hb_buf, (uint32_t *)str32.data(), int(char_count), uint(segment_start), int(segment_len));
 
     hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
     uint glyph_count;
     hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
     for (unsigned int i = 0; i < glyph_count; i++) {
-      hb_glyph_info[i].cluster = (uint32_t)(segment_offset + i);
+      hb_glyph_info[i].cluster = (uint32_t)(segment_start + i);
     }
 
     hb_buffer_guess_segment_properties(hb_buf);
@@ -469,7 +463,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     /* Is the current font ideal for this script? */
     segment_font = font;
     if (!ELEM(script, HB_SCRIPT_COMMON, HB_SCRIPT_INHERITED, HB_SCRIPT_UNKNOWN, HB_SCRIPT_LATIN)) {
-      segment_font = blf_font_script_ensure(font, str32[segment_offset]);
+      segment_font = blf_font_script_ensure(font, str32[segment_start]);
     }
 
     if (!segment_font->hb_font) {
@@ -583,32 +577,21 @@ static bool blf_font_feature_supported(FontBLF *font, const char tag[4])
 
 void blf_font_feature(FontBLF *font, const char tag[4], int value)
 {
-  if (!blf_font_feature_supported(font, tag)) {
+  if (!font) {
     return;
   }
 
-  if (font) {
-    hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
+  hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
 
-    int index = -1;
-    for (int64_t i = 0; i < font->features.size(); i++) {
-      if (font->features[i].tag == tag_value) {
-        index = int(i);
-        break;
-      }
-    }
-    if (index != -1) {
-      font->features[index].value = value;
-    }
-    else {
-      hb_feature_t f = {0};
-      f.tag = tag_value;
-      f.value = hb_tag_t(value);
-      f.start = HB_FEATURE_GLOBAL_START;
-      f.end = HB_FEATURE_GLOBAL_END;
-      font->features.append(f);
+  for (auto &feature : font->features) {
+    if (feature.tag == tag_value) {
+      feature.value = hb_tag_t(value);
+      return;
     }
   }
+
+  font->features.append(
+      {tag_value, hb_tag_t(value), HB_FEATURE_GLOBAL_START, HB_FEATURE_GLOBAL_END});
 }
 
 static void blf_font_draw_ex(FontBLF *font,
