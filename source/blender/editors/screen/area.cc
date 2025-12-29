@@ -1098,7 +1098,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
 #endif
 
     /* set area action zones */
-    AZone *az = MEM_callocN<AZone>("actionzone");
+    AZone *az = MEM_new_for_free<AZone>("actionzone");
     BLI_addtail(&(area->actionzones), az);
     az->type = AZONE_AREA;
     az->x1 = coords[i][0];
@@ -1115,7 +1115,7 @@ static void fullscreen_azone_init(ScrArea *area, ARegion *region)
     return;
   }
 
-  AZone *az = MEM_callocN<AZone>("fullscreen action zone");
+  AZone *az = MEM_new_for_free<AZone>("fullscreen action zone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_FULLSCREEN;
   az->region = region;
@@ -1309,7 +1309,7 @@ static void region_azone_edge_init(ScrArea *area,
     return;
   }
 
-  AZone *az = MEM_callocN<AZone>("actionzone");
+  AZone *az = MEM_new_for_free<AZone>("actionzone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_REGION;
   az->region = region;
@@ -1327,7 +1327,7 @@ static void region_azone_scrollbar_init(ScrArea *area,
                                         ARegion *region,
                                         AZScrollDirection direction)
 {
-  AZone *az = MEM_callocN<AZone>(__func__);
+  AZone *az = MEM_new_for_free<AZone>(__func__);
 
   BLI_addtail(&area->actionzones, az);
   az->type = AZONE_REGION_SCROLL;
@@ -1781,22 +1781,28 @@ static void region_rect_recursive(
       const int x = remainder->xmin + int(float(remainder->xmax - remainder->xmin) * ratio_x);
       const int y = remainder->ymin + int(float(remainder->ymax - remainder->ymin) * ratio_y);
 
-      if (quad == 1) { /* left bottom */
-        region->winrct.xmax = x;
-        region->winrct.ymax = y;
-      }
-      else if (quad == 2) { /* left top */
-        region->winrct.xmax = x;
-        region->winrct.ymin = y + 1;
-      }
-      else if (quad == 3) { /* right bottom */
-        region->winrct.xmin = x + 1;
-        region->winrct.ymax = y;
-      }
-      else { /* right top */
-        region->winrct.xmin = x + 1;
-        region->winrct.ymin = y + 1;
-        BLI_rcti_init(remainder, 0, 0, 0, 0);
+      region->runtime->quadview_index = blender::bke::ARegionQuadviewIndex(quad);
+
+      switch (region->runtime->quadview_index) {
+        case blender::bke::ARegionQuadviewIndex::BottomLeft:
+          region->winrct.xmax = x;
+          region->winrct.ymax = y;
+          break;
+        case blender::bke::ARegionQuadviewIndex::TopLeft:
+          region->winrct.xmax = x;
+          region->winrct.ymin = y + 1;
+          break;
+        case blender::bke::ARegionQuadviewIndex::BottomRight:
+          region->winrct.xmin = x + 1;
+          region->winrct.ymax = y;
+          break;
+        case blender::bke::ARegionQuadviewIndex::TopRight:
+          region->winrct.xmin = x + 1;
+          region->winrct.ymin = y + 1;
+          BLI_rcti_init(remainder, 0, 0, 0, 0);
+          break;
+        default:
+          BLI_assert_unreachable();
       }
 
       /* Fix any negative dimensions. This can happen when a quad split 3d view gets too small.
@@ -2198,9 +2204,6 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
   /* clear all azones, add the area triangle widgets */
   area_azone_init(win, screen, area);
 
-  /* Only one quad view gets AZONE_REGION_QUAD. */
-  char quad_view_index = 0;
-
   /* region windows, default and own handlers */
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     region_evaluate_visibility(region);
@@ -2222,11 +2225,10 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
     /* Some AZones use View2D data which is only updated in region init, so call that first! */
     region_azones_add(screen, area, region);
 
-    if (region->alignment == RGN_ALIGN_QSPLIT) {
-      if (quad_view_index == 0) {
-        quadview_azone_init(area, region);
-      }
-      quad_view_index++;
+    if (region->alignment == RGN_ALIGN_QSPLIT &&
+        region->runtime->quadview_index == blender::bke::ARegionQuadviewIndex::BottomLeft)
+    {
+      quadview_azone_init(area, region);
     }
   }
 
@@ -2269,7 +2271,7 @@ static void area_offscreen_init(ScrArea *area)
 
 ScrArea *ED_area_offscreen_create(wmWindow *win, eSpace_Type space_type)
 {
-  ScrArea *area = MEM_callocN<ScrArea>(__func__);
+  ScrArea *area = MEM_new_for_free<ScrArea>(__func__);
   area->spacetype = space_type;
 
   screen_area_spacelink_add(WM_window_get_active_scene(win), area, space_type);
@@ -2409,35 +2411,11 @@ void ED_region_toggle_hidden(bContext *C, ARegion *region)
 
 void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free)
 {
-  const char spacetype = area_dst->spacetype;
-  const short flag_copy = HEADER_NO_PULLDOWN;
-
-  area_dst->spacetype = area_src->spacetype;
-  area_dst->type = area_src->type;
-
-  area_dst->flag = (area_dst->flag & ~flag_copy) | (area_src->flag & flag_copy);
-
-  /* area */
   if (do_free) {
-    BKE_spacedata_freelist(&area_dst->spacedata);
+    BKE_screen_area_free(area_dst);
   }
-  BKE_spacedata_copylist(&area_dst->spacedata, &area_src->spacedata);
 
-  /* NOTE: SPACE_EMPTY is possible on new screens. */
-
-  /* regions */
-  if (do_free) {
-    SpaceType *st = BKE_spacetype_from_id(spacetype);
-    LISTBASE_FOREACH (ARegion *, region, &area_dst->regionbase) {
-      BKE_area_region_free(st, region);
-    }
-    BLI_freelistN(&area_dst->regionbase);
-  }
-  SpaceType *st = BKE_spacetype_from_id(area_src->spacetype);
-  LISTBASE_FOREACH (ARegion *, region, &area_src->regionbase) {
-    ARegion *newar = BKE_area_region_copy(st, region);
-    BLI_addtail(&area_dst->regionbase, newar);
-  }
+  BKE_area_copy(area_dst, area_src);
 }
 
 void ED_area_data_swap(ScrArea *area_dst, ScrArea *area_src)
@@ -2694,7 +2672,7 @@ static void region_align_info_to_area(
 
 void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
 {
-  ScrArea *tmp = MEM_callocN<ScrArea>(__func__);
+  ScrArea *tmp = MEM_new_for_free<ScrArea>(__func__);
   wmWindow *win = CTX_wm_window(C);
 
   ED_area_exit(C, sa1);

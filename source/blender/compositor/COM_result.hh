@@ -387,10 +387,10 @@ class Result {
    * template type. */
   template<typename T> const T &get_single_value() const;
 
-  /* Gets the single value stored in the result, if the result is not a single value, the given
-   * default value is returned. Assumes the result stores a value of the same type as the template
-   * type. */
-  template<typename T> T get_single_value_default(const T &default_value) const;
+  /* Gets the single value stored in the result, if the result is not a single value, the default
+   * identity value of the type is returned. Assumes the result stores a value of the same type as
+   * the template type. */
+  template<typename T> T get_single_value_default() const;
 
   /* Sets the single value of the result to the given value, which also involves setting the single
    * pixel in the image to that value. See the class description for more information. Assumes
@@ -431,21 +431,16 @@ class Result {
   template<typename T, bool CouldBeSingleValue = false>
   T sample(const float2 &coordinates,
            const Interpolation &interpolation,
-           const ExtensionMode &extend_mode_x,
-           const ExtensionMode &extend_mode_y) const;
+           const Extension &extend_mode_x,
+           const Extension &extend_mode_y) const;
 
-  /* Equivalent to the GLSL texture() function with nearest neighbour interpolation and extended
-   * boundary condition. The coordinates are thus expected to have half-pixels offsets. A float4 is
-   * always returned regardless of the number of channels of the buffer, the remaining channels
-   * will be initialized with the template float4(0, 0, 0, 1). */
-  float4 sample_nearest_extended(const float2 &coordinates) const;
+  /* Shorthand for sample() with bilinear interpolation and zero boundary conditions. */
+  template<typename T, bool CouldBeSingleValue = false>
+  T sample_bilinear_zero(const float2 &coordinates) const;
 
-  /* Identical to sample_nearest_extended but with bilinear interpolation and zero boundary
-   * condition. */
-  float4 sample_bilinear_zero(const float2 &coordinates) const;
-
-  /* Identical to sample_nearest_extended but with bilinear interpolation. */
-  float4 sample_bilinear_extended(const float2 &coordinates) const;
+  /* Shorthand for sample() with bilinear interpolation and extended boundary conditions. */
+  template<typename T, bool CouldBeSingleValue = false>
+  T sample_bilinear_extended(const float2 &coordinates) const;
 
   /* Samples the result at the given normalized coordinates using EWA filtering of the given
    * texel-space gradients using the given boundary condition. Note that boundary conditions only
@@ -456,7 +451,7 @@ class Result {
   Color sample_ewa(const float2 &coordinates,
                    const float2 &x_gradient,
                    const float2 &y_gradient,
-                   ExtensionMode extension_mode) const;
+                   Extension extension_mode) const;
 
  private:
   /* Allocates the image data for the given size.
@@ -540,13 +535,12 @@ template<typename T> BLI_INLINE_METHOD const T &Result::get_single_value() const
   return std::get<T>(single_value_);
 }
 
-template<typename T>
-BLI_INLINE_METHOD T Result::get_single_value_default(const T &default_value) const
+template<typename T> BLI_INLINE_METHOD T Result::get_single_value_default() const
 {
   if (this->is_single_value()) {
     return this->get_single_value<T>();
   }
-  return default_value;
+  return *static_cast<const T *>(this->get_cpp_type().default_value());
 }
 
 template<typename T> BLI_INLINE_METHOD void Result::set_single_value(const T &value)
@@ -622,7 +616,7 @@ BLI_INLINE_METHOD void Result::store_pixel(const int2 &texel, const T &pixel_val
   this->cpu_data().typed<T>()[this->get_pixel_index(texel)] = pixel_value;
 }
 
-BLI_INLINE int32_t wrap_coordinates(float u, int32_t size, const ExtensionMode extension_mode)
+BLI_INLINE int32_t wrap_coordinates(float u, int32_t size, const Extension extension_mode)
 {
   if (u >= 0) {
     if (u < float(size)) {
@@ -631,29 +625,43 @@ BLI_INLINE int32_t wrap_coordinates(float u, int32_t size, const ExtensionMode e
     switch (extension_mode) {
       default: /* case ExtensionMode::Extend: */
         return size - 1;
-      case ExtensionMode::Repeat:
+      case Extension::Repeat:
         return int32_t(uint32_t(u) % uint32_t(size));
-      case ExtensionMode::Clip:
+      case Extension::Clip:
         return -1;
     }
   }
   switch (extension_mode) {
     default: /* case ExtensionMode::Extend: */
       return 0;
-    case ExtensionMode::Repeat: {
+    case Extension::Repeat: {
       int32_t x = int32_t(uint32_t(-floorf(u)) % uint32_t(size));
       return x ? size - x : 0;
     }
-    case ExtensionMode::Clip:
+    case Extension::Clip:
       return -1;
   }
+}
+
+BLI_INLINE math::InterpWrapMode map_extension_mode_to_wrap_mode(const Extension &mode)
+{
+  switch (mode) {
+    case Extension::Clip:
+      return math::InterpWrapMode::Border;
+    case Extension::Repeat:
+      return math::InterpWrapMode::Repeat;
+    case Extension::Extend:
+      return math::InterpWrapMode::Extend;
+  }
+  BLI_assert_unreachable();
+  return math::InterpWrapMode::Border;
 }
 
 template<typename T, bool CouldBeSingleValue>
 BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                                    const Interpolation &interpolation,
-                                   const ExtensionMode &mode_x,
-                                   const ExtensionMode &mode_y) const
+                                   const Extension &mode_x,
+                                   const Extension &mode_y) const
 {
   if constexpr (CouldBeSingleValue) {
     if (is_single_value_) {
@@ -684,7 +692,7 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                                               output,
                                               size.x,
                                               size.y,
-                                              this->channels_count(),
+                                              sizeof(T) / sizeof(float),
                                               texel_coordinates.x,
                                               texel_coordinates.y,
                                               extension_mode_x,
@@ -695,7 +703,7 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                                                output,
                                                size.x,
                                                size.y,
-                                               this->channels_count(),
+                                               sizeof(T) / sizeof(float),
                                                texel_coordinates.x - 0.5f,
                                                texel_coordinates.y - 0.5f,
                                                extension_mode_x,
@@ -707,7 +715,7 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                                                     output,
                                                     size.x,
                                                     size.y,
-                                                    this->channels_count(),
+                                                    sizeof(T) / sizeof(float),
                                                     texel_coordinates.x - 0.5f,
                                                     texel_coordinates.y - 0.5f,
                                                     extension_mode_x,
@@ -728,70 +736,18 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
   }
 }
 
-BLI_INLINE_METHOD float4 Result::sample_bilinear_zero(const float2 &coordinates) const
+template<typename T, bool CouldBeSingleValue>
+BLI_INLINE_METHOD T Result::sample_bilinear_zero(const float2 &coordinates) const
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = (coordinates * float2(size)) - 0.5f;
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::interpolate_bilinear_border_fl(buffer,
-                                       pixel_value,
-                                       size.x,
-                                       size.y,
-                                       this->channels_count(),
-                                       texel_coordinates.x,
-                                       texel_coordinates.y);
-  return pixel_value;
+  return this->sample<T, CouldBeSingleValue>(
+      coordinates, Interpolation::Bilinear, Extension::Clip, Extension::Clip);
 }
 
-BLI_INLINE_METHOD float4 Result::sample_nearest_extended(const float2 &coordinates) const
+template<typename T, bool CouldBeSingleValue>
+BLI_INLINE_METHOD T Result::sample_bilinear_extended(const float2 &coordinates) const
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = coordinates * float2(size);
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::interpolate_nearest_fl(buffer,
-                               pixel_value,
-                               size.x,
-                               size.y,
-                               this->channels_count(),
-                               texel_coordinates.x,
-                               texel_coordinates.y);
-  return pixel_value;
-}
-
-BLI_INLINE_METHOD float4 Result::sample_bilinear_extended(const float2 &coordinates) const
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  if (is_single_value_) {
-    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
-    return pixel_value;
-  }
-
-  const int2 size = domain_.data_size;
-  const float2 texel_coordinates = (coordinates * float2(size)) - 0.5f;
-
-  const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  math::interpolate_bilinear_fl(buffer,
-                                pixel_value,
-                                size.x,
-                                size.y,
-                                this->channels_count(),
-                                texel_coordinates.x,
-                                texel_coordinates.y);
-  return pixel_value;
+  return this->sample<T, CouldBeSingleValue>(
+      coordinates, Interpolation::Bilinear, Extension::Extend, Extension::Extend);
 }
 
 /* Given a Result as the userdata argument, sample it at the given coordinates using extended
@@ -815,10 +771,10 @@ template<bool CouldBeSingleValue>
 BLI_INLINE_METHOD Color Result::sample_ewa(const float2 &coordinates,
                                            const float2 &x_gradient,
                                            const float2 &y_gradient,
-                                           ExtensionMode extension_mode) const
+                                           Extension extension_mode) const
 {
   BLI_assert(type_ == ResultType::Color);
-  BLI_assert(extension_mode == ExtensionMode::Clip || extension_mode == ExtensionMode::Extend);
+  BLI_assert(extension_mode == Extension::Clip || extension_mode == Extension::Extend);
 
   if constexpr (CouldBeSingleValue) {
     if (is_single_value_) {
@@ -834,8 +790,8 @@ BLI_INLINE_METHOD Color Result::sample_ewa(const float2 &coordinates,
                  coordinates,
                  x_gradient,
                  y_gradient,
-                 extension_mode == ExtensionMode::Clip ? sample_ewa_zero_read_callback :
-                                                         sample_ewa_extended_read_callback,
+                 extension_mode == Extension::Clip ? sample_ewa_zero_read_callback :
+                                                     sample_ewa_extended_read_callback,
                  const_cast<Result *>(this),
                  pixel_value);
   return pixel_value;
