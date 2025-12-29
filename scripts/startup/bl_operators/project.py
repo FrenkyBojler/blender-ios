@@ -180,15 +180,34 @@ class PROJECT_OP_NewProject(Operator):
         return context.project.data is None and bpy.data.filepath != ""
 
     def execute(self, context):
-        # TODO: ensure there isn't already a project at `self.directory`.
-
         if self.directory == "":
-            self.report({'ERROR'}, "Cannot create a project with an empty directory path")
+            self.report({'ERROR'}, "Cannot create a project with an empty directory path.")
             return {'CANCELLED'}
 
-        if not bpy.path.is_subdir(path=context.blend_data.filepath, directory=self.directory):
-            self.report({'ERROR'}, "New project directory must be a parent of the currently open blend file")
+        if not bpy.path.is_subdir(path=bpy.data.filepath, directory=self.directory):
+            self.report({'ERROR'}, "New project directory must be a parent of the currently open blend file.")
             return {'CANCELLED'}
+
+        # Double-check that we're not already in a project directory.
+        #
+        # Under normal circumstances this should never happen, because a project
+        # would already be loaded in that case, and thus `poll()` would fail.
+        # But if someone manually calls `context.project.clear()` then this can
+        # happen.
+        existing_project_root = find_project_root_from_blend_file_path(Path(bpy.data.filepath))
+        if existing_project_root is not None:
+            try:
+                config_dict = read_project_toml_config(existing_project_root)
+                validate_config(config_dict)
+            except ProjectLoadException:
+                # No valid project found, which is what we expect.
+                # So continue with creating the new project below.
+                pass
+            else:
+                self.report(
+                    {'ERROR'},
+                    "New project directory is already inside of an existing project. Try reloading the current blend file to open the existing project.")
+                return {'CANCELLED'}
 
         # Create the project.
         context.project.init("New Project", self.directory)
