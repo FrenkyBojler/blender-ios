@@ -5507,13 +5507,11 @@ void store_mesh_from_eval(const wmOperator &op,
         /* Use lower level API to add the position attribute to avoid copying the array and to
          * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
          * would be called by the attribute API). */
-        CustomData_add_layer_named_with_data(
-            &mesh.vert_data,
-            CD_PROP_FLOAT3,
-            const_cast<float3 *>(position.varray.get_internal_span().data()),
-            mesh.verts_num,
-            "position",
-            position.sharing_info);
+        bke::Attribute::ArrayData data{};
+        data.data = const_cast<float3 *>(position.varray.get_internal_span().data());
+        data.sharing_info = ImplicitSharingPtr<>(position.sharing_info);
+        mesh.attribute_storage.wrap().add(
+            "position", bke::AttrDomain::Point, bke::AttrType::Float3, std::move(data));
       }
       else {
         mesh.vert_positions_for_write().copy_from(VArraySpan(*position));
