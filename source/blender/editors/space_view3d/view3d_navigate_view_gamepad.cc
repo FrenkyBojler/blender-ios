@@ -68,7 +68,7 @@ static void gamepad_move(bContext *C, float3 translation, const float dt)
 
   bool has_translation = translation;
   if (has_translation) {
-    const float speed = 50.0f;
+    const float speed = 10.0f;
     translation *= speed * dt;
     mul_qt_v3(view_inv, translation);
     sub_v3_v3(rv3d->ofs, translation);
@@ -79,31 +79,27 @@ static void gamepad_rotate(bContext *C, float3 rotation, float dt)
 {
   ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-
+  float quat[4];
+  float axis[3]{};
+  float angle = dt * normalize_v3_v3(axis, rotation);
   float4 view_inv;
+
+  rv3d->view = RV3D_VIEW_USER;
+
   invert_qt_qt_normalized(view_inv, rv3d->viewquat);
 
-  const float3 rotation_speed{1.5f, 2.0f, 2.0f};
-  rotation *= rotation_speed * dt;
-  mul_qt_v3(view_inv, rotation);
-  float4 quad_rotation;
-  eul_to_quat(quad_rotation, rotation);
-  mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, quad_rotation);
+  /* transform rotation axis from view to world coordinates */
+  mul_qt_v3(view_inv, axis);
 
-  {
-    invert_qt_qt_normalized(view_inv, rv3d->viewquat);
-    float3 view_horizon{1.0f, 0.0f, 0.0f};
-    float3 view_direction{0.0f, 0.0f, -1.0f};
-    mul_qt_v3(view_inv, view_horizon);
-    mul_qt_v3(view_inv, view_direction);
-    const float angle = -asinf(view_horizon[2]);
+  axis_angle_to_quat(quat, axis, angle);
 
-    axis_angle_to_quat(rotation, view_direction, angle);
-    mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, rotation);
-  }
+  /* apply rotation */
+  mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, quat);
 };
 
-static int gamepad_all_invoke_impl(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus gamepad_all_invoke_impl(bContext *C,
+                                                wmOperator * /*op*/,
+                                                const wmEvent *event)
 {
   if (ELEM(event->type,
            GAMEPAD_BUTTON_DPAD_UP,

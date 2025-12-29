@@ -27,7 +27,7 @@ class GHOST_EventGamepadTrigger : public GHOST_Event {
   GHOST_EventGamepadTrigger(uint64_t time, GHOST_IWindow *window)
       : GHOST_Event(time, GHOST_kEventGamepadTrigger, window), trigger_data_{}
   {
-    m_data = &trigger_data_;
+    data_ = &trigger_data_;
   }
 };
 
@@ -44,7 +44,7 @@ class GHOST_EventGamepadThumb : public GHOST_Event {
   GHOST_EventGamepadThumb(uint64_t time, GHOST_IWindow *window)
       : GHOST_Event(time, GHOST_kEventGamepadThumb, window), thumb_data_{}
   {
-    m_data = &thumb_data_;
+    data_ = &thumb_data_;
   }
 };
 
@@ -59,6 +59,6 @@ class GHOST_EventGamepadButton : public GHOST_Event {
   GHOST_EventGamepadButton(uint64_t time, GHOST_IWindow *window)
       : GHOST_Event(time, GHOST_kEventGamepadButton, window), button_data_{}
   {
-    m_data = &button_data_;
+    data_ = &button_data_;
   }
 };

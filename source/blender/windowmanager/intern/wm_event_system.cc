@@ -6480,7 +6480,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
 
       event.val = thumb_data->action == GHOST_kPress ? KM_PRESS : KM_RELEASE;
 
-      wm_event_add(win, &event);
+      wm_event_add_intern(win, &event);
       break;
     }
 
@@ -6502,7 +6502,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       event.customdata = nullptr;
       event.val = trigger_data->action == GHOST_kPress ? KM_PRESS : KM_RELEASE;
 
-      wm_event_add(win, &event);
+      wm_event_add_intern(win, &event);
       break;
     }
 
@@ -6510,7 +6510,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
       const GHOST_TEventGamepadButtonData *button =
           static_cast<const GHOST_TEventGamepadButtonData *>(customdata);
 
-      event.type = wm_event_type_from_gamepad_buttton(button->button);
+      event.type = wmEventType(wm_event_type_from_gamepad_buttton(button->button));
       event.custom = 0;
       event.customdata = nullptr;
 
@@ -6522,7 +6522,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
                                           event_state,
                                           event_state_prev_press_time_ms_p,
                                           (GHOST_TEventType)type);
-      wm_event_add(win, &event);
+      wm_event_add_intern(win, &event);
 
       break;
     }
