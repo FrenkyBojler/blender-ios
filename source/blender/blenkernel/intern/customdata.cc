@@ -2630,19 +2630,27 @@ void CustomData_free(CustomData *data)
   CustomData_reset(data);
 }
 
+static int customData_pad_to_alignment(int value, int alignment)
+{
+  return (value + alignment - 1) & ~(alignment - 1);
+}
+
 static void customData_update_offsets(CustomData *data)
 {
   const LayerTypeInfo *typeInfo;
   int offset = 0;
+  int max_alignment = 1;
 
   for (int i = 0; i < data->totlayer; i++) {
     typeInfo = layerType_getInfo(eCustomDataType(data->layers[i].type));
+    offset = customData_pad_to_alignment(offset, typeInfo->alignment);
 
     data->layers[i].offset = offset;
     offset += typeInfo->size;
+    max_alignment = std::max(max_alignment, typeInfo->alignment);
   }
 
-  data->totsize = offset;
+  data->totsize = customData_pad_to_alignment(offset, max_alignment);
   CustomData_update_typemap(data);
 }
 
