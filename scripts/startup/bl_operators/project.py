@@ -156,6 +156,21 @@ def load_project_for_blend_path(context, blend_path: str, clear_dirty_flag: bool
         context.project.is_dirty = False
 
 
+def blend_file_is_in_valid_project(blend_file_path: Path) -> bool:
+    project_root = find_project_root_from_blend_file_path(blend_file_path)
+    if project_root is None:
+        return False
+
+    try:
+        config_dict = read_project_toml_config(project_root)
+        validate_config(config_dict)
+    except ProjectLoadException:
+        # No valid project found.
+        return False
+
+    return True
+
+
 # --------------------------------------------------------------
 
 class PROJECT_OP_NewProject(Operator):
@@ -194,20 +209,11 @@ class PROJECT_OP_NewProject(Operator):
         # would already be loaded in that case, and thus `poll()` would fail.
         # But if someone manually calls `context.project.clear()` then this can
         # happen.
-        existing_project_root = find_project_root_from_blend_file_path(Path(bpy.data.filepath))
-        if existing_project_root is not None:
-            try:
-                config_dict = read_project_toml_config(existing_project_root)
-                validate_config(config_dict)
-            except ProjectLoadException:
-                # No valid project found, which is what we expect.
-                # So continue with creating the new project below.
-                pass
-            else:
-                self.report(
-                    {'ERROR'},
-                    "New project directory is already inside of an existing project. Try reloading the current blend file to open the existing project.")
-                return {'CANCELLED'}
+        if blend_file_is_in_valid_project(Path(bpy.data.filepath)):
+            self.report(
+                {'ERROR'},
+                "New project directory is already inside of an existing project. Try reloading the current blend file to open the existing project.")
+            return {'CANCELLED'}
 
         # Create the project.
         context.project.init("New Project", self.directory)
@@ -225,7 +231,7 @@ class PROJECT_OP_NewProject(Operator):
         # Set our initial path as the directory that contains the currently open
         # blend file.
         dirpath = os.path.dirname(bpy.data.filepath)
-        if dirpath is not "":
+        if dirpath != "":
             self.directory = dirpath
 
         context.window_manager.fileselect_add(self)
@@ -249,6 +255,49 @@ class PROJECT_OP_SaveProject(Operator):
             return {'CANCELLED'}
 
         return {'FINISHED'}
+
+
+class PROJECT_OP_OpenBlendInProject(Operator):
+    """Opens a blend file, but only if it's inside of a project."""
+    bl_idname = "project.open_blend_in_project"
+    bl_label = "Open File..."
+
+    filepath: bpy.props.StringProperty(
+        name="Blend file path",
+        subtype='FILE_PATH',
+        default="",
+    )
+
+    filter_folder: bpy.props.BoolProperty(
+        name="Filter folders",
+        default=True,
+        options={'HIDDEN'},
+    )
+
+    filter_blender: bpy.props.BoolProperty(
+        name="Filter blend files",
+        default=True,
+        options={'HIDDEN'},
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        if not blend_file_is_in_valid_project(Path(self.filepath)):
+            self.report(
+                {'ERROR'},
+                "Selected blend file is not part of a project.")
+            return {'CANCELLED'}
+
+        bpy.ops.wm.open_mainfile(filepath=self.filepath)
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 
 # -----------------------------------------------------------------------------
@@ -294,7 +343,8 @@ def on_exit():
 
 classes = (
     PROJECT_OP_NewProject,
-    PROJECT_OP_SaveProject
+    PROJECT_OP_SaveProject,
+    PROJECT_OP_OpenBlendInProject,
 )
 
 

@@ -201,7 +201,7 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
             col_flow = col.column_flow(columns=3)
             col_flow.separator_spacer()
-            col_flow.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
+            col_flow.operator("project.open_blend_in_project", icon='FILE_FOLDER')
             col_flow.separator_spacer()
         elif context.project.data is None:
             col.label(text="No active project.", icon='INFO')
@@ -219,7 +219,7 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
             col_flow = col.column_flow(columns=3)
             col_flow.separator_spacer()
-            col_flow.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
+            col_flow.operator("project.open_blend_in_project", icon='FILE_FOLDER')
             col_flow.separator_spacer()
         else:
             col.prop(project.data, "name")
