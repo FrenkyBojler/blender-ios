@@ -1362,9 +1362,6 @@ static void bm_to_mesh_verts(const BMesh &bm,
                              MutableSpan<bool> select_vert,
                              MutableSpan<bool> hide_vert)
 {
-  CustomData_free_layer_named(&mesh.vert_data, "position");
-  CustomData_add_layer_named(
-      &mesh.vert_data, CD_PROP_FLOAT3, CD_CONSTRUCT, mesh.verts_num, "position");
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
       bm.vdata, bke::AttrDomain::Point, mesh);
   MutableSpan<float3> dst_vert_positions = mesh.vert_positions_for_write();
@@ -1406,8 +1403,6 @@ static void bm_to_mesh_edges(const BMesh &bm,
                              MutableSpan<bool> sharp_edge,
                              MutableSpan<bool> uv_seams)
 {
-  bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  attributes.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
       bm.edata, bke::AttrDomain::Edge, mesh);
   MutableSpan<int2> dst_edges = mesh.edges_for_write();
@@ -1695,6 +1690,11 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
                                                                   AttrDomain::Face);
   }
 
+  attrs.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+  attrs.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
+  attrs.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  attrs.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+
   /* Loop over all elements in parallel, copying attributes and building the Mesh topology. */
   threading::parallel_invoke(
       (mesh->faces_num + mesh->edges_num) > 1024,
@@ -1915,8 +1915,8 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   bke::SpanAttributeWriter<bool> uv_select_face;
   bke::SpanAttributeWriter<int> material_index;
 
+  bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
   if (add_mesh_attributes) {
-    bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
     if (need_select_vert) {
       select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".select_vert",
                                                                   AttrDomain::Point);
@@ -1960,6 +1960,11 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
                                                                     AttrDomain::Face);
     }
   }
+
+  attrs.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+  attrs.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
+  attrs.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  attrs.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
 
   /* Loop over all elements in parallel, copying attributes and building the Mesh topology. */
   threading::parallel_invoke(
