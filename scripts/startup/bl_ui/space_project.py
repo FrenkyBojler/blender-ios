@@ -190,32 +190,36 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
                 icon='WARNING_LARGE')
             col.label(
                 text="be part of the project.")
-            row = col.row()
-            split = row.split(factor=0.3)
-            split.operator("wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
+            col_flow = col.column_flow(columns=3)
+            col_flow.label(text="")
+            col_flow.operator("wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
+            col_flow.label(text="")
 
             col.separator_spacer()
 
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
-            row = col.row()
-            split = row.split(factor=0.3)
-            split.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
+            col_flow = col.column_flow(columns=3)
+            col_flow.label(text="")
+            col_flow.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
+            col_flow.label(text="")
         elif context.project.data is None:
             col.label(text="No active project.", icon='INFO')
 
             col.separator_spacer()
 
             col.label(text="Set up a new project by choosing any parent directory of the current file.")
-            row = col.row()
-            split = row.split(factor=0.3)
-            split.operator("project.new_project", text="New Project...", icon='ADD')
+            col_flow = col.column_flow(columns=3)
+            col_flow.label(text="")
+            col_flow.operator("project.new_project", text="New Project...", icon='ADD')
+            col_flow.label(text="")
 
             col.separator_spacer()
 
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
-            row = col.row()
-            split = row.split(factor=0.3)
-            split.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
+            col_flow = col.column_flow(columns=3)
+            col_flow.label(text="")
+            col_flow.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
+            col_flow.label(text="")
         else:
             col.prop(project.data, "name")
             col.prop(project.data, "root_path")
