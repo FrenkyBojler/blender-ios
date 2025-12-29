@@ -11,9 +11,9 @@
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_fullscreen_lib.glsl"
-#include "workbench_cavity_lib.glsl"
+#include "workbench_cavity.bsl.hh"
 #include "workbench_common.bsl.hh"
-#include "workbench_curvature_lib.glsl"
+#include "workbench_curvature.bsl.hh"
 #include "workbench_defines.hh"
 #include "workbench_matcap.bsl.hh"
 #include "workbench_world_light.bsl.hh"

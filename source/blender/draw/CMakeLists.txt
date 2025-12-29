@@ -607,11 +607,11 @@ set(GLSL_SRC
   engines/eevee/eevee_velocity_shared.hh
   engines/eevee/eevee_volume_shared.hh
 
-  engines/workbench/shaders/workbench_cavity_lib.glsl
+  engines/workbench/shaders/workbench_cavity.bsl.hh
   engines/workbench/shaders/workbench_common.bsl.hh
   engines/workbench/shaders/workbench_common_lib.glsl
   engines/workbench/shaders/workbench_composite.bsl.hh
-  engines/workbench/shaders/workbench_curvature_lib.glsl
+  engines/workbench/shaders/workbench_curvature.bsl.hh
   engines/workbench/shaders/workbench_effect_dof_prepare_frag.glsl
   engines/workbench/shaders/workbench_effect_dof_downsample_frag.glsl
   engines/workbench/shaders/workbench_effect_dof_blur1_frag.glsl
