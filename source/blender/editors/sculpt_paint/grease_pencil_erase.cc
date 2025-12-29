@@ -913,12 +913,161 @@ struct EraseOperationExecutor {
     return true;
   }
 
+  bool carve_eraser(const Object &ob_eval,
+                    Object &obact,
+                    const ARegion &region,
+                    const bke::greasepencil::Drawing &drawing,
+                    const bke::CurvesGeometry &src,
+                    const ed::greasepencil::DrawingPlacement &placement,
+                    const Span<float2> screen_space_positions,
+                    const float4x4 &layer_to_world,
+                    bke::CurvesGeometry &dst,
+                    const bool keep_caps) const
+  {
+    using namespace ed::greasepencil;
+    Array<int2> mcoords(4);
+
+    mcoords[0] = int2(-1, -1) * this->eraser_radius + this->mouse_position_pixels;
+    mcoords[1] = int2(-1, 1) * this->eraser_radius + this->mouse_position_pixels;
+    mcoords[2] = int2(1, 1) * this->eraser_radius + this->mouse_position_pixels;
+    mcoords[3] = int2(1, -1) * this->eraser_radius + this->mouse_position_pixels;
+
+    const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+
+    /* Get evaluated geometry. */
+    bke::crazyspace::GeometryDeformation deformation =
+        bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(&ob_eval, obact, drawing);
+
+    // /* Compute screen space positions. */
+    // Array<float2> screen_space_positions(src.points_num());
+    // threading::parallel_for(src.points_range(), 4096, [&](const IndexRange src_points) {
+    //   for (const int src_point : src_points) {
+    //     screen_space_positions[src_point] = ED_view3d_project_float_v2_m4(
+    //         &region, deformation.positions[src_point], projection);
+    //   }
+    // });
+
+    Array<float2> cut_pos2d(mcoords.size());
+    threading::parallel_for(mcoords.index_range(), 4096, [&](const IndexRange i_range) {
+      for (const int i : i_range) {
+        cut_pos2d[i] = float2(mcoords[i]);
+      }
+    });
+
+    const Span<float3> normals = drawing.curve_plane_normals();
+
+    Array<float4> normal_planes(src.curves_num());
+    threading::parallel_for(src.curves_range(), 4096, [&](const IndexRange src_curves) {
+      for (const int src_curve : src_curves) {
+        const float3 &normal = normals[src_curve];
+        const IndexRange points = src_points_by_curve[src_curve];
+        const float3 &point = deformation.positions[points.first()];
+        normal_planes[src_curve] = float4(normal, -math::dot(point, normal));
+      }
+    });
+
+    bke::CurvesGeometry input_curves = bke::CurvesGeometry(src);
+    input_curves.resize(src.points_num() + mcoords.size(), src.curves_num() + 1);
+    input_curves.offsets_for_write().last() = src.points_num() + mcoords.size();
+
+    bke::MutableAttributeAccessor attributes = input_curves.attributes_for_write();
+
+    bke::SpanAttributeWriter<float2> pos_writer = attributes.lookup_or_add_for_write_span<float2>(
+        ".positions_2d", bke::AttrDomain::Point);
+
+    pos_writer.span.slice(src.points_range()).copy_from(screen_space_positions);
+    pos_writer.span.take_back(mcoords.size()).copy_from(cut_pos2d);
+    pos_writer.finish();
+
+    placement.project(cut_pos2d, input_curves.positions_for_write().take_back(mcoords.size()));
+
+    /* TODO(@filedescriptor): This can be remove when the material fill rework is done. */
+    {
+      const VArray<int> materials = *attributes.lookup_or_default<int>(
+          "material_index", bke::AttrDomain::Curve, -1);
+
+      VectorSet<int> fill_material_indices;
+      for (const int mat_i : IndexRange(obact.totcol)) {
+        Material *material = BKE_object_material_get(&obact, mat_i + 1);
+        if (material != nullptr && material->gp_style != nullptr &&
+            (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0)
+        {
+          fill_material_indices.add_new(mat_i);
+        }
+      }
+
+      Array<bool> use_fill(src.curves_num());
+      for (const int i : src.curves_range()) {
+        const int mat_index = materials[i];
+        use_fill[i] = fill_material_indices.contains(mat_index);
+      }
+
+      bke::SpanAttributeWriter<bool> fill_writer = attributes.lookup_or_add_for_write_span<bool>(
+          "is_fill", bke::AttrDomain::Curve);
+      fill_writer.span.drop_back(1).copy_from(use_fill);
+      fill_writer.finish();
+    }
+
+    bke::SpanAttributeWriter<bool> fill_writer = attributes.lookup_or_add_for_write_span<bool>(
+        "is_fill", bke::AttrDomain::Curve);
+    fill_writer.span.last() = true;
+    fill_writer.finish();
+
+    const IndexRange clipping_points = IndexRange::from_begin_size(src.points_num(),
+                                                                   mcoords.size());
+    const IndexRange clipping_curves = IndexRange::from_single(src.curves_num());
+
+    input_curves.fill_curve_types(clipping_curves, CURVE_TYPE_POLY);
+
+    /* Initialize the rest of the attributes with default values. */
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref({"position", ".positions_2d"}),
+        clipping_points);
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Curve,
+        bke::attribute_filter_from_skip_ref({"is_fill", "cyclic", "curve_type"}),
+        clipping_curves);
+
+    carver::CurveBooleanOpParameters op_params;
+    op_params.boolean_mode = carver::Operation::Difference;
+
+    /* TODO. */
+    bke::greasepencil::Drawing drawing_temp(drawing);
+    drawing_temp.strokes_for_write() = std::move(input_curves);
+    drawing_temp.tag_topology_changed();
+
+    const std::optional<GroupedSpan<int>> shapes = drawing_temp.shapes();
+    const int num_shapes = shapes.has_value() ? shapes->size() :
+                                                drawing_temp.strokes().curves_num();
+
+    const IndexRange shape_mask = IndexRange(num_shapes);
+    const IndexRange clipping_shapes = IndexRange::from_single(num_shapes - 1);
+
+    dst = carver::curve_boolean(op_params,
+                                drawing_temp.strokes(),
+                                shapes,
+                                normal_planes,
+                                shape_mask,
+                                clipping_shapes,
+                                layer_to_world,
+                                region,
+                                keep_caps);
+
+    dst.attributes_for_write().remove(".positions_2d");
+
+    return true;
+  }
+
   void execute(EraseOperation &self, const bContext &C, const InputSample &extension_sample)
   {
     using namespace blender::bke::greasepencil;
     Scene *scene = CTX_data_scene(&C);
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
     ARegion *region = CTX_wm_region(&C);
+    View3D *view3d = CTX_wm_view3d(&C);
     Object *obact = CTX_data_active_object(&C);
     Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
@@ -993,6 +1142,24 @@ struct EraseOperationExecutor {
           break;
         case GP_BRUSH_ERASER_SOFT:
           erased = soft_eraser(*obact, src, screen_space_positions, dst, self.keep_caps_);
+          break;
+        case GP_BRUSH_ERASER_CARVE:
+          const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
+
+          /* Initialize helper class for projecting screen space coordinates. */
+          ed::greasepencil::DrawingPlacement placement = ed::greasepencil::DrawingPlacement(
+              *scene, *region, *view3d, *ob_eval, &layer);
+
+          erased = carve_eraser(*ob_eval,
+                                *obact,
+                                *region,
+                                drawing,
+                                src,
+                                placement,
+                                screen_space_positions,
+                                layer_to_world,
+                                dst,
+                                self.keep_caps_);
           break;
       }
 

@@ -164,6 +164,7 @@ enum eGP_BrushEraserMode {
   GP_BRUSH_ERASER_SOFT = 0,
   GP_BRUSH_ERASER_HARD = 1,
   GP_BRUSH_ERASER_STROKE = 2,
+  GP_BRUSH_ERASER_CARVE = 3,
 };
 
 /* BrushGpencilSettings->brush_draw_mode */
