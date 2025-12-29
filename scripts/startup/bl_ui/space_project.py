@@ -181,19 +181,25 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         col = layout.column()
 
         if context.blend_data.filepath == "":
+            col.label(text="No active project.", icon='INFO')
+
+            col.separator_spacer()
+
             col.label(
-                text="Save the current file, and make sure to place it in a folder that will be part of the project.",
+                text="Save the current file, and make sure to place it in a folder that will",
                 icon='WARNING_LARGE')
+            col.label(
+                text="be part of the project.")
             row = col.row()
             split = row.split(factor=0.3)
-            split.operator("wm.save_as_mainfile", text="Save File...")
+            split.operator("wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
 
             col.separator_spacer()
 
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
             row = col.row()
             split = row.split(factor=0.3)
-            split.operator("wm.open_mainfile", text="Open File...")
+            split.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
         elif context.project.data is None:
             col.label(text="No active project.", icon='INFO')
 
@@ -202,14 +208,14 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
             col.label(text="Set up a new project by choosing any parent directory of the current file.")
             row = col.row()
             split = row.split(factor=0.3)
-            split.operator("project.new_project", text="New Project...")
+            split.operator("project.new_project", text="New Project...", icon='ADD')
 
             col.separator_spacer()
 
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
             row = col.row()
             split = row.split(factor=0.3)
-            split.operator("wm.open_mainfile", text="Open File...")
+            split.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
         else:
             col.prop(project.data, "name")
             col.prop(project.data, "root_path")
