@@ -896,7 +896,7 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
 {
   AttributeAccessorFunctions fn{};
   fn.domain_supported = [](const void * /*owner*/, const AttrDomain domain) {
-    return ELEM(domain, AttrDomain::Point, AttrDomain::Curve);
+    return ELEM(domain, AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face, AttrDomain::Corner);
   };
   fn.domain_size = get_domain_size;
   fn.builtin_domain_and_type = [](const void * /*owner*/,
