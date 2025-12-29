@@ -21,19 +21,12 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_curve.hh"
 #include "BKE_global.hh"
-#include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_update_cache_legacy.h"
-#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_mesh_types.hh"
-#include "BKE_object_types.hh"
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
@@ -44,15 +37,11 @@
 #include "DNA_ID.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_sequence_types.h"
-#include "DNA_sound_types.h"
 
 #include "DRW_engine.hh"
 
@@ -69,16 +58,15 @@
 #  include "DNA_world_types.h"
 #endif
 
-#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"
-#include "BKE_sound.h"
 
 #include "SEQ_relations.hh"
 
@@ -98,17 +86,15 @@ namespace blender::deg {
 namespace {
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
-union NestedIDHackTempStorage {
-  Curve curve;
-  FreestyleLineStyle linestyle;
-  Light lamp;
-  Lattice lattice;
-  Material material;
-  Mesh mesh;
-  Scene scene;
-  Tex tex;
-  World world;
-};
+constexpr size_t NestedIDHackTempStorage = std::max({sizeof(Curve),
+                                                     sizeof(FreestyleLineStyle),
+                                                     sizeof(Light),
+                                                     sizeof(Lattice),
+                                                     sizeof(Material),
+                                                     sizeof(Mesh),
+                                                     sizeof(Scene),
+                                                     sizeof(Tex),
+                                                     sizeof(World)});
 
 /* Set nested owned ID pointers to nullptr. */
 void nested_id_hack_discard_pointers(ID *id_cow)
@@ -132,9 +118,6 @@ void nested_id_hack_discard_pointers(ID *id_cow)
 
     case ID_SCE: {
       Scene *scene_cow = (Scene *)id_cow;
-      /* Node trees always have their own ID node in the graph, and are
-       * being copied as part of their copy-on-evaluation process. */
-      scene_cow->nodetree = nullptr;
       /* Tool settings pointer is shared with the original scene. */
       scene_cow->toolsettings = nullptr;
       break;
@@ -158,14 +141,15 @@ void nested_id_hack_discard_pointers(ID *id_cow)
 /* Set ID pointer of nested owned IDs (nodetree, key) to nullptr.
  *
  * Return pointer to a new ID to be used. */
-const ID *nested_id_hack_get_discarded_pointers(NestedIDHackTempStorage *storage, const ID *id)
+const ID *nested_id_hack_get_discarded_pointers(void *storage, const ID *id)
 {
   switch (GS(id->name)) {
 #  define SPECIAL_CASE(id_type, dna_type, field, variable) \
     case id_type: { \
-      storage->variable = dna::shallow_copy(*(dna_type *)id); \
-      storage->variable.field = nullptr; \
-      return &storage->variable.id; \
+      dna_type *data = static_cast<dna_type *>(storage); \
+      *data = dna::shallow_copy(*(dna_type *)id); \
+      data->field = nullptr; \
+      return &data->id; \
     }
 
     SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree, linestyle)
@@ -179,10 +163,11 @@ const ID *nested_id_hack_get_discarded_pointers(NestedIDHackTempStorage *storage
     SPECIAL_CASE(ID_ME, Mesh, key, mesh)
 
     case ID_SCE: {
-      storage->scene = *(Scene *)id;
-      storage->scene.toolsettings = nullptr;
-      storage->scene.nodetree = nullptr;
-      return &storage->scene.id;
+      Scene *scene = static_cast<Scene *>(storage);
+      *scene = blender::dna::shallow_copy(*(Scene *)id);
+      scene->toolsettings = nullptr;
+      scene->nodetree = nullptr;
+      return &scene->id;
     }
 
 #  undef SPECIAL_CASE
@@ -209,7 +194,6 @@ void nested_id_hack_restore_pointers(const ID *old_id, ID *new_id)
     SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree)
     SPECIAL_CASE(ID_LA, Light, nodetree)
     SPECIAL_CASE(ID_MA, Material, nodetree)
-    SPECIAL_CASE(ID_SCE, Scene, nodetree)
     SPECIAL_CASE(ID_TE, Tex, nodetree)
     SPECIAL_CASE(ID_WO, World, nodetree)
 
@@ -246,7 +230,6 @@ void ntree_hack_remap_pointers(const Depsgraph *depsgraph, ID *id_cow)
     SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree, bNodeTree)
     SPECIAL_CASE(ID_LA, Light, nodetree, bNodeTree)
     SPECIAL_CASE(ID_MA, Material, nodetree, bNodeTree)
-    SPECIAL_CASE(ID_SCE, Scene, nodetree, bNodeTree)
     SPECIAL_CASE(ID_TE, Tex, nodetree, bNodeTree)
     SPECIAL_CASE(ID_WO, World, nodetree, bNodeTree)
 
@@ -280,7 +263,7 @@ bool id_copy_inplace_no_main(const ID *id, ID *newid)
   }
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
-  NestedIDHackTempStorage id_hack_storage;
+  uint8_t id_hack_storage[NestedIDHackTempStorage];
   id_for_copy = nested_id_hack_get_discarded_pointers(&id_hack_storage, id);
 #endif
 
@@ -305,11 +288,11 @@ bool scene_copy_inplace_no_main(const Scene *scene, Scene *new_scene)
 {
 
   if (G.debug & G_DEBUG_DEPSGRAPH_UID) {
-    SEQ_relations_check_uids_unique_and_report(scene);
+    seq::relations_check_uids_unique_and_report(scene);
   }
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
-  NestedIDHackTempStorage id_hack_storage;
+  uint8_t id_hack_storage[NestedIDHackTempStorage];
   const ID *id_for_copy = nested_id_hack_get_discarded_pointers(&id_hack_storage, &scene->id);
 #else
   const ID *id_for_copy = &scene->id;
@@ -413,7 +396,7 @@ void view_layer_remove_disabled_bases(const Depsgraph *depsgraph,
   if (view_layer == nullptr) {
     return;
   }
-  ListBase enabled_bases = {nullptr, nullptr};
+  ListBaseT<Base> enabled_bases = {nullptr, nullptr};
   BKE_view_layer_synced_ensure(scene, view_layer);
   LISTBASE_FOREACH_MUTABLE (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     /* TODO(sergey): Would be cool to optimize this somehow, or make it so
@@ -508,7 +491,7 @@ int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
     ID *id_cow = depsgraph->get_cow_id(id_orig);
     BLI_assert(id_cow != nullptr);
     DEG_COW_PRINT(
-        "    Remapping datablock for %s: id_orig=%p id_cow=%p\n", id_orig->name, id_orig, id_cow);
+        "    Remapping data-block for %s: id_orig=%p id_cow=%p\n", id_orig->name, id_orig, id_cow);
     *id_p = id_cow;
   }
   return IDWALK_RET_NOP;
@@ -728,16 +711,6 @@ void update_id_after_copy(const Depsgraph *depsgraph,
       scene_setup_view_layers_after_remap(depsgraph, id_node, reinterpret_cast<Scene *>(id_cow));
       break;
     }
-    /* FIXME: This is a temporary fix to update the runtime pointers properly, see #96216. Should
-     * be removed at some point. */
-    case ID_GD_LEGACY: {
-      bGPdata *gpd_cow = (bGPdata *)id_cow;
-      bGPDlayer *gpl = (bGPDlayer *)(gpd_cow->layers.first);
-      if (gpl != nullptr && gpl->runtime.gpl_orig == nullptr) {
-        BKE_gpencil_data_update_orig_pointers((bGPdata *)id_orig, gpd_cow);
-      }
-      break;
-    }
     default:
       break;
   }
@@ -780,13 +753,17 @@ ID *deg_expand_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
   DEG_COW_PRINT(
       "Expanding datablock for %s: id_orig=%p id_cow=%p\n", id_orig->name, id_orig, id_cow);
 
-  /* Sanity checks. */
+  /* Sanity checks.
+   *
+   * At this point, `id_cow` is essentially considered as a (partially dirty) allocated buffer (it
+   * has been freed, but not fully cleared, as a result of calling #deg_free_eval_copy_datablock on
+   * it). It is not expected to have any valid sub-data, not even a valid `ID::runtime` pointer.
+   */
   BLI_assert(check_datablock_expanded(id_cow) == false);
   BLI_assert(id_cow->py_instance == nullptr);
+  BLI_assert(id_cow->runtime == nullptr);
 
   /* Copy data from original ID to a copied version. */
-  /* TODO(sergey): Avoid doing full ID copy somehow, make Mesh to reference
-   * original geometry arrays for until those are modified. */
   /* TODO(sergey): We do some trickery with temp bmain and extra ID pointer
    * just to be able to use existing API. Ideally we need to replace this with
    * in-place copy from existing datablock to a prepared memory.
@@ -898,11 +875,10 @@ ID *deg_update_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
   return id_cow;
 }
 
-/**
- * \note Depsgraph is supposed to have ID node already.
- */
 ID *deg_update_eval_copy_datablock(const Depsgraph *depsgraph, ID *id_orig)
 {
+  /* NOTE: Depsgraph is supposed to have ID node already. */
+
   IDNode *id_node = depsgraph->find_id_node(id_orig);
   BLI_assert(id_node != nullptr);
   return deg_update_eval_copy_datablock(depsgraph, id_node);
@@ -1050,7 +1026,7 @@ void deg_tag_eval_copy_id(deg::Depsgraph &depsgraph, ID *id_cow, const ID *id_or
   /* This ID is no longer localized, is a self-sustaining copy now. */
   id_cow->tag &= ~ID_TAG_LOCALIZED;
   id_cow->orig_id = (ID *)id_orig;
-  id_cow->runtime.depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
+  id_cow->runtime->depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
 }
 
 bool deg_eval_copy_is_expanded(const ID *id_cow)

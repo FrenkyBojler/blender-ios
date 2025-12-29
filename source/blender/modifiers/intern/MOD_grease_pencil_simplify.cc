@@ -12,7 +12,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
@@ -26,7 +25,7 @@
 #include "GEO_resample_curves.hh"
 #include "GEO_simplify_curves.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "MOD_grease_pencil_util.hh"
@@ -40,10 +39,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *gpmd = reinterpret_cast<GreasePencilSimplifyModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilSimplifyModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, true);
 }
 
@@ -67,7 +63,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *mmd = reinterpret_cast<const GreasePencilSimplifyModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilSimplifyModifierData, mmd);
+  writer->write_struct(mmd);
   modifier::greasepencil::write_influence_data(writer, &mmd->influence);
 }
 
@@ -100,8 +96,10 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
                              const Object &ob,
                              bke::greasepencil::Drawing &drawing)
 {
-  IndexMaskMemory memory;
+  modifier::greasepencil::ensure_no_bezier_curves(drawing);
   const bke::CurvesGeometry &curves = drawing.strokes();
+
+  IndexMaskMemory memory;
   const IndexMask strokes = modifier::greasepencil::get_filtered_stroke_mask(
       &ob, curves, mmd.influence, memory);
   if (strokes.is_empty()) {
@@ -135,7 +133,7 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
     }
     case MOD_GREASE_PENCIL_SIMPLIFY_SAMPLE: {
       drawing.strokes_for_write() = geometry::resample_to_length(
-          curves, strokes, VArray<float>::ForSingle(mmd.length, curves.curves_num()), {});
+          curves, strokes, VArray<float>::from_single(mmd.length, curves.curves_num()), {});
       break;
     }
     case MOD_GREASE_PENCIL_SIMPLIFY_MERGE: {
@@ -194,38 +192,38 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
   int mode = RNA_enum_get(ptr, "mode");
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (mode == MOD_GREASE_PENCIL_SIMPLIFY_FIXED) {
-    uiItemR(layout, ptr, "step", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(ptr, "step", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (mode == MOD_GREASE_PENCIL_SIMPLIFY_ADAPTIVE) {
-    uiItemR(layout, ptr, "factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (mode == MOD_GREASE_PENCIL_SIMPLIFY_SAMPLE) {
-    uiItemR(layout, ptr, "length", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(layout, ptr, "sharp_threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "sharp_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (mode == MOD_GREASE_PENCIL_SIMPLIFY_MERGE) {
-    uiItemR(layout, ptr, "distance", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(ptr, "distance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+  if (ui::Layout *influence_panel = layout.panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
-    modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
+    modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -270,4 +268,5 @@ ModifierTypeInfo modifierType_GreasePencilSimplify = {
     /*blend_write*/ blender::blend_write,
     /*blend_read*/ blender::blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

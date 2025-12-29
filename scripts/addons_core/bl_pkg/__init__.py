@@ -4,7 +4,9 @@
 
 bl_info = {
     "name": "Blender Extensions",
-    "author": "Campbell Barton",
+    # This is now displayed as the maintainer, so show the foundation.
+    # "author": "Campbell Barton", # Original Author
+    "author": "Blender Foundation",
     "version": (0, 0, 1),
     "blender": (4, 0, 0),
     "location": "Edit -> Preferences -> Extensions",
@@ -27,6 +29,7 @@ from bpy.props import (
     BoolProperty,
     EnumProperty,
     PointerProperty,
+    CollectionProperty,
     StringProperty,
 )
 
@@ -52,7 +55,7 @@ def _local_module_reload():
 
 class StatusInfoUI:
     __slots__ = (
-        # The the title of the status/notification.
+        # The title of the status/notification.
         "title",
         # The result of an operation.
         "log",
@@ -102,6 +105,7 @@ def manifest_compatible_with_wheel_data_or_error(
     from bl_pkg.bl_extension_utils import (
         pkg_manifest_dict_is_valid_or_error,
         toml_from_filepath,
+        python_versions_from_wheels,
     )
     from bl_pkg.bl_extension_ops import (
         pkg_manifest_params_compatible_or_error_for_this_system,
@@ -115,20 +119,56 @@ def manifest_compatible_with_wheel_data_or_error(
     if (error := pkg_manifest_dict_is_valid_or_error(manifest_dict, from_repo=False, strict=False)):
         return error
 
+    # NOTE: this is not type checked here to be `list[str]` (expected type).
+    # account for an invalid value in the following checks.
+    wheels_rel = manifest_dict.get("wheels")
+
+    python_versions = []
+    if wheels_rel:
+        try:
+            python_versions_test = python_versions_from_wheels(wheels_rel)
+        except Exception as ex:
+            # This should only ever happen for invalid wheels.
+            python_versions_test = "Error extracting Python version from wheels: {:s} from \"{:s}\"".format(
+                str(ex),
+                pkg_manifest_filepath,
+            )
+
+        if isinstance(python_versions_test, str):
+            print("Error parsing wheel versions: {:s} from \"{:s}\"".format(
+                python_versions_test,
+                pkg_manifest_filepath,
+            ))
+        else:
+            python_versions = [
+                ".".join(str(i) for i in v)
+                for v in python_versions_test
+            ]
+
     if isinstance(error := pkg_manifest_params_compatible_or_error_for_this_system(
             blender_version_min=manifest_dict.get("blender_version_min", ""),
             blender_version_max=manifest_dict.get("blender_version_max", ""),
             platforms=manifest_dict.get("platforms", ""),
+            python_versions=python_versions,
     ), str):
         return error
 
     # NOTE: the caller may need to collect wheels when refreshing.
     # While this isn't so clean it happens to be efficient.
     # It could be refactored to work differently in the future if that is ever needed.
-    if wheels_rel := manifest_dict.get("wheels"):
+    if wheels_rel:
         from .bl_extension_ops import pkg_wheel_filter
-        if (wheel_abs := pkg_wheel_filter(repo_module, pkg_id, repo_directory, wheels_rel)) is not None:
-            wheel_list.append(wheel_abs)
+        try:
+            wheels_abs = pkg_wheel_filter(repo_module, pkg_id, repo_directory, wheels_rel)
+        except Exception as ex:
+            print("Error parsing wheel versions: {:s} from \"{:s}\"".format(
+                str(ex),
+                pkg_manifest_filepath,
+            ))
+            wheels_abs = None
+
+        if wheels_abs is not None:
+            wheel_list.append(wheels_abs)
 
     return None
 
@@ -569,6 +609,7 @@ _repo_cache_store = None
 def repo_cache_store_ensure():
     # pylint: disable-next=global-statement
     global _repo_cache_store
+    import sys
 
     if _repo_cache_store is not None:
         return _repo_cache_store
@@ -577,7 +618,10 @@ def repo_cache_store_ensure():
         bl_extension_ops,
         bl_extension_utils,
     )
-    _repo_cache_store = bl_extension_utils.RepoCacheStore(bpy.app.version)
+    _repo_cache_store = bl_extension_utils.RepoCacheStore(
+        blender_version=bpy.app.version,
+        python_version=sys.version_info[:3],
+    )
     bl_extension_ops.repo_cache_store_refresh_from_prefs(_repo_cache_store)
     return _repo_cache_store
 
@@ -632,8 +676,10 @@ def cli_extension(argv):
 
 
 class BlExtDummyGroup(bpy.types.PropertyGroup):
-    # Dummy.
-    pass
+    __slots__ = ()
+
+    name: StringProperty()
+    show_tag: BoolProperty()
 
 
 # -----------------------------------------------------------------------------
@@ -647,13 +693,19 @@ cli_commands = []
 
 
 def register():
+    from bpy.app.translations import pgettext_rpt as rpt_
+
     prefs = bpy.context.preferences
 
     from bpy.types import WindowManager
     from . import (
         bl_extension_ops,
         bl_extension_ui,
+        bl_extension_utils,
     )
+
+    # Override NOP with Blender function.
+    bl_extension_utils.rpt_ = rpt_
 
     # Needed, otherwise the UI gets filtered out, see: #122754.
     from _bpy import _bl_owner_id_set as bl_owner_id_set
@@ -668,11 +720,11 @@ def register():
     bl_extension_ops.register()
     bl_extension_ui.register()
 
-    WindowManager.addon_tags = PointerProperty(
+    WindowManager.addon_tags = CollectionProperty(
         name="Addon Tags",
         type=BlExtDummyGroup,
     )
-    WindowManager.extension_tags = PointerProperty(
+    WindowManager.extension_tags = CollectionProperty(
         name="Extension Tags",
         type=BlExtDummyGroup,
     )
@@ -684,12 +736,19 @@ def register():
     )
     WindowManager.extension_type = EnumProperty(
         items=(
+            ('ALL', "All", "Show all extension types"),
+            None,
             ('ADDON', "Add-ons", "Only show add-ons"),
             ('THEME', "Themes", "Only show themes"),
         ),
         name="Filter by Type",
         description="Show extensions by type",
         default='ADDON',
+    )
+    WindowManager.extension_use_filter = BoolProperty(
+        name="Filter Extensions",
+        description="Filter Extensions by Tags & Repository",
+        default=False,
     )
     WindowManager.extension_show_panel_installed = BoolProperty(
         name="Show Installed Extensions",
@@ -700,6 +759,21 @@ def register():
         name="Show Installed Extensions",
         description="Only show installed extensions",
         default=True,
+    )
+    WindowManager.extension_repo_filter = EnumProperty(
+        name="Filter by Repository",
+        description="Filter extensions by repository",
+        items=lambda _, context: [
+            # Use `_ALL_` as it's guaranteed never to collide with extension
+            # repository module ID's which cannot start with an underscore
+            ('_ALL_', "All Repositories", "Show extensions from all repositories"),
+            None,
+            *[
+                (repo.module, repo.name, "Only show extensions from this repository")
+                for repo in context.preferences.extensions.repos
+                if repo.enabled
+            ],
+        ],
     )
 
     from bl_ui.space_userpref import USERPREF_MT_interface_theme_presets
@@ -736,8 +810,10 @@ def unregister():
     del WindowManager.extension_tags
     del WindowManager.extension_search
     del WindowManager.extension_type
+    del WindowManager.extension_use_filter
     del WindowManager.extension_show_panel_installed
     del WindowManager.extension_show_panel_available
+    del WindowManager.extension_repo_filter
 
     for cls in classes:
         bpy.utils.unregister_class(cls)

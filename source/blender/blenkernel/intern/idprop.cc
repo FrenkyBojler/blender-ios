@@ -15,14 +15,12 @@
 
 #include <fmt/format.h>
 
-#include "BLI_endian_switch.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 
@@ -32,7 +30,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* IDPropertyTemplate is a union in DNA_ID.h */
 
@@ -42,7 +40,7 @@
  */
 #define IDP_ARRAY_REALLOC_LIMIT 200
 
-static CLG_LogRef LOG = {"bke.idprop"};
+static CLG_LogRef LOG = {"lib.idprop"};
 
 /** Local size table, aligned with #eIDPropertyType. */
 static size_t idp_size_table[] = {
@@ -64,15 +62,14 @@ static size_t idp_size_table[] = {
 /** \name Array Functions (IDP Array API)
  * \{ */
 
-#define GETPROP(prop, i) &(IDP_IDPArray(prop)[i])
+#define GETPROP(prop, i) &(IDP_property_array_get(prop)[i])
 
 IDProperty *IDP_NewIDPArray(const blender::StringRef name)
 {
-  IDProperty *prop = static_cast<IDProperty *>(
-      MEM_callocN(sizeof(IDProperty), "IDProperty prop array"));
+  IDProperty *prop = MEM_new_for_free<IDProperty>("IDProperty prop array");
   prop->type = IDP_IDPARRAY;
   prop->len = 0;
-  name.copy(prop->name);
+  name.copy_utf8_truncated(prop->name);
 
   return prop;
 }
@@ -82,8 +79,7 @@ IDProperty *IDP_CopyIDPArray(const IDProperty *array, const int flag)
   /* don't use MEM_dupallocN because this may be part of an array */
   BLI_assert(array->type == IDP_IDPARRAY);
 
-  IDProperty *narray = static_cast<IDProperty *>(MEM_mallocN(sizeof(IDProperty), __func__));
-  *narray = *array;
+  IDProperty *narray = MEM_new_for_free<IDProperty>(__func__, *array);
 
   narray->data.pointer = MEM_dupallocN(array->data.pointer);
   for (int i = 0; i < narray->len; i++) {
@@ -145,6 +141,29 @@ void IDP_AppendArray(IDProperty *prop, IDProperty *item)
   IDP_SetIndexArray(prop, prop->len - 1, item);
 }
 
+static void idp_group_children_map_ensure(IDProperty &prop)
+{
+  BLI_assert(prop.type == IDP_GROUP);
+  if (!prop.data.children_map) {
+    prop.data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+  }
+}
+
+static int idp_resize_grow_size_calc(const int newsize)
+{
+  /* NOTE: This code comes from python, here's the corresponding comment. */
+  /* This over-allocates proportional to the list size, making room
+   * for additional growth. The over-allocation is mild, but is
+   * enough to give linear-time amortized behavior over a long
+   * sequence of appends() in the presence of a poorly-performing
+   * system realloc().
+   * The growth pattern is:  0, 4, 8, 16, 25, 35, 46, 58, 72, 88, ...
+   */
+  int64_t newsize_test = newsize;
+  newsize_test = (newsize_test >> 3) + (newsize_test < 9 ? 3 : 6) + newsize_test;
+  return int(std::min<int64_t>(newsize_test, std::numeric_limits<int>::max()));
+}
+
 void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
 {
   BLI_assert(prop->type == IDP_IDPARRAY);
@@ -153,7 +172,7 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
   if (newlen <= prop->totallen) {
     if (newlen < prop->len && prop->totallen - newlen < IDP_ARRAY_REALLOC_LIMIT) {
       for (int i = newlen; i < prop->len; i++) {
-        IDP_FreePropertyContent(GETPROP(prop, i));
+        IDP_ClearProperty(GETPROP(prop, i));
       }
 
       prop->len = newlen;
@@ -169,20 +188,11 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
   if (newlen < prop->len) {
     /* newlen is smaller */
     for (int i = newlen; i < prop->len; i++) {
-      IDP_FreePropertyContent(GETPROP(prop, i));
+      IDP_ClearProperty(GETPROP(prop, i));
     }
   }
 
-  /* NOTE: This code comes from python, here's the corresponding comment. */
-  /* This over-allocates proportional to the list size, making room
-   * for additional growth. The over-allocation is mild, but is
-   * enough to give linear-time amortized behavior over a long
-   * sequence of appends() in the presence of a poorly-performing
-   * system realloc().
-   * The growth pattern is:  0, 4, 8, 16, 25, 35, 46, 58, 72, 88, ...
-   */
-  int newsize = newlen;
-  newsize = (newsize >> 3) + (newsize < 9 ? 3 : 6) + newsize;
+  const int newsize = idp_resize_grow_size_calc(newlen);
   prop->data.pointer = MEM_recallocN(prop->data.pointer, sizeof(IDProperty) * size_t(newsize));
   prop->len = newlen;
   prop->totallen = newsize;
@@ -223,17 +233,7 @@ void IDP_ResizeArray(IDProperty *prop, int newlen)
     return;
   }
 
-  /* NOTE: This code comes from python, here's the corresponding comment. */
-  /* This over-allocates proportional to the list size, making room
-   * for additional growth.  The over-allocation is mild, but is
-   * enough to give linear-time amortized behavior over a long
-   * sequence of appends() in the presence of a poorly-performing
-   * system realloc().
-   * The growth pattern is:  0, 4, 8, 16, 25, 35, 46, 58, 72, 88, ...
-   */
-  int newsize = newlen;
-  newsize = (newsize >> 3) + (newsize < 9 ? 3 : 6) + newsize;
-
+  const int newsize = idp_resize_grow_size_calc(newlen);
   if (is_grow == false) {
     idp_resize_group_array(prop, newlen, prop->data.pointer);
   }
@@ -310,7 +310,7 @@ IDPropertyUIData *IDP_ui_data_copy(const IDProperty *prop)
 
 static IDProperty *idp_generic_copy(const IDProperty *prop, const int /*flag*/)
 {
-  IDProperty *newp = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), __func__));
+  IDProperty *newp = MEM_new_for_free<IDProperty>(__func__);
 
   STRNCPY(newp->name, prop->name);
   newp->type = prop->type;
@@ -327,12 +327,13 @@ static IDProperty *idp_generic_copy(const IDProperty *prop, const int /*flag*/)
 
 static IDProperty *IDP_CopyArray(const IDProperty *prop, const int flag)
 {
+  BLI_assert(prop->type == IDP_ARRAY);
   IDProperty *newp = idp_generic_copy(prop, flag);
 
   if (prop->data.pointer) {
     newp->data.pointer = MEM_dupallocN(prop->data.pointer);
 
-    if (prop->type == IDP_GROUP) {
+    if (prop->subtype == IDP_GROUP) {
       IDProperty **array = static_cast<IDProperty **>(newp->data.pointer);
       int a;
 
@@ -359,12 +360,12 @@ IDProperty *IDP_NewStringMaxSize(const char *st,
                                  const blender::StringRef name,
                                  const eIDPropertyFlag flags)
 {
-  IDProperty *prop = static_cast<IDProperty *>(
-      MEM_callocN(sizeof(IDProperty), "IDProperty string"));
+  IDProperty *prop = MEM_new_for_free<IDProperty>("IDProperty string");
 
   if (st == nullptr) {
-    prop->data.pointer = MEM_mallocN(DEFAULT_ALLOC_FOR_NULL_STRINGS, "id property string 1");
-    *IDP_String(prop) = '\0';
+    prop->data.pointer = MEM_malloc_arrayN<char>(DEFAULT_ALLOC_FOR_NULL_STRINGS,
+                                                 "id property string 1");
+    *IDP_string_get(prop) = '\0';
     prop->totallen = DEFAULT_ALLOC_FOR_NULL_STRINGS;
     prop->len = 1; /* nullptr string, has len of 1 to account for null byte. */
   }
@@ -372,7 +373,7 @@ IDProperty *IDP_NewStringMaxSize(const char *st,
     /* include null terminator '\0' */
     const int stlen = int((st_maxncpy > 0) ? BLI_strnlen(st, st_maxncpy - 1) : strlen(st)) + 1;
 
-    prop->data.pointer = MEM_mallocN(size_t(stlen), "id property string 2");
+    prop->data.pointer = MEM_malloc_arrayN<char>(size_t(stlen), "id property string 2");
     prop->len = prop->totallen = stlen;
 
     /* Ensured above, must always be true otherwise null terminator assignment will be invalid. */
@@ -380,11 +381,11 @@ IDProperty *IDP_NewStringMaxSize(const char *st,
     if (stlen > 1) {
       memcpy(prop->data.pointer, st, size_t(stlen));
     }
-    IDP_String(prop)[stlen - 1] = '\0';
+    IDP_string_get(prop)[stlen - 1] = '\0';
   }
 
   prop->type = IDP_STRING;
-  name.copy(prop->name);
+  name.copy_utf8_truncated(prop->name);
   prop->flag = short(flags);
 
   return prop;
@@ -412,10 +413,11 @@ static IDProperty *IDP_CopyString(const IDProperty *prop, const int flag)
   return newp;
 }
 
-/* FIXME: This function is broken for bytes (in case there are null chars in it), needs a
- * dedicated function which takes directly the size of the byte buffer. */
 void IDP_AssignStringMaxSize(IDProperty *prop, const char *st, const size_t st_maxncpy)
 {
+  /* FIXME: This function is broken for bytes (in case there are null chars in it),
+   * needs a dedicated function which takes directly the size of the byte buffer. */
+
   BLI_assert(prop->type == IDP_STRING);
   const bool is_byte = prop->subtype == IDP_STRING_SUB_BYTE;
   const int stlen = int((st_maxncpy > 0) ? BLI_strnlen(st, st_maxncpy - 1) : strlen(st)) +
@@ -424,14 +426,15 @@ void IDP_AssignStringMaxSize(IDProperty *prop, const char *st, const size_t st_m
   if (stlen > 0) {
     memcpy(prop->data.pointer, st, size_t(stlen));
     if (is_byte == false) {
-      IDP_String(prop)[stlen - 1] = '\0';
+      IDP_string_get(prop)[stlen - 1] = '\0';
     }
   }
 }
 
-/* FIXME: Should never be called for `byte` subtype, needs an assert. */
 void IDP_AssignString(IDProperty *prop, const char *st)
 {
+  /* FIXME: Should never be called for `byte` subtype, needs an assert. */
+
   IDP_AssignStringMaxSize(prop, st, 0);
 }
 
@@ -466,7 +469,7 @@ const IDPropertyUIDataEnumItem *IDP_EnumItemFind(const IDProperty *prop)
   const IDPropertyUIDataInt *ui_data = reinterpret_cast<const IDPropertyUIDataInt *>(
       prop->ui_data);
 
-  const int value = IDP_Int(prop);
+  const int value = IDP_int_get(prop);
   for (const IDPropertyUIDataEnumItem &item :
        blender::Span(ui_data->enum_items, ui_data->enum_items_num))
   {
@@ -529,7 +532,7 @@ static IDProperty *IDP_CopyID(const IDProperty *prop, const int flag)
 
   newp->data.pointer = prop->data.pointer;
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-    id_us_plus(IDP_Id(newp));
+    id_us_plus(IDP_ID_get(newp));
   }
 
   return newp;
@@ -541,14 +544,14 @@ void IDP_AssignID(IDProperty *prop, ID *id, const int flag)
   /* Do not assign embedded IDs to IDProperties. */
   BLI_assert(!id || (id->flag & ID_FLAG_EMBEDDED_DATA) == 0);
 
-  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0 && IDP_Id(prop) != nullptr) {
-    id_us_min(IDP_Id(prop));
+  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0 && IDP_ID_get(prop) != nullptr) {
+    id_us_min(IDP_ID_get(prop));
   }
 
   prop->data.pointer = id;
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-    id_us_plus(IDP_Id(prop));
+    id_us_plus(IDP_ID_get(prop));
   }
 }
 
@@ -565,11 +568,10 @@ static IDProperty *IDP_CopyGroup(const IDProperty *prop, const int flag)
 {
   BLI_assert(prop->type == IDP_GROUP);
   IDProperty *newp = idp_generic_copy(prop, flag);
-  newp->len = prop->len;
   newp->subtype = prop->subtype;
 
   LISTBASE_FOREACH (IDProperty *, link, &prop->data.group) {
-    BLI_addtail(&newp->data.group, IDP_CopyProperty_ex(link, flag));
+    IDP_AddToGroup(newp, IDP_CopyProperty_ex(link, flag));
   }
 
   return newp;
@@ -581,8 +583,7 @@ void IDP_SyncGroupValues(IDProperty *dest, const IDProperty *src)
   BLI_assert(src->type == IDP_GROUP);
 
   LISTBASE_FOREACH (IDProperty *, prop, &src->data.group) {
-    IDProperty *other = static_cast<IDProperty *>(
-        BLI_findstring(&dest->data.group, prop->name, offsetof(IDProperty, name)));
+    IDProperty *other = IDP_GetPropertyFromGroup(dest, prop->name);
     if (other && prop->type == other->type) {
       switch (prop->type) {
         case IDP_INT:
@@ -595,8 +596,7 @@ void IDP_SyncGroupValues(IDProperty *dest, const IDProperty *src)
           IDP_SyncGroupValues(other, prop);
           break;
         default: {
-          BLI_insertlinkreplace(&dest->data.group, other, IDP_CopyProperty(prop));
-          IDP_FreeProperty(other);
+          IDP_ReplaceInGroup_ex(dest, IDP_CopyProperty(prop), other, 0);
           break;
         }
       }
@@ -614,8 +614,7 @@ void IDP_SyncGroupTypes(IDProperty *dest, const IDProperty *src, const bool do_a
           (do_arraylen && ELEM(prop_dst->type, IDP_ARRAY, IDP_IDPARRAY) &&
            (prop_src->len != prop_dst->len)))
       {
-        BLI_insertlinkreplace(&dest->data.group, prop_dst, IDP_CopyProperty(prop_src));
-        IDP_FreeProperty(prop_dst);
+        IDP_ReplaceInGroup_ex(dest, IDP_CopyProperty(prop_src), prop_dst, 0);
       }
       else if (prop_dst->type == IDP_GROUP) {
         IDP_SyncGroupTypes(prop_dst, prop_src, do_arraylen);
@@ -633,36 +632,29 @@ void IDP_ReplaceGroupInGroup(IDProperty *dest, const IDProperty *src)
   BLI_assert(src->type == IDP_GROUP);
 
   LISTBASE_FOREACH (IDProperty *, prop, &src->data.group) {
-    IDProperty *loop;
-    for (loop = static_cast<IDProperty *>(dest->data.group.first); loop; loop = loop->next) {
-      if (STREQ(loop->name, prop->name)) {
-        BLI_insertlinkreplace(&dest->data.group, loop, IDP_CopyProperty(prop));
-        IDP_FreeProperty(loop);
-        break;
-      }
-    }
-
-    /* only add at end if not added yet */
-    if (loop == nullptr) {
-      IDProperty *copy = IDP_CopyProperty(prop);
-      dest->len++;
-      BLI_addtail(&dest->data.group, copy);
-    }
+    IDProperty *old_dest_prop = IDP_GetPropertyFromGroup(dest, prop->name);
+    IDP_ReplaceInGroup_ex(dest, IDP_CopyProperty(prop), old_dest_prop, 0);
   }
 }
 
-void IDP_ReplaceInGroup_ex(IDProperty *group, IDProperty *prop, IDProperty *prop_exist)
+void IDP_ReplaceInGroup_ex(IDProperty *group,
+                           IDProperty *prop,
+                           IDProperty *prop_exist,
+                           const int flag)
 {
   BLI_assert(group->type == IDP_GROUP);
   BLI_assert(prop_exist == IDP_GetPropertyFromGroup(group, prop->name));
 
   if (prop_exist != nullptr) {
+    /* Insert the new property at the same position as the old one in the linked list. */
     BLI_insertlinkreplace(&group->data.group, prop_exist, prop);
-    IDP_FreeProperty(prop_exist);
+    BLI_assert(group->data.children_map);
+    group->data.children_map->children.remove_contained(prop_exist);
+    group->data.children_map->children.add_new(prop);
+    IDP_FreeProperty_ex(prop_exist, (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0);
   }
   else {
-    group->len++;
-    BLI_addtail(&group->data.group, prop);
+    IDP_AddToGroup(group, prop);
   }
 }
 
@@ -670,7 +662,7 @@ void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
 {
   IDProperty *prop_exist = IDP_GetPropertyFromGroup(group, prop->name);
 
-  IDP_ReplaceInGroup_ex(group, prop, prop_exist);
+  IDP_ReplaceInGroup_ex(group, prop, prop_exist, 0);
 }
 
 void IDP_MergeGroup_ex(IDProperty *dest,
@@ -693,7 +685,7 @@ void IDP_MergeGroup_ex(IDProperty *dest,
       }
 
       IDProperty *copy = IDP_CopyProperty_ex(prop, flag);
-      IDP_ReplaceInGroup(dest, copy);
+      IDP_ReplaceInGroup_ex(dest, copy, IDP_GetPropertyFromGroup(dest, copy->name), flag);
     }
   }
   else {
@@ -706,9 +698,7 @@ void IDP_MergeGroup_ex(IDProperty *dest,
         }
       }
       else {
-        IDProperty *copy = IDP_CopyProperty_ex(prop, flag);
-        dest->len++;
-        BLI_addtail(&dest->data.group, copy);
+        IDP_AddToGroup(dest, IDP_CopyProperty_ex(prop, flag));
       }
     }
   }
@@ -723,25 +713,12 @@ bool IDP_AddToGroup(IDProperty *group, IDProperty *prop)
 {
   BLI_assert(group->type == IDP_GROUP);
 
-  if (IDP_GetPropertyFromGroup(group, prop->name) == nullptr) {
+  idp_group_children_map_ensure(*group);
+  if (group->data.children_map->children.add(prop)) {
     group->len++;
     BLI_addtail(&group->data.group, prop);
     return true;
   }
-
-  return false;
-}
-
-bool IDP_InsertToGroup(IDProperty *group, IDProperty *previous, IDProperty *pnew)
-{
-  BLI_assert(group->type == IDP_GROUP);
-
-  if (IDP_GetPropertyFromGroup(group, pnew->name) == nullptr) {
-    group->len++;
-    BLI_insertlinkafter(&group->data.group, previous, pnew);
-    return true;
-  }
-
   return false;
 }
 
@@ -752,6 +729,8 @@ void IDP_RemoveFromGroup(IDProperty *group, IDProperty *prop)
 
   group->len--;
   BLI_remlink(&group->data.group, prop);
+  BLI_assert(group->data.children_map);
+  group->data.children_map->children.remove_contained(prop);
 }
 
 void IDP_FreeFromGroup(IDProperty *group, IDProperty *prop)
@@ -763,9 +742,24 @@ void IDP_FreeFromGroup(IDProperty *group, IDProperty *prop)
 IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop, const blender::StringRef name)
 {
   BLI_assert(prop->type == IDP_GROUP);
-  return BLI_listbase_find<IDProperty>(prop->data.group,
-                                       [&](const IDProperty &elem) { return elem.name == name; });
+  if (prop->len == 0) {
+    BLI_assert(prop->data.children_map == nullptr || prop->data.children_map->children.is_empty());
+    return nullptr;
+  }
+  /* If there is at least one item, the map is expected to exist. */
+  BLI_assert(prop->data.children_map);
+  BLI_assert(prop->data.children_map->children.size() == prop->len);
+  return prop->data.children_map->children.lookup_key_default_as(name, nullptr);
 }
+
+IDProperty *IDP_GetPropertyFromGroup_null(const IDProperty *prop, const blender::StringRef name)
+{
+  if (!prop) {
+    return nullptr;
+  }
+  return IDP_GetPropertyFromGroup(prop, name);
+}
+
 IDProperty *IDP_GetPropertyTypeFromGroup(const IDProperty *prop,
                                          const blender::StringRef name,
                                          const char type)
@@ -782,6 +776,7 @@ static void IDP_FreeGroup(IDProperty *prop, const bool do_id_user)
 {
   BLI_assert(prop->type == IDP_GROUP);
 
+  MEM_SAFE_DELETE(prop->data.children_map);
   LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
     IDP_FreePropertyContent_ex(loop, do_id_user);
   }
@@ -798,13 +793,13 @@ int IDP_coerce_to_int_or_zero(const IDProperty *prop)
 {
   switch (prop->type) {
     case IDP_INT:
-      return IDP_Int(prop);
+      return IDP_int_get(prop);
     case IDP_DOUBLE:
-      return int(IDP_Double(prop));
+      return int(IDP_double_get(prop));
     case IDP_FLOAT:
-      return int(IDP_Float(prop));
+      return int(IDP_float_get(prop));
     case IDP_BOOLEAN:
-      return int(IDP_Bool(prop));
+      return int(IDP_bool_get(prop));
     default:
       return 0;
   }
@@ -814,13 +809,13 @@ double IDP_coerce_to_double_or_zero(const IDProperty *prop)
 {
   switch (prop->type) {
     case IDP_DOUBLE:
-      return IDP_Double(prop);
+      return IDP_double_get(prop);
     case IDP_FLOAT:
-      return double(IDP_Float(prop));
+      return double(IDP_float_get(prop));
     case IDP_INT:
-      return double(IDP_Int(prop));
+      return double(IDP_int_get(prop));
     case IDP_BOOLEAN:
-      return double(IDP_Bool(prop));
+      return double(IDP_bool_get(prop));
     default:
       return 0.0;
   }
@@ -830,13 +825,13 @@ float IDP_coerce_to_float_or_zero(const IDProperty *prop)
 {
   switch (prop->type) {
     case IDP_FLOAT:
-      return IDP_Float(prop);
+      return IDP_float_get(prop);
     case IDP_DOUBLE:
-      return float(IDP_Double(prop));
+      return float(IDP_double_get(prop));
     case IDP_INT:
-      return float(IDP_Int(prop));
+      return float(IDP_int_get(prop));
     case IDP_BOOLEAN:
-      return float(IDP_Bool(prop));
+      return float(IDP_bool_get(prop));
     default:
       return 0.0f;
   }
@@ -882,7 +877,7 @@ IDProperty *IDP_GetProperties(ID *id)
 IDProperty *IDP_EnsureProperties(ID *id)
 {
   if (id->properties == nullptr) {
-    id->properties = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty"));
+    id->properties = MEM_new_for_free<IDProperty>("IDProperty");
     id->properties->type = IDP_GROUP;
     /* NOTE(@ideasman42): Don't overwrite the data's name and type
      * some functions might need this if they
@@ -890,6 +885,24 @@ IDProperty *IDP_EnsureProperties(ID *id)
     // STRNCPY(id->name, "top_level_group");
   }
   return id->properties;
+}
+
+IDProperty *IDP_ID_system_properties_get(ID *id)
+{
+  return id->system_properties;
+}
+
+IDProperty *IDP_ID_system_properties_ensure(ID *id)
+{
+  if (id->system_properties == nullptr) {
+    id->system_properties = MEM_new_for_free<IDProperty>(__func__);
+    id->system_properties->type = IDP_GROUP;
+    /* NOTE(@ideasman42): Don't overwrite the data's name and type
+     * some functions might need this if they
+     * don't have a real ID, should be named elsewhere. */
+    // STRNCPY(id->name, "top_level_group");
+  }
+  return id->system_properties;
 }
 
 bool IDP_EqualsProperties_ex(const IDProperty *prop1,
@@ -908,13 +921,13 @@ bool IDP_EqualsProperties_ex(const IDProperty *prop1,
 
   switch (prop1->type) {
     case IDP_INT:
-      return (IDP_Int(prop1) == IDP_Int(prop2));
+      return (IDP_int_get(prop1) == IDP_int_get(prop2));
     case IDP_FLOAT:
 #if !defined(NDEBUG) && defined(WITH_PYTHON)
     {
-      float p1 = IDP_Float(prop1);
-      float p2 = IDP_Float(prop2);
-      if ((p1 != p2) && ((fabsf(p1 - p2) / max_ff(p1, p2)) < 0.001f)) {
+      float p1 = IDP_float_get(prop1);
+      float p2 = IDP_float_get(prop2);
+      if ((p1 != p2) && ((fabsf(p1 - p2) / max_ff(fabsf(p1), fabsf(p2))) < 0.001f)) {
         printf(
             "WARNING: Comparing two float properties that have nearly the same value (%f vs. "
             "%f)\n",
@@ -927,19 +940,19 @@ bool IDP_EqualsProperties_ex(const IDProperty *prop1,
       }
     }
 #endif
-      return (IDP_Float(prop1) == IDP_Float(prop2));
+      return (IDP_float_get(prop1) == IDP_float_get(prop2));
     case IDP_DOUBLE:
-      return (IDP_Double(prop1) == IDP_Double(prop2));
+      return (IDP_double_get(prop1) == IDP_double_get(prop2));
     case IDP_BOOLEAN:
-      return (IDP_Bool(prop1) == IDP_Bool(prop2));
+      return (IDP_bool_get(prop1) == IDP_bool_get(prop2));
     case IDP_STRING: {
       return ((prop1->len == prop2->len) &&
-              STREQLEN(IDP_String(prop1), IDP_String(prop2), size_t(prop1->len)));
+              STREQLEN(IDP_string_get(prop1), IDP_string_get(prop2), size_t(prop1->len)));
     }
     case IDP_ARRAY:
       if (prop1->len == prop2->len && prop1->subtype == prop2->subtype) {
-        return (memcmp(IDP_Array(prop1),
-                       IDP_Array(prop2),
+        return (memcmp(IDP_array_voidp_get(prop1),
+                       IDP_array_voidp_get(prop2),
                        idp_size_table[int(prop1->subtype)] * size_t(prop1->len)) == 0);
       }
       return false;
@@ -959,8 +972,8 @@ bool IDP_EqualsProperties_ex(const IDProperty *prop1,
       return true;
     }
     case IDP_IDPARRAY: {
-      const IDProperty *array1 = IDP_IDPArray(prop1);
-      const IDProperty *array2 = IDP_IDPArray(prop2);
+      const IDProperty *array1 = IDP_property_array_get(prop1);
+      const IDProperty *array2 = IDP_property_array_get(prop2);
 
       if (prop1->len != prop2->len) {
         return false;
@@ -974,7 +987,7 @@ bool IDP_EqualsProperties_ex(const IDProperty *prop1,
       return true;
     }
     case IDP_ID:
-      return (IDP_Id(prop1) == IDP_Id(prop2));
+      return (IDP_ID_get(prop1) == IDP_ID_get(prop2));
     default:
       BLI_assert_unreachable();
       break;
@@ -997,19 +1010,19 @@ IDProperty *IDP_New(const char type,
 
   switch (type) {
     case IDP_INT:
-      prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty int"));
+      prop = MEM_new_for_free<IDProperty>("IDProperty int");
       prop->data.val = val->i;
       break;
     case IDP_FLOAT:
-      prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty float"));
+      prop = MEM_new_for_free<IDProperty>("IDProperty float");
       *(float *)&prop->data.val = val->f;
       break;
     case IDP_DOUBLE:
-      prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty double"));
+      prop = MEM_new_for_free<IDProperty>("IDProperty double");
       *(double *)&prop->data.val = val->d;
       break;
     case IDP_BOOLEAN:
-      prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty boolean"));
+      prop = MEM_new_for_free<IDProperty>("IDProperty boolean");
       prop->data.val = bool(val->i);
       break;
     case IDP_ARRAY: {
@@ -1017,11 +1030,11 @@ IDProperty *IDP_New(const char type,
        * `IDP_ARRAY`. This is most likely a mistake. `IDP_GROUP` array should be of type
        * `IDP_IDPARRAY`, as done e.g. in #idp_from_PySequence_Buffer in bpy API. */
       if (ELEM(val->array.type, IDP_FLOAT, IDP_INT, IDP_DOUBLE, IDP_GROUP, IDP_BOOLEAN)) {
-        prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty array"));
+        prop = MEM_new_for_free<IDProperty>("IDProperty array");
         prop->subtype = val->array.type;
         if (val->array.len) {
-          prop->data.pointer = MEM_callocN(
-              idp_size_table[val->array.type] * size_t(val->array.len), "id property array");
+          prop->data.pointer = MEM_calloc_arrayN(
+              size_t(val->array.len), idp_size_table[val->array.type], "id property array");
         }
         prop->len = prop->totallen = val->array.len;
         break;
@@ -1032,17 +1045,19 @@ IDProperty *IDP_New(const char type,
     case IDP_STRING: {
       const char *st = val->string.str;
 
-      prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty string"));
+      prop = MEM_new_for_free<IDProperty>("IDProperty string");
       if (val->string.subtype == IDP_STRING_SUB_BYTE) {
         /* NOTE: Intentionally not null terminated. */
         if (st == nullptr) {
-          prop->data.pointer = MEM_mallocN(DEFAULT_ALLOC_FOR_NULL_STRINGS, "id property string 1");
-          *IDP_String(prop) = '\0';
+          prop->data.pointer = MEM_malloc_arrayN<char>(DEFAULT_ALLOC_FOR_NULL_STRINGS,
+                                                       "id property string 1");
+          *IDP_string_get(prop) = '\0';
           prop->totallen = DEFAULT_ALLOC_FOR_NULL_STRINGS;
           prop->len = 0;
         }
         else {
-          prop->data.pointer = MEM_mallocN(size_t(val->string.len), "id property string 2");
+          prop->data.pointer = MEM_malloc_arrayN<char>(size_t(val->string.len),
+                                                       "id property string 2");
           prop->len = prop->totallen = val->string.len;
           memcpy(prop->data.pointer, st, size_t(val->string.len));
         }
@@ -1050,17 +1065,19 @@ IDProperty *IDP_New(const char type,
       }
       else {
         if (st == nullptr || val->string.len <= 1) {
-          prop->data.pointer = MEM_mallocN(DEFAULT_ALLOC_FOR_NULL_STRINGS, "id property string 1");
-          *IDP_String(prop) = '\0';
+          prop->data.pointer = MEM_malloc_arrayN<char>(DEFAULT_ALLOC_FOR_NULL_STRINGS,
+                                                       "id property string 1");
+          *IDP_string_get(prop) = '\0';
           prop->totallen = DEFAULT_ALLOC_FOR_NULL_STRINGS;
           /* nullptr string, has len of 1 to account for null byte. */
           prop->len = 1;
         }
         else {
           BLI_assert(int(val->string.len) <= int(strlen(st)) + 1);
-          prop->data.pointer = MEM_mallocN(size_t(val->string.len), "id property string 3");
+          prop->data.pointer = MEM_malloc_arrayN<char>(size_t(val->string.len),
+                                                       "id property string 3");
           memcpy(prop->data.pointer, st, size_t(val->string.len) - 1);
-          IDP_String(prop)[val->string.len - 1] = '\0';
+          IDP_string_get(prop)[val->string.len - 1] = '\0';
           prop->len = prop->totallen = val->string.len;
         }
         prop->subtype = IDP_STRING_SUB_UTF8;
@@ -1069,24 +1086,24 @@ IDProperty *IDP_New(const char type,
     }
     case IDP_GROUP: {
       /* Values are set properly by calloc. */
-      prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty group"));
+      prop = MEM_new_for_free<IDProperty>("IDProperty group");
       break;
     }
     case IDP_ID: {
-      prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty datablock"));
+      prop = MEM_new_for_free<IDProperty>("IDProperty datablock");
       prop->data.pointer = (void *)val->id;
       prop->type = IDP_ID;
-      id_us_plus(IDP_Id(prop));
+      id_us_plus(IDP_ID_get(prop));
       break;
     }
     default: {
-      prop = static_cast<IDProperty *>(MEM_callocN(sizeof(IDProperty), "IDProperty array"));
+      prop = MEM_new_for_free<IDProperty>("IDProperty array");
       break;
     }
   }
 
   prop->type = type;
-  name.copy(prop->name);
+  name.copy_utf8_truncated(prop->name);
   prop->flag = short(flags);
 
   return prop;
@@ -1205,7 +1222,7 @@ void IDP_FreePropertyContent_ex(IDProperty *prop, const bool do_id_user)
       break;
     case IDP_ID:
       if (do_id_user) {
-        id_us_min(IDP_Id(prop));
+        id_us_min(IDP_ID_get(prop));
       }
       break;
   }
@@ -1271,7 +1288,7 @@ void IDP_foreach_property(IDProperty *id_property_root,
       break;
     }
     case IDP_IDPARRAY: {
-      IDProperty *loop = static_cast<IDProperty *>(IDP_Array(id_property_root));
+      IDProperty *loop = IDP_property_array_get(id_property_root);
       for (int i = 0; i < id_property_root->len; i++) {
         IDP_foreach_property(&loop[i], type_filter, callback);
       }
@@ -1294,11 +1311,11 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
     case IDP_UI_DATA_TYPE_STRING: {
       IDPropertyUIDataString *ui_data_string = (IDPropertyUIDataString *)ui_data;
       BLO_write_string(writer, ui_data_string->default_value);
-      BLO_write_struct(writer, IDPropertyUIDataString, ui_data);
+      writer->write_struct_cast<IDPropertyUIDataString>(ui_data);
       break;
     }
     case IDP_UI_DATA_TYPE_ID: {
-      BLO_write_struct(writer, IDPropertyUIDataID, ui_data);
+      writer->write_struct_cast<IDPropertyUIDataID>(ui_data);
       break;
     }
     case IDP_UI_DATA_TYPE_INT: {
@@ -1315,7 +1332,7 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
         BLO_write_string(writer, item.name);
         BLO_write_string(writer, item.description);
       }
-      BLO_write_struct(writer, IDPropertyUIDataInt, ui_data);
+      writer->write_struct_cast<IDPropertyUIDataInt>(ui_data);
       break;
     }
     case IDP_UI_DATA_TYPE_BOOLEAN: {
@@ -1325,7 +1342,7 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
                              uint(ui_data_bool->default_array_len),
                              (const int8_t *)ui_data_bool->default_array);
       }
-      BLO_write_struct(writer, IDPropertyUIDataBool, ui_data);
+      writer->write_struct_cast<IDPropertyUIDataBool>(ui_data);
       break;
     }
     case IDP_UI_DATA_TYPE_FLOAT: {
@@ -1334,7 +1351,7 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
         BLO_write_double_array(
             writer, uint(ui_data_float->default_array_len), ui_data_float->default_array);
       }
-      BLO_write_struct(writer, IDPropertyUIDataFloat, ui_data);
+      writer->write_struct_cast<IDPropertyUIDataFloat>(ui_data);
       break;
     }
     case IDP_UI_DATA_TYPE_UNSUPPORTED: {
@@ -1438,7 +1455,7 @@ void IDP_WriteProperty_OnlyData(const IDProperty *prop, BlendWriter *writer)
 
 void IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop)
 {
-  BLO_write_struct(writer, IDProperty, prop);
+  writer->write_struct(prop);
   IDP_WriteProperty_OnlyData(prop, writer);
 }
 
@@ -1467,7 +1484,7 @@ static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
       IDPropertyUIDataInt *ui_data_int = (IDPropertyUIDataInt *)prop->ui_data;
       if (prop->type == IDP_ARRAY) {
         BLO_read_int32_array(
-            reader, ui_data_int->default_array_len, (int **)&ui_data_int->default_array);
+            reader, ui_data_int->default_array_len, (&ui_data_int->default_array));
       }
       else {
         ui_data_int->default_array = nullptr;
@@ -1490,7 +1507,7 @@ static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
       IDPropertyUIDataBool *ui_data_bool = (IDPropertyUIDataBool *)prop->ui_data;
       if (prop->type == IDP_ARRAY) {
         BLO_read_int8_array(
-            reader, ui_data_bool->default_array_len, (int8_t **)&ui_data_bool->default_array);
+            reader, ui_data_bool->default_array_len, (&ui_data_bool->default_array));
       }
       else {
         ui_data_bool->default_array = nullptr;
@@ -1503,7 +1520,7 @@ static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
       IDPropertyUIDataFloat *ui_data_float = (IDPropertyUIDataFloat *)prop->ui_data;
       if (prop->type == IDP_ARRAY) {
         BLO_read_double_array(
-            reader, ui_data_float->default_array_len, (double **)&ui_data_float->default_array);
+            reader, ui_data_float->default_array_len, (&ui_data_float->default_array));
       }
       else {
         ui_data_float->default_array = nullptr;
@@ -1589,12 +1606,20 @@ static void IDP_DirectLinkString(IDProperty *prop, BlendDataReader *reader)
 static void IDP_DirectLinkGroup(IDProperty *prop, BlendDataReader *reader)
 {
   ListBase *lb = &prop->data.group;
+  prop->data.children_map = nullptr;
 
   BLO_read_struct_list(reader, IDProperty, lb);
+
+  if (!BLI_listbase_is_empty(&prop->data.group)) {
+    idp_group_children_map_ensure(*prop);
+  }
 
   /* Link child id properties now. */
   LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
     IDP_DirectLinkProperty(loop, reader);
+    if (!prop->data.children_map->children.add(loop)) {
+      CLOG_WARN(&LOG, "duplicate ID property '%s' in group", loop->name);
+    }
   }
 }
 
@@ -1614,18 +1639,12 @@ static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader)
       IDP_DirectLinkIDPArray(prop, reader);
       break;
     case IDP_DOUBLE:
-      /* Workaround for doubles.
-       * They are stored in the same field as `int val, val2` in the #IDPropertyData struct,
-       * they have to deal with endianness specifically.
+      /* NOTE: this is endianness-sensitive. */
+      /* Doubles are stored in the same field as `int val, val2` in the #IDPropertyData struct.
        *
-       * In theory, val and val2 would've already been swapped
-       * if switch_endian is true, so we have to first un-swap
-       * them then re-swap them as a single 64-bit entity. */
-      if (BLO_read_requires_endian_switch(reader)) {
-        BLI_endian_switch_int32(&prop->data.val);
-        BLI_endian_switch_int32(&prop->data.val2);
-        BLI_endian_switch_int64((int64_t *)&prop->data.val);
-      }
+       * In case of endianness switching, `val` and `val2` would have already been switched by the
+       * generic reading code, so they would need to be first un-switched individually, and then
+       * re-switched as a single 64-bit entity. */
       break;
     case IDP_INT:
     case IDP_FLOAT:
@@ -1640,7 +1659,7 @@ static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader)
       /* NOTE: we do not attempt to free unknown prop, we have no way to know how to do that! */
       prop->type = IDP_INT;
       prop->subtype = 0;
-      IDP_Int(prop) = 0;
+      IDP_int_set(prop, 0);
   }
 
   if (prop->ui_data != nullptr) {
@@ -1695,17 +1714,15 @@ static IDPropertyUIData *ui_data_alloc(const eIDPropertyUIDataType type)
 {
   switch (type) {
     case IDP_UI_DATA_TYPE_STRING: {
-      return static_cast<IDPropertyUIData *>(
-          MEM_callocN(sizeof(IDPropertyUIDataString), __func__));
+      IDPropertyUIDataString *ui_data = MEM_new_for_free<IDPropertyUIDataString>(__func__);
+      return &ui_data->base;
     }
     case IDP_UI_DATA_TYPE_ID: {
-      IDPropertyUIDataID *ui_data = static_cast<IDPropertyUIDataID *>(
-          MEM_callocN(sizeof(IDPropertyUIDataID), __func__));
+      IDPropertyUIDataID *ui_data = MEM_new_for_free<IDPropertyUIDataID>(__func__);
       return &ui_data->base;
     }
     case IDP_UI_DATA_TYPE_INT: {
-      IDPropertyUIDataInt *ui_data = static_cast<IDPropertyUIDataInt *>(
-          MEM_callocN(sizeof(IDPropertyUIDataInt), __func__));
+      IDPropertyUIDataInt *ui_data = MEM_new_for_free<IDPropertyUIDataInt>(__func__);
       ui_data->min = INT_MIN;
       ui_data->max = INT_MAX;
       ui_data->soft_min = INT_MIN;
@@ -1714,13 +1731,11 @@ static IDPropertyUIData *ui_data_alloc(const eIDPropertyUIDataType type)
       return &ui_data->base;
     }
     case IDP_UI_DATA_TYPE_BOOLEAN: {
-      IDPropertyUIDataBool *ui_data = static_cast<IDPropertyUIDataBool *>(
-          MEM_callocN(sizeof(IDPropertyUIDataBool), __func__));
+      IDPropertyUIDataBool *ui_data = MEM_new_for_free<IDPropertyUIDataBool>(__func__);
       return &ui_data->base;
     }
     case IDP_UI_DATA_TYPE_FLOAT: {
-      IDPropertyUIDataFloat *ui_data = static_cast<IDPropertyUIDataFloat *>(
-          MEM_callocN(sizeof(IDPropertyUIDataFloat), __func__));
+      IDPropertyUIDataFloat *ui_data = MEM_new_for_free<IDPropertyUIDataFloat>(__func__);
       ui_data->min = -FLT_MAX;
       ui_data->max = FLT_MAX;
       ui_data->soft_min = -FLT_MAX;
@@ -1811,8 +1826,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
               convert_base_ui_data(src, dst_type));
           dst->default_value = src_int->default_value != 0;
           if (src_int->default_array) {
-            dst->default_array = static_cast<int8_t *>(MEM_malloc_arrayN(
-                size_t(src_int->default_array_len), sizeof(*dst->default_array), __func__));
+            dst->default_array = MEM_malloc_arrayN<int8_t>(size_t(src_int->default_array_len),
+                                                           __func__);
             for (int i = 0; i < src_int->default_array_len; i++) {
               dst->default_array[i] = src_int->default_array[i] != 0;
             }
@@ -1830,8 +1845,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           dst->step = float(src_int->step);
           dst->default_value = double(src_int->default_value);
           if (src_int->default_array) {
-            dst->default_array = static_cast<double *>(MEM_malloc_arrayN(
-                size_t(src_int->default_array_len), sizeof(*dst->default_array), __func__));
+            dst->default_array = MEM_malloc_arrayN<double>(size_t(src_int->default_array_len),
+                                                           __func__);
             for (int i = 0; i < src_int->default_array_len; i++) {
               dst->default_array[i] = double(src_int->default_array[i]);
             }
@@ -1865,8 +1880,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           dst->step = 1;
           dst->default_value = int(src_bool->default_value);
           if (src_bool->default_array) {
-            dst->default_array = static_cast<int *>(MEM_malloc_arrayN(
-                size_t(src_bool->default_array_len), sizeof(*dst->default_array), __func__));
+            dst->default_array = MEM_malloc_arrayN<int>(size_t(src_bool->default_array_len),
+                                                        __func__);
             for (int i = 0; i < src_bool->default_array_len; i++) {
               dst->default_array[i] = int(src_bool->default_array[i]);
             }
@@ -1883,8 +1898,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           dst->soft_max = 1.0;
           dst->step = 1.0;
           if (src_bool->default_array) {
-            dst->default_array = static_cast<double *>(MEM_malloc_arrayN(
-                size_t(src_bool->default_array_len), sizeof(*dst->default_array), __func__));
+            dst->default_array = MEM_malloc_arrayN<double>(size_t(src_bool->default_array_len),
+                                                           __func__);
             for (int i = 0; i < src_bool->default_array_len; i++) {
               dst->default_array[i] = src_bool->default_array[i] == 0 ? 0.0 : 1.0;
             }
@@ -1918,8 +1933,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           dst->step = clamp_double_to_int(src_float->step);
           dst->default_value = clamp_double_to_int(src_float->default_value);
           if (src_float->default_array) {
-            dst->default_array = static_cast<int *>(MEM_malloc_arrayN(
-                size_t(src_float->default_array_len), sizeof(*dst->default_array), __func__));
+            dst->default_array = MEM_malloc_arrayN<int>(size_t(src_float->default_array_len),
+                                                        __func__);
             for (int i = 0; i < src_float->default_array_len; i++) {
               dst->default_array[i] = clamp_double_to_int(src_float->default_array[i]);
             }
@@ -1932,8 +1947,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
               convert_base_ui_data(src, dst_type));
           dst->default_value = src_float->default_value > 0.0f;
           if (src_float->default_array) {
-            dst->default_array = static_cast<int8_t *>(MEM_malloc_arrayN(
-                size_t(src_float->default_array_len), sizeof(*dst->default_array), __func__));
+            dst->default_array = MEM_malloc_arrayN<int8_t>(size_t(src_float->default_array_len),
+                                                           __func__);
             for (int i = 0; i < src_float->default_array_len; i++) {
               dst->default_array[i] = src_float->default_array[i] > 0.0f;
             }
@@ -1952,5 +1967,32 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
   ui_data_free(src, src_type);
   return nullptr;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Debugging
+ * \{ */
+
+#ifndef NDEBUG
+const IDProperty *_IDP_assert_type(const IDProperty *prop, const char ty)
+{
+  BLI_assert(prop->type == ty);
+  return prop;
+}
+const IDProperty *_IDP_assert_type_and_subtype(const IDProperty *prop,
+                                               const char ty,
+                                               const char sub_ty)
+{
+  BLI_assert((prop->type == ty) && (prop->subtype == sub_ty));
+  return prop;
+}
+
+const IDProperty *_IDP_assert_type_mask(const IDProperty *prop, const int ty_mask)
+{
+  BLI_assert(1 << int(prop->type) & ty_mask);
+  return prop;
+}
+#endif /* !NDEBUG */
 
 /** \} */

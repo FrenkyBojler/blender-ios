@@ -8,17 +8,17 @@
  * Internal and external APIs for #AssetShelfSettings.
  */
 
-#include <type_traits>
-
 #include "AS_asset_catalog_path.hh"
 
+#include "DNA_defs.h"
 #include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLO_read_write.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "BKE_asset.hh"
 #include "BKE_preferences.h"
@@ -29,10 +29,7 @@
 using namespace blender;
 using namespace blender::ed::asset;
 
-AssetShelfSettings::AssetShelfSettings()
-{
-  memset(this, 0, sizeof(*this));
-}
+AssetShelfSettings::AssetShelfSettings() = default;
 
 AssetShelfSettings::AssetShelfSettings(const AssetShelfSettings &other)
 {
@@ -41,13 +38,29 @@ AssetShelfSettings::AssetShelfSettings(const AssetShelfSettings &other)
 
 AssetShelfSettings &AssetShelfSettings::operator=(const AssetShelfSettings &other)
 {
-  /* Start with a shallow copy. */
-  memcpy(this, &other, sizeof(AssetShelfSettings));
-
-  if (active_catalog_path) {
-    active_catalog_path = BLI_strdup(other.active_catalog_path);
+  if (this == &other) {
+    return *this; /* Handle self-assignment safely. */
   }
-  enabled_catalog_paths = BKE_asset_catalog_path_list_duplicate(other.enabled_catalog_paths);
+
+  /* Free existing properties. Check if they point to the same memory first, #AssetShelfSettings
+   * might have been shallow copied before. */
+  if (this->enabled_catalog_paths != other.enabled_catalog_paths) {
+    BKE_asset_catalog_path_list_free(this->enabled_catalog_paths);
+  }
+  if (this->active_catalog_path != other.active_catalog_path) {
+    MEM_SAFE_FREE(this->active_catalog_path);
+  }
+
+  /* Copy from 'other'. */
+  this->asset_library_reference = other.asset_library_reference;
+  STRNCPY_UTF8(this->search_string, other.search_string);
+  this->preview_size = other.preview_size;
+  this->display_flag = other.display_flag;
+
+  if (other.active_catalog_path) {
+    this->active_catalog_path = BLI_strdup(other.active_catalog_path);
+  }
+  this->enabled_catalog_paths = BKE_asset_catalog_path_list_duplicate(other.enabled_catalog_paths);
 
   return *this;
 }
@@ -55,14 +68,14 @@ AssetShelfSettings &AssetShelfSettings::operator=(const AssetShelfSettings &othe
 AssetShelfSettings::~AssetShelfSettings()
 {
   BKE_asset_catalog_path_list_free(enabled_catalog_paths);
-  MEM_delete(active_catalog_path);
+  MEM_SAFE_FREE(active_catalog_path);
 }
 
 namespace blender::ed::asset::shelf {
 
 void settings_blend_write(BlendWriter *writer, const AssetShelfSettings &settings)
 {
-  BLO_write_struct(writer, AssetShelfSettings, &settings);
+  writer->write_struct(&settings);
 
   BKE_asset_catalog_path_list_blend_write(writer, settings.enabled_catalog_paths);
   BLO_write_string(writer, settings.active_catalog_path);

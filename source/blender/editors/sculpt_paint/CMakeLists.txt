@@ -7,28 +7,17 @@ set(INC
 
   ../asset
   ../include
+  ../mesh
   ../uvedit
-  ../../asset_system
-  ../../blenkernel
   ../../blenlib
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../draw
-  ../../functions
-  ../../geometry
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../nodes
-  ../../render
-  ../../windowmanager
   ../../../../intern/eigen
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
+  ${ZSTD_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -86,6 +75,7 @@ set(SRC
   paint_image_proj.cc
   paint_mask.cc
   paint_ops.cc
+  paint_sample_color.cc
   paint_stroke.cc
   paint_utils.cc
   paint_vertex.cc
@@ -109,6 +99,7 @@ set(SRC
   sculpt_geodesic.cc
   sculpt_gesture.cc
   sculpt_hide.cc
+  sculpt_mask_extract.cc
   sculpt_mask_init.cc
   sculpt_ops.cc
   sculpt_paint_color.cc
@@ -176,19 +167,31 @@ set(SRC
   brushes/thumb.cc
   brushes/topology_slide.cc
 
-  brushes/types.hh
+  brushes/brushes.hh
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::asset_system
+  PRIVATE bf::blenkernel
   PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::draw
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_POTRACE)
@@ -207,7 +210,11 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    mesh_brush_common_tests.cc
+    paint_test.cc
+    sculpt_boundary_tests.cc
     sculpt_detail_test.cc
+    sculpt_undo_test.cc
   )
   set(TEST_INC
   )

@@ -13,12 +13,14 @@
 
 #pragma once
 
-#include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_listBase.h"
 
+#include "RNA_types.hh"
+
+struct IDProperty;
 struct wmGizmo;
 struct wmGizmoType;
 struct wmGizmoGroup;
@@ -43,7 +45,7 @@ enum eWM_GizmoFlagState {
   WM_GIZMO_STATE_MODAL = (1 << 1),
   WM_GIZMO_STATE_SELECT = (1 << 2),
 };
-ENUM_OPERATORS(eWM_GizmoFlagState, WM_GIZMO_STATE_SELECT)
+ENUM_OPERATORS(eWM_GizmoFlagState)
 
 /**
  * #wmGizmo.flag
@@ -88,7 +90,7 @@ enum eWM_GizmoFlag {
   /** Push an undo step after each use of the gizmo. */
   WM_GIZMO_NEEDS_UNDO = (1 << 13),
 };
-ENUM_OPERATORS(eWM_GizmoFlag, WM_GIZMO_NEEDS_UNDO);
+ENUM_OPERATORS(eWM_GizmoFlag);
 
 /**
  * #wmGizmoGroupType.flag
@@ -128,7 +130,7 @@ enum eWM_GizmoFlagGroupTypeFlag {
   WM_GIZMOGROUPTYPE_TOOL_INIT = (1 << 7),
 
   /**
-   * This gizmo type supports using the fallback tools keymap.
+   * This gizmo type supports using the fall back tools keymap.
    * #wmGizmoGroup.use_tool_fallback will need to be set too.
    *
    * Often useful in combination with #WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK
@@ -154,7 +156,7 @@ enum eWM_GizmoFlagGroupTypeFlag {
   WM_GIZMOGROUPTYPE_VR_REDRAWS = (1 << 10),
 };
 
-ENUM_OPERATORS(eWM_GizmoFlagGroupTypeFlag, WM_GIZMOGROUPTYPE_VR_REDRAWS);
+ENUM_OPERATORS(eWM_GizmoFlagGroupTypeFlag);
 
 /**
  * #wmGizmoGroup.init_flag
@@ -164,7 +166,7 @@ enum eWM_GizmoFlagGroupInitFlag {
   WM_GIZMOGROUP_INIT_SETUP = (1 << 0),
   WM_GIZMOGROUP_INIT_REFRESH = (1 << 1),
 };
-ENUM_OPERATORS(eWM_GizmoFlagGroupInitFlag, WM_GIZMOGROUP_INIT_REFRESH)
+ENUM_OPERATORS(eWM_GizmoFlagGroupInitFlag)
 
 /**
  * #wmGizmoMapType.type_update_flag
@@ -179,7 +181,7 @@ enum eWM_GizmoFlagMapTypeUpdateFlag {
    * So we need to keep track of keymap initialization separately. */
   WM_GIZMOMAPTYPE_KEYMAP_INIT = (1 << 2),
 };
-ENUM_OPERATORS(eWM_GizmoFlagMapTypeUpdateFlag, WM_GIZMOMAPTYPE_KEYMAP_INIT)
+ENUM_OPERATORS(eWM_GizmoFlagMapTypeUpdateFlag)
 
 /* -------------------------------------------------------------------- */
 /* #wmGizmo. */
@@ -308,6 +310,7 @@ struct wmGizmoProperty {
     wmGizmoPropertyFnSet value_set_fn = nullptr;
     wmGizmoPropertyFnRangeGet range_get_fn = nullptr;
     wmGizmoPropertyFnFree free_fn = nullptr;
+    wmGizmoPropertyFnForeachRNAProp foreach_rna_prop_fn = nullptr;
     void *user_data = nullptr;
   } custom_func = {};
 };
@@ -341,7 +344,7 @@ struct wmGizmoType {
 
   const char *idname; /* #MAX_NAME. */
 
-  /** Set to 'sizeof(wmGizmo)' or larger for instances of this type,
+  /** Set to `sizeof(wmGizmo)` or larger for instances of this type,
    * use so we can cast to other types without the hassle of a custom-data pointer. */
   uint struct_size;
 

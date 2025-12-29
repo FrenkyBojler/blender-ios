@@ -21,15 +21,19 @@ namespace blender::nodes::node_shader_curves_cc::vec {
 static void sh_node_curve_vec_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Fac")
+  b.add_input<decl::Float>("Factor", "Fac")
       .min(0.0f)
       .max(1.0f)
       .default_value(1.0f)
       .subtype(PROP_FACTOR)
       .no_muted_links()
-      .description("Amount of influence the node exerts on the output vector");
-  b.add_input<decl::Vector>("Vector").min(-1.0f).max(1.0f).description(
-      "Vector which would be mapped to the curve");
+      .description("Amount of influence the node exerts on the output vector")
+      .compositor_domain_priority(1);
+  b.add_input<decl::Vector>("Vector")
+      .min(-1.0f)
+      .max(1.0f)
+      .description("Vector which would be mapped to the curve")
+      .compositor_domain_priority(0);
   b.add_output<decl::Vector>("Vector");
 }
 
@@ -76,10 +80,13 @@ static int gpu_shader_curve_vec(GPUMaterial *mat,
 
 class CurveVecFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the curve mapping. */
+  std::shared_ptr<const bNodeTree> tree_;
   const CurveMapping &cumap_;
 
  public:
-  CurveVecFunction(const CurveMapping &cumap) : cumap_(cumap)
+  CurveVecFunction(const CurveMapping &cumap, std::shared_ptr<const bNodeTree> tree)
+      : tree_(std::move(tree)), cumap_(cumap)
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -112,7 +119,7 @@ static void sh_node_curve_vec_build_multi_function(NodeMultiFunctionBuilder &bui
   const bNode &bnode = builder.node();
   CurveMapping *cumap = (CurveMapping *)bnode.storage;
   BKE_curvemapping_init(cumap);
-  builder.construct_and_set_matching_fn<CurveVecFunction>(*cumap);
+  builder.construct_and_set_matching_fn<CurveVecFunction>(*cumap, builder.shared_tree());
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -132,16 +139,20 @@ void register_node_type_sh_curve_vec()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_VEC, "Vector Curves", NODE_CLASS_OP_VECTOR);
+  common_node_type_base(&ntype, "ShaderNodeVectorCurve", SH_NODE_CURVE_VEC);
+  ntype.ui_name = "Vector Curves";
+  ntype.ui_description = "Map input vector components with curves";
+  ntype.enum_name_legacy = "CURVE_VEC";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::sh_node_curve_vec_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_vec;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
-  blender::bke::node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.gpu_fn = file_ns::gpu_shader_curve_vec;
   ntype.build_multi_function = file_ns::sh_node_curve_vec_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 
 /* **************** CURVE RGB  ******************** */
@@ -151,16 +162,18 @@ namespace blender::nodes::node_shader_curves_cc::rgb {
 static void sh_node_curve_rgb_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Fac")
+  b.add_input<decl::Float>("Factor", "Fac")
       .min(0.0f)
       .max(1.0f)
       .default_value(1.0f)
       .subtype(PROP_FACTOR)
       .no_muted_links()
-      .description("Amount of influence the node exerts on the output color");
+      .description("Amount of influence the node exerts on the output color")
+      .compositor_domain_priority(1);
   b.add_input<decl::Color>("Color")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .description("Color input on which correction will be applied");
+      .description("Color input on which correction will be applied")
+      .compositor_domain_priority(0);
   b.add_output<decl::Color>("Color");
 }
 
@@ -233,10 +246,13 @@ static int gpu_shader_curve_rgb(GPUMaterial *mat,
 
 class CurveRGBFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the curve mapping. */
+  std::shared_ptr<const bNodeTree> tree_;
   const CurveMapping &cumap_;
 
  public:
-  CurveRGBFunction(const CurveMapping &cumap) : cumap_(cumap)
+  CurveRGBFunction(const CurveMapping &cumap, std::shared_ptr<const bNodeTree> tree)
+      : tree_(std::move(tree)), cumap_(cumap)
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -272,14 +288,14 @@ static void sh_node_curve_rgb_build_multi_function(NodeMultiFunctionBuilder &bui
   const bNode &bnode = builder.node();
   CurveMapping *cumap = (CurveMapping *)bnode.storage;
   BKE_curvemapping_init(cumap);
-  builder.construct_and_set_matching_fn<CurveRGBFunction>(*cumap);
+  builder.construct_and_set_matching_fn<CurveRGBFunction>(*cumap, builder.shared_tree());
 }
 
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
   /* TODO: implement */
-  return get_input_value("Color", NodeItem::Type::Color4);
+  return get_input_value("Color", NodeItem::Type::Color3);
 }
 #endif
 NODE_SHADER_MATERIALX_END
@@ -292,16 +308,20 @@ void register_node_type_sh_curve_rgb()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR);
+  common_node_type_base(&ntype, "ShaderNodeRGBCurve", SH_NODE_CURVE_RGB);
+  ntype.ui_name = "RGB Curves";
+  ntype.ui_description = "Apply color corrections for each color channel";
+  ntype.enum_name_legacy = "CURVE_RGB";
+  ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = file_ns::sh_node_curve_rgb_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_rgb;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
-  blender::bke::node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.gpu_fn = file_ns::gpu_shader_curve_rgb;
   ntype.build_multi_function = file_ns::sh_node_curve_rgb_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 
 /* **************** CURVE FLOAT  ******************** */
@@ -316,8 +336,12 @@ static void sh_node_curve_float_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(1.0f)
       .subtype(PROP_FACTOR)
-      .no_muted_links();
-  b.add_input<decl::Float>("Value").default_value(1.0f).is_default_link_socket();
+      .no_muted_links()
+      .compositor_domain_priority(1);
+  b.add_input<decl::Float>("Value")
+      .default_value(1.0f)
+      .is_default_link_socket()
+      .compositor_domain_priority(0);
   b.add_output<decl::Float>("Value");
 }
 
@@ -364,10 +388,13 @@ static int gpu_shader_curve_float(GPUMaterial *mat,
 
 class CurveFloatFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the curve mapping. */
+  std::shared_ptr<const bNodeTree> tree_;
   const CurveMapping &cumap_;
 
  public:
-  CurveFloatFunction(const CurveMapping &cumap) : cumap_(cumap)
+  CurveFloatFunction(const CurveMapping &cumap, std::shared_ptr<const bNodeTree> tree)
+      : tree_(std::move(tree)), cumap_(cumap)
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -400,7 +427,7 @@ static void sh_node_curve_float_build_multi_function(NodeMultiFunctionBuilder &b
   const bNode &bnode = builder.node();
   CurveMapping *cumap = (CurveMapping *)bnode.storage;
   BKE_curvemapping_init(cumap);
-  builder.construct_and_set_matching_fn<CurveFloatFunction>(*cumap);
+  builder.construct_and_set_matching_fn<CurveFloatFunction>(*cumap, builder.shared_tree());
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -420,14 +447,18 @@ void register_node_type_sh_curve_float()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_CURVE_FLOAT, "Float Curve", NODE_CLASS_CONVERTER);
+  common_node_type_base(&ntype, "ShaderNodeFloatCurve", SH_NODE_CURVE_FLOAT);
+  ntype.ui_name = "Float Curve";
+  ntype.ui_description = "Map an input float to a curve and outputs a float value";
+  ntype.enum_name_legacy = "CURVE_FLOAT";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_curve_float_declare;
   ntype.initfunc = file_ns::node_shader_init_curve_float;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
-  blender::bke::node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.gpu_fn = file_ns::gpu_shader_curve_float;
   ntype.build_multi_function = file_ns::sh_node_curve_float_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

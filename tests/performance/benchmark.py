@@ -2,6 +2,12 @@
 # SPDX-FileCopyrightText: 2020-2023 Blender Authors
 #
 # SPDX-License-Identifier: Apache-2.0
+"""
+The main entry point to running benchmark tests.
+
+See https://developer.blender.org/docs/handbook/testing/performance/
+for a general introduction to the topic.
+"""
 
 import api
 import argparse
@@ -72,7 +78,7 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
         output = entry.output
         result = ''
         if status in {'done', 'outdated'} and output:
-            result = '%.4fs' % output['time']
+            result = '%7.4f s' % output['time']
 
             if status == 'outdated':
                 result += " (outdated)"
@@ -84,6 +90,19 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
         row += f"{result: <20} "
 
     print(row, end=end, flush=True)
+
+
+def print_entry(config: api.TestConfig, entry: api.TestEntry) -> None:
+    # Print a single test entry, potentially on multiple lines, with more details than in `print_row`.
+    # NOTE: Currently only used to print detailed error info.
+
+    print_row(config, [entry])
+
+    if entry.status != 'failed':
+        return
+    if not entry.exception_msg:
+        return
+    print(entry.exception_msg, flush=True)
 
 
 def match_entry(entry: api.TestEntry, args: argparse.Namespace):
@@ -170,7 +189,8 @@ def run_entry(env: api.TestEnvironment,
         except Exception as e:
             failed = True
             entry.status = 'failed'
-            entry.error_msg = str(e)
+            entry.error_msg = 'Failed to run'
+            entry.exception_msg = str(e)
 
     print_row(config, row, end='\r')
 
@@ -287,6 +307,7 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
                             config.queue.write()
                         if test_failed:
                             exit_code = 1
+                            print_entry(config, entry)
                     except KeyboardInterrupt as e:
                         cancel = True
                         break
@@ -369,7 +390,9 @@ def main():
         sys.exit(0)
 
     if not env.base_dir.exists():
-        sys.stderr.write('Error: benchmark directory not initialized\n')
+        sys.stderr.write(
+            'Error: benchmark directory not initialized. '
+            'Run the \"init\" command to create the directory and a default configuration.\n')
         sys.exit(1)
 
     if args.command == 'list':

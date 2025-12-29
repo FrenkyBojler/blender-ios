@@ -14,7 +14,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
@@ -24,7 +23,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
@@ -39,10 +38,7 @@
 static void init_data(ModifierData *md)
 {
   DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(pmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(pmd, DNA_struct_default_get(DynamicPaintModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(pmd, modifier);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -168,13 +164,13 @@ static void foreach_tex_link(ModifierData * /*md*/,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -216,4 +212,5 @@ ModifierTypeInfo modifierType_DynamicPaint = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

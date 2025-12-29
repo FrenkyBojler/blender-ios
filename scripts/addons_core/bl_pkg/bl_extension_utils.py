@@ -21,8 +21,6 @@ __all__ = (
 
     "pkg_make_obsolete_for_testing",
 
-    "dummy_progress",
-
     # Public Stand-Alone Utilities.
     "pkg_theme_file_list",
     "pkg_manifest_params_compatible_or_error",
@@ -42,6 +40,8 @@ __all__ = (
     "pkg_manifest_dict_is_valid_or_error",
     "pkg_manifest_dict_from_archive_or_error",
     "pkg_manifest_archive_url_abs_from_remote_url",
+
+    "python_versions_from_wheel_python_tag",
 
     "CommandBatch",
     "RepoCacheStore",
@@ -105,8 +105,21 @@ IDLE_WAIT_ON_READ = 0.05
 
 
 # -----------------------------------------------------------------------------
+# Typing Stubs
+#
+# These functions exist to allow messages to be translated,
+# without having to depend on Blender-only modules, as this module is fully type-checked
+# as well as being used outside of Blender.
+
+
+# Maybe overwritten by `bpy.app.translations.pgettext_rpt`.
+def rpt_(text: str) -> str:
+    return text
+
+# -----------------------------------------------------------------------------
 # Internal Functions.
 #
+
 
 if sys.platform == "win32":
     # See: https://stackoverflow.com/a/35052424/432509
@@ -220,16 +233,6 @@ def blender_ext_cmd(python_args: Sequence[str]) -> Sequence[str]:
 # Call JSON.
 #
 
-def non_blocking_call(cmd: Sequence[str]) -> subprocess.Popen[bytes]:
-    # pylint: disable-next=consider-using-with
-    ps = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    stdout = ps.stdout
-    assert stdout is not None
-    # Needed so whatever is available can be read (without waiting).
-    file_handle_make_non_blocking(stdout)
-    return ps
-
-
 def command_output_from_json_0(
         args: Sequence[str],
         use_idle: bool,
@@ -237,63 +240,80 @@ def command_output_from_json_0(
         python_args: Sequence[str],
 ) -> Generator[InfoItemSeq, bool, None]:
     cmd = [*blender_ext_cmd(python_args), *args, "--output-type=JSON_0"]
-    ps = non_blocking_call(cmd)
-    stdout = ps.stdout
-    assert stdout is not None
-    chunk_list = []
-    request_exit_signal_sent = False
+    # Note that the context-manager isn't used to wait until the process is finished as
+    # the function only finishes when `poll()` is not none, it's just use to ensure file-handles
+    # are closed before this function exits, this only seems to be a problem on WIN32.
 
-    while True:
-        # It's possible this is multiple chunks.
-        try:
-            chunk = stdout.read()
-        except Exception as ex:
-            if not file_handle_non_blocking_is_error_blocking(ex):
-                raise ex
-            chunk = b''
+    # WIN32 needs to use a separate process-group else Blender will receive the "break", see #131947.
+    creationflags = 0
+    if sys.platform == "win32":
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
-        json_messages = []
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, creationflags=creationflags) as ps:
+        stdout = ps.stdout
+        assert stdout is not None
 
-        if not chunk:
-            if ps.poll() is not None:
-                break
-            if use_idle:
-                time.sleep(IDLE_WAIT_ON_READ)
-        elif (chunk_zero_index := chunk.find(b'\0')) == -1:
-            chunk_list.append(chunk)
-        else:
-            # Extract contiguous data from `chunk_list`.
-            chunk_list.append(chunk[:chunk_zero_index])
+        # Needed so whatever is available can be read (without waiting).
+        file_handle_make_non_blocking(stdout)
 
-            json_bytes_list = [b''.join(chunk_list)]
-            chunk_list.clear()
+        chunk_list = []
+        request_exit_signal_sent = False
 
-            # There may be data afterwards, even whole chunks.
-            if chunk_zero_index + 1 != len(chunk):
-                chunk = chunk[chunk_zero_index + 1:]
-                # Add whole chunks.
-                while (chunk_zero_index := chunk.find(b'\0')) != -1:
-                    json_bytes_list.append(chunk[:chunk_zero_index])
+        while True:
+            # It's possible this is multiple chunks.
+            try:
+                chunk = stdout.read()
+            except Exception as ex:
+                if not file_handle_non_blocking_is_error_blocking(ex):
+                    raise ex
+                chunk = b''
+
+            json_messages = []
+
+            if not chunk:
+                if ps.poll() is not None:
+                    break
+                if use_idle:
+                    time.sleep(IDLE_WAIT_ON_READ)
+            elif (chunk_zero_index := chunk.find(b'\0')) == -1:
+                chunk_list.append(chunk)
+            else:
+                # Extract contiguous data from `chunk_list`.
+                chunk_list.append(chunk[:chunk_zero_index])
+
+                json_bytes_list = [b''.join(chunk_list)]
+                chunk_list.clear()
+
+                # There may be data afterwards, even whole chunks.
+                if chunk_zero_index + 1 != len(chunk):
                     chunk = chunk[chunk_zero_index + 1:]
-                if chunk:
-                    chunk_list.append(chunk)
+                    # Add whole chunks.
+                    while (chunk_zero_index := chunk.find(b'\0')) != -1:
+                        json_bytes_list.append(chunk[:chunk_zero_index])
+                        chunk = chunk[chunk_zero_index + 1:]
+                    if chunk:
+                        chunk_list.append(chunk)
 
-            request_exit = False
+                request_exit = False
 
-            for json_bytes in json_bytes_list:
-                json_data = json.loads(json_bytes.decode("utf-8"))
+                for json_bytes in json_bytes_list:
+                    json_data = json.loads(json_bytes.decode("utf-8"))
 
-                assert len(json_data) == 2
-                assert isinstance(json_data[0], str)
+                    assert len(json_data) == 2
+                    assert isinstance(json_data[0], str)
 
-                json_messages.append((json_data[0], json_data[1]))
+                    json_messages.append((json_data[0], json_data[1]))
 
-        # Yield even when `json_messages`, otherwise this generator can block.
-        # It also means a request to exit might not be responded to soon enough.
-        request_exit = yield json_messages
-        if request_exit and not request_exit_signal_sent:
-            ps.send_signal(signal.SIGINT)
-            request_exit_signal_sent = True
+            # Yield even when `json_messages`, otherwise this generator can block.
+            # It also means a request to exit might not be responded to soon enough.
+            request_exit = yield json_messages
+            if request_exit and not request_exit_signal_sent:
+                if sys.platform == "win32":
+                    # Caught by the `signal.SIGBREAK` signal handler.
+                    ps.send_signal(signal.CTRL_BREAK_EVENT)
+                else:
+                    ps.send_signal(signal.SIGINT)
+                request_exit_signal_sent = True
 
 
 # -----------------------------------------------------------------------------
@@ -431,7 +451,12 @@ def _url_append_query(url: str, query: dict[str, str]) -> str:
     return new_url
 
 
-def url_append_query_for_blender(url: str, blender_version: tuple[int, int, int]) -> str:
+def url_append_query_for_blender(
+        *,
+        url: str,
+        blender_version: tuple[int, int, int],
+        python_version: tuple[int, int, int],
+) -> str:
     # `blender_version` is typically `bpy.app.version`.
 
     # While this won't cause errors, it's redundant to add this information to file URL's.
@@ -441,6 +466,7 @@ def url_append_query_for_blender(url: str, blender_version: tuple[int, int, int]
     query = {
         "platform": platform_from_this_system(),
         "blender_version": "{:d}.{:d}.{:d}".format(*blender_version),
+        "python_version": "{:d}.{:d}.{:d}".format(*python_version),
     }
     return _url_append_query(url, query)
 
@@ -471,7 +497,7 @@ def url_parse_for_blender(url: str) -> tuple[str, dict[str, str]]:
     for key, value in query:
         value_xform = None
         match key:
-            case "blender_version_min" | "blender_version_max" | "platforms":
+            case "blender_version_min" | "blender_version_max" | "python_versions" | "platforms":
                 if value:
                     value_xform = value
             case "repository":
@@ -620,6 +646,7 @@ def pkg_install_files(
         directory: str,
         files: Sequence[str],
         blender_version: tuple[int, int, int],
+        python_version: tuple[int, int, int],
         use_idle: bool,
         python_args: Sequence[str],
 ) -> Iterator[InfoItemSeq]:
@@ -631,6 +658,7 @@ def pkg_install_files(
         "install-files", *files,
         "--local-dir", directory,
         "--blender-version", "{:d}.{:d}.{:d}".format(*blender_version),
+        "--python-version", "{:d}.{:d}.{:d}".format(*python_version),
         "--temp-prefix-and-suffix", "/".join(PKG_TEMP_PREFIX_AND_SUFFIX),
     ], use_idle=use_idle, python_args=python_args)
     yield [COMPLETE_ITEM]
@@ -642,6 +670,7 @@ def pkg_install(
         remote_url: str,
         pkg_id_sequence: Sequence[str],
         blender_version: tuple[int, int, int],
+        python_version: tuple[int, int, int],
         online_user_agent: str,
         access_token: str,
         timeout: float,
@@ -658,6 +687,7 @@ def pkg_install(
         "--local-dir", directory,
         "--remote-url", remote_url,
         "--blender-version", "{:d}.{:d}.{:d}".format(*blender_version),
+        "--python-version", "{:d}.{:d}.{:d}".format(*python_version),
         "--online-user-agent", online_user_agent,
         "--access-token", access_token,
         "--local-cache", str(int(use_cache)),
@@ -684,26 +714,6 @@ def pkg_uninstall(
         "--local-dir", directory,
         "--user-dir", user_directory,
         "--temp-prefix-and-suffix", "/".join(PKG_TEMP_PREFIX_AND_SUFFIX),
-    ], use_idle=use_idle, python_args=python_args)
-    yield [COMPLETE_ITEM]
-
-
-# -----------------------------------------------------------------------------
-# Public Demo Actions
-#
-
-def dummy_progress(
-        *,
-        use_idle: bool,
-        python_args: Sequence[str],
-) -> Generator[InfoItemSeq, bool, None]:
-    """
-    Implementation:
-    ``bpy.ops.extensions.dummy_progress()``.
-    """
-    yield from command_output_from_json_0([
-        "dummy-progress",
-        "--time-duration=1.0",
     ], use_idle=use_idle, python_args=python_args)
     yield [COMPLETE_ITEM]
 
@@ -753,7 +763,7 @@ def pkg_manifest_dict_is_valid_or_error(
         from_repo: bool,
         strict: bool,
 ) -> str | None:
-    # Exception! In in general `cli` shouldn't be considered a Python module,
+    # Exception! In general `cli` shouldn't be considered a Python module,
     # it's validation function is handy to reuse.
     from .cli.blender_ext import pkg_manifest_from_dict_and_validate
     assert "id" in data
@@ -819,6 +829,27 @@ def pkg_repo_cache_clear(local_dir: str) -> None:
             print("Error: unlink", ex)
 
 
+def python_versions_from_wheel_python_tag(python_tag: str) -> set[tuple[int] | tuple[int, int]] | str:
+    from .cli.blender_ext import python_versions_from_wheel_python_tag as fn
+    result = fn(python_tag)
+    assert isinstance(result, (set, str))
+    return result
+
+
+def python_versions_from_wheel_abi_tag(abi_tag: str, *, stable_only: bool) -> set[tuple[int] | tuple[int, int]] | str:
+    from .cli.blender_ext import python_versions_from_wheel_abi_tag as fn
+    result = fn(abi_tag, stable_only=stable_only)
+    assert isinstance(result, (set, str))
+    return result
+
+
+def python_versions_from_wheels(wheel_files: Sequence[str]) -> set[tuple[int] | tuple[int, int]] | str:
+    from .cli.blender_ext import python_versions_from_wheels as fn
+    result = fn(wheel_files)
+    assert isinstance(result, (set, str))
+    return result
+
+
 # -----------------------------------------------------------------------------
 # Public Command Pool (non-command-line wrapper)
 #
@@ -878,6 +909,28 @@ class CommandBatch_StatusFlag(NamedTuple):
 
 
 class CommandBatch:
+    """
+    This class manages running command-line programs as sub-processes, abstracting away process management,
+    performing non-blocking reads to access JSON output.
+
+    The sub-processes must conform to the following constraints:
+
+    - Only output JSON to the STDOUT.
+    - Exit gracefully when: SIGINT signal is sent
+      (``signal.CTRL_BREAK_EVENT`` on WIN32).
+    - Errors must be caught and forwarded as JSON error messages.
+      Unhandled exceptions are not expected and will produce ugly
+      messages from the STDERR output.
+
+    The user of this class creates the class with all known jobs,
+    setting the limit for the number of jobs that run simultaneously.
+
+    The caller can then monitor the processes:
+    - By calling ``exec_blocking``.
+    - Or by periodically calling ``exec_non_blocking``.
+
+      Canceling is performed by calling ``exec_non_blocking`` with ``request_exit=True``.
+    """
     __slots__ = (
         "title",
 
@@ -1083,25 +1136,25 @@ class CommandBatch:
         if status_data.failure_count == 0:
             fail_text = ""
         elif status_data.failure_count == status_data.count:
-            fail_text = ", failed"
+            fail_text = rpt_(", failed")
         else:
-            fail_text = ", some actions failed"
+            fail_text = rpt_(", some actions failed")
 
         if (
                 status_data.flag == (1 << CommandBatchItem.STATUS_NOT_YET_STARTED) or
                 status_data.flag & (1 << CommandBatchItem.STATUS_RUNNING)
         ):
-            return "Checking for Extension Updates{:s}".format(fail_text), 'SORTTIME'
+            return rpt_("Checking for Extension Updates{:s}").format(fail_text), 'SORTTIME'
 
         if status_data.flag == 1 << CommandBatchItem.STATUS_COMPLETE:
             if update_count > 0:
                 # NOTE: the UI design in #120612 has the number of extensions available in icon.
                 # Include in the text as this is not yet supported.
-                return "Extensions Updates Available ({:d}){:s}".format(update_count, fail_text), 'INTERNET'
-            return "All Extensions Up-to-date{:s}".format(fail_text), 'CHECKMARK'
+                return rpt_("Extensions Updates Available ({:d}){:s}").format(update_count, fail_text), 'INTERNET'
+            return rpt_("All Extensions Up-to-date{:s}").format(fail_text), 'CHECKMARK'
 
         # Should never reach this line!
-        return "Internal error, unknown state!{:s}".format(fail_text), 'ERROR'
+        return rpt_("Internal error, unknown state!{:s}").format(fail_text), 'ERROR'
 
     def calc_status_log_or_none(self) -> list[tuple[str, str]] | None:
         """
@@ -1291,6 +1344,7 @@ class PkgManifest_Normalized(NamedTuple):
             error_fn(ex)
             return None
 
+        import re
         return PkgManifest_Normalized(
             name=field_name,
             tagline=field_tagline,
@@ -1298,7 +1352,7 @@ class PkgManifest_Normalized(NamedTuple):
             type=field_type,
             # Remove the maintainers email while it's not private, showing prominently
             # could cause maintainers to get direct emails instead of issue tracking systems.
-            maintainer=field_maintainer.split("<", 1)[0].rstrip(),
+            maintainer=re.sub(r"\s*<.*?>", "", field_maintainer),
             license=license_info_to_text(field_license),
 
             # Optional.
@@ -1335,6 +1389,7 @@ def repository_id_with_error_fn(
 class PkgManifest_FilterParams(NamedTuple):
     platform: str
     blender_version: tuple[int, int, int]
+    python_version: tuple[int, int, int]
 
 
 def repository_filter_skip(
@@ -1346,6 +1401,7 @@ def repository_filter_skip(
     result = repository_filter_skip_impl(
         item,
         filter_blender_version=filter_params.blender_version,
+        filter_python_version=filter_params.python_version,
         filter_platform=filter_params.platform,
         skip_message_fn=None,
         error_fn=error_fn,
@@ -1359,8 +1415,10 @@ def pkg_manifest_params_compatible_or_error(
         blender_version_min: str,
         blender_version_max: str,
         platforms: list[str],
-        this_platform: tuple[int, int, int],
+        python_versions: list[str],
+        this_platform: str,
         this_blender_version: tuple[int, int, int],
+        this_python_version: tuple[int, int, int],
         error_fn: Callable[[Exception], None],
 ) -> str | None:
     from .cli.blender_ext import repository_filter_skip as fn
@@ -1373,11 +1431,14 @@ def pkg_manifest_params_compatible_or_error(
         item["blender_version_max"] = blender_version_max
     if platforms:
         item["platforms"] = platforms
+    if python_versions:
+        item["python_versions"] = python_versions
 
     result_report = []
     result = fn(
         item=item,
         filter_blender_version=this_blender_version,
+        filter_python_version=this_python_version,
         filter_platform=this_platform,
         # pylint: disable-next=unnecessary-lambda
         skip_message_fn=lambda msg: result_report.append(msg),
@@ -1789,7 +1850,7 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
         """
         Detect a change and return as early as possibly.
         Ideally this would not have to scan many files, since this could become *expensive*
-        with very large repositories however as each package has it's own TOML,
+        with very large repositories however as each package has its own TOML,
         there is no viable alternative.
         """
         # Caller must check `self.exists()`.
@@ -1987,11 +2048,17 @@ class RepoCacheStore:
         "_is_init",
     )
 
-    def __init__(self, blender_version: tuple[int, int, int]) -> None:
+    def __init__(
+        self,
+            *,
+            blender_version: tuple[int, int, int],
+            python_version: tuple[int, int, int],
+    ) -> None:
         self._repos: list[_RepoCacheEntry] = []
         self._filter_params = PkgManifest_FilterParams(
             platform=platform_from_this_system(),
             blender_version=blender_version,
+            python_version=python_version,
         )
         self._is_init = False
 

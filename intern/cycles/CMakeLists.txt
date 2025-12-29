@@ -13,7 +13,9 @@ else()
   if(NOT WINDOWS_PYTHON_DEBUG)
     set(CYCLES_INSTALL_PATH "scripts/addons_core/cycles")
   else()
-    set(CYCLES_INSTALL_PATH "$ENV{appdata}/blender foundation/blender/${BLENDER_VERSION}/scripts/addons_core/cycles")
+    set(CYCLES_INSTALL_PATH
+      "$ENV{appdata}/blender foundation/blender/${BLENDER_VERSION}/scripts/addons_core/cycles"
+    )
   endif()
 endif()
 
@@ -64,10 +66,9 @@ if(WITH_CYCLES_NATIVE_ONLY)
     endif()
     string(APPEND CMAKE_CXX_FLAGS " ${MSVC_NATIVE_ARCH_FLAGS}")
   endif()
-elseif(WIN32 AND MSVC AND SUPPORT_NEON_BUILD AND SSE2NEON_FOUND)
-  set(CXX_HAS_SSE42 FALSE)
-  set(CXX_HAS_AVX2 FALSE)
-elseif(NOT WITH_CPU_SIMD OR (SUPPORT_NEON_BUILD AND SSE2NEON_FOUND))
+elseif(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
+  # On ARM we use SSE2NEON to compile the cycles SSE kernels into native NEON instructions
+  # Disable the CXX_HAS_* flags so we don't add any SSE or AVX compiler flags.
   set(CXX_HAS_SSE42 FALSE)
   set(CXX_HAS_AVX2 FALSE)
 elseif(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -148,7 +149,9 @@ if(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # such as in `svm.h`.
   # This flag is supported starting with MSVC 17.7 preview 3:
   # https://learn.microsoft.com/en-us/cpp/build/reference/jump-table-rdata
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.37.32820)
+  # This is an x64 specific optimization.
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.37.32820
+     AND CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     string(APPEND CMAKE_CXX_FLAGS " /jumptablerdata")
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -158,12 +161,17 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   list(APPEND CYCLES_MATH_FLAGS "-fno-math-errno")
   # Let compiler optimize 0.0 - x without worrying about signed zeros.
   list(APPEND CYCLES_MATH_FLAGS "-fno-signed-zeros")
-  # Let the compiler generate fused multiply-add instructions
-  list(APPEND CYCLES_MATH_FLAGS "-ffp-contract=fast")
+  # Disable FMA auto-vectorization across different statements,
+  # which creates havoc in "intern/cycles/blender/camera.cpp"
+  # with GCC-15.2.1, for something like:
+  #   const float2 dv = 2.0f * (aspectratio * bcam->shift + bcam->offset * aspect * 2.0f);
+  # (probably due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106902).
+  list(APPEND CYCLES_MATH_FLAGS "-ffp-contract=on")
   # Let the compiler replace x/y with x*(1/y)
   list(APPEND CYCLES_MATH_FLAGS "-freciprocal-math")
   # Let the compiler reorder terms to save operations
-  list(APPEND CYCLES_MATH_FLAGS "-fassociative-math")
+  # NOTE: Disabled for now due to problems with bsdf_D for GGX on Linux (#130389)
+  # list(APPEND CYCLES_MATH_FLAGS "-fassociative-math")
   # Don't enable `-ffinite-math-only` since the BVH code relies on NaNs.
   # Otherwise, we could just use `-ffast-math`.
 
@@ -262,7 +270,7 @@ if(WITH_CYCLES_DEVICE_HIP)
 endif()
 
 if(WITH_CYCLES_DEVICE_OPTIX)
-  find_package(OptiX 7.3.0)
+  find_package(OptiX 8.0.0)
 
   if(OPTIX_FOUND)
     add_definitions(-DWITH_OPTIX)
@@ -286,7 +294,26 @@ endif()
 if(WITH_CYCLES_EMBREE)
   add_definitions(-DWITH_EMBREE)
   if(WITH_CYCLES_DEVICE_ONEAPI AND EMBREE_SYCL_SUPPORT)
-    add_definitions(-DWITH_EMBREE_GPU)
+    # NOTE: The debug version of Embree is built without SYCL support on Windows
+    # since 7fb480095e371f8f5ac4f647f0ba2fd78da486f7. This is not reflected in
+    # EMBREE_SYCL_SUPPORT which is coming from Embree headers that aren't
+    # differentiated for release and debug, so we handle this case here by
+    # disabling its use when embree4_sycl_d.lib doesn't exist.
+    set(EMBREE_SYCL_DEBUG_LIBRARY ${EMBREE_LIBRARIES})
+    list(FILTER EMBREE_SYCL_DEBUG_LIBRARY INCLUDE REGEX "_sycl_d\\.lib$")
+    if(WIN32 AND NOT EMBREE_SYCL_DEBUG_LIBRARY)
+      add_compile_definitions("$<$<CONFIG:Release>:WITH_EMBREE_GPU>")
+      add_compile_definitions("$<$<CONFIG:RelWithDebInfo>:WITH_EMBREE_GPU>")
+      add_compile_definitions("$<$<CONFIG:MinSizeRel>:WITH_EMBREE_GPU>")
+      if(CMAKE_BUILD_TYPE MATCHES "Debug" OR GENERATOR_IS_MULTI_CONFIG)
+        message(STATUS
+          "The use of Embree GPU is disabled for the Debug configuration "
+          "as embree${EMBREE_MAJOR_VERSION}_sycl_d.lib is not found."
+        )
+      endif()
+    else()
+      add_definitions(-DWITH_EMBREE_GPU)
+    endif()
   endif()
   add_definitions(-DEMBREE_MAJOR_VERSION=${EMBREE_MAJOR_VERSION})
   include_directories(
@@ -300,26 +327,6 @@ if(WITH_OPENIMAGEDENOISE)
   include_directories(
     SYSTEM
     ${OPENIMAGEDENOISE_INCLUDE_DIRS}
-  )
-endif()
-
-# Logging capabilities using GLog library.
-if(WITH_CYCLES_LOGGING)
-  add_definitions(-DWITH_CYCLES_LOGGING)
-  add_definitions(${GLOG_DEFINES})
-  add_definitions(-DCYCLES_GFLAGS_NAMESPACE=${GFLAGS_NAMESPACE})
-  include_directories(
-    SYSTEM
-    ${GLOG_INCLUDE_DIRS}
-    ${GFLAGS_INCLUDE_DIRS}
-  )
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-  include_directories(
-    SYSTEM
-    ${ALEMBIC_INCLUDE_DIRS}
   )
 endif()
 
@@ -385,8 +392,11 @@ if(WITH_CYCLES_DEBUG_NAN)
   add_definitions(-DWITH_CYCLES_DEBUG_NAN)
 endif()
 
-if((NOT OPENIMAGEIO_PUGIXML_FOUND) OR WIN32)
-  add_definitions(-DWITH_SYSTEM_PUGIXML)
+if(WITH_PUGIXML OR OPENIMAGEIO_PUGIXML_FOUND)
+  add_definitions(-DWITH_PUGIXML)
+  if((NOT OPENIMAGEIO_PUGIXML_FOUND) OR WIN32)
+    add_definitions(-DWITH_SYSTEM_PUGIXML)
+  endif()
 endif()
 
 if(CYCLES_STANDALONE_REPOSITORY)
@@ -434,11 +444,6 @@ endif()
 # Subdirectories
 
 if(WITH_CYCLES_BLENDER)
-  # Not needed to make cycles automated tests pass with -march=native.
-  # However Blender itself needs this flag.
-  # Note: the clang-cl style removal must go first, to avoid a dangling "/clang:"
-  remove_cc_flag("/clang:-ffp-contract=off")
-  remove_cc_flag("-ffp-contract=off")
   add_definitions(-DWITH_BLENDER_GUARDEDALLOC)
   add_subdirectory(blender)
 endif()

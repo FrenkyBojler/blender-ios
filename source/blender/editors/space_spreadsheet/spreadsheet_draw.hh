@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "BLI_vector.hh"
-
 struct ARegion;
 struct bContext;
-struct uiBlock;
+namespace blender::ui {
+struct Block;
+}
 
 namespace blender::ed::spreadsheet {
 
 struct CellDrawParams {
-  uiBlock *block;
+  ui::Block *block;
   int xmin, ymin;
   int width, height;
 };
