@@ -12,17 +12,53 @@
  * `pos` is the verts position in the curve tangent space
  */
 
-#include "infos/gpu_shader_2D_nodelink_infos.hh"
+#pragma once
+#pragma create_info
+
+#include "gpu_shader_compat.hh"
+
+#include "GPU_shader_shared.hh"
 
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_math_vector_compare_lib.glsl"
 
-[[vertex]] void nodelink_vertex(int gl_VertexID [[vertex_id]],
-                                int gl_InstanceID [[instance_id]],
-                                const NodeLinkSRT &srt [[resource_table]],
-                                const NodeLinkVertIn &v_in [[vertex_in]],
-                                float4 &gl_Position [[position]],
-                                NodeLinkVertOut &interp [[vertex_out]])
+namespace builtin::nodelink {
+
+struct NodeLinkVertIn {
+  [[attribute(0)]] float2 uv;
+  [[attribute(1)]] float2 pos;
+  [[attribute(2)]] float2 expand;
+};
+
+struct NodeLinkVertOut {
+  [[smooth]] float4 final_color;
+  [[smooth]] float2 line_uv;
+  [[flat]] float line_length;
+  [[flat]] float line_thickness;
+  [[flat]] float dash_length;
+  [[flat]] float dash_factor;
+  [[flat]] float dash_alpha;
+  [[flat]] float aspect;
+  [[flat]] int has_back_link;
+  [[flat]] int is_main_line;
+};
+
+struct NodeLinkFragOut {
+  [[frag_color(0)]] float4 color;
+};
+
+struct NodeLinkSRT {
+  [[push_constant]] float4x4 ModelViewProjectionMatrix;
+  [[storage(0, read)]] NodeLinkData (&link_data_buf)[];
+  [[uniform(0)]] NodeLinkUniformData &link_uniforms;
+};
+
+[[vertex]] void vert([[vertex_id]] const int gl_VertexID,
+                     [[instance_id]] const int gl_InstanceID,
+                     [[resource_table]] const NodeLinkSRT &srt,
+                     [[in]] const NodeLinkVertIn &v_in,
+                     [[position]] float4 &gl_Position,
+                     [[out]] NodeLinkVertOut &interp)
 {
   constexpr float start_gradient_threshold = 0.35f;
   constexpr float end_gradient_threshold = 0.65f;
@@ -140,8 +176,7 @@ float get_line_alpha(float2 line_uv, float line_thickness, float center, float r
   return smoothstep(radius, radius - ANTIALIAS, sdf);
 }
 
-[[fragment]] void nodelink_fragment(const NodeLinkVertOut &interp [[vertex_out]],
-                                    NodeLinkFragOut &frag_out [[fragment_out]])
+[[fragment]] void frag([[in]] const NodeLinkVertOut &interp, [[out]] NodeLinkFragOut &frag_out)
 {
   float dash_frag_alpha = 1.0f;
   if (interp.dash_factor < 1.0f) {
@@ -189,3 +224,7 @@ float get_line_alpha(float2 line_uv, float line_thickness, float center, float r
     frag_out.color.a = main_link_color.a * dash_frag_alpha + back_link_color.a;
   }
 }
+
+}  // namespace builtin::nodelink
+
+PipelineGraphic gpu_shader_2D_nodelink(builtin::nodelink::vert, builtin::nodelink::frag);

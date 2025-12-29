@@ -19,7 +19,7 @@ set(SRC_GLSL_VERT
   gpu_shader_2D_image_rect_vert.glsl
   gpu_shader_2D_image_vert.glsl
   gpu_shader_2D_node_socket_vert.glsl
-  gpu_shader_2D_nodelink.glsl
+  gpu_shader_2D_nodelink.bsl.hh
   gpu_shader_2D_point_uniform_size_aa_vert.glsl
   gpu_shader_2D_point_uniform_size_outline_aa_vert.glsl
   gpu_shader_2D_point_varying_size_varying_color_vert.glsl
