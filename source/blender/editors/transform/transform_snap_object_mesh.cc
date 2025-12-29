@@ -575,18 +575,19 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
   }
 
   if (snap_to & SCE_SNAP_TO_FACE_MIDPOINT) {
-    BLI_bvhtree_find_nearest_projected(
-        treedata.tree,
-        nearest2d.pmat_local.ptr(),
-        sctx->runtime.win_size,
-        sctx->runtime.mval,
-        reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
-        nearest2d.clip_planes.size(),
-        &nearest,
-        cb_snap_tri_faces_midpoint,
-        &nearest2d);
-
-    if (nearest.index != -1) {
+    if (treedata.tree) {
+      BLI_bvhtree_find_nearest_projected(
+          treedata.tree,
+          nearest2d.pmat_local.ptr(),
+          sctx->runtime.win_size,
+          sctx->runtime.mval,
+          reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
+          nearest2d.clip_planes.size(),
+          &nearest,
+          cb_snap_tri_faces_midpoint,
+          &nearest2d);
+    }
+    if (last_index != nearest.index) {
       last_index = nearest.index;
       elem = SCE_SNAP_TO_FACE_MIDPOINT;
     }

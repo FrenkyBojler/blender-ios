@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'edd300f2e755')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2025-12-29 09:32+0000\n"
 "PO-Revision-Date: 2025-11-11 12:13+0000\n"
 "Last-Translator: Rafael Teixeira de Avila Soares <rafaeltas@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -10765,6 +10765,22 @@ msgid "Bundle"
 msgstr "Encapsulamento"
 
 
+msgid "Font"
+msgstr "Fonte"
+
+
+msgid "Text"
+msgstr "Texto"
+
+
+msgid "Mask"
+msgstr "Máscara"
+
+
+msgid "Sound"
+msgstr "Som"
+
+
 msgid "Freestyle Line Set"
 msgstr "Freestyle - Conjuntos de linhas"
 
@@ -12996,10 +13012,6 @@ msgstr "Texto em curva"
 
 msgid "Curve deforming text object"
 msgstr "Curva deformando o objeto de texto"
-
-
-msgid "Font"
-msgstr "Fonte"
 
 
 msgid "Font Bold"
@@ -16664,10 +16676,6 @@ msgstr "Compasso"
 
 msgid "Playback pitch of the sound"
 msgstr "Valor de compasso para a reprodução dos sons."
-
-
-msgid "Sound"
-msgstr "Som"
 
 
 msgid "Sound data-block used by this speaker"
@@ -21207,10 +21215,6 @@ msgid "UV Factor"
 msgstr "Fator UV"
 
 
-msgid "Mask"
-msgstr "Máscara"
-
-
 msgid "Material slot in an object"
 msgstr "Compartimentos de material dentro de um objeto."
 
@@ -21275,10 +21279,6 @@ msgid "Clean Up"
 msgstr "Limpeza"
 
 
-msgid "Layout"
-msgstr "Organizar"
-
-
 msgid "Make Single User"
 msgstr "Tornar usuário único"
 
@@ -21291,16 +21291,12 @@ msgid "Hooks"
 msgstr "Ganchos"
 
 
-msgid "Keying"
-msgstr "Inserção de chaves"
+msgid "Layout"
+msgstr "Organizar"
 
 
 msgid "Random Mask"
 msgstr "Máscara Aleatória"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
 
 
 msgid "Clear Transform"
@@ -21311,16 +21307,24 @@ msgid "In-Betweens"
 msgstr "Entre as continuidades"
 
 
-msgid "Math"
-msgstr "Matemática"
-
-
 msgid "Propagate"
 msgstr "Propagar"
 
 
+msgid "Keying"
+msgstr "Inserção de chaves"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
+
+
 msgid "Names"
 msgstr "Nomes"
+
+
+msgid "Math"
+msgstr "Matemática"
 
 
 msgid "Toggle Bone Options"
@@ -21351,10 +21355,6 @@ msgid "Special Characters"
 msgstr "Caracteres especiais"
 
 
-msgid "Text"
-msgstr "Texto"
-
-
 msgid "Bone Roll"
 msgstr "Rolagem dos ossos"
 
@@ -21379,10 +21379,6 @@ msgid "Import"
 msgstr "Importar"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Mirror"
 msgstr "Espelhar"
 
@@ -21393,6 +21389,10 @@ msgstr "Mapeamento UV"
 
 msgid "Local View"
 msgstr "Visão local"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Viewpoint"
@@ -48295,14 +48295,6 @@ msgid "Active Palette Color"
 msgstr "Cor ativa da paleta"
 
 
-msgid "Quad View"
-msgstr "Exibição Quadrante"
-
-
-msgid "Stereoscopy"
-msgstr "Estereoscopia"
-
-
 msgid "Render Pass"
 msgstr "Passo de renderização"
 
@@ -48313,6 +48305,14 @@ msgstr "Captura de movimentos"
 
 msgid "Transform Orientations"
 msgstr "Orientações de transformação"
+
+
+msgid "Quad View"
+msgstr "Exibição Quadrante"
+
+
+msgid "Stereoscopy"
+msgstr "Estereoscopia"
 
 
 msgid "Bone Constraints"
@@ -62615,10 +62615,6 @@ msgid "Could not clear keyframe, as RNA path is invalid for the given ID (ID = %
 msgstr "Não é possível limpar o quadro-chave, pois o caminho RNA é inválido para o identificador fornecido (ID = %s, Path = %s)."
 
 
-msgid "Not clearing all keyframes from locked F-Curve '%s' for %s '%s'"
-msgstr "Não é possível a limpeza de todos os quadros-chave a partir da curva-f bloqueada '%s' para %s '%s'"
-
-
 msgid "Skipping path in keying set, as it has no ID (KS = '%s', path = '%s[%d]')"
 msgstr "Saltando caminho dentro do conjunto de inserção de chaves, pois este não possui identificador (KS = '%s', Caminho = '%s[%d]')."
 
@@ -62890,6 +62886,14 @@ msgstr "Sistema de partículas"
 
 msgid "ParticleSettings"
 msgstr "Configurações de partículas"
+
+
+msgid "Mesh has no UV data"
+msgstr "Malha não possui dados UV"
+
+
+msgid "Mesh has no VCol data"
+msgstr "A malha não possui dados de cores de vértices."
 
 
 msgid "%i frames found!"
@@ -65885,10 +65889,6 @@ msgid "Cannot swap selected strips as they will not be able to fit in their new 
 msgstr "Não é possível alternar as faixas selecionadas pois estas não se encaixam em seus novos locais."
 
 
-msgid "Action '%s' does not specify what data-blocks it can be used on (try setting the 'ID Root Type' setting from the data-blocks editor for this action to avoid future problems)"
-msgstr "A ação '%s' não especifica em quais blocos de dados pode ser usada. (tente configurar o \"Tipo de identificador raiz\" a partir do editor de blocos de dados nesta ação para evitar problemas futuros)."
-
-
 msgid "Could not add action '%s' as it cannot be used relative to ID-blocks of type '%s'"
 msgstr "Não foi possível adicionar ação '%s' pelo fato de não poder ser usada estando relacionada aos identificadores de blocos do tipo '%s'"
 
@@ -67097,14 +67097,6 @@ msgstr "Objeto '%s' não pode criar dados internos para encontrar o ponto mais p
 
 msgid "Palette '%s' does not contain color given"
 msgstr "A paleta '%s' não contém a cor fornecida."
-
-
-msgid "Mesh has no UV data"
-msgstr "Malha não possui dados UV"
-
-
-msgid "Mesh has no VCol data"
-msgstr "A malha não possui dados de cores de vértices."
 
 
 msgid "Constraint '%s' not found in pose bone '%s'"

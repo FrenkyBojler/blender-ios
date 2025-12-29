@@ -198,8 +198,8 @@ float4 flag_to_color(uint flag)
 
 void volume_properties([[resource_table]] Resources &srt,
                        float3 ls_pos,
-                       out float3 scattering,
-                       out float extinction)
+                       float3 &scattering,
+                       float &extinction)
 {
   float3 co = ls_pos * 0.5f + 0.5f;
 
@@ -266,7 +266,7 @@ void volume_properties([[resource_table]] Resources &srt,
   }
 }
 
-void eval_volume_step(inout float3 Lscat, float extinction, float step_len, out float Tr)
+void eval_volume_step(float3 &Lscat, float extinction, float step_len, float &Tr)
 {
   Lscat *= phase_function_isotropic();
   /* Evaluate Scattering */

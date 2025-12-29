@@ -289,25 +289,6 @@ ResultType Result::type(blender::gpu::TextureFormat format)
   return ResultType::Color;
 }
 
-ResultType Result::float_type(const int channels_count)
-{
-  switch (channels_count) {
-    case 1:
-      return ResultType::Float;
-    case 2:
-      return ResultType::Float2;
-    case 3:
-      return ResultType::Float3;
-    case 4:
-      return ResultType::Color;
-    default:
-      break;
-  }
-
-  BLI_assert_unreachable();
-  return ResultType::Color;
-}
-
 const CPPType &Result::cpp_type(const ResultType type)
 {
   switch (type) {
@@ -666,7 +647,10 @@ void Result::release()
 
 void Result::free()
 {
+  /* The data in the result are not owned by the result, so we only free the derived resources. */
   if (is_external_) {
+    delete derived_resources_;
+    derived_resources_ = nullptr;
     return;
   }
 
