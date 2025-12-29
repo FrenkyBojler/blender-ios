@@ -17,6 +17,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_camera.h"
@@ -108,6 +109,11 @@ RenderEngineType *RE_engines_find(const char *idname)
   return type;
 }
 
+bool RE_engines_is_registered(const char *idname)
+{
+  return BLI_findstring(&R_engines, idname, offsetof(RenderEngineType, idname)) != nullptr;
+}
+
 bool RE_engine_is_external(const Render *re)
 {
   return (re->engine && re->engine->type && re->engine->type->render);
@@ -188,7 +194,7 @@ static RenderResult *render_result_from_bake(
   }
 
   /* Create render result with specified size. */
-  RenderResult *rr = MEM_callocN<RenderResult>(__func__);
+  RenderResult *rr = MEM_new_for_free<RenderResult>(__func__);
 
   rr->rectx = w;
   rr->recty = h;
@@ -200,7 +206,7 @@ static RenderResult *render_result_from_bake(
   BKE_scene_ppm_get(&engine->re->r, rr->ppm);
 
   /* Add single baking render layer. */
-  RenderLayer *rl = MEM_callocN<RenderLayer>("bake render layer");
+  RenderLayer *rl = MEM_new_for_free<RenderLayer>("bake render layer");
   STRNCPY(rl->name, layername);
   rl->rectx = w;
   rl->recty = h;

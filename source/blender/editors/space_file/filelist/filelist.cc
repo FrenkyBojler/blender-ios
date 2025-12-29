@@ -176,7 +176,8 @@ void filelist_setlibrary(FileList *filelist, const AssetLibraryReference *asset_
   }
 
   if (!filelist->asset_library_ref) {
-    filelist->asset_library_ref = MEM_callocN<AssetLibraryReference>("filelist asset library");
+    filelist->asset_library_ref = MEM_new_for_free<AssetLibraryReference>(
+        "filelist asset library");
     *filelist->asset_library_ref = *asset_library_ref;
 
     filelist->flags |= FL_FORCE_RESET;
@@ -842,7 +843,7 @@ void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
 
 FileList *filelist_new(short type)
 {
-  FileList *p = MEM_callocN<FileList>(__func__);
+  FileList *p = MEM_new_for_free<FileList>(__func__);
 
   p->filelist_cache = MEM_new<FileListEntryCache>("FileListEntryCache");
 
@@ -880,21 +881,22 @@ void filelist_settype(FileList *filelist, short type)
       filelist->read_job_fn = filelist_readjob_asset_library;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_asset_library;
-      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA;
+      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA | FILELIST_TAGS_APPLY_FUZZY_SEARCH;
       break;
     case FILE_MAIN_ASSET:
       filelist->check_dir_fn = filelist_checkdir_return_always_valid;
       filelist->read_job_fn = filelist_readjob_main_assets;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_main_assets;
-      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA | FILELIST_TAGS_NO_THREADS;
+      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA | FILELIST_TAGS_NO_THREADS |
+                        FILELIST_TAGS_APPLY_FUZZY_SEARCH;
       break;
     case FILE_ASSET_LIBRARY_ALL:
       filelist->check_dir_fn = filelist_checkdir_return_always_valid;
       filelist->read_job_fn = filelist_readjob_all_asset_library;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_asset_library;
-      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA;
+      filelist->tags |= FILELIST_TAGS_USES_MAIN_DATA | FILELIST_TAGS_APPLY_FUZZY_SEARCH;
       break;
     default:
       filelist->check_dir_fn = filelist_checkdir_dir;
@@ -1184,7 +1186,7 @@ static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int in
   FileListEntryCache *cache = filelist->filelist_cache;
   FileDirEntry *ret;
 
-  ret = MEM_callocN<FileDirEntry>(__func__);
+  ret = MEM_new_for_free<FileDirEntry>(__func__);
 
   ret->size = uint64_t(entry->st.st_size);
   ret->time = int64_t(entry->st.st_mtime);

@@ -85,6 +85,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
+#include "BKE_node_tree_update.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -803,12 +804,10 @@ static void wm_file_read_post(bContext *C,
      * Cycles. So we need to update compositor node trees after reading the file when add-ons are
      * now loaded. */
     if (is_startup_file) {
-      FOREACH_NODETREE_BEGIN (bmain, node_tree, owner_id) {
-        if (node_tree->type == NTREE_COMPOSIT) {
-          ntreeCompositUpdateRLayers(node_tree);
-        }
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        BKE_ntree_update_tag_id_changed(bmain, &scene->id);
       }
-      FOREACH_NODETREE_END;
+      BKE_ntree_update(*bmain);
     }
 
 #if 1
@@ -4570,7 +4569,7 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
 void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op)
 {
   if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), save_file_overwrite_dialog_name)) {
-    wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
+    wmGenericCallback *callback = MEM_new_for_free<wmGenericCallback>(__func__);
     callback->exec = nullptr;
     callback->user_data = IDP_CopyProperty(op->properties);
     callback->free_user_data = wm_free_operator_properties_callback;
@@ -4809,18 +4808,17 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
     if (!has_extra_checkboxes) {
       layout.separator();
     }
-    uiDefButBitC(block,
-                 blender::ui::ButtonType::Checkbox,
-                 1,
-                 message,
-                 0,
-                 0,
-                 0,
-                 UI_UNIT_Y,
-                 &save_images_when_file_is_closed,
-                 0,
-                 0,
-                 "");
+    uiDefButC(block,
+              blender::ui::ButtonType::Checkbox,
+              message,
+              0,
+              0,
+              0,
+              UI_UNIT_Y,
+              &save_images_when_file_is_closed,
+              0,
+              0,
+              "");
     has_extra_checkboxes = true;
   }
 
@@ -4906,6 +4904,8 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
 void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
 {
   if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
+    save_images_when_file_is_closed = true;
+
     blender::ui::popup_block_invoke(
         C, block_create__close_file_dialog, post_action, free_post_file_close_action);
   }
@@ -4921,7 +4921,7 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
   if (U.uiflag & USER_SAVE_PROMPT &&
       wm_file_or_session_data_has_unsaved_changes(CTX_data_main(C), CTX_wm_manager(C)))
   {
-    wmGenericCallback *callback = MEM_callocN<wmGenericCallback>(__func__);
+    wmGenericCallback *callback = MEM_new_for_free<wmGenericCallback>(__func__);
     callback->exec = post_action_fn;
     callback->user_data = IDP_CopyProperty(op->properties);
     callback->free_user_data = wm_free_operator_properties_callback;

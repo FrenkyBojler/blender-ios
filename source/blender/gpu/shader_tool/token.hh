@@ -81,6 +81,7 @@ enum TokenType : char {
   Private = 'v',
   Public = 'V',
   Inline = 'l',
+  Union = 'o',
 };
 
 static inline TokenType to_type(const char c)
@@ -217,7 +218,7 @@ struct Token {
     return tok;
   }
 
-  /* Return start of namespace identifier is the token is part of one. */
+  /* Return start of namespace identifier if the token is part of one. */
   Token namespace_start() const
   {
     if (*this != Word) {
@@ -346,6 +347,11 @@ struct Token {
     }
     return TokenType(data->token_types[index]);
   }
+
+  /* Return the attribute scope before this token if it exists. */
+  Scope attribute_before() const;
+  /* Return the attribute scope after this token if it exists. */
+  Scope attribute_after() const;
 
   bool operator==(TokenType type) const
   {

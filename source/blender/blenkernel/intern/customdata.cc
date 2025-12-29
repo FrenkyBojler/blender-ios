@@ -21,7 +21,6 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_enums.h"
 #include "DNA_userdef_types.h"
-#include "DNA_vec_types.h"
 
 #include "BLI_bit_vector.hh"
 #include "BLI_bitmap.h"
@@ -4533,7 +4532,7 @@ void CustomData_external_add(CustomData *data,
   }
 
   if (!external) {
-    external = MEM_callocN<CustomDataExternal>(__func__);
+    external = MEM_new_for_free<CustomDataExternal>(__func__);
     data->external = external;
   }
   STRNCPY(external->filepath, filepath);
@@ -4943,7 +4942,7 @@ static void blend_write_layer_data(BlendWriter *writer,
       get_type_file_write_info(eCustomDataType(layer.type), &structname, &structnum);
       if (structnum > 0) {
         int datasize = structnum * count;
-        BLO_write_struct_array_by_name(writer, structname, datasize, layer.data);
+        writer->write_struct_array_by_name(structname, datasize, layer.data);
       }
       else if (!BLO_write_is_undo(writer)) { /* Do not warn on undo. */
         printf("%s error: layer '%s':%d - can't be written to file\n",
@@ -4978,7 +4977,7 @@ void CustomData_blend_write(BlendWriter *writer,
       writer, CustomDataLayer, data->totlayer, data->layers, layers_to_write.data());
 
   if (data->external) {
-    BLO_write_struct(writer, CustomDataExternal, data->external);
+    writer->write_struct(data->external);
   }
 }
 
