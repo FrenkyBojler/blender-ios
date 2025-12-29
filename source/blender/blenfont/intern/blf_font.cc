@@ -396,7 +396,6 @@ struct Glyph {
 
 struct ShapingData {
   blender::Vector<Glyph> glyphs = {};
-  size_t char_count = 0;
   ft_pix width = 0;
   ft_pix height = 0;
   ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
@@ -408,35 +407,33 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     return;
   }
 
-  hb_unicode_funcs_t *hb_ufuncs = hb_unicode_funcs_get_default();
   size_t segment_offset = 0;
   size_t segment_count = 0;
-  uint glyph_count = 0;
+  FontBLF *segment_font = font;
   hb_script_t script = HB_SCRIPT_UNKNOWN;
   hb_script_t last_script = HB_SCRIPT_UNKNOWN;
-  hb_glyph_info_t *hb_glyph_info = nullptr;
-  hb_glyph_position_t *glyph_pos = nullptr;
-  FontBLF *segment_font = font;
   hb_buffer_t *hb_buf = hb_buffer_create();
-  std::u32string str32 = {};
 
   /* Include space for null terminator. */
-  this->char_count = BLI_strnlen_utf8(str, len) + 1;
-  str32.resize(this->char_count, 0);
+  size_t char_count = BLI_strnlen_utf8(str, len) + 1;
+  std::u32string str32(char_count, 0);
   /* Convert entire input string into array of 32-bit code points. */
-  BLI_str_utf8_as_utf32(str32.data(), str, this->char_count);
+  BLI_str_utf8_as_utf32(str32.data(), str, char_count);
 
-  while (this->char_count > (segment_offset + segment_count)) {
+  /* Harfbuzz gets the entire string but we process it by segment,
+   * portions with the same language, direction, style, etc. */
+
+  while (char_count > (segment_offset + segment_count)) {
 
     segment_offset += segment_count;
     segment_count = 0;
-    if (segment_offset >= this->char_count - 1) {
+    if (segment_offset >= char_count - 1) {
       break;
     }
 
     size_t i;
-    for (i = segment_offset; i < this->char_count && str32[i]; i++) {
-      script = hb_unicode_script(hb_ufuncs, str32[i]);
+    for (i = segment_offset; i < char_count && str32[i]; i++) {
+      script = hb_unicode_script(hb_unicode_funcs_get_default(), str32[i]);
       if (script != last_script && script != HB_SCRIPT_INHERITED && script != HB_SCRIPT_COMMON) {
         last_script = script;
         if (i > 0) {
@@ -452,12 +449,13 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     hb_buffer_clear_contents(hb_buf);
     hb_buffer_add_utf32(hb_buf,
                         (uint32_t *)str32.data(),
-                        int(this->char_count),
+                        int(char_count),
                         uint(segment_offset),
                         int(segment_count));
 
     hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
-    hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
+    uint glyph_count;
+    hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
     for (unsigned int i = 0; i < glyph_count; i++) {
       hb_glyph_info[i].cluster = (uint32_t)(segment_offset + i);
     }
@@ -465,11 +463,10 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     hb_buffer_guess_segment_properties(hb_buf);
     hb_script_t script = hb_buffer_get_script(hb_buf);
     if (script == HB_SCRIPT_HAN) {
-      const char *lang = BLT_lang_get();
-      hb_buffer_set_language(hb_buf, hb_language_from_string(lang, -1));
+      hb_buffer_set_language(hb_buf, hb_language_from_string(BLT_lang_get(), -1));
     }
 
-    /* Can the current font handle this script? */
+    /* Is the current font ideal for this script? */
     segment_font = font;
     if (!ELEM(script, HB_SCRIPT_COMMON, HB_SCRIPT_INHERITED, HB_SCRIPT_UNKNOWN, HB_SCRIPT_LATIN)) {
       segment_font = blf_font_script_ensure(font, str32[segment_offset]);
@@ -487,8 +484,6 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
                   font->features.data(),
                   uint(font->features.size()),
                   nullptr);
-    hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
-    glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
 
     /* Unlikely. Drawing monospaced but changed mid-string to a proportional font. */
     bool set_mono = segment_font != font && font->flags & BLF_MONOSPACED &&
@@ -497,13 +492,16 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
       segment_font->flags |= BLF_MONOSPACED;
     }
 
-    int cwidth = std::max(gc->fixed_width, 1);
     int pen_x = this->width;
     int max_width = 0;
     int max_height = this->height;
+    int cwidth = std::max(gc->fixed_width, 1);
+    hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
+    hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
     GlyphCacheBLF *segment_gc = (!gc || segment_font != font) ?
                                     blf_glyph_cache_acquire(segment_font) :
                                     gc;
+
     for (uint i = 0; i < glyph_count; i++) {
       uint32_t glyph_id = hb_glyph_info[i].codepoint;
       char32_t codepoint = str32[hb_glyph_info[i].cluster];

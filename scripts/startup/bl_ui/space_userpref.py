@@ -255,11 +255,11 @@ class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
         flow.prop(view, "use_text_antialiasing", text="Anti-Aliasing")
         flow.prop(view, "use_text_render_subpixelaa", text="Subpixel Positioning")
         flow.prop(view, "use_text_kerning", text="Kerning")
-        flow.prop(view, "use_text_contextual_alternates_ui", text="Contexual Alternates")
         flow.prop(view, "use_text_tabular_numbers", text="Tabular Numbers")
 
         flow.label(text="Show always:")
-        flow.prop(view, "use_text_discretionary_ligatures", text="Ligatures")
+        flow.prop(view, "use_text_discretionary_ligatures", text="Ligatures - ffifjxt")
+        flow.prop(view, "use_text_contextual_alternates_ui", text="Contexual Alternates - =>")
         flow.prop(view, "use_text_slashed_zero_ui", text="Slashed Zero - 0")
 
         flow.label(text="Show for Inter only:")
