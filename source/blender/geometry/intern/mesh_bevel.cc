@@ -3374,7 +3374,6 @@ static int find_center_face_rep(const int bv, const bool for_interp, const Bevel
 }  // namespace facerep
 
 namespace uv {
-
 /** Return an array of the faces that go between the first and last edges at anchors[0]
  * and also for anchor[1], as long as each is not -1. If both are -1, return all the faces
  * around bv. */
@@ -3724,6 +3723,65 @@ static void calculate_adj_face_uvs(const int f,
   }
 }
 
+/** Analog of bev_create_ngon in old bevel, but only for the uv-making part.
+ * face_rep, face_reps, and snap_edges are all indices of faces in Mesh.
+ * Use face_rep for interpolation if not -1, else the corresponding element of face_reps.
+ * snap_edges are indices of edges in Mesh.  If not -1, snap to that edge before interpolation.
+ */
+static void create_ngon_uvs(const int newface,
+                            const int face_rep,
+                            const Span<int> face_reps,
+                            const Span<int> snap_edges,
+                            const int uv_map_index,
+                            Vector<Array<float2>> &uv_attributes,
+                            const BevelState &bs)
+{
+  fmt::println("create_ngon_uvs, newface={}, uv_map_index={}, face_rep={}",
+               newface,
+               uv_map_index,
+               face_rep);
+  print_span(face_reps, "face_reps");
+  print_span(snap_edges, "snap_edges");
+  const UVMapInfo &uv_info = bs.uv_map_info(uv_map_index);
+  const Mesh &mesh = bs.mesh_info.mesh;
+  OffsetIndices mesh_faces = mesh.faces();
+  Span<float3> mesh_vert_positions = mesh.vert_positions();
+  IndexRange newface_corners = bs.newface_faces_face()[newface];
+  Span<float3> new_positions = bs.newvert_positions();
+
+  for (const int i : newface_corners.index_range()) {
+    const int corner = newface_corners[i];
+    const int v = bs.newcorner_verts()[corner];
+    fmt::println("process corner c={}, v={}", corner, v);
+    /* In the newfaces, corner vertices are encoded where newverts are as is,
+     * but original verts are encoded as -(meshv + 1). */
+    float3 pos = (v < 0) ? mesh_vert_positions[-(v + 1)] : new_positions[v];
+    const int interp_f = (face_rep != -1) ? face_rep : face_reps[i];
+    fmt::println("interp_f={}", interp_f);
+    /* TODO: investigate caching mesh face interpolation data. */
+    const IndexRange interp_f_corners = mesh_faces[interp_f];
+    const int num_interp_f_corners = interp_f_corners.size();
+    float3x3 axis_mat;
+    Array<float2, 20> interp_f_pos_2d = project_face_to_2d(interp_f, mesh, axis_mat);
+    Array<float2, 20> interp_f_corner_uvs(num_interp_f_corners);
+    for (const int j : interp_f_corners.index_range()) {
+      interp_f_corner_uvs[j] = uv_info.value(interp_f_corners[j]);
+    }
+    if (snap_edges.size() > 0 && snap_edges[i] != -1) {
+      const int snap_e = snap_edges[i];
+      fmt::println("snap pos=({},{},{}) to edge {}", pos[0], pos[1], pos[2], snap_e);
+      const int2 snap_vs = mesh.edges()[snap_e];
+      closest_to_line_segment_v3(
+          pos, pos, mesh_vert_positions[snap_vs[0]], mesh_vert_positions[snap_vs[1]]);
+    }
+    float2 pos_2d = float2(transform_point(axis_mat, pos));
+    fmt::println(
+        "   pos=({},{},{}); pos_2d=({},{})", pos[0], pos[1], pos[2], pos_2d[0], pos_2d[1]);
+    uv_attributes[uv_map_index][corner] = interp_uv_2d(
+        interp_f_pos_2d, interp_f_corner_uvs, pos_2d);
+  }
+}
+
 static void calculate_vertex_mesh_face_uvs(const int bevvert,
                                            const int uv_map_index,
                                            Vector<Array<float2>> &uv_attributes,
@@ -3768,42 +3826,9 @@ static void calculate_face_mesh_uvs(const int bevface,
                                     const BevelState &bs)
 {
   fmt::println("calculate_face_mesh_face_uvs, bevface={}, uv_map_index={}", bevface, uv_map_index);
-  const UVMapInfo &uv_info = bs.uv_map_info(uv_map_index);
-  const Mesh &mesh = bs.mesh_info.mesh;
-  const Span<float3> mesh_vert_positions = mesh.vert_positions();
-  const OffsetIndices<int> mesh_faces = mesh.faces();
+  const int newface = bs.bevface_newfaces()[bevface][0];
   const int mesh_face = bs.bevface_mesh_faces()[bevface];
-  const int new_face = bs.bevface_newfaces()[bevface][0];
-  fmt::println("mesh_face = {}, new_face = {}", mesh_face, new_face);
-  const IndexRange orig_face_corners = mesh_faces[mesh_face];
-  const int num_orig_face_corners = orig_face_corners.size();
-  const IndexRange newface_corners = bs.newface_faces_face()[new_face];
-  const Span<float3> new_positions = bs.newvert_positions();
-
-  /* Values needed for interpolation. */
-  float3x3 axis_mat;
-  Array<float2, 20> orig_face_vert_pos_2d = project_face_to_2d(mesh_face, mesh, axis_mat);
-
-  Array<float2, 20> orig_face_corner_uvs(num_orig_face_corners);
-  for (const int i : orig_face_corners.index_range()) {
-    orig_face_corner_uvs[i] = uv_info.value(orig_face_corners[i]);
-  }
-
-  for (const int c : newface_corners) {
-    const int v = bs.newcorner_verts()[c];
-    fmt::println("process corner c={}, v={}", c, v);
-    /* In the newfaces, corner vertices are encoded where newverts are as is,
-     * but original verts are encoded as -(meshv + 1). */
-    const float3 pos = (v < 0) ? mesh_vert_positions[-(v + 1)] : new_positions[v];
-    float2 pos_2d = float2(transform_point(axis_mat, pos));
-    fmt::println(
-        "   pos=({},{},{}); pos_2d=({},{})", pos[0], pos[1], pos[2], pos_2d[0], pos_2d[1]);
-    /* TOOD: use original values of UVs for corners that are original verts. */
-    uv_attributes[uv_map_index][c] = interp_uv_2d(
-        orig_face_vert_pos_2d, orig_face_corner_uvs, pos_2d);
-    fmt::println(
-        "   uv = ({},{})", uv_attributes[uv_map_index][c][0], uv_attributes[uv_map_index][c][1]);
-  }
+  create_ngon_uvs(newface, mesh_face, Span<int>(), Span<int>(), uv_map_index, uv_attributes, bs);
 }
 
 }  // end namespace uv
