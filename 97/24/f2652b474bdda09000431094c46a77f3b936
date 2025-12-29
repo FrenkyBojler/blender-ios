@@ -1,2 +1,3 @@
 Referenced by issue #152026, `EXCEPTION_ACCESS_VIOLATION` crashes on Windows with `rain` and `rain_restaurant` benchmarks
 Referenced by pull request #152218, Fix #152026: Potential use-after-free removing RNA structs on exit
+Referenced by commit 35143ad82d771e1131f33e4c2338bcdbdd1e2fe7, Fix #152026: Potential use-after-free removing RNA structs on exit
