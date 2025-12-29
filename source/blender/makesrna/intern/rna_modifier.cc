@@ -7080,6 +7080,14 @@ static void rna_def_modifier_weld(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Merge Distance", "Limit below which to merge vertices");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "use_centroid", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", MOD_WELD_USE_CENTROID);
+  RNA_def_property_ui_text(
+      prop,
+      "Centroid Merge",
+      "Merge vertices at their average position, rather than at one of the vertex positions");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
   prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "defgrp_name");
   RNA_def_property_ui_text(

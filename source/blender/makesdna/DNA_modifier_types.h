@@ -2200,6 +2200,7 @@ struct WireframeModifierData {
 enum WeldModifierFlag {
   MOD_WELD_INVERT_VGROUP = (1 << 0),
   MOD_WELD_LOOSE_EDGES = (1 << 1),
+  MOD_WELD_USE_CENTROID = (1 << 2),
 };
 
 /** #WeldModifierData.mode */
@@ -2219,7 +2220,7 @@ struct WeldModifierData {
   /** #WeldModifierMode. */
   char mode = MOD_WELD_MODE_ALL;
   /** #WeldModifierFlag. */
-  char flag = 0;
+  char flag = MOD_WELD_USE_CENTROID;
   char _pad[2] = {};
 };
 

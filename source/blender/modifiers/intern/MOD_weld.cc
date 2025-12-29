@@ -84,6 +84,7 @@ static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifier
   const int defgrp_index = BKE_id_defgroup_name_index(&mesh.id, wmd.defgrp_name);
   Span<MDeformVert> vertex_group = get_vertex_group(mesh, defgrp_index);
   const bool invert = (wmd.flag & MOD_WELD_INVERT_VGROUP) != 0;
+  const bool use_centroid = (wmd.flag & MOD_WELD_USE_CENTROID) != 0;
 
   if (wmd.mode == MOD_WELD_MODE_ALL) {
     if (!vertex_group.is_empty()) {
@@ -91,10 +92,10 @@ static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifier
       const IndexMask selected_indices = selected_indices_from_vertex_group(
           vertex_group, defgrp_index, invert, memory);
       return blender::geometry::mesh_merge_by_distance_all(
-          mesh, IndexMask(selected_indices), wmd.merge_dist, true);
+          mesh, IndexMask(selected_indices), wmd.merge_dist, use_centroid);
     }
     return blender::geometry::mesh_merge_by_distance_all(
-        mesh, IndexMask(mesh.verts_num), wmd.merge_dist, true);
+        mesh, IndexMask(mesh.verts_num), wmd.merge_dist, use_centroid);
   }
   if (wmd.mode == MOD_WELD_MODE_CONNECTED) {
     const bool only_loose_edges = (wmd.flag & MOD_WELD_LOOSE_EDGES) != 0;
@@ -102,11 +103,11 @@ static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifier
       Array<bool> selection = selection_array_from_vertex_group(
           vertex_group, defgrp_index, invert);
       return blender::geometry::mesh_merge_by_distance_connected(
-          mesh, selection, wmd.merge_dist, true, only_loose_edges);
+          mesh, selection, wmd.merge_dist, use_centroid, only_loose_edges);
     }
     Array<bool> selection(mesh.verts_num, true);
     return blender::geometry::mesh_merge_by_distance_connected(
-        mesh, selection, wmd.merge_dist, true, only_loose_edges);
+        mesh, selection, wmd.merge_dist, use_centroid, only_loose_edges);
   }
 
   BLI_assert_unreachable();
@@ -152,6 +153,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout.prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
+  layout.prop(ptr, "use_centroid", UI_ITEM_NONE, IFACE_("Centroid Merge"), ICON_NONE);
+
   if (weld_mode == MOD_WELD_MODE_CONNECTED) {
     layout.prop(ptr, "loose_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
