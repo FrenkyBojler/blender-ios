@@ -261,7 +261,7 @@ blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateIn
         {"gpu_shader_python_typedef_lib.glsl", {}, "\n" + info.typedef_source_generated});
   }
   else {
-    /* Add emtpy source to avoid warning and importing the placeholder file. */
+    /* Add empty source to avoid warning and importing the placeholder file. */
     info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, "\n"});
   }
 
