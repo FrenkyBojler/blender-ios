@@ -767,6 +767,7 @@ enum {
   R_FILTER_GAUSS = 5,
   R_FILTER_MITCH = 6,
   R_FILTER_FAST_GAUSS = 7,
+  R_FILTER_DUAL_KAWASE = 8,
 };
 
 /** #RenderData::scemode */

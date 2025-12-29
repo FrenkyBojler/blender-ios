@@ -28,8 +28,6 @@
 
 #include "node_composite_util.hh"
 
-constexpr int R_FILTER_DUAL_KAWASE = 8;  //@TODO hack
-
 namespace blender::nodes::node_composite_blur_cc {
 
 static const EnumPropertyItem type_items[] = {
@@ -397,6 +395,7 @@ class BlurOperation : public NodeOperation {
     switch (this->get_type()) {
       case R_FILTER_GAUSS:
       case R_FILTER_FAST_GAUSS:
+      case R_FILTER_DUAL_KAWASE:
         return true;
       default:
         return false;
