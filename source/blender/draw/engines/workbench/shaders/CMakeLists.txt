@@ -36,7 +36,7 @@ set(SRC_GLSL_VERT
 )
 
 set(SRC_GLSL_FRAG
-  workbench_composite_frag.glsl
+  workbench_composite.bsl.hh
   workbench_effect_dof_prepare_frag.glsl
   workbench_effect_dof_downsample_frag.glsl
   workbench_effect_dof_blur1_frag.glsl
