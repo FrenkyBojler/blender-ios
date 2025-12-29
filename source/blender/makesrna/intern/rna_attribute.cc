@@ -315,7 +315,7 @@ static StructRNA *rna_Attribute_refine(PointerRNA *ptr)
 {
   using namespace blender;
   if (GS(ptr->owner_id->name) == ID_ME) {
-    const Mesh *mesh = owner.get_mesh();
+    const Mesh *mesh = blender::id_cast<const Mesh *>(ptr->owner_id);
     if (mesh->runtime->edit_mesh) {
       CustomDataLayer *layer = static_cast<CustomDataLayer *>(ptr->data);
       return srna_by_custom_data_layer_type(eCustomDataType(layer->type));
@@ -495,7 +495,8 @@ static int rna_Attribute_domain_get(PointerRNA *ptr)
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      return int(BKE_attribute_domain(owner, static_cast<const CustomDataLayer *>(ptr->data)));
+      return int(
+          BKE_attribute_domain(*mesh, *em->bm, static_cast<const CustomDataLayer *>(ptr->data)));
     }
   }
   const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
