@@ -2141,12 +2141,12 @@ static FontBLF *blf_font_new_impl(const char *filepath,
         font->unicode_ranges[2] = static_details->coverage3;
         font->unicode_ranges[3] = static_details->coverage4;
         face_needed = false;
-        if (STRPREFIX(filename, "Inter")) {
-          blf_font_feature(font, "ss01", 1); /* Open Digits. */
-          blf_font_feature(font, "ss04", 1); /* Disambiguation w/o zero. */
-        }
         break;
       }
+    }
+    if (STREQ(filename, BLF_DEFAULT_PROPORTIONAL_FONT)) {
+      blf_font_feature(font, "ss01", 1); /* Open Digits. */
+      blf_font_feature(font, "ss04", 1); /* Disambiguation w/o zero. */
     }
   }
 
