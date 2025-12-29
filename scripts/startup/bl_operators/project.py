@@ -177,16 +177,17 @@ class PROJECT_OP_NewProject(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.project.data is None
+        return context.project.data is None and bpy.data.filepath != ""
 
     def execute(self, context):
         # TODO: ensure there isn't already a project at `self.directory`.
-        #
-        # TODO: ensure `self.directory` is a parent of the current file (if the
-        # file is on disk).
 
         if self.directory == "":
-            self.report({'ERROR'}, "Cannot create a project with an empty file path")
+            self.report({'ERROR'}, "Cannot create a project with an empty directory path")
+            return {'CANCELLED'}
+
+        if not bpy.path.is_subdir(path=context.blend_data.filepath, directory=self.directory):
+            self.report({'ERROR'}, "New project directory must be a parent of the currently open blend file")
             return {'CANCELLED'}
 
         # Create the project.
