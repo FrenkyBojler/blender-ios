@@ -69,6 +69,8 @@
     .gpencil_grid_subdivisions = 4, \
     .gpencil_vertex_paint_opacity = 1.0f, \
     .normals_constant_screen_size = 7.0f, \
+ \
+    .volume_grid_flag = V3D_OVERLAY_VOLUME_GRID_SHOW_ON, \
   }
 
 #define _DNA_DEFAULT_View3DCursor \

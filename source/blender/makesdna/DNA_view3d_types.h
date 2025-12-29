@@ -260,6 +260,9 @@ typedef struct View3DOverlay {
 
   /** Curves sculpt mode settings. */
   float sculpt_curves_cage_opacity;
+
+  int volume_grid_flag;
+  char _pad0[4];
 } View3DOverlay;
 
 /** #View3DOverlay.handle_display */
@@ -271,6 +274,12 @@ typedef enum eHandleDisplay {
   /* No display handles. */
   CURVE_HANDLE_NONE = 2,
 } eHandleDisplay;
+
+/** #View3DOverlay::volume_grid_flag */
+enum {
+  V3D_OVERLAY_VOLUME_GRID_SHOW_ON = 1 << 0,
+  V3D_OVERLAY_VOLUME_GRID_SHOW_OFF = 1 << 1,
+};
 
 typedef struct View3D_Runtime {
   /** Nkey panel stores stuff here. */

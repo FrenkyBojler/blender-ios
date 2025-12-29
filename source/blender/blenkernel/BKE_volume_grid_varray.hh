@@ -35,12 +35,15 @@ struct GridNodeKey {
 
 class GridNodeIndexMapping {
  private:
+  GridIndexMappingParams params_;
   Map<GridNodeKey, IndexRange> node_ranges_;
   int64_t size_;
 
  public:
   static std::shared_ptr<GridNodeIndexMapping> from_grid(const VolumeGridData &grid,
-                                                         const GridValueOnOff grid_value_filter);
+                                                         const GridIndexMappingParams &params);
+
+  const GridIndexMappingParams &params() const;
 
   int size() const;
   template<typename NodeT> IndexRange get_node_range(const NodeT &node) const;

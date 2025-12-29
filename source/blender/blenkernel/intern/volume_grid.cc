@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_context.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_grid_process.hh"
 #include "BKE_volume_grid_varray.hh"
@@ -19,6 +20,11 @@
 namespace blender::bke::volume_grid {
 
 #ifdef WITH_OPENVDB
+
+GridIndexMappingParams GridIndexMappingParams::from_context(const bContext &C)
+{
+  GridIndexMappingParams params;
+}
 
 VolumeGridData::VolumeGridData()
 {
@@ -264,24 +270,15 @@ const openvdb::CoordBBox &VolumeGridData::active_bounds() const
 const std::shared_ptr<const GridNodeIndexMapping> &VolumeGridData::index_mapping(
     const GridValueOnOff grid_value_filter) const
 {
-  using RefT = std::shared_ptr<const GridNodeIndexMapping> &;
-  RefT index_mapping = [&]() -> RefT {
-    switch (grid_value_filter) {
-      case GridValueOnOff::On:
-        return index_mapping_on_;
-      case GridValueOnOff::Off:
-        return index_mapping_off_;
-      case GridValueOnOff::Dense:
-        return index_mapping_dense_;
+  GridIndexMappingParams params = {grid_value_filter};
+  if (!index_mapping_mutex_.is_dirty()) {
+    if (index_mapping_->params() != params) {
+      index_mapping_mutex_.tag_dirty();
     }
-    BLI_assert_unreachable();
-    return index_mapping_on_;
-  }();
-
-  const bool is_dirty = index_mapping_mutex_.is_dirty();
+  }
   index_mapping_mutex_.ensure(
-      [&]() { index_mapping = GridNodeIndexMapping::from_grid(*this, grid_value_filter); });
-  return index_mapping;
+      [&]() { index_mapping_ = GridNodeIndexMapping::from_grid(*this, params); });
+  return index_mapping_;
 }
 
 std::string VolumeGridData::error_message() const

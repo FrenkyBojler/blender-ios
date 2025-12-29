@@ -18,6 +18,11 @@
 
 namespace blender::bke::volume_grid {
 
+const GridIndexMappingParams &GridNodeIndexMapping::params() const
+{
+  return params_;
+}
+
 int GridNodeIndexMapping::size() const
 {
   return size_;
@@ -116,16 +121,17 @@ static int gather_index_mapping_from_tree(const TreeT &tree,
 }
 
 std::shared_ptr<GridNodeIndexMapping> GridNodeIndexMapping::from_grid(
-    const VolumeGridData &grid, const GridValueOnOff grid_value_filter)
+    const VolumeGridData &grid, const GridIndexMappingParams &params)
 {
   std::shared_ptr<GridNodeIndexMapping> index_mapping = std::make_shared<GridNodeIndexMapping>();
+  index_mapping->params_ = params;
 
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
 
   to_typed_grid(grid_base, [&](const auto &grid) {
     index_mapping->size_ = gather_index_mapping_from_tree(
-        grid.tree(), grid_value_filter, 0, index_mapping->node_ranges_);
+        grid.tree(), params.grid_value_filter, 0, index_mapping->node_ranges_);
   });
 
   return index_mapping;

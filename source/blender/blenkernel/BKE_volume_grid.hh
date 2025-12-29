@@ -21,16 +21,25 @@
 #  include "BLI_cache_mutex.hh"
 #  include "BLI_implicit_sharing_ptr.hh"
 #  include "BLI_mutex.hh"
-#  include "BLI_shared_cache.hh"
 #  include "BLI_string_ref.hh"
 
 #  include "openvdb_fwd.hh"
+
+struct bContext;
 
 namespace blender::bke::volume_grid {
 
 class GridNodeIndexMapping;
 
 enum class GridValueOnOff { On, Off, Dense };
+
+struct GridIndexMappingParams {
+  GridValueOnOff grid_value_filter = GridValueOnOff::On;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_1(GridIndexMappingParams, grid_value_filter)
+
+  static GridIndexMappingParams from_context(const bContext &C);
+};
 
 /**
  * A grid or tree may be loaded lazily when it's accessed. This is especially useful for grids that
@@ -135,9 +144,7 @@ class VolumeGridData : public ImplicitSharingMixin {
   mutable CacheMutex active_bounds_mutex_;
   mutable openvdb::CoordBBox active_bounds_;
   mutable CacheMutex index_mapping_mutex_;
-  mutable std::shared_ptr<const GridNodeIndexMapping> index_mapping_on_;
-  mutable std::shared_ptr<const GridNodeIndexMapping> index_mapping_off_;
-  mutable std::shared_ptr<const GridNodeIndexMapping> index_mapping_dense_;
+  mutable std::shared_ptr<const GridNodeIndexMapping> index_mapping_;
 
   /**
    * A token that allows detecting whether some code is currently accessing the tree (not grid) or
