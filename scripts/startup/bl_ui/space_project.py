@@ -179,6 +179,7 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         project = context.project
 
         col = layout.column()
+        col.separator(factor=2.0)
 
         if context.blend_data.filepath == "":
             col.label(text="No active project.", icon='INFO')
@@ -191,17 +192,17 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
             col.label(
                 text="be part of the project.")
             col_flow = col.column_flow(columns=3)
-            col_flow.label(text="")
+            col_flow.separator_spacer()
             col_flow.operator("wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
-            col_flow.label(text="")
+            col_flow.separator_spacer()
 
             col.separator_spacer()
 
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
             col_flow = col.column_flow(columns=3)
-            col_flow.label(text="")
+            col_flow.separator_spacer()
             col_flow.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
-            col_flow.label(text="")
+            col_flow.separator_spacer()
         elif context.project.data is None:
             col.label(text="No active project.", icon='INFO')
 
@@ -209,17 +210,17 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
 
             col.label(text="Set up a new project by choosing any parent directory of the current file.")
             col_flow = col.column_flow(columns=3)
-            col_flow.label(text="")
+            col_flow.separator_spacer()
             col_flow.operator("project.new_project", text="New Project...", icon='ADD')
-            col_flow.label(text="")
+            col_flow.separator_spacer()
 
             col.separator_spacer()
 
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
             col_flow = col.column_flow(columns=3)
-            col_flow.label(text="")
+            col_flow.separator_spacer()
             col_flow.operator("wm.open_mainfile", text="Open File...", icon='FILE_FOLDER')
-            col_flow.label(text="")
+            col_flow.separator_spacer()
         else:
             col.prop(project.data, "name")
             col.prop(project.data, "root_path")
