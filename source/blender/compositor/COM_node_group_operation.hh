@@ -114,7 +114,7 @@ class NodeGroupOperation : public Operation {
   NodeGroupOperation(Context &context,
                      const bNodeTree &node_group,
                      const NodeGroupOutputTypes needed_outputs,
-                     Map<bNodeInstanceKey, bke::bNodePreview> *node_previews,
+                     Map<bNodeInstanceKey, bke::bNodePreview> *node_previews = nullptr,
                      const bNodeInstanceKey instance_key = bke::NODE_INSTANCE_KEY_BASE);
 
   /* Compile and evaluate the node group. */

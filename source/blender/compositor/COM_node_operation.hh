@@ -30,8 +30,10 @@ class NodeOperation : public Operation {
  private:
   /* The node that this operation represents. */
   const bNode &node_;
-  /* TODO. */
+  /* A node instance key that identifies the node instance in the nested node groups path. */
   bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_NONE;
+  /* A map that associates each node instance identified by its node instance key to its node
+   * preview. This could be nullptr if node previews are not needed. */
   Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
 
  public:
@@ -49,10 +51,11 @@ class NodeOperation : public Operation {
    * output corresponding to each result. The node execution schedule is given as an input. */
   void compute_results_reference_counts(const VectorSet<const bNode *> &schedule);
 
-  /* TODO. */
+  /* Setter and getter for instance_key_. */
   void set_instance_key(const bNodeInstanceKey &instance_key);
   const bNodeInstanceKey &get_instance_key() const;
 
+  /* Setter and getter for node_previews_. */
   void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews);
   Map<bNodeInstanceKey, bke::bNodePreview> *get_node_previews();
 

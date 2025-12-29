@@ -68,8 +68,12 @@ class PixelOperation : public Operation {
   PixelCompileUnit compile_unit_;
   /* A reference to the node execution schedule that is being compiled. */
   const VectorSet<const bNode *> &schedule_;
-  /* TODO. */
-  bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_NONE;
+  /* A node instance key that identifies the particular group node that uses the node group that
+   * this pixel operation belongs to. If the node group represents a top-level standalone node
+   * group with no associated group node, this will be bke::NODE_INSTANCE_KEY_BASE. */
+  bNodeInstanceKey instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
+  /* A map that associates each node instance identified by its node instance key to its node
+   * preview. This could be nullptr if node previews are not needed. */
   Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
   /* A map that associates the identifier of each input of the operation with the output socket it
    * is linked to. This is needed to help the compiler establish links between operations. */
@@ -147,9 +151,10 @@ class PixelOperation : public Operation {
    * The node execution schedule is given as an input. */
   void compute_results_reference_counts(const VectorSet<const bNode *> &schedule);
 
-  /* TODO. */
+  /* Setter for instance_key_. */
   void set_instance_key(const bNodeInstanceKey &instance_key);
 
+  /* Setter for node_previews_. */
   void set_node_previews(Map<bNodeInstanceKey, bke::bNodePreview> *node_previews);
 };
 
