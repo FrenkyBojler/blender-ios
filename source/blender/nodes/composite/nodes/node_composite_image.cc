@@ -125,8 +125,10 @@ static void node_declare_multi_layer(NodeDeclarationBuilder &b,
     declare_pass(b, *pass);
 
     /* If the image does not have an alpha pass add an extra alpha pass that is generated based on
-     * the combined pass. */
-    if (!has_alpha_pass && StringRef(pass->name) == RE_PASSNAME_COMBINED) {
+     * the combined pass, if the combined pass is an RGBA pass. */
+    if (!has_alpha_pass && StringRef(pass->name) == RE_PASSNAME_COMBINED && pass->channels == 4 &&
+        StringRef(pass->chan_id) == "RGBA")
+    {
       b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
     }
   }
@@ -216,7 +218,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*node_tree*/, bNode *node)
 {
-  ImageUser *iuser = MEM_callocN<ImageUser>(__func__);
+  ImageUser *iuser = MEM_new_for_free<ImageUser>(__func__);
   node->storage = iuser;
   iuser->frames = 1;
   iuser->sfra = 1;
@@ -231,7 +233,7 @@ class ImageOperation : public NodeOperation {
 
   void execute() override
   {
-    for (const bNodeSocket *output : this->node()->output_sockets()) {
+    for (const bNodeSocket *output : this->node().output_sockets()) {
       if (!is_socket_available(output)) {
         continue;
       }
@@ -308,12 +310,12 @@ class ImageOperation : public NodeOperation {
 
   Image *get_image()
   {
-    return reinterpret_cast<Image *>(bnode().id);
+    return reinterpret_cast<Image *>(node().id);
   }
 
   ImageUser *get_image_user()
   {
-    return static_cast<ImageUser *>(bnode().storage);
+    return static_cast<ImageUser *>(node().storage);
   }
 };
 
