@@ -24,6 +24,7 @@
 #include "BLI_sys_types.h"
 
 #include "BKE_asset.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -613,6 +614,13 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       do_version_light_remove_use_nodes(bmain, light);
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 17)) {
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      blender::bke::mesh_convert_customdata_to_storage(*mesh);
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
