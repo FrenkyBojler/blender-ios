@@ -32,7 +32,6 @@
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_effect_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_key_types.h"
 #include "DNA_light_types.h"
@@ -41,7 +40,6 @@
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_force_types.h"
@@ -59,11 +57,9 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
-#include "BKE_armature.hh"
 #include "BKE_collection.hh"
 #include "BKE_collision.h"
 #include "BKE_constraint.h"
-#include "BKE_curve.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_gpencil_modifier_legacy.h"
@@ -79,14 +75,9 @@
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_object.hh"
-#include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_rigidbody.h"
 #include "BKE_shader_fx.hh"
 #include "BKE_shrinkwrap.hh"
-#include "BKE_tracking.h"
-#include "BKE_world.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -104,7 +95,6 @@
 #include "intern/builder/deg_builder_relations_drivers.h"
 #include "intern/debug/deg_debug.h"
 #include "intern/depsgraph_physics.hh"
-#include "intern/depsgraph_tag.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
 
 #include "intern/node/deg_node.hh"
@@ -635,6 +625,12 @@ void DepsgraphRelationBuilder::build_idproperties(IDProperty *id_property)
 void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_collection,
                                                 Collection *collection)
 {
+  if (!built_map_.check_is_built_and_tag(collection, BuilderMap::TAG_COLLECTION_PROPERTIES)) {
+    build_idproperties(collection->id.properties);
+    build_idproperties(collection->id.system_properties);
+    build_parameters(&collection->id);
+  }
+
   if (from_layer_collection != nullptr) {
     /* If we came from layer collection we don't go deeper, view layer builder takes care of going
      * deeper.
@@ -655,6 +651,13 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
         /* Check whether the object hierarchy node exists, because the view layer builder can skip
          * bases if they are constantly excluded from the collections. */
         if (Node *object_hierarchy_node = this->find_node(object_hierarchy_key)) {
+          /* Note that while view layer builder ensures objects are built first and only then layer
+           * collections are built, it is not possible to assert() here: the object might be pulled
+           * into the dependency graph via different indirections, and it might not have been
+           * traversed into at this point.
+           * This build_object() is more of a safety measure, which follows the common rule in the
+           * dependency graph builder: ensure the entity is built when you encounter it. */
+          build_object(object);
           this->add_operation_relation(collection_hierarchy_exit,
                                        object_hierarchy_node->get_entry_operation(),
                                        "Collection -> Object hierarchy");
@@ -668,10 +671,6 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
   if (built_map_.check_is_built_and_tag(collection)) {
     return;
   }
-
-  build_idproperties(collection->id.properties);
-  build_idproperties(collection->id.system_properties);
-  build_parameters(&collection->id);
 
   const BuilderStack::ScopedEntry stack_entry = stack_.trace(collection->id);
 
@@ -2899,8 +2898,7 @@ void DepsgraphRelationBuilder::build_armature_bones(ListBase *bones)
   }
 }
 
-void DepsgraphRelationBuilder::build_armature_bone_collections(
-    blender::Span<BoneCollection *> collections)
+void DepsgraphRelationBuilder::build_armature_bone_collections(Span<BoneCollection *> collections)
 {
   for (BoneCollection *bcoll : collections) {
     build_idproperties(bcoll->prop);
@@ -2997,6 +2995,33 @@ void DepsgraphRelationBuilder::build_nodetree_socket(bNodeSocket *socket)
     Material *material = ((bNodeSocketValueMaterial *)socket->default_value)->value;
     if (material != nullptr) {
       build_material(material);
+    }
+  }
+  else if (socket->type == SOCK_FONT) {
+    VFont *font = ((bNodeSocketValueFont *)socket->default_value)->value;
+    if (font != nullptr) {
+      build_vfont(font);
+    }
+  }
+  else if (socket->type == SOCK_SCENE) {
+    Scene *scene = ((bNodeSocketValueScene *)socket->default_value)->value;
+    if (scene != nullptr) {
+      build_scene_parameters(scene);
+    }
+  }
+  else if (socket->type == SOCK_TEXT_ID) {
+    /* Text data-blocks don't use the depsgraph. */
+  }
+  else if (socket->type == SOCK_MASK) {
+    Mask *mask = ((bNodeSocketValueMask *)socket->default_value)->value;
+    if (mask != nullptr) {
+      build_mask(mask);
+    }
+  }
+  else if (socket->type == SOCK_SOUND) {
+    bSound *sound = ((bNodeSocketValueSound *)socket->default_value)->value;
+    if (sound != nullptr) {
+      build_sound(sound);
     }
   }
 }
@@ -3742,6 +3767,11 @@ void DepsgraphRelationBuilder::constraint_walk(bConstraint * /*con*/,
     return;
   }
   data->builder->build_id(id);
+}
+
+Set<const ID *> DepsgraphRelationBuilder::get_built_ids() const
+{
+  return built_map_.get_ids();
 }
 
 }  // namespace blender::deg

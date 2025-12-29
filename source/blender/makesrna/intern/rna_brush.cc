@@ -1963,7 +1963,6 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_fill", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", GP_BRUSH_FILL_HIDE);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Show Fill", "Show transparent lines to use as boundary for filling");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -2454,7 +2453,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
   static const EnumPropertyItem brush_pose_deform_type_items[] = {
       {BRUSH_POSE_DEFORM_ROTATE_TWIST, "ROTATE_TWIST", 0, "Rotate/Twist", ""},
-      {BRUSH_POSE_DEFORM_SCALE_TRASLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
+      {BRUSH_POSE_DEFORM_SCALE_TRANSLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
       {BRUSH_POSE_DEFORM_SQUASH_STRETCH, "SQUASH_STRETCH", 0, "Squash & Stretch", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };

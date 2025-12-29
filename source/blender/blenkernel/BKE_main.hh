@@ -25,6 +25,7 @@
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_set.hh"
 #include "BLI_sys_types.h"
@@ -43,6 +44,44 @@ struct Library;
 struct MainLock;
 struct ReportList;
 struct UniqueName_Map;
+struct Scene;
+struct Object;
+struct Mesh;
+struct Curve;
+struct MetaBall;
+struct Material;
+struct Tex;
+struct Image;
+struct Lattice;
+struct Light;
+struct Camera;
+struct Key;
+struct World;
+struct bScreen;
+struct VFont;
+struct Text;
+struct Speaker;
+struct LightProbe;
+struct bSound;
+struct Collection;
+struct bArmature;
+struct bAction;
+struct bNodeTree;
+struct Brush;
+struct ParticleSettings;
+struct Palette;
+struct PaintCurve;
+struct wmWindowManager;
+struct bGPdata;
+struct GreasePencil;
+struct MovieClip;
+struct Mask;
+struct FreestyleLineStyle;
+struct CacheFile;
+struct WorkSpace;
+struct Curves;
+struct PointCloud;
+struct Volume;
 
 /**
  * Blender thumbnail, as written to the `.blend` file (width, height, and data as char RGBA).
@@ -127,7 +166,7 @@ struct MainIDRelations {
    * Mapping from an ID pointer to all of its parents (IDs using it) and children (IDs it uses).
    * Values are `MainIDRelationsEntry` pointers.
    */
-  GHash *relations_from_pointers;
+  blender::Map<const ID *, MainIDRelationsEntry *> *relations_from_pointers;
   /* NOTE: we could add more mappings when needed (e.g. from session uid?). */
 
   short flag;
@@ -142,16 +181,16 @@ enum {
 };
 
 struct MainColorspace {
-  /*
-   * File working colorspace for all scene linear colors.
+  /**
+   * File working color-space for all scene linear colors.
    * The name is only for the user interface and is not a unique identifier, the matrix is
-   * the XYZ colorspace is the source of truth.
+   * the XYZ color-space is the source of truth.
    * */
   char scene_linear_name[64 /*MAX_COLORSPACE_NAME*/] = "";
   blender::float3x3 scene_linear_to_xyz = blender::float3x3::zero();
 
-  /*
-   * A colorspace, view or display was not found, which likely means the OpenColorIO config
+  /**
+   * A color-space, view or display was not found, which likely means the OpenColorIO config
    * used to create this blend file is missing.
    */
   bool is_missing_opencolorio_config = false;
@@ -162,6 +201,11 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    * Runtime vector storing all split Mains (one Main for each library data), during readfile or
    * linking process.
    * Shared across all of the split mains when defined.
+   *
+   * \note The order stability properties of #VectorSet elements is used in readfile code (in
+   * particular during memfile/undo reading), to ensure that the local Main is always the first
+   * item, even once library ones are moved between the old and new Mains (see also
+   * #read_undo_move_libmain_data).
    */
   std::shared_ptr<blender::VectorSet<Main *>> split_mains = {};
   /**
@@ -268,58 +312,58 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    */
   Library *curlib = nullptr;
 
-  /*
-   * Colorspace information for this file.
+  /**
+   * Color-space information for this file.
    */
   MainColorspace colorspace;
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 
-  ListBase scenes = {};
-  ListBase libraries = {};
-  ListBase objects = {};
-  ListBase meshes = {};
-  ListBase curves = {};
-  ListBase metaballs = {};
-  ListBase materials = {};
-  ListBase textures = {};
-  ListBase images = {};
-  ListBase lattices = {};
-  ListBase lights = {};
-  ListBase cameras = {};
-  ListBase shapekeys = {};
-  ListBase worlds = {};
-  ListBase screens = {};
-  ListBase fonts = {};
-  ListBase texts = {};
-  ListBase speakers = {};
-  ListBase lightprobes = {};
-  ListBase sounds = {};
-  ListBase collections = {};
-  ListBase armatures = {};
-  ListBase actions = {};
-  ListBase nodetrees = {};
-  ListBase brushes = {};
-  ListBase particles = {};
-  ListBase palettes = {};
-  ListBase paintcurves = {};
+  ListBaseT<Scene> scenes = {};
+  ListBaseT<Library> libraries = {};
+  ListBaseT<Object> objects = {};
+  ListBaseT<Mesh> meshes = {};
+  ListBaseT<Curve> curves = {};
+  ListBaseT<MetaBall> metaballs = {};
+  ListBaseT<Material> materials = {};
+  ListBaseT<Tex> textures = {};
+  ListBaseT<Image> images = {};
+  ListBaseT<Lattice> lattices = {};
+  ListBaseT<Light> lights = {};
+  ListBaseT<Camera> cameras = {};
+  ListBaseT<Key> shapekeys = {};
+  ListBaseT<World> worlds = {};
+  ListBaseT<bScreen> screens = {};
+  ListBaseT<VFont> fonts = {};
+  ListBaseT<Text> texts = {};
+  ListBaseT<Speaker> speakers = {};
+  ListBaseT<LightProbe> lightprobes = {};
+  ListBaseT<bSound> sounds = {};
+  ListBaseT<Collection> collections = {};
+  ListBaseT<bArmature> armatures = {};
+  ListBaseT<bAction> actions = {};
+  ListBaseT<bNodeTree> nodetrees = {};
+  ListBaseT<Brush> brushes = {};
+  ListBaseT<ParticleSettings> particles = {};
+  ListBaseT<Palette> palettes = {};
+  ListBaseT<PaintCurve> paintcurves = {};
   /** Singleton (exception). */
-  ListBase wm = {};
+  ListBaseT<wmWindowManager> wm = {};
   /** Legacy Grease Pencil. */
-  ListBase gpencils = {};
-  ListBase grease_pencils = {};
-  ListBase movieclips = {};
-  ListBase masks = {};
-  ListBase linestyles = {};
-  ListBase cachefiles = {};
-  ListBase workspaces = {};
+  ListBaseT<bGPdata> gpencils = {};
+  ListBaseT<GreasePencil> grease_pencils = {};
+  ListBaseT<MovieClip> movieclips = {};
+  ListBaseT<Mask> masks = {};
+  ListBaseT<FreestyleLineStyle> linestyles = {};
+  ListBaseT<CacheFile> cachefiles = {};
+  ListBaseT<WorkSpace> workspaces = {};
   /**
    * \note The name `hair_curves` is chosen to be different than `curves`,
    * but they are generic curve data-blocks, not just for hair.
    */
-  ListBase hair_curves = {};
-  ListBase pointclouds = {};
-  ListBase volumes = {};
+  ListBaseT<Curves> hair_curves = {};
+  ListBaseT<PointCloud> pointclouds = {};
+  ListBaseT<Volume> volumes = {};
 
   /**
    * Must be generated, used and freed by same code - never assume this is valid data unless you
@@ -667,9 +711,11 @@ MainListsArray BKE_main_lists_get(Main &bmain);
   ((main)->versionfile < (ver) || \
    ((main)->versionfile == (ver) && (main)->subversionfile <= (subver)))
 
-/* NOTE: in case versionfile is 0, this check is invalid, always return false then. This happens
+/**
+ * \note in case `versionfile` is 0, this check is invalid, always return false then. This happens
  * typically when a library is missing, by definition its data (placeholder IDs) does not need
- * versionning anyway then. */
+ * versioning anyway then.
+ */
 #define LIBRARY_VERSION_FILE_ATLEAST(lib, ver, subver) \
   ((lib)->runtime->versionfile == 0 || (lib)->runtime->versionfile > (ver) || \
    ((lib)->runtime->versionfile == (ver) && (lib)->runtime->subversionfile >= (subver)))

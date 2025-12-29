@@ -34,6 +34,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_pointcloud_types.h"
@@ -1349,9 +1350,8 @@ static void make_duplis_faces(const DupliContext *ctx)
   FaceDupliData_Params fdd_params = {ctx, (parent->transflag & OB_DUPLIFACES_SCALE) != 0};
 
   if (em != nullptr) {
-    const char *active_layer = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
     const int cd_loop_uv_offset = CustomData_get_offset_named(
-        &em->bm->ldata, CD_PROP_FLOAT2, active_layer);
+        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->active_uv_map_name());
     FaceDupliData_EditMesh fdd{};
     fdd.params = fdd_params;
     fdd.em = em;

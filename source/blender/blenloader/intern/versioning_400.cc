@@ -14,9 +14,7 @@
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
-#include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
@@ -51,12 +49,11 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_texture.h"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 
 #include "BLO_read_write.hh"
 
@@ -301,10 +298,10 @@ static bool versioning_convert_strip_speed_factor(Strip *strip, void *user_data)
 
   last_key->strip_frame_index = (strip->len) / speed_factor;
 
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND) {
     const int prev_length = strip->len - strip->startofs - strip->endofs;
-    const float left_handle = blender::seq::time_left_handle_frame_get(scene, strip);
-    blender::seq::time_right_handle_frame_set(scene, strip, left_handle + prev_length);
+    const float left_handle = strip->left_handle();
+    strip->right_handle_set(scene, left_handle + prev_length);
   }
 
   return true;
@@ -669,7 +666,7 @@ static void version_replace_principled_hair_model(bNodeTree *ntree)
     if (node->type_legacy != SH_NODE_BSDF_HAIR_PRINCIPLED) {
       continue;
     }
-    NodeShaderHairPrincipled *data = MEM_callocN<NodeShaderHairPrincipled>(__func__);
+    NodeShaderHairPrincipled *data = MEM_new_for_free<NodeShaderHairPrincipled>(__func__);
     data->model = SHD_PRINCIPLED_HAIR_CHIANG;
     data->parametrization = node->custom1;
 
@@ -680,7 +677,7 @@ static void version_replace_principled_hair_model(bNodeTree *ntree)
 static bNodeTreeInterfaceItem *legacy_socket_move_to_interface(bNodeSocket &legacy_socket,
                                                                const eNodeSocketInOut in_out)
 {
-  bNodeTreeInterfaceSocket *new_socket = MEM_callocN<bNodeTreeInterfaceSocket>(__func__);
+  bNodeTreeInterfaceSocket *new_socket = MEM_new_for_free<bNodeTreeInterfaceSocket>(__func__);
   new_socket->item.item_type = NODE_INTERFACE_SOCKET;
 
   /* Move reusable data. */
@@ -1174,7 +1171,7 @@ static void enable_geometry_nodes_is_modifier(Main &bmain)
         return true;
       }
       if (!group->geometry_node_asset_traits) {
-        group->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+        group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
       }
       group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
       return false;
@@ -1390,7 +1387,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == SH_NODE_TEX_NOISE) {
             if (!node->storage) {
-              NodeTexNoise *tex = MEM_callocN<NodeTexNoise>(__func__);
+              NodeTexNoise *tex = MEM_new_for_free<NodeTexNoise>(__func__);
               BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
               BKE_texture_colormapping_default(&tex->base.color_mapping);
               tex->dimensions = 3;
@@ -1417,7 +1414,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
     /* Panorama properties shared with Eevee. */
     if (!DNA_struct_member_exists(fd->filesdna, "Camera", "float", "fisheye_fov")) {
-      Camera default_cam = *DNA_struct_default_get(Camera);
+      Camera default_cam = {};
       LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
         IDProperty *ccam = version_cycles_properties_from_ID(&camera->id);
         if (ccam) {
@@ -1638,7 +1635,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "shadow_step_count")) {
-      SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
+      SceneEEVEE default_scene_eevee = {};
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->eevee.shadow_ray_count = default_scene_eevee.shadow_ray_count;
         scene->eevee.shadow_step_count = default_scene_eevee.shadow_step_count;

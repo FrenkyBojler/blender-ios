@@ -158,7 +158,7 @@ static blender::Vector<bNode *> get_node_code_gen_order(bNodeTree &ntree)
     bNode *node = nodes[old_i];
     const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier);
     if (!zone) {
-      /* Nones outside of any zone can stay where they are. */
+      /* None outside of any zone can stay where they are. */
       continue;
     }
     if (zone->output_node_id == node->identifier) {
@@ -234,7 +234,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
   exec->nodeexec = MEM_calloc_arrayN<bNodeExec>(exec->totnodes, "node execution data");
   /* allocate data pointer for node stack */
   exec->stacksize = index;
-  exec->stack = MEM_calloc_arrayN<bNodeStack>(exec->stacksize, "bNodeStack");
+  exec->stack = MEM_new_array_for_free<bNodeStack>(exec->stacksize, "bNodeStack");
 
   /* all non-const results are considered inputs */
   int n;
