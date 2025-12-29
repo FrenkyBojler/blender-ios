@@ -835,12 +835,11 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       continue;
     }
 
-    /* Synthetic LOD dupli */
-    if (lod_target) {
-      printf("LOD: base=%s → target=%s\n",
-            ob->id.name + 2,
-            lod_target->id.name + 2);
+    // Build duplilist
+    duplilist.clear();
 
+    if (lod_target) {
+      /* Synthetic LOD dupli */
       DupliObject lod_dupli = {};
 
       lod_dupli.ob = lod_target;
@@ -849,7 +848,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       /* Inherit transform from base object */
       copy_m4_m4(lod_dupli.mat, ob->object_to_world().ptr());
 
-      lod_dupli.type = OB_DUPLICOLLECTION; /* arbitrary but stable */ // TODO: Change to `OB_DUPLI`
+      lod_dupli.type = OB_DUPLICOLLECTION; /* arbitrary but stable */ // TODO: Change to `OB_DUPLI`?
       lod_dupli.level = 0;
       lod_dupli.no_draw = 0;
 
@@ -860,49 +859,12 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
 
       lod_dupli.random_id = BLI_hash_int(lod_dupli.persistent_id[0]);
 
-      /* Draw synthetic LOD immediately */
-      if (!evil::DEG_iterator_temp_object_from_dupli(
-              ob, &lod_dupli, eval_mode, false, &tmp_object, &tmp_runtime))
-      {
-        printf("LOD: FAILED to create temp object for %s\n",
-              lod_target->id.name + 2);
-        continue;
-      }
-
-      printf("LOD: temp object created: %s\n", tmp_object.id.name + 2);
-
-      if (!should_draw_object_cb(tmp_object)) {
-        printf("LOD: rejected by should_draw_object_cb: %s\n",
-              tmp_object.id.name + 2);
-        evil::DEG_iterator_temp_object_free_properties(&lod_dupli, &tmp_object);
-        continue;
-      }
-
-      tmp_object.light_linking = ob->light_linking;
-      SET_FLAG_FROM_TEST(tmp_object.transflag,
-                        is_negative_m4(lod_dupli.mat),
-                        OB_NEG_SCALE);
-
-      tmp_object.runtime->object_to_world = float4x4(lod_dupli.mat);
-      tmp_object.runtime->world_to_object =
-          invert(tmp_object.runtime->object_to_world);
-
-      blender::draw::ObjectRef ob_ref(&tmp_object, ob, &lod_dupli);
-      draw_object_cb(ob_ref);
-
-      printf("LOD: DRAWN %s\n", tmp_object.id.name + 2);
-
-      evil::DEG_iterator_temp_object_free_properties(&lod_dupli, &tmp_object);
-
-      /* Do NOT draw base object or its real duplis */
-      continue;
+      duplilist.append(lod_dupli);
     }
-
-    // --- --- --- --- --- --- --- ---
-
-    duplilist.clear();
-    object_duplilist(
-        draw_ctx.depsgraph, draw_ctx.scene, ob, deg_iter_settings.included_objects, duplilist);
+    else {
+      object_duplilist(
+          draw_ctx.depsgraph, draw_ctx.scene, ob, deg_iter_settings.included_objects, duplilist);
+    }
 
     if (duplilist.is_empty()) {
       continue;
