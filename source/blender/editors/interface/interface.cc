@@ -2281,9 +2281,9 @@ void block_draw(const bContext *C, Block *block)
   widgetbase_draw_cache_begin();
 
   if (block_is_popup_any(block) && block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
-    int arrow_size = UI_MENU_SCROLL_MOUSE / block->aspect;
-    int ymax = rect.ymax - ((block->flag & BLOCK_CLIPTOP) ? arrow_size : 0.0f);
-    int ymin = rect.ymin + ((block->flag & BLOCK_CLIPBOTTOM) ? arrow_size : 0.0f);
+    const int arrow_size = UI_MENU_SCROLL_MOUSE / block->aspect;
+    const int ymax = rect.ymax - ((block->flag & BLOCK_CLIPTOP) ? arrow_size : 0.0f);
+    const int ymin = rect.ymin + ((block->flag & BLOCK_CLIPBOTTOM) ? arrow_size : 0.0f);
     GPU_scissor(rect.xmin, ymin, BLI_rcti_size_x(&rect), ymax - ymin);
   }
   /* widgets */
