@@ -20,7 +20,21 @@ class BlenderProjectData {
   std::string root_path_;
 
  public:
+  /**
+   * Set the project's name.
+   *
+   * If `name` is empty (which is invalid), the project's name remains as-is and
+   * false is returned.  Otherwise the name is set and true is returned.
+   */
   bool set_name(StringRef name);
+
+  /**
+   * Set the project's root path.
+   *
+   * If `root_path` is empty (which is invalid), the project's root path remains
+   * as-is and false is returned.  Otherwise the name is set and true is
+   * returned.
+   */
   bool set_root_path(StringRef root_path);
 
   StringRefNull get_name() const;
@@ -37,6 +51,11 @@ class BlenderProject {
 
   /**
    * Initialize a new Blender Project.
+   *
+   * If either `name` or `root_path` are empty (which is invalid), the current
+   * project (if any) will remain as-is and false is returned.  Otherwise the
+   * existing project (if any) is cleared, the project is initialized with the
+   * given values, and true is returned.
    */
   bool init(blender::StringRef name, blender::StringRef root_path);
 
