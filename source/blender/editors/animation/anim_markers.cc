@@ -1143,7 +1143,6 @@ static wmOperatorStatus ed_marker_move_modal(bContext *C, wmOperator *op, const 
   else {
     bool handled = false;
     switch (event->type) {
-      case GAMEPAD_BUTTON_B:
       case EVT_ESCKEY:
         ed_marker_move_cancel(C, op);
         return OPERATOR_CANCELLED;

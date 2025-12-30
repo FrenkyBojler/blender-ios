@@ -5012,7 +5012,6 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
       break;
 
     case RIGHTMOUSE:
-    case GAMEPAD_BUTTON_B:
     case EVT_ESCKEY:
       area_join_cancel(C, op);
       return OPERATOR_CANCELLED;

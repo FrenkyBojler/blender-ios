@@ -2,15 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "GHOST_GamepadManager.hh"
+#include <algorithm>
+#include <optional>
+
 #include "GHOST_EventGamepad.hh"
+#include "GHOST_GamepadManager.hh"
 #include "GHOST_System.hh"
 #include "GHOST_WindowManager.hh"
 
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_gamecontroller.h"
-
-#include <optional>
+#include "SDL.h"
+#include "SDL_gamecontroller.h"
 
 struct GHOST_Gamepad {
   SDL_GameController *controller = nullptr;
@@ -18,13 +19,13 @@ struct GHOST_Gamepad {
   constexpr GHOST_Gamepad(SDL_GameController *controller) : controller{controller} {}
 };
 
-GHOST_GamepadManager::GHOST_GamepadManager(GHOST_System &sys)
-    : system_(sys), gamepad_active_(false), gamepad_state_{}, dead_zone_(0.2)
+GHOST_GamepadManager::GHOST_GamepadManager(GHOST_System &sys) : system_(sys), dead_zone_(0.2)
 {
   if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) < 0) {
     printf("SDL_INIT_GAMECONTROLLER subsystem init error.");
   }
 }
+
 GHOST_GamepadManager::~GHOST_GamepadManager()
 {
   if (gamepad_) {
@@ -32,9 +33,14 @@ GHOST_GamepadManager::~GHOST_GamepadManager()
   }
   SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
 }
+
 void GHOST_GamepadManager::send_gamepad_events(float dt)
 {
+  if (!system_.getWindowManager()->getActiveWindow()) {
+    return;
+  }
   GHOST_GamepadState state = gamepad_ ? gamepad_->state : GHOST_GamepadState{};
+  GHOST_GamepadState old_state = state;
 
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
@@ -129,30 +135,32 @@ void GHOST_GamepadManager::send_gamepad_events(float dt)
         break;
     }
   }
+  this->send_gamepad_events(state, old_state, dt);
   if (gamepad_) {
     gamepad_->state = state;
   }
-
-  send_gamepad_events(state, dt);
 }
 
-void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, float delta_time)
+void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState &new_state,
+                                               GHOST_GamepadState &old_state,
+                                               float delta_time)
 {
   GHOST_IWindow *window = system_.getWindowManager()->getActiveWindow();
 
   const uint64_t now = system_.getMilliSeconds();
 
-  const auto apply_death_zone = [this](float &val) {
-    if (std::abs(val) < this->dead_zone_) {
-      val = 0.0f;
-    }
+  const auto is_zero_input = [](const float (&val)[2]) {
+    return val[0] == 0.0f && val[1] == 0.0f;
   };
-  const auto is_zero_input = [this](float (&val)[2]) { return val[0] == 0.0f && val[1] == 0.0f; };
 
-  const auto send_thumb_event =
-      [&, this](float (&old_vals)[2], float (&new_vals)[2], GHOST_TGamepadThumb thumb) -> void {
-    apply_death_zone(new_vals[0]);
-    apply_death_zone(new_vals[1]);
+  const auto send_thumb_event = [&, this](const float (&old_vals)[2],
+                                          float (&new_vals)[2],
+                                          GHOST_TGamepadThumb thumb) -> void {
+    if (std::abs(new_vals[0] * new_vals[0] + new_vals[1] * new_vals[1]) <
+        (dead_zone_ * dead_zone_))
+    {
+      new_vals[0] = new_vals[1] = 0.0f;
+    }
     /* Send only thumb events if there is non-zero reading or the thumb has just been released.
      */
     if (is_zero_input(old_vals) && is_zero_input(new_vals)) {
@@ -167,16 +175,14 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, flo
     data->action = !is_zero_input(new_vals) ? GHOST_kPress : GHOST_kRelease;
     data->dt = delta_time;
     system_.pushEvent(std::move(event));
-    old_vals[0] = new_vals[0];
-    old_vals[1] = new_vals[1];
   };
 
-  send_thumb_event(gamepad_state_.left_thumb, new_state.left_thumb, GHOST_kGamepadLeftThumb);
-  send_thumb_event(gamepad_state_.right_thumb, new_state.right_thumb, GHOST_kGamepadRightThumb);
+  send_thumb_event(old_state.left_thumb, new_state.left_thumb, GHOST_kGamepadLeftThumb);
+  send_thumb_event(old_state.right_thumb, new_state.right_thumb, GHOST_kGamepadRightThumb);
 
   const auto send_trigger_event =
-      [&, this](float &old_val, float new_val, GHOST_TGamepadTrigger trigger) -> void {
-    apply_death_zone(new_val);
+      [&, this](const float old_val, float new_val, GHOST_TGamepadTrigger trigger) -> void {
+    new_val = std::abs(new_val) < dead_zone_ ? 0 : new_val;
     /* Send only triggers events if there is non-zero reading or the triggers has just been
      * released. */
     if (old_val == 0.0f && new_val == 0.0f) {
@@ -190,13 +196,10 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, flo
     data->action = new_val ? GHOST_kPress : GHOST_kRelease;
     data->dt = delta_time;
     system_.pushEvent(std::move(event));
-    old_val = new_val;
   };
 
-  send_trigger_event(
-      gamepad_state_.left_trigger, new_state.left_trigger, GHOST_kGamepadLeftTrigger);
-  send_trigger_event(
-      gamepad_state_.right_trigger, new_state.right_trigger, GHOST_kGamepadRightTrigger);
+  send_trigger_event(old_state.left_trigger, new_state.left_trigger, GHOST_kGamepadLeftTrigger);
+  send_trigger_event(old_state.right_trigger, new_state.right_trigger, GHOST_kGamepadRightTrigger);
 
   struct ButtonMap {
     GamepadButtonMask mask;
@@ -224,7 +227,7 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, flo
   };
 
   for (const ButtonMap &button_map : buttons_map) {
-    const bool was_depressed = gamepad_state_.button_depressed[int(button_map.mask)];
+    const bool was_depressed = old_state.button_depressed[int(button_map.mask)];
     const bool is_depressed = new_state.button_depressed[int(button_map.mask)];
     if (was_depressed != is_depressed || is_depressed) {
 
@@ -238,21 +241,9 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState new_state, flo
       system_.pushEvent(std::move(event));
     }
   }
-  gamepad_state_.button_depressed = new_state.button_depressed;
 }
 
 void GHOST_GamepadManager::set_dead_zone(const float dz)
 {
-  dead_zone_ = std::max(dz, 1.0f);
-}
-
-void GHOST_GamepadManager::reset_gamepad_state()
-{
-  if (!gamepad_active_) {
-    return;
-  }
-  printf("The gamepad has been disconnected.");
-  gamepad_active_ = false;
-  /* The controller was disconnected, set all buttons as released. */
-  send_gamepad_events(GHOST_GamepadState{}, 0.0f);
+  dead_zone_ = std::clamp<float>(dz, 0.0f, 1.0f);
 }
