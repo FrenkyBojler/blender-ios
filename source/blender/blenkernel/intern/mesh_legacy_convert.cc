@@ -35,6 +35,7 @@
 
 #include "BKE_attribute.h"
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
@@ -784,6 +785,7 @@ void BKE_mesh_do_versions_convert_mfaces_to_mpolys(Mesh *mesh)
                            &mesh->faces_num);
   BKE_mesh_legacy_convert_loops_to_corners(mesh);
   BKE_mesh_legacy_convert_polys_to_offsets(mesh);
+  blender::bke::mesh_convert_customdata_to_storage(*mesh);
 
   CustomData_bmesh_do_versions_update_active_layers(&mesh->fdata_legacy, &mesh->corner_data);
 
