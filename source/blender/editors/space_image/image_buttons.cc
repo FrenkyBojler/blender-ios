@@ -556,10 +556,10 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
   ui::Block *block = layout.block();
   ui::Button *but;
   RenderLayer *rl = nullptr;
-  int wmenu1, wmenu2, wmenu3, wmenu4;
-  const char *fake_name;
+  const char *fake_name = nullptr;
   const char *display_name = "";
   const bool show_stereo = (iuser->flag & IMA_SHOW_STEREO) != 0;
+  const bool is_render_result = (render_slot != nullptr);
 
   if (iuser->scene == nullptr) {
     return;
@@ -567,18 +567,18 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
 
   layout.row(true);
 
-  /* layer menu is 1/3 larger than pass */
-  wmenu1 = (2 * w) / 5;
-  wmenu2 = (3 * w) / 5;
-  wmenu3 = (3 * w) / 6;
-  wmenu4 = (3 * w) / 6;
+  /* Menu widths: layer menu is 1/3 larger than pass. */
+  const int wmenu1 = (2 * w) / 5;
+  const int wmenu2 = (3 * w) / 5;
+  const int wmenu3 = (3 * w) / 6;
+  const int wmenu4 = (3 * w) / 6;
 
   rnd_pt_local.image = image;
   rnd_pt_local.iuser = iuser;
   rnd_pt_local.rpass_index = 0;
 
-  /* menu buts */
-  if (render_slot) {
+  /* Slot menu (render results only). Keep visible even when the slot is empty. */
+  if (is_render_result) {
     RenderSlot *slot = BKE_image_get_renderslot(image, *render_slot);
     char str[sizeof(slot->name)];
     if (slot && slot->name[0] != '\0') {
@@ -597,80 +597,95 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
     rnd_pt = nullptr;
   }
 
-  if (rr) {
-    RenderPass *rpass;
-    RenderView *rview;
-    int rpass_index;
+  /* Compute layer/pass data when render result exists. */
+  const bool has_layers = rr && RE_layers_have_name(rr);
+  bool has_passes = false;
+  RenderPass *rpass = nullptr;
 
-    /* layer */
+  if (rr) {
     fake_name = ui_imageuser_layer_fake_name(rr);
-    rpass_index = iuser->layer - (fake_name ? 1 : 0);
+    const int rpass_index = iuser->layer - (fake_name ? 1 : 0);
     rl = static_cast<RenderLayer *>(BLI_findlink(&rr->layers, rpass_index));
     rnd_pt_local.rpass_index = rpass_index;
 
-    if (RE_layers_have_name(rr)) {
-      display_name = rl ? rl->name : (fake_name ? fake_name : "");
-      rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
-      but = uiDefMenuBut(block,
-                         ui_imageuser_layer_menu,
-                         rnd_pt,
-                         display_name,
-                         0,
-                         0,
-                         wmenu2,
-                         UI_UNIT_Y,
-                         TIP_("Select Layer"));
-      button_func_menu_step_set(but, ui_imageuser_layer_menu_step);
-      button_funcN_set(but, image_multi_cb, rnd_pt, rr);
-      button_type_set_menu_from_pulldown(but);
-      rnd_pt = nullptr;
-    }
-
-    /* pass */
-    rpass = static_cast<RenderPass *>(rl ? BLI_findlink(&rl->passes, iuser->pass) : nullptr);
-
-    if (rl && RE_passes_have_name(rl)) {
-      display_name = rpass ? rpass->name : "";
-      rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
-      but = uiDefMenuBut(block,
-                         ui_imageuser_pass_menu,
-                         rnd_pt,
-                         IFACE_(display_name),
-                         0,
-                         0,
-                         wmenu3,
-                         UI_UNIT_Y,
-                         TIP_("Select Pass"));
-      button_func_menu_step_set(but, ui_imageuser_pass_menu_step);
-      button_funcN_set(but, image_multi_cb, rnd_pt, rr);
-      button_type_set_menu_from_pulldown(but);
-      rnd_pt = nullptr;
-    }
-
-    /* view */
-    if (BLI_listbase_count_at_most(&rr->views, 2) > 1 &&
-        ((!show_stereo) || !RE_RenderResult_is_stereo(rr)))
-    {
-      rview = static_cast<RenderView *>(BLI_findlink(&rr->views, iuser->view));
-      display_name = rview ? rview->name : "";
-
-      rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
-      but = uiDefMenuBut(block,
-                         ui_imageuser_view_menu_rr,
-                         rnd_pt,
-                         display_name,
-                         0,
-                         0,
-                         wmenu4,
-                         UI_UNIT_Y,
-                         TIP_("Select View"));
-      button_funcN_set(but, image_multi_cb, rnd_pt, rr);
-      button_type_set_menu_from_pulldown(but);
-      rnd_pt = nullptr;
+    if (rl) {
+      has_passes = RE_passes_have_name(rl);
+      rpass = static_cast<RenderPass *>(BLI_findlink(&rl->passes, iuser->pass));
     }
   }
 
-  /* stereo image */
+  /* Layer menu:
+   * - render result or multilayer EXR: always visible, disabled when empty
+   * - other images: not shown */
+  if (is_render_result || rr) {
+    display_name = has_layers ? (rl ? rl->name : (fake_name ? fake_name : "")) : IFACE_("Layer");
+
+    rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
+    but = uiDefMenuBut(block,
+                       ui_imageuser_layer_menu,
+                       rnd_pt,
+                       display_name,
+                       0,
+                       0,
+                       wmenu2,
+                       UI_UNIT_Y,
+                       TIP_("Select Layer"));
+    button_func_menu_step_set(but, ui_imageuser_layer_menu_step);
+    button_funcN_set(but, image_multi_cb, rnd_pt, rr);
+    button_type_set_menu_from_pulldown(but);
+    if (!has_layers) {
+      button_flag_enable(but, blender::ui::BUT_DISABLED);
+    }
+    rnd_pt = nullptr;
+  }
+
+  /* Pass menu:
+   * - render result or multilayer EXR: always visible, disabled when empty
+   * - other images: not shown */
+  if (is_render_result || rr) {
+    display_name = has_passes ? (rpass ? rpass->name : "") : IFACE_("Pass");
+
+    rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
+    but = uiDefMenuBut(block,
+                       ui_imageuser_pass_menu,
+                       rnd_pt,
+                       IFACE_(display_name),
+                       0,
+                       0,
+                       wmenu3,
+                       UI_UNIT_Y,
+                       TIP_("Select Pass"));
+    button_func_menu_step_set(but, ui_imageuser_pass_menu_step);
+    button_funcN_set(but, image_multi_cb, rnd_pt, rr);
+    button_type_set_menu_from_pulldown(but);
+    if (!has_passes) {
+      button_flag_enable(but, blender::ui::BUT_DISABLED);
+    }
+    rnd_pt = nullptr;
+  }
+
+  /* View menu - only when multiple views are available. */
+  if (rr && BLI_listbase_count_at_most(&rr->views, 2) > 1 &&
+      ((!show_stereo) || !RE_RenderResult_is_stereo(rr)))
+  {
+    RenderView *rview = static_cast<RenderView *>(BLI_findlink(&rr->views, iuser->view));
+    display_name = rview ? rview->name : "";
+
+    rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
+    but = uiDefMenuBut(block,
+                       ui_imageuser_view_menu_rr,
+                       rnd_pt,
+                       display_name,
+                       0,
+                       0,
+                       wmenu4,
+                       UI_UNIT_Y,
+                       TIP_("Select View"));
+    button_funcN_set(but, image_multi_cb, rnd_pt, rr);
+    button_type_set_menu_from_pulldown(but);
+    rnd_pt = nullptr;
+  }
+  /* Stereo/multiview image (no render result). */
   else if ((BKE_image_is_stereo(image) && (!show_stereo)) ||
            (BKE_image_is_multiview(image) && !BKE_image_is_stereo(image)))
   {
