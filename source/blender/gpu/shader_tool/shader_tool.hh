@@ -1505,7 +1505,7 @@ class Preprocessor {
 
     Token before_body = body.front().prev();
 
-    string test = "SRT_CONSTANT_" + condition[5].str();
+    string test = "SRT_CONSTANT_" + condition[5].str() + " ";
     if (condition[7] != condition.back().prev()) {
       test += parser.substr_range_inclusive(condition[7], condition.back().prev());
     }
@@ -2520,8 +2520,12 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
+    /* NOTE: We need to avoid the case of `a * this->b` being replaced as 2 dereferences. */
+
     /* `(*this)` -> `(this_)` */
     parser().foreach_match("*T)", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_"); });
+    /* `return *this;` -> `return this_;` */
+    parser().foreach_match("*T;", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_"); });
     /* `this->` -> `this_.` */
     parser().foreach_match("TD", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_."); });
 
