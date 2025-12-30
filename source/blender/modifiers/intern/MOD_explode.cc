@@ -883,7 +883,6 @@ static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
 
   BKE_mesh_calc_edges_tessface(split_m);
   BKE_mesh_convert_mfaces_to_mpolys(split_m);
-  BKE_mesh_legacy_convert_polys_to_offsets(split_m);
 
   return split_m;
 }

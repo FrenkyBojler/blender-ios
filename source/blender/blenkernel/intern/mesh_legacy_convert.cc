@@ -737,6 +737,7 @@ void BKE_mesh_convert_mfaces_to_mpolys(Mesh *mesh)
                            &mesh->faces_num);
   BKE_mesh_legacy_convert_loops_to_corners(mesh);
   BKE_mesh_legacy_convert_polys_to_offsets(mesh);
+  blender::bke::mesh_convert_customdata_to_storage(*mesh);
 
   mesh_ensure_tessellation_customdata(mesh);
 }
