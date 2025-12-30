@@ -347,64 +347,78 @@ struct TransparentOut {
 }
 
 /* clang-format off */
-PipelineGraphic mesh_opaque_flat_material_clip(vert_mesh, frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */, .use_texture = false}, Mesh{.use_clipping = true});
+PipelineGraphic mesh_opaque_studio_material_clip(       vert_mesh,       frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, Mesh{.use_clipping = true });
+PipelineGraphic mesh_opaque_studio_material_no_clip(    vert_mesh,       frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, Mesh{.use_clipping = false});
+PipelineGraphic mesh_opaque_studio_texture_clip(        vert_mesh,       frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, Mesh{.use_clipping = true });
+PipelineGraphic mesh_opaque_studio_texture_no_clip(     vert_mesh,       frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, Mesh{.use_clipping = false});
+PipelineGraphic mesh_opaque_matcap_material_clip(       vert_mesh,       frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, Mesh{.use_clipping = true });
+PipelineGraphic mesh_opaque_matcap_material_no_clip(    vert_mesh,       frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, Mesh{.use_clipping = false});
+PipelineGraphic mesh_opaque_matcap_texture_clip(        vert_mesh,       frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, Mesh{.use_clipping = true });
+PipelineGraphic mesh_opaque_matcap_texture_no_clip(     vert_mesh,       frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, Mesh{.use_clipping = false});
+PipelineGraphic mesh_opaque_flat_material_clip(         vert_mesh,       frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, Mesh{.use_clipping = true });
+PipelineGraphic mesh_opaque_flat_material_no_clip(      vert_mesh,       frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, Mesh{.use_clipping = false});
+PipelineGraphic mesh_opaque_flat_texture_clip(          vert_mesh,       frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, Mesh{.use_clipping = true });
+PipelineGraphic mesh_opaque_flat_texture_no_clip(       vert_mesh,       frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, Mesh{.use_clipping = false});
+PipelineGraphic curves_opaque_studio_material_clip(     vert_curves,     frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, Curves{.use_clipping = true });
+PipelineGraphic curves_opaque_studio_material_no_clip(  vert_curves,     frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, Curves{.use_clipping = false});
+PipelineGraphic curves_opaque_studio_texture_clip(      vert_curves,     frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, Curves{.use_clipping = true });
+PipelineGraphic curves_opaque_studio_texture_no_clip(   vert_curves,     frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, Curves{.use_clipping = false});
+PipelineGraphic curves_opaque_matcap_material_clip(     vert_curves,     frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, Curves{.use_clipping = true });
+PipelineGraphic curves_opaque_matcap_material_no_clip(  vert_curves,     frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, Curves{.use_clipping = false});
+PipelineGraphic curves_opaque_matcap_texture_clip(      vert_curves,     frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, Curves{.use_clipping = true });
+PipelineGraphic curves_opaque_matcap_texture_no_clip(   vert_curves,     frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, Curves{.use_clipping = false});
+PipelineGraphic curves_opaque_flat_material_clip(       vert_curves,     frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, Curves{.use_clipping = true });
+PipelineGraphic curves_opaque_flat_material_no_clip(    vert_curves,     frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, Curves{.use_clipping = false});
+PipelineGraphic curves_opaque_flat_texture_clip(        vert_curves,     frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, Curves{.use_clipping = true });
+PipelineGraphic curves_opaque_flat_texture_no_clip(     vert_curves,     frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, Curves{.use_clipping = false});
+PipelineGraphic ptcloud_opaque_studio_material_clip(    vert_pointcloud, frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_opaque_studio_material_no_clip( vert_pointcloud, frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_opaque_studio_texture_clip(     vert_pointcloud, frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_opaque_studio_texture_no_clip(  vert_pointcloud, frag_opaque, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_opaque_matcap_material_clip(    vert_pointcloud, frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_opaque_matcap_material_no_clip( vert_pointcloud, frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_opaque_matcap_texture_clip(     vert_pointcloud, frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_opaque_matcap_texture_no_clip(  vert_pointcloud, frag_opaque, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_opaque_flat_material_clip(      vert_pointcloud, frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_opaque_flat_material_no_clip(   vert_pointcloud, frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_opaque_flat_texture_clip(       vert_pointcloud, frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_opaque_flat_texture_no_clip(    vert_pointcloud, frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, PointCloud{.use_clipping = false});
+PipelineGraphic mesh_transparent_studio_material_clip(       vert_mesh,       frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, Mesh{.use_clipping = true });
+PipelineGraphic mesh_transparent_studio_material_no_clip(    vert_mesh,       frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, Mesh{.use_clipping = false});
+PipelineGraphic mesh_transparent_studio_texture_clip(        vert_mesh,       frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, Mesh{.use_clipping = true });
+PipelineGraphic mesh_transparent_studio_texture_no_clip(     vert_mesh,       frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, Mesh{.use_clipping = false});
+PipelineGraphic mesh_transparent_matcap_material_clip(       vert_mesh,       frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, Mesh{.use_clipping = true });
+PipelineGraphic mesh_transparent_matcap_material_no_clip(    vert_mesh,       frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, Mesh{.use_clipping = false});
+PipelineGraphic mesh_transparent_matcap_texture_clip(        vert_mesh,       frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, Mesh{.use_clipping = true });
+PipelineGraphic mesh_transparent_matcap_texture_no_clip(     vert_mesh,       frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, Mesh{.use_clipping = false});
+PipelineGraphic mesh_transparent_flat_material_clip(         vert_mesh,       frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, Mesh{.use_clipping = true });
+PipelineGraphic mesh_transparent_flat_material_no_clip(      vert_mesh,       frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, Mesh{.use_clipping = false});
+PipelineGraphic mesh_transparent_flat_texture_clip(          vert_mesh,       frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, Mesh{.use_clipping = true });
+PipelineGraphic mesh_transparent_flat_texture_no_clip(       vert_mesh,       frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, Mesh{.use_clipping = false});
+PipelineGraphic curves_transparent_studio_material_clip(     vert_curves,     frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, Curves{.use_clipping = true });
+PipelineGraphic curves_transparent_studio_material_no_clip(  vert_curves,     frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, Curves{.use_clipping = false});
+PipelineGraphic curves_transparent_studio_texture_clip(      vert_curves,     frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, Curves{.use_clipping = true });
+PipelineGraphic curves_transparent_studio_texture_no_clip(   vert_curves,     frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, Curves{.use_clipping = false});
+PipelineGraphic curves_transparent_matcap_material_clip(     vert_curves,     frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, Curves{.use_clipping = true });
+PipelineGraphic curves_transparent_matcap_material_no_clip(  vert_curves,     frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, Curves{.use_clipping = false});
+PipelineGraphic curves_transparent_matcap_texture_clip(      vert_curves,     frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, Curves{.use_clipping = true });
+PipelineGraphic curves_transparent_matcap_texture_no_clip(   vert_curves,     frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, Curves{.use_clipping = false});
+PipelineGraphic curves_transparent_flat_material_clip(       vert_curves,     frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, Curves{.use_clipping = true });
+PipelineGraphic curves_transparent_flat_material_no_clip(    vert_curves,     frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, Curves{.use_clipping = false});
+PipelineGraphic curves_transparent_flat_texture_clip(        vert_curves,     frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, Curves{.use_clipping = true });
+PipelineGraphic curves_transparent_flat_texture_no_clip(     vert_curves,     frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, Curves{.use_clipping = false});
+PipelineGraphic ptcloud_transparent_studio_material_clip(    vert_pointcloud, frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_transparent_studio_material_no_clip( vert_pointcloud, frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = false}, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_transparent_studio_texture_clip(     vert_pointcloud, frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_transparent_studio_texture_no_clip(  vert_pointcloud, frag_transparent, Resources{.lighting_mode = 0 /* WORKBENCH_LIGHTING_STUDIO */, .use_texture = true }, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_transparent_matcap_material_clip(    vert_pointcloud, frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_transparent_matcap_material_no_clip( vert_pointcloud, frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = false}, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_transparent_matcap_texture_clip(     vert_pointcloud, frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_transparent_matcap_texture_no_clip(  vert_pointcloud, frag_transparent, Resources{.lighting_mode = 1 /* WORKBENCH_LIGHTING_MATCAP */, .use_texture = true }, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_transparent_flat_material_clip(      vert_pointcloud, frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_transparent_flat_material_no_clip(   vert_pointcloud, frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = false}, PointCloud{.use_clipping = false});
+PipelineGraphic ptcloud_transparent_flat_texture_clip(       vert_pointcloud, frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, PointCloud{.use_clipping = true });
+PipelineGraphic ptcloud_transparent_flat_texture_no_clip(    vert_pointcloud, frag_transparent, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */,   .use_texture = true }, PointCloud{.use_clipping = false});
 /* clang-format on */
 
 }  // namespace workbench::prepass
-
-/* clang-format off */
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_flat_material_clip, drw_clipped, workbench_color_material, workbench_lighting_flat, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_flat_material_no_clip, workbench_color_material, workbench_lighting_flat, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_flat_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_flat, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_flat_texture_no_clip, workbench_color_texture, workbench_lighting_flat, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_flat_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_flat, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_flat_vertex_no_clip, workbench_color_vertex, workbench_lighting_flat, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_studio_material_clip, drw_clipped, workbench_color_material, workbench_lighting_studio, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_studio_material_no_clip, workbench_color_material, workbench_lighting_studio, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_studio_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_studio, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_studio_texture_no_clip, workbench_color_texture, workbench_lighting_studio, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_studio_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_studio, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_studio_vertex_no_clip, workbench_color_vertex, workbench_lighting_studio, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_matcap_material_clip, drw_clipped, workbench_color_material, workbench_lighting_matcap, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_matcap_material_no_clip, workbench_color_material, workbench_lighting_matcap, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_matcap_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_matcap, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_matcap_texture_no_clip, workbench_color_texture, workbench_lighting_matcap, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_matcap_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_matcap, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_mesh_opaque_matcap_vertex_no_clip, workbench_color_vertex, workbench_lighting_matcap, workbench_opaque, workbench_mesh, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_flat_material_clip, drw_clipped, workbench_color_material, workbench_lighting_flat, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_flat_material_no_clip, workbench_color_material, workbench_lighting_flat, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_flat_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_flat, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_flat_texture_no_clip, workbench_color_texture, workbench_lighting_flat, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_flat_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_flat, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_flat_vertex_no_clip, workbench_color_vertex, workbench_lighting_flat, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_studio_material_clip, drw_clipped, workbench_color_material, workbench_lighting_studio, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_studio_material_no_clip, workbench_color_material, workbench_lighting_studio, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_studio_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_studio, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_studio_texture_no_clip, workbench_color_texture, workbench_lighting_studio, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_studio_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_studio, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_studio_vertex_no_clip, workbench_color_vertex, workbench_lighting_studio, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_matcap_material_clip, drw_clipped, workbench_color_material, workbench_lighting_matcap, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_matcap_material_no_clip, workbench_color_material, workbench_lighting_matcap, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_matcap_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_matcap, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_matcap_texture_no_clip, workbench_color_texture, workbench_lighting_matcap, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_matcap_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_matcap, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_curves_opaque_matcap_vertex_no_clip, workbench_color_vertex, workbench_lighting_matcap, workbench_opaque, workbench_curves, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_flat_material_clip, drw_clipped, workbench_color_material, workbench_lighting_flat, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_flat_material_no_clip, workbench_color_material, workbench_lighting_flat, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_flat_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_flat, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_flat_texture_no_clip, workbench_color_texture, workbench_lighting_flat, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_flat_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_flat, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_flat_vertex_no_clip, workbench_color_vertex, workbench_lighting_flat, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_studio_material_clip, drw_clipped, workbench_color_material, workbench_lighting_studio, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_studio_material_no_clip, workbench_color_material, workbench_lighting_studio, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_studio_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_studio, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_studio_texture_no_clip, workbench_color_texture, workbench_lighting_studio, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_studio_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_studio, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_studio_vertex_no_clip, workbench_color_vertex, workbench_lighting_studio, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_matcap_material_clip, drw_clipped, workbench_color_material, workbench_lighting_matcap, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_matcap_material_no_clip, workbench_color_material, workbench_lighting_matcap, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_matcap_texture_clip, drw_clipped, workbench_color_texture, workbench_lighting_matcap, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_matcap_texture_no_clip, workbench_color_texture, workbench_lighting_matcap, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_matcap_vertex_clip, drw_clipped, workbench_color_vertex, workbench_lighting_matcap, workbench_opaque, workbench_pointcloud, workbench_prepass)
-// CREATE_INFO_VARIANT(workbench_prepass_ptcloud_opaque_matcap_vertex_no_clip, workbench_color_vertex, workbench_lighting_matcap, workbench_opaque, workbench_pointcloud, workbench_prepass)
-/* clang-format on */
