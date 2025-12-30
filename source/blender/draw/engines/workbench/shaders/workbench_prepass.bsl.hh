@@ -11,6 +11,7 @@ VERTEX_SHADER_CREATE_INFO(draw_modelmat_with_custom_id)
 
 #include "draw_curves_lib.glsl"
 #include "draw_model_lib.glsl"
+#include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "workbench_common.bsl.hh"
@@ -116,6 +117,9 @@ struct MeshIn {
 struct Mesh {
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_modelmat_with_custom_id;
+  [[legacy_info]] ShaderCreateInfo drw_clipped;
+
+  [[compilation_constant]] const bool use_clipping;
 };
 
 [[vertex]] void vert_mesh([[resource_table]] Mesh &mesh,
@@ -127,7 +131,9 @@ struct Mesh {
   float3 world_pos = drw_point_object_to_world(v_in.pos);
   out_position = drw_point_world_to_homogenous(world_pos);
 
-  //   view_clipping_distances(world_pos);
+  if (mesh.use_clipping) {
+    view_clipping_distances(world_pos);
+  }
 
   v_out.uv_interp = v_in.au;
 
@@ -148,6 +154,9 @@ struct Curves {
   [[legacy_info]] ShaderCreateInfo draw_modelmat_with_custom_id;
   [[legacy_info]] ShaderCreateInfo draw_curves;
   [[legacy_info]] ShaderCreateInfo draw_curves_infos;
+  [[legacy_info]] ShaderCreateInfo drw_clipped;
+
+  [[compilation_constant]] const bool use_clipping;
 
   [[sampler(WB_CURVES_COLOR_SLOT) /*, frequency(batch)*/]] samplerBuffer ac;
   [[sampler(WB_CURVES_UV_SLOT) /*, frequency(batch)*/]] samplerBuffer au;
@@ -183,7 +192,9 @@ struct Curves {
     nor = hair_random_normal(pt.curve_T, pt.curve_B, pt.curve_N, hair_rand);
   }
 
-  //   view_clipping_distances(world_pos);
+  if (curves.use_clipping) {
+    view_clipping_distances(world_pos);
+  }
 
   v_out.uv_interp = curves::get_customdata_vec2(ws_pt.curve_id, curves.au);
 
@@ -213,6 +224,9 @@ struct PointCloud {
   [[legacy_info]] ShaderCreateInfo draw_view;
   [[legacy_info]] ShaderCreateInfo draw_modelmat_with_custom_id;
   [[legacy_info]] ShaderCreateInfo draw_pointcloud;
+  [[legacy_info]] ShaderCreateInfo drw_clipped;
+
+  [[compilation_constant]] const bool use_clipping;
 };
 
 [[vertex]] void vert_pointcloud([[resource_table]] PointCloud &point_cloud,
@@ -229,7 +243,9 @@ struct PointCloud {
 
   out_position = drw_point_world_to_homogenous(world_pos);
 
-  //   view_clipping_distances(world_pos);
+  if (point_cloud.use_clipping) {
+    view_clipping_distances(world_pos);
+  }
 
   v_out.uv_interp = float2(0.0f);
 
@@ -296,7 +312,7 @@ struct TransparentOut {
                                    [[out]] TransparentOut &frag_out)
 {
   /* Normal and Incident vector are in view-space. Lighting is evaluated in view-space. */
-  float2 uv_viewport = gl_FragCoord.xy * world.world_data.viewport_size_inv;
+  float2 uv_viewport = frag_co.xy * world.world_data.viewport_size_inv;
   float3 vP = drw_point_screen_to_view(float3(uv_viewport, 0.5f));
   float3 I = drw_view_incident_vector(vP);
   float3 N = normalize(v_out.normal_interp);
@@ -331,7 +347,7 @@ struct TransparentOut {
 }
 
 /* clang-format off */
-PipelineGraphic mesh_opaque_flat_material_clip(vert_mesh, frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */, .use_texture = false});
+PipelineGraphic mesh_opaque_flat_material_clip(vert_mesh, frag_opaque, Resources{.lighting_mode = 2 /* WORKBENCH_LIGHTING_FLAT */, .use_texture = false}, Mesh{.use_clipping = true});
 /* clang-format on */
 
 }  // namespace workbench::prepass
