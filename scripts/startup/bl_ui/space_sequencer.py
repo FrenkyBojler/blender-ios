@@ -307,9 +307,10 @@ class SEQUENCER_PT_sequencer_overlay_thumbnails(Panel):
 
         layout.active = st.show_overlays
 
-
         row = layout.row()
         row.prop(overlay_settings, "thumbnail_display_style", expand=True)
+
+
 class SEQUENCER_PT_sequencer_overlay_waveforms(Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'HEADER'
