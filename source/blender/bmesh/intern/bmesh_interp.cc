@@ -72,15 +72,21 @@ static void bm_data_interp_from_elem(CustomData *data_layer,
 void BM_data_interp_from_verts(
     BMesh *bm, const BMVert *v_src_1, const BMVert *v_src_2, BMVert *v_dst, const float fac)
 {
-  bm_data_interp_from_elem(
-      &bm->vdata, (const BMElem *)v_src_1, (const BMElem *)v_src_2, (BMElem *)v_dst, fac);
+  bm_data_interp_from_elem(&bm->vdata,
+                           reinterpret_cast<const BMElem *>(v_src_1),
+                           reinterpret_cast<const BMElem *>(v_src_2),
+                           reinterpret_cast<BMElem *>(v_dst),
+                           fac);
 }
 
 void BM_data_interp_from_edges(
     BMesh *bm, const BMEdge *e_src_1, const BMEdge *e_src_2, BMEdge *e_dst, const float fac)
 {
-  bm_data_interp_from_elem(
-      &bm->edata, (const BMElem *)e_src_1, (const BMElem *)e_src_2, (BMElem *)e_dst, fac);
+  bm_data_interp_from_elem(&bm->edata,
+                           reinterpret_cast<const BMElem *>(e_src_1),
+                           reinterpret_cast<const BMElem *>(e_src_2),
+                           reinterpret_cast<BMElem *>(e_dst),
+                           fac);
 }
 
 /**
@@ -149,7 +155,7 @@ void BM_face_interp_from_face_ex(BMesh *bm,
   BMLoop *l_iter;
   BMLoop *l_first;
 
-  float *w = static_cast<float *>(BLI_array_alloca(w, f_src->len));
+  float *w = BLI_array_alloca(w, f_src->len);
   float co[2];
 
   /* interpolate */
@@ -169,10 +175,8 @@ void BM_face_interp_from_face(BMesh *bm, BMFace *f_dst, const BMFace *f_src, con
   BMLoop *l_iter;
   BMLoop *l_first;
 
-  const void **blocks_l = static_cast<const void **>(BLI_array_alloca(blocks_l, f_src->len));
-  const void **blocks_v = do_vertex ?
-                              static_cast<const void **>(BLI_array_alloca(blocks_v, f_src->len)) :
-                              nullptr;
+  const void **blocks_l = BLI_array_alloca(blocks_l, f_src->len);
+  const void **blocks_v = do_vertex ? BLI_array_alloca(blocks_v, f_src->len) : nullptr;
   float (*cos_2d)[2] = static_cast<float (*)[2]>(BLI_array_alloca(cos_2d, f_src->len));
   float axis_mat[3][3]; /* use normal to transform into 2d xy coords */
   int i;
@@ -687,12 +691,10 @@ void BM_loop_interp_from_face(
 {
   BMLoop *l_iter;
   BMLoop *l_first;
-  const void **vblocks = do_vertex ?
-                             static_cast<const void **>(BLI_array_alloca(vblocks, f_src->len)) :
-                             nullptr;
-  const void **blocks = static_cast<const void **>(BLI_array_alloca(blocks, f_src->len));
-  float (*cos_2d)[2] = static_cast<float (*)[2]>(BLI_array_alloca(cos_2d, f_src->len));
-  float *w = static_cast<float *>(BLI_array_alloca(w, f_src->len));
+  const void **vblocks = do_vertex ? BLI_array_alloca(vblocks, f_src->len) : nullptr;
+  const void **blocks = BLI_array_alloca(blocks, f_src->len);
+  float (*cos_2d)[2] = BLI_array_alloca(cos_2d, f_src->len);
+  float *w = BLI_array_alloca(w, f_src->len);
   float axis_mat[3][3]; /* use normal to transform into 2d xy coords */
   float co[2];
 
@@ -741,9 +743,9 @@ void BM_vert_interp_from_face(BMesh *bm, BMVert *v_dst, const BMFace *f_src)
 {
   BMLoop *l_iter;
   BMLoop *l_first;
-  const void **blocks = static_cast<const void **>(BLI_array_alloca(blocks, f_src->len));
-  float (*cos_2d)[2] = static_cast<float (*)[2]>(BLI_array_alloca(cos_2d, f_src->len));
-  float *w = static_cast<float *>(BLI_array_alloca(w, f_src->len));
+  const void **blocks = BLI_array_alloca(blocks, f_src->len);
+  float (*cos_2d)[2] = BLI_array_alloca(cos_2d, f_src->len);
+  float *w = BLI_array_alloca(w, f_src->len);
   float axis_mat[3][3]; /* use normal to transform into 2d xy coords */
   float co[2];
 
@@ -1023,14 +1025,14 @@ void BM_data_layer_copy(BMesh *bm, CustomData *data, int type, int src_n, int ds
 float BM_elem_float_data_get(CustomData *cd, void *element, int type)
 {
   const float *f = static_cast<const float *>(
-      CustomData_bmesh_get(cd, ((BMHeader *)element)->data, eCustomDataType(type)));
+      CustomData_bmesh_get(cd, (static_cast<BMHeader *>(element))->data, eCustomDataType(type)));
   return f ? *f : 0.0f;
 }
 
 void BM_elem_float_data_set(CustomData *cd, void *element, int type, const float val)
 {
   float *f = static_cast<float *>(
-      CustomData_bmesh_get(cd, ((BMHeader *)element)->data, eCustomDataType(type)));
+      CustomData_bmesh_get(cd, (static_cast<BMHeader *>(element))->data, eCustomDataType(type)));
   if (f) {
     *f = val;
   }
@@ -1271,7 +1273,7 @@ static void bm_vert_loop_groups_data_layer_merge_weights__single(
   const float *data_weights;
 
   /* re-weight */
-  float *temp_weights = static_cast<float *>(BLI_array_alloca(temp_weights, lf->data_len));
+  float *temp_weights = BLI_array_alloca(temp_weights, lf->data_len);
   float weight_accum = 0.0f;
 
   for (i = 0; i < lf->data_len; i++) {

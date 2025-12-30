@@ -125,7 +125,7 @@ static LinkNode *mesh_calc_path_region_elem(BMesh *bm,
     int j = 0;
 
     if (ele->head.htype == BM_FACE) {
-      BMFace *f = (BMFace *)ele;
+      BMFace *f = reinterpret_cast<BMFace *>(ele);
       ele_verts[side] = BLI_array_alloca(ele_verts[side], f->len);
 
       BMLoop *l_first, *l_iter;
@@ -135,14 +135,14 @@ static LinkNode *mesh_calc_path_region_elem(BMesh *bm,
       } while ((l_iter = l_iter->next) != l_first);
     }
     else if (ele->head.htype == BM_EDGE) {
-      BMEdge *e = (BMEdge *)ele;
+      BMEdge *e = reinterpret_cast<BMEdge *>(ele);
       ele_verts[side] = BLI_array_alloca(ele_verts[side], 2);
 
       ele_verts[side][j++] = e->v1;
       ele_verts[side][j++] = e->v2;
     }
     else if (ele->head.htype == BM_VERT) {
-      BMVert *v = (BMVert *)ele;
+      BMVert *v = reinterpret_cast<BMVert *>(ele);
       ele_verts[side] = BLI_array_alloca(ele_verts[side], 1);
 
       ele_verts[side][j++] = v;

@@ -137,7 +137,7 @@ int64_t BLI_read(int fd, void *buf, size_t nbytes)
     }
 
     /* If this is reached, fewer bytes were read than were requested. */
-    buf = (void *)(((char *)buf) + nbytes_read);
+    buf = static_cast<void *>((static_cast<char *>(buf)) + nbytes_read);
     nbytes_read_total += nbytes_read;
     nbytes -= nbytes_read;
   }
@@ -278,7 +278,7 @@ bool BLI_file_magic_is_zstd(const char header[4])
    * For more details, see https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md
    */
 
-  uint32_t magic = *((uint32_t *)header);
+  uint32_t magic = *(reinterpret_cast<uint32_t *>(const_cast<char *>(header)));
   if (magic == 0xFD2FB528) {
     return true;
   }
@@ -362,7 +362,7 @@ static bool dir_create_recursive(const char *dirname, const int len)
                  "Paths containing \"..\" components must be normalized first!");
 
   bool ret = true;
-  char *dirname_parent_end = (char *)BLI_path_parent_dir_end(dirname, len);
+  char *dirname_parent_end = const_cast<char *>(BLI_path_parent_dir_end(dirname, len));
   if (dirname_parent_end) {
     const char dirname_parent_end_value = *dirname_parent_end;
     *dirname_parent_end = '\0';
@@ -1272,7 +1272,7 @@ int BLI_delete_soft(const char *filepath, const char **r_error_message)
 
   if (pid == 0) {
     /* Child process. */
-    execvp(args[0], (char **)args);
+    execvp(args[0], static_cast<char **>(args));
     /* This should only be reached if `execvp` fails and stack isn't replaced. */
 
     /* Ensure outputs are flushed as `_exit` doesn't flush. */
