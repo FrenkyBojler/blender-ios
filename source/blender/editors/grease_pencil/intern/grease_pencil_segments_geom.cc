@@ -1411,7 +1411,7 @@ static int edge_in_polygon_winding_twice(const int edge_id, const Span<float2> p
  * Will return +1 when inside a clockwise circle.
  * Will return -1 when inside a counterclockwise circle.
  *
- * Note: Will not give the value if the point is on a corner or edge.
+ * Note: Will not give the correct value if the point is on a corner or edge.
  */
 static int point_in_polygon_winding_number(const float2 &point, const Span<float2> poly)
 {
