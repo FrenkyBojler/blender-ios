@@ -75,7 +75,9 @@ void evaluate(Context &context,
 
   node_group_operation.evaluate();
 
-  if (node_group.interface_outputs().is_empty()) {
+  if (!flag_is_set(needed_outputs, NodeGroupOutputTypes::GroupOutputNode) ||
+      node_group.interface_outputs().is_empty())
+  {
     return;
   }
 
