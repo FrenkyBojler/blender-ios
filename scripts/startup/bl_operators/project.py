@@ -328,13 +328,17 @@ def on_exit():
         # We omit clearing the dirty flag here because:
         #
         # 1. It's unnecessary since we're exiting anyway.
-        # 2. It seems that some memory gets freed prior to Python's `atexit`
-        #    hook getting called, and attempting to clear the dirty flag runs
-        #    into that, causing a use-after-free bug.
+        # 2. Clearing the flag during exit triggers an ASAN heap-use-after-free,
+        #    seemingly in `ctx_data_get()`.
         #
-        # TODO: investigate the specifics of why the use-after-free bug is
-        # happening, because even with omitting the flag clearing, this seems
-        # delicate.
+        # Regarding point 2: the project and the flag itself are both still
+        # valid, not-freed memory at this point.  The heap-use-after-free
+        # seems(?) to be related to property lookup, but I (Nathan) don't know
+        # that area of the code well enough to really say much.  And looking up
+        # the flag for reading works fine, so...
+        #
+        # TODO: get an adult to double-check that it's not me just being
+        # ignorant about something and violating some expected code invariant.
         save_project(bpy.context.project, clear_dirty_flag=False)
 
 
