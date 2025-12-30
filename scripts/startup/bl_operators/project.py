@@ -164,15 +164,15 @@ def validate_config(config_dict):
 
         No return value.
     """
-    if "name" not in config:
+    if "name" not in config_dict:
         raise ProjectLoadException("Invalid project: no project name defined in '{}'.".format(PROJECT_CONFIG))
         return
 
-    if type(config["name"]) != str:
+    if type(config_dict["name"]) != str:
         raise ProjectLoadException("Invalid project: project name is not a string.")
         return
 
-    if config["name"] == "":
+    if config_dict["name"] == "":
         raise ProjectLoadException("Invalid project: project name is empty.")
         return
 
