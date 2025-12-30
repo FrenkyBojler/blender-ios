@@ -66,7 +66,7 @@ class GroupNodeOperation : public NodeOperation {
       const Result &node_input_result = this->get_input(input->identifier);
       Result node_group_input_result = this->context().create_result(
           node_input_result.type(), node_input_result.precision());
-      node_group_input_result.wrap_external(node_input_result);
+      node_group_input_result.share_data(node_input_result);
       inputs.append(std::make_unique<Result>(node_group_input_result));
       operation.map_input_to_result(input->identifier, inputs.last().get());
     }
