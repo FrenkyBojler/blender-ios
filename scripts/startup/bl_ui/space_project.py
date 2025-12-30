@@ -11,7 +11,7 @@ from bpy.app.translations import pgettext_iface
 MAIN_SECTION_NAME = "General"
 
 
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------
 # Header
 
 class PROJECT_HT_header(Header):
@@ -63,7 +63,7 @@ class PROJECT_MT_save_load(Menu):
         layout.operator("project.save_project", text="Save Project")
 
 
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------
 # Execution area (shown when header is hidden).
 
 class PROJECT_PT_save_project(Panel):
@@ -94,7 +94,7 @@ class PROJECT_PT_save_project(Panel):
             )
 
 
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------
 # Navigation Bar
 
 class PROJECT_PT_navigation_bar(Panel):
@@ -127,10 +127,10 @@ class PROJECT_PT_navigation_bar(Panel):
         col.prop(space_data, "active_section", expand=True)
 
 
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------
 # Main Area
 
-# Panel mix-in, copied from `space_userpref.py`.
+# Panel mix-in for a centered layout, copied from `space_userpref.py`.
 #
 # TODO: we have this in at least two places now.  Should this be built-in UI
 # functionality?
@@ -226,7 +226,7 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
             col.prop(project.data, "root_path")
 
 
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------
 # Register
 
 classes = (
