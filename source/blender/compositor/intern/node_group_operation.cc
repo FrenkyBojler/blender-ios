@@ -170,6 +170,16 @@ void NodeGroupOperation::execute()
       this->evaluate_node(*node, compile_state);
     }
   }
+
+  /* If the output of the group output node is needed but no group output node exists, allocate all
+   * outputs as invalid. */
+  if (flag_is_set(needed_outputs_, NodeGroupOutputTypes::GroupOutputNode) &&
+      !node_group_.group_output_node())
+  {
+    for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
+      this->get_result(output->identifier).allocate_invalid();
+    }
+  }
 }
 
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
