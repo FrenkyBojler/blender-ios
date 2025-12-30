@@ -32,10 +32,12 @@ class GroupInputNodeOperation : public NodeOperation {
         continue;
       }
 
-      const Result &node_group_operation_input = node_group_operation_.get_input(
-          output_socket->identifier);
       Result &output_result = this->get_result(output_socket->identifier);
-      output_result.share_data(node_group_operation_input);
+      if (output_result.should_compute()) {
+        const Result &node_group_operation_input = node_group_operation_.get_input(
+            output_socket->identifier);
+        output_result.share_data(node_group_operation_input);
+      }
     }
   }
 };

@@ -52,11 +52,6 @@ class GroupNodeOperation : public NodeOperation {
     Vector<std::unique_ptr<Result>> inputs = this->map_inputs(operation);
     operation.evaluate();
     this->write_outputs(operation);
-
-    /* Free the temporary inputs. */
-    for (std::unique_ptr<Result> &input : inputs) {
-      input->release();
-    }
   }
 
   /* Maps the input results of the node group operation to this group node inputs. Temporary input
