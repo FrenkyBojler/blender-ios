@@ -141,6 +141,9 @@ static void rna_BlenderProject_init(PointerRNA ptr,
                 "Failed to initialize project. Ensure that both the name and project_root "
                 "parameters are non-empty.");
   }
+
+  /* Force full redraw of all windows. */
+  WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
 static void rna_BlenderProject_clear(PointerRNA ptr)
@@ -152,6 +155,9 @@ static void rna_BlenderProject_clear(PointerRNA ptr)
   }
 
   project->clear();
+
+  /* Force full redraw of all windows. */
+  WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
 #else
@@ -168,7 +174,7 @@ void rna_def_blender_project_data(BlenderRNA *brna)
                                 "rna_BlenderProjectData_name_get",
                                 "rna_BlenderProjectData_name_length",
                                 "rna_BlenderProjectData_name_set");
-  RNA_def_property_ui_text(prop, "Name", "The identifier for the project");
+  RNA_def_property_ui_text(prop, "Name", "The project's name");
   RNA_def_struct_name_property(srna, prop);
   RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
 
@@ -196,7 +202,6 @@ void rna_def_blender_project(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_struct_type(prop, "BlenderProjectData");
   RNA_def_property_pointer_funcs(prop, "rna_BlenderProject_data_get", NULL, NULL, NULL);
-  // RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
 
   prop = RNA_def_property(srna, "is_dirty", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(
@@ -209,7 +214,7 @@ void rna_def_blender_project(BlenderRNA *brna)
   parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "The project's name");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_string(
-      func, "project_root", nullptr, 0, nullptr, "The filepath to the project's root directory");
+      func, "project_root", nullptr, 0, nullptr, "The filepath of the project's root folder");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "clear", "rna_BlenderProject_clear");
