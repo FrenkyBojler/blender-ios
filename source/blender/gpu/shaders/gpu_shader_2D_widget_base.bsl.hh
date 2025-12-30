@@ -9,6 +9,7 @@
 
 #include "GPU_shader_shared.hh"
 #include "gpu_interface_infos.hh"
+#include "gpu_shader_colorspace_lib.glsl"
 #include "gpu_shader_create_info.hh"
 
 /* TODO(fclem): Share with C code. */
@@ -33,7 +34,7 @@ struct [[host_shared]] WidgetRaw {
   float4 data[12];
 };
 
-struct [[host_shared]] WidgetData {
+struct [[host_shared]] Widget {
   float4 recti;
   float4 rect;
 
@@ -236,30 +237,42 @@ struct [[host_shared]] WidgetData {
 
 /* WORKAROUND: We cannot use structs with push constants, so we push a float4 array and reinterpret
  * using a union. */
-struct WidgetDataUnion {
+struct WidgetUnion {
   union {
     union_t<WidgetRaw> raw;
-    union_t<WidgetData> data;
+    union_t<Widget> data;
   };
 };
 
 struct Resources {
+  [[legacy_info]] ShaderCreateInfo gpu_srgb_to_framebuffer_space;
+
   [[push_constant]] const float4x4 ModelViewProjectionMatrix;
   [[push_constant]] const float3 checkerColorAndSize;
 
-  [[push_constant]] const float4 parameters[MAX_PARAM * MAX_INSTANCE];
+  [[compilation_constant]] const bool instanced;
+  [[push_constant, condition(instanced)]] const float4 parameters_inst[MAX_PARAM * MAX_INSTANCE];
+  [[push_constant, condition(!instanced)]] const float4 parameters[MAX_PARAM];
 
   /* Unpack widget data passed as raw array of float4 through push constnats. */
-  WidgetData get_widget_data(int index)
+  Widget get_widget(int index)
   {
     /* Hopefully, all of these move instructions are optimized out. */
     WidgetRaw raw;
-    [[unroll]] for (int i = 0; i < 11; i++)
-    {
-      raw.data[i] = parameters[i];
+    if (this->instanced) [[static_branch]] {
+      [[unroll]] for (int i = 0; i < 12; i++)
+      {
+        raw.data[i] = parameters_inst[index * MAX_PARAM + i];
+      }
+    }
+    else {
+      [[unroll]] for (int i = 0; i < 12; i++)
+      {
+        raw.data[i] = parameters[i];
+      }
     }
     /* Equivalent of reinterpret_cast. */
-    WidgetDataUnion widget;
+    WidgetUnion widget;
     widget.raw() = raw;
     return widget.data();
   }
@@ -282,14 +295,14 @@ struct Resources {
                      [[out]] VertOut &v_out,
                      [[position]] float4 &position)
 {
-  WidgetData widget = srt.get_widget_data(inst_id);
+  Widget widget = srt.get_widget(inst_id);
 
   bool is_tria = (vert_id > 3);
   float2 pos;
   VertOut vert_out = (is_tria) ? widget.do_tria(vert_id, pos) : widget.do_widget(vert_id, pos);
 
   /* WORKAROUND: Quirk of current BSL implementation.
-   * Current implementation doesn't allow to pass the stage interfaces as function parameters. */
+   * Current implementation doesn't allow to assign the output struct at once. */
   v_out.discard_fac = widget.discard_factor();
   v_out.line_width = vert_out.line_width;
   v_out.out_rect_size = vert_out.out_rect_size;
@@ -387,10 +400,14 @@ struct FragOut {
     frag_out.color.rgb /= frag_out.color.a;
   }
 
-  // frag_out.color = blender_srgb_to_framebuffer_space(frag_out.color);
+  frag_out.color = blender_srgb_to_framebuffer_space(frag_out.color);
 }
 
 }  // namespace builtin::widget
 
-PipelineGraphic gpu_shader_2D_widget_base(builtin::widget::vert, builtin::widget::frag);
-PipelineGraphic gpu_shader_2D_widget_base_inst(builtin::widget::vert, builtin::widget::frag);
+PipelineGraphic gpu_shader_2D_widget_base(builtin::widget::vert,
+                                          builtin::widget::frag,
+                                          builtin::widget::Resources{.instanced = false});
+PipelineGraphic gpu_shader_2D_widget_base_inst(builtin::widget::vert,
+                                               builtin::widget::frag,
+                                               builtin::widget::Resources{.instanced = true});
