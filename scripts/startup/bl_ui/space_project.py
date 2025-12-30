@@ -12,7 +12,7 @@ MAIN_SECTION_NAME = "General"
 
 
 # -------------------------------------------------------------
-# Header
+# Header.
 
 class PROJECT_HT_header(Header):
     bl_space_type = 'PROJECT'
@@ -95,7 +95,7 @@ class PROJECT_PT_save_project(Panel):
 
 
 # -------------------------------------------------------------
-# Navigation Bar
+# Navigation Bar.
 
 class PROJECT_PT_navigation_bar(Panel):
     bl_label = "Project Navigation"
@@ -128,7 +128,7 @@ class PROJECT_PT_navigation_bar(Panel):
 
 
 # -------------------------------------------------------------
-# Main Area
+# Main Area.
 
 # Panel mix-in for a centered layout, copied from `space_userpref.py`.
 #
@@ -175,6 +175,12 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
     def poll(cls, context):
         return True
 
+    def centered_operator(self, layout, op_name, text=None, icon=None):
+        col_flow = layout.column_flow(columns=3)
+        col_flow.separator_spacer()
+        col_flow.operator(op_name, text=text, icon=icon)
+        col_flow.separator_spacer()
+
     def draw_centered(self, context, layout):
         project = context.project
 
@@ -191,36 +197,24 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
                 icon='WARNING_LARGE')
             col.label(
                 text="be part of the project.")
-            col_flow = col.column_flow(columns=3)
-            col_flow.separator_spacer()
-            col_flow.operator("wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
-            col_flow.separator_spacer()
+            self.centered_operator(col, "wm.save_as_mainfile", text="Save File...", icon='FILE_TICK')
 
             col.separator_spacer()
 
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
-            col_flow = col.column_flow(columns=3)
-            col_flow.separator_spacer()
-            col_flow.operator("project.open_blend_in_project", icon='FILE_FOLDER')
-            col_flow.separator_spacer()
+            self.centered_operator(col, "project.open_blend_in_project", icon='FILE_FOLDER')
         elif context.project.data is None:
             col.label(text="No active project.", icon='INFO')
 
             col.separator_spacer()
 
             col.label(text="Set up a new project by choosing any parent directory of the current file.")
-            col_flow = col.column_flow(columns=3)
-            col_flow.separator_spacer()
-            col_flow.operator("project.new_project", text="New Project...", icon='ADD')
-            col_flow.separator_spacer()
+            self.centered_operator(col, "project.new_project", text="New Project...", icon='ADD')
 
             col.separator_spacer()
 
             col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
-            col_flow = col.column_flow(columns=3)
-            col_flow.separator_spacer()
-            col_flow.operator("project.open_blend_in_project", icon='FILE_FOLDER')
-            col_flow.separator_spacer()
+            self.centered_operator(col, "project.open_blend_in_project", icon='FILE_FOLDER')
         else:
             col.prop(project.data, "name")
             col.prop(project.data, "root_path")
