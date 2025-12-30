@@ -414,10 +414,6 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 /** \name Write Data Type & Functions
  * \{ */
 
-struct BlendWriter {
-  WriteData *wd;
-};
-
 static WriteData *writedata_new(WriteWrap *ww)
 {
   WriteData *wd = MEM_new<WriteData>(__func__);
@@ -832,6 +828,17 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
     return 0;
   }
   /* Either reuse an existing identifier or create a new one. */
+  /* NOTE: In undo case, the stable address data is re-used from the previously written undo step.
+   * This means that the address may already be in the map.
+   * However, in very rare cases, it could be from another, implicitly-shared data (i.e. have the
+   * `implicit_sharing_address_id_flag` flag set).
+   *
+   * This is handled properly by both #BLO_write_shared_tag and #prepare_stable_data_block_ids,
+   * but doing so here would add a significant overhead to a very often used function. Further
+   * more, there is no expected actual issue currently if such 'wrongly categorized' stable address
+   * values are used. The only really critical thing is that all written stable addresses remain
+   * unique, which should remain true even if this ever happens.
+   */
   return wd.stable_address_ids.pointer_map.lookup_or_add_cb(address, [&]() {
     return get_next_stable_address_id(wd, wd.stable_address_ids.next_id_hint);
   });
@@ -1128,7 +1135,7 @@ static void write_renderinfo(WriteData *wd, Main *mainvar)
 
 static void write_keymapitem(BlendWriter *writer, const wmKeyMapItem *kmi)
 {
-  BLO_write_struct(writer, wmKeyMapItem, kmi);
+  writer->write_struct(kmi);
   if (kmi->properties) {
     IDP_BlendWrite(writer, kmi->properties);
   }
@@ -1139,14 +1146,14 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
   writestruct(writer->wd, BLO_CODE_USER, UserDef, 1, userdef);
 
   LISTBASE_FOREACH (const bTheme *, btheme, &userdef->themes) {
-    BLO_write_struct(writer, bTheme, btheme);
+    writer->write_struct(btheme);
   }
 
   LISTBASE_FOREACH (const wmKeyMap *, keymap, &userdef->user_keymaps) {
-    BLO_write_struct(writer, wmKeyMap, keymap);
+    writer->write_struct(keymap);
 
     LISTBASE_FOREACH (const wmKeyMapDiffItem *, kmdi, &keymap->diff_items) {
-      BLO_write_struct(writer, wmKeyMapDiffItem, kmdi);
+      writer->write_struct(kmdi);
       if (kmdi->remove_item) {
         write_keymapitem(writer, kmdi->remove_item);
       }
@@ -1161,68 +1168,68 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
   }
 
   LISTBASE_FOREACH (const wmKeyConfigPref *, kpt, &userdef->user_keyconfig_prefs) {
-    BLO_write_struct(writer, wmKeyConfigPref, kpt);
+    writer->write_struct(kpt);
     if (kpt->prop) {
       IDP_BlendWrite(writer, kpt->prop);
     }
   }
 
   LISTBASE_FOREACH (const bUserMenu *, um, &userdef->user_menus) {
-    BLO_write_struct(writer, bUserMenu, um);
+    writer->write_struct(um);
     LISTBASE_FOREACH (const bUserMenuItem *, umi, &um->items) {
       if (umi->type == USER_MENU_TYPE_OPERATOR) {
         const bUserMenuItem_Op *umi_op = (const bUserMenuItem_Op *)umi;
-        BLO_write_struct(writer, bUserMenuItem_Op, umi_op);
+        writer->write_struct(umi_op);
         if (umi_op->prop) {
           IDP_BlendWrite(writer, umi_op->prop);
         }
       }
       else if (umi->type == USER_MENU_TYPE_MENU) {
         const bUserMenuItem_Menu *umi_mt = (const bUserMenuItem_Menu *)umi;
-        BLO_write_struct(writer, bUserMenuItem_Menu, umi_mt);
+        writer->write_struct(umi_mt);
       }
       else if (umi->type == USER_MENU_TYPE_PROP) {
         const bUserMenuItem_Prop *umi_pr = (const bUserMenuItem_Prop *)umi;
-        BLO_write_struct(writer, bUserMenuItem_Prop, umi_pr);
+        writer->write_struct(umi_pr);
       }
       else {
-        BLO_write_struct(writer, bUserMenuItem, umi);
+        writer->write_struct(umi);
       }
     }
   }
 
   LISTBASE_FOREACH (const bAddon *, bext, &userdef->addons) {
-    BLO_write_struct(writer, bAddon, bext);
+    writer->write_struct(bext);
     if (bext->prop) {
       IDP_BlendWrite(writer, bext->prop);
     }
   }
 
   LISTBASE_FOREACH (const bPathCompare *, path_cmp, &userdef->autoexec_paths) {
-    BLO_write_struct(writer, bPathCompare, path_cmp);
+    writer->write_struct(path_cmp);
   }
 
   LISTBASE_FOREACH (const bUserScriptDirectory *, script_dir, &userdef->script_directories) {
-    BLO_write_struct(writer, bUserScriptDirectory, script_dir);
+    writer->write_struct(script_dir);
   }
 
   LISTBASE_FOREACH (const bUserAssetLibrary *, asset_library_ref, &userdef->asset_libraries) {
-    BLO_write_struct(writer, bUserAssetLibrary, asset_library_ref);
+    writer->write_struct(asset_library_ref);
   }
 
   LISTBASE_FOREACH (const bUserExtensionRepo *, repo_ref, &userdef->extension_repos) {
-    BLO_write_struct(writer, bUserExtensionRepo, repo_ref);
+    writer->write_struct(repo_ref);
     BKE_preferences_extension_repo_write_data(writer, repo_ref);
   }
   LISTBASE_FOREACH (
       const bUserAssetShelfSettings *, shelf_settings, &userdef->asset_shelves_settings)
   {
-    BLO_write_struct(writer, bUserAssetShelfSettings, shelf_settings);
+    writer->write_struct(shelf_settings);
     BKE_asset_catalog_path_list_blend_write(writer, shelf_settings->enabled_catalog_paths);
   }
 
   LISTBASE_FOREACH (const uiStyle *, style, &userdef->uistyles) {
-    BLO_write_struct(writer, uiStyle, style);
+    writer->write_struct(style);
   }
 }
 
@@ -1256,6 +1263,8 @@ static void write_id_placeholder(WriteData *wd, ID *id)
 /** Keep it last of `write_*_data` functions. */
 static void write_libraries(WriteData *wd, Main *bmain)
 {
+  const bool is_undo = wd->use_memfile;
+
   /* Gather IDs coming from each library. */
   blender::MultiValueMap<Library *, ID *> linked_ids_by_library;
   {
@@ -1277,22 +1286,30 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     /* Gather IDs that are somehow directly referenced by data in the current blend file. */
     blender::Vector<ID *> ids_used_from_library;
-    for (ID *id : ids) {
-      if (id->us == 0) {
-        continue;
-      }
-      if (ID_IS_PACKED(id)) {
-        BLI_assert(library.flag & LIBRARY_FLAG_IS_ARCHIVE);
-        ids_used_from_library.append(id);
-        continue;
-      }
-      if (id->tag & ID_TAG_EXTERN) {
-        ids_used_from_library.append(id);
-        continue;
-      }
-      if ((id->tag & ID_TAG_INDIRECT) && (id->flag & ID_FLAG_INDIRECT_WEAK_LINK)) {
-        ids_used_from_library.append(id);
-        continue;
+    if (is_undo) {
+      /* Always write placeholders for all linked IDs in undo case. This allows to properly remove
+       * linked data that should not exist on undo/redo. See also #read_undo_move_libmain_data,
+       * #read_libblock_undo_restore_linked and #read_undo_libraries_cleanup_unused_ids. */
+      ids_used_from_library = ids;
+    }
+    else {
+      for (ID *id : ids) {
+        if (id->us == 0) {
+          continue;
+        }
+        if (ID_IS_PACKED(id)) {
+          BLI_assert(library.flag & LIBRARY_FLAG_IS_ARCHIVE);
+          ids_used_from_library.append(id);
+          continue;
+        }
+        if (id->tag & ID_TAG_EXTERN) {
+          ids_used_from_library.append(id);
+          continue;
+        }
+        if ((id->tag & ID_TAG_INDIRECT) && (id->flag & ID_FLAG_INDIRECT_WEAK_LINK)) {
+          ids_used_from_library.append(id);
+          continue;
+        }
       }
     }
 
@@ -1309,7 +1326,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
        * deleted when no ID uses them anymore? */
       should_write_library = true;
     }
-    else if (wd->use_memfile) {
+    else if (is_undo) {
       /* When writing undo step we always write all existing libraries. That makes reading undo
        * step much easier when dealing with purely indirectly used libraries. */
       should_write_library = true;
@@ -1686,10 +1703,16 @@ static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
   FOREACH_MAIN_ID_BEGIN (&bmain, id) {
     /* Ensure no other stable pointer has been created before. */
     if (wd.use_memfile) {
-      /* In memfile case (undo steps), the stable address ids data is preserved between undo steps,
-       * so the ID address may already be in there, and does not need to be re-generated. */
-      if (wd.stable_address_ids.pointer_map.contains(id)) {
-        continue;
+      /* In undo case, the stable address data is re-used from the previously written undo step.
+       * This means that the ID address may already be in the map.
+       *
+       * However, in very rare cases, it could be from another, implicitly-shared data, in which
+       * case the ID address 'stable value' needs to be re-generated and re-inserted. */
+      uint64_t address_id = wd.stable_address_ids.pointer_map.lookup_default(id, 0);
+      if (address_id != 0) {
+        if (LIKELY((address_id & implicit_sharing_address_id_flag) == 0)) {
+          continue;
+        }
       }
     }
     else {
@@ -1703,7 +1726,7 @@ static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
 
     /* Store the computed stable pointer so that it is used whenever the data-block is written or
      * referenced. */
-    wd.stable_address_ids.pointer_map.add(id, address_id);
+    wd.stable_address_ids.pointer_map.add_overwrite(id, address_id);
   }
   FOREACH_MAIN_ID_END;
 }
@@ -2132,77 +2155,71 @@ void BLO_write_raw(BlendWriter *writer, const size_t size_in_bytes, const void *
   writedata(writer->wd, BLO_CODE_DATA, size_in_bytes, data_ptr);
 }
 
-void BLO_write_struct_by_name(BlendWriter *writer, const char *struct_name, const void *data_ptr)
+void BlendWriter::write_struct_by_name(const char *struct_name, const void *data)
 {
-  BLO_write_struct_array_by_name(writer, struct_name, 1, data_ptr);
+  this->write_struct_array_by_name(struct_name, 1, data);
 }
 
-void BLO_write_struct_array_by_name(BlendWriter *writer,
-                                    const char *struct_name,
-                                    const int64_t array_size,
-                                    const void *data_ptr)
-{
-  int struct_id = BLO_get_struct_id_by_name(writer, struct_name);
-  if (UNLIKELY(struct_id == -1)) {
-    CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
-    return;
-  }
-  BLO_write_struct_array_by_id(writer, struct_id, array_size, data_ptr);
-}
-
-void BLO_write_struct_by_id(BlendWriter *writer, const int struct_id, const void *data_ptr)
-{
-  writestruct_nr(writer->wd, BLO_CODE_DATA, struct_id, 1, data_ptr);
-}
-
-void BLO_write_struct_at_address_by_id(BlendWriter *writer,
-                                       const int struct_id,
-                                       const void *address,
-                                       const void *data_ptr)
-{
-  BLO_write_struct_at_address_by_id_with_filecode(
-      writer, BLO_CODE_DATA, struct_id, address, data_ptr);
-}
-
-void BLO_write_struct_at_address_by_id_with_filecode(BlendWriter *writer,
-                                                     const int filecode,
-                                                     const int struct_id,
-                                                     const void *address,
-                                                     const void *data_ptr)
-{
-  writestruct_at_address_nr(writer->wd, filecode, struct_id, 1, address, data_ptr);
-}
-
-void BLO_write_struct_array_by_id(BlendWriter *writer,
-                                  const int struct_id,
-                                  const int64_t array_size,
-                                  const void *data_ptr)
-{
-  writestruct_nr(writer->wd, BLO_CODE_DATA, struct_id, array_size, data_ptr);
-}
-
-void BLO_write_struct_array_at_address_by_id(BlendWriter *writer,
-                                             const int struct_id,
+void BlendWriter::write_struct_array_by_name(const char *struct_name,
                                              const int64_t array_size,
-                                             const void *address,
-                                             const void *data_ptr)
+                                             const void *data)
 {
-  writestruct_at_address_nr(writer->wd, BLO_CODE_DATA, struct_id, array_size, address, data_ptr);
-}
-
-void BLO_write_struct_list_by_id(BlendWriter *writer, const int struct_id, const ListBase *list)
-{
-  writelist_nr(writer->wd, BLO_CODE_DATA, struct_id, list);
-}
-
-void BLO_write_struct_list_by_name(BlendWriter *writer, const char *struct_name, ListBase *list)
-{
-  int struct_id = BLO_get_struct_id_by_name(writer, struct_name);
+  int struct_id = BLO_get_struct_id_by_name(this, struct_name);
   if (UNLIKELY(struct_id == -1)) {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }
-  BLO_write_struct_list_by_id(writer, struct_id, list);
+  this->write_struct_array_by_id(struct_id, array_size, data);
+}
+
+void BlendWriter::write_struct_by_id(const int struct_id, const void *data)
+{
+  writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, 1, data);
+}
+
+void BlendWriter::write_struct_at_address_by_id(const int struct_id,
+                                                const void *address,
+                                                const void *data)
+{
+  this->write_struct_at_address_by_id_with_filecode(BLO_CODE_DATA, struct_id, address, data);
+}
+
+void BlendWriter::write_struct_at_address_by_id_with_filecode(const int filecode,
+                                                              const int struct_id,
+                                                              const void *address,
+                                                              const void *data)
+{
+  writestruct_at_address_nr(this->wd, filecode, struct_id, 1, address, data);
+}
+
+void BlendWriter::write_struct_array_by_id(const int struct_id,
+                                           const int64_t array_size,
+                                           const void *data)
+{
+  writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, data);
+}
+
+void BlendWriter::write_struct_array_at_address_by_id(const int struct_id,
+                                                      const int64_t array_size,
+                                                      const void *address,
+                                                      const void *data)
+{
+  writestruct_at_address_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, address, data);
+}
+
+void BlendWriter::write_struct_list_by_id(const int struct_id, const ListBase *list)
+{
+  writelist_nr(this->wd, BLO_CODE_DATA, struct_id, list);
+}
+
+void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *list)
+{
+  int struct_id = BLO_get_struct_id_by_name(this, struct_name);
+  if (UNLIKELY(struct_id == -1)) {
+    CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
+    return;
+  }
+  this->write_struct_list_by_id(struct_id, list);
 }
 
 void blo_write_id_struct(BlendWriter *writer,
@@ -2292,11 +2309,24 @@ void BLO_write_shared_tag(BlendWriter *writer, const void *data)
   if (!BLO_write_is_undo(writer)) {
     return;
   }
+
   const uint64_t address_id = get_address_id_for_implicit_sharing_data(data);
   /* Check that the pointer has not been written before it was tagged as being shared. */
-  BLI_assert(writer->wd->stable_address_ids.pointer_map.lookup_default(data, address_id) ==
-             address_id);
-  writer->wd->stable_address_ids.pointer_map.add(data, address_id);
+  /* In undo case, the stable address data is re-used from the previously written undo step.
+   * This means that the shared data address may already be in the map.
+   *
+   * However, in very rare cases, it could be from another, regular (non-shared) data previously
+   * using the same memory address, in which case the data address 'stable value' needs to be
+   * re-inserted. */
+#ifndef NDEBUG
+  {
+    const uint64_t existing_address_id = writer->wd->stable_address_ids.pointer_map.lookup_default(
+        data, address_id);
+    BLI_assert(existing_address_id == address_id ||
+               (existing_address_id & implicit_sharing_address_id_flag) == 0);
+  }
+#endif
+  writer->wd->stable_address_ids.pointer_map.add_overwrite(data, address_id);
 }
 
 void BLO_write_shared(BlendWriter *writer,

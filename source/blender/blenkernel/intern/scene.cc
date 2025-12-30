@@ -20,7 +20,6 @@
 #include "DNA_brush_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_curveprofile_types.h"
-#include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_linestyle_types.h"
@@ -162,9 +161,7 @@ static void scene_init_data(ID *id)
   SceneRenderView *srv;
   CurveMapping *mblur_shutter_curve;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(scene, id));
-
-  MEMCPY_STRUCT_AFTER(scene, DNA_struct_default_get(Scene), id);
+  INIT_DEFAULT_STRUCT_AFTER(scene, id);
 
   STRNCPY(scene->r.bake.filepath, U.renderdir);
 
@@ -176,7 +173,7 @@ static void scene_init_data(ID *id)
                      CURVE_PRESET_MAX,
                      CurveMapSlopeType::PositiveNegative);
 
-  scene->toolsettings = DNA_struct_default_alloc(ToolSettings);
+  scene->toolsettings = MEM_new_for_free<ToolSettings>(__func__);
 
   scene->toolsettings->autokey_mode = uchar(U.autokey_mode);
 
@@ -334,7 +331,7 @@ static void scene_copy_data(Main *bmain,
 
   /* Copy sequencer, this is local data! */
   if (scene_src->ed) {
-    scene_dst->ed = MEM_callocN<Editing>(__func__);
+    scene_dst->ed = MEM_new_for_free<Editing>(__func__);
     scene_dst->ed->cache_flag = scene_src->ed->cache_flag;
     scene_dst->ed->show_missing_media_flag = scene_src->ed->show_missing_media_flag;
     scene_dst->ed->proxy_storage = scene_src->ed->proxy_storage;
@@ -1030,6 +1027,76 @@ static void scene_foreach_cache(ID *id,
   }
 }
 
+static void scene_blend_write_compositor_forward_compat(Scene &scene,
+                                                        const bNodeTree &compositing_node_group,
+                                                        BlendWriter *writer)
+{
+  bNodeTree *temp_nodetree_copy = blender::bke::node_tree_copy_tree_ex(
+      compositing_node_group, nullptr, false);
+
+  temp_nodetree_copy->id.flag |= ID_FLAG_EMBEDDED_DATA;
+  temp_nodetree_copy->owner_id = &scene.id;
+  temp_nodetree_copy->id.lib = scene.id.lib;
+  /* Set deprecated chunksize for forward compatibility. */
+  temp_nodetree_copy->chunksize = 256;
+
+  /* The Composite node was replaced by the Group Output node in 5.0, so we add one to ensure
+   * forward compatibility. */
+  bNodeSocket *group_output_first_input = nullptr;
+  bNode *composite_node = nullptr;
+  bNodeSocket *composite_input = nullptr;
+  blender::bke::bNodeType ntype;
+  LISTBASE_FOREACH_MUTABLE (bNode *, node, &temp_nodetree_copy->nodes) {
+    if (node->is_type("NodeGroupOutput") && (node->flag & NODE_DO_OUTPUT)) {
+      composite_node = &version_node_add_unknown(*temp_nodetree_copy,
+                                                 ntype,
+                                                 "CompositorNodeComposite",
+                                                 CMP_NODE_COMPOSITE_DEPRECATED,
+                                                 "Composite",
+                                                 "Final render output",
+                                                 "COMPOSITE",
+                                                 NODE_CLASS_OUTPUT,
+                                                 false);
+      composite_input = &version_node_add_socket(
+          *temp_nodetree_copy, *composite_node, SOCK_IN, "NodeSocketColor", "Image");
+
+      composite_node->location[0] = node->location[0] - 20.0f;
+      composite_node->location[1] = node->location[1];
+      group_output_first_input = static_cast<bNodeSocket *>(node->inputs.first);
+      break;
+    }
+  }
+
+  bNodeLink *ngroup_input_link = nullptr;
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &temp_nodetree_copy->links) {
+    if (link->tosock && link->tosock == group_output_first_input) {
+      ngroup_input_link = link;
+      break;
+    }
+  }
+  if (ngroup_input_link) {
+    version_node_add_link(*temp_nodetree_copy,
+                          *ngroup_input_link->fromnode,
+                          *ngroup_input_link->fromsock,
+                          *composite_node,
+                          *composite_input);
+  }
+
+  BLO_Write_IDBuffer temp_embedded_id_buffer{temp_nodetree_copy->id, writer};
+  bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
+  BLO_write_struct_at_address(writer, bNodeTree, scene.nodetree, temp_nodetree);
+
+  /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not write an embedded
+   * nodetree at `scene->nodetree` anymore. */
+  blender::bke::node_tree_blend_write(writer, temp_nodetree);
+
+  blender::bke::node_tree_free_embedded_tree(temp_nodetree_copy);
+  MEM_freeN(temp_nodetree_copy);
+  temp_nodetree_copy = nullptr;
+  MEM_freeN(reinterpret_cast<void *>(scene.nodetree));
+  scene.nodetree = nullptr;
+}
+
 static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Scene *sce = (Scene *)id;
@@ -1067,7 +1134,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* direct data */
   ToolSettings *ts = sce->toolsettings;
 
-  BLO_write_struct(writer, ToolSettings, ts);
+  writer->write_struct(ts);
 
   if (ts->unified_paint_settings.curve_rand_hue) {
     BKE_curvemapping_blend_write(writer, ts->unified_paint_settings.curve_rand_hue);
@@ -1082,15 +1149,15 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   if (ts->vpaint) {
-    BLO_write_struct(writer, VPaint, ts->vpaint);
+    writer->write_struct(ts->vpaint);
     BKE_paint_blend_write(writer, &ts->vpaint->paint);
   }
   if (ts->wpaint) {
-    BLO_write_struct(writer, VPaint, ts->wpaint);
+    writer->write_struct(ts->wpaint);
     BKE_paint_blend_write(writer, &ts->wpaint->paint);
   }
   if (ts->sculpt) {
-    BLO_write_struct(writer, Sculpt, ts->sculpt);
+    writer->write_struct(ts->sculpt);
     if (ts->sculpt->automasking_cavity_curve) {
       BKE_curvemapping_blend_write(writer, ts->sculpt->automasking_cavity_curve);
     }
@@ -1104,23 +1171,23 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BKE_curvemapping_blend_write(writer, ts->uvsculpt.curve_distance_falloff);
   }
   if (ts->gp_paint) {
-    BLO_write_struct(writer, GpPaint, ts->gp_paint);
+    writer->write_struct(ts->gp_paint);
     BKE_paint_blend_write(writer, &ts->gp_paint->paint);
   }
   if (ts->gp_vertexpaint) {
-    BLO_write_struct(writer, GpVertexPaint, ts->gp_vertexpaint);
+    writer->write_struct(ts->gp_vertexpaint);
     BKE_paint_blend_write(writer, &ts->gp_vertexpaint->paint);
   }
   if (ts->gp_sculptpaint) {
-    BLO_write_struct(writer, GpSculptPaint, ts->gp_sculptpaint);
+    writer->write_struct(ts->gp_sculptpaint);
     BKE_paint_blend_write(writer, &ts->gp_sculptpaint->paint);
   }
   if (ts->gp_weightpaint) {
-    BLO_write_struct(writer, GpWeightPaint, ts->gp_weightpaint);
+    writer->write_struct(ts->gp_weightpaint);
     BKE_paint_blend_write(writer, &ts->gp_weightpaint->paint);
   }
   if (ts->curves_sculpt) {
-    BLO_write_struct(writer, CurvesSculpt, ts->curves_sculpt);
+    writer->write_struct(ts->curves_sculpt);
     BKE_paint_blend_write(writer, &ts->curves_sculpt->paint);
   }
   /* write grease-pencil custom ipo curve to file */
@@ -1140,22 +1207,22 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BKE_curveprofile_blend_write(writer, ts->custom_bevel_profile_preset);
   }
   if (ts->sequencer_tool_settings) {
-    BLO_write_struct(writer, SequencerToolSettings, ts->sequencer_tool_settings);
+    writer->write_struct(ts->sequencer_tool_settings);
   }
 
   BKE_paint_blend_write(writer, &ts->imapaint.paint);
 
   Editing *ed = sce->ed;
   if (ed) {
-    BLO_write_struct(writer, Editing, ed);
+    writer->write_struct(ed);
 
     blender::seq::blend_write(writer, &ed->seqbase);
     LISTBASE_FOREACH (SeqTimelineChannel *, channel, &ed->channels) {
-      BLO_write_struct(writer, SeqTimelineChannel, channel);
+      writer->write_struct(channel);
     }
     /* new; meta stack too, even when its nasty restore code */
     LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
-      BLO_write_struct(writer, MetaStack, ms);
+      writer->write_struct(ms);
     }
   }
 
@@ -1164,78 +1231,16 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* writing dynamic list of TransformOrientations to the blend file */
   LISTBASE_FOREACH (TransformOrientation *, ts, &sce->transform_spaces) {
-    BLO_write_struct(writer, TransformOrientation, ts);
+    writer->write_struct(ts);
   }
 
   /* writing MultiView to the blend file */
   LISTBASE_FOREACH (SceneRenderView *, srv, &sce->r.views) {
-    BLO_write_struct(writer, SceneRenderView, srv);
+    writer->write_struct(srv);
   }
 
-  /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not write an embedded
-   * nodetree at `scene->nodetree` anymore. */
   if (sce->compositing_node_group && !is_write_undo) {
-    bNodeTree *temp_nodetree_copy = blender::bke::node_tree_copy_tree_ex(
-        *sce->compositing_node_group, nullptr, false);
-
-    temp_nodetree_copy->id.flag |= ID_FLAG_EMBEDDED_DATA;
-    temp_nodetree_copy->owner_id = &sce->id;
-    temp_nodetree_copy->id.lib = sce->id.lib;
-    /* Set deprecated chunksize for forward compatibility. */
-    temp_nodetree_copy->chunksize = 256;
-
-    /* The Composite node was replaced by the Group Output node in 5.0, so we add one to ensure
-     * forward compatibility. */
-    bNodeSocket *group_output_first_input = nullptr;
-    bNode *composite_node = nullptr;
-    bNodeSocket *composite_input = nullptr;
-    blender::bke::bNodeType ntype;
-    LISTBASE_FOREACH_MUTABLE (bNode *, node, &temp_nodetree_copy->nodes) {
-      if (node->is_type("NodeGroupOutput") && (node->flag & NODE_DO_OUTPUT)) {
-        composite_node = &version_node_add_unknown(*temp_nodetree_copy,
-                                                   ntype,
-                                                   "CompositorNodeComposite",
-                                                   CMP_NODE_COMPOSITE_DEPRECATED,
-                                                   "Composite",
-                                                   "Final render output",
-                                                   "COMPOSITE",
-                                                   NODE_CLASS_OUTPUT,
-                                                   false);
-        composite_input = &version_node_add_socket(
-            *temp_nodetree_copy, *composite_node, SOCK_IN, "NodeSocketColor", "Image");
-
-        composite_node->location[0] = node->location[0] - 20.0f;
-        composite_node->location[1] = node->location[1];
-        group_output_first_input = static_cast<bNodeSocket *>(node->inputs.first);
-        break;
-      }
-    }
-
-    bNodeLink *ngroup_input_link = nullptr;
-    LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &temp_nodetree_copy->links) {
-      if (link->tosock && link->tosock == group_output_first_input) {
-        ngroup_input_link = link;
-        break;
-      }
-    }
-    if (ngroup_input_link) {
-      version_node_add_link(*temp_nodetree_copy,
-                            *ngroup_input_link->fromnode,
-                            *ngroup_input_link->fromsock,
-                            *composite_node,
-                            *composite_input);
-    }
-
-    BLO_Write_IDBuffer temp_embedded_id_buffer{temp_nodetree_copy->id, writer};
-    bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
-    BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
-    blender::bke::node_tree_blend_write(writer, temp_nodetree);
-
-    blender::bke::node_tree_free_embedded_tree(temp_nodetree_copy);
-    MEM_freeN(temp_nodetree_copy);
-    temp_nodetree_copy = nullptr;
-    MEM_freeN(reinterpret_cast<void *>(sce->nodetree));
-    sce->nodetree = nullptr;
+    scene_blend_write_compositor_forward_compat(*sce, *sce->compositing_node_group, writer);
   }
 
   BKE_color_managed_view_settings_blend_write(writer, &sce->view_settings);
@@ -1247,10 +1252,10 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     /* Set deprecated pointers to prevent crashes of older Blenders */
     sce->rigidbody_world->pointcache = sce->rigidbody_world->shared->pointcache;
     sce->rigidbody_world->ptcaches = sce->rigidbody_world->shared->ptcaches;
-    BLO_write_struct(writer, RigidBodyWorld, sce->rigidbody_world);
+    writer->write_struct(sce->rigidbody_world);
 
-    BLO_write_struct(writer, RigidBodyWorld_Shared, sce->rigidbody_world->shared);
-    BLO_write_struct(writer, EffectorWeights, sce->rigidbody_world->effector_weights);
+    writer->write_struct(sce->rigidbody_world->shared);
+    writer->write_struct(sce->rigidbody_world->effector_weights);
     BKE_ptcache_blend_write(writer, &(sce->rigidbody_world->shared->ptcaches));
   }
 
@@ -1839,7 +1844,7 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
 void BKE_scene_copy_data_eevee(Scene *sce_dst, const Scene *sce_src)
 {
   /* Copy eevee data between scenes. */
-  sce_dst->eevee = sce_src->eevee;
+  sce_dst->eevee = blender::dna::shallow_copy(sce_src->eevee);
 }
 
 Scene *BKE_scene_duplicate(Main *bmain,
@@ -1853,13 +1858,13 @@ Scene *BKE_scene_duplicate(Main *bmain,
   /* TODO: this should/could most likely be replaced by call to more generic code at some point...
    * But for now, let's keep it well isolated here. */
   if (type == SCE_COPY_EMPTY) {
-    ListBase rv;
+    ListBaseT<SceneRenderView> rv;
 
     sce_copy = BKE_scene_add(bmain, sce->id.name + 2);
 
     rv = sce_copy->r.views;
     BKE_curvemapping_free_data(&sce_copy->r.mblur_shutter_curve);
-    sce_copy->r = sce->r;
+    sce_copy->r = blender::dna::shallow_copy(sce->r);
     sce_copy->r.views = rv;
     sce_copy->unit = sce->unit;
     sce_copy->physics_settings = sce->physics_settings;
@@ -2810,7 +2815,7 @@ SceneRenderView *BKE_scene_add_render_view(Scene *sce, const char *name)
     name = DATA_("RenderView");
   }
 
-  SceneRenderView *srv = MEM_callocN<SceneRenderView>(__func__);
+  SceneRenderView *srv = MEM_new_for_free<SceneRenderView>(__func__);
   STRNCPY_UTF8(srv->name, name);
   BLI_uniquename(&sce->r.views,
                  srv,

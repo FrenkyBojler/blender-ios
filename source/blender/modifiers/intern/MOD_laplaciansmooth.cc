@@ -11,7 +11,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
@@ -468,10 +467,7 @@ static void laplaciansmoothModifier_do(
 static void init_data(ModifierData *md)
 {
   LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(LaplacianSmoothModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -518,7 +514,8 @@ static void deform_verts(ModifierData *md,
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
   blender::ui::Layout &layout = *panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);

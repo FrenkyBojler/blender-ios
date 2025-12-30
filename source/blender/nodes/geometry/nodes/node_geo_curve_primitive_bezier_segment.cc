@@ -47,13 +47,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mode", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryCurvePrimitiveBezierSegment *data =
-      MEM_callocN<NodeGeometryCurvePrimitiveBezierSegment>(__func__);
+      MEM_new_for_free<NodeGeometryCurvePrimitiveBezierSegment>(__func__);
 
   data->mode = GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_POSITION;
   node->storage = data;

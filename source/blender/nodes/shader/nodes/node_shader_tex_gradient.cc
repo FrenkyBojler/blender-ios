@@ -28,12 +28,12 @@ static void sh_node_tex_gradient_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_tex_gradient(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "gradient_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "gradient_type", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_tex_gradient(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexGradient *tex = MEM_callocN<NodeTexGradient>(__func__);
+  NodeTexGradient *tex = MEM_new_for_free<NodeTexGradient>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->gradient_type = SHD_BLEND_LINEAR;

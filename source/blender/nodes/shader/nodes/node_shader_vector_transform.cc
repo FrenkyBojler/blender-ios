@@ -26,15 +26,19 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_vect_transform(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(
-      ptr, "vector_type", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  layout.prop(ptr, "convert_from", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout.prop(ptr, "convert_to", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr,
+              "vector_type",
+              ui::ITEM_R_SPLIT_EMPTY_NAME | ui::ITEM_R_EXPAND,
+              std::nullopt,
+              ICON_NONE);
+  layout.prop(ptr, "convert_from", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "convert_to", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_vect_transform(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderVectTransform *vect = MEM_callocN<NodeShaderVectTransform>("NodeShaderVectTransform");
+  NodeShaderVectTransform *vect = MEM_new_for_free<NodeShaderVectTransform>(
+      "NodeShaderVectTransform");
 
   /* Convert World into Object Space per default */
   vect->convert_to = 1;

@@ -59,7 +59,7 @@ struct LibraryRuntime {
    * Helper listing all archived libraries 'versions' of this library.
    * Should only contain something if this library is a regular 'real' blendfile library.
    */
-  blender::Vector<Library *> archived_libraries = {};
+  Vector<Library *> archived_libraries = {};
 
   /** #eLibrary_Tag. */
   ushort tag = 0;
@@ -73,12 +73,19 @@ struct LibraryRuntime {
 
   /** Color-space information. */
   MainColorspace colorspace;
+
+  /**
+   * Temporary data used when reading a memfile undo step, to detect re-used regular linked IDs
+   * that are no more needed. See #read_undo_move_libmain_data, #read_libblock_undo_restore_linked
+   * and #read_undo_libraries_cleanup_unused_ids.
+   */
+  Set<ID *> unused_ids_on_undo;
 };
 
 /**
  * Search for given absolute filepath in all libraries in given #ListBase.
  */
-Library *search_filepath_abs(ListBase *libraries, blender::StringRef filepath_abs);
+Library *search_filepath_abs(ListBase *libraries, StringRef filepath_abs);
 
 /**
  * Pack given linked ID, and all the related hierarchy.

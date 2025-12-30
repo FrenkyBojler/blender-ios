@@ -38,13 +38,14 @@ static void node_shader_buts_vertex_color(ui::Layout &layout, bContext *C, Point
     }
   }
 
-  layout.prop(ptr, "layer_name", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_GROUP_VCOL);
+  layout.prop(ptr, "layer_name", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_GROUP_VCOL);
   layout.label(RPT_("No mesh in active object"), ICON_ERROR);
 }
 
 static void node_shader_init_vertex_color(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderVertexColor *vertexColor = MEM_callocN<NodeShaderVertexColor>("NodeShaderVertexColor");
+  NodeShaderVertexColor *vertexColor = MEM_new_for_free<NodeShaderVertexColor>(
+      "NodeShaderVertexColor");
   node->storage = vertexColor;
 }
 

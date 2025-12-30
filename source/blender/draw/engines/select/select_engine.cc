@@ -8,6 +8,8 @@
  * Engine for drawing a selection map where the pixels indicate the selection indices.
  */
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
 #include "BLI_math_matrix.h"
@@ -82,7 +84,7 @@ struct Instance : public DrawEngine {
     }
   };
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "SelectID";
   }
