@@ -33,7 +33,7 @@
 
 static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
-  SpaceProject *project_space = MEM_callocN<SpaceProject>("project space");
+  SpaceProject *project_space = MEM_new_for_free<SpaceProject>("project space");
   project_space->spacetype = SPACE_PROJECT;
 
   {

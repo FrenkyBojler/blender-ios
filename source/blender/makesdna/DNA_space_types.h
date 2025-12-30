@@ -1302,19 +1302,14 @@ struct SpreadsheetRowFilter {
 /** \name Blender Project
  * \{ */
 
-typedef struct SpaceProject {
-  SpaceLink *next, *prev;
+struct SpaceProject {
+  SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase;
-  char spacetype;
-  char link_flag;
-  char _pad0[6];
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
+  char spacetype = 0;
+  char link_flag = 0;
+  char _pad0[6] = {};
   /* End 'SpaceLink' header. */
-} SpaceProject;
-
-typedef enum eSpaceProject_Section {
-  PROJECT_SECTION_GENERAL = 0,
-  PROJECT_SECTION_VARIABLES = 1,
-} eSpaceProjectSettings_Section;
+};
 
 /** \} */
