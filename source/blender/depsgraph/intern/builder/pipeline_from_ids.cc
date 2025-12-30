@@ -35,8 +35,9 @@ class DepsgraphFromIDsNodeBuilder : public DepsgraphNodeBuilder {
   DepsgraphFromIDsNodeBuilder(Main *bmain,
                               Depsgraph *graph,
                               DepsgraphBuilderCache *cache,
+                              blender::bke::DynamicOverridesEvaluationData *dynoverride,
                               Span<ID *> ids)
-      : DepsgraphNodeBuilder(bmain, graph, cache), filter_(ids)
+      : DepsgraphNodeBuilder(bmain, graph, cache, dynoverride), filter_(ids)
   {
   }
 
@@ -57,8 +58,9 @@ class DepsgraphFromIDsRelationBuilder : public DepsgraphRelationBuilder {
   DepsgraphFromIDsRelationBuilder(Main *bmain,
                                   Depsgraph *graph,
                                   DepsgraphBuilderCache *cache,
+                                  blender::bke::DynamicOverridesEvaluationData *dynoverride,
                                   Span<ID *> ids)
-      : DepsgraphRelationBuilder(bmain, graph, cache), filter_(ids)
+      : DepsgraphRelationBuilder(bmain, graph, cache, dynoverride), filter_(ids)
   {
   }
 
@@ -83,20 +85,21 @@ FromIDsBuilderPipeline::FromIDsBuilderPipeline(::Depsgraph *graph, Span<ID *> id
 
 std::unique_ptr<DepsgraphNodeBuilder> FromIDsBuilderPipeline::construct_node_builder()
 {
-  return std::make_unique<DepsgraphFromIDsNodeBuilder>(bmain_, deg_graph_, &builder_cache_, ids_);
+  return std::make_unique<DepsgraphFromIDsNodeBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynoverride_, ids_);
 }
 
 std::unique_ptr<DepsgraphRelationBuilder> FromIDsBuilderPipeline::construct_relation_builder()
 {
   return std::make_unique<DepsgraphFromIDsRelationBuilder>(
-      bmain_, deg_graph_, &builder_cache_, ids_);
+      bmain_, deg_graph_, &builder_cache_, dynoverride_, ids_);
 }
 
 void FromIDsBuilderPipeline::build_nodes(DepsgraphNodeBuilder &node_builder)
 {
   node_builder.build_view_layer(scene_, view_layer_, DEG_ID_LINKED_DIRECTLY);
   for (ID *id : ids_) {
-    node_builder.build_id(id, true);
+    node_builder.build_id(dynoverride_->remapped_id_get(id), true);
   }
 }
 
@@ -104,7 +107,7 @@ void FromIDsBuilderPipeline::build_relations(DepsgraphRelationBuilder &relation_
 {
   relation_builder.build_view_layer(scene_, view_layer_, DEG_ID_LINKED_DIRECTLY);
   for (ID *id : ids_) {
-    relation_builder.build_id(id);
+    relation_builder.build_id(dynoverride_->remapped_id_get(id));
   }
 }
 

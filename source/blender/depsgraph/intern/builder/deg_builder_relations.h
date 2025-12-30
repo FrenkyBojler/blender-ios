@@ -18,6 +18,10 @@
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
+namespace blender::bke {
+class DynamicOverridesEvaluationData;
+}
+
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_key.h"
 #include "intern/builder/deg_builder_map.h"
@@ -80,7 +84,10 @@ struct TimeSourceNode;
 
 class DepsgraphRelationBuilder : public DepsgraphBuilder {
  public:
-  DepsgraphRelationBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
+  DepsgraphRelationBuilder(Main *bmain,
+                           Depsgraph *graph,
+                           DepsgraphBuilderCache *cache,
+                           blender::bke::DynamicOverridesEvaluationData *dynoverride);
 
   void begin_build();
 

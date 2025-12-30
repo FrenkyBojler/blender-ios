@@ -54,27 +54,16 @@ array<Node *> BlenderSync::find_used_shaders(::Object &b_ob)
     return used_shaders;
   }
 
-  ::Material *material_override = view_layer.material_override;
   Shader *default_shader = (b_ob.type == OB_VOLUME) ? scene->default_volume :
                                                       scene->default_surface;
 
   for (const int i : blender::IndexRange(BKE_object_material_count_eval(&b_ob))) {
-    if (material_override) {
-      find_shader(&material_override->id, used_shaders, default_shader);
-    }
-    else {
-      ::Material *b_material = BKE_object_material_get(&b_ob, i + 1);
-      find_shader(reinterpret_cast<::ID *>(b_material), used_shaders, default_shader);
-    }
+    ::Material *b_material = BKE_object_material_get(&b_ob, i + 1);
+    find_shader(reinterpret_cast<::ID *>(b_material), used_shaders, default_shader);
   }
 
   if (used_shaders.size() == 0) {
-    if (material_override) {
-      find_shader(&material_override->id, used_shaders, default_shader);
-    }
-    else {
-      used_shaders.push_back_slow(default_shader);
-    }
+    used_shaders.push_back_slow(default_shader);
   }
 
   return used_shaders;

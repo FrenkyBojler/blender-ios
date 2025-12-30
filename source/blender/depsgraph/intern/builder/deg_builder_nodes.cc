@@ -120,10 +120,12 @@ namespace blender::deg {
 
 /* **** General purpose functions **** */
 
-DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain,
-                                           Depsgraph *graph,
-                                           DepsgraphBuilderCache *cache)
-    : DepsgraphBuilder(bmain, graph, cache),
+DepsgraphNodeBuilder::DepsgraphNodeBuilder(
+    Main *bmain,
+    Depsgraph *graph,
+    DepsgraphBuilderCache *cache,
+    blender::bke::DynamicOverridesEvaluationData *dynoverride)
+    : DepsgraphBuilder(bmain, graph, cache, dynoverride),
       scene_(nullptr),
       view_layer_(nullptr),
       view_layer_index_(-1),
@@ -683,7 +685,7 @@ void DepsgraphNodeBuilder::build_generic_id(ID *id)
 void DepsgraphNodeBuilder::build_idproperties(IDProperty *id_property)
 {
   IDP_foreach_property(id_property, IDP_TYPE_FILTER_ID, [&](IDProperty *id_property) {
-    this->build_id(static_cast<ID *>(id_property->data.pointer));
+    this->build_id(dynoverride_->remapped_id_get(static_cast<ID *>(id_property->data.pointer)));
   });
 }
 
@@ -1959,7 +1961,8 @@ void DepsgraphNodeBuilder::build_nodetree_socket(bNodeSocket *socket)
     build_id((ID *)((bNodeSocketValueTexture *)socket->default_value)->value);
   }
   else if (socket->type == SOCK_MATERIAL) {
-    build_id((ID *)((bNodeSocketValueMaterial *)socket->default_value)->value);
+    build_id(dynoverride_->remapped_id_get(
+        (ID *)((bNodeSocketValueMaterial *)socket->default_value)->value));
   }
   else if (socket->type == SOCK_FONT) {
     build_id((ID *)((bNodeSocketValueFont *)socket->default_value)->value);
@@ -2018,7 +2021,7 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
       build_nodetree_socket(socket);
     }
 
-    ID *id = bnode->id;
+    ID *id = dynoverride_->remapped_id_get(bnode->id);
     if (id == nullptr) {
       continue;
     }
@@ -2115,7 +2118,7 @@ void DepsgraphNodeBuilder::build_materials(Material **materials, int num_materia
     if (materials[i] == nullptr) {
       continue;
     }
-    build_material(materials[i]);
+    build_material((Material *)dynoverride_->remapped_id_get((ID *)materials[i]));
   }
 }
 
@@ -2410,7 +2413,7 @@ void DepsgraphNodeBuilder::modifier_walk(void *user_data,
                                          LibraryForeachIDCallbackFlag /*cb_flag*/)
 {
   BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-  ID *id = *idpoin;
+  ID *id = data->builder->dynoverride_->remapped_id_get(*idpoin);
   if (id == nullptr) {
     return;
   }
@@ -2430,7 +2433,7 @@ void DepsgraphNodeBuilder::constraint_walk(bConstraint * /*con*/,
                                            void *user_data)
 {
   BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
-  ID *id = *idpoin;
+  ID *id = data->builder->dynoverride_->remapped_id_get(*idpoin);
   if (id == nullptr) {
     return;
   }

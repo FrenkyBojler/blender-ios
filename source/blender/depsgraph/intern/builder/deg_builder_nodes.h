@@ -57,6 +57,10 @@ struct bPoseChannel;
 struct bSound;
 struct PointerRNA;
 
+namespace blender::bke {
+class DynamicOverridesEvaluationData;
+}
+
 namespace blender::deg {
 
 struct ComponentNode;
@@ -69,7 +73,10 @@ struct TimeSourceNode;
 
 class DepsgraphNodeBuilder : public DepsgraphBuilder {
  public:
-  DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
+  DepsgraphNodeBuilder(Main *bmain,
+                       Depsgraph *graph,
+                       DepsgraphBuilderCache *cache,
+                       blender::bke::DynamicOverridesEvaluationData *dynoverride);
   ~DepsgraphNodeBuilder();
 
   /* For given original ID get ID which is created by copy-on-evaluation system. */

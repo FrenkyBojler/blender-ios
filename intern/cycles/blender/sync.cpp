@@ -627,8 +627,6 @@ void BlenderSync::sync_view_layer(::ViewLayer &b_view_layer)
   view_layer.use_motion_blur = (b_view_layer.layflag & SCE_LAY_MOTION_BLUR) != 0 &&
                                (b_scene->r.mode & R_MBLUR) != 0;
 
-  /* Material override. */
-  view_layer.material_override = b_view_layer.mat_override;
   /* World override. */
   view_layer.world_override = b_view_layer.world_override;
 

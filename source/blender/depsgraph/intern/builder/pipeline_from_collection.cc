@@ -36,8 +36,9 @@ class DepsgraphFromCollectionIDsNodeBuilder : public DepsgraphNodeBuilder {
   DepsgraphFromCollectionIDsNodeBuilder(Main *bmain,
                                         Depsgraph *graph,
                                         DepsgraphBuilderCache *cache,
+                                        blender::bke::DynamicOverridesEvaluationData *dynoverride,
                                         const Set<ID *> &ids)
-      : DepsgraphNodeBuilder(bmain, graph, cache), filter_(ids)
+      : DepsgraphNodeBuilder(bmain, graph, cache, dynoverride), filter_(ids)
   {
   }
 
@@ -55,11 +56,13 @@ class DepsgraphFromCollectionIDsNodeBuilder : public DepsgraphNodeBuilder {
 
 class DepsgraphFromCollectionIDsRelationBuilder : public DepsgraphRelationBuilder {
  public:
-  DepsgraphFromCollectionIDsRelationBuilder(Main *bmain,
-                                            Depsgraph *graph,
-                                            DepsgraphBuilderCache *cache,
-                                            const Set<ID *> &ids)
-      : DepsgraphRelationBuilder(bmain, graph, cache), filter_(ids)
+  DepsgraphFromCollectionIDsRelationBuilder(
+      Main *bmain,
+      Depsgraph *graph,
+      DepsgraphBuilderCache *cache,
+      blender::bke::DynamicOverridesEvaluationData *dynoverride,
+      const Set<ID *> &ids)
+      : DepsgraphRelationBuilder(bmain, graph, cache, dynoverride), filter_(ids)
   {
   }
 
@@ -94,21 +97,21 @@ FromCollectionBuilderPipeline::FromCollectionBuilderPipeline(::Depsgraph *graph,
 std::unique_ptr<DepsgraphNodeBuilder> FromCollectionBuilderPipeline::construct_node_builder()
 {
   return std::make_unique<DepsgraphFromCollectionIDsNodeBuilder>(
-      bmain_, deg_graph_, &builder_cache_, ids_);
+      bmain_, deg_graph_, &builder_cache_, dynoverride_, ids_);
 }
 
 std::unique_ptr<DepsgraphRelationBuilder> FromCollectionBuilderPipeline::
     construct_relation_builder()
 {
   return std::make_unique<DepsgraphFromCollectionIDsRelationBuilder>(
-      bmain_, deg_graph_, &builder_cache_, ids_);
+      bmain_, deg_graph_, &builder_cache_, dynoverride_, ids_);
 }
 
 void FromCollectionBuilderPipeline::build_nodes(DepsgraphNodeBuilder &node_builder)
 {
   node_builder.build_view_layer(scene_, view_layer_, DEG_ID_LINKED_DIRECTLY);
   for (ID *id : ids_) {
-    node_builder.build_id(id, true);
+    node_builder.build_id(dynoverride_->remapped_id_get(id), true);
   }
 }
 
@@ -116,7 +119,7 @@ void FromCollectionBuilderPipeline::build_relations(DepsgraphRelationBuilder &re
 {
   relation_builder.build_view_layer(scene_, view_layer_, DEG_ID_LINKED_DIRECTLY);
   for (ID *id : ids_) {
-    relation_builder.build_id(id);
+    relation_builder.build_id(dynoverride_->remapped_id_get(id));
   }
 }
 

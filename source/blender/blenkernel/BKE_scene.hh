@@ -337,3 +337,29 @@ TransformOrientation *BKE_scene_transform_orientation_find(const Scene *scene, i
  */
 int BKE_scene_transform_orientation_get_index(const Scene *scene,
                                               const TransformOrientation *orientation);
+
+/* TODO: Move this to own header & implementation! */
+namespace blender::bke {
+
+class DynamicOverridesEvaluationData {
+  ViewLayer *layer_;
+
+ public:
+  DynamicOverridesEvaluationData(ViewLayer *layer) : layer_(layer) {}
+  virtual ~DynamicOverridesEvaluationData() = default;
+
+  /** Reset internal data, clear any cached/evaluated override info. */
+  void reset_data(ViewLayer *layer)
+  {
+    layer_ = layer;
+  }
+
+  /**
+   * Get the target ID the given `id_src` is dynamically remapped to.
+   *
+   * \note both parameter and result IDs are 'orig' (non-evaluated) ones.
+   */
+  ID *remapped_id_get(ID *id_src) const;
+};
+
+}  // namespace blender::bke

@@ -21,6 +21,8 @@
 
 #include "DNA_ID.h" /* for ID_Type and INDEX_ID_MAX */
 
+#include "BKE_scene.hh"
+
 #include "BLI_linear_allocator.hh"
 #include "BLI_mutex.hh"
 #include "BLI_set.hh"
@@ -141,6 +143,12 @@ struct Depsgraph {
   Scene *scene;
   ViewLayer *view_layer;
   eEvaluationMode mode;
+
+  /**
+   * Stores all information required to perform dynamic overrides, for both building and
+   * evaluating this depsgraph.
+   */
+  blender::bke::DynamicOverridesEvaluationData dynoverride_;
 
   /* Time at which dependency graph is being or was last evaluated.
    * frame is the value before, and ctime the value after time remapping. */

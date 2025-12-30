@@ -16,8 +16,11 @@ namespace {
 
 class AllObjectsNodeBuilder : public DepsgraphNodeBuilder {
  public:
-  AllObjectsNodeBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache)
-      : DepsgraphNodeBuilder(bmain, graph, cache)
+  AllObjectsNodeBuilder(Main *bmain,
+                        Depsgraph *graph,
+                        DepsgraphBuilderCache *cache,
+                        blender::bke::DynamicOverridesEvaluationData *dynoverride)
+      : DepsgraphNodeBuilder(bmain, graph, cache, dynoverride)
   {
   }
 
@@ -29,8 +32,11 @@ class AllObjectsNodeBuilder : public DepsgraphNodeBuilder {
 
 class AllObjectsRelationBuilder : public DepsgraphRelationBuilder {
  public:
-  AllObjectsRelationBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache)
-      : DepsgraphRelationBuilder(bmain, graph, cache)
+  AllObjectsRelationBuilder(Main *bmain,
+                            Depsgraph *graph,
+                            DepsgraphBuilderCache *cache,
+                            blender::bke::DynamicOverridesEvaluationData *dynoverride)
+      : DepsgraphRelationBuilder(bmain, graph, cache, dynoverride)
   {
   }
 
@@ -49,12 +55,14 @@ AllObjectsBuilderPipeline::AllObjectsBuilderPipeline(::Depsgraph *graph)
 
 std::unique_ptr<DepsgraphNodeBuilder> AllObjectsBuilderPipeline::construct_node_builder()
 {
-  return std::make_unique<AllObjectsNodeBuilder>(bmain_, deg_graph_, &builder_cache_);
+  return std::make_unique<AllObjectsNodeBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynoverride_);
 }
 
 std::unique_ptr<DepsgraphRelationBuilder> AllObjectsBuilderPipeline::construct_relation_builder()
 {
-  return std::make_unique<AllObjectsRelationBuilder>(bmain_, deg_graph_, &builder_cache_);
+  return std::make_unique<AllObjectsRelationBuilder>(
+      bmain_, deg_graph_, &builder_cache_, dynoverride_);
 }
 
 }  // namespace blender::deg

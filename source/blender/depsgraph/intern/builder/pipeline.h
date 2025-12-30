@@ -17,6 +17,10 @@ struct Main;
 struct Scene;
 struct ViewLayer;
 
+namespace blender::bke {
+class DynamicOverridesEvaluationData;
+}
+
 namespace blender::deg {
 
 struct Depsgraph;
@@ -45,10 +49,14 @@ class AbstractBuilderPipeline {
   ViewLayer *view_layer_;
   DepsgraphBuilderCache builder_cache_;
 
+  /** Owned by the depgraph. */
+  blender::bke::DynamicOverridesEvaluationData *dynoverride_;
+
   virtual std::unique_ptr<DepsgraphNodeBuilder> construct_node_builder();
   virtual std::unique_ptr<DepsgraphRelationBuilder> construct_relation_builder();
 
   virtual void build_step_sanity_check();
+  void build_step_dynamic_overrides();
   void build_step_nodes();
   void build_step_relations();
   void build_step_finalize();

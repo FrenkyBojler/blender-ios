@@ -3730,3 +3730,19 @@ void View3DCursor::set_matrix(const blender::float4x4 &mat, const bool use_compa
 }
 
 /** \} */
+
+namespace blender::bke {
+
+ID *DynamicOverridesEvaluationData::remapped_id_get(ID *id_src) const
+{
+  BLI_assert(layer_);
+  if (id_src && GS(id_src->name) == ID_MA) {
+    if (layer_->mat_override) {
+      return &layer_->mat_override->id;
+    }
+  }
+
+  return id_src;
+}
+
+}  // namespace blender::bke

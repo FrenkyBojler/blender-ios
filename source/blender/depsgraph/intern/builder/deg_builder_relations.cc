@@ -240,10 +240,14 @@ bool object_have_geometry_component(const Object *object)
 
 /* **** General purpose functions **** */
 
-DepsgraphRelationBuilder::DepsgraphRelationBuilder(Main *bmain,
-                                                   Depsgraph *graph,
-                                                   DepsgraphBuilderCache *cache)
-    : DepsgraphBuilder(bmain, graph, cache), scene_(nullptr), rna_node_query_(graph, this)
+DepsgraphRelationBuilder::DepsgraphRelationBuilder(
+    Main *bmain,
+    Depsgraph *graph,
+    DepsgraphBuilderCache *cache,
+    blender::bke::DynamicOverridesEvaluationData *dynoverride)
+    : DepsgraphBuilder(bmain, graph, cache, dynoverride),
+      scene_(nullptr),
+      rna_node_query_(graph, this)
 {
 }
 
@@ -618,7 +622,7 @@ void DepsgraphRelationBuilder::build_generic_id(ID *id)
 void DepsgraphRelationBuilder::build_idproperties(IDProperty *id_property)
 {
   IDP_foreach_property(id_property, IDP_TYPE_FILTER_ID, [&](IDProperty *id_property) {
-    this->build_id(static_cast<ID *>(id_property->data.pointer));
+    this->build_id(dynoverride_->remapped_id_get(static_cast<ID *>(id_property->data.pointer)));
   });
 }
 
@@ -2992,7 +2996,8 @@ void DepsgraphRelationBuilder::build_nodetree_socket(bNodeSocket *socket)
     }
   }
   else if (socket->type == SOCK_MATERIAL) {
-    Material *material = ((bNodeSocketValueMaterial *)socket->default_value)->value;
+    Material *material = (Material *)dynoverride_->remapped_id_get(
+        (ID *)((bNodeSocketValueMaterial *)socket->default_value)->value);
     if (material != nullptr) {
       build_material(material);
     }
@@ -3070,7 +3075,7 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
       }
     }
 
-    ID *id = bnode->id;
+    ID *id = dynoverride_->remapped_id_get(bnode->id);
     if (id == nullptr) {
       continue;
     }
@@ -3218,7 +3223,7 @@ void DepsgraphRelationBuilder::build_materials(ID *owner, Material **materials, 
     if (materials[i] == nullptr) {
       continue;
     }
-    build_material(materials[i], owner);
+    build_material((Material *)dynoverride_->remapped_id_get((ID *)materials[i]), owner);
   }
 }
 

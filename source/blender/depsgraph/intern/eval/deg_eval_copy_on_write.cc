@@ -486,8 +486,8 @@ int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
 
   RemapCallbackUserData *user_data = (RemapCallbackUserData *)cb_data->user_data;
   const Depsgraph *depsgraph = user_data->depsgraph;
-  ID *id_orig = *id_p;
-  if (deg_eval_copy_is_needed(id_orig)) {
+  ID *id_orig = depsgraph->dynoverride_.remapped_id_get(*id_p);
+  if (deg_eval_copy_is_needed(id_orig) || id_orig != *id_p) {
     ID *id_cow = depsgraph->get_cow_id(id_orig);
     BLI_assert(id_cow != nullptr);
     DEG_COW_PRINT(

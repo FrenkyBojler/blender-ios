@@ -17,6 +17,10 @@ struct PointerRNA;
 struct Scene;
 struct bPoseChannel;
 
+namespace blender::bke {
+class DynamicOverridesEvaluationData;
+}
+
 namespace blender::deg {
 
 struct Depsgraph;
@@ -45,12 +49,18 @@ class DepsgraphBuilder {
 
  protected:
   /* NOTE: The builder does NOT take ownership over any of those resources. */
-  DepsgraphBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuilderCache *cache);
+  DepsgraphBuilder(Main *bmain,
+                   Depsgraph *graph,
+                   DepsgraphBuilderCache *cache,
+                   blender::bke::DynamicOverridesEvaluationData *dynoverride);
 
   /* State which never changes, same for the whole builder time. */
   Main *bmain_;
   Depsgraph *graph_;
   DepsgraphBuilderCache *cache_;
+
+  /** Owned by the depsgraph. */
+  blender::bke::DynamicOverridesEvaluationData *dynoverride_;
 };
 
 bool deg_check_id_in_depsgraph(const Depsgraph *graph, ID *id_orig);

@@ -115,8 +115,6 @@ void MaterialModule::begin_sync()
   queued_textures_count = 0;
   queued_optimize_shaders_count = 0;
 
-  material_override = DEG_get_evaluated(inst_.depsgraph, inst_.view_layer->mat_override);
-
   uint64_t next_update = GPU_pass_global_compilation_count();
   gpu_pass_last_update_ = gpu_pass_next_update_;
   gpu_pass_next_update_ = next_update;
