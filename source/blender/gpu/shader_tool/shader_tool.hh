@@ -4835,7 +4835,7 @@ class Preprocessor {
     using namespace shader::parser;
     using namespace metadata;
 
-    parser().foreach_function([&](bool, Token type, Token, Scope args, bool, Scope) {
+    parser().foreach_function([&](bool, Token type, Token name, Scope args, bool, Scope fn_body) {
       bool is_entry_point = false;
 
       if (type.prev() == ']') {
@@ -4850,6 +4850,15 @@ class Preprocessor {
 
       if (is_entry_point && args.str() != "()") {
         parser.erase(args.front().next(), args.back().prev());
+      }
+
+      /* Mute entry points when not enabled.
+       * Could be lifted at some point, but for now required because of stage_in/out parameters. */
+      if (is_entry_point) {
+        /* Take attributes into account. */
+        parser.insert_directive(type.prev().scope().front().prev(),
+                                "#if defined(ENTRY_POINT_" + name.str() + ")");
+        parser.insert_directive(fn_body.back(), "#endif");
       }
     });
 
