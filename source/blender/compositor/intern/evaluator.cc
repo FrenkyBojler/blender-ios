@@ -12,9 +12,34 @@
 #include "COM_context.hh"
 #include "COM_evaluator.hh"
 #include "COM_node_group_operation.hh"
+#include "COM_operation.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
+
+class WriteOutputOperation : public Operation {
+ public:
+  constexpr static const StringRef input_identifier = StringRef("Input");
+
+  WriteOutputOperation(Context &context) : Operation(context)
+  {
+    this->declare_input_descriptor(WriteOutputOperation::input_identifier,
+                                   InputDescriptor{ResultType::Color});
+  }
+
+  void execute() override
+  {
+    this->context().write_output(this->get_input(WriteOutputOperation::input_identifier));
+  }
+
+  Domain compute_domain() override
+  {
+    if (this->context().use_compositing_domain_for_input_output()) {
+      return this->context().get_compositing_domain();
+    }
+    return Operation::compute_domain();
+  }
+};
 
 void evaluate(Context &context,
               const bNodeTree &node_group,
@@ -50,13 +75,19 @@ void evaluate(Context &context,
 
   node_group_operation.evaluate();
 
-  const bNodeTreeInterfaceSocket *output = node_group.interface_outputs()[0];
-  if (StringRef(output->socket_type) != "NodeSocketColor") {
+  if (node_group.interface_outputs().is_empty()) {
     return;
   }
-  context.write_output(node_group_operation.get_result(output->identifier));
 
-  for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
+  const bNodeTreeInterfaceSocket *output_socket = node_group.interface_outputs()[0];
+  Result &output_result = node_group_operation.get_result(output_socket->identifier);
+
+  WriteOutputOperation write_output_operation(context);
+  write_output_operation.map_input_to_result(WriteOutputOperation::input_identifier,
+                                             &output_result);
+  write_output_operation.evaluate();
+
+  for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs().drop_front(1)) {
     node_group_operation.get_result(output->identifier).release();
   }
 }

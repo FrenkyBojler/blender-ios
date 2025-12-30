@@ -55,14 +55,3 @@ void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size
  */
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
 CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
-
-namespace blender::nodes {
-
-compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
-                                                                const bNode &node);
-compositor::NodeOperation *get_group_output_compositor_operation(compositor::Context &context,
-                                                                 const bNode &node);
-void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfoParams &parameters);
-void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &parameters);
-
-}  // namespace blender::nodes

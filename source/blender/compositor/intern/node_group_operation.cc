@@ -11,7 +11,9 @@
 
 #include "COM_compile_state.hh"
 #include "COM_context.hh"
+#include "COM_group_input_node_operation.hh"
 #include "COM_group_node_operation.hh"
+#include "COM_group_output_node_operation.hh"
 #include "COM_implicit_input_operation.hh"
 #include "COM_input_descriptor.hh"
 #include "COM_input_single_value_operation.hh"
@@ -168,57 +170,10 @@ void NodeGroupOperation::execute()
       this->evaluate_node(*node, compile_state);
     }
   }
-
-  this->write_outputs(compile_state);
-}
-
-void NodeGroupOperation::write_outputs(CompileState &compile_state)
-{
-  if (!flag_is_set(needed_outputs_, NodeGroupOutputTypes::GroupOutputNode)) {
-    return;
-  }
-
-  const bNode *group_output_node = node_group_.group_output_node();
-  if (!group_output_node) {
-    return;
-  }
-
-  for (const bNodeSocket *input : group_output_node->input_sockets()) {
-    if (!is_socket_available(input)) {
-      continue;
-    }
-
-    Result &output_result = this->get_result(input->identifier);
-    if (!output_result.should_compute()) {
-      continue;
-    }
-
-    const bNodeSocket *linked_output = get_output_linked_to_input(*input);
-    /* If the input is linked, get the input result from the linked output, if not, get an input
-     * single value result for it. */
-    Result *input_result = linked_output ?
-                               &compile_state.get_result_from_output_socket(*linked_output) :
-                               &this->evaluate_input_single_value_operation(*input);
-
-    /* So share the data of the result we get from the output with the result of the operation. */
-    output_result.share_data(*input_result);
-
-    /* Node operations typically call release of the results after execution, but the group
-     * output node is an implicit node that doesn't have a corresponding node operation, so we
-     * need to release the result here. */
-    input_result->release();
-  }
 }
 
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
 {
-  /* Group input and group output nodes are implicit nodes and do not have corresponding
-   * operations. The group output node is handled in the write_outputs method, while the group
-   * input node is handled in the map_operation_input_to_group_input method. */
-  if (node.is_group_input() || node.is_group_output()) {
-    return;
-  }
-
   NodeOperation *operation = this->get_node_operation(node);
   operation->set_instance_key(bke::node_instance_key(instance_key_, &node_group_, &node));
 
@@ -258,6 +213,14 @@ NodeOperation *NodeGroupOperation::get_node_operation(const bNode &node)
                                     active_node_group_instance_key_);
   }
 
+  if (node.is_group_output()) {
+    return get_group_output_node_operation(this->context(), node, *this);
+  }
+
+  if (node.is_group_input()) {
+    return get_group_input_node_operation(this->context(), node, *this);
+  }
+
   return node.typeinfo->get_compositor_operation(this->context(), node);
 }
 
@@ -272,13 +235,6 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
 
     const bNodeSocket *output = get_output_linked_to_input(*input);
     if (output) {
-      /* The input is linked to a group input node, which is a special case since the result comes
-       * from the node group operation input itself. */
-      if (output->owner_node().is_group_input()) {
-        this->map_operation_input_to_group_input(*operation, input->identifier, *output);
-        continue;
-      }
-
       /* The input is linked. So map the input to the result we get from the output. */
       Result &result = compile_state.get_result_from_output_socket(*output);
       operation->map_input_to_result(input->identifier, &result);
@@ -287,20 +243,12 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
 
     /* Otherwise, the input is unlinked. So map the input to the result of a newly created Input
      * Single Value Operation. */
-    Result *input_single_value_result = &this->evaluate_input_single_value_operation(*input);
-    operation->map_input_to_result(input->identifier, input_single_value_result);
+    InputSingleValueOperation *input_operation = new InputSingleValueOperation(this->context(),
+                                                                               *input);
+    operations_stream_.append(std::unique_ptr<InputSingleValueOperation>(input_operation));
+    input_operation->evaluate();
+    operation->map_input_to_result(input->identifier, &input_operation->get_result());
   }
-}
-
-Result &NodeGroupOperation::evaluate_input_single_value_operation(const bNodeSocket &input)
-{
-  BLI_assert(!input.is_logically_linked());
-
-  InputSingleValueOperation *input_operation = new InputSingleValueOperation(this->context(),
-                                                                             input);
-  operations_stream_.append(std::unique_ptr<InputSingleValueOperation>(input_operation));
-  input_operation->evaluate();
-  return input_operation->get_result();
 }
 
 /* Create one of the concrete subclasses of the PixelOperation based on the context and compile
@@ -389,17 +337,8 @@ void NodeGroupOperation::map_pixel_operation_inputs_to_their_results(PixelOperat
     const bNodeSocket &output = *item.value;
     const StringRef input_identifier = item.key;
 
-    /* The input is linked to a group input node, which is a special case since the result comes
-     * from the node group operation input itself. */
-    Result *input_result = nullptr;
-    if (output.owner_node().is_group_input()) {
-      input_result = &this->map_operation_input_to_group_input(
-          *operation, input_identifier, output);
-    }
-    else {
-      input_result = &compile_state.get_result_from_output_socket(output);
-      operation->map_input_to_result(input_identifier, input_result);
-    }
+    Result *input_result = &compile_state.get_result_from_output_socket(output);
+    operation->map_input_to_result(input_identifier, input_result);
 
     /* Correct the reference count of the result in case multiple of the result's outgoing links
      * corresponds to a single input in the pixel operation. See the description of the member
@@ -418,19 +357,6 @@ void NodeGroupOperation::map_pixel_operation_inputs_to_their_results(PixelOperat
 
     input_operation->evaluate();
   }
-}
-
-Result &NodeGroupOperation::map_operation_input_to_group_input(Operation &operation,
-                                                               const StringRef input_identifier,
-                                                               const bNodeSocket &output)
-{
-  BLI_assert(output.owner_node().is_group_input());
-
-  Result &input_result = this->get_input(output.identifier);
-  operation.map_input_to_result(input_identifier, &input_result);
-  input_result.increment_reference_count();
-
-  return input_result;
 }
 
 void NodeGroupOperation::cancel_evaluation()

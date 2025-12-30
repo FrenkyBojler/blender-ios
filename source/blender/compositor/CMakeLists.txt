@@ -26,7 +26,9 @@ set(SRC
   COM_derived_resources.hh
   COM_domain.hh
   COM_evaluator.hh
+  COM_group_input_node_operation.hh
   COM_group_node_operation.hh
+  COM_group_output_node_operation.hh
   COM_implicit_input_operation.hh
   COM_input_descriptor.hh
   COM_input_single_value_operation.hh
@@ -54,7 +56,9 @@ set(SRC
   intern/conversion_operation.cc
   intern/domain.cc
   intern/evaluator.cc
+  intern/group_input_node_operation.cc
   intern/group_node_operation.cc
+  intern/group_output_node_operation.cc
   intern/implicit_input_operation.cc
   intern/input_single_value_operation.cc
   intern/meta_data.cc

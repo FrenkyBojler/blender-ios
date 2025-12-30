@@ -125,10 +125,6 @@ class NodeGroupOperation : public Operation {
   void execute() override;
 
  private:
-  /* Called after all nodes are evaluated to write the group output node's results from the node
-   * outputs they are linked to. */
-  void write_outputs(CompileState &compile_state);
-
   /* Compile the given node into a node operation, map each input to the result of the output
    * linked to it, update the compile state, add the newly created operation to the operations
    * stream, and evaluate the operation. */
@@ -146,10 +142,6 @@ class NodeGroupOperation : public Operation {
                                                   NodeOperation *operation,
                                                   CompileState &compile_state);
 
-  /* Adds and evaluates a new input single operation that corresponds to the given unlinked input.
-   * The result of operation is returned. */
-  Result &evaluate_input_single_value_operation(const bNodeSocket &input);
-
   /* Compile the pixel compile unit into a pixel operation, map each input of the operation to
    * the result of the output linked to it, update the compile state, add the newly created
    * operation to the operations stream, evaluate the operation, and finally reset the pixel
@@ -160,12 +152,6 @@ class NodeGroupOperation : public Operation {
    * also correct the reference counts of the results, see the implementation for more details. */
   void map_pixel_operation_inputs_to_their_results(PixelOperation *operation,
                                                    CompileState &compile_state);
-
-  /* Maps the input of the given operation with the given identifier to the result of the given
-   * output of the group input node it is linked to. */
-  Result &map_operation_input_to_group_input(Operation &operation,
-                                             const StringRef input_identifier,
-                                             const bNodeSocket &output);
 
   /* Cancels the evaluation by informing the static cache manager of the cancellation and freeing
    * the results of the operations that were already evaluated, that's because later operations
