@@ -253,3 +253,10 @@ else()
 endif()
 
 blender_add_lib(bf_intern_libmv "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+if(NOT CMAKE_VERSION VERSION_LESS "3.16")
+  # Share the Eigen-focused PCH with libmv sources to speed up numeric code.
+  target_precompile_headers(bf_intern_libmv PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/intern/eigen/pch_eigen.h>"
+  )
+endif()

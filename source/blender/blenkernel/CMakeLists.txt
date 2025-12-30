@@ -781,6 +781,13 @@ endif()
 blender_add_lib(bf_blenkernel "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::blenkernel ALIAS bf_blenkernel)
 
+if(NOT CMAKE_VERSION VERSION_LESS "3.16")
+  # Use a lightweight PCH with heavy blenlib templates to speed up common includes.
+  target_precompile_headers(bf_blenkernel PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/source/blender/blenlib/pch_blenlib.hh>"
+  )
+endif()
+
 # RNA_prototypes.hh
 add_dependencies(bf_blenkernel bf_rna)
 

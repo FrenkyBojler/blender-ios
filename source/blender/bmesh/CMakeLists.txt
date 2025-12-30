@@ -213,6 +213,13 @@ endif()
 blender_add_lib(bf_bmesh "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::bmesh ALIAS bf_bmesh)
 
+if(NOT CMAKE_VERSION VERSION_LESS "3.16")
+  # Share the blenlib PCH with bmesh to reduce cost of common heavy headers.
+  target_precompile_headers(bf_bmesh PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/source/blender/blenlib/pch_blenlib.hh>"
+  )
+endif()
+
 if(MSVC AND NOT MSVC_CLANG)
   target_compile_options(bf_bmesh PRIVATE /WX /wd4101)
 endif()

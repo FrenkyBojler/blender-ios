@@ -380,7 +380,16 @@ else()
   add_definitions(-DCERES_RESTRICT_SCHUR_SPECIALIZATION)
 endif()
 
+add_definitions(-DCERES_NO_PROTOCOL_BUFFERS)
+
 add_definitions(${GFLAGS_DEFINES})
 add_definitions(${GLOG_DEFINES})
 
 blender_add_lib(extern_ceres "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+if(NOT CMAKE_VERSION VERSION_LESS "3.16")
+  # Use a lightweight PCH focused on Eigen, the dominant compile-time cost.
+  target_precompile_headers(extern_ceres PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/intern/eigen/pch_eigen.h>"
+  )
+endif()
