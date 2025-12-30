@@ -1523,10 +1523,7 @@ static void bm_to_mesh_loops(const BMesh &bm,
                              MutableSpan<bool> uv_select_vert,
                              MutableSpan<bool> uv_select_edge)
 {
-  bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-  attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
+    const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
       bm.ldata, bke::AttrDomain::Corner, mesh);
 
   MutableSpan<int> dst_corner_verts = mesh.corner_verts_for_write();
