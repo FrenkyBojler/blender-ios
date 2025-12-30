@@ -1405,25 +1405,42 @@ static int edge_in_polygon_winding_twice(const int edge_id, const Span<float2> p
   return twice_winding;
 }
 
-/* Point must not be on a corner, but can be on an edge. */
-static int point_in_polygon_winding_twice(const float2 &point, const Span<float2> poly)
+/**
+ * Calculate the winding number of a point inside a polygon.
+ *
+ * Will return +1 when inside a clockwise circle.
+ * Will return -1 when inside a counterclockwise circle.
+ *
+ * Note: Will not give the value if the point is on a corner or edge.
+ */
+static int point_in_polygon_winding_number(const float2 &point, const Span<float2> poly)
 {
-  /* Double and store as a int to avoid float rounding. */
-  int twice_winding = 0;
-  const float2 &tri_p1 = poly[0];
-  for (const int i : poly.index_range().drop_front(1).drop_back(1)) {
-    const float2 &tri_p2 = poly[i];
-    const float2 &tri_p3 = poly[i + 1];
-    twice_winding += int(point_in_tri_winding(point, tri_p1, tri_p2, tri_p3) * 2);
-  }
-  return twice_winding;
-}
+  int winding_num = 0;
 
-/* Point must not be on a corner or edge. */
-static int point_in_polygon_winding_int(const float2 &point, const Span<float2> poly)
-{
-  const int twice_winding = point_in_polygon_winding_twice(point, poly);
-  return int(twice_winding / 2);
+  /* Loop through all edges of the polygon. */
+  for (const int i : poly.index_range()) {
+    const float2 &edge_point_1 = poly[i];
+    const float2 &edge_point_2 = poly[(i + 1) % poly.size()];
+
+    if (edge_point_1.y <= point.y) {
+      if (edge_point_2.y > point.y) {
+        /* Point is on the left side of the edge. */
+        if (cross_tri_v2(edge_point_2, edge_point_1, point) < 0) {
+          winding_num++;
+        }
+      }
+    }
+    else {
+      if (edge_point_2.y <= point.y) {
+        /* Point is on the right side of the edge. */
+        if (cross_tri_v2(edge_point_2, edge_point_1, point) > 0) {
+          winding_num--;
+        }
+      }
+    }
+  }
+
+  return winding_num;
 }
 
 class WindingState {
@@ -1570,7 +1587,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
         if (is_fill[curve_j]) {
           const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-          const int winding_j = point_in_polygon_winding_int(first_point, poly_j);
+          const int winding_j = point_in_polygon_winding_number(first_point, poly_j);
           state_L.add_to_curve(curve_j, winding_j);
           state_R.add_to_curve(curve_j, winding_j);
         }
@@ -1585,7 +1602,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
       if (is_fill[curve_j]) {
         const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-        const int winding_j = point_in_polygon_winding_int(first_point, poly_j);
+        const int winding_j = point_in_polygon_winding_number(first_point, poly_j);
         state_L.add_to_curve(curve_j, winding_j);
         state_R.add_to_curve(curve_j, winding_j);
       }
