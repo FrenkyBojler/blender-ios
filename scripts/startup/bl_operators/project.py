@@ -30,7 +30,7 @@ class ProjectLoadException(Exception):
 
 # -------------------------------------------------------------
 
-def save_project(project, clear_dirty_flag: bool = True):
+def save_project(project, clear_dirty_flag=True):
     """ Saves the passed project to disk.
 
         When `clear_dirty_flag` is true, the project's dirty flag will be
@@ -82,7 +82,7 @@ def save_project(project, clear_dirty_flag: bool = True):
     print("...done.")
 
 
-def find_and_load_project_for_blend_path(context, blend_path: str):
+def find_and_load_project_for_blend_path(context, blend_path):
     """ Finds and loads the project that the specified blend file belongs to, or
         clears the project if no project is found.
 
@@ -120,7 +120,7 @@ def find_and_load_project_for_blend_path(context, blend_path: str):
     context.project.is_dirty = False
 
 
-def find_project_root_from_blend_file_path(blend_path: Path) -> Path | None:
+def find_project_root_from_blend_file_path(blend_path):
     """ Searches for a Blender project root in the parent directories of the
         given path.
 
@@ -133,12 +133,14 @@ def find_project_root_from_blend_file_path(blend_path: Path) -> Path | None:
     return None
 
 
-def read_project_toml_config(root_path: Path) -> dict:
+def read_project_toml_config(root_path):
     """ Reads the project config for the given project root path.
 
         Throws a ProjectLoadException if no config is found, if the config is
         not readable due to filesystem permissions, or if it contains invalid
         TOML.
+
+        Returns the config as a Python dictionary.
     """
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
@@ -152,13 +154,15 @@ def read_project_toml_config(root_path: Path) -> dict:
         raise ProjectLoadException("Project's {} file contains invalid TOML.".format(PROJECT_CONFIG))
 
 
-def validate_config(config: dict):
-    """ Checks that the passed config dictionary is valid for loading.
+def validate_config(config_dict):
+    """ Checks that the passed config is valid.
 
         This consists of ensuring that all required fields exist, and
         that all fields present are of the right type and have valid values.
 
         Throws a ProjectLoadException if there's a validation error.
+
+        No return value.
     """
     if "name" not in config:
         raise ProjectLoadException("Invalid project: no project name defined in '{}'.".format(PROJECT_CONFIG))
@@ -173,7 +177,7 @@ def validate_config(config: dict):
         return
 
 
-def blend_file_is_in_valid_project(blend_file_path: Path) -> bool:
+def blend_file_is_in_valid_project(blend_file_path):
     """ Returns true if the specified blend file is inside a valid project, false if there is no project or it's invalid.
 
         An "invalid project" is one whose TOML config is non-existent or doesn't
@@ -327,7 +331,7 @@ class PROJECT_OP_OpenBlendInProject(Operator):
 # exiting.
 
 @bpy.app.handlers.persistent
-def on_blend_load(blend_path: str):
+def on_blend_load(blend_path):
     # Auto-save the current project before loading a different blend file.
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
@@ -338,7 +342,7 @@ def on_blend_load(blend_path: str):
 
 
 @bpy.app.handlers.persistent
-def on_blend_save(blend_path: str):
+def on_blend_save(blend_path):
     # Auto-save project when saving the current blend file.
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
