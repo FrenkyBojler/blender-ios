@@ -21,16 +21,16 @@ class GroupNodeOperation : public NodeOperation {
   /* The node group outputs needed by the caller. */
   const NodeGroupOutputTypes needed_outputs_;
   /* The node instance key of the group node that the user is currently viewing. */
-  const bNodeInstanceKey active_viewer_instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
+  const bNodeInstanceKey active_node_group_instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
 
  public:
   GroupNodeOperation(Context &context,
                      const bNode &node,
                      const NodeGroupOutputTypes needed_outputs,
-                     const bNodeInstanceKey active_viewer_instance_key)
+                     const bNodeInstanceKey active_node_group_instance_key)
       : NodeOperation(context, node),
         needed_outputs_(needed_outputs),
-        active_viewer_instance_key_(active_viewer_instance_key)
+        active_node_group_instance_key_(active_node_group_instance_key)
   {
   }
 
@@ -46,7 +46,7 @@ class GroupNodeOperation : public NodeOperation {
                                  *node_group,
                                  needed_outputs_,
                                  this->get_node_previews(),
-                                 active_viewer_instance_key_,
+                                 active_node_group_instance_key_,
                                  this->get_instance_key());
 
     Vector<std::unique_ptr<Result>> inputs = this->map_inputs(operation);
@@ -116,9 +116,9 @@ class GroupNodeOperation : public NodeOperation {
 NodeOperation *get_group_node_operation(Context &context,
                                         const bNode &node,
                                         const NodeGroupOutputTypes &needed_outputs,
-                                        const bNodeInstanceKey active_viewer_instance_key)
+                                        const bNodeInstanceKey active_node_group_instance_key)
 {
-  return new GroupNodeOperation(context, node, needed_outputs, active_viewer_instance_key);
+  return new GroupNodeOperation(context, node, needed_outputs, active_node_group_instance_key);
 }
 
 }  // namespace blender::compositor

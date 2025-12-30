@@ -15,6 +15,6 @@ namespace blender::compositor {
 NodeOperation *get_group_node_operation(Context &context,
                                         const bNode &node,
                                         const NodeGroupOutputTypes &needed_outputs,
-                                        const bNodeInstanceKey active_viewer_instance_key);
+                                        const bNodeInstanceKey active_node_group_instance_key);
 
 }  // namespace blender::compositor

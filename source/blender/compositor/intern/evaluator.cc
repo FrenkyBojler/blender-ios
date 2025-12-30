@@ -20,10 +20,14 @@ void evaluate(Context &context,
               const bNodeTree &node_group,
               const NodeGroupOutputTypes needed_outputs)
 {
+  Map<bNodeInstanceKey, bke::bNodePreview> *node_previews =
+      flag_is_set(needed_outputs, NodeGroupOutputTypes::NodePreviews) ?
+          &node_group.runtime->previews :
+          nullptr;
   NodeGroupOperation node_group_operation(context,
                                           node_group,
                                           needed_outputs,
-                                          &node_group.runtime->previews,
+                                          node_previews,
                                           node_group.active_viewer_key,
                                           bke::NODE_INSTANCE_KEY_BASE);
 

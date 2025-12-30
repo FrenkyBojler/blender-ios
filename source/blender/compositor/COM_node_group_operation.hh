@@ -103,7 +103,7 @@ class NodeGroupOperation : public Operation {
   Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
   /* The node instance key of the group node that the user is currently viewing. This could be this
    * node group or a child of it. In case of the former, this will be equal to instance_key_. */
-  const bNodeInstanceKey active_viewer_instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
+  const bNodeInstanceKey active_node_group_instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
   /* A node instance key that identifies the particular group node that uses this node group. If
    * this node group operation represents a top-level standalone node group with no associated
    * group node, this will be bke::NODE_INSTANCE_KEY_BASE. */
@@ -118,7 +118,7 @@ class NodeGroupOperation : public Operation {
                      const bNodeTree &node_group,
                      const NodeGroupOutputTypes needed_outputs,
                      Map<bNodeInstanceKey, bke::bNodePreview> *node_previews,
-                     const bNodeInstanceKey active_viewer_instance_key,
+                     const bNodeInstanceKey active_node_group_instance_key,
                      const bNodeInstanceKey instance_key);
 
   /* Compile and evaluate the node group. */

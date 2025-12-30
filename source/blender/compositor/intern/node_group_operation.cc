@@ -31,13 +31,13 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
                                        const bNodeTree &node_group,
                                        const NodeGroupOutputTypes needed_outputs,
                                        Map<bNodeInstanceKey, bke::bNodePreview> *node_previews,
-                                       const bNodeInstanceKey active_viewer_instance_key,
+                                       const bNodeInstanceKey active_node_group_instance_key,
                                        const bNodeInstanceKey instance_key)
     : Operation(context),
       node_group_(node_group),
       needed_outputs_(needed_outputs),
       node_previews_(node_previews),
-      active_viewer_instance_key_(active_viewer_instance_key),
+      active_node_group_instance_key_(active_node_group_instance_key),
       instance_key_(instance_key)
 {
   node_group.ensure_interface_cache();
@@ -59,10 +59,96 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
   }
 }
 
+/* Checks if the node group with the given instance key has an active viewer node in it or in one
+ * of its descendants. Only nodes of node groups whose instance key match that of the given active
+ * viewer instance key are considered active. */
+static bool has_active_viewer_node(const bNodeTree &node_group,
+                                   const bNodeInstanceKey instance_key,
+                                   const bNodeInstanceKey active_node_group_instance_key)
+{
+  /* This node group is not an being viewed by the user, so it has no active viewer regardless of
+   * the existence of viewer nodes. */
+  if (active_node_group_instance_key != instance_key) {
+    return false;
+  }
+
+  /* An active viewer node exist, so return true. */
+  for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
+    if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
+      return true;
+    }
+  }
+
+  /* For each of the group nodes, compute their instance key and call this function recursively. */
+  for (const bNode *group_node : node_group.group_nodes()) {
+    if (!group_node->id) {
+      continue;
+    }
+
+    const bNodeTree &child_node_group = *reinterpret_cast<const bNodeTree *>(group_node->id);
+    const bNodeInstanceKey child_instance_key = bke::node_instance_key(
+        instance_key, &node_group, group_node);
+    const bool active_viewer_node_found = has_active_viewer_node(
+        child_node_group, child_instance_key, active_node_group_instance_key);
+
+    /* Neither the child node group nor one of its descendant node groups has an active viewer
+     * node, so we check other group nodes. */
+    if (!active_viewer_node_found) {
+      continue;
+    }
+
+    /* Otherwise, we have found our active context, return it. */
+    return true;
+  }
+
+  /* Neither the child node group nor one of its descendant node groups has an active viewer node,
+   * so return false. */
+  return false;
+}
+
+/* Computes the outputs that are needed by the given particular node group with the given node
+ * instance key, assuming that the currently active node group has the given instance key. This is
+ * the same as the needed outputs supplied to the operation, except for viewer nodes and node
+ * previews. Those are only computed for currently active node groups. An exception for viewer
+ * nodes in root node groups exist, where if no viewer node exist in the possibly descendant active
+ * node group, the viewer node in the root node group will be computed as a fallback. */
+static NodeGroupOutputTypes compute_node_group_needed_outputs(
+    const bNodeTree &node_group,
+    const NodeGroupOutputTypes needed_outputs,
+    const bNodeInstanceKey instance_key,
+    const bNodeInstanceKey active_node_group_instance_key)
+{
+  /* Neither the viewer node or node previews are needed, so nothing needs to change. */
+  if (!flag_is_set(needed_outputs, NodeGroupOutputTypes::ViewerNode) &&
+      !flag_is_set(needed_outputs, NodeGroupOutputTypes::NodePreviews))
+  {
+    return needed_outputs;
+  }
+
+  /* If this is the active node group, then we need to compute the viewer node and node previews as
+   * requested. */
+  if (active_node_group_instance_key == instance_key) {
+    return needed_outputs;
+  }
+
+  /* If no viewer node exist in the possibly descendant active node group and this is a root node
+   * group, we fallback to the viewer in the root node group, but we don't need node previews. */
+  if (!has_active_viewer_node(node_group, instance_key, active_node_group_instance_key) &&
+      instance_key == bke::NODE_INSTANCE_KEY_BASE)
+  {
+    return needed_outputs & ~NodeGroupOutputTypes::NodePreviews;
+  }
+
+  /* This node group is not active, so no need to compute viewer node or previews. */
+  return needed_outputs & ~(NodeGroupOutputTypes::ViewerNode | NodeGroupOutputTypes::NodePreviews);
+}
+
 void NodeGroupOperation::execute()
 {
+  const NodeGroupOutputTypes node_group_needed_outputs = compute_node_group_needed_outputs(
+      node_group_, needed_outputs_, instance_key_, active_node_group_instance_key_);
   const VectorSet<const bNode *> schedule = compute_schedule(
-      this->context(), node_group_, needed_outputs_);
+      this->context(), node_group_, node_group_needed_outputs);
   CompileState compile_state(this->context(), schedule);
 
   for (const bNode *node : schedule) {
@@ -138,7 +224,7 @@ void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_
 
   /* Only set previews if the node group is currently being viewed. Except of the node is a group
    * node, because a child node group might currently be viewed. */
-  if (node.is_group() || instance_key_ == active_viewer_instance_key_) {
+  if (node.is_group() || instance_key_ == active_node_group_instance_key_) {
     operation->set_node_previews(node_previews_);
   }
 
@@ -169,7 +255,7 @@ NodeOperation *NodeGroupOperation::get_node_operation(const bNode &node)
     return get_group_node_operation(this->context(),
                                     node,
                                     needed_outputs_ | NodeGroupOutputTypes::GroupOutputNode,
-                                    active_viewer_instance_key_);
+                                    active_node_group_instance_key_);
   }
 
   return node.typeinfo->get_compositor_operation(this->context(), node);
@@ -244,7 +330,7 @@ void NodeGroupOperation::evaluate_pixel_compile_unit(CompileState &compile_state
   int number_of_outputs = 0;
   for (int i : compile_unit.index_range()) {
     number_of_outputs += compile_state.compute_pixel_node_operation_outputs_count(
-        *compile_unit[i], instance_key_ == active_viewer_instance_key_);
+        *compile_unit[i], instance_key_ == active_node_group_instance_key_);
 
     if (number_of_outputs <= PixelOperation::maximum_number_of_outputs(this->context())) {
       continue;
@@ -277,7 +363,7 @@ void NodeGroupOperation::evaluate_pixel_compile_unit(CompileState &compile_state
   operation->set_instance_key(instance_key_);
 
   /* Only compute previews if the node group is currently being viewed. */
-  if (instance_key_ == active_viewer_instance_key_) {
+  if (instance_key_ == active_node_group_instance_key_) {
     operation->set_node_previews(node_previews_);
   }
 
