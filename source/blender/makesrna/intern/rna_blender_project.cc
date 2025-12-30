@@ -200,9 +200,10 @@ void rna_def_blender_project(BlenderRNA *brna)
 
   func = RNA_def_function(srna, "init", "rna_BlenderProject_init");
   RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
-  parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "TODO: description");
+  parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "The project's name");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "project_root", nullptr, 0, nullptr, "TODO: description");
+  parm = RNA_def_string(
+      func, "project_root", nullptr, 0, nullptr, "The filepath to the project's root directory");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "clear", "rna_BlenderProject_clear");

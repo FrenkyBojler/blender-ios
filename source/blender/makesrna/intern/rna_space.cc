@@ -9187,7 +9187,7 @@ static void rna_def_space_project(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "SpaceProject", "Space");
   RNA_def_struct_sdna(srna, "SpaceProject");
-  RNA_def_struct_ui_text(srna, "Space Project", "TODO: description");
+  RNA_def_struct_ui_text(srna, "Space Project", "Project space data");
 
   rna_def_space_generic_show_region_toggles(srna, 1 << RGN_TYPE_UI);
 
