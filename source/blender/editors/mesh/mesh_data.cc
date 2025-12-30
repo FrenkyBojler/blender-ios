@@ -13,7 +13,6 @@
 
 #include "BLI_array.hh"
 #include "BLI_math_constants.h"
-#include "BLI_string.h"
 
 #include "BKE_attribute.h"
 #include "BKE_attribute.hh"
