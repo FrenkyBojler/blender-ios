@@ -124,7 +124,10 @@ static PointerRNA rna_BlenderProject_data_get(PointerRNA *ptr)
   return RNA_pointer_create_discrete(nullptr, &RNA_BlenderProjectData, &project->data);
 }
 
-static void rna_BlenderProject_init(PointerRNA ptr, const char *name, const char *project_root)
+static void rna_BlenderProject_init(PointerRNA ptr,
+                                    ReportList *reports,
+                                    const char *name,
+                                    const char *project_root)
 {
   bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr.data);
   BLI_assert(project != nullptr);
@@ -132,7 +135,12 @@ static void rna_BlenderProject_init(PointerRNA ptr, const char *name, const char
     return;
   }
 
-  project->init(name, project_root);
+  if (!project->init(name, project_root)) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Failed to initialize project. Ensure that both the name and project_root "
+                "parameters are non-empty.");
+  }
 }
 
 static void rna_BlenderProject_clear(PointerRNA ptr)
@@ -197,7 +205,7 @@ void rna_def_blender_project(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_BlenderProject_ui_update");
 
   func = RNA_def_function(srna, "init", "rna_BlenderProject_init");
-  RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "The project's name");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_string(
