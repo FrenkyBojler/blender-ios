@@ -613,7 +613,7 @@ static void blf_font_draw_ex(FontBLF *font,
                    glyph.gc,
                    glyph.g,
                    ft_pix_to_int_floor(glyph.bounds.xmin),
-                   ft_pix_to_int_floor(glyph.bounds.ymin));
+                   ft_pix_to_int_floor(pen_y + glyph.bounds.ymin));
   }
 
   if (!g_batch.active) {
@@ -1255,12 +1255,15 @@ void blf_str_offset_to_glyph_bounds(FontBLF *font,
                                     size_t str_offset,
                                     rcti *r_glyph_bounds)
 {
-  StrOffsetToGlyphBounds_Data data{};
-  data.str_offset = str_offset;
-  data.bounds = {0};
-
-  blf_font_boundbox_foreach_glyph(font, str, str_offset + 1, blf_str_offset_foreach_glyph, &data);
-  *r_glyph_bounds = data.bounds;
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  ShapingData text(font, gc, str, strlen(str));
+  size_t index = std::min(str_offset, size_t(text.glyphs.size() - 1));
+  Glyph glyph = text.glyphs[index];
+  r_glyph_bounds->xmin = ft_pix_to_int_floor(glyph.bounds.xmin);
+  r_glyph_bounds->xmax = ft_pix_to_int_floor(glyph.bounds.xmax);
+  r_glyph_bounds->ymin = ft_pix_to_int_floor(glyph.bounds.ymin);
+  r_glyph_bounds->ymax = ft_pix_to_int_ceil(glyph.bounds.ymax);
+  blf_glyph_cache_release(font);
 }
 
 int blf_str_offset_to_cursor(FontBLF *font,
@@ -1270,44 +1273,53 @@ int blf_str_offset_to_cursor(FontBLF *font,
                              const int cursor_width)
 {
   if (!str || !str[0]) {
-    return 0;
+    return -cursor_width;
   }
+
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  ShapingData text(font, gc, str, strlen(str));
+  size_t index = std::min(str_offset, size_t(text.glyphs.size()));
+  ft_pix cursor = 0;
+  ft_pix half_width = ft_pix_from_int(cursor_width) / 2;
 
   /* Right edge of the previous character, if available. */
   rcti prev = {0};
-  if (str_offset > 0) {
-    int offset = int(str_offset);
-    BLI_str_cursor_step_prev_utf8(str, int(str_len), &offset);
-    blf_str_offset_to_glyph_bounds(font, str, size_t(offset), &prev);
+  if (index > 0) {
+    prev = text.glyphs[index - 1].bounds;
   }
 
   /* Left edge of the next character, if available. */
   rcti next = {0};
-  if (str_offset < strlen(str)) {
-    blf_str_offset_to_glyph_bounds(font, str, str_offset, &next);
+  if (index < size_t(text.glyphs.size() - 1)) {
+    next = text.glyphs[index].bounds;
   }
 
   if ((prev.xmax == prev.xmin) && next.xmax) {
     /* Nothing (or a space) to the left, so align to right character. */
-    return next.xmin - (cursor_width / 2);
+    cursor = next.xmin - half_width;
   }
-  if ((prev.xmax != prev.xmin) && !next.xmax) {
+  else if ((prev.xmax != prev.xmin) && !next.xmax) {
     /* End of string, so align to last character. */
-    return prev.xmax - (cursor_width / 2);
+    cursor = prev.xmax - half_width;
   }
-  if (prev.xmax && next.xmax) {
+  else if (prev.xmax && next.xmax) {
     /* Between two characters, so use the center. */
     if (next.xmin >= prev.xmax || next.xmin == next.xmax) {
-      return ((prev.xmax + next.xmin) - cursor_width) / 2;
+      cursor = (prev.xmax + next.xmin) / 2 - half_width;
     }
     /* A nicer center if reversed order - RTL. */
-    return ((next.xmax + prev.xmin) - cursor_width) / 2;
+    cursor = (next.xmax + prev.xmin) / 2 - half_width;
   }
-  if (!str_offset) {
+  else if (!str_offset) {
     /* Start of string. */
-    return 0 - cursor_width;
+    cursor = 0 - half_width - half_width;
   }
-  return int(blf_font_width(font, str, str_len, nullptr));
+  else {
+    cursor = text.width;
+  }
+
+  blf_glyph_cache_release(font);
+  return ft_pix_to_int(cursor);
 }
 
 blender::Vector<blender::Bounds<int>> blf_str_selection_boxes(
