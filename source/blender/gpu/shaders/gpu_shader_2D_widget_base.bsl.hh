@@ -260,14 +260,12 @@ struct Resources {
     /* Hopefully, all of these move instructions are optimized out. */
     WidgetRaw raw;
     if (this->instanced) [[static_branch]] {
-      [[unroll]] for (int i = 0; i < 12; i++)
-      {
+      for (int i = 0; i < 12; i++) [[unroll]] {
         raw.data[i] = parameters_inst[index * MAX_PARAM + i];
       }
     }
     else {
-      [[unroll]] for (int i = 0; i < 12; i++)
-      {
+      for (int i = 0; i < 12; i++) [[unroll]] {
         raw.data[i] = parameters[i];
       }
     }
