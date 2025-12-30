@@ -1990,7 +1990,7 @@ static void MARKER_OT_make_links_scene(wmOperatorType *ot)
 
 static wmOperatorStatus ed_marker_camera_bind_exec(bContext *C, wmOperator *op)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  Main *bmain = CTX_data_main(C);
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
@@ -2035,8 +2035,10 @@ static wmOperatorStatus ed_marker_camera_bind_exec(bContext *C, wmOperator *op)
 
   /* camera may have changes */
   BKE_scene_camera_switch_update(scene);
-  BKE_screen_view3d_scene_sync(screen, scene);
-  DEG_relations_tag_update(CTX_data_main(C));
+  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+    BKE_screen_view3d_scene_sync(screen, scene);
+  }
+  DEG_relations_tag_update(bmain);
 
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
