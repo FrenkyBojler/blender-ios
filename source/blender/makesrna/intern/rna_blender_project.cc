@@ -75,8 +75,6 @@ static void rna_BlenderProjectData_name_set(PointerRNA *ptr, const char *value)
     return;
   }
 
-  /* TODO: validate name. */
-
   project_data->set_name(value);
 }
 
