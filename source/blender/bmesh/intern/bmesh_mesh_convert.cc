@@ -1503,6 +1503,9 @@ static void add_bm_cd_to_mesh(const BMesh &bm,
   CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
   bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
   for (const CustomDataLayer &layer : Span(bm_data.layers, bm_data.totlayer)) {
+    if (layer.flag & CD_FLAG_NOCOPY) {
+      continue;
+    }
     const eCustomDataType cd_type = eCustomDataType(layer.type);
     if (const std::optional<bke::AttrType> attr_type = bke::custom_data_type_to_attr_type(cd_type))
     {
@@ -1523,7 +1526,7 @@ static void bm_to_mesh_loops(const BMesh &bm,
                              MutableSpan<bool> uv_select_vert,
                              MutableSpan<bool> uv_select_edge)
 {
-    const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
+  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
       bm.ldata, bke::AttrDomain::Corner, mesh);
 
   MutableSpan<int> dst_corner_verts = mesh.corner_verts_for_write();
