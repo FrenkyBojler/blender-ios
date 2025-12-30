@@ -106,7 +106,8 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
                                const Field<float> &edge_crease_field,
                                const int boundary_smooth,
                                const int uv_smooth,
-                               const bool use_limit_surface)
+                               const bool use_limit_surface,
+                               bool &r_failed)
 {
   const bke::MeshFieldContext point_context{*mesh, AttrDomain::Point};
   FieldEvaluator point_evaluator(point_context, mesh->verts_num);
@@ -154,9 +155,12 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
   }
 
   Mesh *result = bke::subdiv::subdiv_to_mesh(subdiv, &mesh_settings, mesh);
+  if (result == nullptr) {
+    r_failed = true;
+  }
   bke::subdiv::free(subdiv);
 
-  if (use_creases) {
+  if (use_creases && result) {
     /* Remove the layer in case it was created by the node from the field input. The fact
      * that this node uses attributes to input creases to the subdivision code is meant to be
      * an implementation detail ideally. */
@@ -168,7 +172,9 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
     BKE_id_free(nullptr, mesh_copy);
   }
 
-  geometry::debug_randomize_mesh_order(result);
+  if (result) {
+    geometry::debug_randomize_mesh_order(result);
+  }
 
   return result;
 }
@@ -197,12 +203,33 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  std::atomic<bool> any_subdiv_failed = false;
+
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
-      geometry_set.replace_mesh(mesh_subsurf_calc(
-          mesh, level, vert_crease, edge_crease, boundary_smooth, uv_smooth, use_limit_surface));
+      bool mesh_failed = false;
+
+      Mesh *new_mesh = mesh_subsurf_calc(mesh,
+                                         level,
+                                         vert_crease,
+                                         edge_crease,
+                                         boundary_smooth,
+                                         uv_smooth,
+                                         use_limit_surface,
+                                         mesh_failed);
+      if (new_mesh != nullptr) {
+        geometry_set.replace_mesh(new_mesh);
+      }
+      if (mesh_failed) {
+        any_subdiv_failed.store(true, std::memory_order_relaxed);
+      }
     }
   });
+  if (any_subdiv_failed.load(std::memory_order_relaxed)) {
+    params.error_message_add(
+        NodeWarningType::Warning,
+        TIP_("Subdivision failed for some geometry. Original mesh returned."));
+  }
 #else
   params.error_message_add(NodeWarningType::Error,
                            TIP_("Disabled, Blender was compiled without OpenSubdiv"));
