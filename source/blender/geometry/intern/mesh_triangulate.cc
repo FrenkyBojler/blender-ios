@@ -616,7 +616,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   CustomData_merge(&src_mesh.vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, mesh->verts_num);
   CustomData_merge(&src_mesh.edge_data, &mesh->edge_data, CD_MASK_MESH.emask, mesh->edges_num);
   src_mesh.attribute_storage.wrap().foreach([&](const bke::Attribute &attr) {
-    if (ELEM(attr.domain(), bke::AttrDomain::Point, bke::AttrDomain::Edge)) {
+    if (!ELEM(attr.domain(), bke::AttrDomain::Point, bke::AttrDomain::Edge)) {
       return;
     }
     mesh->attribute_storage.wrap().add(attr.name(), attr.domain(), attr.data_type(), attr.data());
