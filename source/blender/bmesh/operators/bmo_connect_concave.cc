@@ -36,8 +36,10 @@
 
 static int bm_edge_length_cmp(const void *a_, const void *b_)
 {
-  const BMEdge *e_a = static_cast<const BMEdge *>(*(const void **)a_);
-  const BMEdge *e_b = static_cast<const BMEdge *>(*(const void **)b_);
+  const BMEdge *e_a = static_cast<const BMEdge *>(
+      *static_cast<const void **>(const_cast<void *>(a_)));
+  const BMEdge *e_b = static_cast<const BMEdge *>(
+      *static_cast<const void **>(const_cast<void *>(b_)));
 
   int e_a_concave = (BM_elem_flag_test(e_a->v1, BM_ELEM_TAG) &&
                      BM_elem_flag_test(e_a->v2, BM_ELEM_TAG));

@@ -179,7 +179,8 @@ static RulerItem *ruler_item_add(wmGizmoGroup *gzgroup)
 {
   /* could pass this as an arg */
   const wmGizmoType *gzt_ruler = WM_gizmotype_find("VIEW3D_GT_ruler_item", true);
-  RulerItem *ruler_item = (RulerItem *)WM_gizmo_new_ptr(gzt_ruler, gzgroup, nullptr);
+  RulerItem *ruler_item = reinterpret_cast<RulerItem *>(
+      WM_gizmo_new_ptr(gzt_ruler, gzgroup, nullptr));
   WM_gizmo_set_flag(&ruler_item->gz, WM_GIZMO_DRAW_MODAL, true);
   return ruler_item;
 }
@@ -502,7 +503,7 @@ static RulerItem *gzgroup_ruler_item_first_get(wmGizmoGroup *gzgroup)
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
   BLI_assert(gzgroup->gizmos.first == ruler_info->snap_data.gizmo);
 #endif
-  return (RulerItem *)((wmGizmo *)gzgroup->gizmos.first)->next;
+  return reinterpret_cast<RulerItem *>((static_cast<wmGizmo *>(gzgroup->gizmos.first))->next);
 }
 
 #define RULER_ID "RulerData3D"
@@ -549,7 +550,7 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
   BKE_gpencil_free_strokes(gpf);
 
   for (ruler_item = gzgroup_ruler_item_first_get(gzgroup); ruler_item;
-       ruler_item = (RulerItem *)ruler_item->gz.next)
+       ruler_item = reinterpret_cast<RulerItem *>(ruler_item->gz.next))
   {
     bGPDspoint *pt;
     int j;
@@ -558,8 +559,8 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
     gps = MEM_new_for_free<bGPDstroke>("gp_stroke");
     if (ruler_item->flag & RULERITEM_USE_ANGLE) {
       gps->totpoints = 3;
-      pt = gps->points = (bGPDspoint *)MEM_callocN(sizeof(bGPDspoint) * gps->totpoints,
-                                                   "gp_stroke_points");
+      pt = gps->points = static_cast<bGPDspoint *>(
+          MEM_callocN(sizeof(bGPDspoint) * gps->totpoints, "gp_stroke_points"));
       for (j = 0; j < 3; j++) {
         copy_v3_v3(&pt->x, ruler_item->co[j]);
         pt->pressure = 1.0f;
@@ -569,8 +570,8 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
     }
     else {
       gps->totpoints = 2;
-      pt = gps->points = (bGPDspoint *)MEM_callocN(sizeof(bGPDspoint) * gps->totpoints,
-                                                   "gp_stroke_points");
+      pt = gps->points = static_cast<bGPDspoint *>(
+          MEM_callocN(sizeof(bGPDspoint) * gps->totpoints, "gp_stroke_points"));
       for (j = 0; j < 3; j += 2) {
         copy_v3_v3(&pt->x, ruler_item->co[j]);
         pt->pressure = 1.0f;
@@ -685,7 +686,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   Scene *scene = CTX_data_scene(C);
   const UnitSettings &unit = scene->unit;
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gz->parent_gzgroup->customdata);
-  RulerItem *ruler_item = (RulerItem *)gz;
+  RulerItem *ruler_item = reinterpret_cast<RulerItem *>(gz);
   ARegion *region = ruler_info->region;
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   const float cap_size = 4.0f * UI_SCALE_FAC;
@@ -1046,7 +1047,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
 static int gizmo_ruler_test_select(bContext * /*C*/, wmGizmo *gz, const int mval[2])
 {
-  RulerItem *ruler_item_pick = (RulerItem *)gz;
+  RulerItem *ruler_item_pick = reinterpret_cast<RulerItem *>(gz);
   const float mval_fl[2] = {float(mval[0]), float(mval[1])};
   int co_index;
 
@@ -1072,7 +1073,7 @@ static wmOperatorStatus gizmo_ruler_modal(bContext *C,
   bool do_draw = false;
   wmOperatorStatus exit_code = OPERATOR_RUNNING_MODAL;
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gz->parent_gzgroup->customdata);
-  RulerItem *ruler_item = (RulerItem *)gz;
+  RulerItem *ruler_item = reinterpret_cast<RulerItem *>(gz);
   ARegion *region = CTX_wm_region(C);
   bool do_cursor_update = (event->val == KM_RELEASE) || (event->type == MOUSEMOVE);
 
@@ -1144,7 +1145,7 @@ static wmOperatorStatus gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEve
 {
   wmGizmoGroup *gzgroup = gz->parent_gzgroup;
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
-  RulerItem *ruler_item_pick = (RulerItem *)gz;
+  RulerItem *ruler_item_pick = reinterpret_cast<RulerItem *>(gz);
   RulerInteraction *inter = MEM_callocN<RulerInteraction>(__func__);
   gz->interaction_data = inter;
 

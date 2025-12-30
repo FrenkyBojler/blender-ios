@@ -108,7 +108,7 @@ static const EnumPropertyItem boidruleset_type_items[] = {
 static void rna_Boids_reset(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   if (ptr->type == &RNA_ParticleSystem) {
-    ParticleSystem *psys = (ParticleSystem *)ptr->data;
+    ParticleSystem *psys = static_cast<ParticleSystem *>(ptr->data);
 
     psys->recalc = ID_RECALC_PSYS_RESET;
 
@@ -123,7 +123,7 @@ static void rna_Boids_reset(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr
 static void rna_Boids_reset_deps(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   if (ptr->type == &RNA_ParticleSystem) {
-    ParticleSystem *psys = (ParticleSystem *)ptr->data;
+    ParticleSystem *psys = static_cast<ParticleSystem *>(ptr->data);
 
     psys->recalc = ID_RECALC_PSYS_RESET;
 
@@ -140,7 +140,7 @@ static void rna_Boids_reset_deps(Main *bmain, Scene * /*scene*/, PointerRNA *ptr
 
 static StructRNA *rna_BoidRule_refine(PointerRNA *ptr)
 {
-  BoidRule *rule = (BoidRule *)ptr->data;
+  BoidRule *rule = static_cast<BoidRule *>(ptr->data);
 
   switch (rule->type) {
     case eBoidRuleType_Goal:
@@ -162,7 +162,7 @@ static StructRNA *rna_BoidRule_refine(PointerRNA *ptr)
 
 static std::optional<std::string> rna_BoidRule_path(const PointerRNA *ptr)
 {
-  const BoidRule *rule = (BoidRule *)ptr->data;
+  const BoidRule *rule = static_cast<BoidRule *>(ptr->data);
   char name_esc[sizeof(rule->name) * 2];
   BLI_str_escape(name_esc, rule->name, sizeof(name_esc));
   return fmt::format("rules[\"{}\"]", name_esc); /* XXX not unique */
@@ -170,8 +170,8 @@ static std::optional<std::string> rna_BoidRule_path(const PointerRNA *ptr)
 
 static PointerRNA rna_BoidState_active_boid_rule_get(PointerRNA *ptr)
 {
-  BoidState *state = (BoidState *)ptr->data;
-  BoidRule *rule = (BoidRule *)state->rules.first;
+  BoidState *state = static_cast<BoidState *>(ptr->data);
+  BoidRule *rule = static_cast<BoidRule *>(state->rules.first);
 
   for (; rule; rule = rule->next) {
     if (rule->flag & BOIDRULE_CURRENT) {
@@ -183,15 +183,15 @@ static PointerRNA rna_BoidState_active_boid_rule_get(PointerRNA *ptr)
 static void rna_BoidState_active_boid_rule_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
 {
-  BoidState *state = (BoidState *)ptr->data;
+  BoidState *state = static_cast<BoidState *>(ptr->data);
   *min = 0;
   *max = max_ii(0, BLI_listbase_count(&state->rules) - 1);
 }
 
 static int rna_BoidState_active_boid_rule_index_get(PointerRNA *ptr)
 {
-  BoidState *state = (BoidState *)ptr->data;
-  BoidRule *rule = (BoidRule *)state->rules.first;
+  BoidState *state = static_cast<BoidState *>(ptr->data);
+  BoidRule *rule = static_cast<BoidRule *>(state->rules.first);
   int i = 0;
 
   for (; rule; rule = rule->next, i++) {
@@ -204,8 +204,8 @@ static int rna_BoidState_active_boid_rule_index_get(PointerRNA *ptr)
 
 static void rna_BoidState_active_boid_rule_index_set(PointerRNA *ptr, int value)
 {
-  BoidState *state = (BoidState *)ptr->data;
-  BoidRule *rule = (BoidRule *)state->rules.first;
+  BoidState *state = static_cast<BoidState *>(ptr->data);
+  BoidRule *rule = static_cast<BoidRule *>(state->rules.first);
   int i = 0;
 
   for (; rule; rule = rule->next, i++) {
@@ -227,10 +227,10 @@ static int particle_id_check(const PointerRNA *ptr)
 
 static std::optional<std::string> rna_BoidSettings_path(const PointerRNA *ptr)
 {
-  const BoidSettings *boids = (BoidSettings *)ptr->data;
+  const BoidSettings *boids = static_cast<BoidSettings *>(ptr->data);
 
   if (particle_id_check(ptr)) {
-    ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
+    ParticleSettings *part = blender::id_cast<ParticleSettings *>(ptr->owner_id);
 
     if (part->boids == boids) {
       return "boids";
@@ -241,8 +241,8 @@ static std::optional<std::string> rna_BoidSettings_path(const PointerRNA *ptr)
 
 static PointerRNA rna_BoidSettings_active_boid_state_get(PointerRNA *ptr)
 {
-  BoidSettings *boids = (BoidSettings *)ptr->data;
-  BoidState *state = (BoidState *)boids->states.first;
+  BoidSettings *boids = static_cast<BoidSettings *>(ptr->data);
+  BoidState *state = static_cast<BoidState *>(boids->states.first);
 
   for (; state; state = state->next) {
     if (state->flag & BOIDSTATE_CURRENT) {
@@ -254,15 +254,15 @@ static PointerRNA rna_BoidSettings_active_boid_state_get(PointerRNA *ptr)
 static void rna_BoidSettings_active_boid_state_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
 {
-  BoidSettings *boids = (BoidSettings *)ptr->data;
+  BoidSettings *boids = static_cast<BoidSettings *>(ptr->data);
   *min = 0;
   *max = max_ii(0, BLI_listbase_count(&boids->states) - 1);
 }
 
 static int rna_BoidSettings_active_boid_state_index_get(PointerRNA *ptr)
 {
-  BoidSettings *boids = (BoidSettings *)ptr->data;
-  BoidState *state = (BoidState *)boids->states.first;
+  BoidSettings *boids = static_cast<BoidSettings *>(ptr->data);
+  BoidState *state = static_cast<BoidState *>(boids->states.first);
   int i = 0;
 
   for (; state; state = state->next, i++) {
@@ -275,8 +275,8 @@ static int rna_BoidSettings_active_boid_state_index_get(PointerRNA *ptr)
 
 static void rna_BoidSettings_active_boid_state_index_set(PointerRNA *ptr, int value)
 {
-  BoidSettings *boids = (BoidSettings *)ptr->data;
-  BoidState *state = (BoidState *)boids->states.first;
+  BoidSettings *boids = static_cast<BoidSettings *>(ptr->data);
+  BoidState *state = static_cast<BoidState *>(boids->states.first);
   int i = 0;
 
   for (; state; state = state->next, i++) {

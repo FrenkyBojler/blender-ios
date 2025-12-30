@@ -362,8 +362,8 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
 
   int2 location;
   RNA_int_get_array(op->ptr, "location", location);
-  location.x = std::clamp(location.x, 0, (int)region->winx);
-  location.y = std::clamp(location.y, 0, (int)region->winy);
+  location.x = std::clamp(location.x, 0, int(region->winx));
+  location.y = std::clamp(location.y, 0, int(region->winy));
 
   const bool use_merged_texture = RNA_boolean_get(op->ptr, "merged");
   const bool use_palette = RNA_boolean_get(op->ptr, "palette");
@@ -407,8 +407,8 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
 
   const bool use_merged_texture = RNA_boolean_get(op->ptr, "merged");
 
-  int2 mval(std::clamp(event->mval[0], 0, (int)region->winx),
-            std::clamp(event->mval[1], 0, (int)region->winy));
+  int2 mval(std::clamp(event->mval[0], 0, int(region->winx)),
+            std::clamp(event->mval[1], 0, int(region->winy)));
   const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
   /* On initial invoke, we never sample to the palette. */
   apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, false);
@@ -444,8 +444,8 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
     return OPERATOR_FINISHED;
   }
   ARegion *region = CTX_wm_region(C);
-  int2 mval(std::clamp(event->mval[0], 0, (int)region->winx),
-            std::clamp(event->mval[1], 0, (int)region->winy));
+  int2 mval(std::clamp(event->mval[0], 0, int(region->winx)),
+            std::clamp(event->mval[1], 0, int(region->winy)));
 
   const bool use_merged_texture = RNA_boolean_get(op->ptr, "merged");
 

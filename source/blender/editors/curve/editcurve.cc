@@ -92,7 +92,7 @@ static bool curve_delete_vertices(Object *obedit, View3D *v3d);
 ListBaseT<Nurb> *object_editcurve_get(Object *ob)
 {
   if (ob && ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
-    Curve *cu = static_cast<Curve *>(ob->data);
+    Curve *cu = blender::id_cast<Curve *>(ob->data);
     return &cu->editnurb->nurbs;
   }
   return nullptr;
@@ -244,7 +244,7 @@ static BezTriple *getKeyIndexOrig_bezt(EditNurb *editnurb, const BezTriple *bezt
     return nullptr;
   }
 
-  return (BezTriple *)index->orig_cv;
+  return static_cast<BezTriple *>(index->orig_cv);
 }
 
 static BPoint *getKeyIndexOrig_bp(EditNurb *editnurb, BPoint *bp)
@@ -255,7 +255,7 @@ static BPoint *getKeyIndexOrig_bp(EditNurb *editnurb, BPoint *bp)
     return nullptr;
   }
 
-  return (BPoint *)index->orig_cv;
+  return static_cast<BPoint *>(index->orig_cv);
 }
 
 static int getKeyIndexOrig_keyIndex(EditNurb *editnurb, void *cv)
@@ -346,12 +346,20 @@ static void keyIndex_updateCV(EditNurb *editnurb, char *cv, char *newcv, int cou
 
 static void keyIndex_updateBezt(EditNurb *editnurb, BezTriple *bezt, BezTriple *newbezt, int count)
 {
-  keyIndex_updateCV(editnurb, (char *)bezt, (char *)newbezt, count, sizeof(BezTriple));
+  keyIndex_updateCV(editnurb,
+                    reinterpret_cast<char *>(bezt),
+                    reinterpret_cast<char *>(newbezt),
+                    count,
+                    sizeof(BezTriple));
 }
 
 static void keyIndex_updateBP(EditNurb *editnurb, BPoint *bp, BPoint *newbp, int count)
 {
-  keyIndex_updateCV(editnurb, (char *)bp, (char *)newbp, count, sizeof(BPoint));
+  keyIndex_updateCV(editnurb,
+                    reinterpret_cast<char *>(bp),
+                    reinterpret_cast<char *>(newbp),
+                    count,
+                    sizeof(BPoint));
 }
 
 void ED_curve_keyindex_update_nurb(EditNurb *editnurb, Nurb *nu, Nurb *newnu)
@@ -654,7 +662,7 @@ static void calc_keyHandles(ListBaseT<Nurb> *nurb, float *key)
 
 static void calc_shapeKeys(Object *obedit, ListBaseT<Nurb> *newnurbs)
 {
-  Curve *cu = (Curve *)obedit->data;
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
   if (cu->key == nullptr) {
     return;
@@ -1148,7 +1156,7 @@ int ED_curve_updateAnimPaths(Main *bmain, Curve *cu)
 
 static int *init_index_map(Object *obedit, int *r_old_totvert)
 {
-  Curve *curve = (Curve *)obedit->data;
+  Curve *curve = blender::id_cast<Curve *>(obedit->data);
   EditNurb *editnurb = curve->editnurb;
   CVKeyIndex *keyIndex;
   int *old_to_new_map;
@@ -1213,7 +1221,7 @@ static int *init_index_map(Object *obedit, int *r_old_totvert)
 
 static void remap_hooks_and_vertex_parents(Main *bmain, Object *obedit)
 {
-  Curve *curve = (Curve *)obedit->data;
+  Curve *curve = blender::id_cast<Curve *>(obedit->data);
   EditNurb *editnurb = curve->editnurb;
   int *old_to_new_map = nullptr;
   int old_totvert;
@@ -1228,7 +1236,7 @@ static void remap_hooks_and_vertex_parents(Main *bmain, Object *obedit)
 
   for (Object &object : bmain->objects) {
     int index;
-    if ((object.parent) && (object.parent->data == curve) &&
+    if ((object.parent) && (object.parent->data == blender::id_cast<const ID *>(curve)) &&
         ELEM(object.partype, PARVERT1, PARVERT3))
     {
       if (old_to_new_map == nullptr) {
@@ -1254,10 +1262,10 @@ static void remap_hooks_and_vertex_parents(Main *bmain, Object *obedit)
         }
       }
     }
-    if (object.data == curve) {
+    if (object.data == blender::id_cast<const ID *>(curve)) {
       for (ModifierData &md : object.modifiers) {
         if (md.type == eModifierType_Hook) {
-          HookModifierData *hmd = (HookModifierData *)&md;
+          HookModifierData *hmd = reinterpret_cast<HookModifierData *>(&md);
           int i, j;
 
           if (old_to_new_map == nullptr) {
@@ -1295,7 +1303,7 @@ void ED_curve_editnurb_load(Main *bmain, Object *obedit)
   }
 
   if (ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
     ListBaseT<Nurb> newnurb = {nullptr, nullptr}, oldnurb = cu->nurb;
 
     remap_hooks_and_vertex_parents(bmain, obedit);
@@ -1317,7 +1325,7 @@ void ED_curve_editnurb_load(Main *bmain, Object *obedit)
 
     cu->nurb = newnurb;
 
-    ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data));
+    ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data));
 
     BKE_nurbList_free(&oldnurb);
   }
@@ -1325,7 +1333,7 @@ void ED_curve_editnurb_load(Main *bmain, Object *obedit)
 
 void ED_curve_editnurb_make(Object *obedit)
 {
-  Curve *cu = (Curve *)obedit->data;
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   EditNurb *editnurb = cu->editnurb;
   KeyBlock *actkey;
 
@@ -1369,7 +1377,7 @@ void ED_curve_editnurb_make(Object *obedit)
 
 void ED_curve_editnurb_free(Object *obedit)
 {
-  Curve *cu = static_cast<Curve *>(obedit->data);
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
   BKE_curve_editNurb_free(cu);
 }
@@ -1406,7 +1414,7 @@ static wmOperatorStatus separate_exec(bContext *C, wmOperator *op)
     ListBaseT<Nurb> newnurb = {nullptr, nullptr};
 
     oldob = oldbase->object;
-    oldcu = static_cast<Curve *>(oldob->data);
+    oldcu = blender::id_cast<Curve *>(oldob->data);
 
     if (oldcu->key) {
       status.error_vertex_keys++;
@@ -1435,7 +1443,7 @@ static wmOperatorStatus separate_exec(bContext *C, wmOperator *op)
     DEG_relations_tag_update(bmain);
 
     newob = newbase->object;
-    newcu = static_cast<Curve *>(newob->data = BKE_id_copy(bmain, &oldcu->id));
+    newcu = blender::id_cast<Curve *>(newob->data = BKE_id_copy(bmain, &oldcu->id));
     newcu->editnurb = nullptr;
     id_us_min(&oldcu->id); /* Because new curve is a copy: reduce user count. */
 
@@ -1528,7 +1536,7 @@ static wmOperatorStatus curve_split_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -1550,13 +1558,13 @@ static wmOperatorStatus curve_split_exec(bContext *C, wmOperator *op)
     cu->actnu -= len_orig - BLI_listbase_count(editnurb);
     BLI_movelisttolist(editnurb, &newnurb);
 
-    if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+    if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
       WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     changed = true;
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   if (changed == false) {
@@ -1736,7 +1744,7 @@ static void weightflagNurb(ListBaseT<Nurb> *editnurb, short flag, float w)
 
 static void ed_surf_delete_selected(Object *obedit)
 {
-  Curve *cu = static_cast<Curve *>(obedit->data);
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
   BPoint *bp, *bpn, *newbp;
   int a, b, newu, newv;
@@ -1834,7 +1842,7 @@ static void ed_surf_delete_selected(Object *obedit)
 
 static void ed_curve_delete_selected(Object *obedit, View3D *v3d)
 {
-  Curve *cu = static_cast<Curve *>(obedit->data);
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   EditNurb *editnurb = cu->editnurb;
   ListBaseT<Nurb> *nubase = &editnurb->nurbs;
   BezTriple *bezt, *bezt1;
@@ -2195,7 +2203,7 @@ static void adduplicateflagNurb(
   Nurb *newnu;
   BezTriple *bezt, *bezt1;
   BPoint *bp, *bp1, *bp2, *bp3;
-  Curve *cu = (Curve *)obedit->data;
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   int a, b, c, starta, enda, diffa, cyclicu, cyclicv, newu, newv;
   char *usel;
 
@@ -2610,7 +2618,7 @@ static wmOperatorStatus switch_direction_exec(bContext *C, wmOperator * /*op*/)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -2628,11 +2636,11 @@ static wmOperatorStatus switch_direction_exec(bContext *C, wmOperator * /*op*/)
       }
     }
 
-    if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+    if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
       WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
   return OPERATOR_FINISHED;
@@ -2690,7 +2698,7 @@ static wmOperatorStatus set_goal_weight_exec(bContext *C, wmOperator *op)
       }
     }
 
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
@@ -2763,7 +2771,7 @@ static wmOperatorStatus set_radius_exec(bContext *C, wmOperator *op)
     }
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -2927,7 +2935,7 @@ static wmOperatorStatus smooth_exec(bContext *C, wmOperator *op)
     }
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -3155,7 +3163,7 @@ static wmOperatorStatus curve_smooth_weight_exec(bContext *C, wmOperator * /*op*
     curve_smooth_value(editnurb, offsetof(BezTriple, weight), offsetof(BPoint, weight));
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   return OPERATOR_FINISHED;
@@ -3205,7 +3213,7 @@ static wmOperatorStatus curve_smooth_radius_exec(bContext *C, wmOperator *op)
     curve_smooth_value(editnurb, offsetof(BezTriple, radius), offsetof(BPoint, radius));
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -3254,7 +3262,7 @@ static wmOperatorStatus curve_smooth_tilt_exec(bContext *C, wmOperator *op)
     curve_smooth_value(editnurb, offsetof(BezTriple, tilt), offsetof(BPoint, tilt));
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -3292,7 +3300,7 @@ static wmOperatorStatus hide_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!(invert || ED_curve_select_check(v3d, cu->editnurb))) {
       continue;
@@ -3350,9 +3358,9 @@ static wmOperatorStatus hide_exec(bContext *C, wmOperator *op)
       }
     }
 
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(obedit->data, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
-    BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
+    BKE_curve_nurb_vert_active_validate(blender::id_cast<Curve *>(obedit->data));
   }
   return OPERATOR_FINISHED;
 }
@@ -3427,7 +3435,7 @@ static wmOperatorStatus reveal_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      DEG_id_tag_update(static_cast<ID *>(obedit->data),
+      DEG_id_tag_update(obedit->data,
                         ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT | ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
       changed_multi = true;
@@ -3477,7 +3485,7 @@ static void interp_bpoint(BPoint *bp_target,
  */
 static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
 {
-  Curve *cu = static_cast<Curve *>(obedit->data);
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   EditNurb *editnurb = cu->editnurb;
   BezTriple *bezt, *beztnew, *beztn;
   BPoint *bp, *prevbp, *bpnew, *bpn;
@@ -3880,7 +3888,7 @@ static wmOperatorStatus subdivide_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -3893,7 +3901,7 @@ static wmOperatorStatus subdivide_exec(bContext *C, wmOperator *op)
     }
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, cu);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   return OPERATOR_FINISHED;
@@ -3961,15 +3969,15 @@ static wmOperatorStatus set_spline_type_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+      if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
         WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
       }
 
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
       if (changed_size) {
-        Curve *cu = static_cast<Curve *>(obedit->data);
+        Curve *cu = blender::id_cast<Curve *>(obedit->data);
         cu->actvert = CU_ACT_NONE;
       }
 
@@ -4030,7 +4038,7 @@ static wmOperatorStatus set_handle_type_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -4040,7 +4048,7 @@ static wmOperatorStatus set_handle_type_exec(bContext *C, wmOperator *op)
     BKE_nurbList_handles_set(editnurb, handle_mode, handle_type);
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
   return OPERATOR_FINISHED;
 }
@@ -4094,7 +4102,7 @@ static wmOperatorStatus curve_normals_make_consistent_exec(bContext *C, wmOperat
   int totobjects = 0;
 
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -4110,7 +4118,7 @@ static wmOperatorStatus curve_normals_make_consistent_exec(bContext *C, wmOperat
     BKE_nurbList_handles_recalculate(editnurb, calc_length, SELECT);
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -4273,13 +4281,13 @@ static void make_selection_list_nurb(View3D *v3d,
 
     nustest = static_cast<NurbSort *>(nbase.first);
     while (nustest) {
-      dist = len_v3v3(nustest->vec, ((NurbSort *)nsortbase->first)->vec);
+      dist = len_v3v3(nustest->vec, (static_cast<NurbSort *>(nsortbase->first))->vec);
 
       if (dist < headdist) {
         headdist = dist;
         headdo = nustest;
       }
-      dist = len_v3v3(nustest->vec, ((NurbSort *)nsortbase->last)->vec);
+      dist = len_v3v3(nustest->vec, (static_cast<NurbSort *>(nsortbase->last))->vec);
 
       if (dist < taildist) {
         taildist = dist;
@@ -4467,7 +4475,7 @@ static bool merge_2_nurb(Curve *cu, ListBaseT<Nurb> *editnurb, Nurb *nu1, Nurb *
 
 static int merge_nurb(View3D *v3d, Object *obedit)
 {
-  Curve *cu = static_cast<Curve *>(obedit->data);
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
   NurbSort *nus1, *nus2;
   bool ok = true;
@@ -4523,7 +4531,7 @@ static int merge_nurb(View3D *v3d, Object *obedit)
   }
 
   BLI_freelistN(&nsortbase);
-  BKE_curve_nurb_active_set(static_cast<Curve *>(obedit->data), nullptr);
+  BKE_curve_nurb_active_set(blender::id_cast<Curve *>(obedit->data), nullptr);
 
   return ok ? CURVE_MERGE_OK : CURVE_MERGE_ERR_RESOLUTION_SOME;
 }
@@ -4546,7 +4554,7 @@ static wmOperatorStatus make_segment_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       status.unselected++;
@@ -4765,7 +4773,7 @@ static wmOperatorStatus make_segment_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+    if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
       WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
@@ -4773,7 +4781,7 @@ static wmOperatorStatus make_segment_exec(bContext *C, wmOperator *op)
 
   curve_merge_tag_object:
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   if (status.unselected == objects.size()) {
@@ -4867,9 +4875,8 @@ bool ED_curve_editnurb_select_pick(bContext *C,
       Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
           vc.scene, vc.view_layer, vc.v3d);
       for (Object *ob_iter : objects) {
-        ED_curve_deselect_all(((Curve *)ob_iter->data)->editnurb);
-        DEG_id_tag_update(static_cast<ID *>(ob_iter->data),
-                          ID_RECALC_SELECT | ID_RECALC_SYNC_TO_EVAL);
+        ED_curve_deselect_all((blender::id_cast<Curve *>(ob_iter->data))->editnurb);
+        DEG_id_tag_update(ob_iter->data, ID_RECALC_SELECT | ID_RECALC_SYNC_TO_EVAL);
         WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob_iter->data);
       }
       changed = true;
@@ -4878,7 +4885,7 @@ bool ED_curve_editnurb_select_pick(bContext *C,
 
   if (found) {
     Object *obedit = basact->object;
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     const void *vert = BKE_curve_vert_active_get(cu);
 
@@ -5030,7 +5037,7 @@ bool ED_curve_editnurb_select_pick(bContext *C,
       blender::ed::object::base_activate(C, basact);
     }
 
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT | ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update(obedit->data, ID_RECALC_SELECT | ID_RECALC_SYNC_TO_EVAL);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
     changed = true;
@@ -5048,7 +5055,7 @@ bool ED_curve_editnurb_select_pick(bContext *C,
 bool ed_editnurb_spin(
     float viewmat[4][4], View3D *v3d, Object *obedit, const float axis[3], const float cent[3])
 {
-  Curve *cu = (Curve *)obedit->data;
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
   float cmat[3][3], tmat[3][3], imat[3][3];
   float bmat[3][3], rotmat[3][3], scalemat1[3][3], scalemat2[3][3];
@@ -5148,7 +5155,7 @@ static wmOperatorStatus spin_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = (Curve *)obedit->data;
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -5168,7 +5175,7 @@ static wmOperatorStatus spin_exec(bContext *C, wmOperator *op)
     }
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
 
   if (changed == false) {
@@ -5625,7 +5632,7 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Object *obedit = CTX_data_edit_object(C);
   View3D *v3d = CTX_wm_view3d(C);
-  Curve *cu = static_cast<Curve *>(obedit->data);
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   EditNurb *editnurb = cu->editnurb;
   float location[3];
   float imat[4][4];
@@ -5636,14 +5643,14 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
   mul_m4_v3(imat, location);
 
   if (ed_editcurve_addvert(cu, editnurb, v3d, location)) {
-    if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+    if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
       WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
 
     return OPERATOR_FINISHED;
   }
@@ -5666,7 +5673,7 @@ static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmE
     BezTriple *bezt;
     BPoint *bp;
 
-    cu = static_cast<Curve *>(vc.obedit->data);
+    cu = blender::id_cast<Curve *>(vc.obedit->data);
 
     ED_curve_nurb_vert_selected_find(cu, vc.v3d, &nu, &bezt, &bp);
 
@@ -5794,7 +5801,7 @@ static wmOperatorStatus curve_extrude_exec(bContext *C, wmOperator * /*op*/)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
     EditNurb *editnurb = cu->editnurb;
     bool changed = false;
 
@@ -5810,12 +5817,12 @@ static wmOperatorStatus curve_extrude_exec(bContext *C, wmOperator * /*op*/)
     }
 
     if (changed) {
-      if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+      if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
         WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
       }
 
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
     }
   }
   return OPERATOR_FINISHED;
@@ -5939,7 +5946,7 @@ static wmOperatorStatus toggle_cyclic_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -5949,7 +5956,7 @@ static wmOperatorStatus toggle_cyclic_exec(bContext *C, wmOperator *op)
     if (curve_toggle_cyclic(v3d, editnurb, direction)) {
       changed_multi = true;
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
     }
   }
 
@@ -6029,7 +6036,7 @@ static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -6093,7 +6100,7 @@ static bool curve_delete_vertices(Object *obedit, View3D *v3d)
 
 static bool curve_delete_segments(Object *obedit, View3D *v3d, const bool split)
 {
-  Curve *cu = static_cast<Curve *>(obedit->data);
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   EditNurb *editnurb = cu->editnurb;
   ListBaseT<Nurb> *nubase = &editnurb->nurbs, newnurb = {nullptr, nullptr};
   Nurb *nu1;
@@ -6533,7 +6540,7 @@ static wmOperatorStatus curve_delete_exec(bContext *C, wmOperator *op)
   bool changed_multi = false;
 
   for (Object *obedit : objects) {
-    Curve *cu = (Curve *)obedit->data;
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
     bool changed = false;
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
@@ -6555,12 +6562,12 @@ static wmOperatorStatus curve_delete_exec(bContext *C, wmOperator *op)
       changed_multi = true;
       cu->actvert = CU_ACT_NONE;
 
-      if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+      if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
         WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
       }
 
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
     }
   }
 
@@ -6708,7 +6715,7 @@ static wmOperatorStatus curve_dissolve_exec(bContext *C, wmOperator * /*op*/)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = (Curve *)obedit->data;
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -6742,12 +6749,12 @@ static wmOperatorStatus curve_dissolve_exec(bContext *C, wmOperator * /*op*/)
 
     cu->actnu = cu->actvert = CU_ACT_NONE;
 
-    if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+    if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
       WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
   return OPERATOR_FINISHED;
 }
@@ -6799,7 +6806,7 @@ static wmOperatorStatus curve_decimate_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    Curve *cu = (Curve *)obedit->data;
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
     bool all_supported = true;
     bool changed = false;
 
@@ -6828,12 +6835,12 @@ static wmOperatorStatus curve_decimate_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       cu->actnu = cu->actvert = CU_ACT_NONE;
-      if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
+      if (ED_curve_updateAnimPaths(bmain, blender::id_cast<Curve *>(obedit->data))) {
         WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
       }
 
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
     }
   }
 
@@ -6897,7 +6904,7 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
     }
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
     ret_value = OPERATOR_FINISHED;
   }
 
@@ -6972,13 +6979,13 @@ wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op)
    * See object_join_exec for detailed comment on why the safe version is used. */
   invert_m4_m4_safe_ortho(imat, ob_active->object_to_world().ptr());
 
-  Curve *cu_active = static_cast<Curve *>(ob_active->data);
+  Curve *cu_active = blender::id_cast<Curve *>(ob_active->data);
 
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter->type == ob_active->type) {
       if (ob_iter != ob_active) {
 
-        cu = static_cast<Curve *>(ob_iter->data);
+        cu = blender::id_cast<Curve *>(ob_iter->data);
 
         if (cu->nurb.first) {
           /* watch it: switch order here really goes wrong */
@@ -7034,7 +7041,7 @@ wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
-  cu = static_cast<Curve *>(ob_active->data);
+  cu = blender::id_cast<Curve *>(ob_active->data);
   BLI_movelisttolist(&cu->nurb, &tempbase);
 
   if (ob_active->type == OB_CURVES_LEGACY && CU_IS_2D(cu)) {
@@ -7071,7 +7078,7 @@ static wmOperatorStatus clear_tilt_exec(bContext *C, wmOperator *op)
   int totobjects = 0;
 
   for (Object *obedit : objects) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     if (!ED_curve_select_check(v3d, cu->editnurb)) {
       continue;
@@ -7112,7 +7119,7 @@ static wmOperatorStatus clear_tilt_exec(bContext *C, wmOperator *op)
     }
 
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    DEG_id_tag_update(obedit->data, 0);
   }
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -7166,7 +7173,7 @@ static wmOperatorStatus match_texture_space_exec(bContext *C, wmOperator * /*op*
 
   Object *object = CTX_data_active_object(C);
   Object *object_eval = DEG_get_evaluated(depsgraph, object);
-  Curve *curve = (Curve *)object->data;
+  Curve *curve = blender::id_cast<Curve *>(object->data);
   float min[3], max[3], texspace_size[3], texspace_location[3];
   int a;
 

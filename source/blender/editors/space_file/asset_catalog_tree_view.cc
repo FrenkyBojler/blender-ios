@@ -291,7 +291,7 @@ void AssetCatalogTreeViewItem::build_row(ui::Layout &row)
   ui::ButtonViewItem *view_item_but = view_item_button();
   PointerRNA *props;
 
-  props = button_extra_operator_icon_add((ui::Button *)view_item_but,
+  props = button_extra_operator_icon_add(reinterpret_cast<ui::Button *>(view_item_but),
                                          "ASSET_OT_catalog_new",
                                          wm::OpCallContext::InvokeDefault,
                                          ICON_ADD);
@@ -563,8 +563,8 @@ std::optional<eWM_DragDataType> AssetCatalogDragController::get_drag_type() cons
 
 void *AssetCatalogDragController::create_drag_data() const
 {
-  wmDragAssetCatalog *drag_catalog = (wmDragAssetCatalog *)MEM_callocN(sizeof(*drag_catalog),
-                                                                       __func__);
+  wmDragAssetCatalog *drag_catalog = static_cast<wmDragAssetCatalog *>(
+      MEM_callocN(sizeof(*drag_catalog), __func__));
   drag_catalog->drag_catalog_id = catalog_item_.get_catalog_id();
   return drag_catalog;
 }

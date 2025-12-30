@@ -803,7 +803,7 @@ static void tri_3edge_subdivide(BMesh *bm,
   lines = static_cast<BMVert ***>(
       MEM_callocN(sizeof(void *) * (numcuts + 2), "triangle vert table"));
 
-  lines[0] = (BMVert **)stackarr;
+  lines[0] = reinterpret_cast<BMVert **>(stackarr);
   lines[0][0] = verts[numcuts * 2 + 1];
 
   lines[numcuts + 1] = MEM_calloc_arrayN<BMVert *>(numcuts + 2, "triangle vert table 2");

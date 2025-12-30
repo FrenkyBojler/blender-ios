@@ -625,7 +625,7 @@ static PointerRNA rna_PopMenuBegin(bContext *C,
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)blender::ui::popup_menu_begin(C, title, icon);
+  void *data = static_cast<void *>(blender::ui::popup_menu_begin(C, title, icon));
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
   return ptr_result;
 }
@@ -645,8 +645,8 @@ static PointerRNA rna_PopoverBegin(bContext *C,
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)blender::ui::popover_begin(
-      C, U.widget_unit * ui_units_x, from_active_button);
+  void *data = static_cast<void *>(
+      blender::ui::popover_begin(C, U.widget_unit * ui_units_x, from_active_button));
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
   return ptr_result;
 }
