@@ -12,6 +12,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_node_types.h"
+
 #include "BKE_cryptomatte.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"

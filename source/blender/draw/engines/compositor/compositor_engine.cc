@@ -8,14 +8,14 @@
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.hh"
-
-#include "DNA_ID.h"
-#include "DNA_ID_enums.h"
 #include "DNA_layer_types.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
+
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -31,8 +31,6 @@
 #include "COM_result.hh"
 #include "COM_utilities.hh"
 
-#include "GPU_context.hh"
-#include "GPU_state.hh"
 #include "GPU_texture.hh"
 
 #include "draw_view_data.hh"

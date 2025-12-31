@@ -6,18 +6,18 @@
  * \ingroup sequencer
  */
 
-#include "BKE_context.hh"
-
-#include "BLI_math_base.h"
-#include "BLI_rect.h"
-
 #include "BLT_translation.hh"
 
 #include "COM_context.hh"
 #include "COM_domain.hh"
 #include "COM_evaluator.hh"
 
+#include "DNA_node_types.h"
 #include "DNA_sequence_types.h"
+
+#include "BKE_context.hh"
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "DEG_depsgraph_query.hh"
 
