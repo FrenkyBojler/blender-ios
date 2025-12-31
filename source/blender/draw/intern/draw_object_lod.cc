@@ -81,12 +81,19 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
             ob_pos.z,
             dist);
 
-  // LOD selection
-  Object *selected_eval = nullptr;
+  /* Runtime hysteresis state */
+  bke::ObjectRuntime *runtime = eval_ob->runtime;
+  const int last_lod = runtime->last_lod_index;
+  const float last_dist = runtime->last_lod_distance;
 
+  Object *selected_eval = nullptr;
+  int selected_lod_index = -1;
+
+  int lod_index = 0;
   LISTBASE_FOREACH (Lod *, lod, &base_ob->lod_items) {
     if (!lod->target) {
       CLOG_WARN(&LOG_DRAW_LOD, "  LOD entry with null target");
+      lod_index++;
       continue;
     }
 
@@ -96,27 +103,50 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
       CLOG_WARN(&LOG_DRAW_LOD,
                 "  LOD target %s has no evaluated ID",
                 lod->target->id.name + 2);
+      lod_index++;
       continue;
     }
 
     Object *lod_eval = (Object *)lod_eval_id;
 
+    // TODO(Tri): Make the band adjustable
+    const float hysteresis = lod->distance * 0.1f;
+    const float switch_down_dist = lod->distance - hysteresis;
+
     CLOG_INFO(&LOG_DRAW_LOD,
-              "  test LOD: target=%s dist=%.3f threshold=%.3f",
+              "  test LOD[%d]: target=%s dist=%.3f threshold=%.3f hysteresis=%.3f",
+              lod_index,
               lod_eval->id.name + 2,
               dist,
-              lod->distance);
+              lod->distance,
+              hysteresis);
 
+    /* Switching up (higher index LOD) */
     if (dist >= lod->distance) {
       selected_eval = lod_eval;
+      selected_lod_index = lod_index;
       CLOG_INFO(&LOG_DRAW_LOD,
-                "    → selecting %s",
+                "    → selecting %s (up)",
+                lod_eval->id.name + 2);
+    }
+    /* Switching down with hysteresis */
+    else if (lod_index == last_lod && dist >= switch_down_dist) {
+      selected_eval = lod_eval;
+      selected_lod_index = lod_index;
+      CLOG_INFO(&LOG_DRAW_LOD,
+                "    → keeping %s (hysteresis)",
                 lod_eval->id.name + 2);
     }
     else {
       break;
     }
+
+    lod_index++;
   }
+
+  /* Update runtime state */
+  runtime->last_lod_index = max_ii(selected_lod_index, 0);
+  runtime->last_lod_distance = dist;
 
   if (selected_eval) {
     CLOG_INFO(&LOG_DRAW_LOD,
