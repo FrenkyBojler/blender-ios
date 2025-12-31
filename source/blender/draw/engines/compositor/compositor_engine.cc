@@ -31,6 +31,8 @@
 #include "COM_result.hh"
 #include "COM_utilities.hh"
 
+#include "GPU_context.hh"
+#include "GPU_state.hh"
 #include "GPU_texture.hh"
 
 #include "draw_view_data.hh"
