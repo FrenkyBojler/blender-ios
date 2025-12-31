@@ -47,6 +47,8 @@ class Context : public compositor::Context {
   /* A pointer to the info message of the compositor engine. This is a char array of size
    * GPU_INFO_SIZE. The message is cleared prior to updating or evaluating the compositor. */
   char *info_message_;
+  /* Identified if the output of the viewer was written. */
+  bool viewer_was_written_ = false;
 
  public:
   Context(compositor::StaticCacheManager &cache_manager, const Scene *scene, char *info_message)
@@ -151,6 +153,11 @@ class Context : public compositor::Context {
 
   void write_output(const compositor::Result &result) override
   {
+    /* Do not write the output if the viewer output was already written. */
+    if (viewer_was_written_) {
+      return;
+    }
+
     gpu::Texture *output = DRW_context_get()->viewport_texture_list_get()->color;
     if (result.is_single_value()) {
       GPU_texture_clear(output, GPU_DATA_FLOAT, result.get_single_value<compositor::Color>());
@@ -181,6 +188,7 @@ class Context : public compositor::Context {
   {
     /* Within compositor modifier, output and viewer output function the same. */
     this->write_output(result);
+    viewer_was_written_ = true;
   }
 
   compositor::Result get_pass(const Scene *scene, int view_layer_index, const char *name) override
