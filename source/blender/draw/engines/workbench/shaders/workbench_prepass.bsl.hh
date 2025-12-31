@@ -11,6 +11,7 @@ VERTEX_SHADER_CREATE_INFO(draw_modelmat_with_custom_id)
 
 #include "draw_curves_lib.glsl"
 #include "draw_model_lib.glsl"
+#include "draw_pointcloud_lib.glsl"
 #include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
@@ -235,16 +236,17 @@ struct PointCloud {
                                 [[out]] VertOut &v_out,
                                 [[position]] float4 &out_position)
 {
-  float3 world_pos;
-  /* TODO */
-  //   pointcloud_get_pos_and_nor(world_pos, v_out.normal_interp);
+  const pointcloud::Point ls_pt = pointcloud::point_get(uint(gl_VertexID));
+  const pointcloud::Point ws_pt = pointcloud::object_to_world(ls_pt, drw_modelmat());
+  const pointcloud::ShapePoint pt = pointcloud::shape_point_get(
+      ws_pt, drw_world_incident_vector(ws_pt.P), drw_view_up());
 
-  v_out.normal_interp = normalize(drw_normal_world_to_view(v_out.normal_interp));
+  v_out.normal_interp = normalize(drw_normal_world_to_view(pt.N));
 
-  out_position = drw_point_world_to_homogenous(world_pos);
+  out_position = drw_point_world_to_homogenous(pt.P);
 
   if (point_cloud.use_clipping) {
-    view_clipping_distances(world_pos);
+    view_clipping_distances(pt.P);
   }
 
   v_out.uv_interp = float2(0.0f);
