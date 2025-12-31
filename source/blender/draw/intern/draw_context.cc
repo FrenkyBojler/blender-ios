@@ -810,7 +810,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     int visibility = BKE_object_visibility(ob, eval_mode);
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
-    /* LOD selection probe */
+    /* Base-object LOD selection probe */
     ObjectRef ob_ref_probe(ob, data_.dupli_parent, data_.dupli_object_current);
     Object *lod_target = DRW_object_lod_select(ob_ref_probe, draw_ctx);
 
@@ -835,11 +835,11 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       continue;
     }
 
-    // Build duplilist
+    /* Build duplilist */
     duplilist.clear();
 
     if (lod_target) {
-      /* Synthetic LOD dupli */
+      /* Synthetic base-object LOD dupli */
       DupliObject lod_dupli = {};
 
       lod_dupli.ob = lod_target;
@@ -848,7 +848,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       /* Inherit transform from base object */
       copy_m4_m4(lod_dupli.mat, ob->object_to_world().ptr());
 
-      lod_dupli.type = OB_DUPLICOLLECTION; /* arbitrary but stable */ // TODO: Change to `OB_DUPLI`?
+      lod_dupli.type = OB_DUPLICOLLECTION; /* arbitrary but stable */
       lod_dupli.level = 0;
       lod_dupli.no_draw = 0;
 
@@ -870,6 +870,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       continue;
     }
 
+    /* Dupli-child LOD + draw pipeline */
     dupli_map.clear();
     for (DupliObject &dupli : duplilist) {
 
@@ -877,14 +878,25 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
         continue;
       }
 
-      /* TODO: Optimize.
-       * We can't check the dupli.ob since visibility may be different than the dupli itself.
-       * But we should be able to check the dupli visibility without creating a temp object. */
-#if 0
-      if (!should_draw_object_cb(*dupli.ob)) {
-        continue;
+      /* Dupli-child LOD selection */
+      ObjectRef dupli_ref_probe(dupli.ob, ob, &dupli);
+      Object *dupli_lod_target = DRW_object_lod_select(dupli_ref_probe, draw_ctx);
+
+      if (dupli_lod_target) {
+        /* Replace dupli with **synthetic** LOD dupli */
+        DupliObject lod_dupli = dupli;
+
+        lod_dupli.ob = dupli_lod_target;
+        lod_dupli.ob_data = static_cast<ID *>(dupli_lod_target->data);
+
+        /* Preserve dupli transform */
+        copy_m4_m4(lod_dupli.mat, dupli.mat);
+
+        lod_dupli.persistent_id[1] = 0x4C4F44; /* 'LOD' */
+        lod_dupli.random_id = BLI_hash_int(lod_dupli.persistent_id[0]);
+
+        dupli = lod_dupli;
       }
-#endif
 
       if (!engines_support_handle_ranges || !supports_handle_ranges(&dupli, ob)) {
         /* Sync the dupli as a single object. */
