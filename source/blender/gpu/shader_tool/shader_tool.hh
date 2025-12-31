@@ -2412,7 +2412,7 @@ class Preprocessor {
   }
 
   /* Create default initializer (empty brace) for all classes. */
-  void lower_default_constructors(Parser &parser, report_callback /*report_error*/)
+  void lower_default_constructors(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -2456,7 +2456,18 @@ class Preprocessor {
             };
 
             if (array.is_valid()) {
-              /* Revert to uninitialized values for now. Cannot assign arrays. */
+              int array_len = static_array_size(array, report_error, 0);
+              if (array_len == 0) {
+                decl += "for(int i=0;i < " + array.str_exclusive() + ";i++){";
+                decl += "r." + name.str() + "[i]=" + default_value(type.str()) + ";";
+                decl += "}";
+              }
+              else {
+                for (int i = 0; i < array_len; i++) {
+                  decl += "r." + name.str() + "[" + to_string(i) + "]";
+                  decl += "=" + default_value(type.str()) + ";";
+                }
+              }
             }
             else {
               /* Assigning members one by one as the foreach decl iterator can be out of order. */
