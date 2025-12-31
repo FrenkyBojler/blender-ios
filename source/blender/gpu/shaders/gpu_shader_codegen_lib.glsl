@@ -83,13 +83,13 @@ enum ClosureType : uchar {
   CLOSURE_BSSRDF_BURLEY_ID = 14u,
 };
 
-struct ClosureUndetermined {
+struct [[host_shared]] ClosureUndetermined {
   packed_float3 color;
   float weight;
   packed_float3 N;
-  ClosureType type;
+  enum ClosureType type;
   /* Additional data different for each closure type. */
-  packed_float4 data;
+  float4 data;
 };
 
 ClosureUndetermined closure_new(ClosureType type)
@@ -221,7 +221,9 @@ struct GlobalData {
   /** Geometric Normal. */
   packed_float3 Ng;
   /** Curve Tangent Space. */
-  packed_float3 curve_T, curve_B, curve_N;
+  packed_float3 curve_T;
+  packed_float3 curve_B;
+  packed_float3 curve_N;
   /** Barycentric coordinates. */
   packed_float2 barycentric_coords;
   packed_float3 barycentric_dists;

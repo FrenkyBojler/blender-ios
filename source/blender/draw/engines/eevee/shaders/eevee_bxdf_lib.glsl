@@ -28,7 +28,7 @@ struct ClosureLight {
   /* Shading normal. */
   packed_float3 N;
   /* Enum used as index to fetch which light intensity to use [0..3]. */
-  LightingType type;
+  LightingType type = LIGHT_DIFFUSE;
   /* Output both shadowed and unshadowed for shadow denoising. */
   packed_float3 light_shadowed;
   packed_float3 light_unshadowed;

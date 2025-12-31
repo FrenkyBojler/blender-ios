@@ -562,6 +562,8 @@ class Preprocessor {
         lower_using(parser, report_error);
         lower_namespaces(parser, report_error);
         lower_scope_resolution_operators(parser, report_error);
+        /* Lower default constructor for compatible classes. */
+        lower_default_constructors(parser, report_error);
         /* Lower unions and then lint shared structures. */
         lower_unions(parser, report_error);
         lower_host_shared_structures(parser, report_error);
@@ -2409,6 +2411,67 @@ class Preprocessor {
     });
   }
 
+  /* Create default initializer (empty brace) for all classes. */
+  void lower_default_constructors(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    std::unordered_set<string> builtin_types = {
+        "bool32_t",     "float2",        "packed_float2", "float3",   "packed_float3",
+        "float4",       "packed_float4", "float2x2",      "float2x3", "float2x4",
+        "float3x2",     "float3x3",      "float3x4",      "float4x2", "float4x3",
+        "float4x4",     "float2x2",      "float3x3",      "float4x4", "int2",
+        "int3",         "packed_int3",   "int4",          "uint2",    "uint3",
+        "packed_uint3", "uint4",         "bool2",         "bool3",    "bool4",
+    };
+
+    parser().foreach_struct([&](Token, Scope attributes, Token name, Scope body) {
+      /* Don't do host shared structures. */
+      if (attributes.is_valid()) {
+        return;
+      }
+
+      int decl_count = 0;
+      string decl = "static " + name.str() + " ctor_() { return {";
+      body.foreach_declaration(
+          [&](Scope member_attr, Token, Token type, Scope, Token, Scope array, Token) {
+            if (array.is_valid() || member_attr.is_valid()) {
+              /* Abort, do not generate constructor for structures with arrays (usually
+               * host_shared) or that have attributes (resource_table). Keep it simple for now. */
+              decl_count = -999999;
+              return;
+            }
+
+            if (type.str() == "float") {
+              decl += "0.0f, ";
+            }
+            else if (type.str() == "uint" || type.str() == "uchar") {
+              decl += "0u, ";
+            }
+            else if (type.str() == "int" || type.str() == "char") {
+              decl += "0, ";
+            }
+            else if (type.str() == "bool") {
+              decl += "false, ";
+            }
+            else if (builtin_types.find(type.str()) != builtin_types.end()) {
+              decl += type.str() + "(0), ";
+            }
+            else {
+              decl += type.str() + "{}, ";
+            }
+
+            decl_count++;
+          });
+      decl += "}; }";
+
+      if (decl_count > 0) {
+        parser.insert_after(body.front().str_index_last_no_whitespace(), decl);
+      }
+    });
+  }
+
   /* Make all members of a class to be referenced using `this->`. */
   void lower_implicit_member(Parser &parser, report_callback report_error)
   {
@@ -2577,37 +2640,41 @@ class Preprocessor {
     parser().foreach_struct([&](Token, Scope, const Token, const Scope struct_scope) {
       const Token struct_end = struct_scope.back().next();
 
-      bool has_methods = false;
-      struct_scope.foreach_function(
-          [&](bool, Token, Token, Scope, bool, Scope) { has_methods = true; });
-      if (!has_methods) {
+      int method_len = 0;
+      struct_scope.foreach_function([&](bool, Token, Token, Scope, bool, Scope) { method_len++; });
+      if (method_len == 0) {
         /* Avoid uneeded preprocessor directives. */
         return;
       }
 
-      /* First output prototypes. Not needed on metal because of wrapper class. */
-      parser.insert_after(struct_end, "\n#ifndef GPU_METAL\n");
-      struct_scope.foreach_function(
-          [&](bool is_static, Token fn_type, Token, Scope fn_args, bool, Scope) {
-            const Token fn_start = is_static ? fn_type.prev() : fn_type;
+      /* Add prototypes to allow arbitrary order of definition inside a class.
+       * Can be skipped if there is only one method. */
+      if (method_len > 1) {
+        /* First output prototypes. Not needed on metal because of wrapper class. */
+        parser.insert_after(struct_end, "\n#ifndef GPU_METAL\n");
+        struct_scope.foreach_function(
+            [&](bool is_static, Token fn_type, Token, Scope fn_args, bool, Scope) {
+              const Token fn_start = is_static ? fn_type.prev() : fn_type;
 
-            string proto_str = parser.substr_range_inclusive(fn_start, fn_args.back());
-            proto_str = Preprocessor::strip_whitespace(proto_str) + ";\n";
-            Parser proto(proto_str, report_error);
+              string proto_str = parser.substr_range_inclusive(fn_start, fn_args.back());
+              proto_str = Preprocessor::strip_whitespace(proto_str) + ";\n";
+              Parser proto(proto_str, report_error);
 
-            /* Remove [[resource_table]] and other attributes that could create issues. */
-            proto().foreach_match("[[", [&](Tokens toks) { proto.replace(toks[0].scope(), ""); });
+              /* Remove [[resource_table]] and other attributes that could create issues. */
+              proto().foreach_match("[[",
+                                    [&](Tokens toks) { proto.replace(toks[0].scope(), ""); });
 
-            parser.insert_after(struct_end, proto.result_get());
-          });
-      parser.insert_after(struct_end, "#endif\n");
+              parser.insert_after(struct_end, proto.result_get());
+            });
+        parser.insert_after(struct_end, "#endif\n");
+      }
 
       struct_scope.foreach_function(
           [&](bool is_static, Token fn_type, Token, Scope, bool, Scope fn_body) {
             const Token fn_start = is_static ? fn_type.prev() : fn_type;
 
             string fn_str = parser.substr_range_inclusive(fn_start, fn_body.back());
-            fn_str = string(fn_start.char_number(), ' ') + fn_str;
+            fn_str = string(fn_start.char_number(), ' ') + fn_str + "\n";
 
             parser.erase(fn_start, fn_body.back());
             parser.insert_line_number(struct_end, fn_start.line_number());
@@ -3161,7 +3228,8 @@ class Preprocessor {
           type_info = {4, 4};
           parser.erase(type.prev());
           /* Make sure that linted structs only contain other linted structs. */
-          parser.replace(type, type.str() + linted_struct_suffix + " ");
+          /* TODO(fclem): Conflicts with default ctor. */
+          // parser.replace(type, type.str() + linted_struct_suffix + " ");
         }
         else if (type.prev() == Struct) {
           /* Only 4 bytes enums are allowed. */
@@ -3169,7 +3237,8 @@ class Preprocessor {
           /* Erase redundant struct keyword. */
           parser.erase(type.prev());
           /* Make sure that linted structs only contain other linted structs. */
-          parser.replace(type, type.str() + linted_struct_suffix + " ");
+          /* TODO(fclem): Conflicts with default ctor. */
+          // parser.replace(type, type.str() + linted_struct_suffix + " ");
         }
         else {
           report_error(ERROR_TOK(type),
@@ -3543,13 +3612,16 @@ class Preprocessor {
         if (t[0].prev() == Struct) {
           return;
         }
-        if (t[1].scope().token_count() == 2) {
-          report_error(ERROR_TOK(t[0]), "Empty brace initializer is not supported");
-        }
         if (builtin_types.find(t[0].str()) != builtin_types.end()) {
           report_error(ERROR_TOK(t[0]),
                        "Aggregate is error prone for built-in vector and matrix types, use "
                        "constructors instead");
+        }
+        if (t[1].scope().token_count() == 2) {
+          /* Call generated default ctor. */
+          parser.insert_after(t.front(), "_ctor_");
+          parser.replace(t[1], t[4], "()");
+          return;
         }
         /* Lint for nested aggregates. */
         Token nested_aggregate_end = t[1].scope().find_token(BracketClose);
