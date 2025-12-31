@@ -69,7 +69,7 @@ static wmOperatorStatus object_lod_add_exec(bContext *C, wmOperator * /*op*/)
 void OBJECT_OT_lod_add(wmOperatorType *ot)
 {
   ot->name = "Add LOD";
-  ot->description = "Add a Distance LOD entry to the active object";
+  ot->description = "Add an LOD entry to the active object";
   ot->idname = "OBJECT_OT_lod_add";
 
   ot->exec = object_lod_add_exec;
@@ -103,7 +103,7 @@ static wmOperatorStatus object_lod_remove_exec(bContext *C, wmOperator * /*op*/)
 void OBJECT_OT_lod_remove(wmOperatorType *ot)
 {
   ot->name = "Remove LOD";
-  ot->description = "Remove the active Distance LOD entry from the active object";
+  ot->description = "Remove the last LOD entry from the active object";
   ot->idname = "OBJECT_OT_lod_remove";
 
   ot->exec = object_lod_remove_exec;
