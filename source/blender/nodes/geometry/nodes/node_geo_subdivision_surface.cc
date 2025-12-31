@@ -49,7 +49,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Place vertices at the surface that would be produced with infinite "
           "levels of subdivision (smoothest possible shape)");
-  b.add_input<decl::Int>("Quality").default_value(3).min(1).max(6).description(
+  b.add_input<decl::Int>("Quality").default_value(3).min(1).max(10).description(
       "Accuracy of vertex positions, lower value is faster but less precise.");
   b.add_input<decl::Menu>("UV Smooth")
       .static_items(rna_enum_subdivision_uv_smooth_items)
@@ -112,7 +112,6 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
                                const bool use_limit_surface,
                                bool &r_failed)
 {
-  const int quality_input = std::clamp(quality, 1, 10);
   const bke::MeshFieldContext point_context{*mesh, AttrDomain::Point};
   FieldEvaluator point_evaluator(point_context, mesh->verts_num);
   point_evaluator.add(clamp_crease(vert_crease_field));
@@ -147,7 +146,7 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
   subdiv_settings.is_simple = false;
   subdiv_settings.is_adaptive = use_limit_surface;
   subdiv_settings.use_creases = use_creases;
-  subdiv_settings.level = use_limit_surface ? quality_input : level;
+  subdiv_settings.level = use_limit_surface ? quality : level;
   subdiv_settings.vtx_boundary_interpolation =
       bke::subdiv::vtx_boundary_interpolation_from_subsurf(boundary_smooth);
   subdiv_settings.fvar_linear_interpolation = bke::subdiv::fvar_interpolation_from_uv_smooth(
@@ -195,7 +194,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int uv_smooth = params.get_input<eSubsurfUVSmooth>("UV Smooth");
   const int boundary_smooth = params.get_input<eSubsurfBoundarySmooth>("Boundary Smooth");
   const int level = std::max(params.extract_input<int>("Level"), 0);
-  const int quality = std::max(params.extract_input<int>("Quality"), 1);
+  const int quality = std::clamp(params.extract_input<int>("Quality"), 1, 10);
   const bool use_limit_surface = params.extract_input<bool>("Limit Surface");
   if (level == 0) {
     params.set_output("Mesh", std::move(geometry_set));
