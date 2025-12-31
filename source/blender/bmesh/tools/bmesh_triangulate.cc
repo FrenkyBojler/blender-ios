@@ -25,6 +25,8 @@
 
 #include "bmesh_triangulate.hh" /* own include */
 
+namespace blender {
+
 /**
  * a version of #BM_face_triangulate that maps to #BMOpSlot
  */
@@ -153,3 +155,5 @@ void BM_mesh_triangulate(BMesh *bm,
     BLI_heap_free(pf_heap, nullptr);
   }
 }
+
+}  // namespace blender

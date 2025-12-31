@@ -25,6 +25,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+namespace blender {
+
 /* Enum defines exported for `rna_animation.cc`. */
 
 const EnumPropertyItem rna_enum_nla_mode_blend_items[] = {
@@ -69,6 +71,8 @@ const EnumPropertyItem rna_enum_nla_mode_extend_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include <fmt/format.h>
@@ -86,6 +90,8 @@ const EnumPropertyItem rna_enum_nla_mode_extend_items[] = {
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
+
+namespace blender {
 
 static void rna_NlaStrip_name_set(PointerRNA *ptr, const char *value)
 {
@@ -431,7 +437,7 @@ static void rna_NlaStrip_use_auto_blend_set(PointerRNA *ptr, bool value)
 
 static void rna_NlaStrip_action_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
-  using namespace blender::animrig;
+  using namespace animrig;
   BLI_assert(ptr->owner_id);
   BLI_assert(ptr->data);
 
@@ -478,8 +484,8 @@ static int rna_NlaStrip_action_editable(const PointerRNA *ptr, const char ** /*r
   return PROP_EDITABLE;
 }
 
-static void rna_NlaStrip_action_slot_handle_set(
-    PointerRNA *ptr, const blender::animrig::slot_handle_t new_slot_handle)
+static void rna_NlaStrip_action_slot_handle_set(PointerRNA *ptr,
+                                                const animrig::slot_handle_t new_slot_handle)
 {
   NlaStrip *strip = static_cast<NlaStrip *>(ptr->data);
   rna_generic_action_slot_handle_set(new_slot_handle,
@@ -716,7 +722,11 @@ static void rna_NlaTrack_solo_set(PointerRNA *ptr, bool value)
   }
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_strip_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -1240,5 +1250,7 @@ void RNA_def_nla(BlenderRNA *brna)
   rna_def_nlatrack(brna);
   rna_def_nlastrip(brna);
 }
+
+}  // namespace blender
 
 #endif

@@ -29,7 +29,7 @@
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
 
-using blender::StringRef;
+namespace blender {
 
 /* edge and vertex share, currently there's no need to have different logic */
 static void bm_data_interp_from_elem(CustomData *data_layer,
@@ -1038,9 +1038,8 @@ void BM_elem_float_data_set(CustomData *cd, void *element, int type, const float
   }
 }
 
-BMDataLayerLookup BM_data_layer_lookup(const BMesh &bm, const blender::StringRef name)
+BMDataLayerLookup BM_data_layer_lookup(const BMesh &bm, const StringRef name)
 {
-  using namespace blender;
   for (const CustomDataLayer &layer : Span(bm.vdata.layers, bm.vdata.totlayer)) {
     if (const std::optional<bke::AttrType> type = bke::custom_data_type_to_attr_type(
             eCustomDataType(layer.type)))
@@ -1325,3 +1324,5 @@ void BM_vert_loop_groups_data_layer_merge_weights(BMesh *bm,
 }
 
 /** \} */
+
+}  // namespace blender

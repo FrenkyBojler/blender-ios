@@ -49,6 +49,8 @@
 #include "BLI_sys_types.h" /* For `intptr_t` support. */
 #include "BLI_utildefines.h"
 
+namespace blender {
+
 /** Sizes above this must be allocated. */
 #define FILE_MAX_STATIC_BUF 256
 
@@ -1272,7 +1274,7 @@ int BLI_delete_soft(const char *filepath, const char **r_error_message)
 
   if (pid == 0) {
     /* Child process. */
-    execvp(args[0], static_cast<char **>(args));
+    execvp(args[0], const_cast<char **>(args));
     /* This should only be reached if `execvp` fails and stack isn't replaced. */
 
     /* Ensure outputs are flushed as `_exit` doesn't flush. */
@@ -1568,3 +1570,5 @@ int BLI_create_symlink(const char *path_src, const char *path_dst)
 #  endif
 
 #endif
+
+}  // namespace blender

@@ -15,6 +15,8 @@
 
 #ifdef RNA_RUNTIME
 
+namespace blender {
+
 static void rna_Sound_pack(bSound *sound, Main *bmain, ReportList *reports)
 {
   sound->packedfile = BKE_packedfile_new(
@@ -37,7 +39,11 @@ static void rna_Sound_unpack(bSound *sound, Main *bmain, ReportList *reports, in
   BKE_packedfile_unpack_sound(bmain, reports, sound, ePF_FileStatus(method));
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_sound(StructRNA *srna)
 {
@@ -53,5 +59,7 @@ void RNA_api_sound(StructRNA *srna)
   RNA_def_enum(
       func, "method", rna_enum_unpack_method_items, PF_USE_LOCAL, "method", "How to unpack");
 }
+
+}  // namespace blender
 
 #endif

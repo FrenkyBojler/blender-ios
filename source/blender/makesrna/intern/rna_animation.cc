@@ -25,7 +25,7 @@
 
 #include "ED_keyframing.hh"
 
-using namespace blender;
+namespace blender {
 
 /* exported for use in API */
 const EnumPropertyItem rna_enum_keyingset_path_grouping_items[] = {
@@ -84,6 +84,8 @@ const EnumPropertyItem rna_enum_keying_flag_api_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -109,6 +111,8 @@ const EnumPropertyItem rna_enum_keying_flag_api_items[] = {
 #  include "WM_api.hh"
 
 #  include "UI_interface_icons.hh"
+
+namespace blender {
 
 static void rna_AnimData_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
@@ -203,7 +207,7 @@ static PointerRNA rna_AnimData_action_get(PointerRNA *ptr)
 
 static void rna_AnimData_action_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
-  using namespace blender::animrig;
+  using namespace animrig;
   BLI_assert(ptr->owner_id);
   ID &animated_id = *ptr->owner_id;
 
@@ -220,7 +224,7 @@ static void rna_AnimData_tmpact_set(PointerRNA *ptr, PointerRNA value, ReportLis
   BLI_assert(adt != nullptr);
 
   bAction *action = static_cast<bAction *>(value.data);
-  if (!blender::animrig::assign_tmpaction(action, {*owner_id, *adt})) {
+  if (!animrig::assign_tmpaction(action, {*owner_id, *adt})) {
     BKE_report(reports, RPT_WARNING, "Failed to set temporary action");
   }
 }
@@ -269,13 +273,13 @@ bool rna_AnimData_tweakmode_override_apply(Main * /*bmain*/,
   return true;
 }
 
-void rna_generic_action_slot_handle_set(blender::animrig::slot_handle_t slot_handle_to_assign,
+void rna_generic_action_slot_handle_set(animrig::slot_handle_t slot_handle_to_assign,
                                         ID &animated_id,
                                         bAction *&action_ptr_ref,
-                                        blender::animrig::slot_handle_t &slot_handle_ref,
+                                        animrig::slot_handle_t &slot_handle_ref,
                                         char *slot_name)
 {
-  using namespace blender::animrig;
+  using namespace animrig;
 
   const ActionSlotAssignmentResult result = generic_assign_action_slot_handle(
       slot_handle_to_assign, animated_id, action_ptr_ref, slot_handle_ref, slot_name);
@@ -300,8 +304,8 @@ void rna_generic_action_slot_handle_set(blender::animrig::slot_handle_t slot_han
   }
 }
 
-static void rna_AnimData_action_slot_handle_set(
-    PointerRNA *ptr, const blender::animrig::slot_handle_t new_slot_handle)
+static void rna_AnimData_action_slot_handle_set(PointerRNA *ptr,
+                                                const animrig::slot_handle_t new_slot_handle)
 {
   ID &animated_id = *ptr->owner_id;
   AnimData *adt = BKE_animdata_from_id(&animated_id);
@@ -318,7 +322,7 @@ static AnimData &rna_animdata(const PointerRNA *ptr)
 PointerRNA rna_generic_action_slot_get(bAction *dna_action,
                                        const animrig::slot_handle_t slot_handle)
 {
-  using namespace blender::animrig;
+  using namespace animrig;
 
   if (!dna_action || slot_handle == Slot::unassigned) {
     return PointerRNA_NULL;
@@ -341,11 +345,11 @@ static PointerRNA rna_AnimData_action_slot_get(PointerRNA *ptr)
 void rna_generic_action_slot_set(PointerRNA rna_slot_to_assign,
                                  ID &animated_id,
                                  bAction *&action_ptr_ref,
-                                 blender::animrig::slot_handle_t &slot_handle_ref,
+                                 animrig::slot_handle_t &slot_handle_ref,
                                  char *slot_name,
                                  ReportList *reports)
 {
-  using namespace blender::animrig;
+  using namespace animrig;
 
   ActionSlot *dna_slot = static_cast<ActionSlot *>(rna_slot_to_assign.data);
   Slot *slot = dna_slot ? &dna_slot->wrap() : nullptr;
@@ -392,7 +396,7 @@ static void rna_AnimData_action_slot_set(PointerRNA *ptr, PointerRNA value, Repo
 static void rna_AnimData_action_slot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   /* TODO: see if this is still necessary. */
-  blender::animrig::Slot::users_invalidate(*bmain);
+  animrig::Slot::users_invalidate(*bmain);
   rna_AnimData_dependency_update(bmain, scene, ptr);
 }
 
@@ -555,7 +559,7 @@ static bool rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
   /* unlink Blender-side data */
-  blender::animrig::keyingset_info_unregister(bmain, ksi);
+  animrig::keyingset_info_unregister(bmain, ksi);
   return true;
 }
 
@@ -593,7 +597,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   }
 
   /* check if we have registered this info before, and remove it */
-  ksi = blender::animrig::keyingset_info_find_name(dummy_ksi.idname);
+  ksi = animrig::keyingset_info_find_name(dummy_ksi.idname);
   if (ksi) {
     BKE_reportf(reports,
                 RPT_INFO,
@@ -633,7 +637,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   ksi->generate = (have_function[2]) ? RKS_GEN_rna_internal : nullptr;
 
   /* add and register with other info as needed */
-  blender::animrig::keyingset_info_register(ksi);
+  animrig::keyingset_info_register(ksi);
 
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
@@ -792,7 +796,7 @@ static PointerRNA rna_KeyingSet_typeinfo_get(PointerRNA *ptr)
 
   /* keying set info is only for builtin Keying Sets */
   if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
-    ksi = blender::animrig::keyingset_info_find_name(ks->typeinfo);
+    ksi = animrig::keyingset_info_find_name(ks->typeinfo);
   }
   return RNA_pointer_create_with_parent(*ptr, &RNA_KeyingSetInfo, ksi);
 }
@@ -1119,7 +1123,11 @@ bool rna_NLA_tracks_override_apply(Main *bmain, RNAPropertyOverrideApplyContext 
   return true;
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 /* helper function for Keying Set -> keying settings */
 static void rna_def_common_keying_flags(StructRNA *srna, short reg)
@@ -1812,5 +1820,7 @@ void RNA_def_animation(BlenderRNA *brna)
   rna_def_keyingset_path(brna);
   rna_def_keyingset_info(brna);
 }
+
+}  // namespace blender
 
 #endif

@@ -29,6 +29,8 @@
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
 
+namespace blender {
+
 BMLoop *BM_face_other_edge_loop(BMFace *f, BMEdge *e, BMVert *v)
 {
   BMLoop *l = BM_face_edge_share_loop(f, e);
@@ -2497,3 +2499,5 @@ float bmesh_subd_falloff_calc(const int falloff, float val)
 
   return val;
 }
+
+}  // namespace blender

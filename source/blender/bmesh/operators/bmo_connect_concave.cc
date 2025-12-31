@@ -31,6 +31,8 @@
 
 #include "intern/bmesh_operators_private.hh" /* own include */
 
+namespace blender {
+
 #define EDGE_OUT (1 << 0)
 #define FACE_OUT (1 << 1)
 
@@ -217,3 +219,5 @@ void bmo_connect_verts_concave_exec(BMesh *bm, BMOperator *op)
   BLI_memarena_free(pf_arena);
   BLI_heap_free(pf_heap, nullptr);
 }
+
+}  // namespace blender

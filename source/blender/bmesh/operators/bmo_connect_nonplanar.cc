@@ -16,6 +16,8 @@
 
 #include "intern/bmesh_operators_private.hh" /* own include */
 
+namespace blender {
+
 #define EDGE_OUT (1 << 0)
 #define FACE_OUT (1 << 1)
 
@@ -168,3 +170,5 @@ void bmo_connect_verts_nonplanar_exec(BMesh *bm, BMOperator *op)
     BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "faces.out", BM_FACE, FACE_OUT);
   }
 }
+
+}  // namespace blender

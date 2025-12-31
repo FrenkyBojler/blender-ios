@@ -35,6 +35,8 @@
 #  define PyLong_AsInt _PyLong_AsInt
 #endif
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Fast Python to C Array Conversion for Primitive Types
  * \{ */
@@ -1946,3 +1948,5 @@ bool PyC_StructFmt_type_is_bool(char format)
 }
 
 /** \} */
+
+}  // namespace blender

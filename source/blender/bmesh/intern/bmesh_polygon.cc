@@ -29,9 +29,7 @@
 
 #include "intern/bmesh_private.hh"
 
-using blender::float2;
-using blender::float3;
-using blender::Span;
+namespace blender {
 
 /**
  * Return an angle in the range: `[0.0..M_PI * 2]`.
@@ -104,8 +102,9 @@ static float bm_face_calc_poly_normal_vertex_cos(const BMFace *f,
 /**
  * \brief COMPUTE POLY CENTER (BMFace)
  */
-static void bm_face_calc_poly_center_median_vertex_cos(
-    const BMFace *f, float r_cent[3], const blender::Span<blender::float3> vert_positions)
+static void bm_face_calc_poly_center_median_vertex_cos(const BMFace *f,
+                                                       float r_cent[3],
+                                                       const Span<float3> vert_positions)
 {
   const BMLoop *l_first, *l_iter;
 
@@ -630,7 +629,7 @@ void BM_face_calc_center_bounds(const BMFace *f, float r_cent[3])
 void BM_face_calc_center_bounds_vcos(const BMesh *bm,
                                      const BMFace *f,
                                      float r_cent[3],
-                                     const blender::Span<blender::float3> vert_positions)
+                                     const Span<float3> vert_positions)
 {
   /* must have valid index data */
   BLI_assert((bm->elem_index_dirty & BM_VERT) == 0);
@@ -724,7 +723,7 @@ static void bm_loop_normal_accum(const BMLoop *l, float no[3])
   normalize_v3(vec1);
   normalize_v3(vec2);
 
-  fac = blender::math::safe_acos_approx(-dot_v3v3(vec1, vec2));
+  fac = math::safe_acos_approx(-dot_v3v3(vec1, vec2));
 
   madd_v3_v3fl(no, l->f->no, fac);
 }
@@ -1010,7 +1009,7 @@ float BM_face_calc_normal_subset(const BMLoop *l_first, const BMLoop *l_last, fl
 void BM_face_calc_center_median_vcos(const BMesh *bm,
                                      const BMFace *f,
                                      float r_cent[3],
-                                     const blender::Span<blender::float3> vert_positions)
+                                     const Span<float3> vert_positions)
 {
   /* must have valid index data */
   BLI_assert((bm->elem_index_dirty & BM_VERT) == 0);
@@ -1340,8 +1339,8 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
       continue;
     }
 
-    const float2 pair_dir = blender::math::normalize(float2(co_pair[1]) - float2(co_pair[0]));
-    for (const int side : blender::IndexRange(2)) {
+    const float2 pair_dir = math::normalize(float2(co_pair[1]) - float2(co_pair[0]));
+    for (const int side : IndexRange(2)) {
       const float2 co = float2(co_pair[side]);
       BMLoop *l_prev = l_pair[side]->prev;
       BMLoop *l_next = l_pair[side]->next;
@@ -1364,8 +1363,8 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
       const float2 co_next = float2(projverts[BM_elem_index_get(l_next)]);
 
       const float2 dir_other = side == 0 ? pair_dir : -pair_dir;
-      const float2 dir_prev = blender::math::normalize(co_prev - co);
-      const float2 dir_next = blender::math::normalize(co_next - co);
+      const float2 dir_prev = math::normalize(co_prev - co);
+      const float2 dir_next = math::normalize(co_next - co);
 
       if (angle_signed_v2v2_pos(dir_prev, dir_other) > angle_signed_v2v2_pos(dir_prev, dir_next)) {
         loops[i][0] = nullptr;
@@ -1477,3 +1476,5 @@ void BM_face_as_array_loop_quad(BMFace *f, BMLoop *r_loops[4])
   l = l->next;
   r_loops[3] = l;
 }
+
+}  // namespace blender

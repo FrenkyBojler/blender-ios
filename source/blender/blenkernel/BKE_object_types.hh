@@ -17,13 +17,15 @@
 
 #include "DNA_customdata_types.h" /* #CustomData_MeshMasks. */
 
+namespace blender {
+
 struct Curve;
 struct CurveCache;
 struct ID;
 struct Mesh;
 struct PoseBackup;
 
-namespace blender::bke {
+namespace bke {
 
 struct GeometrySet;
 
@@ -118,7 +120,7 @@ struct ObjectRuntime {
    * This is a curve representation of corresponding object.
    * It created when Python calls `object.to_curve()`.
    */
-  ::Curve *object_as_temp_curve = nullptr;
+  Curve *object_as_temp_curve = nullptr;
 
   /** Runtime evaluated curve-specific data, not stored in the file. */
   CurveCache *curve_cache = nullptr;
@@ -134,4 +136,5 @@ struct ObjectRuntime {
   uint64_t last_update_shading = 0;
 };
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

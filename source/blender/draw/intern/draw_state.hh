@@ -8,6 +8,8 @@
 
 #include "BLI_enum_flags.hh"
 
+namespace blender {
+
 /** \file
  * \ingroup draw
  *
@@ -94,7 +96,7 @@ ENUM_OPERATORS(DRWState);
   (DRW_STATE_WRITE_STENCIL | DRW_STATE_WRITE_STENCIL_SHADOW_PASS | \
    DRW_STATE_WRITE_STENCIL_SHADOW_FAIL)
 
-namespace blender::draw {
+namespace draw {
 
 /* -------------------------------------------------------------------- */
 /** \name DRWState to GPU state conversion
@@ -219,4 +221,6 @@ static inline GPUProvokingVertex to_provoking_vertex(DRWState state)
 
 /** \} */
 
-};  // namespace blender::draw
+};  // namespace draw
+
+}  // namespace blender

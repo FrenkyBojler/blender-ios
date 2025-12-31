@@ -55,6 +55,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Internal UIDWalk API
  * \{ */
@@ -78,8 +80,7 @@ struct BMElemIndexEq {
   }
 };
 
-using BMFaceIndexSet =
-    blender::Set<BMFace *, 4, blender::DefaultProbingStrategy, BMElemIndexHash, BMElemIndexEq>;
+using BMFaceIndexSet = Set<BMFace *, 4, DefaultProbingStrategy, BMElemIndexHash, BMElemIndexEq>;
 
 struct UIDFaceStep;
 struct UIDFaceStepItem;
@@ -933,7 +934,7 @@ static bool bm_edge_is_region_boundary(BMEdge *e)
   return true;
 }
 
-static void bm_face_region_pivot_edge_use_best(const blender::Map<BMVert *, SUID_Int> &gh,
+static void bm_face_region_pivot_edge_use_best(const Map<BMVert *, SUID_Int> &gh,
                                                BMEdge *e_test,
                                                BMEdge **r_e_pivot_best,
                                                SUID_Int e_pivot_best_id[2])
@@ -991,7 +992,7 @@ static SUID_Int bm_face_region_vert_boundary_id(BMVert *v)
 /**
  * Accumulate id's from a previous pass (swap sign each pass)
  */
-static SUID_Int bm_face_region_vert_pass_id(const blender::Map<BMVert *, SUID_Int> &gh, BMVert *v)
+static SUID_Int bm_face_region_vert_pass_id(const Map<BMVert *, SUID_Int> &gh, BMVert *v)
 {
   BMIter eiter;
   BMEdge *e;
@@ -1059,7 +1060,7 @@ static BMEdge *bm_face_region_pivot_edge_find(BMFace **faces_region,
   BLI_LINKSTACK_DECLARE(vert_queue_prev, BMVert *);
   BLI_LINKSTACK_DECLARE(vert_queue_next, BMVert *);
 
-  blender::Map<BMVert *, SUID_Int> gh;
+  Map<BMVert *, SUID_Int> gh;
   uint i;
 
   BMEdge *e_pivot = nullptr;
@@ -1468,3 +1469,5 @@ int BM_mesh_region_match(BMesh *bm,
 
   return int(faces_result_len);
 }
+
+}  // namespace blender

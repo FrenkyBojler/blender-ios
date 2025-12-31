@@ -25,6 +25,8 @@
 
 #  include "ED_text.hh"
 
+namespace blender {
+
 static void rna_Text_filepath_get(PointerRNA *ptr, char *value)
 {
   const Text *text = static_cast<const Text *>(ptr->data);
@@ -161,7 +163,11 @@ static void rna_TextLine_body_set(PointerRNA *ptr, const char *value)
   MEM_SAFE_FREE(line->format);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_text_line(BlenderRNA *brna)
 {
@@ -290,5 +296,7 @@ void RNA_def_text(BlenderRNA *brna)
   rna_def_text_line(brna);
   rna_def_text(brna);
 }
+
+}  // namespace blender
 
 #endif

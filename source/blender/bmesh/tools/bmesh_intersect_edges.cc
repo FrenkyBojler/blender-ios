@@ -24,6 +24,8 @@
 
 #include "bmesh_intersect_edges.hh" /* own include */
 
+namespace blender {
+
 // #define INTERSECT_EDGES_DEBUG
 
 #define KDOP_TREE_TYPE 4
@@ -1013,7 +1015,7 @@ bool BM_mesh_intersect_edges(
           }
 
           if (best_face) {
-            blender::Vector<BMFace *> face_arr;
+            Vector<BMFace *> face_arr;
             BM_face_split_edgenet(bm, best_face, edgenet, edgenet_len, &face_arr);
             /* Update the new faces normal.
              * Normal is necessary to obtain the best face for edgenet */
@@ -1044,3 +1046,5 @@ bool BM_mesh_intersect_edges(
 }
 
 /** \} */
+
+}  // namespace blender

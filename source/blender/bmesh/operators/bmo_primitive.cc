@@ -22,6 +22,8 @@
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh"
 
+namespace blender {
+
 /* ************************ primitives ******************* */
 
 static const float icovert[12][3] = {
@@ -1731,3 +1733,5 @@ void BM_mesh_calc_uvs_cube(BMesh *bm, const short oflag)
     }
   }
 }
+
+}  // namespace blender

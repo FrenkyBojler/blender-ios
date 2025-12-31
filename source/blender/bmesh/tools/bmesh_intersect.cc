@@ -44,6 +44,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 /*
  * Some of these depend on each other:
  */
@@ -111,7 +113,7 @@ struct ISectState {
   GHash *edgetri_cache; /* int[4]: BMVert */
   GHash *edge_verts;    /* BMEdge: LinkList(of verts), new and original edges */
   GHash *face_edges;    /* BMFace-index: LinkList(of edges), only original faces */
-  blender::Set<BMEdge *> *wire_edges;
+  Set<BMEdge *> *wire_edges;
   LinkNode *vert_dissolve; /* BMVert's */
 
   MemArena *mem_arena;
@@ -845,7 +847,7 @@ finally:
 
 struct RaycastData {
   const float **looptris;
-  blender::Vector<float, 64> *z_buffer;
+  Vector<float, 64> *z_buffer;
 };
 
 #  ifdef USE_KDOPBVH_WATERTIGHT
@@ -894,7 +896,7 @@ static void raycast_callback(void *userdata,
 
 static int isect_bvhtree_point_v3(BVHTree *tree, const float **looptris, const float co[3])
 {
-  blender::Vector<float, 64> z_buffer;
+  Vector<float, 64> z_buffer;
 
   RaycastData raycast_data = {
       looptris,
@@ -949,7 +951,7 @@ static int isect_bvhtree_point_v3(BVHTree *tree, const float **looptris, const f
 #endif /* USE_BVH */
 
 bool BM_mesh_intersect(BMesh *bm,
-                       const blender::Span<std::array<BMLoop *, 3>> looptris,
+                       const Span<std::array<BMLoop *, 3>> looptris,
                        int (*test_fn)(BMFace *f, void *user_data),
                        void *user_data,
                        const bool use_self,
@@ -985,7 +987,7 @@ bool BM_mesh_intersect(BMesh *bm,
 
   s.edge_verts = BLI_ghash_ptr_new(__func__);
   s.face_edges = BLI_ghash_int_new(__func__);
-  s.wire_edges = MEM_new<blender::Set<BMEdge *>>(__func__);
+  s.wire_edges = MEM_new<Set<BMEdge *>>(__func__);
   s.vert_dissolve = nullptr;
 
   s.mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
@@ -1410,7 +1412,7 @@ bool BM_mesh_intersect(BMesh *bm,
 
     /* Remove verts! */
     {
-      blender::Set<BMVert *> verts_invalid;
+      Set<BMVert *> verts_invalid;
 
       for (node = s.vert_dissolve; node; node = node->next) {
         /* arena allocated, don't free */
@@ -1664,3 +1666,5 @@ bool BM_mesh_intersect(BMesh *bm,
 
   return (has_edit_isect || has_edit_boolean);
 }
+
+}  // namespace blender

@@ -14,6 +14,8 @@
 
 #include "bmesh.hh"
 
+namespace blender {
+
 static BMVert *bm_vert_copy(BMesh *bm_dst,
                             const std::optional<BMCustomDataCopyMap> &cd_vert_map,
                             BMVert *v_src)
@@ -162,3 +164,5 @@ void BM_mesh_copy_arrays(BMesh *bm_src,
   MEM_freeN(verts_dst);
   MEM_freeN(edges_dst);
 }
+
+}  // namespace blender

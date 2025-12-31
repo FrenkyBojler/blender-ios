@@ -102,6 +102,8 @@
 #include "IMB_metadata.hh"
 #include "IMB_openexr.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"image.openexr"};
 
 using namespace Imf;
@@ -2418,3 +2420,5 @@ void imb_exitopenexr()
   /* Tells OpenEXR to free thread pool, also ensures there is no running tasks. */
   Imf::setGlobalThreadCount(0);
 }
+
+}  // namespace blender

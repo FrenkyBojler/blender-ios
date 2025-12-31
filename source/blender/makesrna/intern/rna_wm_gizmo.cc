@@ -48,6 +48,8 @@
 #    include "BPY_extern.hh"
 #  endif
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Gizmo API
  * \{ */
@@ -964,7 +966,11 @@ static void rna_GizmoGroup_gizmos_begin(CollectionPropertyIterator *iter, Pointe
 
 /** \} */
 
+}  // namespace blender
+
 #else /* RNA_RUNTIME */
+
+namespace blender {
 
 /* GizmoGroup.gizmos */
 static void rna_def_gizmos(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1532,5 +1538,7 @@ void RNA_def_wm_gizmo(BlenderRNA *brna)
 {
   rna_def_gizmogroup(brna);
 }
+
+}  // namespace blender
 
 #endif /* RNA_RUNTIME */

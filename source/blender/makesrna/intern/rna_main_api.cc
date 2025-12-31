@@ -100,6 +100,8 @@
 #  include "WM_api.hh"
 #  include "WM_types.hh"
 
+namespace blender {
+
 static void rna_idname_validate(const char *name, char *r_name)
 {
   BLI_strncpy(r_name, name, MAX_ID_NAME - 2);
@@ -160,7 +162,7 @@ static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
   }
 
   Main *bmain = reinterpret_cast<Main *>(blenddata);
-  blender::bke::library::pack_linked_id_hierarchy(*bmain, *root_id);
+  bke::library::pack_linked_id_hierarchy(*bmain, *root_id);
 
   ID *packed_root_id = root_id->newid;
   BKE_main_id_newptr_and_tag_clear(bmain);
@@ -266,7 +268,7 @@ static Material *rna_Main_materials_new(Main *bmain, const char *name)
   Material *material = BKE_material_add(bmain, safe_name);
   id_us_min(&material->id);
 
-  blender::nodes::node_tree_shader_default(nullptr, bmain, &material->id);
+  nodes::node_tree_shader_default(nullptr, bmain, &material->id);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -276,14 +278,14 @@ static Material *rna_Main_materials_new(Main *bmain, const char *name)
 static void rna_Main_materials_gpencil_data(Main * /*bmain*/, PointerRNA *id_ptr)
 {
   ID *id = static_cast<ID *>(id_ptr->data);
-  Material *ma = blender::id_cast<Material *>(id);
+  Material *ma = id_cast<Material *>(id);
   BKE_gpencil_material_attr_init(ma);
 }
 
 static void rna_Main_materials_gpencil_remove(Main * /*bmain*/, PointerRNA *id_ptr)
 {
   ID *id = static_cast<ID *>(id_ptr->data);
-  Material *ma = blender::id_cast<Material *>(id);
+  Material *ma = id_cast<Material *>(id);
   if (ma->gp_style) {
     MEM_SAFE_FREE(ma->gp_style);
   }
@@ -301,9 +303,9 @@ static bNodeTree *rna_Main_nodetree_new(Main *bmain, const char *name, int type)
   char safe_name[MAX_ID_NAME - 2];
   rna_idname_validate(name, safe_name);
 
-  blender::bke::bNodeTreeType *typeinfo = rna_node_tree_type_from_enum(type);
+  bke::bNodeTreeType *typeinfo = rna_node_tree_type_from_enum(type);
   if (typeinfo) {
-    bNodeTree *ntree = blender::bke::node_tree_add_tree(bmain, safe_name, typeinfo->idname);
+    bNodeTree *ntree = bke::node_tree_add_tree(bmain, safe_name, typeinfo->idname);
     BKE_main_ensure_invariants(*bmain);
 
     id_us_min(&ntree->id);
@@ -422,7 +424,7 @@ static Image *rna_Main_images_load(Main *bmain,
                 errno ? strerror(errno) : RPT_("unsupported image format"));
   }
 
-  id_us_min(blender::id_cast<ID *>(ima));
+  id_us_min(id_cast<ID *>(ima));
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -538,7 +540,7 @@ static World *rna_Main_worlds_new(Main *bmain, const char *name)
   World *world = BKE_world_add(bmain, safe_name);
   id_us_min(&world->id);
 
-  blender::nodes::node_tree_shader_default(nullptr, bmain, &world->id);
+  nodes::node_tree_shader_default(nullptr, bmain, &world->id);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -703,7 +705,7 @@ static MovieClip *rna_Main_movieclip_load(Main *bmain,
                 errno ? strerror(errno) : RPT_("unable to load movie clip"));
   }
 
-  id_us_min(blender::id_cast<ID *>(clip));
+  id_us_min(id_cast<ID *>(clip));
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -866,7 +868,11 @@ RNA_MAIN_ID_TAG_FUNCS_DEF(volumes, volumes, ID_VO)
 
 #  undef RNA_MAIN_ID_TAG_FUNCS_DEF
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_main(StructRNA *srna)
 {
@@ -2457,5 +2463,7 @@ void RNA_def_main_volumes(BlenderRNA *brna, PropertyRNA *cprop)
   parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
+
+}  // namespace blender
 
 #endif

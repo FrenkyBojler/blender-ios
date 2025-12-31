@@ -35,6 +35,8 @@
 
 #include "intern/bmesh_operators_private.hh" /* own include */
 
+namespace blender {
+
 #define VERT_SHARED (1 << 0)
 
 #define EDGE_RING (1 << 0)
@@ -196,8 +198,8 @@ finally:
 
 using BMEdgeLoopStorePair = std::pair<BMEdgeLoopStore *, BMEdgeLoopStore *>;
 
-static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(
-    BMesh *bm, ListBaseT<BMEdgeLoopStore> *eloops_rim)
+static VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(BMesh *bm,
+                                                            ListBaseT<BMEdgeLoopStore> *eloops_rim)
 {
   /**
    * Method for finding pairs:
@@ -213,8 +215,8 @@ static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(
    * could sort and optimize this but not really so important.
    */
 
-  blender::VectorSet<BMEdgeLoopStorePair> eloop_pair_set;
-  blender::Map<BMVert *, BMEdgeLoopStore *> vert_eloop_map;
+  VectorSet<BMEdgeLoopStorePair> eloop_pair_set;
+  Map<BMVert *, BMEdgeLoopStore *> vert_eloop_map;
 
   BMEdgeLoopStore *el_store;
 
@@ -431,8 +433,8 @@ struct LoopPairStore {
 
   /* since we don't have reliable index values into the array,
    * store a map (BMVert -> index) */
-  blender::Map<BMVert *, uint> *nors_gh_a;
-  blender::Map<BMVert *, uint> *nors_gh_b;
+  Map<BMVert *, uint> *nors_gh_a;
+  Map<BMVert *, uint> *nors_gh_b;
 };
 
 static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
@@ -454,7 +456,7 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
     BMEdgeLoopStore *el_store_pair[2] = {el_store_a, el_store_b};
     uint side_index;
     float (*nors_pair[2])[3];
-    blender::Map<BMVert *, uint> *nors_gh_pair[2];
+    Map<BMVert *, uint> *nors_gh_pair[2];
 
     BM_edgeloop_edges_get(el_store_a, e_arr_a);
     BM_edgeloop_edges_get(el_store_b, e_arr_b);
@@ -467,8 +469,8 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
     nors_pair[0] = lpair->nors_a;
     nors_pair[1] = lpair->nors_b;
 
-    lpair->nors_gh_a = MEM_new<blender::Map<BMVert *, uint>>(__func__);
-    lpair->nors_gh_b = MEM_new<blender::Map<BMVert *, uint>>(__func__);
+    lpair->nors_gh_a = MEM_new<Map<BMVert *, uint>>(__func__);
+    lpair->nors_gh_b = MEM_new<Map<BMVert *, uint>>(__func__);
 
     nors_gh_pair[0] = lpair->nors_gh_a;
     nors_gh_pair[1] = lpair->nors_gh_b;
@@ -488,7 +490,7 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
       /* iter vars */
       BMEdgeLoopStore *el_store = el_store_pair[side_index];
       ListBaseT<LinkData> *lb = BM_edgeloop_verts_get(el_store);
-      blender::Map<BMVert *, uint> *nors_gh_iter = nors_gh_pair[side_index];
+      Map<BMVert *, uint> *nors_gh_iter = nors_gh_pair[side_index];
       float (*nor)[3] = nors_pair[side_index];
 
       LinkData *v_iter;
@@ -1199,8 +1201,7 @@ void bmo_subdivide_edgering_exec(BMesh *bm, BMOperator *op)
     }
   }
   else {
-    const blender::VectorSet<BMEdgeLoopStorePair> eloop_pairs_gs = bm_edgering_pair_calc(
-        bm, &eloops_rim);
+    const VectorSet<BMEdgeLoopStorePair> eloop_pairs_gs = bm_edgering_pair_calc(bm, &eloops_rim);
     LoopPairStore **lpair_arr;
 
     if (eloop_pairs_gs.is_empty()) {
@@ -1255,3 +1256,5 @@ cleanup:
 }
 
 /** \} */
+
+}  // namespace blender

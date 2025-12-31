@@ -23,6 +23,8 @@
 
 #include "intern/bmesh_operators_private.hh" /* own include */
 
+namespace blender {
+
 #define USE_CAP_OPTION
 
 #define ELE_NEW (1 << 0)
@@ -263,3 +265,5 @@ void bmo_offset_edgeloops_exec(BMesh *bm, BMOperator *op)
 
   BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "edges.out", BM_EDGE, ELE_NEW);
 }
+
+}  // namespace blender

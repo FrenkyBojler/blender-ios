@@ -17,6 +17,8 @@
 
 #include "intern/bmesh_operators_private.hh" /* own include */
 
+namespace blender {
+
 #define VERT_INPUT 1
 
 #define EDGE_OUT 1
@@ -211,3 +213,5 @@ void bmo_connect_verts_exec(BMesh *bm, BMOperator *op)
   BMO_slot_buffer_from_enabled_flag(
       bm, op, op->slots_out, "edges.out", BM_EDGE, EDGE_OUT | EDGE_OUT_ADJ);
 }
+
+}  // namespace blender

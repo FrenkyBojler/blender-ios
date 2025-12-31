@@ -22,6 +22,8 @@
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
 
+namespace blender {
+
 bool BM_verts_from_edges(BMVert **vert_arr, BMEdge **edge_arr, const int len)
 {
   int i, i_prev = len - 1;
@@ -679,3 +681,5 @@ BMesh *BM_mesh_copy(BMesh *bm_old)
 
   return bm_new;
 }
+
+}  // namespace blender

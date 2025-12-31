@@ -21,6 +21,8 @@
 
 #include "WM_types.hh"
 
+namespace blender {
+
 /* roles of objects in RigidBody Sims */
 const EnumPropertyItem rna_enum_rigidbody_object_type_items[] = {
     {RBO_TYPE_ACTIVE,
@@ -125,6 +127,8 @@ static const EnumPropertyItem rigidbody_mesh_source_items[] = {
 };
 #endif
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  ifdef WITH_BULLET
@@ -137,6 +141,8 @@ static const EnumPropertyItem rigidbody_mesh_source_items[] = {
 #  include "DEG_depsgraph_build.hh"
 
 #  include "WM_api.hh"
+
+namespace blender {
 
 /* ******************************** */
 
@@ -210,7 +216,7 @@ static void rna_RigidBodyOb_reset(Main * /*bmain*/, Scene *scene, PointerRNA * /
 
 static void rna_RigidBodyOb_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Object *ob = blender::id_cast<Object *>(ptr->owner_id);
+  Object *ob = id_cast<Object *>(ptr->owner_id);
 
   rna_RigidBodyOb_reset(bmain, scene, ptr);
   DEG_relations_tag_update(bmain);
@@ -233,7 +239,7 @@ static void rna_RigidBodyOb_shape_reset(Main * /*bmain*/, Scene *scene, PointerR
 
 static void rna_RigidBodyOb_mesh_source_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Object *ob = blender::id_cast<Object *>(ptr->owner_id);
+  Object *ob = id_cast<Object *>(ptr->owner_id);
 
   rna_RigidBodyOb_reset(bmain, scene, ptr);
   DEG_relations_tag_update(bmain);
@@ -862,7 +868,11 @@ static PointerRNA rna_RigidBodyWorld_PointCache_get(PointerRNA *ptr)
   return RNA_pointer_create_with_parent(*ptr, &RNA_PointCache, rbw->shared->pointcache);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_rigidbody_world(BlenderRNA *brna)
 {
@@ -1612,5 +1622,7 @@ void RNA_def_rigidbody(BlenderRNA *brna)
   rna_def_rigidbody_object(brna);
   rna_def_rigidbody_constraint(brna);
 }
+
+}  // namespace blender
 
 #endif

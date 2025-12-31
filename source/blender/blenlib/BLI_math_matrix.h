@@ -10,6 +10,8 @@
 
 #include "BLI_compiler_attrs.h"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Init
  * \{ */
@@ -584,3 +586,5 @@ void print_m4(const char *str, const float m[4][4]);
 #define print_m4_id(M) print_m4(STRINGIFY(M), M)
 
 /** \} */
+
+}  // namespace blender

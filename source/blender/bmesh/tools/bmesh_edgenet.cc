@@ -22,6 +22,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 /* Struct for storing a path of verts walked over */
 struct VertNetInfo {
   BMVert *prev; /* previous vertex */
@@ -476,3 +478,5 @@ void BM_mesh_edgenet(BMesh *bm, const bool use_edge_tag, const bool use_new_face
   BLI_mempool_destroy(path_pool);
   MEM_freeN(vnet_info);
 }
+
+}  // namespace blender

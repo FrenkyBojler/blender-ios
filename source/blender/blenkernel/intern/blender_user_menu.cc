@@ -20,6 +20,8 @@
 #include "BKE_blender_user_menu.hh"
 #include "BKE_idprop.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Menu Type
  * \{ */
@@ -106,3 +108,5 @@ void BKE_blender_user_menu_item_free_list(ListBaseT<bUserMenuItem> *lb)
 }
 
 /** \} */
+
+}  // namespace blender

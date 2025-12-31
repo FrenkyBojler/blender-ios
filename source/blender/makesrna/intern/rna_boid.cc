@@ -19,6 +19,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+namespace blender {
+
 const EnumPropertyItem rna_enum_boidrule_type_items[] = {
     {eBoidRuleType_Goal,
      "GOAL",
@@ -92,6 +94,8 @@ static const EnumPropertyItem boidruleset_type_items[] = {
 };
 #endif
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
 #  include <fmt/format.h>
@@ -104,6 +108,8 @@ static const EnumPropertyItem boidruleset_type_items[] = {
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
+
+namespace blender {
 
 static void rna_Boids_reset(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
@@ -230,7 +236,7 @@ static std::optional<std::string> rna_BoidSettings_path(const PointerRNA *ptr)
   const BoidSettings *boids = static_cast<BoidSettings *>(ptr->data);
 
   if (particle_id_check(ptr)) {
-    ParticleSettings *part = blender::id_cast<ParticleSettings *>(ptr->owner_id);
+    ParticleSettings *part = id_cast<ParticleSettings *>(ptr->owner_id);
 
     if (part->boids == boids) {
       return "boids";
@@ -289,7 +295,11 @@ static void rna_BoidSettings_active_boid_state_index_set(PointerRNA *ptr, int va
   }
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_boidrule_goal(BlenderRNA *brna)
 {
@@ -708,5 +718,7 @@ void RNA_def_boid(BlenderRNA *brna)
   rna_def_boidstate(brna);
   rna_def_boid_settings(brna);
 }
+
+}  // namespace blender
 
 #endif

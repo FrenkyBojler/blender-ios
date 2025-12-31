@@ -23,6 +23,8 @@
 #include "bmesh.hh"
 #include "bmesh_path_region_uv.hh" /* own include */
 
+namespace blender {
+
 /**
  * Special handling of vertices with 2 edges
  * (act as if the edge-chain is a single edge).
@@ -493,3 +495,5 @@ LinkNode *BM_mesh_calc_path_uv_region_face(BMesh *bm,
 }
 
 /** \} */
+
+}  // namespace blender

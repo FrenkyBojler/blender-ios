@@ -29,6 +29,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Math Functions
  * \{ */
@@ -546,3 +548,5 @@ void BM_mesh_bisect_plane(BMesh *bm,
 }
 
 /** \} */
+
+}  // namespace blender

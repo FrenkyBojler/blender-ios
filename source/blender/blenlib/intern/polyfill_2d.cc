@@ -46,6 +46,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+namespace blender {
+
 /* avoid fan-fill topology */
 #define USE_CLIP_EVEN
 #define USE_CONVEX_SKIP
@@ -968,3 +970,5 @@ void BLI_polyfill_calc(const float (*coords)[2],
   TIMEIT_END(polyfill2d);
 #endif
 }
+
+}  // namespace blender

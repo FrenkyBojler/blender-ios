@@ -18,6 +18,8 @@
 
 #include "fsmenu.hh"
 
+namespace blender {
+
 struct FSMenu;
 
 void fsmenu_macos_insert_entry(
@@ -141,3 +143,5 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
 #pragma GCC diagnostic pop
   }
 }
+
+}  // namespace blender

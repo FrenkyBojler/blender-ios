@@ -33,6 +33,8 @@
 
 #include "../generic/py_capi_utils.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Private Utilities
  * \{ */
@@ -481,3 +483,5 @@ bool BPY_run_string_as_intptr(bContext *C,
 }
 
 /** \} */
+
+}  // namespace blender

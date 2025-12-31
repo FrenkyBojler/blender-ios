@@ -23,7 +23,7 @@
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
 
-using blender::Vector;
+namespace blender {
 
 /* use so valgrinds memcheck alerts us when undefined index is used.
  * TESTING ONLY! */
@@ -2218,9 +2218,9 @@ bool BM_vert_splice_check_double_face(BMVert *v_a, BMVert *v_b)
   }
 
   BMVert *v_pair[2] = {v_a, v_b};
-  blender::Vector<BMLoop *, BM_DEFAULT_ITER_STACK_SIZE> loops_pair[2];
+  Vector<BMLoop *, BM_DEFAULT_ITER_STACK_SIZE> loops_pair[2];
 
-  for (const int side : blender::IndexRange(2)) {
+  for (const int side : IndexRange(2)) {
     BMEdge *e_iter = v_pair[side]->e;
     do {
       if (BMLoop *l = e_iter->l) {
@@ -2236,7 +2236,7 @@ bool BM_vert_splice_check_double_face(BMVert *v_a, BMVert *v_b)
     }
   }
 
-  for (const int side : blender::IndexRange(2)) {
+  for (const int side : IndexRange(2)) {
     if (loops_pair[side].size() > 1) {
       std::sort(loops_pair[side].begin(), loops_pair[side].end(), [](BMLoop *a, BMLoop *b) {
         return a->f->len < b->f->len;
@@ -3016,3 +3016,5 @@ void bmesh_face_swap_data(BMFace *f_a, BMFace *f_b)
   std::swap(f_a->head.data, f_b->head.data);
   std::swap(f_a->head.index, f_b->head.index);
 }
+
+}  // namespace blender
