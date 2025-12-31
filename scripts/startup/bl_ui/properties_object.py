@@ -626,31 +626,11 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
     _property_type = bpy.types.Object
 
 
-# class OBJECT_UL_lod_items(UIList):
-#     def draw_item(self, context, layout, data, item, icon, 
-#                   active_data, active_propname, index):
-#         # layout.use_property_split = False # !: If False, it would terminate the leadingSpacer for LOD, but converges the Dist text into the UI panel for Float assignation
-#         layout.use_property_decorate = False # This one simply shifts the whole panels & Texts to the Right.. Making the leadingSpacer bigger and the trailing smaller than before... Not idea
-#         # The goal is to minimize the leadingSpacer ...
-    
-#         lod = item
-#         col = layout.column(align=True)
-#         col.prop(lod, "target", text=f"LOD {index + 1}")
-#         # row.label(text=f"LOD {index + 1}", icon='MESH_CUBE')
-#         col.prop(lod, "distance", text="Dist")
-        
-#         # if index < len(data.lod_items) - 1:
-#         #     layout.separator() # FIXME: This is not providing vertical spacing... but rather horizontal
-#         #     # layout.divider()
-
-
 class OBJECT_UL_lod_items(UIList):
     def draw_item(self, context, layout, data, item, icon,
                   active_data, active_propname, index):
-        
 
         layout.use_property_decorate = False
-
 
         lod = item
 
@@ -661,14 +641,13 @@ class OBJECT_UL_lod_items(UIList):
         label_col.scale_x = 2/3
         label_col.label(text=f"LOD {index + 1}")
 
-        label_col.label(text="Distance")
+        label_col.label(text="Distance") # TODO(Tri): Change to f"Dist {index + 1}" ?
         label_col.scale_x = 2/3
 
 
         # Right: properties packed tightly
         prop_col = row.column(align=True)
         prop_col.prop(lod, "target", text="")
-        # prop_col.prop(lod, "distance", text="Dist")
         prop_col.prop(lod, "distance", text="")
                 
 
