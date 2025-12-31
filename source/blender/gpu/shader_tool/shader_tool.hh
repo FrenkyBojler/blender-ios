@@ -13,6 +13,7 @@
 #include <functional>
 #include <iostream>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -351,6 +352,8 @@ struct Source {
   std::vector<FragmentOutputs> fragment_outputs;
   std::vector<VertexInputs> vertex_inputs;
 
+  std::vector<std::string> symbol_table;
+
   std::string serialize(const std::string &function_name) const
   {
     std::stringstream ss;
@@ -481,6 +484,28 @@ class Preprocessor {
     return UNKNOWN;
   }
 
+  /* Process a file content `str` and extract the list of included files and a list of symbols
+   * declared inside this file. */
+  metadata::Source process_include(std::string str, report_callback report_error)
+  {
+    metadata = {};
+
+    str = remove_comments(str, report_error);
+    str = disabled_code_mutation(str, report_error);
+
+    Parser parser(str, report_error);
+    parse_pragma_runtime_generated(parser);
+    parse_includes(parser, report_error);
+
+    lower_preprocessor(parser, report_error);
+
+    parser.apply_mutations();
+
+    parse_local_symbols(parser, report_error);
+
+    return metadata;
+  }
+
   /* Takes a whole source file and output processed source. */
   std::string process(SourceLanguage language,
                       std::string str,
@@ -493,6 +518,8 @@ class Preprocessor {
       report_error(0, 0, "", "Unknown file type");
       return "";
     }
+
+    metadata = {};
 
     const std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
 
@@ -1021,6 +1048,43 @@ class Preprocessor {
         metadata.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
       }
     });
+  }
+
+  void parse_namespace_symbols(shader::parser::Scope ns)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    ns.foreach_scope(ScopeType::Namespace, [&](const Scope &ns) { parse_namespace_symbols(ns); });
+
+    auto process_symbol = [&](Scope ns_scope, Token name) {
+      if (name.scope() != ns_scope) {
+        return;
+      }
+      string prefix;
+      while (ns_scope.type() == ScopeType::Namespace) {
+        prefix = ns_scope.front().prev().full_symbol_name() + "::" + prefix;
+        ns_scope = ns_scope.scope();
+      }
+      metadata.symbol_table.emplace_back(prefix + name.str());
+    };
+
+    ns.foreach_struct([&](Token, Scope, Token name, Scope) { process_symbol(ns, name); });
+    ns.foreach_function(
+        [&](bool, Token, Token name, Scope, bool, Scope) { process_symbol(ns, name); });
+  }
+
+  void parse_local_symbols(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_scope(ScopeType::Namespace,
+                           [&](const Scope &ns) { parse_namespace_symbols(ns); });
+
+    /* Remove duplicates (from overloads for instance). */
+    std::set<string> unique_symbols(metadata.symbol_table.begin(), metadata.symbol_table.end());
+    metadata.symbol_table.assign(unique_symbols.begin(), unique_symbols.end());
   }
 
   std::string get_create_info_placeholder(const std::string &name)
