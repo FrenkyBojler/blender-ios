@@ -3521,7 +3521,6 @@ static void find_over_faces(const float3 &pos,
                             int *r_alt_face,
                             float3 *r_alt_pos)
 {
-  fmt::println("find_over_faces pos=({},{},{}", pos[0], pos[1], pos[2]);
   const Mesh &mesh = bs.mesh_info.mesh;
   BLI_assert(r_over_face && r_alt_face && r_over_pos && r_alt_pos);
 
@@ -3530,8 +3529,6 @@ static void find_over_faces(const float3 &pos,
 
   for (const int mesh_f : mesh_faces) {
     BLI_assert(mesh_f != -1);
-    fmt::println("  try face {}", mesh_f);
-
     const float3 &face_no = mesh.face_normals()[mesh_f];
     const IndexRange face_corners_indices = mesh.faces()[mesh_f];
     BLI_assert(face_corners_indices.size() >= 3);
@@ -3539,32 +3536,21 @@ static void find_over_faces(const float3 &pos,
     const float3 face_co = mesh.vert_positions()[first_vert_index];
     float4 plane;
     plane_from_point_normal_v3(plane, face_co, face_no);
-    fmt::println("    plane=({},{},{},{}", plane[0], plane[1], plane[2], plane[3]);
-
     float3 projected_pos;
     closest_to_plane_normalized_v3(projected_pos, plane, pos);
-    fmt::println(
-        "    projected_pos=({},{},{})", projected_pos[0], projected_pos[1], projected_pos[2]);
-
     float3x3 axis_mat;
     axis_dominant_v3_to_m3(axis_mat.ptr(), face_no);
-
     const int face_len = face_corners_indices.size();
     Array<float2, 20> poly_2d(face_len);
-
     for (int i = 0; i < face_len; i++) {
       const int v_idx = mesh.corner_verts()[face_corners_indices[i]];
       mul_v2_m3v3(poly_2d[i], axis_mat.ptr(), mesh.vert_positions()[v_idx]);
-      fmt::println("      {}: ({},{})", i, poly_2d[i][0], poly_2d[i][1]);
     }
-
     float2 p_2d;
     mul_v2_m3v3(p_2d, axis_mat.ptr(), projected_pos);
-    fmt::println("    p_2d=({},{})", p_2d[0], p_2d[1]);
 
     /* TODO: do better when the intersection is "near" the edge between two faces. */
     if (isect_point_poly_v2(p_2d, (const float (*)[2])poly_2d.data(), face_len)) {
-      fmt::println("    intersects!");
       if (*r_over_face == -1) {
         *r_over_face = mesh_f;
         *r_over_pos = projected_pos;
@@ -3622,107 +3608,6 @@ static float2 interp_uv_2d(const Span<float2> &positions,
   return ans;
 }
 
-/** For the face with index \a f in the adj pattern for bevvert \a bv, calculate the UV position
- * for each of its corners in the UV map with the given \a uv_map_index, and store them in
- * uv_attributes[uv_map_index] at the corresponding newcorner indices.
- */
-static void old_calculate_adj_face_uvs(const int f,
-                                       const int bv,
-                                       const Array<UVGapKind, 20> &gaps,
-                                       const int uv_map_index,
-                                       Vector<Array<float2>> &uv_attributes,
-                                       const BevelState &bs)
-{
-  // DEBUG!!
-  fmt::println("calculate_adj_face_uvs, bv={}, f={}", bv, f);
-  const IndexRange newfaces = bs.bevvert_newfaces()[bv];
-  const IndexRange newface_corners_range = bs.newface_faces_face()[newfaces[f]];
-  const Span<int> fverts = bs.newcorner_verts().slice(newface_corners_range);
-  const int num_fverts = fverts.size();
-  const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
-  int2 anchor_owner = pat.face_anchor_owner(f);
-  const bool is_center_f = (f == 0) && ((pat.num_segs % 2) == 1);
-  fmt::println("anchor_owner= {}, {}", anchor_owner[0], anchor_owner[1]);
-  SmallIntArray possible_over_faces = mesh_faces_for_anchors(bv, anchor_owner, bs);
-  print_span(possible_over_faces.as_span(), "possible_over_faces");
-  SmallIntArray over_face(num_fverts);
-  SmallIntArray alt_over_face(num_fverts);
-  Array<float3, 20> over_pos(num_fverts);
-  Array<float3, 20> alt_over_pos(num_fverts);
-  for (const int i : fverts.index_range()) {
-    const float3 pos = bs.newvert_positions()[fverts[i]];
-    if (is_center_f) {
-      SmallIntArray a_over_faces = mesh_faces_for_anchors(bv, int2(i, -1), bs);
-      find_over_faces(
-          pos, a_over_faces, bs, &over_face[i], &over_pos[i], &alt_over_face[i], &alt_over_pos[i]);
-    }
-    else {
-      find_over_faces(pos,
-                      possible_over_faces,
-                      bs,
-                      &over_face[i],
-                      &over_pos[i],
-                      &alt_over_face[i],
-                      &alt_over_pos[i]);
-    }
-    // DEBUG!!
-    fmt::println("i={}, nv={}, pos=({},{},{}), over_f={}, over_pos=({},{},{})",
-                 i,
-                 fverts[i],
-                 pos[0],
-                 pos[1],
-                 pos[2],
-                 over_face[i],
-                 over_pos[i][0],
-                 over_pos[i][1],
-                 over_pos[i][2]);
-  }
-
-  const UVMapInfo &uv_info = bs.uv_map_info(uv_map_index);
-  const Mesh &mesh = bs.mesh_info.mesh;
-  const OffsetIndices<int> mesh_faces = mesh.faces();
-
-  Array<float2, 20> face_uvs(num_fverts);
-
-  for (const int i : fverts.index_range()) {
-    const int over_f = over_face[i];
-    const float3 over_p = over_pos[i];
-
-    if (over_f == -1) {
-      face_uvs[i] = float2(0.0f, 0.0f); /* Default UV. */
-      continue;
-    }
-
-    const IndexRange over_face_corners = mesh_faces[over_f];
-    const int num_over_face_corners = over_face_corners.size();
-
-    if (num_over_face_corners < 3) { /* Degenerate face. */
-      face_uvs[i] = float2(0.0f, 0.0f);
-      continue;
-    }
-
-    float3x3 axis_mat;
-    Array<float2, 20> over_face_vert_pos_2d = project_face_to_2d(over_f, mesh, axis_mat);
-    Array<float2, 20> over_face_corner_uvs(num_over_face_corners);
-
-    for (const int j : over_face_corners.index_range()) {
-      const int corner_idx = over_face_corners[j];
-      over_face_corner_uvs[j] = uv_info.value(corner_idx);
-    }
-
-    float2 over_pos_2d = float2(transform_point(axis_mat, over_p));
-    face_uvs[i] = interp_uv_2d(over_face_vert_pos_2d, over_face_corner_uvs, over_pos_2d);
-  }
-
-  for (const int i : fverts.index_range()) {
-    const int newcorner_idx = newface_corners_range[i];
-    uv_attributes[uv_map_index][newcorner_idx] = face_uvs[i];
-    //! DEBUG
-    fmt::println(
-        "uv[{}][{}] = ({},{})", uv_map_index, newcorner_idx, face_uvs[i][0], face_uvs[i][1]);
-  }
-}
-
 /** Analog of bev_create_ngon in old bevel, but only for the uv-making part.
  * face_reps are all indices of faces in Mesh, or -1.
  * Use the corresponding element of face_reps to interpolate each corner.
@@ -3736,8 +3621,6 @@ static void create_ngon_uvs(const int newface,
                             Vector<Array<float2>> &uv_attributes,
                             const BevelState &bs)
 {
-  fmt::println("create_ngon_uvs, newface={}, uv_map_index={}", newface, uv_map_index);
-  print_span(face_reps, "face_reps");
   const UVMapInfo &uv_info = bs.uv_map_info(uv_map_index);
   const Mesh &mesh = bs.mesh_info.mesh;
   OffsetIndices mesh_faces = mesh.faces();
@@ -3748,12 +3631,10 @@ static void create_ngon_uvs(const int newface,
   for (const int i : newface_corners.index_range()) {
     const int corner = newface_corners[i];
     const int v = bs.newcorner_verts()[corner];
-    fmt::println("process corner c={}, v={}", corner, v);
     /* In the newfaces, corner vertices are encoded where newverts are as is,
      * but original verts are encoded as -(meshv + 1). */
     float3 pos = (v < 0) ? mesh_vert_positions[-(v + 1)] : new_positions[v];
     const int interp_f = face_reps[i];
-    fmt::println("interp_f={}", interp_f);
     /* TODO: investigate caching mesh face interpolation data. */
     const IndexRange interp_f_corners = mesh_faces[interp_f];
     const int num_interp_f_corners = interp_f_corners.size();
@@ -3764,18 +3645,11 @@ static void create_ngon_uvs(const int newface,
       interp_f_corner_uvs[j] = uv_info.value(interp_f_corners[j]);
     }
     float2 pos_2d = float2(transform_point(axis_mat, pos));
-    fmt::println(
-        "   pos=({},{},{}); pos_2d=({},{})", pos[0], pos[1], pos[2], pos_2d[0], pos_2d[1]);
     if (check_snap) {
-      fmt::println("checking snapping, 2d poly:\n");
-      for (const float2 &pp : interp_f_pos_2d) {
-        fmt::print("({},{}) ", pp[0], pp[1]);
-      }
       if (!isect_point_poly_v2(pos_2d,
                                reinterpret_cast<float (*)[2]>(interp_f_pos_2d.data()),
                                num_interp_f_corners))
       {
-        fmt::println("corner {} needs snapping\n", i);
         float2 best_snap;
         float best_snap_dist_squared = 1e20f;
         for (const int j : IndexRange(num_interp_f_corners)) {
@@ -3788,7 +3662,6 @@ static void create_ngon_uvs(const int newface,
             best_snap_dist_squared = dist_squared;
           }
         }
-        fmt::println("snapped to ({},{})", best_snap[0], best_snap[1]);
         pos_2d = best_snap;
       }
     }
@@ -3797,21 +3670,26 @@ static void create_ngon_uvs(const int newface,
   }
 }
 
-/* Are there any UV gaps between anchor and the next anchor? */
-static bool any_gaps_to_next_anchor(const int anchor,
-                                    const int bv,
-                                    const Array<UVGapKind, 20> &gaps,
-                                    const BevelState &bs)
+/** Are there any UV gaps between anchor and the next anchor? */
+static bool any_gaps_between_anchors(const int anchor1,
+                                     const int anchor2,
+                                     const int bv,
+                                     const bool wedge_gaps_ok,
+                                     const Array<UVGapKind, 20> &gaps,
+                                     const BevelState &bs)
 {
-  const int2 edge_positions = bs.anchor_bevedge_positions(bv, anchor);
-  const int pos_first = edge_positions[0];
-  const int pos_last = edge_positions[1];
+  const int2 edge_positions1 = bs.anchor_bevedge_positions(bv, anchor1);
+  const int2 edge_positions2 = bs.anchor_bevedge_positions(bv, anchor2);
+  /* Want to check gaps after pos_first to but not including a gap after pos_last. */
+  const int pos_first = edge_positions1[1];
+  const int pos_last = edge_positions2[0];
   int pos = pos_first;
   if (pos == -1) {
     return false;
   }
   do {
-    if (gaps[pos] != UVGapKind::NoGap) {
+    UVGapKind kind = gaps[pos];
+    if (!(kind == UVGapKind::NoGap || (wedge_gaps_ok && kind == UVGapKind::WedgeGap))) {
       return true;
     }
   } while ((pos = bs.next_edge_pos(bv, pos)) != pos_last);
@@ -3829,17 +3707,13 @@ static void calculate_adj_face_uvs(const int f,
                                    Vector<Array<float2>> &uv_attributes,
                                    const BevelState &bs)
 {
-  fmt::println("calculate_adj_face_uvs, bv={}, f={}", bv, f);
   const IndexRange newfaces = bs.bevvert_newfaces()[bv];
   const int newface = newfaces[f];
   const IndexRange newface_corners_range = bs.newface_faces_face()[newfaces[f]];
-  const Span<int> fverts = bs.newcorner_verts().slice(newface_corners_range);
-  const int num_fverts = fverts.size();
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
   SmallIntArray anchor_freps(pat.num_anchors);
   for (const int a : anchor_freps.index_range()) {
     anchor_freps[a] = facerep::anchor_rep_face(bv, a, nullptr, bs);
-    fmt::println("anchor_freps[{}] = {}", a, anchor_freps[a]);
   }
   bool odd = (pat.num_segs % 2) == 1;
   const bool any_wide_gap = std::any_of(
@@ -3859,36 +3733,27 @@ static void calculate_adj_face_uvs(const int f,
     bool need_snap = false;
     Array<int, 4> interps(4);
     int2 anchors = pat.face_anchor_owner(f);
-    fmt::println("anchors = {}, {}", anchors[0], anchors[1]);
     const int anchor = anchors[0];
     BLI_assert(anchor != -1);
     if (anchors[1] == -1) {
       /* Whole face is unambiguously ownened by anchor. */
-      fmt::println(
-          "unambiguously owned by anchor {}, so interp all in {}", anchor, anchor_freps[anchor]);
       interps.fill(anchor_freps[anchor]);
     }
     else {
       const int anchor_next = anchors[1];
       const int anchor_frep = anchor_freps[anchor];
       const int anchor_next_frep = anchor_freps[anchor_next];
-      const bool any_gap = any_gaps_to_next_anchor(anchor, bv, gaps, bs);
-      fmt::println("ambiguous case between freps {} and {}; any_gap={}",
-                   anchor_frep,
-                   anchor_next_frep,
-                   any_gap);
-      if (!any_gap) {
+      const bool any_bad_gap = any_gaps_between_anchors(anchor, anchor_next, bv, true, gaps, bs);
+      if (!any_bad_gap) {
         /* Let the face straddle: left side in anchor_frep, right side in anchor_next_frep. */
         interps[0] = interps[3] = anchor_frep;
         interps[1] = interps[2] = anchor_next_frep;
-        fmt::println("straddle case");
       }
       else {
         /* Do a tie-break and put all in the winning side, and enable snapping. */
         const int winner = facerep::choose_face_rep({anchor_frep, anchor_next_frep}, bs);
         interps.fill(winner);
         need_snap = true;
-        fmt::println("tiebreak case, winner frep = {}", winner);
       }
     }
     create_ngon_uvs(newface, interps, need_snap, uv_map_index, uv_attributes, bs);
@@ -3900,8 +3765,6 @@ static void calculate_vertex_mesh_face_uvs(const int bevvert,
                                            Vector<Array<float2>> &uv_attributes,
                                            const BevelState &bs)
 {
-  // DEBUG!!
-  fmt::println("calculate vertex mesh uvs for bevvert {}, uv map {}", bevvert, uv_map_index);
   Array<UVGapKind, 20> gaps = bevvert_bevedge_uv_gaps(bevvert, uv_map_index, bs);
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bevvert];
   int4 nums = pat.num_elements();
@@ -3938,7 +3801,6 @@ static void calculate_face_mesh_uvs(const int bevface,
                                     Vector<Array<float2>> &uv_attributes,
                                     const BevelState &bs)
 {
-  fmt::println("calculate_face_mesh_face_uvs, bevface={}, uv_map_index={}", bevface, uv_map_index);
   const int newface = bs.bevface_newfaces()[bevface][0];
   const int newface_size = bs.newface_faces_face()[newface].size();
   const int mesh_face = bs.bevface_mesh_faces()[bevface];
@@ -4402,7 +4264,7 @@ int2 MeshPattern::face_anchor_owner(const int f) const
   if (offset == floor_ring_side_2) {
     return int2(a, next_anchor(a));
   }
-  return offset < floor_ring_side_2 ? int2(a, -1) : int2(next_anchor(a), 1);
+  return offset < floor_ring_side_2 ? int2(a, -1) : int2(next_anchor(a), -1);
 }
 
 /** Return a 4-tuple with the number of vertices, edges, faces, corners needed for edge mesh. */
@@ -5948,8 +5810,8 @@ void BevelState::build_vertex_meshes()
                              *this);
       }
       // DEBUG!!
-      dump_bevvert(bv, *this);
-      draw_bevvert(bv, *this);
+      // dump_bevvert(bv, *this);
+      // draw_bevvert(bv, *this);
       for (const int mapi : IndexRange(uvmaps_num)) {
         uv::calculate_vertex_mesh_face_uvs(bv, mapi, this->uv_attributes_, *this);
       }
