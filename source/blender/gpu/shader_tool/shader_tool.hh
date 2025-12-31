@@ -563,8 +563,6 @@ class Preprocessor {
         lower_using(parser, report_error);
         lower_namespaces(parser, report_error);
         lower_scope_resolution_operators(parser, report_error);
-        /* Lower default constructor for compatible classes. */
-        lower_default_constructors(parser, report_error);
         /* Lower unions and then lint shared structures. */
         lower_unions(parser, report_error);
         lower_host_shared_structures(parser, report_error);
@@ -576,6 +574,7 @@ class Preprocessor {
         lower_resource_table(parser, report_error);
         lower_resource_access_functions(parser, report_error);
         /* Lower class methods. */
+        lower_default_constructors(parser, report_error);
         lower_function_default_arguments(parser, report_error);
         lower_implicit_member(parser, report_error);
         lower_method_definitions(parser, report_error);
@@ -2434,42 +2433,46 @@ class Preprocessor {
       }
 
       int decl_count = 0;
-      string decl = "static " + name.str() + " ctor_() { return {";
+      string decl;
       body.foreach_declaration(
-          [&](Scope member_attr, Token, Token type, Scope, Token, Scope array, Token) {
-            if (array.is_valid() || member_attr.is_valid()) {
-              /* Abort, do not generate constructor for structures with arrays (usually
-               * host_shared) or that have attributes (resource_table). Keep it simple for now. */
-              decl_count = -999999;
-              return;
-            }
+          [&](Scope, Token, Token type, Scope, Token name, Scope array, Token) {
+            auto default_value = [&](const string &type) -> string {
+              if (type == "float") {
+                return "0.0f";
+              }
+              if (type == "uint" || type == "uchar") {
+                return "0u";
+              }
+              if (type == "int" || type == "char") {
+                return "0";
+              }
+              if (type == "bool") {
+                return "false";
+              }
+              if (builtin_types.find(type) != builtin_types.end()) {
+                return type + "(0)";
+              }
+              return type + "{}";
+            };
 
-            if (type.str() == "float") {
-              decl += "0.0f, ";
-            }
-            else if (type.str() == "uint" || type.str() == "uchar") {
-              decl += "0u, ";
-            }
-            else if (type.str() == "int" || type.str() == "char") {
-              decl += "0, ";
-            }
-            else if (type.str() == "bool") {
-              decl += "false, ";
-            }
-            else if (builtin_types.find(type.str()) != builtin_types.end()) {
-              decl += type.str() + "(0), ";
+            if (array.is_valid()) {
+              /* Revert to uninitialized values for now. Cannot assign arrays. */
             }
             else {
-              decl += type.str() + "{}, ";
+              /* Assigning members one by one as the foreach decl iterator can be out of order. */
+              decl += "r." + name.str() + "=" + default_value(type.str()) + ";";
             }
-
             decl_count++;
           });
-      decl += "}; }";
 
-      if (decl_count > 0) {
-        parser.insert_after(body.front().str_index_last_no_whitespace(), decl);
+      if (decl_count == 0) {
+        /* Empty struct will have a padding int. */
+        decl += "r._pad=0;";
       }
+
+      decl = "static " + name.str() + " ctor_() {" + name.str() + " r;" + decl + "return r;}";
+
+      parser.insert_after(body.front().str_index_last_no_whitespace(), decl);
     });
   }
 
@@ -3043,7 +3046,8 @@ class Preprocessor {
                             Token enum_type,
                             Scope enum_scope,
                             const bool is_host_shared) {
-      string type_str = enum_type.str();
+      const string type_str = enum_type.str();
+      const string enum_name_str = enum_name.str();
 
       string previous_value = "error_invalid_first_value";
       enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
@@ -3054,7 +3058,7 @@ class Preprocessor {
           value = "= " + previous_value + " + 1" + (enum_type.str()[0] == 'u' ? "u" : "");
         }
         if (class_tok.is_valid()) {
-          name = enum_name.str() + "::" + name;
+          name = enum_name_str + "::" + name;
         }
         string decl = "constant static constexpr " + type_str + " " + name + " " + value + ";\n";
         parser.insert_line_number(enum_tok.prev(), name_tok.line_number());
@@ -3063,7 +3067,7 @@ class Preprocessor {
         previous_value = name;
       });
       parser.insert_directive(enum_tok.prev(),
-                              "#define " + enum_name.str() + " " + enum_type.str() + "\n");
+                              "#define " + enum_name_str + " " + enum_type.str() + "\n");
       if (is_host_shared) {
         if (type_str != "uint32_t" && type_str != "int32_t") {
           report_error(
@@ -3074,9 +3078,12 @@ class Preprocessor {
         }
 
         string define = "#define ";
-        define += enum_name.str() + linted_struct_suffix + " " + enum_name.str() + "\n";
+        define += enum_name_str + linted_struct_suffix + " " + enum_name_str + "\n";
         parser.insert_directive(enum_tok.prev(), define);
       }
+      const string ctor_decl = enum_name_str + " " + enum_name_str + "_ctor_() { return " +
+                               enum_name_str + "(0); }";
+      parser.insert_directive(enum_tok.prev(), ctor_decl);
       parser.erase(enum_tok, enum_scope.back().next());
     };
 
@@ -3261,19 +3268,8 @@ class Preprocessor {
             is_std140_compatible = false;
           }
 
-          if (array.token_count() == 3 && array[1] == Number) {
-            try {
-              array_size = std::stol(array[1].str());
-            }
-            catch (std::invalid_argument const & /*ex*/) {
-              report_error(ERROR_TOK(array.front()),
-                           "Invalid array size, expecting integer literal");
-            }
-          }
-          else {
-            /* Can be macro or expression. Assume value is multiple of 4. */
-            array_size = 4;
-          }
+          /* For macro or expression assume value is multiple of 4. */
+          array_size = static_array_size(array, report_error, 4)
         }
 
         offset += type_info.size * array_size;
@@ -4055,18 +4051,8 @@ class Preprocessor {
 
             size_t array_size = 0;
             if (array.is_valid()) {
-              if (array.token_count() == 3 && array[1] == Number) {
-                try {
-                  array_size = std::stol(array[1].str());
-                }
-                catch (std::invalid_argument const & /*ex*/) {
-                  report_error(ERROR_TOK(array.front()),
-                               "Invalid array size, expecting integer literal");
-                }
-              }
-              else {
-                /* Assume size to be zero. It will create invalid size error later on. */
-              }
+              /* Assume size to be zero by default. It will create invalid size error later on. */
+              array_size = static_array_size(array, report_error, 0);
             }
             else {
               array_size = 1;
@@ -5151,6 +5137,21 @@ class Preprocessor {
         report_error(ERROR_TOK(t[0]), "Forward declaration of types are not supported.");
       }
     });
+  }
+
+  int static_array_size(const shader::parser::Scope &array,
+                        report_callback report_error,
+                        int fallback_value)
+  {
+    if (array.token_count() == 3 && array[1] == shader::parser::Number) {
+      try {
+        return std::stol(array[1].str());
+      }
+      catch (std::invalid_argument const & /*ex*/) {
+        report_error(ERROR_TOK(array.front()), "Invalid array size, expecting integer literal");
+      }
+    }
+    return fallback_value;
   }
 
   std::string line_directive_prefix(const std::string &filename)
