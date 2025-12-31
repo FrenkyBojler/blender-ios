@@ -509,12 +509,15 @@ class Preprocessor {
   }
 
   /* Takes a whole source file and output processed source. */
-  std::string process(SourceLanguage language,
-                      std::string str,
-                      const std::string &filepath,
-                      bool do_parse_function,
-                      report_callback report_error,
-                      metadata::Source &r_metadata)
+  std::string process(
+      SourceLanguage language,
+      std::string str,
+      const std::string &filepath,
+      bool do_parse_function,
+      report_callback report_error,
+      metadata::Source &r_metadata,
+      /* List of non-global symbols (i.e. declared inside a namespace) in included files. */
+      std::vector<std::string> external_symbols = {})
   {
     if (language == UNKNOWN) {
       report_error(0, 0, "", "Unknown file type");

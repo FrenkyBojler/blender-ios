@@ -857,6 +857,7 @@ set(GLSL_INC
   ../gpu
   ../gpu/intern
   ../gpu/shaders
+  ../gpu/shaders/infos
   ../gpu/shaders/common
 
   engines/gpencil

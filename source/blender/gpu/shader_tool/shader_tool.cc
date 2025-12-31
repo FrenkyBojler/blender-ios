@@ -6,6 +6,7 @@
  * \ingroup shader_tool
  */
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -14,7 +15,7 @@
 
 #include "shader_tool.hh"
 
-std::vector<std::string> list_files(const std::string &dir)
+static std::vector<std::string> list_files(const std::string &dir)
 {
   std::vector<std::string> files;
   for (const auto &entry : std::filesystem::directory_iterator(std::filesystem::path(dir))) {
@@ -32,9 +33,11 @@ std::vector<std::string> list_files(const std::string &dir)
   return files;
 }
 
-std::vector<std::string> scan_external_symbols(const std::vector<std::string> &file_list,
-                                               const std::string &file_buffer,
-                                               blender::gpu::shader::Preprocessor &processor)
+static std::vector<std::string> scan_external_symbols(
+    const std::vector<std::string> &file_list,
+    std::vector<std::string> &visited_files,
+    const std::string &file_buffer,
+    blender::gpu::shader::Preprocessor &processor)
 {
   blender::gpu::shader::metadata::Source include_data = processor.process_include(
       file_buffer, [](int, int, std::string, const char *) {});
@@ -53,18 +56,31 @@ std::vector<std::string> scan_external_symbols(const std::vector<std::string> &f
       std::cout << "Error: Included file not found " << dep << std::endl;
       errors = true;
     }
-    else {
-      // std::cout << file << std::endl;
+    else if (std::find(visited_files.begin(), visited_files.end(), file) == visited_files.end()) {
+      visited_files.emplace_back(file);
+
+      std::ifstream input_file(file);
+      if (!input_file) {
+        std::cerr << "Error: Could not open file " << file << std::endl;
+        errors = true;
+      }
+      else {
+        std::stringstream buffer;
+        buffer << input_file.rdbuf();
+        std::vector<std::string> symbols = scan_external_symbols(
+            file_list, visited_files, buffer.str(), processor);
+
+        /* Extend list. */
+        include_data.symbol_table.insert(
+            include_data.symbol_table.end(), symbols.begin(), symbols.end());
+      }
     }
   }
-  // for (auto symbol : include_data.symbol_table) {
-  //   std::cout << symbol << std::endl;
-  // }
 
   if (errors) {
     exit(1);
   }
-  return {};
+  return include_data.symbol_table;
 }
 
 int main(int argc, char **argv)
@@ -169,12 +185,22 @@ int main(int argc, char **argv)
 
   std::vector<std::string> external_symbols;
   if (language == Preprocessor::SourceLanguage::BLENDER_GLSL) {
-    external_symbols = scan_external_symbols(file_list, buffer.str(), processor);
+    std::vector<std::string> visited_files{input_file_name};
+    external_symbols = scan_external_symbols(file_list, visited_files, buffer.str(), processor);
+
+    for (auto t : external_symbols) {
+      std::cout << t << std::endl;
+    }
   }
 
   metadata::Source metadata;
-  output_file << processor.process(
-      language, buffer.str(), input_file_name, is_library, report_error, metadata);
+  output_file << processor.process(language,
+                                   buffer.str(),
+                                   input_file_name,
+                                   is_library,
+                                   report_error,
+                                   metadata,
+                                   external_symbols);
 
   /* TODO(fclem): Don't use regex for that. */
   std::string metadata_function_name = "metadata_" +
