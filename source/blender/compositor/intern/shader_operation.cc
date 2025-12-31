@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "BLI_assert.h"
@@ -10,8 +11,6 @@
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
-
-#include "DNA_customdata_types.h"
 
 #include "GPU_debug.hh"
 #include "GPU_material.hh"
@@ -21,14 +20,17 @@
 
 #include "gpu_shader_create_info.hh"
 
+#include "DNA_customdata_types.h"
+#include "DNA_node_types.h"
+
+#include "BKE_node_runtime.hh"
+
 #include "COM_context.hh"
 #include "COM_pixel_operation.hh"
 #include "COM_result.hh"
 #include "COM_shader_node.hh"
 #include "COM_shader_operation.hh"
 #include "COM_utilities.hh"
-
-#include <sstream>
 
 namespace blender::compositor {
 

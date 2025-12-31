@@ -28,6 +28,7 @@
 #include "DNA_node_types.h"
 
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_type_conversions.hh"
 
 #include "NOD_multi_function.hh"

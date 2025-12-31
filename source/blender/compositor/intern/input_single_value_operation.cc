@@ -9,6 +9,9 @@
 
 #include "DNA_node_types.h"
 
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
+
 #include "COM_input_single_value_operation.hh"
 #include "COM_operation.hh"
 #include "COM_result.hh"

@@ -8,6 +8,7 @@
 #include "DNA_node_types.h"
 
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "COM_compile_state.hh"
 #include "COM_context.hh"

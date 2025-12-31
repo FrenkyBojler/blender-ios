@@ -10,6 +10,11 @@
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
+#include "DNA_node_types.h"
+
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
+
 #include "COM_context.hh"
 #include "COM_scheduler.hh"
 #include "COM_utilities.hh"

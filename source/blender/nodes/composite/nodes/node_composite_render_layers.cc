@@ -10,15 +10,18 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
+#include "DNA_layer_types.h"
+#include "DNA_node_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_space_types.h"
+
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_scene.hh"
-
-#include "DNA_layer_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 
 #include "RE_engine.h"
 

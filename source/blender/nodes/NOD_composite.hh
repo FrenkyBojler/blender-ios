@@ -10,21 +10,8 @@
 
 #include "BKE_node.hh"
 
-namespace blender::compositor {
-class RenderContext;
-class Profiler;
-class Context;
-class NodeOperation;
-}  // namespace blender::compositor
-namespace blender::bke {
-struct bNodeTreeType;
-}  // namespace blender::bke
-
 struct CryptomatteSession;
 struct Scene;
-struct RenderData;
-struct Render;
-struct ViewLayer;
 
 extern blender::bke::bNodeTreeType *ntreeType_Composite;
 
