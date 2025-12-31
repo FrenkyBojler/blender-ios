@@ -79,6 +79,13 @@ void evaluate(Context &context,
     return;
   }
 
+  if (context.is_canceled()) {
+    for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
+      node_group_operation.get_result(output->identifier).release();
+    }
+    return;
+  }
+
   const bNodeTreeInterfaceSocket *output_socket = node_group.interface_outputs()[0];
   Result &output_result = node_group_operation.get_result(output_socket->identifier);
 

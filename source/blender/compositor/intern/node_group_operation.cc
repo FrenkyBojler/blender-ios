@@ -68,7 +68,7 @@ void NodeGroupOperation::execute()
   for (const bNode *node : schedule) {
     if (this->context().is_canceled()) {
       this->cancel_evaluation();
-      return;
+      break;
     }
 
     if (compile_state.should_compile_pixel_compile_unit(*node)) {
@@ -84,7 +84,8 @@ void NodeGroupOperation::execute()
   }
 
   /* Allocate outputs that are not allocated already as invalid. This could happen for instance
-   * when no Group Output node exist. */
+   * when no Group Output node exist or when the evaluation gets canceled before the output is
+   * written. */
   for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
     Result &result = this->get_result(output->identifier);
     if (!result.is_allocated()) {
