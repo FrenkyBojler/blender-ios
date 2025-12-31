@@ -141,17 +141,23 @@ int template_recent_files(Layout *layout, int rows)
       break;
     }
 
+    Layout *col = &layout->column(true);
+
     const char *filename = BLI_path_basename(recent->filepath);
-    PointerRNA ptr = layout->op("WM_OT_open_mainfile",
-                                filename,
-                                BKE_blendfile_extension_check(filename) ? ICON_FILE_BLEND :
-                                                                          ICON_FILE_BACKUP,
-                                wm::OpCallContext::InvokeDefault,
-                                UI_ITEM_NONE);
+    PointerRNA ptr = col->op("WM_OT_open_mainfile",
+                             filename,
+                             BKE_blendfile_extension_check(filename) ? ICON_FILE_BLEND :
+                                                                       ICON_FILE_BACKUP,
+                             wm::OpCallContext::InvokeDefault,
+                             UI_ITEM_NONE);
     RNA_string_set(&ptr, "filepath", recent->filepath);
     RNA_boolean_set(&ptr, "display_file_selector", false);
 
-    Block *block = layout->block();
+    if (!BLI_exists(recent->filepath)) {
+      col->active_set(false);
+    }
+
+    Block *block = col->block();
     Button *but = button_last(block);
     button_func_tooltip_custom_set(
         but, template_recent_files_tooltip_func, BLI_strdup(recent->filepath), MEM_freeN);
