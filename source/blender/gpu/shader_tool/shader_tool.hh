@@ -582,9 +582,9 @@ class Preprocessor {
         lower_empty_struct(parser, report_error);
         /* Lower SRT accesses. */
         lower_srt_member_access(parser, report_error);
+        lower_srt_arguments(parser, report_error);
         lower_entry_points_signature(parser, report_error);
         lower_stage_function(parser, report_error);
-        lower_srt_arguments(parser, report_error);
         /* Lower string, assert, printf. */
         lower_assert(parser, filename, report_error);
         lower_strings(parser, report_error);
@@ -2660,10 +2660,6 @@ class Preprocessor {
               proto_str = Preprocessor::strip_whitespace(proto_str) + ";\n";
               Parser proto(proto_str, report_error);
 
-              /* Remove [[resource_table]] and other attributes that could create issues. */
-              proto().foreach_match("[[",
-                                    [&](Tokens toks) { proto.replace(toks[0].scope(), ""); });
-
               parser.insert_after(struct_end, proto.result_get());
             });
         parser.insert_after(struct_end, "#endif\n");
@@ -2884,12 +2880,14 @@ class Preprocessor {
         if (tokens[2].str() != "resource_table") {
           return;
         }
-        condition += "&& defined(CREATE_INFO_" + tokens[7].str() + ")";
+        condition += " && defined(CREATE_INFO_" + tokens[7].str() + ")";
         parser.replace(tokens[0].scope(), "");
       });
 
       if (!condition.empty()) {
-        parser.insert_directive(fn_type.prev(), "#if " + condition.substr(3));
+        /* Take attribute into account. */
+        Token first_tok = fn_type.prev() == ']' ? fn_type.prev().scope().front() : fn_type;
+        parser.insert_directive(first_tok.prev(), "#if " + condition.substr(4));
         parser.insert_directive(fn_body.back(), "#endif");
       }
     });
@@ -2944,7 +2942,6 @@ class Preprocessor {
     using namespace shader::parser;
 
     string line_start = "#line " + std::to_string(scope.front().next().line_number()) + "\n";
-    string line_end = "#line " + std::to_string(scope.back().line_number()) + "\n";
 
     string guard_start = "#if " + condition;
     string guard_else;
@@ -3451,7 +3448,8 @@ class Preprocessor {
 
         Token prev_tok = attributes.front().prev().prev();
         if (prev_tok == '(' || prev_tok == '{' || prev_tok == ';' || prev_tok == ',' ||
-            prev_tok == '}' || prev_tok == ')' || prev_tok == '\n' || prev_tok.is_invalid())
+            prev_tok == '}' || prev_tok == ')' || prev_tok == '\n' || prev_tok == ' ' ||
+            prev_tok.is_invalid())
         {
           /* Placement is maybe correct. Could refine a bit more. */
         }
@@ -3568,12 +3566,12 @@ class Preprocessor {
       }
       Token assign_tok = t[0].prev();
       Token var = t[0].prev().prev();
-      Scope aggrega = t[2].scope();
+      Scope aggregate = t[2].scope();
 
       parser.insert_before(assign_tok, ";");
       parser.erase(assign_tok, t[1]);
-      aggrega.foreach_match(".w=", [&](Tokens t) {
-        if (t[0].scope() != aggrega) {
+      aggregate.foreach_match(".w=", [&](Tokens t) {
+        if (t[0].scope() != aggregate) {
           report_error(ERROR_TOK(t[0]), "Nested initializer lists are not supported");
           return;
         }
@@ -3584,7 +3582,7 @@ class Preprocessor {
           parser.erase(value_end.next());
         }
       });
-      parser.erase(aggrega.back(), aggrega.back().next());
+      parser.erase(aggregate.back(), aggregate.back().next());
 
       /* TODO: Lint for vector/matrix type (unsafe aggregate). */
     });
@@ -4423,11 +4421,21 @@ class Preprocessor {
         return;
       }
 
-      if (attribute.scope().type() != ScopeType::FunctionArgs &&
-          attribute.scope().type() != ScopeType::FunctionArg)
-      {
+      const bool is_func_prototype_decl = body_scope.is_invalid();
+      const bool is_local_reference = attribute.scope().type() != ScopeType::FunctionArgs &&
+                                      attribute.scope().type() != ScopeType::FunctionArg;
+
+      if (is_local_reference || is_func_prototype_decl) {
         parser.replace(attribute, "");
       }
+
+      /* Change references to copies to allow placeholder "*_new_()" function result to be passed
+       * as argument. Once these placeholder function are removed, we can pass the value as
+       * reference. */
+      if (!is_local_reference && var.prev() == '&') {
+        parser.erase(var.prev());
+      }
+
       string srt_type = type.str();
       string srt_var = var.str();
 
@@ -4441,10 +4449,10 @@ class Preprocessor {
     };
 
     parser().foreach_scope(ScopeType::FunctionArgs, [&](const Scope fn_args) {
-      Scope fn_body = fn_args.next();
-      if (fn_body.is_invalid()) {
-        return;
-      }
+      /* Parse both function and prototypes. */
+      Scope fn_body = fn_args.next().type() == ScopeType::Function ? fn_args.next() :
+                                                                     Scope::invalid();
+      /* Function arguments. */
       fn_args.foreach_match("[[w]]c?w&w", [&](const vector<Token> toks) {
         memher_access_mutation(toks[0].scope(), toks[7], toks[9], fn_body);
       });
@@ -4457,9 +4465,11 @@ class Preprocessor {
     });
 
     parser().foreach_scope(ScopeType::Function, [&](const Scope fn_body) {
+      /* Local references. */
       fn_body.foreach_match("[[w]]c?w&w", [&](const vector<Token> toks) {
         memher_access_mutation(toks[0].scope(), toks[7], toks[9], toks[9].scope());
       });
+      /* Local variables. */
       fn_body.foreach_match("[[w]]c?ww", [&](const vector<Token> toks) {
         memher_access_mutation(toks[0].scope(), toks[7], toks[8], toks[8].scope());
       });
@@ -4895,7 +4905,7 @@ class Preprocessor {
     using namespace shader::parser;
     using namespace metadata;
 
-    parser().foreach_function([&](bool, Token type, Token, Scope args, bool, Scope) {
+    parser().foreach_function([&](bool, Token type, Token name, Scope args, bool, Scope fn_body) {
       bool is_entry_point = false;
 
       if (type.prev() == ']') {
@@ -4910,6 +4920,15 @@ class Preprocessor {
 
       if (is_entry_point && args.str() != "()") {
         parser.erase(args.front().next(), args.back().prev());
+      }
+
+      /* Mute entry points when not enabled.
+       * Could be lifted at some point, but for now required because of stage_in/out parameters. */
+      if (is_entry_point) {
+        /* Take attributes into account. */
+        parser.insert_directive(type.prev().scope().front().prev(),
+                                "#if defined(ENTRY_POINT_" + name.str() + ")");
+        parser.insert_directive(fn_body.back(), "#endif");
       }
     });
 
