@@ -2,7 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_node_types.h"
+
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "COM_context.hh"
 #include "COM_node_operation.hh"

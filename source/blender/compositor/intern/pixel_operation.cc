@@ -9,6 +9,11 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
+#include "DNA_node_types.h"
+
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
+
 #include "COM_algorithm_compute_preview.hh"
 #include "COM_context.hh"
 #include "COM_operation.hh"
