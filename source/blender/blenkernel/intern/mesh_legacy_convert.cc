@@ -737,6 +737,8 @@ void BKE_mesh_convert_mfaces_to_mpolys(Mesh *mesh)
                            &mesh->faces_num);
   BKE_mesh_legacy_convert_loops_to_corners(mesh);
   BKE_mesh_legacy_convert_polys_to_offsets(mesh);
+  mesh->attribute_storage.wrap().remove(".corner_vert");
+  mesh->attribute_storage.wrap().remove(".corner_edge");
   blender::bke::mesh_convert_customdata_to_storage(*mesh);
 
   mesh_ensure_tessellation_customdata(mesh);
@@ -2646,6 +2648,7 @@ void mesh_uv_select_to_single_attribute(Mesh &mesh)
 
 void BKE_mesh_calc_edges_tessface(Mesh *mesh)
 {
+  using namespace blender;
   const int nulegacy_faces = mesh->totface_legacy;
   blender::VectorSet<blender::OrderedEdge> eh;
   eh.reserve(nulegacy_faces);
@@ -2671,18 +2674,30 @@ void BKE_mesh_calc_edges_tessface(Mesh *mesh)
   /* write new edges into a temporary CustomData */
   CustomData edgeData;
   CustomData_reset(&edgeData);
-  CustomData_add_layer_named(&edgeData, CD_PROP_INT32_2D, CD_CONSTRUCT, numEdges, ".edge_verts");
   CustomData_add_layer(&edgeData, CD_ORIGINDEX, CD_SET_DEFAULT, numEdges);
 
-  blender::int2 *ege = (blender::int2 *)CustomData_get_layer_named_for_write(
-      &edgeData, CD_PROP_INT32_2D, ".edge_verts", mesh->edges_num);
   int *index = (int *)CustomData_get_layer_for_write(&edgeData, CD_ORIGINDEX, mesh->edges_num);
 
   memset(index, ORIGINDEX_NONE, sizeof(int) * numEdges);
-  MutableSpan(ege, numEdges).copy_from(eh.as_span().cast<blender::int2>());
 
   /* free old CustomData and assign new one */
   CustomData_free(&mesh->edge_data);
+  Set<StringRef> edge_attributes;
+  mesh->attribute_storage.wrap().foreach([&](const bke::Attribute &attr) {
+    if (attr.domain() == bke::AttrDomain::Edge) {
+      edge_attributes.add(attr.name());
+    }
+  });
+  for (const StringRef name : edge_attributes) {
+    mesh->attribute_storage.wrap().remove(name);
+  }
+  OrderedEdge *vector_data = eh.extract_vector().release().data;
+  bke::Attribute::ArrayData data{};
+  data.size = numEdges;
+  data.data = reinterpret_cast<int2 *>(vector_data);
+  data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(vector_data));
+  mesh->attribute_storage.wrap().add(
+      ".edge_verts", bke::AttrDomain::Edge, bke::AttrType::Int32_2D, std::move(data));
   mesh->edge_data = edgeData;
   mesh->edges_num = numEdges;
 }

@@ -1088,7 +1088,6 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
   /* finalization */
   BKE_mesh_calc_edges_tessface(explode);
   BKE_mesh_convert_mfaces_to_mpolys(explode);
-  BKE_mesh_legacy_convert_polys_to_offsets(explode);
 
   psys_sim_data_free(&sim);
 
