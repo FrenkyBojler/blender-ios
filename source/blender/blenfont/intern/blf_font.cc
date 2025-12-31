@@ -936,45 +936,7 @@ void blf_font_draw_buffer(FontBLF *font, const char *str, const size_t str_len, 
 
 /* -------------------------------------------------------------------- */
 /** \name Text Evaluation: Width to String Length
- *
- * Use to implement exported functions:
- * - #BLF_width_to_strlen
- * - #BLF_width_to_rstrlen
  * \{ */
-
-static bool blf_font_width_to_strlen_glyph_process(FontBLF *font,
-                                                   GlyphCacheBLF *gc,
-                                                   const GlyphBLF *g_prev,
-                                                   GlyphBLF *g,
-                                                   ft_pix *pen_x,
-                                                   const int width_i)
-{
-  if (UNLIKELY(g == nullptr)) {
-    /* Continue the calling loop. */
-    return false;
-  }
-
-  if (!(font->flags & BLF_MONOSPACED)) {
-    *pen_x += g->lsb_delta - ((g_prev) ? g_prev->rsb_delta : 0);
-
-#ifdef BLF_SUBPIXEL_POSITION
-    if (!(font->flags & BLF_RENDER_SUBPIXELAA)) {
-      *pen_x = FT_PIX_ROUND(*pen_x);
-    }
-#else
-    *pen_x = FT_PIX_ROUND(*pen_x);
-#endif
-
-#ifdef BLF_SUBPIXEL_AA
-    g = blf_glyph_ensure_subpixel(font, gc, g, *pen_x);
-#endif
-  }
-
-  *pen_x += g->advance_x;
-
-  /* When true, break the calling loop. */
-  return (ft_pix_to_int(*pen_x) >= width_i);
-}
 
 size_t blf_font_width_to_strlen(
     FontBLF *font, const char *str, const size_t str_len, int width, int *r_width)
@@ -1205,27 +1167,6 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
   blf_glyph_cache_release(font);
 }
 
-struct CursorPositionForeachGlyph_Data {
-  /** Horizontal position to test. */
-  int location_x;
-  /** Write the character offset here. */
-  size_t r_offset;
-};
-
-static bool blf_cursor_position_foreach_glyph(const char * /*str*/,
-                                              const size_t str_step_ofs,
-                                              const rcti *bounds,
-                                              void *user_data)
-{
-  CursorPositionForeachGlyph_Data *data = static_cast<CursorPositionForeachGlyph_Data *>(
-      user_data);
-  if (data->location_x < (bounds->xmin + bounds->xmax) / 2) {
-    data->r_offset = str_step_ofs;
-    return false;
-  }
-  return true;
-}
-
 size_t blf_str_offset_from_cursor_position(FontBLF *font,
                                            const char *str,
                                            size_t str_len,
@@ -1238,42 +1179,32 @@ size_t blf_str_offset_from_cursor_position(FontBLF *font,
     return 0;
   }
 
-  CursorPositionForeachGlyph_Data data{};
-  data.location_x = location_x;
-  data.r_offset = size_t(-1);
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  ShapingData text(font, gc, str, strlen(str));
+  const Glyph *glyph = nullptr;
 
-  blf_font_boundbox_foreach_glyph(font, str, str_len, blf_cursor_position_foreach_glyph, &data);
-
-  if (data.r_offset == size_t(-1)) {
-    /* We are to the right of the string, so return position of null terminator. */
-    data.r_offset = BLI_strnlen(str, str_len);
-  }
-  else if (BLI_str_utf8_char_width_or_error(&str[data.r_offset]) == 0) {
-    /* This is a combining character, so move to previous visible valid char. */
-    int offset = int(data.r_offset);
-    BLI_str_cursor_step_prev_utf8(str, int(str_len), &offset);
-    data.r_offset = size_t(offset);
+  /* Find closest glyph. */
+  for (const Glyph &g : text.glyphs) {
+    if (ft_pix_from_int(location_x) < ((g.bounds.xmin + g.bounds.xmax) / 2)) {
+      glyph = &g;
+      break;
+    }
   }
 
-  return data.r_offset;
-}
+  blf_glyph_cache_release(font);
 
-struct StrOffsetToGlyphBounds_Data {
-  size_t str_offset;
-  rcti bounds;
-};
-
-static bool blf_str_offset_foreach_glyph(const char * /*str*/,
-                                         const size_t str_step_ofs,
-                                         const rcti *bounds,
-                                         void *user_data)
-{
-  StrOffsetToGlyphBounds_Data *data = static_cast<StrOffsetToGlyphBounds_Data *>(user_data);
-  if (data->str_offset == str_step_ofs) {
-    data->bounds = *bounds;
-    return false;
+  if (!glyph) {
+    /* After end of string. */
+    return strlen(str);
   }
-  return true;
+
+  /* Convert glyph index to UTF-8 offset into original string. */
+  size_t index = 0;
+  for (size_t i = 0; i < glyph->index_32; i++) {
+    BLI_str_utf8_as_unicode_step_safe(str, str_len, &index);
+  }
+
+  return index;
 }
 
 void blf_str_offset_to_glyph_bounds(FontBLF *font,
@@ -1306,7 +1237,15 @@ int blf_str_offset_to_cursor(FontBLF *font,
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
   ShapingData text(font, gc, str, strlen(str));
-  size_t index = std::min(str_offset, size_t(text.glyphs.size()));
+
+  size_t char_offset = BLI_strnlen_utf8(str, str_offset);
+  size_t index = 0;
+  for (const Glyph &glyph : text.glyphs) {
+    if (glyph.index_32 >= char_offset) {
+      break;
+    }
+    index++;
+  }
 
   ft_pix cursor = 0;
 
