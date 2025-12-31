@@ -559,8 +559,6 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
   const char *fake_name = nullptr;
   const char *display_name = "";
   const bool show_stereo = (iuser->flag & IMA_SHOW_STEREO) != 0;
-  const bool is_render_result = (render_slot != nullptr);
-
   if (iuser->scene == nullptr) {
     return;
   }
@@ -578,7 +576,7 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
   rnd_pt_local.rpass_index = 0;
 
   /* Slot menu (render results only). Keep visible even when the slot is empty. */
-  if (is_render_result) {
+  if (render_slot) {
     RenderSlot *slot = BKE_image_get_renderslot(image, *render_slot);
     char str[sizeof(slot->name)];
     if (slot && slot->name[0] != '\0') {
@@ -590,7 +588,7 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
 
     rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
     but = uiDefMenuBut(
-        block, ui_imageuser_slot_menu, image, str, 0, 0, wmenu1, UI_UNIT_Y, TIP_("Select Slot"));
+        block, ui_imageuser_slot_menu, image, str, 0, 0, wmenu1, UI_UNIT_Y, TIP_("Active Slot to render into"));
     button_func_menu_step_set(but, ui_imageuser_slot_menu_step);
     button_funcN_set(but, image_multi_cb, rnd_pt, rr);
     button_type_set_menu_from_pulldown(but);
@@ -598,18 +596,19 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
   }
 
   /* Compute layer/pass data when render result exists. */
-  const bool has_layers = rr && RE_layers_have_name(rr);
-  bool has_passes = false;
+  bool has_named_layers = false;
+  bool has_named_passes = false;
   RenderPass *rpass = nullptr;
 
   if (rr) {
+    has_named_layers = RE_layers_have_name(rr);
     fake_name = ui_imageuser_layer_fake_name(rr);
     const int rpass_index = iuser->layer - (fake_name ? 1 : 0);
     rl = static_cast<RenderLayer *>(BLI_findlink(&rr->layers, rpass_index));
     rnd_pt_local.rpass_index = rpass_index;
 
     if (rl) {
-      has_passes = RE_passes_have_name(rl);
+      has_named_passes = RE_passes_have_name(rl);
       rpass = static_cast<RenderPass *>(BLI_findlink(&rl->passes, iuser->pass));
     }
   }
@@ -617,8 +616,9 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
   /* Layer menu:
    * - render result or multilayer EXR: always visible, disabled when empty
    * - other images: not shown */
-  if (is_render_result || rr) {
-    display_name = has_layers ? (rl ? rl->name : (fake_name ? fake_name : "")) : IFACE_("Layer");
+  if (render_slot || rr) {
+    display_name = has_named_layers ? (rl ? rl->name : (fake_name ? fake_name : "")) :
+                                      IFACE_("Layer");
 
     rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
     but = uiDefMenuBut(block,
@@ -629,12 +629,12 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
                        0,
                        wmenu2,
                        UI_UNIT_Y,
-                       TIP_("Select Layer"));
+                       TIP_("Layer"));
     button_func_menu_step_set(but, ui_imageuser_layer_menu_step);
     button_funcN_set(but, image_multi_cb, rnd_pt, rr);
     button_type_set_menu_from_pulldown(but);
-    if (!has_layers) {
-      button_flag_enable(but, blender::ui::BUT_DISABLED);
+    if (!has_named_layers) {
+      button_disable(but, TIP_("No Layers available"));
     }
     rnd_pt = nullptr;
   }
@@ -642,8 +642,8 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
   /* Pass menu:
    * - render result or multilayer EXR: always visible, disabled when empty
    * - other images: not shown */
-  if (is_render_result || rr) {
-    display_name = has_passes ? (rpass ? rpass->name : "") : IFACE_("Pass");
+  if (render_slot || rr) {
+    display_name = has_named_passes ? (rpass ? rpass->name : "") : IFACE_("Pass");
 
     rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
     but = uiDefMenuBut(block,
@@ -654,12 +654,12 @@ static void uiblock_layer_pass_buttons(ui::Layout &layout,
                        0,
                        wmenu3,
                        UI_UNIT_Y,
-                       TIP_("Select Pass"));
+                       TIP_("Render Pass"));
     button_func_menu_step_set(but, ui_imageuser_pass_menu_step);
     button_funcN_set(but, image_multi_cb, rnd_pt, rr);
     button_type_set_menu_from_pulldown(but);
-    if (!has_passes) {
-      button_flag_enable(but, blender::ui::BUT_DISABLED);
+    if (!has_named_passes) {
+      button_disable(but, TIP_("No Passes available"));
     }
     rnd_pt = nullptr;
   }
@@ -1196,12 +1196,15 @@ void uiTemplateImageLayers(ui::Layout *layout, bContext *C, Image *ima, ImageUse
     RenderResult *rr;
     const float dpi_fac = UI_SCALE_FAC;
     const int menus_width = 160 * dpi_fac;
-    const bool is_render_result = (ima->type == IMA_TYPE_R_RESULT);
 
     /* Use BKE_image_acquire_renderresult so we get the correct slot in the menu. */
     rr = BKE_image_acquire_renderresult(scene, ima);
-    uiblock_layer_pass_buttons(
-        *layout, ima, rr, iuser, menus_width, is_render_result ? &ima->render_slot : nullptr);
+    uiblock_layer_pass_buttons(*layout,
+                               ima,
+                               rr,
+                               iuser,
+                               menus_width,
+                               (ima->type == IMA_TYPE_R_RESULT) ? &ima->render_slot : nullptr);
     BKE_image_release_renderresult(scene, ima, rr);
   }
 }
