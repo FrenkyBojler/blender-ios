@@ -93,7 +93,7 @@ class Context {
 
   /* True if the compositor should treat viewers as composite outputs because it has no concept of
    * or support for viewers. */
-  virtual bool treat_viewer_as_compositor_output() const;
+  virtual bool treat_viewer_as_group_output() const;
 
   /* True if the compositor inputs/outputs should be in the compositing domain. */
   virtual bool use_compositing_domain_for_input_output() const

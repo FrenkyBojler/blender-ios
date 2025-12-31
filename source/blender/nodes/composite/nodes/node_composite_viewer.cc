@@ -39,7 +39,7 @@ class ViewerOperation : public NodeOperation {
   {
     /* Viewers are treated as composite outputs that should be in the domain of the compositing
      * region. */
-    if (this->context().treat_viewer_as_compositor_output() &&
+    if (this->context().treat_viewer_as_group_output() &&
         this->context().use_compositing_domain_for_input_output())
     {
       return this->context().get_compositing_domain();

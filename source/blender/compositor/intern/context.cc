@@ -42,7 +42,7 @@ ResultPrecision Context::get_precision() const
 
 void Context::set_info_message(StringRef /*message*/) const {}
 
-bool Context::treat_viewer_as_compositor_output() const
+bool Context::treat_viewer_as_group_output() const
 {
   return false;
 }

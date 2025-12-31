@@ -89,7 +89,7 @@ class CompositorContext : public compositor::Context {
     return needed_outputs;
   }
 
-  bool treat_viewer_as_compositor_output() const override
+  bool treat_viewer_as_group_output() const override
   {
     return true;
   }

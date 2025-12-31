@@ -73,7 +73,7 @@ class Context : public compositor::Context {
 
   /* The viewport compositor does not support viewer outputs, so treat viewers as composite
    * outputs. */
-  bool treat_viewer_as_compositor_output() const override
+  bool treat_viewer_as_group_output() const override
   {
     return true;
   }
