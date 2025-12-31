@@ -1272,15 +1272,17 @@ int blf_str_offset_to_cursor(FontBLF *font,
                              const size_t str_offset,
                              const int cursor_width)
 {
+  ft_pix half_width = ft_pix_from_int(cursor_width) / 2;
+
   if (!str || !str[0]) {
-    return -cursor_width;
+    return ft_pix_to_int(-half_width);
   }
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
   ShapingData text(font, gc, str, strlen(str));
   size_t index = std::min(str_offset, size_t(text.glyphs.size()));
+
   ft_pix cursor = 0;
-  ft_pix half_width = ft_pix_from_int(cursor_width) / 2;
 
   /* Right edge of the previous character, if available. */
   rcti prev = {0};
@@ -1290,7 +1292,7 @@ int blf_str_offset_to_cursor(FontBLF *font,
 
   /* Left edge of the next character, if available. */
   rcti next = {0};
-  if (index < size_t(text.glyphs.size() - 1)) {
+  if (index <= size_t(text.glyphs.size() - 1)) {
     next = text.glyphs[index].bounds;
   }
 
@@ -1300,22 +1302,20 @@ int blf_str_offset_to_cursor(FontBLF *font,
   }
   else if ((prev.xmax != prev.xmin) && !next.xmax) {
     /* End of string, so align to last character. */
-    cursor = prev.xmax - half_width;
+    cursor = prev.xmax + half_width;
   }
   else if (prev.xmax && next.xmax) {
     /* Between two characters, so use the center. */
     if (next.xmin >= prev.xmax || next.xmin == next.xmax) {
       cursor = (prev.xmax + next.xmin) / 2 - half_width;
     }
-    /* A nicer center if reversed order - RTL. */
-    cursor = (next.xmax + prev.xmin) / 2 - half_width;
-  }
-  else if (!str_offset) {
-    /* Start of string. */
-    cursor = 0 - half_width - half_width;
+    else {
+      /* A nicer center if reversed order - RTL. */
+      cursor = (next.xmax + prev.xmin) / 2 - half_width;
+    }
   }
   else {
-    cursor = text.width;
+    cursor = text.width + half_width;
   }
 
   blf_glyph_cache_release(font);
