@@ -100,19 +100,6 @@ void DRW_mesh_get_attributes(const Object &object,
 Object *DRW_object_lod_select(const ObjectRef &ref,
                               const DRWContext &draw_ctx);          
 
-// Object *DRW_object_lod_select(const Object *ob,
-//                               const DRWContext *draw_ctx);
-
-// DRWLODResult DRW_object_lod_select(const Object *ob,
-//                                    const DRWContext *draw_ctx);
-
 }  // namespace blender::draw
-
-// TODO(Tri): Put it somewhere else?
-struct DRWLODResult {
-  ID *data_eval = nullptr;  // Mesh ID overrider; nullptr = draw original geometry
-  // GeometrySet *geometry_set;  // optional, future
-};
-
 
 /** \} */
