@@ -38,7 +38,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
    * cloud. */
   Array<int> selection_merge_indices(selection.size(), -1);
   const int duplicate_count = kdtree_3d_calc_duplicates_fast(
-      tree, merge_distance, false, selection_merge_indices.data());
+      tree, merge_distance, true, selection_merge_indices.data());
   kdtree_3d_free(tree);
 
   /* Create the new point cloud and add it to a temporary component for the attribute API. */
