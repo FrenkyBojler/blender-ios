@@ -48,19 +48,22 @@ class CompositorContext : public compositor::Context {
   float3x3 xform_;
   float2 result_translation_ = float2(0, 0);
   const Strip *strip_;
+  const SequencerCompositorModifierData *modifier_data_;
 
  public:
   CompositorContext(compositor::StaticCacheManager &cache_manager,
                     const RenderData &render_data,
                     ImBuf *image_buffer,
                     ImBuf *mask_buffer,
-                    const Strip &strip)
+                    const Strip &strip,
+                    const SequencerCompositorModifierData *modifier_data)
       : compositor::Context(cache_manager),
         render_data_(render_data),
         image_buffer_(image_buffer),
         mask_buffer_(mask_buffer),
         xform_(float3x3::identity()),
-        strip_(&strip)
+        strip_(&strip),
+        modifier_data_(modifier_data)
   {
     if (mask_buffer) {
       /* Note: do not use passed transform matrix since compositor coordinate
@@ -134,19 +137,34 @@ class CompositorContext : public compositor::Context {
 
   compositor::Result get_input(StringRef name) override
   {
-    compositor::Result result = this->create_result(compositor::ResultType::Color);
+    modifier_data_->node_group->ensure_interface_cache();
 
-    if (name == "Image") {
-      result.wrap_external(image_buffer_->float_buffer.data,
-                           int2(image_buffer_->x, image_buffer_->y));
-    }
-    else if (name == "Mask" && mask_buffer_) {
-      result.wrap_external(mask_buffer_->float_buffer.data,
-                           int2(mask_buffer_->x, mask_buffer_->y));
-      result.set_transformation(xform_);
+    if (modifier_data_->node_group->interface_inputs().size() < 1) {
+      return this->create_result(compositor::ResultType::Color);
     }
 
-    return result;
+    /* First input is the image input. */
+    if (name == modifier_data_->node_group->interface_inputs()[0]->identifier) {
+      compositor::Result image_result = this->create_result(compositor::ResultType::Color);
+      image_result.wrap_external(image_buffer_->float_buffer.data,
+                                 int2(image_buffer_->x, image_buffer_->y));
+      return image_result;
+    }
+
+    if (modifier_data_->node_group->interface_inputs().size() < 2) {
+      return this->create_result(compositor::ResultType::Color);
+    }
+
+    /* Second input is the mask input. */
+    if (name == modifier_data_->node_group->interface_inputs()[1]->identifier && mask_buffer_) {
+      compositor::Result mask_result = this->create_result(compositor::ResultType::Color);
+      mask_result.wrap_external(mask_buffer_->float_buffer.data,
+                                int2(mask_buffer_->x, mask_buffer_->y));
+      mask_result.set_transformation(xform_);
+      return mask_result;
+    }
+
+    return this->create_result(compositor::ResultType::Color);
   }
 
   const Strip *get_strip() const override
@@ -225,8 +243,12 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   /* TODO: Should be persistent across evaluations. */
   compositor::StaticCacheManager cache_manager;
 
-  CompositorContext com_context(
-      cache_manager, context.render_data, context.image, linear_mask, context.strip);
+  CompositorContext com_context(cache_manager,
+                                context.render_data,
+                                context.image,
+                                linear_mask,
+                                context.strip,
+                                modifier_data);
   const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(context.render_data.depsgraph,
                                                               modifier_data->node_group);
   evaluate(com_context, node_group, com_context.needed_outputs());

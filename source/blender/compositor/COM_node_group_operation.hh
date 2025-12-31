@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cstdint>
+
+#include "BLI_enum_flags.hh"
+
 #include "DNA_node_types.h"
 
 #include "BKE_node.hh"

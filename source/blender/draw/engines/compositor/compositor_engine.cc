@@ -230,8 +230,15 @@ class Context : public compositor::Context {
 
   compositor::Result get_input(StringRef name) override
   {
-    if (name == "Image") {
-      return this->get_pass(&this->get_scene(), 0, name.data());
+    scene_->compositing_node_group->ensure_interface_cache();
+
+    if (scene_->compositing_node_group->interface_inputs().size() < 1) {
+      return this->create_result(compositor::ResultType::Color);
+    }
+
+    /* First input is the image input. */
+    if (name == scene_->compositing_node_group->interface_inputs()[0]->identifier) {
+      return this->get_pass(&this->get_scene(), 0, "Image");
     }
 
     return this->create_result(compositor::ResultType::Color);
