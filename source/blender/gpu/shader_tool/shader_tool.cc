@@ -14,6 +14,24 @@
 
 #include "shader_tool.hh"
 
+std::vector<std::string> list_files(const std::string &dir)
+{
+  std::vector<std::string> files;
+  for (const auto &entry : std::filesystem::directory_iterator(std::filesystem::path(dir))) {
+    if (entry.is_regular_file()) {
+      std::string filename(entry.path());
+      /* We only allow including header files or shader files. */
+      if (filename.find(".hh") != std::string::npos ||
+          filename.find(".msl") != std::string::npos ||
+          filename.find(".glsl") != std::string::npos)
+      {
+        files.push_back(filename);
+      }
+    }
+  }
+  return files;
+}
+
 int main(int argc, char **argv)
 {
   if (argc < 5) {
@@ -72,6 +90,14 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+  /* List of files available for include. */
+  std::vector<std::string> file_list;
+  for (int i = 5; i < argc; i++) {
+    auto list = list_files(std::string(argv[i]));
+    /* Extend list. */
+    file_list.insert(file_list.end(), list.begin(), list.end());
+  }
+
   std::stringstream buffer;
   buffer << input_file.rdbuf();
 
@@ -96,7 +122,8 @@ int main(int argc, char **argv)
                            filename.find("gpu_shader_common_") != std::string::npos ||
                            filename.find("gpu_shader_compositor_") != std::string::npos);
 
-  using Preprocessor = blender::gpu::shader::Preprocessor;
+  using namespace blender::gpu::shader;
+  using Preprocessor = Preprocessor;
   Preprocessor processor;
 
   Preprocessor::SourceLanguage language = Preprocessor::language_from_filename(filename);
@@ -106,7 +133,30 @@ int main(int argc, char **argv)
     language = Preprocessor::SourceLanguage::BLENDER_GLSL;
   }
 
-  blender::gpu::shader::metadata::Source metadata;
+  if (language == Preprocessor::SourceLanguage::BLENDER_GLSL) {
+    metadata::Source include_data = processor.process_include(buffer.str(), report_error);
+
+    for (const auto &dep : include_data.dependencies) {
+      std::string file;
+      for (const auto &filename : file_list) {
+        if (filename.find(dep) != std::string::npos) {
+          file = filename;
+        }
+      }
+
+      if (file.empty()) {
+        std::cout << "Error: Included file not found " << dep << std::endl;
+      }
+      else {
+        std::cout << file << std::endl;
+      }
+    }
+    // for (auto symbol : include_data.symbol_table) {
+    //   std::cout << symbol << std::endl;
+    // }
+  }
+
+  metadata::Source metadata;
   output_file << processor.process(
       language, buffer.str(), input_file_name, is_library, report_error, metadata);
 

@@ -497,6 +497,8 @@ class Preprocessor {
     parse_pragma_runtime_generated(parser);
     parse_includes(parser, report_error);
 
+    parser.apply_mutations();
+
     lower_preprocessor(parser, report_error);
 
     parser.apply_mutations();
