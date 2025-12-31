@@ -32,6 +32,35 @@ std::vector<std::string> list_files(const std::string &dir)
   return files;
 }
 
+std::vector<std::string> scan_external_symbols(const std::vector<std::string> &file_list,
+                                               const std::string &file_buffer,
+                                               blender::gpu::shader::Preprocessor &processor)
+{
+  blender::gpu::shader::metadata::Source include_data = processor.process_include(
+      file_buffer, [](int, int, std::string, const char *) {});
+
+  for (const auto &dep : include_data.dependencies) {
+    std::string file;
+    for (const auto &filename : file_list) {
+      if (filename.find(dep) != std::string::npos) {
+        file = filename;
+      }
+    }
+
+    if (file.empty()) {
+      std::cout << "Error: Included file not found " << dep << std::endl;
+    }
+    else {
+      std::cout << file << std::endl;
+    }
+  }
+  // for (auto symbol : include_data.symbol_table) {
+  //   std::cout << symbol << std::endl;
+  // }
+
+  return {};
+}
+
 int main(int argc, char **argv)
 {
   if (argc < 5) {
@@ -123,7 +152,6 @@ int main(int argc, char **argv)
                            filename.find("gpu_shader_compositor_") != std::string::npos);
 
   using namespace blender::gpu::shader;
-  using Preprocessor = Preprocessor;
   Preprocessor processor;
 
   Preprocessor::SourceLanguage language = Preprocessor::language_from_filename(filename);
@@ -133,27 +161,9 @@ int main(int argc, char **argv)
     language = Preprocessor::SourceLanguage::BLENDER_GLSL;
   }
 
+  std::vector<std::string> external_symbols;
   if (language == Preprocessor::SourceLanguage::BLENDER_GLSL) {
-    metadata::Source include_data = processor.process_include(buffer.str(), report_error);
-
-    for (const auto &dep : include_data.dependencies) {
-      std::string file;
-      for (const auto &filename : file_list) {
-        if (filename.find(dep) != std::string::npos) {
-          file = filename;
-        }
-      }
-
-      if (file.empty()) {
-        std::cout << "Error: Included file not found " << dep << std::endl;
-      }
-      else {
-        std::cout << file << std::endl;
-      }
-    }
-    // for (auto symbol : include_data.symbol_table) {
-    //   std::cout << symbol << std::endl;
-    // }
+    external_symbols = scan_external_symbols(file_list, buffer.str(), processor);
   }
 
   metadata::Source metadata;
