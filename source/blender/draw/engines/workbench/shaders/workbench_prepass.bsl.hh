@@ -99,10 +99,10 @@ void hair_random_material(float rand, float3 &color, float &roughness, float &me
 }
 
 struct VertOut {
-  [[smooth]] float3 normal_interp;
-  [[smooth]] float3 color_interp;
-  [[smooth]] float2 uv_interp;
-  [[smooth]] float alpha_interp;
+  [[smooth]] float3 normal;
+  [[smooth]] float3 color;
+  [[smooth]] float2 uv;
+  [[smooth]] float alpha;
   [[flat]] int object_id;
   [[flat]] float roughness;
   [[flat]] float metallic;
@@ -136,16 +136,16 @@ struct Mesh {
     view_clipping_distances(world_pos);
   }
 
-  v_out.uv_interp = v_in.au;
+  v_out.uv = v_in.au;
 
-  v_out.normal_interp = normalize(drw_normal_object_to_view(v_in.nor));
+  v_out.normal = normalize(drw_normal_object_to_view(v_in.nor));
 
   v_out.object_id = int(drw_resource_id() & 0xFFFFu) + 1;
 
   materials.material_data_get(int(drw_custom_id()),
                               v_in.ac.rgb,
-                              v_out.color_interp,
-                              v_out.alpha_interp,
+                              v_out.color,
+                              v_out.alpha,
                               v_out.roughness,
                               v_out.metallic);
 }
@@ -197,22 +197,22 @@ struct Curves {
     view_clipping_distances(world_pos);
   }
 
-  v_out.uv_interp = curves::get_customdata_vec2(ws_pt.curve_id, curves.au);
+  v_out.uv = curves::get_customdata_vec2(ws_pt.curve_id, curves.au);
 
-  v_out.normal_interp = normalize(drw_normal_world_to_view(nor));
+  v_out.normal = normalize(drw_normal_world_to_view(nor));
 
   materials.material_data_get(int(drw_custom_id()),
                               curves::get_customdata_vec3(ws_pt.curve_id, curves.ac),
-                              v_out.color_interp,
-                              v_out.alpha_interp,
+                              v_out.color,
+                              v_out.alpha,
                               v_out.roughness,
                               v_out.metallic);
 
   /* Hairs have lots of layer and can rapidly become the most prominent surface.
    * So we lower their alpha artificially. */
-  v_out.alpha_interp *= 0.3f;
+  v_out.alpha *= 0.3f;
 
-  hair_random_material(hair_rand, v_out.color_interp, v_out.roughness, v_out.metallic);
+  hair_random_material(hair_rand, v_out.color, v_out.roughness, v_out.metallic);
 
   v_out.object_id = int(drw_resource_id() & 0xFFFFu) + 1;
 
@@ -241,7 +241,7 @@ struct PointCloud {
   const pointcloud::ShapePoint pt = pointcloud::shape_point_get(
       ws_pt, drw_world_incident_vector(ws_pt.P), drw_view_up());
 
-  v_out.normal_interp = normalize(drw_normal_world_to_view(pt.N));
+  v_out.normal = normalize(drw_normal_world_to_view(pt.N));
 
   out_position = drw_point_world_to_homogenous(pt.P);
 
@@ -249,12 +249,12 @@ struct PointCloud {
     view_clipping_distances(pt.P);
   }
 
-  v_out.uv_interp = float2(0.0f);
+  v_out.uv = float2(0.0f);
 
   materials.material_data_get(int(drw_custom_id()),
                               float3(1.0f),
-                              v_out.color_interp,
-                              v_out.alpha_interp,
+                              v_out.color,
+                              v_out.alpha,
                               v_out.roughness,
                               v_out.metallic);
 
@@ -286,13 +286,13 @@ struct OpaqueOut {
                               [[out]] OpaqueOut &frag_out)
 {
   frag_out.object_id = uint(v_out.object_id);
-  frag_out.normal = workbench::normal_encode(gl_FrontFacing, v_out.normal_interp);
+  frag_out.normal = workbench::normal_encode(gl_FrontFacing, v_out.normal);
 
-  frag_out.material = float4(v_out.color_interp,
+  frag_out.material = float4(v_out.color,
                              workbench::float_pair_encode(v_out.roughness, v_out.metallic));
 
   if (srt.use_texture) [[static_branch]] {
-    frag_out.material.rgb = workbench::color::image_color(srt.texture, v_out.uv_interp);
+    frag_out.material.rgb = workbench::color::image_color(srt.texture, v_out.uv);
   }
 
   if (srt.lighting_mode == WORKBENCH_LIGHTING_MATCAP) [[static_branch]] {
@@ -317,12 +317,12 @@ struct TransparentOut {
   float2 uv_viewport = frag_co.xy * world.world_data.viewport_size_inv;
   float3 vP = drw_point_screen_to_view(float3(uv_viewport, 0.5f));
   float3 I = drw_view_incident_vector(vP);
-  float3 N = normalize(v_out.normal_interp);
+  float3 N = normalize(v_out.normal);
 
-  float3 color = v_out.color_interp;
+  float3 color = v_out.color;
 
   if (srt.use_texture) [[static_branch]] {
-    color = workbench::color::image_color(srt.texture, v_out.uv_interp);
+    color = workbench::color::image_color(srt.texture, v_out.uv);
   }
 
   float3 shaded_color = float3(0.0f, 1.0f, 1.0f);
@@ -340,7 +340,7 @@ struct TransparentOut {
   shaded_color *= workbench::get_shadow(world, N, srt.force_shadowing);
 
   /* Listing 4 */
-  float alpha = v_out.alpha_interp * world.world_data.xray_alpha;
+  float alpha = v_out.alpha * world.world_data.xray_alpha;
   float weight = calculate_transparent_weight(frag_co.z) * alpha;
   frag_out.transparent_accum = float4(shaded_color * weight, alpha);
   frag_out.revealage_accum = float4(weight);
