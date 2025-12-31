@@ -803,9 +803,13 @@ if(WITH_VULKAN_BACKEND)
   list(APPEND GLSL_SRC ${VULKAN_BACKEND_GLSL_SRC})
 endif()
 
+set(GLSL_INC
+  .
+)
+
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
-  glsl_to_c(${GLSL_FILE} GLSL_C)
+  glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
 set(SHADER_C)

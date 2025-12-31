@@ -16,9 +16,9 @@
 
 int main(int argc, char **argv)
 {
-  if (argc != 5) {
+  if (argc < 5) {
     std::cerr << "Usage: shader_tool <data_file_from> <data_file_to> <metadata_file_to> "
-                 "<infos_file_to>"
+                 "<infos_file_to> <include_dir1> <include_dir2> ..."
               << std::endl;
     exit(1);
   }
