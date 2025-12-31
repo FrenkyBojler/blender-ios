@@ -391,7 +391,11 @@ struct Glyph {
   FontBLF *font = nullptr;
   GlyphCacheBLF *gc = nullptr;
   GlyphBLF *g = nullptr;
-  rcti bounds; /* ft_pix */
+  /* Differs from GlyphBLF in that each is from common origin
+   * and includes the positional offsets. In ft_pix. */
+  rcti bounds = {};
+  /* Index into the UTF-32 version of the original string. */
+  uint32_t index_32 = 0;
 };
 
 struct ShapingData {
@@ -417,11 +421,16 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
   /* Include space for null terminator. */
   size_t char_count = BLI_strnlen_utf8(str, len) + 1;
   std::u32string str32(char_count, 0);
+
   /* Convert entire input string into array of 32-bit code points. */
   BLI_str_utf8_as_utf32(str32.data(), str, char_count);
 
   /* Harfbuzz gets the entire string but we process it by segment,
    * portions with the same language, direction, style, etc. */
+
+#if 0
+  printf("\n%s\n", str);
+#endif
 
   while ((segment_start + segment_len) < char_count) {
 
@@ -444,6 +453,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     }
 
     hb_buffer_clear_contents(hb_buf);
+
     hb_buffer_add_utf32(
         hb_buf, (uint32_t *)str32.data(), int(char_count), uint(segment_start), int(segment_len));
 
@@ -492,6 +502,22 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     int cwidth = std::max(gc->fixed_width, 1);
     hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
     hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
+
+#if 0
+    char *diag_str = MEM_malloc_arrayN<char>(glyph_count * 50, "diag_str");
+    hb_buffer_serialize_glyphs(hb_buf,
+                               0,
+                               glyph_count,
+                               diag_str,
+                               glyph_count * 50,
+                               nullptr,
+                               segment_font->hb_font,
+                               HB_BUFFER_SERIALIZE_FORMAT_TEXT,
+                               HB_BUFFER_SERIALIZE_FLAG_DEFAULT);
+    printf("%s\n", diag_str);
+    MEM_freeN(diag_str);
+#endif
+
     GlyphCacheBLF *segment_gc = (!gc || segment_font != font) ?
                                     blf_glyph_cache_acquire(segment_font) :
                                     gc;
@@ -521,7 +547,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
                      pen_x + g->box_xmax + glyph_pos[i].x_offset,
                      glyph_pos[i].y_offset,
                      g->box_ymax + glyph_pos[i].y_offset};
-      this->glyphs.append({segment_font, segment_gc, g, bounds});
+      this->glyphs.append({segment_font, segment_gc, g, bounds, hb_glyph_info[i].cluster});
 
       pen_x += advance;
       max_width = pen_x;
