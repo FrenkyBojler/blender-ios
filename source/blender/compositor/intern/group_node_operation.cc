@@ -13,6 +13,7 @@
 #include "COM_node_group_operation.hh"
 #include "COM_node_operation.hh"
 #include "COM_result.hh"
+#include "COM_utilities.hh"
 
 namespace blender::compositor {
 
@@ -32,6 +33,16 @@ class GroupNodeOperation : public NodeOperation {
         needed_outputs_(needed_outputs),
         active_node_group_instance_key_(active_node_group_instance_key)
   {
+    for (const bNodeSocket *input : node.input_sockets()) {
+      if (!is_socket_available(input)) {
+        continue;
+      }
+
+      /* Node groups should not force realization since it is defined by the user, and there is
+       * currently no way for the user to define that through the UI. */
+      InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
+      descriptor.realization_mode = InputRealizationMode::None;
+    }
   }
 
   void execute() override

@@ -183,7 +183,7 @@ InputDescriptor input_descriptor_from_interface_input(const bNodeTree &node_grou
   input_descriptor.domain_priority = node_group.interface_input_index(socket);
   input_descriptor.expects_single_value = socket.structure_type ==
                                           NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE;
-  input_descriptor.realization_mode = InputRealizationMode::OperationDomain;
+  input_descriptor.realization_mode = InputRealizationMode::None;
   input_descriptor.implicit_input = socket.default_input == NODE_DEFAULT_INPUT_POSITION_FIELD ?
                                         ImplicitInput::TextureCoordinates :
                                         ImplicitInput::None;
