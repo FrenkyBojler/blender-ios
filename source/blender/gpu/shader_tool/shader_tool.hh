@@ -3269,7 +3269,7 @@ class Preprocessor {
           }
 
           /* For macro or expression assume value is multiple of 4. */
-          array_size = static_array_size(array, report_error, 4)
+          array_size = static_array_size(array, report_error, 4);
         }
 
         offset += type_info.size * array_size;
