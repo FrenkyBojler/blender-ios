@@ -343,7 +343,7 @@ enum wmEventType : int16_t {
   GAMEPAD_BUTTON_Y = 0x01fb,              /* 507 */
   GAMEPAD_BUTTON_LEFT_SHOULDER = 0x01fc,  /* 508 */
   GAMEPAD_BUTTON_RIGHT_SHOULDER = 0x01fd, /* 509 */
-  GAMEPAD_BUTTON_VIEW = 0x01fe,           /* 510 */
+  GAMEPAD_BUTTON_BACK = 0x01fe,           /* 510 */
   GAMEPAD_BUTTON_MENU = 0x01ff,           /* 511 */
   GAMEPAD_BUTTON_LEFT_THUMB = 0x0200,     /* 512 */
   GAMEPAD_BUTTON_RIGHT_THUMB = 0x0201,    /* 513 */

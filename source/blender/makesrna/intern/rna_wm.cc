@@ -209,7 +209,7 @@ static const EnumPropertyItem event_gamepad_type_items[] = {
     {GAMEPAD_BUTTON_DPAD_LEFT, "GAMEPAD_BUTTON_DPAD_LEFT", 0, "Left", ""},
     {GAMEPAD_BUTTON_DPAD_RIGHT, "GAMEPAD_BUTTON_DPAD_RIGHT", 0, "Right", ""},
     RNA_ENUM_ITEM_SEPR,
-    {GAMEPAD_BUTTON_VIEW, "GAMEPAD_BUTTON_VIEW", 0, "View", ""},
+    {GAMEPAD_BUTTON_BACK, "GAMEPAD_BUTTON_BACK", 0, "Back", ""},
     /* Right side buttons. */
     RNA_ENUM_ITEM_SEPR_COLUMN,
     {GAMEPAD_RIGHT_TRIGGER, "GAMEPAD_RIGHT_TRIGGER", 0, "RT", ""},
@@ -502,7 +502,7 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     {GAMEPAD_BUTTON_LEFT_SHOULDER, "GAMEPAD_BUTTON_LEFT_SHOULDER", 0, "Left Shoulder", "LB"},
     {GAMEPAD_BUTTON_RIGHT_SHOULDER, "GAMEPAD_BUTTON_RIGHT_SHOULDER", 0, "Right Shoulder", "RB"},
     RNA_ENUM_ITEM_SEPR,
-    {GAMEPAD_BUTTON_VIEW, "GAMEPAD_BUTTON_VIEW", 0, "Gamepad View", "View"},
+    {GAMEPAD_BUTTON_BACK, "GAMEPAD_BUTTON_BACK", 0, "Gamepad Back", "Back"},
     {GAMEPAD_BUTTON_MENU, "GAMEPAD_BUTTON_MENU", 0, "Gamepad Menu", "Menu"},
     RNA_ENUM_ITEM_SEPR,
     {GAMEPAD_BUTTON_LEFT_THUMB, "GAMEPAD_BUTTON_LEFT_THUMB", 0, "Button Left Thumb", "L3"},

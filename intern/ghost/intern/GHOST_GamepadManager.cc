@@ -19,7 +19,7 @@ struct GHOST_Gamepad {
   constexpr GHOST_Gamepad(SDL_GameController *controller) : controller{controller} {}
 };
 
-GHOST_GamepadManager::GHOST_GamepadManager(GHOST_System &sys) : system_(sys), dead_zone_(0.2)
+GHOST_GamepadManager::GHOST_GamepadManager(GHOST_System &sys) : system_(sys), dead_zone_(0.1f)
 {
   if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) < 0) {
     printf("SDL_INIT_GAMECONTROLLER subsystem init error.");
@@ -98,33 +98,31 @@ void GHOST_GamepadManager::send_gamepad_events(float dt)
       }
       case SDL_CONTROLLERBUTTONDOWN:
       case SDL_CONTROLLERBUTTONUP: {
-#define button_case(button, mask) \
+#define button_case(button, mask_value) \
   case button: { \
-    return mask; \
+    mask = mask_value; \
+    break; \
   };
-        std::optional<GamepadButtonMask> mask =
-            [](SDL_GameControllerButton button) -> std::optional<GamepadButtonMask> {
-          switch (button) {
-            button_case(SDL_CONTROLLER_BUTTON_A, GamepadButtonMask::A);
-            button_case(SDL_CONTROLLER_BUTTON_B, GamepadButtonMask::B);
-            button_case(SDL_CONTROLLER_BUTTON_X, GamepadButtonMask::X);
-            button_case(SDL_CONTROLLER_BUTTON_Y, GamepadButtonMask::Y);
-            // button_case(SDL_CONTROLLER_BUTTON_BACK, GamepadButtonMask::??);
-            button_case(SDL_CONTROLLER_BUTTON_GUIDE, GamepadButtonMask::View);
-            button_case(SDL_CONTROLLER_BUTTON_START, GamepadButtonMask::Menu);
-            button_case(SDL_CONTROLLER_BUTTON_LEFTSTICK, GamepadButtonMask::LeftThumb);
-            button_case(SDL_CONTROLLER_BUTTON_RIGHTSTICK, GamepadButtonMask::RightThumb);
-            button_case(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, GamepadButtonMask::LeftShoulder);
-            button_case(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, GamepadButtonMask::RightShoulder);
-            button_case(SDL_CONTROLLER_BUTTON_DPAD_UP, GamepadButtonMask::DPadUp);
-            button_case(SDL_CONTROLLER_BUTTON_DPAD_DOWN, GamepadButtonMask::DPadDown);
-            button_case(SDL_CONTROLLER_BUTTON_DPAD_LEFT, GamepadButtonMask::DPadLeft);
-            button_case(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, GamepadButtonMask::DPadRight);
-            default:
-              break;
-          }
-          return std::nullopt;
-        }(SDL_GameControllerButton(event.cbutton.button));
+        std::optional<GamepadButtonMask> mask = std::nullopt;
+        switch (event.cbutton.button) {
+          button_case(SDL_CONTROLLER_BUTTON_A, GamepadButtonMask::A);
+          button_case(SDL_CONTROLLER_BUTTON_B, GamepadButtonMask::B);
+          button_case(SDL_CONTROLLER_BUTTON_X, GamepadButtonMask::X);
+          button_case(SDL_CONTROLLER_BUTTON_Y, GamepadButtonMask::Y);
+          button_case(SDL_CONTROLLER_BUTTON_BACK, GamepadButtonMask::Back);
+          button_case(SDL_CONTROLLER_BUTTON_START, GamepadButtonMask::Menu);
+          button_case(SDL_CONTROLLER_BUTTON_LEFTSTICK, GamepadButtonMask::LeftThumb);
+          button_case(SDL_CONTROLLER_BUTTON_RIGHTSTICK, GamepadButtonMask::RightThumb);
+          button_case(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, GamepadButtonMask::LeftShoulder);
+          button_case(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, GamepadButtonMask::RightShoulder);
+          button_case(SDL_CONTROLLER_BUTTON_DPAD_UP, GamepadButtonMask::DPadUp);
+          button_case(SDL_CONTROLLER_BUTTON_DPAD_DOWN, GamepadButtonMask::DPadDown);
+          button_case(SDL_CONTROLLER_BUTTON_DPAD_LEFT, GamepadButtonMask::DPadLeft);
+          button_case(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, GamepadButtonMask::DPadRight);
+          default:
+            break;
+        }
+#undef button_case
         if (!mask.has_value()) {
           break;
         }
@@ -156,9 +154,7 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState &new_state,
   const auto send_thumb_event = [&, this](const float (&old_vals)[2],
                                           float (&new_vals)[2],
                                           GHOST_TGamepadThumb thumb) -> void {
-    if (std::abs(new_vals[0] * new_vals[0] + new_vals[1] * new_vals[1]) <
-        (dead_zone_ * dead_zone_))
-    {
+    if ((new_vals[0] * new_vals[0] + new_vals[1] * new_vals[1]) < (dead_zone_ * dead_zone_)) {
       new_vals[0] = new_vals[1] = 0.0f;
     }
     /* Send only thumb events if there is non-zero reading or the thumb has just been released.
@@ -166,8 +162,7 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState &new_state,
     if (is_zero_input(old_vals) && is_zero_input(new_vals)) {
       return;
     }
-    std::unique_ptr<GHOST_EventGamepadThumb> event = std::make_unique<GHOST_EventGamepadThumb>(
-        now, window);
+    auto event = std::make_unique<GHOST_EventGamepadThumb>(now, window);
     GHOST_TEventGamepadThumbData *data = (GHOST_TEventGamepadThumbData *)event->getData();
     data->value[0] = new_vals[0];
     data->value[1] = new_vals[1];
@@ -188,8 +183,7 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState &new_state,
     if (old_val == 0.0f && new_val == 0.0f) {
       return;
     }
-    std::unique_ptr<GHOST_EventGamepadTrigger> event = std::make_unique<GHOST_EventGamepadTrigger>(
-        now, window);
+    auto event = std::make_unique<GHOST_EventGamepadTrigger>(now, window);
     GHOST_TEventGamepadTriggerData *data = (GHOST_TEventGamepadTriggerData *)event->getData();
     data->value = new_val;
     data->trigger = trigger;
@@ -205,7 +199,7 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState &new_state,
     GamepadButtonMask mask;
     GHOST_TGamepadButton event_button;
   };
-  constexpr ButtonMap buttons_map[]{
+  static constexpr ButtonMap buttons_map[]{
       {GamepadButtonMask::A, GHOST_kGamepadButtonA},
       {GamepadButtonMask::B, GHOST_kGamepadButtonB},
       {GamepadButtonMask::X, GHOST_kGamepadButtonX},
@@ -214,7 +208,7 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState &new_state,
       {GamepadButtonMask::LeftShoulder, GHOST_kGamepadButtonLeftShoulder},
       {GamepadButtonMask::RightShoulder, GHOST_kGamepadButtonRightShoulder},
 
-      {GamepadButtonMask::View, GHOST_kGamepadButtonView},
+      {GamepadButtonMask::Back, GHOST_kGamepadButtonBack},
       {GamepadButtonMask::Menu, GHOST_kGamepadButtonMenu},
 
       {GamepadButtonMask::LeftThumb, GHOST_kGamepadButtonLeftThumb},
@@ -231,8 +225,7 @@ void GHOST_GamepadManager::send_gamepad_events(GHOST_GamepadState &new_state,
     const bool is_depressed = new_state.button_depressed[int(button_map.mask)];
     if (was_depressed != is_depressed || is_depressed) {
 
-      std::unique_ptr<GHOST_EventGamepadButton> event = std::make_unique<GHOST_EventGamepadButton>(
-          now, window);
+      auto event = std::make_unique<GHOST_EventGamepadButton>(now, window);
       GHOST_TEventGamepadButtonData *data = (GHOST_TEventGamepadButtonData *)event->getData();
 
       data->action = is_depressed ? GHOST_kPress : GHOST_kRelease;

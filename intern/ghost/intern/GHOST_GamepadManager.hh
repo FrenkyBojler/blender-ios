@@ -19,7 +19,7 @@ enum class GamepadButtonMask {
   Y,
   LeftShoulder,
   RightShoulder,
-  View,
+  Back,
   Menu,
   LeftThumb,
   RightThumb,

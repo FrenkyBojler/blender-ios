@@ -116,7 +116,7 @@ static wmOperatorStatus gamepad_all_invoke_impl(bContext *C,
     gamepad_move(C, {right, up, 0.0f}, 0.01f);
   }
   if (event->type == GAMEPAD_LEFT_THUMB) {
-    gamepad_move(C, {event->axis_value[0], event->axis_value[1], 0.0f}, event->dt);
+    gamepad_move(C, {event->axis_value[0], -event->axis_value[1], 0.0f}, event->dt);
   }
   if (event->type == GAMEPAD_RIGHT_THUMB) {
     gamepad_rotate(C, {-event->axis_value[1], event->axis_value[0], 0.0f}, event->dt);

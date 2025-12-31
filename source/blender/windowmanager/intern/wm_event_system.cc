@@ -5359,8 +5359,8 @@ static int wm_event_type_from_gamepad_buttton(GHOST_TGamepadButton button)
       return GAMEPAD_BUTTON_LEFT_SHOULDER;
     case GHOST_kGamepadButtonRightShoulder:
       return GAMEPAD_BUTTON_RIGHT_SHOULDER;
-    case GHOST_kGamepadButtonView:
-      return GAMEPAD_BUTTON_VIEW;
+    case GHOST_kGamepadButtonBack:
+      return GAMEPAD_BUTTON_BACK;
     case GHOST_kGamepadButtonMenu:
       return GAMEPAD_BUTTON_MENU;
     case GHOST_kGamepadButtonLeftThumb:

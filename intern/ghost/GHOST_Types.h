@@ -793,7 +793,7 @@ typedef enum {
   GHOST_kGamepadButtonLeftShoulder,
   GHOST_kGamepadButtonRightShoulder,
 
-  GHOST_kGamepadButtonView,
+  GHOST_kGamepadButtonBack,
   GHOST_kGamepadButtonMenu,
 
   GHOST_kGamepadButtonLeftThumb,
