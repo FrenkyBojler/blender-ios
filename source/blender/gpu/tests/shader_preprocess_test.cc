@@ -92,6 +92,33 @@ float2 c[2] = {{0, 1}, {0, 1}};
 }
 GPU_TEST(preprocess_array);
 
+static void test_preprocess_comma_declaration()
+{
+  using namespace shader;
+  using namespace std;
+  {
+    string input = R"(
+struct A {
+  int a, b;
+};
+)";
+    string expect =
+        R"(
+struct A {
+  int a;int b;
+};
+#line 2
+          A A_ctor_() {A r;r.a=0;r.a=b;return r;}
+#line 5
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(expect, output);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_comma_declaration);
+
 static void test_preprocess_include()
 {
   using namespace shader;

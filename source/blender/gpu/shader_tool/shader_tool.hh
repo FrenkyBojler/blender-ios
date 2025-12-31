@@ -541,6 +541,7 @@ class Preprocessor {
         lower_classes(parser, report_error);
         lower_noop_keywords(parser, report_error);
         lower_trailing_comma_in_list(parser, report_error);
+        lower_comma_separated_declarations(parser, report_error);
 
         parser.apply_mutations();
 
@@ -3501,6 +3502,33 @@ class Preprocessor {
     using namespace shader::parser;
 
     parser().foreach_match(",}", [&](const Tokens &t) { parser.erase(t[0]); });
+  }
+
+  /* Allow easier parsing of struct member declaration.
+   * Example: `int a, b;` > `int a; int b;` */
+  void lower_comma_separated_declarations(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    auto process_decl = [&](const Tokens &t) {
+      if (t[0].scope().type() != ScopeType::Struct) {
+        return;
+      }
+      string type = t[0].str();
+      Token comma = t[2];
+      while (comma == ',' || comma == '[') {
+        if (comma == '[') {
+          comma = comma.scope().back().next();
+          continue;
+        }
+        parser.replace(comma, ";" + type, true);
+        comma = comma.next().next();
+      }
+    };
+
+    parser().foreach_match("ww,", [&](const Tokens &t) { process_decl(t); });
+    parser().foreach_match("ww[..],", [&](const Tokens &t) { process_decl(t); });
   }
 
   void lower_implicit_return_types(Parser &parser, report_callback /*report_error*/)
