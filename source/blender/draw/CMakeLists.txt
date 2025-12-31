@@ -861,12 +861,22 @@ set(GLSL_INC
 
   engines/gpencil
   engines/gpencil/shaders
+  engines/gpencil/shaders/infos
   engines/workbench
   engines/workbench/shaders
+  engines/workbench/shaders/infos
   engines/eevee
   engines/eevee/shaders
+  engines/eevee/shaders/infos
   engines/overlay
   engines/overlay/shaders
+  engines/overlay/shaders/infos
+  engines/select
+  engines/select/shaders
+  engines/select/shaders/infos
+  engines/image
+  engines/image/shaders
+  engines/image/shaders/infos
 
   intern
   intern/shaders

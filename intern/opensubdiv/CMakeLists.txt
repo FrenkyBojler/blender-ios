@@ -91,7 +91,10 @@ if(WITH_OPENSUBDIV)
   )
 
   set(GLSL_INC
-    .
+    # For osd_patch_basis.glsl
+    ../../source/blender/draw/intern/shaders
+
+    internal/evaluator/shaders
   )
 
   set(GLSL_C)

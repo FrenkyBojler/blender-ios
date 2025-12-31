@@ -387,7 +387,14 @@ set(GLSL_SRC
 )
 
 set(GLSL_INC
-  .
+  ../gpu
+  ../gpu/intern
+  ../gpu/shaders
+  ../gpu/shaders/common
+
+  shaders
+  shaders/library
+  shaders/infos
 )
 
 set(GLSL_C)

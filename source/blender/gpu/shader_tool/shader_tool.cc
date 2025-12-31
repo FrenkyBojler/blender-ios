@@ -39,6 +39,8 @@ std::vector<std::string> scan_external_symbols(const std::vector<std::string> &f
   blender::gpu::shader::metadata::Source include_data = processor.process_include(
       file_buffer, [](int, int, std::string, const char *) {});
 
+  bool errors = false;
+
   for (const auto &dep : include_data.dependencies) {
     std::string file;
     for (const auto &filename : file_list) {
@@ -49,15 +51,19 @@ std::vector<std::string> scan_external_symbols(const std::vector<std::string> &f
 
     if (file.empty()) {
       std::cout << "Error: Included file not found " << dep << std::endl;
+      errors = true;
     }
     else {
-      std::cout << file << std::endl;
+      // std::cout << file << std::endl;
     }
   }
   // for (auto symbol : include_data.symbol_table) {
   //   std::cout << symbol << std::endl;
   // }
 
+  if (errors) {
+    exit(1);
+  }
   return {};
 }
 

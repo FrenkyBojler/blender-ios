@@ -805,6 +805,14 @@ endif()
 
 set(GLSL_INC
   .
+
+  intern
+  shaders
+  shaders/common
+  shaders/material
+  shaders/infos
+
+  vulkan/shaders
 )
 
 set(GLSL_C)
