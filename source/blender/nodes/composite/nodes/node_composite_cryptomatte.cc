@@ -40,6 +40,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "UI_resources.hh"
 
