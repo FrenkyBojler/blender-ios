@@ -2979,7 +2979,7 @@ class Preprocessor {
       }
       guard_else += "#else\n";
       guard_else += line_start;
-      guard_else += "  return " + type + (is_trivial ? "(0)" : "::zero()") + ";\n";
+      guard_else += "  return " + type + (is_trivial ? "(0)" : "{}") + ";\n";
     }
     string guard_end = "#endif";
 
@@ -4868,7 +4868,7 @@ class Preprocessor {
               if (is_entry_point) {
                 /* Add dummy var at start of function body. */
                 parser.insert_after(fn_body.front().str_index_start(),
-                                    " " + srt_type + " " + srt_var + ";");
+                                    " " + srt_type + " " + srt_var + "{};");
                 create_info_decl += "ADDITIONAL_INFO(" + srt_type + ")\n";
               }
             }
