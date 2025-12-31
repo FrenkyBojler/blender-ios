@@ -706,7 +706,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
                           int((scene->r.border.ymax * height))};
 
     int x, y = 0;
-    UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
+    blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
 
     GPU_matrix_push();
     GPU_matrix_translate_2f(x, y);

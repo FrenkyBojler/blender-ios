@@ -396,7 +396,6 @@ void RE_engine_update_result(RenderEngine *engine, RenderResult *result)
   if (result) {
     re_ensure_passes_allocated_thread_safe(re);
     result->tilerect = re->disprect;
-    print_rcti("result->tilerect", &result->tilerect);
     render_result_merge(re->result, result);
     result->renlay = static_cast<RenderLayer *>(
         result->layers.first); /* weak, draws first layer always */
