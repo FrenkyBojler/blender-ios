@@ -17,7 +17,6 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_object_types.h" /* SELECT */
@@ -43,10 +42,10 @@
 
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -54,7 +53,7 @@
 #include "RNA_prototypes.hh"
 
 #include "libmv-capi.h"
-#include "tracking_private.h"
+#include "tracking_private.hh"
 
 using blender::Array;
 using blender::int2;
@@ -200,7 +199,7 @@ static void tracking_tracks_copy(TrackingCopyContext *ctx,
   BLI_listbase_clear(tracks_dst);
 
   LISTBASE_FOREACH (MovieTrackingTrack *, track_src, tracks_src) {
-    MovieTrackingTrack *track_dst = MEM_dupallocN<MovieTrackingTrack>(__func__, *track_src);
+    MovieTrackingTrack *track_dst = MEM_new_for_free<MovieTrackingTrack>(__func__, *track_src);
     if (track_src->markers) {
       track_dst->markers = static_cast<MovieTrackingMarker *>(MEM_dupallocN(track_src->markers));
     }
@@ -303,7 +302,7 @@ static void tracking_objects_copy(ListBase *tracking_objects_dst,
   BLI_listbase_clear(tracking_objects_dst);
 
   LISTBASE_FOREACH (MovieTrackingObject *, tracking_object_src, tracking_objects_src) {
-    MovieTrackingObject *tracking_object_dst = MEM_callocN<MovieTrackingObject>(__func__);
+    MovieTrackingObject *tracking_object_dst = MEM_new_for_free<MovieTrackingObject>(__func__);
     tracking_object_copy(tracking_object_dst, tracking_object_src, flag);
     BLI_addtail(tracking_objects_dst, tracking_object_dst);
   }
@@ -505,7 +504,7 @@ MovieTrackingTrack *BKE_tracking_track_add_empty(MovieTracking *tracking, ListBa
 {
   const MovieTrackingSettings *settings = &tracking->settings;
 
-  MovieTrackingTrack *track = MEM_callocN<MovieTrackingTrack>("add_marker_exec track");
+  MovieTrackingTrack *track = MEM_new_for_free<MovieTrackingTrack>("add_marker_exec track");
   STRNCPY_UTF8(track->name, CTX_DATA_(BLT_I18NCONTEXT_ID_MOVIECLIP, "Track"));
 
   /* Fill track's settings from default settings. */
@@ -569,7 +568,7 @@ MovieTrackingTrack *BKE_tracking_track_duplicate(MovieTrackingTrack *track)
 {
   MovieTrackingTrack *new_track;
 
-  new_track = MEM_callocN<MovieTrackingTrack>("tracking_track_duplicate new_track");
+  new_track = MEM_new_for_free<MovieTrackingTrack>("tracking_track_duplicate new_track");
 
   *new_track = *track;
   new_track->next = new_track->prev = nullptr;
@@ -674,7 +673,7 @@ MovieTrackingTrack **BKE_tracking_selected_tracks_in_active_object(MovieTracking
   return source_tracks;
 }
 
-void BKE_tracking_track_flag_set(MovieTrackingTrack *track, int area, int flag)
+void BKE_tracking_track_flag_set(MovieTrackingTrack *track, eTrackArea area, int flag)
 {
   if (area == TRACK_AREA_NONE) {
     return;
@@ -691,7 +690,7 @@ void BKE_tracking_track_flag_set(MovieTrackingTrack *track, int area, int flag)
   }
 }
 
-void BKE_tracking_track_flag_clear(MovieTrackingTrack *track, int area, int flag)
+void BKE_tracking_track_flag_clear(MovieTrackingTrack *track, eTrackArea area, int flag)
 {
   if (area == TRACK_AREA_NONE) {
     return;
@@ -800,7 +799,7 @@ void BKE_tracking_tracks_join(MovieTracking *tracking,
   MovieTrackingMarker *markers;
 
   tot = dst_track->markersnr + src_track->markersnr;
-  markers = MEM_calloc_arrayN<MovieTrackingMarker>(tot, "tmp tracking joined tracks");
+  markers = MEM_new_array_for_free<MovieTrackingMarker>(tot, "tmp tracking joined tracks");
 
   while (a < src_track->markersnr || b < dst_track->markersnr) {
     if (b >= dst_track->markersnr) {
@@ -896,7 +895,7 @@ void BKE_tracking_tracks_join(MovieTracking *tracking,
 
   MEM_freeN(dst_track->markers);
 
-  dst_track->markers = MEM_calloc_arrayN<MovieTrackingMarker>(i, "tracking joined tracks");
+  dst_track->markers = MEM_new_array_for_free<MovieTrackingMarker>(i, "tracking joined tracks");
   memcpy(dst_track->markers, markers, i * sizeof(MovieTrackingMarker));
 
   dst_track->markersnr = i;
@@ -957,7 +956,7 @@ static void tracking_average_markers(MovieTrackingTrack *dst_track,
   const int num_frames = last_frame - first_frame + 1;
 
   /* Allocate temporary array where averaging will happen into. */
-  MovieTrackingMarker *accumulator = MEM_calloc_arrayN<MovieTrackingMarker>(
+  MovieTrackingMarker *accumulator = MEM_new_array_for_free<MovieTrackingMarker>(
       num_frames, "tracks average accumulator");
   int *counters = MEM_calloc_arrayN<int>(num_frames, "tracks accumulator counters");
   for (int frame = first_frame; frame <= last_frame; ++frame) {
@@ -1191,7 +1190,7 @@ float BKE_tracking_track_get_weight_for_marker(MovieClip *clip,
 
 void BKE_tracking_track_select(ListBase *tracksbase,
                                MovieTrackingTrack *track,
-                               int area,
+                               eTrackArea area,
                                bool extend)
 {
   if (extend) {
@@ -1216,7 +1215,7 @@ void BKE_tracking_track_select(ListBase *tracksbase,
   }
 }
 
-void BKE_tracking_track_deselect(MovieTrackingTrack *track, int area)
+void BKE_tracking_track_deselect(MovieTrackingTrack *track, eTrackArea area)
 {
   BKE_tracking_track_flag_clear(track, area, SELECT);
 }
@@ -1266,7 +1265,7 @@ MovieTrackingMarker *BKE_tracking_marker_insert(MovieTrackingTrack *track,
         MEM_reallocN(track->markers, sizeof(MovieTrackingMarker) * track->markersnr));
   }
   else {
-    track->markers = MEM_callocN<MovieTrackingMarker>("MovieTracking markers");
+    track->markers = MEM_new_for_free<MovieTrackingMarker>("MovieTracking markers");
   }
 
   /* shift array to "free" space for new marker */
@@ -1573,7 +1572,7 @@ MovieTrackingPlaneTrack *BKE_tracking_plane_track_add(MovieTracking *tracking,
   }
 
   /* Allocate new plane track. */
-  plane_track = MEM_callocN<MovieTrackingPlaneTrack>("new plane track");
+  plane_track = MEM_new_for_free<MovieTrackingPlaneTrack>("new plane track");
 
   /* Use some default name. */
   STRNCPY_UTF8(plane_track->name, DATA_("Plane Track"));
@@ -1898,7 +1897,7 @@ void BKE_tracking_plane_marker_get_subframe_corners(MovieTrackingPlaneTrack *pla
 
 MovieTrackingObject *BKE_tracking_object_add(MovieTracking *tracking, const char *name)
 {
-  MovieTrackingObject *tracking_object = MEM_callocN<MovieTrackingObject>("tracking object");
+  MovieTrackingObject *tracking_object = MEM_new_for_free<MovieTrackingObject>("tracking object");
 
   if (tracking->tot_object == 0) {
     /* first object is always camera */
@@ -2177,7 +2176,7 @@ void BKE_tracking_camera_principal_point_pixel_get(MovieClip *clip,
   const MovieTrackingCamera *camera = &clip->tracking.camera;
 
   int frame_width, frame_height;
-  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser user = {};
   BKE_movieclip_get_size(clip, &user, &frame_width, &frame_height);
 
   tracking_principal_point_normalized_to_pixel(
@@ -2190,7 +2189,7 @@ void BKE_tracking_camera_principal_point_pixel_set(MovieClip *clip,
   MovieTrackingCamera *camera = &clip->tracking.camera;
 
   int frame_width, frame_height;
-  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser user = {};
   BKE_movieclip_get_size(clip, &user, &frame_width, &frame_height);
 
   tracking_principal_point_pixel_to_normalized(
@@ -3278,7 +3277,7 @@ static void tracking_dopesheet_channels_calc(MovieTracking *tracking)
       continue;
     }
 
-    MovieTrackingDopesheetChannel *channel = MEM_callocN<MovieTrackingDopesheetChannel>(
+    MovieTrackingDopesheetChannel *channel = MEM_new_for_free<MovieTrackingDopesheetChannel>(
         "tracking dopesheet channel");
     channel->track = track;
 
@@ -3300,7 +3299,7 @@ static void tracking_dopesheet_channels_calc(MovieTracking *tracking)
  * longest tracked segment) and could also inverse the list if it's enabled.
  */
 static void tracking_dopesheet_channels_sort(MovieTracking *tracking,
-                                             int sort_method,
+                                             TrackingDopesheetSort sort_method,
                                              bool inverse)
 {
   MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
@@ -3347,7 +3346,7 @@ static void tracking_dopesheet_channels_sort(MovieTracking *tracking,
   }
 }
 
-static int coverage_from_count(int count)
+static TrackingCoverage coverage_from_count(int count)
 {
   /* Values are actually arbitrary here, probably need to be tweaked. */
   if (count < 8) {
@@ -3369,7 +3368,8 @@ static void tracking_dopesheet_calc_coverage(MovieTracking *tracking)
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
   int frames, start_frame = INT_MAX, end_frame = -INT_MAX;
   int *per_frame_counter;
-  int prev_coverage, last_segment_frame;
+  TrackingCoverage prev_coverage;
+  int last_segment_frame;
 
   /* find frame boundaries */
   LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
@@ -3409,7 +3409,7 @@ static void tracking_dopesheet_calc_coverage(MovieTracking *tracking)
   }
 
   for (int i = 1; i < frames; i++) {
-    int coverage = coverage_from_count(per_frame_counter[i]);
+    TrackingCoverage coverage = coverage_from_count(per_frame_counter[i]);
 
     /* means only disabled tracks in the end, could be ignored */
     if (i == frames - 1 && !per_frame_counter[i]) {
@@ -3424,7 +3424,7 @@ static void tracking_dopesheet_calc_coverage(MovieTracking *tracking)
         end_segment_frame++;
       }
 
-      coverage_segment = MEM_callocN<MovieTrackingDopesheetCoverageSegment>(
+      coverage_segment = MEM_new_for_free<MovieTrackingDopesheetCoverageSegment>(
           "tracking coverage segment");
       coverage_segment->coverage = prev_coverage;
       coverage_segment->start_frame = last_segment_frame;
@@ -3452,7 +3452,7 @@ void BKE_tracking_dopesheet_update(MovieTracking *tracking)
 {
   MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
 
-  short sort_method = dopesheet->sort_method;
+  TrackingDopesheetSort sort_method = TrackingDopesheetSort(dopesheet->sort_method);
   bool inverse = (dopesheet->flag & TRACKING_DOPE_SORT_INVERSE) != 0;
 
   if (dopesheet->ok) {

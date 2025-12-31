@@ -23,15 +23,15 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
+
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
-#include "DNA_array_utils.hh"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -1076,9 +1076,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
             AttrDomain::Curve,
             bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
     {
-      strokes.foreach_index(GrainSize(2048), [&](const int64_t curve) {
-        fill_opacities.span[curve] = opacity_fill;
-      });
+      index_mask::masked_fill(fill_opacities.span, opacity_fill, strokes);
       fill_opacities.finish();
     }
 
@@ -2460,7 +2458,7 @@ static struct Clipboard {
 } *grease_pencil_clipboard = nullptr;
 
 /** The clone brush accesses the clipboard from multiple threads. Protect from parallel access. */
-blender::Mutex grease_pencil_clipboard_lock;
+Mutex grease_pencil_clipboard_lock;
 
 static Clipboard &ensure_grease_pencil_clipboard()
 {
@@ -3624,7 +3622,7 @@ static wmOperatorStatus grease_pencil_snap_to_cursor_exec(bContext *C, wmOperato
 
         /* Offset from first point of the curve. */
         const float3 offset = cursor_layer - positions[points.first()];
-        selected_points.slice_content(points).foreach_index(
+        selected_points.slice_content(points).foreach_index_optimized<int>(
             GrainSize(4096), [&](const int point_i) { positions[point_i] += offset; });
       });
     }
@@ -4095,6 +4093,7 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
     });
 
     curves.calculate_bezier_auto_handles();
+    curves.calculate_bezier_aligned_handles();
     curves.tag_topology_changed();
     info.drawing.tag_topology_changed();
 

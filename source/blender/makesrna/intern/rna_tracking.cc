@@ -11,34 +11,33 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_tracking.hh"
+
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
 
+#include "DNA_movieclip_types.h"
 #include "DNA_object_types.h" /* SELECT */
 #include "DNA_scene_types.h"
+#include "DNA_tracking_types.h"
 
 #include "WM_types.hh"
 
 #ifdef RNA_RUNTIME
 
 #  include "DNA_anim_types.h"
-#  include "DNA_defaults.h"
 #  include "DNA_movieclip_types.h"
 
 #  include "BLI_math_vector.h"
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_animsys.h"
-#  include "BKE_movieclip.h"
-#  include "BKE_node.hh"
+#  include "BKE_movieclip.hh"
 #  include "BKE_node_tree_update.hh"
 #  include "BKE_report.hh"
-#  include "BKE_tracking.h"
 
 #  include "DEG_depsgraph.hh"
-
-#  include "IMB_imbuf.hh"
 
 #  include "WM_api.hh"
 
@@ -660,7 +659,7 @@ static MovieTrackingTrack *add_track_to_base(
     MovieClip *clip, MovieTracking *tracking, ListBase *tracksbase, const char *name, int frame)
 {
   int width, height;
-  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser user = {};
   MovieTrackingTrack *track;
 
   user.framenr = 1;
@@ -917,9 +916,13 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem cleanup_items[] = {
-      {TRACKING_CLEAN_SELECT, "SELECT", 0, "Select", "Select unclean tracks"},
-      {TRACKING_CLEAN_DELETE_TRACK, "DELETE_TRACK", 0, "Delete Track", "Delete unclean tracks"},
-      {TRACKING_CLEAN_DELETE_SEGMENT,
+      {int(TrackingCleanAction::Select), "SELECT", 0, "Select", "Select unclean tracks"},
+      {int(TrackingCleanAction::DeleteTrack),
+       "DELETE_TRACK",
+       0,
+       "Delete Track",
+       "Delete unclean tracks"},
+      {int(TrackingCleanAction::DeleteSegment),
        "DELETE_SEGMENTS",
        0,
        "Delete Segments",

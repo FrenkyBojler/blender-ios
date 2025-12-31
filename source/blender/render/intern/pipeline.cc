@@ -16,6 +16,7 @@
 #include <memory>
 
 #include "DNA_anim_types.h"
+#include "DNA_defs.h"
 #include "DNA_image_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -48,11 +49,7 @@
 #include "BKE_image_format.hh"
 #include "BKE_image_save.hh"
 #include "BKE_layer.hh"
-#include "BKE_lib_id.hh"
-#include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
-#include "BKE_mask.h"
-#include "BKE_modifier.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_pointcache.h"
@@ -80,7 +77,6 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
-#include "RE_texture.h"
 
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
@@ -88,7 +84,6 @@
 #include "GPU_capabilities.hh"
 #include "GPU_context.hh"
 #include "WM_api.hh"
-#include "wm_window.hh"
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -366,7 +361,7 @@ void RE_SetScene(Render *re, Scene *sce)
 
 void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
 {
-  memset(rr, 0, sizeof(RenderResult));
+  *rr = RenderResult();
 
   if (re) {
     BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_READ);
@@ -415,7 +410,7 @@ void RE_ReleaseResultImageViews(Render *re, RenderResult *rr)
 
 void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 {
-  memset(rr, 0, sizeof(RenderResult));
+  *rr = RenderResult();
 
   if (re) {
     BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_READ);
@@ -631,7 +626,8 @@ void RE_FreeUnusedGPUResources()
      * race condition here because we are on the main thread and new jobs can only
      * be started from the main thread. */
     if (WM_jobs_test(wm, re->owner, WM_JOB_TYPE_RENDER) ||
-        WM_jobs_test(wm, re->owner, WM_JOB_TYPE_COMPOSITE))
+        WM_jobs_test(wm, re->owner, WM_JOB_TYPE_COMPOSITE) ||
+        WM_jobs_test(wm, re->owner, WM_JOB_TYPE_OBJECT_BAKE))
     {
       do_free = false;
     }
@@ -767,7 +763,7 @@ void render_copy_renderdata(RenderData *to, RenderData *from)
   /* Mostly shallow copy referencing pointers in scene renderdata. */
   BKE_curvemapping_free_data(&to->mblur_shutter_curve);
 
-  memcpy(to, from, sizeof(*to));
+  *to = blender::dna::shallow_copy(*from);
 
   BKE_curvemapping_copy_data(&to->mblur_shutter_curve, &from->mblur_shutter_curve);
 }
@@ -865,7 +861,7 @@ void RE_InitState(Render *re,
 
     /* make empty render result, so display callbacks can initialize */
     render_result_free(re->result);
-    re->result = MEM_callocN<RenderResult>("new render result");
+    re->result = MEM_new_for_free<RenderResult>("new render result");
     re->result->rectx = re->rectx;
     re->result->recty = re->recty;
     BKE_scene_ppm_get(&re->r, re->result->ppm);
@@ -1363,9 +1359,7 @@ bool RE_seq_render_active(Scene *scene, RenderData *rd)
   }
 
   LISTBASE_FOREACH (Strip *, strip, &ed->seqbase) {
-    if (strip->type != STRIP_TYPE_SOUND_RAM &&
-        !blender::seq::render_is_muted(&ed->channels, strip))
-    {
+    if (strip->type != STRIP_TYPE_SOUND && !blender::seq::render_is_muted(&ed->channels, strip)) {
       return true;
     }
   }
@@ -1969,8 +1963,7 @@ void RE_RenderFrame(Render *re,
   if (render_init_from_main(
           re, &scene->r, bmain, scene, single_layer, camera_override, false, false))
   {
-    RenderData rd;
-    memcpy(&rd, &scene->r, sizeof(rd));
+    RenderData rd = blender::dna::shallow_copy(scene->r);
     MEM_reset_peak_memory();
 
     render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_PRE);
@@ -2355,8 +2348,7 @@ void RE_RenderAnim(Render *re,
    * copying (e.g. alter the output path). */
   render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
 
-  RenderData rd;
-  memcpy(&rd, &scene->r, sizeof(rd));
+  RenderData rd = blender::dna::shallow_copy(scene->r);
   const int cfra_old = rd.cfra;
   const float subframe_old = rd.subframe;
   int nfra, totrendered = 0, totskipped = 0;
@@ -2838,7 +2830,7 @@ RenderPass *RE_create_gp_pass(RenderResult *rr, const char *layername, const cha
   RenderLayer *rl = RE_GetRenderLayer(rr, layername);
   /* only create render layer if not exist */
   if (!rl) {
-    rl = MEM_callocN<RenderLayer>(layername);
+    rl = MEM_new_for_free<RenderLayer>(layername);
     BLI_addtail(&rr->layers, rl);
     STRNCPY(rl->name, layername);
     rl->layflag = SCE_LAY_SOLID;

@@ -6,6 +6,7 @@
  * \ingroup edcurves
  */
 
+#include "BLI_array_utils.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
@@ -312,7 +313,7 @@ static void try_convert_single_object(Object &curves_ob,
   settings.totpart = 0;
   psys_changed_type(&surface_ob, particle_system);
 
-  MutableSpan<ParticleData> particles{MEM_calloc_arrayN<ParticleData>(hair_num, __func__),
+  MutableSpan<ParticleData> particles{MEM_new_array_for_free<ParticleData>(hair_num, __func__),
                                       hair_num};
 
   /* The old hair system still uses #MFace, so make sure those are available on the mesh. */
@@ -935,7 +936,7 @@ static void select_random_ui(bContext * /*C*/, wmOperator *op)
   ui::Layout &layout = *op->layout;
 
   layout.prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+  layout.prop(op->ptr, "probability", ui::ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
 }
 
 static void CURVES_OT_select_random(wmOperatorType *ot)
@@ -1383,8 +1384,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator * /*op*/)
 
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
         "cyclic", bke::AttrDomain::Curve);
-    selection.foreach_index(GrainSize(4096),
-                            [&](const int i) { cyclic.span[i] = !cyclic.span[i]; });
+    array_utils::invert_booleans(cyclic.span, selection);
     cyclic.finish();
 
     if (!cyclic.span.contains(true)) {
@@ -1779,6 +1779,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
     });
 
     curves.calculate_bezier_auto_handles();
+    curves.calculate_bezier_aligned_handles();
     curves.tag_topology_changed();
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);

@@ -22,29 +22,17 @@
 
 #ifdef RNA_RUNTIME
 
-// #include "DNA_anim_types.h"
-#  include "DNA_image_types.h"
 #  include "DNA_mask_types.h"
-#  include "DNA_sound_types.h"
 
 #  include "BLI_path_utils.hh" /* #BLI_path_split_dir_file */
 
-#  include "BKE_image.hh"
-#  include "BKE_mask.h"
-#  include "BKE_movieclip.h"
-
 #  include "BKE_report.hh"
 
-#  include "IMB_imbuf.hh"
-#  include "IMB_imbuf_types.hh"
-
 #  include "SEQ_add.hh"
-#  include "SEQ_edit.hh"
 #  include "SEQ_effects.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_render.hh"
 #  include "SEQ_retiming.hh"
-#  include "SEQ_time.hh"
 
 #  include "WM_api.hh"
 
@@ -639,7 +627,7 @@ static void rna_StripElements_pop(ID *id, Strip *strip, ReportList *reports, int
     return;
   }
 
-  new_se = MEM_calloc_arrayN<StripElem>(size_t(strip->len) - 1, "StripElements_pop");
+  new_se = MEM_new_array_for_free<StripElem>((strip->len - 1), "StripElements_pop");
   strip->len--;
 
   if (strip->len == 1) {
@@ -733,20 +721,22 @@ void RNA_api_strip(StructRNA *srna)
   func = RNA_def_function(srna, "swap", "rna_Strip_swap_internal");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
-  parm = RNA_def_pointer(func, "other", "Strip", "Other", "");
+  RNA_def_function_ui_description(func, "Swap the position of this strip with another");
+  parm = RNA_def_pointer(func, "other", "Strip", "Other", "Other strip to swap with");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "move_to_meta", "rna_Strips_move_strip_to_meta");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  RNA_def_function_ui_description(func, "Move this strip into a meta Strip");
   parm = RNA_def_pointer(
       func, "meta_sequence", "Strip", "Destination Meta Strip", "Meta to move the strip into");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "parent_meta", "rna_Strip_parent_meta");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID);
-  RNA_def_function_ui_description(func, "Parent meta");
+  RNA_def_function_ui_description(func, "Returns parent meta Strip");
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Strip", "", "Parent Meta");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "Parent meta strip");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "invalidate_cache", "rna_Strip_invalidate_cache_rnafunc");

@@ -12,7 +12,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -35,10 +34,7 @@
 static void init_data(ModifierData *md)
 {
   WireframeModifierData *wmd = (WireframeModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WireframeModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -100,53 +96,51 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col, *row, *sub;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "thickness", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
-  layout->prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "thickness", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
+  layout.prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = &layout->column(true);
+  blender::ui::Layout *col = &layout.column(true);
   col->prop(ptr, "use_boundary", UI_ITEM_NONE, IFACE_("Boundary"), ICON_NONE);
   col->prop(ptr, "use_replace", UI_ITEM_NONE, IFACE_("Replace Original"), ICON_NONE);
 
-  col = &layout->column(true, IFACE_("Thickness"));
+  col = &layout.column(true, IFACE_("Thickness"));
   col->prop(ptr, "use_even_offset", UI_ITEM_NONE, IFACE_("Even"), ICON_NONE);
   col->prop(ptr, "use_relative_offset", UI_ITEM_NONE, IFACE_("Relative"), ICON_NONE);
 
-  row = &layout->row(true, IFACE_("Crease Edges"));
-  row->prop(ptr, "use_crease", UI_ITEM_NONE, "", ICON_NONE);
-  sub = &row->row(true);
-  sub->active_set(RNA_boolean_get(ptr, "use_crease"));
-  sub->prop(ptr, "crease_weight", UI_ITEM_R_SLIDER, "", ICON_NONE);
+  blender::ui::Layout &row = layout.row(true, IFACE_("Crease Edges"));
+  row.prop(ptr, "use_crease", UI_ITEM_NONE, "", ICON_NONE);
+  blender::ui::Layout &sub = row.row(true);
+  sub.active_set(RNA_boolean_get(ptr, "use_crease"));
+  sub.prop(ptr, "crease_weight", blender::ui::ITEM_R_SLIDER, "", ICON_NONE);
 
-  layout->prop(ptr, "material_offset", UI_ITEM_NONE, IFACE_("Material Offset"), ICON_NONE);
+  layout.prop(ptr, "material_offset", UI_ITEM_NONE, IFACE_("Material Offset"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
 
 static void vertex_group_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   bool has_vertex_group = RNA_string_length(ptr, "vertex_group") != 0;
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  row = &layout->row(true);
-  row->active_set(has_vertex_group);
-  row->prop(ptr, "thickness_vertex_group", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
+  blender::ui::Layout &row = layout.row(true);
+  row.active_set(has_vertex_group);
+  row.prop(ptr, "thickness_vertex_group", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
