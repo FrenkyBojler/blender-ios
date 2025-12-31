@@ -17,6 +17,8 @@ namespace blender::compositor {
  * buffers. */
 VectorSet<const bNode *> compute_schedule(const Context &context,
                                           const bNodeTree &node_group,
-                                          NodeGroupOutputTypes needed_outputs);
+                                          const NodeGroupOutputTypes needed_outputs,
+                                          const bNodeInstanceKey instance_key,
+                                          const bNodeInstanceKey active_node_group_instance_key);
 
 }  // namespace blender::compositor

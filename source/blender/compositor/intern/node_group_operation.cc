@@ -49,108 +49,19 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
     this->declare_input_descriptor(input->identifier, input_descriptor);
   }
 
-  /* The outputs connected to the group output node are not needed, so no need to declare results
-   * for them.  */
-  if (!flag_is_set(needed_outputs_, NodeGroupOutputTypes::GroupOutputNode)) {
-    return;
-  }
-
   for (const bNodeTreeInterfaceSocket *output : node_group.interface_outputs()) {
     const ResultType result_type = get_node_interface_socket_result_type(*output);
     this->populate_result(output->identifier, context.create_result(result_type));
   }
 }
 
-/* Checks if the node group with the given instance key has an active viewer node in it or in one
- * of its descendants. Only nodes of node groups whose instance key match that of the given active
- * viewer instance key are considered active. */
-static bool has_active_viewer_node(const bNodeTree &node_group,
-                                   const bNodeInstanceKey instance_key,
-                                   const bNodeInstanceKey active_node_group_instance_key)
-{
-  /* This node group is not an being viewed by the user, so it has no active viewer regardless of
-   * the existence of viewer nodes. */
-  if (active_node_group_instance_key != instance_key) {
-    return false;
-  }
-
-  /* An active viewer node exist, so return true. */
-  for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
-    if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
-      return true;
-    }
-  }
-
-  /* For each of the group nodes, compute their instance key and call this function recursively. */
-  for (const bNode *group_node : node_group.group_nodes()) {
-    if (!group_node->id) {
-      continue;
-    }
-
-    const bNodeTree &child_node_group = *reinterpret_cast<const bNodeTree *>(group_node->id);
-    const bNodeInstanceKey child_instance_key = bke::node_instance_key(
-        instance_key, &node_group, group_node);
-    const bool active_viewer_node_found = has_active_viewer_node(
-        child_node_group, child_instance_key, active_node_group_instance_key);
-
-    /* Neither the child node group nor one of its descendant node groups has an active viewer
-     * node, so we check other group nodes. */
-    if (!active_viewer_node_found) {
-      continue;
-    }
-
-    /* Otherwise, we have found our active context, return it. */
-    return true;
-  }
-
-  /* Neither the child node group nor one of its descendant node groups has an active viewer node,
-   * so return false. */
-  return false;
-}
-
-/* Computes the outputs that are needed by the given particular node group with the given node
- * instance key, assuming that the currently active node group has the given instance key. This is
- * the same as the needed outputs supplied to the operation, except for viewer nodes and node
- * previews. Those are only computed for currently active node groups. An exception for viewer
- * nodes in root node groups exist, where if no viewer node exist in the possibly descendant active
- * node group, the viewer node in the root node group will be computed as a fallback. */
-static NodeGroupOutputTypes compute_node_group_needed_outputs(
-    const bNodeTree &node_group,
-    const NodeGroupOutputTypes needed_outputs,
-    const bNodeInstanceKey instance_key,
-    const bNodeInstanceKey active_node_group_instance_key)
-{
-  /* Neither the viewer node or node previews are needed, so nothing needs to change. */
-  if (!flag_is_set(needed_outputs, NodeGroupOutputTypes::ViewerNode) &&
-      !flag_is_set(needed_outputs, NodeGroupOutputTypes::NodePreviews))
-  {
-    return needed_outputs;
-  }
-
-  /* If this is the active node group, then we need to compute the viewer node and node previews as
-   * requested. */
-  if (active_node_group_instance_key == instance_key) {
-    return needed_outputs;
-  }
-
-  /* If no viewer node exist in the possibly descendant active node group and this is a root node
-   * group, we fallback to the viewer in the root node group, but we don't need node previews. */
-  if (!has_active_viewer_node(node_group, instance_key, active_node_group_instance_key) &&
-      instance_key == bke::NODE_INSTANCE_KEY_BASE)
-  {
-    return needed_outputs & ~NodeGroupOutputTypes::NodePreviews;
-  }
-
-  /* This node group is not active, so no need to compute viewer node or previews. */
-  return needed_outputs & ~(NodeGroupOutputTypes::ViewerNode | NodeGroupOutputTypes::NodePreviews);
-}
-
 void NodeGroupOperation::execute()
 {
-  const NodeGroupOutputTypes node_group_needed_outputs = compute_node_group_needed_outputs(
-      node_group_, needed_outputs_, instance_key_, active_node_group_instance_key_);
-  const VectorSet<const bNode *> schedule = compute_schedule(
-      this->context(), node_group_, node_group_needed_outputs);
+  const VectorSet<const bNode *> schedule = compute_schedule(this->context(),
+                                                             node_group_,
+                                                             needed_outputs_,
+                                                             instance_key_,
+                                                             active_node_group_instance_key_);
   CompileState compile_state(this->context(), schedule);
 
   for (const bNode *node : schedule) {
@@ -171,13 +82,12 @@ void NodeGroupOperation::execute()
     }
   }
 
-  /* If the output of the group output node is needed but no group output node exists, allocate all
-   * outputs as invalid. */
-  if (flag_is_set(needed_outputs_, NodeGroupOutputTypes::GroupOutputNode) &&
-      !node_group_.group_output_node())
-  {
-    for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
-      this->get_result(output->identifier).allocate_invalid();
+  /* Allocate outputs that are not allocated already as invalid. This could happen for instance
+   * when no Group Output node exist. */
+  for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
+    Result &result = this->get_result(output->identifier);
+    if (!result.is_allocated()) {
+      result.allocate_invalid();
     }
   }
 }
@@ -215,12 +125,8 @@ NodeOperation *NodeGroupOperation::get_node_operation(const bNode &node)
   }
 
   if (node.is_group()) {
-    /* Make sure the GroupOutputNode output is always enabled for node group operations used by
-     * group nodes. */
-    return get_group_node_operation(this->context(),
-                                    node,
-                                    needed_outputs_ | NodeGroupOutputTypes::GroupOutputNode,
-                                    active_node_group_instance_key_);
+    return get_group_node_operation(
+        this->context(), node, needed_outputs_, active_node_group_instance_key_);
   }
 
   if (node.is_group_output()) {

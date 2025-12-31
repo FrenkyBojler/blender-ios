@@ -16,29 +16,107 @@
 
 namespace blender::compositor {
 
+/* Checks if the node group with the given instance key has an active viewer node in it or in one
+ * of its descendants. Only nodes of node groups whose instance key match that of the given active
+ * viewer instance key are considered active. */
+static bool has_active_viewer_node(const bNodeTree &node_group,
+                                   const bNodeInstanceKey instance_key,
+                                   const bNodeInstanceKey active_node_group_instance_key)
+{
+  /* This node group is not an being viewed by the user, so it has no active viewer regardless of
+   * the existence of viewer nodes. */
+  if (active_node_group_instance_key != instance_key) {
+    return false;
+  }
+
+  /* An active viewer node exist, so return true. */
+  for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
+    if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
+      return true;
+    }
+  }
+
+  /* For each of the group nodes, compute their instance key and call this function recursively. */
+  for (const bNode *group_node : node_group.group_nodes()) {
+    if (!group_node->id) {
+      continue;
+    }
+
+    const bNodeTree &child_node_group = *reinterpret_cast<const bNodeTree *>(group_node->id);
+    const bNodeInstanceKey child_instance_key = bke::node_instance_key(
+        instance_key, &node_group, group_node);
+    const bool active_viewer_node_found = has_active_viewer_node(
+        child_node_group, child_instance_key, active_node_group_instance_key);
+
+    /* Neither the child node group nor one of its descendant node groups has an active viewer
+     * node, so we check other group nodes. */
+    if (!active_viewer_node_found) {
+      continue;
+    }
+
+    /* Otherwise, we have found our active context, return it. */
+    return true;
+  }
+
+  /* Neither the child node group nor one of its descendant node groups has an active viewer node,
+   * so return false. */
+  return false;
+}
+
+/* Determine if the viewer node should be scheduled. This is not as simple as checking if the
+ * viewer node is needed based on the needed outputs, because only viewers in active node group are
+ * considered. Furthermore, and exception is made for root node groups, where if no viewer exists
+ * in the active node group, we fallback to the root node group. */
+static bool should_schedule_viewer(const bNodeTree &node_group,
+                                   const NodeGroupOutputTypes needed_outputs,
+                                   const bNodeInstanceKey instance_key,
+                                   const bNodeInstanceKey active_node_group_instance_key)
+{
+  /* The viewer is not needed. */
+  if (!flag_is_set(needed_outputs, NodeGroupOutputTypes::ViewerNode)) {
+    return false;
+  }
+
+  /* If this is the active node group, then we should to compute the viewer node. */
+  if (active_node_group_instance_key == instance_key) {
+    return true;
+  }
+
+  /* If no viewer node exist in the possibly descendant active node group and this is a root node
+   * group, we fallback to the viewer in the root node group. */
+  if (!has_active_viewer_node(node_group, instance_key, active_node_group_instance_key) &&
+      instance_key == bke::NODE_INSTANCE_KEY_BASE)
+  {
+    return true;
+  }
+
+  /* This node group is not active, so no need to compute viewer node. */
+  return false;
+}
+
 /* Add the output nodes whose result should be computed to the given stack. This includes File
  * Output, Group Output, and Viewer nodes. */
 static void add_output_nodes(const Context &context,
                              const bNodeTree &node_group,
                              NodeGroupOutputTypes needed_outputs,
+                             const bNodeInstanceKey instance_key,
+                             const bNodeInstanceKey active_node_group_instance_key,
                              Stack<const bNode *> &node_stack)
 {
-  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::FileOutputNode)) {
-    for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile")) {
-      if (!node->is_muted()) {
-        node_stack.push(node);
-      }
-    }
-  }
-
-  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::GroupOutputNode)) {
+  /* Node groups used by group nodes, that is, when the instance key is not NODE_INSTANCE_KEY_BASE,
+   * should always have a group output node,  */
+  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::GroupOutputNode) ||
+      instance_key != bke::NODE_INSTANCE_KEY_BASE)
+  {
     const bNode *output_node = node_group.group_output_node();
     if (output_node && !output_node->is_muted()) {
       node_stack.push(output_node);
     }
   }
 
-  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::ViewerNode)) {
+  if (should_schedule_viewer(
+          node_group, needed_outputs, instance_key, active_node_group_instance_key))
+  {
     const bNode *viewer_node = nullptr;
     for (const bNode *node : node_group.nodes_by_type("CompositorNodeViewer")) {
       if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
@@ -47,19 +125,24 @@ static void add_output_nodes(const Context &context,
       }
     }
 
-    if (!viewer_node) {
-      return;
+    if (viewer_node) {
+      /* If the viewer is treated as a compositor output and takes precedence over it, we need to
+       * remove it since the viewer will act in its place. */
+      if (context.treat_viewer_as_compositor_output() && !node_stack.is_empty() &&
+          node_stack.peek()->is_type("NodeGroupOutput"))
+      {
+        node_stack.pop();
+      }
+      node_stack.push(viewer_node);
     }
+  }
 
-    /* If the viewer is treated as a compositor output and takes precedence over it, we need to
-     * remove it since the viewer will act in its place. */
-    if (context.treat_viewer_as_compositor_output() && !node_stack.is_empty() &&
-        node_stack.peek()->is_type("NodeGroupOutput"))
-    {
-      node_stack.pop();
+  if (flag_is_set(needed_outputs, NodeGroupOutputTypes::FileOutputNode)) {
+    for (const bNode *node : node_group.nodes_by_type("CompositorNodeOutputFile")) {
+      if (!node->is_muted()) {
+        node_stack.push(node);
+      }
     }
-
-    node_stack.push(viewer_node);
   }
 }
 
@@ -249,7 +332,9 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &outp
  * all buffers will have roughly the same size, which may not always be the case. */
 VectorSet<const bNode *> compute_schedule(const Context &context,
                                           const bNodeTree &node_group,
-                                          NodeGroupOutputTypes needed_outputs)
+                                          NodeGroupOutputTypes needed_outputs,
+                                          const bNodeInstanceKey instance_key,
+                                          const bNodeInstanceKey active_node_group_instance_key)
 {
   VectorSet<const bNode *> schedule;
 
@@ -264,7 +349,12 @@ VectorSet<const bNode *> compute_schedule(const Context &context,
   Stack<const bNode *> node_stack;
 
   /* Add the output nodes whose result should be computed to the stack. */
-  add_output_nodes(context, node_group, needed_outputs, node_stack);
+  add_output_nodes(context,
+                   node_group,
+                   needed_outputs,
+                   instance_key,
+                   active_node_group_instance_key,
+                   node_stack);
 
   /* No output nodes, the node group has no effect, return an empty schedule. */
   if (node_stack.is_empty()) {
