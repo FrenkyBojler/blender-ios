@@ -34,8 +34,6 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Float>("Image")
       .default_value(0.5f)
-      .min(0.0f)
-      .max(1.0f)
       .hide_value()
       .compositor_domain_priority(0)
       .structure_type(StructureType::Dynamic);
@@ -72,22 +70,22 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_panel = b.add_panel("Falloff Part").default_closed(false);
-  falloff_panel.add_input<decl::Float>("Width")
+  falloff_panel.add_input<decl::Float>("Size Boundary")
       .default_value(1.0f)
       .min(0.0f)
       .compositor_domain_priority(3)
       .description(
-          "Maximal width of the falloff part of the rounded square mask starting at the "
-          "boundaries of its constant part")
+          "Maximal constant_part_size of the falloff part of the rounded square mask starting at "
+          "the boundaries of its constant part. This is also an upper boundary to where the "
+          "falloff gradient can reach from a given pixel")
       .structure_type(StructureType::Dynamic);
-  falloff_panel.add_input<decl::Float>("Boundary Value")
+  falloff_panel.add_input<decl::Float>("Value Boundary")
       .default_value(0.0f)
-      .min(0.0f)
-      .max(1.0f)
       .compositor_domain_priority(4)
       .description(
-          "Value at the outer boundary of the falloff part of the rounded square mask. A higher "
-          "boundary value results in a more aggressive effect")
+          "Value that the falloff gradient falls off to. When performing a dilation, Value "
+          "Boundary is a lower boundary to the possible output image values. When performing an "
+          "erosion, 1 - Value Boundary is an upper boundary to the possible output image values")
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_shape_panel =
@@ -147,52 +145,9 @@ class MaskedMaximumOperation : public NodeOperation {
 
   void execute() override
   {
-    const Result &input_image = this->get_input("Image");
-    const Result &input_size = get_input("Constant Part Size");
-    const Result &input_falloff_width = get_input("Width");
-    const Result &input_translation = get_input("Translation");
     Result &output_image = this->get_result("Image");
     Result &output_chosen_pixel = this->get_result("Chosen Pixel");
     Result &output_chosen_mask_value = this->get_result("Chosen Mask Value");
-
-    if (input_translation.is_single_value()) {
-      if (math::floored_mod(input_translation.get_single_value<float2>(), float2(1.0f, 1.0f)) ==
-          float2(0.0f, 0.0f))
-      {
-        if (input_image.is_single_value()) {
-          /* Operation does nothing and the input can be passed through. */
-          output_image.share_data(input_image);
-          if (output_chosen_pixel.should_compute()) {
-            output_chosen_pixel.allocate_single_value();
-            output_chosen_pixel.set_single_value(float2(0.0f, 0.0f));
-          }
-          if (output_chosen_pixel.should_compute()) {
-            output_chosen_mask_value.allocate_single_value();
-            output_chosen_mask_value.set_single_value(1.0f);
-          }
-          return;
-        }
-        if (input_size.is_single_value() && input_falloff_width.is_single_value()) {
-          float2 abs_input_size = math::abs(input_size.get_single_value<float2>());
-          float rounded_square_mask_support_size =
-              math::max(abs_input_size.x, abs_input_size.y) +
-              math::max(input_falloff_width.get_single_value<float>(), 0.0f);
-          if (rounded_square_mask_support_size < 1.0f) {
-            /* Operation does nothing and the input can be passed through. */
-            output_image.share_data(input_image);
-            if (output_chosen_pixel.should_compute()) {
-              output_chosen_pixel.allocate_single_value();
-              output_chosen_pixel.set_single_value(float2(0.0f, 0.0f));
-            }
-            if (output_chosen_pixel.should_compute()) {
-              output_chosen_mask_value.allocate_single_value();
-              output_chosen_mask_value.set_single_value(1.0f);
-            }
-            return;
-          }
-        }
-      }
-    }
 
     const Domain domain = compute_domain();
     if (output_image.should_compute()) {
@@ -206,17 +161,14 @@ class MaskedMaximumOperation : public NodeOperation {
     }
 
     if (this->context().use_gpu()) {
-      this->execute_gpu(
-          domain, input_image, output_image, output_chosen_pixel, output_chosen_mask_value);
+      this->execute_gpu(domain, output_image, output_chosen_pixel, output_chosen_mask_value);
     }
     else {
-      this->execute_cpu(
-          domain, input_image, output_image, output_chosen_pixel, output_chosen_mask_value);
+      this->execute_cpu(domain, output_image, output_chosen_pixel, output_chosen_mask_value);
     }
   }
 
   void execute_gpu(const Domain domain,
-                   const Result &input_image,
                    Result &output_image,
                    Result &output_chosen_pixel,
                    Result &output_chosen_mask_value)
@@ -235,19 +187,20 @@ class MaskedMaximumOperation : public NodeOperation {
     GPU_shader_uniform_1b(
         shader, "keep_seamless", get_input("Keep Seamless").get_single_value_default<bool>());
 
+    const Result &input_image = get_input("Image");
     input_image.bind_as_texture(shader, "input_image_tx");
 
-    const Result &input_size = get_input("Constant Part Size");
-    input_size.bind_as_texture(shader, "input_size_tx");
+    const Result &input_constant_part_size = get_input("Constant Part Size");
+    input_constant_part_size.bind_as_texture(shader, "input_constant_part_size_tx");
 
     const Result &input_roundness = get_input("Roundness");
     input_roundness.bind_as_texture(shader, "input_roundness_tx");
 
-    const Result &input_falloff_width = get_input("Width");
-    input_falloff_width.bind_as_texture(shader, "input_falloff_width_tx");
+    const Result &input_size_boundary = get_input("Size Boundary");
+    input_size_boundary.bind_as_texture(shader, "input_size_boundary_tx");
 
-    const Result &input_falloff_boundary_value = get_input("Boundary Value");
-    input_falloff_boundary_value.bind_as_texture(shader, "input_falloff_boundary_value_tx");
+    const Result &input_value_boundary = get_input("Value Boundary");
+    input_value_boundary.bind_as_texture(shader, "input_value_boundary_tx");
 
     const Result &input_ellipse_height = get_input("Ellipse Height");
     input_ellipse_height.bind_as_texture(shader, "input_ellipse_height_tx");
@@ -280,10 +233,10 @@ class MaskedMaximumOperation : public NodeOperation {
 
     GPU_shader_unbind();
     input_image.unbind_as_texture();
-    input_size.unbind_as_texture();
+    input_constant_part_size.unbind_as_texture();
     input_roundness.unbind_as_texture();
-    input_falloff_width.unbind_as_texture();
-    input_falloff_boundary_value.unbind_as_texture();
+    input_size_boundary.unbind_as_texture();
+    input_value_boundary.unbind_as_texture();
     input_ellipse_height.unbind_as_texture();
     input_ellipse_width.unbind_as_texture();
     input_inflection_midpoint.unbind_as_texture();
@@ -301,192 +254,201 @@ class MaskedMaximumOperation : public NodeOperation {
   }
 
   void execute_cpu(const Domain domain,
-                   const Result &input_image,
                    Result &output_image,
                    Result &output_chosen_pixel,
                    Result &output_chosen_mask_value)
   {
+    const bool keep_seamless = get_input("Keep Seamless").get_single_value_default<bool>();
+    const Result &input_image = get_input("Image");
+    const Result &input_constant_part_size = get_input("Constant Part Size");
+    const Result &input_roundness = get_input("Roundness");
+    const Result &input_size_boundary = get_input("Size Boundary");
+    const Result &input_value_boundary = get_input("Value Boundary");
+    const Result &input_ellipse_height = get_input("Ellipse Height");
+    const Result &input_ellipse_width = get_input("Ellipse Width");
+    const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
+    const Result &input_rotation = get_input("Rotation");
+    const Result &input_translation = get_input("Translation");
+
     parallel_for(domain.data_size, [&](const int2 texel) {
-      float2 size = get_input("Constant Part Size").load_pixel_zero<float2, true>(texel);
+      float2 constant_part_size = input_constant_part_size.load_pixel_zero<float2, true>(texel);
       float domain_diagonal_length = math::sqrt(math::square(float(domain.data_size.x)) +
                                                 math::square(float(domain.data_size.y)));
-      /* In principle, absolute size values greater than domain_diagonal_length can still result in
-       * different outputs, however, to prevent extremely long computation times, they are clamped.
+      /* In principle, absolute constant_part_size values greater than domain_diagonal_length can
+       * still result in different outputs, however, to prevent extremely long computation times,
+       * they are clamped.
        */
-      size = float2(
-          math::clamp(
-              size.x, -math::ceil(domain_diagonal_length), math::ceil(domain_diagonal_length)),
-          math::clamp(
-              size.y, -math::ceil(domain_diagonal_length), math::ceil(domain_diagonal_length)));
-      bool is_dilate = (size.x >= 0.0f) && (size.y >= 0.0f);
-      float2 abs_size = math::abs(size);
+      constant_part_size = math::clamp(constant_part_size,
+                                       float2(-math::ceil(domain_diagonal_length)),
+                                       float2(math::ceil(domain_diagonal_length)));
+      float2 abs_constant_part_size = math::abs(constant_part_size);
       float roundness = math::clamp(
-          get_input("Roundness").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      /* In principle, falloff_width values greater than domain_diagonal_length can still result in
+          input_roundness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+      /* In principle, size_boundary values greater than domain_diagonal_length can still result in
        * different outputs, however, to prevent extremely long computation times, they are clamped.
        */
-      float falloff_width = math::clamp(get_input("Width").load_pixel_zero<float, true>(texel),
+      float size_boundary = math::clamp(input_size_boundary.load_pixel_zero<float, true>(texel),
                                         0.0f,
                                         math::ceil(domain_diagonal_length));
-      float falloff_boundary_value = math::clamp(
-          get_input("Boundary Value").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+      float value_boundary = input_value_boundary.load_pixel_zero<float, true>(texel);
       float ellipse_height = math::clamp(
-          get_input("Ellipse Height").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+          input_ellipse_height.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_width = math::clamp(
-          get_input("Ellipse Width").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+          input_ellipse_width.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float inflection_midpoint = math::clamp(
-          get_input("Inflection Midpoint").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      float rotation = get_input("Rotation").load_pixel_zero<float, true>(texel);
-      float2 translation = get_input("Translation").load_pixel_zero<float2, true>(texel);
+          input_inflection_midpoint.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+      float rotation = input_rotation.load_pixel_zero<float, true>(texel);
+      float2 translation = input_translation.load_pixel_zero<float2, true>(texel);
 
-      /* Calculate top right and bottom left corner of the bounding box of the rounded square mask.
-       */
-      float2 bounding_box_top_right_corner_float;
-      if (abs_size.x == abs_size.y) {
-        bounding_box_top_right_corner_float = float2(math::ceil(abs_size.x + falloff_width),
-                                                     math::ceil(abs_size.y + falloff_width));
+      /* Calculate the top right and bottom left corners of the bounding box of the rounded square
+       * mask. */
+      float2 bounding_box_top_right_corner_relative_to_pixel;
+      if (abs_constant_part_size.x == abs_constant_part_size.y) {
+        bounding_box_top_right_corner_relative_to_pixel = float2(
+            math::ceil(abs_constant_part_size.x + size_boundary),
+            math::ceil(abs_constant_part_size.y + size_boundary));
       }
-      else if (abs_size.x == 0.0f) {
-        bounding_box_top_right_corner_float = float2(0.0f, math::ceil(abs_size.y + falloff_width));
+      else if (abs_constant_part_size.x == 0.0f) {
+        bounding_box_top_right_corner_relative_to_pixel = float2(
+            0.0f, math::ceil(abs_constant_part_size.y + size_boundary));
       }
-      else if (abs_size.y == 0.0f) {
-        bounding_box_top_right_corner_float = float2(math::ceil(abs_size.x + falloff_width), 0.0f);
+      else if (abs_constant_part_size.y == 0.0f) {
+        bounding_box_top_right_corner_relative_to_pixel = float2(
+            math::ceil(abs_constant_part_size.x + size_boundary), 0.0f);
       }
       else {
-        bounding_box_top_right_corner_float = float2(
-            math::ceil(abs_size.x + (falloff_width * math::min(abs_size.x / abs_size.y, 1.0f))),
-            math::ceil(abs_size.y + (falloff_width * math::min(abs_size.y / abs_size.x, 1.0f))));
+        bounding_box_top_right_corner_relative_to_pixel = float2(
+            math::ceil(abs_constant_part_size.x +
+                       (size_boundary *
+                        math::min(abs_constant_part_size.x / abs_constant_part_size.y, 1.0f))),
+            math::ceil(abs_constant_part_size.y +
+                       (size_boundary *
+                        math::min(abs_constant_part_size.y / abs_constant_part_size.x, 1.0f))));
       }
       if (rotation != 0.0f) {
         float2 rotated_top_right_corner = rotate_vector_2d(
-            float2(bounding_box_top_right_corner_float.x, bounding_box_top_right_corner_float.y),
+            float2(bounding_box_top_right_corner_relative_to_pixel.x,
+                   bounding_box_top_right_corner_relative_to_pixel.y),
             rotation);
         float2 rotated_bottom_right_corner = rotate_vector_2d(
-            float2(bounding_box_top_right_corner_float.x, -bounding_box_top_right_corner_float.y),
+            float2(bounding_box_top_right_corner_relative_to_pixel.x,
+                   -bounding_box_top_right_corner_relative_to_pixel.y),
             rotation);
-        bounding_box_top_right_corner_float = float2(
+        bounding_box_top_right_corner_relative_to_pixel = float2(
             math::max(math::ceil(math::abs(rotated_top_right_corner.x)),
                       math::ceil(math::abs(rotated_bottom_right_corner.x))),
             math::max(math::ceil(math::abs(rotated_top_right_corner.y)),
                       math::ceil(math::abs(rotated_bottom_right_corner.y))));
       }
-      float2 bounding_box_bottom_left_corner_float = -bounding_box_top_right_corner_float;
+      float2 bounding_box_bottom_left_corner_relative_to_pixel =
+          -bounding_box_top_right_corner_relative_to_pixel;
       /* Translate bounding box. */
-      bounding_box_top_right_corner_float = float2(
-          math::ceil(bounding_box_top_right_corner_float.x + translation.x),
-          math::ceil(bounding_box_top_right_corner_float.y + translation.y));
-      bounding_box_bottom_left_corner_float = float2(
-          math::floor(bounding_box_bottom_left_corner_float.x + translation.x),
-          math::floor(bounding_box_bottom_left_corner_float.y + translation.y));
+      bounding_box_top_right_corner_relative_to_pixel = math::ceil(
+          bounding_box_top_right_corner_relative_to_pixel + translation);
+      bounding_box_bottom_left_corner_relative_to_pixel = math::floor(
+          bounding_box_bottom_left_corner_relative_to_pixel + translation);
 
-      int2 bounding_box_top_right_corner = int2(bounding_box_top_right_corner_float);
-      int2 bounding_box_bottom_left_corner = int2(bounding_box_bottom_left_corner_float);
-      if (!get_input("Keep Seamless").get_single_value_default<bool>())
-      { /* Crop away parts of the bounding box that are outside of the domain. */
-        bounding_box_top_right_corner += texel;
-        bounding_box_bottom_left_corner += texel;
+      int2 bounding_box_top_right_corner = texel +
+                                           int2(bounding_box_top_right_corner_relative_to_pixel);
+      int2 bounding_box_bottom_left_corner =
+          texel + int2(bounding_box_bottom_left_corner_relative_to_pixel);
+      if (!keep_seamless) {
+        /* Crop away parts of the bounding box that are outside the domain. */
         bounding_box_top_right_corner = math::min(bounding_box_top_right_corner,
                                                   domain.data_size - int2(1, 1));
         bounding_box_bottom_left_corner = math::max(bounding_box_bottom_left_corner, int2(0, 0));
-        bounding_box_top_right_corner -= texel;
-        bounding_box_bottom_left_corner -= texel;
       }
-      float masked_maximum = -FLT_MAX;
-      int2 chosen_pixel_coordinates = int2(0);
+
+      /* Initialize the output variables by evaluating the pixel that is outside the bounding box
+       * and closest to the pixel that the operation is evaluated on. Therefore, if the pixel that
+       * the operation is evaluated on is outside the bounding box, it is used to initialize the
+       * output variables. */
+      float masked_maximum = value_boundary;
+      float2 chosen_pixel_coordinates = float2(texel);
+      if ((texel.x >= bounding_box_bottom_left_corner.x) &&
+          (texel.y >= bounding_box_bottom_left_corner.y) &&
+          (texel.x <= bounding_box_top_right_corner.x) &&
+          (texel.y <= bounding_box_top_right_corner.y))
+      {
+        /* The pixel that the operation is evaluated on is inside the bounding box. */
+        /* Start left of the bounding box. */
+        chosen_pixel_coordinates = float2(bounding_box_bottom_left_corner.x - 1, texel.y);
+        int smallest_distance = texel.x - bounding_box_bottom_left_corner.x + 1;
+
+        /* Check below the bounding box. */
+        if (smallest_distance > (texel.y - bounding_box_bottom_left_corner.y + 1)) {
+          chosen_pixel_coordinates = float2(texel.x, bounding_box_bottom_left_corner.y - 1);
+          smallest_distance = texel.y - bounding_box_bottom_left_corner.y + 1;
+        }
+
+        /* Check right of the bounding box. */
+        if (smallest_distance > (bounding_box_top_right_corner.x + 1 - texel.x)) {
+          chosen_pixel_coordinates = float2(bounding_box_top_right_corner.x + 1, texel.y);
+          smallest_distance = bounding_box_top_right_corner.x + 1 - texel.x;
+        }
+
+        /* Check above the bounding box. */
+        if (smallest_distance > (bounding_box_top_right_corner.y + 1 - texel.y)) {
+          chosen_pixel_coordinates = float2(texel.x, bounding_box_top_right_corner.y + 1);
+        }
+      }
       float chosen_mask_value = 0.0f;
-      if (is_dilate) {
-        for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++)
+
+      bool is_dilate = (constant_part_size.x >= 0.0f) && (constant_part_size.y >= 0.0f);
+      float2 mask_center_coordinates = float2(texel) + float2(translation);
+      for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
+        for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++)
         {
-          for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x;
-               x++)
-          {
-            float2 coord = float2(x, y) - float2(translation.x, translation.y);
-            if (rotation != 0.0f) {
-              coord = rotate_vector_2d(coord, -rotation);
-            }
-            float rounded_square_mask = compute_rounded_square_mask(coord,
-                                                                    abs_size,
-                                                                    roundness,
-                                                                    falloff_width,
-                                                                    falloff_boundary_value,
-                                                                    ellipse_height,
-                                                                    ellipse_width,
-                                                                    inflection_midpoint);
-            int2 iteration_pixel_coordinates = int2(
-                math::floored_mod(float2(texel + int2(x, y)), float2(domain.data_size)));
-            float iteration_masked_maximum = rounded_square_mask *
-                                             input_image.load_pixel_zero<float, true>(
-                                                 iteration_pixel_coordinates);
-            /* Only operate on the support of the rounded square mask. */
-            if ((rounded_square_mask != 0.0f) && ((iteration_masked_maximum > masked_maximum) ||
-                                                  ((iteration_masked_maximum == masked_maximum) &&
-                                                   ((math::square(iteration_pixel_coordinates.x) +
-                                                     math::square(iteration_pixel_coordinates.y)) <
-                                                    (math::square(chosen_pixel_coordinates.x) +
-                                                     math::square(chosen_pixel_coordinates.y))))))
-            {
-              chosen_mask_value = rounded_square_mask;
-              chosen_pixel_coordinates = iteration_pixel_coordinates;
-              masked_maximum = iteration_masked_maximum;
-            }
+          float2 pixel_coordinates = float2(x, y);
+          float2 pixel_coordinates_relative_to_mask_center = pixel_coordinates -
+                                                             mask_center_coordinates;
+          if (rotation != 0.0f) {
+            pixel_coordinates_relative_to_mask_center = rotate_vector_2d(
+                pixel_coordinates_relative_to_mask_center, -rotation);
           }
-        }
-        if (output_chosen_mask_value.should_compute()) {
-          output_chosen_mask_value.store_pixel(texel, chosen_mask_value);
-        }
-        if (output_chosen_pixel.should_compute()) {
-          output_chosen_pixel.store_pixel(texel, float2(chosen_pixel_coordinates));
-        }
-        if (output_image.should_compute()) {
-          output_image.store_pixel(texel, masked_maximum);
+          float rounded_square_mask = compute_rounded_square_mask(
+              pixel_coordinates_relative_to_mask_center,
+              abs_constant_part_size,
+              roundness,
+              size_boundary,
+              ellipse_height,
+              ellipse_width,
+              inflection_midpoint);
+
+          int2 image_sampling_coordinates = int2(
+              math::floored_mod(pixel_coordinates, float2(domain.data_size)));
+          float iteration_masked_maximum =
+              (rounded_square_mask *
+               ((is_dilate ? input_image.load_pixel_zero<float, true>(image_sampling_coordinates) :
+                             (1.0f - input_image.load_pixel_zero<float, true>(
+                                         image_sampling_coordinates))) -
+                value_boundary)) +
+              value_boundary;
+
+          if ((iteration_masked_maximum > masked_maximum) ||
+              ((iteration_masked_maximum == masked_maximum) &&
+               (math::dot(pixel_coordinates - float2(texel), pixel_coordinates - float2(texel)) <
+                math::dot(chosen_pixel_coordinates - float2(texel),
+                          chosen_pixel_coordinates - float2(texel)))))
+          {
+            chosen_mask_value = rounded_square_mask;
+            chosen_pixel_coordinates = pixel_coordinates;
+            masked_maximum = iteration_masked_maximum;
+          }
         }
       }
-      else {
-        for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++)
-        {
-          for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x;
-               x++)
-          {
-            float2 coord = float2(x, y) - float2(translation.x, translation.y);
-            if (rotation != 0.0f) {
-              coord = rotate_vector_2d(coord, -rotation);
-            }
-            float rounded_square_mask = compute_rounded_square_mask(coord,
-                                                                    abs_size,
-                                                                    roundness,
-                                                                    falloff_width,
-                                                                    falloff_boundary_value,
-                                                                    ellipse_height,
-                                                                    ellipse_width,
-                                                                    inflection_midpoint);
-            int2 iteration_pixel_coordinates = int2(
-                math::floored_mod(float2(texel + int2(x, y)), float2(domain.data_size)));
-            float iteration_masked_maximum = rounded_square_mask *
-                                             (1.0f - input_image.load_pixel_zero<float, true>(
-                                                         iteration_pixel_coordinates));
-            /* Only operate on the support of the rounded square mask. */
-            if ((rounded_square_mask != 0.0f) && ((iteration_masked_maximum > masked_maximum) ||
-                                                  ((iteration_masked_maximum == masked_maximum) &&
-                                                   ((math::square(iteration_pixel_coordinates.x) +
-                                                     math::square(iteration_pixel_coordinates.y)) <
-                                                    (math::square(chosen_pixel_coordinates.x) +
-                                                     math::square(chosen_pixel_coordinates.y))))))
-            {
-              chosen_mask_value = rounded_square_mask;
-              chosen_pixel_coordinates = iteration_pixel_coordinates;
-              masked_maximum = iteration_masked_maximum;
-            }
-          }
-        }
-        if (output_chosen_mask_value.should_compute()) {
-          output_chosen_mask_value.store_pixel(texel, chosen_mask_value);
-        }
-        if (output_chosen_pixel.should_compute()) {
-          output_chosen_pixel.store_pixel(texel, float2(chosen_pixel_coordinates));
-        }
-        if (output_image.should_compute()) {
-          output_image.store_pixel(texel, 1.0f - masked_maximum);
-        }
+
+      if (output_chosen_mask_value.should_compute()) {
+        output_chosen_mask_value.store_pixel(texel, chosen_mask_value);
+      }
+      if (output_chosen_pixel.should_compute()) {
+        /* Output the pixel coordinates that are inside the domain. */
+        chosen_pixel_coordinates = math::floored_mod(chosen_pixel_coordinates,
+                                                     float2(domain.data_size));
+        output_chosen_pixel.store_pixel(texel, chosen_pixel_coordinates);
+      }
+      if (output_image.should_compute()) {
+        output_image.store_pixel(texel, is_dilate ? masked_maximum : (1.0f - masked_maximum));
       }
     });
   }
@@ -600,31 +562,30 @@ class MaskedMaximumOperation : public NodeOperation {
   }
 
   float compute_rounded_square_mask(float2 coord,
-                                    float2 abs_size,
+                                    float2 abs_constant_part_size,
                                     const float roundness,
-                                    const float falloff_width,
-                                    const float falloff_boundary_value,
+                                    const float size_boundary,
                                     const float ellipse_height,
                                     const float ellipse_width,
                                     const float inflection_midpoint)
   {
-    /* Swap x and y names if abs_size.y > abs_size.x. This is done because the following code
-     * expects abs_size.x to be greater or equal to abs_size.y. This makes sure that the falloff is
-     * calculated based on the larger abs_size, making the Width input an upper limit to the
-     * falloff width. */
-    if (abs_size.y > abs_size.x) {
+    /* Swap x and y names if abs_constant_part_size.y > abs_constant_part_size.x. This is done
+     * because the following code expects abs_constant_part_size.x to be greater or equal to
+     * abs_constant_part_size.y. This makes sure that the falloff is calculated based on the larger
+     * abs_constant_part_size, making the Width input an upper limit to the falloff width. */
+    if (abs_constant_part_size.y > abs_constant_part_size.x) {
       std::swap(coord.x, coord.y);
-      std::swap(abs_size.x, abs_size.y);
+      std::swap(abs_constant_part_size.x, abs_constant_part_size.y);
     }
 
-    if (abs_size.y == 0.0f) {
-      if (abs_size.x == 0.0f) {
+    if (abs_constant_part_size.y == 0.0f) {
+      if (abs_constant_part_size.x == 0.0f) {
         if ((coord.x == 0.0f) && (coord.y == 0.0f)) {
           /* coord is in the constant part of the mask. */
           return 1.0f;
         }
-        else if ((falloff_width == 0.0f) ||
-                 (!is_in_unit_rounded_square(coord / (float2(falloff_width, falloff_width)),
+        else if ((size_boundary == 0.0f) ||
+                 (!is_in_unit_rounded_square(coord / (float2(size_boundary, size_boundary)),
                                              roundness)))
         {
           /* coord is outside of the mask. */
@@ -632,49 +593,48 @@ class MaskedMaximumOperation : public NodeOperation {
         }
         else {
           /* coord is in the falloff part of the mask. */
-          return math::interpolate(
-              1.0f,
-              falloff_boundary_value,
-              elliptical_unit_step_without_constant_part(
-                  math::inverse_mix(
-                      0.0f, falloff_width, compute_rounded_square_radius(coord, roundness)),
-                  ellipse_height,
-                  ellipse_width,
-                  inflection_midpoint));
+          return elliptical_unit_step_without_constant_part(
+              math::inverse_mix(
+                  size_boundary, 0.0f, compute_rounded_square_radius(coord, roundness)),
+              ellipse_height,
+              ellipse_width,
+              inflection_midpoint);
         }
       }
       else {
         /* Mask is a 1 dimensional line. */
-        if ((coord.y != 0.0f) || (math::abs(coord.x) > (abs_size.x + falloff_width))) {
+        if ((coord.y != 0.0f) || (math::abs(coord.x) > (abs_constant_part_size.x + size_boundary)))
+        {
           /* coord is outside of the mask. */
           return 0.0f;
         }
-        else if (math::abs(coord.x) <= (abs_size.x)) {
+        else if (math::abs(coord.x) <= (abs_constant_part_size.x)) {
           /* coord is in the constant part of the mask. */
           return 1.0f;
         }
         else {
           /* coord is in the falloff part of the mask. */
-          return math::interpolate(
-              1.0f,
-              falloff_boundary_value,
-              elliptical_unit_step_without_constant_part(
-                  math::inverse_mix(abs_size.x, abs_size.x + falloff_width, math::abs(coord.x)),
-                  ellipse_height,
-                  ellipse_width,
-                  inflection_midpoint));
+          return elliptical_unit_step_without_constant_part(
+              math::inverse_mix(abs_constant_part_size.x + size_boundary,
+                                abs_constant_part_size.x,
+                                math::abs(coord.x)),
+              ellipse_height,
+              ellipse_width,
+              inflection_midpoint);
         }
       }
     }
     else {
-      if (is_in_unit_rounded_square(coord / abs_size, roundness)) {
+      if (is_in_unit_rounded_square(coord / abs_constant_part_size, roundness)) {
         /* coord is in the constant part of the mask. */
         return 1.0f;
       }
-      else if ((falloff_width == 0.0f) ||
+      else if ((size_boundary == 0.0f) ||
                !is_in_unit_rounded_square(
                    coord /
-                       (abs_size + float2(falloff_width, falloff_width * abs_size.y / abs_size.x)),
+                       (abs_constant_part_size + float2(size_boundary,
+                                                        size_boundary * abs_constant_part_size.y /
+                                                            abs_constant_part_size.x)),
                    roundness))
       {
         /* coord is outside of the mask. */
@@ -682,18 +642,16 @@ class MaskedMaximumOperation : public NodeOperation {
       }
       else {
         /* coord is in the falloff part of the mask. */
-        return math::interpolate(
-            1.0f,
-            falloff_boundary_value,
-            elliptical_unit_step_without_constant_part(
-                math::inverse_mix(
-                    abs_size.x,
-                    abs_size.x + falloff_width,
-                    compute_rounded_square_radius(
-                        float2(coord.x, coord.y * abs_size.x / abs_size.y), roundness)),
-                ellipse_height,
-                ellipse_width,
-                inflection_midpoint));
+        return elliptical_unit_step_without_constant_part(
+            math::inverse_mix(
+                abs_constant_part_size.x + size_boundary,
+                abs_constant_part_size.x,
+                compute_rounded_square_radius(
+                    float2(coord.x, coord.y * abs_constant_part_size.x / abs_constant_part_size.y),
+                    roundness)),
+            ellipse_height,
+            ellipse_width,
+            inflection_midpoint);
       }
     }
   }
