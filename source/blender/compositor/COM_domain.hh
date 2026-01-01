@@ -25,12 +25,12 @@ enum class Interpolation : uint8_t {
 
 /* Possible extensions when computing samples in the domain's exterior. */
 enum class Extension : uint8_t {
-  /* Areas outside of the image are filled with zero. */
-  Clip,
   /* Areas outside of the image are filled with the closest boundary pixel in the image. */
   Extend,
   /* Areas outside of the image are filled with repetitions of the image. */
   Repeat,
+  /* Areas outside of the image are filled with zero. */
+  Clip,
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -199,7 +199,20 @@ class Domain {
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
 
-math::InterpWrapMode map_extension_mode_to_wrap_mode(Extension mode);
+BLI_INLINE math::InterpWrapMode map_extension_mode_to_wrap_mode(Extension mode)
+{
+  switch (mode) {
+    case Extension::Clip:
+      return math::InterpWrapMode::Border;
+    case Extension::Repeat:
+      return math::InterpWrapMode::Repeat;
+    case Extension::Extend:
+      return math::InterpWrapMode::Extend;
+  }
+  BLI_assert_unreachable();
+  return math::InterpWrapMode::Border;
+}
+
 GPUSamplerExtendMode map_extension_mode_to_extend_mode(Extension mode);
 GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode);
 

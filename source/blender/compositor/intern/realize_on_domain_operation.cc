@@ -267,7 +267,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
     parallel_for(size, [&](const int2 texel) {
       float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
       float4 sample = sample_area(source, uv, dPdx, dPdy);
-      output.store_pixel(texel, sample);
+      output.store_pixel(texel, Color(sample));
     });
     return;
   }
@@ -278,7 +278,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
   parallel_for(size, [&](const int2 texel) {
     float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
     float4 sample = sample_rect(source, uv, wh);
-    output.store_pixel(texel, sample);
+    output.store_pixel(texel, Color(sample));
   });
 }
 
