@@ -552,6 +552,10 @@ class Preprocessor {
 
     metadata = {};
 
+    /* Extend. */
+    metadata.symbol_table.insert(
+        metadata.symbol_table.end(), symbols_set.begin(), symbols_set.end());
+
     const std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
 
     str = remove_comments(str, report_error);
@@ -589,6 +593,8 @@ class Preprocessor {
           return line_directive_prefix(filename) + parser.result_get();
         }
 
+        parse_local_symbols(parser, report_error);
+
         /* Lower high level parsing complexity.
          * Merge tokens that can be combined together,
          * remove the token that are unsupported or that are noop.
@@ -619,7 +625,7 @@ class Preprocessor {
         lower_templates(parser, report_error);
         /* Lower namespaces. */
         lower_using(parser, report_error);
-        lower_namespaces(parser, report_error, symbols_set);
+        lower_namespaces(parser, report_error);
         lower_scope_resolution_operators(parser, report_error);
         /* Lower unions and then lint shared structures. */
         lower_unions(parser, report_error);
@@ -1082,35 +1088,67 @@ class Preprocessor {
 
     ns.foreach_scope(ScopeType::Namespace, [&](const Scope &ns) { parse_namespace_symbols(ns); });
 
-    auto process_symbol = [&](Scope ns_scope, Token name, size_t line, bool is_method) {
-      if (name.scope() != ns_scope) {
+    auto process_symbol =
+        [&](Scope ns_scope, Token name, string identifier, size_t line, bool is_method) {
+          if (name.scope() != ns_scope) {
+            return;
+          }
+          string prefix;
+          while (ns_scope.type() == ScopeType::Namespace || ns_scope.type() == ScopeType::Struct) {
+            prefix = ns_scope.front().prev().full_symbol_name() + "::" + prefix;
+            ns_scope = ns_scope.scope();
+          }
+          Source::Symbol symbol;
+          symbol.name_space = prefix;
+          symbol.identifier = identifier;
+          symbol.definition_line = line;
+          symbol.is_method = is_method;
+          metadata.symbol_table.emplace_back(symbol);
+        };
+
+    auto process_templates = [&](Scope ns_scope, Token t, bool is_method) {
+      if (t.next() == '<') {
+        /* Template definition.*/
         return;
       }
-      string prefix;
-      while (ns_scope.type() == ScopeType::Namespace || ns_scope.type() == ScopeType::Struct) {
-        prefix = ns_scope.front().prev().full_symbol_name() + "::" + prefix;
-        ns_scope = ns_scope.scope();
+      /* Line number of the instantiation should be the one of the definition.
+       * But it is very hard at this point to search for the definition.
+       * Instead we consider the instantiation to be at the top of the file.
+       * It is unlikely we will have name collision with an instantiated template. */
+      size_t line = 0;
+      if (t.next() == Struct || t.next() == Class) {
+        /* Struct. */
+        Token name = t.next().next();
+        Scope template_args = name.next().scope();
+        string resolved_name = name.str() + template_arguments_mangle(template_args);
+        process_symbol(ns_scope, name, resolved_name, line, false);
       }
-      Source::Symbol symbol;
-      symbol.name_space = prefix;
-      symbol.identifier = name.str();
-      symbol.definition_line = line;
-      symbol.is_method = is_method;
-      metadata.symbol_table.emplace_back(symbol);
+      else {
+        /* Function. */
+        Token end = t.find_next(SemiColon);
+        Scope template_args = end.prev().scope().front().prev().scope();
+        Token name = template_args.front().prev();
+        string resolved_name = name.str() + template_arguments_mangle(template_args);
+        process_symbol(ns_scope, name, resolved_name, line, is_method);
+      }
     };
 
     ns.foreach_struct([&](Token, Scope, Token struct_name, Scope body) {
-      process_symbol(ns, struct_name, struct_name.line_number(), false);
+      process_symbol(ns, struct_name, struct_name.str(), struct_name.line_number(), false);
       /* Methods. */
       body.foreach_function([&](bool, Token, Token name, Scope, bool, Scope) {
         /* For methods, the declaration line is the top of the struct. */
-        process_symbol(body, name, struct_name.line_number(), true);
+        process_symbol(body, name, name.str(), struct_name.line_number(), true);
       });
+      /* Parse template instantiations. */
+      ns.foreach_token(Template, [&](Token t) { process_templates(body, t, true); });
     });
 
     ns.foreach_function([&](bool, Token, Token name, Scope, bool, Scope) {
-      process_symbol(ns, name, name.line_number(), false);
+      process_symbol(ns, name, name.str(), name.line_number(), false);
     });
+    /* Parse template instantiations. */
+    ns.foreach_token(Template, [&](Token t) { process_templates(ns, t, false); });
   }
 
   void parse_local_symbols(Parser &parser, report_callback /*report_error*/)
@@ -1698,7 +1736,8 @@ class Preprocessor {
       }
     });
 
-    /* Pipeline declarations. */
+    /* Pipeline declarations.
+     * Manually handle them. They are the only usecase of variable defined in global scope. */
     scope.foreach_match("ww(w", [&](vector<Token> toks) {
       if (toks[0].scope().type() != ScopeType::Namespace || toks[0].str().find("Pipeline") != 0) {
         return;
@@ -1717,9 +1756,7 @@ class Preprocessor {
   }
 
   /* Lower namespaces by adding namespace prefix to all the contained structs and functions. */
-  void lower_namespaces(Parser &parser,
-                        report_callback report_error,
-                        const std::vector<metadata::Source::Symbol> &symbols_vector)
+  void lower_namespaces(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
@@ -1750,10 +1787,10 @@ class Preprocessor {
       /* Deduplicate symbols. Done this way because we want to keep line definition ordering
        * inside the symbols_set. */
       unordered_set<string> unique_symbols;
-      for (const auto &s : symbols_vector) {
-        auto [_, inserted] = unique_symbols.insert(s.name_space + s.identifier);
+      for (const auto &symbol : metadata.symbol_table) {
+        auto [_, inserted] = unique_symbols.insert(symbol.name_space + symbol.identifier);
         if (inserted) {
-          symbols_set.emplace(s);
+          symbols_set.emplace(symbol);
         }
       }
     }
