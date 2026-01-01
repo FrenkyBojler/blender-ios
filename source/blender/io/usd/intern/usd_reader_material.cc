@@ -29,6 +29,7 @@
 #include "BLI_vector.hh"
 
 #include "DNA_material_types.h"
+#include "DNA_node_types.h"
 
 #include "IMB_colormanagement.hh"
 
