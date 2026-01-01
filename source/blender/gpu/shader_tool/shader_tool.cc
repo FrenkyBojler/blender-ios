@@ -20,7 +20,7 @@ static std::vector<std::string> list_files(const std::string &dir)
   std::vector<std::string> files;
   for (const auto &entry : std::filesystem::directory_iterator(std::filesystem::path(dir))) {
     if (entry.is_regular_file()) {
-      std::string filename = entry.path();
+      std::string filename(entry.path().string());
       /* We only allow including header files or shader files. */
       if (filename.find(".hh") != std::string::npos ||
           filename.find(".msl") != std::string::npos ||
