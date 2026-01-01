@@ -107,6 +107,7 @@ set(SRC
   intern/gpu_worker.cc
 
   shader_tool/parser.cc
+  shader_tool/metadata.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh

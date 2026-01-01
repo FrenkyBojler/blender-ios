@@ -33,7 +33,7 @@ static std::vector<std::string> list_files(const std::string &dir)
   return files;
 }
 
-static std::vector<blender::gpu::shader::metadata::Source::Symbol> scan_external_symbols(
+static std::vector<blender::gpu::shader::metadata::Symbol> scan_external_symbols(
     const std::vector<std::string> &file_list,
     std::vector<std::string> &visited_files,
     const std::string &file_buffer,
@@ -67,8 +67,8 @@ static std::vector<blender::gpu::shader::metadata::Source::Symbol> scan_external
       else {
         std::stringstream buffer;
         buffer << input_file.rdbuf();
-        std::vector<blender::gpu::shader::metadata::Source::Symbol> symbols =
-            scan_external_symbols(file_list, visited_files, buffer.str(), processor);
+        std::vector<blender::gpu::shader::metadata::Symbol> symbols = scan_external_symbols(
+            file_list, visited_files, buffer.str(), processor);
 
         /* Set line number for each symbol to 0 as they are defined outside of the target file. */
         for (auto &symbol : include_data.symbol_table) {
@@ -188,7 +188,7 @@ int main(int argc, char **argv)
     language = Preprocessor::SourceLanguage::BLENDER_GLSL;
   }
 
-  std::vector<blender::gpu::shader::metadata::Source::Symbol> external_symbols;
+  std::vector<blender::gpu::shader::metadata::Symbol> external_symbols;
   if (language == Preprocessor::SourceLanguage::BLENDER_GLSL) {
     std::vector<std::string> visited_files{input_file_name};
     external_symbols = scan_external_symbols(file_list, visited_files, buffer.str(), processor);

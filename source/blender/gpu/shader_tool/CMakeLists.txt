@@ -6,6 +6,7 @@
 # -----------------------------------------------------------------------------
 # Build `shader_tool` executable.
 set(SRC
+  metadata.cc
   parser.cc
   shader_tool.cc
 
