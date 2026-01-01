@@ -45,10 +45,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeConvertToDisplay *nctd = MEM_callocN<NodeConvertToDisplay>(__func__);
+  NodeConvertToDisplay *nctd = MEM_new_for_free<NodeConvertToDisplay>(__func__);
   BKE_color_managed_display_settings_init(&nctd->display_settings);
-  BKE_color_managed_view_settings_init_render(
-      &nctd->view_settings, &nctd->display_settings, nullptr);
+  BKE_color_managed_view_settings_init(&nctd->view_settings, &nctd->display_settings, nullptr);
   nctd->view_settings.flag |= COLORMANAGE_VIEW_ONLY_VIEW_LOOK;
   node->storage = nctd;
 }
@@ -62,7 +61,7 @@ static void node_free(bNode *node)
 
 static void node_copy(bNodeTree * /*dest_ntree*/, bNode *dest_node, const bNode *src_node)
 {
-  NodeConvertToDisplay *dest = MEM_callocN<NodeConvertToDisplay>(__func__);
+  NodeConvertToDisplay *dest = MEM_new_for_free<NodeConvertToDisplay>(__func__);
   const NodeConvertToDisplay *src = static_cast<const NodeConvertToDisplay *>(src_node->storage);
   BKE_color_managed_view_settings_copy(&dest->view_settings, &src->view_settings);
   BKE_color_managed_display_settings_copy(&dest->display_settings, &src->display_settings);
@@ -81,18 +80,18 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   BKE_color_managed_view_settings_blend_read_data(&reader, &nctd->view_settings);
 }
 
-static void node_draw_buttons(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_draw_buttons(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
 #ifndef WITH_OPENCOLORIO
-  layout->label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
+  layout.label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
 #endif
 
   PointerRNA display_ptr = RNA_pointer_get(ptr, "display_settings");
   PointerRNA view_ptr = RNA_pointer_get(ptr, "view_settings");
 
-  layout->prop(&display_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(&view_ptr, "view_transform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(&view_ptr, "look", UI_ITEM_NONE, IFACE_("Look"), ICON_NONE);
+  layout.prop(&display_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&view_ptr, "view_transform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&view_ptr, "look", UI_ITEM_NONE, IFACE_("Look"), ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -103,7 +102,7 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   bool do_inverse()
   {
-    return this->get_input("Invert").get_single_value_default(false);
+    return this->get_input("Invert").get_single_value_default<bool>();
   }
 
   void execute() override
@@ -124,7 +123,7 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    const NodeConvertToDisplay &nctd = node_storage(bnode());
+    const NodeConvertToDisplay &nctd = node_storage(node());
 
     OCIOToDisplayShader &ocio_shader = context().cache_manager().ocio_to_display_shaders.get(
         context(), nctd.display_settings, nctd.view_settings, do_inverse());
@@ -146,7 +145,7 @@ class ConvertToDisplayOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, ocio_shader.output_image_name());
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     output_image.unbind_as_image();
@@ -155,9 +154,9 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   void execute_cpu()
   {
-    const NodeConvertToDisplay &nctd = node_storage(bnode());
+    const NodeConvertToDisplay &nctd = node_storage(node());
     ColormanageProcessor *color_processor = IMB_colormanagement_display_processor_new(
-        &nctd.view_settings, &nctd.display_settings, DISPLAY_SPACE_FILE_OUTPUT, do_inverse());
+        &nctd.view_settings, &nctd.display_settings, DISPLAY_SPACE_VIDEO_OUTPUT, do_inverse());
 
     Result &input_image = get_input("Image");
 
@@ -165,14 +164,14 @@ class ConvertToDisplayOperation : public NodeOperation {
     Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
-      output_image.store_pixel(texel, input_image.load_pixel<float4>(texel));
+    parallel_for(domain.data_size, [&](const int2 texel) {
+      output_image.store_pixel(texel, input_image.load_pixel<Color>(texel));
     });
 
     IMB_colormanagement_processor_apply(color_processor,
                                         static_cast<float *>(output_image.cpu_data().data()),
-                                        domain.size.x,
-                                        domain.size.y,
+                                        domain.data_size.x,
+                                        domain.data_size.y,
                                         input_image.channels_count(),
                                         false);
     IMB_colormanagement_processor_free(color_processor);
@@ -180,12 +179,12 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   void execute_single()
   {
-    const NodeConvertToDisplay &nctd = node_storage(bnode());
+    const NodeConvertToDisplay &nctd = node_storage(node());
     ColormanageProcessor *color_processor = IMB_colormanagement_display_processor_new(
-        &nctd.view_settings, &nctd.display_settings, DISPLAY_SPACE_FILE_OUTPUT, do_inverse());
+        &nctd.view_settings, &nctd.display_settings, DISPLAY_SPACE_VIDEO_OUTPUT, do_inverse());
 
     Result &input_image = get_input("Image");
-    float4 color = input_image.get_single_value<float4>();
+    Color color = input_image.get_single_value<Color>();
 
     IMB_colormanagement_processor_apply_pixel(color_processor, color, 3);
     IMB_colormanagement_processor_free(color_processor);

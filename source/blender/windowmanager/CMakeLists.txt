@@ -8,6 +8,7 @@ set(INC
   gizmo/intern
   ../compositor
   ../editors/include
+  ../gpu
   ../makesrna
   ../../../intern/memutil
 
@@ -125,6 +126,14 @@ else()
     PRIVATE bf::extern::nanosvg
     PRIVATE bf::editor::datafiles
   )
+endif()
+
+if(WITH_GHOST_CSD)
+  list(APPEND SRC
+    intern/wm_window_csd_draw.cc
+    intern/wm_window_csd_layout.cc
+  )
+  add_definitions(-DWITH_GHOST_CSD)
 endif()
 
 if(WITH_AUDASPACE)

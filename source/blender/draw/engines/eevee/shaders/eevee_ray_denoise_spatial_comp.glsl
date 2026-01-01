@@ -15,7 +15,7 @@
  * https://www.ea.com/seed/news/seed-dd18-presentation-slides-raytracing
  */
 
-#include "infos/eevee_tracing_info.hh"
+#include "infos/eevee_tracing_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_denoise_spatial)
 
@@ -28,9 +28,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_ray_denoise_spatial)
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-void transmission_thickness_amend_closure(inout ClosureUndetermined cl,
-                                          inout float3 V,
-                                          float thickness)
+void transmission_thickness_amend_closure(ClosureUndetermined &cl, float3 &V, float thickness)
 {
   switch (cl.type) {
     case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:

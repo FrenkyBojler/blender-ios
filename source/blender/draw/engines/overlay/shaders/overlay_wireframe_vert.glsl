@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_wireframe_info.hh"
+#include "infos/overlay_wireframe_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_wireframe)
 
@@ -22,7 +22,7 @@ bool is_edge_sharpness_visible(float wire_data)
 }
 #endif
 
-void wire_color_get(out float3 rim_col, out float3 wire_col)
+void wire_color_get(float3 &rim_col, float3 &wire_col)
 {
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
   bool is_selected = flag_test(ob_flag, OBJECT_SELECTED);
@@ -59,7 +59,7 @@ float3 hsv_to_rgb(float3 hsv)
   return ((nrgb - 1.0f) * hsv.y + 1.0f) * hsv.z;
 }
 
-void wire_object_color_get(out float3 rim_col, out float3 wire_col)
+void wire_object_color_get(float3 &rim_col, float3 &wire_col)
 {
   ObjectInfos info = drw_object_infos();
   bool is_selected = flag_test(info.flag, OBJECT_SELECTED);

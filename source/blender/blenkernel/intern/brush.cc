@@ -15,7 +15,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
@@ -55,15 +54,23 @@
 static void brush_init_data(ID *id)
 {
   Brush *brush = reinterpret_cast<Brush *>(id);
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(brush, id));
-
-  MEMCPY_STRUCT_AFTER(brush, DNA_struct_default_get(Brush), id);
+  INIT_DEFAULT_STRUCT_AFTER(brush, id);
 
   /* enable fake user by default */
   id_fake_user_set(&brush->id);
 
   /* the default alpha falloff curve */
   BKE_brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
+
+  brush->automasking_cavity_curve = BKE_paint_default_curve();
+
+  brush->curve_rand_hue = BKE_paint_default_curve();
+  brush->curve_rand_saturation = BKE_paint_default_curve();
+  brush->curve_rand_value = BKE_paint_default_curve();
+
+  brush->curve_size = BKE_paint_default_curve();
+  brush->curve_strength = BKE_paint_default_curve();
+  brush->curve_jitter = BKE_paint_default_curve();
 }
 
 static void brush_copy_data(Main * /*bmain*/,
@@ -82,7 +89,7 @@ static void brush_copy_data(Main * /*bmain*/,
     brush_dst->preview = nullptr;
   }
 
-  brush_dst->curve = BKE_curvemapping_copy(brush_src->curve);
+  brush_dst->curve_distance_falloff = BKE_curvemapping_copy(brush_src->curve_distance_falloff);
   brush_dst->automasking_cavity_curve = BKE_curvemapping_copy(brush_src->automasking_cavity_curve);
 
   brush_dst->curve_rand_hue = BKE_curvemapping_copy(brush_src->curve_rand_hue);
@@ -94,8 +101,8 @@ static void brush_copy_data(Main * /*bmain*/,
   brush_dst->curve_jitter = BKE_curvemapping_copy(brush_src->curve_jitter);
 
   if (brush_src->gpencil_settings != nullptr) {
-    brush_dst->gpencil_settings = MEM_dupallocN<BrushGpencilSettings>(
-        __func__, *(brush_src->gpencil_settings));
+    brush_dst->gpencil_settings = MEM_new_for_free<BrushGpencilSettings>(
+        __func__, blender::dna::shallow_copy(*(brush_src->gpencil_settings)));
     brush_dst->gpencil_settings->curve_sensitivity = BKE_curvemapping_copy(
         brush_src->gpencil_settings->curve_sensitivity);
     brush_dst->gpencil_settings->curve_strength = BKE_curvemapping_copy(
@@ -117,7 +124,7 @@ static void brush_copy_data(Main * /*bmain*/,
         brush_src->gpencil_settings->curve_rand_value);
   }
   if (brush_src->curves_sculpt_settings != nullptr) {
-    brush_dst->curves_sculpt_settings = MEM_dupallocN<BrushCurvesSculptSettings>(
+    brush_dst->curves_sculpt_settings = MEM_new_for_free<BrushCurvesSculptSettings>(
         __func__, *(brush_src->curves_sculpt_settings));
     brush_dst->curves_sculpt_settings->curve_parameter_falloff = BKE_curvemapping_copy(
         brush_src->curves_sculpt_settings->curve_parameter_falloff);
@@ -130,7 +137,7 @@ static void brush_copy_data(Main * /*bmain*/,
 static void brush_free_data(ID *id)
 {
   Brush *brush = reinterpret_cast<Brush *>(id);
-  BKE_curvemapping_free(brush->curve);
+  BKE_curvemapping_free(brush->curve_distance_falloff);
   BKE_curvemapping_free(brush->automasking_cavity_curve);
 
   BKE_curvemapping_free(brush->curve_rand_hue);
@@ -236,8 +243,8 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BLO_write_id_struct(writer, Brush, id_address, &brush->id);
   BKE_id_blend_write(writer, &brush->id);
 
-  if (brush->curve) {
-    BKE_curvemapping_blend_write(writer, brush->curve);
+  if (brush->curve_distance_falloff) {
+    BKE_curvemapping_blend_write(writer, brush->curve_distance_falloff);
   }
 
   if (brush->automasking_cavity_curve) {
@@ -265,7 +272,7 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   if (brush->gpencil_settings) {
-    BLO_write_struct(writer, BrushGpencilSettings, brush->gpencil_settings);
+    writer->write_struct(brush->gpencil_settings);
 
     if (brush->gpencil_settings->curve_sensitivity) {
       BKE_curvemapping_blend_write(writer, brush->gpencil_settings->curve_sensitivity);
@@ -296,11 +303,11 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     }
   }
   if (brush->curves_sculpt_settings) {
-    BLO_write_struct(writer, BrushCurvesSculptSettings, brush->curves_sculpt_settings);
+    writer->write_struct(brush->curves_sculpt_settings);
     BKE_curvemapping_blend_write(writer, brush->curves_sculpt_settings->curve_parameter_falloff);
   }
   if (brush->gradient) {
-    BLO_write_struct(writer, ColorBand, brush->gradient);
+    writer->write_struct(brush->gradient);
   }
 
   BKE_previewimg_blend_write(writer, brush->preview);
@@ -311,12 +318,12 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   Brush *brush = reinterpret_cast<Brush *>(id);
 
   /* Falloff curve. */
-  BLO_read_struct(reader, CurveMapping, &brush->curve);
+  BLO_read_struct(reader, CurveMapping, &brush->curve_distance_falloff);
 
   BLO_read_struct(reader, ColorBand, &brush->gradient);
 
-  if (brush->curve) {
-    BKE_curvemapping_blend_read(reader, brush->curve);
+  if (brush->curve_distance_falloff) {
+    BKE_curvemapping_blend_read(reader, brush->curve_distance_falloff);
   }
   else {
     BKE_brush_curve_preset(brush, CURVE_PRESET_SHARP);
@@ -560,12 +567,11 @@ void BKE_brush_system_exit()
 
 static void brush_defaults(Brush *brush)
 {
-
-  const Brush *brush_def = DNA_struct_default_get(Brush);
+  const Brush brush_def = {};
 
 #define FROM_DEFAULT(member) \
-  memcpy((void *)&brush->member, (void *)&brush_def->member, sizeof(brush->member))
-#define FROM_DEFAULT_PTR(member) memcpy(brush->member, brush_def->member, sizeof(brush->member))
+  memcpy((void *)&brush->member, (void *)&brush_def.member, sizeof(brush->member))
+#define FROM_DEFAULT_PTR(member) memcpy(brush->member, brush_def.member, sizeof(brush->member))
 
   FROM_DEFAULT(blend);
   FROM_DEFAULT(flag);
@@ -638,7 +644,7 @@ Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
 void BKE_brush_init_gpencil_settings(Brush *brush)
 {
   if (brush->gpencil_settings == nullptr) {
-    brush->gpencil_settings = MEM_callocN<BrushGpencilSettings>("BrushGpencilSettings");
+    brush->gpencil_settings = MEM_new_for_free<BrushGpencilSettings>("BrushGpencilSettings");
   }
 
   brush->gpencil_settings->draw_smoothlvl = 1;
@@ -738,7 +744,7 @@ Brush *BKE_brush_duplicate(Main *bmain,
 void BKE_brush_init_curves_sculpt_settings(Brush *brush)
 {
   if (brush->curves_sculpt_settings == nullptr) {
-    brush->curves_sculpt_settings = MEM_callocN<BrushCurvesSculptSettings>(__func__);
+    brush->curves_sculpt_settings = MEM_new_for_free<BrushCurvesSculptSettings>(__func__);
   }
   BrushCurvesSculptSettings *settings = brush->curves_sculpt_settings;
   settings->flag = BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_RADIUS;
@@ -878,15 +884,15 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
   CurveMapping *cumap = nullptr;
   CurveMap *cuma = nullptr;
 
-  if (!b->curve) {
-    b->curve = BKE_curvemapping_add(1, 0, 0, 1, 1);
+  if (!b->curve_distance_falloff) {
+    b->curve_distance_falloff = BKE_curvemapping_add(1, 0, 0, 1, 1);
   }
-  cumap = b->curve;
+  cumap = b->curve_distance_falloff;
   cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
   cumap->preset = preset;
 
-  cuma = b->curve->cm;
-  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_NEGATIVE);
+  cuma = b->curve_distance_falloff->cm;
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Negative);
   BKE_curvemapping_changed(cumap, false);
   BKE_brush_tag_unsaved_changes(b);
 }
@@ -1569,6 +1575,9 @@ float BKE_brush_curve_strength(const eBrushCurvePreset preset,
                                const float distance,
                                const float brush_radius)
 {
+  BLI_assert(distance >= 0.0f);
+  BLI_assert(brush_radius >= 0.0f);
+
   float p = distance;
   float strength = 1.0f;
 
@@ -1617,7 +1626,8 @@ float BKE_brush_curve_strength(const eBrushCurvePreset preset,
 
 float BKE_brush_curve_strength(const Brush *br, float p, const float len)
 {
-  return BKE_brush_curve_strength(eBrushCurvePreset(br->curve_preset), br->curve, p, len);
+  return BKE_brush_curve_strength(
+      eBrushCurvePreset(br->curve_distance_falloff_preset), br->curve_distance_falloff, p, len);
 }
 
 float BKE_brush_curve_strength_clamped(const Brush *br, float p, const float len)
@@ -1662,11 +1672,11 @@ static bool brush_gen_texture(const Brush *br,
 
 ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
 {
-  ImBuf *im = MEM_callocN<ImBuf>("radial control texture");
+  ImBuf *im = MEM_new_for_free<ImBuf>("radial control texture");
   int side = 512;
   int half = side / 2;
 
-  BKE_curvemapping_init(br->curve);
+  BKE_curvemapping_init(br->curve_distance_falloff);
 
   float *rect_float = MEM_calloc_arrayN<float>(size_t(side) * size_t(side), "radial control rect");
   IMB_assign_float_buffer(im, rect_float, IB_DO_NOT_TAKE_OWNERSHIP);
@@ -1771,7 +1781,7 @@ bool supports_topology_rake(const Brush &brush)
 }
 bool supports_auto_smooth(const Brush &brush)
 {
-  /* TODO: Should this support Face Sets...? */
+  /* TODO: Should this support face sets...? */
   return !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_MASK,
                SCULPT_BRUSH_TYPE_SMOOTH,
@@ -1884,9 +1894,41 @@ bool supports_space_attenuation(const Brush &brush)
                SCULPT_BRUSH_TYPE_SMOOTH,
                SCULPT_BRUSH_TYPE_SNAKE_HOOK);
 }
+
+/**
+ * A helper method for classifying a certain subset of brush types.
+ *
+ * Certain sculpt deformations are 'grab-like' in that they behave as if they have an anchored
+ * start point.
+ */
+static bool is_grab_tool(const Brush &brush)
+{
+  return (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLOTH &&
+          brush.cloth_deform_type == BRUSH_CLOTH_DEFORM_GRAB) ||
+         ELEM(brush.sculpt_brush_type,
+              SCULPT_BRUSH_TYPE_GRAB,
+              SCULPT_BRUSH_TYPE_SNAKE_HOOK,
+              SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
+              SCULPT_BRUSH_TYPE_POSE,
+              SCULPT_BRUSH_TYPE_BOUNDARY,
+              SCULPT_BRUSH_TYPE_THUMB,
+              SCULPT_BRUSH_TYPE_ROTATE);
+}
 bool supports_strength_pressure(const Brush &brush)
 {
-  return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_SNAKE_HOOK);
+  return !is_grab_tool(brush);
+}
+bool supports_size_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
+}
+bool supports_auto_smooth_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
+}
+bool supports_hardness_pressure(const Brush &brush)
+{
+  return !is_grab_tool(brush);
 }
 bool supports_inverted_direction(const Brush &brush)
 {

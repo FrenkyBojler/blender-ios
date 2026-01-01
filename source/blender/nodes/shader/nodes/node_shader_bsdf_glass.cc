@@ -41,9 +41,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Index of refraction (IOR) of the thin film");
 }
 
-static void node_shader_buts_glass(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_glass(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "distribution", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "distribution", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_glass(bNodeTree * /*ntree*/, bNode *node)
@@ -62,6 +62,11 @@ static int node_shader_gpu_bsdf_glass(GPUMaterial *mat,
   }
 
   GPU_material_flag_set(mat, GPU_MATFLAG_GLOSSY | GPU_MATFLAG_REFRACT);
+
+  if (in[0].might_be_tinted()) {
+    GPU_material_flag_set(
+        mat, GPU_MATFLAG_REFLECTION_MAYBE_COLORED | GPU_MATFLAG_REFRACTION_MAYBE_COLORED);
+  }
 
   float use_multi_scatter = (node->custom1 == SHD_GLOSSY_MULTI_GGX) ? 1.0f : 0.0f;
 

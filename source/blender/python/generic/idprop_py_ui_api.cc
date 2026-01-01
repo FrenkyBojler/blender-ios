@@ -140,7 +140,7 @@ static IDPropertyUIDataEnumItem *idprop_enum_items_from_py(PyObject *seq_fast, i
   PyObject **seq_fast_items = PySequence_Fast_ITEMS(seq_fast);
   int i;
 
-  items = MEM_calloc_arrayN<IDPropertyUIDataEnumItem>(seq_len, __func__);
+  items = MEM_new_array_for_free<IDPropertyUIDataEnumItem>(seq_len, __func__);
   r_items_num = seq_len;
 
   for (i = 0; i < seq_len; i++) {
@@ -195,7 +195,7 @@ static bool idprop_ui_data_update_int_default(IDProperty *idprop,
   else {
     const int value = PyC_Long_AsI32(default_value);
     if ((value == -1) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to integer");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to integer");
       return false;
     }
 
@@ -358,7 +358,7 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
   else {
     const int value = PyC_Long_AsBool(default_value);
     if ((value == -1) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to integer");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to integer");
       return false;
     }
 
@@ -448,7 +448,7 @@ static bool idprop_ui_data_update_float_default(IDProperty *idprop,
   else {
     const double value = PyFloat_AsDouble(default_value);
     if ((value == -1.0) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to double");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to double");
       return false;
     }
 

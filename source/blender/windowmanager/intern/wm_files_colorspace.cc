@@ -15,7 +15,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_main.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_report.hh"
 
 #include "DNA_windowmanager_enums.h"
@@ -29,8 +29,6 @@
 #include "DEG_depsgraph.hh"
 
 #include "UI_interface_c.hh"
-#include "UI_interface_icons.hh"
-#include "UI_interface_layout.hh"
 
 #include "BLT_translation.hh"
 
@@ -125,7 +123,7 @@ static wmOperatorStatus wm_set_working_color_space_exec(bContext *C, wmOperator 
   RE_FreeInteractiveCompositorRenders();
   blender::seq::prefetch_stop_all();
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    blender::seq::cache_cleanup(scene);
+    blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::All);
   }
 
   /* Free all images, they may have scene linear float buffers. */
@@ -162,6 +160,13 @@ static wmOperatorStatus wm_set_working_color_space_invoke(bContext *C,
                  "working_space",
                  IMB_colormanagement_working_space_get_named_index(
                      IMB_colormanagement_working_space_get_default()));
+  }
+
+  const Main *bmain = CTX_data_main(C);
+  const char *working_space = IMB_colormanagement_working_space_get_indexed_name(
+      RNA_enum_get(op->ptr, "working_space"));
+  if (STREQ(working_space, bmain->colorspace.scene_linear_name)) {
+    return OPERATOR_CANCELLED;
   }
 
   return WM_operator_props_popup_confirm_ex(

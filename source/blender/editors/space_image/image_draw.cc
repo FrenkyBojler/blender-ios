@@ -60,7 +60,7 @@ static void draw_render_info(
   Render *re = RE_GetSceneRender(scene);
   Scene *stats_scene = ED_render_job_get_scene(C);
   if (stats_scene == nullptr) {
-    stats_scene = CTX_data_scene(C);
+    stats_scene = scene;
   }
 
   RenderResult *rr = BKE_image_acquire_renderresult(stats_scene, ima);
@@ -79,7 +79,7 @@ static void draw_render_info(
     if (total_tiles) {
       /* find window pixel coordinates of origin */
       int x, y;
-      UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
+      blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
 
       GPU_matrix_push();
       GPU_matrix_translate_2f(x, y);
@@ -513,14 +513,15 @@ void draw_image_cache(const bContext *C, ARegion *region)
   ED_region_cache_draw_background(region);
 
   /* Draw cached segments. */
-  if (image != nullptr && image->cache != nullptr &&
+  if (image != nullptr && image->runtime->cache != nullptr &&
       ELEM(image->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE))
   {
     int num_segments = 0;
     int *points = nullptr;
 
     std::scoped_lock lock(image->runtime->cache_mutex);
-    IMB_moviecache_get_cache_segments(image->cache, IMB_PROXY_NONE, 0, &num_segments, &points);
+    IMB_moviecache_get_cache_segments(
+        image->runtime->cache, IMB_PROXY_NONE, 0, &num_segments, &points);
 
     ED_region_cache_draw_cached_segments(
         region, num_segments, points, sfra + sima->iuser.offset, efra + sima->iuser.offset);
@@ -634,7 +635,7 @@ void draw_image_uv_custom_region(const ARegion *region, const rctf &custom_regio
   immUniform1f("udash_factor", 0.5f);
   rcti region_rect;
 
-  UI_view2d_view_to_region_rcti(&region->v2d, &custom_region, &region_rect);
+  blender::ui::view2d_view_to_region_rcti(&region->v2d, &custom_region, &region_rect);
 
   imm_draw_box_wire_2d(
       shdr_pos, region_rect.xmin, region_rect.ymin, region_rect.xmax, region_rect.ymax);

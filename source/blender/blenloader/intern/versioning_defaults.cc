@@ -28,7 +28,6 @@
 
 #include "DNA_camera_types.h"
 #include "DNA_curveprofile_types.h"
-#include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_light_types.h"
 #include "DNA_mask_types.h"
@@ -77,9 +76,12 @@
 static bool blo_is_builtin_template(const char *app_template)
 {
   /* For all builtin templates shipped with Blender. */
-  return (
-      !app_template ||
-      STR_ELEM(app_template, N_("2D_Animation"), N_("Sculpting"), N_("VFX"), N_("Video_Editing")));
+  return (!app_template || STR_ELEM(app_template,
+                                    N_("2D_Animation"),
+                                    N_("Storyboarding"),
+                                    N_("Sculpting"),
+                                    N_("VFX"),
+                                    N_("Video_Editing")));
 }
 
 static void blo_update_defaults_screen(bScreen *screen,
@@ -135,10 +137,12 @@ static void blo_update_defaults_screen(bScreen *screen,
           sima->mode = SI_MODE_UV;
         }
         sima->uv_face_opacity = 1.0f;
+        sima->uv_edge_opacity = 1.0f;
       }
       else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
         sima->uv_face_opacity = 0.0f;
+        sima->uv_edge_opacity = 0.0f;
       }
     }
     else if (area->spacetype == SPACE_ACTION) {
@@ -347,6 +351,31 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
       }
     }
   }
+  /* For Video Editing template. */
+  if (STRPREFIX(workspace->id.name + 2, "Video Editing")) {
+    LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
+      bScreen *screen = layout->screen;
+      if (screen) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+            if (sl->spacetype == SPACE_SEQ) {
+              if (((SpaceSeq *)sl)->view == SEQ_VIEW_PREVIEW) {
+                continue;
+              }
+              ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                     &sl->regionbase;
+              ARegion *sidebar = BKE_region_find_in_listbase_by_type(regionbase, RGN_TYPE_UI);
+              sidebar->flag |= RGN_FLAG_HIDDEN;
+            }
+            if (sl->spacetype == SPACE_PROPERTIES) {
+              SpaceProperties *properties = reinterpret_cast<SpaceProperties *>(sl);
+              properties->mainb = properties->mainbo = properties->mainbuser = BCONTEXT_STRIP;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 static void blo_update_defaults_paint(Paint *paint)
@@ -360,7 +389,7 @@ static void blo_update_defaults_paint(Paint *paint)
     paint->unified_paint_settings.input_samples = 1;
   }
 
-  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  const UnifiedPaintSettings &default_ups = UnifiedPaintSettings();
   paint->unified_paint_settings.size = default_ups.size;
   paint->unified_paint_settings.input_samples = default_ups.input_samples;
   paint->unified_paint_settings.unprojected_size = default_ups.unprojected_size;
@@ -381,6 +410,12 @@ static void blo_update_defaults_paint(Paint *paint)
   }
 }
 
+static void blo_update_defaults_windowmanager(wmWindowManager *wm)
+{
+  wm->xr.session_settings.fly_speed = 3.0f;
+  wm->xr.session_settings.view_scale = 1.0f;
+}
+
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
@@ -388,6 +423,8 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 
   scene->r.cfra = 1.0f;
+  scene->r.im_format.exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
+  scene->r.bake.im_format.exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
 
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
@@ -422,6 +459,8 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
   copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
 
+  ts->uv_flag |= UV_FLAG_SELECT_SYNC;
+
   /* Default Rotate Increment. */
   const float default_snap_angle_increment = DEG2RADF(5.0f);
   ts->snap_angle_increment_2d = default_snap_angle_increment;
@@ -438,7 +477,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     BKE_curvemap_reset(gp_falloff_curve->cm,
                        &gp_falloff_curve->clipr,
                        CURVE_PRESET_GAUSS,
-                       CURVEMAP_SLOPE_POSITIVE);
+                       CurveMapSlopeType::Positive);
   }
   if (ts->gp_sculpt.cur_primitive == nullptr) {
     ts->gp_sculpt.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -447,11 +486,11 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     BKE_curvemap_reset(gp_primitive_curve->cm,
                        &gp_primitive_curve->clipr,
                        CURVE_PRESET_BELL,
-                       CURVEMAP_SLOPE_POSITIVE);
+                       CurveMapSlopeType::Positive);
   }
 
   if (ts->sculpt) {
-    ts->sculpt->flags = DNA_struct_default_get(Sculpt)->flags;
+    ts->sculpt->flags = Sculpt().flags;
   }
 
   /* Correct default startup UVs. */
@@ -465,7 +504,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
         {0.125, 0.50}, {0.375, 0.50}, {0.375, 0.75}, {0.125, 0.75}, {0.375, 0.50}, {0.625, 0.50},
         {0.625, 0.75}, {0.375, 0.75}, {0.375, 0.25}, {0.625, 0.25}, {0.625, 0.50}, {0.375, 0.50},
     };
-    float(*uv_map)[2] = static_cast<float(*)[2]>(
+    float (*uv_map)[2] = static_cast<float (*)[2]>(
         CustomData_get_layer_for_write(&mesh->corner_data, CD_PROP_FLOAT2, mesh->corners_num));
     memcpy(uv_map, uv_values, sizeof(float[2]) * mesh->corners_num);
   }
@@ -490,7 +529,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     ts->unified_paint_settings.input_samples = 1;
   }
 
-  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  const UnifiedPaintSettings default_ups = {};
   ts->unified_paint_settings.flag = default_ups.flag;
   copy_v3_v3(ts->unified_paint_settings.color, default_ups.color);
   copy_v3_v3(ts->unified_paint_settings.secondary_color, default_ups.secondary_color);
@@ -616,6 +655,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
   /* Work-spaces. */
   LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+    blo_update_defaults_windowmanager(wm);
+
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
         WorkSpaceLayout *layout = BKE_workspace_active_layout_for_workspace_get(
@@ -688,11 +729,11 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
   }
 
   LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-    const Object *dob = DNA_struct_default_get(Object);
+    const Object dob;
     /* Set default for shadow terminator bias. */
-    object->shadow_terminator_normal_offset = dob->shadow_terminator_normal_offset;
-    object->shadow_terminator_geometry_offset = dob->shadow_terminator_geometry_offset;
-    object->shadow_terminator_shading_offset = dob->shadow_terminator_shading_offset;
+    object->shadow_terminator_normal_offset = dob.shadow_terminator_normal_offset;
+    object->shadow_terminator_geometry_offset = dob.shadow_terminator_geometry_offset;
+    object->shadow_terminator_shading_offset = dob.shadow_terminator_shading_offset;
   }
 
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
@@ -744,6 +785,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           bNodeSocket *emission_strength = blender::bke::node_find_socket(
               *node, SOCK_IN, "Emission Strength");
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
+          bNodeSocket *ior = blender::bke::node_find_socket(*node, SOCK_IN, "IOR");
+          *version_cycles_node_socket_float_value(ior) = 1.5f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;
           node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;

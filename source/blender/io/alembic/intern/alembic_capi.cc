@@ -109,7 +109,7 @@ BLI_INLINE CacheArchiveHandle *handle_from_archive(AlembicArchiveData *archive)
  */
 static void add_object_path(ListBase *object_paths, const IObject &object)
 {
-  CacheObjectPath *abc_path = MEM_callocN<CacheObjectPath>("CacheObjectPath");
+  CacheObjectPath *abc_path = MEM_new_for_free<CacheObjectPath>("CacheObjectPath");
   STRNCPY(abc_path->path, object.getFullName().c_str());
   BLI_addtail(object_paths, abc_path);
 }
@@ -489,7 +489,6 @@ static void sort_readers(blender::MutableSpan<AbcObjectReader *> readers)
 static void import_file(ImportJobData *data, const char *filepath, float progress_factor)
 {
   blender::timeit::TimePoint start_time = blender::timeit::Clock::now();
-  SCOPE_TIMER("Alembic import, objects reading and creation");
 
   ArchiveReader *archive = ArchiveReader::get(data->bmain, {filepath});
 
@@ -646,8 +645,6 @@ static void import_startjob(void *user_data, wmJobWorkerStatus *worker_status)
 
 static void import_endjob(void *user_data)
 {
-  SCOPE_TIMER("Alembic import, cleanup");
-
   ImportJobData *data = static_cast<ImportJobData *>(user_data);
 
   /* Delete objects on cancellation. */

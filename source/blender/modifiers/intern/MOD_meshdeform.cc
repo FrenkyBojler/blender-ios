@@ -16,7 +16,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -44,10 +43,7 @@
 static void init_data(ModifierData *md)
 {
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(mmd, DNA_struct_default_get(MeshDeformModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(mmd, modifier);
 }
 
 static void free_data(ModifierData *md)
@@ -254,8 +250,8 @@ static void meshdeform_vert_task(void *__restrict userdata,
   const int defgrp_index = data->defgrp_index;
   const int *offsets = mmd->bindoffsets;
   const MDefInfluence *__restrict influences = mmd->bindinfluences;
-  /*const*/ float(*__restrict dco)[3] = data->dco;
-  float(*vertexCos)[3] = data->vertexCos;
+  /*const*/ float (*__restrict dco)[3] = data->dco;
+  float (*vertexCos)[3] = data->vertexCos;
   float co[3];
   float weight, totweight, fac = 1.0f;
 
@@ -314,7 +310,7 @@ static void meshdeformModifier_do(ModifierData *md,
   Mesh *cagemesh;
   const MDeformVert *dvert = nullptr;
   float imat[4][4], cagemat[4][4], iobmat[4][4], icagemat[3][3], cmat[4][4];
-  const float(*bindcagecos)[3];
+  const float (*bindcagecos)[3];
   int a, cage_verts_num, defgrp_index;
   MeshdeformUserdata data;
 
@@ -389,7 +385,7 @@ static void meshdeformModifier_do(ModifierData *md,
 
   /* setup deformation data */
   BKE_mesh_wrapper_vert_coords_copy(cagemesh, dco.as_mutable_span().take_front(cage_verts_num));
-  bindcagecos = (const float(*)[3])mmd->bindcagecos;
+  bindcagecos = (const float (*)[3])mmd->bindcagecos;
 
   for (a = 0; a < cage_verts_num; a++) {
     /* Get cage vertex in world-space with binding transform. */
@@ -404,7 +400,7 @@ static void meshdeformModifier_do(ModifierData *md,
   /* Initialize data to be pass to the for body function. */
   data.mmd = mmd;
   data.dvert = dvert;
-  data.dco = reinterpret_cast<float(*)[3]>(dco.data());
+  data.dco = reinterpret_cast<float (*)[3]>(dco.data());
   data.defgrp_index = defgrp_index;
   data.vertexCos = vertexCos;
   data.cagemat = cagemat;
@@ -423,9 +419,9 @@ static void deform_verts(ModifierData *md,
                          blender::MutableSpan<blender::float3> positions)
 {
   /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<float(*)[3]>(positions.data()));
+  MOD_previous_vcos_store(md, reinterpret_cast<float (*)[3]>(positions.data()));
   meshdeformModifier_do(
-      md, ctx, mesh, reinterpret_cast<float(*)[3]>(positions.data()), positions.size());
+      md, ctx, mesh, reinterpret_cast<float (*)[3]>(positions.data()), positions.size());
 }
 
 #define MESHDEFORM_MIN_INFLUENCE 0.00001f
@@ -457,7 +453,7 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
   }
 
   /* allocate bind influences */
-  mmd->bindinfluences = MEM_calloc_arrayN<MDefInfluence>(mmd->influences_num, __func__);
+  mmd->bindinfluences = MEM_new_array_for_free<MDefInfluence>(mmd->influences_num, __func__);
   mmd->bindinfluences_sharing_info = implicit_sharing::info_for_mem_free(mmd->bindinfluences);
   mmd->bindoffsets = MEM_calloc_arrayN<int>(size_t(verts_num) + 1, __func__);
   mmd->bindoffsets_sharing_info = implicit_sharing::info_for_mem_free(mmd->bindoffsets);
@@ -499,28 +495,27 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   bool is_bound = RNA_boolean_get(ptr, "is_bound");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(true);
+  blender::ui::Layout *col = &layout.column(true);
   col->enabled_set(!is_bound);
   col->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->enabled_set(!is_bound);
   col->prop(ptr, "precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "use_dynamic_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->op("OBJECT_OT_meshdeform_bind", is_bound ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
+  layout.op("OBJECT_OT_meshdeform_bind", is_bound ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -562,8 +557,6 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
   }
 
   const int size = mmd.dyngridsize;
-
-  BLO_write_struct_at_address(writer, MeshDeformModifierData, md, &mmd);
 
   BLO_write_shared(writer,
                    mmd.bindinfluences,
@@ -609,6 +602,8 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
                    sizeof(MDefInfluence) * mmd.verts_num,
                    mmd.dynverts_sharing_info,
                    [&]() { BLO_write_int32_array(writer, mmd.verts_num, mmd.dynverts); });
+
+  BLO_write_struct_at_address(writer, MeshDeformModifierData, md, &mmd);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)

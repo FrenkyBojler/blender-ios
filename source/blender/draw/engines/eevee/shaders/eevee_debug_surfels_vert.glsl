@@ -2,11 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_lightprobe_volume_info.hh"
+#include "infos/eevee_lightprobe_volume_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(eevee_debug_surfels)
 
 #include "draw_view_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "gpu_shader_math_matrix_construct_lib.glsl"
 
 void main()
@@ -51,6 +52,6 @@ void main()
 
   P = (model_matrix * float4(lP, 1)).xyz;
 
-  gl_Position = drw_point_world_to_homogenous(P);
-  gl_Position.z -= 2.5e-5f;
+  gl_Position = reverse_z::transform(drw_point_world_to_homogenous(P));
+  gl_Position.z += 2.5e-5f;
 }

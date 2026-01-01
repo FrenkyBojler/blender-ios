@@ -28,6 +28,7 @@
 #include "DNA_ID.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_fluid_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
@@ -73,20 +74,6 @@
 
 #ifdef WITH_BULLET
 #  include "RBI_api.h"
-#endif
-
-#if 0  // #ifdef WITH_LZO
-#  ifdef WITH_SYSTEM_LZO
-#    include <lzo/lzo1x.h>
-#  else
-#    include "minilzo.h"
-#  endif
-#  define LZO_HEAP_ALLOC(var, size) \
-    lzo_align_t __LZO_MMODEL var[((size) + (sizeof(lzo_align_t) - 1)) / sizeof(lzo_align_t)]
-#endif
-
-#if 0  // #ifdef WITH_LZMA
-#  include "LzmaLib.h"
 #endif
 
 #include <zstd.h>
@@ -170,7 +157,7 @@ static int ptcache_basic_header_write(PTCacheFile *pf)
 }
 static void ptcache_add_extra_data(PTCacheMem *pm, uint type, uint count, void *data)
 {
-  PTCacheExtra *extra = MEM_callocN<PTCacheExtra>("Point cache: extra data descriptor");
+  PTCacheExtra *extra = MEM_new_for_free<PTCacheExtra>("Point cache: extra data descriptor");
 
   extra->type = type;
   extra->totdata = count;
@@ -1493,7 +1480,7 @@ static PTCacheFile *ptcache_file_open(PTCacheID *pid, int mode, int cfra)
     return nullptr;
   }
 
-  pf = MEM_mallocN<PTCacheFile>("PTCacheFile");
+  pf = MEM_new_for_free<PTCacheFile>("PTCacheFile");
   pf->fp = fp;
   pf->old_format = 0;
   pf->frame = cfra;
@@ -1535,22 +1522,6 @@ static int ptcache_file_compressed_read(PTCacheFile *pf,
         decomp_result = MEM_malloc_arrayN<uchar>(items_num * item_size,
                                                  "pointcache_unfilter_buffer");
       }
-#if 0  // #ifdef WITH_LZO
-      if (compressed == PTCACHE_COMPRESS_LZO_DEPRECATED) {
-        size_t out_len = items_num * item_size;
-        r = lzo1x_decompress_safe(in, (lzo_uint)in_len, decomp_result, (lzo_uint *)&out_len, nullptr);
-      }
-#endif
-#if 0  // #ifdef WITH_LZMA
-      if (compressed == PTCACHE_COMPRESS_LZMA_DEPRECATED) {
-        size_t leni = in_len, leno = items_num * item_size;
-        uchar lzma_props[16] = {};
-        uint lzma_props_size = 0;
-        ptcache_file_read(pf, &lzma_props_size, 1, sizeof(uint));
-        ptcache_file_read(pf, lzma_props, lzma_props_size, sizeof(uchar));
-        r = LzmaUncompress(decomp_result, &leno, in, &leni, lzma_props, lzma_props_size);
-      }
-#endif
       if (ELEM(compressed,
                PTCACHE_COMPRESS_ZSTD_FILTERED,
                PTCACHE_COMPRESS_ZSTD_FAST_DEPRECATED,
@@ -1923,7 +1894,7 @@ static PTCacheMem *ptcache_disk_frame_to_mem(PTCacheID *pid, int cfra)
   }
 
   if (!error) {
-    pm = MEM_callocN<PTCacheMem>("Pointcache mem");
+    pm = MEM_new_for_free<PTCacheMem>("Pointcache mem");
 
     pm->totpoint = pf->totpoint;
     pm->data_types = pf->data_types;
@@ -1959,7 +1930,7 @@ static PTCacheMem *ptcache_disk_frame_to_mem(PTCacheID *pid, int cfra)
     uint extratype = 0;
 
     while (!error && ptcache_file_read(pf, &extratype, 1, sizeof(uint))) {
-      PTCacheExtra *extra = MEM_callocN<PTCacheExtra>("Pointcache extradata");
+      PTCacheExtra *extra = MEM_new_for_free<PTCacheExtra>("Pointcache extradata");
 
       extra->type = extratype;
 
@@ -2363,7 +2334,7 @@ static int ptcache_write(PTCacheID *pid, int cfra, int overwrite)
   int totpoint = pid->totpoint(pid->calldata, cfra);
   int i, error = 0;
 
-  pm = MEM_callocN<PTCacheMem>("Pointcache mem");
+  pm = MEM_new_for_free<PTCacheMem>("Pointcache mem");
 
   pm->totpoint = pid->totwrite(pid->calldata, cfra);
   pm->data_types = cfra ? pid->data_types : pid->info_types;
@@ -2964,7 +2935,7 @@ PointCache *BKE_ptcache_add(ListBase *ptcaches)
 {
   PointCache *cache;
 
-  cache = MEM_callocN<PointCache>("PointCache");
+  cache = MEM_new_for_free<PointCache>("PointCache");
   cache->startframe = 1;
   cache->endframe = 250;
   cache->step = 1;
@@ -3749,11 +3720,11 @@ void BKE_ptcache_invalidate(PointCache *cache)
 void BKE_ptcache_blend_write(BlendWriter *writer, ListBase *ptcaches)
 {
   LISTBASE_FOREACH (PointCache *, cache, ptcaches) {
-    BLO_write_struct(writer, PointCache, cache);
+    writer->write_struct(cache);
 
     if ((cache->flag & PTCACHE_DISK_CACHE) == 0) {
       LISTBASE_FOREACH (PTCacheMem *, pm, &cache->mem_cache) {
-        BLO_write_struct(writer, PTCacheMem, pm);
+        writer->write_struct(pm);
 
         for (int i = 0; i < BPHYS_TOT_DATA; i++) {
           if (pm->data[i] && pm->data_types & (1 << i)) {
@@ -3773,7 +3744,7 @@ void BKE_ptcache_blend_write(BlendWriter *writer, ListBase *ptcaches)
         }
 
         LISTBASE_FOREACH (PTCacheExtra *, extra, &pm->extradata) {
-          BLO_write_struct(writer, PTCacheExtra, extra);
+          writer->write_struct(extra);
           if (extra->type == BPHYS_EXTRA_FLUID_SPRINGS) {
             BLO_write_struct_array(writer, ParticleSpring, extra->totdata, extra->data);
           }

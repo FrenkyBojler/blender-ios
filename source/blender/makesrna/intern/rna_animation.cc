@@ -50,12 +50,6 @@ const EnumPropertyItem rna_enum_keying_flag_items[] = {
      0,
      "Visual Keying",
      "Insert keyframes based on 'visual transforms'"},
-    {0,
-     "INSERTKEY_XYZ_TO_RGB",
-     0,
-     "XYZ=RGB Colors (ignored)",
-     "This flag is no longer in use, and is here so that code that uses it doesn't break. The "
-     "XYZ=RGB coloring is determined by the animation preferences."},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -71,12 +65,6 @@ const EnumPropertyItem rna_enum_keying_flag_api_items[] = {
      0,
      "Visual Keying",
      "Insert keyframes based on 'visual transforms'"},
-    {0,
-     "INSERTKEY_XYZ_TO_RGB",
-     0,
-     "XYZ=RGB Colors (ignored)",
-     "This flag is no longer in use, and is here so that code that uses it doesn't break. The "
-     "XYZ=RGB coloring is determined by the animation preferences."},
     {INSERTKEY_REPLACE,
      "INSERTKEY_REPLACE",
      0,
@@ -562,7 +550,7 @@ static bool rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)
 
   /* free RNA data referencing this */
   RNA_struct_free_extension(type, &ksi->rna_ext);
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
@@ -632,7 +620,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   memcpy(ksi, &dummy_ksi, sizeof(KeyingSetInfo));
 
   /* set RNA-extensions info */
-  ksi->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, ksi->idname, &RNA_KeyingSetInfo);
+  ksi->rna_ext.srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), ksi->idname, &RNA_KeyingSetInfo);
   ksi->rna_ext.data = data;
   ksi->rna_ext.call = call;
   ksi->rna_ext.free = free;

@@ -127,7 +127,6 @@ enum eUSDSceneUnits {
 struct USDExportParams {
   bool export_animation = false;
   bool selected_objects_only = false;
-  bool visible_objects_only = true;
 
   bool export_meshes = true;
   bool export_lights = true;
@@ -179,6 +178,9 @@ struct USDExportParams {
   std::string root_prim_path = "";
   char collection[MAX_ID_NAME - 2] = "";
   char custom_properties_namespace[MAX_IDPROP_NAME] = "";
+
+  std::string accessibility_label = "";
+  std::string accessibility_description = "";
 
   eUSDSceneUnits convert_scene_units = eUSDSceneUnits::USD_SCENE_UNITS_METERS;
   float custom_meters_per_unit = 1.0f;

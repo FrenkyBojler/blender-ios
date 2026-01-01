@@ -12,7 +12,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curves_types.h"
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 
@@ -56,9 +55,7 @@ static const char *ATTR_POSITION = "position";
 static void curves_init_data(ID *id)
 {
   Curves *curves = (Curves *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(curves, id));
-
-  MEMCPY_STRUCT_AFTER(curves, DNA_struct_default_get(Curves), id);
+  INIT_DEFAULT_STRUCT_AFTER(curves, id);
 
   new (&curves->geometry) blender::bke::CurvesGeometry();
 }
@@ -121,6 +118,9 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   blender::ResourceScope scope;
   blender::bke::CurvesGeometry::BlendWriteData write_data(scope);
   curves->geometry.wrap().blend_write_prepare(write_data);
+
+  BLO_write_shared_tag(writer, curves->geometry.curve_offsets);
+  BLO_write_shared_tag(writer, curves->geometry.custom_knots);
 
   /* Write LibData */
   BLO_write_id_struct(writer, Curves, id_address, &curves->id);

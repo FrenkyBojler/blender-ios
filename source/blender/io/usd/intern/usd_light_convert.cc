@@ -41,7 +41,6 @@
 #include "DNA_world_types.h"
 
 #include <cmath>
-#include <cstdint>
 #include <string>
 
 #include "CLG_log.h"
@@ -120,7 +119,7 @@ static Image *load_image(std::string tex_path, Main *bmain, const USDImportParam
 /* Create a new node of type 'new_node_type' and connect it
  * as an upstream source to 'dst_node' with the given sockets. */
 static bNode *append_node(bNode *dst_node,
-                          int16_t new_node_type,
+                          int new_node_type,
                           const StringRef out_sock,
                           const StringRef in_sock,
                           bNodeTree *ntree,
@@ -196,21 +195,21 @@ void world_material_to_dome_light(const USDExportParams &params,
     std::string source_path = cache_image_color(res.color);
     const std::string base_path = stage->GetRootLayer()->GetRealPath();
 
-    char file_path[FILE_MAX];
-    BLI_path_split_file_part(source_path.c_str(), file_path, FILE_MAX);
+    char file_name[FILE_MAX];
+    BLI_path_split_file_part(source_path.c_str(), file_name, FILE_MAX);
     char dest_path[FILE_MAX];
     BLI_path_split_dir_part(base_path.c_str(), dest_path, FILE_MAX);
 
     BLI_path_append_dir(dest_path, FILE_MAX, "textures");
     BLI_dir_create_recursive(dest_path);
 
-    BLI_path_append(dest_path, FILE_MAX, file_path);
+    BLI_path_append(dest_path, FILE_MAX, file_name);
 
     if (BLI_copy(source_path.c_str(), dest_path) != 0) {
       CLOG_WARN(&LOG, "USD Export: Couldn't write world color image to %s", dest_path);
     }
     else {
-      BLI_path_join(dest_path, FILE_MAX, ".", "textures", file_path);
+      BLI_path_join(dest_path, FILE_MAX, ".", "textures", file_name);
       BLI_string_replace_char(dest_path, '\\', '/');
       dome_light.CreateTextureFileAttr().Set(pxr::SdfAssetPath(dest_path));
     }
@@ -432,6 +431,11 @@ static bool node_search(bNode *fromnode, bNode * /*tonode*/, void *userdata, boo
     NodeTexImage *tex = static_cast<NodeTexImage *>(fromnode->storage);
     res.image = reinterpret_cast<Image *>(fromnode->id);
     res.iuser = &tex->iuser;
+
+    /* Always adjust for rotational differences between Blender and USD. */
+    res.transform =
+        pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
+        pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0));
   }
   else if (!res.image && !res.mult_found && fromnode->type_legacy == SH_NODE_VECTOR_MATH) {
     if (fromnode->custom1 == NODE_VECTOR_MATH_MULTIPLY) {
@@ -453,10 +457,9 @@ static bool node_search(bNode *fromnode, bNode * /*tonode*/, void *userdata, boo
           socket->default_value);
       /* Convert radians to degrees. */
       pxr::GfVec3f rot(rot_value->value);
-      mul_v3_fl(rot.data(), 180.0f / M_PI);
-      res.transform =
-          pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
-          pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0)) *
+      rot *= 180.0f / M_PI;
+
+      res.transform *=
           pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -rot[2])) *
           pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 1.0, 0.0), -rot[1])) *
           pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -rot[0]));

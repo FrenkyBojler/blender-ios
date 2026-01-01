@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 
@@ -16,6 +16,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 #include "gpu_shader_math_fast_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_math_vector_safe_lib.glsl"
+#include "gpu_shader_ray_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 /* -------------------------------------------------------------------- */
@@ -169,7 +170,7 @@ BsdfEval bxdf_ggx_eval_reflection(float3 N, float3 L, float3 V, float alpha, boo
  * https://diglib.eg.org/bitstream/handle/10.1111f/cgf14867/v42i8_03_14867.pdf
  * \{ */
 
-float3 bxdf_ggx_sample_vndf(float3 rand, float3 Vt, float alpha, out float G_V)
+float3 bxdf_ggx_sample_vndf(float3 rand, float3 Vt, float alpha, float &G_V)
 {
   /* Transforming the view direction to the hemisphere configuration. */
   float3 Vh = normalize(float3(alpha * Vt.xy, Vt.z));
@@ -374,9 +375,7 @@ LightProbeRay bxdf_ggx_lightprobe_transmission(ClosureRefraction cl, float3 V, f
   return probe;
 }
 
-void bxdf_ggx_context_amend_transmission(inout ClosureUndetermined cl,
-                                         inout float3 V,
-                                         float thickness)
+void bxdf_ggx_context_amend_transmission(ClosureUndetermined &cl, float3 &V, float thickness)
 {
   if (thickness != 0.0f) {
     ClosureRefraction bsdf = to_closure_refraction(cl);

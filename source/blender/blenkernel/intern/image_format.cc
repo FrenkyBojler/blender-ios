@@ -8,7 +8,6 @@
 
 #include <cstring>
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_path_utils.hh"
@@ -28,19 +27,13 @@ namespace path_templates = blender::bke::path_templates;
 
 /* Init/Copy/Free */
 
-void BKE_image_format_init(ImageFormatData *imf, const bool render)
+void BKE_image_format_init(ImageFormatData *imf)
 {
-  *imf = *DNA_struct_default_get(ImageFormatData);
+  *imf = ImageFormatData();
 
   BKE_color_managed_display_settings_init(&imf->display_settings);
 
-  if (render) {
-    BKE_color_managed_view_settings_init_render(
-        &imf->view_settings, &imf->display_settings, "Filmic");
-  }
-  else {
-    BKE_color_managed_view_settings_init_untonemapped(&imf->view_settings, &imf->display_settings);
-  }
+  BKE_color_managed_view_settings_init(&imf->view_settings, &imf->display_settings, "AgX");
 
   BKE_color_managed_colorspace_settings_init(&imf->linear_colorspace_settings);
 }
@@ -68,13 +61,14 @@ void BKE_image_format_update_color_space_for_type(ImageFormatData *format)
   }
 
   const bool image_requires_linear = BKE_imtype_requires_linear_float(format->imtype);
+  /* TODO: This is wrong, there are more linear colorspaces than scene linear. */
   const bool is_linear = IMB_colormanagement_space_name_is_scene_linear(
       format->linear_colorspace_settings.name);
 
   /* The color space is either not set or is linear but the image requires non-linear or vice
    * versa. So set to the default for the image type. */
   if (format->linear_colorspace_settings.name[0] == '\0' || image_requires_linear != is_linear) {
-    const int role = image_requires_linear ? COLOR_ROLE_DEFAULT_FLOAT : COLOR_ROLE_DEFAULT_BYTE;
+    const int role = image_requires_linear ? COLOR_ROLE_SCENE_LINEAR : COLOR_ROLE_DEFAULT_BYTE;
     const char *default_color_space = IMB_colormanagement_role_colorspace_name_get(role);
     STRNCPY_UTF8(format->linear_colorspace_settings.name, default_color_space);
   }
@@ -183,7 +177,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 {
-  memset(r_options, 0, sizeof(*r_options));
+  *r_options = ImbFormatOptions();
 
   if (imtype == R_IMF_IMTYPE_TARGA) {
     return IMB_FTYPE_TGA;
@@ -791,6 +785,9 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     }
     ibuf->foptions.flag |= (imf->exr_codec & OPENEXR_CODEC_MASK);
     ibuf->foptions.quality = quality;
+    if (imf->exr_flag & R_IMF_EXR_FLAG_MULTIPART) {
+      ibuf->foptions.flag |= OPENEXR_MULTIPART;
+    }
   }
 #endif
 #ifdef WITH_IMAGE_CINEON
@@ -931,7 +928,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   char quality = imbuf->foptions.quality;
   bool is_depth_set = false;
 
-  BKE_image_format_init(im_format, false);
+  BKE_image_format_init(im_format);
   im_format->media_type = MEDIA_TYPE_IMAGE;
 
   /* file type */
@@ -991,6 +988,9 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     }
     if (exr_codec < R_IMF_EXR_CODEC_MAX) {
       im_format->exr_codec = exr_codec;
+    }
+    if (custom_flags & OPENEXR_MULTIPART) {
+      im_format->exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
     }
   }
 #endif

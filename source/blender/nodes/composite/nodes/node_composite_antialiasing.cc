@@ -19,9 +19,14 @@ namespace blender::nodes::node_composite_antialiasing_cc {
 
 static void cmp_node_antialiasing_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Float>("Threshold")
       .default_value(0.2f)
       .subtype(PROP_FACTOR)
@@ -43,8 +48,6 @@ static void cmp_node_antialiasing_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .description("Specifies how much sharp corners will be rounded");
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -67,20 +70,21 @@ class AntiAliasingOperation : public NodeOperation {
    * [0, 0.5] range. */
   float get_threshold()
   {
-    return math::clamp(this->get_input("Threshold").get_single_value_default(0.2f), 0.0f, 1.0f) /
+    return math::clamp(
+               this->get_input("Threshold").get_single_value_default<float>(), 0.0f, 1.0f) /
            2.0f;
   }
 
   float get_local_contrast_adaptation_factor()
   {
-    return math::max(0.0f, this->get_input("Contrast Limit").get_single_value_default(2.0f));
+    return math::max(0.0f, this->get_input("Contrast Limit").get_single_value_default<float>());
   }
 
   /* We encode the corner rounding factor in the float [0, 1] range, while the SMAA algorithm
    * expects it in the integer [0, 100] range. */
   int get_corner_rounding()
   {
-    return int(math::clamp(this->get_input("Corner Rounding").get_single_value_default(0.25f),
+    return int(math::clamp(this->get_input("Corner Rounding").get_single_value_default<float>(),
                            0.0f,
                            1.0f) *
                100.0f);
