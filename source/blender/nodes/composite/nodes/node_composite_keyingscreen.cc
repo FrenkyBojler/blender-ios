@@ -10,7 +10,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_utf8.h"
 
-#include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
@@ -55,7 +54,7 @@ static void node_composit_init_keyingscreen(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  NodeKeyingScreenData *data = MEM_callocN<NodeKeyingScreenData>(__func__);
+  NodeKeyingScreenData *data = MEM_new_for_free<NodeKeyingScreenData>(__func__);
   node->storage = data;
 
   const Scene *scene = CTX_data_scene(C);
@@ -127,7 +126,7 @@ class KeyingScreenOperation : public NodeOperation {
     MovieTracking *movie_tracking = &movie_clip->tracking;
 
     MovieTrackingObject *movie_tracking_object = BKE_tracking_object_get_named(
-        movie_tracking, node_storage(bnode()).tracking_object);
+        movie_tracking, node_storage(node()).tracking_object);
     if (movie_tracking_object) {
       return movie_tracking_object;
     }
@@ -137,13 +136,18 @@ class KeyingScreenOperation : public NodeOperation {
 
   int2 get_size()
   {
-    MovieClipUser movie_clip_user = *DNA_struct_default_get(MovieClipUser);
+    MovieClip *movie_clip = this->get_movie_clip();
+    if (!this->get_movie_clip()) {
+      return int2(1);
+    }
+
+    MovieClipUser movie_clip_user = {};
     const int scene_frame = context().get_frame_number();
-    const int clip_frame = BKE_movieclip_remap_scene_to_clip_frame(get_movie_clip(), scene_frame);
+    const int clip_frame = BKE_movieclip_remap_scene_to_clip_frame(movie_clip, scene_frame);
     BKE_movieclip_user_set_frame(&movie_clip_user, clip_frame);
 
     int2 size;
-    BKE_movieclip_get_size(get_movie_clip(), &movie_clip_user, &size.x, &size.y);
+    BKE_movieclip_get_size(movie_clip, &movie_clip_user, &size.x, &size.y);
     return size;
   }
 
@@ -155,12 +159,12 @@ class KeyingScreenOperation : public NodeOperation {
     return math::interpolate(
         0.15f,
         1.0f,
-        math::clamp(this->get_input("Smoothness").get_single_value_default(0.0f), 0.0f, 1.0f));
+        math::clamp(this->get_input("Smoothness").get_single_value_default<float>(), 0.0f, 1.0f));
   }
 
   MovieClip *get_movie_clip()
   {
-    return reinterpret_cast<MovieClip *>(bnode().id);
+    return reinterpret_cast<MovieClip *>(node().id);
   }
 };
 

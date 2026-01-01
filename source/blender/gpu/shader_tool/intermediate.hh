@@ -140,9 +140,17 @@ struct IntermediateForm {
     (void)success;
   }
   /* Replace everything from `from` to `to` (inclusive). */
-  void replace(Token from, Token to, const std::string &replacement)
+  void replace(Token from,
+               Token to,
+               const std::string &replacement,
+               bool keep_trailing_whitespaces = false)
   {
-    replace(from.str_index_start(), to.str_index_last(), replacement);
+    if (keep_trailing_whitespaces) {
+      replace(from.str_index_start(), to.str_index_last_no_whitespace(), replacement);
+    }
+    else {
+      replace(from.str_index_start(), to.str_index_last(), replacement);
+    }
   }
   /* Replace token by string. */
   void replace(Token tok, const std::string &replacement, bool keep_trailing_whitespaces = false)
@@ -158,12 +166,12 @@ struct IntermediateForm {
   void replace(Scope scope, const std::string &replacement, bool keep_trailing_whitespaces = false)
   {
     if (keep_trailing_whitespaces) {
-      replace(scope.start().str_index_start(),
-              scope.end().str_index_last_no_whitespace(),
+      replace(scope.front().str_index_start(),
+              scope.back().str_index_last_no_whitespace(),
               replacement);
     }
     else {
-      replace(scope.start(), scope.end(), replacement);
+      replace(scope.front(), scope.back(), replacement);
     }
   }
 
@@ -206,17 +214,24 @@ struct IntermediateForm {
    * line count and keep the remaining indentation spaces. */
   void erase(Scope scope)
   {
-    erase(scope.start(), scope.end());
+    erase(scope.front(), scope.back());
   }
 
-  void insert_before(size_t at, const std::string &content)
+  /* If prepend is true, will prepend the new content to the list of modifications.
+   * With this enabled, in case of overlapping mutation, the last one added will be first.  */
+  void insert_before(size_t at, const std::string &content, bool prepend = false)
   {
     IndexRange range = IndexRange(at, 0);
-    mutations_.emplace_back(range, content);
+    if (prepend) {
+      mutations_.insert(mutations_.begin(), {range, content});
+    }
+    else {
+      mutations_.emplace_back(range, content);
+    }
   }
-  void insert_before(Token at, const std::string &content)
+  void insert_before(Token at, const std::string &content, bool prepend = false)
   {
-    insert_before(at.str_index_start(), content);
+    insert_before(at.str_index_start(), content, prepend);
   }
 
   void insert_after(size_t at, const std::string &content)

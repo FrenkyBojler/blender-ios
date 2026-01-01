@@ -269,21 +269,12 @@ static void test_constraint(
       con->flag |= CONSTRAINT_DISABLE;
     }
     else {
-      if (animrig::legacy::action_treat_as_legacy(*data->act)) {
-        if (!ELEM(data->act->idroot, ID_OB, 0)) {
-          /* Only object-rooted actions can be used. */
-          data->act = nullptr;
-          con->flag |= CONSTRAINT_DISABLE;
-        }
-      }
-      else {
-        /* The slot was assigned, so assume that it is suitable to animate the
-         * owner (only suitable slots appear in the drop-down). */
-        animrig::Action &action = data->act->wrap();
-        animrig::Slot *slot = action.slot_for_handle(data->action_slot_handle);
-        if (!slot) {
-          con->flag |= CONSTRAINT_DISABLE;
-        }
+      /* The slot was assigned, so assume that it is suitable to animate the
+       * owner (only suitable slots appear in the drop-down). */
+      animrig::Action &action = data->act->wrap();
+      animrig::Slot *slot = action.slot_for_handle(data->action_slot_handle);
+      if (!slot) {
+        con->flag |= CONSTRAINT_DISABLE;
       }
     }
 
@@ -2393,7 +2384,7 @@ static wmOperatorStatus constraint_add_exec(
       /* Armature constraints don't have a target by default, add one. */
       if (type == CONSTRAINT_TYPE_ARMATURE) {
         bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
-        bConstraintTarget *ct = MEM_callocN<bConstraintTarget>("Constraint Target");
+        bConstraintTarget *ct = MEM_new_for_free<bConstraintTarget>("Constraint Target");
 
         ct->weight = 1.0f;
         BLI_addtail(&acon->targets, ct);
