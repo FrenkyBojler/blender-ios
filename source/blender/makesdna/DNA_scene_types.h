@@ -1626,6 +1626,19 @@ typedef struct MeshStatVis {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Scene LOD
+ * \{ */
+
+
+typedef struct SceneLod {
+  char use_viewport;
+  char use_render;
+  char _pad[6];
+} SceneLod;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Sequencer Tool Settings
  * \{ */
 
@@ -2240,6 +2253,7 @@ typedef struct Scene {
   int simulation_frame_end;
 
   struct SceneDisplay display;
+  struct SceneLod lod;
   struct SceneEEVEE eevee;
   struct SceneGpencil grease_pencil_settings;
   struct SceneHydra hydra;
