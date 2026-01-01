@@ -887,6 +887,9 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
       if (ELEM(iter.name, ".corner_vert", ".corner_edge")) {
         return;
       }
+      if (ELEM(iter.name, "custom_normal")) {
+        return;
+      }
       if (iter.data_type == AttrType::Float2) {
         return;
       }
