@@ -2881,7 +2881,13 @@ static bool ui_but_copy(bContext *C, Button *but, const bool copy_array)
         is_buf_set = true;
       }
       break;
-
+    case ButtonType::ViewItem: {
+      ButtonViewItem *viewitem_but = static_cast<ButtonViewItem *>(but);
+      StringRef name = viewitem_but->view_item->get_rename_string();
+      STRNCPY(buf, name.data());
+      is_buf_set = true;
+      break;
+    }
     default:
       break;
   }
