@@ -391,14 +391,12 @@ struct Glyph {
   FontBLF *font = nullptr;
   GlyphCacheBLF *gc = nullptr;
   GlyphBLF *g = nullptr;
-  /* Differs from GlyphBLF bound in that each is from common
-   * origin and includes the positional offsets. In ft_pix. */
+  /* Differs from GlyphBLF bounds in that each is from common origin
+   * and includes the contextual positional offsets. In ft_pix. */
   rcti bounds = {};
-  /* Index into the UTF-32 version of the original unshaped string. */
-  uint32_t index_utf32 = 0;
   /* Index into the UTF-8 version of the original unshaped string. */
   size_t index_utf8 = 0;
-  rcti bounds_int() const
+  rcti integer_bounds() const
   {
     rcti r;
     r.xmin = ft_pix_to_int_floor(bounds.xmin);
@@ -414,18 +412,7 @@ struct ShapingData {
   ft_pix width = 0;
   ft_pix height = 0;
   ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
-  const size_t utf8_offset_at_location_x(ft_pix location_x);
 };
-
-const size_t ShapingData::utf8_offset_at_location_x(ft_pix location_x)
-{
-  for (const Glyph &glyph : glyphs) {
-    if (location_x < ((glyph.bounds.xmin + glyph.bounds.xmax) / 2)) {
-      return glyph.index_utf8;
-    }
-  }
-  return glyphs.last().index_utf8 + 1;
-}
 
 ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len)
 {
@@ -566,8 +553,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
                      pen_x + g->box_xmax + glyph_pos[i].x_offset,
                      glyph_pos[i].y_offset,
                      g->box_ymax + glyph_pos[i].y_offset};
-      this->glyphs.append(
-          {segment_font, segment_gc, g, bounds, hb_glyph_info[i].cluster, str8_offset});
+      this->glyphs.append({segment_font, segment_gc, g, bounds, str8_offset});
       str8_offset += BLI_str_utf8_from_unicode_len(codepoint);
 
       pen_x += advance;
@@ -597,29 +583,17 @@ static bool blf_font_feature_supported(FontBLF *font, const char tag[4])
     return false;
   }
 
-  hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
-  unsigned int feature_index;
   blf_ensure_face(font);
   hb_face_t *hb_face = hb_ft_face_create_cached(font->face);
-  if (hb_ot_layout_language_find_feature(hb_face,
-                                         HB_OT_TAG_GSUB,
-                                         0,
-                                         HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX,
-                                         tag_value,
-                                         &feature_index))
+  hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
+  if (hb_ot_layout_language_find_feature(
+          hb_face, HB_OT_TAG_GSUB, 0, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, tag_value, nullptr))
   {
     return true;
   }
-  if (hb_ot_layout_language_find_feature(hb_face,
-                                         HB_OT_TAG_GPOS,
-                                         0,
-                                         HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX,
-                                         tag_value,
-                                         &feature_index))
-  {
-    return true;
-  }
-  return false;
+
+  return (hb_ot_layout_language_find_feature(
+      hb_face, HB_OT_TAG_GPOS, 0, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, tag_value, nullptr));
 }
 
 void blf_font_feature(FontBLF *font, const char tag[4], int value)
@@ -629,7 +603,7 @@ void blf_font_feature(FontBLF *font, const char tag[4], int value)
   }
 
   hb_tag_t tag_value = HB_TAG(tag[0], tag[1], tag[2], tag[3]);
-  for (auto &feature : font->features) {
+  for (hb_feature_t &feature : font->features) {
     if (feature.tag == tag_value) {
       feature.value = hb_tag_t(value);
       return;
@@ -682,7 +656,7 @@ void blf_font_draw(FontBLF *font, const char *str, const size_t str_len, ResultB
 int blf_font_draw_mono(
     FontBLF *font, const char *str, const size_t str_len, const int cwidth, const int tab_columns)
 {
-  if (str_len == 0) {
+  if (str_len == 0 || !str || !str[0]) {
     /* Early exit, don't do any immediate-mode GPU operations. */
     return 0;
   }
@@ -933,7 +907,6 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
   FontBufInfoBLF *buf_info = &font->buf_info;
 
   ShapingData text(font, gc, str, str_len);
-
   for (const Glyph &glyph : text.glyphs) {
     blf_glyph_draw_buffer(
         buf_info, glyph.g, pen_x + glyph.bounds.xmin, pen_y_basis + glyph.bounds.ymin);
@@ -972,19 +945,19 @@ size_t blf_font_width_to_strlen(
   ShapingData text(font, gc, str, str_len);
   blf_glyph_cache_release(font);
 
-  Glyph glyph = text.glyphs.last();
   for (const Glyph &g : text.glyphs) {
     if (g.bounds.xmax > ft_pix_from_int(width)) {
-      glyph = g;
-      break;
+      if (r_width) {
+        *r_width = ft_pix_to_int(g.bounds.xmax);
+      }
+      return g.index_utf8;
     }
   }
 
   if (r_width) {
-    *r_width = ft_pix_to_int(glyph.bounds.xmax);
+    *r_width = ft_pix_to_int(text.width);
   }
-
-  return glyph.index_utf8;
+  return strlen(str);
 }
 
 size_t blf_font_width_to_rstrlen(
@@ -1001,19 +974,19 @@ size_t blf_font_width_to_rstrlen(
   ShapingData text(font, gc, str, str_len);
   blf_glyph_cache_release(font);
 
-  Glyph glyph = text.glyphs.last();
   for (const Glyph &g : text.glyphs) {
     if (g.bounds.xmin > (text.width - ft_pix_from_int(width))) {
-      glyph = g;
-      break;
+      if (r_width) {
+        *r_width = ft_pix_to_int(text.width - g.bounds.xmax);
+      }
+      return g.index_utf8;
     }
   }
 
   if (r_width) {
-    *r_width = ft_pix_to_int(text.width - glyph.bounds.xmax);
+    *r_width = ft_pix_to_int(text.width);
   }
-
-  return glyph.index_utf8;
+  return strlen(str);
 }
 
 /** \} */
@@ -1142,7 +1115,7 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
       continue;
     };
 
-    rcti bounds = glyph.bounds_int();
+    rcti bounds = glyph.integer_bounds();
     if (user_fn(str, glyph.index_utf8, &bounds, user_data) == false) {
       break;
     }
@@ -1156,16 +1129,19 @@ size_t blf_str_offset_from_cursor_position(FontBLF *font,
                                            size_t str_len,
                                            int location_x)
 {
-  /* Do not early exit if location_x <= 0, as this can result in an incorrect
-   * offset for RTL text. Instead of offset of character responsible for first
-   * glyph you'd get offset of first character, which could be the last glyph. */
   if (!str || !str[0] || !str_len) {
     return 0;
   }
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
   ShapingData text(font, gc, str, strlen(str));
   blf_glyph_cache_release(font);
-  return text.utf8_offset_at_location_x(ft_pix_from_int(location_x));
+
+  for (const Glyph &glyph : text.glyphs) {
+    if (ft_pix_from_int(location_x) < ((glyph.bounds.xmin + glyph.bounds.xmax) / 2)) {
+      return glyph.index_utf8;
+    }
+  }
+  return text.glyphs.is_empty() ? 0 : text.glyphs.last().index_utf8 + 1;
 }
 
 void blf_str_offset_to_glyph_bounds(FontBLF *font,
@@ -1173,7 +1149,7 @@ void blf_str_offset_to_glyph_bounds(FontBLF *font,
                                     size_t str_offset,
                                     rcti *r_glyph_bounds)
 {
-  if (!str || !str[0] || !str_offset) {
+  if (!str || !str[0]) {
     std::memset(r_glyph_bounds, 0, sizeof(rcti));
     return;
   }
@@ -1182,14 +1158,14 @@ void blf_str_offset_to_glyph_bounds(FontBLF *font,
   ShapingData text(font, gc, str, strlen(str));
   blf_glyph_cache_release(font);
 
-  const Glyph *glyph = &text.glyphs.last();
   for (const Glyph &g : text.glyphs) {
     if (g.index_utf8 >= str_offset) {
-      glyph = &g;
+      *r_glyph_bounds = g.integer_bounds();
+      return;
     }
   }
 
-  *r_glyph_bounds = glyph->bounds_int();
+  std::memset(r_glyph_bounds, 0, sizeof(rcti));
 }
 
 int blf_str_offset_to_cursor(FontBLF *font,
