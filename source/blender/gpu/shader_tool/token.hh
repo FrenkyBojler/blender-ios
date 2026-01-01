@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "parser.hh"
+#include "token_stream.hh"
 
 namespace blender::gpu::shader::parser {
 

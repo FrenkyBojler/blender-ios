@@ -7,10 +7,10 @@
  *
  */
 
-#include "parser.hh"
 #include "intermediate.hh"
 #include "scope.hh"
 #include "token.hh"
+#include "token_stream.hh"
 
 #include <algorithm>
 #include <stack>

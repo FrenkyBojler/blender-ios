@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include "parser.hh"
 #include "token.hh"
+#include "token_stream.hh"
 
 #include <cassert>
 

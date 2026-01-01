@@ -29,9 +29,9 @@
 
 #pragma once
 
-#include "parser.hh"
 #include "scope.hh"
 #include "token.hh"
+#include "token_stream.hh"
 #include "utils.hh"
 
 #include <algorithm>
