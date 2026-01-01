@@ -3015,6 +3015,17 @@ static void rna_UnitSettings_system_update(Main * /*bmain*/, Scene *scene, Point
   }
 }
 
+// TODO(Tri): rna_scenelod_state_update() is necessary?
+static void rna_scenelod_state_update(Main * /*bmain*/, Scene *scene, PointerRNA * /*ptr*/)
+{
+
+}
+
+static std::optional<std::string> rna_SceneLod_path(const PointerRNA * /*ptr*/)
+{
+  return "lod";
+}
+
 static std::optional<std::string> rna_UnitSettings_path(const PointerRNA * /*ptr*/)
 {
   return "unit_settings";
@@ -4690,6 +4701,30 @@ static void rna_def_statvis(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_EditMesh_update");
 }
 
+static void rna_def_scene_lod(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "SceneLod", nullptr);
+  RNA_def_struct_ui_text(srna, "Scene LOD", "Scene level of detail settings");
+  RNA_def_struct_nested(brna, srna, "Scene");
+  RNA_def_struct_path_func(srna, "rna_SceneLod_path");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
+
+  prop = RNA_def_property(srna, "use_viewport", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_viewport", 1);
+  RNA_def_property_ui_text(
+      prop, "Viewport LOD", "Enable distance based LOD selection in the viewport");
+  RNA_def_property_update(prop, NC_SCENE | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "use_render", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_render", 1);
+  RNA_def_property_ui_text(
+      prop, "Render LOD", "Enable distance based LOD selection during rendering");
+  RNA_def_property_update(prop, NC_SCENE | ND_DRAW, nullptr);
+}
+
 static void rna_def_unit_settings(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -5531,6 +5566,9 @@ void rna_def_freestyle_settings(BlenderRNA *brna)
        "Select feature edges within a range of quantitative invisibility (QI) values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
+
+  // TODO(Tri): add a `lod_visibility` Enum?
+  // TODO(Tri): SceneLod is a prop in Scene struct; handle the RNA here
 
   /* FreestyleLineSet */
 
@@ -8974,6 +9012,13 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "ToolSettings");
   RNA_def_property_ui_text(prop, "Tool Settings", "");
 
+  /* Scene LOD */
+  prop = RNA_def_property(srna, "lod", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_pointer_sdna(prop, nullptr, "lod");
+  RNA_def_property_struct_type(prop, "SceneLod");
+  RNA_def_property_ui_text(prop, "LOD", "Scene level of detail settings");
+
   /* Unit Settings */
   prop = RNA_def_property(srna, "unit_settings", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -9191,6 +9236,7 @@ void RNA_def_scene(BlenderRNA *brna)
   rna_def_curve_paint_settings(brna);
   rna_def_sequencer_tool_settings(brna);
   rna_def_statvis(brna);
+  rna_def_scene_lod(brna);
   rna_def_unit_settings(brna);
   rna_def_scene_image_format_data(brna);
   rna_def_transform_orientation(brna);
