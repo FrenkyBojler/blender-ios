@@ -36,8 +36,8 @@ namespace blender::gpu::shader {
 class Preprocessor {
   using uint64_t = std::uint64_t;
   using report_callback = parser::report_callback;
-  using Parser = shader::parser::IntermediateForm;
-  using Tokens = std::vector<shader::parser::Token>;
+  using Parser = parser::IntermediateForm;
+  using Tokens = std::vector<parser::Token>;
 
   metadata::Source metadata;
 
@@ -437,12 +437,12 @@ class Preprocessor {
     }
 
     /* Specialize template content. */
-    Parser instance_parser(fn_decl, report_error, true);
+    Parser instance_parser(fn_decl, report_error);
     instance_parser().foreach_token(Word, [&](const Token &word) {
       string token_str = word.str();
       for (const auto &arg_name_value : arg_name_value_pairs) {
         if (token_str == arg_name_value.first) {
-          instance_parser.replace(word, arg_name_value.second);
+          instance_parser.replace(word, arg_name_value.second, true);
         }
       }
     });
