@@ -10,7 +10,9 @@
 
 #include "COM_context.hh"
 #include "COM_domain.hh"
-#include "COM_evaluator.hh"
+#include "COM_node_group_operation.hh"
+#include "COM_realize_on_domain_operation.hh"
+#include "COM_result.hh"
 
 #include "DNA_node_types.h"
 #include "DNA_sequence_types.h"
@@ -107,7 +109,7 @@ class CompositorContext : public compositor::Context {
     return compositor::Domain(int2(image_buffer_->x, image_buffer_->y));
   }
 
-  void write_output(const compositor::Result &result) override
+  void write_output(const compositor::Result &result)
   {
     if (result.is_single_value()) {
       IMB_rectfill(image_buffer_, result.get_single_value<compositor::Color>());
@@ -135,38 +137,6 @@ class CompositorContext : public compositor::Context {
     this->write_output(result);
   }
 
-  compositor::Result get_input(StringRef name) override
-  {
-    modifier_data_->node_group->ensure_interface_cache();
-
-    if (modifier_data_->node_group->interface_inputs().size() < 1) {
-      return this->create_result(compositor::ResultType::Color);
-    }
-
-    /* First input is the image input. */
-    if (name == modifier_data_->node_group->interface_inputs()[0]->identifier) {
-      compositor::Result image_result = this->create_result(compositor::ResultType::Color);
-      image_result.wrap_external(image_buffer_->float_buffer.data,
-                                 int2(image_buffer_->x, image_buffer_->y));
-      return image_result;
-    }
-
-    if (modifier_data_->node_group->interface_inputs().size() < 2) {
-      return this->create_result(compositor::ResultType::Color);
-    }
-
-    /* Second input is the mask input. */
-    if (name == modifier_data_->node_group->interface_inputs()[1]->identifier && mask_buffer_) {
-      compositor::Result mask_result = this->create_result(compositor::ResultType::Color);
-      mask_result.wrap_external(mask_buffer_->float_buffer.data,
-                                int2(mask_buffer_->x, mask_buffer_->y));
-      mask_result.set_transformation(xform_);
-      return mask_result;
-    }
-
-    return this->create_result(compositor::ResultType::Color);
-  }
-
   const Strip *get_strip() const override
   {
     return strip_;
@@ -175,6 +145,79 @@ class CompositorContext : public compositor::Context {
   bool use_gpu() const override
   {
     return false;
+  }
+
+  void evaluate()
+  {
+    using namespace compositor;
+    const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph,
+                                                                modifier_data_->node_group);
+    NodeGroupOperation node_group_operation(*this,
+                                            node_group,
+                                            this->needed_outputs(),
+                                            nullptr,
+                                            node_group.active_viewer_key,
+                                            bke::NODE_INSTANCE_KEY_BASE);
+
+    node_group.ensure_interface_cache();
+    Vector<std::unique_ptr<Result>> inputs;
+    for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+      Result *input_result = new Result(
+          this->create_result(ResultType::Color, ResultPrecision::Full));
+      if (input_socket == node_group.interface_inputs()[0]) {
+        /* First socket is the image input. */
+        input_result->wrap_external(image_buffer_->float_buffer.data,
+                                    int2(image_buffer_->x, image_buffer_->y));
+      }
+      else if (mask_buffer_ && input_socket == node_group.interface_inputs()[1]) {
+        /* Second socket is the mask input. */
+        input_result->wrap_external(mask_buffer_->float_buffer.data,
+                                    int2(mask_buffer_->x, mask_buffer_->y));
+        input_result->set_transformation(xform_);
+      }
+      else {
+        /* The rest of the sockets are not supported. */
+        input_result->allocate_invalid();
+      }
+
+      node_group_operation.map_input_to_result(input_socket->identifier, input_result);
+      inputs.append(std::unique_ptr<Result>(input_result));
+    }
+
+    node_group_operation.evaluate();
+
+    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
+      Result &output_result = node_group_operation.get_result(output_socket->identifier);
+      /* We only care about the first output, the rest are ignored. */
+      if (output_socket != node_group.interface_outputs().first()) {
+        output_result.release();
+        continue;
+      }
+
+      /* We expect a color output. */
+      if (output_result.type() != ResultType::Color) {
+        output_result.release();
+        continue;
+      }
+
+      /* Realize the output transforms if needed. */
+      const InputDescriptor input_descriptor = {ResultType::Color,
+                                                InputRealizationMode::OperationDomain};
+      SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+          *this, output_result, input_descriptor, output_result.domain());
+      if (realization_operation) {
+        realization_operation->map_input_to_result(&output_result);
+        realization_operation->evaluate();
+        Result &realized_output_result = realization_operation->get_result();
+        this->write_output(realized_output_result);
+        realized_output_result.release();
+        delete realization_operation;
+        continue;
+      }
+
+      this->write_output(output_result);
+      output_result.release();
+    }
   }
 };
 
@@ -249,9 +292,7 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
                                 context.image,
                                 linear_mask,
                                 context.strip);
-  const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(context.render_data.depsgraph,
-                                                              modifier_data->node_group);
-  evaluate(com_context, node_group, com_context.needed_outputs());
+  com_context.evaluate();
   com_context.cache_manager().reset();
 
   context.result_translation += com_context.get_result_translation();

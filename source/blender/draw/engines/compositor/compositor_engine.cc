@@ -26,8 +26,8 @@
 
 #include "COM_context.hh"
 #include "COM_domain.hh"
-#include "COM_evaluator.hh"
 #include "COM_node_group_operation.hh"
+#include "COM_realize_on_domain_operation.hh"
 #include "COM_result.hh"
 #include "COM_utilities.hh"
 
@@ -151,7 +151,7 @@ class Context : public compositor::Context {
     return this->get_camera_region();
   }
 
-  void write_output(const compositor::Result &result) override
+  void write_output(const compositor::Result &result)
   {
     /* Do not write the output if the viewer output was already written. */
     if (viewer_was_written_) {
@@ -199,13 +199,13 @@ class Context : public compositor::Context {
 
     const Scene *original_scene = DEG_get_original(scene_);
     if (DEG_get_original(scene) != original_scene) {
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     ViewLayer *view_layer = static_cast<ViewLayer *>(
         BLI_findlink(&original_scene->view_layers, view_layer_index));
     if (StringRef(view_layer->name) != DRW_context_get()->view_layer->name) {
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     /* The combined pass is a special case where we return the viewport color texture, because it
@@ -223,22 +223,6 @@ class Context : public compositor::Context {
       compositor::Result pass = compositor::Result(*this, GPU_texture_format(pass_texture));
       pass.wrap_external(pass_texture);
       return pass;
-    }
-
-    return compositor::Result(*this);
-  }
-
-  compositor::Result get_input(StringRef name) override
-  {
-    scene_->compositing_node_group->ensure_interface_cache();
-
-    if (scene_->compositing_node_group->interface_inputs().size() < 1) {
-      return this->create_result(compositor::ResultType::Color);
-    }
-
-    /* First input is the image input. */
-    if (name == scene_->compositing_node_group->interface_inputs()[0]->identifier) {
-      return this->get_pass(&this->get_scene(), 0, "Image");
     }
 
     return this->create_result(compositor::ResultType::Color);
@@ -267,6 +251,73 @@ class Context : public compositor::Context {
   void set_info_message(StringRef message) const override
   {
     message.copy_utf8_truncated(info_message_, GPU_INFO_SIZE);
+  }
+
+  void evaluate()
+  {
+    using namespace compositor;
+    const bNodeTree &node_group = *DRW_context_get()->scene->compositing_node_group;
+    NodeGroupOperation node_group_operation(*this,
+                                            node_group,
+                                            this->needed_outputs(),
+                                            nullptr,
+                                            node_group.active_viewer_key,
+                                            bke::NODE_INSTANCE_KEY_BASE);
+
+    node_group.ensure_interface_cache();
+    Vector<std::unique_ptr<Result>> inputs;
+    for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+      Result *input_result = new Result(
+          this->create_result(ResultType::Color, ResultPrecision::Half));
+      if (input_socket == node_group.interface_inputs()[0]) {
+        /* First socket is the viewport combined pass. */
+        gpu::Texture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
+        input_result->wrap_external(combined_texture);
+      }
+      else {
+        /* The rest of the sockets are not supported. */
+        input_result->allocate_invalid();
+      }
+
+      node_group_operation.map_input_to_result(input_socket->identifier, input_result);
+      inputs.append(std::unique_ptr<Result>(input_result));
+    }
+
+    node_group_operation.evaluate();
+
+    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
+      Result &output_result = node_group_operation.get_result(output_socket->identifier);
+      /* We only care about the first output, the rest are ignored. */
+      if (output_socket != node_group.interface_outputs().first()) {
+        output_result.release();
+        continue;
+      }
+
+      /* We expect a color output. */
+      if (output_result.type() != ResultType::Color) {
+        output_result.release();
+        continue;
+      }
+
+      /* Realize the output on the compositing domain if needed. */
+      const Domain compositing_domain = this->get_compositing_domain();
+      const InputDescriptor input_descriptor = {ResultType::Color,
+                                                InputRealizationMode::OperationDomain};
+      SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+          *this, output_result, input_descriptor, compositing_domain);
+      if (realization_operation) {
+        realization_operation->map_input_to_result(&output_result);
+        realization_operation->evaluate();
+        Result &realized_output_result = realization_operation->get_result();
+        this->write_output(realized_output_result);
+        realized_output_result.release();
+        delete realization_operation;
+        continue;
+      }
+
+      this->write_output(output_result);
+      output_result.release();
+    }
   }
 };
 
@@ -304,12 +355,8 @@ class Instance : public DrawEngine {
     }
 #endif
 
-    /* Execute Compositor render commands. */
-    {
-      evaluate(
-          context, *DRW_context_get()->scene->compositing_node_group, context.needed_outputs());
-      context.cache_manager().reset();
-    }
+    context.evaluate();
+    context.cache_manager().reset();
 
 #if defined(__APPLE__)
     /* NOTE(Metal): Following previous flush to break command stream, with compositor command

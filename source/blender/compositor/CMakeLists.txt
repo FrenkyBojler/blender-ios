@@ -25,7 +25,6 @@ set(SRC
   COM_conversion_operation.hh
   COM_derived_resources.hh
   COM_domain.hh
-  COM_evaluator.hh
   COM_group_input_node_operation.hh
   COM_group_node_operation.hh
   COM_group_output_node_operation.hh
@@ -55,7 +54,6 @@ set(SRC
   intern/context.cc
   intern/conversion_operation.cc
   intern/domain.cc
-  intern/evaluator.cc
   intern/group_input_node_operation.cc
   intern/group_node_operation.cc
   intern/group_output_node_operation.cc

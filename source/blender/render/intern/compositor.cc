@@ -28,8 +28,10 @@
 
 #include "COM_context.hh"
 #include "COM_domain.hh"
-#include "COM_evaluator.hh"
+#include "COM_node_group_operation.hh"
+#include "COM_realize_on_domain_operation.hh"
 #include "COM_render_context.hh"
+#include "COM_result.hh"
 
 #include "RE_compositor.hh"
 #include "RE_pipeline.h"
@@ -152,7 +154,7 @@ class Context : public compositor::Context {
     return compositor::Domain(this->get_render_size());
   }
 
-  void write_output(const compositor::Result &result) override
+  void write_output(const compositor::Result &result)
   {
     Render *render = RE_GetSceneRender(input_data_.scene);
     RenderResult *render_result = RE_AcquireResultWrite(render);
@@ -262,42 +264,42 @@ class Context : public compositor::Context {
     const char *pass_name = StringRef(name) == "Image" ? "Combined" : name;
 
     if (!scene) {
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     ViewLayer *view_layer = static_cast<ViewLayer *>(
         BLI_findlink(&scene->view_layers, view_layer_id));
     if (!view_layer) {
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     Render *render = RE_GetSceneRender(scene);
     if (!render) {
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     RenderResult *render_result = RE_AcquireResultRead(render);
     if (!render_result) {
       RE_ReleaseResult(render);
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     RenderLayer *render_layer = RE_GetRenderLayer(render_result, view_layer->name);
     if (!render_layer) {
       RE_ReleaseResult(render);
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     RenderPass *render_pass = RE_pass_find_by_name(
         render_layer, pass_name, this->get_view_name().data());
     if (!render_pass) {
       RE_ReleaseResult(render);
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     if (!render_pass || !render_pass->ibuf || !render_pass->ibuf->float_buffer.data) {
       RE_ReleaseResult(render);
-      return compositor::Result(*this);
+      return this->create_result(compositor::ResultType::Color);
     }
 
     compositor::Result pass = compositor::Result(
@@ -320,22 +322,6 @@ class Context : public compositor::Context {
 
     RE_ReleaseResult(render);
     return pass;
-  }
-
-  compositor::Result get_input(StringRef name) override
-  {
-    input_data_.node_tree->ensure_interface_cache();
-
-    if (input_data_.node_tree->interface_inputs().size() < 1) {
-      return this->create_result(compositor::ResultType::Color);
-    }
-
-    /* First input is the image input. */
-    if (name == input_data_.node_tree->interface_inputs()[0]->identifier) {
-      return this->get_pass(&this->get_scene(), 0, "Image");
-    }
-
-    return this->create_result(compositor::ResultType::Color);
   }
 
   compositor::ResultType result_type_from_pass(const RenderPass *pass)
@@ -486,6 +472,84 @@ class Context : public compositor::Context {
     }
     return input_data_.node_tree->runtime->test_break(input_data_.node_tree->runtime->tbh);
   }
+
+  void evaluate()
+  {
+    using namespace compositor;
+    const NodeGroupOutputTypes needed_outputs = this->needed_outputs();
+    const bNodeTree &node_group = *input_data_.node_tree;
+    Map<bNodeInstanceKey, bke::bNodePreview> *node_previews =
+        flag_is_set(needed_outputs, NodeGroupOutputTypes::NodePreviews) ?
+            &node_group.runtime->previews :
+            nullptr;
+    NodeGroupOperation node_group_operation(*this,
+                                            node_group,
+                                            needed_outputs,
+                                            node_previews,
+                                            node_group.active_viewer_key,
+                                            bke::NODE_INSTANCE_KEY_BASE);
+
+    node_group.ensure_interface_cache();
+    Vector<std::unique_ptr<Result>> inputs;
+    for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+      Result *input_result = new Result(
+          this->create_result(ResultType::Color, ResultPrecision::Full));
+      if (input_socket == node_group.interface_inputs()[0]) {
+        /* First socket is the combined pass. */
+        Result combined_pass = this->get_pass(&this->get_scene(), 0, "Image");
+        if (combined_pass.is_allocated()) {
+          input_result->wrap_external(combined_pass);
+        }
+        else {
+          input_result->allocate_invalid();
+        }
+      }
+      else {
+        /* The rest of the sockets are not supported. */
+        input_result->allocate_invalid();
+      }
+
+      node_group_operation.map_input_to_result(input_socket->identifier, input_result);
+      inputs.append(std::unique_ptr<Result>(input_result));
+    }
+
+    node_group_operation.evaluate();
+
+    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
+      Result &output_result = node_group_operation.get_result(output_socket->identifier);
+      /* We only care about the first output, the rest are ignored. Also, if the evaluation was
+       * canceled, we just release the outputs. */
+      if (this->is_canceled() || output_socket != node_group.interface_outputs().first()) {
+        output_result.release();
+        continue;
+      }
+
+      /* We expect a color output. */
+      if (output_result.type() != ResultType::Color) {
+        output_result.release();
+        continue;
+      }
+
+      /* Realize the output on the compositing domain if needed. */
+      const Domain compositing_domain = this->get_compositing_domain();
+      const InputDescriptor input_descriptor = {ResultType::Color,
+                                                InputRealizationMode::OperationDomain};
+      SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+          *this, output_result, input_descriptor, compositing_domain);
+      if (realization_operation) {
+        realization_operation->map_input_to_result(&output_result);
+        realization_operation->evaluate();
+        Result &realized_output_result = realization_operation->get_result();
+        this->write_output(realized_output_result);
+        realized_output_result.release();
+        delete realization_operation;
+        continue;
+      }
+
+      this->write_output(output_result);
+      output_result.release();
+    }
+  }
 };
 
 /* Render Compositor */
@@ -560,7 +624,7 @@ class Compositor {
     }
 
     {
-      evaluate(context, *input_data.node_tree, context.needed_outputs());
+      context.evaluate();
 
       /* Reset the cache, but only if the evaluation did not get canceled, because in that case, we
        * wouldn't want to invalidate the cache because not all operations that use cached resources

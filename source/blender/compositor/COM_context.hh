@@ -49,14 +49,8 @@ class Context {
    * false in the use_context_bounds_for_input_output method. */
   virtual Domain get_compositing_domain() const = 0;
 
-  /* Write the result of the compositor. */
-  virtual void write_output(const Result &result) = 0;
-
   /* Write the result of the compositor viewer. */
   virtual void write_viewer(const Result &result) = 0;
-
-  /* Get the result where the given input is stored. */
-  virtual Result get_input(StringRef name) = 0;
 
   /* True if the compositor should use GPU acceleration. */
   virtual bool use_gpu() const = 0;
