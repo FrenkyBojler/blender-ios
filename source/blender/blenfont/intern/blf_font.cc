@@ -457,13 +457,6 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     hb_buffer_add_utf32(
         hb_buf, (uint32_t *)str32.data(), int(char_count), uint(segment_start), int(segment_len));
 
-    hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
-    uint glyph_count;
-    hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
-    for (unsigned int i = 0; i < glyph_count; i++) {
-      hb_glyph_info[i].cluster = (uint32_t)(segment_start + i);
-    }
-
     hb_buffer_guess_segment_properties(hb_buf);
     hb_script_t script = hb_buffer_get_script(hb_buf);
     if (script == HB_SCRIPT_HAN) {
@@ -483,6 +476,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     hb_font_set_scale(
         segment_font->hb_font, ft_pix_from_float(font->size), ft_pix_from_float(font->size));
 
+    hb_buffer_set_cluster_level(hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
     hb_shape_full(segment_font->hb_font,
                   hb_buf,
                   font->features.data(),
@@ -500,7 +494,8 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
     int max_width = 0;
     int max_height = this->height;
     int cwidth = std::max(gc->fixed_width, 1);
-    hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
+    uint glyph_count;
+    hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
     hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
 
 #if 0
