@@ -133,7 +133,6 @@ struct wmWindowManager;
 namespace blender::asset_system {
 class AssetRepresentation;
 }
-using AssetRepresentationHandle = blender::asset_system::AssetRepresentation;
 
 using wmGenericUserDataFreeFn = void (*)(void *data);
 
@@ -1263,7 +1262,7 @@ struct wmDragID {
 };
 
 struct wmDragAsset {
-  const AssetRepresentationHandle *asset;
+  const blender::asset_system::AssetRepresentation *asset;
   AssetImportSettings import_settings;
 };
 

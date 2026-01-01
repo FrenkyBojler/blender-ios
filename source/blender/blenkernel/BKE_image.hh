@@ -17,7 +17,6 @@
 namespace blender::gpu {
 class Texture;
 }  // namespace blender::gpu
-using GPUTexture = blender::gpu::Texture;
 
 namespace blender::ocio {
 class ColorSpace;
@@ -66,7 +65,7 @@ struct ImageRuntime {
   MovieCache *cache = nullptr;
 
   /* The 2 is for the left/right stereo eyes. */
-  GPUTexture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};
+  blender::gpu::Texture *gputexture[/*TEXTARGET_COUNT*/ 3][2] = {};
 
   /* GPU texture flag. */
   int gpuframenr = IMAGE_GPU_FRAME_NONE;
@@ -79,7 +78,7 @@ struct ImageRuntime {
 
   /** Register containing partial updates. */
   PartialUpdateRegister *partial_update_register = nullptr;
-  /** Partial update user for GPUTextures stored inside the Image. */
+  /** Partial update user for blender::gpu::Textures stored inside the Image. */
   PartialUpdateUser *partial_update_user = nullptr;
 
   /* The image's current update count. See deg::set_id_update_count for more information. */
