@@ -15,7 +15,9 @@
 
 namespace blender::compositor {
 
-/* TODO. */
+/* A node operation representing a group output node that for each of its inputs gets the input
+ * and shares its data with the result of the node group operation it represents with the same
+ * identifier. */
 class GroupOutputNodeOperation : public NodeOperation {
  private:
   NodeGroupOperation &node_group_operation_;
@@ -32,7 +34,11 @@ class GroupOutputNodeOperation : public NodeOperation {
       }
 
       InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
+      /* The structure type of the inputs of Group Output nodes are inferred, so we need to
+       * make sure this is not wrongly expecting single values. */
       descriptor.expects_single_value = false;
+      /* Groups Output nodes should not force realization since it is defined by the user, and
+       * there is currently no way for the user to define that through the UI. */
       descriptor.realization_mode = InputRealizationMode::None;
     }
   }
@@ -44,9 +50,9 @@ class GroupOutputNodeOperation : public NodeOperation {
         continue;
       }
 
+      const Result &input_result = this->get_input(input_socket->identifier);
       Result &node_group_operation_result = node_group_operation_.get_result(
           input_socket->identifier);
-      const Result &input_result = this->get_input(input_socket->identifier);
       node_group_operation_result.share_data(input_result);
     }
   }

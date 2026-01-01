@@ -31,7 +31,6 @@ set(SRC
   COM_group_output_node_operation.hh
   COM_implicit_input_operation.hh
   COM_input_descriptor.hh
-  COM_input_single_value_operation.hh
   COM_meta_data.hh
   COM_multi_function_procedure_operation.hh
   COM_node_group_operation.hh
@@ -46,6 +45,7 @@ set(SRC
   COM_shader_node.hh
   COM_shader_operation.hh
   COM_simple_operation.hh
+  COM_single_value_node_input_operation.hh
   COM_static_cache_manager.hh
   COM_undefined_node_operation.hh
   COM_utilities.hh
@@ -60,7 +60,6 @@ set(SRC
   intern/group_node_operation.cc
   intern/group_output_node_operation.cc
   intern/implicit_input_operation.cc
-  intern/input_single_value_operation.cc
   intern/meta_data.cc
   intern/multi_function_procedure_operation.cc
   intern/node_group_operation.cc
@@ -75,6 +74,7 @@ set(SRC
   intern/shader_node.cc
   intern/shader_operation.cc
   intern/simple_operation.cc
+  intern/single_value_node_input_operation.cc
   intern/static_cache_manager.cc
   intern/undefined_node_operation.cc
   intern/utilities.cc

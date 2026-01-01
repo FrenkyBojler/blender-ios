@@ -12,24 +12,24 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
-#include "COM_input_single_value_operation.hh"
 #include "COM_operation.hh"
 #include "COM_result.hh"
+#include "COM_single_value_node_input_operation.hh"
 #include "COM_utilities.hh"
 
 namespace blender::compositor {
 
-const StringRef InputSingleValueOperation::output_identifier_ = StringRef("Output");
+const StringRef SingleValueNodeInputOperation::output_identifier_ = StringRef("Output");
 
-InputSingleValueOperation::InputSingleValueOperation(Context &context,
-                                                     const bNodeSocket &input_socket)
+SingleValueNodeInputOperation::SingleValueNodeInputOperation(Context &context,
+                                                             const bNodeSocket &input_socket)
     : Operation(context), input_socket_(input_socket)
 {
   const ResultType result_type = get_node_socket_result_type(&input_socket);
   this->populate_result(context.create_result(result_type));
 }
 
-void InputSingleValueOperation::execute()
+void SingleValueNodeInputOperation::execute()
 {
   Result &result = this->get_result();
   result.allocate_single_value();
@@ -94,12 +94,12 @@ void InputSingleValueOperation::execute()
   }
 }
 
-Result &InputSingleValueOperation::get_result()
+Result &SingleValueNodeInputOperation::get_result()
 {
   return Operation::get_result(output_identifier_);
 }
 
-void InputSingleValueOperation::populate_result(Result result)
+void SingleValueNodeInputOperation::populate_result(Result result)
 {
   Operation::populate_result(output_identifier_, result);
 }

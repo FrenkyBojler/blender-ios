@@ -13,12 +13,11 @@
 namespace blender::compositor {
 
 /* ------------------------------------------------------------------------------------------------
- * Input Single Value Operation
+ * Single Value Node Input Operation
  *
- * An input single value operation is an operation that outputs a single value result whose value
- * is the value of an unlinked input socket. This is typically used to initialize the values of
- * unlinked node input sockets. */
-class InputSingleValueOperation : public Operation {
+ * An operation that outputs a single value result whose value is the value of an unlinked input
+ * socket. This is typically used to initialize the values of unlinked node input sockets. */
+class SingleValueNodeInputOperation : public Operation {
  private:
   /* The identifier of the output. */
   static const StringRef output_identifier_;
@@ -26,7 +25,7 @@ class InputSingleValueOperation : public Operation {
   const bNodeSocket &input_socket_;
 
  public:
-  InputSingleValueOperation(Context &context, const bNodeSocket &input_socket);
+  SingleValueNodeInputOperation(Context &context, const bNodeSocket &input_socket);
 
   /* Allocate a single value result and set its value to the default value of the input socket. */
   void execute() override;

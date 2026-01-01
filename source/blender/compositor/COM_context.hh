@@ -88,8 +88,8 @@ class Context {
    * appropriate place, which can be directly in the UI or just logged to the output stream. */
   virtual void set_info_message(StringRef message) const;
 
-  /* True if the compositor should treat viewers as composite outputs because it has no concept of
-   * or support for viewers. */
+  /* True if the compositor should treat viewer nodes as group output nodes because it has no
+   * concept of or support for viewers. */
   virtual bool treat_viewer_as_group_output() const;
 
   /* True if the compositor inputs/outputs should be in the compositing domain. */

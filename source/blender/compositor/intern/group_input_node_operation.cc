@@ -15,9 +15,12 @@
 
 namespace blender::compositor {
 
-/* TODO. */
+/* A node operation representing a group input node that for each of its outputs gets the input
+ * from the node group operation it represents and shares its data with its own output with the
+ * same identifier. */
 class GroupInputNodeOperation : public NodeOperation {
  private:
+  /* The node group operation that this group input node belongs to. */
   NodeGroupOperation &node_group_operation_;
 
  public:

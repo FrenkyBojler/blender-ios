@@ -56,14 +56,12 @@ InputDescriptor input_descriptor_from_input_socket(const bNodeSocket *socket);
 InputDescriptor input_descriptor_from_interface_input(const bNodeTree &node_group,
                                                       const bNodeTreeInterfaceSocket &socket);
 
-/**
- * Dispatch the given compute shader in a 2D compute space such that the number of threads in both
+/* Dispatch the given compute shader in a 2D compute space such that the number of threads in both
  * dimensions is as small as possible but at least covers the entirety of threads_range assuming
  * the shader has a local group size given by local_size. That means that the number of threads
  * might be a bit larger than threads_range, so shaders has to put that into consideration. A
  * default local size of 16x16 is assumed, which is the optimal local size for many image
- * processing shaders.
- */
+ * processing shaders. */
 void compute_dispatch_threads_at_least(gpu::Shader *shader,
                                        int2 threads_range,
                                        int2 local_size = int2(16));

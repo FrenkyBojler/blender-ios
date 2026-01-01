@@ -17,7 +17,6 @@
 #include "COM_group_output_node_operation.hh"
 #include "COM_implicit_input_operation.hh"
 #include "COM_input_descriptor.hh"
-#include "COM_input_single_value_operation.hh"
 #include "COM_multi_function_procedure_operation.hh"
 #include "COM_node_group_operation.hh"
 #include "COM_node_operation.hh"
@@ -25,6 +24,7 @@
 #include "COM_result.hh"
 #include "COM_scheduler.hh"
 #include "COM_shader_operation.hh"
+#include "COM_single_value_node_input_operation.hh"
 #include "COM_undefined_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -99,8 +99,8 @@ void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_
   NodeOperation *operation = this->get_node_operation(node);
   operation->set_instance_key(bke::node_instance_key(instance_key_, &node_group_, &node));
 
-  /* Only set previews if the node group is currently being viewed. Except of the node is a group
-   * node, because a child node group might currently be viewed. */
+  /* Only set previews if the node group is currently being viewed. Except if the node is a group
+   * node, because a child node group might be the active one. */
   if (node.is_group() || instance_key_ == active_node_group_instance_key_) {
     operation->set_node_previews(node_previews_);
   }
@@ -161,9 +161,9 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
 
     /* Otherwise, the input is unlinked. So map the input to the result of a newly created Input
      * Single Value Operation. */
-    InputSingleValueOperation *input_operation = new InputSingleValueOperation(this->context(),
-                                                                               *input);
-    operations_stream_.append(std::unique_ptr<InputSingleValueOperation>(input_operation));
+    SingleValueNodeInputOperation *input_operation = new SingleValueNodeInputOperation(
+        this->context(), *input);
+    operations_stream_.append(std::unique_ptr<SingleValueNodeInputOperation>(input_operation));
     input_operation->evaluate();
     operation->map_input_to_result(input->identifier, &input_operation->get_result());
   }
@@ -228,7 +228,7 @@ void NodeGroupOperation::evaluate_pixel_compile_unit(CompileState &compile_state
   PixelOperation *operation = create_pixel_operation(this->context(), compile_state);
   operation->set_instance_key(instance_key_);
 
-  /* Only compute previews if the node group is currently being viewed. */
+  /* Only compute previews if the node group is active. */
   if (instance_key_ == active_node_group_instance_key_) {
     operation->set_node_previews(node_previews_);
   }

@@ -9,7 +9,8 @@
 
 namespace blender::compositor {
 
-/* Returns an instance of a new UndefinedNodeOperation. */
+/* Returns an instance of a new UndefinedNodeOperation for the given node. See the class for more
+ * information, */
 NodeOperation *get_undefined_node_operation(Context &context, const bNode &node);
 
 }  // namespace blender::compositor

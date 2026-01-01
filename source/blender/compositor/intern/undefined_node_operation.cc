@@ -15,6 +15,7 @@
 
 namespace blender::compositor {
 
+/* A node operation that allocates all of its outputs as invalid. */
 class UndefinedNodeOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;

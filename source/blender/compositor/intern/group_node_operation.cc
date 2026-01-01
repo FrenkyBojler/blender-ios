@@ -20,11 +20,14 @@
 
 namespace blender::compositor {
 
+/* A node operation representing a group node. This is a thin wrapper around a NodeGroupOperation
+ * mapping its own inputs to the inputs of the node group operation and sharing its results with
+ * the results of the node group operation. */
 class GroupNodeOperation : public NodeOperation {
  private:
   /* The node group outputs needed by the caller. */
   const NodeGroupOutputTypes needed_outputs_;
-  /* The node instance key of the group node that the user is currently viewing. */
+  /* The node instance key of the active group node. */
   const bNodeInstanceKey active_node_group_instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
 
  public:
@@ -41,9 +44,12 @@ class GroupNodeOperation : public NodeOperation {
         continue;
       }
 
-      /* Node groups should not force realization since it is defined by the user, and there is
-       * currently no way for the user to define that through the UI. */
       InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
+      /* The structure type of the inputs of Group nodes are inferred, so we need to make sure this
+       * is not wrongly expecting single values. */
+      descriptor.expects_single_value = false;
+      /* Groups nodes should not force realization since it is defined by the user, and there is
+       * currently no way for the user to define that through the UI. */
       descriptor.realization_mode = InputRealizationMode::None;
     }
   }
@@ -63,39 +69,38 @@ class GroupNodeOperation : public NodeOperation {
                                  active_node_group_instance_key_,
                                  this->get_instance_key());
 
-    Vector<std::unique_ptr<Result>> inputs = this->map_inputs(operation);
+    Vector<std::unique_ptr<Result>> temporary_inputs = this->map_inputs(operation);
     operation.evaluate();
     this->write_outputs(operation);
   }
 
-  /* Maps the input results of the node group operation to this group node inputs. Temporary input
-   * results that wrap the node group inputs are created and returned to be later freed after
-   * evaluation. */
+  /* Maps the input results of the node group operation to this group node's inputs through
+   * temporary results that share the data of the this group's inputs. */
   Vector<std::unique_ptr<Result>> map_inputs(Operation &operation)
   {
     const bNodeTree *node_group = this->get_node_group();
-    Vector<std::unique_ptr<Result>> inputs;
+    Vector<std::unique_ptr<Result>> temporary_inputs;
     node_group->ensure_interface_cache();
-    for (const bNodeTreeInterfaceSocket *input : node_group->interface_inputs()) {
-      const Result &node_input_result = this->get_input(input->identifier);
-      Result node_group_input_result = this->context().create_result(
-          node_input_result.type(), node_input_result.precision());
-      node_group_input_result.share_data(node_input_result);
-      inputs.append(std::make_unique<Result>(node_group_input_result));
-      operation.map_input_to_result(input->identifier, inputs.last().get());
+    for (const bNodeTreeInterfaceSocket *input_socket : node_group->interface_inputs()) {
+      const Result &input_result = this->get_input(input_socket->identifier);
+      Result temporary_input = this->context().create_result(input_result.type(),
+                                                             input_result.precision());
+      temporary_input.share_data(input_result);
+      temporary_inputs.append(std::make_unique<Result>(temporary_input));
+      operation.map_input_to_result(input_socket->identifier, temporary_inputs.last().get());
     }
-    return inputs;
+    return temporary_inputs;
   }
 
   /* Writes the output results of the node group operation to this group node operation by sharing
-   * its data. */
+   * its data, then freeing the results. */
   void write_outputs(Operation &operation)
   {
     const bNodeTree *node_group = this->get_node_group();
     node_group->ensure_interface_cache();
-    for (const bNodeTreeInterfaceSocket *output : node_group->interface_outputs()) {
-      Result &node_group_result = operation.get_result(output->identifier);
-      Result &group_node_result = this->get_result(output->identifier);
+    for (const bNodeTreeInterfaceSocket *output_socket : node_group->interface_outputs()) {
+      Result &node_group_result = operation.get_result(output_socket->identifier);
+      Result &group_node_result = this->get_result(output_socket->identifier);
       if (group_node_result.should_compute()) {
         group_node_result.share_data(node_group_result);
       }

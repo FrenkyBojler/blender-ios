@@ -8,8 +8,12 @@
 
 #include "BLI_listbase.h"
 
+#include "DNA_node_types.h"
+
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "COM_node_operation.hh"
 

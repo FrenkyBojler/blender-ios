@@ -42,28 +42,28 @@ namespace blender::seq {
 class CompositorContext : public compositor::Context {
  private:
   const RenderData &render_data_;
+  const SequencerCompositorModifierData *modifier_data_;
 
   ImBuf *image_buffer_;
   ImBuf *mask_buffer_;
   float3x3 xform_;
   float2 result_translation_ = float2(0, 0);
   const Strip *strip_;
-  const SequencerCompositorModifierData *modifier_data_;
 
  public:
   CompositorContext(compositor::StaticCacheManager &cache_manager,
                     const RenderData &render_data,
+                    const SequencerCompositorModifierData *modifier_data,
                     ImBuf *image_buffer,
                     ImBuf *mask_buffer,
-                    const Strip &strip,
-                    const SequencerCompositorModifierData *modifier_data)
+                    const Strip &strip)
       : compositor::Context(cache_manager),
         render_data_(render_data),
+        modifier_data_(modifier_data),
         image_buffer_(image_buffer),
         mask_buffer_(mask_buffer),
         xform_(float3x3::identity()),
-        strip_(&strip),
-        modifier_data_(modifier_data)
+        strip_(&strip)
   {
     if (mask_buffer) {
       /* Note: do not use passed transform matrix since compositor coordinate
@@ -245,10 +245,10 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
 
   CompositorContext com_context(cache_manager,
                                 context.render_data,
+                                modifier_data,
                                 context.image,
                                 linear_mask,
-                                context.strip,
-                                modifier_data);
+                                context.strip);
   const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(context.render_data.depsgraph,
                                                               modifier_data->node_group);
   evaluate(com_context, node_group, com_context.needed_outputs());

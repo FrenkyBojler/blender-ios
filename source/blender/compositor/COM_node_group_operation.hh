@@ -35,7 +35,7 @@ ENUM_OPERATORS(NodeGroupOutputTypes)
 /* ------------------------------------------------------------------------------------------------
  * Node Group Operation
  *
- * The node group operation represents and evaluates a group node. It compiles the node group into
+ * The node group operation represents and evaluates a node group. It compiles the node group into
  * an operations stream, evaluating the operations in the process. It should be noted that
  * operations are eagerly evaluated as soon as they are compiled, as opposed to compiling the whole
  * operations stream and then evaluating it in a separate step. This is done because the evaluator
@@ -99,14 +99,15 @@ ENUM_OPERATORS(NodeGroupOutputTypes)
  * compiled into a node operation similar to nodes 1 and 2 and added to the operations stream. */
 class NodeGroupOperation : public Operation {
  private:
+  /* The node group that this operation represents. */
   const bNodeTree &node_group_;
   /* The node group outputs that should be computed. See NodeGroupOutputTypes for more details. */
   const NodeGroupOutputTypes needed_outputs_;
   /* A map that associates each node instance identified by its node instance key to its node
    * preview. This could be nullptr if node previews are not needed. */
   Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;
-  /* The node instance key of the group node that the user is currently viewing. This could be this
-   * node group or a child of it. In case of the former, this will be equal to instance_key_. */
+  /* The node instance key of the active node group. This could be this node group or a child of
+   * it. In case of the former, this will be equal to instance_key_. */
   const bNodeInstanceKey active_node_group_instance_key_ = bke::NODE_INSTANCE_KEY_BASE;
   /* A node instance key that identifies the particular group node that uses this node group. If
    * this node group operation represents a top-level standalone node group with no associated
@@ -157,10 +158,10 @@ class NodeGroupOperation : public Operation {
   void map_pixel_operation_inputs_to_their_results(PixelOperation *operation,
                                                    CompileState &compile_state);
 
-  /* Cancels the evaluation by informing the static cache manager of the cancellation and freeing
-   * the results of the operations that were already evaluated, that's because later operations
-   * that use the already allocated results will not be evaluated, so they consequently will not
-   * release the results that they use and we need to free them manually. */
+  /* Cancels the evaluation by freeing the results of the operations that were already evaluated,
+   * that's because later operations that use the already allocated results will not be evaluated,
+   * so they consequently will not release the results that they use and we need to free them
+   * manually. */
   void cancel_evaluation();
 };
 
