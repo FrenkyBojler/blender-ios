@@ -75,9 +75,9 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .compositor_domain_priority(3)
       .description(
-          "Maximal constant_part_size of the falloff part of the rounded square mask starting at "
-          "the boundaries of its constant part. This is also an upper boundary to where the "
-          "falloff gradient can reach from a given pixel")
+          "Maximal size of the falloff part of the rounded square mask starting at the edges of "
+          "its constant part. This is also an upper boundary to where the falloff gradient can "
+          "reach from a given pixel")
       .structure_type(StructureType::Dynamic);
   falloff_panel.add_input<decl::Float>("Value Boundary")
       .default_value(0.0f)
@@ -87,6 +87,16 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
           "Boundary is a lower boundary to the possible output image values. When performing an "
           "erosion, 1 - Value Boundary is an upper boundary to the possible output image values")
       .structure_type(StructureType::Dynamic);
+  falloff_panel.add_input<decl::Float>("Aggressiveness")
+      .min(0.0f)
+      .max(1.0f)
+      .default_value(0.0f)
+      .subtype(PROP_FACTOR)
+      .compositor_domain_priority(5)
+      .description(
+          "Value of the falloff part at the outer edge of the rounded square mask. A higher value "
+          "results in a more aggressive effect")
+      .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &falloff_shape_panel =
       falloff_panel.add_panel("Falloff Shape").default_closed(true);
@@ -95,7 +105,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(5)
+      .compositor_domain_priority(6)
       .description(
           "Height of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a smoother falloff.")
@@ -105,7 +115,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(6)
+      .compositor_domain_priority(7)
       .description(
           "Width of the elliptical segments of the elliptical step function, which is used to "
           "control the shape of the falloff. A higher value results in a rounder falloff")
@@ -115,7 +125,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(7)
+      .compositor_domain_priority(8)
       .description(
           "Position of the inflection midpoint of the elliptical step function, which is used to "
           "control the shape of the falloff. It controls how big the two elliptical segments are "
@@ -126,13 +136,13 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
   transform_panel.add_input<decl::Float>("Rotation")
       .default_value(0.0f)
       .subtype(PROP_ANGLE)
-      .compositor_domain_priority(8)
+      .compositor_domain_priority(9)
       .description("Angle to rotate the rounded square mask by")
       .structure_type(StructureType::Dynamic);
   transform_panel.add_input<decl::Vector>("Translation")
       .dimensions(2)
       .default_value({0.0f, 0.0f, 0.0f})
-      .compositor_domain_priority(9)
+      .compositor_domain_priority(10)
       .description("Translation of the rounded square mask")
       .structure_type(StructureType::Dynamic);
 }
@@ -202,6 +212,9 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_value_boundary = get_input("Value Boundary");
     input_value_boundary.bind_as_texture(shader, "input_value_boundary_tx");
 
+    const Result &input_aggressiveness = get_input("Aggressiveness");
+    input_aggressiveness.bind_as_texture(shader, "input_aggressiveness_tx");
+
     const Result &input_ellipse_height = get_input("Ellipse Height");
     input_ellipse_height.bind_as_texture(shader, "input_ellipse_height_tx");
 
@@ -237,6 +250,7 @@ class MaskedMaximumOperation : public NodeOperation {
     input_roundness.unbind_as_texture();
     input_size_boundary.unbind_as_texture();
     input_value_boundary.unbind_as_texture();
+    input_aggressiveness.unbind_as_texture();
     input_ellipse_height.unbind_as_texture();
     input_ellipse_width.unbind_as_texture();
     input_inflection_midpoint.unbind_as_texture();
@@ -264,6 +278,7 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_roundness = get_input("Roundness");
     const Result &input_size_boundary = get_input("Size Boundary");
     const Result &input_value_boundary = get_input("Value Boundary");
+    const Result &input_aggressiveness = get_input("Aggressiveness");
     const Result &input_ellipse_height = get_input("Ellipse Height");
     const Result &input_ellipse_width = get_input("Ellipse Width");
     const Result &input_inflection_midpoint = get_input("Inflection Midpoint");
@@ -291,6 +306,8 @@ class MaskedMaximumOperation : public NodeOperation {
                                         0.0f,
                                         math::ceil(domain_diagonal_length));
       float value_boundary = input_value_boundary.load_pixel_zero<float, true>(texel);
+      float aggressiveness = math::clamp(
+          input_aggressiveness.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_height = math::clamp(
           input_ellipse_height.load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float ellipse_width = math::clamp(
@@ -411,6 +428,7 @@ class MaskedMaximumOperation : public NodeOperation {
               abs_constant_part_size,
               roundness,
               size_boundary,
+              aggressiveness,
               ellipse_height,
               ellipse_width,
               inflection_midpoint);
@@ -565,6 +583,7 @@ class MaskedMaximumOperation : public NodeOperation {
                                     float2 abs_constant_part_size,
                                     const float roundness,
                                     const float size_boundary,
+                                    const float aggressiveness,
                                     const float ellipse_height,
                                     const float ellipse_width,
                                     const float inflection_midpoint)
@@ -593,12 +612,15 @@ class MaskedMaximumOperation : public NodeOperation {
         }
         else {
           /* coord is in the falloff part of the mask. */
-          return elliptical_unit_step_without_constant_part(
-              math::inverse_mix(
-                  size_boundary, 0.0f, compute_rounded_square_radius(coord, roundness)),
-              ellipse_height,
-              ellipse_width,
-              inflection_midpoint);
+          return math::interpolate(
+              1.0f,
+              aggressiveness,
+              elliptical_unit_step_without_constant_part(
+                  math::inverse_mix(
+                      0.0f, size_boundary, compute_rounded_square_radius(coord, roundness)),
+                  ellipse_height,
+                  ellipse_width,
+                  inflection_midpoint));
         }
       }
       else {
@@ -614,13 +636,15 @@ class MaskedMaximumOperation : public NodeOperation {
         }
         else {
           /* coord is in the falloff part of the mask. */
-          return elliptical_unit_step_without_constant_part(
-              math::inverse_mix(abs_constant_part_size.x + size_boundary,
-                                abs_constant_part_size.x,
-                                math::abs(coord.x)),
-              ellipse_height,
-              ellipse_width,
-              inflection_midpoint);
+          return math::interpolate(1.0f,
+                                   aggressiveness,
+                                   elliptical_unit_step_without_constant_part(
+                                       math::inverse_mix(abs_constant_part_size.x,
+                                                         abs_constant_part_size.x + size_boundary,
+                                                         math::abs(coord.x)),
+                                       ellipse_height,
+                                       ellipse_width,
+                                       inflection_midpoint));
         }
       }
     }
@@ -642,16 +666,20 @@ class MaskedMaximumOperation : public NodeOperation {
       }
       else {
         /* coord is in the falloff part of the mask. */
-        return elliptical_unit_step_without_constant_part(
-            math::inverse_mix(
-                abs_constant_part_size.x + size_boundary,
-                abs_constant_part_size.x,
-                compute_rounded_square_radius(
-                    float2(coord.x, coord.y * abs_constant_part_size.x / abs_constant_part_size.y),
-                    roundness)),
-            ellipse_height,
-            ellipse_width,
-            inflection_midpoint);
+        return math::interpolate(
+            1.0f,
+            aggressiveness,
+            elliptical_unit_step_without_constant_part(
+                math::inverse_mix(
+                    abs_constant_part_size.x,
+                    abs_constant_part_size.x + size_boundary,
+                    compute_rounded_square_radius(
+                        float2(coord.x,
+                               coord.y * abs_constant_part_size.x / abs_constant_part_size.y),
+                        roundness)),
+                ellipse_height,
+                ellipse_width,
+                inflection_midpoint));
       }
     }
   }

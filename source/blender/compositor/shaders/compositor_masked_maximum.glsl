@@ -120,6 +120,7 @@ float compute_rounded_square_mask(float2 coord,
                                   float2 abs_constant_part_size,
                                   const float roundness,
                                   const float size_boundary,
+                                  const float aggressiveness,
                                   const float ellipse_height,
                                   const float ellipse_width,
                                   const float inflection_midpoint)
@@ -148,11 +149,14 @@ float compute_rounded_square_mask(float2 coord,
       }
       else {
         /* coord is in the falloff part of the mask. */
-        return elliptical_unit_step_without_constant_part(
-            inverse_mix(size_boundary, 0.0f, compute_rounded_square_radius(coord, roundness)),
-            ellipse_height,
-            ellipse_width,
-            inflection_midpoint);
+        return mix(
+            1.0f,
+            aggressiveness,
+            elliptical_unit_step_without_constant_part(
+                inverse_mix(0.0f, size_boundary, compute_rounded_square_radius(coord, roundness)),
+                ellipse_height,
+                ellipse_width,
+                inflection_midpoint));
       }
     }
     else {
@@ -167,12 +171,15 @@ float compute_rounded_square_mask(float2 coord,
       }
       else {
         /* coord is in the falloff part of the mask. */
-        return elliptical_unit_step_without_constant_part(
-            inverse_mix(
-                abs_constant_part_size.x + size_boundary, abs_constant_part_size.x, abs(coord.x)),
-            ellipse_height,
-            ellipse_width,
-            inflection_midpoint);
+        return mix(1.0f,
+                   aggressiveness,
+                   elliptical_unit_step_without_constant_part(
+                       inverse_mix(abs_constant_part_size.x,
+                                   abs_constant_part_size.x + size_boundary,
+                                   abs(coord.x)),
+                       ellipse_height,
+                       ellipse_width,
+                       inflection_midpoint));
       }
     }
   }
@@ -193,16 +200,19 @@ float compute_rounded_square_mask(float2 coord,
     }
     else {
       /* coord is in the falloff part of the mask. */
-      return elliptical_unit_step_without_constant_part(
-          inverse_mix(
-              abs_constant_part_size.x + size_boundary,
-              abs_constant_part_size.x,
-              compute_rounded_square_radius(
-                  float2(coord.x, coord.y * abs_constant_part_size.x / abs_constant_part_size.y),
-                  roundness)),
-          ellipse_height,
-          ellipse_width,
-          inflection_midpoint);
+      return mix(
+          1.0f,
+          aggressiveness,
+          elliptical_unit_step_without_constant_part(
+              inverse_mix(abs_constant_part_size.x,
+                          abs_constant_part_size.x + size_boundary,
+                          compute_rounded_square_radius(float2(coord.x,
+                                                               coord.y * abs_constant_part_size.x /
+                                                                   abs_constant_part_size.y),
+                                                        roundness)),
+              ellipse_height,
+              ellipse_width,
+              inflection_midpoint));
     }
   }
 }
@@ -227,6 +237,7 @@ void main()
   float size_boundary = clamp(
       texture_load(input_size_boundary_tx, texel).x, 0.0f, ceil(domain_diagonal_length));
   float value_boundary = texture_load(input_value_boundary_tx, texel).x;
+  float aggressiveness = clamp(texture_load(input_aggressiveness_tx, texel).x, 0.0f, 1.0f);
   float ellipse_height = clamp(texture_load(input_ellipse_height_tx, texel).x, 0.0f, 1.0f);
   float ellipse_width = clamp(texture_load(input_ellipse_width_tx, texel).x, 0.0f, 1.0f);
   float inflection_midpoint = clamp(
@@ -339,6 +350,7 @@ void main()
           abs_constant_part_size,
           roundness,
           size_boundary,
+          aggressiveness,
           ellipse_height,
           ellipse_width,
           inflection_midpoint);
