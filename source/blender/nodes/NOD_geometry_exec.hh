@@ -23,7 +23,6 @@
 
 #include "DNA_node_types.h"
 
-#include "NOD_derived_node_tree.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_menu_value.hh"
