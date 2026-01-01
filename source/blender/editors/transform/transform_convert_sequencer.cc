@@ -68,9 +68,10 @@ struct TransSeq {
   rcti offset_clamp;
   /* Maximum delta before clamping handles to the bounds of underlying content. May be disabled. */
   int hold_clamp_min, hold_clamp_max;
+  /* Whether a handle has been clamped to another handle, or to bounds of underlying content.
+   * Used to temporarily disable snap line drawing and edge panning. */
+  bool handle_clamped;
 
-  /* Initial rect of the view2d, used for computing offset during edge panning. */
-  rctf initial_v2d_cur;
   ui::View2DEdgePanData edge_pan;
 
   /* Strips that aren't selected, but their position entirely depends on transformed strips. */
@@ -473,8 +474,6 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
   const Editing *ed = seq::editing_get(scene);
 
-  bool only_handles_selected = true;
-
   /* Prevent snaps and change in `values` past `offset_clamp` for all selected strips. */
   BLI_rcti_init(&ts->offset_clamp, -INT_MAX, INT_MAX, -seq::MAX_CHANNELS, seq::MAX_CHANNELS);
 
@@ -497,6 +496,8 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   t->modifiers |= MOD_STRIP_CLAMP_HOLDS;
   ts->hold_clamp_min = -INT_MAX;
   ts->hold_clamp_max = INT_MAX;
+  ts->handle_clamped = false;
+
   for (Strip *strip : strips) {
     if (seq::transform_is_locked(seq::channels_displayed_get(ed), strip)) {
       continue;
@@ -541,21 +542,17 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
           ts->hold_clamp_max = min_ii(ts->hold_clamp_max, strip->endofs);
         }
       }
+      /* Force entire transformation to x-axis, since at least one handle is selected. */
+      /* TODO(john): Currently it is possible to select whole strips and handles at the same
+       * time. This should be removed in the future to simplify transform logic. */
+      ts->offset_clamp.ymin = 0;
+      ts->offset_clamp.ymax = 0;
     }
     /* No handles are selected. Update y-axis channel clamping data. */
     else {
       ts->offset_clamp.ymin = max_ii(ts->offset_clamp.ymin, 1 - strip->channel);
       ts->offset_clamp.ymax = min_ii(ts->offset_clamp.ymax, seq::MAX_CHANNELS - strip->channel);
-      only_handles_selected = false;
     }
-  }
-
-  /* TODO(john): This ensures that y-axis movement is restricted only if all of the selected items
-   * are handles, since currently it is possible to select whole strips and handles at the same
-   * time. This should be removed for 5.0 when we make this behavior impossible. */
-  if (only_handles_selected) {
-    ts->offset_clamp.ymin = 0;
-    ts->offset_clamp.ymax = 0;
   }
 }
 
@@ -613,13 +610,18 @@ static void createTransSeqData(bContext *C, TransInfo *t)
                        STRIP_EDGE_PAN_MAX_SPEED,
                        STRIP_EDGE_PAN_DELAY,
                        STRIP_EDGE_PAN_ZOOM_INFLUENCE);
-  view2d_edge_pan_set_limits(&ts->edge_pan, -FLT_MAX, FLT_MAX, 1, seq::MAX_CHANNELS + 1);
-  ts->initial_v2d_cur = t->region->v2d.cur;
 
   /* Loop 2: build transdata array. */
   SeqToTransData_build(t, ed->current_strips(), td, td2d, tdsq);
 
   create_trans_seq_clamp_data(t, scene);
+
+  const bool clamped_y = (ts->offset_clamp.ymax == 0) && (ts->offset_clamp.ymin == 0);
+  view2d_edge_pan_set_limits(&ts->edge_pan,
+                             -FLT_MAX,
+                             FLT_MAX,
+                             clamped_y ? t->region->v2d.cur.ymin : 1,
+                             clamped_y ? t->region->v2d.cur.ymax : seq::MAX_CHANNELS + 1);
 
   query_time_dependent_strips_strips(t, ts->time_dependent_strips);
 }
@@ -627,7 +629,7 @@ static void createTransSeqData(bContext *C, TransInfo *t)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UVs Transform Flush
+/** \name Sequencer Transform Flush
  * \{ */
 
 static void view2d_edge_pan_loc_compensate(TransInfo *t, float r_offset[2])
@@ -668,6 +670,7 @@ static void flushTransSeq(TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = tc->data;
   TransData2D *td2d = tc->data_2d;
+  TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
 
   /* This is calculated for offsetting animation of effects that change position with inputs.
    * Maximum(positive or negative) value is used, because individual strips can be clamped. This
@@ -679,7 +682,17 @@ static void flushTransSeq(TransInfo *t)
   int max_offset = 0;
 
   float edge_pan_offset[2] = {0.0f, 0.0f};
-  view2d_edge_pan_loc_compensate(t, edge_pan_offset);
+  /* Check handle clamp state (calculated in `applySeqSlide` while printing header values). */
+  if (!ts->handle_clamped) {
+    view2d_edge_pan_loc_compensate(t, edge_pan_offset);
+  }
+  /* Revert any edge pan offset to the `view2d` if we re-enable clamping. */
+  else if ((t->modifiers & MOD_STRIP_CLAMP_HOLDS) &&
+           !BLI_rctf_compare(&t->region->v2d.cur, &ts->edge_pan.initial_rect, FLT_EPSILON))
+  {
+    view2d_edge_pan_cancel(t->context, &ts->edge_pan);
+    transformViewUpdate(t);
+  }
 
   /* Flush to 2D vector from internally used 3D vector. */
   for (int a = 0; a < tc->data_len; a++, td++, td2d++) {
@@ -701,12 +714,14 @@ static void flushTransSeq(TransInfo *t)
     const int new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
 
     /* Compute handle clamping state to be drawn. */
+    /* First, reset clamp state for the transformed handle. */
     if (tdsq->sel_flag & SEQ_LEFTSEL) {
       strip->runtime->flag &= ~seq::StripRuntimeFlag::ClampedLH;
     }
     if (tdsq->sel_flag & SEQ_RIGHTSEL) {
       strip->runtime->flag &= ~seq::StripRuntimeFlag::ClampedRH;
     }
+    /* Finally, mark as clamped if `offset` was affected by the clamp operation. */
     if (!seq::transform_single_image_check(strip) && !strip->is_effect()) {
       if (offset_clamped[0] > offset[0] && new_frame == strip->content_start()) {
         strip->runtime->flag |= seq::StripRuntimeFlag::ClampedLH;
@@ -759,7 +774,8 @@ static void flushTransSeq(TransInfo *t)
     }
   }
 
-  TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
+  /* Reset handle clamp state for next flush. */
+  ts->handle_clamped = false;
 
   /* Update animation for effects. */
   for (Strip *strip : ts->time_dependent_strips) {
@@ -862,30 +878,31 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
     return false;
   }
 
-  const TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
+  TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
   int val[2] = {round_fl_to_int(r_val[0]), round_fl_to_int(r_val[1])};
-  bool clamped = false;
 
   /* Unconditional channel, retiming key, and handle clamping. Should never be ignored. */
   if (BLI_rcti_clamp_pt_v(&ts->offset_clamp, val)) {
+    if (t->data_type == &TransConvertType_Sequencer && r_val[0] != float(val[0])) {
+      ts->handle_clamped = true;
+    }
     r_val[0] = float(val[0]);
     r_val[1] = float(val[1]);
-    clamped = true;
   }
 
   /* Optional clamping of handles to underlying holds. Can be disabled by the user. */
   if (t->modifiers & MOD_STRIP_CLAMP_HOLDS) {
     if (val[0] < ts->hold_clamp_min) {
       r_val[0] = float(ts->hold_clamp_min);
-      clamped = true;
+      ts->handle_clamped = true;
     }
     else if (val[0] > ts->hold_clamp_max) {
       r_val[0] = float(ts->hold_clamp_max);
-      clamped = true;
+      ts->handle_clamped = true;
     }
   }
 
-  return clamped;
+  return ts->handle_clamped;
 }
 
 /** \} */

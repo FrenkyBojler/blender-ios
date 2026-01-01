@@ -100,6 +100,8 @@ static void applySeqSlide(TransInfo *t)
   values_final[0] = round_fl_to_int(values_final[0]);
   values_final[1] = round_fl_to_int(values_final[1]);
 
+  /* Only clamp values for header printing and not `values_final` for now, since we need to know
+   * which specific strips are clamped later on in `flushTransSeq` to draw their state. */
   copy_v2_v2(values_clamped, values_final);
   transform_convert_sequencer_clamp(t, values_clamped);
   headerSeqSlide(t, values_clamped, str);

@@ -178,6 +178,20 @@ static float view2d_edge_pan_speed(View2DEdgePanData *vpd,
          float(UI_SCALE_FAC);
 }
 
+static void view2d_edge_pan_do_updates(bContext *C, View2DEdgePanData *vpd, View2D *v2d)
+{
+  /* Inform v2d about changes after this operation. */
+  view2d_curRect_changed(C, v2d);
+
+  /* Don't rebuild full tree in outliner, since we're just changing our view. */
+  ED_region_tag_redraw_no_rebuild(vpd->region);
+
+  /* Request updates to be done. */
+  WM_event_add_mousemove(CTX_wm_window(C));
+
+  view2d_sync(vpd->screen, vpd->area, v2d, V2D_LOCK_COPY);
+}
+
 static void edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, float dy)
 {
   View2D *v2d = vpd->v2d;
@@ -200,16 +214,7 @@ static void edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, 
   }
 
   if (dx != 0.0f || dy != 0.0f) {
-    /* Inform v2d about changes after this operation. */
-    view2d_curRect_changed(C, v2d);
-
-    /* Don't rebuild full tree in outliner, since we're just changing our view. */
-    ED_region_tag_redraw_no_rebuild(vpd->region);
-
-    /* Request updates to be done. */
-    WM_event_add_mousemove(CTX_wm_window(C));
-
-    view2d_sync(vpd->screen, vpd->area, v2d, V2D_LOCK_COPY);
+    view2d_edge_pan_do_updates(C, vpd, v2d);
   }
 }
 
@@ -288,18 +293,12 @@ void view2d_edge_pan_cancel(bContext *C, View2DEdgePanData *vpd)
     return;
   }
 
+  vpd->enabled = false;
+  vpd->edge_pan_start_time_x = 0.0;
+  vpd->edge_pan_start_time_y = 0.0;
+
   v2d->cur = vpd->initial_rect;
-
-  /* Inform v2d about changes after this operation. */
-  view2d_curRect_changed(C, v2d);
-
-  /* Don't rebuild full tree in outliner, since we're just changing our view. */
-  ED_region_tag_redraw_no_rebuild(vpd->region);
-
-  /* Request updates to be done. */
-  WM_event_add_mousemove(CTX_wm_window(C));
-
-  view2d_sync(vpd->screen, vpd->area, v2d, V2D_LOCK_COPY);
+  view2d_edge_pan_do_updates(C, vpd, v2d);
 }
 
 void view2d_edge_pan_operator_properties(wmOperatorType *ot)
