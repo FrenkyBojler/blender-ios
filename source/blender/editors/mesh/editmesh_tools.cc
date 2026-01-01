@@ -4508,6 +4508,8 @@ static wmOperatorStatus edbm_separate_exec(bContext *C, wmOperator *op)
       BMesh *bm_old = BM_mesh_create(&bm_mesh_allocsize_default, &create_params);
 
       BMeshFromMeshParams from_mesh_params{};
+      from_mesh_params.calc_face_normal = true;
+      from_mesh_params.calc_vert_normal = true;
       BM_mesh_bm_from_me(bm_old, mesh, &from_mesh_params);
 
       bool changed = false;
@@ -5060,12 +5062,6 @@ static wmOperatorStatus edbm_fill_grid_exec(bContext *C, wmOperator *op)
       params.calc_normals = false;
       params.is_destructive = true;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
-    }
-    else {
-      /* NOTE: Even if there were no mesh changes, #EDBM_op_finish() changed the BMesh pointer
-       * inside of edit mesh, so need to tell evaluated objects to sync new BMesh pointer to their
-       * edit mesh structures. */
-      DEG_id_tag_update(&obedit->id, 0);
     }
   }
 
@@ -9514,6 +9510,12 @@ static void edbm_normals_tools_ui(bContext *C, wmOperator *op)
                    false);
 }
 
+static bool edbm_normals_tools_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  const int mode = RNA_enum_get(ptr, "mode");
+  return mode == EDBM_CLNOR_TOOLS_PASTE;
+}
+
 void MESH_OT_normals_tools(wmOperatorType *ot)
 {
   /* identifiers */
@@ -9525,6 +9527,7 @@ void MESH_OT_normals_tools(wmOperatorType *ot)
   ot->exec = edbm_normals_tools_exec;
   ot->poll = ED_operator_editmesh;
   ot->ui = edbm_normals_tools_ui;
+  ot->ui_poll = edbm_normals_tools_ui_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

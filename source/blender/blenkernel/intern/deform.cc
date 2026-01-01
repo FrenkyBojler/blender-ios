@@ -52,7 +52,7 @@ bDeformGroup *BKE_object_defgroup_new(Object *ob, const StringRef name)
 
   BLI_assert(OB_TYPE_SUPPORT_VGROUP(ob->type));
 
-  defgroup = MEM_callocN<bDeformGroup>(__func__);
+  defgroup = MEM_new_for_free<bDeformGroup>(__func__);
 
   name.copy_utf8_truncated(defgroup->name);
 
@@ -87,7 +87,7 @@ bDeformGroup *BKE_defgroup_duplicate(const bDeformGroup *ingroup)
     return nullptr;
   }
 
-  bDeformGroup *outgroup = MEM_callocN<bDeformGroup>(__func__);
+  bDeformGroup *outgroup = MEM_new_for_free<bDeformGroup>(__func__);
 
   /* For now, just copy everything over. */
   memcpy(outgroup, ingroup, sizeof(bDeformGroup));
@@ -1594,7 +1594,7 @@ void BKE_defvert_weight_to_rgb(float r_rgb[3], const float weight)
 void BKE_defbase_blend_write(BlendWriter *writer, const ListBase *defbase)
 {
   LISTBASE_FOREACH (bDeformGroup *, defgroup, defbase) {
-    BLO_write_struct(writer, bDeformGroup, defgroup);
+    writer->write_struct(defgroup);
   }
 }
 
@@ -1704,7 +1704,7 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
                    const bool /*dst_is_uninitialized*/) const override
   {
     if (dverts_ == nullptr) {
-      mask.foreach_index([&](const int i) { dst[i] = 0.0f; });
+      index_mask::masked_fill(MutableSpan(dst, mask.min_array_size()), 0.0f, mask);
     }
     threading::parallel_for(mask.index_range(), 4096, [&](const IndexRange range) {
       mask.slice(range).foreach_index_optimized<int64_t>([&](const int64_t index) {
