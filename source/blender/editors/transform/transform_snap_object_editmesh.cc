@@ -40,8 +40,8 @@ static const Mesh *get_mesh_ref(const Object *ob_eval)
 /**
  * Edit mesh snap cache.
  *
- * \note It's important there is only ever one object
- * per #SnapObjectContext that references this snap cache.
+ * \note Multiple objects (e.g. linked duplicates) may reference this snap cache,
+ * but only the active object in edit-mode is allowed to manage its lifetime.
  *
  * Otherwise freed memory access may occur:
  * - While the lookup uses the original object data, change-detection uses the evaluated object.
@@ -51,8 +51,8 @@ static const Mesh *get_mesh_ref(const Object *ob_eval)
  *
  * Furthermore, constantly re-creating cache is inefficient.
  *
- * Resolve by only using this cache for objects in edit-mode, instead objects with edit-mode data.
- * This works because only one objects-data may be in edit-mode at a time.
+ * Resolve by allowing instances to use this cache for snapping,
+ * but only allowing the object in edit-mode to invalidate it.
  * See: #148788.
  */
 struct SnapCache_EditMesh : public SnapObjectContext::SnapCache {
@@ -166,7 +166,6 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
                                                          const Object *ob_eval,
                                                          bool create)
 {
-  BLI_assert((ob_eval->mode & OB_MODE_EDIT) || sctx->runtime.params.ignore_editmode_filtering);
   SnapCache_EditMesh *em_cache = nullptr;
 
   bool init = false;
@@ -182,7 +181,7 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
     em_cache = static_cast<SnapCache_EditMesh *>(em_cache_p->get());
 
     /* Check if the geometry has changed. */
-    if (mesh_ref && em_cache->has_mesh_updated(mesh_ref)) {
+    if ((ob_eval->mode & OB_MODE_EDIT) && mesh_ref && em_cache->has_mesh_updated(mesh_ref)) {
       em_cache->clear();
       init = true;
     }
@@ -232,13 +231,6 @@ static SnapCache_EditMesh *editmesh_snapdata_init(SnapObjectContext *sctx,
                                                   const Object *ob_eval,
                                                   eSnapMode snap_to_flag)
 {
-  /* See code-comment on #SnapCache_EditMesh for why this is needed.  */
-  if (!sctx->runtime.params.ignore_editmode_filtering) {
-    if ((ob_eval->mode & OB_MODE_EDIT) == 0) {
-      return nullptr;
-    }
-  }
-
   const BMEditMesh *em = BKE_editmesh_from_object(const_cast<Object *>(ob_eval));
   if (em == nullptr) {
     return nullptr;
