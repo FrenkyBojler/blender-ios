@@ -12,14 +12,9 @@
 #include "DNA_color_types.h" /* for color management */
 #include "DNA_defs.h"
 
-#ifdef __cplusplus
 namespace blender::bke {
 struct ImageRuntime;
 }  // namespace blender::bke
-using ImageRuntimeHandle = blender::bke::ImageRuntime;
-#else
-struct ImageRuntimeHandle;
-#endif
 
 struct MovieReader;
 struct MovieCache;
@@ -212,10 +207,10 @@ struct Image {
   char filepath[/*FILE_MAX*/ 1024] = "";
 
   /* sources from: */
-  ListBase anims = {nullptr, nullptr};
+  ListBaseT<ImageAnim> anims = {nullptr, nullptr};
   struct RenderResult *rr = nullptr;
 
-  ListBase renderslots = {nullptr, nullptr};
+  ListBaseT<RenderSlot> renderslots = {nullptr, nullptr};
   short render_slot = 0, last_render_slot = 0;
 
   int flag = 0;
@@ -229,7 +224,7 @@ struct Image {
 
   /** Deprecated. */
   DNA_DEPRECATED struct PackedFile *packedfile = nullptr;
-  ListBase packedfiles = {nullptr, nullptr};
+  ListBaseT<ImagePackedFile> packedfiles = {nullptr, nullptr};
   struct PreviewImage *preview = nullptr;
 
   char _pad3[4] = {};
@@ -258,11 +253,10 @@ struct Image {
 
   /* ImageTile list for UDIMs. */
   int active_tile_index = 0;
-  ListBase tiles = {nullptr, nullptr};
+  ListBaseT<ImageTile> tiles = {nullptr, nullptr};
 
-  /** ImageView. */
-  ListBase views = {nullptr, nullptr};
+  ListBaseT<ImageView> views = {nullptr, nullptr};
   struct Stereo3dFormat *stereo3d_format = nullptr;
 
-  ImageRuntimeHandle *runtime = nullptr;
+  blender::bke::ImageRuntime *runtime = nullptr;
 };

@@ -12,8 +12,7 @@
 #include "DNA_listBase.h"
 #include "DNA_uuid_types.h"
 
-#ifdef __cplusplus
-#  include <memory>
+#include <memory>
 
 namespace blender {
 class StringRef;
@@ -21,8 +20,6 @@ class StringRef;
 namespace blender::asset_system {
 class AssetLibrary;
 }  // namespace blender::asset_system
-
-#endif
 
 enum eAssetLibraryType {
   /** Display assets from the current session (current "Main"). */
@@ -109,7 +106,7 @@ struct AssetMetaData {
   /** User defined tags for this asset. The asset manager uses these for filtering, but how they
    * function exactly (e.g. how they are registered to provide a list of searchable available tags)
    * is up to the asset-engine. */
-  ListBase tags = {nullptr, nullptr}; /* AssetTag */
+  ListBaseT<AssetTag> tags = {nullptr, nullptr};
   short active_tag = 0;
   /** Store the number of tags to avoid continuous counting. Could be turned into runtime data, we
    * can always reliably reconstruct it from the list. */

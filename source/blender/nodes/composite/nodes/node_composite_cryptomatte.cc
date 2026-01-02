@@ -123,9 +123,9 @@ static blender::bke::cryptomatte::CryptomatteSessionPtr cryptomatte_init_from_no
 
 static CryptomatteEntry *cryptomatte_find(const NodeCryptomatte &n, float encoded_hash)
 {
-  LISTBASE_FOREACH (CryptomatteEntry *, entry, &n.entries) {
-    if (entry->encoded_hash == encoded_hash) {
-      return entry;
+  for (CryptomatteEntry &entry : n.entries) {
+    if (entry.encoded_hash == encoded_hash) {
+      return &entry;
     }
   }
   return nullptr;
@@ -565,8 +565,8 @@ class BaseCryptoMatteOperation : public NodeOperation {
   Vector<float> get_identifiers()
   {
     Vector<float> identifiers;
-    LISTBASE_FOREACH (CryptomatteEntry *, cryptomatte_entry, &node_storage(bnode()).entries) {
-      identifiers.append(cryptomatte_entry->encoded_hash);
+    for (CryptomatteEntry &cryptomatte_entry : node_storage(node()).entries) {
+      identifiers.append(cryptomatte_entry.encoded_hash);
     }
     return identifiers;
   }
@@ -708,12 +708,11 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
 
     const std::string type_name = get_type_name();
 
-    int view_layer_index = 0;
-    LISTBASE_FOREACH_INDEX (ViewLayer *, view_layer, &scene->view_layers, view_layer_index) {
+    for (const auto [view_layer_index, view_layer] : scene->view_layers.enumerate()) {
       /* Find out which type of Cryptomatte layer the node uses, if non matched, then this is not
        * the view layer used by the node and we check other view layers. */
       const char *cryptomatte_type = nullptr;
-      const std::string layer_prefix = std::string(view_layer->name) + ".";
+      const std::string layer_prefix = std::string(view_layer.name) + ".";
       if (type_name == layer_prefix + RE_PASSNAME_CRYPTOMATTE_OBJECT) {
         cryptomatte_type = RE_PASSNAME_CRYPTOMATTE_OBJECT;
       }
@@ -730,7 +729,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
       }
 
       /* Each layer stores two ranks/levels, so do ceiling division by two. */
-      const int cryptomatte_layers_count = int(math::ceil(view_layer->cryptomatte_levels / 2.0f));
+      const int cryptomatte_layers_count = int(math::ceil(view_layer.cryptomatte_levels / 2.0f));
       for (int i = 0; i < cryptomatte_layers_count; i++) {
         const std::string pass_name = fmt::format("{}{:02}", cryptomatte_type, i);
         Result pass_result = this->context().get_pass(scene, view_layer_index, pass_name.c_str());
@@ -776,35 +775,37 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
      * freed when retrieving the images. */
     Vector<std::string> pass_names;
 
-    int layer_index;
+    int layer_index = 0;
     const std::string type_name = this->get_type_name();
-    LISTBASE_FOREACH_INDEX (RenderLayer *, render_layer, &render_result->layers, layer_index) {
+    for (RenderLayer &render_layer : render_result->layers) {
       /* If the Cryptomatte type name doesn't start with the layer name, then it is not a
        * Cryptomatte layer. Unless it is an unnamed layer, in which case, we need to check its
        * passes. */
-      const bool is_unnamed_layer = render_layer->name[0] == '\0';
-      if (!is_unnamed_layer && !StringRefNull(type_name).startswith(render_layer->name)) {
+      const bool is_unnamed_layer = render_layer.name[0] == '\0';
+      if (!is_unnamed_layer && !StringRefNull(type_name).startswith(render_layer.name)) {
+        layer_index++;
         continue;
       }
 
-      LISTBASE_FOREACH (RenderPass *, render_pass, &render_layer->passes) {
+      for (RenderPass &render_pass : render_layer.passes) {
         /* If the combined pass name doesn't start with the Cryptomatte type name, then it is not a
          * Cryptomatte layer. Furthermore, if it is equal to the Cryptomatte type name with no
          * suffix, then it can be ignored, because it is a deprecated Cryptomatte preview layer
          * according to the "EXR File: Layer Naming" section of the Cryptomatte specification. */
-        const std::string combined_name = this->get_combined_layer_pass_name(render_layer,
-                                                                             render_pass);
+        const std::string combined_name = this->get_combined_layer_pass_name(&render_layer,
+                                                                             &render_pass);
         if (combined_name == type_name || !StringRef(combined_name).startswith(type_name)) {
           continue;
         }
 
-        pass_names.append(render_pass->name);
+        pass_names.append(render_pass.name);
       }
 
       /* If we already found Cryptomatte layers, no need to check other render layers. */
       if (!pass_names.is_empty()) {
         break;
       }
+      layer_index++;
     }
 
     BKE_image_release_renderresult(nullptr, image, render_result);
@@ -836,7 +837,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   std::string get_type_name()
   {
     char type_name[MAX_NAME];
-    ntreeCompositCryptomatteLayerPrefix(&bnode(), type_name, sizeof(type_name));
+    ntreeCompositCryptomatteLayerPrefix(&node(), type_name, sizeof(type_name));
     return std::string(type_name);
   }
 
@@ -899,7 +900,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
     BLI_assert(image);
 
     /* Compute the effective frame number of the image if it was animated. */
-    ImageUser image_user_for_frame = node_storage(bnode()).iuser;
+    ImageUser image_user_for_frame = node_storage(node()).iuser;
     BKE_image_user_frame_calc(image, &image_user_for_frame, this->context().get_frame_number());
 
     return image_user_for_frame;
@@ -908,18 +909,18 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   Scene *get_scene()
   {
     BLI_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER);
-    return reinterpret_cast<Scene *>(bnode().id);
+    return reinterpret_cast<Scene *>(node().id);
   }
 
   Image *get_image()
   {
     BLI_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
-    return reinterpret_cast<Image *>(bnode().id);
+    return reinterpret_cast<Image *>(node().id);
   }
 
   CMPNodeCryptomatteSource get_source()
   {
-    return static_cast<CMPNodeCryptomatteSource>(bnode().custom1);
+    return static_cast<CMPNodeCryptomatteSource>(node().custom1);
   }
 };
 
@@ -1030,7 +1031,7 @@ class LegacyCryptoMatteOperation : public BaseCryptoMatteOperation {
   {
     Vector<Result> layers;
     /* Add all valid results of all inputs except the first input, which is the input image. */
-    for (const bNodeSocket *input_socket : bnode().input_sockets().drop_front(1)) {
+    for (const bNodeSocket *input_socket : node().input_sockets().drop_front(1)) {
       if (!is_socket_available(input_socket)) {
         continue;
       }

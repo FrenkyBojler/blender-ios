@@ -272,7 +272,7 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   if (brush->gpencil_settings) {
-    BLO_write_struct(writer, BrushGpencilSettings, brush->gpencil_settings);
+    writer->write_struct(brush->gpencil_settings);
 
     if (brush->gpencil_settings->curve_sensitivity) {
       BKE_curvemapping_blend_write(writer, brush->gpencil_settings->curve_sensitivity);
@@ -303,11 +303,11 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     }
   }
   if (brush->curves_sculpt_settings) {
-    BLO_write_struct(writer, BrushCurvesSculptSettings, brush->curves_sculpt_settings);
+    writer->write_struct(brush->curves_sculpt_settings);
     BKE_curvemapping_blend_write(writer, brush->curves_sculpt_settings->curve_parameter_falloff);
   }
   if (brush->gradient) {
-    BLO_write_struct(writer, ColorBand, brush->gradient);
+    writer->write_struct(brush->gradient);
   }
 
   BKE_previewimg_blend_write(writer, brush->preview);
@@ -766,9 +766,9 @@ void BKE_brush_tag_unsaved_changes(Brush *brush)
 
 Brush *BKE_brush_first_search(Main *bmain, const eObjectMode ob_mode)
 {
-  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-    if (brush->ob_mode & ob_mode) {
-      return brush;
+  for (Brush &brush : bmain->brushes) {
+    if (brush.ob_mode & ob_mode) {
+      return &brush;
     }
   }
   return nullptr;

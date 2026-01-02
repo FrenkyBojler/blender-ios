@@ -17,25 +17,14 @@
 #include "DNA_ID.h"
 
 /** Workaround to forward-declare C++ type in C header. */
-#ifdef __cplusplus
 namespace blender::bke {
 struct WindowManagerRuntime;
 struct WindowRuntime;
 }  // namespace blender::bke
-using WindowManagerRuntimeHandle = blender::bke::WindowManagerRuntime;
-using WindowRuntimeHandle = blender::bke::WindowRuntime;
 
 namespace blender::ui {
 struct Layout;
 }  // namespace blender::ui
-using uiLayoutHandle = blender::ui::Layout;
-
-#else   // __cplusplus
-
-struct WindowManagerRuntimeHandle;
-struct WindowRuntimeHandle;
-struct uiLayoutHandle;
-#endif  // __cplusplus
 
 #ifdef hyper /* MSVC defines. */
 #  undef hyper
@@ -122,7 +111,7 @@ struct wmWindowManager {
 
   ID id;
 
-  ListBase windows = {nullptr, nullptr};
+  ListBaseT<wmWindow> windows = {nullptr, nullptr};
 
   /** Set on file read. */
   uint8_t init_flag = 0;
@@ -150,7 +139,7 @@ struct wmWindowManager {
   wmXrData xr;
   // #endif
 
-  WindowManagerRuntimeHandle *runtime = nullptr;
+  blender::bke::WindowManagerRuntime *runtime = nullptr;
 };
 
 #define WM_KEYCONFIG_ARRAY_P(wm) \
@@ -269,10 +258,7 @@ struct wmWindow {
   /** Properties for stereoscopic displays. */
   struct Stereo3dFormat *stereo3d_format = nullptr;
 
-  /** Custom drawing callbacks. */
-  ListBase drawcalls = {nullptr, nullptr};
-
-  WindowRuntimeHandle *runtime = nullptr;
+  blender::bke::WindowRuntime *runtime = nullptr;
 };
 
 #ifdef ime_data
@@ -424,8 +410,8 @@ enum {
 struct wmKeyMap {
   struct wmKeyMap *next = nullptr, *prev = nullptr;
 
-  ListBase items = {nullptr, nullptr};
-  ListBase diff_items = {nullptr, nullptr};
+  ListBaseT<wmKeyMapItem> items = {nullptr, nullptr};
+  ListBaseT<wmKeyMapDiffItem> diff_items = {nullptr, nullptr};
 
   /** Global editor keymaps, or for more per space/region. */
   char idname[64] = "";
@@ -478,7 +464,7 @@ struct wmKeyConfig {
   /** ID-name of configuration this is derives from, "" if none. */
   char basename[64] = "";
 
-  ListBase keymaps = {nullptr, nullptr};
+  ListBaseT<wmKeyMap> keymaps = {nullptr, nullptr};
   int actkeymap = 0;
   short flag = 0;
   char _pad0[2] = {};
@@ -511,11 +497,11 @@ struct wmOperator {
   struct ReportList *reports = nullptr;
 
   /** List of operators, can be a tree. */
-  ListBase macro = {nullptr, nullptr};
+  ListBaseT<wmOperator> macro = {nullptr, nullptr};
   /** Current running macro, not saved. */
   struct wmOperator *opm = nullptr;
   /** Runtime for drawing. */
-  uiLayoutHandle *layout = nullptr;
+  blender::ui::Layout *layout = nullptr;
   short flag = 0;
   char _pad[6] = {};
 };

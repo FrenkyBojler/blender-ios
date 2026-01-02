@@ -429,7 +429,7 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   /* clear and setup matrix */
   blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                     ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
   const size_t item_count = ANIM_animdata_filter(
@@ -692,7 +692,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 {
   bAnimContext ac;
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   bAnimListElem *ale;
   size_t items;
   int filter;
@@ -922,14 +922,14 @@ static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   SpaceGraph *sipo = (SpaceGraph *)sl;
-  ListBase tmpGhosts = sipo->runtime.ghost_curves;
+  ListBaseT<FCurve> tmpGhosts = sipo->runtime.ghost_curves;
 
   /* temporarily disable ghost curves when saving */
   BLI_listbase_clear(&sipo->runtime.ghost_curves);
 
-  BLO_write_struct(writer, SpaceGraph, sl);
+  writer->write_struct_cast<SpaceGraph>(sl);
   if (sipo->ads) {
-    BLO_write_struct(writer, bDopeSheet, sipo->ads);
+    writer->write_struct(sipo->ads);
   }
 
   /* Re-enable ghost curves. */

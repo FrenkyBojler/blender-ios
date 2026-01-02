@@ -16,10 +16,8 @@
 #include "BLI_assert.h"
 #include "BLI_compiler_typecheck.h"
 
-/** Workaround to forward-declare C++ type in C header. */
-#ifdef __cplusplus
-#  include <cstring>
-#  include <type_traits>
+#include <cstring>
+#include <type_traits>
 
 namespace blender::bke::id {
 struct ID_Runtime;
@@ -33,16 +31,6 @@ struct IDPropertyGroupChildrenSet;
 namespace blender::bke::library {
 struct LibraryRuntime;
 }
-using ID_RuntimeHandle = blender::bke::id::ID_Runtime;
-using PreviewImageRuntimeHandle = blender::bke::PreviewImageRuntime;
-using LibraryRuntimeHandle = blender::bke::library::LibraryRuntime;
-using IDPropertyGroupChildrenSet = blender::bke::idprop::IDPropertyGroupChildrenSet;
-#else
-struct PreviewImageRuntimeHandle;
-struct LibraryRuntimeHandle;
-struct IDPropertyGroupChildrenSet;
-struct ID_RuntimeHandle;
-#endif
 
 struct FileData;
 struct GHash;
@@ -140,12 +128,12 @@ struct IDPropertyUIDataID {
 
 struct IDPropertyData {
   void *pointer = nullptr;
-  ListBase group = {nullptr, nullptr};
+  ListBaseT<struct IDProperty> group = {nullptr, nullptr};
   /**
    * Allows constant time lookup by name of the children in this group. This may be null if the
    * group is empty. The order may not be exactly the same as in #group.
    */
-  IDPropertyGroupChildrenSet *children_map = nullptr;
+  blender::bke::idprop::IDPropertyGroupChildrenSet *children_map = nullptr;
   /** NOTE: a `double` is written into two 32bit integers. */
   int val = 0, val2 = 0;
 };
@@ -273,10 +261,10 @@ struct IDOverrideLibraryProperty {
   char *rna_path = nullptr;
 
   /**
-   * List of overriding operations (IDOverrideLibraryPropertyOperation) applied to this property.
+   * List of overriding operations applied to this property.
    * Recreated as part of the diffing, so do not store any of these elsewhere.
    */
-  ListBase operations = {nullptr, nullptr};
+  ListBaseT<IDOverrideLibraryPropertyOperation> operations = {nullptr, nullptr};
 
   /**
    * Runtime, tags are common to both IDOverrideLibraryProperty and
@@ -332,8 +320,7 @@ enum {
 struct IDOverrideLibrary {
   /** Reference linked ID which this one overrides. */
   struct ID *reference = nullptr;
-  /** List of IDOverrideLibraryProperty structs. */
-  ListBase properties = {nullptr, nullptr};
+  ListBaseT<IDOverrideLibraryProperty> properties = {nullptr, nullptr};
 
   /**
    * Override hierarchy root ID. Usually the actual root of the hierarchy, but not always
@@ -535,7 +522,7 @@ struct ID {
    * readfile) may have to manage this pointer themselves (see also #BKE_libblock_runtime_ensure
    * and #BKE_libblock_free_runtime_data).
    */
-  ID_RuntimeHandle *runtime = nullptr;
+  blender::bke::id::ID_Runtime *runtime = nullptr;
 };
 
 /**
@@ -578,7 +565,7 @@ struct Library {
    *
    * Typically allocated when creating a new Library or reading it from a blendfile.
    */
-  LibraryRuntimeHandle *runtime = nullptr;
+  blender::bke::library::LibraryRuntime *runtime = nullptr;
 
   void *_pad2 = nullptr;
 };
@@ -647,7 +634,7 @@ struct PreviewImage {
   short changed_timestamp[2] = {};
   unsigned int *rect[2] = {};
 
-  PreviewImageRuntimeHandle *runtime = nullptr;
+  blender::bke::PreviewImageRuntime *runtime = nullptr;
 };
 
 /**
