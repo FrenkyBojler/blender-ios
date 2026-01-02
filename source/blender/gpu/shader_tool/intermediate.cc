@@ -15,6 +15,12 @@
 #include <algorithm>
 #include <stack>
 
+#if defined(_MSC_VER)
+#  define always_inline __forceinline
+#else
+#  define always_inline inline __attribute__((always_inline))
+#endif
+
 namespace blender::gpu::shader::parser {
 
 size_t line_number(const std::string &str, size_t pos)
@@ -89,6 +95,83 @@ void TokenStream::tokenize()
 
   token_offsets_populate();
   token_types_populate();
+}
+
+static always_inline TokenType to_type(const char c)
+{
+  switch (c) {
+    case '\n':
+      return TokenType::NewLine;
+    case ' ':
+      return TokenType::Space;
+    case '#':
+      return TokenType::Hash;
+    case '&':
+      return TokenType::Ampersand;
+    case '^':
+      return TokenType::Caret;
+    case '|':
+      return TokenType::Pipe;
+    case '%':
+      return TokenType::Percent;
+    case '.':
+      return TokenType::Dot;
+    case '(':
+      return TokenType::ParOpen;
+    case ')':
+      return TokenType::ParClose;
+    case '{':
+      return TokenType::BracketOpen;
+    case '}':
+      return TokenType::BracketClose;
+    case '[':
+      return TokenType::SquareOpen;
+    case ']':
+      return TokenType::SquareClose;
+    case '<':
+      return TokenType::AngleOpen;
+    case '>':
+      return TokenType::AngleClose;
+    case '=':
+      return TokenType::Assign;
+    case '!':
+      return TokenType::Not;
+    case '*':
+      return TokenType::Star;
+    case '-':
+      return TokenType::Minus;
+    case '+':
+      return TokenType::Plus;
+    case '/':
+      return TokenType::Divide;
+    case '~':
+      return TokenType::Tilde;
+    case '\\':
+      return TokenType::Backslash;
+    case '\"':
+      return TokenType::String;
+    case '?':
+      return TokenType::Question;
+    case ':':
+      return TokenType::Colon;
+    case ',':
+      return TokenType::Comma;
+    case ';':
+      return TokenType::SemiColon;
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      return TokenType::Number;
+    default:
+      return TokenType::Word;
+  }
 }
 
 void TokenStream::token_offsets_populate()
