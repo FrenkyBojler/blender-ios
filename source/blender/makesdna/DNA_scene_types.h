@@ -11,6 +11,7 @@
 #include "DNA_defs.h"
 
 #include "BLI_enum_flags.hh"
+#include "BLI_map.hh"
 #include "BLI_math_constants.h"
 
 /**
@@ -32,10 +33,6 @@
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
-#ifdef __cplusplus
-#  include "BLI_map.hh"
-#endif
-
 struct AnimData;
 struct Brush;
 struct Collection;
@@ -51,9 +48,9 @@ struct World;
 struct bGPdata;
 struct bNodeTree;
 struct Depsgraph;
+struct KeyingSet;
+struct TransformOrientation;
 
-/** Workaround to forward-declare C++ type in C header. */
-#ifdef __cplusplus
 namespace blender {
 namespace bke {
 struct PaintRuntime;
@@ -63,16 +60,7 @@ namespace ocio {
 class ColorSpace;
 }
 }  // namespace blender
-using PaintRuntimeHandle = blender::bke::PaintRuntime;
-using SceneRuntimeHandle = blender::bke::SceneRuntime;
-using ColorSpaceHandle = blender::ocio::ColorSpace;
 using SceneDepsgraphsMap = blender::Map<struct DepsgraphKey, Depsgraph *, 4>;
-#else   // __cplusplus
-struct PaintRuntimeHandle;
-struct SceneRuntimeHandle;
-struct ColorSpaceHandle;
-struct SceneDepsgraphsMap;
-#endif  // __cplusplus
 
 /* -------------------------------------------------------------------- */
 /** \name FFMPEG
@@ -757,18 +745,6 @@ enum {
   R_SEQ_OVERRIDE_SCENE_SETTINGS = (1 << 5),
 };
 
-/** #RenderData::filtertype (used for nodes) */
-enum {
-  R_FILTER_BOX = 0,
-  R_FILTER_TENT = 1,
-  R_FILTER_QUAD = 2,
-  R_FILTER_CUBIC = 3,
-  R_FILTER_CATROM = 4,
-  R_FILTER_GAUSS = 5,
-  R_FILTER_MITCH = 6,
-  R_FILTER_FAST_GAUSS = 7,
-};
-
 /** #RenderData::scemode */
 enum {
   R_DOSEQ = 1 << 0,
@@ -920,7 +896,7 @@ struct RenderData {
 
   /* Information on different layers to be rendered. */
   /** Converted to Scene->view_layers. */
-  ListBase layers = {nullptr, nullptr};
+  ListBaseT<SceneRenderLayer> layers = {nullptr, nullptr};
   /** Converted to Scene->active_layer. */
   DNA_DEPRECATED short actlay = 0;
   char _pad1[2] = {};
@@ -1027,8 +1003,7 @@ struct RenderData {
   short _pad4 = {};
 
   /* MultiView. */
-  /** SceneRenderView. */
-  ListBase views = {nullptr, nullptr};
+  ListBaseT<SceneRenderView> views = {nullptr, nullptr};
   short actview = 0;
   short views_format = 0;
 
@@ -1164,7 +1139,7 @@ struct ToolSystemBrushBindings {
    * draw rectangles, circles, lines, etc.) all use a "DRAW" brush, which will then be shared
    * among them.
    */
-  ListBase active_brush_per_brush_type = {nullptr, nullptr}; /* #NamedBrushAssetReference */
+  ListBaseT<NamedBrushAssetReference> active_brush_per_brush_type = {nullptr, nullptr};
 };
 
 /** #Paint::flags */
@@ -1240,7 +1215,7 @@ struct Paint {
   float tile_offset[3] = {1.0f, 1.0f, 1.0f};
   struct UnifiedPaintSettings unified_paint_settings;
 
-  PaintRuntimeHandle *runtime = nullptr;
+  blender::bke::PaintRuntime *runtime = nullptr;
 };
 
 /** \} */
@@ -2740,7 +2715,7 @@ struct Scene {
 
   struct Scene *set = nullptr;
 
-  ListBase base = {nullptr, nullptr};
+  ListBaseT<Base> base = {nullptr, nullptr};
   /** Active base. */
   DNA_DEPRECATED struct Base *basact = nullptr;
 
@@ -2774,8 +2749,8 @@ struct Scene {
   struct RenderData r;
   struct AudioData audio;
 
-  ListBase markers = {nullptr, nullptr};
-  ListBase transform_spaces = {nullptr, nullptr};
+  ListBaseT<TimeMarker> markers = {nullptr, nullptr};
+  ListBaseT<TransformOrientation> transform_spaces = {nullptr, nullptr};
 
   /** First is the [scene, translate, rotate, scale]. */
   TransformOrientationSlot orientation_slots[4];
@@ -2794,7 +2769,7 @@ struct Scene {
    */
   int active_keyingset = 0;
   /** KeyingSets for this scene. */
-  ListBase keyingsets = {nullptr, nullptr};
+  ListBaseT<struct KeyingSet> keyingsets = {nullptr, nullptr};
 
   /* Units. */
   struct UnitSettings unit;
@@ -2828,7 +2803,7 @@ struct Scene {
   struct PreviewImage *preview = nullptr;
 
   /** ViewLayer, defined in DNA_layer_types.h */
-  ListBase view_layers = {nullptr, nullptr};
+  ListBaseT<ViewLayer> view_layers = {nullptr, nullptr};
   /** Not an actual data-block, but memory owned by scene. */
   struct Collection *master_collection = nullptr;
 
@@ -2847,7 +2822,7 @@ struct Scene {
   struct SceneGpencil grease_pencil_settings;
   struct SceneHydra hydra;
 
-  SceneRuntimeHandle *runtime = nullptr;
+  blender::bke::SceneRuntime *runtime = nullptr;
 #ifdef __cplusplus
   /* Return the frame rate of the scene. */
   double frames_per_second() const;

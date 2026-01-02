@@ -163,7 +163,7 @@ static void modify_softness(const GreasePencilOpacityModifierData &omd,
   bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
       "softness", bke::AttrDomain::Curve);
 
-  curves_mask.foreach_index(GrainSize(512), [&](int64_t curve_i) {
+  curves_mask.foreach_index_optimized<int64_t>(GrainSize(512), [&](int64_t curve_i) {
     softness.span[curve_i] =
         1.0f - std::clamp((1.0f - softness.span[curve_i]) * omd.hardness_factor, 0.0f, 1.0f);
   });
@@ -274,7 +274,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *omd = reinterpret_cast<const GreasePencilOpacityModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilOpacityModifierData, omd);
+  writer->write_struct(omd);
   modifier::greasepencil::write_influence_data(writer, &omd->influence);
 }
 

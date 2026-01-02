@@ -19,8 +19,7 @@
 #include "BLI_enum_flags.hh"
 
 /** Workaround to forward-declare C++ type in C header. */
-#ifdef __cplusplus
-#  include "BLI_vector.hh"
+#include "BLI_vector.hh"
 
 namespace blender {
 template<typename T> class Span;
@@ -48,25 +47,6 @@ struct bNodeSocketType;
 namespace blender::bke {
 struct RuntimeNodeEnumItems;
 }  // namespace blender::bke
-using bNodeTreeRuntimeHandle = blender::bke::bNodeTreeRuntime;
-
-using bNodeRuntimeHandle = blender::bke::bNodeRuntime;
-using bNodeSocketRuntimeHandle = blender::bke::bNodeSocketRuntime;
-using RuntimeNodeEnumItemsHandle = blender::bke::RuntimeNodeEnumItems;
-using bNodeTreeTypeHandle = blender::bke::bNodeTreeType;
-using bNodeTypeHandle = blender::bke::bNodeType;
-using bNodeSocketTypeHandle = blender::bke::bNodeSocketType;
-#else
-
-struct bNodeTreeRuntimeHandle;
-struct bNodeRuntimeHandle;
-struct bNodeSocketRuntimeHandle;
-struct RuntimeNodeEnumItemsHandle;
-struct NodeInstanceHashHandle;
-struct bNodeTreeTypeHandle;
-struct bNodeTypeHandle;
-struct bNodeSocketTypeHandle;
-#endif
 
 struct AnimData;
 struct Collection;
@@ -74,7 +54,6 @@ struct GeometryNodeAssetTraits;
 struct ID;
 struct Image;
 struct ImBuf;
-struct ListBase;
 struct Material;
 struct PreviewImage;
 struct Tex;
@@ -1032,6 +1011,18 @@ enum CMPNodeSetAlphaMode {
   CMP_NODE_SETALPHA_MODE_REPLACE_ALPHA = 1,
 };
 
+/** #NodeBlur.type */
+enum CMPNodeBlurType {
+  CMP_NODE_BLUR_TYPE_BOX = 0,
+  CMP_NODE_BLUR_TYPE_TENT = 1,
+  CMP_NODE_BLUR_TYPE_QUAD = 2,
+  CMP_NODE_BLUR_TYPE_CUBIC = 3,
+  CMP_NODE_BLUR_TYPE_CATROM = 4,
+  CMP_NODE_BLUR_TYPE_GAUSS = 5,
+  CMP_NODE_BLUR_TYPE_MITCH = 6,
+  CMP_NODE_BLUR_TYPE_FAST_GAUSS = 7,
+};
+
 /** #NodeDenoise.prefilter */
 enum CMPNodeDenoisePrefilter {
   CMP_NODE_DENOISE_PREFILTER_FAST = 0,
@@ -1401,7 +1392,7 @@ struct bNodeSocket {
   /** Input/output type. */
   short in_out = 0;
   /** Runtime type information. */
-  bNodeSocketTypeHandle *typeinfo = nullptr;
+  blender::bke::bNodeSocketType *typeinfo = nullptr;
   /** Runtime type identifier. */
   char idname[64] = "";
 
@@ -1446,7 +1437,7 @@ struct bNodeSocket {
   /** Custom data for inputs, only UI writes in this. */
   DNA_DEPRECATED bNodeStack ns;
 
-  bNodeSocketRuntimeHandle *runtime = nullptr;
+  blender::bke::bNodeSocketRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   /**
@@ -1591,7 +1582,7 @@ struct bNode {
   char idname[64] = "";
 
   /** Type information retrieved from the #idname. TODO: Move to runtime data. */
-  bNodeTypeHandle *typeinfo = nullptr;
+  blender::bke::bNodeType *typeinfo = nullptr;
 
   /**
    * Legacy integer type for nodes. It does not uniquely identify a node type, only the `idname`
@@ -1674,7 +1665,7 @@ struct bNode {
   int num_panel_states = 0;
   bNodePanelState *panel_states_array = nullptr;
 
-  bNodeRuntimeHandle *runtime = nullptr;
+  blender::bke::bNodeRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   /** The index in the owner node tree. */
@@ -1845,7 +1836,7 @@ struct bNodeTree {
   ID *owner_id = nullptr;
 
   /** Runtime type information. */
-  bNodeTreeTypeHandle *typeinfo = nullptr;
+  blender::bke::bNodeTreeType *typeinfo = nullptr;
   /** Runtime type identifier. */
   char idname[64] = "";
   /** User-defined description of the node tree. */
@@ -1914,7 +1905,7 @@ struct bNodeTree {
   /** Image representing what the node group does. */
   struct PreviewImage *preview = nullptr;
 
-  bNodeTreeRuntimeHandle *runtime = nullptr;
+  blender::bke::bNodeTreeRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
 
@@ -2104,7 +2095,7 @@ struct bNodeSocketValueMenu {
   /* #NodeSocketValueMenuRuntimeFlag */
   int runtime_flag = 0;
   /* Immutable runtime enum definition. */
-  const RuntimeNodeEnumItemsHandle *enum_items = nullptr;
+  const blender::bke::RuntimeNodeEnumItems *enum_items = nullptr;
 
 #ifdef __cplusplus
   bool has_conflict() const;
@@ -2222,7 +2213,7 @@ struct NodeBlurData {
   DNA_DEPRECATED float fac = 0;
   DNA_DEPRECATED float percentx = 0;
   DNA_DEPRECATED float percenty = 0;
-  DNA_DEPRECATED short filtertype = 0;
+  DNA_DEPRECATED short filtertype = 0; /* CMPNodeBlurType */
   DNA_DEPRECATED char bokeh = 0;
   DNA_DEPRECATED char gamma = 0;
 };
@@ -2882,8 +2873,7 @@ struct CryptomatteLayer {
 struct NodeCryptomatte_Runtime {
   DNA_DEFINE_CXX_METHODS(NodeCryptomatte_Runtime)
 
-  /** Contains #CryptomatteLayer. */
-  ListBase layers = {nullptr, nullptr};
+  ListBaseT<CryptomatteLayer> layers = {nullptr, nullptr};
   /** Temp storage for the crypto-matte picker. */
   float add[3] = {1.0f, 1.0f, 1.0f};
   float remove[3] = {1.0f, 1.0f, 1.0f};
@@ -2899,8 +2889,7 @@ struct NodeCryptomatte {
    */
   ImageUser iuser;
 
-  /** Contains #CryptomatteEntry. */
-  ListBase entries = {nullptr, nullptr};
+  ListBaseT<CryptomatteEntry> entries = {nullptr, nullptr};
 
   char layer_name[/*MAX_NAME*/ 64] = "";
   /** Stores `entries` as a string for opening in 2.80-2.91. */
