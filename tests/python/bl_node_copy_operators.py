@@ -105,9 +105,9 @@ def test_cases(tree):
         yield frame.label, group, frame
 
 
-def test_case_nodes(tree, name):
-    for label, nodes, frame in test_cases(tree):
-        if label == name:
+def find_expected_nodes(expected_tree, test_name):
+    for label, nodes, frame in test_cases(expected_tree):
+        if label == test_name:
             return nodes
 
 
@@ -122,7 +122,7 @@ def execute_make_group(test_case, test_tree, expected_tree=None):
 
     if expected_tree:
         # Map resulting nodes to expected nodes.
-        expected_nodes = test_case_nodes(expected_tree, test_name)
+        expected_nodes = find_expected_nodes(expected_tree, test_name)
         assert len(expected_nodes) == 1
         expected_node = expected_nodes[0]
         mapping = NodeMapping()
@@ -163,13 +163,28 @@ def execute_group_insert(test_case, test_tree, expected_tree=None):
 
     if expected_tree:
         # Map resulting nodes to expected nodes.
-        expected_nodes = test_case_nodes(expected_tree, test_name)
+        expected_nodes = find_expected_nodes(expected_tree, test_name)
         assert len(expected_nodes) == 1
         expected_node = expected_nodes[0]
         mapping = NodeMapping()
         mapping.add_tree(group_node.node_tree, expected_node.node_tree)
         mapping.add_node(group_node, expected_node)
         mapping.extend_nodes(group_node.node_tree.nodes, expected_node.node_tree.nodes)
+        return mapping
+
+
+def execute_ungroup(test_case, test_tree, expected_tree=None):
+    test_name, test_nodes, test_frame = test_case
+
+    with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes):
+        bpy.ops.node.group_ungroup()
+        internal_nodes = [node for node in test_tree.nodes if node.select]
+
+    if expected_tree:
+        # Map resulting nodes to expected nodes.
+        expected_nodes = find_expected_nodes(expected_tree, test_name)
+        mapping = NodeMapping()
+        mapping.extend_nodes(internal_nodes, expected_nodes)
         return mapping
 
 
@@ -324,19 +339,27 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         test_tree = bpy.data.node_groups["Tests"]
         expected_tree = bpy.data.node_groups["ExpectedMakeGroup"]
         for test_case in test_cases(test_tree):
-            test_name, _, _ = test_case
-            with self.subTest(case=test_name):
+            with self.subTest(case=test_case[0]):
                 mapping = execute_make_group(test_case, test_tree, expected_tree)
                 self.compare(mapping)
 
 
-    def test_insert_empty(self):
+    def test_group_insert(self):
         test_tree = bpy.data.node_groups["Tests"]
         expected_tree = bpy.data.node_groups["ExpectedGroupInsert"]
         for test_case in test_cases(test_tree):
-            test_name, _, _ = test_case
-            with self.subTest(case=test_name):
+            with self.subTest(case=test_case[0]):
                 mapping = execute_group_insert(test_case, test_tree, expected_tree)
+                self.compare(mapping)
+
+
+    def test_ungroup(self):
+        # Start with grouped nodes.
+        test_tree = bpy.data.node_groups["ExpectedMakeGroup"]
+        expected_tree = bpy.data.node_groups["ExpectedUngroup"]
+        for test_case in test_cases(test_tree):
+            with self.subTest(case=test_case[0]):
+                mapping = execute_ungroup(test_case, test_tree, expected_tree)
                 self.compare(mapping)
 
 
@@ -374,6 +397,12 @@ def generate_test_data():
     tree_group_insert = copy_tree(test_tree, mod_group_insert)
     for test_case in test_cases(tree_group_insert):
         execute_group_insert(test_case, tree_group_insert)
+
+    mod_ungroup = ob.modifiers["ExpectedUngroup"]
+    # Use result of grouping as starting point for ungrouping.
+    tree_ungroup = copy_tree(tree_make_group, mod_ungroup)
+    for test_case in test_cases(tree_ungroup):
+        execute_group_insert(test_case, tree_ungroup)
 
     save_test_file()
 
