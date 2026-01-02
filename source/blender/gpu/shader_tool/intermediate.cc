@@ -813,11 +813,23 @@ bool IntermediateForm::only_apply_mutations()
     added_trailing_new_line = true;
   }
 
+  std::string result;
+  result.reserve(data_.str.size());
+
   int64_t offset = 0;
   for (const Mutation &mut : mutations_) {
-    data_.str.replace(mut.src_range.start + offset, mut.src_range.size, mut.replacement);
-    offset += mut.replacement.size() - mut.src_range.size;
+    size_t start = mut.src_range.start;
+    size_t end = start + mut.src_range.size;
+    /* Copy unchanged text. */
+    result.append(data_.str.data() + offset, start - offset);
+    /* Append replacement. */
+    result.append(mut.replacement);
+    offset = end;
   }
+  result.append(data_.str.data() + offset, data_.str.size() - offset);
+
+  data_.str = std::move(result);
+
   mutations_.clear();
 
   if (added_trailing_new_line) {
