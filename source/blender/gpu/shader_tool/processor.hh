@@ -51,6 +51,8 @@ class SourceProcessor {
  public:
   using report_callback = parser::report_callback;
   using Parser = parser::IntermediateForm;
+  using Scope = parser::Scope;
+  using Token = parser::Token;
   using Tokens = std::vector<parser::Token>;
 
  private:
@@ -60,14 +62,14 @@ class SourceProcessor {
 
   Language language_;
 
-  parser::report_callback report_error_;
+  report_callback report_error_;
 
  public:
   SourceProcessor(
       const std::string &source,
       const std::string &filepath,
       Language language,
-      parser::report_callback report_error = [](int, int, std::string, const char *) {})
+      report_callback report_error = [](int, int, std::string, const char *) {})
       : source_(source), filepath_(filepath), language_(language), report_error_(report_error)
   {
   }
@@ -103,18 +105,18 @@ class SourceProcessor {
   /* Safer version without Parser. */
   std::string cleanup_whitespace(const std::string &str);
 
-  static std::string template_arguments_mangle(const shader::parser::Scope template_args);
+  static std::string template_arguments_mangle(const Scope template_args);
 
-  void parse_template_definition(const parser::Scope arg,
+  void parse_template_definition(const Scope arg,
                                  std::vector<std::string> &arg_list,
-                                 const parser::Scope fn_args,
+                                 const Scope fn_args,
                                  bool &all_template_args_in_function_signature);
 
   void process_instantiation(Parser &parser,
-                             const std::vector<parser::Token> &toks,
-                             const parser::Scope &parent_scope,
-                             const parser::Token &fn_start,
-                             const parser::Token &fn_name,
+                             const std::vector<Token> &toks,
+                             const Scope &parent_scope,
+                             const Token &fn_start,
+                             const Token &fn_name,
                              const std::vector<std::string> &arg_list,
                              const std::string &fn_decl,
                              const bool all_template_args_in_function_signature);
@@ -131,7 +133,7 @@ class SourceProcessor {
    * This allow the create infos to use shared defines values. */
   void parse_defines(Parser &parser);
 
-  void parse_namespace_symbols(shader::parser::Scope ns);
+  void parse_namespace_symbols(Scope ns);
 
   void parse_local_symbols(Parser &parser);
 
@@ -148,11 +150,8 @@ class SourceProcessor {
 
   void lower_loop_unroll(Parser &parser);
 
-  void process_static_branch(Parser &parser,
-                             shader::parser::Token if_tok,
-                             shader::parser::Scope condition,
-                             shader::parser::Token attribute,
-                             shader::parser::Scope body);
+  void process_static_branch(
+      Parser &parser, Token if_tok, Scope condition, Token attribute, Scope body);
 
   void lower_static_branch(Parser &parser);
 
@@ -238,9 +237,9 @@ class SourceProcessor {
   void lower_resource_access_functions(Parser &parser);
 
   void guarded_scope_mutation(Parser &parser,
-                              parser::Scope scope,
+                              Scope scope,
                               const std::string &condition,
-                              parser::Token fn_type = parser::Token::invalid());
+                              Token fn_type = Token::invalid());
 
   void lower_enums(Parser &parser);
 
@@ -356,7 +355,7 @@ class SourceProcessor {
    * there is no pointers. */
   void lint_forward_declared_structs(Parser &parser);
 
-  int static_array_size(const shader::parser::Scope &array, int fallback_value);
+  int static_array_size(const Scope &array, int fallback_value);
   std::string line_directive_prefix(const std::string &filename);
 };
 
