@@ -137,12 +137,19 @@ void main()
   }
   else if (flag_test(vclass, VCLASS_EMPTY_AXES)) {
     float axis = vpos.z;
-    vofs[int(axis)] = (1.0f + fract(axis)) * empty_scale;
+    /* Support negative axis positions: axis indices 3, 4, 5 map to -X, -Y, -Z.
+     * The direction is determined by whether axis >= 3.0. */
+    int axis_idx = int(axis);
+    bool is_negative = axis_idx >= 3;
+    int true_axis = is_negative ? (axis_idx - 3) : axis_idx;
+    float direction = is_negative ? -1.0f : 1.0f;
+
+    vofs[true_axis] = direction * (1.0f + fract(axis)) * empty_scale;
     /* Scale uniformly by axis length */
-    vpos *= length(obmat[int(axis)].xyz) * empty_scale;
+    vpos *= length(obmat[true_axis].xyz) * empty_scale;
 
     float3 axis_color = float3(0.0f);
-    axis_color[int(axis)] = 1.0f;
+    axis_color[true_axis] = 1.0f;
     final_color.rgb = mix(axis_color + fract(axis), color.rgb, color.a);
     final_color.a = 1.0f;
   }

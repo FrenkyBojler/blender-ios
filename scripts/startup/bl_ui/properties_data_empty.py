@@ -30,7 +30,34 @@ class DATA_PT_empty(DataButtonsPanel, Panel):
         layout.prop(ob, "empty_display_type", text="Display As")
         layout.prop(ob, "empty_display_size", text="Size")
 
-        if ob.empty_display_type == 'IMAGE':
+        if ob.empty_display_type == 'AXIS':
+            # Axis category
+            col = layout.column(heading="Axis", align=True)
+            row = col.row(align=True)
+            row.prop(ob, "empty_axis_show_x", text="X", toggle=True)
+            row.prop(ob, "empty_axis_show_y", text="Y", toggle=True)
+            row.prop(ob, "empty_axis_show_z", text="Z", toggle=True)
+            col.prop(ob, "empty_axis_only_positive", text="Positive Axes Only")
+            col.prop(ob, "empty_axis_names", text="Axes Names")
+
+            # Arrows category
+            col = layout.column(heading="Arrows", align=True)
+            col.prop(ob, "empty_axis_arrows", text="Show Arrows")
+            sub = col.row(align=True)
+            sub.enabled = ob.empty_axis_arrows
+            sub.prop(ob, "empty_arrows_2d", text="2D", toggle=True)
+            sub.prop(ob, "empty_arrows_2d", text="3D", toggle=True, invert_checkbox=True)
+
+        elif ob.empty_display_type == 'CIRCLE':
+            # Arrows category for Circle
+            col = layout.column(heading="Arrows", align=True)
+            col.prop(ob, "empty_circle_arrow", text="Show Arrow")
+            sub = col.row(align=True)
+            sub.enabled = ob.empty_circle_arrow
+            sub.prop(ob, "empty_arrows_2d", text="2D", toggle=True)
+            sub.prop(ob, "empty_arrows_2d", text="3D", toggle=True, invert_checkbox=True)
+
+        elif ob.empty_display_type == 'IMAGE':
             col = layout.column(align=True)
             col.prop(ob, "empty_image_offset", text="Offset X", index=0)
             col.prop(ob, "empty_image_offset", text="Y", index=1)

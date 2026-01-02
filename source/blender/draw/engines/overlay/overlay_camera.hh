@@ -501,6 +501,7 @@ class Cameras : Overlay {
                                  bundle_mat,
                                  v3d->bundle_size,
                                  v3d->bundle_drawtype,
+                                 0, /* empty_axis_flag: bundles don't use axis flags. */
                                  color,
                                  call_buffers_.empties);
           }
@@ -514,6 +515,7 @@ class Cameras : Overlay {
                                bundle_mat,
                                v3d->bundle_size,
                                v3d->bundle_drawtype,
+                               0, /* empty_axis_flag: bundles don't use axis flags. */
                                bundle_color,
                                call_buffers_.empties);
         }

@@ -40,13 +40,51 @@ class Empties : Overlay {
 
   struct CallBuffers {
     const SelectionType selection_type_;
-    EmptyInstanceBuf plain_axes_buf = {selection_type_, "plain_axes_buf"};
-    EmptyInstanceBuf single_arrow_buf = {selection_type_, "single_arrow_buf"};
+    /* Individual axis buffers for configurable axis empty. */
+    EmptyInstanceBuf axis_x_buf = {selection_type_, "axis_x_buf"};
+    EmptyInstanceBuf axis_y_buf = {selection_type_, "axis_y_buf"};
+    EmptyInstanceBuf axis_z_buf = {selection_type_, "axis_z_buf"};
+    EmptyInstanceBuf axis_x_pos_buf = {selection_type_, "axis_x_pos_buf"};
+    EmptyInstanceBuf axis_y_pos_buf = {selection_type_, "axis_y_pos_buf"};
+    EmptyInstanceBuf axis_z_pos_buf = {selection_type_, "axis_z_pos_buf"};
+
+    EmptyInstanceBuf single_arrow_x_buf = {selection_type_, "single_arrow_x_buf"};
+    EmptyInstanceBuf single_arrow_y_buf = {selection_type_, "single_arrow_y_buf"};
+    EmptyInstanceBuf single_arrow_z_buf = {selection_type_, "single_arrow_z_buf"};
+    EmptyInstanceBuf single_arrow_x_neg_buf = {selection_type_, "single_arrow_x_neg_buf"};
+    EmptyInstanceBuf single_arrow_y_neg_buf = {selection_type_, "single_arrow_y_neg_buf"};
+    EmptyInstanceBuf single_arrow_z_neg_buf = {selection_type_, "single_arrow_z_neg_buf"};
+
+    /* 2D arrow buffers (flat triangles) */
+    EmptyInstanceBuf single_arrow_x_2d_buf = {selection_type_, "single_arrow_x_2d_buf"};
+    EmptyInstanceBuf single_arrow_y_2d_buf = {selection_type_, "single_arrow_y_2d_buf"};
+    EmptyInstanceBuf single_arrow_z_2d_buf = {selection_type_, "single_arrow_z_2d_buf"};
+    EmptyInstanceBuf single_arrow_x_neg_2d_buf = {selection_type_, "single_arrow_x_neg_2d_buf"};
+    EmptyInstanceBuf single_arrow_y_neg_2d_buf = {selection_type_, "single_arrow_y_neg_2d_buf"};
+    EmptyInstanceBuf single_arrow_z_neg_2d_buf = {selection_type_, "single_arrow_z_neg_2d_buf"};
+
+    /* Individual axis name buffers */
+    EmptyInstanceBuf axis_name_x_buf = {selection_type_, "axis_name_x_buf"};
+    EmptyInstanceBuf axis_name_y_buf = {selection_type_, "axis_name_y_buf"};
+    EmptyInstanceBuf axis_name_z_buf = {selection_type_, "axis_name_z_buf"};
+    EmptyInstanceBuf axis_name_x_neg_buf = {selection_type_, "axis_name_x_neg_buf"};
+    EmptyInstanceBuf axis_name_y_neg_buf = {selection_type_, "axis_name_y_neg_buf"};
+    EmptyInstanceBuf axis_name_z_neg_buf = {selection_type_, "axis_name_z_neg_buf"};
+    
+    /* Axis tip marker buffers (diamond shapes) */
+    EmptyInstanceBuf axis_marker_x_buf = {selection_type_, "axis_marker_x_buf"};
+    EmptyInstanceBuf axis_marker_y_buf = {selection_type_, "axis_marker_y_buf"};
+    EmptyInstanceBuf axis_marker_z_buf = {selection_type_, "axis_marker_z_buf"};
+    EmptyInstanceBuf axis_marker_x_neg_buf = {selection_type_, "axis_marker_x_neg_buf"};
+    EmptyInstanceBuf axis_marker_y_neg_buf = {selection_type_, "axis_marker_y_neg_buf"};
+    EmptyInstanceBuf axis_marker_z_neg_buf = {selection_type_, "axis_marker_z_neg_buf"};
+
     EmptyInstanceBuf cube_buf = {selection_type_, "cube_buf"};
     EmptyInstanceBuf circle_buf = {selection_type_, "circle_buf"};
+    EmptyInstanceBuf circle_arrow_buf = {selection_type_, "circle_arrow_buf"};
+    EmptyInstanceBuf circle_arrow_2d_buf = {selection_type_, "circle_arrow_2d_buf"};
     EmptyInstanceBuf sphere_buf = {selection_type_, "sphere_buf"};
     EmptyInstanceBuf cone_buf = {selection_type_, "cone_buf"};
-    EmptyInstanceBuf arrows_buf = {selection_type_, "arrows_buf"};
     EmptyInstanceBuf image_buf = {selection_type_, "image_buf"};
   } call_buffers_;
 
@@ -100,13 +138,42 @@ class Empties : Overlay {
 
   static void begin_sync(CallBuffers &call_buffers)
   {
-    call_buffers.plain_axes_buf.clear();
-    call_buffers.single_arrow_buf.clear();
+    call_buffers.axis_x_buf.clear();
+    call_buffers.axis_y_buf.clear();
+    call_buffers.axis_z_buf.clear();
+    call_buffers.axis_x_pos_buf.clear();
+    call_buffers.axis_y_pos_buf.clear();
+    call_buffers.axis_z_pos_buf.clear();
+    call_buffers.single_arrow_x_buf.clear();
+    call_buffers.single_arrow_y_buf.clear();
+    call_buffers.single_arrow_z_buf.clear();
+    call_buffers.single_arrow_x_neg_buf.clear();
+    call_buffers.single_arrow_y_neg_buf.clear();
+    call_buffers.single_arrow_z_neg_buf.clear();
+    call_buffers.single_arrow_x_2d_buf.clear();
+    call_buffers.single_arrow_y_2d_buf.clear();
+    call_buffers.single_arrow_z_2d_buf.clear();
+    call_buffers.single_arrow_x_neg_2d_buf.clear();
+    call_buffers.single_arrow_y_neg_2d_buf.clear();
+    call_buffers.single_arrow_z_neg_2d_buf.clear();
+    call_buffers.axis_name_x_buf.clear();
+    call_buffers.axis_name_y_buf.clear();
+    call_buffers.axis_name_z_buf.clear();
+    call_buffers.axis_name_x_neg_buf.clear();
+    call_buffers.axis_name_y_neg_buf.clear();
+    call_buffers.axis_name_z_neg_buf.clear();
+    call_buffers.axis_marker_x_buf.clear();
+    call_buffers.axis_marker_y_buf.clear();
+    call_buffers.axis_marker_z_buf.clear();
+    call_buffers.axis_marker_x_neg_buf.clear();
+    call_buffers.axis_marker_y_neg_buf.clear();
+    call_buffers.axis_marker_z_neg_buf.clear();
     call_buffers.cube_buf.clear();
     call_buffers.circle_buf.clear();
+    call_buffers.circle_arrow_buf.clear();
+    call_buffers.circle_arrow_2d_buf.clear();
     call_buffers.sphere_buf.clear();
     call_buffers.cone_buf.clear();
-    call_buffers.arrows_buf.clear();
     call_buffers.image_buf.clear();
   }
 
@@ -125,10 +192,21 @@ class Empties : Overlay {
       image_sync(ob_ref, select_id, manager, res, state, call_buffers_.image_buf);
       return;
     }
+    if (ob_ref.object->empty_drawtype == OB_EMPTY_AXIS) {
+      /* Handle the new configurable Axis type. */
+      axis_sync(select_id,
+                ob_ref.object->object_to_world(),
+                ob_ref.object->empty_drawsize,
+                ob_ref.object->empty_axis_flag,
+                color,
+                call_buffers_);
+      return;
+    }
     object_sync(select_id,
                 ob_ref.object->object_to_world(),
                 ob_ref.object->empty_drawsize,
                 ob_ref.object->empty_drawtype,
+                ob_ref.object->empty_axis_flag,
                 color,
                 call_buffers_);
   }
@@ -137,23 +215,28 @@ class Empties : Overlay {
                           const float4x4 &matrix,
                           const float draw_size,
                           const char empty_drawtype,
+                          const char empty_axis_flag,
                           const float4 &color,
                           CallBuffers &call_buffers)
   {
     ExtraInstanceData data(matrix, color, draw_size);
 
     switch (empty_drawtype) {
-      case OB_PLAINAXES:
-        call_buffers.plain_axes_buf.append(data, select_id);
-        break;
-      case OB_SINGLE_ARROW:
-        call_buffers.single_arrow_buf.append(data, select_id);
-        break;
       case OB_CUBE:
         call_buffers.cube_buf.append(data, select_id);
         break;
       case OB_CIRCLE:
-        call_buffers.circle_buf.append(data, select_id);
+        if (empty_axis_flag & OB_EMPTY_CIRCLE_ARROW) {
+          if (empty_axis_flag & OB_EMPTY_ARROWS_2D) {
+            call_buffers.circle_arrow_2d_buf.append(data, select_id);
+          }
+          else {
+            call_buffers.circle_arrow_buf.append(data, select_id);
+          }
+        }
+        else {
+          call_buffers.circle_buf.append(data, select_id);
+        }
         break;
       case OB_EMPTY_SPHERE:
         call_buffers.sphere_buf.append(data, select_id);
@@ -161,9 +244,163 @@ class Empties : Overlay {
       case OB_EMPTY_CONE:
         call_buffers.cone_buf.append(data, select_id);
         break;
-      case OB_ARROWS:
-        call_buffers.arrows_buf.append(data, select_id);
-        break;
+    }
+  }
+
+  /**
+   * Handle the new configurable Axis empty type.
+   * Uses individual axis shapes for per-axis visibility, arrows, and names.
+   */
+  static void axis_sync(const select::ID select_id,
+                        const float4x4 &matrix,
+                        const float draw_size,
+                        const char axis_flag,
+                        const float4 &color,
+                        CallBuffers &call_buffers)
+  {
+    ExtraInstanceData data(matrix, color, draw_size);
+
+    const bool only_positive = (axis_flag & OB_EMPTY_AXIS_ONLY_POSITIVE) != 0;
+    const bool show_arrows = (axis_flag & OB_EMPTY_AXIS_ARROWS) != 0;
+    const bool show_names = (axis_flag & OB_EMPTY_AXIS_NAMES) != 0;
+    const bool show_x = (axis_flag & OB_EMPTY_AXIS_SHOW_X) != 0;
+    const bool show_y = (axis_flag & OB_EMPTY_AXIS_SHOW_Y) != 0;
+    const bool show_z = (axis_flag & OB_EMPTY_AXIS_SHOW_Z) != 0;
+    const bool arrows_2d = (axis_flag & OB_EMPTY_ARROWS_2D) != 0;
+
+    /* Draw each axis individually based on flags.
+     * When names are enabled but arrows are not, draw diamond markers at axis tips. */
+    const bool show_markers = show_names && !show_arrows;
+
+    if (show_x) {
+      if (only_positive) {
+        /* Positive only: draw half-line or arrow */
+        if (show_arrows) {
+          if (arrows_2d) {
+            call_buffers.single_arrow_x_2d_buf.append(data, select_id);
+          }
+          else {
+            call_buffers.single_arrow_x_buf.append(data, select_id);
+          }
+        }
+        else {
+          call_buffers.axis_x_pos_buf.append(data, select_id);
+        }
+        /* Positive name and optional marker */
+        if (show_names) {
+          call_buffers.axis_name_x_buf.append(data, select_id);
+        }
+        if (show_markers) {
+          call_buffers.axis_marker_x_buf.append(data, select_id);
+        }
+      }
+      else {
+        /* Full axis: draw full line, optionally with arrows at both ends */
+        call_buffers.axis_x_buf.append(data, select_id);
+        if (show_arrows) {
+          if (arrows_2d) {
+            call_buffers.single_arrow_x_2d_buf.append(data, select_id);
+            call_buffers.single_arrow_x_neg_2d_buf.append(data, select_id);
+          }
+          else {
+            call_buffers.single_arrow_x_buf.append(data, select_id);
+            call_buffers.single_arrow_x_neg_buf.append(data, select_id);
+          }
+        }
+        /* Both positive and negative names and markers */
+        if (show_names) {
+          call_buffers.axis_name_x_buf.append(data, select_id);
+          call_buffers.axis_name_x_neg_buf.append(data, select_id);
+        }
+        if (show_markers) {
+          call_buffers.axis_marker_x_buf.append(data, select_id);
+          call_buffers.axis_marker_x_neg_buf.append(data, select_id);
+        }
+      }
+    }
+    if (show_y) {
+      if (only_positive) {
+        if (show_arrows) {
+          if (arrows_2d) {
+            call_buffers.single_arrow_y_2d_buf.append(data, select_id);
+          }
+          else {
+            call_buffers.single_arrow_y_buf.append(data, select_id);
+          }
+        }
+        else {
+          call_buffers.axis_y_pos_buf.append(data, select_id);
+        }
+        if (show_names) {
+          call_buffers.axis_name_y_buf.append(data, select_id);
+        }
+        if (show_markers) {
+          call_buffers.axis_marker_y_buf.append(data, select_id);
+        }
+      }
+      else {
+        call_buffers.axis_y_buf.append(data, select_id);
+        if (show_arrows) {
+          if (arrows_2d) {
+            call_buffers.single_arrow_y_2d_buf.append(data, select_id);
+            call_buffers.single_arrow_y_neg_2d_buf.append(data, select_id);
+          }
+          else {
+            call_buffers.single_arrow_y_buf.append(data, select_id);
+            call_buffers.single_arrow_y_neg_buf.append(data, select_id);
+          }
+        }
+        if (show_names) {
+          call_buffers.axis_name_y_buf.append(data, select_id);
+          call_buffers.axis_name_y_neg_buf.append(data, select_id);
+        }
+        if (show_markers) {
+          call_buffers.axis_marker_y_buf.append(data, select_id);
+          call_buffers.axis_marker_y_neg_buf.append(data, select_id);
+        }
+      }
+    }
+    if (show_z) {
+      if (only_positive) {
+        if (show_arrows) {
+          if (arrows_2d) {
+            call_buffers.single_arrow_z_2d_buf.append(data, select_id);
+          }
+          else {
+            call_buffers.single_arrow_z_buf.append(data, select_id);
+          }
+        }
+        else {
+          call_buffers.axis_z_pos_buf.append(data, select_id);
+        }
+        if (show_names) {
+          call_buffers.axis_name_z_buf.append(data, select_id);
+        }
+        if (show_markers) {
+          call_buffers.axis_marker_z_buf.append(data, select_id);
+        }
+      }
+      else {
+        call_buffers.axis_z_buf.append(data, select_id);
+        if (show_arrows) {
+          if (arrows_2d) {
+            call_buffers.single_arrow_z_2d_buf.append(data, select_id);
+            call_buffers.single_arrow_z_neg_2d_buf.append(data, select_id);
+          }
+          else {
+            call_buffers.single_arrow_z_buf.append(data, select_id);
+            call_buffers.single_arrow_z_neg_buf.append(data, select_id);
+          }
+        }
+        if (show_names) {
+          call_buffers.axis_name_z_buf.append(data, select_id);
+          call_buffers.axis_name_z_neg_buf.append(data, select_id);
+        }
+        if (show_markers) {
+          call_buffers.axis_marker_z_buf.append(data, select_id);
+          call_buffers.axis_marker_z_neg_buf.append(data, select_id);
+        }
+      }
     }
   }
 
@@ -189,13 +426,42 @@ class Empties : Overlay {
     ps.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
 
-    call_buffers.plain_axes_buf.end_sync(ps, res.shapes.plain_axes.get());
-    call_buffers.single_arrow_buf.end_sync(ps, res.shapes.single_arrow.get());
+    call_buffers.axis_x_buf.end_sync(ps, res.shapes.axis_x.get());
+    call_buffers.axis_y_buf.end_sync(ps, res.shapes.axis_y.get());
+    call_buffers.axis_z_buf.end_sync(ps, res.shapes.axis_z.get());
+    call_buffers.axis_x_pos_buf.end_sync(ps, res.shapes.axis_x_pos.get());
+    call_buffers.axis_y_pos_buf.end_sync(ps, res.shapes.axis_y_pos.get());
+    call_buffers.axis_z_pos_buf.end_sync(ps, res.shapes.axis_z_pos.get());
+    call_buffers.single_arrow_x_buf.end_sync(ps, res.shapes.single_arrow_x.get());
+    call_buffers.single_arrow_y_buf.end_sync(ps, res.shapes.single_arrow_y.get());
+    call_buffers.single_arrow_z_buf.end_sync(ps, res.shapes.single_arrow_z.get());
+    call_buffers.single_arrow_x_neg_buf.end_sync(ps, res.shapes.single_arrow_x_neg.get());
+    call_buffers.single_arrow_y_neg_buf.end_sync(ps, res.shapes.single_arrow_y_neg.get());
+    call_buffers.single_arrow_z_neg_buf.end_sync(ps, res.shapes.single_arrow_z_neg.get());
+    call_buffers.single_arrow_x_2d_buf.end_sync(ps, res.shapes.single_arrow_x_2d.get());
+    call_buffers.single_arrow_y_2d_buf.end_sync(ps, res.shapes.single_arrow_y_2d.get());
+    call_buffers.single_arrow_z_2d_buf.end_sync(ps, res.shapes.single_arrow_z_2d.get());
+    call_buffers.single_arrow_x_neg_2d_buf.end_sync(ps, res.shapes.single_arrow_x_neg_2d.get());
+    call_buffers.single_arrow_y_neg_2d_buf.end_sync(ps, res.shapes.single_arrow_y_neg_2d.get());
+    call_buffers.single_arrow_z_neg_2d_buf.end_sync(ps, res.shapes.single_arrow_z_neg_2d.get());
+    call_buffers.axis_name_x_buf.end_sync(ps, res.shapes.axis_name_x.get());
+    call_buffers.axis_name_y_buf.end_sync(ps, res.shapes.axis_name_y.get());
+    call_buffers.axis_name_z_buf.end_sync(ps, res.shapes.axis_name_z.get());
+    call_buffers.axis_name_x_neg_buf.end_sync(ps, res.shapes.axis_name_x_neg.get());
+    call_buffers.axis_name_y_neg_buf.end_sync(ps, res.shapes.axis_name_y_neg.get());
+    call_buffers.axis_name_z_neg_buf.end_sync(ps, res.shapes.axis_name_z_neg.get());
+    call_buffers.axis_marker_x_buf.end_sync(ps, res.shapes.axis_marker_x.get());
+    call_buffers.axis_marker_y_buf.end_sync(ps, res.shapes.axis_marker_y.get());
+    call_buffers.axis_marker_z_buf.end_sync(ps, res.shapes.axis_marker_z.get());
+    call_buffers.axis_marker_x_neg_buf.end_sync(ps, res.shapes.axis_marker_x_neg.get());
+    call_buffers.axis_marker_y_neg_buf.end_sync(ps, res.shapes.axis_marker_y_neg.get());
+    call_buffers.axis_marker_z_neg_buf.end_sync(ps, res.shapes.axis_marker_z_neg.get());
     call_buffers.cube_buf.end_sync(ps, res.shapes.cube.get());
     call_buffers.circle_buf.end_sync(ps, res.shapes.circle.get());
+    call_buffers.circle_arrow_buf.end_sync(ps, res.shapes.circle_arrow.get());
+    call_buffers.circle_arrow_2d_buf.end_sync(ps, res.shapes.circle_arrow_2d.get());
     call_buffers.sphere_buf.end_sync(ps, res.shapes.empty_sphere.get());
     call_buffers.cone_buf.end_sync(ps, res.shapes.empty_cone.get());
-    call_buffers.arrows_buf.end_sync(ps, res.shapes.arrows.get());
     call_buffers.image_buf.end_sync(ps, res.shapes.quad_wire.get());
   }
 

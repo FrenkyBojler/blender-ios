@@ -13,6 +13,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_windowmanager_types.h"
@@ -613,6 +614,43 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       do_version_light_remove_use_nodes(bmain, light);
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 17)) {
+    /* Convert legacy empty axis types to new unified Axis type. */
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->type == OB_EMPTY) {
+        switch (ob->empty_drawtype) {
+          case OB_PLAINAXES:
+            /* Plain Axes -> Axis with all axes visible, all options off. */
+            ob->empty_drawtype = OB_EMPTY_AXIS;
+            ob->empty_axis_flag = OB_EMPTY_AXIS_SHOW_X | OB_EMPTY_AXIS_SHOW_Y |
+                                  OB_EMPTY_AXIS_SHOW_Z;
+            break;
+          case OB_ARROWS:
+            /* Arrows -> Axis with all options enabled. */
+            ob->empty_drawtype = OB_EMPTY_AXIS;
+            ob->empty_axis_flag = OB_EMPTY_AXIS_ONLY_POSITIVE | OB_EMPTY_AXIS_ARROWS |
+                                  OB_EMPTY_AXIS_NAMES | OB_EMPTY_AXIS_SHOW_X |
+                                  OB_EMPTY_AXIS_SHOW_Y | OB_EMPTY_AXIS_SHOW_Z;
+            break;
+          case OB_SINGLE_ARROW:
+            /* Single Arrow -> Axis with all options true but only Z enabled. */
+            ob->empty_drawtype = OB_EMPTY_AXIS;
+            ob->empty_axis_flag = OB_EMPTY_AXIS_ONLY_POSITIVE | OB_EMPTY_AXIS_ARROWS |
+                                  OB_EMPTY_AXIS_NAMES | OB_EMPTY_AXIS_SHOW_Z;
+            break;
+          case OB_CIRCLE:
+            /* Circle -> Plain circle (no arrow, no 2D flag). */
+            ob->empty_axis_flag = 0;
+            break;
+          default:
+            /* Other types (Cube, Sphere, Cone, Image) remain unchanged. */
+            break;
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

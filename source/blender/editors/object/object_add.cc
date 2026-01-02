@@ -1141,7 +1141,10 @@ static wmOperatorStatus effector_add_exec(bContext *C, wmOperator *op)
     ob = add_type(C, OB_EMPTY, get_effector_defname(type), loc, rot, false, local_view_bits);
     BKE_object_obdata_size_init(ob, dia);
     if (ELEM(type, PFIELD_WIND, PFIELD_VORTEX)) {
-      ob->empty_drawtype = OB_SINGLE_ARROW;
+      /* Use Axis empty with single arrow preset (only positive + arrows + Z axis). */
+      ob->empty_drawtype = OB_EMPTY_AXIS;
+      ob->empty_axis_flag = OB_EMPTY_AXIS_ONLY_POSITIVE | OB_EMPTY_AXIS_ARROWS |
+                            OB_EMPTY_AXIS_SHOW_Z;
     }
   }
 
@@ -1426,6 +1429,71 @@ void OBJECT_OT_armature_add(wmOperatorType *ot)
 /** \name Add Empty Operator
  * \{ */
 
+/** Axis empty preset styles. */
+enum eEmptyAxisPreset {
+  EMPTY_AXIS_PRESET_PLAIN = 0,
+  EMPTY_AXIS_PRESET_ARROWS = 1,
+  EMPTY_AXIS_PRESET_NAMED_ARROWS = 2,
+  EMPTY_AXIS_PRESET_SINGLE_ARROW = 3,
+  EMPTY_AXIS_PRESET_MANIPULATOR = 4,
+};
+
+/** Circle empty preset styles. */
+enum eEmptyCirclePreset {
+  EMPTY_CIRCLE_PRESET_PLAIN = 0,
+  EMPTY_CIRCLE_PRESET_ARROW = 1,
+};
+
+static const EnumPropertyItem empty_circle_preset_items[] = {
+    {EMPTY_CIRCLE_PRESET_PLAIN, "PLAIN", 0, "Circle", "Simple circle"},
+    {EMPTY_CIRCLE_PRESET_ARROW, "ARROW", 0, "Arrow Circle", "3/4 circle with arrow tip"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem empty_axis_preset_items[] = {
+    {EMPTY_AXIS_PRESET_PLAIN, "PLAIN_AXIS", 0, "Plain Axis", "Simple axis lines"},
+    {EMPTY_AXIS_PRESET_ARROWS, "ARROWS", 0, "Arrows", "Axis with arrow tips"},
+    {EMPTY_AXIS_PRESET_NAMED_ARROWS,
+     "NAMED_ARROWS",
+     0,
+     "Named Arrows",
+     "Axis with arrow tips and labels"},
+    {EMPTY_AXIS_PRESET_SINGLE_ARROW, "SINGLE_ARROW", 0, "Single Arrow", "Single Z-axis arrow"},
+    {EMPTY_AXIS_PRESET_MANIPULATOR,
+     "MANIPULATOR",
+     0,
+     "Manipulator",
+     "Bidirectional arrows on all axes"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+/** Convert axis preset enum to axis flag bits. */
+static char empty_axis_preset_to_flag(eEmptyAxisPreset preset)
+{
+  /* Flag values: ONLY_POSITIVE=1, ARROWS=2, NAMES=4, SHOW_X=8, SHOW_Y=16, SHOW_Z=32 */
+  constexpr char SHOW_XYZ = OB_EMPTY_AXIS_SHOW_X | OB_EMPTY_AXIS_SHOW_Y | OB_EMPTY_AXIS_SHOW_Z;
+
+  switch (preset) {
+    case EMPTY_AXIS_PRESET_PLAIN:
+      /* Plain Axis: just X Y Z lines */
+      return SHOW_XYZ;
+    case EMPTY_AXIS_PRESET_ARROWS:
+      /* Arrows: only positive + arrows + X Y Z */
+      return OB_EMPTY_AXIS_ONLY_POSITIVE | OB_EMPTY_AXIS_ARROWS | SHOW_XYZ;
+    case EMPTY_AXIS_PRESET_NAMED_ARROWS:
+      /* Named Arrows: only positive + arrows + names + X Y Z */
+      return OB_EMPTY_AXIS_ONLY_POSITIVE | OB_EMPTY_AXIS_ARROWS | OB_EMPTY_AXIS_NAMES | SHOW_XYZ;
+    case EMPTY_AXIS_PRESET_SINGLE_ARROW:
+      /* Single Arrow: only positive + arrows + Z only */
+      return OB_EMPTY_AXIS_ONLY_POSITIVE | OB_EMPTY_AXIS_ARROWS | OB_EMPTY_AXIS_SHOW_Z;
+    case EMPTY_AXIS_PRESET_MANIPULATOR:
+      /* Manipulator: bidirectional arrows + X Y Z */
+      return OB_EMPTY_AXIS_ARROWS | SHOW_XYZ;
+    default:
+      return SHOW_XYZ;
+  }
+}
+
 static wmOperatorStatus object_empty_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob;
@@ -1440,6 +1508,23 @@ static wmOperatorStatus object_empty_add_exec(bContext *C, wmOperator *op)
 
   BKE_object_empty_draw_type_set(ob, type);
   BKE_object_obdata_size_init(ob, RNA_float_get(op->ptr, "radius"));
+
+  /* Set axis display options based on preset (for Axis empty type). */
+  if (type == OB_EMPTY_AXIS && RNA_struct_property_is_set(op->ptr, "axis_preset")) {
+    eEmptyAxisPreset preset = eEmptyAxisPreset(RNA_enum_get(op->ptr, "axis_preset"));
+    ob->empty_axis_flag = empty_axis_preset_to_flag(preset);
+  }
+
+  /* Set circle display options based on preset (for Circle empty type). */
+  if (type == OB_CIRCLE && RNA_struct_property_is_set(op->ptr, "circle_preset")) {
+    eEmptyCirclePreset preset = eEmptyCirclePreset(RNA_enum_get(op->ptr, "circle_preset"));
+    if (preset == EMPTY_CIRCLE_PRESET_ARROW) {
+      ob->empty_axis_flag |= OB_EMPTY_CIRCLE_ARROW;
+    }
+    else {
+      ob->empty_axis_flag &= ~OB_EMPTY_CIRCLE_ARROW;
+    }
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -1461,6 +1546,20 @@ void OBJECT_OT_empty_add(wmOperatorType *ot)
 
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_object_empty_drawtype_items, 0, "Type", "");
+
+  RNA_def_enum(ot->srna,
+               "axis_preset",
+               empty_axis_preset_items,
+               EMPTY_AXIS_PRESET_PLAIN,
+               "Axis Preset",
+               "Preset display style for Axis empty type");
+
+  RNA_def_enum(ot->srna,
+               "circle_preset",
+               empty_circle_preset_items,
+               EMPTY_CIRCLE_PRESET_PLAIN,
+               "Circle Preset",
+               "Preset display style for Circle empty type");
 
   add_unit_props_radius(ot);
   add_generic_props(ot, false);

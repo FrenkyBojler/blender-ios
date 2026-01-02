@@ -358,8 +358,51 @@ class ShapeCache {
   BatchPtr quad_solid;
   BatchPtr plain_axes;
   BatchPtr single_arrow;
+  
+  /* Individual axis shapes*/
+  BatchPtr axis_x;
+  BatchPtr axis_y;
+  BatchPtr axis_z;
+  BatchPtr axis_x_pos;
+  BatchPtr axis_y_pos;
+  BatchPtr axis_z_pos;
+
+  /* Individual arrow shapes (3D pyramids) */
+  BatchPtr single_arrow_x;
+  BatchPtr single_arrow_y;
+  BatchPtr single_arrow_z;
+  BatchPtr single_arrow_x_neg;
+  BatchPtr single_arrow_y_neg;
+  BatchPtr single_arrow_z_neg;
+
+  /* Individual arrow shapes (2D arrows) */
+  BatchPtr single_arrow_x_2d;
+  BatchPtr single_arrow_y_2d;
+  BatchPtr single_arrow_z_2d;
+  BatchPtr single_arrow_x_neg_2d;
+  BatchPtr single_arrow_y_neg_2d;
+  BatchPtr single_arrow_z_neg_2d;
+
+  /* Individual axis name shapes*/
+  BatchPtr axis_name_x;
+  BatchPtr axis_name_y;
+  BatchPtr axis_name_z;
+  BatchPtr axis_name_x_neg;
+  BatchPtr axis_name_y_neg;
+  BatchPtr axis_name_z_neg;
+
+  /* Axis tip markers (diamond shapes, used when names enabled but no arrows) */
+  BatchPtr axis_marker_x;
+  BatchPtr axis_marker_y;
+  BatchPtr axis_marker_z;
+  BatchPtr axis_marker_x_neg;
+  BatchPtr axis_marker_y_neg;
+  BatchPtr axis_marker_z_neg;
+
   BatchPtr cube;
   BatchPtr circle;
+  BatchPtr circle_arrow;    /* 3D version with pyramid arrow head (default). */
+  BatchPtr circle_arrow_2d; /* 2D version with flat triangle arrow. */
   BatchPtr empty_sphere;
   BatchPtr empty_cone;
   BatchPtr cylinder;

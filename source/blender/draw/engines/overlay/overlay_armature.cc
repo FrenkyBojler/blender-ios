@@ -536,12 +536,6 @@ static void drw_shgroup_bone_custom_empty(const Armatures::DrawContext *ctx,
 
   gpu::Batch *geom = nullptr;
   switch (custom->empty_drawtype) {
-    case OB_PLAINAXES:
-      geom = ctx->res->shapes.plain_axes.get();
-      break;
-    case OB_SINGLE_ARROW:
-      geom = ctx->res->shapes.single_arrow.get();
-      break;
     case OB_CUBE:
       geom = ctx->res->shapes.cube.get();
       break;
@@ -554,12 +548,17 @@ static void drw_shgroup_bone_custom_empty(const Armatures::DrawContext *ctx,
     case OB_EMPTY_CONE:
       geom = ctx->res->shapes.empty_cone.get();
       break;
-    case OB_ARROWS:
-      geom = ctx->res->shapes.arrows.get();
+    case OB_EMPTY_AXIS:
+      /* Unified axis type for custom bone shapes. */
+      geom = ctx->res->shapes.plain_axes.get();
       break;
     case OB_EMPTY_IMAGE:
       /* Not supported. */
       return;
+    default:
+      /* Legacy types (OB_PLAINAXES, OB_ARROWS, OB_SINGLE_ARROW) converted by versioning. */
+      geom = ctx->res->shapes.plain_axes.get();
+      break;
   }
   BLI_assert(geom);
 

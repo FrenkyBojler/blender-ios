@@ -106,9 +106,7 @@ const EnumPropertyItem rna_enum_workspace_object_mode_items[] = {
 };
 
 const EnumPropertyItem rna_enum_object_empty_drawtype_items[] = {
-    {OB_PLAINAXES, "PLAIN_AXES", ICON_EMPTY_AXIS, "Plain Axes", ""},
-    {OB_ARROWS, "ARROWS", ICON_EMPTY_ARROWS, "Arrows", ""},
-    {OB_SINGLE_ARROW, "SINGLE_ARROW", ICON_EMPTY_SINGLE_ARROW, "Single Arrow", ""},
+    {OB_EMPTY_AXIS, "AXIS", ICON_EMPTY_AXIS, "Axis", ""},
     {OB_CIRCLE, "CIRCLE", ICON_MESH_CIRCLE, "Circle", ""},
     {OB_CUBE, "CUBE", ICON_CUBE, "Cube", ""},
     {OB_EMPTY_SPHERE, "SPHERE", ICON_SPHERE, "Sphere", ""},
@@ -3374,6 +3372,49 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.01, 100, 1, 2);
   RNA_def_property_ui_text(
       prop, "Empty Display Size", "Size of display for empties in the viewport");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  /* Axis empty display options. */
+  prop = RNA_def_property(srna, "empty_axis_only_positive", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "empty_axis_flag", OB_EMPTY_AXIS_ONLY_POSITIVE);
+  RNA_def_property_ui_text(prop, "Positive Axes Only", "Only show positive axis direction");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "empty_axis_arrows", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "empty_axis_flag", OB_EMPTY_AXIS_ARROWS);
+  RNA_def_property_ui_text(prop, "Show Arrows", "Draw arrow heads at axis tips");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "empty_arrows_2d", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "empty_axis_flag", OB_EMPTY_ARROWS_2D);
+  RNA_def_property_ui_text(prop, "2D Arrows", "Use flat 2D arrows instead of 3D pyramids");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "empty_axis_names", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "empty_axis_flag", OB_EMPTY_AXIS_NAMES);
+  RNA_def_property_ui_text(prop, "Axes Names", "Display axis names (X, Y, Z)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "empty_axis_show_x", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "empty_axis_flag", OB_EMPTY_AXIS_SHOW_X);
+  RNA_def_property_ui_text(prop, "X", "Show X axis");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "empty_axis_show_y", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "empty_axis_flag", OB_EMPTY_AXIS_SHOW_Y);
+  RNA_def_property_ui_text(prop, "Y", "Show Y axis");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "empty_axis_show_z", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "empty_axis_flag", OB_EMPTY_AXIS_SHOW_Z);
+  RNA_def_property_ui_text(prop, "Z", "Show Z axis");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  /* Circle display options. */
+  prop = RNA_def_property(srna, "empty_circle_arrow", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "empty_axis_flag", OB_EMPTY_CIRCLE_ARROW);
+  RNA_def_property_ui_text(
+      prop, "Show Arrow", "Display as 3/4 circle with arrow tip (rotation indicator)");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
 
   prop = RNA_def_property(srna, "empty_image_offset", PROP_FLOAT, PROP_NONE);

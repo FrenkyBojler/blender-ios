@@ -2638,10 +2638,36 @@ class VIEW3D_MT_empty_add(Menu):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("object.empty_add", text="Plain Axes", icon='EMPTY_AXIS').type = 'PLAIN_AXES'
-        layout.operator("object.empty_add", text="Arrows", icon='EMPTY_ARROWS').type = 'ARROWS'
-        layout.operator("object.empty_add", text="Single Arrow", icon='EMPTY_SINGLE_ARROW').type = 'SINGLE_ARROW'
-        layout.operator("object.empty_add", text="Circle", icon='MESH_CIRCLE').type = 'CIRCLE'
+        # Axis presets (type=AXIS with different axis_preset values)
+        props = layout.operator("object.empty_add", text="Plain Axis", icon='EMPTY_AXIS')
+        props.type = 'AXIS'
+        props.axis_preset = 'PLAIN_AXIS'
+
+        props = layout.operator("object.empty_add", text="Arrows", icon='EMPTY_ARROWS')
+        props.type = 'AXIS'
+        props.axis_preset = 'ARROWS'
+
+        props = layout.operator("object.empty_add", text="Named Arrows", icon='EMPTY_ARROWS')
+        props.type = 'AXIS'
+        props.axis_preset = 'NAMED_ARROWS'
+
+        props = layout.operator("object.empty_add", text="Single Arrow", icon='EMPTY_SINGLE_ARROW')
+        props.type = 'AXIS'
+        props.axis_preset = 'SINGLE_ARROW'
+
+        props = layout.operator("object.empty_add", text="Manipulator", icon='ORIENTATION_GLOBAL')
+        props.type = 'AXIS'
+        props.axis_preset = 'MANIPULATOR'
+
+        # Circle presets
+        props = layout.operator("object.empty_add", text="Circle", icon='MESH_CIRCLE')
+        props.type = 'CIRCLE'
+        props.circle_preset = 'PLAIN'
+
+        props = layout.operator("object.empty_add", text="Arrow Circle", icon='RECOVER_LAST')
+        props.type = 'CIRCLE'
+        props.circle_preset = 'ARROW'
+
         layout.operator("object.empty_add", text="Cube", icon='CUBE').type = 'CUBE'
         layout.operator("object.empty_add", text="Sphere", icon='SPHERE').type = 'SPHERE'
         layout.operator("object.empty_add", text="Cone", icon='CONE').type = 'CONE'

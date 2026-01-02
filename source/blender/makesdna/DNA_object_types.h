@@ -190,14 +190,29 @@ enum {
 
 /** #Object.empty_drawtype: no flags */
 enum {
-  OB_ARROWS = 1,
-  OB_PLAINAXES = 2,
+  OB_ARROWS = 1,       /* Legacy, kept for versioning. Use #OB_EMPTY_AXIS instead. */
+  OB_PLAINAXES = 2,    /* Legacy, kept for versioning. Use #OB_EMPTY_AXIS instead. */
   OB_CIRCLE = 3,
-  OB_SINGLE_ARROW = 4,
+  OB_SINGLE_ARROW = 4, /* Legacy, kept for versioning. Use #OB_EMPTY_AXIS instead. */
   OB_CUBE = 5,
   OB_EMPTY_SPHERE = 6,
   OB_EMPTY_CONE = 7,
   OB_EMPTY_IMAGE = 8,
+  OB_EMPTY_AXIS = 9,
+};
+
+/** #Object.empty_axis_flag */
+enum {
+  OB_EMPTY_AXIS_ONLY_POSITIVE = 1 << 0,
+  OB_EMPTY_AXIS_ARROWS = 1 << 1,
+  OB_EMPTY_AXIS_NAMES = 1 << 2,
+  OB_EMPTY_AXIS_SHOW_X = 1 << 3,
+  OB_EMPTY_AXIS_SHOW_Y = 1 << 4,
+  OB_EMPTY_AXIS_SHOW_Z = 1 << 5,
+  /** Circle-specific: draw as 3/4 circle with arrow tip (rotation loop indicator). */
+  OB_EMPTY_CIRCLE_ARROW = 1 << 6,
+  /** Use flat 2D arrows instead of 3D pyramid arrows. */
+  OB_EMPTY_ARROWS_2D = 1 << 7,
 };
 
 /**
@@ -573,7 +588,11 @@ struct Object {
   short dtx = 0;
   /** Viewport draw type. */
   char dt = OB_TEXTURE;
-  char empty_drawtype = OB_PLAINAXES;
+  char empty_drawtype = OB_EMPTY_AXIS;
+  /** Axis empty display options, uses #OB_EMPTY_AXIS_* flags. */
+  char empty_axis_flag = OB_EMPTY_AXIS_SHOW_X | OB_EMPTY_AXIS_SHOW_Y | OB_EMPTY_AXIS_SHOW_Z;
+  char _pad_empty[3] = {};
+
   float empty_drawsize = 1.0;
   /** Dupliface scale. */
   float instance_faces_scale = 1;
@@ -582,8 +601,6 @@ struct Object {
   short index = 0;
   /** Current deformation group, NOTE: index starts at 1. */
   DNA_DEPRECATED unsigned short actdef = 0;
-  /** Current face map, NOTE: index starts at 1. */
-  char _pad2[4] = {};
   /** Object color (in most cases the material color is used for drawing). */
   float color[4] = {1, 1, 1, 1};
 

@@ -585,6 +585,538 @@ ShapeCache::ShapeCache()
     plain_axes = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
+  /* Individual axis shapes for configurable axis empty. */
+  /* axis_x - single X axis line */
+  {
+    Vector<Vertex> verts;
+    verts.append({{-1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{+1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    axis_x = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* axis_y - single Y axis line */
+  {
+    Vector<Vertex> verts;
+    verts.append({{0.0f, -1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, +1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    axis_y = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* axis_z - single Z axis line */
+  {
+    Vector<Vertex> verts;
+    verts.append({{0.0f, 0.0f, -1.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, +1.0f}, VCLASS_EMPTY_SCALED});
+    axis_z = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_x - arrow along X axis */
+  {
+    Vector<Vertex> verts;
+    float p[3][3] = {{0}};
+    p[0][0] = 1.0f; /* Arrow tip at +X */
+    p[1][1] = 0.035f;
+    p[1][2] = 0.035f;
+    p[2][1] = -0.035f;
+    p[2][2] = 0.035f;
+    p[1][0] = p[2][0] = 0.75f;
+    for (int sides : IndexRange(4)) {
+      if (sides % 2 == 1) {
+        p[1][1] = -p[1][1];
+        p[2][2] = -p[2][2];
+      }
+      else {
+        p[1][2] = -p[1][2];
+        p[2][1] = -p[2][1];
+      }
+      for (int i = 0, a = 1; i < 2; i++, a++) {
+        verts.append({{p[i][0], p[i][1], p[i][2]}, VCLASS_EMPTY_SCALED});
+        verts.append({{p[a][0], p[a][1], p[a][2]}, VCLASS_EMPTY_SCALED});
+      }
+    }
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.75f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_x = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_y - arrow along Y axis */
+  {
+    Vector<Vertex> verts;
+    float p[3][3] = {{0}};
+    p[0][1] = 1.0f; /* Arrow tip at +Y */
+    p[1][0] = 0.035f;
+    p[1][2] = 0.035f;
+    p[2][0] = -0.035f;
+    p[2][2] = 0.035f;
+    p[1][1] = p[2][1] = 0.75f;
+    for (int sides : IndexRange(4)) {
+      if (sides % 2 == 1) {
+        p[1][0] = -p[1][0];
+        p[2][2] = -p[2][2];
+      }
+      else {
+        p[1][2] = -p[1][2];
+        p[2][0] = -p[2][0];
+      }
+      for (int i = 0, a = 1; i < 2; i++, a++) {
+        verts.append({{p[i][0], p[i][1], p[i][2]}, VCLASS_EMPTY_SCALED});
+        verts.append({{p[a][0], p[a][1], p[a][2]}, VCLASS_EMPTY_SCALED});
+      }
+    }
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.75f, 0.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_y = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_z - arrow along Z axis (same as original single_arrow) */
+  {
+    Vector<Vertex> verts;
+    float p[3][3] = {{0}};
+    p[0][2] = 1.0f;
+    p[1][0] = 0.035f;
+    p[1][1] = 0.035f;
+    p[2][0] = -0.035f;
+    p[2][1] = 0.035f;
+    p[1][2] = p[2][2] = 0.75f;
+    for (int sides : IndexRange(4)) {
+      if (sides % 2 == 1) {
+        p[1][0] = -p[1][0];
+        p[2][1] = -p[2][1];
+      }
+      else {
+        p[1][1] = -p[1][1];
+        p[2][0] = -p[2][0];
+      }
+      for (int i = 0, a = 1; i < 2; i++, a++) {
+        verts.append({{p[i][0], p[i][1], p[i][2]}, VCLASS_EMPTY_SCALED});
+        verts.append({{p[a][0], p[a][1], p[a][2]}, VCLASS_EMPTY_SCALED});
+      }
+    }
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, 0.75f}, VCLASS_EMPTY_SCALED});
+    single_arrow_z = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* Positive-only axis shapes (half line from 0 to +1) */
+  /* axis_x_pos */
+  {
+    Vector<Vertex> verts;
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{+1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    axis_x_pos = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* axis_y_pos */
+  {
+    Vector<Vertex> verts;
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, +1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    axis_y_pos = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* axis_z_pos */
+  {
+    Vector<Vertex> verts;
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, +1.0f}, VCLASS_EMPTY_SCALED});
+    axis_z_pos = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* Negative direction arrows */
+  /* single_arrow_x_neg - arrow along -X axis */
+  {
+    Vector<Vertex> verts;
+    float p[3][3] = {{0}};
+    p[0][0] = -1.0f; /* Arrow tip at -X */
+    p[1][1] = 0.035f;
+    p[1][2] = 0.035f;
+    p[2][1] = -0.035f;
+    p[2][2] = 0.035f;
+    p[1][0] = p[2][0] = -0.75f;
+    for (int sides : IndexRange(4)) {
+      if (sides % 2 == 1) {
+        p[1][1] = -p[1][1];
+        p[2][2] = -p[2][2];
+      }
+      else {
+        p[1][2] = -p[1][2];
+        p[2][1] = -p[2][1];
+      }
+      for (int i = 0, a = 1; i < 2; i++, a++) {
+        verts.append({{p[i][0], p[i][1], p[i][2]}, VCLASS_EMPTY_SCALED});
+        verts.append({{p[a][0], p[a][1], p[a][2]}, VCLASS_EMPTY_SCALED});
+      }
+    }
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-0.75f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_x_neg = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_y_neg - arrow along -Y axis */
+  {
+    Vector<Vertex> verts;
+    float p[3][3] = {{0}};
+    p[0][1] = -1.0f; /* Arrow tip at -Y */
+    p[1][0] = 0.035f;
+    p[1][2] = 0.035f;
+    p[2][0] = -0.035f;
+    p[2][2] = 0.035f;
+    p[1][1] = p[2][1] = -0.75f;
+    for (int sides : IndexRange(4)) {
+      if (sides % 2 == 1) {
+        p[1][0] = -p[1][0];
+        p[2][2] = -p[2][2];
+      }
+      else {
+        p[1][2] = -p[1][2];
+        p[2][0] = -p[2][0];
+      }
+      for (int i = 0, a = 1; i < 2; i++, a++) {
+        verts.append({{p[i][0], p[i][1], p[i][2]}, VCLASS_EMPTY_SCALED});
+        verts.append({{p[a][0], p[a][1], p[a][2]}, VCLASS_EMPTY_SCALED});
+      }
+    }
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, -0.75f, 0.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_y_neg = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_z_neg - arrow along -Z axis */
+  {
+    Vector<Vertex> verts;
+    float p[3][3] = {{0}};
+    p[0][2] = -1.0f; /* Arrow tip at -Z */
+    p[1][0] = 0.035f;
+    p[1][1] = 0.035f;
+    p[2][0] = -0.035f;
+    p[2][1] = 0.035f;
+    p[1][2] = p[2][2] = -0.75f;
+    for (int sides : IndexRange(4)) {
+      if (sides % 2 == 1) {
+        p[1][0] = -p[1][0];
+        p[2][1] = -p[2][1];
+      }
+      else {
+        p[1][1] = -p[1][1];
+        p[2][0] = -p[2][0];
+      }
+      for (int i = 0, a = 1; i < 2; i++, a++) {
+        verts.append({{p[i][0], p[i][1], p[i][2]}, VCLASS_EMPTY_SCALED});
+        verts.append({{p[a][0], p[a][1], p[a][2]}, VCLASS_EMPTY_SCALED});
+      }
+    }
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, -0.75f}, VCLASS_EMPTY_SCALED});
+    single_arrow_z_neg = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* 2D arrow shapes - V-shaped (two lines from tip, no closing line) */
+  /* single_arrow_x_2d - V arrow along X axis in XY plane */
+  {
+    constexpr float arrow_size = 0.15f;
+    Vector<Vertex> verts;
+    /* V-shape: tip at (1,0,0), two lines back to corners */
+    verts.append({{1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{1.0f - arrow_size, arrow_size * 0.5f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{1.0f - arrow_size, -arrow_size * 0.5f, 0.0f}, VCLASS_EMPTY_SCALED});
+    /* Shaft */
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_x_2d = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_y_2d - V arrow along Y axis in XY plane */
+  {
+    constexpr float arrow_size = 0.15f;
+    Vector<Vertex> verts;
+    verts.append({{0.0f, 1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{arrow_size * 0.5f, 1.0f - arrow_size, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-arrow_size * 0.5f, 1.0f - arrow_size, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_y_2d = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_z_2d - V arrow along Z axis in XZ plane */
+  {
+    constexpr float arrow_size = 0.15f;
+    Vector<Vertex> verts;
+    verts.append({{0.0f, 0.0f, 1.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{arrow_size * 0.5f, 0.0f, 1.0f - arrow_size}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, 1.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-arrow_size * 0.5f, 0.0f, 1.0f - arrow_size}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, 1.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_z_2d = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_x_neg_2d */
+  {
+    constexpr float arrow_size = 0.15f;
+    Vector<Vertex> verts;
+    verts.append({{-1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-1.0f + arrow_size, arrow_size * 0.5f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-1.0f + arrow_size, -arrow_size * 0.5f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-1.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_x_neg_2d = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_y_neg_2d */
+  {
+    constexpr float arrow_size = 0.15f;
+    Vector<Vertex> verts;
+    verts.append({{0.0f, -1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{arrow_size * 0.5f, -1.0f + arrow_size, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, -1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-arrow_size * 0.5f, -1.0f + arrow_size, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, -1.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_y_neg_2d = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* single_arrow_z_neg_2d */
+  {
+    constexpr float arrow_size = 0.15f;
+    Vector<Vertex> verts;
+    verts.append({{0.0f, 0.0f, -1.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{arrow_size * 0.5f, 0.0f, -1.0f + arrow_size}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, -1.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{-arrow_size * 0.5f, 0.0f, -1.0f + arrow_size}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, 0.0f}, VCLASS_EMPTY_SCALED});
+    verts.append({{0.0f, 0.0f, -1.0f}, VCLASS_EMPTY_SCALED});
+    single_arrow_z_neg_2d = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* Individual axis name shapes - using the same format as the arrows shape */
+  {
+    /* Axis name letter definitions */
+    float2 x_axis_name_scale = {0.0215f, 0.025f};
+    Vector<float2> x_axis_name = {
+        float2(0.9f, 1.0f) * x_axis_name_scale,
+        float2(-1.0f, -1.0f) * x_axis_name_scale,
+        float2(-0.9f, 1.0f) * x_axis_name_scale,
+        float2(1.0f, -1.0f) * x_axis_name_scale,
+    };
+
+    float2 y_axis_name_scale = {0.0175f, 0.025f};
+    Vector<float2> y_axis_name = {
+        float2(-1.0f, 1.0f) * y_axis_name_scale,
+        float2(0.0f, -0.1f) * y_axis_name_scale,
+        float2(1.0f, 1.0f) * y_axis_name_scale,
+        float2(0.0f, -0.1f) * y_axis_name_scale,
+        float2(0.0f, -0.1f) * y_axis_name_scale,
+        float2(0.0f, -1.0f) * y_axis_name_scale,
+    };
+
+    float2 z_axis_name_scale = {0.02f, 0.025f};
+    Vector<float2> z_axis_name = {
+        float2(-0.95f, 1.00f) * z_axis_name_scale,
+        float2(0.95f, 1.00f) * z_axis_name_scale,
+        float2(0.95f, 1.00f) * z_axis_name_scale,
+        float2(0.95f, 0.90f) * z_axis_name_scale,
+        float2(0.95f, 0.90f) * z_axis_name_scale,
+        float2(-1.00f, -0.90f) * z_axis_name_scale,
+        float2(-1.00f, -0.90f) * z_axis_name_scale,
+        float2(-1.00f, -1.00f) * z_axis_name_scale,
+        float2(-1.00f, -1.00f) * z_axis_name_scale,
+        float2(1.00f, -1.00f) * z_axis_name_scale,
+    };
+
+    /* Minus sign for negative axis names */
+    float2 minus_scale = {0.015f, 0.003f};
+    Vector<float2> minus_sign = {
+        float2(-1.0f, 0.0f) * minus_scale,
+        float2(1.0f, 0.0f) * minus_scale,
+    };
+    float minus_offset_x = -0.045f; /* Offset to place minus before the letter */
+
+    /* axis_name_x - X label at positive X axis end */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 0.0f + 1e-8f; /* axis 0 = X */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_EMPTY_AXES_NAME | VCLASS_SCREENALIGNED;
+      for (float2 vert : x_axis_name) {
+        verts.append({{vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      axis_name_x = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_name_y - Y label at positive Y axis end */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 1.0f + 1e-8f; /* axis 1 = Y */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_EMPTY_AXES_NAME | VCLASS_SCREENALIGNED;
+      for (float2 vert : y_axis_name) {
+        verts.append({{vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      axis_name_y = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_name_z - Z label at positive Z axis end */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 2.0f + 1e-8f; /* axis 2 = Z */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_EMPTY_AXES_NAME | VCLASS_SCREENALIGNED;
+      for (float2 vert : z_axis_name) {
+        verts.append({{vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      axis_name_z = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* Negative axis names: use axis indices 3, 4, 5 for -X, -Y, -Z.
+     * The shader interprets axis >= 3 as negative direction. */
+
+    /* axis_name_x_neg - "-X" label at negative X axis end */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 3.0f + 1e-8f; /* axis 3 = -X */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_EMPTY_AXES_NAME | VCLASS_SCREENALIGNED;
+      /* Minus sign */
+      for (float2 vert : minus_sign) {
+        float2 offset_vert = vert + float2(minus_offset_x, 0.0f);
+        verts.append({{offset_vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      /* X letter */
+      for (float2 vert : x_axis_name) {
+        verts.append({{vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      axis_name_x_neg = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_name_y_neg - "-Y" label at negative Y axis end */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 4.0f + 1e-8f; /* axis 4 = -Y */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_EMPTY_AXES_NAME | VCLASS_SCREENALIGNED;
+      /* Minus sign */
+      for (float2 vert : minus_sign) {
+        float2 offset_vert = vert + float2(minus_offset_x, 0.0f);
+        verts.append({{offset_vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      /* Y letter */
+      for (float2 vert : y_axis_name) {
+        verts.append({{vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      axis_name_y_neg = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_name_z_neg - "-Z" label at negative Z axis end */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 5.0f + 1e-8f; /* axis 5 = -Z */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_EMPTY_AXES_NAME | VCLASS_SCREENALIGNED;
+      /* Minus sign */
+      for (float2 vert : minus_sign) {
+        float2 offset_vert = vert + float2(minus_offset_x, 0.0f);
+        verts.append({{offset_vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      /* Z letter */
+      for (float2 vert : z_axis_name) {
+        verts.append({{vert * 4.0f, pos_on_axis + 0.25f}, flag});
+      }
+      axis_name_z_neg = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+
+    /* Axis tip markers - diamond shapes at axis tips (like legacy arrows but without names).
+     * Used when Axis Names is enabled but Arrows is disabled. */
+    float2 marker_scale = {0.007f, 0.007f};
+    Vector<float2> marker_verts = {
+        /* Diamond shape */
+        float2(-1.0f, 0.0f) * marker_scale,
+        float2(0.0f, 1.0f) * marker_scale,
+        float2(0.0f, 1.0f) * marker_scale,
+        float2(1.0f, 0.0f) * marker_scale,
+        float2(1.0f, 0.0f) * marker_scale,
+        float2(0.0f, -1.0f) * marker_scale,
+        float2(0.0f, -1.0f) * marker_scale,
+        float2(-1.0f, 0.0f) * marker_scale,
+    };
+    constexpr int marker_fill_layers = 6;
+
+    /* axis_marker_x - diamond marker at +X axis tip */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 0.0f + 1e-8f; /* axis 0 = X */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_SCREENALIGNED;
+      for (int j = 1; j < marker_fill_layers + 1; j++) {
+        for (float2 vert : marker_verts) {
+          verts.append({{vert * ((4.0f * j) / marker_fill_layers), pos_on_axis}, flag});
+        }
+      }
+      axis_marker_x = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_marker_y - diamond marker at +Y axis tip */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 1.0f + 1e-8f; /* axis 1 = Y */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_SCREENALIGNED;
+      for (int j = 1; j < marker_fill_layers + 1; j++) {
+        for (float2 vert : marker_verts) {
+          verts.append({{vert * ((4.0f * j) / marker_fill_layers), pos_on_axis}, flag});
+        }
+      }
+      axis_marker_y = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_marker_z - diamond marker at +Z axis tip */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 2.0f + 1e-8f; /* axis 2 = Z */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_SCREENALIGNED;
+      for (int j = 1; j < marker_fill_layers + 1; j++) {
+        for (float2 vert : marker_verts) {
+          verts.append({{vert * ((4.0f * j) / marker_fill_layers), pos_on_axis}, flag});
+        }
+      }
+      axis_marker_z = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_marker_x_neg - diamond marker at -X axis tip */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 3.0f + 1e-8f; /* axis 3 = -X */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_SCREENALIGNED;
+      for (int j = 1; j < marker_fill_layers + 1; j++) {
+        for (float2 vert : marker_verts) {
+          verts.append({{vert * ((4.0f * j) / marker_fill_layers), pos_on_axis}, flag});
+        }
+      }
+      axis_marker_x_neg = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_marker_y_neg - diamond marker at -Y axis tip */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 4.0f + 1e-8f; /* axis 4 = -Y */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_SCREENALIGNED;
+      for (int j = 1; j < marker_fill_layers + 1; j++) {
+        for (float2 vert : marker_verts) {
+          verts.append({{vert * ((4.0f * j) / marker_fill_layers), pos_on_axis}, flag});
+        }
+      }
+      axis_marker_y_neg = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+    /* axis_marker_z_neg - diamond marker at -Z axis tip */
+    {
+      Vector<Vertex> verts;
+      float pos_on_axis = 5.0f + 1e-8f; /* axis 5 = -Z */
+      VertexClass flag = VCLASS_EMPTY_AXES | VCLASS_SCREENALIGNED;
+      for (int j = 1; j < marker_fill_layers + 1; j++) {
+        for (float2 vert : marker_verts) {
+          verts.append({{vert * ((4.0f * j) / marker_fill_layers), pos_on_axis}, flag});
+        }
+      }
+      axis_marker_z_neg = BatchPtr(
+          GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    }
+  }
   /* single_arrow */
   {
     Vector<Vertex> verts;
@@ -646,6 +1178,114 @@ ShapeCache::ShapeCache()
     }
 
     circle = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* circle_arrow_2d - 3/4 circle with 2D V-shaped arrow tip (rotation indicator)
+   * Arrow is half the length of axis arrows for better visibility on circle. */
+  {
+    constexpr int resolution = 64;
+    constexpr int arc_segments = (resolution * 3) / 4;
+    Vector<float2> ring = ring_vertices(1.0f, resolution);
+
+    /* Arrow dimensions - half length for better V-shape visibility on circle. */
+    constexpr float arrow_length = 0.125f;
+    constexpr float arrow_half_width = 0.035f;
+
+    /* Calculate arrow tip position and direction at end of arc. */
+    float2 arc_end = ring[arc_segments % resolution];
+    float2 arc_prev = ring[(arc_segments - 1) % resolution];
+    float2 tangent = math::normalize(arc_end - arc_prev);
+    float2 normal = float2(-tangent.y, tangent.x);
+
+    /* Arrow tip is at arc end, base is arrow_length back along tangent. */
+    float2 arrow_tip = arc_end;
+    float2 arrow_back = arc_end - tangent * arrow_length;
+
+    Vector<Vertex> verts;
+    /* Draw full 3/4 arc - it will connect to the arrow tip. */
+    for (int a : IndexRange(arc_segments)) {
+      float2 cv1 = ring[a % resolution];
+      float2 cv2 = ring[(a + 1) % resolution];
+      verts.append({{cv1.x, 0.0f, cv1.y}, VCLASS_EMPTY_SCALED});
+      verts.append({{cv2.x, 0.0f, cv2.y}, VCLASS_EMPTY_SCALED});
+    }
+
+    /* Arrow V-shape (two lines from tip to corners). */
+    float2 arrow_left = arrow_back + normal * arrow_half_width;
+    float2 arrow_right = arrow_back - normal * arrow_half_width;
+    verts.append({{arrow_tip.x, 0.0f, arrow_tip.y}, VCLASS_EMPTY_SCALED});
+    verts.append({{arrow_left.x, 0.0f, arrow_left.y}, VCLASS_EMPTY_SCALED});
+    verts.append({{arrow_tip.x, 0.0f, arrow_tip.y}, VCLASS_EMPTY_SCALED});
+    verts.append({{arrow_right.x, 0.0f, arrow_right.y}, VCLASS_EMPTY_SCALED});
+
+    circle_arrow_2d = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+  /* circle_arrow - 3D pyramid arrow on 3/4 circle (default)
+   * Arrow dimensions match axis arrows: length=0.25, half-width=0.035
+   * Pyramid oriented to rest on a face (square base, not diamond). */
+  {
+    constexpr int resolution = 64;
+    constexpr int arc_segments = (resolution * 3) / 4;
+    Vector<float2> ring = ring_vertices(1.0f, resolution);
+
+    /* Arrow dimensions matching axis arrows. */
+    constexpr float arrow_length = 0.25f;
+    constexpr float arrow_half_width = 0.035f;
+
+    /* Calculate arrow direction at end of arc. */
+    float2 arc_end = ring[arc_segments % resolution];
+    float2 arc_prev = ring[(arc_segments - 1) % resolution];
+    float2 tangent = math::normalize(arc_end - arc_prev);
+    float2 normal = float2(-tangent.y, tangent.x);
+
+    /* Arrow tip is at arc end, base is arrow_length back along tangent. */
+    float2 arrow_tip_2d = arc_end;
+    float2 arrow_back_2d = arc_end - tangent * arrow_length;
+
+    Vector<Vertex> verts;
+    /* Draw full 3/4 arc - it will connect to the arrow tip. */
+    for (int a : IndexRange(arc_segments)) {
+      float2 cv1 = ring[a % resolution];
+      float2 cv2 = ring[(a + 1) % resolution];
+      verts.append({{cv1.x, 0.0f, cv1.y}, VCLASS_EMPTY_SCALED});
+      verts.append({{cv2.x, 0.0f, cv2.y}, VCLASS_EMPTY_SCALED});
+    }
+
+    float3 arrow_tip = {arrow_tip_2d.x, 0.0f, arrow_tip_2d.y};
+    float3 arrow_back = {arrow_back_2d.x, 0.0f, arrow_back_2d.y};
+
+    /* 4 base points for pyramid - square orientation (corners at diagonals, not axes).
+     * This makes the pyramid "rest on a face" when viewed from front. */
+    float3 normal_3d = {normal.x, 0.0f, normal.y};
+    float3 up_3d = {0.0f, 1.0f, 0.0f};
+    /* Place corners at diagonal positions (+n+y, +n-y, -n-y, -n+y) for square appearance. */
+    float3 corner1 = arrow_back + (normal_3d + up_3d) * arrow_half_width;
+    float3 corner2 = arrow_back + (normal_3d - up_3d) * arrow_half_width;
+    float3 corner3 = arrow_back + (-normal_3d - up_3d) * arrow_half_width;
+    float3 corner4 = arrow_back + (-normal_3d + up_3d) * arrow_half_width;
+
+    /* Pyramid edges from tip to base corners. */
+    verts.append({arrow_tip, VCLASS_EMPTY_SCALED});
+    verts.append({corner1, VCLASS_EMPTY_SCALED});
+    verts.append({arrow_tip, VCLASS_EMPTY_SCALED});
+    verts.append({corner2, VCLASS_EMPTY_SCALED});
+    verts.append({arrow_tip, VCLASS_EMPTY_SCALED});
+    verts.append({corner3, VCLASS_EMPTY_SCALED});
+    verts.append({arrow_tip, VCLASS_EMPTY_SCALED});
+    verts.append({corner4, VCLASS_EMPTY_SCALED});
+
+    /* Base edges (square shape). */
+    verts.append({corner1, VCLASS_EMPTY_SCALED});
+    verts.append({corner2, VCLASS_EMPTY_SCALED});
+    verts.append({corner2, VCLASS_EMPTY_SCALED});
+    verts.append({corner3, VCLASS_EMPTY_SCALED});
+    verts.append({corner3, VCLASS_EMPTY_SCALED});
+    verts.append({corner4, VCLASS_EMPTY_SCALED});
+    verts.append({corner4, VCLASS_EMPTY_SCALED});
+    verts.append({corner1, VCLASS_EMPTY_SCALED});
+
+    circle_arrow = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
   /* empty_sphere */
