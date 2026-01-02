@@ -103,156 +103,165 @@ void TokenStream::token_offsets_populate()
   token_types.reserve(predicted_token_count);
   token_offsets.offsets.reserve(predicted_token_count);
 
-  token_types.emplace_back(to_type(str[0]));
+  char curr_c = str[0];
+  TokenType curr_type = to_type(curr_c);
+  token_types.emplace_back(curr_type);
   token_offsets.offsets.emplace_back(0);
 
   /* When doing white-space merging, keep knowledge about whether previous char was white-space.
    * This allows to still split words on spaces. */
-  bool prev_was_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
+  bool curr_is_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
   bool inside_preprocessor_directive = token_types[0] == Hash;
   bool next_character_is_escape = false;
   bool inside_string = false;
 
-  char curr_c = str[0];
-  char prev_c = str[0];
   int offset = 0;
-  for (const char c : str.substr(1)) {
+  for (const char c : std::string_view{str.data() + 1, str.size() - 1}) {
     offset++;
-    TokenType type = to_type(c);
-    TokenType prev = token_types.back();
-
-    prev_c = curr_c;
+    const char prev_c = curr_c;
     curr_c = c;
+    const TokenType prev = curr_type;
+    const TokenType type = to_type(c);
+
+    const bool prev_is_whitespace = curr_is_whitespace;
 
     /* Merge string literal. */
-    if (inside_string) [[unlikely]] {
+    if (inside_string) {
       if (!next_character_is_escape && c == '\"') {
         inside_string = false;
       }
       next_character_is_escape = c == '\\';
       continue;
     }
-    if (c == '\"') [[unlikely]] {
-      inside_string = true;
+
+    curr_is_whitespace = false;
+
+    switch (type) {
+      case Hash:
+        inside_preprocessor_directive = true;
+        break;
+
+      case NewLine:
+        /* Preprocessor directives. */
+        if (inside_preprocessor_directive) {
+          /* Detect preprocessor directive newlines `\\\n`. */
+          if (prev == Backslash) {
+            token_types.back() = PreprocessorNewline;
+            continue; /* Merge. */
+          }
+          inside_preprocessor_directive = false;
+          /* Make sure to keep the ending newline for a preprocessor directive. */
+          break;
+        }
+        curr_is_whitespace = true;
+        continue; /* Merge. */
+
+      case Space:
+        curr_is_whitespace = true;
+        continue; /* Merge. */
+
+      case String:
+        inside_string = true;
+        break;
+
+      case Word:
+        /* Split words on white-spaces. Otherwise merge. */
+        if (prev == Word && !prev_is_whitespace) {
+          continue; /* Merge. */
+        }
+        break;
+
+      case '=':
+        /* Merge '=='. */
+        if (prev == '=') {
+          token_types.back() = Equal;
+          continue; /* Merge. */
+        }
+        /* Merge '!='. */
+        if (prev == '!') {
+          token_types.back() = NotEqual;
+          continue; /* Merge. */
+        }
+        /* Merge '>='. */
+        if (prev == '>') {
+          token_types.back() = GEqual;
+          continue; /* Merge. */
+        }
+        /* Merge '<='. */
+        if (prev == '<') {
+          token_types.back() = LEqual;
+          continue; /* Merge. */
+        }
+        break;
+
+      case '>':
+        /* Merge '->'. */
+        if (prev == '-') {
+          token_types.back() = Deref;
+          continue; /* Merge. */
+        }
+        break;
+
+      case Number:
+        /* If digit is part of word. */
+        if (prev == Word && !prev_is_whitespace) {
+          continue; /* Merge. */
+        }
+        if (prev == Number) {
+          continue; /* Merge. */
+        }
+        break;
+
+      case '+':
+        /* Detect increment. */
+        if (prev == '+') {
+          token_types.back() = Increment;
+          continue; /* Merge. */
+        }
+        break;
+
+      case '-':
+        /* Detect decrement. */
+        if (prev == '-') {
+          token_types.back() = Decrement;
+          continue; /* Merge. */
+        }
+        break;
+
+      default:
+        break;
     }
 
-    /* Preprocessor directives. */
-    if (inside_preprocessor_directive) {
-      /* Detect preprocessor directive newlines `\\\n`. */
-      if (prev == Backslash && type == NewLine) [[unlikely]] {
-        token_types.back() = PreprocessorNewline;
-        continue;
-      }
-      /* Make sure to keep the ending newline for a preprocessor directive. */
-      if (type == NewLine) {
-        inside_preprocessor_directive = false;
-        token_types.emplace_back(type);
-        token_offsets.offsets.emplace_back(offset);
-        continue;
-      }
-    }
-    else if (type == Hash) {
-      inside_preprocessor_directive = true;
-    }
-
-    /* Split words on white-spaces even when merging. */
-    if (type == Word && prev_was_whitespace) [[likely]] {
-      prev = Space;
-      prev_was_whitespace = false;
-    }
-
-    /* Merge newlines and spaces with previous token. */
-    if (type == NewLine || type == Space) {
-      prev_was_whitespace = true;
-      continue;
-    }
-
-    if (type == Assign) {
-      /* Merge '=='. */
-      if (prev == Assign) {
-        token_types.back() = Equal;
-        continue;
-      }
-      /* Merge '!='. */
-      if (prev == '!') {
-        token_types.back() = NotEqual;
-        continue;
-      }
-      /* Merge '>='. */
-      if (prev == '>') {
-        token_types.back() = GEqual;
-        continue;
-      }
-      /* Merge '<='. */
-      if (prev == '<') {
-        token_types.back() = LEqual;
-        continue;
-      }
-    }
-    /* Merge '->'. */
-    if (prev == '-' && type == '>') [[unlikely]] {
-      token_types.back() = Deref;
-      continue;
-    }
-    /* If digit is part of word. */
-    if (type == Number && prev == Word && !prev_was_whitespace) [[unlikely]] {
-      continue;
-    }
     if (prev == Number) {
       /* If dot is part of float literal. */
       if (type == Dot) {
-        continue;
-      }
-      /* If 'x' is part of hex literal. */
-      if (c == 'x') {
-        continue;
+        continue; /* Merge. */
       }
       /* If 'A-F' is part of hex literal. */
       if (c >= 'A' && c <= 'F') {
-        continue;
+        continue; /* Merge. */
       }
       /* If 'a-f' is part of hex literal. */
+      /* If 'f' suffix is part of float literal (cases handled above). */
+      /* If 'e' is part of float literal (cases handled above). */
       if (c >= 'a' && c <= 'f') {
-        continue;
+        continue; /* Merge. */
+      }
+      /* If 'x' is part of hex literal. */
+      if (c == 'x') {
+        continue; /* Merge. */
       }
       /* If 'u' is part of unsigned int literal. */
       if (c == 'u') {
-        continue;
+        continue; /* Merge. */
       }
-      /* If 'f' suffix is part of float literal. */
-      if (c == 'f') {
-        continue;
-      }
-      /* If 'e' is part of float literal. */
-      if (c == 'e') {
-        continue;
+      /* If sign is part of float literal after exponent. */
+      if ((c == '+' || c == '-') && prev_c == 'e') {
+        continue; /* Merge. */
       }
     }
 
-    /* If sign is part of float literal after exponent. */
-    if (prev_c == 'e' && (c == '+' || c == '-')) {
-      continue;
-    }
-
-    /* Detect increment. */
-    if (prev == '+' && type == '+') {
-      token_types.back() = Increment;
-      continue;
-    }
-    /* Detect decrement. */
-    if (prev == '-' && type == '-') {
-      token_types.back() = Decrement;
-      continue;
-    }
-
-    /* Only merge these token. Otherwise, always emit a token. */
-    if (type != Word && type != NewLine && type != Space && type != Number) {
-      prev = Word;
-    }
-    /* Emit a token if we don't merge. */
-    if (type == prev) {
-      continue;
-    }
+    curr_type = type;
     token_types.emplace_back(type);
     token_offsets.offsets.emplace_back(offset);
   }
