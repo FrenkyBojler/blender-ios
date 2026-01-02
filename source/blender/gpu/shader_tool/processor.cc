@@ -243,9 +243,9 @@ string SourceProcessor::remove_comments(const string &str)
     }
 
     if (end == string::npos) {
-      report_error_(parser::line_number(out_str, start),
-                    parser::char_number(out_str, start),
-                    parser::line_str(out_str, start),
+      report_error_(line_number(out_str, start),
+                    char_number(out_str, start),
+                    line_str(out_str, start),
                     "Malformed multi-line comment.");
       return out_str;
     }
@@ -298,10 +298,11 @@ string SourceProcessor::template_arguments_mangle(const Scope template_args)
   return args_concat;
 }
 
-void SourceProcessor::parse_template_definition(const Scope arg,
-                                                vector<string> &arg_list,
-                                                const Scope fn_args,
-                                                bool &all_template_args_in_function_signature)
+static void parse_template_definition(const Scope arg,
+                                      vector<string> &arg_list,
+                                      const Scope fn_args,
+                                      bool &all_template_args_in_function_signature,
+                                      report_callback report_error)
 {
   const Token type = arg.front();
   const Token name = type.next();
@@ -311,8 +312,8 @@ void SourceProcessor::parse_template_definition(const Scope arg,
   arg_list.emplace_back(name_str);
 
   if (arg.contains_token('=')) {
-    report_error_(ERROR_TOK(arg[0]),
-                  "Default arguments are not supported inside template declaration");
+    report_error(ERROR_TOK(arg[0]),
+                 "Default arguments are not supported inside template declaration");
   }
 
   if (type_str == "typename") {
@@ -335,18 +336,19 @@ void SourceProcessor::parse_template_definition(const Scope arg,
     all_template_args_in_function_signature = false;
   }
   else {
-    report_error_(ERROR_TOK(type), "Invalid template argument type");
+    report_error(ERROR_TOK(type), "Invalid template argument type");
   }
 }
 
-void SourceProcessor::process_instantiation(Parser &parser,
-                                            const vector<Token> &toks,
-                                            const Scope &parent_scope,
-                                            const Token &fn_start,
-                                            const Token &fn_name,
-                                            const vector<string> &arg_list,
-                                            const string &fn_decl,
-                                            const bool all_template_args_in_function_signature)
+static void lower_template_instantiation(SourceProcessor::Parser &parser,
+                                         const vector<Token> &toks,
+                                         const Scope &parent_scope,
+                                         const Token &fn_start,
+                                         const Token &fn_name,
+                                         const vector<string> &arg_list,
+                                         const string &fn_decl,
+                                         const bool all_template_args_in_function_signature,
+                                         report_callback report_error)
 {
   if (toks[2].scope() != parent_scope || fn_name.str() != toks[2].str() ||
       toks[2].str_index_start() < fn_name.str_index_start())
@@ -368,11 +370,11 @@ void SourceProcessor::process_instantiation(Parser &parser,
     i++;
   });
   if (i != arg_list.size()) {
-    report_error_(ERROR_TOK(toks[3]), "Invalid amount of argument in template instantiation.");
+    report_error(ERROR_TOK(toks[3]), "Invalid amount of argument in template instantiation.");
   }
 
   /* Specialize template content. */
-  Parser instance_parser(fn_decl, report_error_);
+  SourceProcessor::Parser instance_parser(fn_decl, report_error);
   instance_parser().foreach_token(Word, [&](const Token &word) {
     string token_str = word.str();
     for (const auto &arg_name_value : arg_name_value_pairs) {
@@ -386,7 +388,8 @@ void SourceProcessor::process_instantiation(Parser &parser,
     /* Append template args after function name.
      * `void func() {}` > `void func<a, 1>() {}`. */
     size_t pos = fn_decl.find(" " + fn_name.str());
-    instance_parser.insert_after(pos + fn_name.str().size(), template_arguments_mangle(inst_args));
+    instance_parser.insert_after(pos + fn_name.str().size(),
+                                 SourceProcessor::template_arguments_mangle(inst_args));
   }
   /* Paste template content in place of instantiation. */
   string instance = instance_parser.result_get();
@@ -396,10 +399,6 @@ void SourceProcessor::process_instantiation(Parser &parser,
   parser.insert_line_number(inst_end, inst_end.line_number(true));
 }
 
-/**
- * Given our codestyle, we don't need the disambiguation.
- * Example: `x.template foo<int>()` > `x.foo<int>()`
- */
 void SourceProcessor::lower_template_dependent_names(Parser &parser)
 {
   parser().foreach_match("tw<..>", [&](const Tokens &toks) {
@@ -455,7 +454,7 @@ void SourceProcessor::lower_templates(Parser &parser)
     bool all_template_args_in_function_signature = false;
     template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
       parse_template_definition(
-          arg, arg_list, Scope::invalid(), all_template_args_in_function_signature);
+          arg, arg_list, Scope::invalid(), all_template_args_in_function_signature, report_error_);
     });
 
     /* Remove declaration. */
@@ -465,14 +464,15 @@ void SourceProcessor::lower_templates(Parser &parser)
     /* Replace instantiations. */
     Scope parent_scope = template_scope.scope();
     parent_scope.foreach_match("tsw<", [&](const vector<Token> &tokens) {
-      process_instantiation(parser,
-                            tokens,
-                            parent_scope,
-                            struct_start,
-                            struct_name,
-                            arg_list,
-                            struct_decl,
-                            all_template_args_in_function_signature);
+      lower_template_instantiation(parser,
+                                   tokens,
+                                   parent_scope,
+                                   struct_start,
+                                   struct_name,
+                                   arg_list,
+                                   struct_decl,
+                                   all_template_args_in_function_signature,
+                                   report_error_);
     });
   };
 
@@ -502,7 +502,8 @@ void SourceProcessor::lower_templates(Parser &parser)
     vector<string> arg_list;
     bool all_template_args_in_function_signature = true;
     template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
-      parse_template_definition(arg, arg_list, fn_args, all_template_args_in_function_signature);
+      parse_template_definition(
+          arg, arg_list, fn_args, all_template_args_in_function_signature, report_error_);
     });
 
     const string fn_decl = parser.substr_range_inclusive(fn_start, fn_end);
@@ -514,14 +515,15 @@ void SourceProcessor::lower_templates(Parser &parser)
     /* Replace instantiations. */
     Scope parent_scope = template_scope.scope();
     parent_scope.foreach_match("tww<", [&](const vector<Token> &tokens) {
-      process_instantiation(parser,
-                            tokens,
-                            parent_scope,
-                            fn_start,
-                            fn_name,
-                            arg_list,
-                            fn_decl,
-                            all_template_args_in_function_signature);
+      lower_template_instantiation(parser,
+                                   tokens,
+                                   parent_scope,
+                                   fn_start,
+                                   fn_name,
+                                   arg_list,
+                                   fn_decl,
+                                   all_template_args_in_function_signature,
+                                   report_error_);
     });
   };
 
@@ -564,9 +566,10 @@ void SourceProcessor::parse_defines(Parser &parser)
   });
 }
 
-void SourceProcessor::parse_namespace_symbols(Scope ns)
+static void parse_namespace_symbols(Scope ns, metadata::Source &metadata)
 {
-  ns.foreach_scope(ScopeType::Namespace, [&](const Scope &ns) { parse_namespace_symbols(ns); });
+  ns.foreach_scope(ScopeType::Namespace,
+                   [&](const Scope &ns) { parse_namespace_symbols(ns, metadata); });
 
   auto process_symbol =
       [&](Scope ns_scope, Token name, string identifier, size_t line, bool is_method) {
@@ -583,7 +586,7 @@ void SourceProcessor::parse_namespace_symbols(Scope ns)
         symbol.identifier = identifier;
         symbol.definition_line = line;
         symbol.is_method = is_method;
-        metadata_.symbol_table.emplace_back(symbol);
+        metadata.symbol_table.emplace_back(symbol);
       };
 
   auto process_templates = [&](Scope ns_scope, Token t, bool is_method) {
@@ -600,7 +603,8 @@ void SourceProcessor::parse_namespace_symbols(Scope ns)
       /* Struct. */
       Token name = t.next().next();
       Scope template_args = name.next().scope();
-      string resolved_name = name.str() + template_arguments_mangle(template_args);
+      string resolved_name = name.str() +
+                             SourceProcessor::template_arguments_mangle(template_args);
       process_symbol(ns_scope, name, resolved_name, line, false);
     }
     else {
@@ -608,7 +612,8 @@ void SourceProcessor::parse_namespace_symbols(Scope ns)
       Token end = t.find_next(SemiColon);
       Scope template_args = end.prev().scope().front().prev().scope();
       Token name = template_args.front().prev();
-      string resolved_name = name.str() + template_arguments_mangle(template_args);
+      string resolved_name = name.str() +
+                             SourceProcessor::template_arguments_mangle(template_args);
       process_symbol(ns_scope, name, resolved_name, line, is_method);
     }
   };
@@ -634,7 +639,7 @@ void SourceProcessor::parse_namespace_symbols(Scope ns)
 void SourceProcessor::parse_local_symbols(Parser &parser)
 {
   parser().foreach_scope(ScopeType::Namespace,
-                         [&](const Scope &ns) { parse_namespace_symbols(ns); });
+                         [&](const Scope &ns) { parse_namespace_symbols(ns, metadata_); });
 }
 
 string SourceProcessor::get_create_info_placeholder(const string &name)
@@ -1050,62 +1055,61 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
   });
 }
 
-void SourceProcessor::process_static_branch(
-    Parser &parser, shader::Token if_tok, Scope condition, shader::Token attribute, Scope body)
-{
-  if (attribute.str() != "static_branch") {
-    return;
-  }
-
-  if (condition.str().find("&&") != string::npos || condition.str().find("||") != string::npos) {
-    report_error_(ERROR_TOK(condition[0]), "Expecting single condition.");
-    return;
-  }
-
-  if (condition[1].str() != "srt_access") {
-    report_error_(ERROR_TOK(if_tok), "Expecting compilation or specialization constant.");
-    return;
-  }
-
-  Token before_body = body.front().prev();
-
-  string test = "SRT_CONSTANT_" + condition[5].str() + " ";
-  if (condition[7] != condition.back().prev()) {
-    test += parser.substr_range_inclusive(condition[7], condition.back().prev());
-  }
-  string directive = (if_tok.prev() == Else ? "#elif " : "#if ");
-
-  parser.insert_directive(before_body, directive + test);
-  parser.erase(if_tok, before_body);
-
-  if (body.back().next() == Else) {
-    Token else_tok = body.back().next();
-    parser.erase(else_tok);
-    if (else_tok.next() == If) {
-      /* Will be processed later. */
-      Token next_if = else_tok.next();
-      /* Ensure the rest of the if clauses also have the attribute. */
-      Scope attributes = next_if.next().scope().back().next().scope();
-      if (attributes.type() != ScopeType::Subscript ||
-          attributes.front().next().scope().str_exclusive() != "static_branch")
-      {
-        report_error_(ERROR_TOK(next_if),
-                      "Expecting next if statement to also be a static branch.");
-        return;
-      }
-      return;
-    }
-    body = else_tok.next().scope();
-
-    parser.insert_directive(else_tok, "#else");
-  }
-  parser.insert_directive(body.back(), "#endif");
-};
-
 void SourceProcessor::lower_static_branch(Parser &parser)
 {
   parser().foreach_match("i(..)[[w]]{..}", [&](const vector<Token> &tokens) {
-    process_static_branch(parser, tokens[0], tokens[1].scope(), tokens[7], tokens[10].scope());
+    Token if_tok = tokens[0];
+    Scope condition = tokens[1].scope();
+    Token attribute = tokens[7];
+    Scope body = tokens[10].scope();
+
+    if (attribute.str() != "static_branch") {
+      return;
+    }
+
+    if (condition.str().find("&&") != string::npos || condition.str().find("||") != string::npos) {
+      report_error_(ERROR_TOK(condition[0]), "Expecting single condition.");
+      return;
+    }
+
+    if (condition[1].str() != "srt_access") {
+      report_error_(ERROR_TOK(if_tok), "Expecting compilation or specialization constant.");
+      return;
+    }
+
+    Token before_body = body.front().prev();
+
+    string test = "SRT_CONSTANT_" + condition[5].str() + " ";
+    if (condition[7] != condition.back().prev()) {
+      test += parser.substr_range_inclusive(condition[7], condition.back().prev());
+    }
+    string directive = (if_tok.prev() == Else ? "#elif " : "#if ");
+
+    parser.insert_directive(before_body, directive + test);
+    parser.erase(if_tok, before_body);
+
+    if (body.back().next() == Else) {
+      Token else_tok = body.back().next();
+      parser.erase(else_tok);
+      if (else_tok.next() == If) {
+        /* Will be processed later. */
+        Token next_if = else_tok.next();
+        /* Ensure the rest of the if clauses also have the attribute. */
+        Scope attributes = next_if.next().scope().back().next().scope();
+        if (attributes.type() != ScopeType::Subscript ||
+            attributes.front().next().scope().str_exclusive() != "static_branch")
+        {
+          report_error_(ERROR_TOK(next_if),
+                        "Expecting next if statement to also be a static branch.");
+          return;
+        }
+        return;
+      }
+      body = else_tok.next().scope();
+
+      parser.insert_directive(else_tok, "#else");
+    }
+    parser.insert_directive(body.back(), "#endif");
   });
   parser.apply_mutations();
 }
@@ -3379,7 +3383,7 @@ void SourceProcessor::cleanup_empty_lines(Parser &parser)
       if (sequence_end == string::npos) {
         break;
       }
-      size_t line = parser::line_number(str, sequence_end);
+      size_t line = line_number(str, sequence_end);
       parser.replace(sequence_start + 2, sequence_end - 1, "#line " + to_string(line) + "\n");
     }
     parser.apply_mutations();
@@ -4549,7 +4553,6 @@ void SourceProcessor::lower_reference_variables(Parser &parser)
 
 void SourceProcessor::lower_argument_qualifiers(Parser &parser)
 {
-  /* Example: `out float var[2]` > `REF(float, var)[2]` */
   parser().foreach_match("www", [&](const Tokens &toks) {
     if (toks[0].scope().type() == ScopeType::Preprocessor) {
       /* Don't mutate the actual implementation. */

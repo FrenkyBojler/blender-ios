@@ -97,29 +97,13 @@ class SourceProcessor {
   }
 
  private:
+  /* Remove single and multiline comments to avoid this complexity during parsing. */
   std::string remove_comments(const std::string &str);
 
   /* Remove trailing white spaces. */
   void cleanup_whitespace(Parser &parser);
-
   /* Safer version without Parser. */
   std::string cleanup_whitespace(const std::string &str);
-
-  static std::string template_arguments_mangle(const Scope template_args);
-
-  void parse_template_definition(const Scope arg,
-                                 std::vector<std::string> &arg_list,
-                                 const Scope fn_args,
-                                 bool &all_template_args_in_function_signature);
-
-  void process_instantiation(Parser &parser,
-                             const std::vector<Token> &toks,
-                             const Scope &parent_scope,
-                             const Token &fn_start,
-                             const Token &fn_name,
-                             const std::vector<std::string> &arg_list,
-                             const std::string &fn_decl,
-                             const bool all_template_args_in_function_signature);
 
   /**
    * Given our codestyle, we don't need the disambiguation.
@@ -127,32 +111,32 @@ class SourceProcessor {
    */
   void lower_template_dependent_names(Parser &parser);
 
+  /* Lower template definition and instantiation by doing simple copy paste + argument
+   * substitution. */
   void lower_templates(Parser &parser);
 
   /* Parse defines in order to output them with the create infos.
    * This allow the create infos to use shared defines values. */
   void parse_defines(Parser &parser);
 
-  void parse_namespace_symbols(Scope ns);
-
+  /* Populates metadata::symbol_table by scanning all namespaces.
+   * Does not parse global symbols. */
   void parse_local_symbols(Parser &parser);
-
-  std::string get_create_info_placeholder(const std::string &name);
 
   /* Legacy create info parsing and removing. */
   void parse_legacy_create_info(Parser &parser);
 
+  /* Populates metadata::dependencies by scanning include directives. */
   void parse_includes(Parser &parser);
-
+  /* Parse special pragma. */
   void parse_pragma_runtime_generated(Parser &parser);
-
+  /* Ensures pragma once is present in headers to comply to our include semantic. */
   void lint_pragma_once(Parser &parser, const std::string &filename);
 
+  /* Unroll loops by copy pasting content. */
   void lower_loop_unroll(Parser &parser);
 
-  void process_static_branch(
-      Parser &parser, Token if_tok, Scope condition, Token attribute, Scope body);
-
+  /* Convert if statements marked as static to preprocessor #if statements. */
   void lower_static_branch(Parser &parser);
 
   /* Lower namespaces by adding namespace prefix to all the contained structs and functions. */
@@ -176,10 +160,16 @@ class SourceProcessor {
    */
   void lower_using(Parser &parser);
 
+  /* Example: `A::B` --> `A_B` */
   void lower_scope_resolution_operators(Parser &parser);
 
+  /* Lower preprocessor directives containing `GPU_SHADER`.
+   * Avoid processing code that is not destined to be shader code and could contain unsupported
+   * syntax. */
   std::string disabled_code_mutation(const std::string &str);
 
+  /* Remove preprocessor directives unsupported by target shading languages.
+   * Examples `#includes`, `#pragma once`. */
   void lower_preprocessor(Parser &parser);
 
   /* Support for BLI swizzle syntax. */
@@ -187,8 +177,12 @@ class SourceProcessor {
 
   std::string threadgroup_variables_parse_and_remove(const std::string &str);
 
+  /* Populate metadata::functions for runtime nodetree compilation. */
   void parse_library_functions(Parser &parser);
 
+  /* Populate metadata::builtins by scanning source for keywords. Can trigger false positive.
+   * This is mostly legacy path as most builtin should be explicitly defined inside the BSL entry
+   * points. */
   void parse_builtins(const std::string &str, const std::string &filename, bool pure_glsl = false);
 
   /* Change printf calls to "recursive" call to implementation functions.
@@ -227,6 +221,7 @@ class SourceProcessor {
   /* Parse, convert to create infos, and erase declaration. */
   void lower_pipeline_definition(Parser &parser, const std::string &filename);
 
+  /* Remove `[vertex|fragment|compute]` function attribute and add appropriate guards. */
   void lower_stage_function(Parser &parser);
 
   /* Add #ifdef directive around functions using SRT arguments.
@@ -236,11 +231,14 @@ class SourceProcessor {
   /* Add ifdefs guards around scopes using resource accessors. */
   void lower_resource_access_functions(Parser &parser);
 
+  /* Make a scope only active based on the given condition using `#if` preprocessor directives.
+   * Processor contained return statements by returning 0 if scope is disabled. */
   void guarded_scope_mutation(Parser &parser,
                               Scope scope,
                               const std::string &condition,
                               Token fn_type = Token::invalid());
 
+  /* Lower enums to constants. */
   void lower_enums(Parser &parser);
 
   /* Merge attribute scopes. They are equivalent in the C++ standard.
@@ -252,24 +250,31 @@ class SourceProcessor {
    * Remove the [[host_shared]] attribute. */
   void lower_host_shared_structures(Parser &parser);
 
+  /* Make sure `if`, `else`, `for` statements are followed by braces. */
   void lint_unbraced_statements(Parser &parser);
 
+  /* Lint for BSL reserved tokens. */
   void lint_reserved_tokens(Parser &parser);
-
+  /* Lint for valid BSL attributes. */
   void lint_attributes(Parser &parser);
 
+  /* Remove noop keywords that makes subsequent lowering passes more complicated. */
   void lower_noop_keywords(Parser &parser);
 
+  /* Example: `int a[] = {1,2,};` --> `int a[] = {1,2 };` */
   void lower_trailing_comma_in_list(Parser &parser);
 
   /* Allow easier parsing of struct member declaration.
-   * Example: `int a, b;` > `int a; int b;` */
+   * Example: `int a, b;` --> `int a; int b;` */
   void lower_comma_separated_declarations(Parser &parser);
 
+  /* Example: `return {1, 2};` --> `T tmp = T{1, 2}; return tmp;`. */
   void lower_implicit_return_types(Parser &parser);
 
+  /* Example: `int a{1};` --> `int a = int{1};`. */
   void lower_initializer_implicit_types(Parser &parser);
 
+  /* Example: `T a{.a=1};` --> `T a; a.a=1;`. */
   void lower_designated_initializers(Parser &parser);
 
   /* Support for **full** aggregate initialization.
@@ -281,8 +286,6 @@ class SourceProcessor {
    * initializer list instead. */
   void lower_array_initializations(Parser &parser);
 
-  static std::string strip_whitespace(const std::string &str);
-
   /**
    * Expand functions with default arguments to function overloads.
    * Expects formatted input and that function bodies are followed by newline.
@@ -291,7 +294,6 @@ class SourceProcessor {
 
   /* Successive mutations can introduce a lot of unneeded line directives. */
   void cleanup_line_directives(Parser &parser);
-
   /* Successive mutations can introduce a lot of unneeded blank lines. */
   void cleanup_empty_lines(Parser &parser);
 
@@ -299,9 +301,7 @@ class SourceProcessor {
    * This syntax is not supported in blender's own shaders. */
   std::string matrix_constructor_mutation(const std::string &str);
 
-  /* To be run before `argument_decorator_macro_injection()`. */
-  void lower_reference_arguments(Parser &parser);
-
+  /* Limited union implementation. Create getters and setters to a raw data struct. */
   void lower_unions(Parser &parser);
 
   /**
@@ -330,13 +330,15 @@ class SourceProcessor {
 
   /* Parse entry point definitions and mutating all parameter usage to global resources. */
   void lower_entry_points(Parser &parser);
-
   /* Removes entry point arguments to make it compatible with the legacy code.
    * Has to run after mutation related to function arguments. */
   void lower_entry_points_signature(Parser &parser);
+
   /* To be run after `lower_reference_arguments()`. */
   void lower_reference_variables(Parser &parser);
-
+  /* To be run before `argument_decorator_macro_injection()`. */
+  void lower_reference_arguments(Parser &parser);
+  /* Example: `out float var[2]` > `_ref(float, var)[2]` */
   void lower_argument_qualifiers(Parser &parser);
 
   /* Example: `out float var[2]` > `out float _out_sta var _out_end[2]` */
@@ -355,8 +357,24 @@ class SourceProcessor {
    * there is no pointers. */
   void lint_forward_declared_structs(Parser &parser);
 
+  /* Parse subscript scope with single integer literal and return the literal value.
+   * Return the fallback value in any case of non-literal value, or failed conversion. */
   int static_array_size(const Scope &array, int fallback_value);
+
+  /* Prepend `#line 1 filename\n`. */
   std::string line_directive_prefix(const std::string &filename);
+
+ public:
+  /* --- Utilities --- */
+
+  /* Remove trailing whitespaces. */
+  static std::string strip_whitespace(const std::string &str);
+
+  /* Example: `VertOut<float, 1>` > `VertOutTfloatT1` */
+  static std::string template_arguments_mangle(const Scope template_args);
+
+  /* Create placeholder for GLSL declarations generated by the GPU backends (VK/GL). */
+  static std::string get_create_info_placeholder(const std::string &name);
 };
 
 }  // namespace blender::gpu::shader
