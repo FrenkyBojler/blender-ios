@@ -277,8 +277,8 @@ static void userpref_main_region_property_search(const bContext *C,
   userpref_search_all_tabs(C, sprefs, region, tabs);
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
-  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    if (blender::ui::panel_is_active(panel) && blender::ui::panel_matches_search_filter(panel)) {
+  for (Panel &panel : region->panels) {
+    if (blender::ui::panel_is_active(&panel) && blender::ui::panel_matches_search_filter(&panel)) {
       current_tab_has_search_match = true;
     }
   }
