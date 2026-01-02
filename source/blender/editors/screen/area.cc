@@ -1704,15 +1704,35 @@ static void region_rect_recursive(
   else if (ELEM(alignment, RGN_ALIGN_LEFT, RGN_ALIGN_RIGHT)) {
     rcti *winrct = (region->overlap) ? overlap_remainder : remainder;
     const int width = BLI_rcti_size_x(winrct) + 1;
-    const bool has_tabs = BKE_regiontype_uses_category_tabs(region->runtime->type);
-    const int min = UI_SCALE_FAC * (has_tabs ? UI_COMPACT_PANEL_WIDTH : UI_TOOLBAR_WIDTH);
-
-    if (width < prefsizex && width > min) {
-      region->winrct = *winrct;
-      BLI_rcti_sanitize(winrct);
-    }
-    else if (prefsizex == 0 || width < prefsizex) {
+    if (prefsizex == 0) {
       region->flag |= RGN_FLAG_TOO_SMALL;
+    }
+    else if (width < prefsizex) {
+      const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                           (BLI_rcti_size_y(&region->v2d.mask) + 1);
+      const bool has_tabs = BKE_regiontype_uses_category_tabs(region->runtime->type);
+      const int min = UI_SCALE_FAC *
+                      (has_tabs ? UI_PANEL_CATEGORY_MIN_SNAP_WIDTH : UI_TOOLBAR_WIDTH) / aspect;
+      if (width > min) {
+        /* Adjust width to fit. */
+        region->winrct = *winrct;
+        BLI_rcti_sanitize(winrct);
+      }
+      else if (has_tabs) {
+        /* Too narrow for content so show only the category tabs. */
+        const int cat_min = UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect;
+        region->winrct = *winrct;
+        if (alignment == RGN_ALIGN_RIGHT) {
+          region->winrct.xmin = region->winrct.xmax - cat_min + 1;
+        }
+        else {
+          region->winrct.xmax = region->winrct.xmin + cat_min - 1;
+        }
+        BLI_rcti_sanitize(winrct);
+      }
+      else {
+        region->flag |= RGN_FLAG_TOO_SMALL;
+      }
     }
     else {
       int fac = rct_fits(winrct, SCREEN_AXIS_H, prefsizex);
