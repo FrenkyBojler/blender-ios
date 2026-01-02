@@ -95,21 +95,20 @@ class SourceProcessor {
   }
 
  private:
-  std::string remove_comments(const std::string &str, const report_callback &report_error);
+  std::string remove_comments(const std::string &str);
 
   /* Remove trailing white spaces. */
-  void cleanup_whitespace(Parser &parser, report_callback /*report_error*/);
+  void cleanup_whitespace(Parser &parser);
 
   /* Safer version without Parser. */
-  std::string cleanup_whitespace(const std::string &str, const report_callback & /*report_error*/);
+  std::string cleanup_whitespace(const std::string &str);
 
   static std::string template_arguments_mangle(const shader::parser::Scope template_args);
 
   void parse_template_definition(const parser::Scope arg,
                                  std::vector<std::string> &arg_list,
                                  const parser::Scope fn_args,
-                                 bool &all_template_args_in_function_signature,
-                                 report_callback &report_error);
+                                 bool &all_template_args_in_function_signature);
 
   void process_instantiation(Parser &parser,
                              const std::vector<parser::Token> &toks,
@@ -118,49 +117,47 @@ class SourceProcessor {
                              const parser::Token &fn_name,
                              const std::vector<std::string> &arg_list,
                              const std::string &fn_decl,
-                             const bool all_template_args_in_function_signature,
-                             report_callback &report_error);
+                             const bool all_template_args_in_function_signature);
 
   /**
    * Given our codestyle, we don't need the disambiguation.
    * Example: `x.template foo<int>()` > `x.foo<int>()`
    */
-  void lower_template_dependent_names(Parser &parser, report_callback & /*report_error*/);
+  void lower_template_dependent_names(Parser &parser);
 
-  void lower_templates(Parser &parser, report_callback &report_error);
+  void lower_templates(Parser &parser);
 
   /* Parse defines in order to output them with the create infos.
    * This allow the create infos to use shared defines values. */
-  void parse_defines(Parser &parser, report_callback /*report_error*/);
+  void parse_defines(Parser &parser);
 
   void parse_namespace_symbols(shader::parser::Scope ns);
 
-  void parse_local_symbols(Parser &parser, report_callback /*report_error*/);
+  void parse_local_symbols(Parser &parser);
 
   std::string get_create_info_placeholder(const std::string &name);
 
   /* Legacy create info parsing and removing. */
-  void parse_legacy_create_info(Parser &parser, report_callback report_error);
+  void parse_legacy_create_info(Parser &parser);
 
-  void parse_includes(Parser &parser, report_callback /*report_error*/);
+  void parse_includes(Parser &parser);
 
   void parse_pragma_runtime_generated(Parser &parser);
 
-  void lint_pragma_once(Parser &parser, const std::string &filename, report_callback report_error);
+  void lint_pragma_once(Parser &parser, const std::string &filename);
 
-  void lower_loop_unroll(Parser &parser, report_callback report_error);
+  void lower_loop_unroll(Parser &parser);
 
   void process_static_branch(Parser &parser,
                              shader::parser::Token if_tok,
                              shader::parser::Scope condition,
                              shader::parser::Token attribute,
-                             shader::parser::Scope body,
-                             report_callback report_error);
+                             shader::parser::Scope body);
 
-  void lower_static_branch(Parser &parser, report_callback report_error);
+  void lower_static_branch(Parser &parser);
 
   /* Lower namespaces by adding namespace prefix to all the contained structs and functions. */
-  void lower_namespaces(Parser &parser, report_callback report_error);
+  void lower_namespaces(Parser &parser);
 
   /**
    * Needs to run before namespace mutation so that `using` have more precedence.
@@ -178,115 +175,112 @@ class SourceProcessor {
    *  }
    *  ```
    */
-  void lower_using(Parser &parser, report_callback report_error);
+  void lower_using(Parser &parser);
 
-  void lower_scope_resolution_operators(Parser &parser, report_callback /*report_error*/);
+  void lower_scope_resolution_operators(Parser &parser);
 
-  std::string disabled_code_mutation(const std::string &str, report_callback &report_error);
+  std::string disabled_code_mutation(const std::string &str);
 
-  void lower_preprocessor(Parser &parser, report_callback /*report_error*/);
+  void lower_preprocessor(Parser &parser);
 
   /* Support for BLI swizzle syntax. */
-  void lower_swizzle_methods(Parser &parser, report_callback /*report_error*/);
+  void lower_swizzle_methods(Parser &parser);
 
-  std::string threadgroup_variables_parse_and_remove(const std::string &str,
-                                                     report_callback &report_error);
+  std::string threadgroup_variables_parse_and_remove(const std::string &str);
 
-  void parse_library_functions(Parser &parser, report_callback report_error);
+  void parse_library_functions(Parser &parser);
 
   void parse_builtins(const std::string &str, const std::string &filename, bool pure_glsl = false);
 
   /* Change printf calls to "recursive" call to implementation functions.
    * This allows to emulate the variadic arguments of printf. */
-  void lower_printf(Parser &parser, report_callback /*report_error*/);
+  void lower_printf(Parser &parser);
 
   /* Turn assert into a printf. */
-  void lower_assert(Parser &parser, const std::string &filename, report_callback report_error);
+  void lower_assert(Parser &parser, const std::string &filename);
 
   /* Parse SRT and interfaces, remove their attributes and create init function for SRT structs. */
-  void lower_resource_table(Parser &parser, report_callback report_error);
+  void lower_resource_table(Parser &parser);
 
-  void lower_strings_sequences(Parser &parser, report_callback /*report_error*/);
+  void lower_strings_sequences(Parser &parser);
 
   /* Replace string literals by their hash and store the original string in the file metadata. */
-  void lower_strings(Parser &parser, report_callback /*report_error*/);
+  void lower_strings(Parser &parser);
 
   /* `class` -> `struct` */
-  void lower_classes(Parser &parser, report_callback /*report_error*/);
+  void lower_classes(Parser &parser);
 
   /* Create default initializer (empty brace) for all classes. */
-  void lower_default_constructors(Parser &parser, report_callback report_error);
+  void lower_default_constructors(Parser &parser);
 
   /* Make all members of a class to be referenced using `this->`. */
-  void lower_implicit_member(Parser &parser, report_callback report_error);
+  void lower_implicit_member(Parser &parser);
 
   /* Move all method definition outside of struct definition blocks. */
-  void lower_method_definitions(Parser &parser, report_callback report_error);
+  void lower_method_definitions(Parser &parser);
 
   /* Add padding member to empty structs. */
-  void lower_empty_struct(Parser &parser, report_callback /*report_error*/);
+  void lower_empty_struct(Parser &parser);
 
   /* Transform `a.fn(b)` into `fn(a, b)`. */
-  void lower_method_calls(Parser &parser, report_callback report_error);
+  void lower_method_calls(Parser &parser);
 
   /* Parse, convert to create infos, and erase declaration. */
-  void lower_pipeline_definition(Parser &parser,
-                                 const std::string &filename,
-                                 report_callback /*report_error*/);
+  void lower_pipeline_definition(Parser &parser, const std::string &filename);
 
-  void lower_stage_function(Parser &parser, report_callback /*report_error*/);
+  void lower_stage_function(Parser &parser);
 
   /* Add #ifdef directive around functions using SRT arguments.
    * Need to run after `lower_entry_points_signature`. */
-  void lower_srt_arguments(Parser &parser, report_callback /*report_error*/);
+  void lower_srt_arguments(Parser &parser);
 
   /* Add ifdefs guards around scopes using resource accessors. */
-  void lower_resource_access_functions(Parser &parser, report_callback /*report_error*/);
+  void lower_resource_access_functions(Parser &parser);
 
   void guarded_scope_mutation(Parser &parser,
                               parser::Scope scope,
                               const std::string &condition,
                               parser::Token fn_type = parser::Token::invalid());
 
-  void lower_enums(Parser &parser, report_callback report_error);
+  void lower_enums(Parser &parser);
 
   /* Merge attribute scopes. They are equivalent in the C++ standard.
    * This allow to simplify parsing later on.
    * `[[a]] [[b]]` > `[[a, b]]` */
-  void lower_attribute_sequences(Parser &parser, report_callback /*report_error*/);
+  void lower_attribute_sequences(Parser &parser);
 
   /* Lint host shared structure for padding and alignment.
    * Remove the [[host_shared]] attribute. */
-  void lower_host_shared_structures(Parser &parser, report_callback report_error);
+  void lower_host_shared_structures(Parser &parser);
 
-  void lint_unbraced_statements(Parser &parser, report_callback report_error);
+  void lint_unbraced_statements(Parser &parser);
 
-  void lint_reserved_tokens(Parser &parser, report_callback report_error);
+  void lint_reserved_tokens(Parser &parser);
 
-  void lint_attributes(Parser &parser, report_callback report_error);
+  void lint_attributes(Parser &parser);
 
-  void lower_noop_keywords(Parser &parser, report_callback report_error);
+  void lower_noop_keywords(Parser &parser);
 
-  void lower_trailing_comma_in_list(Parser &parser, report_callback /*report_error*/);
+  void lower_trailing_comma_in_list(Parser &parser);
 
   /* Allow easier parsing of struct member declaration.
    * Example: `int a, b;` > `int a; int b;` */
-  void lower_comma_separated_declarations(Parser &parser, report_callback /*report_error*/);
+  void lower_comma_separated_declarations(Parser &parser);
 
-  void lower_implicit_return_types(Parser &parser, report_callback /*report_error*/);
+  void lower_implicit_return_types(Parser &parser);
 
-  void lower_initializer_implicit_types(Parser &parser, report_callback /*report_error*/);
+  void lower_initializer_implicit_types(Parser &parser);
 
-  void lower_designated_initializers(Parser &parser, report_callback report_error);
+  void lower_designated_initializers(Parser &parser);
 
   /* Support for **full** aggregate initialization.
    * They are converted to default constructor for GLSL. */
-  void lower_aggregate_initializers(Parser &parser, report_callback report_error);
+  void lower_aggregate_initializers(Parser &parser);
 
   /* Auto detect array length, and lower to GLSL compatible syntax.
    * TODO(fclem): GLSL 4.3 already supports initializer list. So port the old GLSL syntax to
    * initializer list instead. */
-  void lower_array_initializations(Parser &parser, report_callback report_error);
+  void lower_array_initializations(Parser &parser);
 
   static std::string strip_whitespace(const std::string &str);
 
@@ -294,22 +288,22 @@ class SourceProcessor {
    * Expand functions with default arguments to function overloads.
    * Expects formatted input and that function bodies are followed by newline.
    */
-  void lower_function_default_arguments(Parser &parser, report_callback /*report_error*/);
+  void lower_function_default_arguments(Parser &parser);
 
   /* Successive mutations can introduce a lot of unneeded line directives. */
-  void cleanup_line_directives(Parser &parser, report_callback /*report_error*/);
+  void cleanup_line_directives(Parser &parser);
 
   /* Successive mutations can introduce a lot of unneeded blank lines. */
-  void cleanup_empty_lines(Parser &parser, report_callback /*report_error*/);
+  void cleanup_empty_lines(Parser &parser);
 
   /* Used to make GLSL matrix constructor compatible with MSL in pyGPU shaders.
    * This syntax is not supported in blender's own shaders. */
   std::string matrix_constructor_mutation(const std::string &str);
 
   /* To be run before `argument_decorator_macro_injection()`. */
-  void lower_reference_arguments(Parser &parser, report_callback /*report_error*/);
+  void lower_reference_arguments(Parser &parser);
 
-  void lower_unions(Parser &parser, report_callback report_error);
+  void lower_unions(Parser &parser);
 
   /**
    * For safety reason, union members need to be declared with the union_t template.
@@ -318,7 +312,7 @@ class SourceProcessor {
    *
    * Need to run before lower_unions.
    */
-  void lower_union_accessor_templates(Parser &parser, report_callback report_error);
+  void lower_union_accessor_templates(Parser &parser);
 
   /**
    * For safety reason, nested resource tables need to be declared with the srt_t template.
@@ -329,42 +323,40 @@ class SourceProcessor {
    *
    * Need to run before lower_resource_table.
    */
-  void lower_srt_accessor_templates(Parser &parser, report_callback report_error);
+  void lower_srt_accessor_templates(Parser &parser);
 
   /* Add `srt_access` around all member access of SRT variables.
    * Need to run before local reference mutations. */
-  void lower_srt_member_access(Parser &parser, report_callback report_error);
+  void lower_srt_member_access(Parser &parser);
 
   /* Parse entry point definitions and mutating all parameter usage to global resources. */
-  void lower_entry_points(Parser &parser, report_callback report_error);
+  void lower_entry_points(Parser &parser);
 
   /* Removes entry point arguments to make it compatible with the legacy code.
    * Has to run after mutation related to function arguments. */
-  void lower_entry_points_signature(Parser &parser, report_callback /*report_error*/);
+  void lower_entry_points_signature(Parser &parser);
   /* To be run after `lower_reference_arguments()`. */
-  void lower_reference_variables(Parser &parser, report_callback report_error);
+  void lower_reference_variables(Parser &parser);
 
-  void lower_argument_qualifiers(Parser &parser, report_callback /*report_error*/);
+  void lower_argument_qualifiers(Parser &parser);
 
   /* Example: `out float var[2]` > `out float _out_sta var _out_end[2]` */
   std::string argument_decorator_macro_injection(const std::string &str);
-  
+
   /* Example: `= float[2](0.0, 0.0)` > `= ARRAY_T(float) ARRAY_V(0.0, 0.0)` */
   std::string array_constructor_macro_injection(const std::string &str);
 
   /* Assume formatted source with our code style. Cannot be applied to python shaders. */
-  void lint_global_scope_constants(Parser &parser, report_callback report_error);
+  void lint_global_scope_constants(Parser &parser);
 
   /* Search for constructor definition in active code. These are not supported. */
-  void lint_constructors(Parser &parser, report_callback report_error);
+  void lint_constructors(Parser &parser);
 
   /* Forward declaration of types are not supported and makes no sense in a shader program where
    * there is no pointers. */
-  void lint_forward_declared_structs(Parser &parser, report_callback report_error);
+  void lint_forward_declared_structs(Parser &parser);
 
-  int static_array_size(const shader::parser::Scope &array,
-                        report_callback report_error,
-                        int fallback_value);
+  int static_array_size(const shader::parser::Scope &array, int fallback_value);
   std::string line_directive_prefix(const std::string &filename);
 };
 
