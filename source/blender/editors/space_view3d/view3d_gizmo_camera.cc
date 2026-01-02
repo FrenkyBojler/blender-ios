@@ -259,6 +259,14 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
     if (is_ortho) {
       RNA_float_set_array(widget->ptr, "dimensions", aspect);
+
+      // Set the pivot for scaling. Handles the case where the lens shifting is not zero and the
+      // gizmo should scale around the lens center instead of the gizmo center.
+      const float pivot[2] = { ca->shiftx, ca->shifty };
+      RNA_float_set_array(widget->ptr, "pivot", pivot);
+
+      mul_v2_fl(offset, ca->ortho_scale * 0.5f);
+      WM_gizmo_set_matrix_offset_location(widget, offset);
     }
     else {
       RNA_float_set_array(widget->ptr, "aspect", aspect);
