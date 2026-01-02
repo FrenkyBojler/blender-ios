@@ -1306,16 +1306,18 @@ void EraseOperation::on_stroke_done(const bContext &C)
     grease_pencil.runtime->temp_eraser_size = 0.0f;
   }
 
-  for (GreasePencilDrawing *drawing_ : affected_drawings_) {
-    bke::greasepencil::Drawing &drawing = drawing_->wrap();
+  if (eraser_mode_ != GP_BRUSH_ERASER_CARVE) {
+    for (GreasePencilDrawing *drawing_ : affected_drawings_) {
+      bke::greasepencil::Drawing &drawing = drawing_->wrap();
 
-    if (drawing.strokes().attributes().contains("_eraser_inserted")) {
-      simplify_opacities(drawing.strokes_for_write(), drawing.opacities(), 0.01f);
+      if (drawing.strokes().attributes().contains("_eraser_inserted")) {
+        simplify_opacities(drawing.strokes_for_write(), drawing.opacities(), 0.01f);
+      }
+      remove_points_with_low_opacity(drawing.strokes_for_write(), drawing.opacities(), 0.0001f);
+
+      drawing.strokes_for_write().attributes_for_write().remove("_eraser_inserted");
+      drawing.tag_topology_changed();
     }
-    remove_points_with_low_opacity(drawing.strokes_for_write(), drawing.opacities(), 0.0001f);
-
-    drawing.strokes_for_write().attributes_for_write().remove("_eraser_inserted");
-    drawing.tag_topology_changed();
   }
 
   affected_drawings_.clear();
