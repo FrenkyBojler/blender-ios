@@ -108,6 +108,7 @@ set(SRC
 
   shader_tool/intermediate.cc
   shader_tool/metadata.cc
+  shader_tool/processor.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh
