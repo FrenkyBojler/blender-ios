@@ -3,7 +3,7 @@ Referenced by issue #133835, Undo issues in mesh sculpt mode with other editors
 Referenced by issue #117417, Fix undo overreach in various paint modes for #69760 and related.
 Referenced by issue #101728, Redo Panel changes the state of the last active Vertex Group
 Referenced by issue #89549, Missing undo push for Paint Mask and Vertex Selection in weight paint
-Referenced by issue #71895, Undo doesn't consider changes in nodetree when object is in edit and texture paint mode
+Referenced by issue #71895, Undo doesn't consider changes in nodetree when object is in edit mode
 Referenced by issue #69760, Undo/Adjust Last Operation: Weight Paint operators/strokes undo more then they should (change back any setting changed prior to execution)
 Referenced by issue #61948, Undo steps created for non-paint operations (brush size)
 Referenced by pull request #134548, Undo: Add explicit filtering for IDs and RNA structs marked as skippable
