@@ -251,7 +251,7 @@ ccl_device_forceinline void mnee_setup_manifold_vertex(KernelGlobals kg,
  * inlined). */
 __attribute__((noinline))
 #else
-ccl_device_inline
+ccl_device_forceinline
 #endif
 bool mnee_compute_constraint_derivatives(
   const int vertex_count,
@@ -408,13 +408,13 @@ ccl_device_forceinline bool mnee_solve_matrix_h_to_x(const int vertex_count,
 }
 
 /* Newton solver to walk on specular manifold. */
-ccl_device_inline bool mnee_newton_solver(KernelGlobals kg,
-                                          const ccl_private ShaderData *sd,
-                                          ccl_private ShaderData *sd_vtx,
-                                          const ccl_private LightSample *ls,
-                                          const bool light_fixed_direction,
-                                          const int vertex_count,
-                                          ccl_private ManifoldVertex *vertices)
+ccl_device_forceinline bool mnee_newton_solver(KernelGlobals kg,
+                                               const ccl_private ShaderData *sd,
+                                               ccl_private ShaderData *sd_vtx,
+                                               const ccl_private LightSample *ls,
+                                               const bool light_fixed_direction,
+                                               const int vertex_count,
+                                               ccl_private ManifoldVertex *vertices)
 {
   float2 dx[MNEE_MAX_CAUSTIC_CASTERS];
   ManifoldVertex tentative[MNEE_MAX_CAUSTIC_CASTERS];
@@ -796,15 +796,15 @@ ccl_device_forceinline bool mnee_compute_transfer_matrix(const ccl_private Shade
 }
 
 /* Calculate the path contribution. */
-ccl_device_inline bool mnee_path_contribution(KernelGlobals kg,
-                                              IntegratorState state,
-                                              ccl_private ShaderData *sd,
-                                              ccl_private ShaderData *sd_mnee,
-                                              ccl_private LightSample *ls,
-                                              const bool light_fixed_direction,
-                                              const int vertex_count,
-                                              ccl_private ManifoldVertex *vertices,
-                                              ccl_private BsdfEval *throughput)
+ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
+                                                   IntegratorState state,
+                                                   ccl_private ShaderData *sd,
+                                                   ccl_private ShaderData *sd_mnee,
+                                                   ccl_private LightSample *ls,
+                                                   const bool light_fixed_direction,
+                                                   const int vertex_count,
+                                                   ccl_private ManifoldVertex *vertices,
+                                                   ccl_private BsdfEval *throughput)
 {
   float wo_len;
   float3 wo = normalize_len(vertices[0].p - sd->P, &wo_len);
