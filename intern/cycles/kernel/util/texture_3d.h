@@ -26,7 +26,7 @@ namespace {
 #ifdef WITH_NANOVDB
 
 /* Cubic interpolation weights. */
-ccl_device_inline void fill_cubic_weights(float3 w[4], float3 t)
+ccl_device_forceinline void fill_cubic_weights(float3 w[4], float3 t)
 {
   w[0] = (((-1.0f / 6.0f) * t + 0.5f) * t - 0.5f) * t + (1.0f / 6.0f);
   w[1] = ((0.5f * t - 1.0f) * t) * t + (2.0f / 3.0f);
@@ -127,7 +127,16 @@ ccl_device OutT kernel_tex_image_interp_tricubic_nanovdb(ccl_private Acc &acc, c
 
   OutT result = make_zero<OutT>();
 
+  /* Explicit hint for HIP compiler to unroll the loop. Without this the render result is wrong
+   * on a specific platform/compiler combinations. See #152126. */
+#  if defined(__KERNEL_HIP__)
+#    define UNROLL _Pragma("unroll")
+#  else
+#    define UNROLL
+#  endif
+
   for (int k = 0; k < 4; k++) {
+    UNROLL
     for (int j = 0; j < 4; j++) {
       result += w[k].z * (w[j].y * (w[0].x * (OutT(acc.getValue(index + make_int3(0, j, k)))) +
                                     w[1].x * (OutT(acc.getValue(index + make_int3(1, j, k)))) +
@@ -135,6 +144,8 @@ ccl_device OutT kernel_tex_image_interp_tricubic_nanovdb(ccl_private Acc &acc, c
                                     w[3].x * (OutT(acc.getValue(index + make_int3(3, j, k))))));
     }
   }
+
+#  undef UNROLL
 
   return result;
 }
