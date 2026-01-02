@@ -36,8 +36,8 @@ def blend_list(dirpath, blocklist, filter):
             positive_filter = filter
             negative_filter = ""
 
-        positive_patterns = positive_filter.split(":") if positive_filter else []
-        negative_patterns = negative_filter.split(":") if negative_filter else []
+        positive_patterns = positive_filter.lower().split(":") if positive_filter else []
+        negative_patterns = negative_filter.lower().split(":") if negative_filter else []
 
     for root, dirs, files in os.walk(dirpath):
         for filename in files:
