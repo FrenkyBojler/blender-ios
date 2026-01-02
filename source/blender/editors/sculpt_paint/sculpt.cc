@@ -4715,7 +4715,7 @@ float raycast_init(ViewContext *vc,
   return math::distance(r_ray_start, r_ray_end);
 }
 
-std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const float2 mval)
+std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const float2 &mval)
 {
   Object &ob = *vc.obact;
   SculptSession &ss = *ob.sculpt;
@@ -7699,7 +7699,7 @@ OffsetIndices<int> create_node_vert_offsets(const Span<bke::pbvh::MeshNode> node
                                             Array<int> &node_data)
 {
   node_data.reinitialize(node_mask.size() + 1);
-  node_mask.foreach_index(
+  node_mask.foreach_index_optimized<int>(
       [&](const int i, const int pos) { node_data[pos] = nodes[i].verts().size(); });
   return offset_indices::accumulate_counts_to_offsets(node_data);
 }
@@ -7710,7 +7710,7 @@ OffsetIndices<int> create_node_vert_offsets(const CCGKey &key,
                                             Array<int> &node_data)
 {
   node_data.reinitialize(node_mask.size() + 1);
-  node_mask.foreach_index([&](const int i, const int pos) {
+  node_mask.foreach_index_optimized<int>([&](const int i, const int pos) {
     node_data[pos] = nodes[i].grids().size() * key.grid_area;
   });
   return offset_indices::accumulate_counts_to_offsets(node_data);

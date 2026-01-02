@@ -113,22 +113,22 @@ struct PaintTileKey {
 };
 
 struct PaintTile {
-  Image *image;
-  ImBuf *ibuf;
+  Image *image = nullptr;
+  ImBuf *ibuf = nullptr;
   /* For 2D image painting the ImageUser uses most of the values.
    * Even though views and passes are stored they are currently not supported for painting.
    * For 3D projection painting this only uses a tile & frame number.
    * The scene pointer must be cleared (or temporarily set it as needed, but leave cleared). */
   ImageUser iuser;
   union {
-    float *fp;
+    float *fp = nullptr;
     uint8_t *byte_ptr;
     void *pt;
   } rect;
-  uint16_t *mask;
-  bool valid;
-  bool use_float;
-  int x_tile, y_tile;
+  uint16_t *mask = nullptr;
+  bool valid = false;
+  bool use_float = false;
+  int x_tile = 0, y_tile = 0;
 };
 
 static void ptile_free(PaintTile *ptile)
@@ -244,7 +244,7 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
     *tmpibuf = imbuf_alloc_temp_tile();
   }
 
-  PaintTile *ptile = MEM_callocN<PaintTile>("PaintTile");
+  PaintTile *ptile = MEM_new_for_free<PaintTile>("PaintTile");
 
   ptile->image = image;
   ptile->ibuf = ibuf;
@@ -721,7 +721,7 @@ static UndoImageHandle *uhandle_lookup(ListBase *undo_handles, const Image *imag
 static UndoImageHandle *uhandle_add(ListBase *undo_handles, Image *image, ImageUser *iuser)
 {
   BLI_assert(uhandle_lookup(undo_handles, image, iuser->tile) == nullptr);
-  UndoImageHandle *uh = MEM_callocN<UndoImageHandle>(__func__);
+  UndoImageHandle *uh = MEM_new_for_free<UndoImageHandle>(__func__);
   uh->image_ref.ptr = image;
   uh->iuser = *iuser;
   uh->iuser.scene = nullptr;
@@ -784,25 +784,6 @@ static UndoImageBuf *ubuf_lookup_from_reference(ImageUndoStep *us_prev,
     }
   }
   return nullptr;
-}
-
-static bool image_undosys_poll(bContext *C)
-{
-  Object *obact = CTX_data_active_object(C);
-
-  ScrArea *area = CTX_wm_area(C);
-  if (area && (area->spacetype == SPACE_IMAGE)) {
-    SpaceImage *sima = (SpaceImage *)area->spacedata.first;
-    if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT)) {
-      return true;
-    }
-  }
-  else {
-    if (obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 static void image_undosys_step_encode_init(bContext * /*C*/, UndoStep *us_p)
@@ -1064,7 +1045,8 @@ static void image_undosys_foreach_ID_ref(UndoStep *us_p,
 void ED_image_undosys_type(UndoType *ut)
 {
   ut->name = "Image";
-  ut->poll = image_undosys_poll;
+  /* Note, we do not need the `poll` method overridden because of the `step_encode_init` callback
+   * and exposed #ED_image_undo_push_begin/end calls. */
   ut->step_encode_init = image_undosys_step_encode_init;
   ut->step_encode = image_undosys_step_encode;
   ut->step_decode = image_undosys_step_decode;
