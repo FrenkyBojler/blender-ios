@@ -52,6 +52,9 @@ class CompositorContext : public compositor::Context {
   float2 result_translation_ = float2(0, 0);
   const Strip *strip_;
 
+  /* Identified if the output of the viewer was written. */
+  bool viewer_was_written_ = false;
+
  public:
   CompositorContext(compositor::StaticCacheManager &cache_manager,
                     const RenderData &render_data,
@@ -111,6 +114,11 @@ class CompositorContext : public compositor::Context {
 
   void write_output(const compositor::Result &result)
   {
+    /* Do not write the output if the viewer output was already written. */
+    if (viewer_was_written_) {
+      return;
+    }
+
     if (result.is_single_value()) {
       IMB_rectfill(image_buffer_, result.get_single_value<compositor::Color>());
       return;
@@ -135,6 +143,7 @@ class CompositorContext : public compositor::Context {
   {
     /* Within compositor modifier, output and viewer output function the same. */
     this->write_output(result);
+    viewer_was_written_ = true;
   }
 
   const Strip *get_strip() const override
