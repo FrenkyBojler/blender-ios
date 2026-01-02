@@ -125,121 +125,136 @@ void TokenStream::token_offsets_populate()
     curr_c = c;
 
     /* Merge string literal. */
-    if (inside_string) {
+    if (inside_string) [[unlikely]] {
       if (!next_character_is_escape && c == '\"') {
         inside_string = false;
       }
       next_character_is_escape = c == '\\';
       continue;
     }
-    if (c == '\"') {
+    if (c == '\"') [[unlikely]] {
       inside_string = true;
     }
-    /* Detect preprocessor directive newlines `\\\n`. */
-    if (prev == Backslash && type == NewLine) {
-      token_types.back() = PreprocessorNewline;
-      continue;
+
+    /* Preprocessor directives. */
+    if (inside_preprocessor_directive) {
+      /* Detect preprocessor directive newlines `\\\n`. */
+      if (prev == Backslash && type == NewLine) [[unlikely]] {
+        token_types.back() = PreprocessorNewline;
+        continue;
+      }
+      /* Make sure to keep the ending newline for a preprocessor directive. */
+      if (type == NewLine) {
+        inside_preprocessor_directive = false;
+        token_types.emplace_back(type);
+        token_offsets.offsets.emplace_back(offset);
+        continue;
+      }
     }
-    /* Make sure to keep the ending newline for a preprocessor directive. */
-    if (inside_preprocessor_directive && type == NewLine) {
-      inside_preprocessor_directive = false;
-      token_types.emplace_back(type);
-      token_offsets.offsets.emplace_back(offset);
-      continue;
-    }
-    if (type == Hash) {
+    else if (type == Hash) {
       inside_preprocessor_directive = true;
     }
+
+    /* Split words on white-spaces even when merging. */
+    if (type == Word && prev_was_whitespace) [[likely]] {
+      prev = Space;
+      prev_was_whitespace = false;
+    }
+
     /* Merge newlines and spaces with previous token. */
-    if ((type == NewLine || type == Space)) {
+    if (type == NewLine || type == Space) {
       prev_was_whitespace = true;
       continue;
     }
-    /* Merge '=='. */
-    if (prev == Assign && type == Assign) {
-      token_types.back() = Equal;
-      continue;
-    }
-    /* Merge '!='. */
-    if (prev == '!' && type == Assign) {
-      token_types.back() = NotEqual;
-      continue;
-    }
-    /* Merge '>='. */
-    if (prev == '>' && type == Assign) {
-      token_types.back() = GEqual;
-      continue;
-    }
-    /* Merge '<='. */
-    if (prev == '<' && type == Assign) {
-      token_types.back() = LEqual;
-      continue;
+
+    if (type == Assign) {
+      /* Merge '=='. */
+      if (prev == Assign) {
+        token_types.back() = Equal;
+        continue;
+      }
+      /* Merge '!='. */
+      if (prev == '!') {
+        token_types.back() = NotEqual;
+        continue;
+      }
+      /* Merge '>='. */
+      if (prev == '>') {
+        token_types.back() = GEqual;
+        continue;
+      }
+      /* Merge '<='. */
+      if (prev == '<') {
+        token_types.back() = LEqual;
+        continue;
+      }
     }
     /* Merge '->'. */
-    if (prev == '-' && type == '>') {
+    if (prev == '-' && type == '>') [[unlikely]] {
       token_types.back() = Deref;
       continue;
     }
     /* If digit is part of word. */
-    if (type == Number && prev == Word && !prev_was_whitespace) {
+    if (type == Number && prev == Word && !prev_was_whitespace) [[unlikely]] {
       continue;
     }
-    /* If 'x' is part of hex literal. */
-    if (c == 'x' && prev == Number) {
-      continue;
+    if (prev == Number) {
+      /* If dot is part of float literal. */
+      if (type == Dot) {
+        continue;
+      }
+      /* If 'x' is part of hex literal. */
+      if (c == 'x') {
+        continue;
+      }
+      /* If 'A-F' is part of hex literal. */
+      if (c >= 'A' && c <= 'F') {
+        continue;
+      }
+      /* If 'a-f' is part of hex literal. */
+      if (c >= 'a' && c <= 'f') {
+        continue;
+      }
+      /* If 'u' is part of unsigned int literal. */
+      if (c == 'u') {
+        continue;
+      }
+      /* If 'f' suffix is part of float literal. */
+      if (c == 'f') {
+        continue;
+      }
+      /* If 'e' is part of float literal. */
+      if (c == 'e') {
+        continue;
+      }
     }
-    /* If 'A-F' is part of hex literal. */
-    if (c >= 'A' && c <= 'F' && prev == Number) {
-      continue;
-    }
-    /* If 'a-f' is part of hex literal. */
-    if (c >= 'a' && c <= 'f' && prev == Number) {
-      continue;
-    }
-    /* If 'u' is part of unsigned int literal. */
-    if (c == 'u' && prev == Number) {
-      continue;
-    }
-    /* If dot is part of float literal. */
-    if (type == Dot && prev == Number) {
-      continue;
-    }
-    /* If 'f' suffix is part of float literal. */
-    if (c == 'f' && prev == Number) {
-      continue;
-    }
-    /* If 'e' is part of float literal. */
-    if (c == 'e' && prev == Number) {
-      continue;
-    }
+
     /* If sign is part of float literal after exponent. */
-    if ((c == '+' || c == '-') && prev_c == 'e') {
+    if (prev_c == 'e' && (c == '+' || c == '-')) {
       continue;
     }
+
     /* Detect increment. */
-    if (type == '+' && prev == '+') {
+    if (prev == '+' && type == '+') {
       token_types.back() = Increment;
       continue;
     }
     /* Detect decrement. */
-    if (type == '+' && prev == '+') {
+    if (prev == '-' && type == '-') {
       token_types.back() = Decrement;
       continue;
     }
+
     /* Only merge these token. Otherwise, always emit a token. */
     if (type != Word && type != NewLine && type != Space && type != Number) {
       prev = Word;
     }
-    /* Split words on white-spaces even when merging. */
-    if (type == Word && prev_was_whitespace) {
-      prev = Space;
-      prev_was_whitespace = false;
-    }
     /* Emit a token if we don't merge. */
-    if (type != prev) {
-      token_types.emplace_back(type);
-      token_offsets.offsets.emplace_back(offset);
+    if (type == prev) {
+      continue;
     }
+    token_types.emplace_back(type);
+    token_offsets.offsets.emplace_back(offset);
   }
   offset++;
   token_offsets.offsets.emplace_back(offset);
