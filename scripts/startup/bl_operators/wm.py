@@ -1731,7 +1731,7 @@ class WM_OT_properties_edit(Operator):
                 return self._convert_new_value_array(item[name_old], int, self.array_length)
         elif prop_type_new == 'FLOAT_ARRAY':
             prop_type_old = self.get_property_type(item, name_old)
-            if prop_type_old in {'INT', 'FLOAT', 'BOOL', 'FLOAT_ARRAY', 'INT_ARRAY', 'BOOL_ARRAY' }:
+            if prop_type_old in {'INT', 'FLOAT', 'BOOL', 'FLOAT_ARRAY', 'INT_ARRAY', 'BOOL_ARRAY'}:
                 return self._convert_new_value_array(item[name_old], float, self.array_length)
         elif prop_type_new == 'BOOL_ARRAY':
             prop_type_old = self.get_property_type(item, name_old)
