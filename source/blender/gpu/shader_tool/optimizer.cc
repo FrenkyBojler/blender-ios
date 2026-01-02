@@ -78,6 +78,10 @@ int main(int argc, char **argv)
   string result;
   {
     TimeIt time_it(time);
+    for (int i = 0; i < 100; i++) {
+      parser::IntermediateForm parser(buffer.str(), report_error);
+    }
+
     parser::IntermediateForm parser(buffer.str(), report_error);
 
     auto process_disabled_scope = [&](Token start_tok) {
