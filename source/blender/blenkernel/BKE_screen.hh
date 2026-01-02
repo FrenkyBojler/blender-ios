@@ -68,6 +68,12 @@ struct wmNotifier;
 struct wmTimer;
 struct wmWindow;
 struct wmWindowManager;
+struct RegionDrawCB;
+struct PanelType;
+struct HeaderType;
+struct ARegionType;
+struct wmEventHandler;
+struct PanelCategoryDyn;
 
 /* spacetype has everything stored to get an editor working, it gets initialized via
  * #ED_spacetypes_init() in `editors/space_api/spacetypes.cc` */
@@ -162,7 +168,7 @@ struct SpaceType {
   void (*blend_write)(BlendWriter *writer, SpaceLink *space_link);
 
   /** Region type definitions. */
-  ListBase regiontypes;
+  ListBaseT<ARegionType> regiontypes;
 
   /* read and write... */
 
@@ -301,13 +307,13 @@ struct ARegionType {
   ARegionTypeFlag flag;
 
   /** Custom drawing callbacks. */
-  ListBase drawcalls;
+  ListBaseT<RegionDrawCB> drawcalls;
 
   /** Panels type definitions. */
-  ListBase paneltypes;
+  ListBaseT<PanelType> paneltypes;
 
   /** Header type definitions. */
-  ListBase headertypes;
+  ListBaseT<HeaderType> headertypes;
 
   /** Hardcoded constraints, smaller than these values region is not visible. */
   int minsizex, minsizey;
@@ -398,7 +404,7 @@ struct PanelType {
 
   /** Sub panels. */
   PanelType *parent;
-  ListBase children;
+  ListBaseT<LinkData> children;
 
   /** RNA integration. */
   ExtensionRNA rna_ext;
@@ -476,6 +482,15 @@ struct Panel_Runtime {
 
 namespace blender::bke {
 
+/** #ARegionRuntime.quadview_index */
+enum class ARegionQuadviewIndex : uint8_t {
+  None = 0,
+  BottomLeft = 1,
+  TopLeft = 2,
+  BottomRight = 3,
+  TopRight = 4,
+};
+
 struct ARegionRuntime {
   /** Callbacks for this region type. */
   struct ARegionType *type;
@@ -503,11 +518,9 @@ struct ARegionRuntime {
 
   /** Maps #ui::Block::name to ui::Block for faster lookups. */
   Map<std::string, blender::ui::Block *> block_name_map;
-  /** #ui::Block. */
-  ListBase uiblocks = {};
+  ListBaseT<ui::Block> uiblocks = {};
 
-  /** #wmEventHandler. */
-  ListBase handlers = {};
+  ListBaseT<wmEventHandler> handlers = {};
 
   /** Use this string to draw info. */
   char *headerstr = nullptr;
@@ -521,7 +534,7 @@ struct ARegionRuntime {
   wmDrawBuffer *draw_buffer = nullptr;
 
   /** Panel categories runtime. */
-  ListBase panels_category = {};
+  ListBaseT<PanelCategoryDyn> panels_category = {};
 
   /** Region is currently visible on screen. */
   short visible = 0;
@@ -531,6 +544,8 @@ struct ARegionRuntime {
 
   /** Private, cached notifier events. */
   short do_draw_paintcursor;
+
+  ARegionQuadviewIndex quadview_index = ARegionQuadviewIndex::None;
 
   /** Dummy panel used in popups so they can support layout panels. */
   Panel *popup_block_panel = nullptr;
@@ -811,6 +826,9 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
  * inputs
  */
 ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const int region_type);
+
+void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src);
+
 /**
  * Find a region of type \a region_type in the currently active space of \a area.
  *
@@ -894,6 +912,11 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
  */
 void BKE_screen_free_data(bScreen *screen);
 void BKE_screen_area_map_free(ScrAreaMap *area_map) ATTR_NONNULL();
+
+/**
+ * bScreen copying. Assumes that #screen_dst is cleared and can be fully overwritten.
+ */
+void BKE_screen_copy_data(bScreen *screen_dst, const bScreen *screen_src);
 
 ScrEdge *BKE_screen_find_edge(const bScreen *screen, ScrVert *v1, ScrVert *v2);
 void BKE_screen_sort_scrvert(ScrVert **v1, ScrVert **v2);

@@ -87,7 +87,6 @@ set(SRC_KERNEL_DEVICE_HIPRT_HEADERS
   device/hiprt/bvh.h
   device/hiprt/common.h
   device/hiprt/globals.h
-  device/hiprt/hiprt_kernels.h
 )
 
 set(SRC_KERNEL_DEVICE_HIPRT_SDK
@@ -363,6 +362,7 @@ set(SRC_KERNEL_UTIL_HEADERS
 set(SRC_KERNEL_TYPES_HEADERS
   data_arrays.h
   data_template.h
+  features.h
   globals.h
   image.h
   tables.h
