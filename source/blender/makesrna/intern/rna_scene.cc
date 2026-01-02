@@ -3015,12 +3015,6 @@ static void rna_UnitSettings_system_update(Main * /*bmain*/, Scene *scene, Point
   }
 }
 
-// TODO(Tri): rna_scenelod_state_update() is necessary?
-static void rna_scenelod_state_update(Main * /*bmain*/, Scene *scene, PointerRNA * /*ptr*/)
-{
-
-}
-
 static std::optional<std::string> rna_SceneLod_path(const PointerRNA * /*ptr*/)
 {
   return "lod";
@@ -4713,13 +4707,13 @@ static void rna_def_scene_lod(BlenderRNA *brna)
   RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
 
   prop = RNA_def_property(srna, "use_viewport", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_viewport", 1);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_viewport", 0);
   RNA_def_property_ui_text(
       prop, "Viewport LOD", "Enable distance based LOD selection in the viewport");
   RNA_def_property_update(prop, NC_SCENE | ND_DRAW, nullptr);
 
   prop = RNA_def_property(srna, "use_render", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_render", 1);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_render", 0);
   RNA_def_property_ui_text(
       prop, "Render LOD", "Enable distance based LOD selection during rendering");
   RNA_def_property_update(prop, NC_SCENE | ND_DRAW, nullptr);
@@ -5566,9 +5560,6 @@ void rna_def_freestyle_settings(BlenderRNA *brna)
        "Select feature edges within a range of quantitative invisibility (QI) values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
-
-  // TODO(Tri): add a `lod_visibility` Enum?
-  // TODO(Tri): SceneLod is a prop in Scene struct; handle the RNA here
 
   /* FreestyleLineSet */
 
