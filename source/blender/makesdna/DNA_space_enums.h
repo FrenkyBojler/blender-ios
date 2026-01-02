@@ -366,7 +366,7 @@ enum eSpaceSeq_SequencerPreviewOverlay_Flag {
 /** #SequencerTimelineOverlay.flag */
 enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_OFFSETS = (1 << 1),
-  /** Show thumbnails only at ends of a strip */
+  /** Show thumbnails only at ends of a strip. */
   SEQ_TIMELINE_STRIP_END_THUMBNAILS = (1 << 2),
   /** Use #Strip::color_tag */
   SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3),
@@ -382,7 +382,7 @@ enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_SOURCE = (1 << 15),
   SEQ_TIMELINE_SHOW_STRIP_DURATION = (1 << 16),
   SEQ_TIMELINE_SHOW_GRID = (1 << 18),
-  /** Show continuous sequence of thumbnails */
+  /** Show continuous sequence of thumbnails. */
   SEQ_TIMELINE_CONTINUOUS_THUMBNAILS = (1 << 19),
 };
 

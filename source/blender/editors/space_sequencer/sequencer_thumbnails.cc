@@ -93,7 +93,7 @@ static bool add_thumbnail_at_frame(float timeline_frame,
                                    bool is_muted,
                                    Vector<SeqThumbInfo> &r_thumbs)
 {
-  /* Frame at which the thumb at `timeline_frame` will be drawn */
+  /* Frame at which the thumb at `timeline_frame` will be drawn. */
   const float display_frame = timeline_frame + display_offset;
 
   float thumb_x_end = display_frame + thumb_width;
@@ -119,7 +119,7 @@ static bool add_thumbnail_at_frame(float timeline_frame,
   /* Get the thumbnail image. */
   ImBuf *ibuf = seq::thumbnail_cache_get(C, scene, strip.strip, timeline_frame);
   if (ibuf == nullptr) {
-    /* Thumbnail is not in cache but still other frames have to request for thumbnails */
+    /* Thumbnail is not in cache but still other frames have to request for thumbnails. */
     return true;
   }
 
@@ -174,15 +174,15 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
   bool show_left_thumb = false;
   bool show_right_thumb = false;
   if (overlap && only_right_handle_selected) {
-    /* Show only right thumbnail */
+    /* Show only right thumbnail. */
     show_right_thumb = true;
   }
   else if (overlap) {
-    /* Show only left thumbnail */
+    /* Show only left thumbnail. */
     show_left_thumb = true;
   }
   else {
-    /* Show both thumbnails */
+    /* Show both thumbnails. */
     show_left_thumb = true;
     show_right_thumb = true;
   }
@@ -203,7 +203,7 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
                            r_thumbs);
   }
 
-  /* Offset the start of thumbnail */
+  /* Offset the start of thumbnail. */
   const float display_offset = -thumb_width;
 
   if (show_right_thumb && is_thumbnail_in_view(strip.right_handle + display_offset,
@@ -401,7 +401,7 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
 
   /* Gather information for all thumbnails. */
   Vector<SeqThumbInfo> thumbs;
-  /* Thumbnail display mode (Strip ends / Continuous)*/
+  /* Thumbnail display mode (Strip ends / Continuous). */
   const bool show_only_at_strip_ends = (ctx.sseq->timeline_overlay.flag &
                                         SEQ_TIMELINE_STRIP_END_THUMBNAILS);
 
