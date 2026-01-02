@@ -464,6 +464,53 @@ class SCENE_PT_animation(SceneButtonsPanel, PropertiesAnimationMixin, PropertyPa
         self.draw_action_and_slot_selector(context, col, scene)
 
 
+# TODO(Tri): new section for LODs
+        # # New UI section
+        # layout = self.layout
+
+        # layout.separator()
+        # col = layout.column(heading="Show In")
+        # col.prop(ob, "hide_viewport", text="Viewports", toggle=False, invert_checkbox=True)
+        # col.prop(ob, "hide_render", text="Renders", toggle=False, invert_checkbox=True)
+
+# class SCENE_PT_lod_root(SceneButtonsPanel, Panel):
+#     bl_label = "Level of Detail"
+
+#     def draw(self, context):
+#         pass
+
+
+class SCENE_PT_lod(SceneButtonsPanel, Panel):
+    bl_label = "Level of Detail"
+    bl_context = "scene" # Isn't it wrong? tested both with and without... didn't have any effects
+    bl_parent_id = "SCENE_PT_scene" # Option A
+    # bl_parent_id = "SCENE_PT_rigid_body_world" # Option A ; SCENE_PT_rigid_body_world ; SCENE_PT_lod_root
+    bl_options = {'DEFAULT_CLOSED'} # HIDE_HEADER
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
+
+    # @classmethod
+    # def poll(cls, context):
+    #     return (
+    #         context.scene is not None and
+    #         context.engine in {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    #     )
+
+    def draw(self, context): # Maybe the issue is in Draw that the whole dropdown isn't working...
+        # self.layout.label(text="LOD PANEL LOADED")
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        lod = context.scene.lod
+
+        col = layout.column()
+        col.prop(lod, "use_viewport", text="Viewport")
+        col.prop(lod, "use_render", text="Render")
+
+
 class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, Panel):
     _context_path = "scene"
     _property_type = bpy.types.Scene
@@ -474,6 +521,8 @@ classes = (
     SCENE_PT_context_scene,
     SCENE_PT_scene,
     SCENE_PT_unit,
+    # SCENE_PT_lod_root,
+    SCENE_PT_lod,
     SCENE_PT_physics,
     SCENE_PT_simulation,
     SCENE_PT_keying_sets,
