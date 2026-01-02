@@ -8000,6 +8000,60 @@ void BevelNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_bevel");
 }
 
+/* Curvature */
+
+NODE_DEFINE(CurvatureNode)
+{
+  NodeType *type = NodeType::add("curvature", create, NodeType::SHADER);
+
+  SOCKET_INT(samples, "Samples", 16);
+
+  SOCKET_IN_COLOR(color, "Color", one_float3());
+  SOCKET_IN_FLOAT(distance, "Distance", 1.0f);
+  SOCKET_IN_NORMAL(normal, "Normal", zero_float3(), SocketType::LINK_NORMAL);
+
+  SOCKET_BOOLEAN(inside, "Inside", false);
+  SOCKET_BOOLEAN(only_local, "Only Local", false);
+
+  SOCKET_OUT_COLOR(color, "Color");
+  SOCKET_OUT_FLOAT(curvature, "Curvature");
+
+  return type;
+}
+
+CurvatureNode::CurvatureNode() : ShaderNode(get_node_type()) {}
+
+void CurvatureNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *distance_in = input("Distance");
+
+  int flags = (inside ? NODE_CURVATURE_INSIDE : 0) | (only_local ? NODE_CURVATURE_ONLY_LOCAL : 0);
+
+  if (!distance_in->link && distance == 0.0f) {
+    flags |= NODE_CURVATURE_GLOBAL_RADIUS;
+  }
+
+  compiler.add_node(this,
+                    NODE_CURVATURE,
+                    SVMNodeCurvature{
+                        .color = compiler.input_float3("Color"),
+                        .dist = compiler.input_float("Distance"),
+                        .flags = uint8_t(flags),
+                        .samples = uint8_t(samples),
+                        .normal_offset = compiler.input_link("Normal"),
+                        .out_curvature_offset = compiler.output("Curvature"),
+                        .out_color_offset = compiler.output("Color"),
+                    });
+}
+
+void CurvatureNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "samples");
+  compiler.parameter(this, "inside");
+  compiler.parameter(this, "only_local");
+  compiler.add(this, "node_curvature");
+}
+
 /* Displacement */
 
 NODE_DEFINE(DisplacementNode)

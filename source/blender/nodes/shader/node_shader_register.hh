@@ -38,6 +38,7 @@ void register_node_type_sh_combxyz();
 void register_node_type_sh_curve_float();
 void register_node_type_sh_curve_rgb();
 void register_node_type_sh_curve_vec();
+void register_node_type_sh_curvature();
 void register_node_type_sh_displacement();
 void register_node_type_sh_dynamic();
 void register_node_type_sh_eevee_metallic();

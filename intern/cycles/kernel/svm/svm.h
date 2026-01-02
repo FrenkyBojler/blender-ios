@@ -83,6 +83,7 @@
 #ifdef __SHADER_RAYTRACE__
 #  include "kernel/svm/ao.h"
 #  include "kernel/svm/bevel.h"
+#  include "kernel/svm/curvature.h"
 #  include "kernel/svm/raycast.h"
 #endif
 
@@ -571,6 +572,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
         const ccl_global auto &node = svm_node_get<SVMNodeRaycast>(kg, &offset);
         offset = svm_node_raycast<node_feature_mask>(kg, state, sd, stack, node, offset);
       }
+      break;
+      SVM_CASE(NODE_CURVATURE)
+      svm_node_curvature<node_feature_mask>(
+          kg, state, sd, stack, svm_node_get<SVMNodeCurvature>(kg, &offset));
       break;
 #endif
       SVM_CASE(NODE_AOV_START)

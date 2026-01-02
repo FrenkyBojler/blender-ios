@@ -42,6 +42,7 @@ void register_shader_nodes()
   register_node_type_sh_curve_float();
   register_node_type_sh_curve_rgb();
   register_node_type_sh_curve_vec();
+  register_node_type_sh_curvature();
   register_node_type_sh_displacement();
   register_node_type_sh_eevee_specular();
   register_node_type_sh_emission();

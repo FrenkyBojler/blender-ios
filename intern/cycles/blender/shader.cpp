@@ -1166,6 +1166,13 @@ static ShaderNode *add_node(Scene *scene,
     bevel->set_samples(b_node.custom1);
     node = bevel;
   }
+  else if (b_node.is_type("ShaderNodeCurvature"_ustr)) {
+    CurvatureNode *curvature = graph->create_node<CurvatureNode>();
+    curvature->set_samples(b_node.custom1);
+    curvature->set_inside(b_node.custom2 & blender::SHD_CURVATURE_INSIDE);
+    curvature->set_only_local(b_node.custom2 & blender::SHD_CURVATURE_ONLY_LOCAL);
+    node = curvature;
+  }
   else if (b_node.is_type("ShaderNodeDisplacement"_ustr)) {
     DisplacementNode *disp = graph->create_node<DisplacementNode>();
     disp->set_space((NodeNormalMapSpace)b_node.custom1);

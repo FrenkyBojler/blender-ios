@@ -72,6 +72,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeAmbientOcclusion", poll=object_material_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeAttribute")
         self.node_operator(layout, "ShaderNodeBevel", poll=object_material_shader_nodes_poll(context))
+        self.node_operator(layout, "ShaderNodeCurvature", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeCameraData",
             ["View Vector", "View Z Depth", "View Distance"],

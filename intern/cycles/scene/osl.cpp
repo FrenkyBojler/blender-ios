@@ -127,6 +127,8 @@ void OSLManager::device_update_pre(Device * /*device*/, Scene *scene)
       services->textures.insert(OSLUStringHash("@ao"), OSLTextureHandle(OSLTextureHandleType::AO));
       services->textures.insert(OSLUStringHash("@bevel"),
                                 OSLTextureHandle(OSLTextureHandleType::BEVEL));
+      services->textures.insert(OSLUStringHash("@curvature"),
+                                OSLTextureHandle(OSLTextureHandleType::CURVATURE));
     });
   }
 }

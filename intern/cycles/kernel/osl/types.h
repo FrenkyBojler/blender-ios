@@ -148,7 +148,13 @@ struct OSLTextureOptions {};
 
 /* Note: starting from 1 instead of 0 so that the encoded handle is never a null pointer
  * the OSL will interpret as an invalid handle. */
-enum class OSLTextureHandleType : unsigned int { IMAGE = 1, IES = 2, BEVEL = 3, AO = 4 };
+enum class OSLTextureHandleType : unsigned int {
+  IMAGE = 1,
+  IES = 2,
+  BEVEL = 3,
+  AO = 4,
+  CURVATURE = 5
+};
 
 #define OSL_TEXTURE_HANDLE_ENCODE(type, id) ((uintptr_t(type) << 32) | uintptr_t(uint(id)))
 #define OSL_TEXTURE_HANDLE_TYPE(handle) OSLTextureHandleType(uintptr_t(handle) >> 32)

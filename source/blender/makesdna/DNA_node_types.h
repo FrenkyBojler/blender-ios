@@ -699,6 +699,12 @@ enum eNodeAO_Flag : short {
 };
 ENUM_OPERATORS(eNodeAO_Flag)
 
+enum eNodeCurvature_Flag : short {
+  SHD_CURVATURE_INSIDE = 1,
+  SHD_CURVATURE_ONLY_LOCAL = 2,
+};
+ENUM_OPERATORS(eNodeCurvature_Flag)
+
 /** Mapping node vector types. */
 enum eNodeMapping_VectorType : short {
   NODE_MAPPING_TYPE_POINT = 0,

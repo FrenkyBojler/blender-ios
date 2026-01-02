@@ -1805,6 +1805,28 @@ class BevelNode : public ShaderNode {
   NODE_SOCKET_API(int, samples)
 };
 
+class CurvatureNode : public ShaderNode {
+ public:
+  SHADER_NODE_CLASS(CurvatureNode)
+
+  bool has_spatial_varying() override
+  {
+    return true;
+  }
+  uint get_feature() override
+  {
+    return KERNEL_FEATURE_NODE_RAYTRACE;
+  }
+
+  NODE_SOCKET_API(float3, color)
+  NODE_SOCKET_API(float, distance)
+  NODE_SOCKET_API(float3, normal)
+  NODE_SOCKET_API(int, samples)
+
+  NODE_SOCKET_API(bool, only_local)
+  NODE_SOCKET_API(bool, inside)
+};
+
 class DisplacementNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(DisplacementNode)

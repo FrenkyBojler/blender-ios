@@ -6522,6 +6522,28 @@ static void def_sh_ambient_occlusion(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_sh_curvature(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "samples", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "custom1");
+  RNA_def_property_range(prop, 1, 128);
+  RNA_def_property_ui_text(prop, "Samples", "Number of rays to trace per shader evaluation");
+  RNA_def_property_update(prop, 0, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "inside", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", SHD_CURVATURE_INSIDE);
+  RNA_def_property_ui_text(prop, "Inside", "Trace rays towards the inside of the object");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "only_local", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", SHD_CURVATURE_ONLY_LOCAL);
+  RNA_def_property_ui_text(
+      prop, "Only Local", "Only consider the object itself when computing curvature");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_sh_subsurface(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -10363,6 +10385,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeClamp", def_clamp);
   define("ShaderNode", "ShaderNodeCombineColor", def_sh_combsep_color);
   define("ShaderNode", "ShaderNodeCombineXYZ");
+  define("ShaderNode", "ShaderNodeCurvature", def_sh_curvature);
   define("ShaderNode", "ShaderNodeDisplacement", def_sh_displacement);
   define("ShaderNode", "ShaderNodeEeveeSpecular");
   define("ShaderNode", "ShaderNodeEmission");

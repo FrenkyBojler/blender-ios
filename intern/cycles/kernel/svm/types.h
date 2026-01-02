@@ -432,6 +432,12 @@ enum NodeAO {
   NODE_AO_GLOBAL_RADIUS = (1 << 2),
 };
 
+enum NodeCurvature {
+  NODE_CURVATURE_ONLY_LOCAL = (1 << 0),
+  NODE_CURVATURE_INSIDE = (1 << 1),
+  NODE_CURVATURE_GLOBAL_RADIUS = (1 << 2),
+};
+
 enum ShaderType {
   SHADER_TYPE_SURFACE,
   SHADER_TYPE_VOLUME,

@@ -29,6 +29,7 @@
 #ifndef __KERNEL_GPU__
 #  include "kernel/svm/ao.h"
 #  include "kernel/svm/bevel.h"
+#  include "kernel/svm/curvature.h"
 #endif
 
 CCL_NAMESPACE_BEGIN
@@ -775,6 +776,34 @@ ccl_device bool osl_shared_texture(KernelGlobals kg,
           flags |= NODE_AO_GLOBAL_RADIUS;
         }
         result[0] = svm_ao(kg, state, sd, N, radius, num_samples, flags);
+        status = true;
+      }
+#else
+      result[0] = 1.0f;
+      status = true;
+#endif
+      break;
+    }
+    case OSLTextureHandleType::CURVATURE: {
+#if !defined(__KERNEL_GPU__) && defined(__SHADER_RAYTRACE__)
+      /* Curvature shader hack. */
+      ConstIntegratorState state = sg->path_state;
+      const OSL::TextureOpt *options = static_cast<const OSL::TextureOpt *>(opt_void);
+      if (state != nullptr) {
+        const int num_samples = int(s);
+        const float radius = t;
+        const float3 N = make_float3(dsdx, dtdx, dsdy);
+        int flags = 0;
+        if (int(dtdy)) {
+          flags |= NODE_CURVATURE_INSIDE;
+        }
+        if (int(options->sblur)) {
+          flags |= NODE_CURVATURE_ONLY_LOCAL;
+        }
+        if (int(options->tblur)) {
+          flags |= NODE_CURVATURE_GLOBAL_RADIUS;
+        }
+        result[0] = svm_curvature(kg, state, sd, N, radius, num_samples, flags);
         status = true;
       }
 #else
