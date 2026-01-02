@@ -16,8 +16,6 @@
 #include "BKE_movieclip.hh"
 #include "BKE_tracking.hh"
 
-#include "DNA_defaults.h"
-
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
@@ -46,7 +44,7 @@ static void init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
   Scene *scene = CTX_data_scene(C);
-  MovieClipUser *user = DNA_struct_default_alloc(MovieClipUser);
+  MovieClipUser *user = MEM_new_for_free<MovieClipUser>(__func__);
 
   node->id = (ID *)scene->clip;
   id_us_plus(node->id);
@@ -236,12 +234,12 @@ class MovieClipOperation : public NodeOperation {
 
   MovieClip *get_movie_clip()
   {
-    return reinterpret_cast<MovieClip *>(bnode().id);
+    return reinterpret_cast<MovieClip *>(node().id);
   }
 
   MovieClipUser *get_movie_clip_user()
   {
-    return static_cast<MovieClipUser *>(bnode().storage);
+    return static_cast<MovieClipUser *>(node().storage);
   }
 };
 
