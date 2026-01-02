@@ -1410,8 +1410,8 @@ static int edge_in_polygon_winding_twice(const int edge_id, const Span<float2> p
 /**
  * Calculate the winding number of a point inside a polygon.
  *
- * Will return +1 when inside a clockwise circle.
- * Will return -1 when inside a counterclockwise circle.
+ * Will return +1 when inside a counterclockwise circle.
+ * Will return -1 when inside a clockwise circle.
  *
  * Note: Will not give the correct value if the point is on a corner or edge.
  */
