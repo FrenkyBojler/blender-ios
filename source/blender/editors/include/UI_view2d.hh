@@ -564,6 +564,11 @@ void view2d_edge_pan_init(bContext *C,
 void view2d_edge_pan_set_limits(
     View2DEdgePanData *vpd, float xmin, float xmax, float ymin, float ymax);
 
+// /**
+//  * Adjust View2D to an arbitrary `rctf` and perform updates.
+//  */
+// void view2d_edge_pan_set_cur(View2DEdgePanData *vpd, rctf cur);
+
 void view2d_edge_pan_reset(View2DEdgePanData *vpd);
 
 /**
@@ -576,6 +581,11 @@ void view2d_edge_pan_apply(bContext *C, View2DEdgePanData *vpd, const int xy[2])
  * Apply transform to view using mouse events.
  */
 void view2d_edge_pan_apply_event(bContext *C, View2DEdgePanData *vpd, const wmEvent *event);
+
+/**
+ * Apply arbitrary delta to view.
+ */
+void view2d_edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, float dy);
 
 void view2d_edge_pan_cancel(bContext *C, View2DEdgePanData *vpd);
 

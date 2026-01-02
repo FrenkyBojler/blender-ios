@@ -1384,6 +1384,8 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
       case TFM_MODAL_STRIP_CLAMP:
         t->modifiers ^= MOD_STRIP_CLAMP_HOLDS;
         t->redraw |= TREDRAW_HARD;
+        transform_convert_sequencer_update_edge_pan_data(t,
+                                                         (t->modifiers & MOD_STRIP_CLAMP_HOLDS));
         break;
       default:
         break;

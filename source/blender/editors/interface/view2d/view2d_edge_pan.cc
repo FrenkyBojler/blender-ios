@@ -95,6 +95,12 @@ void view2d_edge_pan_set_limits(
   BLI_rctf_init(&vpd->limit, xmin, xmax, ymin, ymax);
 }
 
+// void view2d_edge_pan_set_cur(
+//     View2DEdgePanData *vpd, float xmin, float xmax, float ymin, float ymax)
+// {
+//   BLI_rctf_init(&vpd->limit, xmin, xmax, ymin, ymax);
+// }
+
 void view2d_edge_pan_reset(View2DEdgePanData *vpd)
 {
   vpd->edge_pan_start_time_x = 0.0;
@@ -192,7 +198,7 @@ static void view2d_edge_pan_do_updates(bContext *C, View2DEdgePanData *vpd, View
   view2d_sync(vpd->screen, vpd->area, v2d, V2D_LOCK_COPY);
 }
 
-static void edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, float dy)
+void view2d_edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, float dy)
 {
   View2D *v2d = vpd->v2d;
   if (!v2d) {
@@ -273,7 +279,7 @@ void view2d_edge_pan_apply(bContext *C, View2DEdgePanData *vpd, const int xy[2])
   vpd->edge_pan_last_time = current_time;
 
   /* Pan, clamping inside the regions total bounds. */
-  edge_pan_apply_delta(C, vpd, dx, dy);
+  view2d_edge_pan_apply_delta(C, vpd, dx, dy);
 }
 
 void view2d_edge_pan_apply_event(bContext *C, View2DEdgePanData *vpd, const wmEvent *event)

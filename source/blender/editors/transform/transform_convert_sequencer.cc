@@ -498,6 +498,8 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   ts->hold_clamp_max = INT_MAX;
   ts->handle_clamped = false;
 
+  bool only_handles_selected = true;
+
   for (Strip *strip : strips) {
     if (seq::transform_is_locked(seq::channels_displayed_get(ed), strip)) {
       continue;
@@ -542,17 +544,24 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
           ts->hold_clamp_max = min_ii(ts->hold_clamp_max, strip->endofs);
         }
       }
-      /* Force entire transformation to x-axis, since at least one handle is selected. */
-      /* TODO(john): Currently it is possible to select whole strips and handles at the same
-       * time. This should be removed in the future to simplify transform logic. */
-      ts->offset_clamp.ymin = 0;
-      ts->offset_clamp.ymax = 0;
     }
     /* No handles are selected. Update y-axis channel clamping data. */
     else {
       ts->offset_clamp.ymin = max_ii(ts->offset_clamp.ymin, 1 - strip->channel);
       ts->offset_clamp.ymax = min_ii(ts->offset_clamp.ymax, seq::MAX_CHANNELS - strip->channel);
+      only_handles_selected = false;
     }
+  }
+  /* Ensure that the soft clamp offset is not larger in magnitude than the hard clamp offset. */
+  ts->hold_clamp_min = clamp_i(ts->hold_clamp_min, ts->offset_clamp.xmin, ts->offset_clamp.xmax);
+  ts->hold_clamp_max = clamp_i(ts->hold_clamp_max, ts->offset_clamp.xmin, ts->offset_clamp.xmax);
+
+  /* TODO(john): This ensures that y-axis movement is restricted only if all of the selected items
+   * are handles, since currently it is possible to select whole strips and handles at the same
+   * time. This should be removed for 5.0 when we make this behavior impossible. */
+  if (only_handles_selected) {
+    ts->offset_clamp.ymin = 0;
+    ts->offset_clamp.ymax = 0;
   }
 }
 
@@ -601,6 +610,11 @@ static void createTransSeqData(bContext *C, TransInfo *t)
   td2d = tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransSeq TransData2D");
   ts->tdseq = tdsq = MEM_calloc_arrayN<TransDataSeq>(tc->data_len, "TransSeq TransDataSeq");
 
+  /* Loop 2: build transdata array. */
+  SeqToTransData_build(t, ed->current_strips(), td, td2d, tdsq);
+
+  create_trans_seq_clamp_data(t, scene);
+
   /* Custom data to enable edge panning during transformation. */
   view2d_edge_pan_init(t->context,
                        &ts->edge_pan,
@@ -611,17 +625,8 @@ static void createTransSeqData(bContext *C, TransInfo *t)
                        STRIP_EDGE_PAN_DELAY,
                        STRIP_EDGE_PAN_ZOOM_INFLUENCE);
 
-  /* Loop 2: build transdata array. */
-  SeqToTransData_build(t, ed->current_strips(), td, td2d, tdsq);
-
-  create_trans_seq_clamp_data(t, scene);
-
-  const bool clamped_y = (ts->offset_clamp.ymax == 0) && (ts->offset_clamp.ymin == 0);
-  view2d_edge_pan_set_limits(&ts->edge_pan,
-                             -FLT_MAX,
-                             FLT_MAX,
-                             clamped_y ? t->region->v2d.cur.ymin : 1,
-                             clamped_y ? t->region->v2d.cur.ymax : seq::MAX_CHANNELS + 1);
+  /* Restrict edge pan limits to the clamped offset. */
+  transform_convert_sequencer_update_edge_pan_data(t, (t->modifiers & MOD_STRIP_CLAMP_HOLDS));
 
   query_time_dependent_strips_strips(t, ts->time_dependent_strips);
 }
@@ -681,18 +686,24 @@ static void flushTransSeq(TransInfo *t)
    * recalculation, hierarchy is not taken into account. */
   int max_offset = 0;
 
+  // wmEvent *event = CTX_wm_window(t->context)->runtime->eventstate;
+
   float edge_pan_offset[2] = {0.0f, 0.0f};
-  /* Check handle clamp state (calculated in `applySeqSlide` while printing header values). */
-  if (!ts->handle_clamped) {
-    view2d_edge_pan_loc_compensate(t, edge_pan_offset);
-  }
+  /* Handle clamp state was calculated in `applySeqSlide` while printing header values. */
+  // if (!ts->handle_clamped) {
+  view2d_edge_pan_loc_compensate(t, edge_pan_offset);
+  // }
   /* Revert any edge pan offset to the `view2d` if we re-enable clamping. */
-  else if ((t->modifiers & MOD_STRIP_CLAMP_HOLDS) &&
-           !BLI_rctf_compare(&t->region->v2d.cur, &ts->edge_pan.initial_rect, FLT_EPSILON))
-  {
-    view2d_edge_pan_cancel(t->context, &ts->edge_pan);
-    transformViewUpdate(t);
-  }
+  // else if ((t->modifiers & MOD_STRIP_CLAMP_HOLDS) &&
+  //          !BLI_rctf_compare(&t->region->v2d.cur, &ts->edge_pan.initial_rect, FLT_EPSILON))
+  // {
+  //   view2d_edge_pan_cancel(t->context, &ts->edge_pan);
+  //   transformViewUpdate(t);
+  // }
+
+  // if (!(t->modifiers & MOD_STRIP_CLAMP_HOLDS) || !ts->handle_clamped || t->) {
+  //   ts->edge_pan.initial_rect = t->region->v2d.cur;
+  // }
 
   /* Flush to 2D vector from internally used 3D vector. */
   for (int a = 0; a < tc->data_len; a++, td++, td2d++) {
@@ -903,6 +914,60 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
   }
 
   return ts->handle_clamped;
+}
+
+void transform_convert_sequencer_update_edge_pan_data(TransInfo *t, bool clamp_holds)
+{
+  TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
+  ui::View2DEdgePanData *vpd = &ts->edge_pan;
+  rctf irect = vpd->initial_rect;
+
+  float xmin, xmax;
+  if (clamp_holds) {
+    xmin = irect.xmin + ts->hold_clamp_min;
+    xmax = irect.xmax + ts->hold_clamp_max;
+  }
+  else {
+    xmin = irect.xmin + ts->offset_clamp.xmin;
+    xmax = irect.xmax + ts->offset_clamp.xmax;
+  }
+
+  view2d_edge_pan_set_limits(vpd,
+                             xmin,
+                             xmax,
+                             max_ff(1, irect.ymin + ts->offset_clamp.ymin),
+                             min_ff(seq::MAX_CHANNELS + 1, irect.ymax + ts->offset_clamp.ymax));
+
+  if (clamp_holds) {
+    float values[2];
+    copy_v2_v2(values, t->values);
+    if (transform_convert_sequencer_clamp(t, values)) {
+      const rctf cur = t->region->v2d.cur;
+      const float cur_offset = cur.xmin - ts->edge_pan.initial_rect.xmin;
+      const float dx = cur_offset - math::clamp(cur_offset,
+                                                float(ts->hold_clamp_min),
+                                                float(ts->hold_clamp_max));
+      view2d_edge_pan_apply_delta(t->context, vpd, -dx, 0.0f);
+      transformViewUpdate(t);
+    }
+  }
+
+  // if (clamp_holds) {
+  //   view2d_edge_pan_set_limits(
+  //       epd,
+  //       max_ff(irect.xmin + ts->hold_clamp_min, irect.xmin + ts->offset_clamp.xmin),
+  //       min_ff(irect.xmax + ts->hold_clamp_max, irect.xmax + ts->offset_clamp.xmax),
+  //       max_ff(1, irect.ymin + ts->offset_clamp.ymin),
+  //       min_ff(seq::MAX_CHANNELS + 1, irect.ymax + ts->offset_clamp.ymax));
+  // }
+  // else {
+  //   view2d_edge_pan_set_limits(epd,
+  //                              irect.xmin + ts->offset_clamp.xmin,
+  //                              irect.xmax + ts->offset_clamp.xmax,
+  //                              max_ff(1, irect.ymin + ts->offset_clamp.ymin),
+  //                              min_ff(seq::MAX_CHANNELS + 1, irect.ymax +
+  //                              ts->offset_clamp.ymax));
+  // }
 }
 
 /** \} */
