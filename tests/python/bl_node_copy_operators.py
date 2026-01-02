@@ -2,26 +2,44 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# This script can be invoked with an additional argument '--generate' to update the ground truth test data.
+# Example:
+# ./bin/blender "--background" "--factory-startup"
+#     "--python" "<SOURCEPATH>/tests/python/bl_node_copy_operators.py"
+#     "--" "--testdir" "<SOURCEPATH>/tests/files/node_group" "--generate"
+
 import pathlib
 import sys
 import unittest
 import tempfile
-import math
 
 import bpy
 
 args = None
+testfile = "node_copy_operators.blend"
+
+
+def open_test_file():
+    bpy.ops.wm.open_mainfile(filepath=str(args.testdir / testfile))
+
+
+def save_test_file():
+    bpy.ops.wm.save_mainfile(filepath=str(args.testdir / testfile))
 
 
 # Provide a valid context override to run node editor operators
 def node_editor_context_override(context, tree, selected_nodes=[], active_node=None):
     if active_node is None:
         active_node = selected_nodes[0] if selected_nodes else None
-    area = next(area for area in context.screen.areas if area.type == 'NODE_EDITOR')
+    window = context.window if context.window else next(window for window in context.window_manager.windows if window.screen is not None)
+    screen = context.screen if context.screen else window.screen
+    area = next(area for area in screen.areas if area.type == 'NODE_EDITOR')
     region = next(region for region in area.regions if region.type == 'WINDOW')
     space = area.spaces[0]
 
     context_override = context.copy()
+    context_override["window"] = window
+    context_override["screen"] = screen
     context_override["area"] = area
     context_override["region"] = region
     context_override["space_data"] = space
@@ -69,22 +87,16 @@ def test_case_nodes(tree, name):
 
 
 class AbstractNodeCopyOperatorTest(unittest.TestCase):
-    testfile = "node_copy_operators.blend"
-
-    def open_file(self):
-        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / self.testfile))
-        self.assertEqual(bpy.data.version, (5, 1, 16))
-
     @classmethod
     def setUpClass(cls):
-        cls.testdir = args.testdir
         cls._tempdir = tempfile.TemporaryDirectory()
         cls.tempdir = pathlib.Path(cls._tempdir.name)
 
     def setUp(self):
-        self.assertTrue(self.testdir.exists(),
-                        'Test dir {0} should exist'.format(self.testdir))
-        self.open_file()
+        self.assertTrue(args.testdir.exists(),
+                        'Test dir {0} should exist'.format(args.testdir))
+        open_test_file()
+        self.assertEqual(bpy.data.version, (5, 1, 16))
 
     def tearDown(self):
         self._tempdir.cleanup()
@@ -285,6 +297,73 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
     #             self.compare_tree_interface(group_node.node_tree, expected_node.node_tree)
 
 
+################
+# Code for generating ground truth test data, sharing functions with test code.
+# This only runs when executing the script inside the test file.
+
+def copy_tree(src_tree, dst_modifier):
+    ob = dst_modifier.id_data
+    ob.modifiers.active = dst_modifier
+
+    # Clean up old data
+    dst_modifier.node_group = None
+    # Note: calling bpy.data.orphans_purge() directly does not work for some reason.
+    bpy.ops.outliner.orphans_purge()
+    
+    dst_tree = src_tree.copy()
+    dst_tree.name = dst_modifier.name
+    dst_modifier.node_group = dst_tree
+    return dst_tree
+
+
+def create_expected_make_group_tree(src_tree, dst_modifier):
+    tree = copy_tree(src_tree, dst_modifier)
+    for label, test_nodes, parent_frame in list(test_cases(tree)):
+        with node_editor_context_override(bpy.context, tree, selected_nodes=test_nodes):
+            print(f"TEST {label}")
+            bpy.ops.node.group_make()
+            group_node = tree.nodes.active
+            # Re-attach to the parent frame to identify the operator result.
+            group_node.parent = parent_frame
+
+
+# Insert the same nodes into a group twice, to test node deduplication, renaming, and mapping.
+def create_expected_group_insert_tree(src_tree, dst_modifier):
+    tree = copy_tree(src_tree, dst_modifier)
+    for label, test_nodes, parent_frame in list(test_cases(tree)):
+        # Make empty node group.
+        group_tree = bpy.data.node_groups.new(f"{label}_GroupInsert", 'GeometryNodeTree')
+        # Copy nodes into the tree to force deduplication testing.
+        with node_editor_context_override(bpy.context, tree, selected_nodes=test_nodes):
+            bpy.ops.node.clipboard_copy()
+        with node_editor_context_override(bpy.context, group_tree):
+            bpy.ops.node.clipboard_paste()
+        # Make a group node with the new tree.
+        with node_editor_context_override(bpy.context, tree):
+            bpy.ops.node.add_node(
+                settings=[
+                    {"name":"name", "value":f"'{label}_GroupNode'"},
+                    {"name":"node_tree", "value":f"bpy.data.node_groups['{group_tree.name}']"},
+                ],
+                type='GeometryNodeGroup',
+            )
+
+
+def generate_test_data():
+    open_test_file()
+
+    test_tree = bpy.data.node_groups["Tests"]
+    ob = bpy.data.objects["TestObject"]
+    mod_make_group = ob.modifiers["ExpectedMakeGroup"]
+    mod_group_insert = ob.modifiers["ExpectedGroupInsert"]
+
+    create_expected_make_group_tree(test_tree, mod_make_group)
+    create_expected_group_insert_tree(test_tree, mod_group_insert)
+
+    save_test_file()
+
+################
+
 
 def main():
     global args
@@ -297,9 +376,13 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--testdir', required=True, type=pathlib.Path)
+    parser.add_argument('--generate', action='store_true', help="Generate ground truth test data instead of running the test")
     args, remaining = parser.parse_known_args(argv)
 
-    unittest.main(argv=remaining)
+    if args.generate:
+        generate_test_data()
+    else:
+        unittest.main(argv=remaining)
 
 
 if __name__ == "__main__":
