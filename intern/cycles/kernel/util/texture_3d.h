@@ -130,13 +130,13 @@ ccl_device OutT kernel_tex_image_interp_tricubic_nanovdb(ccl_private Acc &acc, c
   /* Explicit hint for HIP compiler to unroll the loop. Without this the render result is wrong
    * on a specific platform/compiler combinations. See #152126. */
 #  if defined(__KERNEL_HIP__)
-#    define UNROLL _Pragma("unroll")
+#    define UNROLL_ON_HIP _Pragma("unroll")
 #  else
-#    define UNROLL
+#    define UNROLL_ON_HIP
 #  endif
 
   for (int k = 0; k < 4; k++) {
-    UNROLL
+    UNROLL_ON_HIP
     for (int j = 0; j < 4; j++) {
       result += w[k].z * (w[j].y * (w[0].x * (OutT(acc.getValue(index + make_int3(0, j, k)))) +
                                     w[1].x * (OutT(acc.getValue(index + make_int3(1, j, k)))) +
@@ -145,7 +145,7 @@ ccl_device OutT kernel_tex_image_interp_tricubic_nanovdb(ccl_private Acc &acc, c
     }
   }
 
-#  undef UNROLL
+#  undef UNROLL_ON_HIP
 
   return result;
 }
