@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "parser.hh"
+#include "token_stream.hh"
 
 namespace blender::gpu::shader::parser {
 
@@ -80,6 +80,8 @@ enum TokenType : char {
   Using = 'u',
   Private = 'v',
   Public = 'V',
+  Inline = 'l',
+  Union = 'o',
 };
 
 static inline TokenType to_type(const char c)
@@ -163,7 +165,7 @@ struct Token {
   /* String view for nicer debugging experience. Isn't actually used. */
   std::string_view str_view;
 
-  const Parser *data = nullptr;
+  const TokenStream *data = nullptr;
   int64_t index = 0;
 
   static Token invalid()
@@ -171,7 +173,7 @@ struct Token {
     return {};
   }
 
-  static Token from_position(const Parser *data, int64_t index)
+  static Token from_position(const TokenStream *data, int64_t index)
   {
     if (data == nullptr || index < 0 || index > (data->token_offsets.offsets.size() - 2)) {
       return invalid();
@@ -216,7 +218,7 @@ struct Token {
     return tok;
   }
 
-  /* Return start of namespace identifier is the token is part of one. */
+  /* Return start of namespace identifier if the token is part of one. */
   Token namespace_start() const
   {
     if (*this != Word) {
@@ -309,15 +311,26 @@ struct Token {
     return str.substr(1, str.length() - 2);
   }
 
-  /* Return the line number this token is found at. Take into account the #line directives. */
-  size_t line_number() const
+  /* Return the line number this token is found at. Take into account the #line directives.
+   * If `at_end` is true, return the line number after this token. */
+  size_t line_number(bool at_end = false) const
   {
+    if (is_invalid()) {
+      return 0;
+    }
+    if (at_end) {
+      return parser::line_number(data->str, str_index_last()) +
+             int(data->str[str_index_last()] == '\n');
+    }
     return parser::line_number(data->str, str_index_start());
   }
 
   /* Return the offset to the start of the line. */
   size_t char_number() const
   {
+    if (is_invalid()) {
+      return 0;
+    }
     return parser::char_number(data->str, str_index_start());
   }
 
@@ -334,6 +347,11 @@ struct Token {
     }
     return TokenType(data->token_types[index]);
   }
+
+  /* Return the attribute scope before this token if it exists. */
+  Scope attribute_before() const;
+  /* Return the attribute scope after this token if it exists. */
+  Scope attribute_after() const;
 
   bool operator==(TokenType type) const
   {

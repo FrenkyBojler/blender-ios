@@ -137,7 +137,7 @@ static void view3d_ob_drop_on_enter(wmDropBox *drop, wmDrag *drag)
 
   if (!is_zero_v3(dimensions)) {
     mul_v3_v3fl(state->box_dimensions, dimensions, 0.5f);
-    UI_GetThemeColor4ubv(TH_GIZMO_PRIMARY, state->color_box);
+    blender::ui::theme::get_color_4ubv(TH_GIZMO_PRIMARY, state->color_box);
     state->draw_box = true;
   }
 }
@@ -391,16 +391,16 @@ static void make_selected_objects_local(Main &bmain,
 
   if (localize_parent_collections) {
     /* Collect the collections containing the selected objects. */
-    LISTBASE_FOREACH (Collection *, collection, &bmain.collections) {
-      if (ID_IS_LINKED(collection) &&
+    for (Collection &collection : bmain.collections) {
+      if (ID_IS_LINKED(&collection) &&
           /* This #BKE_view_layer_has_collection() check requires the view layer to be synced.
            * That's why we first collect the collections before doing any changes. Otherwise we'd
            * have to sync the view layer after every "make local" operation. */
-          BKE_view_layer_has_collection(&view_layer, collection))
+          BKE_view_layer_has_collection(&view_layer, &collection))
       {
         FOREACH_SELECTED_OBJECT_BEGIN (&view_layer, &v3d, ob_selected) {
-          if (BKE_collection_has_object(collection, ob_selected)) {
-            collections_to_localize.add(collection);
+          if (BKE_collection_has_object(&collection, ob_selected)) {
+            collections_to_localize.add(&collection);
             break;
           }
         }
@@ -675,7 +675,7 @@ static void view3d_id_path_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 
 void view3d_dropboxes()
 {
-  ListBase *lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   wmDropBox *drop;
   drop = WM_dropbox_add(lb,

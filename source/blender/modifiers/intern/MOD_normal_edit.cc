@@ -19,7 +19,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -182,7 +181,7 @@ static void faces_check_flip(Mesh &mesh,
   IndexMaskMemory memory;
   const IndexMask faces_to_flip = IndexMask::from_predicate(
       faces.index_range(), GrainSize(1024), memory, [&](const int i) {
-        const blender::IndexRange face = faces[i];
+        const IndexRange face = faces[i];
         float norsum[3] = {0.0f};
 
         for (const int64_t j : face) {
@@ -476,10 +475,10 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd,
     result = mesh;
   }
 
-  const blender::Span<blender::float3> positions = result->vert_positions();
+  const Span<blender::float3> positions = result->vert_positions();
   const OffsetIndices faces = result->faces();
-  blender::MutableSpan<int> corner_verts = result->corner_verts_for_write();
-  blender::MutableSpan<int> corner_edges = result->corner_edges_for_write();
+  MutableSpan<int> corner_verts = result->corner_verts_for_write();
+  MutableSpan<int> corner_edges = result->corner_edges_for_write();
 
   int defgrp_index;
   const MDeformVert *dvert;
@@ -563,10 +562,7 @@ static Mesh *normalEditModifier_do(NormalEditModifierData *enmd,
 static void init_data(ModifierData *md)
 {
   NormalEditModifierData *enmd = (NormalEditModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(enmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(enmd, DNA_struct_default_get(NormalEditModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(enmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -616,7 +612,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int mode = RNA_enum_get(ptr, "mode");
 
-  layout.prop(ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mode", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   layout.use_property_split_set(true);
 

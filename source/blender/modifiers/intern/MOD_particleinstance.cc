@@ -18,7 +18,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
@@ -45,10 +44,7 @@
 static void init_data(ModifierData *md)
 {
   ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(pimd, modifier));
-
-  MEMCPY_STRUCT_AFTER(pimd, DNA_struct_default_get(ParticleInstanceModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(pimd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -82,9 +78,9 @@ static bool is_disabled(const Scene *scene, ModifierData *md, bool use_render_pa
   /* If the psys modifier is disabled we cannot use its data.
    * First look up the psys modifier from the object, then check if it is enabled.
    */
-  LISTBASE_FOREACH (ModifierData *, ob_md, &pimd->ob->modifiers) {
-    if (ob_md->type == eModifierType_ParticleSystem) {
-      ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)ob_md;
+  for (ModifierData &ob_md : pimd->ob->modifiers) {
+    if (ob_md.type == eModifierType_ParticleSystem) {
+      ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)&ob_md;
       if (psmd->psys == psys) {
         int required_mode;
 
@@ -95,7 +91,7 @@ static bool is_disabled(const Scene *scene, ModifierData *md, bool use_render_pa
           required_mode = eModifierMode_Realtime;
         }
 
-        if (!BKE_modifier_is_enabled(scene, ob_md, required_mode)) {
+        if (!BKE_modifier_is_enabled(scene, &ob_md, required_mode)) {
           return true;
         }
 
@@ -304,7 +300,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   psys_sim_data_init(&sim);
 
   if (psys->flag & (PSYS_HAIR_DONE | PSYS_KEYED) || psys->pointcache->flag & PTCACHE_BAKED) {
-    if (const std::optional<blender::Bounds<blender::float3>> bounds = mesh->bounds_min_max()) {
+    if (const std::optional<Bounds<blender::float3>> bounds = mesh->bounds_min_max()) {
       min_co = bounds->min[track];
       max_co = bounds->max[track];
     }
@@ -312,14 +308,14 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   result = BKE_mesh_new_nomain_from_template(mesh, maxvert, maxedge, maxpoly, maxloop);
 
-  const blender::OffsetIndices orig_faces = mesh->faces();
-  const blender::Span<int> orig_corner_verts = mesh->corner_verts();
-  const blender::Span<int> orig_corner_edges = mesh->corner_edges();
-  blender::MutableSpan<blender::float3> positions = result->vert_positions_for_write();
-  blender::MutableSpan<blender::int2> edges = result->edges_for_write();
-  blender::MutableSpan<int> face_offsets = result->face_offsets_for_write();
-  blender::MutableSpan<int> corner_verts = result->corner_verts_for_write();
-  blender::MutableSpan<int> corner_edges = result->corner_edges_for_write();
+  const OffsetIndices orig_faces = mesh->faces();
+  const Span<int> orig_corner_verts = mesh->corner_verts();
+  const Span<int> orig_corner_edges = mesh->corner_edges();
+  MutableSpan<blender::float3> positions = result->vert_positions_for_write();
+  MutableSpan<blender::int2> edges = result->edges_for_write();
+  MutableSpan<int> face_offsets = result->face_offsets_for_write();
+  MutableSpan<int> corner_verts = result->corner_verts_for_write();
+  MutableSpan<int> corner_edges = result->corner_edges_for_write();
   blender::bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::SpanAttributeWriter mloopcols_index =
       attributes.lookup_or_add_for_write_span<ColorGeometry4b>(pimd->index_layer_name,
@@ -485,7 +481,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
     /* create faces and loops */
     for (k = 0; k < faces_num; k++) {
-      const blender::IndexRange in_face = orig_faces[k];
+      const IndexRange in_face = orig_faces[k];
 
       face_interp.copy(k, p_skip * faces_num + k, 1);
       const int dst_face_start = in_face.start() + p_skip * totloop;
@@ -534,7 +530,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
   blender::ui::Layout &layout = *panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -579,7 +576,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout.prop(ptr, "space", UI_ITEM_NONE, IFACE_("Coordinate Space"), ICON_NONE);
   row = &layout.row(true);
-  row->prop(ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row->prop(ptr, "axis", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -605,11 +602,11 @@ static void path_panel_draw(const bContext * /*C*/, Panel *panel)
   layout.active_set(RNA_boolean_get(ptr, "use_path"));
 
   blender::ui::Layout *col = &layout.column(true);
-  col->prop(ptr, "position", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  col->prop(ptr, "random_position", UI_ITEM_R_SLIDER, IFACE_("Random"), ICON_NONE);
+  col->prop(ptr, "position", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  col->prop(ptr, "random_position", blender::ui::ITEM_R_SLIDER, IFACE_("Random"), ICON_NONE);
   col = &layout.column(true);
-  col->prop(ptr, "rotation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  col->prop(ptr, "random_rotation", UI_ITEM_R_SLIDER, IFACE_("Random"), ICON_NONE);
+  col->prop(ptr, "rotation", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  col->prop(ptr, "random_rotation", blender::ui::ITEM_R_SLIDER, IFACE_("Random"), ICON_NONE);
 
   layout.prop(ptr, "use_preserve_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }

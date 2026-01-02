@@ -161,7 +161,7 @@ struct GHOST_ExtensionsVK {
   bool is_supported(const char *extension_name) const
   {
     for (const VkExtensionProperties &extension : extensions) {
-      if (strcmp(extension.extensionName, extension_name) == 0) {
+      if (STREQ(extension.extensionName, extension_name)) {
         return true;
       }
     }
@@ -224,7 +224,7 @@ struct GHOST_ExtensionsVK {
   bool is_enabled(const char *extension_name) const
   {
     for (const char *enabled_extension_name : enabled) {
-      if (strcmp(enabled_extension_name, extension_name) == 0) {
+      if (STREQ(enabled_extension_name, extension_name)) {
         return true;
       }
     }
@@ -456,11 +456,11 @@ struct GHOST_InstanceVK {
       if (
 #ifndef __APPLE__
           !device_vk.features.features.geometryShader ||
+          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
+#endif
           !device_vk.features.features.multiViewport ||
           !device_vk.features.features.shaderClipDistance ||
           !device_vk.features.features.fragmentStoresAndAtomics ||
-          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
-#endif
           !device_vk.features.features.multiDrawIndirect ||
           !device_vk.features.features.imageCubeArray ||
           !device_vk.features.features.dualSrcBlend || !device_vk.features.features.logicOp ||
@@ -515,6 +515,7 @@ struct GHOST_InstanceVK {
   }
 
   bool create_device(const bool use_vk_ext_swapchain_maintenance1,
+                     const bool is_debug,
                      blender::Span<const char *> required_device_extensions,
                      blender::Span<const char *> optional_device_extensions)
   {
@@ -536,7 +537,7 @@ struct GHOST_InstanceVK {
      */
     const bool is_amd_driver = device.properties_12.driverID == VK_DRIVER_ID_AMD_PROPRIETARY ||
                                device.properties_12.driverID == VK_DRIVER_ID_AMD_OPEN_SOURCE;
-    if (is_amd_driver) {
+    if (is_amd_driver && is_debug) {
       device.extensions.disable(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
       device.extensions.disable(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
       device.extensions.disable(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
@@ -556,11 +557,11 @@ struct GHOST_InstanceVK {
     VkPhysicalDeviceFeatures device_features = {};
 #ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
+    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
+#endif
     device_features.multiViewport = VK_TRUE;
     device_features.shaderClipDistance = VK_TRUE;
     device_features.fragmentStoresAndAtomics = VK_TRUE;
-    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
-#endif
     device_features.logicOp = VK_TRUE;
     device_features.dualSrcBlend = VK_TRUE;
     device_features.imageCubeArray = VK_TRUE;
@@ -709,6 +710,13 @@ struct GHOST_InstanceVK {
       feature_struct_ptr.push_back(&vertex_input_dynamic_state);
     }
 
+    /* VK_EXT_host_image_copy */
+    VkPhysicalDeviceHostImageCopyFeaturesEXT host_image_copy = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES_EXT, nullptr, VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&host_image_copy);
+    }
+
     /* Link all registered feature structs. */
     for (int i = 1; i < feature_struct_ptr.size(); i++) {
       ((VkBaseInStructure *)(feature_struct_ptr[i - 1]))->pNext =
@@ -830,13 +838,14 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
    * to be complete, it is also safe in the callback to clean up resources associated with the next
    * frame.
    */
+  GHOST_Frame &prev_frame_data = frame_data_[render_frame_];
   render_frame_ = (render_frame_ + 1) % frame_data_.size();
   GHOST_Frame &submission_frame_data = frame_data_[render_frame_];
   /* Wait for previous time that the frame was used to finish rendering. Presenting can
    * still happen in parallel, but acquiring needs can only happen when the frame acquire semaphore
    * has been signaled and waited for. */
-  if (submission_frame_data.submission_fence) {
-    vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
+  if (prev_frame_data.submission_fence) {
+    vkWaitForFences(vk_device, 1, &prev_frame_data.submission_fence, true, UINT64_MAX);
   }
   for (VkSwapchainKHR swapchain : submission_frame_data.discard_pile.swapchains) {
     this->destroySwapchainPresentFences(swapchain);
@@ -882,7 +891,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
      * swapchain image. Other do it when calling vkQueuePresent. */
     VkResult acquire_result = VK_ERROR_OUT_OF_DATE_KHR;
     while (swapchain_ != VK_NULL_HANDLE &&
-           (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR))
+           (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)))
     {
       acquire_result = vkAcquireNextImageKHR(vk_device,
                                              swapchain_,
@@ -890,7 +899,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
                                              submission_frame_data.acquire_semaphore,
                                              VK_NULL_HANDLE,
                                              &image_index);
-      if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
+      if (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
         recreateSwapchain(use_hdr_swapchain);
       }
     }
@@ -1026,7 +1035,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   }
   acquired_swapchain_image_index_.reset();
 
-  if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
+  if (ELEM(present_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
     recreateSwapchain(use_hdr_swapchain);
     return GHOST_kSuccess;
   }
@@ -1332,14 +1341,11 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
     return GHOST_kFailure;
   }
 
-  /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
-   * actions that require low latency (paint cursor, UI resizing). MAILBOX prefers triple
-   * buffering. */
-  uint32_t image_count_requested = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 3 : 2;
+  /* We let the WSI implementation define the amount of buffers, we can assume only one frame is
+   * free at any one time, but we need 2 free frames to reduce jitter */
+  uint32_t image_count_requested = capabilities.minImageCount + 1;
   /* NOTE: maxImageCount == 0 means no limit. */
-  if (capabilities.minImageCount != 0 && image_count_requested < capabilities.minImageCount) {
-    image_count_requested = capabilities.minImageCount;
-  }
+
   if (capabilities.maxImageCount != 0 && image_count_requested > capabilities.maxImageCount) {
     image_count_requested = capabilities.maxImageCount;
   }
@@ -1655,12 +1661,19 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     optional_device_extensions.append(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
 #endif
     optional_device_extensions.append(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_COPY_COMMANDS_2_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME);
+#if 0
+    /* VK_EXT_host_image_copy isn't supported by Renderdoc and also isn't working as expected. */
+    optional_device_extensions.append(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
+#endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
       return GHOST_kFailure;
     }
 
     if (!instance_vk.create_device(use_vk_ext_swapchain_colorspace,
+                                   context_params_.is_debug,
                                    required_device_extensions,
                                    optional_device_extensions))
     {

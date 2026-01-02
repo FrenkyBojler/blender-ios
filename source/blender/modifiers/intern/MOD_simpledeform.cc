@@ -14,7 +14,6 @@
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
@@ -389,10 +388,7 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd,
 static void init_data(ModifierData *md)
 {
   SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SimpleDeformModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -445,7 +441,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   int deform_method = RNA_enum_get(ptr, "deform_method");
 
   blender::ui::Layout &row = layout.row(false);
-  row.prop(ptr, "deform_method", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row.prop(ptr, "deform_method", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   layout.use_property_split_set(true);
 
@@ -457,7 +453,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   }
 
   layout.prop(ptr, "origin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "deform_axis", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -465,7 +461,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 static void restrictions_panel_draw(const bContext * /*C*/, Panel *panel)
 {
   blender::ui::Layout &layout = *panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -474,7 +471,7 @@ static void restrictions_panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout.use_property_split_set(true);
 
-  layout.prop(ptr, "limits", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "limits", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (ELEM(deform_method,
            MOD_SIMPLEDEFORM_MODE_TAPER,

@@ -145,6 +145,11 @@ void transform_snap_flag_from_modifiers_set(TransInfo *t)
                      (((t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP) ||
                       ((t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP_INVERT)),
                      SCE_SNAP);
+
+  /* Clear stale snap flags when snapping is disabled. */
+  if (!(t->tsnap.flag & SCE_SNAP)) {
+    t->tsnap.status &= ~(SNAP_TARGET_FOUND | SNAP_SOURCE_FOUND);
+  }
 }
 
 bool transform_snap_is_active(const TransInfo *t)
@@ -215,17 +220,17 @@ void drawSnapping(TransInfo *t)
   }
 
   if (t->spacetype == SPACE_SEQ) {
-    UI_GetThemeColor3ubv(TH_SEQ_ACTIVE, col);
+    ui::theme::get_color_3ubv(TH_SEQ_ACTIVE, col);
     col[3] = 128;
   }
   else if (t->spacetype != SPACE_IMAGE) {
-    UI_GetThemeColor3ubv(TH_TRANSFORM, col);
+    ui::theme::get_color_3ubv(TH_TRANSFORM, col);
     col[3] = 128;
 
-    UI_GetThemeColor3ubv(TH_SELECT, selectedCol);
+    ui::theme::get_color_3ubv(TH_SELECT, selectedCol);
     selectedCol[3] = 128;
 
-    UI_GetThemeColor3ubv(TH_ACTIVE, activeCol);
+    ui::theme::get_color_3ubv(TH_ACTIVE, activeCol);
     activeCol[3] = 192;
   }
 
@@ -239,7 +244,7 @@ void drawSnapping(TransInfo *t)
     if (!BLI_listbase_is_empty(&t->tsnap.points)) {
       /* Draw snap points. */
 
-      float size = 2.0f * UI_GetThemeValuef(TH_VERTEX_SIZE);
+      float size = 2.0f * blender::ui::theme::get_value_f(TH_VERTEX_SIZE);
       float view_inv[4][4];
       copy_m4_m4(view_inv, rv3d->viewinv);
 
@@ -249,14 +254,14 @@ void drawSnapping(TransInfo *t)
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       if (!BLI_listbase_is_empty(&t->tsnap.points)) {
-        LISTBASE_FOREACH (TransSnapPoint *, p, &t->tsnap.points) {
-          if (p == t->tsnap.selectedPoint) {
+        for (TransSnapPoint &p : t->tsnap.points) {
+          if (&p == t->tsnap.selectedPoint) {
             immUniformColor4ubv(selectedCol);
           }
           else {
             immUniformColor4ubv(col);
           }
-          imm_drawcircball(p->co, ED_view3d_pixel_size(rv3d, p->co) * size, view_inv, pos);
+          imm_drawcircball(p.co, ED_view3d_pixel_size(rv3d, p.co) * size, view_inv, pos);
         }
       }
 
@@ -302,8 +307,8 @@ void drawSnapping(TransInfo *t)
         t->tsnap.snap_target[0] / t->aspect[0],
         t->tsnap.snap_target[1] / t->aspect[1],
     };
-    UI_view2d_view_to_region_fl(&t->region->v2d, UNPACK2(snap_point), &x, &y);
-    float radius = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE) * U.pixelsize;
+    blender::ui::view2d_view_to_region_fl(&t->region->v2d, UNPACK2(snap_point), &x, &y);
+    float radius = 2.5f * blender::ui::theme::get_value_f(TH_VERTEX_SIZE) * U.pixelsize;
 
     GPU_matrix_push_projection();
     wmOrtho2_region_pixelspace(t->region);
@@ -552,8 +557,9 @@ static bool transform_snap_mixed_is_active(const TransInfo *t)
   }
 
   return (t->tsnap.mode &
-          (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_VOLUME |
-           SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_TO_GRID)) != 0;
+          (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT |
+           SCE_SNAP_TO_VOLUME | SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR |
+           SCE_SNAP_TO_GRID)) != 0;
 }
 
 void transform_snap_mixed_apply(TransInfo *t, float *vec)
@@ -1162,10 +1168,10 @@ eRedrawFlag updateSelectedSnapPoint(TransInfo *t)
     float dist_min_sq = TRANSFORM_SNAP_MAX_PX;
     float screen_loc[2];
 
-    LISTBASE_FOREACH (TransSnapPoint *, p, &t->tsnap.points) {
+    for (TransSnapPoint &p : t->tsnap.points) {
       float dist_sq;
 
-      if (ED_view3d_project_float_global(t->region, p->co, screen_loc, V3D_PROJ_TEST_NOP) !=
+      if (ED_view3d_project_float_global(t->region, p.co, screen_loc, V3D_PROJ_TEST_NOP) !=
           V3D_PROJ_RET_OK)
       {
         continue;
@@ -1174,7 +1180,7 @@ eRedrawFlag updateSelectedSnapPoint(TransInfo *t)
       dist_sq = len_squared_v2v2(t->mval, screen_loc);
 
       if (dist_sq < dist_min_sq) {
-        closest_p = p;
+        closest_p = &p;
         dist_min_sq = dist_sq;
       }
     }
@@ -1634,7 +1640,7 @@ bool peelObjectsTransform(TransInfo *t,
   snap_object_params.snap_target_select = t->tsnap.target_operation;
   snap_object_params.edit_mode_type = (t->flag & T_EDIT) != 0 ? SNAP_GEOM_EDIT : SNAP_GEOM_FINAL;
 
-  ListBase depths_peel = {nullptr};
+  ListBaseT<SnapObjectHitDepth> depths_peel = {nullptr};
   blender::ed::transform::object_project_all_view3d_ex(t->tsnap.object_context,
                                                        t->depsgraph,
                                                        t->region,
@@ -1658,21 +1664,21 @@ bool peelObjectsTransform(TransInfo *t,
     if (use_peel_object) {
       /* If peeling objects, take the first and last from each object. */
       hit_max = hit_min;
-      LISTBASE_FOREACH (SnapObjectHitDepth *, iter, &depths_peel) {
-        if ((iter->depth > hit_max->depth) && (iter->ob_uuid == hit_min->ob_uuid)) {
-          hit_max = iter;
+      for (SnapObjectHitDepth &iter : depths_peel) {
+        if ((iter.depth > hit_max->depth) && (iter.ob_uuid == hit_min->ob_uuid)) {
+          hit_max = &iter;
         }
       }
     }
     else {
       /* Otherwise, pair first with second and so on. */
-      LISTBASE_FOREACH (SnapObjectHitDepth *, iter, &depths_peel) {
-        if ((iter != hit_min) && (iter->ob_uuid == hit_min->ob_uuid)) {
+      for (SnapObjectHitDepth &iter : depths_peel) {
+        if ((&iter != hit_min) && (iter.ob_uuid == hit_min->ob_uuid)) {
           if (hit_max == nullptr) {
-            hit_max = iter;
+            hit_max = &iter;
           }
-          else if (iter->depth < hit_max->depth) {
-            hit_max = iter;
+          else if (iter.depth < hit_max->depth) {
+            hit_max = &iter;
           }
         }
       }
@@ -1693,8 +1699,8 @@ bool peelObjectsTransform(TransInfo *t,
     r_no[1] = 0.0;
     r_no[2] = 1.0;
 
-    LISTBASE_FOREACH_MUTABLE (SnapObjectHitDepth *, link, &depths_peel) {
-      MEM_delete(link);
+    for (SnapObjectHitDepth &link : depths_peel.items_mutable()) {
+      MEM_delete(&link);
     }
     return true;
   }

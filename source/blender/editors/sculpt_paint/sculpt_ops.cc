@@ -1294,7 +1294,7 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
 
       if (sd && RNA_boolean_get(op->ptr, "use_curve")) {
         PointerRNA sculpt_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Sculpt, sd);
-        uiTemplateCurveMapping(&layout,
+        template_curve_mapping(&layout,
                                &sculpt_ptr,
                                "automasking_cavity_curve_op",
                                'v',
@@ -1573,6 +1573,9 @@ void operatortypes_sculpt()
   WM_operatortype_append(expand::SCULPT_OT_expand);
   WM_operatortype_append(mask::SCULPT_OT_mask_from_cavity);
   WM_operatortype_append(mask::SCULPT_OT_mask_from_boundary);
+  WM_operatortype_append(SCULPT_OT_paint_mask_extract);
+  WM_operatortype_append(SCULPT_OT_face_set_extract);
+  WM_operatortype_append(SCULPT_OT_paint_mask_slice);
 }
 
 void keymap_sculpt(wmKeyConfig *keyconf)

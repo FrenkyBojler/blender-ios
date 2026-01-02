@@ -172,7 +172,6 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "SEQ_relations.hh"
 #  include "SEQ_retiming.hh"
 #  include "SEQ_select.hh"
-#  include "SEQ_time.hh"
 #  include "SEQ_transform.hh"
 #  include "SEQ_utils.hh"
 
@@ -276,13 +275,14 @@ static void rna_Strip_use_strip(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
   DEG_relations_tag_update(bmain);
 }
 
-static void add_strips_from_seqbase(const ListBase *seqbase, blender::Vector<Strip *> &strips)
+static void add_strips_from_seqbase(const ListBaseT<Strip> *seqbase,
+                                    blender::Vector<Strip *> &strips)
 {
-  LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    strips.append(strip);
+  for (Strip &strip : *seqbase) {
+    strips.append(&strip);
 
-    if (strip->type == STRIP_TYPE_META) {
-      add_strips_from_seqbase(&strip->seqbase, strips);
+    if (strip.type == STRIP_TYPE_META) {
+      add_strips_from_seqbase(&strip.seqbase, strips);
     }
   }
 }
@@ -457,7 +457,7 @@ static int rna_Strip_retiming_key_frame_get(PointerRNA *ptr)
     return 0;
   }
 
-  return blender::seq::time_start_frame_get(strip) + key->strip_frame_index;
+  return strip->content_start() + key->strip_frame_index;
 }
 
 static void rna_Strip_retiming_key_frame_set(PointerRNA *ptr, int value)
@@ -487,7 +487,7 @@ static void rna_Strip_views_format_update(Main *bmain, Scene *scene, PointerRNA 
 
 static void do_strip_frame_change_update(Scene *scene, Strip *strip)
 {
-  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
+  ListBaseT<Strip> *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   if (blender::seq::transform_test_overlap(scene, seqbase, strip)) {
     blender::seq::transform_seqbase_shuffle(seqbase, strip, scene);
@@ -509,14 +509,13 @@ static void rna_Strip_frame_change_update(Main * /*bmain*/, Scene * /*scene*/, P
 
 static int rna_Strip_frame_final_start_get(PointerRNA *ptr)
 {
-  Scene *scene = (Scene *)ptr->owner_id;
-  return blender::seq::time_left_handle_frame_get(scene, (Strip *)ptr->data);
+  return ((Strip *)ptr->data)->left_handle();
 }
 
 static int rna_Strip_frame_final_end_get(PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
-  return blender::seq::time_right_handle_frame_get(scene, (Strip *)ptr->data);
+  return ((Strip *)ptr->data)->right_handle(scene);
 }
 
 static void rna_Strip_start_frame_final_set(PointerRNA *ptr, int value)
@@ -524,7 +523,7 @@ static void rna_Strip_start_frame_final_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::time_left_handle_frame_set(scene, strip, value);
+  strip->left_handle_set(scene, value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }
@@ -534,7 +533,7 @@ static void rna_Strip_end_frame_final_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::time_right_handle_frame_set(scene, strip, value);
+  strip->right_handle_set(scene, value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }
@@ -628,8 +627,7 @@ static void rna_Strip_frame_length_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::time_right_handle_frame_set(
-      scene, strip, blender::seq::time_left_handle_frame_get(scene, strip) + value);
+  strip->right_handle_set(scene, strip->left_handle() + value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }
@@ -638,15 +636,14 @@ static int rna_Strip_frame_length_get(PointerRNA *ptr)
 {
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
-  return blender::seq::time_right_handle_frame_get(scene, strip) -
-         blender::seq::time_left_handle_frame_get(scene, strip);
+  return strip->right_handle(scene) - strip->left_handle();
 }
 
 static int rna_Strip_frame_duration_get(PointerRNA *ptr)
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
-  return blender::seq::time_strip_length_get(scene, strip);
+  return strip->length(scene);
 }
 
 static int rna_Strip_frame_editable(const PointerRNA *ptr, const char ** /*r_info*/)
@@ -660,7 +657,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
 {
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
-  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
+  ListBaseT<Strip> *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   /* check channel increment or decrement */
   const int channel_delta = (value >= strip->channel) ? 1 : -1;
@@ -677,7 +674,7 @@ static bool rna_Strip_lock_get(PointerRNA *ptr)
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
   Strip *strip = static_cast<Strip *>(ptr->data);
   Editing *ed = blender::seq::editing_get(scene);
-  const ListBase *channels = blender::seq::get_channels_by_strip(ed, strip);
+  const ListBaseT<SeqTimelineChannel> *channels = blender::seq::get_channels_by_strip(ed, strip);
   return blender::seq::transform_is_locked(channels, strip);
 }
 
@@ -1694,7 +1691,7 @@ static float rna_Strip_fps_get(PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   Strip *strip = (Strip *)(ptr->data);
-  return blender::seq::time_strip_fps_get(scene, strip);
+  return strip->media_fps(scene);
 }
 
 static void rna_Strip_separate(ID *id, Strip *strip_meta, Main *bmain)
@@ -1702,10 +1699,10 @@ static void rna_Strip_separate(ID *id, Strip *strip_meta, Main *bmain)
   Scene *scene = (Scene *)id;
 
   /* Find the appropriate seqbase */
-  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip_meta);
+  ListBaseT<Strip> *seqbase = blender::seq::get_seqbase_by_strip(scene, strip_meta);
 
-  LISTBASE_FOREACH_MUTABLE (Strip *, strip, &strip_meta->seqbase) {
-    blender::seq::edit_move_strip_to_seqbase(scene, &strip_meta->seqbase, strip, seqbase);
+  for (Strip &strip : strip_meta->seqbase.items_mutable()) {
+    blender::seq::edit_move_strip_to_seqbase(scene, &strip_meta->seqbase, &strip, seqbase);
   }
 
   blender::seq::edit_flag_for_removal(scene, seqbase, strip_meta);
@@ -1725,7 +1722,7 @@ static void rna_SequenceTimelineChannel_name_set(PointerRNA *ptr, const char *va
   Editing *ed = blender::seq::editing_get(scene);
 
   Strip *channel_owner = blender::seq::lookup_strip_by_channel_owner(ed, channel);
-  ListBase *channels_base = &ed->channels;
+  ListBaseT<SeqTimelineChannel> *channels_base = &ed->channels;
 
   if (channel_owner != nullptr) {
     channels_base = &channel_owner->channels;
@@ -1748,7 +1745,7 @@ static void rna_SequenceTimelineChannel_mute_update(bContext *C, PointerRNA *ptr
   SeqTimelineChannel *channel = (SeqTimelineChannel *)ptr;
 
   Strip *channel_owner = blender::seq::lookup_strip_by_channel_owner(ed, channel);
-  ListBase *seqbase;
+  ListBaseT<Strip> *seqbase;
   if (channel_owner == nullptr) {
     seqbase = &ed->seqbase;
   }
@@ -1757,11 +1754,17 @@ static void rna_SequenceTimelineChannel_mute_update(bContext *C, PointerRNA *ptr
   }
 
   blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
-  LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    blender::seq::relations_invalidate_cache(scene, strip);
+  for (Strip &strip : *seqbase) {
+    blender::seq::relations_invalidate_cache(scene, &strip);
   }
 
   rna_Strip_sound_update(bmain, scene, ptr);
+}
+
+static int rna_SequenceTimelineChannel_number_get(PointerRNA *ptr)
+{
+  SeqTimelineChannel *channel = (SeqTimelineChannel *)ptr->data;
+  return blender::seq::channel_index_get(channel);
 }
 
 static std::optional<std::string> rna_SeqTimelineChannel_path(const PointerRNA *ptr)
@@ -2460,7 +2463,7 @@ static void rna_def_strip(BlenderRNA *brna)
   prop = RNA_def_property(srna, "frame_offset_start", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "startofs");
   //  RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* overlap tests */
-  RNA_def_property_ui_text(prop, "Start Offset", "");
+  RNA_def_property_ui_text(prop, "Start Offset", "Offset from the start of the strip in frames");
   RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_Strip_frame_offset_start_set", "rna_Strip_frame_offset_start_range");
@@ -2469,7 +2472,7 @@ static void rna_def_strip(BlenderRNA *brna)
   prop = RNA_def_property(srna, "frame_offset_end", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "endofs");
   //  RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* overlap tests */
-  RNA_def_property_ui_text(prop, "End Offset", "");
+  RNA_def_property_ui_text(prop, "End Offset", "Offset from the end of the strip in frames");
   RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100.0f, 0);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_Strip_frame_offset_end_set", "rna_Strip_frame_offset_end_range");
@@ -2568,6 +2571,11 @@ static void rna_def_channel(BlenderRNA *brna)
   RNA_def_struct_name_property(srna, prop);
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_SequenceTimelineChannel_name_set");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "number", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop, "rna_SequenceTimelineChannel_number_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Number", "Channel number");
 
   prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_CHANNEL_LOCK);

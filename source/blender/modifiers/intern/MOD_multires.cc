@@ -14,7 +14,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -51,10 +50,7 @@ struct MultiresRuntimeData {
 static void init_data(ModifierData *md)
 {
   MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(mmd, DNA_struct_default_get(MultiresModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(mmd, modifier);
 
   /* Open subdivision panels by default. */
   md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT | UI_SUBPANEL_DATA_EXPAND_1;
@@ -304,10 +300,10 @@ static void panel_draw(const bContext *C, Panel *panel)
   col.prop(ptr, "render_levels", UI_ITEM_NONE, IFACE_("Render"), ICON_NONE);
 
   const bool is_sculpt_mode = CTX_data_active_object(C)->mode & OB_MODE_SCULPT;
-  uiBlock *block = layout.block();
-  UI_block_lock_set(block, !is_sculpt_mode, N_("Sculpt Base Mesh"));
+  blender::ui::Block *block = layout.block();
+  block_lock_set(block, !is_sculpt_mode, N_("Sculpt Base Mesh"));
   col.prop(ptr, "use_sculpt_base_mesh", UI_ITEM_NONE, IFACE_("Sculpt Base Mesh"), ICON_NONE);
-  UI_block_lock_clear(block);
+  block_lock_clear(block);
 
   layout.prop(ptr, "show_only_control_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

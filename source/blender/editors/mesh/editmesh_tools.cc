@@ -1476,15 +1476,16 @@ static bool bm_vert_connect_select_history(BMesh *bm)
  * Convert an edge selection to a temp vertex selection
  * (which must be cleared after use as a path to connect).
  */
-static bool bm_vert_connect_select_history_edge_to_vert_path(BMesh *bm, ListBase *r_selected)
+static bool bm_vert_connect_select_history_edge_to_vert_path(
+    BMesh *bm, ListBaseT<BMEditSelection> *r_selected)
 {
-  ListBase selected_orig = {nullptr, nullptr};
+  ListBaseT<BMEditSelection> selected_orig = {nullptr, nullptr};
   int edges_len = 0;
   bool side = false;
 
   /* first check all edges are OK */
-  LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
-    if (ese->htype == BM_EDGE) {
+  for (BMEditSelection &ese : bm->selected) {
+    if (ese.htype == BM_EDGE) {
       edges_len += 1;
     }
     else {
@@ -1499,9 +1500,9 @@ static bool bm_vert_connect_select_history_edge_to_vert_path(BMesh *bm, ListBase
   std::swap(bm->selected, selected_orig);
 
   /* convert edge selection into 2 ordered loops (where the first edge ends up in the middle) */
-  LISTBASE_FOREACH (BMEditSelection *, ese, &selected_orig) {
-    BMEdge *e_curr = (BMEdge *)ese->ele;
-    BMEdge *e_prev = ese->prev ? (BMEdge *)ese->prev->ele : nullptr;
+  for (BMEditSelection &ese : selected_orig) {
+    BMEdge *e_curr = (BMEdge *)ese.ele;
+    BMEdge *e_prev = ese.prev ? (BMEdge *)ese.prev->ele : nullptr;
     BMLoop *l_curr;
     BMLoop *l_prev;
     BMVert *v;
@@ -1552,7 +1553,7 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
     const bool is_pair = (em->bm->totvertsel == 2);
-    ListBase selected_orig = {nullptr, nullptr};
+    ListBaseT<BMEditSelection> selected_orig = {nullptr, nullptr};
 
     if (bm->totvertsel == 0) {
       continue;
@@ -2710,9 +2711,9 @@ static wmOperatorStatus edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     /* if there is a mirror modifier with clipping, flag the verts that
      * are within tolerance of the plane(s) of reflection
      */
-    LISTBASE_FOREACH (ModifierData *, md, &obedit->modifiers) {
-      if (md->type == eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
-        MirrorModifierData *mmd = (MirrorModifierData *)md;
+    for (ModifierData &md : obedit->modifiers) {
+      if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
+        MirrorModifierData *mmd = (MirrorModifierData *)&md;
 
         if (mmd->flag & MOD_MIR_CLIPPING) {
           if (mmd->flag & MOD_MIR_AXIS_X) {
@@ -3137,14 +3138,12 @@ static wmOperatorStatus edbm_rotate_colors_exec(bContext *C, wmOperator *op)
 
     Mesh *mesh = BKE_object_get_original_mesh(ob);
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
-    if (!layer) {
-      continue;
-    }
 
     int color_index = BKE_attribute_to_index(
-        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, mesh->active_color_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+    if (color_index == -1) {
+      continue;
+    }
     EDBM_op_init(em,
                  &bmop,
                  op,
@@ -3186,16 +3185,14 @@ static wmOperatorStatus edbm_reverse_colors_exec(bContext *C, wmOperator *op)
 
     Mesh *mesh = BKE_object_get_original_mesh(obedit);
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
-    if (!layer) {
-      continue;
-    }
 
     BMOperator bmop;
 
     int color_index = BKE_attribute_to_index(
-        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, mesh->active_color_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+    if (color_index == -1) {
+      continue;
+    }
     EDBM_op_init(
         em, &bmop, op, "reverse_colors faces=%hf color_index=%i", BM_ELEM_SELECT, color_index);
 
@@ -4121,7 +4118,14 @@ static Base *mesh_separate_tagged(
   BMesh *bm_new = BM_mesh_create(&bm_mesh_allocsize_default, &create_params);
   BM_mesh_elem_toolflags_ensure(bm_new); /* Needed for 'duplicate' BMO. */
 
-  BM_mesh_copy_init_customdata(bm_new, bm_old, &bm_mesh_allocsize_default);
+  const bool use_custom_normals = (bm_old->lnor_spacearr != nullptr);
+  if (use_custom_normals) {
+    /* Needed so the temporary normal layer is copied too. */
+    BM_mesh_copy_init_customdata_all_layers(bm_new, bm_old, BM_ALL, &bm_mesh_allocsize_default);
+  }
+  else {
+    BM_mesh_copy_init_customdata(bm_new, bm_old, &bm_mesh_allocsize_default);
+  }
 
   /* Take into account user preferences for duplicating actions. */
   const eDupli_ID_Flags dupflag = eDupli_ID_Flags(USER_DUP_MESH | (U.dupflag & USER_DUP_ACT));
@@ -4155,7 +4159,12 @@ static Base *mesh_separate_tagged(
    * since de-selecting all skips selection flushing logic */
   BM_mesh_elem_hflag_disable_all(bm_old, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
 
-  BM_mesh_normals_update(bm_new);
+  if (use_custom_normals) {
+    BM_custom_loop_normals_from_vector_layer(bm_new, false);
+  }
+  else {
+    BM_mesh_normals_update(bm_new);
+  }
 
   BMeshToMeshParams to_mesh_params{};
   BM_mesh_bm_to_me(bmain, bm_new, static_cast<Mesh *>(base_new->object->data), &to_mesh_params);
@@ -4243,7 +4252,13 @@ static bool mesh_separate_selected(
   BM_mesh_elem_hflag_enable_test(
       bm_old, BM_FACE | BM_EDGE | BM_VERT, BM_ELEM_TAG, true, false, BM_ELEM_SELECT);
 
-  return (mesh_separate_tagged(bmain, scene, view_layer, base_old, bm_old) != nullptr);
+  BM_custom_loop_normals_to_vector_layer(bm_old);
+
+  Base *base_new = mesh_separate_tagged(bmain, scene, view_layer, base_old, bm_old);
+
+  BM_custom_loop_normals_from_vector_layer(bm_old, false);
+
+  return (base_new != nullptr);
 }
 
 /**
@@ -4307,6 +4322,8 @@ static bool mesh_separate_material(
   BMIter iter;
   bool result = false;
 
+  BM_custom_loop_normals_to_vector_layer(bm_old);
+
   while ((f_cmp = static_cast<BMFace *>(BM_iter_at_index(bm_old, BM_FACES_OF_MESH, nullptr, 0)))) {
     Base *base_new;
     const short mat_nr = f_cmp->mat_nr;
@@ -4349,6 +4366,8 @@ static bool mesh_separate_material(
 
     result |= (base_new != nullptr);
   }
+
+  BM_custom_loop_normals_from_vector_layer(bm_old, false);
 
   return result;
 }
@@ -4490,6 +4509,8 @@ static wmOperatorStatus edbm_separate_exec(bContext *C, wmOperator *op)
       BMesh *bm_old = BM_mesh_create(&bm_mesh_allocsize_default, &create_params);
 
       BMeshFromMeshParams from_mesh_params{};
+      from_mesh_params.calc_face_normal = true;
+      from_mesh_params.calc_vert_normal = true;
       BM_mesh_bm_from_me(bm_old, mesh, &from_mesh_params);
 
       bool changed = false;
@@ -4687,7 +4708,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
   int count;
   int span = *span_p;
 
-  ListBase eloops = {nullptr};
+  ListBaseT<BMEdgeLoopStore> eloops = {nullptr};
   BMEdgeLoopStore *el_store;
   // LinkData *el_store;
 
@@ -4724,7 +4745,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
   if ((count == 1) && ((verts_len & 1) == 0) && (verts_len == edges_len)) {
 
     /* be clever! detect 2 edge loops from one closed edge loop */
-    ListBase *verts = BM_edgeloop_verts_get(el_store);
+    ListBaseT<LinkData> *verts = BM_edgeloop_verts_get(el_store);
     BMVert *v_act = BM_mesh_active_vert_get(bm);
     LinkData *v_act_link;
     int i;
@@ -4738,11 +4759,11 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
       /* find the vertex with the best angle (a corner vertex) */
       LinkData *v_link_best = nullptr;
       float angle_best = -1.0f;
-      LISTBASE_FOREACH (LinkData *, v_link, verts) {
-        const float angle = edbm_fill_grid_vert_tag_angle(static_cast<BMVert *>(v_link->data));
+      for (LinkData &v_link : *verts) {
+        const float angle = edbm_fill_grid_vert_tag_angle(static_cast<BMVert *>(v_link.data));
         if ((angle > angle_best) || (v_link_best == nullptr)) {
           angle_best = angle;
-          v_link_best = v_link;
+          v_link_best = &v_link;
         }
       }
 
@@ -5042,12 +5063,6 @@ static wmOperatorStatus edbm_fill_grid_exec(bContext *C, wmOperator *op)
       params.calc_normals = false;
       params.is_destructive = true;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
-    }
-    else {
-      /* NOTE: Even if there were no mesh changes, #EDBM_op_finish() changed the BMesh pointer
-       * inside of edit mesh, so need to tell evaluated objects to sync new BMesh pointer to their
-       * edit mesh structures. */
-      DEG_id_tag_update(&obedit->id, 0);
     }
   }
 
@@ -5806,7 +5821,7 @@ static void edbm_decimate_ui(bContext * /*C*/, wmOperator *op)
   row.prop(op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
   blender::ui::Layout &sub = row.row(true);
   sub.active_set(RNA_boolean_get(op->ptr, "use_symmetry"));
-  sub.prop(op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  sub.prop(op->ptr, "symmetry_axis", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void MESH_OT_decimate(wmOperatorType *ot)
@@ -8748,7 +8763,7 @@ static void edbm_point_normals_ui(bContext *C, wmOperator *op)
                    point_normals_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
 }
 
@@ -9240,7 +9255,7 @@ static void edbm_average_normals_ui(bContext *C, wmOperator *op)
                    average_normals_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
 }
 
@@ -9492,8 +9507,14 @@ static void edbm_normals_tools_ui(bContext *C, wmOperator *op)
                    normals_tools_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
+}
+
+static bool edbm_normals_tools_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  const int mode = RNA_enum_get(ptr, "mode");
+  return mode == EDBM_CLNOR_TOOLS_PASTE;
 }
 
 void MESH_OT_normals_tools(wmOperatorType *ot)
@@ -9507,6 +9528,7 @@ void MESH_OT_normals_tools(wmOperatorType *ot)
   ot->exec = edbm_normals_tools_exec;
   ot->poll = ED_operator_editmesh;
   ot->ui = edbm_normals_tools_ui;
+  ot->ui_poll = edbm_normals_tools_ui_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

@@ -371,7 +371,7 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
     const float *location_prev = location_zero;
 
     float color[3];
-    UI_GetThemeColor3fv(TH_WIRE, color);
+    blender::ui::theme::get_color_3fv(TH_WIRE, color);
 
     blender::gpu::Batch *sphere = GPU_batch_preset_sphere(0);
     GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
@@ -780,7 +780,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
   const CurvePaintSettings *cps = &cdd->vc.scene->toolsettings->curve_paint_settings;
   Object *obedit = cdd->vc.obedit;
   Curve *cu = static_cast<Curve *>(obedit->data);
-  ListBase *nurblist = object_editcurve_get(obedit);
+  ListBaseT<Nurb> *nurblist = object_editcurve_get(obedit);
 
   int stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
 
@@ -799,7 +799,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
   const float radius_max = cps->radius_max;
   const float radius_range = cps->radius_max - cps->radius_min;
 
-  Nurb *nu = MEM_callocN<Nurb>(__func__);
+  Nurb *nu = MEM_new_for_free<Nurb>(__func__);
   nu->pntsv = 0;
   nu->resolu = cu->resolu;
   nu->resolv = cu->resolv;
