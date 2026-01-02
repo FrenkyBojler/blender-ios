@@ -783,13 +783,12 @@ void TokenStream::parse_scopes(report_callback &report_error)
     token_scope.clear();
     token_scope.resize(scope_ranges[0].size);
 
-    int scope_id = -1;
+    int scope_id = 0;
     for (const IndexRange &range : scope_ranges) {
+      std::fill(token_scope.begin() + range.start,
+                token_scope.begin() + range.start + range.size,
+                scope_id);
       scope_id++;
-      for (int i = 0; i < range.size; i++) {
-        int j = range.start + i;
-        token_scope[j] = scope_id;
-      }
     }
   }
 }
