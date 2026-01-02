@@ -569,10 +569,14 @@ void view2d_edge_pan_set_limits(
 //  */
 // void view2d_edge_pan_set_cur(View2DEdgePanData *vpd, rctf cur);
 
+/**
+ * Reset edge pan timers and disable edge panning without updating the current View2D.
+ */
 void view2d_edge_pan_reset(View2DEdgePanData *vpd);
 
 /**
  * Apply transform to view (i.e. adjust 'cur' rect).
+ * \note xy should be relative to the window, not the region.
  */
 void view2d_edge_pan_apply(bContext *C, View2DEdgePanData *vpd, const int xy[2])
     ATTR_NONNULL(1, 2, 3);
@@ -584,9 +588,13 @@ void view2d_edge_pan_apply_event(bContext *C, View2DEdgePanData *vpd, const wmEv
 
 /**
  * Apply arbitrary delta to view.
+ * \note dx and dy should be relative to the view, not screen-space.
  */
 void view2d_edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, float dy);
 
+/**
+ * Restore the original `initial_rect` View2D.
+ */
 void view2d_edge_pan_cancel(bContext *C, View2DEdgePanData *vpd);
 
 void view2d_edge_pan_operator_properties(wmOperatorType *ot);

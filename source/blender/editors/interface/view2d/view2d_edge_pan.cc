@@ -78,7 +78,7 @@ void view2d_edge_pan_init(bContext *C,
   vpd->delay = delay;
   vpd->zoom_influence = zoom_influence;
 
-  vpd->enabled = false;
+  vpd->initial_rect = vpd->region->v2d.cur;
 
   /* Calculate translation factor, based on size of view. */
   const float winx = float(BLI_rcti_size_x(&vpd->region->winrct) + 1);
@@ -103,10 +103,10 @@ void view2d_edge_pan_set_limits(
 
 void view2d_edge_pan_reset(View2DEdgePanData *vpd)
 {
+  vpd->enabled = false;
   vpd->edge_pan_start_time_x = 0.0;
   vpd->edge_pan_start_time_y = 0.0;
   vpd->edge_pan_last_time = BLI_time_now_seconds();
-  vpd->initial_rect = vpd->region->v2d.cur;
 }
 
 /**
@@ -205,10 +205,6 @@ void view2d_edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, 
     return;
   }
 
-  /* Calculate amount to move view by. */
-  dx *= vpd->facx;
-  dy *= vpd->facy;
-
   /* Only move view on an axis if change is allowed. */
   if ((v2d->keepofs & V2D_LOCKOFS_X) == 0) {
     v2d->cur.xmin += dx;
@@ -278,6 +274,10 @@ void view2d_edge_pan_apply(bContext *C, View2DEdgePanData *vpd, const int xy[2])
   }
   vpd->edge_pan_last_time = current_time;
 
+  /* Convert from movement in pixels to amount to move in view. */
+  dx *= vpd->facx;
+  dy *= vpd->facy;
+
   /* Pan, clamping inside the regions total bounds. */
   view2d_edge_pan_apply_delta(C, vpd, dx, dy);
 }
@@ -298,10 +298,6 @@ void view2d_edge_pan_cancel(bContext *C, View2DEdgePanData *vpd)
   if (!v2d) {
     return;
   }
-
-  vpd->enabled = false;
-  vpd->edge_pan_start_time_x = 0.0;
-  vpd->edge_pan_start_time_y = 0.0;
 
   v2d->cur = vpd->initial_rect;
   view2d_edge_pan_do_updates(C, vpd, v2d);
