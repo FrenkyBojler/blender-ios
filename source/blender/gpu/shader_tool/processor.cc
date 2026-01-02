@@ -22,6 +22,9 @@
 #include "processor.hh"
 
 namespace blender::gpu::shader {
+using namespace std;
+using namespace shader::parser;
+using namespace metadata;
 
 /* Cannot use `__` because of some compilers complaining about reserved symbols. */
 static constexpr const char *namespace_separator = "_";
@@ -32,9 +35,7 @@ static constexpr const char *uniform_struct_suffix = "uniform_";
 
 #define ERROR_TOK(token) (token).line_number(), (token).char_number(), (token).line_str()
 
-using uint64_t = std::uint64_t;
-
-SourceProcessor::Result SourceProcessor::convert(std::vector<metadata::Symbol> symbols_set)
+SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
 {
   metadata = {};
 
@@ -46,16 +47,16 @@ SourceProcessor::Result SourceProcessor::convert(std::vector<metadata::Symbol> s
   metadata.symbol_table.insert(
       metadata.symbol_table.end(), symbols_set.begin(), symbols_set.end());
 
-  const std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
+  const string filename = regex_replace(filepath, regex(R"((?:.*)\/(.*))"), "$1");
 
   /* TODO(fclem): Remove, use attributes on functions. */
-  const bool is_glsl = filename.find(".glsl") != std::string::npos;
+  const bool is_glsl = filename.find(".glsl") != string::npos;
   const bool do_parse_function = is_glsl &&
-                                 (filename.find("gpu_shader_material_") != std::string::npos ||
-                                  filename.find("gpu_shader_common_") != std::string::npos ||
-                                  filename.find("gpu_shader_compositor_") != std::string::npos);
+                                 (filename.find("gpu_shader_material_") != string::npos ||
+                                  filename.find("gpu_shader_common_") != string::npos ||
+                                  filename.find("gpu_shader_compositor_") != string::npos);
 
-  std::string str = this->source;
+  string str = this->source;
 
   str = remove_comments(str, report_error);
   if (language == Language::BLENDER_GLSL || language == Language::CPP) {
@@ -87,7 +88,7 @@ SourceProcessor::Result SourceProcessor::convert(std::vector<metadata::Symbol> s
       parser.apply_mutations();
 
       /* Early out for certain files. */
-      if (parser.str().find("\n#pragma no_processing") != std::string::npos) {
+      if (parser.str().find("\n#pragma no_processing") != string::npos) {
         return {line_directive_prefix(filename) + parser.result_get(), metadata};
       }
 
@@ -204,7 +205,7 @@ metadata::Source SourceProcessor::parse_include_and_symbols()
 {
   metadata = {};
 
-  std::string str = this->source;
+  string str = this->source;
   str = remove_comments(str, report_error);
   str = disabled_code_mutation(str, report_error);
 
@@ -223,16 +224,15 @@ metadata::Source SourceProcessor::parse_include_and_symbols()
   return metadata;
 }
 
-std::string SourceProcessor::remove_comments(const std::string &str,
-                                             const report_callback &report_error)
+string SourceProcessor::remove_comments(const string &str, const report_callback &report_error)
 {
-  std::string out_str = str;
+  string out_str = str;
   {
     /* Multi-line comments. */
     size_t start, end = 0;
-    while ((start = out_str.find("/*", end)) != std::string::npos) {
+    while ((start = out_str.find("/*", end)) != string::npos) {
       end = out_str.find("*/", start + 2);
-      if (end == std::string::npos) {
+      if (end == string::npos) {
         break;
       }
       for (size_t i = start; i < end + 2; ++i) {
@@ -242,7 +242,7 @@ std::string SourceProcessor::remove_comments(const std::string &str,
       }
     }
 
-    if (end == std::string::npos) {
+    if (end == string::npos) {
       report_error(parser::line_number(out_str, start),
                    parser::char_number(out_str, start),
                    parser::line_str(out_str, start),
@@ -253,9 +253,9 @@ std::string SourceProcessor::remove_comments(const std::string &str,
   {
     /* Single-line comments. */
     size_t start, end = 0;
-    while ((start = out_str.find("//", end)) != std::string::npos) {
+    while ((start = out_str.find("//", end)) != string::npos) {
       end = out_str.find('\n', start + 2);
-      if (end == std::string::npos) {
+      if (end == string::npos) {
         end = out_str.size();
       }
       for (size_t i = start; i < end; ++i) {
@@ -269,9 +269,6 @@ std::string SourceProcessor::remove_comments(const std::string &str,
 /* Remove trailing white spaces. */
 void SourceProcessor::cleanup_whitespace(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   const string &str = parser.str();
 
   size_t last_whitespace = -1;
@@ -286,33 +283,28 @@ void SourceProcessor::cleanup_whitespace(Parser &parser, report_callback /*repor
 }
 
 /* Safer version without Parser. */
-std::string SourceProcessor::cleanup_whitespace(const std::string &str,
-                                                const report_callback & /*report_error*/)
+string SourceProcessor::cleanup_whitespace(const string &str,
+                                           const report_callback & /*report_error*/)
 {
   /* Remove trailing white space as they make the subsequent regex much slower. */
-  std::regex regex(R"((\ )*?\n)");
-  return std::regex_replace(str, regex, "\n");
+  regex regex(R"((\ )*?\n)");
+  return regex_replace(str, regex, "\n");
 }
 
-std::string SourceProcessor::template_arguments_mangle(const shader::parser::Scope template_args)
+string SourceProcessor::template_arguments_mangle(const Scope template_args)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   string args_concat;
   template_args.foreach_scope(ScopeType::TemplateArg,
                               [&](const Scope &scope) { args_concat += 'T' + scope.str(); });
   return args_concat;
 }
 
-void SourceProcessor::parse_template_definition(const parser::Scope arg,
-                                                std::vector<std::string> &arg_list,
-                                                const parser::Scope fn_args,
+void SourceProcessor::parse_template_definition(const Scope arg,
+                                                vector<string> &arg_list,
+                                                const Scope fn_args,
                                                 bool &all_template_args_in_function_signature,
                                                 report_callback &report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
   const Token type = arg.front();
   const Token name = type.next();
   const string name_str = name.str();
@@ -329,7 +321,7 @@ void SourceProcessor::parse_template_definition(const parser::Scope arg,
     bool found = false;
     /* Search argument list for type-names. If type-name matches, the template argument is
      * present inside the function signature. */
-    fn_args.foreach_match("ww", [&](const std::vector<Token> &tokens) {
+    fn_args.foreach_match("ww", [&](const vector<Token> &tokens) {
       if (tokens[0].str() == name_str) {
         found = true;
       }
@@ -350,17 +342,15 @@ void SourceProcessor::parse_template_definition(const parser::Scope arg,
 }
 
 void SourceProcessor::process_instantiation(Parser &parser,
-                                            const std::vector<parser::Token> &toks,
-                                            const parser::Scope &parent_scope,
-                                            const parser::Token &fn_start,
-                                            const parser::Token &fn_name,
-                                            const std::vector<std::string> &arg_list,
-                                            const std::string &fn_decl,
+                                            const vector<Token> &toks,
+                                            const Scope &parent_scope,
+                                            const Token &fn_start,
+                                            const Token &fn_name,
+                                            const vector<string> &arg_list,
+                                            const string &fn_decl,
                                             const bool all_template_args_in_function_signature,
                                             report_callback &report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
   if (toks[2].scope() != parent_scope || fn_name.str() != toks[2].str() ||
       toks[2].str_index_start() < fn_name.str_index_start())
   {
@@ -416,9 +406,6 @@ void SourceProcessor::process_instantiation(Parser &parser,
 void SourceProcessor::lower_template_dependent_names(Parser &parser,
                                                      report_callback & /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_match("tw<..>", [&](const Tokens &toks) {
     if (toks[0].prev() == '.' || toks[0].prev() == Deref) {
       parser.erase(toks[0]);
@@ -429,9 +416,6 @@ void SourceProcessor::lower_template_dependent_names(Parser &parser,
 
 void SourceProcessor::lower_templates(Parser &parser, report_callback &report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* Process templated function calls first to avoid matching them later. */
 
   parser().foreach_match("w<..>(..)", [&](const vector<Token> &tokens) {
@@ -449,17 +433,17 @@ void SourceProcessor::lower_templates(Parser &parser, report_callback &report_er
     parser.replace(template_args, template_arguments_mangle(template_args), true);
   };
   /* Replace full specialization by simple functions. */
-  parser().foreach_match("t<>ww<", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("t<>ww<", [&](const vector<Token> &tokens) {
     process_specialization(tokens[0], tokens[5].scope());
   });
   /* Replace full specialization by simple struct. */
-  parser().foreach_match("t<>sw<..>", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("t<>sw<..>", [&](const vector<Token> &tokens) {
     process_specialization(tokens[0], tokens[5].scope());
   });
 
   parser.apply_mutations();
 
-  auto process_template_struct = [&](parser::Scope template_scope) {
+  auto process_template_struct = [&](Scope template_scope) {
     /* Parse template declaration. */
     Token struct_start = template_scope.back().next();
     if (struct_start != Struct) {
@@ -484,7 +468,7 @@ void SourceProcessor::lower_templates(Parser &parser, report_callback &report_er
 
     /* Replace instantiations. */
     Scope parent_scope = template_scope.scope();
-    parent_scope.foreach_match("tsw<", [&](const std::vector<Token> &tokens) {
+    parent_scope.foreach_match("tsw<", [&](const vector<Token> &tokens) {
       process_instantiation(parser,
                             tokens,
                             parent_scope,
@@ -509,7 +493,7 @@ void SourceProcessor::lower_templates(Parser &parser, report_callback &report_er
                                        const Scope template_scope,
                                        const Token fn_end) {
     bool error = false;
-    template_scope.foreach_match("=", [&](const std::vector<Token> &tokens) {
+    template_scope.foreach_match("=", [&](const vector<Token> &tokens) {
       report_error(tokens[0].line_number(),
                    tokens[0].char_number(),
                    tokens[0].line_str(),
@@ -535,7 +519,7 @@ void SourceProcessor::lower_templates(Parser &parser, report_callback &report_er
 
     /* Replace instantiations. */
     Scope parent_scope = template_scope.scope();
-    parent_scope.foreach_match("tww<", [&](const std::vector<Token> &tokens) {
+    parent_scope.foreach_match("tww<", [&](const vector<Token> &tokens) {
       process_instantiation(parser,
                             tokens,
                             parent_scope,
@@ -566,7 +550,7 @@ void SourceProcessor::lower_templates(Parser &parser, report_callback &report_er
   });
 
   /* Process calls to templated types or functions. */
-  parser().foreach_match("w<..>", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("w<..>", [&](const vector<Token> &tokens) {
     parser.replace(tokens[1].scope(), template_arguments_mangle(tokens[1].scope()), true);
   });
 
@@ -577,9 +561,7 @@ void SourceProcessor::lower_templates(Parser &parser, report_callback &report_er
  * This allow the create infos to use shared defines values. */
 void SourceProcessor::parse_defines(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-  parser().foreach_match("#w", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("#w", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "define") {
       metadata.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
     }
@@ -589,12 +571,8 @@ void SourceProcessor::parse_defines(Parser &parser, report_callback /*report_err
   });
 }
 
-void SourceProcessor::parse_namespace_symbols(shader::parser::Scope ns)
+void SourceProcessor::parse_namespace_symbols(Scope ns)
 {
-  using namespace std;
-  using namespace shader::parser;
-  using namespace metadata;
-
   ns.foreach_scope(ScopeType::Namespace, [&](const Scope &ns) { parse_namespace_symbols(ns); });
 
   auto process_symbol =
@@ -662,16 +640,13 @@ void SourceProcessor::parse_namespace_symbols(shader::parser::Scope ns)
 
 void SourceProcessor::parse_local_symbols(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_scope(ScopeType::Namespace,
                          [&](const Scope &ns) { parse_namespace_symbols(ns); });
 }
 
-std::string SourceProcessor::get_create_info_placeholder(const std::string &name)
+string SourceProcessor::get_create_info_placeholder(const string &name)
 {
-  std::string placeholder;
+  string placeholder;
   placeholder += "#ifdef CREATE_INFO_RES_PASS_" + name + "\n";
   placeholder += "CREATE_INFO_RES_PASS_" + name + "\n";
   placeholder += "#endif\n";
@@ -690,9 +665,6 @@ std::string SourceProcessor::get_create_info_placeholder(const std::string &name
 /* Legacy create info parsing and removing. */
 void SourceProcessor::parse_legacy_create_info(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_scope(ScopeType::Attributes, [&](const Scope attrs) {
     if (attrs.str_with_whitespace() != "[resource_table]") {
       return;
@@ -706,7 +678,7 @@ void SourceProcessor::parse_legacy_create_info(Parser &parser, report_callback r
     parser.insert_line_number(struct_keyword.str_index_start() - 1, struct_keyword.line_number());
   });
 
-  parser().foreach_match("w(..)", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("w(..)", [&](const vector<Token> &tokens) {
     if (tokens[0].str() == "CREATE_INFO_VARIANT") {
       const string variant_name = tokens[1].scope().front().next().str();
       metadata.create_infos.emplace_back(variant_name);
@@ -782,10 +754,7 @@ void SourceProcessor::parse_legacy_create_info(Parser &parser, report_callback r
 
 void SourceProcessor::parse_includes(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  parser().foreach_match("#w_", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("#w_", [&](const vector<Token> &tokens) {
     if (tokens[1].str() != "include") {
       return;
     }
@@ -807,13 +776,13 @@ void SourceProcessor::parse_includes(Parser &parser, report_callback /*report_er
       parser.erase(tokens.front(), tokens.back());
       return;
     }
-    if (dependency_name.find("gpu_shader_create_info.hh") != std::string::npos) {
+    if (dependency_name.find("gpu_shader_create_info.hh") != string::npos) {
       /* Skip info files. They are only for IDE linting. */
       parser.erase(tokens.front(), tokens.back());
       return;
     }
 
-    if (dependency_name.find("infos/") != std::string::npos) {
+    if (dependency_name.find("infos/") != string::npos) {
       dependency_name = dependency_name.substr(6);
     }
 
@@ -823,28 +792,25 @@ void SourceProcessor::parse_includes(Parser &parser, report_callback /*report_er
 
 void SourceProcessor::parse_pragma_runtime_generated(Parser &parser)
 {
-  if (parser.str().find("\n#pragma runtime_generated") != std::string::npos) {
+  if (parser.str().find("\n#pragma runtime_generated") != string::npos) {
     metadata.builtins.emplace_back(metadata::Builtin::runtime_generated);
   }
 }
 
 void SourceProcessor::lint_pragma_once(Parser &parser,
-                                       const std::string &filename,
+                                       const string &filename,
                                        report_callback report_error)
 {
-  if (filename.find("_lib.") == std::string::npos && filename.find(".hh") == std::string::npos) {
+  if (filename.find("_lib.") == string::npos && filename.find(".hh") == string::npos) {
     return;
   }
-  if (parser.str().find("\n#pragma once") == std::string::npos) {
+  if (parser.str().find("\n#pragma once") == string::npos) {
     report_error(0, 0, "", "Header files must contain #pragma once directive.");
   }
 }
 
 void SourceProcessor::lower_loop_unroll(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   auto parse_for_args =
       [&](const Scope loop_args, Scope &r_init, Scope &r_condition, Scope &r_iter) {
         r_init = r_condition = r_iter = Scope::invalid();
@@ -925,7 +891,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser, report_callback report_e
       Parser str_parser(str, report_error);
       str_parser().foreach_token(Word, [&](const Token tok) {
         if (tok.str() == iter[0].str()) {
-          str_parser.replace(tok, std::to_string(loop_index), true);
+          str_parser.replace(tok, to_string(loop_index), true);
         }
       });
       return str_parser.result_get();
@@ -962,18 +928,18 @@ void SourceProcessor::lower_loop_unroll(Parser &parser, report_callback report_e
     /* WORKAROUND: We need to differentiate for and switch statements apart for proper break and
      * continue statement usage linting. For this, we modify the body scope types to be able to
      * detect which loop or switch body the break and continue statements are part of. */
-    parser().foreach_match("f(..)[[..]]{..}", [&](const std::vector<Token> tokens) {
+    parser().foreach_match("f(..)[[..]]{..}", [&](const vector<Token> tokens) {
       tokens[11].scope().set_type(ScopeType::LoopBody);
     });
-    parser().foreach_match("f(..){..}", [&](const std::vector<Token> tokens) {
+    parser().foreach_match("f(..){..}", [&](const vector<Token> tokens) {
       tokens[5].scope().set_type(ScopeType::LoopBody);
     });
-    parser().foreach_match("h(..){..}", [&](const std::vector<Token> tokens) {
+    parser().foreach_match("h(..){..}", [&](const vector<Token> tokens) {
       tokens[5].scope().set_type(ScopeType::SwitchBody);
     });
 
     /* [[unroll]]. */
-    parser().foreach_match("f(..)[[w]]{..}", [&](const std::vector<Token> tokens) {
+    parser().foreach_match("f(..)[[w]]{..}", [&](const vector<Token> tokens) {
       if (tokens[6].scope().str_with_whitespace() != "[unroll]") {
         return;
       }
@@ -1043,12 +1009,12 @@ void SourceProcessor::lower_loop_unroll(Parser &parser, report_callback report_e
         return;
       }
 
-      int64_t init_value = std::stol(
+      int64_t init_value = stol(
           parser.substr_range_inclusive(var_init.next(), var_init.scope().back()));
-      int64_t end_value = std::stol(
+      int64_t end_value = stol(
           parser.substr_range_inclusive(cond_sign.is_valid() ? cond_sign : cond_end, cond_end));
       /* TODO(fclem): Support arbitrary strides (aka, arbitrary iter statement). */
-      int iter_count = std::abs(end_value - init_value);
+      int iter_count = abs(end_value - init_value);
       if (cond_type == GEqual || cond_type == LEqual) {
         iter_count += 1;
       }
@@ -1069,7 +1035,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser, report_callback report_e
     });
 
     /* [[unroll_n(n)]]. */
-    parser().foreach_match("f(..)[[w(0)]]{..}", [&](const std::vector<Token> tokens) {
+    parser().foreach_match("f(..)[[w(0)]]{..}", [&](const vector<Token> tokens) {
       if (tokens[7].str() != "unroll_n") {
         return;
       }
@@ -1079,14 +1045,14 @@ void SourceProcessor::lower_loop_unroll(Parser &parser, report_callback report_e
       Scope init, cond, iter;
       parse_for_args(loop_args, init, cond, iter);
 
-      int iter_count = std::stol(tokens[9].str());
+      int iter_count = stol(tokens[9].str());
 
       process_loop(tokens[0], iter_count, 0, 0, false, false, init, cond, iter, loop_body);
     });
   } while (parser.apply_mutations());
 
   /* Check for remaining keywords. */
-  parser().foreach_match("[[w", [&](const std::vector<Token> tokens) {
+  parser().foreach_match("[[w", [&](const vector<Token> tokens) {
     if (tokens[2].str().find("unroll") != string::npos) {
       report_error(ERROR_TOK(tokens[0]), "Incompatible loop format for [[unroll]].");
     }
@@ -1094,15 +1060,12 @@ void SourceProcessor::lower_loop_unroll(Parser &parser, report_callback report_e
 }
 
 void SourceProcessor::process_static_branch(Parser &parser,
-                                            shader::parser::Token if_tok,
-                                            shader::parser::Scope condition,
-                                            shader::parser::Token attribute,
-                                            shader::parser::Scope body,
+                                            shader::Token if_tok,
+                                            Scope condition,
+                                            shader::Token attribute,
+                                            Scope body,
                                             report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   if (attribute.str() != "static_branch") {
     return;
   }
@@ -1154,25 +1117,19 @@ void SourceProcessor::process_static_branch(Parser &parser,
 
 void SourceProcessor::lower_static_branch(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  parser().foreach_match("i(..)[[w]]{..}", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("i(..)[[w]]{..}", [&](const vector<Token> &tokens) {
     process_static_branch(
         parser, tokens[0], tokens[1].scope(), tokens[7], tokens[10].scope(), report_error);
   });
   parser.apply_mutations();
 }
 
-static void lower_namespace(std::string ns_prefix,
-                            const shader::parser::Scope &scope,
+static void lower_namespace(string ns_prefix,
+                            const Scope &scope,
                             SourceProcessor::Parser &parser,
                             SourceProcessor::report_callback report_error,
-                            const std::set<metadata::Symbol> &symbols_set)
+                            const set<Symbol> &symbols_set)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   string ns_name = scope.front().prev().str();
   ns_prefix += ns_name + "::";
 
@@ -1267,8 +1224,6 @@ static void lower_namespace(std::string ns_prefix,
 /* Lower namespaces by adding namespace prefix to all the contained structs and functions. */
 void SourceProcessor::lower_namespaces(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
   using namespace metadata;
 
   /* Expand compound namespaces. Simplify lowering.
@@ -1291,7 +1246,7 @@ void SourceProcessor::lower_namespaces(Parser &parser, report_callback report_er
 
   /* Using an ordered set ordered by namespace make homonym symbols are resolve
    * properly (closest from current namespace). */
-  set<metadata::Symbol> symbols_set;
+  set<Symbol> symbols_set;
   {
     /* Deduplicate symbols. Done this way because we want to keep line definition ordering
      * inside the symbols_set. */
@@ -1331,10 +1286,7 @@ void SourceProcessor::lower_namespaces(Parser &parser, report_callback report_er
  */
 void SourceProcessor::lower_using(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  parser().foreach_match("un", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("un", [&](const vector<Token> &tokens) {
     report_error(ERROR_TOK(tokens[0]),
                  "Unsupported `using namespace`. "
                  "Add individual `using` directives for each needed symbol.");
@@ -1397,12 +1349,12 @@ void SourceProcessor::lower_using(Parser &parser, report_callback report_error)
     parser.erase(using_tok, end_tok);
   };
 
-  parser().foreach_match("uw::w", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("uw::w", [&](const vector<Token> &tokens) {
     Token end = tokens.back().find_next(SemiColon);
     process_using(tokens[0], end.prev(), tokens[1], end.prev(), end);
   });
 
-  parser().foreach_match("uw=w::w", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("uw=w::w", [&](const vector<Token> &tokens) {
     Token end = tokens.back().find_next(SemiColon);
     process_using(tokens[0], tokens[1], tokens[3], end.prev(), end);
   });
@@ -1418,10 +1370,7 @@ void SourceProcessor::lower_using(Parser &parser, report_callback report_error)
 void SourceProcessor::lower_scope_resolution_operators(Parser &parser,
                                                        report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  parser().foreach_match("::", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("::", [&](const vector<Token> &tokens) {
     if (tokens[0].scope().type() == ScopeType::Attribute) {
       return;
     }
@@ -1437,12 +1386,8 @@ void SourceProcessor::lower_scope_resolution_operators(Parser &parser,
   parser.apply_mutations();
 }
 
-std::string SourceProcessor::disabled_code_mutation(const std::string &str,
-                                                    report_callback &report_error)
+string SourceProcessor::disabled_code_mutation(const string &str, report_callback &report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   Parser parser(str, report_error);
 
   auto process_disabled_scope = [&](Token start_tok) {
@@ -1466,18 +1411,18 @@ std::string SourceProcessor::disabled_code_mutation(const std::string &str,
     }
   };
 
-  parser().foreach_match("#ww", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("#ww", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "ifndef" && tokens[2].str() == "GPU_SHADER") {
       process_disabled_scope(tokens[0]);
     }
   });
-  parser().foreach_match("#i!w(w)", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("#i!w(w)", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "if" && tokens[3].str() == "defined" && tokens[5].str() == "GPU_SHADER")
     {
       process_disabled_scope(tokens[0]);
     }
   });
-  parser().foreach_match("#i0", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("#i0", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "if" && tokens[2].str() == "0") {
       process_disabled_scope(tokens[0]);
     }
@@ -1488,10 +1433,8 @@ std::string SourceProcessor::disabled_code_mutation(const std::string &str,
 void SourceProcessor::lower_preprocessor(Parser &parser, report_callback /*report_error*/)
 {
   /* Remove unsupported directives. */
-  using namespace std;
-  using namespace shader::parser;
 
-  parser().foreach_match("#w", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("#w", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "pragma") {
       Token next = tokens[1].next();
       if (next.str() == "once") {
@@ -1510,12 +1453,9 @@ void SourceProcessor::lower_preprocessor(Parser &parser, report_callback /*repor
 /* Support for BLI swizzle syntax. */
 void SourceProcessor::lower_swizzle_methods(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* Change C++ swizzle functions into plain swizzle. */
   /** IMPORTANT: This prevent the usage of any method with a swizzle name. */
-  parser().foreach_match(".w()", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match(".w()", [&](const vector<Token> &tokens) {
     string method_name = tokens[1].str();
     if (method_name.length() > 1 && method_name.length() <= 4 &&
         (method_name.find_first_not_of("xyzw") == string::npos ||
@@ -1528,12 +1468,9 @@ void SourceProcessor::lower_swizzle_methods(Parser &parser, report_callback /*re
   });
 }
 
-std::string SourceProcessor::threadgroup_variables_parse_and_remove(const std::string &str,
-                                                                    report_callback &report_error)
+string SourceProcessor::threadgroup_variables_parse_and_remove(const string &str,
+                                                               report_callback &report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   Parser parser(str, report_error);
 
   auto process_shared_var = [&](Token shared_tok, Token type, Token name, Token decl_end) {
@@ -1544,16 +1481,16 @@ std::string SourceProcessor::threadgroup_variables_parse_and_remove(const std::s
       parser.erase(shared_tok, decl_end);
     }
   };
-  parser().foreach_match("www;", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("www;", [&](const vector<Token> &tokens) {
     process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
   });
-  parser().foreach_match("www[..];", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("www[..];", [&](const vector<Token> &tokens) {
     process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
   });
-  parser().foreach_match("www[..][..];", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("www[..][..];", [&](const vector<Token> &tokens) {
     process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
   });
-  parser().foreach_match("www[..][..][..];", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("www[..][..][..];", [&](const vector<Token> &tokens) {
     process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
   });
   /* If more array depth is needed, find a less dumb solution. */
@@ -1563,8 +1500,6 @@ std::string SourceProcessor::threadgroup_variables_parse_and_remove(const std::s
 
 void SourceProcessor::parse_library_functions(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
   using namespace metadata;
 
   parser().foreach_function([&](bool, Token fn_type, Token fn_name, Scope fn_args, bool, Scope) {
@@ -1583,7 +1518,7 @@ void SourceProcessor::parse_library_functions(Parser &parser, report_callback re
       /* Note: There is no array support. */
       const Token name = arg.back();
       const Token type = name.prev() == '&' ? name.prev().prev() : name.prev();
-      std::string qualifier = type.prev().str();
+      string qualifier = type.prev().str();
       if (qualifier != "out" && qualifier != "inout" && qualifier != "in") {
         if (name.prev() == '&') {
           qualifier = "out";
@@ -1605,9 +1540,7 @@ void SourceProcessor::parse_library_functions(Parser &parser, report_callback re
   });
 }
 
-void SourceProcessor::parse_builtins(const std::string &str,
-                                     const std::string &filename,
-                                     bool pure_glsl)
+void SourceProcessor::parse_builtins(const string &str, const string &filename, bool pure_glsl)
 {
   const bool skip_drw_debug = filename == "draw_debug_draw_lib.glsl" ||
                               filename == "draw_debug_infos.hh" ||
@@ -1615,7 +1548,7 @@ void SourceProcessor::parse_builtins(const std::string &str,
                               filename == "draw_shader_shared.hh";
   using namespace metadata;
   /* TODO: This can trigger false positive caused by disabled #if blocks. */
-  std::vector<std::string> tokens = {
+  vector<string> tokens = {
       "gl_FragCoord",
       "gl_FragStencilRefARB",
       "gl_FrontFacing",
@@ -1651,7 +1584,7 @@ void SourceProcessor::parse_builtins(const std::string &str,
     if (skip_drw_debug && token == "drw_debug_") {
       continue;
     }
-    if (str.find(token) != std::string::npos) {
+    if (str.find(token) != string::npos) {
       metadata.builtins.emplace_back(Builtin(hash(token)));
     }
   }
@@ -1661,8 +1594,6 @@ void SourceProcessor::parse_builtins(const std::string &str,
  * This allows to emulate the variadic arguments of printf. */
 void SourceProcessor::lower_printf(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
   parser().foreach_match("w(..)", [&](const vector<Token> &tokens) {
     if (tokens[0].str() != "printf") {
       return;
@@ -1683,12 +1614,9 @@ void SourceProcessor::lower_printf(Parser &parser, report_callback /*report_erro
 
 /* Turn assert into a printf. */
 void SourceProcessor::lower_assert(Parser &parser,
-                                   const std::string &filename,
+                                   const string &filename,
                                    report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* Example: `assert(i < 0)` > `if (!(i < 0)) { printf(...); }` */
   parser().foreach_match("w(..)", [&](const vector<Token> &tokens) {
     if (tokens[0].str() != "assert") {
@@ -1720,9 +1648,6 @@ void SourceProcessor::lower_assert(Parser &parser,
 /* Parse SRT and interfaces, remove their attributes and create init function for SRT structs. */
 void SourceProcessor::lower_resource_table(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   enum class SrtType {
     undefined,
     none,
@@ -1736,7 +1661,7 @@ void SourceProcessor::lower_resource_table(Parser &parser, report_callback repor
     metadata::ParsedResource resource{
         type.line_number(), type.str(), name.str(), array.str_with_whitespace()};
     attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
-      std::string type = attribute[0].str();
+      string type = attribute[0].str();
       if (type == "sampler") {
         resource.res_type = type;
         resource.res_slot = attribute[2].str();
@@ -1804,7 +1729,7 @@ void SourceProcessor::lower_resource_table(Parser &parser, report_callback repor
     }
 
     attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
-      std::string type = attribute[0].str();
+      string type = attribute[0].str();
       if (type == "attribute") {
         vert_in.slot = attribute[2].str();
       }
@@ -1848,7 +1773,7 @@ void SourceProcessor::lower_resource_table(Parser &parser, report_callback repor
             tok_type.line_number(), tok_type.str(), struct_name.str() + "_" + name.str()};
 
         attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
-          std::string type = attribute[0].str();
+          string type = attribute[0].str();
           if (type == "frag_color") {
             frag_out.slot = attribute[2].str();
           }
@@ -2070,11 +1995,8 @@ void SourceProcessor::lower_resource_table(Parser &parser, report_callback repor
 
 void SourceProcessor::lower_strings_sequences(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   do {
-    parser().foreach_match("__", [&](const std::vector<Token> &tokens) {
+    parser().foreach_match("__", [&](const vector<Token> &tokens) {
       string first = tokens[0].str();
       string second = tokens[1].str();
       string between = parser.substr_range_inclusive(tokens[0].str_index_last_no_whitespace() + 1,
@@ -2090,14 +2012,11 @@ void SourceProcessor::lower_strings_sequences(Parser &parser, report_callback /*
 /* Replace string literals by their hash and store the original string in the file metadata. */
 void SourceProcessor::lower_strings(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_token(String, [&](const Token &token) {
     uint32_t hash = hash_string(token.str());
     metadata::PrintfFormat format = {hash, token.str()};
     metadata.printf_formats.emplace_back(format);
-    parser.replace(token, "string_t(" + std::to_string(hash) + "u)", true);
+    parser.replace(token, "string_t(" + to_string(hash) + "u)", true);
   });
   parser.apply_mutations();
 }
@@ -2105,8 +2024,6 @@ void SourceProcessor::lower_strings(Parser &parser, report_callback /*report_err
 /* `class` -> `struct` */
 void SourceProcessor::lower_classes(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
   parser().foreach_token(Class, [&](const Token &token) {
     if (token.prev() != Enum) {
       parser.replace(token, "struct ");
@@ -2117,10 +2034,7 @@ void SourceProcessor::lower_classes(Parser &parser, report_callback /*report_err
 /* Create default initializer (empty brace) for all classes. */
 void SourceProcessor::lower_default_constructors(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  std::unordered_set<string> builtin_types = {
+  unordered_set<string> builtin_types = {
       "bool32_t",      "float2",       "packed_float2", "float3",      "packed_float3", "float4",
       "packed_float4", "float2x2",     "float2x3",      "float2x4",    "float3x2",      "float3x3",
       "float3x4",      "float4x2",     "float4x3",      "float4x4",    "float2x2",      "float3x3",
@@ -2191,9 +2105,6 @@ void SourceProcessor::lower_default_constructors(Parser &parser, report_callback
 /* Make all members of a class to be referenced using `this->`. */
 void SourceProcessor::lower_implicit_member(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_struct([&](Token, Scope, Token, Scope body) {
     vector<Token> members_tokens;
     vector<Token> methods_tokens;
@@ -2262,9 +2173,6 @@ void SourceProcessor::lower_implicit_member(Parser &parser, report_callback repo
 /* Move all method definition outside of struct definition blocks. */
 void SourceProcessor::lower_method_definitions(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* NOTE: We need to avoid the case of `a * this->b` being replaced as 2 dereferences. */
 
   /* `(*this)` -> `(this_)` */
@@ -2403,24 +2311,17 @@ void SourceProcessor::lower_method_definitions(Parser &parser, report_callback r
  * Empty structs are useful for templating. */
 void SourceProcessor::lower_empty_struct(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  parser().foreach_match("sw{};", [&](const std::vector<Token> &tokens) {
-    parser.insert_after(tokens[2], "int _pad;");
-  });
+  parser().foreach_match(
+      "sw{};", [&](const vector<Token> &tokens) { parser.insert_after(tokens[2], "int _pad;"); });
   parser.apply_mutations();
 }
 
 /* Transform `a.fn(b)` into `fn(a, b)`. */
 void SourceProcessor::lower_method_calls(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   do {
     parser().foreach_scope(ScopeType::Function, [&](Scope scope) {
-      scope.foreach_match(".w(", [&](const std::vector<Token> &tokens) {
+      scope.foreach_match(".w(", [&](const vector<Token> &tokens) {
         const Token dot = tokens[0];
         const Token func = tokens[1];
         const Token par_open = tokens[2];
@@ -2466,11 +2367,9 @@ void SourceProcessor::lower_method_calls(Parser &parser, report_callback report_
 
 /* Parse, convert to create infos, and erase declaration. */
 void SourceProcessor::lower_pipeline_definition(Parser &parser,
-                                                const std::string &filename,
+                                                const string &filename,
                                                 report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
   using namespace metadata;
 
   auto process_compilation_constants = [&](Token tok) {
@@ -2528,7 +2427,7 @@ void SourceProcessor::lower_pipeline_definition(Parser &parser,
     metadata.create_infos_declarations.emplace_back(create_info_decl);
   };
 
-  parser().foreach_match("ww(w", [&](const std::vector<Token> &tokens) {
+  parser().foreach_match("ww(w", [&](const vector<Token> &tokens) {
     Scope parameters = tokens[2].scope();
     if (tokens[0].str() == "PipelineGraphic") {
       process_graphic_pipeline(tokens[1], parameters);
@@ -2543,9 +2442,6 @@ void SourceProcessor::lower_pipeline_definition(Parser &parser,
 
 void SourceProcessor::lower_stage_function(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_function([&](bool is_static, Token fn_type, Token, Scope, bool, Scope fn_body) {
     Token attr_tok = (is_static) ? fn_type.prev().prev() : fn_type.prev();
     if (attr_tok.is_invalid() || attr_tok != ']' || attr_tok.prev() != ']') {
@@ -2585,13 +2481,10 @@ void SourceProcessor::lower_stage_function(Parser &parser, report_callback /*rep
  * Need to run after `lower_entry_points_signature`. */
 void SourceProcessor::lower_srt_arguments(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* SRT arguments. */
   parser().foreach_function([&](bool, Token fn_type, Token, Scope fn_args, bool, Scope fn_body) {
     string condition;
-    fn_args.foreach_match("[[w]]c?w", [&](const std::vector<Token> &tokens) {
+    fn_args.foreach_match("[[w]]c?w", [&](const vector<Token> &tokens) {
       if (tokens[2].str() != "resource_table") {
         return;
       }
@@ -2614,12 +2507,9 @@ void SourceProcessor::lower_srt_arguments(Parser &parser, report_callback /*repo
 void SourceProcessor::lower_resource_access_functions(Parser &parser,
                                                       report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* Legacy access macros. */
   parser().foreach_function([&](bool, Token fn_type, Token, Scope, bool, Scope fn_body) {
-    fn_body.foreach_match("w(w,", [&](const std::vector<Token> &tokens) {
+    fn_body.foreach_match("w(w,", [&](const vector<Token> &tokens) {
       string func_name = tokens[0].str();
       if (func_name != "specialization_constant_get" && func_name != "shared_variable_get" &&
           func_name != "push_constant_get" && func_name != "interface_get" &&
@@ -2650,14 +2540,11 @@ void SourceProcessor::lower_resource_access_functions(Parser &parser,
 }
 
 void SourceProcessor::guarded_scope_mutation(Parser &parser,
-                                             parser::Scope scope,
-                                             const std::string &condition,
-                                             parser::Token fn_type)
+                                             Scope scope,
+                                             const string &condition,
+                                             Token fn_type)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  string line_start = "#line " + std::to_string(scope.front().next().line_number()) + "\n";
+  string line_start = "#line " + to_string(scope.front().next().line_number()) + "\n";
 
   string guard_start = "#if " + condition;
   string guard_else;
@@ -2717,8 +2604,6 @@ void SourceProcessor::lower_enums(Parser &parser, report_callback report_error)
    * IMPORTANT: This has some requirements:
    * - Enums needs to have underlying types set to uint32_t to make them usable in UBO and SSBO.
    */
-  using namespace std;
-  using namespace shader::parser;
 
   auto missing_underlying_type = [&](vector<Token> tokens) {
     report_error(tokens[0].line_number(),
@@ -2822,9 +2707,6 @@ void SourceProcessor::lower_enums(Parser &parser, report_callback report_error)
  * `[[a]] [[b]]` > `[[a, b]]` */
 void SourceProcessor::lower_attribute_sequences(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   do {
     parser().foreach_match("[[..]][[..]]", [&](vector<Token> toks) {
       parser.insert_before(toks[4], ",");
@@ -2837,9 +2719,6 @@ void SourceProcessor::lower_attribute_sequences(Parser &parser, report_callback 
  * Remove the [[host_shared]] attribute. */
 void SourceProcessor::lower_host_shared_structures(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_struct([&](Token struct_keyword,
                               Scope attributes,
                               Token struct_name,
@@ -3010,9 +2889,6 @@ void SourceProcessor::lower_host_shared_structures(Parser &parser, report_callba
 
 void SourceProcessor::lint_unbraced_statements(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   auto check_statement = [&](const Tokens &toks) {
     Token end_tok = toks.back();
     if (end_tok.next() == If || end_tok.prev() == '#') {
@@ -3034,10 +2910,7 @@ void SourceProcessor::lint_unbraced_statements(Parser &parser, report_callback r
 
 void SourceProcessor::lint_reserved_tokens(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  std::unordered_set<string> reserved_symbols = {
+  unordered_set<string> reserved_symbols = {
       "vec2",   "vec3",   "vec4",   "mat2x2", "mat2x3", "mat2x4", "mat3x2", "mat3x3",
       "mat3x4", "mat4x2", "mat4x3", "mat4x4", "mat2",   "mat3",   "mat4",   "ivec2",
       "ivec3",  "ivec4",  "uvec2",  "uvec3",  "uvec4",  "bvec2",  "bvec3",  "bvec4",
@@ -3052,9 +2925,6 @@ void SourceProcessor::lint_reserved_tokens(Parser &parser, report_callback repor
 
 void SourceProcessor::lint_attributes(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_token(SquareOpen, [&](Token par_open) {
     if (par_open.next() != '[') {
       return;
@@ -3140,7 +3010,7 @@ void SourceProcessor::lint_attributes(Parser &parser, report_callback report_err
         return;
       }
       else {
-        std::cout << "attr_str " << attr_str << std::endl;
+        cout << "attr_str " << attr_str << endl;
         report_error(ERROR_TOK(attr), "Unrecognized attribute");
         invalid = true;
         /* Attribute already invalid, don't check placement. */
@@ -3174,9 +3044,6 @@ void SourceProcessor::lint_attributes(Parser &parser, report_callback report_err
 
 void SourceProcessor::lower_noop_keywords(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* inline has no equivalent in GLSL and is making parsing more complicated. */
   parser().foreach_token(Inline, [&](Token tok) { parser.erase(tok); });
   /* static have no meaning for the shading language when not inside a struct.
@@ -3204,9 +3071,6 @@ void SourceProcessor::lower_noop_keywords(Parser &parser, report_callback report
 void SourceProcessor::lower_trailing_comma_in_list(Parser &parser,
                                                    report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_match(",}", [&](const Tokens &t) { parser.erase(t[0]); });
 }
 
@@ -3215,9 +3079,6 @@ void SourceProcessor::lower_trailing_comma_in_list(Parser &parser,
 void SourceProcessor::lower_comma_separated_declarations(Parser &parser,
                                                          report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   auto process_decl = [&](const Tokens &t) {
     if (t[0].scope().type() != ScopeType::Struct) {
       return;
@@ -3240,9 +3101,6 @@ void SourceProcessor::lower_comma_separated_declarations(Parser &parser,
 
 void SourceProcessor::lower_implicit_return_types(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_function([&](bool, Token type, Token, Scope, bool, Scope fn_body) {
     fn_body.foreach_match("rw?{..};", [&](Tokens toks) {
       Scope list = toks[3].scope();
@@ -3264,9 +3122,6 @@ void SourceProcessor::lower_implicit_return_types(Parser &parser, report_callbac
 void SourceProcessor::lower_initializer_implicit_types(Parser &parser,
                                                        report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   auto process_scope = [&](Scope s) {
     /* Auto insert equal. */
     s.foreach_match("ww{..}", [&](Tokens t) { parser.insert_before(t[2], " = " + t[0].str()); });
@@ -3281,9 +3136,6 @@ void SourceProcessor::lower_initializer_implicit_types(Parser &parser,
 
 void SourceProcessor::lower_designated_initializers(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* Transform to compatibility macro. */
   parser().foreach_match("w{.w=", [&](Tokens t) {
     if (t[0].prev() != '=' || t[0].prev().prev() != 'w') {
@@ -3330,10 +3182,7 @@ void SourceProcessor::lower_designated_initializers(Parser &parser, report_callb
  * They are converted to default constructor for GLSL. */
 void SourceProcessor::lower_aggregate_initializers(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
-  std::unordered_set<string> builtin_types = {
+  unordered_set<string> builtin_types = {
       "float2",   "float3",   "float4",   "float2x2", "float2x3", "float2x4",
       "float3x2", "float3x3", "float3x4", "float4x2", "float4x3", "float4x4",
       "float2x2", "float3x3", "float4x4", "int2",     "int3",     "int4",
@@ -3385,9 +3234,6 @@ void SourceProcessor::lower_aggregate_initializers(Parser &parser, report_callba
  * initializer list instead. */
 void SourceProcessor::lower_array_initializations(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_match("ww[..]={..};", [&](vector<Token> toks) {
     const Token type_tok = toks[0];
     const Token name_tok = toks[1];
@@ -3434,7 +3280,7 @@ void SourceProcessor::lower_array_initializations(Parser &parser, report_callbac
   parser.apply_mutations();
 }
 
-std::string SourceProcessor::strip_whitespace(const std::string &str)
+string SourceProcessor::strip_whitespace(const string &str)
 {
   return str.substr(0, str.find_last_not_of(" \n") + 1);
 }
@@ -3446,9 +3292,6 @@ std::string SourceProcessor::strip_whitespace(const std::string &str)
 void SourceProcessor::lower_function_default_arguments(Parser &parser,
                                                        report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_function(
       [&](bool, Token fn_type, Token fn_name, Scope fn_args, bool fn_const, Scope fn_body) {
         if (!fn_args.contains_token('=')) {
@@ -3483,7 +3326,7 @@ void SourceProcessor::lower_function_default_arguments(Parser &parser,
             overload += fn_name.str() + '(' + args_decl + ")" + string(fn_const ? " const" : "") +
                         "\n";
             overload += "{\n";
-            overload += "#line " + std::to_string(fn_type.line_number()) + "\n";
+            overload += "#line " + to_string(fn_type.line_number()) + "\n";
             overload += "  " + fn_call + "\n}\n";
             fn_overloads.emplace_back(overload);
 
@@ -3508,9 +3351,6 @@ void SourceProcessor::lower_function_default_arguments(Parser &parser,
 /* Successive mutations can introduce a lot of unneeded line directives. */
 void SourceProcessor::cleanup_line_directives(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_match("#w0\n", [&](vector<Token> toks) {
     if (toks[1].str() != "line") {
       return;
@@ -3552,9 +3392,6 @@ void SourceProcessor::cleanup_line_directives(Parser &parser, report_callback /*
 /* Successive mutations can introduce a lot of unneeded blank lines. */
 void SourceProcessor::cleanup_empty_lines(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   const string &str = parser.str();
 
   {
@@ -3586,26 +3423,23 @@ void SourceProcessor::cleanup_empty_lines(Parser &parser, report_callback /*repo
 
 /* Used to make GLSL matrix constructor compatible with MSL in pyGPU shaders.
  * This syntax is not supported in blender's own shaders. */
-std::string SourceProcessor::matrix_constructor_mutation(const std::string &str)
+string SourceProcessor::matrix_constructor_mutation(const string &str)
 {
-  if (str.find("mat") == std::string::npos) {
+  if (str.find("mat") == string::npos) {
     return str;
   }
   /* Example: `mat2(x)` > `mat2x2(x)` */
-  std::regex regex_parenthesis(R"(\bmat([234])\()");
-  std::string out = std::regex_replace(str, regex_parenthesis, "mat$1x$1(");
+  regex regex_parenthesis(R"(\bmat([234])\()");
+  string out = regex_replace(str, regex_parenthesis, "mat$1x$1(");
   /* Only process square matrices since this is the only types we overload the constructors. */
   /* Example: `mat2x2(x)` > `__mat2x2(x)` */
-  std::regex regex(R"(\bmat(2x2|3x3|4x4)\()");
-  return std::regex_replace(out, regex, "__mat$1(");
+  regex regex(R"(\bmat(2x2|3x3|4x4)\()");
+  return regex_replace(out, regex, "__mat$1(");
 }
 
 /* To be run before `argument_decorator_macro_injection()`. */
 void SourceProcessor::lower_reference_arguments(Parser &parser, report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   auto add_mutation = [&](Token type, Token arg_name, Token last_tok) {
     if (type.prev() == Const) {
       parser.replace(type.prev(), last_tok, type.str() + " " + arg_name.str());
@@ -3628,9 +3462,6 @@ void SourceProcessor::lower_reference_arguments(Parser &parser, report_callback 
 
 void SourceProcessor::lower_unions(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   struct Member {
     string type, name;
     size_t offset, size;
@@ -4043,9 +3874,6 @@ void SourceProcessor::lower_unions(Parser &parser, report_callback report_error)
  */
 void SourceProcessor::lower_union_accessor_templates(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_struct([&](Token, Scope, Token, Scope body) {
     body.foreach_match("o{..};", [&](const Tokens &t) {
       t[1].scope().foreach_declaration(
@@ -4081,9 +3909,6 @@ void SourceProcessor::lower_union_accessor_templates(Parser &parser, report_call
  */
 void SourceProcessor::lower_srt_accessor_templates(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_struct([&](Token, Scope, Token, Scope body) {
     body.foreach_declaration([&](Scope attributes,
                                  Token,
@@ -4126,15 +3951,9 @@ void SourceProcessor::lower_srt_accessor_templates(Parser &parser, report_callba
  * Need to run before local reference mutations. */
 void SourceProcessor::lower_srt_member_access(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   const string srt_attribute = "resource_table";
 
-  auto memher_access_mutation = [&](parser::Scope attribute,
-                                    parser::Token type,
-                                    parser::Token var,
-                                    parser::Scope body_scope) {
+  auto memher_access_mutation = [&](Scope attribute, Token type, Token var, Scope body_scope) {
     if (attribute[2].str() != srt_attribute) {
       return;
     }
@@ -4199,11 +4018,9 @@ void SourceProcessor::lower_srt_member_access(Parser &parser, report_callback re
 /* Parse entry point definitions and mutating all parameter usage to global resources. */
 void SourceProcessor::lower_entry_points(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
   using namespace metadata;
 
-  auto to_uppercase = [](std::string str) {
+  auto to_uppercase = [](string str) {
     for (char &c : str) {
       c = toupper(c);
     }
@@ -4614,8 +4431,6 @@ void SourceProcessor::lower_entry_points(Parser &parser, report_callback report_
 void SourceProcessor::lower_entry_points_signature(Parser &parser,
                                                    report_callback /*report_error*/)
 {
-  using namespace std;
-  using namespace shader::parser;
   using namespace metadata;
 
   parser().foreach_function([&](bool, Token type, Token name, Scope args, bool, Scope fn_body) {
@@ -4651,9 +4466,6 @@ void SourceProcessor::lower_entry_points_signature(Parser &parser,
 /* To be run after `lower_reference_arguments()`. */
 void SourceProcessor::lower_reference_variables(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_function([&](bool, Token, Token, Scope fn_args, bool, Scope fn_scope) {
     fn_scope.foreach_match("c?w&w=", [&](const vector<Token> &tokens) {
       const Token name = tokens[4];
@@ -4761,7 +4573,7 @@ void SourceProcessor::lower_argument_qualifiers(Parser &parser, report_callback 
 {
   /* Example: `out float var[2]` > `REF(float, var)[2]` */
   parser().foreach_match("www", [&](const Tokens &toks) {
-    if (toks[0].scope().type() == parser::ScopeType::Preprocessor) {
+    if (toks[0].scope().type() == ScopeType::Preprocessor) {
       /* Don't mutate the actual implementation. */
       return;
     }
@@ -4774,24 +4586,21 @@ void SourceProcessor::lower_argument_qualifiers(Parser &parser, report_callback 
   parser.apply_mutations();
 }
 
-std::string SourceProcessor::argument_decorator_macro_injection(const std::string &str)
+string SourceProcessor::argument_decorator_macro_injection(const string &str)
 {
-  std::regex regex(R"((out|inout|in|shared)\s+(\w+)\s+(\w+))");
-  return std::regex_replace(str, regex, "$1 $2 _$1_sta $3 _$1_end");
+  regex regex(R"((out|inout|in|shared)\s+(\w+)\s+(\w+))");
+  return regex_replace(str, regex, "$1 $2 _$1_sta $3 _$1_end");
 }
 
-std::string SourceProcessor::array_constructor_macro_injection(const std::string &str)
+string SourceProcessor::array_constructor_macro_injection(const string &str)
 {
-  std::regex regex(R"(=\s*(\w+)\s*\[[^\]]*\]\s*\()");
-  return std::regex_replace(str, regex, "= ARRAY_T($1) ARRAY_V(");
+  regex regex(R"(=\s*(\w+)\s*\[[^\]]*\]\s*\()");
+  return regex_replace(str, regex, "= ARRAY_T($1) ARRAY_V(");
 }
 
 /* Assume formatted source with our code style. Cannot be applied to python shaders. */
 void SourceProcessor::lint_global_scope_constants(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   /* Example: `const uint global_var = 1u;`. */
   parser().foreach_match("cww=", [&](const vector<Token> &tokens) {
     if (tokens[0].scope().type() == ScopeType::Global) {
@@ -4806,9 +4615,6 @@ void SourceProcessor::lint_global_scope_constants(Parser &parser, report_callbac
 /* Search for constructor definition in active code. These are not supported. */
 void SourceProcessor::lint_constructors(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_struct([&](Token, Scope, Token struct_name, Scope struct_scope) {
     struct_scope.foreach_match("w(..)", [&](const Tokens &t) {
       if (t[0].scope() != struct_scope) {
@@ -4825,9 +4631,6 @@ void SourceProcessor::lint_constructors(Parser &parser, report_callback report_e
  * there is no pointers. */
 void SourceProcessor::lint_forward_declared_structs(Parser &parser, report_callback report_error)
 {
-  using namespace std;
-  using namespace shader::parser;
-
   parser().foreach_match("sw;", [&](const Tokens &t) {
     if (t[0].scope().type() == ScopeType::Global) {
       report_error(ERROR_TOK(t[0]), "Forward declaration of types are not supported.");
@@ -4835,22 +4638,22 @@ void SourceProcessor::lint_forward_declared_structs(Parser &parser, report_callb
   });
 }
 
-int SourceProcessor::static_array_size(const shader::parser::Scope &array,
+int SourceProcessor::static_array_size(const Scope &array,
                                        report_callback report_error,
                                        int fallback_value)
 {
-  if (array.token_count() == 3 && array[1] == shader::parser::Number) {
+  if (array.token_count() == 3 && array[1] == Number) {
     try {
-      return std::stol(array[1].str());
+      return stol(array[1].str());
     }
-    catch (std::invalid_argument const & /*ex*/) {
+    catch (invalid_argument const & /*ex*/) {
       report_error(ERROR_TOK(array.front()), "Invalid array size, expecting integer literal");
     }
   }
   return fallback_value;
 }
 
-std::string SourceProcessor::line_directive_prefix(const std::string &filename)
+string SourceProcessor::line_directive_prefix(const string &filename)
 {
   /* NOTE: This is not supported by GLSL. All line directives are muted at runtime and the
    * sources are scanned after error reporting for the locating the muted line. */
