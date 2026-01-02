@@ -1092,7 +1092,7 @@ void widgetbase_draw_cache_flush()
   else {
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE_INST);
     GPU_batch_uniform_4fv_array(batch,
-                                "parameters",
+                                "parameters_inst",
                                 MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
                                 (float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
@@ -2335,23 +2335,23 @@ static void widget_draw_extra_icons(const uiWidgetColors *wcol,
   }
 
   /* Inverse order, from right to left. */
-  LISTBASE_FOREACH_BACKWARD (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
+  for (ButtonExtraOpIcon &op_icon : but->extra_op_icons.items_reversed()) {
     rcti temp = *rect;
     float alpha_this = alpha;
 
     temp.xmin = temp.xmax - icon_size;
 
-    if (op_icon->disabled) {
+    if (op_icon.disabled) {
       alpha_this *= 0.4f;
     }
-    else if (!op_icon->highlighted) {
+    else if (!op_icon.highlighted) {
       alpha_this *= 0.75f;
     }
 
     /* Draw the icon at the center, and restore the flags after. */
     const int old_drawflags = but->drawflag;
     button_drawflag_disable(but, BUT_ICON_LEFT);
-    widget_draw_icon(but, op_icon->icon, alpha_this, &temp, wcol->text);
+    widget_draw_icon(but, op_icon.icon, alpha_this, &temp, wcol->text);
     but->drawflag = old_drawflags;
 
     rect->xmax -= icon_size;
@@ -2391,7 +2391,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
 {
   const bool show_menu_icon = ui_but_draw_menu_icon(but);
   const float alpha = float(wcol->text[3]) / 255.0f;
-  char password_str[UI_MAX_DRAW_STR];
+  std::string password_str;
   bool no_text_padding = but->drawflag & BUT_NO_TEXT_PADDING;
 
   button_text_password_hide(password_str, but, false);

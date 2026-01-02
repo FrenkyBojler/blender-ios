@@ -17,15 +17,16 @@
 
 #include "rna_internal.hh"
 
+#include "DNA_movieclip_types.h"
 #include "DNA_object_types.h" /* SELECT */
 #include "DNA_scene_types.h"
+#include "DNA_tracking_types.h"
 
 #include "WM_types.hh"
 
 #ifdef RNA_RUNTIME
 
 #  include "DNA_anim_types.h"
-#  include "DNA_defaults.h"
 #  include "DNA_movieclip_types.h"
 
 #  include "BLI_math_vector.h"
@@ -310,12 +311,12 @@ static void rna_trackingPlaneMarker_frame_set(PointerRNA *ptr, int value)
   MovieTrackingPlaneMarker *plane_marker = (MovieTrackingPlaneMarker *)ptr->data;
   MovieTrackingPlaneTrack *plane_track_of_marker = nullptr;
 
-  LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {
-    LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, &tracking_object->plane_tracks) {
-      if (plane_marker >= plane_track->markers &&
-          plane_marker < plane_track->markers + plane_track->markersnr)
+  for (MovieTrackingObject &tracking_object : tracking->objects) {
+    for (MovieTrackingPlaneTrack &plane_track : tracking_object.plane_tracks) {
+      if (plane_marker >= plane_track.markers &&
+          plane_marker < plane_track.markers + plane_track.markersnr)
       {
-        plane_track_of_marker = plane_track;
+        plane_track_of_marker = &plane_track;
         break;
       }
     }
@@ -592,10 +593,10 @@ static void rna_trackingMarker_frame_set(PointerRNA *ptr, int value)
   MovieTrackingMarker *marker = (MovieTrackingMarker *)ptr->data;
   MovieTrackingTrack *track_of_marker = nullptr;
 
-  LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {
-    LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-      if (marker >= track->markers && marker < track->markers + track->markersnr) {
-        track_of_marker = track;
+  for (MovieTrackingObject &tracking_object : tracking->objects) {
+    for (MovieTrackingTrack &track : tracking_object.tracks) {
+      if (marker >= track.markers && marker < track.markers + track.markersnr) {
+        track_of_marker = &track;
         break;
       }
     }
@@ -654,11 +655,14 @@ static void rna_trackingDopesheet_tagUpdate(Main * /*bmain*/, Scene * /*scene*/,
 
 /* API */
 
-static MovieTrackingTrack *add_track_to_base(
-    MovieClip *clip, MovieTracking *tracking, ListBase *tracksbase, const char *name, int frame)
+static MovieTrackingTrack *add_track_to_base(MovieClip *clip,
+                                             MovieTracking *tracking,
+                                             ListBaseT<MovieTrackingTrack> *tracksbase,
+                                             const char *name,
+                                             int frame)
 {
   int width, height;
-  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser user = {};
   MovieTrackingTrack *track;
 
   user.framenr = 1;
@@ -821,9 +825,9 @@ static void rna_trackingPlaneMarkers_delete_frame(MovieTrackingPlaneTrack *plane
 static MovieTrackingObject *find_object_for_reconstruction(
     MovieTracking *tracking, MovieTrackingReconstruction *reconstruction)
 {
-  LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {
-    if (&tracking_object->reconstruction == reconstruction) {
-      return tracking_object;
+  for (MovieTrackingObject &tracking_object : tracking->objects) {
+    if (&tracking_object.reconstruction == reconstruction) {
+      return &tracking_object;
     }
   }
 

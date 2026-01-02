@@ -100,6 +100,9 @@ if(POLICY CMP0177)
   cmake_policy(SET CMP0177 NEW)
 endif()
 
+# The target_sources() command converts relative paths to absolute.
+cmake_policy(SET CMP0076 NEW)
+
 # -----------------------------------------------------------------------------
 # Load Blender's Local Macros
 
@@ -395,8 +398,8 @@ if(UNIX AND NOT (APPLE OR HAIKU))
   mark_as_advanced(WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    option(WITH_GHOST_WAYLAND_LIBDECOR "Optionally build with LibDecor window decorations" ON)
-    mark_as_advanced(WITH_GHOST_WAYLAND_LIBDECOR)
+    option(WITH_GHOST_CSD "Enable client side decorations with Wayland" ON)
+    mark_as_advanced(WITH_GHOST_CSD)
 
     option(WITH_GHOST_WAYLAND_DYNLOAD "Enable runtime dynamic WAYLAND libraries loading" ON)
     mark_as_advanced(WITH_GHOST_WAYLAND_DYNLOAD)
@@ -407,6 +410,11 @@ this can be used to differentiate Blender instances by version or branch for exa
     )
     mark_as_advanced(WITH_GHOST_WAYLAND_APP_ID)
   endif()
+endif()
+
+# Only used for WAYLAND, avoid having to check for WAYLAND everywhere by setting as disabled.
+if(NOT DEFINED WITH_GHOST_CSD)
+  set(WITH_GHOST_CSD OFF)
 endif()
 
 if(WITH_GHOST_X11)
@@ -652,6 +660,10 @@ option(WITH_CYCLES_STANDALONE_GUI "Build Cycles standalone with GUI" OFF)
 option(WITH_CYCLES_PRECOMPUTE "Build Cycles data precomputation tool" OFF)
 
 option(WITH_CYCLES_HYDRA_RENDER_DELEGATE "Build Cycles Hydra render delegate" OFF)
+
+option(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD
+       "Build Cycles kernels of difference devices in parallel (faster, but uses more memory)" OFF)
+mark_as_advanced(WITH_CYCLES_PARALLEL_DEVICE_KERNEL_BUILD)
 
 option(WITH_CYCLES_DEBUG_NAN "\
 Build Cycles with additional asserts for detecting NaNs and invalid values"
@@ -1627,6 +1639,17 @@ endif()
 
 if(NOT WITH_SYSTEM_EIGEN3)
   set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
+endif()
+if (WITH_COMPILER_ASAN AND NOT WITH_COMPILER_ASAN_EXTERN)
+  # See also:
+  #   - `EIGEN_MALLOC_ALREADY_ALIGNED` definition and usages in extern/Eigen3/Eigen/src/Core/util/Memory.h
+  #   - Report: https://projects.blender.org/blender/blender/issues/152010
+  #
+  # NOTE: It seems to only affect GCC and its sanitizer library - but best be on the safe side here,
+  #       and do that for all compilers and systems.
+  message(DEBUG "Forcing Eigen to use their own allocator code because `WITH_COMPILER_ASAN` is enabled but "
+                "`WITH_COMPILER_ASAN_EXTERN` is disabled, which can cause mismatch usages of Eigen allocators." )
+  add_definitions(-DEIGEN_MALLOC_ALREADY_ALIGNED=0)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -2850,7 +2873,6 @@ if(FIRST_RUN)
     endif()
     if(WITH_GHOST_WAYLAND)
       info_cfg_option(WITH_GHOST_WAYLAND_DYNLOAD)
-      info_cfg_option(WITH_GHOST_WAYLAND_LIBDECOR)
     endif()
   endif()
 

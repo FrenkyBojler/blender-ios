@@ -49,7 +49,7 @@ static wmXrData *rna_XrSession_wm_xr_data_get(PointerRNA *ptr)
 static XrComponentPath *rna_XrComponentPath_new(XrActionMapBinding *amb, const char *path_str)
 {
 #  ifdef WITH_XR_OPENXR
-  XrComponentPath *component_path = MEM_callocN<XrComponentPath>(__func__);
+  XrComponentPath *component_path = MEM_new_for_free<XrComponentPath>(__func__);
   STRNCPY(component_path->path, path_str);
   BLI_addtail(&amb->component_paths, component_path);
   return component_path;
@@ -218,7 +218,7 @@ static void rna_XrActionMapBinding_name_update(Main *bmain, Scene * /*scene*/, P
 #  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm && wm->xr.runtime) {
-    ListBase *actionmaps = WM_xr_actionmaps_get(wm->xr.runtime);
+    ListBaseT<XrActionMap> *actionmaps = WM_xr_actionmaps_get(wm->xr.runtime);
     short idx = WM_xr_actionmap_selected_index_get(wm->xr.runtime);
     XrActionMap *actionmap = static_cast<XrActionMap *>(BLI_findlink(actionmaps, idx));
     if (actionmap) {
@@ -238,7 +238,7 @@ static void rna_XrActionMapBinding_name_update(Main *bmain, Scene * /*scene*/, P
 static XrUserPath *rna_XrUserPath_new(XrActionMapItem *ami, const char *path_str)
 {
 #  ifdef WITH_XR_OPENXR
-  XrUserPath *user_path = MEM_callocN<XrUserPath>(__func__);
+  XrUserPath *user_path = MEM_new_for_free<XrUserPath>(__func__);
   STRNCPY(user_path->path, path_str);
   BLI_addtail(&ami->user_paths, user_path);
   return user_path;
@@ -541,7 +541,7 @@ static void rna_XrActionMapItem_name_update(Main *bmain, Scene * /*scene*/, Poin
 #  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm && wm->xr.runtime) {
-    ListBase *actionmaps = WM_xr_actionmaps_get(wm->xr.runtime);
+    ListBaseT<XrActionMap> *actionmaps = WM_xr_actionmaps_get(wm->xr.runtime);
     short idx = WM_xr_actionmap_selected_index_get(wm->xr.runtime);
     XrActionMap *actionmap = static_cast<XrActionMap *>(BLI_findlink(actionmaps, idx));
     if (actionmap) {
@@ -1079,7 +1079,7 @@ static void rna_XrSessionState_actionmaps_begin(CollectionPropertyIterator *iter
 {
 #  ifdef WITH_XR_OPENXR
   wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  ListBase *lb = WM_xr_actionmaps_get(xr->runtime);
+  ListBaseT<XrActionMap> *lb = WM_xr_actionmaps_get(xr->runtime);
   rna_iterator_listbase_begin(iter, ptr, lb, nullptr);
 #  else
   UNUSED_VARS(iter, ptr);
@@ -1090,7 +1090,7 @@ static int rna_XrSessionState_actionmaps_length(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
   wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  ListBase *lb = WM_xr_actionmaps_get(xr->runtime);
+  ListBaseT<XrActionMap> *lb = WM_xr_actionmaps_get(xr->runtime);
   return BLI_listbase_count(lb);
 #  else
   UNUSED_VARS(ptr);
@@ -2044,11 +2044,10 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "view_scale", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(prop,
                            "View Scale",
-                           "Scaling factor applied on top of scene scale for adjustements to the "
+                           "Scaling factor applied on top of scene scale for adjustments to the "
                            "VR view. When possible, prefer modifying the scene scale instead");
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.1f, 4);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "use_positional_tracking", PROP_BOOLEAN, PROP_NONE);

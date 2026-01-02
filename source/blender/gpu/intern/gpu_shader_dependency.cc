@@ -32,7 +32,7 @@
 #  include "opensubdiv_evaluator_capi.hh"
 #endif
 
-#include "../shader_tool/shader_tool.hh"
+#include "../shader_tool/metadata.hh"
 
 extern "C" {
 #define SHADER_SOURCE(filename_underscore, filename, filepath) \
@@ -50,6 +50,8 @@ extern "C" {
 static CLG_LogRef LOG = {"shader.dependencies"};
 
 namespace blender::gpu::shader {
+
+static bool g_shader_use_printf = false;
 
 shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
 {
@@ -86,6 +88,8 @@ shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
       return BuiltinBits::WORK_GROUP_ID;
     case Builtin::WorkGroupSize:
       return BuiltinBits::WORK_GROUP_SIZE;
+    case Builtin::ClipDistance:
+      return BuiltinBits::CLIP_DISTANCES;
     case Builtin::drw_debug:
 #ifndef NDEBUG
       return BuiltinBits::USE_DEBUG_DRAW;
@@ -95,6 +99,7 @@ shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
     case Builtin::assert:
     case Builtin::printf:
 #if GPU_SHADER_PRINTF_ENABLE
+      g_shader_use_printf = true;
       return BuiltinBits::USE_PRINTF;
 #else
       return BuiltinBits::NONE;
@@ -595,7 +600,7 @@ bool gpu_shader_dependency_force_gpu_print_injection()
 
 bool gpu_shader_dependency_has_printf()
 {
-  return (g_formats != nullptr) && !g_formats->is_empty();
+  return (g_formats != nullptr) && g_shader_use_printf;
 }
 
 const PrintfFormat &gpu_shader_dependency_get_printf_format(uint32_t format_hash)

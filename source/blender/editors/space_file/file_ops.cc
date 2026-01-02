@@ -49,7 +49,7 @@
 
 #include "file_intern.hh"
 #include "filelist.hh"
-#include "fsmenu.h"
+#include "fsmenu.hh"
 
 #include <algorithm>
 #include <cctype>
@@ -3348,8 +3348,8 @@ static wmOperatorStatus file_start_filter_exec(bContext *C, wmOperator * /*op*/)
   const FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   if (area) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (blender::ui::textbutton_activate_rna(C, region, params, "filter_search")) {
+    for (ARegion &region : area->regionbase) {
+      if (blender::ui::textbutton_activate_rna(C, &region, params, "filter_search")) {
         break;
       }
     }
@@ -3384,8 +3384,8 @@ static wmOperatorStatus file_edit_directory_path_exec(bContext *C, wmOperator * 
   const FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   if (area) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (blender::ui::textbutton_activate_rna(C, region, params, "directory")) {
+    for (ARegion &region : area->regionbase) {
+      if (blender::ui::textbutton_activate_rna(C, &region, params, "directory")) {
         break;
       }
     }

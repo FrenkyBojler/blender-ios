@@ -117,7 +117,7 @@ static wmOperatorStatus weight_from_bones_exec(bContext *C, wmOperator *op)
   ED_object_vgroup_calc_from_armature(
       op->reports, depsgraph, scene, ob, armob, type, (mesh->symmetry & ME_SYMMETRY_X));
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
@@ -369,13 +369,13 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_vertex_group_set_active", false);
   blender::wm::OpCallContext opcontext = blender::wm::OpCallContext::ExecDefault;
   layout.operator_context_set(opcontext);
-  int i = 0;
-  LISTBASE_FOREACH_INDEX (bDeformGroup *, dg, &mesh->vertex_group_names, i) {
+
+  for (const auto [i, dg] : mesh->vertex_group_names.enumerate()) {
     if (groups[i] == false) {
       continue;
     }
     PointerRNA op_ptr = layout.op(
-        ot, dg->name, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
+        ot, dg.name, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
     RNA_property_enum_set(&op_ptr, ot->prop, i);
   }
   popup_menu_end(C, pup);
@@ -489,7 +489,7 @@ static bool weight_paint_set(Object *ob, float paintweight)
 
   wpaint_prev_destroy(&wpp);
 
-  DEG_id_tag_update(&mesh->id, 0);
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
   return true;
 }

@@ -203,13 +203,13 @@ static void realloc_particles(ParticleSimulationData *sim, int new_totpart)
     }
 
     if (totpart) {
-      newpars = MEM_calloc_arrayN<ParticleData>(totpart, "particles");
+      newpars = MEM_new_array_for_free<ParticleData>(totpart, "particles");
       if (newpars == nullptr) {
         return;
       }
 
       if (psys->part->phystype == PART_PHYS_BOIDS) {
-        newboids = MEM_calloc_arrayN<BoidParticle>(totpart, "boid particles");
+        newboids = MEM_new_array_for_free<BoidParticle>(totpart, "boid particles");
 
         if (newboids == nullptr) {
           /* allocation error! */
@@ -632,7 +632,7 @@ static void free_unexisting_particles(ParticleSimulationData *sim)
     int newtotpart = psys->totpart - psys->totunexist;
     ParticleData *npa, *newpars;
 
-    npa = newpars = MEM_calloc_arrayN<ParticleData>(newtotpart, "particles");
+    npa = newpars = MEM_new_array_for_free<ParticleData>(newtotpart, "particles");
 
     for (p = 0, pa = psys->particles; p < newtotpart; p++, pa++, npa++) {
       while (pa->flag & PARS_UNEXIST) {
@@ -650,7 +650,8 @@ static void free_unexisting_particles(ParticleSimulationData *sim)
     psys->totpart -= psys->totunexist;
 
     if (psys->particles->boid) {
-      BoidParticle *newboids = MEM_calloc_arrayN<BoidParticle>(psys->totpart, "boid particles");
+      BoidParticle *newboids = MEM_new_array_for_free<BoidParticle>(psys->totpart,
+                                                                    "boid particles");
 
       LOOP_PARTICLES
       {
@@ -1389,8 +1390,8 @@ static void psys_update_effectors(ParticleSimulationData *sim)
 {
   BKE_effectors_free(sim->psys->effectors);
   bool use_rotation = (sim->psys->part->flag & PART_ROT_DYN) != 0;
-  sim->psys->effectors = BKE_effectors_create(
-      sim->depsgraph, sim->ob, sim->psys, sim->psys->part->effector_weights, use_rotation);
+  sim->psys->effectors = static_cast<ListBaseT<EffectorCache> *>(BKE_effectors_create(
+      sim->depsgraph, sim->ob, sim->psys, sim->psys->part->effector_weights, use_rotation));
   precalc_guides(sim, sim->psys->effectors);
 }
 
@@ -2816,7 +2817,7 @@ void BKE_psys_collision_neartest_cb(void *userdata,
 static int collision_detect(ParticleData *pa,
                             ParticleCollision *col,
                             BVHTreeRayHit *hit,
-                            ListBase *colliders)
+                            ListBaseT<ColliderCache> *colliders)
 {
   const int raycast_flag = BVH_RAYCAST_DEFAULT & ~BVH_RAYCAST_WATERTIGHT;
   float ray_dir[3];
@@ -2836,12 +2837,12 @@ static int collision_detect(ParticleData *pa,
     hit->dist = col->original_ray_length = 0.000001f;
   }
 
-  LISTBASE_FOREACH (ColliderCache *, coll, colliders) {
+  for (ColliderCache &coll : *colliders) {
     /* for boids: don't check with current ground object; also skip if permeated */
     bool skip = false;
 
     for (int i = 0; i < col->skip_count; i++) {
-      if (coll->ob == col->skip[i]) {
+      if (coll.ob == col->skip[i]) {
         skip = true;
         break;
       }
@@ -2852,16 +2853,15 @@ static int collision_detect(ParticleData *pa,
     }
 
     /* particles should not collide with emitter at birth */
-    if (coll->ob == col->emitter && pa->time < col->cfra && pa->time >= col->old_cfra) {
+    if (coll.ob == col->emitter && pa->time < col->cfra && pa->time >= col->old_cfra) {
       continue;
     }
 
-    col->current = coll->ob;
-    col->md = coll->collmd;
-    col->fac1 = (col->old_cfra - coll->collmd->time_x) /
-                (coll->collmd->time_xnew - coll->collmd->time_x);
-    col->fac2 = (col->cfra - coll->collmd->time_x) /
-                (coll->collmd->time_xnew - coll->collmd->time_x);
+    col->current = coll.ob;
+    col->md = coll.collmd;
+    col->fac1 = (col->old_cfra - coll.collmd->time_x) /
+                (coll.collmd->time_xnew - coll.collmd->time_x);
+    col->fac2 = (col->cfra - coll.collmd->time_x) / (coll.collmd->time_xnew - coll.collmd->time_x);
 
     if (col->md && col->md->bvhtree) {
       BLI_bvhtree_ray_cast_ex(col->md->bvhtree,
@@ -4670,7 +4670,7 @@ void psys_check_boid_data(ParticleSystem *psys)
 
   if (psys->part && psys->part->phystype == PART_PHYS_BOIDS) {
     if (!pa->boid) {
-      bpa = MEM_calloc_arrayN<BoidParticle>(psys->totpart, "Boid Data");
+      bpa = MEM_new_array_for_free<BoidParticle>(psys->totpart, "Boid Data");
 
       LOOP_PARTICLES
       {
@@ -5016,8 +5016,8 @@ void BKE_particlesystem_id_loop(ParticleSystem *psys, ParticleSystemIDFunc func,
     }
   }
 
-  LISTBASE_FOREACH (ParticleTarget *, pt, &psys->targets) {
-    func(psys, (ID **)&pt->ob, userdata, IDWALK_CB_NOP);
+  for (ParticleTarget &pt : psys->targets) {
+    func(psys, (ID **)&pt.ob, userdata, IDWALK_CB_NOP);
   }
 
   /* In case `psys->part` is nullptr (See ID_REMAP_SKIP/FORCE/FLAG_NEVER_NULL_USAGE in

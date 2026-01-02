@@ -187,7 +187,7 @@ static wmOperatorStatus add_empty_ks_path_exec(bContext *C, wmOperator *op)
       BLI_findlink(&scene->keyingsets, scene->active_keyingset - 1));
 
   /* Don't use the API method for this, since that checks on values... */
-  KS_Path *keyingset_path = MEM_callocN<KS_Path>("KeyingSetPath Empty");
+  KS_Path *keyingset_path = MEM_new_for_free<KS_Path>("KeyingSetPath Empty");
   BLI_addtail(&keyingset->paths, keyingset_path);
   keyingset->active_path = BLI_listbase_count(&keyingset->paths);
 
@@ -607,25 +607,25 @@ static void anim_keyingset_visit_for_search_impl(
 
   /* User-defined Keying Sets. */
   if (scene && scene->keyingsets.first) {
-    LISTBASE_FOREACH (KeyingSet *, keyingset, &scene->keyingsets) {
-      if (use_poll && !ANIM_keyingset_context_ok_poll((bContext *)C, keyingset)) {
+    for (KeyingSet &keyingset : scene->keyingsets) {
+      if (use_poll && !ANIM_keyingset_context_ok_poll((bContext *)C, &keyingset)) {
         continue;
       }
       StringPropertySearchVisitParams visit_params{};
-      visit_params.text = keyingset->idname;
-      visit_params.info = keyingset->name;
+      visit_params.text = keyingset.idname;
+      visit_params.info = keyingset.name;
       visit_fn(visit_params);
     }
   }
 
   /* Builtin Keying Sets. */
-  LISTBASE_FOREACH (KeyingSet *, keyingset, &builtin_keyingsets) {
-    if (use_poll && !ANIM_keyingset_context_ok_poll((bContext *)C, keyingset)) {
+  for (KeyingSet &keyingset : builtin_keyingsets) {
+    if (use_poll && !ANIM_keyingset_context_ok_poll((bContext *)C, &keyingset)) {
       continue;
     }
     StringPropertySearchVisitParams visit_params{};
-    visit_params.text = keyingset->idname;
-    visit_params.info = keyingset->name;
+    visit_params.text = keyingset.idname;
+    visit_params.info = keyingset.name;
     visit_fn(visit_params);
   }
 }

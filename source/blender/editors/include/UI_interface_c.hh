@@ -18,6 +18,7 @@
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_sys_types.h" /* size_t */
 
+#include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
 
 #include "UI_interface_icons.hh"
@@ -38,7 +39,6 @@ struct IDProperty;
 struct ImBuf;
 struct Image;
 struct ImageUser;
-struct ListBase;
 struct MTex;
 struct Panel;
 struct PanelType;
@@ -85,6 +85,7 @@ struct ButtonSearch;
 struct ButtonExtraOpIcon;
 struct TooltipData;
 struct PopupBlockHandle;
+struct Block;
 }  // namespace blender::ui
 
 /* Defines */
@@ -914,9 +915,9 @@ void block_end(const bContext *C, Block *block);
  * Uses local copy of style, to scale things down, and allow widgets to change stuff.
  */
 void block_draw(const bContext *C, Block *block);
-void blocklist_update_window_matrix(const bContext *C, const ListBase *lb);
-void blocklist_update_view_for_buttons(const bContext *C, const ListBase *lb);
-void blocklist_draw(const bContext *C, const ListBase *lb);
+void blocklist_update_window_matrix(const bContext *C, const ListBaseT<blender::ui::Block> *lb);
+void blocklist_update_view_for_buttons(const bContext *C, const ListBaseT<blender::ui::Block> *lb);
+void blocklist_draw(const bContext *C, const ListBaseT<blender::ui::Block> *lb);
 void block_update_from_old(const bContext *C, Block *block);
 
 enum {
@@ -1020,7 +1021,7 @@ void block_bounds_set_menu(Block *block, int addval, const int bounds_offset[2])
 void block_bounds_set_centered(Block *block, int addval);
 void block_bounds_set_explicit(Block *block, int minx, int miny, int maxx, int maxy);
 
-int blocklist_min_y_get(ListBase *lb);
+int blocklist_min_y_get(ListBaseT<blender::ui::Block> *lb);
 
 void block_direction_set(Block *block, char direction);
 /**
@@ -1666,6 +1667,16 @@ enum AutoPropButsReturn {
 
 ENUM_OPERATORS(AutoPropButsReturn);
 
+/**
+ * \param button_type_override \parblock
+ * Overrides the default button type defined for some properties:
+ * - Int/Float properties allows #ButtonType::Num or #ButtonType::NumSlider.
+ * - Enum properties allows #ButtonType::Menu or #ButtonType::SearchMenu.
+ * - String properties allows #ButtonType::Text or #ButtonType::SearchMenu.
+ *
+ * This has no effect on other property types.
+ * \endparblock
+ */
 Button *uiDefAutoButR(Block *block,
                       PointerRNA *ptr,
                       PropertyRNA *prop,
@@ -1675,7 +1686,8 @@ Button *uiDefAutoButR(Block *block,
                       int x,
                       int y,
                       int width,
-                      int height);
+                      int height,
+                      std::optional<ButtonType> button_type_override = std::nullopt);
 void uiDefAutoButsArrayR(Block *block,
                          PointerRNA *ptr,
                          PropertyRNA *prop,
@@ -2037,12 +2049,16 @@ void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y);
  */
 void panels_draw(const bContext *C, ARegion *region);
 
-Panel *panel_find_by_type(ListBase *lb, const PanelType *pt);
+Panel *panel_find_by_type(ListBaseT<Panel> *lb, const PanelType *pt);
 /**
  * \note \a panel should be return value from #panel_find_by_type and can be NULL.
  */
-Panel *panel_begin(
-    ARegion *region, ListBase *lb, Block *block, PanelType *pt, Panel *panel, bool *r_open);
+Panel *panel_begin(ARegion *region,
+                   ListBaseT<Panel> *lb,
+                   Block *block,
+                   PanelType *pt,
+                   Panel *panel,
+                   bool *r_open);
 /**
  * Create the panel header button group, used to mark which buttons are part of
  * panel headers for the panel search process that happens later. This Should be
@@ -2086,6 +2102,7 @@ bool panel_matches_search_filter(const Panel *panel);
 bool panel_can_be_pinned(const Panel *panel);
 
 bool panel_category_is_visible(const ARegion *region);
+bool panel_category_tabs_is_visible(const ARegion *region);
 void panel_category_add(ARegion *region, const char *name);
 PanelCategoryDyn *panel_category_find(const ARegion *region, const char *idname);
 int panel_category_index_find(ARegion *region, const char *idname);
@@ -2099,7 +2116,7 @@ void panel_category_clear_all(ARegion *region);
 /**
  * Draw vertical tabs on the left side of the region, one tab per category.
  */
-void panel_category_draw_all(ARegion *region, const char *category_id_active);
+void panel_category_tabs_draw_all(ARegion *region, const char *category_id_active);
 
 void panel_stop_animation(const bContext *C, Panel *panel);
 
@@ -2115,7 +2132,7 @@ void panel_custom_data_set(Panel *panel, PointerRNA *custom_data);
  */
 Panel *panel_add_instanced(const bContext *C,
                            ARegion *region,
-                           ListBase *panels,
+                           ListBaseT<Panel> *panels,
                            const char *panel_idname,
                            PointerRNA *custom_data);
 /**
@@ -2153,10 +2170,13 @@ bool panel_list_matches_data(ARegion *region,
  * handling WM events. Mostly this is done automatic by modules such
  * as screen/ if ED_KEYMAP_UI is set, or internally in popup functions. */
 
-void region_handlers_add(ListBase *handlers);
-void popup_handlers_add(bContext *C, ListBase *handlers, PopupBlockHandle *popup, char flag);
-void popup_handlers_remove(ListBase *handlers, PopupBlockHandle *popup);
-void popup_handlers_remove_all(bContext *C, ListBase *handlers);
+void region_handlers_add(ListBaseT<wmEventHandler> *handlers);
+void popup_handlers_add(bContext *C,
+                        ListBaseT<wmEventHandler> *handlers,
+                        PopupBlockHandle *popup,
+                        char flag);
+void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle *popup);
+void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers);
 
 /* Module
  *
@@ -2536,11 +2556,6 @@ enum TemplateListFlags {
   TEMPLATE_LIST_SORT_LOCK = (1 << 1),
   /** Don't allow resizing the list, i.e. don't add the grip button. */
   TEMPLATE_LIST_NO_GRIP = (1 << 2),
-  /** Do not show filtering options, not even the button to expand/collapse them. Also hides the
-   * grip button. */
-  TEMPLATE_LIST_NO_FILTER_OPTIONS = (1 << 3),
-  /** For #UILST_LAYOUT_BIG_PREVIEW_GRID, don't reserve space for the name label. */
-  TEMPLATE_LIST_NO_NAMES = (1 << 4),
 };
 ENUM_OPERATORS(TemplateListFlags);
 
@@ -2551,28 +2566,12 @@ void template_list(Layout *layout,
                    PointerRNA *dataptr,
                    StringRefNull propname,
                    PointerRNA *active_dataptr,
-                   const char *active_propname,
+                   StringRefNull active_propname,
                    const char *item_dyntip_propname,
                    int rows,
                    int maxrows,
                    int layout_type,
-                   int columns,
                    enum TemplateListFlags flags);
-uiList *template_list_ex(Layout *layout,
-                         const bContext *C,
-                         const char *listtype_name,
-                         const char *list_id,
-                         PointerRNA *dataptr,
-                         StringRefNull propname,
-                         PointerRNA *active_dataptr,
-                         StringRefNull active_propname,
-                         const char *item_dyntip_propname,
-                         int rows,
-                         int maxrows,
-                         int layout_type,
-                         int columns,
-                         enum TemplateListFlags flags,
-                         void *customdata);
 }  // namespace blender::ui
 
 void uiTemplateNodeLink(
@@ -2847,11 +2846,6 @@ const uiStyle *style_get_dpi();
 /* #UI_OT_editsource helpers. */
 bool editsource_enable_check();
 void editsource_active_but_test(Button *but);
-/**
- * Remove the editsource data for \a old_but and reinsert it for \a new_but. Use when the button
- * was reallocated, e.g. to have a new type (#button_change_type()).
- */
-void editsource_but_replace(const Button *old_but, Button *new_but);
 
 /**
  * Adjust the view so the rectangle of \a but is in view, with some extra margin.

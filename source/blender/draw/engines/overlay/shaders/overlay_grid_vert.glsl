@@ -85,14 +85,11 @@ bool is_occluded_by_higher_level(LineData line, uint level)
 {
   if (flag_test(grid_flag, SHOW_GRID) && !flag_test(grid_flag, GRID_SIMA)) {
     if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
-      float step_size_curr = grid_buf.steps[level][line.axis];
-      float step_size_next = grid_buf.steps[level + 1][line.axis];
-
-      float2 step_offs_curr = round(grid_buf.offset / step_size_curr) * step_size_curr;
-      float2 step_offs_next = round(step_offs_curr / step_size_next) * step_size_next;
-      float2 diff = step_offs_next + (line.P - step_offs_next) / step_size_next;
-
-      if (is_equal(fract(diff[1 - line.axis]), 0.0f, 1e-4)) {
+      /* To determine if a higher up line occludes the current line; we solve the following:
+       * given scalars s1, s2 and integer i, is there an integer j : i*s1 = j*s2. The value in
+       * `line.P` holds i*s1, so we compute j = i*s1/s2 and verify if it is an integer.  */
+      float j = abs(line.P[1 - line.axis]) / grid_buf.steps[level + 1][line.axis];
+      if (is_equal(floor(j), j, 1e-4f)) {
         return true;
       }
     }
@@ -111,18 +108,16 @@ void main()
   LineData line = flag_test(grid_flag, SHOW_GRID) ? decode_grid_data(gl_VertexID) :
                                                     decode_axis_data(gl_VertexID);
 
-  /* Compute the actual level of a line, offset by -1 to force a sublevel in the 3D viewport. */
+  /* Compute the actual level of a line, offset by -1 to force a sub-level in the 3D viewport. */
   int level = int(grid_buf.level) + int(line.level) - (flag_test(grid_flag, GRID_SIMA) ? 0 : 1);
-  if (level < 0 || level >= OVERLAY_GRID_STEPS_LEN) {
-    return; /* Discard line. */
-  }
+  level = clamp(level, 0, OVERLAY_GRID_STEPS_LEN - 1);
 
   /* Compute per-level size, camera offset for lines. Offset is rounded to the nearest
    * level-dependent line position for grid, while axes simply move with the camera. */
   float step_size = grid_buf.steps[level][line.axis];
   float2 step_offs = flag_test(grid_flag, SHOW_GRID) ?
                          round(grid_buf.offset / step_size) * step_size :
-                         float2(drw_view_position()[line.axis], 0.0f);
+                         float2(drw_view_position()[line.axis], 0.0f); /* Store value on X-axis. */
 
   /* Output vertex position in [-1,1], which we use to fade level boundaries. */
   vertex_out.coord = line.P / max(float(grid_buf.num_lines >> 1), 1.0f);
@@ -131,7 +126,7 @@ void main()
   /* Output alpha that smoothly transitions the lowest grid level in/out. */
   vertex_out_flat.alpha = saturate(line.level + 1.0f - fract(grid_buf.level));
   if (!drw_view_is_perspective()) {
-    /* Also fade by pixel size for orthographic, as we lack proper line dfdx/dfdy. */
+    /* Also fade by pixel size for orthographic, as we lack proper line DFDX/DFDY. */
     vertex_out_flat.alpha *= smoothstep(
         step_size * 0.25f, step_size * pow3f(0.25f), uniform_buf.pixel_fac);
   }
@@ -150,17 +145,22 @@ void main()
     clip_max = grid_buf.offset + grid_buf.clip_rect;
   }
   else { /* SHOW_AXES */
-    clip_min = float2(grid_buf.offset[line.axis] - grid_buf.clip_rect[line.axis], 0.0f);
-    clip_max = float2(grid_buf.offset[line.axis] + grid_buf.clip_rect[line.axis], 0.0f);
+    /* Apply clipping on X-axis; this value is moved to the correct axis below. */
+    uint offset_idx = drw_view_is_perspective() ? line.axis : 0;
+    clip_min = float2(grid_buf.offset[offset_idx] - grid_buf.clip_rect[line.axis], 0.0f);
+    clip_max = float2(grid_buf.offset[offset_idx] + grid_buf.clip_rect[line.axis], 0.0f);
   }
 
   /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
-   * inside the rectangle to avoid precision problems with large lines. */
-  bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
-  if (line_outside_rect) {
-    return; /* Discard line. */
+   * inside the rectangle to avoid precision problems with large lines. Z-axis ignores this step.
+   */
+  if (line.axis != 2) {
+    bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
+    if (line_outside_rect) {
+      return; /* Discard line. */
+    }
+    line.P = clamp(line.P, clip_min, clip_max);
   }
-  line.P = clamp(line.P, clip_min, clip_max);
 
   /* Output world-space position. */
   vertex_out.pos = float3(0.0f);
@@ -193,7 +193,7 @@ void main()
 
   /* Additional culling steps to discard occluded lines. */
   if (is_occluded_by_axis(vertex_out.pos) || is_occluded_by_higher_level(line, level)) {
-    return;
+    return; /* Discard line. */
   }
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
@@ -213,6 +213,6 @@ void main()
     }
   }
 
-  /* Stage output for viewport antialiasing/alpha dithering. */
+  /* Stage output for viewport anti-aliasing/alpha dithering. */
   edge_start = edge_pos = screen_position(gl_Position);
 }

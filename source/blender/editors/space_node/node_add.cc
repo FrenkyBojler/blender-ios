@@ -59,6 +59,8 @@
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 
+#include "NOD_defaults.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -221,18 +223,18 @@ static wmOperatorStatus add_reroute_exec(bContext *C, wmOperator *op)
 
   int intersection_count = 0;
 
-  LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
+  for (bNodeLink &link : ntree.links) {
 
-    if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
+    if (node_link_is_hidden_or_dimmed(region.v2d, link)) {
       continue;
     }
-    const std::optional<float2> cut = link_path_intersection(*link, path);
+    const std::optional<float2> cut = link_path_intersection(link, path);
     if (!cut) {
       continue;
     }
-    RerouteCutsForSocket &from_cuts = cuts_per_socket.lookup_or_add_default(link->fromsock);
-    from_cuts.from_node = link->fromnode;
-    from_cuts.links.add(link, *cut);
+    RerouteCutsForSocket &from_cuts = cuts_per_socket.lookup_or_add_default(link.fromsock);
+    from_cuts.from_node = link.fromnode;
+    from_cuts.links.add(&link, *cut);
     intersection_count++;
   }
 
@@ -1398,16 +1400,16 @@ static wmOperatorStatus node_add_group_input_node_exec(bContext *C, wmOperator *
 
   if (single_socket) {
     /* Hide all other sockets in the new node, to only display the selected one. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
-      if (!STREQ(socket->identifier, socket_identifier)) {
-        socket->flag |= SOCK_HIDDEN;
+    for (bNodeSocket &socket : group_input_node->outputs) {
+      if (!STREQ(socket.identifier, socket_identifier)) {
+        socket.flag |= SOCK_HIDDEN;
       }
     }
   }
   if (single_panel) {
     /* Initially hide all sockets. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
-      socket->flag |= SOCK_HIDDEN;
+    for (bNodeSocket &socket : group_input_node->outputs) {
+      socket.flag |= SOCK_HIDDEN;
     }
     /* Show only sockets contained in the dragged panel. */
     for (bNodeTreeInterfaceSocket *iface_socket : ntree->interface_inputs()) {
@@ -1725,7 +1727,7 @@ static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator 
   RNA_string_get(op->ptr, "name", tree_name);
 
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
-  ED_node_composit_default_init(C, ntree);
+  blender::nodes::node_tree_composit_default_init(C, ntree);
 
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
@@ -1777,7 +1779,8 @@ static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *s
     return OPERATOR_CANCELLED;
   }
 
-  bNodeTree *node_tree = bke::node_tree_copy_tree(bmain, *source_node_tree);
+  bNodeTree *node_tree = reinterpret_cast<bNodeTree *>(
+      BKE_id_copy_ex(bmain, &source_node_tree->id, nullptr, LIB_ID_COPY_ACTIONS));
   node_templateID_assign(C, node_tree);
 
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);

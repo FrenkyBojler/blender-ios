@@ -111,13 +111,13 @@ void ED_region_do_listen(wmRegionListenerParams *params)
     region->runtime->type->listener(params);
   }
 
-  LISTBASE_FOREACH (blender::ui::Block *, block, &region->runtime->uiblocks) {
-    block_listen(block, params);
+  for (blender::ui::Block &block : region->runtime->uiblocks) {
+    block_listen(&block, params);
   }
 
-  LISTBASE_FOREACH (uiList *, list, &region->ui_lists) {
-    if (list->type && list->type->listener) {
-      list->type->listener(list, params);
+  for (uiList &list : region->ui_lists) {
+    if (list.type && list.type->listener) {
+      list.type->listener(&list, params);
     }
   }
 }
@@ -288,30 +288,30 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
   GPU_matrix_push();
   GPU_matrix_translate_2f(-region->winrct.xmin, -region->winrct.ymin);
 
-  LISTBASE_FOREACH (AZone *, az, &area->actionzones) {
+  for (AZone &az : area->actionzones) {
     /* test if action zone is over this region */
     rcti azrct;
-    BLI_rcti_init(&azrct, az->x1, az->x2, az->y1, az->y2);
+    BLI_rcti_init(&azrct, az.x1, az.x2, az.y1, az.y2);
 
     if (BLI_rcti_isect(&region->runtime->drawrct, &azrct, nullptr)) {
-      if (az->type == AZONE_AREA) {
-        area_draw_azone(area, region, az);
+      if (az.type == AZONE_AREA) {
+        area_draw_azone(area, region, &az);
       }
-      else if (az->type == AZONE_REGION) {
-        if (az->region && !(az->region->flag & RGN_FLAG_POLL_FAILED)) {
+      else if (az.type == AZONE_REGION) {
+        if (az.region && !(az.region->flag & RGN_FLAG_POLL_FAILED)) {
           /* only display tab or icons when the region is hidden */
-          if (az->region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) {
-            region_draw_azone_tab_arrow(area, region, az);
+          if (az.region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) {
+            region_draw_azone_tab_arrow(area, region, &az);
           }
         }
       }
-      else if (az->type == AZONE_FULLSCREEN) {
-        if (az->alpha > 0.0f) {
-          area_draw_azone_fullscreen(az->x1, az->y1, az->x2, az->y2, az->alpha);
+      else if (az.type == AZONE_FULLSCREEN) {
+        if (az.alpha > 0.0f) {
+          area_draw_azone_fullscreen(az.x1, az.y1, az.x2, az.y2, az.alpha);
         }
       }
     }
-    if (!IS_EQF(az->alpha, 0.0f) && ELEM(az->type, AZONE_FULLSCREEN, AZONE_REGION_SCROLL)) {
+    if (!IS_EQF(az.alpha, 0.0f) && ELEM(az.type, AZONE_FULLSCREEN, AZONE_REGION_SCROLL)) {
       area_azone_tag_update(area);
     }
   }
@@ -426,9 +426,9 @@ void ED_area_do_mgs_subscribe_for_tool_ui(const wmRegionMessageSubscribeParams *
   }
   else {
     /* Check if a tool category panel is pinned and visible in another category. */
-    LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-      if (blender::ui::panel_is_active(panel) && panel->flag & PNL_PIN &&
-          STREQ(panel->type->category, panel_category_tool))
+    for (Panel &panel : region->panels) {
+      if (blender::ui::panel_is_active(&panel) && panel.flag & PNL_PIN &&
+          STREQ(panel.type->category, panel_category_tool))
       {
         update_region = true;
         break;
@@ -697,8 +697,8 @@ void ED_region_tag_redraw_partial(ARegion *region, const rcti *rct, bool rebuild
 void ED_area_tag_redraw(ScrArea *area)
 {
   if (area) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      ED_region_tag_redraw(region);
+    for (ARegion &region : area->regionbase) {
+      ED_region_tag_redraw(&region);
     }
   }
 }
@@ -706,8 +706,8 @@ void ED_area_tag_redraw(ScrArea *area)
 void ED_area_tag_redraw_no_rebuild(ScrArea *area)
 {
   if (area) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      ED_region_tag_redraw_no_rebuild(region);
+    for (ARegion &region : area->regionbase) {
+      ED_region_tag_redraw_no_rebuild(&region);
     }
   }
 }
@@ -715,9 +715,9 @@ void ED_area_tag_redraw_no_rebuild(ScrArea *area)
 void ED_area_tag_redraw_regiontype(ScrArea *area, int regiontype)
 {
   if (area) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (region->regiontype == regiontype) {
-        ED_region_tag_redraw(region);
+    for (ARegion &region : area->regionbase) {
+      if (region.regiontype == regiontype) {
+        ED_region_tag_redraw(&region);
       }
     }
   }
@@ -790,34 +790,34 @@ int ED_area_max_regionsize(const ScrArea *area, const ARegion *scale_region, con
 
     /* Subtract the width of regions on opposite side
      * prevents dragging regions into other opposite regions. */
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (region == scale_region) {
+    for (ARegion &region : area->regionbase) {
+      if (&region == scale_region) {
         continue;
       }
 
-      if (scale_region->alignment == RGN_ALIGN_LEFT && region->alignment == RGN_ALIGN_RIGHT) {
-        dist -= region->winx;
+      if (scale_region->alignment == RGN_ALIGN_LEFT && region.alignment == RGN_ALIGN_RIGHT) {
+        dist -= region.winx;
       }
-      else if (scale_region->alignment == RGN_ALIGN_RIGHT && region->alignment == RGN_ALIGN_LEFT) {
-        dist -= region->winx;
+      else if (scale_region->alignment == RGN_ALIGN_RIGHT && region.alignment == RGN_ALIGN_LEFT) {
+        dist -= region.winx;
       }
       else if (scale_region->alignment == RGN_ALIGN_TOP &&
-               (region->alignment == RGN_ALIGN_BOTTOM || ELEM(region->regiontype,
-                                                              RGN_TYPE_HEADER,
-                                                              RGN_TYPE_TOOL_HEADER,
-                                                              RGN_TYPE_FOOTER,
-                                                              RGN_TYPE_ASSET_SHELF_HEADER)))
+               (region.alignment == RGN_ALIGN_BOTTOM || ELEM(region.regiontype,
+                                                             RGN_TYPE_HEADER,
+                                                             RGN_TYPE_TOOL_HEADER,
+                                                             RGN_TYPE_FOOTER,
+                                                             RGN_TYPE_ASSET_SHELF_HEADER)))
       {
-        dist -= region->winy;
+        dist -= region.winy;
       }
       else if (scale_region->alignment == RGN_ALIGN_BOTTOM &&
-               (region->alignment == RGN_ALIGN_TOP || ELEM(region->regiontype,
-                                                           RGN_TYPE_HEADER,
-                                                           RGN_TYPE_TOOL_HEADER,
-                                                           RGN_TYPE_FOOTER,
-                                                           RGN_TYPE_ASSET_SHELF_HEADER)))
+               (region.alignment == RGN_ALIGN_TOP || ELEM(region.regiontype,
+                                                          RGN_TYPE_HEADER,
+                                                          RGN_TYPE_TOOL_HEADER,
+                                                          RGN_TYPE_FOOTER,
+                                                          RGN_TYPE_ASSET_SHELF_HEADER)))
       {
-        dist -= region->winy;
+        dist -= region.winy;
       }
     }
   }
@@ -861,13 +861,13 @@ void ED_area_status_text(ScrArea *area, const char *str)
 
   ARegion *ar = nullptr;
 
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->regiontype == RGN_TYPE_HEADER && region->runtime->visible) {
-      ar = region;
+  for (ARegion &region : area->regionbase) {
+    if (region.regiontype == RGN_TYPE_HEADER && region.runtime->visible) {
+      ar = &region;
     }
-    else if (region->regiontype == RGN_TYPE_TOOL_HEADER && region->runtime->visible) {
+    else if (region.regiontype == RGN_TYPE_TOOL_HEADER && region.runtime->visible) {
       /* Prefer tool header when we also have a header. */
-      ar = region;
+      ar = &region;
       break;
     }
   }
@@ -1098,7 +1098,7 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
 #endif
 
     /* set area action zones */
-    AZone *az = MEM_callocN<AZone>("actionzone");
+    AZone *az = MEM_new_for_free<AZone>("actionzone");
     BLI_addtail(&(area->actionzones), az);
     az->type = AZONE_AREA;
     az->x1 = coords[i][0];
@@ -1115,7 +1115,7 @@ static void fullscreen_azone_init(ScrArea *area, ARegion *region)
     return;
   }
 
-  AZone *az = MEM_callocN<AZone>("fullscreen action zone");
+  AZone *az = MEM_new_for_free<AZone>("fullscreen action zone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_FULLSCREEN;
   az->region = region;
@@ -1309,7 +1309,7 @@ static void region_azone_edge_init(ScrArea *area,
     return;
   }
 
-  AZone *az = MEM_callocN<AZone>("actionzone");
+  AZone *az = MEM_new_for_free<AZone>("actionzone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_REGION;
   az->region = region;
@@ -1327,7 +1327,7 @@ static void region_azone_scrollbar_init(ScrArea *area,
                                         ARegion *region,
                                         AZScrollDirection direction)
 {
-  AZone *az = MEM_callocN<AZone>(__func__);
+  AZone *az = MEM_new_for_free<AZone>(__func__);
 
   BLI_addtail(&area->actionzones, az);
   az->type = AZONE_REGION_SCROLL;
@@ -1781,22 +1781,28 @@ static void region_rect_recursive(
       const int x = remainder->xmin + int(float(remainder->xmax - remainder->xmin) * ratio_x);
       const int y = remainder->ymin + int(float(remainder->ymax - remainder->ymin) * ratio_y);
 
-      if (quad == 1) { /* left bottom */
-        region->winrct.xmax = x;
-        region->winrct.ymax = y;
-      }
-      else if (quad == 2) { /* left top */
-        region->winrct.xmax = x;
-        region->winrct.ymin = y + 1;
-      }
-      else if (quad == 3) { /* right bottom */
-        region->winrct.xmin = x + 1;
-        region->winrct.ymax = y;
-      }
-      else { /* right top */
-        region->winrct.xmin = x + 1;
-        region->winrct.ymin = y + 1;
-        BLI_rcti_init(remainder, 0, 0, 0, 0);
+      region->runtime->quadview_index = blender::bke::ARegionQuadviewIndex(quad);
+
+      switch (region->runtime->quadview_index) {
+        case blender::bke::ARegionQuadviewIndex::BottomLeft:
+          region->winrct.xmax = x;
+          region->winrct.ymax = y;
+          break;
+        case blender::bke::ARegionQuadviewIndex::TopLeft:
+          region->winrct.xmax = x;
+          region->winrct.ymin = y + 1;
+          break;
+        case blender::bke::ARegionQuadviewIndex::BottomRight:
+          region->winrct.xmin = x + 1;
+          region->winrct.ymax = y;
+          break;
+        case blender::bke::ARegionQuadviewIndex::TopRight:
+          region->winrct.xmin = x + 1;
+          region->winrct.ymin = y + 1;
+          BLI_rcti_init(remainder, 0, 0, 0, 0);
+          break;
+        default:
+          BLI_assert_unreachable();
       }
 
       /* Fix any negative dimensions. This can happen when a quad split 3d view gets too small.
@@ -1958,8 +1964,11 @@ static void region_evaluate_visibility(ARegion *region)
 /**
  * \param region: Region, may be nullptr when adding handlers for \a area.
  */
-static void ed_default_handlers(
-    wmWindowManager *wm, ScrArea *area, ARegion *region, ListBase *handlers, int flag)
+static void ed_default_handlers(wmWindowManager *wm,
+                                ScrArea *area,
+                                ARegion *region,
+                                ListBaseT<wmEventHandler> *handlers,
+                                int flag)
 {
   BLI_assert(region ? (&region->runtime->handlers == handlers) : (&area->handlers == handlers));
 
@@ -1971,7 +1980,8 @@ static void ed_default_handlers(
         wm->runtime->defaultconf, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(handlers, keymap);
 
-    ListBase *dropboxes = WM_dropboxmap_find("User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
+    ListBaseT<wmDropBox> *dropboxes = WM_dropboxmap_find(
+        "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_dropbox_handler(handlers, dropboxes);
 
     /* user interface widgets */
@@ -2085,19 +2095,19 @@ void ED_area_update_region_sizes(wmWindowManager *wm, wmWindow *win, ScrArea *ar
   /* Dynamically sized regions may have changed region sizes, so we have to force azone update. */
   area_azone_init(win, screen, area);
 
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->flag & RGN_FLAG_POLL_FAILED) {
+  for (ARegion &region : area->regionbase) {
+    if (region.flag & RGN_FLAG_POLL_FAILED) {
       continue;
     }
-    region_evaluate_visibility(region);
+    region_evaluate_visibility(&region);
 
     /* region size may have changed, init does necessary adjustments */
-    if (region->runtime->type->init) {
-      region->runtime->type->init(wm, region);
+    if (region.runtime->type->init) {
+      region.runtime->type->init(wm, &region);
     }
 
     /* Some AZones use View2D data which is only updated in region init, so call that first! */
-    region_azones_add(screen, area, region);
+    region_azones_add(screen, area, &region);
   }
   ED_area_azones_update(area, win->runtime->eventstate->xy);
 
@@ -2119,9 +2129,9 @@ static void area_init_type_fallback(ScrArea *area, eSpace_Type space_type)
   area->type = BKE_spacetype_from_id(area->spacetype);
 
   SpaceLink *sl = nullptr;
-  LISTBASE_FOREACH (SpaceLink *, sl_iter, &area->spacedata) {
-    if (sl_iter->spacetype == space_type) {
-      sl = sl_iter;
+  for (SpaceLink &sl_iter : area->spacedata) {
+    if (sl_iter.spacetype == space_type) {
+      sl = &sl_iter;
       break;
     }
   }
@@ -2151,11 +2161,11 @@ void ED_area_and_region_types_init(ScrArea *area)
     BLI_assert(area->type != nullptr);
   }
 
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    region->runtime->type = BKE_regiontype_from_id(area->type, region->regiontype);
+  for (ARegion &region : area->regionbase) {
+    region.runtime->type = BKE_regiontype_from_id(area->type, region.regiontype);
     /* Invalid region types may be stored in files (e.g. for new files), but they should be handled
      * on file read already, see #BKE_screen_area_blend_read_lib(). */
-    BLI_assert_msg(region->runtime->type != nullptr, "Region type not valid for this space type");
+    BLI_assert_msg(region.runtime->type != nullptr, "Region type not valid for this space type");
   }
 }
 
@@ -2198,35 +2208,31 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
   /* clear all azones, add the area triangle widgets */
   area_azone_init(win, screen, area);
 
-  /* Only one quad view gets AZONE_REGION_QUAD. */
-  char quad_view_index = 0;
-
   /* region windows, default and own handlers */
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    region_evaluate_visibility(region);
+  for (ARegion &region : area->regionbase) {
+    region_evaluate_visibility(&region);
 
-    if (region->runtime->visible) {
+    if (region.runtime->visible) {
       /* default region handlers */
       ed_default_handlers(
-          wm, area, region, &region->runtime->handlers, region->runtime->type->keymapflag);
+          wm, area, &region, &region.runtime->handlers, region.runtime->type->keymapflag);
       /* own handlers */
-      if (region->runtime->type->init) {
-        region->runtime->type->init(wm, region);
+      if (region.runtime->type->init) {
+        region.runtime->type->init(wm, &region);
       }
     }
     else {
       /* prevent uiblocks to run */
-      blender::ui::blocklist_free(nullptr, region);
+      blender::ui::blocklist_free(nullptr, &region);
     }
 
     /* Some AZones use View2D data which is only updated in region init, so call that first! */
-    region_azones_add(screen, area, region);
+    region_azones_add(screen, area, &region);
 
-    if (region->alignment == RGN_ALIGN_QSPLIT) {
-      if (quad_view_index == 0) {
-        quadview_azone_init(area, region);
-      }
-      quad_view_index++;
+    if (region.alignment == RGN_ALIGN_QSPLIT &&
+        region.runtime->quadview_index == blender::bke::ARegionQuadviewIndex::BottomLeft)
+    {
+      quadview_azone_init(area, &region);
     }
   }
 
@@ -2262,14 +2268,14 @@ static void area_offscreen_init(ScrArea *area)
    * so there is no reason for the type to be unknown. */
   BLI_assert(area->type != nullptr);
 
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    region->runtime->type = BKE_regiontype_from_id(area->type, region->regiontype);
+  for (ARegion &region : area->regionbase) {
+    region.runtime->type = BKE_regiontype_from_id(area->type, region.regiontype);
   }
 }
 
 ScrArea *ED_area_offscreen_create(wmWindow *win, eSpace_Type space_type)
 {
-  ScrArea *area = MEM_callocN<ScrArea>(__func__);
+  ScrArea *area = MEM_new_for_free<ScrArea>(__func__);
   area->spacetype = space_type;
 
   screen_area_spacelink_add(WM_window_get_active_scene(win), area, space_type);
@@ -2284,24 +2290,24 @@ static void area_offscreen_exit(wmWindowManager *wm, wmWindow *win, ScrArea *are
     area->type->exit(wm, area);
   }
 
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->runtime->type && region->runtime->type->exit) {
-      region->runtime->type->exit(wm, region);
+  for (ARegion &region : area->regionbase) {
+    if (region.runtime->type && region.runtime->type->exit) {
+      region.runtime->type->exit(wm, &region);
     }
 
-    WM_event_modal_handler_region_replace(win, region, nullptr);
-    WM_draw_region_free(region);
-    region->runtime->visible = false;
+    WM_event_modal_handler_region_replace(win, &region, nullptr);
+    WM_draw_region_free(&region);
+    region.runtime->visible = false;
 
-    MEM_SAFE_FREE(region->runtime->headerstr);
+    MEM_SAFE_FREE(region.runtime->headerstr);
 
-    if (region->runtime->regiontimer) {
-      WM_event_timer_remove(wm, win, region->runtime->regiontimer);
-      region->runtime->regiontimer = nullptr;
+    if (region.runtime->regiontimer) {
+      WM_event_timer_remove(wm, win, region.runtime->regiontimer);
+      region.runtime->regiontimer = nullptr;
     }
 
     if (wm->runtime->message_bus) {
-      WM_msgbus_clear_by_owner(wm->runtime->message_bus, region);
+      WM_msgbus_clear_by_owner(wm->runtime->message_bus, &region);
     }
   }
 
@@ -2409,35 +2415,11 @@ void ED_region_toggle_hidden(bContext *C, ARegion *region)
 
 void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free)
 {
-  const char spacetype = area_dst->spacetype;
-  const short flag_copy = HEADER_NO_PULLDOWN;
-
-  area_dst->spacetype = area_src->spacetype;
-  area_dst->type = area_src->type;
-
-  area_dst->flag = (area_dst->flag & ~flag_copy) | (area_src->flag & flag_copy);
-
-  /* area */
   if (do_free) {
-    BKE_spacedata_freelist(&area_dst->spacedata);
+    BKE_screen_area_free(area_dst);
   }
-  BKE_spacedata_copylist(&area_dst->spacedata, &area_src->spacedata);
 
-  /* NOTE: SPACE_EMPTY is possible on new screens. */
-
-  /* regions */
-  if (do_free) {
-    SpaceType *st = BKE_spacetype_from_id(spacetype);
-    LISTBASE_FOREACH (ARegion *, region, &area_dst->regionbase) {
-      BKE_area_region_free(st, region);
-    }
-    BLI_freelistN(&area_dst->regionbase);
-  }
-  SpaceType *st = BKE_spacetype_from_id(area_src->spacetype);
-  LISTBASE_FOREACH (ARegion *, region, &area_src->regionbase) {
-    ARegion *newar = BKE_area_region_copy(st, region);
-    BLI_addtail(&area_dst->regionbase, newar);
-  }
+  BKE_area_copy(area_dst, area_src);
 }
 
 void ED_area_data_swap(ScrArea *area_dst, ScrArea *area_src)
@@ -2482,15 +2464,15 @@ static void region_align_info_from_area(ScrArea *area, RegionTypeAlignInfo *r_al
     r_align_info->by_type[index].hidden = true;
   }
 
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->flag & RGN_FLAG_POLL_FAILED) {
+  for (ARegion &region : area->regionbase) {
+    if (region.flag & RGN_FLAG_POLL_FAILED) {
       continue;
     }
 
-    const int index = region->regiontype;
+    const int index = region.regiontype;
     if (uint(index) < RGN_TYPE_NUM) {
-      r_align_info->by_type[index].alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
-      r_align_info->by_type[index].hidden = (region->flag & RGN_FLAG_HIDDEN) != 0;
+      r_align_info->by_type[index].alignment = RGN_ALIGN_ENUM_FROM_MASK(region.alignment);
+      r_align_info->by_type[index].hidden = (region.flag & RGN_FLAG_HIDDEN) != 0;
     }
   }
 }
@@ -2668,10 +2650,10 @@ static void region_align_info_to_area(
     ScrArea *area, const RegionTypeAlignInfo region_align_info_src[RGN_TYPE_NUM])
 {
   ARegion *region_by_type[RGN_TYPE_NUM] = {nullptr};
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    const int index = region->regiontype;
+  for (ARegion &region : area->regionbase) {
+    const int index = region.regiontype;
     if (uint(index) < RGN_TYPE_NUM) {
-      region_by_type[index] = region;
+      region_by_type[index] = &region;
     }
   }
 
@@ -2694,7 +2676,7 @@ static void region_align_info_to_area(
 
 void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
 {
-  ScrArea *tmp = MEM_callocN<ScrArea>(__func__);
+  ScrArea *tmp = MEM_new_for_free<ScrArea>(__func__);
   wmWindow *win = CTX_wm_window(C);
 
   ED_area_exit(C, sa1);
@@ -2713,8 +2695,8 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
    * so clear screen active region pointers. This is set later
    * through regular operations. #141313. */
   wmWindowManager *wm = CTX_wm_manager(C);
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (bScreen *screen = WM_window_get_active_screen(win)) {
+  for (wmWindow &win : wm->windows) {
+    if (bScreen *screen = WM_window_get_active_screen(&win)) {
       screen->active_region = nullptr;
     }
   }
@@ -2777,9 +2759,9 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
 
     /* check previously stored space */
     SpaceLink *sl = nullptr;
-    LISTBASE_FOREACH (SpaceLink *, sl_iter, &area->spacedata) {
-      if (sl_iter->spacetype == type) {
-        sl = sl_iter;
+    for (SpaceLink &sl_iter : area->spacedata) {
+      if (sl_iter.spacetype == type) {
+        sl = &sl_iter;
         break;
       }
     }
@@ -3005,7 +2987,7 @@ BLI_INLINE bool streq_array_any(const char *s, const char *arr[])
  */
 static void ed_panel_draw(const bContext *C,
                           ARegion *region,
-                          ListBase *lb,
+                          ListBaseT<Panel> *lb,
                           PanelType *pt,
                           Panel *panel,
                           int w,
@@ -3155,8 +3137,8 @@ static void ed_panel_draw(const bContext *C,
 
   /* Draw child panels. */
   if (open || search_filter_active) {
-    LISTBASE_FOREACH (LinkData *, link, &pt->children) {
-      PanelType *child_pt = static_cast<PanelType *>(link->data);
+    for (LinkData &link : pt->children) {
+      PanelType *child_pt = static_cast<PanelType *>(link.data);
       Panel *child_panel = blender::ui::panel_find_by_type(&panel->children, child_pt);
 
       if (child_pt->draw && (!child_pt->poll || child_pt->poll(C, child_pt))) {
@@ -3220,17 +3202,9 @@ static bool panel_add_check(const bContext *C,
   return true;
 }
 
-static bool region_uses_category_tabs(const ScrArea *area, const ARegion *region)
-{
-  /* XXX, should use some better check? */
-  /* For now also has hardcoded check for clip editor until it supports actual toolbar. */
-  return ((1 << region->regiontype) & RGN_TYPE_HAS_CATEGORY_MASK) ||
-         (region->regiontype == RGN_TYPE_TOOLS && area->spacetype == SPACE_CLIP);
-}
-
 static const char *region_panels_collect_categories(ARegion *region,
                                                     LinkNode *panel_types_stack,
-                                                    bool *use_category_tabs)
+                                                    bool *use_categories)
 {
   blender::ui::panel_category_clear_all(region);
 
@@ -3248,7 +3222,7 @@ static const char *region_panels_collect_categories(ARegion *region,
     return blender::ui::panel_category_active_get(region, true);
   }
 
-  *use_category_tabs = false;
+  *use_categories = false;
   return nullptr;
 }
 
@@ -3264,7 +3238,7 @@ static int panel_draw_width_from_max_width_get(const ARegion *region,
 
 void ED_region_panels_layout_ex(const bContext *C,
                                 ARegion *region,
-                                ListBase *paneltypes,
+                                ListBaseT<PanelType> *paneltypes,
                                 blender::wm::OpCallContext op_context,
                                 const char *contexts[],
                                 const char *category_override)
@@ -3272,9 +3246,9 @@ void ED_region_panels_layout_ex(const bContext *C,
   /* collect panels to draw */
   WorkSpace *workspace = CTX_wm_workspace(C);
   LinkNode *panel_types_stack = nullptr;
-  LISTBASE_FOREACH_BACKWARD (PanelType *, pt, paneltypes) {
-    if (panel_add_check(C, workspace, contexts, category_override, pt)) {
-      BLI_linklist_prepend_alloca(&panel_types_stack, pt);
+  for (PanelType &pt : paneltypes->items_reversed()) {
+    if (panel_add_check(C, workspace, contexts, category_override, &pt)) {
+      BLI_linklist_prepend_alloca(&panel_types_stack, &pt);
     }
   }
 
@@ -3283,8 +3257,10 @@ void ED_region_panels_layout_ex(const bContext *C,
   ScrArea *area = CTX_wm_area(C);
   View2D *v2d = &region->v2d;
 
+  bool use_categories = (category_override == nullptr) &&
+                        BKE_regiontype_uses_categories(region->runtime->type);
   bool use_category_tabs = (category_override == nullptr) &&
-                           region_uses_category_tabs(area, region);
+                           BKE_regiontype_uses_category_tabs(region->runtime->type);
   /* offset panels for small vertical tab area */
   const char *category = nullptr;
   const int category_tabs_width = UI_PANEL_CATEGORY_MARGIN_WIDTH;
@@ -3307,8 +3283,11 @@ void ED_region_panels_layout_ex(const bContext *C,
   }
 
   /* collect categories */
-  if (use_category_tabs) {
-    category = region_panels_collect_categories(region, panel_types_stack, &use_category_tabs);
+  if (use_categories) {
+    category = region_panels_collect_categories(region, panel_types_stack, &use_categories);
+    if (!use_categories) {
+      use_category_tabs = false;
+    }
   }
   if (use_category_tabs) {
     margin_x = category_tabs_width;
@@ -3337,7 +3316,7 @@ void ED_region_panels_layout_ex(const bContext *C,
     }
     Panel *panel = blender::ui::panel_find_by_type(&region->panels, pt);
 
-    if (use_category_tabs && pt->category[0] && !STREQ(category, pt->category)) {
+    if (use_categories && pt->category[0] && !STREQ(category, pt->category)) {
       if ((panel == nullptr) || ((panel->flag & PNL_PIN) == 0)) {
         continue;
       }
@@ -3355,24 +3334,23 @@ void ED_region_panels_layout_ex(const bContext *C,
 
   /* Draw "poly-instantiated" panels that don't have a 1 to 1 correspondence with their types. */
   if (has_instanced_panel) {
-    LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-      if (panel->type == nullptr) {
+    for (Panel &panel : region->panels) {
+      if (panel.type == nullptr) {
         continue; /* Some panels don't have a type. */
       }
-      if (!(panel->type->flag & PANEL_TYPE_INSTANCED)) {
+      if (!(panel.type->flag & PANEL_TYPE_INSTANCED)) {
         continue;
       }
-      if (use_category_tabs && panel->type->category[0] && !STREQ(category, panel->type->category))
-      {
+      if (use_categories && panel.type->category[0] && !STREQ(category, panel.type->category)) {
         continue;
       }
-      if (!panel_add_check(C, workspace, contexts, category_override, panel->type)) {
+      if (!panel_add_check(C, workspace, contexts, category_override, panel.type)) {
         continue;
       }
 
-      const int width = panel_draw_width_from_max_width_get(region, panel->type, max_panel_width);
+      const int width = panel_draw_width_from_max_width_get(region, panel.type, max_panel_width);
 
-      if (blender::ui::panel_is_dragging(panel)) {
+      if (blender::ui::panel_is_dragging(&panel)) {
         /* Prevent View2d.tot rectangle size changes while dragging panels. */
         update_tot_size = false;
       }
@@ -3380,12 +3358,12 @@ void ED_region_panels_layout_ex(const bContext *C,
       /* Use a unique identifier for instanced panels, otherwise an old block for a different
        * panel of the same type might be found. */
       char unique_panel_str[INSTANCED_PANEL_UNIQUE_STR_SIZE];
-      blender::ui::list_panel_unique_str(panel, unique_panel_str);
+      blender::ui::list_panel_unique_str(&panel, unique_panel_str);
       ed_panel_draw(C,
                     region,
                     &region->panels,
-                    panel->type,
-                    panel,
+                    panel.type,
+                    &panel,
                     width,
                     em,
                     unique_panel_str,
@@ -3441,7 +3419,7 @@ void ED_region_panels_layout_ex(const bContext *C,
     blender::ui::view2d_totRect_set(v2d, x, y);
   }
 
-  if (use_category_tabs) {
+  if (use_categories) {
     region->runtime->category = category;
   }
 }
@@ -3583,9 +3561,9 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   blender::ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
   /* draw panels if they are large enough. */
-  const bool has_categories = (region->panels_category_active.first != nullptr);
-  const short min_draw_size = has_categories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
-                                               std::min(region->runtime->type->prefsizex, 20);
+  const bool has_category_tabs = blender::ui::panel_category_tabs_is_visible(region);
+  const short min_draw_size = has_category_tabs ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
+                                                  std::min(region->runtime->type->prefsizex, 20);
   if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
     blender::ui::panels_draw(C, region);
   }
@@ -3594,8 +3572,8 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   blender::ui::view2d_view_restore(C);
 
   /* Set in layout. */
-  if (region->runtime->category) {
-    blender::ui::panel_category_draw_all(region, region->runtime->category);
+  if (has_category_tabs && region->runtime->category) {
+    blender::ui::panel_category_tabs_draw_all(region, region->runtime->category);
   }
 
   /* scrollers */
@@ -3603,7 +3581,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   rcti mask;
   const short alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
   if (region->runtime->category && ELEM(alignment, RGN_ALIGN_RIGHT, RGN_ALIGN_LEFT) &&
-      blender::ui::panel_category_is_visible(region))
+      has_category_tabs)
   {
     use_mask = true;
     blender::ui::view2d_mask_from_win(v2d, &mask);
@@ -3620,8 +3598,8 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   ED_region_draw_overflow_indication(CTX_wm_area(C), region, use_mask ? &mask : nullptr);
 
   /* Hide scrollbars below a threshold. */
-  int min_width = blender::ui::panel_category_is_visible(region) ? 60.0f * UI_SCALE_FAC / aspect :
-                                                                   40.0f * UI_SCALE_FAC / aspect;
+  int min_width = has_category_tabs ? 60.0f * UI_SCALE_FAC / aspect :
+                                      40.0f * UI_SCALE_FAC / aspect;
   if (BLI_rcti_size_x(&region->winrct) <= min_width) {
     v2d->scroll &= ~(V2D_SCROLL_HORIZONTAL | V2D_SCROLL_VERTICAL);
   }
@@ -3741,8 +3719,8 @@ static bool panel_property_search(const bContext *C,
     return true;
   }
 
-  LISTBASE_FOREACH (LinkData *, link, &panel_type->children) {
-    PanelType *panel_type_child = static_cast<PanelType *>(link->data);
+  for (LinkData &link : panel_type->children) {
+    PanelType *panel_type_child = static_cast<PanelType *>(link.data);
     if (!panel_type_child->poll || panel_type_child->poll(C, panel_type_child)) {
       /* Search for the existing child panel here because it might be an instanced
        * child panel with a custom data field that will be needed to build the layout. */
@@ -3758,7 +3736,7 @@ static bool panel_property_search(const bContext *C,
 
 bool ED_region_property_search(const bContext *C,
                                ARegion *region,
-                               ListBase *paneltypes,
+                               ListBaseT<PanelType> *paneltypes,
                                const char *contexts[],
                                const char *category_override)
 {
@@ -3768,17 +3746,17 @@ bool ED_region_property_search(const bContext *C,
   const char *search_filter = ED_area_region_search_filter_get(area, region);
 
   LinkNode *panel_types_stack = nullptr;
-  LISTBASE_FOREACH_BACKWARD (PanelType *, pt, paneltypes) {
-    if (panel_add_check(C, workspace, contexts, category_override, pt)) {
-      BLI_linklist_prepend_alloca(&panel_types_stack, pt);
+  for (PanelType &pt : paneltypes->items_reversed()) {
+    if (panel_add_check(C, workspace, contexts, category_override, &pt)) {
+      BLI_linklist_prepend_alloca(&panel_types_stack, &pt);
     }
   }
 
   const char *category = nullptr;
-  bool use_category_tabs = (category_override == nullptr) &&
-                           region_uses_category_tabs(area, region);
-  if (use_category_tabs) {
-    category = region_panels_collect_categories(region, panel_types_stack, &use_category_tabs);
+  bool use_categories = (category_override == nullptr) &&
+                        BKE_regiontype_uses_categories(region->runtime->type);
+  if (use_categories) {
+    category = region_panels_collect_categories(region, panel_types_stack, &use_categories);
   }
 
   /* Run property search for each panel, stopping if a result is found. */
@@ -3792,7 +3770,7 @@ bool ED_region_property_search(const bContext *C,
       continue;
     }
 
-    if (use_category_tabs) {
+    if (use_categories) {
       if (panel_type->category[0] && !STREQ(category, panel_type->category)) {
         continue;
       }
@@ -3808,18 +3786,18 @@ bool ED_region_property_search(const bContext *C,
 
   /* Run property search for instanced panels (created in the layout calls of previous panels). */
   if (!has_result && has_instanced_panel) {
-    LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    for (Panel &panel : region->panels) {
       /* Note that these checks are duplicated from #ED_region_panels_layout_ex. */
-      if (panel->type == nullptr || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
+      if (panel.type == nullptr || !(panel.type->flag & PANEL_TYPE_INSTANCED)) {
         continue;
       }
-      if (use_category_tabs) {
-        if (panel->type->category[0] && !STREQ(category, panel->type->category)) {
+      if (use_categories) {
+        if (panel.type->category[0] && !STREQ(category, panel.type->category)) {
           continue;
         }
       }
 
-      has_result = panel_property_search(C, region, style, panel, panel->type, search_filter);
+      has_result = panel_property_search(C, region, style, &panel, panel.type, search_filter);
       if (has_result) {
         break;
       }
@@ -3854,13 +3832,12 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   blender::ui::view2d_view_ortho(&region->v2d);
 
   /* draw all headers types */
-  LISTBASE_FOREACH (HeaderType *, ht, &region->runtime->type->headertypes) {
-    if (ht->poll && !ht->poll(C, ht)) {
+  for (HeaderType &ht : region->runtime->type->headertypes) {
+    if (ht.poll && !ht.poll(C, &ht)) {
       continue;
     }
 
-    blender::ui::Block *block = block_begin(
-        C, region, ht->idname, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(C, region, ht.idname, blender::ui::EmbossType::Emboss);
     blender::ui::Layout &layout = blender::ui::block_layout(
         block,
         blender::ui::LayoutDirection::Horizontal,
@@ -3877,11 +3854,11 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
     }
 
     Header header = {nullptr};
-    if (ht->draw) {
-      header.type = ht;
+    if (ht.draw) {
+      header.type = &ht;
       header.layout = &layout;
-      ht->draw(C, &header);
-      if (ht->next) {
+      ht.draw(C, &header);
+      if (ht.next) {
         layout.separator();
       }
 
