@@ -93,11 +93,17 @@ void TokenStream::tokenize()
 
 void TokenStream::token_offsets_populate()
 {
+  std::vector<TokenType> token_types;
   /* Tokenization. */
   token_types.clear();
   token_offsets.clear();
 
-  token_types += char(to_type(str[0]));
+  /* Reserve space inside the data structures. */
+  size_t predicted_token_count = str.size() / 4;
+  token_types.reserve(predicted_token_count);
+  token_offsets.offsets.reserve(predicted_token_count);
+
+  token_types.emplace_back(to_type(str[0]));
   token_offsets.offsets.emplace_back(0);
 
   /* When doing white-space merging, keep knowledge about whether previous char was white-space.
@@ -113,9 +119,9 @@ void TokenStream::token_offsets_populate()
   for (const char c : str.substr(1)) {
     offset++;
     TokenType type = to_type(c);
-    TokenType prev = TokenType(token_types.back());
+    TokenType prev = token_types.back();
 
-    std::swap(curr_c, prev_c);
+    prev_c = curr_c;
     curr_c = c;
 
     /* Merge string literal. */
@@ -137,7 +143,7 @@ void TokenStream::token_offsets_populate()
     /* Make sure to keep the ending newline for a preprocessor directive. */
     if (inside_preprocessor_directive && type == NewLine) {
       inside_preprocessor_directive = false;
-      token_types += char(type);
+      token_types.emplace_back(type);
       token_offsets.offsets.emplace_back(offset);
       continue;
     }
@@ -231,12 +237,16 @@ void TokenStream::token_offsets_populate()
     }
     /* Emit a token if we don't merge. */
     if (type != prev) {
-      token_types += char(type);
+      token_types.emplace_back(type);
       token_offsets.offsets.emplace_back(offset);
     }
   }
   offset++;
   token_offsets.offsets.emplace_back(offset);
+
+  /* Convert vector of char to string for faster lookups. */
+  this->token_types = std::string(reinterpret_cast<char *>(token_types.data()),
+                                  token_types.size());
 }
 
 static TokenType type_lookup(std::string_view s)
