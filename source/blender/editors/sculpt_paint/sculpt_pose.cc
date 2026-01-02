@@ -1173,8 +1173,9 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_mesh(const Depsgraph &de
     }
 
     if (!next_segment_data) {
-      /* It is possible that a mesh has fewer face sets than the number of segments in the pose
-       * chain */
+      /* It is possible that when traversing neighbors that we no longer have any vertices that
+       * have not been assigned to a face set when trying to find the next segement's starting
+       * point. All further segments are invalid in this case. */
       break;
     }
 
@@ -1351,8 +1352,9 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
     }
 
     if (!next_segment_data) {
-      /* It is possible that a mesh has fewer face sets than the number of segments in the pose
-       * chain */
+      /* It is possible that when traversing neighbors that we no longer have any vertices that
+       * have not been assigned to a face set when trying to find the next segement's starting
+       * point. All further segments are invalid in this case. */
       break;
     }
 
@@ -1508,8 +1510,9 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_bmesh(Object &object,
     }
 
     if (!next_segment_data) {
-      /* It is possible that a mesh has fewer face sets than the number of segments in the pose
-       * chain */
+      /* It is possible that when traversing neighbors that we no longer have any vertices that
+       * have not been assigned to a face set when trying to find the next segement's starting
+       * point. All further segments are invalid in this case. */
       break;
     }
 
