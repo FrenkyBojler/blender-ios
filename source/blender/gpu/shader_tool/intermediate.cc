@@ -7,10 +7,10 @@
  *
  */
 
-#include "parser.hh"
 #include "intermediate.hh"
 #include "scope.hh"
 #include "token.hh"
+#include "token_stream.hh"
 
 #include <algorithm>
 #include <stack>
@@ -62,7 +62,7 @@ Scope Token::attribute_before() const
     return Scope::invalid();
   }
   Token prev = this->prev();
-  if (prev == ']' && prev.prev().scope().type() != ScopeType::Attributes) {
+  if (prev == ']' && prev.prev().scope().type() == ScopeType::Attributes) {
     return prev.prev().scope();
   }
   return Scope::invalid();
@@ -74,14 +74,13 @@ Scope Token::attribute_after() const
     return Scope::invalid();
   }
   Token next = this->next();
-  if (next == ']' && next.next().scope().type() != ScopeType::Attributes) {
+  if (next == '[' && next.next().scope().type() == ScopeType::Attributes) {
     return next.next().scope();
   }
   return Scope::invalid();
 }
 
-/** If `keep_whitespace` is false, white-spaces are merged with the previous token. */
-void Parser::tokenize(const bool keep_whitespace)
+void TokenStream::tokenize()
 {
   if (str.empty()) {
     *this = {};
@@ -141,7 +140,7 @@ void Parser::tokenize(const bool keep_whitespace)
         inside_preprocessor_directive = true;
       }
       /* Merge newlines and spaces with previous token. */
-      if (!keep_whitespace && (type == NewLine || type == Space)) {
+      if ((type == NewLine || type == Space)) {
         prev_was_whitespace = true;
         continue;
       }
@@ -221,7 +220,7 @@ void Parser::tokenize(const bool keep_whitespace)
         prev = Word;
       }
       /* Split words on white-spaces even when merging. */
-      if (!keep_whitespace && type == Word && prev_was_whitespace) {
+      if (type == Word && prev_was_whitespace) {
         prev = Space;
         prev_was_whitespace = false;
       }
@@ -242,11 +241,10 @@ void Parser::tokenize(const bool keep_whitespace)
       if (TokenType(c) == Word) {
         IndexRange range = token_offsets[tok_id];
         std::string word = str.substr(range.start, range.size);
-        if (!keep_whitespace) {
-          size_t last_non_whitespace = word.find_last_not_of(" \n");
-          if (last_non_whitespace != std::string::npos) {
-            word = word.substr(0, last_non_whitespace + 1);
-          }
+
+        size_t last_non_whitespace = word.find_last_not_of(" \n");
+        if (last_non_whitespace != std::string::npos) {
+          word = word.substr(0, last_non_whitespace + 1);
         }
 
         if (word == "namespace") {
@@ -326,7 +324,7 @@ void Parser::tokenize(const bool keep_whitespace)
   }
 }
 
-void Parser::parse_scopes(report_callback &report_error)
+void TokenStream::parse_scopes(report_callback &report_error)
 {
   {
     /* Scope detection. */
@@ -395,6 +393,16 @@ void Parser::parse_scopes(report_callback &report_error)
             pos += 3;
           } while (keyword != Invalid && keyword == Colon);
 
+          /* Skip host_shared attribute for structures if any. */
+          if (keyword == ']') {
+            keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) : TokenType::Invalid;
+            if (keyword == '[') {
+              pos += 2;
+              keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) :
+                                          TokenType::Invalid;
+            }
+          }
+
           if (keyword == Struct || keyword == Class) {
             enter_scope(ScopeType::Struct, tok_id);
           }
@@ -403,12 +411,6 @@ void Parser::parse_scopes(report_callback &report_error)
           }
           else if (keyword == Namespace) {
             enter_scope(ScopeType::Namespace, tok_id);
-          }
-          else if (ScopeType(scope_types.back()) == ScopeType::LoopArg) {
-            enter_scope(ScopeType::LoopBody, tok_id);
-          }
-          else if (ScopeType(scope_types.back()) == ScopeType::SwitchArg) {
-            enter_scope(ScopeType::SwitchBody, tok_id);
           }
           else if (scopes.top().type == ScopeType::Global) {
             enter_scope(ScopeType::Function, tok_id);
@@ -520,7 +522,6 @@ void Parser::parse_scopes(report_callback &report_error)
           }
           if (scopes.top().type == ScopeType::LoopArgs ||
               scopes.top().type == ScopeType::SwitchArg ||
-              scopes.top().type == ScopeType::FunctionArgs ||
               scopes.top().type == ScopeType::FunctionArgs ||
               scopes.top().type == ScopeType::FunctionCall ||
               scopes.top().type == ScopeType::Local)
