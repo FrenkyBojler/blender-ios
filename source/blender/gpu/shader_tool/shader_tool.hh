@@ -13,6 +13,7 @@
 #include <functional>
 #include <iostream>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -189,7 +190,13 @@ struct ParsedResource {
       ss << res_condition_lambda << ")";
     }
     else if (res_type == "push_constant") {
-      ss << "PUSH_CONSTANT(" << var_type << ", " << var_name << ")";
+      if (!var_array.empty()) {
+        ss << "PUSH_CONSTANT_ARRAY(" << var_type << ", " << var_name << ", "
+           << var_array.substr(1, var_array.size() - 2) << ")";
+      }
+      else {
+        ss << "PUSH_CONSTANT(" << var_type << ", " << var_name << ")";
+      }
     }
     else if (res_type == "compilation_constant") {
       /* Needs to be defined on the shader declaration. */
@@ -225,7 +232,7 @@ struct ParsedAttribute {
     else if (interpolation_mode == "smooth") {
       ss << "SMOOTH(" << var_type << ", " << var_name << ")";
     }
-    else if (interpolation_mode == "smooth") {
+    else if (interpolation_mode == "no_perspective") {
       ss << "NO_PERSPECTIVE(" << var_type << ", " << var_name << ")";
     }
     return ss.str();
@@ -345,6 +352,34 @@ struct Source {
   std::vector<FragmentOutputs> fragment_outputs;
   std::vector<VertexInputs> vertex_inputs;
 
+  struct Symbol {
+    std::string identifier;
+    std::string name_space;
+    size_t definition_line;
+    bool is_method;
+
+    bool operator<(const Symbol &other) const
+    {
+      if (is_method != other.is_method) {
+        /* Methods are supposed to have more precedence.
+         * So make them smaller than anything else. */
+        return is_method > other.is_method;
+      }
+      if (name_space != other.name_space) {
+        return name_space > other.name_space;
+      }
+      if (definition_line != other.definition_line) {
+        return definition_line < other.definition_line;
+      }
+      if (identifier != other.identifier) {
+        return identifier < other.identifier;
+      }
+      return false;
+    }
+  };
+
+  std::vector<Symbol> symbol_table;
+
   std::string serialize(const std::string &function_name) const
   {
     std::stringstream ss;
@@ -393,6 +428,10 @@ struct Source {
       ss << "#include \"" << dependency << "\"\n";
     }
     ss << "\n";
+    for (auto define : create_infos_defines) {
+      ss << define;
+    }
+    ss << "\n";
     for (auto vert_inputs : vertex_inputs) {
       ss << vert_inputs.serialize() << "\n";
     }
@@ -411,10 +450,6 @@ struct Source {
         ss << res.serialize() << "\n";
       }
       ss << "GPU_SHADER_CREATE_END()\n";
-    }
-    ss << "\n";
-    for (auto define : create_infos_defines) {
-      ss << define;
     }
     ss << "\n";
     for (auto declaration : create_infos_declarations) {
@@ -475,18 +510,51 @@ class Preprocessor {
     return UNKNOWN;
   }
 
+  /* Process a file content `str` and extract the list of included files and a list of symbols
+   * declared inside this file. */
+  metadata::Source process_include(std::string str, report_callback report_error)
+  {
+    metadata = {};
+
+    str = remove_comments(str, report_error);
+    str = disabled_code_mutation(str, report_error);
+
+    Parser parser(str, report_error);
+    parse_pragma_runtime_generated(parser);
+    parse_includes(parser, report_error);
+
+    parser.apply_mutations();
+
+    lower_preprocessor(parser, report_error);
+
+    parser.apply_mutations();
+
+    parse_local_symbols(parser, report_error);
+
+    return metadata;
+  }
+
   /* Takes a whole source file and output processed source. */
-  std::string process(SourceLanguage language,
-                      std::string str,
-                      const std::string &filepath,
-                      bool do_parse_function,
-                      report_callback report_error,
-                      metadata::Source &r_metadata)
+  std::string process(
+      SourceLanguage language,
+      std::string str,
+      const std::string &filepath,
+      bool do_parse_function,
+      report_callback report_error,
+      metadata::Source &r_metadata,
+      /* List of non-global symbols (i.e. declared inside a namespace) in included files. */
+      std::vector<metadata::Source::Symbol> symbols_set = {})
   {
     if (language == UNKNOWN) {
       report_error(0, 0, "", "Unknown file type");
       return "";
     }
+
+    metadata = {};
+
+    /* Extend. */
+    metadata.symbol_table.insert(
+        metadata.symbol_table.end(), symbols_set.begin(), symbols_set.end());
 
     const std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
 
@@ -525,6 +593,8 @@ class Preprocessor {
           return line_directive_prefix(filename) + parser.result_get();
         }
 
+        parse_local_symbols(parser, report_error);
+
         /* Lower high level parsing complexity.
          * Merge tokens that can be combined together,
          * remove the token that are unsupported or that are noop.
@@ -535,6 +605,7 @@ class Preprocessor {
         lower_classes(parser, report_error);
         lower_noop_keywords(parser, report_error);
         lower_trailing_comma_in_list(parser, report_error);
+        lower_comma_separated_declarations(parser, report_error);
 
         parser.apply_mutations();
 
@@ -567,6 +638,7 @@ class Preprocessor {
         lower_resource_table(parser, report_error);
         lower_resource_access_functions(parser, report_error);
         /* Lower class methods. */
+        lower_default_constructors(parser, report_error);
         lower_function_default_arguments(parser, report_error);
         lower_implicit_member(parser, report_error);
         lower_method_definitions(parser, report_error);
@@ -574,9 +646,9 @@ class Preprocessor {
         lower_empty_struct(parser, report_error);
         /* Lower SRT accesses. */
         lower_srt_member_access(parser, report_error);
+        lower_srt_arguments(parser, report_error);
         lower_entry_points_signature(parser, report_error);
         lower_stage_function(parser, report_error);
-        lower_srt_arguments(parser, report_error);
         /* Lower string, assert, printf. */
         lower_assert(parser, filename, report_error);
         lower_strings(parser, report_error);
@@ -672,18 +744,11 @@ class Preprocessor {
       while ((start = out_str.find("//", end)) != std::string::npos) {
         end = out_str.find('\n', start + 2);
         if (end == std::string::npos) {
-          break;
+          end = out_str.size();
         }
         for (size_t i = start; i < end; ++i) {
           out_str[i] = ' ';
         }
-      }
-
-      if (end == std::string::npos) {
-        for (size_t i = start; i < end; ++i) {
-          out_str[i] = ' ';
-        }
-        return out_str;
       }
     }
     return out_str;
@@ -1015,6 +1080,86 @@ class Preprocessor {
     });
   }
 
+  void parse_namespace_symbols(shader::parser::Scope ns)
+  {
+    using namespace std;
+    using namespace shader::parser;
+    using namespace metadata;
+
+    ns.foreach_scope(ScopeType::Namespace, [&](const Scope &ns) { parse_namespace_symbols(ns); });
+
+    auto process_symbol =
+        [&](Scope ns_scope, Token name, string identifier, size_t line, bool is_method) {
+          if (name.scope() != ns_scope) {
+            return;
+          }
+          string prefix;
+          while (ns_scope.type() == ScopeType::Namespace || ns_scope.type() == ScopeType::Struct) {
+            prefix = ns_scope.front().prev().full_symbol_name() + "::" + prefix;
+            ns_scope = ns_scope.scope();
+          }
+          Source::Symbol symbol;
+          symbol.name_space = prefix;
+          symbol.identifier = identifier;
+          symbol.definition_line = line;
+          symbol.is_method = is_method;
+          metadata.symbol_table.emplace_back(symbol);
+        };
+
+    auto process_templates = [&](Scope ns_scope, Token t, bool is_method) {
+      if (t.next() == '<') {
+        /* Template definition.*/
+        return;
+      }
+      /* Line number of the instantiation should be the one of the definition.
+       * But it is very hard at this point to search for the definition.
+       * Instead we consider the instantiation to be at the top of the file.
+       * It is unlikely we will have name collision with an instantiated template. */
+      size_t line = 0;
+      if (t.next() == Struct || t.next() == Class) {
+        /* Struct. */
+        Token name = t.next().next();
+        Scope template_args = name.next().scope();
+        string resolved_name = name.str() + template_arguments_mangle(template_args);
+        process_symbol(ns_scope, name, resolved_name, line, false);
+      }
+      else {
+        /* Function. */
+        Token end = t.find_next(SemiColon);
+        Scope template_args = end.prev().scope().front().prev().scope();
+        Token name = template_args.front().prev();
+        string resolved_name = name.str() + template_arguments_mangle(template_args);
+        process_symbol(ns_scope, name, resolved_name, line, is_method);
+      }
+    };
+
+    ns.foreach_struct([&](Token, Scope, Token struct_name, Scope body) {
+      process_symbol(ns, struct_name, struct_name.str(), struct_name.line_number(), false);
+      /* Methods. */
+      body.foreach_function([&](bool, Token, Token name, Scope, bool, Scope) {
+        /* For methods, the declaration line is the top of the struct. */
+        process_symbol(body, name, name.str(), struct_name.line_number(), true);
+      });
+      /* Parse template instantiations. */
+      ns.foreach_token(Template, [&](Token t) { process_templates(body, t, true); });
+    });
+
+    ns.foreach_function([&](bool, Token, Token name, Scope, bool, Scope) {
+      process_symbol(ns, name, name.str(), name.line_number(), false);
+    });
+    /* Parse template instantiations. */
+    ns.foreach_token(Template, [&](Token t) { process_templates(ns, t, false); });
+  }
+
+  void parse_local_symbols(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_scope(ScopeType::Namespace,
+                           [&](const Scope &ns) { parse_namespace_symbols(ns); });
+  }
+
   std::string get_create_info_placeholder(const std::string &name)
   {
     std::string placeholder;
@@ -1305,13 +1450,26 @@ class Preprocessor {
     };
 
     do {
+      /* WORKAROUND: We need to differentiate for and switch statements apart for proper break and
+       * continue statement usage linting. For this, we modify the body scope types to be able to
+       * detect which loop or switch body the break and continue statements are part of. */
+      parser().foreach_match("f(..)[[..]]{..}", [&](const std::vector<Token> tokens) {
+        tokens[11].scope().set_type(ScopeType::LoopBody);
+      });
+      parser().foreach_match("f(..){..}", [&](const std::vector<Token> tokens) {
+        tokens[5].scope().set_type(ScopeType::LoopBody);
+      });
+      parser().foreach_match("h(..){..}", [&](const std::vector<Token> tokens) {
+        tokens[5].scope().set_type(ScopeType::SwitchBody);
+      });
+
       /* [[unroll]]. */
-      parser().foreach_match("[[w]]f(..){..}", [&](const std::vector<Token> tokens) {
-        if (tokens[1].scope().str_with_whitespace() != "[unroll]") {
+      parser().foreach_match("f(..)[[w]]{..}", [&](const std::vector<Token> tokens) {
+        if (tokens[6].scope().str_with_whitespace() != "[unroll]") {
           return;
         }
-        const Token for_tok = tokens[5];
-        const Scope loop_args = tokens[6].scope();
+        const Token for_tok = tokens[0];
+        const Scope loop_args = tokens[1].scope();
         const Scope loop_body = tokens[10].scope();
 
         Scope init, cond, iter;
@@ -1402,66 +1560,19 @@ class Preprocessor {
       });
 
       /* [[unroll_n(n)]]. */
-      parser().foreach_match("[[w(0)]]f(..){..}", [&](const std::vector<Token> tokens) {
-        if (tokens[2].str() != "unroll_n") {
+      parser().foreach_match("f(..)[[w(0)]]{..}", [&](const std::vector<Token> tokens) {
+        if (tokens[7].str() != "unroll_n") {
           return;
         }
-        const Scope loop_args = tokens[9].scope();
+        const Scope loop_args = tokens[1].scope();
         const Scope loop_body = tokens[13].scope();
 
         Scope init, cond, iter;
         parse_for_args(loop_args, init, cond, iter);
 
-        int iter_count = std::stol(tokens[4].str());
+        int iter_count = std::stol(tokens[9].str());
 
         process_loop(tokens[0], iter_count, 0, 0, false, false, init, cond, iter, loop_body);
-      });
-
-      /* [[unroll_define(max_n)]]. */
-      parser().foreach_match("[[w(0)]]f(..){..}", [&](const std::vector<Token> tokens) {
-        if (tokens[2].str() != "unroll_define") {
-          return;
-        }
-        const Scope loop_args = tokens[9].scope();
-        const Scope loop_body = tokens[13].scope();
-
-        /* Validate format. */
-        Token define_name = Token::invalid();
-        Token iter_var = Token::invalid();
-        loop_args.foreach_match("ww=0;w<w;wP", [&](const std::vector<Token> tokens) {
-          if (tokens[1].str() != tokens[5].str() || tokens[5].str() != tokens[9].str()) {
-            return;
-          }
-          iter_var = tokens[1];
-          define_name = tokens[7];
-        });
-
-        if (define_name.is_invalid()) {
-          report_error(ERROR_TOK(loop_args.front()),
-                       "Incompatible loop format for [[unroll_define(max_n)]], expected "
-                       "'(int i = 0; i < DEFINE; i++)'");
-          return;
-        }
-
-        Scope init, cond, iter;
-        parse_for_args(loop_args, init, cond, iter);
-
-        int iter_count = std::stol(tokens[4].str());
-
-        string body_prefix = "#if " + define_name.str() + " > " + iter_var.str() + "\n";
-
-        process_loop(tokens[0],
-                     iter_count,
-                     0,
-                     1,
-                     true,
-                     true,
-                     init,
-                     cond,
-                     iter,
-                     loop_body,
-                     body_prefix,
-                     "#endif\n");
       });
     } while (parser.apply_mutations());
 
@@ -1499,7 +1610,7 @@ class Preprocessor {
 
     Token before_body = body.front().prev();
 
-    string test = "SRT_CONSTANT_" + condition[5].str();
+    string test = "SRT_CONSTANT_" + condition[5].str() + " ";
     if (condition[7] != condition.back().prev()) {
       test += parser.substr_range_inclusive(condition[7], condition.back().prev());
     }
@@ -1544,64 +1655,94 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void lower_namespace(const shader::parser::Scope &scope,
+  void lower_namespace(std::string ns_prefix,
+                       const shader::parser::Scope &scope,
                        Parser &parser,
-                       report_callback report_error)
+                       report_callback report_error,
+                       const std::set<metadata::Source::Symbol> &symbols_set)
   {
     using namespace std;
     using namespace shader::parser;
 
-    scope.foreach_scope(ScopeType::Namespace,
-                        [&](const Scope &scope) { lower_namespace(scope, parser, report_error); });
+    string ns_name = scope.front().prev().str();
+    ns_prefix += ns_name + "::";
 
-    string prefix = scope.front().prev().full_symbol_name();
-
-    auto process_symbol = [&](const Token &symbol) {
-      if (symbol.next() == '<') {
-        /* Template instantiation or specialization. */
-        return;
-      }
-      /* Replace all occurrences of the non-namespace specified symbol. */
-      scope.foreach_token(Word, [&](const Token &token) {
-        if (token.str() != symbol.str()) {
-          return;
-        }
-        /* Reject symbols that already have namespace specified. */
-        if (token.namespace_start() != token) {
-          return;
-        }
-        /* Reject method calls. */
-        if (token.prev() == '.') {
-          return;
-        }
-        parser.insert_before(token, prefix + namespace_separator, true);
-      });
-    };
-
-    unordered_set<string> processed_functions;
-
-    scope.foreach_function([&](bool, Token, Token fn_name, Scope, bool, Scope) {
-      if (fn_name.scope().type() == ScopeType::Struct) {
-        /* Don't process functions inside a struct scope as the namespace must not be apply
-         * to them, but to the type. Otherwise, method calls will not work. */
-        return;
-      }
-      if (processed_functions.count(fn_name.str())) {
-        /* Don't process function names twice. Can happen with overloads. */
-        return;
-      }
-      processed_functions.emplace(fn_name.str());
-      process_symbol(fn_name);
+    bool has_nested_scope = false;
+    scope.foreach_scope(ScopeType::Namespace, [&](const Scope &scope) {
+      lower_namespace(ns_prefix, scope, parser, report_error, symbols_set);
+      has_nested_scope = true;
     });
-    scope.foreach_struct(
-        [&](Token, Scope, Token struct_name, Scope) { process_symbol(struct_name); });
 
-    /* Pipeline declarations. */
+    if (has_nested_scope) {
+      /* Process iteratively. */
+      return;
+    }
+
+    scope.foreach_token(Word, [&](const Token &token) {
+      /* Reject method calls. */
+      if (token.prev() == '.') {
+        return;
+      }
+
+      const bool is_fn = (token.next() == '(');
+      /* Reject method definition. */
+      if (is_fn && token.scope().type() == ScopeType::Struct) {
+        return;
+      }
+
+      string struct_name;
+      if (is_fn) {
+        /* If this is function call inside a struct, this could reference a method.
+         * In this case we need to add the struct name during the fully qualified name lookup. */
+        const Scope struct_scope = token.scope().first_scope_of_type(ScopeType::Struct);
+        if (struct_scope.is_valid()) {
+          struct_name = struct_scope.str();
+        }
+      }
+
+      for (const auto &symbol : symbols_set) {
+        if (token.str() != symbol.identifier) {
+          continue;
+        }
+        /* Only expand symbols that are visible inside this namespace. */
+        if (symbol.name_space.substr(0, ns_prefix.size()) != ns_prefix) {
+          continue;
+        }
+        /* Reject symbols declared after the identifier. */
+        if (token.line_number() < symbol.definition_line) {
+          continue;
+        }
+        /* Symbol as it could be specified from this namespace. */
+        string symbol_visible = symbol.name_space.substr(ns_prefix.size()) + symbol.identifier;
+
+        /* First try to match methods. */
+        if (symbol.is_method && !struct_name.empty()) {
+          if (struct_name + token.full_symbol_name() == symbol_visible) {
+            continue;
+          }
+          /* Do not append namespace for method call matches. */
+          break;
+        }
+
+        /* Other symbols. */
+        if (token.full_symbol_name() != symbol_visible) {
+          continue;
+        }
+
+        /* Append current namespace. */
+        parser.insert_before(token.namespace_start(), ns_name + "::");
+        /* Only match a symbol once. */
+        break;
+      }
+    });
+
+    /* Pipeline declarations.
+     * Manually handle them. They are the only usecase of variable defined in global scope. */
     scope.foreach_match("ww(w", [&](vector<Token> toks) {
       if (toks[0].scope().type() != ScopeType::Namespace || toks[0].str().find("Pipeline") != 0) {
         return;
       }
-      process_symbol(toks[1]);
+      parser.insert_before(toks[1], ns_name + namespace_separator);
     });
 
     Token namespace_tok = scope.front().prev().namespace_start().prev();
@@ -1619,13 +1760,48 @@ class Preprocessor {
   {
     using namespace std;
     using namespace shader::parser;
+    using namespace metadata;
 
-    /* Parse each namespace declaration. */
-    parser().foreach_scope(ScopeType::Namespace, [&](const Scope &scope) {
-      lower_namespace(scope, parser, report_error);
+    /* Expand compound namespaces. Simplify lowering.
+     * Example: `namespace A::B {}` > `namespace A { namespace B {} }` */
+    parser().foreach_token(Namespace, [&](Token t) {
+      int nesting = 0;
+      Token name = t.next();
+      while (name.next() == ':') {
+        parser.replace(name.next(), name.next().next(), " { namespace ");
+        name = name.next().next().next();
+        nesting++;
+      }
+      Scope scope = name.next().scope();
+      for (int i = 0; i < nesting; i++) {
+        parser.insert_before(scope.back(), "}");
+      }
     });
 
     parser.apply_mutations();
+
+    /* Using an ordered set ordered by namespace make homonym symbols are resolve
+     * properly (closest from current namespace). */
+    set<metadata::Source::Symbol> symbols_set;
+    {
+      /* Deduplicate symbols. Done this way because we want to keep line definition ordering
+       * inside the symbols_set. */
+      unordered_set<string> unique_symbols;
+      for (const auto &symbol : metadata.symbol_table) {
+        auto [_, inserted] = unique_symbols.insert(symbol.name_space + symbol.identifier);
+        if (inserted) {
+          symbols_set.emplace(symbol);
+        }
+      }
+    }
+
+    do {
+      /* Parse each namespace declaration.
+       * Do it iteratively from the deepest namespace to the shallowest. */
+      parser().foreach_scope(ScopeType::Namespace, [&](const Scope &scope) {
+        lower_namespace("", scope, parser, report_error, symbols_set);
+      });
+    } while (parser.apply_mutations());
   }
 
   /**
@@ -2437,6 +2613,82 @@ class Preprocessor {
     });
   }
 
+  /* Create default initializer (empty brace) for all classes. */
+  void lower_default_constructors(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    std::unordered_set<string> builtin_types = {
+        "bool32_t",     "float2",        "packed_float2", "float3",   "packed_float3",
+        "float4",       "packed_float4", "float2x2",      "float2x3", "float2x4",
+        "float3x2",     "float3x3",      "float3x4",      "float4x2", "float4x3",
+        "float4x4",     "float2x2",      "float3x3",      "float4x4", "int2",
+        "int3",         "packed_int3",   "int4",          "uint2",    "uint3",
+        "packed_uint3", "uint4",         "bool2",         "bool3",    "bool4",
+    };
+
+    parser().foreach_struct([&](Token, Scope attributes, Token name, Scope body) {
+      /* Don't do host shared structures. */
+      if (attributes.is_valid()) {
+        return;
+      }
+
+      int decl_count = 0;
+      string decl;
+      body.foreach_declaration(
+          [&](Scope, Token, Token type, Scope, Token name, Scope array, Token) {
+            auto default_value = [&](const string &type) -> string {
+              if (type == "float") {
+                return "0.0f";
+              }
+              if (type == "uint" || type == "uchar") {
+                return "0u";
+              }
+              if (type == "int" || type == "char") {
+                return "0";
+              }
+              if (type == "bool") {
+                return "false";
+              }
+              if (builtin_types.find(type) != builtin_types.end()) {
+                return type + "(0)";
+              }
+              return type + "{}";
+            };
+
+            if (array.is_valid()) {
+              int array_len = static_array_size(array, report_error, 0);
+              if (array_len == 0) {
+                decl += "for(int i=0;i < " + array.str_exclusive() + ";i++){";
+                decl += "r." + name.str() + "[i]=" + default_value(type.str()) + ";";
+                decl += "}";
+              }
+              else {
+                for (int i = 0; i < array_len; i++) {
+                  decl += "r." + name.str() + "[" + to_string(i) + "]";
+                  decl += "=" + default_value(type.str()) + ";";
+                }
+              }
+            }
+            else {
+              /* Assigning members one by one as the foreach decl iterator can be out of order. */
+              decl += "r." + name.str() + "=" + default_value(type.str()) + ";";
+            }
+            decl_count++;
+          });
+
+      if (decl_count == 0) {
+        /* Empty struct will have a padding int. */
+        decl += "r._pad=0;";
+      }
+
+      decl = "static " + name.str() + " ctor_() {" + name.str() + " r;" + decl + "return r;}";
+
+      parser.insert_after(body.front().str_index_last_no_whitespace(), decl);
+    });
+  }
+
   /* Make all members of a class to be referenced using `this->`. */
   void lower_implicit_member(Parser &parser, report_callback report_error)
   {
@@ -2485,7 +2737,10 @@ class Preprocessor {
           return;
         }
         fn_body.foreach_token(Word, [&](Token tok) {
-          if (tok.prev() != Deref && tok.prev() != Dot && tok.prev() != Colon) {
+          if (tok.prev() != Deref && tok.prev() != Dot &&
+              /* Reject namespace qualified symbols. */
+              (tok.prev() != Colon || tok.prev().prev() != Colon))
+          {
             if (tok.next() == '(') {
               if (!is_class_token(methods_tokens, tok.str())) {
                 return;
@@ -2511,8 +2766,12 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    /* `*this` -> `this_` */
-    parser().foreach_match("*T", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_"); });
+    /* NOTE: We need to avoid the case of `a * this->b` being replaced as 2 dereferences. */
+
+    /* `(*this)` -> `(this_)` */
+    parser().foreach_match("*T)", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_"); });
+    /* `return *this;` -> `return this_;` */
+    parser().foreach_match("*T;", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_"); });
     /* `this->` -> `this_.` */
     parser().foreach_match("TD", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_."); });
 
@@ -2598,37 +2857,37 @@ class Preprocessor {
     parser().foreach_struct([&](Token, Scope, const Token, const Scope struct_scope) {
       const Token struct_end = struct_scope.back().next();
 
-      bool has_methods = false;
-      struct_scope.foreach_function(
-          [&](bool, Token, Token, Scope, bool, Scope) { has_methods = true; });
-      if (!has_methods) {
+      int method_len = 0;
+      struct_scope.foreach_function([&](bool, Token, Token, Scope, bool, Scope) { method_len++; });
+      if (method_len == 0) {
         /* Avoid uneeded preprocessor directives. */
         return;
       }
 
-      /* First output prototypes. Not needed on metal because of wrapper class. */
-      parser.insert_after(struct_end, "#ifndef GPU_METAL\n");
-      struct_scope.foreach_function(
-          [&](bool is_static, Token fn_type, Token, Scope fn_args, bool, Scope) {
-            const Token fn_start = is_static ? fn_type.prev() : fn_type;
+      /* Add prototypes to allow arbitrary order of definition inside a class.
+       * Can be skipped if there is only one method. */
+      if (method_len > 1) {
+        /* First output prototypes. Not needed on metal because of wrapper class. */
+        parser.insert_after(struct_end, "\n#ifndef GPU_METAL\n");
+        struct_scope.foreach_function(
+            [&](bool is_static, Token fn_type, Token, Scope fn_args, bool, Scope) {
+              const Token fn_start = is_static ? fn_type.prev() : fn_type;
 
-            string proto_str = parser.substr_range_inclusive(fn_start, fn_args.back());
-            proto_str = Preprocessor::strip_whitespace(proto_str) + ";\n";
-            Parser proto(proto_str, report_error);
+              string proto_str = parser.substr_range_inclusive(fn_start, fn_args.back());
+              proto_str = Preprocessor::strip_whitespace(proto_str) + ";\n";
+              Parser proto(proto_str, report_error);
 
-            /* Remove [[resource_table]] and other attributes that could create issues. */
-            proto().foreach_match("[[", [&](Tokens toks) { proto.replace(toks[0].scope(), ""); });
-
-            parser.insert_after(struct_end, proto.result_get());
-          });
-      parser.insert_after(struct_end, "#endif\n");
+              parser.insert_after(struct_end, proto.result_get());
+            });
+        parser.insert_after(struct_end, "#endif\n");
+      }
 
       struct_scope.foreach_function(
           [&](bool is_static, Token fn_type, Token, Scope, bool, Scope fn_body) {
             const Token fn_start = is_static ? fn_type.prev() : fn_type;
 
             string fn_str = parser.substr_range_inclusive(fn_start, fn_body.back());
-            fn_str = string(fn_start.char_number(), ' ') + fn_str;
+            fn_str = string(fn_start.char_number(), ' ') + fn_str + "\n";
 
             parser.erase(fn_start, fn_body.back());
             parser.insert_line_number(struct_end, fn_start.line_number());
@@ -2838,12 +3097,14 @@ class Preprocessor {
         if (tokens[2].str() != "resource_table") {
           return;
         }
-        condition += "&& defined(CREATE_INFO_" + tokens[7].str() + ")";
+        condition += " && defined(CREATE_INFO_" + tokens[7].str() + ")";
         parser.replace(tokens[0].scope(), "");
       });
 
       if (!condition.empty()) {
-        parser.insert_directive(fn_type.prev(), "#if " + condition.substr(3));
+        /* Take attribute into account. */
+        Token first_tok = fn_type.prev() == ']' ? fn_type.prev().scope().front() : fn_type;
+        parser.insert_directive(first_tok.prev(), "#if " + condition.substr(4));
         parser.insert_directive(fn_body.back(), "#endif");
       }
     });
@@ -2898,7 +3159,6 @@ class Preprocessor {
     using namespace shader::parser;
 
     string line_start = "#line " + std::to_string(scope.front().next().line_number()) + "\n";
-    string line_end = "#line " + std::to_string(scope.back().line_number()) + "\n";
 
     string guard_start = "#if " + condition;
     string guard_else;
@@ -2921,7 +3181,7 @@ class Preprocessor {
       }
       guard_else += "#else\n";
       guard_else += line_start;
-      guard_else += "  return " + type + (is_trivial ? "(0)" : "::zero()") + ";\n";
+      guard_else += "  return " + type + (is_trivial ? "(0)" : "{}") + ";\n";
     }
     string guard_end = "#endif";
 
@@ -2999,7 +3259,8 @@ class Preprocessor {
                             Token enum_type,
                             Scope enum_scope,
                             const bool is_host_shared) {
-      string type_str = enum_type.str();
+      const string type_str = enum_type.str();
+      const string enum_name_str = enum_name.str();
 
       string previous_value = "error_invalid_first_value";
       enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
@@ -3010,7 +3271,7 @@ class Preprocessor {
           value = "= " + previous_value + " + 1" + (enum_type.str()[0] == 'u' ? "u" : "");
         }
         if (class_tok.is_valid()) {
-          name = enum_name.str() + "::" + name;
+          name = enum_name_str + "::" + name;
         }
         string decl = "constant static constexpr " + type_str + " " + name + " " + value + ";\n";
         parser.insert_line_number(enum_tok.prev(), name_tok.line_number());
@@ -3019,7 +3280,7 @@ class Preprocessor {
         previous_value = name;
       });
       parser.insert_directive(enum_tok.prev(),
-                              "#define " + enum_name.str() + " " + enum_type.str() + "\n");
+                              "#define " + enum_name_str + " " + enum_type.str() + "\n");
       if (is_host_shared) {
         if (type_str != "uint32_t" && type_str != "int32_t") {
           report_error(
@@ -3030,9 +3291,12 @@ class Preprocessor {
         }
 
         string define = "#define ";
-        define += enum_name.str() + linted_struct_suffix + " " + enum_name.str() + "\n";
+        define += enum_name_str + linted_struct_suffix + " " + enum_name_str + "\n";
         parser.insert_directive(enum_tok.prev(), define);
       }
+      const string ctor_decl = enum_name_str + " " + enum_name_str + "_ctor_() { return " +
+                               enum_name_str + "(0); }";
+      parser.insert_directive(enum_tok.prev(), ctor_decl);
       parser.erase(enum_tok, enum_scope.back().next());
     };
 
@@ -3097,7 +3361,7 @@ class Preprocessor {
       }
 
       Token comma = body.find_token(',');
-      if (comma.is_valid()) {
+      if (comma.is_valid() && comma.scope() == body) {
         report_error(
             ERROR_TOK(comma),
             "comma declaration is not supported in shared struct, expand to multiple definition");
@@ -3182,7 +3446,8 @@ class Preprocessor {
           type_info = {4, 4};
           parser.erase(type.prev());
           /* Make sure that linted structs only contain other linted structs. */
-          parser.replace(type, type.str() + linted_struct_suffix + " ");
+          /* TODO(fclem): Conflicts with default ctor. */
+          // parser.replace(type, type.str() + linted_struct_suffix + " ");
         }
         else if (type.prev() == Struct) {
           /* Only 4 bytes enums are allowed. */
@@ -3190,7 +3455,8 @@ class Preprocessor {
           /* Erase redundant struct keyword. */
           parser.erase(type.prev());
           /* Make sure that linted structs only contain other linted structs. */
-          parser.replace(type, type.str() + linted_struct_suffix + " ");
+          /* TODO(fclem): Conflicts with default ctor. */
+          // parser.replace(type, type.str() + linted_struct_suffix + " ");
         }
         else {
           report_error(ERROR_TOK(type),
@@ -3215,19 +3481,8 @@ class Preprocessor {
             is_std140_compatible = false;
           }
 
-          if (array.token_count() == 3 && array[1] == Number) {
-            try {
-              array_size = std::stol(array[1].str());
-            }
-            catch (std::invalid_argument const & /*ex*/) {
-              report_error(ERROR_TOK(array.front()),
-                           "Invalid array size, expecting integer literal");
-            }
-          }
-          else {
-            /* Can be macro or expression. Assume value is multiple of 4. */
-            array_size = 4;
-          }
+          /* For macro or expression assume value is multiple of 4. */
+          array_size = static_array_size(array, report_error, 4);
         }
 
         offset += type_info.size * array_size;
@@ -3370,10 +3625,10 @@ class Preprocessor {
           /* Placement already checked. */
           return;
         }
-        else if (attr_str == "unroll" || attr_str == "unroll_n" || attr_str == "unroll_define") {
-          if (attributes.back().next().next() != For) {
+        else if (attr_str == "unroll" || attr_str == "unroll_n") {
+          if (attributes.front().prev().prev().scope().front().prev() != For) {
             report_error(ERROR_TOK(attr),
-                         "unroll attributes must be declared before a 'for' loop keyword");
+                         "[[unroll]] attribute must be declared after a 'for' statement");
             invalid = true;
           }
           /* Placement already checked. */
@@ -3403,7 +3658,8 @@ class Preprocessor {
 
         Token prev_tok = attributes.front().prev().prev();
         if (prev_tok == '(' || prev_tok == '{' || prev_tok == ';' || prev_tok == ',' ||
-            prev_tok == '}' || prev_tok == ')' || prev_tok == '\n' || prev_tok.is_invalid())
+            prev_tok == '}' || prev_tok == ')' || prev_tok == '\n' || prev_tok == ' ' ||
+            prev_tok.is_invalid())
         {
           /* Placement is maybe correct. Could refine a bit more. */
         }
@@ -3455,6 +3711,33 @@ class Preprocessor {
     using namespace shader::parser;
 
     parser().foreach_match(",}", [&](const Tokens &t) { parser.erase(t[0]); });
+  }
+
+  /* Allow easier parsing of struct member declaration.
+   * Example: `int a, b;` > `int a; int b;` */
+  void lower_comma_separated_declarations(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    auto process_decl = [&](const Tokens &t) {
+      if (t[0].scope().type() != ScopeType::Struct) {
+        return;
+      }
+      string type = t[0].str();
+      Token comma = t[2];
+      while (comma == ',' || comma == '[') {
+        if (comma == '[') {
+          comma = comma.scope().back().next();
+          continue;
+        }
+        parser.replace(comma, ";" + type, true);
+        comma = comma.next().next();
+      }
+    };
+
+    parser().foreach_match("ww,", [&](const Tokens &t) { process_decl(t); });
+    parser().foreach_match("ww[..],", [&](const Tokens &t) { process_decl(t); });
   }
 
   void lower_implicit_return_types(Parser &parser, report_callback /*report_error*/)
@@ -3520,12 +3803,12 @@ class Preprocessor {
       }
       Token assign_tok = t[0].prev();
       Token var = t[0].prev().prev();
-      Scope aggrega = t[2].scope();
+      Scope aggregate = t[2].scope();
 
       parser.insert_before(assign_tok, ";");
       parser.erase(assign_tok, t[1]);
-      aggrega.foreach_match(".w=", [&](Tokens t) {
-        if (t[0].scope() != aggrega) {
+      aggregate.foreach_match(".w=", [&](Tokens t) {
+        if (t[0].scope() != aggregate) {
           report_error(ERROR_TOK(t[0]), "Nested initializer lists are not supported");
           return;
         }
@@ -3536,7 +3819,7 @@ class Preprocessor {
           parser.erase(value_end.next());
         }
       });
-      parser.erase(aggrega.back(), aggrega.back().next());
+      parser.erase(aggregate.back(), aggregate.back().next());
 
       /* TODO: Lint for vector/matrix type (unsafe aggregate). */
     });
@@ -3564,13 +3847,16 @@ class Preprocessor {
         if (t[0].prev() == Struct) {
           return;
         }
-        if (t[1].scope().token_count() == 2) {
-          report_error(ERROR_TOK(t[0]), "Empty brace initializer is not supported");
-        }
         if (builtin_types.find(t[0].str()) != builtin_types.end()) {
           report_error(ERROR_TOK(t[0]),
                        "Aggregate is error prone for built-in vector and matrix types, use "
                        "constructors instead");
+        }
+        if (t[1].scope().token_count() == 2) {
+          /* Call generated default ctor. */
+          parser.insert_after(t.front(), "_ctor_");
+          parser.replace(t[1], t[4], "()");
+          return;
         }
         /* Lint for nested aggregates. */
         Token nested_aggregate_end = t[1].scope().find_token(BracketClose);
@@ -3879,7 +4165,7 @@ class Preprocessor {
     unordered_map<string, vector<Member>> union_members;
 
     /* First, lower anonymous unions into separate struct. */
-    parser().foreach_struct([&](Token struct_tok, Scope, Token struct_name, Scope body) {
+    parser().foreach_struct([&](Token struct_tok, Scope attrs, Token struct_name, Scope body) {
       int union_index = 0;
       body.foreach_match("o{..};", [&](const Tokens &t) {
         Scope union_body = t[1].scope();
@@ -3903,7 +4189,10 @@ class Preprocessor {
         }
         union_members.emplace(union_type, members);
 
-        string union_member = "struct " + union_type + " " + union_name + ";";
+        string union_member = union_type + " " + union_name + ";";
+        if (attrs.contains("host_shared")) {
+          union_member = "struct " + union_member;
+        }
         parser.insert_before(t.front(), union_member);
         parser.erase(t.front(), t.back());
 
@@ -3969,19 +4258,36 @@ class Preprocessor {
       }
       vector<Member> members;
       size_t offset = 0;
-      body.foreach_declaration([&](Scope, Token, Token type, Scope, Token name, Scope, Token) {
-        size_t size = 4;
-        if (type.prev() != Enum) {
-          size = type_size_get(type);
-          if (size != 0) {
-            members.emplace_back(Member{type.str(), "." + name.str(), offset, size});
-          }
-        }
-        else {
-          members.emplace_back(Member{type.str(), "." + name.str(), offset, size, true});
-        }
-        offset += size;
-      });
+      body.foreach_declaration(
+          [&](Scope, Token, Token type, Scope, Token name, Scope array, Token) {
+            size_t size = 4;
+
+            size_t array_size = 0;
+            if (array.is_valid()) {
+              /* Assume size to be zero by default. It will create invalid size error later on. */
+              array_size = static_array_size(array, report_error, 0);
+            }
+            else {
+              array_size = 1;
+            }
+
+            for (int i = 0; i < array_size; i++) {
+              string name_str = name.str();
+              if (array.is_valid()) {
+                name_str += "[" + to_string(i) + "]";
+              }
+              if (type.prev() != Enum) {
+                size = type_size_get(type);
+                if (size != 0) {
+                  members.emplace_back(Member{type.str(), "." + name_str, offset, size});
+                }
+              }
+              else {
+                members.emplace_back(Member{type.str(), "." + name_str, offset, size, true});
+              }
+              offset += size;
+            }
+          });
 
       struct_members.emplace(struct_name.str(), members);
     });
@@ -4342,11 +4648,21 @@ class Preprocessor {
         return;
       }
 
-      if (attribute.scope().type() != ScopeType::FunctionArgs &&
-          attribute.scope().type() != ScopeType::FunctionArg)
-      {
+      const bool is_func_prototype_decl = body_scope.is_invalid();
+      const bool is_local_reference = attribute.scope().type() != ScopeType::FunctionArgs &&
+                                      attribute.scope().type() != ScopeType::FunctionArg;
+
+      if (is_local_reference || is_func_prototype_decl) {
         parser.replace(attribute, "");
       }
+
+      /* Change references to copies to allow placeholder "*_new_()" function result to be passed
+       * as argument. Once these placeholder function are removed, we can pass the value as
+       * reference. */
+      if (!is_local_reference && var.prev() == '&') {
+        parser.erase(var.prev());
+      }
+
       string srt_type = type.str();
       string srt_var = var.str();
 
@@ -4354,15 +4670,16 @@ class Preprocessor {
         if (toks[0].str() != srt_var) {
           return;
         }
-        parser.replace(toks[0], toks[2], "srt_access(" + srt_type + ", " + toks[2].str() + ")");
+        parser.replace(
+            toks[0], toks[2], "srt_access(" + srt_type + ", " + toks[2].str() + ")", true);
       });
     };
 
     parser().foreach_scope(ScopeType::FunctionArgs, [&](const Scope fn_args) {
-      Scope fn_body = fn_args.next();
-      if (fn_body.is_invalid()) {
-        return;
-      }
+      /* Parse both function and prototypes. */
+      Scope fn_body = fn_args.next().type() == ScopeType::Function ? fn_args.next() :
+                                                                     Scope::invalid();
+      /* Function arguments. */
       fn_args.foreach_match("[[w]]c?w&w", [&](const vector<Token> toks) {
         memher_access_mutation(toks[0].scope(), toks[7], toks[9], fn_body);
       });
@@ -4375,9 +4692,11 @@ class Preprocessor {
     });
 
     parser().foreach_scope(ScopeType::Function, [&](const Scope fn_body) {
+      /* Local references. */
       fn_body.foreach_match("[[w]]c?w&w", [&](const vector<Token> toks) {
         memher_access_mutation(toks[0].scope(), toks[7], toks[9], toks[9].scope());
       });
+      /* Local variables. */
       fn_body.foreach_match("[[w]]c?ww", [&](const vector<Token> toks) {
         memher_access_mutation(toks[0].scope(), toks[7], toks[8], toks[8].scope());
       });
@@ -4751,7 +5070,7 @@ class Preprocessor {
               if (is_entry_point) {
                 /* Add dummy var at start of function body. */
                 parser.insert_after(fn_body.front().str_index_start(),
-                                    " " + srt_type + " " + srt_var + ";");
+                                    " " + srt_type + " " + srt_var + "{};");
                 create_info_decl += "ADDITIONAL_INFO(" + srt_type + ")\n";
               }
             }
@@ -4813,7 +5132,7 @@ class Preprocessor {
     using namespace shader::parser;
     using namespace metadata;
 
-    parser().foreach_function([&](bool, Token type, Token, Scope args, bool, Scope) {
+    parser().foreach_function([&](bool, Token type, Token name, Scope args, bool, Scope fn_body) {
       bool is_entry_point = false;
 
       if (type.prev() == ']') {
@@ -4828,6 +5147,15 @@ class Preprocessor {
 
       if (is_entry_point && args.str() != "()") {
         parser.erase(args.front().next(), args.back().prev());
+      }
+
+      /* Mute entry points when not enabled.
+       * Could be lifted at some point, but for now required because of stage_in/out parameters. */
+      if (is_entry_point) {
+        /* Take attributes into account. */
+        parser.insert_directive(type.prev().scope().front().prev(),
+                                "#if defined(ENTRY_POINT_" + name.str() + ")");
+        parser.insert_directive(fn_body.back(), "#endif");
       }
     });
 
@@ -5022,6 +5350,21 @@ class Preprocessor {
         report_error(ERROR_TOK(t[0]), "Forward declaration of types are not supported.");
       }
     });
+  }
+
+  int static_array_size(const shader::parser::Scope &array,
+                        report_callback report_error,
+                        int fallback_value)
+  {
+    if (array.token_count() == 3 && array[1] == shader::parser::Number) {
+      try {
+        return std::stol(array[1].str());
+      }
+      catch (std::invalid_argument const & /*ex*/) {
+        report_error(ERROR_TOK(array.front()), "Invalid array size, expecting integer literal");
+      }
+    }
+    return fallback_value;
   }
 
   std::string line_directive_prefix(const std::string &filename)
