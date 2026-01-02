@@ -192,7 +192,18 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
   if (features & SCULPT_BATCH_UV) {
     const StringRef uv_name = mesh->active_uv_map_name();
     if (!uv_name.is_empty()) {
-      attrs.append(pbvh::GenericRequest(uv_name));
+      if (ss.bm) {
+        if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+                uv_name))
+        {
+          if (bmesh_attribute_exists(*ss.bm, *meta_data, uv_name)) {
+            attrs.append(pbvh::GenericRequest(uv_name));
+          }
+        }
+      }
+      else {
+        attrs.append(pbvh::GenericRequest(uv_name));
+      }
     }
   }
 
@@ -214,12 +225,39 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   attrs.append(pbvh::CustomRequest::Position);
   attrs.append(pbvh::CustomRequest::Normal);
 
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  const SculptSession &ss = *ob->sculpt;
+
+  /* If Dyntopo is enabled, the source of truth for an attribute existing or not is the BMesh, not
+   * the Mesh. */
   for (const StringRef name : draw_attrs) {
-    attrs.append(pbvh::GenericRequest(name));
+    if (ss.bm) {
+      if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+              name))
+      {
+        if (bmesh_attribute_exists(*ss.bm, *meta_data, name)) {
+          attrs.append(pbvh::GenericRequest(name));
+        }
+      }
+    }
+    else {
+      attrs.append(pbvh::GenericRequest(name));
+    }
   }
 
   for (const StringRef name : cd_needed.uv) {
-    attrs.append(pbvh::GenericRequest(name));
+    if (ss.bm) {
+      if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+              name))
+      {
+        if (bmesh_attribute_exists(*ss.bm, *meta_data, name)) {
+          attrs.append(pbvh::GenericRequest(name));
+        }
+      }
+    }
+    else {
+      attrs.append(pbvh::GenericRequest(name));
+    }
   }
 
   return sculpt_batches_get_ex(ob, false, attrs);
