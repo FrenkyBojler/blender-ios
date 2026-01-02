@@ -25,3 +25,16 @@ endif()
 # `SRC_DNA_INC` is defined in the parent directory.
 add_executable(shader_tool ${SRC})
 optimize_debug_target(shader_tool)
+
+set(SRC_OPTI
+  intermediate.cc
+  optimizer.cc
+
+  intermediate.hh
+  scope.hh
+  token_stream.hh
+  token.hh
+)
+
+add_executable(optimizer ${SRC_OPTI})
+optimize_debug_target(optimizer)
