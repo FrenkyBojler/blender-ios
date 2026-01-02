@@ -54,13 +54,13 @@ class SourceProcessor {
   using Tokens = std::vector<parser::Token>;
 
  private:
-  const std::string source;
-  const std::string filepath;
-  metadata::Source metadata;
+  const std::string source_;
+  const std::string filepath_;
+  metadata::Source metadata_;
 
-  Language language;
+  Language language_;
 
-  parser::report_callback report_error;
+  parser::report_callback report_error_;
 
  public:
   SourceProcessor(
@@ -68,7 +68,7 @@ class SourceProcessor {
       const std::string &filepath,
       Language language,
       parser::report_callback report_error = [](int, int, std::string, const char *) {})
-      : source(source), filepath(filepath), language(language), report_error(report_error)
+      : source_(source), filepath_(filepath), language_(language), report_error_(report_error)
   {
   }
 

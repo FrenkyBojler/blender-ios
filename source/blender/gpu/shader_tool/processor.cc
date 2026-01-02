@@ -37,17 +37,17 @@ static constexpr const char *uniform_struct_suffix = "uniform_";
 
 SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
 {
-  metadata = {};
+  metadata_ = {};
 
-  if (language == Language::UNKNOWN) {
-    report_error(0, 0, "", "Unknown file type");
-    return {"", metadata};
+  if (language_ == Language::UNKNOWN) {
+    report_error_(0, 0, "", "Unknown file type");
+    return {"", metadata_};
   }
   /* Extend. */
-  metadata.symbol_table.insert(
-      metadata.symbol_table.end(), symbols_set.begin(), symbols_set.end());
+  metadata_.symbol_table.insert(
+      metadata_.symbol_table.end(), symbols_set.begin(), symbols_set.end());
 
-  const string filename = regex_replace(filepath, regex(R"((?:.*)\/(.*))"), "$1");
+  const string filename = regex_replace(filepath_, regex(R"((?:.*)\/(.*))"), "$1");
 
   /* TODO(fclem): Remove, use attributes on functions. */
   const bool is_glsl = filename.find(".glsl") != string::npos;
@@ -56,23 +56,23 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
                                   filename.find("gpu_shader_common_") != string::npos ||
                                   filename.find("gpu_shader_compositor_") != string::npos);
 
-  string str = this->source;
+  string str = this->source_;
 
   str = remove_comments(str);
-  if (language == Language::BLENDER_GLSL || language == Language::CPP) {
+  if (language_ == Language::BLENDER_GLSL || language_ == Language::CPP) {
     str = disabled_code_mutation(str);
   }
   else {
     str = cleanup_whitespace(str);
   }
   str = threadgroup_variables_parse_and_remove(str);
-  if (language == Language::BLENDER_GLSL || language == Language::CPP) {
+  if (language_ == Language::BLENDER_GLSL || language_ == Language::CPP) {
     {
       parse_builtins(str, filename);
-      Parser parser(str, report_error);
+      Parser parser(str, report_error_);
 
       /* Preprocessor directive parsing & linting. */
-      if (language == Language::BLENDER_GLSL) { /* TODO(fclem): Enforce in C++ header too. */
+      if (language_ == Language::BLENDER_GLSL) { /* TODO(fclem): Enforce in C++ header too. */
         lint_pragma_once(parser, filename);
       }
       parse_pragma_runtime_generated(parser);
@@ -89,7 +89,7 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
 
       /* Early out for certain files. */
       if (parser.str().find("\n#pragma no_processing") != string::npos) {
-        return {line_directive_prefix(filename) + parser.result_get(), metadata};
+        return {line_directive_prefix(filename) + parser.result_get(), metadata_};
       }
 
       parse_local_symbols(parser);
@@ -179,17 +179,17 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
     }
 
     str = line_directive_prefix(filename) + str;
-    return {str, metadata};
+    return {str, metadata_};
   }
 
-  if (language == Language::MSL) {
-    Parser parser(str, report_error);
+  if (language_ == Language::MSL) {
+    Parser parser(str, report_error_);
     parse_pragma_runtime_generated(parser);
     parse_includes(parser);
     lower_preprocessor(parser);
     str = parser.result_get();
   }
-  if (language == Language::GLSL) {
+  if (language_ == Language::GLSL) {
     parse_builtins(str, filename, true);
 #ifdef __APPLE__ /* Limiting to Apple hardware since GLSL compilers might have issues. */
     str = matrix_constructor_mutation(str);
@@ -198,18 +198,18 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
   str = argument_decorator_macro_injection(str);
   str = array_constructor_macro_injection(str);
   str = line_directive_prefix(filename) + str;
-  return {str, metadata};
+  return {str, metadata_};
 }
 
 metadata::Source SourceProcessor::parse_include_and_symbols()
 {
-  metadata = {};
+  metadata_ = {};
 
-  string str = this->source;
+  string str = this->source_;
   str = remove_comments(str);
   str = disabled_code_mutation(str);
 
-  Parser parser(str, report_error);
+  Parser parser(str, report_error_);
   parse_pragma_runtime_generated(parser);
   parse_includes(parser);
 
@@ -221,7 +221,7 @@ metadata::Source SourceProcessor::parse_include_and_symbols()
 
   parse_local_symbols(parser);
 
-  return metadata;
+  return metadata_;
 }
 
 string SourceProcessor::remove_comments(const string &str)
@@ -243,10 +243,10 @@ string SourceProcessor::remove_comments(const string &str)
     }
 
     if (end == string::npos) {
-      report_error(parser::line_number(out_str, start),
-                   parser::char_number(out_str, start),
-                   parser::line_str(out_str, start),
-                   "Malformed multi-line comment.");
+      report_error_(parser::line_number(out_str, start),
+                    parser::char_number(out_str, start),
+                    parser::line_str(out_str, start),
+                    "Malformed multi-line comment.");
       return out_str;
     }
   }
@@ -311,8 +311,8 @@ void SourceProcessor::parse_template_definition(const Scope arg,
   arg_list.emplace_back(name_str);
 
   if (arg.contains_token('=')) {
-    report_error(ERROR_TOK(arg[0]),
-                 "Default arguments are not supported inside template declaration");
+    report_error_(ERROR_TOK(arg[0]),
+                  "Default arguments are not supported inside template declaration");
   }
 
   if (type_str == "typename") {
@@ -335,7 +335,7 @@ void SourceProcessor::parse_template_definition(const Scope arg,
     all_template_args_in_function_signature = false;
   }
   else {
-    report_error(ERROR_TOK(type), "Invalid template argument type");
+    report_error_(ERROR_TOK(type), "Invalid template argument type");
   }
 }
 
@@ -368,11 +368,11 @@ void SourceProcessor::process_instantiation(Parser &parser,
     i++;
   });
   if (i != arg_list.size()) {
-    report_error(ERROR_TOK(toks[3]), "Invalid amount of argument in template instantiation.");
+    report_error_(ERROR_TOK(toks[3]), "Invalid amount of argument in template instantiation.");
   }
 
   /* Specialize template content. */
-  Parser instance_parser(fn_decl, report_error);
+  Parser instance_parser(fn_decl, report_error_);
   instance_parser().foreach_token(Word, [&](const Token &word) {
     string token_str = word.str();
     for (const auto &arg_name_value : arg_name_value_pairs) {
@@ -489,10 +489,10 @@ void SourceProcessor::lower_templates(Parser &parser)
                                        const Token fn_end) {
     bool error = false;
     template_scope.foreach_match("=", [&](const vector<Token> &tokens) {
-      report_error(tokens[0].line_number(),
-                   tokens[0].char_number(),
-                   tokens[0].line_str(),
-                   "Default arguments are not supported inside template declaration");
+      report_error_(tokens[0].line_number(),
+                    tokens[0].char_number(),
+                    tokens[0].line_str(),
+                    "Default arguments are not supported inside template declaration");
       error = true;
     });
     if (error) {
@@ -535,10 +535,10 @@ void SourceProcessor::lower_templates(Parser &parser)
   /* Check if there is no remaining declaration and instantiation that were not processed. */
   parser().foreach_token(Template, [&](Token tok) {
     if (tok.next() == '<') {
-      report_error(ERROR_TOK(tok), "Template declaration unsupported syntax");
+      report_error_(ERROR_TOK(tok), "Template declaration unsupported syntax");
     }
     else {
-      report_error(ERROR_TOK(tok), "Template instantiation unsupported syntax");
+      report_error_(ERROR_TOK(tok), "Template instantiation unsupported syntax");
     }
   });
 
@@ -556,10 +556,10 @@ void SourceProcessor::parse_defines(Parser &parser)
 {
   parser().foreach_match("#w", [&](const vector<Token> &tokens) {
     if (tokens[1].str() == "define") {
-      metadata.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
+      metadata_.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
     }
     if (tokens[1].str() == "undef") {
-      metadata.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
+      metadata_.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
     }
   });
 }
@@ -583,7 +583,7 @@ void SourceProcessor::parse_namespace_symbols(Scope ns)
         symbol.identifier = identifier;
         symbol.definition_line = line;
         symbol.is_method = is_method;
-        metadata.symbol_table.emplace_back(symbol);
+        metadata_.symbol_table.emplace_back(symbol);
       };
 
   auto process_templates = [&](Scope ns_scope, Token t, bool is_method) {
@@ -674,29 +674,29 @@ void SourceProcessor::parse_legacy_create_info(Parser &parser)
   parser().foreach_match("w(..)", [&](const vector<Token> &tokens) {
     if (tokens[0].str() == "CREATE_INFO_VARIANT") {
       const string variant_name = tokens[1].scope().front().next().str();
-      metadata.create_infos.emplace_back(variant_name);
+      metadata_.create_infos.emplace_back(variant_name);
 
       const string variant_decl = parser.substr_range_inclusive(tokens.front(), tokens.back());
-      metadata.create_infos_declarations.emplace_back(variant_decl);
+      metadata_.create_infos_declarations.emplace_back(variant_decl);
 
       parser.replace(tokens.front(), tokens.back(), get_create_info_placeholder(variant_name));
       return;
     }
     if (tokens[0].str() == "GPU_SHADER_CREATE_INFO") {
       const string variant_name = tokens[1].scope().front().next().str();
-      metadata.create_infos.emplace_back(variant_name);
+      metadata_.create_infos.emplace_back(variant_name);
 
       const size_t start_end = tokens.back().str_index_last();
       const string end_tok = "GPU_SHADER_CREATE_END()";
       const size_t end_pos = parser.str().find(end_tok, start_end);
       if (end_pos == string::npos) {
-        report_error(ERROR_TOK(tokens[0]), "Missing create info end.");
+        report_error_(ERROR_TOK(tokens[0]), "Missing create info end.");
         return;
       }
 
       const string variant_decl = parser.substr_range_inclusive(tokens.front().str_index_start(),
                                                                 end_pos + end_tok.size());
-      metadata.create_infos_declarations.emplace_back(variant_decl);
+      metadata_.create_infos_declarations.emplace_back(variant_decl);
 
       parser.replace(tokens.front().str_index_start(),
                      end_pos + end_tok.size(),
@@ -708,19 +708,19 @@ void SourceProcessor::parse_legacy_create_info(Parser &parser)
       const string end_str = "GPU_SHADER_NAMED_INTERFACE_END(";
       size_t end_pos = parser.str().find(end_str, start_end);
       if (end_pos == string::npos) {
-        report_error(ERROR_TOK(tokens[0]), "Missing create info end.");
+        report_error_(ERROR_TOK(tokens[0]), "Missing create info end.");
         return;
       }
 
       end_pos = parser.str().find(')', end_pos);
       if (end_pos == string::npos) {
-        report_error(ERROR_TOK(tokens[0]), "Missing parenthesis at info end.");
+        report_error_(ERROR_TOK(tokens[0]), "Missing parenthesis at info end.");
         return;
       }
 
       const string variant_decl = parser.substr_range_inclusive(tokens.front().str_index_start(),
                                                                 end_pos);
-      metadata.create_infos_declarations.emplace_back(variant_decl);
+      metadata_.create_infos_declarations.emplace_back(variant_decl);
 
       parser.erase(tokens.front().str_index_start(), end_pos);
       return;
@@ -730,12 +730,12 @@ void SourceProcessor::parse_legacy_create_info(Parser &parser)
       const string end_str = "GPU_SHADER_INTERFACE_END()";
       size_t end_pos = parser.str().find(end_str, start_end);
       if (end_pos == string::npos) {
-        report_error(ERROR_TOK(tokens[0]), "Missing create info end.");
+        report_error_(ERROR_TOK(tokens[0]), "Missing create info end.");
         return;
       }
       const string variant_decl = parser.substr_range_inclusive(tokens.front().str_index_start(),
                                                                 end_pos + end_str.size());
-      metadata.create_infos_declarations.emplace_back(variant_decl);
+      metadata_.create_infos_declarations.emplace_back(variant_decl);
 
       parser.erase(tokens.front().str_index_start(), end_pos + end_str.size());
       return;
@@ -756,7 +756,7 @@ void SourceProcessor::parse_includes(Parser &parser)
     if (dependency_name.find("defines.hh") != string::npos) {
       /* Dependencies between create infos are not needed for reflections.
        * Only the dependencies on the defines are needed. */
-      metadata.create_infos_dependencies.emplace_back(dependency_name);
+      metadata_.create_infos_dependencies.emplace_back(dependency_name);
     }
 
     if (dependency_name == "BLI_utildefines_variadic.h") {
@@ -779,14 +779,14 @@ void SourceProcessor::parse_includes(Parser &parser)
       dependency_name = dependency_name.substr(6);
     }
 
-    metadata.dependencies.emplace_back(dependency_name);
+    metadata_.dependencies.emplace_back(dependency_name);
   });
 }
 
 void SourceProcessor::parse_pragma_runtime_generated(Parser &parser)
 {
   if (parser.str().find("\n#pragma runtime_generated") != string::npos) {
-    metadata.builtins.emplace_back(metadata::Builtin::runtime_generated);
+    metadata_.builtins.emplace_back(metadata::Builtin::runtime_generated);
   }
 }
 
@@ -796,7 +796,7 @@ void SourceProcessor::lint_pragma_once(Parser &parser, const string &filename)
     return;
   }
   if (parser.str().find("\n#pragma once") == string::npos) {
-    report_error(0, 0, "", "Header files must contain #pragma once directive.");
+    report_error_(0, 0, "", "Header files must contain #pragma once directive.");
   }
 }
 
@@ -816,7 +816,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
             r_iter = arg;
           }
           else {
-            report_error(ERROR_TOK(arg.front()), "Invalid loop declaration.");
+            report_error_(ERROR_TOK(arg.front()), "Invalid loop declaration.");
           }
         });
       };
@@ -838,7 +838,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
     /* Checks if `continue` exists, even in switch statement inside the unrolled loop. */
     body.foreach_token(Continue, [&](const Token token) {
       if (token.scope().first_scope_of_type(ScopeType::LoopBody) == body) {
-        report_error(ERROR_TOK(token), "Unrolled loop cannot contain \"continue\" statement.");
+        report_error_(ERROR_TOK(token), "Unrolled loop cannot contain \"continue\" statement.");
         error = true;
       }
     });
@@ -847,7 +847,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       if (token.scope().first_scope_of_type(ScopeType::LoopBody) == body) {
         const Scope switch_scope = token.scope().first_scope_of_type(ScopeType::SwitchBody);
         if (switch_scope.is_invalid() || !body.contains(switch_scope)) {
-          report_error(ERROR_TOK(token), "Unrolled loop cannot contain \"break\" statement.");
+          report_error_(ERROR_TOK(token), "Unrolled loop cannot contain \"break\" statement.");
           error = true;
         }
       }
@@ -879,7 +879,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       if (iter.is_invalid() || !iteration_is_trivial || str.empty()) {
         return str;
       }
-      Parser str_parser(str, report_error);
+      Parser str_parser(str, report_error_);
       str_parser().foreach_token(Word, [&](const Token tok) {
         if (tok.str() == iter[0].str()) {
           str_parser.replace(tok, to_string(loop_index), true);
@@ -946,15 +946,15 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       const Token var_name = init[1];
       const Token var_init = init[2];
       if (var_type.str() != "int" && var_type.str() != "uint") {
-        report_error(ERROR_TOK(var_init), "Can only unroll integer based loop.");
+        report_error_(ERROR_TOK(var_init), "Can only unroll integer based loop.");
         return;
       }
       if (var_init != '=') {
-        report_error(ERROR_TOK(var_init), "Expecting assignment here.");
+        report_error_(ERROR_TOK(var_init), "Expecting assignment here.");
         return;
       }
       if (init[3] != '0' && init[3] != '-') {
-        report_error(ERROR_TOK(init[3]), "Expecting integer literal here.");
+        report_error_(ERROR_TOK(init[3]), "Expecting integer literal here.");
         return;
       }
 
@@ -964,11 +964,11 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       const Token cond_sign = (cond[2] == '+' || cond[2] == '-') ? cond[2] : Token::invalid();
       const Token cond_end = cond_sign.is_valid() ? cond[3] : cond[2];
       if (cond_var.str() != var_name.str()) {
-        report_error(ERROR_TOK(cond_var), "Non matching loop counter variable.");
+        report_error_(ERROR_TOK(cond_var), "Non matching loop counter variable.");
         return;
       }
       if (cond_end != '0') {
-        report_error(ERROR_TOK(cond_end), "Expecting integer literal here.");
+        report_error_(ERROR_TOK(cond_end), "Expecting integer literal here.");
         return;
       }
 
@@ -978,25 +978,25 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       const Token iter_end = iter[1];
       int iter_incr = 0;
       if (iter_var.str() != var_name.str()) {
-        report_error(ERROR_TOK(iter_var), "Non matching loop counter variable.");
+        report_error_(ERROR_TOK(iter_var), "Non matching loop counter variable.");
         return;
       }
       if (iter_type == Increment) {
         iter_incr = +1;
         if (cond_type == '>') {
-          report_error(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
+          report_error_(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
           return;
         }
       }
       else if (iter_type == Decrement) {
         iter_incr = -1;
         if (cond_type == '<') {
-          report_error(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
+          report_error_(ERROR_TOK(for_tok), "Unsupported condition in unrolled loop.");
           return;
         }
       }
       else {
-        report_error(ERROR_TOK(iter_type), "Unsupported loop expression. Expecting ++ or --.");
+        report_error_(ERROR_TOK(iter_type), "Unsupported loop expression. Expecting ++ or --.");
         return;
       }
 
@@ -1045,7 +1045,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
   /* Check for remaining keywords. */
   parser().foreach_match("[[w", [&](const vector<Token> tokens) {
     if (tokens[2].str().find("unroll") != string::npos) {
-      report_error(ERROR_TOK(tokens[0]), "Incompatible loop format for [[unroll]].");
+      report_error_(ERROR_TOK(tokens[0]), "Incompatible loop format for [[unroll]].");
     }
   });
 }
@@ -1058,12 +1058,12 @@ void SourceProcessor::process_static_branch(
   }
 
   if (condition.str().find("&&") != string::npos || condition.str().find("||") != string::npos) {
-    report_error(ERROR_TOK(condition[0]), "Expecting single condition.");
+    report_error_(ERROR_TOK(condition[0]), "Expecting single condition.");
     return;
   }
 
   if (condition[1].str() != "srt_access") {
-    report_error(ERROR_TOK(if_tok), "Expecting compilation or specialization constant.");
+    report_error_(ERROR_TOK(if_tok), "Expecting compilation or specialization constant.");
     return;
   }
 
@@ -1089,8 +1089,8 @@ void SourceProcessor::process_static_branch(
       if (attributes.type() != ScopeType::Subscript ||
           attributes.front().next().scope().str_exclusive() != "static_branch")
       {
-        report_error(ERROR_TOK(next_if),
-                     "Expecting next if statement to also be a static branch.");
+        report_error_(ERROR_TOK(next_if),
+                      "Expecting next if statement to also be a static branch.");
         return;
       }
       return;
@@ -1237,7 +1237,7 @@ void SourceProcessor::lower_namespaces(Parser &parser)
     /* Deduplicate symbols. Done this way because we want to keep line definition ordering
      * inside the symbols_set. */
     unordered_set<string> unique_symbols;
-    for (const auto &symbol : metadata.symbol_table) {
+    for (const auto &symbol : metadata_.symbol_table) {
       auto [_, inserted] = unique_symbols.insert(symbol.name_space + symbol.identifier);
       if (inserted) {
         symbols_set.emplace(symbol);
@@ -1249,7 +1249,7 @@ void SourceProcessor::lower_namespaces(Parser &parser)
     /* Parse each namespace declaration.
      * Do it iteratively from the deepest namespace to the shallowest. */
     parser().foreach_scope(ScopeType::Namespace, [&](const Scope &scope) {
-      lower_namespace("", scope, parser, report_error, symbols_set);
+      lower_namespace("", scope, parser, report_error_, symbols_set);
     });
   } while (parser.apply_mutations());
 }
@@ -1273,9 +1273,9 @@ void SourceProcessor::lower_namespaces(Parser &parser)
 void SourceProcessor::lower_using(Parser &parser)
 {
   parser().foreach_match("un", [&](const vector<Token> &tokens) {
-    report_error(ERROR_TOK(tokens[0]),
-                 "Unsupported `using namespace`. "
-                 "Add individual `using` directives for each needed symbol.");
+    report_error_(ERROR_TOK(tokens[0]),
+                  "Unsupported `using namespace`. "
+                  "Add individual `using` directives for each needed symbol.");
   });
 
   auto process_using = [&](const Token &using_tok,
@@ -1289,7 +1289,7 @@ void SourceProcessor::lower_using(Parser &parser)
 
     /* Using the keyword in global or at namespace scope. */
     if (scope.type() == ScopeType::Global) {
-      report_error(ERROR_TOK(using_tok), "The `using` keyword is not allowed in global scope.");
+      report_error_(ERROR_TOK(using_tok), "The `using` keyword is not allowed in global scope.");
       return;
     }
     if (scope.type() == ScopeType::Namespace) {
@@ -1297,7 +1297,7 @@ void SourceProcessor::lower_using(Parser &parser)
        * Otherwise we can have different shadowing outcome between shader and C++. */
       string namespace_name = scope.front().prev().full_symbol_name();
       if (namespace_name != namespace_prefix) {
-        report_error(
+        report_error_(
             ERROR_TOK(using_tok),
             "The `using` keyword is only allowed in namespace scope to make visible symbols "
             "from the same namespace declared in another scope, potentially from another "
@@ -1349,7 +1349,7 @@ void SourceProcessor::lower_using(Parser &parser)
 
   /* Verify all using were processed. */
   parser().foreach_token(Using, [&](const Token &token) {
-    report_error(ERROR_TOK(token), "Unsupported `using` keyword usage.");
+    report_error_(ERROR_TOK(token), "Unsupported `using` keyword usage.");
   });
 }
 
@@ -1373,14 +1373,14 @@ void SourceProcessor::lower_scope_resolution_operators(Parser &parser)
 
 string SourceProcessor::disabled_code_mutation(const string &str)
 {
-  Parser parser(str, report_error);
+  Parser parser(str, report_error_);
 
   auto process_disabled_scope = [&](Token start_tok) {
     /* Search for endif with the same indentation. Assume formatted input. */
     string end_str = start_tok.str_with_whitespace() + "endif";
     size_t scope_end = parser.str().find(end_str, start_tok.str_index_start());
     if (scope_end == string::npos) {
-      report_error(ERROR_TOK(start_tok), "Couldn't find end of disabled scope.");
+      report_error_(ERROR_TOK(start_tok), "Couldn't find end of disabled scope.");
       return;
     }
     /* Search for else/elif with the same indentation. Assume formatted input. */
@@ -1455,11 +1455,11 @@ void SourceProcessor::lower_swizzle_methods(Parser &parser)
 
 string SourceProcessor::threadgroup_variables_parse_and_remove(const string &str)
 {
-  Parser parser(str, report_error);
+  Parser parser(str, report_error_);
 
   auto process_shared_var = [&](Token shared_tok, Token type, Token name, Token decl_end) {
     if (shared_tok.str() == "shared") {
-      metadata.shared_variables.push_back(
+      metadata_.shared_variables.push_back(
           {type.str(), parser.substr_range_inclusive(name, decl_end.prev())});
 
       parser.erase(shared_tok, decl_end);
@@ -1508,8 +1508,8 @@ void SourceProcessor::parse_library_functions(Parser &parser)
           qualifier = "out";
         }
         else if (qualifier != "const" && qualifier != "(" && qualifier != ",") {
-          report_error(ERROR_TOK(type.prev()),
-                       "Unrecognized qualifier, expecting 'const', 'in', 'out' or 'inout'.");
+          report_error_(ERROR_TOK(type.prev()),
+                        "Unrecognized qualifier, expecting 'const', 'in', 'out' or 'inout'.");
           qualifier = "in";
         }
         else {
@@ -1520,7 +1520,7 @@ void SourceProcessor::parse_library_functions(Parser &parser)
           ArgumentFormat{metadata::Qualifier(hash(qualifier)), metadata::Type(hash(type.str()))});
     });
 
-    metadata.functions.emplace_back(fn);
+    metadata_.functions.emplace_back(fn);
   });
 }
 
@@ -1569,7 +1569,7 @@ void SourceProcessor::parse_builtins(const string &str, const string &filename, 
       continue;
     }
     if (str.find(token) != string::npos) {
-      metadata.builtins.emplace_back(Builtin(hash(token)));
+      metadata_.builtins.emplace_back(Builtin(hash(token)));
     }
   }
 }
@@ -1622,7 +1622,7 @@ void SourceProcessor::lower_assert(Parser &parser, const string &filename)
   });
 #ifndef WITH_GPU_SHADER_ASSERT
   (void)filename;
-  (void)report_error;
+  (void)report_error_;
 #endif
   parser.apply_mutations();
 }
@@ -1691,7 +1691,7 @@ void SourceProcessor::lower_resource_table(Parser &parser)
         resource.res_type = type;
       }
       else {
-        report_error(ERROR_TOK(attribute[0]), "Invalid attribute in resource table");
+        report_error_(ERROR_TOK(attribute[0]), "Invalid attribute in resource table");
       }
     });
     return resource;
@@ -1699,7 +1699,7 @@ void SourceProcessor::lower_resource_table(Parser &parser)
 
   auto parse_vertex_input = [&](Scope attributes, Token type, Token name, Scope array) {
     if (array.is_valid()) {
-      report_error(ERROR_TOK(array[0]), "Array are not supported as vertex attributes");
+      report_error_(ERROR_TOK(array[0]), "Array are not supported as vertex attributes");
     }
 
     metadata::ParsedVertInput vert_in{type.line_number(), type.str(), name.str()};
@@ -1707,7 +1707,7 @@ void SourceProcessor::lower_resource_table(Parser &parser)
     if (vert_in.var_type == "float3x3" || vert_in.var_type == "float2x2" ||
         vert_in.var_type == "float4x4" || vert_in.var_type == "float3x4")
     {
-      report_error(ERROR_TOK(name), "Matrices are not supported as vertex attributes");
+      report_error_(ERROR_TOK(name), "Matrices are not supported as vertex attributes");
     }
 
     attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
@@ -1716,7 +1716,7 @@ void SourceProcessor::lower_resource_table(Parser &parser)
         vert_in.slot = attribute[2].str();
       }
       else {
-        report_error(ERROR_TOK(attribute[0]), "Invalid attribute in vertex input interface");
+        report_error_(ERROR_TOK(attribute[0]), "Invalid attribute in vertex input interface");
       }
     });
     return vert_in;
@@ -1725,7 +1725,7 @@ void SourceProcessor::lower_resource_table(Parser &parser)
   auto parse_vertex_output =
       [&](Token struct_name, Scope attributes, Token type, Token name, Scope array) {
         if (array.is_valid()) {
-          report_error(ERROR_TOK(array[0]), "Array are not supported in stage interface");
+          report_error_(ERROR_TOK(array[0]), "Array are not supported in stage interface");
         }
 
         Token interpolation_mode = attributes[1];
@@ -1738,13 +1738,13 @@ void SourceProcessor::lower_resource_table(Parser &parser)
         if (attr.var_type == "float3x3" || attr.var_type == "float2x2" ||
             attr.var_type == "float4x4" || attr.var_type == "float3x4")
         {
-          report_error(ERROR_TOK(name), "Matrices are not supported in stage interface");
+          report_error_(ERROR_TOK(name), "Matrices are not supported in stage interface");
         }
 
         if (attr.interpolation_mode != "smooth" && attr.interpolation_mode != "flat" &&
             attr.interpolation_mode != "no_perspective")
         {
-          report_error(ERROR_TOK(attributes[0]), "Invalid attribute in shader stage interface");
+          report_error_(ERROR_TOK(attributes[0]), "Invalid attribute in shader stage interface");
         }
         return attr;
       };
@@ -1766,8 +1766,8 @@ void SourceProcessor::lower_resource_table(Parser &parser)
             frag_out.dual_source = attribute[2].str();
           }
           else {
-            report_error(ERROR_TOK(attributes[0]),
-                         "Invalid attribute in fragment output interface");
+            report_error_(ERROR_TOK(attributes[0]),
+                          "Invalid attribute in fragment output interface");
           }
         });
         return frag_out;
@@ -1838,21 +1838,22 @@ void SourceProcessor::lower_resource_table(Parser &parser)
       else if (srt_type != decl_type) {
         switch (srt_type) {
           case SrtType::resource_table:
-            report_error(ERROR_TOK(struct_name), "Structure expected to contain resources...");
+            report_error_(ERROR_TOK(struct_name), "Structure expected to contain resources...");
             break;
           case SrtType::vertex_input:
-            report_error(ERROR_TOK(struct_name), "Structure expected to contain vertex inputs...");
+            report_error_(ERROR_TOK(struct_name),
+                          "Structure expected to contain vertex inputs...");
             break;
           case SrtType::vertex_output:
-            report_error(ERROR_TOK(struct_name),
-                         "Structure expected to contain vertex outputs...");
+            report_error_(ERROR_TOK(struct_name),
+                          "Structure expected to contain vertex outputs...");
             break;
           case SrtType::fragment_output:
-            report_error(ERROR_TOK(struct_name),
-                         "Structure expected to contain fragment inputs...");
+            report_error_(ERROR_TOK(struct_name),
+                          "Structure expected to contain fragment inputs...");
             break;
           case SrtType::none:
-            report_error(ERROR_TOK(struct_name), "Structure expected to contain plain data...");
+            report_error_(ERROR_TOK(struct_name), "Structure expected to contain plain data...");
             break;
           case SrtType::undefined:
             break;
@@ -1860,19 +1861,19 @@ void SourceProcessor::lower_resource_table(Parser &parser)
 
         switch (decl_type) {
           case SrtType::resource_table:
-            report_error(ERROR_TOK(attributes[1]), "...but member declared as resource.");
+            report_error_(ERROR_TOK(attributes[1]), "...but member declared as resource.");
             break;
           case SrtType::vertex_input:
-            report_error(ERROR_TOK(attributes[1]), "...but member declared as vertex input.");
+            report_error_(ERROR_TOK(attributes[1]), "...but member declared as vertex input.");
             break;
           case SrtType::vertex_output:
-            report_error(ERROR_TOK(attributes[1]), "...but member declared as vertex output.");
+            report_error_(ERROR_TOK(attributes[1]), "...but member declared as vertex output.");
             break;
           case SrtType::fragment_output:
-            report_error(ERROR_TOK(attributes[1]), "...but member declared as fragment output.");
+            report_error_(ERROR_TOK(attributes[1]), "...but member declared as fragment output.");
             break;
           case SrtType::none:
-            report_error(ERROR_TOK(name), "...but member declared as plain data.");
+            report_error_(ERROR_TOK(name), "...but member declared as plain data.");
             break;
           case SrtType::undefined:
             break;
@@ -1912,16 +1913,16 @@ void SourceProcessor::lower_resource_table(Parser &parser)
 
     switch (srt_type) {
       case SrtType::resource_table:
-        metadata.resource_tables.emplace_back(srt);
+        metadata_.resource_tables.emplace_back(srt);
         break;
       case SrtType::vertex_input:
-        metadata.vertex_inputs.emplace_back(vertex_in);
+        metadata_.vertex_inputs.emplace_back(vertex_in);
         break;
       case SrtType::vertex_output:
-        metadata.stage_interfaces.emplace_back(vertex_out);
+        metadata_.stage_interfaces.emplace_back(vertex_out);
         break;
       case SrtType::fragment_output:
-        metadata.fragment_outputs.emplace_back(fragment_out);
+        metadata_.fragment_outputs.emplace_back(fragment_out);
         break;
       case SrtType::undefined:
       case SrtType::none:
@@ -1997,7 +1998,7 @@ void SourceProcessor::lower_strings(Parser &parser)
   parser().foreach_token(String, [&](const Token &token) {
     uint32_t hash = hash_string(token.str());
     metadata::PrintfFormat format = {hash, token.str()};
-    metadata.printf_formats.emplace_back(format);
+    metadata_.printf_formats.emplace_back(format);
     parser.replace(token, "string_t(" + to_string(hash) + "u)", true);
   });
   parser.apply_mutations();
@@ -2102,7 +2103,7 @@ void SourceProcessor::lower_implicit_member(Parser &parser)
 
     auto check_shadowing = [&](const Tokens &toks) {
       if (is_class_token(members_tokens, toks[1].str())) {
-        report_error(ERROR_TOK(toks[1]), "Class member shadowing.");
+        report_error_(ERROR_TOK(toks[1]), "Class member shadowing.");
       }
     };
 
@@ -2168,16 +2169,16 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
 
   parser().foreach_match("sw:", [&](const Tokens &toks) {
     if (toks[2] == ':') {
-      report_error(ERROR_TOK(toks[2]), "class inheritance is not supported");
+      report_error_(ERROR_TOK(toks[2]), "class inheritance is not supported");
       return;
     }
   });
 
   parser().foreach_match("cww(..)c?{..}", [&](const Tokens &toks) {
     if (toks[0].prev() == Const) {
-      report_error(ERROR_TOK(toks[0]),
-                   "function return type is marked `const` but it makes no sense for values "
-                   "and returning reference is not supported");
+      report_error_(ERROR_TOK(toks[0]),
+                    "function return type is marked `const` but it makes no sense for values "
+                    "and returning reference is not supported");
       return;
     }
   });
@@ -2201,8 +2202,8 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
           const Token const_tok = is_const ? fn_args.back().next() : Token::invalid();
 
           if (fn_name.str()[0] == '_') {
-            report_error(ERROR_TOK(fn_name),
-                         "function name starting with an underscore are reserved");
+            report_error_(ERROR_TOK(fn_name),
+                          "function name starting with an underscore are reserved");
           }
 
           if (is_static) {
@@ -2233,8 +2234,8 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
                 (fn_name.str().find_first_not_of("xyzw") == string::npos ||
                  fn_name.str().find_first_not_of("rgba") == string::npos))
             {
-              report_error(ERROR_TOK(fn_name),
-                           "Method name matching swizzles accessor are forbidden.");
+              report_error_(ERROR_TOK(fn_name),
+                            "Method name matching swizzles accessor are forbidden.");
             }
           }
         });
@@ -2264,7 +2265,7 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
 
             string proto_str = parser.substr_range_inclusive(fn_start, fn_args.back());
             proto_str = strip_whitespace(proto_str) + ";\n";
-            Parser proto(proto_str, report_error);
+            Parser proto(proto_str, report_error_);
 
             parser.insert_after(struct_end, proto.result_get());
           });
@@ -2330,10 +2331,10 @@ void SourceProcessor::lower_method_calls(Parser &parser)
             /* End of chain. */
             break;
           }
-          report_error(start_of_this.line_number(),
-                       start_of_this.char_number(),
-                       start_of_this.line_str(),
-                       "lower_method_call parsing error");
+          report_error_(start_of_this.line_number(),
+                        start_of_this.char_number(),
+                        start_of_this.line_str(),
+                        "lower_method_call parsing error");
           break;
         }
         string this_str = parser.substr_range_inclusive(start_of_this, end_of_this);
@@ -2389,7 +2390,7 @@ void SourceProcessor::lower_pipeline_definition(Parser &parser, const string &fi
     create_info_decl += "DO_STATIC_COMPILATION()\n";
     create_info_decl += "GPU_SHADER_CREATE_END()\n";
 
-    metadata.create_infos_declarations.emplace_back(create_info_decl);
+    metadata_.create_infos_declarations.emplace_back(create_info_decl);
   };
 
   auto process_compute_pipeline = [&](Token pipeline_name, Scope params) {
@@ -2404,7 +2405,7 @@ void SourceProcessor::lower_pipeline_definition(Parser &parser, const string &fi
     create_info_decl += "DO_STATIC_COMPILATION()\n";
     create_info_decl += "GPU_SHADER_CREATE_END()\n";
 
-    metadata.create_infos_declarations.emplace_back(create_info_decl);
+    metadata_.create_infos_declarations.emplace_back(create_info_decl);
   };
 
   parser().foreach_match("ww(w", [&](const vector<Token> &tokens) {
@@ -2585,10 +2586,10 @@ void SourceProcessor::lower_enums(Parser &parser)
    */
 
   auto missing_underlying_type = [&](vector<Token> tokens) {
-    report_error(tokens[0].line_number(),
-                 tokens[0].char_number(),
-                 tokens[0].line_str(),
-                 "enum declaration must explicitly use an underlying type");
+    report_error_(tokens[0].line_number(),
+                  tokens[0].char_number(),
+                  tokens[0].line_str(),
+                  "enum declaration must explicitly use an underlying type");
   };
 
   parser().foreach_match("Mw{", missing_underlying_type);
@@ -2646,9 +2647,10 @@ void SourceProcessor::lower_enums(Parser &parser)
                             "#define " + enum_name_str + " " + enum_type.str() + "\n");
     if (is_host_shared) {
       if (type_str != "uint32_t" && type_str != "int32_t") {
-        report_error(ERROR_TOK(enum_type),
-                     "enum declaration must use uint32_t or int32_t underlying type for interface "
-                     "compatibility");
+        report_error_(
+            ERROR_TOK(enum_type),
+            "enum declaration must use uint32_t or int32_t underlying type for interface "
+            "compatibility");
         return;
       }
 
@@ -2678,7 +2680,7 @@ void SourceProcessor::lower_enums(Parser &parser)
   parser.apply_mutations();
 
   parser().foreach_token(
-      Enum, [&](Token tok) { report_error(ERROR_TOK(tok), "invalid enum declaration"); });
+      Enum, [&](Token tok) { report_error_(ERROR_TOK(tok), "invalid enum declaration"); });
 }
 
 /* Merge attribute scopes. They are equivalent in the C++ standard.
@@ -2718,7 +2720,7 @@ void SourceProcessor::lower_host_shared_structures(Parser &parser)
 
     Token comma = body.find_token(',');
     if (comma.is_valid() && comma.scope() == body) {
-      report_error(
+      report_error_(
           ERROR_TOK(comma),
           "comma declaration is not supported in shared struct, expand to multiple definition");
       return;
@@ -2758,37 +2760,37 @@ void SourceProcessor::lower_host_shared_structures(Parser &parser)
       if (type_str.find("char") != string::npos || type_str.find("short") != string::npos ||
           type_str.find("half") != string::npos)
       {
-        report_error(ERROR_TOK(type), "Small types are forbidden in shader interfaces.");
+        report_error_(ERROR_TOK(type), "Small types are forbidden in shader interfaces.");
       }
       else if (type_str == "float3") {
-        report_error(ERROR_TOK(type), "use packed_float3 instead of float3 in shared structure");
+        report_error_(ERROR_TOK(type), "use packed_float3 instead of float3 in shared structure");
       }
       else if (type_str == "uint3") {
-        report_error(ERROR_TOK(type), "use packed_uint3 instead of uint3 in shared structure");
+        report_error_(ERROR_TOK(type), "use packed_uint3 instead of uint3 in shared structure");
       }
       else if (type_str == "int3") {
-        report_error(ERROR_TOK(type), "use packed_int3 instead of int3 in shared structure");
+        report_error_(ERROR_TOK(type), "use packed_int3 instead of int3 in shared structure");
       }
       else if (type_str == "bool") {
-        report_error(ERROR_TOK(type), "bool is not allowed in shared structure, use bool32_t");
+        report_error_(ERROR_TOK(type), "bool is not allowed in shared structure, use bool32_t");
       }
       else if (type_str == "float4x3") {
-        report_error(ERROR_TOK(type), "float4x3 is not allowed in shared structure");
+        report_error_(ERROR_TOK(type), "float4x3 is not allowed in shared structure");
       }
       else if (type_str == "float3x3") {
-        report_error(ERROR_TOK(type), "float3x3 is not allowed in shared structure");
+        report_error_(ERROR_TOK(type), "float3x3 is not allowed in shared structure");
       }
       else if (type_str == "float2x3") {
-        report_error(ERROR_TOK(type), "float2x3 is not allowed in shared structure");
+        report_error_(ERROR_TOK(type), "float2x3 is not allowed in shared structure");
       }
       else if (type_str == "float4x2") {
-        report_error(ERROR_TOK(type), "float4x2 is not allowed in shared structure");
+        report_error_(ERROR_TOK(type), "float4x2 is not allowed in shared structure");
       }
       else if (type_str == "float3x2") {
-        report_error(ERROR_TOK(type), "float3x2 is not allowed in shared structure");
+        report_error_(ERROR_TOK(type), "float3x2 is not allowed in shared structure");
       }
       else if (type_str == "float2x2") {
-        report_error(ERROR_TOK(type), "float2x2 is not allowed in shared structure");
+        report_error_(ERROR_TOK(type), "float2x2 is not allowed in shared structure");
       }
 
       auto sz = sizeof_types.find(type_str);
@@ -2815,8 +2817,8 @@ void SourceProcessor::lower_host_shared_structures(Parser &parser)
         // parser.replace(type, type.str() + linted_struct_suffix + " ");
       }
       else {
-        report_error(ERROR_TOK(type),
-                     "Unknown type, add 'enum' or 'struct' keyword before the type name");
+        report_error_(ERROR_TOK(type),
+                      "Unknown type, add 'enum' or 'struct' keyword before the type name");
         return;
       }
 
@@ -2827,7 +2829,7 @@ void SourceProcessor::lower_host_shared_structures(Parser &parser)
       size_t align = type_info.alignment - (offset % type_info.alignment);
       if (align != type_info.alignment) {
         string err = "Misaligned member, missing " + to_string(align) + " padding bytes";
-        report_error(ERROR_TOK(type), err.c_str());
+        report_error_(ERROR_TOK(type), err.c_str());
       }
 
       size_t array_size = 1;
@@ -2851,7 +2853,7 @@ void SourceProcessor::lower_host_shared_structures(Parser &parser)
     }
     else if (offset % 16 != 0) {
       string err = "Alignment issue, missing " + to_string(16 - (offset % 16)) + " padding bytes";
-      report_error(ERROR_TOK(struct_name), err.c_str());
+      report_error_(ERROR_TOK(struct_name), err.c_str());
     }
     /* Insert an alias to the type that will get referenced for shaders that enforce usage of
      * linted types. */
@@ -2877,7 +2879,7 @@ void SourceProcessor::lint_unbraced_statements(Parser &parser)
       end_tok = end_tok.next().scope().back();
     }
     if (end_tok.next() != '{') {
-      report_error(ERROR_TOK(end_tok), "Missing curly braces after flow control statement.");
+      report_error_(ERROR_TOK(end_tok), "Missing curly braces after flow control statement.");
     }
   };
 
@@ -2897,7 +2899,7 @@ void SourceProcessor::lint_reserved_tokens(Parser &parser)
 
   parser().foreach_token(Word, [&](Token tok) {
     if (reserved_symbols.find(tok.str()) != reserved_symbols.end()) {
-      report_error(ERROR_TOK(tok), "Reserved GLSL token");
+      report_error_(ERROR_TOK(tok), "Reserved GLSL token");
     }
   });
 }
@@ -2928,7 +2930,7 @@ void SourceProcessor::lint_attributes(Parser &parser)
           attr_str == "nodiscard")
       {
         if (attr_scope.is_valid()) {
-          report_error(ERROR_TOK(attr), "This attribute requires no argument");
+          report_error_(ERROR_TOK(attr), "This attribute requires no argument");
           invalid = true;
         }
       }
@@ -2937,32 +2939,32 @@ void SourceProcessor::lint_attributes(Parser &parser)
                attr_str == "sampler")
       {
         if (attr_scope.is_invalid()) {
-          report_error(ERROR_TOK(attr), "This attribute requires 1 argument");
+          report_error_(ERROR_TOK(attr), "This attribute requires 1 argument");
           invalid = true;
         }
       }
       else if (attr_str == "storage") {
         if (attr_scope.is_invalid()) {
-          report_error(ERROR_TOK(attr), "This attribute requires 2 arguments");
+          report_error_(ERROR_TOK(attr), "This attribute requires 2 arguments");
           invalid = true;
         }
       }
       else if (attr_str == "image") {
         if (attr_scope.is_invalid()) {
-          report_error(ERROR_TOK(attr), "This attribute requires 3 arguments");
+          report_error_(ERROR_TOK(attr), "This attribute requires 3 arguments");
           invalid = true;
         }
       }
       else if (attr_str == "local_size") {
         if (attr_scope.is_invalid()) {
-          report_error(ERROR_TOK(attr), "This attribute requires at least 1 argument");
+          report_error_(ERROR_TOK(attr), "This attribute requires at least 1 argument");
           invalid = true;
         }
       }
       else if (attr_str == "host_shared") {
         if (attributes.front().prev().prev() != Struct && attributes.front().prev().prev() != Enum)
         {
-          report_error(
+          report_error_(
               ERROR_TOK(attr),
               "host_shared attributes must be placed after a struct or an enum definition");
           invalid = true;
@@ -2972,8 +2974,8 @@ void SourceProcessor::lint_attributes(Parser &parser)
       }
       else if (attr_str == "unroll" || attr_str == "unroll_n") {
         if (attributes.front().prev().prev().scope().front().prev() != For) {
-          report_error(ERROR_TOK(attr),
-                       "[[unroll]] attribute must be declared after a 'for' statement");
+          report_error_(ERROR_TOK(attr),
+                        "[[unroll]] attribute must be declared after a 'for' statement");
           invalid = true;
         }
         /* Placement already checked. */
@@ -2981,8 +2983,8 @@ void SourceProcessor::lint_attributes(Parser &parser)
       }
       else if (attr_str == "static_branch") {
         if (attributes.front().prev().prev().scope().front().prev() != If) {
-          report_error(ERROR_TOK(attr),
-                       "[[static_branch]] attribute must be declared after a 'if' condition");
+          report_error_(ERROR_TOK(attr),
+                        "[[static_branch]] attribute must be declared after a 'if' condition");
           invalid = true;
         }
         /* Placement already checked. */
@@ -2990,7 +2992,7 @@ void SourceProcessor::lint_attributes(Parser &parser)
       }
       else {
         cout << "attr_str " << attr_str << endl;
-        report_error(ERROR_TOK(attr), "Unrecognized attribute");
+        report_error_(ERROR_TOK(attr), "Unrecognized attribute");
         invalid = true;
         /* Attribute already invalid, don't check placement. */
         return;
@@ -3009,7 +3011,7 @@ void SourceProcessor::lint_attributes(Parser &parser)
         /* Placement is maybe correct. Could refine a bit more. */
       }
       else {
-        report_error(ERROR_TOK(attr), "attribute must be declared at a start of a declaration");
+        report_error_(ERROR_TOK(attr), "attribute must be declared at a start of a declaration");
         invalid = true;
       }
     });
@@ -3040,7 +3042,7 @@ void SourceProcessor::lower_noop_keywords(Parser &parser)
       parser.erase(tok, tok.next());
     }
     else {
-      report_error(ERROR_TOK(tok), "Expecting colon ':' after access specifier");
+      report_error_(ERROR_TOK(tok), "Expecting colon ':' after access specifier");
     }
   };
   parser().foreach_token(Private, process_access);
@@ -3115,7 +3117,7 @@ void SourceProcessor::lower_designated_initializers(Parser &parser)
   /* Transform to compatibility macro. */
   parser().foreach_match("w{.w=", [&](Tokens t) {
     if (t[0].prev() != '=' || t[0].prev().prev() != 'w') {
-      report_error(ERROR_TOK(t[0]), "Designated initializers are only supported in assignments");
+      report_error_(ERROR_TOK(t[0]), "Designated initializers are only supported in assignments");
       return;
     }
     /* Lint for nested aggregates. */
@@ -3123,8 +3125,8 @@ void SourceProcessor::lower_designated_initializers(Parser &parser)
     if (nested_aggregate_end != t[3]) {
       Token nested_aggregate_start = nested_aggregate_end.scope().front();
       if (nested_aggregate_start.prev() != Word) {
-        report_error(ERROR_TOK(nested_aggregate_start),
-                     "Nested anonymous aggregate is not supported");
+        report_error_(ERROR_TOK(nested_aggregate_start),
+                      "Nested anonymous aggregate is not supported");
         return;
       }
     }
@@ -3136,7 +3138,7 @@ void SourceProcessor::lower_designated_initializers(Parser &parser)
     parser.erase(assign_tok, t[1]);
     aggregate.foreach_match(".w=", [&](Tokens t) {
       if (t[0].scope() != aggregate) {
-        report_error(ERROR_TOK(t[0]), "Nested initializer lists are not supported");
+        report_error_(ERROR_TOK(t[0]), "Nested initializer lists are not supported");
         return;
       }
       parser.insert_before(t[0], var.str());
@@ -3172,9 +3174,9 @@ void SourceProcessor::lower_aggregate_initializers(Parser &parser)
         return;
       }
       if (builtin_types.find(t[0].str()) != builtin_types.end()) {
-        report_error(ERROR_TOK(t[0]),
-                     "Aggregate is error prone for built-in vector and matrix types, use "
-                     "constructors instead");
+        report_error_(ERROR_TOK(t[0]),
+                      "Aggregate is error prone for built-in vector and matrix types, use "
+                      "constructors instead");
       }
       if (t[1].scope().token_count() == 2) {
         /* Call generated default ctor. */
@@ -3187,8 +3189,8 @@ void SourceProcessor::lower_aggregate_initializers(Parser &parser)
       if (nested_aggregate_end != t[4]) {
         Token nested_aggregate_start = nested_aggregate_end.scope().front();
         if (nested_aggregate_start.prev() != Word) {
-          report_error(ERROR_TOK(nested_aggregate_start),
-                       "Nested anonymous aggregate is not supported");
+          report_error_(ERROR_TOK(nested_aggregate_start),
+                        "Nested anonymous aggregate is not supported");
         }
       }
       parser.insert_before(t[0], "_ctor(");
@@ -3227,20 +3229,20 @@ void SourceProcessor::lower_array_initializations(Parser &parser)
       });
       const int list_len = (comma_count > 0) ? comma_count + 1 : 0;
       if (list_len == 0) {
-        report_error(ERROR_TOK(name_tok), "Array size must be greater than zero.");
+        report_error_(ERROR_TOK(name_tok), "Array size must be greater than zero.");
       }
       parser.insert_after(array_scope[0], to_string(list_len));
     }
     else if (array_scope_tok_len == 3 && array_scope[1] == Number) {
       if (stol(array_scope[1].str()) == 0) {
-        report_error(ERROR_TOK(name_tok), "Array size must be greater than zero.");
+        report_error_(ERROR_TOK(name_tok), "Array size must be greater than zero.");
       }
     }
 
     /* Lint nested initializer list. */
     list_scope.foreach_token(BracketOpen, [&](Token tok) {
       if (tok != list_scope.front()) {
-        report_error(ERROR_TOK(name_tok), "Nested initializer list is not supported.");
+        report_error_(ERROR_TOK(name_tok), "Nested initializer list is not supported.");
       }
     });
 
@@ -3482,13 +3484,13 @@ void SourceProcessor::lower_unions(Parser &parser)
       union_body.foreach_declaration(
           [&](Scope, Token, Token type, Scope, Token name, Scope array, Token) {
             if (array.is_valid()) {
-              report_error(ERROR_TOK(name), "Arrays are not supported inside unions.");
+              report_error_(ERROR_TOK(name), "Arrays are not supported inside unions.");
             }
             members.emplace_back(Member{type.str(), name.str(), 0, 0, type.prev() == Enum});
           });
 
       if (members.empty()) {
-        report_error(ERROR_TOK(t[0]), "Empty union");
+        report_error_(ERROR_TOK(t[0]), "Empty union");
         return;
       }
       union_members.emplace(union_type, members);
@@ -3600,9 +3602,9 @@ void SourceProcessor::lower_unions(Parser &parser)
     /* Replace placeholder struct with float members. */
     size_t size = type_size_get(body.front().next());
     if (size == 0) {
-      report_error(ERROR_TOK(body.front().next()),
-                   "Can't infer size of member. Type must be defined in this file and have "
-                   "the [[host_shared]] attribute.");
+      report_error_(ERROR_TOK(body.front().next()),
+                    "Can't infer size of member. Type must be defined in this file and have "
+                    "the [[host_shared]] attribute.");
     }
     for (int i = 0; i < size; i += 16) {
       size_t member_size = size - i;
@@ -3707,14 +3709,14 @@ void SourceProcessor::lower_unions(Parser &parser)
                            const vector<Member> &struct_members) -> string {
     const size_t union_size = type_size_get(union_type_tok);
     if (union_size == 0) {
-      report_error(ERROR_TOK(union_type_tok),
-                   "Can't infer size of member. Type must be defined in this file and have "
-                   "the [[host_shared]] attribute.");
+      report_error_(ERROR_TOK(union_type_tok),
+                    "Can't infer size of member. Type must be defined in this file and have "
+                    "the [[host_shared]] attribute.");
       return "";
     }
     const Member &last_member = struct_members.back();
     if (last_member.offset + last_member.size != union_size) {
-      report_error(ERROR_TOK(union_type_tok), "union has members of different sizes");
+      report_error_(ERROR_TOK(union_type_tok), "union has members of different sizes");
       return "";
     }
 
@@ -3741,14 +3743,14 @@ void SourceProcessor::lower_unions(Parser &parser)
                            const vector<Member> &struct_members) -> string {
     const size_t union_size = type_size_get(union_type_tok);
     if (union_size == 0) {
-      report_error(ERROR_TOK(union_type_tok),
-                   "Can't infer size of member. Type must be defined in this file and have "
-                   "the [[host_shared]] attribute.");
+      report_error_(ERROR_TOK(union_type_tok),
+                    "Can't infer size of member. Type must be defined in this file and have "
+                    "the [[host_shared]] attribute.");
       return "";
     }
     const Member &last_member = struct_members.back();
     if (last_member.offset + last_member.size != union_size) {
-      report_error(ERROR_TOK(union_type_tok), "union has members of different sizes");
+      report_error_(ERROR_TOK(union_type_tok), "union has members of different sizes");
       return "";
     }
 
@@ -3773,7 +3775,7 @@ void SourceProcessor::lower_unions(Parser &parser)
         continue;
       }
       if (struct_members.find(member.type) == struct_members.end()) {
-        report_error(
+        report_error_(
             ERROR_TOK(type),
             "Unknown type encountered while unwrapping union. Contained types must be defined "
             "in this file and decorated with [[host_shared]] attribute.");
@@ -3811,7 +3813,7 @@ void SourceProcessor::lower_unions(Parser &parser)
       const vector<Member> &members = union_members.find(type.str())->second;
       for (const auto &member : members) {
         if (struct_members.find(member.type) == struct_members.end()) {
-          report_error(
+          report_error_(
               ERROR_TOK(type),
               "Unknown union member type. Type must be defined in this file and decorated "
               "with [[host_shared]] attribute.");
@@ -3854,7 +3856,7 @@ void SourceProcessor::lower_union_accessor_templates(Parser &parser)
       t[1].scope().foreach_declaration(
           [&](Scope, Token, Token type, Scope template_scope, Token name, Scope, Token) {
             if (type.str() != "union_t") {
-              report_error(
+              report_error_(
                   ERROR_TOK(name),
                   "All union members must have their type wrapped using the union_t<T> template.");
               parser.erase(type, type.find_next(SemiColon));
@@ -3894,21 +3896,22 @@ void SourceProcessor::lower_srt_accessor_templates(Parser &parser)
                                  Token) {
       if (attributes[1].str() != "resource_table") {
         if (type.str() == "srt_t") {
-          report_error(ERROR_TOK(name),
-                       "The srt_t<T> template is only to be used with members declared with the "
-                       "[[resource_table]] attribute.");
+          report_error_(ERROR_TOK(name),
+                        "The srt_t<T> template is only to be used with members declared with the "
+                        "[[resource_table]] attribute.");
         }
         return;
       }
 
       if (type.str() != "srt_t") {
-        report_error(ERROR_TOK(type),
-                     "Members declared with the [[resource_table]] attribute must wrap their type "
-                     "with the srt_t<T> template.");
+        report_error_(
+            ERROR_TOK(type),
+            "Members declared with the [[resource_table]] attribute must wrap their type "
+            "with the srt_t<T> template.");
       }
 
       if (array.is_valid()) {
-        report_error(ERROR_TOK(name), "[[resource_table]] members cannot be arrays.");
+        report_error_(ERROR_TOK(name), "[[resource_table]] members cannot be arrays.");
       }
 
       /* Remove the template but not the wrapped type. */
@@ -3971,7 +3974,7 @@ void SourceProcessor::lower_srt_member_access(Parser &parser)
     fn_args.foreach_match("[[w]]c?ww", [&](const vector<Token> toks) {
       if (toks[2].str() == srt_attribute) {
         parser.erase(toks[0].scope());
-        report_error(ERROR_TOK(toks[8]), "Shader Resource Table arguments must be references.");
+        report_error_(ERROR_TOK(toks[8]), "Shader Resource Table arguments must be references.");
       }
     });
   });
@@ -4036,7 +4039,7 @@ void SourceProcessor::lower_entry_points(Parser &parser)
     }
 
     if (is_entry_point && type.str() != "void") {
-      report_error(ERROR_TOK(type), "Entry point function must return void.");
+      report_error_(ERROR_TOK(type), "Entry point function must return void.");
       return;
     }
 
@@ -4062,8 +4065,8 @@ void SourceProcessor::lower_entry_points(Parser &parser)
 
     if (!local_size.empty()) {
       if (!is_compute_func) {
-        report_error(ERROR_TOK(type),
-                     "Only compute entry point function can use [[local_size(x,y,z)]].");
+        report_error_(ERROR_TOK(type),
+                      "Only compute entry point function can use [[local_size(x,y,z)]].");
       }
       else {
         create_info_decl += "LOCAL_GROUP_SIZE" + local_size + "\n";
@@ -4072,8 +4075,8 @@ void SourceProcessor::lower_entry_points(Parser &parser)
 
     if (use_early_frag_test) {
       if (!is_fragment_func) {
-        report_error(ERROR_TOK(type),
-                     "Only fragment entry point function can use [[use_early_frag_test]].");
+        report_error_(ERROR_TOK(type),
+                      "Only fragment entry point function can use [[use_early_frag_test]].");
       }
       else {
         create_info_decl += "EARLY_FRAGMENT_TEST(true)\n";
@@ -4088,111 +4091,111 @@ void SourceProcessor::lower_entry_points(Parser &parser)
 
       if (srt_attr == "vertex_id" && is_entry_point) {
         if (!is_vertex_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[vertex_id]] is only supported in vertex functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[vertex_id]] is only supported in vertex functions.");
         }
         else if (!is_const || srt_type != "int") {
-          report_error(ERROR_TOK(type), "[[vertex_id]] must be declared as `const int`.");
+          report_error_(ERROR_TOK(type), "[[vertex_id]] must be declared as `const int`.");
         }
         replace_word(srt_var, "gl_VertexID");
-        metadata.builtins.emplace_back(Builtin(hash("gl_VertexID")));
+        metadata_.builtins.emplace_back(Builtin(hash("gl_VertexID")));
         create_info_decl += "BUILTINS(BuiltinBits::VERTEX_ID)\n";
       }
       else if (srt_attr == "instance_id" && is_entry_point) {
         if (!is_vertex_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[instance_id]] is only supported in vertex functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[instance_id]] is only supported in vertex functions.");
         }
         else if (!is_const || srt_type != "int") {
-          report_error(ERROR_TOK(type), "[[instance_id]] must be declared as `const int`.");
+          report_error_(ERROR_TOK(type), "[[instance_id]] must be declared as `const int`.");
         }
         replace_word(srt_var, "gl_InstanceID");
-        metadata.builtins.emplace_back(Builtin(hash("gl_InstanceID")));
+        metadata_.builtins.emplace_back(Builtin(hash("gl_InstanceID")));
         create_info_decl += "BUILTINS(BuiltinBits::INSTANCE_ID)\n";
       }
       else if (srt_attr == "base_instance" && is_entry_point) {
         if (!is_vertex_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[base_instance]] is only supported in vertex functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[base_instance]] is only supported in vertex functions.");
         }
         else if (!is_const || srt_type != "int") {
-          report_error(ERROR_TOK(type),
-                       "[[base_instance]] must be declared as "
-                       "`const int`.");
+          report_error_(ERROR_TOK(type),
+                        "[[base_instance]] must be declared as "
+                        "`const int`.");
         }
         replace_word(srt_var, "gl_BaseInstance");
-        metadata.builtins.emplace_back(Builtin(hash("gl_BaseInstance")));
+        metadata_.builtins.emplace_back(Builtin(hash("gl_BaseInstance")));
       }
       else if (srt_attr == "point_size" && is_entry_point) {
         if (!is_vertex_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[point_size]] is only supported in vertex functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[point_size]] is only supported in vertex functions.");
         }
         else if (is_const || srt_type != "float") {
-          report_error(ERROR_TOK(type),
-                       "[[point_size]] must be declared as non-const reference (aka `float &`).");
+          report_error_(ERROR_TOK(type),
+                        "[[point_size]] must be declared as non-const reference (aka `float &`).");
         }
         replace_word(srt_var, "gl_PointSize");
         create_info_decl += "BUILTINS(BuiltinBits::POINT_SIZE)\n";
       }
       else if (srt_attr == "clip_distance" && is_entry_point) {
         if (!is_vertex_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[clip_distance]] is only supported in vertex functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[clip_distance]] is only supported in vertex functions.");
         }
         else if (is_const || srt_type != "float") {
-          report_error(ERROR_TOK(type),
-                       "[[clip_distance]] must be declared as non-const reference "
-                       "(aka `float (&)[]`).");
+          report_error_(ERROR_TOK(type),
+                        "[[clip_distance]] must be declared as non-const reference "
+                        "(aka `float (&)[]`).");
         }
         replace_word(srt_var, "gl_ClipDistance");
         create_info_decl += "BUILTINS(BuiltinBits::CLIP_DISTANCES)\n";
       }
       else if (srt_attr == "layer" && is_entry_point) {
         if (is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[layer]] is only supported in vertex and fragment functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[layer]] is only supported in vertex and fragment functions.");
         }
         else if (is_vertex_func && (is_const || srt_type != "int")) {
-          report_error(ERROR_TOK(type),
-                       "[[layer]] must be declared as non-const reference "
-                       "(aka `int &`).");
+          report_error_(ERROR_TOK(type),
+                        "[[layer]] must be declared as non-const reference "
+                        "(aka `int &`).");
         }
         else if (is_fragment_func && (!is_const || srt_type != "int")) {
-          report_error(ERROR_TOK(type),
-                       "[[layer]] must be declared as const reference "
-                       "(aka `const int &`).");
+          report_error_(ERROR_TOK(type),
+                        "[[layer]] must be declared as const reference "
+                        "(aka `const int &`).");
         }
         replace_word(srt_var, "gl_Layer");
         create_info_decl += "BUILTINS(BuiltinBits::LAYER)\n";
       }
       else if (srt_attr == "viewport_index" && is_entry_point) {
         if (is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[viewport_index]] is only supported in vertex and "
-                       "fragment functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[viewport_index]] is only supported in vertex and "
+                        "fragment functions.");
         }
         else if (is_vertex_func && (is_const || srt_type != "int")) {
-          report_error(ERROR_TOK(type),
-                       "[[viewport_index]] must be declared as non-const reference "
-                       "(aka `int &`).");
+          report_error_(ERROR_TOK(type),
+                        "[[viewport_index]] must be declared as non-const reference "
+                        "(aka `int &`).");
         }
         else if (is_fragment_func && (!is_const || srt_type != "int")) {
-          report_error(ERROR_TOK(type),
-                       "[[viewport_index]] must be declared as const reference "
-                       "(aka `const int &`).");
+          report_error_(ERROR_TOK(type),
+                        "[[viewport_index]] must be declared as const reference "
+                        "(aka `const int &`).");
         }
         replace_word(srt_var, "gl_ViewportIndex");
         create_info_decl += "BUILTINS(BuiltinBits::VIEWPORT_INDEX)\n";
       }
       else if (srt_attr == "position" && is_entry_point) {
         if (!is_vertex_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[position]] is only supported in vertex functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[position]] is only supported in vertex functions.");
         }
         else if (is_const || srt_type != "float4") {
-          report_error(ERROR_TOK(type),
-                       "[[position]] must be declared as non-const reference (aka `float4 &`).");
+          report_error_(ERROR_TOK(type),
+                        "[[position]] must be declared as non-const reference (aka `float4 &`).");
         }
         else {
           replace_word(srt_var, "gl_Position");
@@ -4200,11 +4203,11 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "frag_coord" && is_entry_point) {
         if (!is_fragment_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[frag_coord]] is only supported in fragment functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[frag_coord]] is only supported in fragment functions.");
         }
         else if (!is_const || srt_type != "float4") {
-          report_error(ERROR_TOK(type), "[[frag_coord]] must be declared as `const float4`.");
+          report_error_(ERROR_TOK(type), "[[frag_coord]] must be declared as `const float4`.");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::FRAG_COORD)\n";
@@ -4213,11 +4216,11 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "point_coord" && is_entry_point) {
         if (!is_fragment_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[point_coord]] is only supported in fragment functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[point_coord]] is only supported in fragment functions.");
         }
         else if (!is_const || srt_type != "float2") {
-          report_error(ERROR_TOK(type), "[[point_coord]] must be declared as `const float2`.");
+          report_error_(ERROR_TOK(type), "[[point_coord]] must be declared as `const float2`.");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::POINT_COORD)\n";
@@ -4226,11 +4229,11 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "front_facing" && is_entry_point) {
         if (!is_fragment_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[front_facing]] is only supported in fragment functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[front_facing]] is only supported in fragment functions.");
         }
         else if (!is_const || srt_type != "bool") {
-          report_error(ERROR_TOK(type), "[[front_facing]] must be declared as `const bool`.");
+          report_error_(ERROR_TOK(type), "[[front_facing]] must be declared as `const bool`.");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::FRONT_FACING)\n";
@@ -4239,12 +4242,12 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "global_invocation_id" && is_entry_point) {
         if (!is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[global_invocation_id]] is only supported in compute functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[global_invocation_id]] is only supported in compute functions.");
         }
         else if (!is_const || srt_type != "uint3") {
-          report_error(ERROR_TOK(type),
-                       "[[global_invocation_id]] must be declared as `const uint3`.");
+          report_error_(ERROR_TOK(type),
+                        "[[global_invocation_id]] must be declared as `const uint3`.");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::GLOBAL_INVOCATION_ID)\n";
@@ -4253,12 +4256,12 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "local_invocation_id" && is_entry_point) {
         if (!is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[local_invocation_id]] is only supported in compute functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[local_invocation_id]] is only supported in compute functions.");
         }
         else if (!is_const || srt_type != "uint3") {
-          report_error(ERROR_TOK(type),
-                       "[[local_invocation_id]] must be declared as `const uint3`.");
+          report_error_(ERROR_TOK(type),
+                        "[[local_invocation_id]] must be declared as `const uint3`.");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::LOCAL_INVOCATION_ID)\n";
@@ -4267,12 +4270,12 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "local_invocation_index" && is_entry_point) {
         if (!is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[local_invocation_index]] is only supported in compute functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[local_invocation_index]] is only supported in compute functions.");
         }
         else if (!is_const || srt_type != "uint") {
-          report_error(ERROR_TOK(type),
-                       "[[local_invocation_index]] must be declared as `const uint`.");
+          report_error_(ERROR_TOK(type),
+                        "[[local_invocation_index]] must be declared as `const uint`.");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::LOCAL_INVOCATION_INDEX)\n";
@@ -4281,13 +4284,13 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "work_group_id" && is_entry_point) {
         if (!is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[work_group_id]] is only supported in compute functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[work_group_id]] is only supported in compute functions.");
         }
         else if (!is_const || srt_type != "uint3") {
-          report_error(ERROR_TOK(type),
-                       "[[work_group_id]] must be declared as "
-                       "`const uint3`.");
+          report_error_(ERROR_TOK(type),
+                        "[[work_group_id]] must be declared as "
+                        "`const uint3`.");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::WORK_GROUP_ID)\n";
@@ -4296,13 +4299,13 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "num_work_groups" && is_entry_point) {
         if (!is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[num_work_groups]] is only supported in compute functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[num_work_groups]] is only supported in compute functions.");
         }
         else if (!is_const || srt_type != "uint3") {
-          report_error(ERROR_TOK(type),
-                       "[[num_work_groups]] must be declared as "
-                       "`const uint3`.");
+          report_error_(ERROR_TOK(type),
+                        "[[num_work_groups]] must be declared as "
+                        "`const uint3`.");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::NUM_WORK_GROUP)\n";
@@ -4311,11 +4314,11 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "in") {
         if (is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[in]] is only supported in vertex and fragment functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[in]] is only supported in vertex and fragment functions.");
         }
         else if (!is_const) {
-          report_error(ERROR_TOK(type), "[[in]] must be declared as const reference.");
+          report_error_(ERROR_TOK(type), "[[in]] must be declared as const reference.");
         }
         else if (is_vertex_func) {
           replace_word_and_accessor(srt_var, "");
@@ -4328,11 +4331,11 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "out") {
         if (is_compute_func) {
-          report_error(ERROR_TOK(attributes[1]),
-                       "[[out]] is only supported in vertex and fragment functions.");
+          report_error_(ERROR_TOK(attributes[1]),
+                        "[[out]] is only supported in vertex and fragment functions.");
         }
         else if (is_const) {
-          report_error(ERROR_TOK(type), "[[out]] must be declared as non-const reference.");
+          report_error_(ERROR_TOK(type), "[[out]] must be declared as non-const reference.");
         }
         else if (is_vertex_func) {
           replace_word_and_accessor(srt_var, srt_type + "_");
@@ -4353,13 +4356,13 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "frag_depth") {
         if (srt_type != "float") {
-          report_error(ERROR_TOK(type), "[[frag_depth]] needs to be declared as float");
+          report_error_(ERROR_TOK(type), "[[frag_depth]] needs to be declared as float");
         }
         const string mode = attributes[3].str();
 
         if (mode != "any" && mode != "greater" && mode != "less") {
-          report_error(ERROR_TOK(attributes[3]),
-                       "unrecognized mode, expecting 'any', 'greater' or 'less'");
+          report_error_(ERROR_TOK(attributes[3]),
+                        "unrecognized mode, expecting 'any', 'greater' or 'less'");
         }
         else {
           create_info_decl += "DEPTH_WRITE(" + to_uppercase(mode) + ")\n";
@@ -4368,7 +4371,7 @@ void SourceProcessor::lower_entry_points(Parser &parser)
       }
       else if (srt_attr == "frag_stencil_ref") {
         if (srt_type != "int") {
-          report_error(ERROR_TOK(type), "[[frag_stencil_ref]] needs to be declared as int");
+          report_error_(ERROR_TOK(type), "[[frag_stencil_ref]] needs to be declared as int");
         }
         else {
           create_info_decl += "BUILTINS(BuiltinBits::STENCIL_REF)\n";
@@ -4376,7 +4379,7 @@ void SourceProcessor::lower_entry_points(Parser &parser)
         }
       }
       else {
-        report_error(ERROR_TOK(attributes[1]), "Invalid attribute.");
+        report_error_(ERROR_TOK(attributes[1]), "Invalid attribute.");
       }
     };
 
@@ -4394,7 +4397,7 @@ void SourceProcessor::lower_entry_points(Parser &parser)
     create_info_decl += "GPU_SHADER_CREATE_END()\n";
 
     if (is_entry_point) {
-      metadata.create_infos_declarations.emplace_back(create_info_decl);
+      metadata_.create_infos_declarations.emplace_back(create_info_decl);
     }
   });
 
@@ -4453,10 +4456,10 @@ void SourceProcessor::lower_reference_variables(Parser &parser)
 
       /* Assert definition doesn't contain any side effect. */
       assignment.foreach_token(Increment, [&](const Token token) {
-        report_error(ERROR_TOK(token), "Reference definitions cannot have side effects.");
+        report_error_(ERROR_TOK(token), "Reference definitions cannot have side effects.");
       });
       assignment.foreach_token(Decrement, [&](const Token token) {
-        report_error(ERROR_TOK(token), "Reference definitions cannot have side effects.");
+        report_error_(ERROR_TOK(token), "Reference definitions cannot have side effects.");
       });
       assignment.foreach_token(ParOpen, [&](const Token token) {
         string fn_name = token.prev().str();
@@ -4465,14 +4468,15 @@ void SourceProcessor::lower_reference_variables(Parser &parser)
             (fn_name != "buffer_get") && (fn_name != "srt_access") && (fn_name != "sampler_get") &&
             (fn_name != "image_get"))
         {
-          report_error(ERROR_TOK(token), "Reference definitions cannot contain function calls.");
+          report_error_(ERROR_TOK(token), "Reference definitions cannot contain function calls.");
         }
       });
       assignment.foreach_scope(ScopeType::Subscript, [&](const Scope subscript) {
         if (subscript.token_count() != 3) {
-          report_error(ERROR_TOK(subscript.front()),
-                       "Array subscript inside reference declaration must be a single variable or "
-                       "a constant, not an expression.");
+          report_error_(
+              ERROR_TOK(subscript.front()),
+              "Array subscript inside reference declaration must be a single variable or "
+              "a constant, not an expression.");
           return;
         }
 
@@ -4501,20 +4505,20 @@ void SourceProcessor::lower_reference_variables(Parser &parser)
         fn_scope.foreach_match("c?w&?w", [&](const vector<Token> &toks) { process_decl(toks); });
 
         if (!is_found) {
-          report_error(ERROR_TOK(index_var),
-                       "Cannot locate array subscript variable declaration. "
-                       "If it is a global variable, assign it to a temporary const variable for "
-                       "indexing inside the reference.");
+          report_error_(ERROR_TOK(index_var),
+                        "Cannot locate array subscript variable declaration. "
+                        "If it is a global variable, assign it to a temporary const variable for "
+                        "indexing inside the reference.");
           return;
         }
         if (!is_const) {
-          report_error(ERROR_TOK(index_var),
-                       "Array subscript variable must be declared as const qualified.");
+          report_error_(ERROR_TOK(index_var),
+                        "Array subscript variable must be declared as const qualified.");
           return;
         }
         if (is_ref) {
-          report_error(ERROR_TOK(index_var),
-                       "Array subscript variable must not be declared as reference.");
+          report_error_(ERROR_TOK(index_var),
+                        "Array subscript variable must not be declared as reference.");
           return;
         }
       });
@@ -4538,8 +4542,8 @@ void SourceProcessor::lower_reference_variables(Parser &parser)
   parser.apply_mutations();
 
   parser().foreach_match("c?w&w=", [&](const vector<Token> &tokens) {
-    report_error(ERROR_TOK(tokens[4]),
-                 "Reference is defined inside a global or unterminated scope.");
+    report_error_(ERROR_TOK(tokens[4]),
+                  "Reference is defined inside a global or unterminated scope.");
   });
 }
 
@@ -4578,7 +4582,7 @@ void SourceProcessor::lint_global_scope_constants(Parser &parser)
   /* Example: `const uint global_var = 1u;`. */
   parser().foreach_match("cww=", [&](const vector<Token> &tokens) {
     if (tokens[0].scope().type() == ScopeType::Global) {
-      report_error(
+      report_error_(
           ERROR_TOK(tokens[2]),
           "Global scope constant expression found. These get allocated per-thread in MSL. "
           "Use Macro's or uniforms instead.");
@@ -4595,7 +4599,7 @@ void SourceProcessor::lint_constructors(Parser &parser)
         return;
       }
       if (t[0].str() == struct_name.str()) {
-        report_error(ERROR_TOK(t[0]), "Constructors are not supported.");
+        report_error_(ERROR_TOK(t[0]), "Constructors are not supported.");
       }
     });
   });
@@ -4607,7 +4611,7 @@ void SourceProcessor::lint_forward_declared_structs(Parser &parser)
 {
   parser().foreach_match("sw;", [&](const Tokens &t) {
     if (t[0].scope().type() == ScopeType::Global) {
-      report_error(ERROR_TOK(t[0]), "Forward declaration of types are not supported.");
+      report_error_(ERROR_TOK(t[0]), "Forward declaration of types are not supported.");
     }
   });
 }
@@ -4619,7 +4623,7 @@ int SourceProcessor::static_array_size(const Scope &array, int fallback_value)
       return stol(array[1].str());
     }
     catch (invalid_argument const & /*ex*/) {
-      report_error(ERROR_TOK(array.front()), "Invalid array size, expecting integer literal");
+      report_error_(ERROR_TOK(array.front()), "Invalid array size, expecting integer literal");
     }
   }
   return fallback_value;
