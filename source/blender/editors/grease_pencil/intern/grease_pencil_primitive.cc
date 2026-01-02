@@ -576,6 +576,9 @@ static int8_t grease_pencil_primitive_handle_type(PrimitiveToolOperation &ptd)
       }
       case PrimitiveType::Curve:
       case PrimitiveType::Arc: {
+        if (ptd.segments == 1) {
+          return BEZIER_HANDLE_ALIGN;
+        }
         return BEZIER_HANDLE_FREE;
         break;
       }
