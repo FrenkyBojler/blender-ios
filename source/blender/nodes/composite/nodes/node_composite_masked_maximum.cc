@@ -83,7 +83,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .default_value(0.0f)
       .compositor_domain_priority(4)
       .description(
-          "Value that the falloff gradient falls off to. When performing a dilation, Value "
+          "Value that the falloff gradient may fall off to. When performing a dilation, Value "
           "Boundary is a lower boundary to the possible output image values. When performing an "
           "erosion, 1 - Value Boundary is an upper boundary to the possible output image values")
       .structure_type(StructureType::Dynamic);
