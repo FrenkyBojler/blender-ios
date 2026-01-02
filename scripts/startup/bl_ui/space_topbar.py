@@ -873,7 +873,7 @@ class TOPBAR_PT_palette_rename(Panel):
         try:
             mode = context.mode
             ts = context.scene.tool_settings
-            
+
             if mode == 'PAINT_TEXTURE' and ts.image_paint:
                 return ts.image_paint.palette is not None
             elif mode == 'SCULPT' and ts.sculpt:
@@ -884,7 +884,7 @@ class TOPBAR_PT_palette_rename(Panel):
                 return ts.weight_paint.palette is not None
         except AttributeError:
             pass
-        
+
         return False
 
     def draw(self, context):
@@ -901,7 +901,7 @@ class TOPBAR_PT_palette_rename(Panel):
         palette = None
         mode = context.mode
         ts = context.scene.tool_settings
-        
+
         if mode == 'PAINT_TEXTURE' and ts.image_paint:
             palette = ts.image_paint.palette
         elif mode == 'SCULPT' and ts.sculpt:
@@ -910,7 +910,7 @@ class TOPBAR_PT_palette_rename(Panel):
             palette = ts.vertex_paint.palette
         elif mode == 'PAINT_WEIGHT' and ts.weight_paint:
             palette = ts.weight_paint.palette
-        
+
         if palette:
             layout.label(text="Palette Name")
             row = row_with_icon(layout, 'COLOR')

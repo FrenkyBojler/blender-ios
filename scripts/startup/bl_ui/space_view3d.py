@@ -9212,7 +9212,7 @@ class PALETTE_OT_size_toggle(bpy.types.Operator):
     def execute(self, context):
         # Toggle state stored in WindowManager (session-persistent like DNA)
         context.window_manager.palette_large_buttons = not context.window_manager.palette_large_buttons
-        
+
         # Trigger popup refresh by returning UPDATE
         # This ensures the popup redraws after the toggle
         return {'FINISHED'}
@@ -9261,13 +9261,13 @@ class VIEW3D_MT_palette_sort(bpy.types.Menu):
 
         op = layout.operator("palette.sort", text="By Hue")
         op.type = 'HSV'
-        
+
         op = layout.operator("palette.sort", text="By Saturation")
         op.type = 'SVH'
-        
+
         op = layout.operator("palette.sort", text="By Value")
         op.type = 'VHS'
-        
+
         op = layout.operator("palette.sort", text="By Luminance")
         op.type = 'LUMINANCE'
 

@@ -1208,8 +1208,9 @@ void draw_layout_panels_backdrop(const ARegion *region,
     const LayoutPanelBody &body = panel->runtime->layout_panels.bodies[body_index];
 
     rctf panel_blockspace = panel->runtime->block->rect;
-    /* body.start_y and body.end_y are in layout space (divided by aspect in popup_layout_panels_refresh_from_buttons),
-     * convert to window space by multiplying by aspect */
+    /* body.start_y and body.end_y are in layout space (divided by aspect in
+     * popup_layout_panels_refresh_from_buttons), convert to window space by multiplying by aspect
+     */
     panel_blockspace.ymax = panel->runtime->block->rect.ymax + body.end_y * aspect;
     panel_blockspace.ymin = panel->runtime->block->rect.ymax + body.start_y * aspect;
 
@@ -1271,8 +1272,9 @@ void draw_layout_panels_outline(const ARegion *region,
     const LayoutPanelBody &body = panel->runtime->layout_panels.bodies[body_index];
 
     rctf panel_blockspace = panel->runtime->block->rect;
-    /* body.start_y and body.end_y are in layout space (divided by aspect in popup_layout_panels_refresh_from_buttons),
-     * convert to window space by multiplying by aspect */
+    /* body.start_y and body.end_y are in layout space (divided by aspect in
+     * popup_layout_panels_refresh_from_buttons), convert to window space by multiplying by aspect
+     */
     panel_blockspace.ymax = panel->runtime->block->rect.ymax + body.end_y * aspect;
     panel_blockspace.ymin = panel->runtime->block->rect.ymax + body.start_y * aspect;
 
@@ -1299,8 +1301,7 @@ void draw_layout_panels_outline(const ARegion *region,
     rcti panel_pixelspace = ui_to_pixelrect(region, panel->runtime->block, &panel_blockspace);
     rctf panel_pixelspacef;
     BLI_rctf_rcti_copy(&panel_pixelspacef, &panel_pixelspace);
-    
-    
+
     draw_roundbox_4fv(&panel_pixelspacef, false, radius, outline_color);
   }
 }
@@ -2117,7 +2118,9 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 /** \name Region Level Panel Interaction
  * \{ */
 
-LayoutPanelHeader *layout_panel_header_under_mouse(const Panel &panel, const int my, const ARegion *region)
+LayoutPanelHeader *layout_panel_header_under_mouse(const Panel &panel,
+                                                   const int my,
+                                                   const ARegion *region)
 {
   const Block *block = panel.runtime->block;
   if (!block) {
@@ -2239,14 +2242,13 @@ static void ui_panel_drag_collapse(const bContext *C,
         /* Check if header has valid open_owner_ptr before using it.
          * Headers created for additional header buttons may have invalid pointers. */
         if (header.open_owner_ptr.data && !header.open_prop_name.empty()) {
-          RNA_boolean_set(
-              &header.open_owner_ptr, header.open_prop_name.c_str(), !dragcol_data->was_first_open);
-          PropertyRNA *prop = RNA_struct_find_property(&header.open_owner_ptr, header.open_prop_name.c_str());
+          RNA_boolean_set(&header.open_owner_ptr,
+                          header.open_prop_name.c_str(),
+                          !dragcol_data->was_first_open);
+          PropertyRNA *prop = RNA_struct_find_property(&header.open_owner_ptr,
+                                                       header.open_prop_name.c_str());
           if (prop) {
-            RNA_property_update(
-                const_cast<bContext *>(C),
-                &header.open_owner_ptr,
-                prop);
+            RNA_property_update(const_cast<bContext *>(C), &header.open_owner_ptr, prop);
           }
           ED_region_tag_redraw(region);
           ED_region_tag_refresh_ui(region);
@@ -2349,12 +2351,10 @@ bool ui_layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header)
   RNA_boolean_set(&header->open_owner_ptr, header->open_prop_name.c_str(), !is_open);
   const bool new_state = RNA_boolean_get(&header->open_owner_ptr, header->open_prop_name.c_str());
 
-  PropertyRNA *prop = RNA_struct_find_property(&header->open_owner_ptr, header->open_prop_name.c_str());
+  PropertyRNA *prop = RNA_struct_find_property(&header->open_owner_ptr,
+                                               header->open_prop_name.c_str());
   if (prop) {
-    RNA_property_update(
-        const_cast<bContext *>(C),
-        &header->open_owner_ptr,
-        prop);
+    RNA_property_update(const_cast<bContext *>(C), &header->open_owner_ptr, prop);
   }
   return new_state;
 }

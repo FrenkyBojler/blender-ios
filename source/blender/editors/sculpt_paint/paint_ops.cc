@@ -182,14 +182,16 @@ static bool palette_poll(bContext *C)
   return false;
 }
 
-static bool palette_color_exists(const Palette *palette, const float color[3], float tolerance = 0.001f)
+static bool palette_color_exists(const Palette *palette,
+                                 const float color[3],
+                                 float tolerance = 0.001f)
 {
   if (!palette) {
     return false;
   }
 
-  LISTBASE_FOREACH (const PaletteColor *, existing_color, &palette->colors) {
-    if (compare_v3v3(existing_color->color, color, tolerance)) {
+  for (const PaletteColor &existing_color : palette->colors) {
+    if (compare_v3v3(existing_color.color, color, tolerance)) {
       return true;
     }
   }

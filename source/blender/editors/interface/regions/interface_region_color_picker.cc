@@ -15,16 +15,16 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_userdef_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
-#include "BLI_math_vector.h"
-#include "BLI_math_vector_types.hh"
 
 #include "BKE_context.hh"
 #include "BKE_paint.hh"
@@ -66,7 +66,9 @@ static void local_layout_panel_adjust_y(Panel *panel, const float dy)
     printf("[%.1f, %.1f]\n", body.start_y, body.end_y);
   }
   for (LayoutPanelHeader &header : panel->runtime->layout_panels.headers) {
-    printf("[DEBUG] local_layout_panel_adjust_y: Header [%.1f, %.1f] -> ", header.start_y, header.end_y);
+    printf("[DEBUG] local_layout_panel_adjust_y: Header [%.1f, %.1f] -> ",
+           header.start_y,
+           header.end_y);
     header.start_y -= dy;
     header.end_y -= dy;
     printf("[%.1f, %.1f]\n", header.start_y, header.end_y);
@@ -665,11 +667,8 @@ static void ui_colorpicker_palette(Block *block,
                                    bContext *C);
 
 /* a HS circle, V slider, rgb/hsv/hex sliders */
-static void block_colorpicker(bContext *C,
-                              Block *block,
-                              Button *from_but,
-                              float rgba_scene_linear[4],
-                              bool show_picker)
+static void block_colorpicker(
+    bContext *C, Block *block, Button *from_but, float rgba_scene_linear[4], bool show_picker)
 {
   /* ePickerType */
   Button *bt;
@@ -1121,25 +1120,30 @@ static void ui_colorpicker_palette(Block *block,
 
   PointerRNA paint_ptr;
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  
+
   switch (mode) {
     case PaintMode::Sculpt:
       if (tool_settings->sculpt) {
-        paint_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Sculpt, (void *)tool_settings->sculpt);
-      } else {
+        paint_ptr = RNA_pointer_create_discrete(
+            &scene->id, &RNA_Sculpt, (void *)tool_settings->sculpt);
+      }
+      else {
         return;
       }
       break;
     case PaintMode::Vertex:
       if (tool_settings->vpaint) {
-        paint_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_VertexPaint, (void *)tool_settings->vpaint);
-      } else {
+        paint_ptr = RNA_pointer_create_discrete(
+            &scene->id, &RNA_VertexPaint, (void *)tool_settings->vpaint);
+      }
+      else {
         return;
       }
       break;
     case PaintMode::Texture2D:
     case PaintMode::Texture3D:
-      paint_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ImagePaint, (void *)&tool_settings->imapaint.paint);
+      paint_ptr = RNA_pointer_create_discrete(
+          &scene->id, &RNA_ImagePaint, (void *)&tool_settings->imapaint.paint);
       break;
     default:
       /* Weight paint and other modes don't use color palettes */
@@ -1151,7 +1155,7 @@ static void ui_colorpicker_palette(Block *block,
 
   /* Resolve layout - this will calculate the final size and position */
   int2 resolved_size = block_layout_resolve(block);
-  
+
   /* Update yco to position next elements below the palette */
   if (resolved_size.y > 0) {
     *yco_ptr -= resolved_size.y;

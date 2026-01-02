@@ -6613,19 +6613,19 @@ static bool ui_is_palette_color_button(Button *but)
   if (but->type != ButtonType::Color) {
     return false;
   }
-  
+
   ButtonColor *color_but = (ButtonColor *)but;
-  
+
   /* Check if flag is set (for C++ created buttons) */
   if (color_but->is_pallete_color) {
     return true;
   }
-  
+
   /* Check if RNA pointer is PaletteColor (for Python created buttons) */
   if (but->rnapoin.type && RNA_struct_is_a(but->rnapoin.type, &RNA_PaletteColor)) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -6633,7 +6633,7 @@ static void ui_palette_set_active(ButtonColor *color_but)
 {
   /* ButtonColor inherits from Button, so we can use it directly */
   Button *but = static_cast<Button *>(color_but);
-  
+
   if (color_but->is_pallete_color) {
     Palette *palette = (Palette *)but->rnapoin.owner_id;
     const PaletteColor *color = static_cast<const PaletteColor *>(but->rnapoin.data);
@@ -6689,11 +6689,10 @@ static bool ui_is_in_paint_mode(const bContext *C)
 static bool ui_palette_color_get_from_button(Button *but, float r_color[4])
 {
   const bool has_alpha = button_color_has_alpha(but);
-  
+
   if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
     const int array_len = has_alpha ? 4 : 3;
-    RNA_property_float_get_array_at_most(
-        &but->rnapoin, but->rnaprop, r_color, array_len);
+    RNA_property_float_get_array_at_most(&but->rnapoin, but->rnaprop, r_color, array_len);
     IMB_colormanagement_srgb_to_scene_linear_v3(r_color, r_color);
     if (!has_alpha) {
       r_color[3] = 1.0f; /* Default alpha to 1.0 if not present */
@@ -6702,8 +6701,7 @@ static bool ui_palette_color_get_from_button(Button *but, float r_color[4])
   }
   if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
     const int array_len = has_alpha ? 4 : 3;
-    RNA_property_float_get_array_at_most(
-        &but->rnapoin, but->rnaprop, r_color, array_len);
+    RNA_property_float_get_array_at_most(&but->rnapoin, but->rnaprop, r_color, array_len);
     if (!has_alpha) {
       r_color[3] = 1.0f; /* Default alpha to 1.0 if not present */
     }
@@ -6743,7 +6741,8 @@ static void ui_color_property_update_from_palette(bContext *C,
     float color_srgb[4];
     copy_v4_v4(color_srgb, palette_color);
     IMB_colormanagement_scene_linear_to_srgb_v3(color_srgb, color_srgb);
-    RNA_property_float_set_array_at_most(&from_but->rnapoin, from_but->rnaprop, color_srgb, array_len);
+    RNA_property_float_set_array_at_most(
+        &from_but->rnapoin, from_but->rnaprop, color_srgb, array_len);
   }
   else {
     /* Direct scene linear color */
@@ -6771,7 +6770,7 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
       }
     }
 #ifdef USE_DRAG_TOGGLE
-  if (event->type == LEFTMOUSE && event->val == KM_PRESS && !color_but->is_pallete_color) {
+    if (event->type == LEFTMOUSE && event->val == KM_PRESS && !color_but->is_pallete_color) {
       ui_palette_set_active(color_but);
       button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
       data->dragstartx = event->xy[0];
@@ -6783,17 +6782,17 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
     if (ELEM(event->type, LEFTMOUSE, EVT_PADENTER, EVT_RETKEY) && event->val == KM_PRESS) {
       /* Check if this is a palette color button (from Python or C++) */
       bool is_palette_color = ui_is_palette_color_button(but);
-      
+
       if (is_palette_color) {
         /* For palette color buttons, apply color to brush instead of opening color picker */
         Paint *paint = BKE_paint_get_active_from_context(C);
         bool is_in_paint_mode = ui_is_in_paint_mode(C);
-        
+
         if (paint != nullptr && is_in_paint_mode) {
           /* Check if we're inside a popup color picker opened from a property (not Brush) */
           PopupBlockHandle *popup = but->block->handle;
           bool is_from_brush_property = false;
-          
+
           if (popup && popup->popup_create_vars.but) {
             Button *from_but = popup->popup_create_vars.but;
             /* Check if from_but points to Brush struct */
@@ -6805,37 +6804,37 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
               float palette_color[4];
               if (ui_palette_color_get_from_button(but, palette_color)) {
                 ui_color_property_update_from_palette(C, from_but, palette_color);
-                
+
                 /* Set active color in palette */
                 ui_palette_set_active(color_but);
-                
+
                 /* Exit button state */
                 button_activate_state(C, but, BUTTON_STATE_EXIT);
                 return WM_UI_HANDLER_BREAK;
               }
             }
           }
-          
+
           /* Apply color to brush only if popup is not opened from non-Brush property */
           if (!popup || !popup->popup_create_vars.but || is_from_brush_property) {
             Brush *brush = BKE_paint_brush(paint);
-            
+
             if (brush != nullptr) {
               /* Get color from palette button */
               float palette_color[4];
               if (ui_palette_color_get_from_button(but, palette_color)) {
                 /* Apply color to brush */
                 BKE_brush_color_set(paint, brush, palette_color);
-                
+
                 /* Update brush property */
                 PropertyRNA *brush_color_prop;
                 PointerRNA brush_ptr = RNA_id_pointer_create(&brush->id);
                 brush_color_prop = RNA_struct_find_property(&brush_ptr, "color");
                 RNA_property_update(C, &brush_ptr, brush_color_prop);
-                
+
                 /* Set active color in palette */
                 ui_palette_set_active(color_but);
-                
+
                 /* Exit button state */
                 button_activate_state(C, but, BUTTON_STATE_EXIT);
                 return WM_UI_HANDLER_BREAK;
@@ -6846,17 +6845,18 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
         else {
           /* Not in paint mode - check if we're inside a popup color picker */
           PopupBlockHandle *popup = but->block->handle;
-          
+
           if (popup && popup->popup_create_vars.but) {
             /* Get color from palette button */
             float palette_color[4];
             if (ui_palette_color_get_from_button(but, palette_color)) {
               /* Update the original button's PROP_COLOR property */
-              ui_color_property_update_from_palette(C, popup->popup_create_vars.but, palette_color);
-              
+              ui_color_property_update_from_palette(
+                  C, popup->popup_create_vars.but, palette_color);
+
               /* Set active color in palette */
               ui_palette_set_active(color_but);
-              
+
               /* Exit button state */
               button_activate_state(C, but, BUTTON_STATE_EXIT);
               return WM_UI_HANDLER_BREAK;
@@ -6864,7 +6864,7 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
           }
         }
       }
-      
+
       /* Default behavior: open color picker */
       ui_palette_set_active(color_but);
       button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
@@ -6930,7 +6930,7 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
     if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
       /* Check if this is a palette color button (from Python or C++) */
       bool is_palette_color = ui_is_palette_color_button(but);
-      
+
       if (is_palette_color) {
         if ((event->modifier & KM_CTRL) == 0) {
           Paint *paint = BKE_paint_get_active_from_context(C);
@@ -6948,11 +6948,13 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
               const int array_len = has_alpha ? 4 : 3;
 
               if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-                RNA_property_float_get_array_at_most(&but->rnapoin, but->rnaprop, target, array_len);
+                RNA_property_float_get_array_at_most(
+                    &but->rnapoin, but->rnaprop, target, array_len);
                 IMB_colormanagement_srgb_to_scene_linear_v3(target, target);
               }
               else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-                RNA_property_float_get_array_at_most(&but->rnapoin, but->rnaprop, target, array_len);
+                RNA_property_float_get_array_at_most(
+                    &but->rnapoin, but->rnaprop, target, array_len);
               }
               BKE_brush_tag_unsaved_changes(brush);
             }
@@ -6971,7 +6973,8 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
                 Button *from_but = popup->popup_create_vars.but;
 
                 /* Check if from_but points to Brush struct */
-                if (from_but->rnapoin.type && RNA_struct_is_a(from_but->rnapoin.type, &RNA_Brush)) {
+                if (from_but->rnapoin.type && RNA_struct_is_a(from_but->rnapoin.type, &RNA_Brush))
+                {
                   /* Brush color only supports RGB (3 components), not RGBA */
                   BKE_brush_color_set(paint, brush, palette_color);
 
@@ -6984,7 +6987,8 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
 
               /* Always update the original button's PROP_COLOR if it exists */
               if (popup && popup->popup_create_vars.but) {
-                ui_color_property_update_from_palette(C, popup->popup_create_vars.but, palette_color);
+                ui_color_property_update_from_palette(
+                    C, popup->popup_create_vars.but, palette_color);
               }
             }
           }
@@ -6996,7 +7000,8 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
               /* Get color from palette button */
               float palette_color[4];
               if (ui_palette_color_get_from_button(but, palette_color)) {
-                ui_color_property_update_from_palette(C, popup->popup_create_vars.but, palette_color);
+                ui_color_property_update_from_palette(
+                    C, popup->popup_create_vars.but, palette_color);
               }
             }
           }
@@ -12124,7 +12129,8 @@ static int ui_handle_menus_recursive(bContext *C,
         if (!IN_RANGE(float(mx), block.rect.xmin, block.rect.xmax)) {
           break;
         }
-        LayoutPanelHeader *header = layout_panel_header_under_mouse(*block.panel, my, menu->region);
+        LayoutPanelHeader *header = layout_panel_header_under_mouse(
+            *block.panel, my, menu->region);
         if (header) {
           /* Reset prev_block_rect to force popup resize. */
           BLI_rctf_init(&menu->prev_block_rect, 0, 0, 0, 0);
@@ -12133,7 +12139,7 @@ static int ui_handle_menus_recursive(bContext *C,
           menu->menuretval = RETURN_UPDATE;
 
           /* Set bounds type on current block for proper popup size recalculation. */
-          block->bounds_type = BLOCK_BOUNDS_POPUP_MOUSE;
+          block.bounds_type = BLOCK_BOUNDS_POPUP_MOUSE;
 
           ED_region_tag_redraw(menu->region);
           ED_region_tag_refresh_ui(menu->region);
@@ -12533,25 +12539,28 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
       !BLI_listbase_is_empty(&region_runtime->uiblocks))
   {
     printf("[DEBUG] ui_popup_handler: Processing %d blocks for popup event at mouse (%d, %d)\n",
-           BLI_listbase_count(&region_runtime->uiblocks), event->xy[0], event->xy[1]);
+           BLI_listbase_count(&region_runtime->uiblocks),
+           event->xy[0],
+           event->xy[1]);
 
     // First, list all blocks for debugging
-    LISTBASE_FOREACH (Block *, block, &region_runtime->uiblocks) {
-      if (!block) {
-        printf("[DEBUG] ui_popup_handler: Skipping null block\n");
-        continue;
-      }
-
+    for (Block &block : region_runtime->uiblocks) {
       printf("[DEBUG] ui_popup_handler: Block %p (flag=0x%x, rect=[%.1f,%.1f,%.1f,%.1f])",
-             block, block->flag, block->rect.xmin, block->rect.ymin, block->rect.xmax, block->rect.ymax);
+             &block,
+             block.flag,
+             block.rect.xmin,
+             block.rect.ymin,
+             block.rect.xmax,
+             block.rect.ymax);
 
-      if (block->panel == nullptr) {
+      if (block.panel == nullptr) {
         printf(" has no panel\n");
-      } else {
+      }
+      else {
         printf(" has panel %p (type=%s, layout_panels=%zu)\n",
-               block->panel,
-               block->panel->type ? block->panel->type->idname : "null",
-               block->panel->runtime ? block->panel->runtime->layout_panels.headers.size() : 0);
+               block.panel,
+               block.panel->type ? block.panel->type->idname : "null",
+               block.panel->runtime ? block.panel->runtime->layout_panels.headers.size() : 0);
       }
     }
 
@@ -12568,15 +12577,17 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
       }
     }
     if (popup_panel && popup_panel->runtime &&
-        popup_panel->runtime->layout_panels.headers.size() > 0) {
+        popup_panel->runtime->layout_panels.headers.size() > 0)
+    {
       printf("[DEBUG] ui_popup_handler: Found popup_block_panel %p with %zu headers\n",
-             popup_panel, popup_panel->runtime->layout_panels.headers.size());
+             popup_panel,
+             popup_panel->runtime->layout_panels.headers.size());
 
       // Find the block that uses this panel
       Block *panel_block = nullptr;
-      LISTBASE_FOREACH (Block *, search_block, &region_runtime->uiblocks) {
-        if (search_block && search_block->panel == popup_panel) {
-          panel_block = search_block;
+      for (Block &search_block : region_runtime->uiblocks) {
+        if (search_block.panel == popup_panel) {
+          panel_block = &search_block;
           break;
         }
       }
@@ -12584,7 +12595,8 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
       if (!panel_block && !BLI_listbase_is_empty(&region_runtime->uiblocks)) {
         // If panel is not assigned to a block, use the first block
         panel_block = static_cast<Block *>(region_runtime->uiblocks.first);
-        printf("[DEBUG] ui_popup_handler: Panel not assigned to block, using first block %p\n", panel_block);
+        printf("[DEBUG] ui_popup_handler: Panel not assigned to block, using first block %p\n",
+               panel_block);
       }
 
       if (panel_block) {
@@ -12594,12 +12606,15 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
 
         printf("[DEBUG] ui_popup_handler: Checking popup_block_panel, block %p\n", panel_block);
         printf("[DEBUG] ui_popup_handler: Window Y %d, Block rect ymax %.1f\n",
-               search_my_window, panel_block->rect.ymax);
+               search_my_window,
+               panel_block->rect.ymax);
 
         /* Check if mouse is in this block's rect (rect is in window space). */
         if (IN_RANGE(float(event->xy[0]), panel_block->rect.xmin, panel_block->rect.xmax) &&
-            IN_RANGE(float(event->xy[1]), panel_block->rect.ymin, panel_block->rect.ymax)) {
-          printf("[DEBUG] ui_popup_handler: Mouse is in block %p, checking for header\n", panel_block);
+            IN_RANGE(float(event->xy[1]), panel_block->rect.ymin, panel_block->rect.ymax))
+        {
+          printf("[DEBUG] ui_popup_handler: Mouse is in block %p, checking for header\n",
+                 panel_block);
           header = layout_panel_header_under_mouse(*popup_panel, search_my_window, region);
           if (header) {
             printf("[DEBUG] ui_popup_handler: Found header in popup_block_panel!\n");
@@ -12611,20 +12626,22 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
     /* Also search blocks directly (fallback) */
     if (!header) {
       printf("[DEBUG] ui_popup_handler: Searching for blocks with layout panels...\n");
-      LISTBASE_FOREACH (Block *, search_block, &region_runtime->uiblocks) {
-        if (!search_block || !search_block->panel || !search_block->panel->runtime) {
+      for (Block &search_block : region_runtime->uiblocks) {
+        if (!search_block.panel || !search_block.panel->runtime) {
           continue;
         }
 
-        if (search_block->panel->runtime->layout_panels.headers.size() > 0) {
+        if (search_block.panel->runtime->layout_panels.headers.size() > 0) {
           const int search_my_window = event->xy[1];
 
           /* Check if mouse is in this block's rect (rect is in window space). */
-          if (IN_RANGE(float(event->xy[0]), search_block->rect.xmin, search_block->rect.xmax) &&
-              IN_RANGE(float(event->xy[1]), search_block->rect.ymin, search_block->rect.ymax)) {
-            header = layout_panel_header_under_mouse(*search_block->panel, search_my_window, region);
+          if (IN_RANGE(float(event->xy[0]), search_block.rect.xmin, search_block.rect.xmax) &&
+              IN_RANGE(float(event->xy[1]), search_block.rect.ymin, search_block.rect.ymax))
+          {
+            header = layout_panel_header_under_mouse(
+                *search_block.panel, search_my_window, region);
             if (header) {
-              printf("[DEBUG] ui_popup_handler: Found header in block %p!\n", search_block);
+              printf("[DEBUG] ui_popup_handler: Found header in block %p!\n", &search_block);
               break;
             }
           }
@@ -12643,10 +12660,11 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
 
       /* Find the block that uses this panel to set its bounds type. */
       if (menu->region->runtime) {
-        LISTBASE_FOREACH (Block *, search_block, &menu->region->runtime->uiblocks) {
-          if (search_block->panel && search_block->panel->runtime &&
-              !search_block->panel->runtime->layout_panels.headers.is_empty()) {
-            search_block->bounds_type = BLOCK_BOUNDS_POPUP_MOUSE;
+        for (Block &search_block : menu->region->runtime->uiblocks) {
+          if (search_block.panel && search_block.panel->runtime &&
+              !search_block.panel->runtime->layout_panels.headers.is_empty())
+          {
+            search_block.bounds_type = BLOCK_BOUNDS_POPUP_MOUSE;
           }
         }
       }
@@ -12689,7 +12707,8 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
       wmWindow *win = CTX_wm_window(C);
       /* copy values, we have to free first (closes region) */
       const PopupBlockHandle temp = *menu;
-      Block *block = region_runtime ? static_cast<Block *>(region_runtime->uiblocks.first) : nullptr;
+      Block *block = region_runtime ? static_cast<Block *>(region_runtime->uiblocks.first) :
+                                      nullptr;
 
       /* set last pie event to allow chained pie spawning */
       if (block && block->flag & BLOCK_PIE_MENU) {
@@ -12787,7 +12806,6 @@ void popup_handlers_add(bContext *C,
 
 void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle *popup)
 {
-<<<<<<< HEAD
   for (wmEventHandler &handler_base : *handlers) {
     if (handler_base.type == WM_HANDLER_TYPE_UI) {
       wmEventHandler_UI *handler = (wmEventHandler_UI *)&handler_base;
@@ -12807,52 +12825,20 @@ void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle
         }
         break;
       }
-=======
-  wmEventHandler_UI *handler_first = nullptr;
-  LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
-    if (handler_base->type != WM_HANDLER_TYPE_UI) {
-      continue;
-    }
-    wmEventHandler_UI *handler = (wmEventHandler_UI *)handler_base;
-    if (handler->handle_fn == ui_popup_handler && handler->remove_fn == ui_popup_handler_remove &&
-        handler->user_data == popup)
-    {
-      handler_first = handler;
-      break;
->>>>>>> 4679b97e729 (First commit. Implement Enhanced Color Palette Features)
     }
   }
 
-  if (handler_first) {
-    wmEventHandler *next_base = handler_first->head.next;
-    while (next_base) {
-      if (next_base->type == WM_HANDLER_TYPE_UI) {
-        wmEventHandler_UI *handler_next = (wmEventHandler_UI *)next_base;
-        if (handler_next->handle_fn == ui_popup_handler &&
-            handler_next->remove_fn == ui_popup_handler_remove &&
-            handler_next->user_data != popup)
-        {
-          PopupBlockHandle *parent_popup = static_cast<PopupBlockHandle *>(handler_next->user_data);
-          if (parent_popup && parent_popup->region) {
-            ED_region_tag_refresh_ui(parent_popup->region);
-          }
-          break;
-        }
-      }
-      next_base = next_base->next;
-    }
-  }
-
-  LISTBASE_FOREACH_MUTABLE (wmEventHandler *, handler_base, handlers) {
-    if (handler_base->type != WM_HANDLER_TYPE_UI) {
+  for (wmEventHandler &handler_base : handlers->items_mutable()) {
+    if (handler_base.type != WM_HANDLER_TYPE_UI) {
       continue;
     }
-    wmEventHandler_UI *handler = (wmEventHandler_UI *)handler_base;
+    wmEventHandler_UI *handler = (wmEventHandler_UI *)&handler_base;
     if (handler->handle_fn == ui_popup_handler && handler->remove_fn == ui_popup_handler_remove &&
         handler->user_data == popup)
     {
       BLI_remlink(handlers, handler);
       wm_event_free_handler(&handler->head);
+      break;
     }
   }
 }

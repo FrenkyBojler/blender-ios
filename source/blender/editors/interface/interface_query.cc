@@ -19,8 +19,8 @@
 
 #include "BKE_screen.hh"
 
-#include "UI_view2d.hh"
 #include "UI_interface_c.hh"
+#include "UI_view2d.hh"
 
 #include "RNA_access.hh"
 

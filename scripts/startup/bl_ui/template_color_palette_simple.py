@@ -17,25 +17,25 @@ from typing import Optional
 def draw_palette(layout: UILayout, context: Context, palette_name: Optional[str] = None) -> bool:
     """
     Simple wrapper for quick palette display.
-    
+
     This is the simplest way to add a color palette to your UI. Just call this function
     in your panel's draw method and it will handle everything automatically.
-    
+
     Args:
         layout: UILayout - Blender layout object
         context: Context - Current Blender context
         palette_name: str (optional) - Name of specific palette to display.
                                        If None, uses active palette from paint settings.
-    
+
     Returns:
         bool - True if palette was drawn, False otherwise
-        
+
     Example:
         >>> class MY_PT_palette_panel(bpy.types.Panel):
         ...     bl_label = "My Palette"
         ...     bl_space_type = 'VIEW_3D'
         ...     bl_region_type = 'UI'
-        ...     
+        ...
         ...     def draw(self, context):
         ...         from bl_ui.template_color_palette_simple import draw_palette
         ...         draw_palette(self.layout, context)
@@ -75,11 +75,11 @@ def draw_palette(layout: UILayout, context: Context, palette_name: Optional[str]
 def draw_palette_selector(layout: UILayout, context: Context) -> None:
     """
     Draw a simple palette selector dropdown.
-    
+
     Args:
         layout: UILayout - Blender layout object
         context: Context - Current Blender context
-        
+
     Example:
         >>> def draw(self, context):
         ...     draw_palette_selector(self.layout, context)
@@ -95,17 +95,17 @@ def draw_palette_selector(layout: UILayout, context: Context) -> None:
 def draw_palette_grid_only(layout: UILayout, context: Context) -> bool:
     """
     Draw only the color grid without controls.
-    
+
     This is useful when you want a compact display of palette colors
     without add/delete buttons or other controls.
-    
+
     Args:
         layout: UILayout - Blender layout object
         context: Context - Current Blender context
-        
+
     Returns:
         bool - True if grid was drawn, False otherwise
-        
+
     Example:
         >>> def draw(self, context):
         ...     # Draw compact palette display
@@ -114,19 +114,19 @@ def draw_palette_grid_only(layout: UILayout, context: Context) -> bool:
     settings = _get_active_paint_settings(context)
     if settings and settings.palette:
         palette = settings.palette
-        
+
         # Calculate grid layout
         col = layout.column(align=True)
         row = None
         cols_per_row = 8  # Default columns
-        
+
         for i, color in enumerate(palette.colors):
             if i % cols_per_row == 0:
                 row = col.row(align=True)
-            
+
             # Draw color button
             row.prop(color, "color", text="")
-        
+
         return True
     return False
 
@@ -134,23 +134,23 @@ def draw_palette_grid_only(layout: UILayout, context: Context) -> bool:
 def _get_active_paint_settings(context: Context):
     """
     Internal helper to get active paint settings.
-    
+
     Args:
         context: Context - Current Blender context
-        
+
     Returns:
         Paint settings or None
     """
     mode = context.mode
     ts = context.scene.tool_settings
-    
+
     paint_settings_map = {
         'PAINT_TEXTURE': ts.image_paint,
         'SCULPT': ts.sculpt,
         'PAINT_VERTEX': ts.vertex_paint,
         'PAINT_WEIGHT': ts.weight_paint,
     }
-    
+
     return paint_settings_map.get(mode)
 
 

@@ -1723,7 +1723,8 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(
       func,
       "Simplified ID template that only shows essential elements: browse/search field, name edit "
-      "(if ID exists), Add New button (if newop provided), and Unlink button (if unlinkop provided). "
+      "(if ID exists), Add New button (if newop provided), and Unlink button (if unlinkop "
+      "provided). "
       "Does NOT show: Display number, Fake User, Local/Override buttons, Open button, etc.");
   api_ui_item_rna_common(func);
   RNA_def_string(func, "new", nullptr, 0, "", "Operator identifier to create a new ID block");

@@ -18,24 +18,24 @@ from typing import Optional
 def template_color_palette_enhanced(layout: UILayout, context: Context) -> None:
     """
     Enhanced color palette with context menu support and visual indicators.
-    
+
     This function wraps the C++ template_colorpicker_palette function and provides
     proper context handling for paint modes.
-    
+
     Args:
         layout: UILayout - Blender layout object where palette will be drawn
         context: Context - Current Blender context (used to get active paint settings)
-    
+
     Returns:
         None - Directly modifies layout
-        
+
     Example:
         >>> def draw(self, context):
         ...     layout = self.layout
         ...     template_color_palette_enhanced(layout, context)
     """
     settings = _get_paint_settings(context)
-    
+
     if settings and settings.palette:
         try:
             # Call the C++ enhanced template function
@@ -54,13 +54,13 @@ def template_color_palette_enhanced(layout: UILayout, context: Context) -> None:
 def get_active_palette(context: Context) -> Optional[bpy.types.Palette]:
     """
     Get currently active palette from context.
-    
+
     Args:
         context: Context - Current Blender context
-        
+
     Returns:
         Palette or None - Active palette if found, None otherwise
-        
+
     Example:
         >>> palette = get_active_palette(context)
         >>> if palette:
@@ -75,25 +75,25 @@ def get_active_palette(context: Context) -> Optional[bpy.types.Palette]:
 def set_palette_color(palette: bpy.types.Palette, color_index: int, color_value: tuple) -> bool:
     """
     Set color in palette by index.
-    
+
     Args:
         palette: Palette - Target palette
         color_index: int - Index of color to modify (0-based)
         color_value: tuple - RGB color tuple (r, g, b) with values 0.0-1.0
-        
+
     Returns:
         bool - True if successful, False otherwise
-        
+
     Example:
         >>> palette = bpy.data.palettes["MyPalette"]
         >>> set_palette_color(palette, 0, (1.0, 0.0, 0.0))  # Set first color to red
     """
     if not palette or color_index < 0:
         return False
-    
+
     if color_index >= len(palette.colors):
         return False
-    
+
     try:
         color = palette.colors[color_index]
         color.color = color_value[:3]  # Only RGB, no alpha
@@ -105,14 +105,14 @@ def set_palette_color(palette: bpy.types.Palette, color_index: int, color_value:
 def add_palette_color(palette: bpy.types.Palette, color_value: tuple) -> Optional[bpy.types.PaletteColor]:
     """
     Add new color to palette.
-    
+
     Args:
         palette: Palette - Target palette
         color_value: tuple - RGB color tuple (r, g, b) with values 0.0-1.0
-        
+
     Returns:
         PaletteColor or None - Newly created color if successful, None otherwise
-        
+
     Example:
         >>> palette = bpy.data.palettes["MyPalette"]
         >>> new_color = add_palette_color(palette, (0.5, 0.5, 1.0))
@@ -121,7 +121,7 @@ def add_palette_color(palette: bpy.types.Palette, color_value: tuple) -> Optiona
     """
     if not palette:
         return None
-    
+
     try:
         new_color = palette.colors.new()
         new_color.color = color_value[:3]  # Only RGB, no alpha
@@ -133,13 +133,13 @@ def add_palette_color(palette: bpy.types.Palette, color_value: tuple) -> Optiona
 def get_brush_color(context: Context) -> Optional[tuple]:
     """
     Get current brush color from active paint mode.
-    
+
     Args:
         context: Context - Current Blender context
-        
+
     Returns:
         tuple or None - RGB color tuple (r, g, b) if found, None otherwise
-        
+
     Example:
         >>> color = get_brush_color(context)
         >>> if color:
@@ -154,14 +154,14 @@ def get_brush_color(context: Context) -> Optional[tuple]:
 def set_brush_color(context: Context, color_value: tuple) -> bool:
     """
     Set brush color in active paint mode.
-    
+
     Args:
         context: Context - Current Blender context
         color_value: tuple - RGB color tuple (r, g, b) with values 0.0-1.0
-        
+
     Returns:
         bool - True if successful, False otherwise
-        
+
     Example:
         >>> set_brush_color(context, (1.0, 0.0, 0.0))  # Set brush to red
     """
@@ -178,17 +178,17 @@ def set_brush_color(context: Context, color_value: tuple) -> bool:
 def _get_paint_settings(context: Context):
     """
     Internal helper to get paint settings from context.
-    
+
     Args:
         context: Context - Current Blender context
-        
+
     Returns:
         Paint settings or None
     """
     # Try to get paint mode from context
     mode = context.mode
     tool_settings = context.scene.tool_settings
-    
+
     if mode == 'PAINT_TEXTURE':
         return tool_settings.image_paint
     elif mode == 'SCULPT':
@@ -197,7 +197,7 @@ def _get_paint_settings(context: Context):
         return tool_settings.vertex_paint
     elif mode == 'PAINT_WEIGHT':
         return tool_settings.weight_paint
-    
+
     return None
 
 

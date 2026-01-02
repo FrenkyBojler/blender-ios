@@ -137,7 +137,7 @@ static void popup_layout_panels_refresh_from_buttons(Panel &panel, const Block &
   /* Calculate coordinates relative to block->rect.ymax, accounting for aspect ratio.
    * Coordinates need to be in layout space (before aspect scaling) for proper matching. */
   const float aspect = (block.aspect != 0.0f && block.aspect != 1.0f) ? block.aspect : 1.0f;
-  
+
   /* First, determine which panels are open/closed to decide whether to recalculate coordinates */
   Vector<int> open_header_indices;
   open_header_indices.reserve(new_headers.size());
@@ -146,13 +146,14 @@ static void popup_layout_panels_refresh_from_buttons(Panel &panel, const Block &
       open_header_indices.append(i);
     }
   }
-  
+
   /* Recalculate header coordinates from button positions.
    * For closed panels: preserve existing coordinates to avoid drift after block_translate.
    * For open panels: always recalculate as they will be aligned with body coordinates later. */
   for (const int i : new_headers.index_range()) {
-    const bool is_open = std::find(open_header_indices.begin(), open_header_indices.end(), i) != open_header_indices.end();
-    
+    const bool is_open = std::find(open_header_indices.begin(), open_header_indices.end(), i) !=
+                         open_header_indices.end();
+
     if (is_open) {
       /* Panel is open - recalculate from button (will be aligned with body later) */
       Button *but = header_buttons[i];
@@ -170,28 +171,34 @@ static void popup_layout_panels_refresh_from_buttons(Panel &panel, const Block &
       Button *but = header_buttons[i];
       float start_y = float(but->rect.ymin - block.rect.ymax) / aspect;
       float end_y = float(but->rect.ymax - block.rect.ymax) / aspect;
-      
+
       /* Check if coordinates need to be recalculated:
        * - If block->rect.ymax is 0.0, block is not yet placed, preserve coordinates
-       * - If coordinates are from resolve_impl (very large negative values like -329.0, -291.0), recalculate
-       * - If coordinates match current button positions (within tolerance), they're already correct, preserve
+       * - If coordinates are from resolve_impl (very large negative values like -329.0, -291.0),
+       * recalculate
+       * - If coordinates match current button positions (within tolerance), they're already
+       * correct, preserve
        * - Otherwise, preserve to avoid drift after block_translate */
       const bool block_not_placed = (block.rect.ymax == 0.0f);
-      const bool coords_from_resolve = (new_headers[i].start_y < -200.0f || new_headers[i].end_y < -200.0f);
+      const bool coords_from_resolve = (new_headers[i].start_y < -200.0f ||
+                                        new_headers[i].end_y < -200.0f);
       const float coord_tolerance = 5.0f; /* Allow small differences due to rounding */
-      const bool coords_match_button = (std::abs(new_headers[i].start_y - start_y) < coord_tolerance &&
+      const bool coords_match_button = (std::abs(new_headers[i].start_y - start_y) <
+                                            coord_tolerance &&
                                         std::abs(new_headers[i].end_y - end_y) < coord_tolerance);
-      
+
       if (block_not_placed) {
         /* Block not yet placed - preserve coordinates */
       }
       else if (coords_from_resolve) {
-        /* Coordinates from resolve_impl (set when block->rect.ymax=0.0) - recalculate from button */
+        /* Coordinates from resolve_impl (set when block->rect.ymax=0.0) - recalculate from button
+         */
         new_headers[i].start_y = start_y;
         new_headers[i].end_y = end_y;
       }
       else if (coords_match_button) {
-        /* Coordinates already match button positions - preserve to avoid drift after block_translate */
+        /* Coordinates already match button positions - preserve to avoid drift after
+         * block_translate */
       }
       else {
         /* Coordinates don't match - recalculate (first time after block placement) */
@@ -217,7 +224,8 @@ static void popup_layout_panels_refresh_from_buttons(Panel &panel, const Block &
                                     nullptr;
 
       const float content_top_bound = header_but->rect.ymin;
-      const float content_bottom_bound = next_header_but ? next_header_but->rect.ymax : block.rect.ymin;
+      const float content_bottom_bound = next_header_but ? next_header_but->rect.ymax :
+                                                           block.rect.ymin;
 
       float body_top_y = header_but->rect.ymax;
       float body_bottom_y = header_but->rect.ymin;
@@ -249,9 +257,11 @@ static void popup_layout_panels_refresh_from_buttons(Panel &panel, const Block &
 
   /* Align header coordinates with body coordinates for consistent hit testing.
    * Headers should be clickable in the same visual area as their corresponding bodies.
-   * BUT: Only align when body exists (panel is open). For closed panels, keep original header coordinates. */
+   * BUT: Only align when body exists (panel is open). For closed panels, keep original header
+   * coordinates. */
   for (size_t i = 0; i < new_headers.size(); ++i) {
-    /* Only align header coordinates with body coordinates when panel is open (body exists for this header) */
+    /* Only align header coordinates with body coordinates when panel is open (body exists for this
+     * header) */
     if (i < new_bodies.size() && new_bodies[i].start_y != new_bodies[i].end_y) {
       /* Body exists and is not empty - align header with body */
       new_headers[i].start_y = new_bodies[i].start_y;
@@ -356,8 +366,8 @@ static void ui_popup_block_position(wmWindow *window,
   block_to_window_rctf(butregion, but->block, &block->rect, &block->rect);
 
   /* Note: Layout panel coordinates are recalculated in popup_layout_panels_refresh_from_buttons
-   * (called from popup_block_refresh) based on actual button positions, accounting for aspect ratio.
-   * We don't need to scale them here because they will be recalculated. */
+   * (called from popup_block_refresh) based on actual button positions, accounting for aspect
+   * ratio. We don't need to scale them here because they will be recalculated. */
 
   /* Compute direction relative to button, based on available space. */
   const int size_x = BLI_rctf_size_x(&block->rect) + 0.2f * UI_UNIT_X; /* 4 for shadow */
@@ -819,9 +829,10 @@ void layout_panel_popup_scroll_apply(Panel *panel, const float dy)
    * When buttons are scrolled by `dy` in window space, coordinates in layout space
    * need to be adjusted by `dy / aspect` to maintain correct relative positions. */
   const Block *block = panel->runtime->block;
-  const float aspect = (block && block->aspect != 0.0f && block->aspect != 1.0f) ? block->aspect : 1.0f;
+  const float aspect = (block && block->aspect != 0.0f && block->aspect != 1.0f) ? block->aspect :
+                                                                                   1.0f;
   const float dy_layout = dy / aspect;
-  
+
   for (LayoutPanelBody &body : panel->runtime->layout_panels.bodies) {
     body.start_y += dy_layout;
     body.end_y += dy_layout;
@@ -1067,12 +1078,13 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
   }
   /* Apply popup scroll offset to layout panels. */
   layout_panel_popup_scroll_apply(block->panel, handle->scrolloffset);
-  
-  /* Recalculate layout panel header coordinates from actual button positions AFTER all transformations
-   * (block_translate and scroll offset application). Layout panel coordinates are calculated relative
-   * to block->rect.ymax, which changes during popup transformations. We recalculate coordinates
-   * from actual button positions here to ensure they match the final button positions.
-   * Header buttons are identified by the BUT2_IS_PANEL_HEADER flag, using order for matching headers with buttons. */
+
+  /* Recalculate layout panel header coordinates from actual button positions AFTER all
+   * transformations (block_translate and scroll offset application). Layout panel coordinates are
+   * calculated relative to block->rect.ymax, which changes during popup transformations. We
+   * recalculate coordinates from actual button positions here to ensure they match the final
+   * button positions. Header buttons are identified by the BUT2_IS_PANEL_HEADER flag, using order
+   * for matching headers with buttons. */
   if (block->panel) {
     popup_layout_panels_refresh_from_buttons(*block->panel, *block);
   }
