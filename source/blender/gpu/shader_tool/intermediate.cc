@@ -482,6 +482,10 @@ void TokenStream::parse_scopes(report_callback &report_error)
     scope_ranges.clear();
     scope_types.clear();
 
+    size_t predicted_scope_count = token_types.size() / 2;
+    scope_ranges.reserve(predicted_scope_count);
+    scope_types.reserve(predicted_scope_count);
+
     struct ScopeItem {
       ScopeType type;
       size_t start;
@@ -511,7 +515,7 @@ void TokenStream::parse_scopes(report_callback &report_error)
     int in_template = 0;
 
     int tok_id = -1;
-    for (char &c : token_types) {
+    for (const char &c : token_types) {
       tok_id++;
 
       if (scopes.top().type == ScopeType::Preprocessor) {
@@ -624,7 +628,7 @@ void TokenStream::parse_scopes(report_callback &report_error)
           }
           break;
         case AngleClose:
-          if (in_template > 0 && scopes.top().type == ScopeType::Assignment) {
+          if (scopes.top().type == ScopeType::Assignment && in_template > 0) {
             exit_scope(tok_id - 1);
           }
           if (scopes.top().type == ScopeType::TemplateArg) {
@@ -714,37 +718,36 @@ void TokenStream::parse_scopes(report_callback &report_error)
           if (scopes.top().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::FunctionArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::FunctionParam) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::TemplateArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::Attributes) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.top().type == ScopeType::Attribute) {
-            exit_scope(tok_id - 1);
+          switch (scopes.top().type) {
+            case ScopeType::FunctionArg:
+            case ScopeType::FunctionParam:
+            case ScopeType::TemplateArg:
+            case ScopeType::Attribute:
+              exit_scope(tok_id - 1);
+              break;
+            default:
+              break;
           }
           break;
         default:
-          if (scopes.top().type == ScopeType::Attributes) {
-            enter_scope(ScopeType::Attribute, tok_id);
-          }
-          if (scopes.top().type == ScopeType::FunctionArgs) {
-            enter_scope(ScopeType::FunctionArg, tok_id);
-          }
-          if (scopes.top().type == ScopeType::FunctionCall) {
-            enter_scope(ScopeType::FunctionParam, tok_id);
-          }
-          if (scopes.top().type == ScopeType::LoopArgs) {
-            enter_scope(ScopeType::LoopArg, tok_id);
-          }
-          if (scopes.top().type == ScopeType::Template) {
-            enter_scope(ScopeType::TemplateArg, tok_id);
+          switch (scopes.top().type) {
+            case ScopeType::Attributes:
+              enter_scope(ScopeType::Attribute, tok_id);
+              break;
+            case ScopeType::FunctionArgs:
+              enter_scope(ScopeType::FunctionArg, tok_id);
+              break;
+            case ScopeType::FunctionCall:
+              enter_scope(ScopeType::FunctionParam, tok_id);
+              break;
+            case ScopeType::LoopArgs:
+              enter_scope(ScopeType::LoopArg, tok_id);
+              break;
+            case ScopeType::Template:
+              enter_scope(ScopeType::TemplateArg, tok_id);
+              break;
+            default:
+              break;
           }
           break;
       }
