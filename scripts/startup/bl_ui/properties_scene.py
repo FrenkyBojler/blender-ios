@@ -483,6 +483,16 @@ class SCENE_PT_lod(SceneButtonsPanel, Panel):
         col.prop(lod, "use_viewport", text="Viewports")
         col.prop(lod, "use_render", text="Renders")
 
+        engine = context.scene.render.engine # FIXME(Tri): duplicate code of `OBJECT_PT_distance_lod`
+        is_external_engine = engine not in self.COMPAT_ENGINES
+
+        if is_external_engine:
+            row = layout.row()
+            row.label(
+                text="Distance LODs are inactive for external render engines",
+                icon='INFO',
+            )
+
 
 class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, Panel):
     _context_path = "scene"

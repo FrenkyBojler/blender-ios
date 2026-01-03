@@ -686,6 +686,16 @@ class OBJECT_PT_distance_lod(ObjectButtonsPanel, Panel):
             "act_lod",
         )
 
+        engine = context.scene.render.engine
+        is_external_engine = engine not in self.COMPAT_ENGINES
+
+        if is_external_engine:
+            row = layout.row()
+            row.label(
+                text="Distance LODs are inactive for external render engines",
+                icon='INFO',
+            )
+
 
 classes = (
     OBJECT_PT_context_object,
