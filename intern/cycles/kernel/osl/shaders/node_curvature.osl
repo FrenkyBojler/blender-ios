@@ -5,11 +5,11 @@
 #include "stdcycles.h"
 
 shader node_curvature(int samples = 16,
-                      float Distance = 1.0,
+                      float Radius = 0.01,
                       int only_local = 0,
                       output float Curvature = 1.0)
 {
   /* Abuse texture call with special @curvature token. */
   Curvature = texture(
-      "@curvature", samples, Distance, 0.0, 0.0, 1.0, 0, "sblur", only_local, "tblur", 0);
+      "@curvature", samples, Radius, 0.0, 0.0, 1.0, 0, "sblur", only_local, "tblur", 0);
 }

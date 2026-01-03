@@ -27,12 +27,12 @@ ccl_device float svm_curvature(
     KernelGlobals kg,
     ConstIntegratorState state,
     ccl_private ShaderData *sd,
-    float max_dist,
+    float radius,
     const int num_samples,
     const int flags)
 {
   /* Early out if no sampling needed. */
-  if (max_dist <= 0.0f || num_samples < 1 || sd->object == OBJECT_NONE) {
+  if (radius <= 0.0f || num_samples < 1 || sd->object == OBJECT_NONE) {
     return 1.0f;
   }
 
@@ -63,7 +63,7 @@ ccl_device float svm_curvature(
     ray.P = sd->P;
     ray.D = to_global(D, T, B, N);
     ray.tmin = 0.0f;
-    ray.tmax = max_dist;
+    ray.tmax = radius;
     ray.time = sd->time;
     ray.self.object = sd->object;
     ray.self.prim = sd->prim;
@@ -104,12 +104,12 @@ ccl_device_noinline
 
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
-    float dist = stack_load(stack, node.dist);
+    float radius = stack_load(stack, node.radius);
 
 #  ifdef __KERNEL_OPTIX__
-    curvature = optixDirectCall<float>(0, kg, state, sd, dist, node.samples, node.flags);
+    curvature = optixDirectCall<float>(0, kg, state, sd, radius, node.samples, node.flags);
 #  else
-    curvature = svm_curvature(kg, state, sd, dist, node.samples, node.flags);
+    curvature = svm_curvature(kg, state, sd, radius, node.samples, node.flags);
 #  endif
   }
 

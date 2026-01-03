@@ -15,7 +15,11 @@ namespace nodes::node_shader_curvature_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Distance"_ustr).default_value(1.0f).min(0.0f).max(1000.0f);
+  b.add_input<decl::Float>("Radius"_ustr)
+      .default_value(0.01f)
+      .min(0.0f)
+      .max(1000.0f)
+      .description("Radius for sampling nearby surfaces");
   b.add_output<decl::Float>("Curvature"_ustr);
 }
 
@@ -51,10 +55,10 @@ NODE_SHADER_MATERIALX_BEGIN
   /* TODO: observed crash while rendering MaterialX_v1_38_6::ExceptionShaderGenError */
   /**
    * \code{.cc}
-   * NodeItem maxdistance = get_input_value("Distance", NodeItem::Type::Float);
+   * NodeItem radius = get_input_value("Radius", NodeItem::Type::Float);
    * NodeItem res = create_node("curvature", NodeItem::Type::Float);
    * res.set_input("coneangle", val(90.0f));
-   * res.set_input("maxdistance", maxdistance);
+   * res.set_input("radius", radius);
    * \endcode
    */
   return get_output_default(socket_out_->identifier, NodeItem::Type::Any);

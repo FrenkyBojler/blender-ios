@@ -1818,7 +1818,7 @@ class CurvatureNode : public ShaderNode {
     return KERNEL_FEATURE_NODE_RAYTRACE;
   }
 
-  NODE_SOCKET_API(float, distance)
+  NODE_SOCKET_API(float, radius)
   NODE_SOCKET_API(int, samples)
 
   NODE_SOCKET_API(bool, only_local)
