@@ -442,16 +442,12 @@ static void nearest_ordered_insert(KDTreeNearest<CoordT> *nearest,
  *
  * \param r_nearest: An array of nearest, sized at least \a nearest_len_capacity.
  */
-template<typename CoordT>
-inline int kdtree_find_nearest_n_with_len_squared_cb(
-    const KDTree<CoordT> *tree,
-    const CoordT &co,
-    KDTreeNearest<CoordT> r_nearest[],
-    const uint nearest_len_capacity,
-    typename KDTree<CoordT>::ValueType (*len_sq_fn)(const CoordT &co_search,
-                                                    const CoordT &co_test,
-                                                    const void *user_data),
-    const void *user_data)
+template<typename CoordT, typename Func>
+inline int kdtree_find_nearest_n_with_len_squared_cb(const KDTree<CoordT> *tree,
+                                                     const CoordT &co,
+                                                     KDTreeNearest<CoordT> r_nearest[],
+                                                     const uint nearest_len_capacity,
+                                                     Func &&len_sq_fn)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *root;
@@ -468,19 +464,12 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
     return 0;
   }
 
-  if (len_sq_fn == nullptr) {
-    len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) {
-      return math::distance_squared(co_search, co_test);
-    };
-    BLI_assert(user_data == nullptr);
-  }
-
   stack = stack_default;
   stack_len_capacity = int(ARRAY_SIZE(stack_default));
 
   root = &nodes[tree->root];
 
-  cur_dist = len_sq_fn(co, root->co, user_data);
+  cur_dist = len_sq_fn(co, root->co);
   detail::nearest_ordered_insert<CoordT>(
       r_nearest, &nearest_len, nearest_len_capacity, root->index, cur_dist, root->co);
 
@@ -510,7 +499,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
       cur_dist = -cur_dist * cur_dist;
 
       if (nearest_len < nearest_len_capacity || -cur_dist < r_nearest[nearest_len - 1].dist) {
-        cur_dist = len_sq_fn(co, node->co, user_data);
+        cur_dist = len_sq_fn(co, node->co);
 
         if (nearest_len < nearest_len_capacity || cur_dist < r_nearest[nearest_len - 1].dist) {
           detail::nearest_ordered_insert<CoordT>(
@@ -529,7 +518,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
       cur_dist = cur_dist * cur_dist;
 
       if (nearest_len < nearest_len_capacity || cur_dist < r_nearest[nearest_len - 1].dist) {
-        cur_dist = len_sq_fn(co, node->co, user_data);
+        cur_dist = len_sq_fn(co, node->co);
         if (nearest_len < nearest_len_capacity || cur_dist < r_nearest[nearest_len - 1].dist) {
           detail::nearest_ordered_insert<CoordT>(
               r_nearest, &nearest_len, nearest_len_capacity, node->index, cur_dist, node->co);
@@ -565,8 +554,10 @@ inline int kdtree_find_nearest_n(const KDTree<CoordT> *tree,
                                  KDTreeNearest<CoordT> r_nearest[],
                                  uint nearest_len_capacity)
 {
+  using ValueType = typename KDTree<CoordT>::ValueType;
+  constexpr int DimsNum = KDTree<CoordT>::DimsNum;
   return kdtree_find_nearest_n_with_len_squared_cb<CoordT>(
-      tree, co, r_nearest, nearest_len_capacity, nullptr, nullptr);
+      tree, co, r_nearest, nearest_len_capacity, math::distance_squared<ValueType, DimsNum>);
 }
 
 namespace detail {
@@ -616,16 +607,12 @@ static void nearest_add_in_range(KDTreeNearest<CoordT> **r_nearest,
  *
  * \param r_nearest: Allocated array of nearest nearest_len (caller is responsible for freeing).
  */
-template<typename CoordT>
-inline int kdtree_range_search_with_len_squared_cb(
-    const KDTree<CoordT> *tree,
-    const CoordT &co,
-    KDTreeNearest<CoordT> **r_nearest,
-    const typename KDTree<CoordT>::ValueType range,
-    typename KDTree<CoordT>::ValueType (*len_sq_fn)(const CoordT &co_search,
-                                                    const CoordT &co_test,
-                                                    const void *user_data),
-    const void *user_data)
+template<typename CoordT, typename Func>
+inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
+                                                   const CoordT &co,
+                                                   KDTreeNearest<CoordT> **r_nearest,
+                                                   const typename KDTree<CoordT>::ValueType range,
+                                                   Func &&len_sq_fn)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   uint *stack, stack_default[detail::kd_stack_init];
@@ -641,13 +628,6 @@ inline int kdtree_range_search_with_len_squared_cb(
 
   if (UNLIKELY(tree->root == detail::kd_node_unset)) {
     return 0;
-  }
-
-  if (len_sq_fn == nullptr) {
-    len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) {
-      return math::distance_squared(co_search, co_test);
-    };
-    BLI_assert(user_data == nullptr);
   }
 
   stack = stack_default;
@@ -669,7 +649,7 @@ inline int kdtree_range_search_with_len_squared_cb(
       }
     }
     else {
-      dist_sq = len_sq_fn(co, node->co, user_data);
+      dist_sq = len_sq_fn(co, node->co);
       if (dist_sq <= range_sq) {
         detail::nearest_add_in_range<CoordT>(
             &nearest, nearest_len++, &nearest_len_capacity, node->index, dist_sq, node->co);
@@ -707,8 +687,10 @@ inline int kdtree_range_search(const KDTree<CoordT> *tree,
                                KDTreeNearest<CoordT> **r_nearest,
                                typename KDTree<CoordT>::ValueType range)
 {
+  using ValueType = typename KDTree<CoordT>::ValueType;
+  constexpr int DimsNum = KDTree<CoordT>::DimsNum;
   return kdtree_range_search_with_len_squared_cb<CoordT>(
-      tree, co, r_nearest, range, nullptr, nullptr);
+      tree, co, r_nearest, range, math::distance_squared<ValueType, DimsNum>);
 }
 
 /**
@@ -1196,22 +1178,30 @@ constexpr inline auto kdtree_2d_deduplicate = kdtree_deduplicate<float2>;
 constexpr inline auto kdtree_3d_deduplicate = kdtree_deduplicate<float3>;
 constexpr inline auto kdtree_4d_deduplicate = kdtree_deduplicate<float4>;
 
+template<typename Func>
 constexpr inline auto kdtree_1d_find_nearest_n_with_len_squared_cb =
-    kdtree_find_nearest_n_with_len_squared_cb<float1>;
+    kdtree_find_nearest_n_with_len_squared_cb<float1, Func>;
+template<typename Func>
 constexpr inline auto kdtree_2d_find_nearest_n_with_len_squared_cb =
-    kdtree_find_nearest_n_with_len_squared_cb<float2>;
+    kdtree_find_nearest_n_with_len_squared_cb<float2, Func>;
+template<typename Func>
 constexpr inline auto kdtree_3d_find_nearest_n_with_len_squared_cb =
-    kdtree_find_nearest_n_with_len_squared_cb<float3>;
+    kdtree_find_nearest_n_with_len_squared_cb<float3, Func>;
+template<typename Func>
 constexpr inline auto kdtree_4d_find_nearest_n_with_len_squared_cb =
-    kdtree_find_nearest_n_with_len_squared_cb<float4>;
+    kdtree_find_nearest_n_with_len_squared_cb<float4, Func>;
 
+template<typename Func>
 constexpr inline auto kdtree_1d_range_search_with_len_squared_cb =
-    kdtree_range_search_with_len_squared_cb<float1>;
+    kdtree_range_search_with_len_squared_cb<float1, Func>;
+template<typename Func>
 constexpr inline auto kdtree_2d_range_search_with_len_squared_cb =
-    kdtree_range_search_with_len_squared_cb<float2>;
+    kdtree_range_search_with_len_squared_cb<float2, Func>;
+template<typename Func>
 constexpr inline auto kdtree_3d_range_search_with_len_squared_cb =
-    kdtree_range_search_with_len_squared_cb<float3>;
+    kdtree_range_search_with_len_squared_cb<float3, Func>;
+template<typename Func>
 constexpr inline auto kdtree_4d_range_search_with_len_squared_cb =
-    kdtree_range_search_with_len_squared_cb<float4>;
+    kdtree_range_search_with_len_squared_cb<float4, Func>;
 
 }  // namespace blender
