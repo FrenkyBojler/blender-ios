@@ -16,8 +16,6 @@
 
 struct Heap;
 struct HeapNode;
-struct Heap;
-struct HeapNode;
 
 typedef void (*HeapFreeFP)(void *ptr);
 
