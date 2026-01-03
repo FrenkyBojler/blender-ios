@@ -164,7 +164,7 @@ int main(int argc, char **argv)
   string result;
   {
     TimeIt time_it(time);
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1000; i++) {
 
       parser::IntermediateForm parser(buffer.str(), report_error);
 
@@ -177,7 +177,8 @@ int main(int argc, char **argv)
     }
   }
 
-  std::cout << "Optimize: " << time.count() << " µs" << std::endl;
+  std::cout << "Throughput: " << ((buffer.str().size() * 1000.f) / float(time.count())) << " MB/s"
+            << std::endl;
 
   output_file << result;
 
