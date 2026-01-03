@@ -698,7 +698,9 @@ void TokenStream::scope_parse(report_callback &report_error)
   for (const char &c : token_types) {
     tok_id++;
 
-    if (stack.back().type == ScopeType::Preprocessor) {
+    const ScopeType current_scope = stack.back().type;
+
+    if (stack.back().type == ScopeType::Preprocessor) {  // Here
       if (TokenType(c) == NewLine) {
         stack.exit_scope(tok_id);
       }
@@ -713,7 +715,7 @@ void TokenStream::scope_parse(report_callback &report_error)
         stack.enter_scope(ScopeType::Preprocessor, tok_id);
         break;
       case Assign:
-        if (stack.back().type == ScopeType::Assignment) {
+        if (current_scope == ScopeType::Assignment) {
           /* Chained assignments. */
           stack.exit_scope(tok_id - 1);
         }
@@ -746,13 +748,13 @@ void TokenStream::scope_parse(report_callback &report_error)
         else if (keyword == Namespace) {
           stack.enter_scope(ScopeType::Namespace, tok_id);
         }
-        else if (stack.back().type == ScopeType::Global) {
+        else if (current_scope == ScopeType::Global) {
           stack.enter_scope(ScopeType::Function, tok_id);
         }
-        else if (stack.back().type == ScopeType::Struct) {
+        else if (current_scope == ScopeType::Struct) {
           stack.enter_scope(ScopeType::Function, tok_id);
         }
-        else if (stack.back().type == ScopeType::Namespace) {
+        else if (current_scope == ScopeType::Namespace) {
           stack.enter_scope(ScopeType::Function, tok_id);
         }
         else {
@@ -769,15 +771,14 @@ void TokenStream::scope_parse(report_callback &report_error)
         else if (tok_id >= 1 && token_types[tok_id - 1] == Switch) {
           stack.enter_scope(ScopeType::SwitchArg, tok_id);
         }
-        else if (stack.back().type == ScopeType::Global) {
+        else if (current_scope == ScopeType::Global) {
           stack.enter_scope(ScopeType::FunctionArgs, tok_id);
         }
-        else if (stack.back().type == ScopeType::Struct) {
+        else if (current_scope == ScopeType::Struct) {
           stack.enter_scope(ScopeType::FunctionArgs, tok_id);
         }
-        else if ((stack.back().type == ScopeType::Function ||
-                  stack.back().type == ScopeType::Local ||
-                  stack.back().type == ScopeType::Attribute) &&
+        else if ((current_scope == ScopeType::Function || current_scope == ScopeType::Local ||
+                  current_scope == ScopeType::Attribute) &&
                  (tok_id >= 1 && token_types[tok_id - 1] == Word))
         {
           stack.enter_scope(ScopeType::FunctionCall, tok_id);
@@ -898,7 +899,7 @@ void TokenStream::scope_parse(report_callback &report_error)
         }
         break;
       default:
-        switch (stack.back().type) {
+        switch (current_scope) {
           case ScopeType::Attributes:
             stack.enter_scope(ScopeType::Attribute, tok_id);
             break;
