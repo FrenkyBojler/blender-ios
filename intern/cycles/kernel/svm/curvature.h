@@ -116,11 +116,6 @@ ccl_device_noinline
   if (stack_valid(node.out_curvature_offset)) {
     stack_store_float(stack, node.out_curvature_offset, curvature);
   }
-
-  if (stack_valid(node.out_color_offset)) {
-    const float3 color = stack_load(stack, node.color);
-    stack_store_float3(stack, node.out_color_offset, curvature * color);
-  }
 }
 
 #endif /* __SHADER_RAYTRACE__ */

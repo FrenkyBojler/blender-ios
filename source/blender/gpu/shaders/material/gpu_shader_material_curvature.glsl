@@ -5,12 +5,7 @@
 #include "gpu_shader_math_vector_safe_lib.glsl"
 
 [[node]]
-void node_curvature(float4 color,
-                    float dist,
-                    const float sample_count,
-                    float4 &result_color,
-                    float &result_curvature)
+void node_curvature(float dist, const float sample_count, float &result_curvature)
 {
   result_curvature = ambient_occlusion_eval(float3(0.0, 0.0, 1.0), dist, 0.0, sample_count);
-  result_color = result_curvature * color;
 }

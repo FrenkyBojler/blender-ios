@@ -1247,12 +1247,11 @@ static_assert(sizeof(SVMNodeRaycast) % sizeof(uint) == 0);
 
 /* NODE_CURVATURE */
 struct SVMNodeCurvature {
-  SVMInputFloat3 color;
   SVMInputFloat dist;
   uint8_t flags;
   uint8_t samples;
   SVMStackOffset out_curvature_offset;
-  SVMStackOffset out_color_offset;
+  uint8_t _pad[1];
 };
 static_assert(alignof(SVMNodeCurvature) <= alignof(uint));
 static_assert(sizeof(SVMNodeCurvature) % sizeof(uint) == 0);

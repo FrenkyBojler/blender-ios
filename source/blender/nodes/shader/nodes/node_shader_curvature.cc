@@ -15,9 +15,7 @@ namespace nodes::node_shader_curvature_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Distance"_ustr).default_value(1.0f).min(0.0f).max(1000.0f);
-  b.add_output<decl::Color>("Color"_ustr);
   b.add_output<decl::Float>("Curvature"_ustr);
 }
 

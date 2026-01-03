@@ -8008,12 +8008,10 @@ NODE_DEFINE(CurvatureNode)
 
   SOCKET_INT(samples, "Samples", 16);
 
-  SOCKET_IN_COLOR(color, "Color", one_float3());
   SOCKET_IN_FLOAT(distance, "Distance", 1.0f);
 
   SOCKET_BOOLEAN(only_local, "Only Local", false);
 
-  SOCKET_OUT_COLOR(color, "Color");
   SOCKET_OUT_FLOAT(curvature, "Curvature");
 
   return type;
@@ -8028,12 +8026,10 @@ void CurvatureNode::compile(SVMCompiler &compiler)
   compiler.add_node(this,
                     NODE_CURVATURE,
                     SVMNodeCurvature{
-                        .color = compiler.input_float3("Color"),
                         .dist = compiler.input_float("Distance"),
                         .flags = uint8_t(flags),
                         .samples = uint8_t(samples),
                         .out_curvature_offset = compiler.output("Curvature"),
-                        .out_color_offset = compiler.output("Color"),
                     });
 }
 
