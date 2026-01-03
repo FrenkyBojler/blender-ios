@@ -302,15 +302,11 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
  * \param filter_cb: Filter find results,
  * Return codes: (1: accept, 0: skip, -1: immediate exit).
  */
-template<typename CoordT>
+template<typename CoordT, typename Func>
 inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
                                   const CoordT &co,
-                                  int (*filter_cb)(void *user_data,
-                                                   int index,
-                                                   const CoordT &co,
-                                                   typename KDTree<CoordT>::ValueType dist_sq),
-                                  void *user_data,
-                                  KDTreeNearest<CoordT> *r_nearest)
+                                  KDTreeNearest<CoordT> *r_nearest,
+                                  Func filter_cb)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *min_node = nullptr;
@@ -335,7 +331,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
     if (dist_sq >= min_dist) {
       return false;
     }
-    const int result = filter_cb(user_data, (node)->index, (node)->co, dist_sq);
+    const int result = filter_cb((node)->index, (node)->co, dist_sq);
     if (result == 1) {
       min_dist = dist_sq;
       min_node = node;
@@ -973,15 +969,12 @@ inline void kdtree_range_search_cb_cpp(const KDTree<CoordT> *tree,
  * \note The duplicate search is performed in an order defined by the tree-nodes index,
  * the index of the input (first to last) for predictability.
  */
-template<typename CoordT>
+template<typename CoordT, typename Func>
 inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
                                      const typename KDTree<CoordT>::ValueType range,
                                      int *duplicates,
                                      const bool has_self_index,
-                                     int (*duplicates_cb)(void *user_data,
-                                                          const int *cluster,
-                                                          int cluster_num),
-                                     void *user_data)
+                                     Func &&duplicates_cb)
 {
   BLI_assert(tree->is_balanced);
   if (UNLIKELY(tree->root == detail::kd_node_unset)) {
@@ -1066,7 +1059,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
     found += int(cluster.size());
     cluster.append(node_index);
 
-    const int cluster_index = duplicates_cb(user_data, cluster.data(), int(cluster.size()));
+    const int cluster_index = duplicates_cb(cluster.data(), int(cluster.size()));
     BLI_assert(uint(cluster_index) < uint(cluster.size()));
     const int target_index = cluster[cluster_index];
     for (const int cluster_node_index : cluster) {
@@ -1079,45 +1072,6 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
 }
 
 /** \} */
-
-template<typename CoordT, typename Fn>
-inline int kdtree_find_nearest_cb_cpp(const KDTree<CoordT> *tree,
-                                      const CoordT &co,
-                                      KDTreeNearest<CoordT> *r_nearest,
-                                      Fn &&fn)
-{
-  return kdtree_find_nearest_cb<CoordT>(
-      tree,
-      co,
-      [](void *user_data,
-         const int index,
-         const CoordT &co,
-         const typename KDTree<CoordT>::ValueType dist_sq) {
-        Fn &fn = *static_cast<Fn *>(user_data);
-        return fn(index, co, dist_sq);
-      },
-      &fn,
-      r_nearest);
-}
-
-template<typename CoordT, typename Fn>
-inline int kdtree_calc_duplicates_cb_cpp(const KDTree<CoordT> *tree,
-                                         const typename KDTree<CoordT>::ValueType distance,
-                                         int *duplicates,
-                                         const bool has_self_index,
-                                         const Fn &fn)
-{
-  return kdtree_calc_duplicates_cb<CoordT>(
-      tree,
-      distance,
-      duplicates,
-      has_self_index,
-      [](void *user_data, const int *cluster, int cluster_num) -> int {
-        const Fn &fn = *static_cast<const Fn *>(user_data);
-        return fn(cluster, cluster_num);
-      },
-      const_cast<Fn *>(&fn));
-}
 
 /* -------------------------------------------------------------------- */
 /** \name kdtree_3d_deduplicate
@@ -1229,10 +1183,14 @@ constexpr inline auto kdtree_2d_range_search = kdtree_range_search<float2>;
 constexpr inline auto kdtree_3d_range_search = kdtree_range_search<float3>;
 constexpr inline auto kdtree_4d_range_search = kdtree_range_search<float4>;
 
-constexpr inline auto kdtree_1d_find_nearest_cb = kdtree_find_nearest_cb<float1>;
-constexpr inline auto kdtree_2d_find_nearest_cb = kdtree_find_nearest_cb<float2>;
-constexpr inline auto kdtree_3d_find_nearest_cb = kdtree_find_nearest_cb<float3>;
-constexpr inline auto kdtree_4d_find_nearest_cb = kdtree_find_nearest_cb<float4>;
+template<typename Func>
+constexpr inline auto kdtree_1d_find_nearest_cb = kdtree_find_nearest_cb<float1, Func>;
+template<typename Func>
+constexpr inline auto kdtree_2d_find_nearest_cb = kdtree_find_nearest_cb<float2, Func>;
+template<typename Func>
+constexpr inline auto kdtree_3d_find_nearest_cb = kdtree_find_nearest_cb<float3, Func>;
+template<typename Func>
+constexpr inline auto kdtree_4d_find_nearest_cb = kdtree_find_nearest_cb<float4, Func>;
 
 constexpr inline auto kdtree_1d_range_search_cb = kdtree_range_search_cb<float1>;
 constexpr inline auto kdtree_2d_range_search_cb = kdtree_range_search_cb<float2>;
@@ -1244,10 +1202,14 @@ constexpr inline auto kdtree_2d_calc_duplicates_fast = kdtree_calc_duplicates_fa
 constexpr inline auto kdtree_3d_calc_duplicates_fast = kdtree_calc_duplicates_fast<float3>;
 constexpr inline auto kdtree_4d_calc_duplicates_fast = kdtree_calc_duplicates_fast<float4>;
 
-constexpr inline auto kdtree_1d_calc_duplicates_cb = kdtree_calc_duplicates_cb<float1>;
-constexpr inline auto kdtree_2d_calc_duplicates_cb = kdtree_calc_duplicates_cb<float2>;
-constexpr inline auto kdtree_3d_calc_duplicates_cb = kdtree_calc_duplicates_cb<float3>;
-constexpr inline auto kdtree_4d_calc_duplicates_cb = kdtree_calc_duplicates_cb<float4>;
+template<typename Func>
+constexpr inline auto kdtree_1d_calc_duplicates_cb = kdtree_calc_duplicates_cb<float1, Func>;
+template<typename Func>
+constexpr inline auto kdtree_2d_calc_duplicates_cb = kdtree_calc_duplicates_cb<float2, Func>;
+template<typename Func>
+constexpr inline auto kdtree_3d_calc_duplicates_cb = kdtree_calc_duplicates_cb<float3, Func>;
+template<typename Func>
+constexpr inline auto kdtree_4d_calc_duplicates_cb = kdtree_calc_duplicates_cb<float4, Func>;
 
 constexpr inline auto kdtree_1d_deduplicate = kdtree_deduplicate<float1>;
 constexpr inline auto kdtree_2d_deduplicate = kdtree_deduplicate<float2>;

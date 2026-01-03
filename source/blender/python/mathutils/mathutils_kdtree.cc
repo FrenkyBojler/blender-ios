@@ -172,30 +172,6 @@ struct PyKDTree_NearestData {
   bool is_error;
 };
 
-static int py_find_nearest_cb(void *user_data, int index, const blender::float3 &co, float dist_sq)
-{
-  UNUSED_VARS(co, dist_sq);
-
-  PyKDTree_NearestData *data = static_cast<PyKDTree_NearestData *>(user_data);
-
-  PyObject *py_args = PyTuple_New(1);
-  PyTuple_SET_ITEM(py_args, 0, PyLong_FromLong(index));
-  PyObject *result = PyObject_CallObject(data->py_filter, py_args);
-  Py_DECREF(py_args);
-
-  if (result) {
-    bool use_node;
-    const int ok = PyC_ParseBool(result, &use_node);
-    Py_DECREF(result);
-    if (ok) {
-      return int(use_node);
-    }
-  }
-
-  data->is_error = true;
-  return -1;
-}
-
 PyDoc_STRVAR(
     /* Wrap. */
     py_kdtree_find_doc,
@@ -243,7 +219,27 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
     data.py_filter = py_filter;
     data.is_error = false;
 
-    blender::kdtree_3d_find_nearest_cb(self->obj, co, py_find_nearest_cb, &data, &nearest);
+    blender::kdtree_find_nearest_cb<blender::float3>(
+        self->obj, co, &nearest, [&](int index, const blender::float3 &co, float dist_sq) {
+          UNUSED_VARS(co, dist_sq);
+
+          PyObject *py_args = PyTuple_New(1);
+          PyTuple_SET_ITEM(py_args, 0, PyLong_FromLong(index));
+          PyObject *result = PyObject_CallObject(data.py_filter, py_args);
+          Py_DECREF(py_args);
+
+          if (result) {
+            bool use_node;
+            const int ok = PyC_ParseBool(result, &use_node);
+            Py_DECREF(result);
+            if (ok) {
+              return int(use_node);
+            }
+          }
+
+          data.is_error = true;
+          return -1;
+        });
 
     if (data.is_error) {
       return nullptr;
