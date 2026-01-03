@@ -720,15 +720,11 @@ inline int kdtree_range_search(const KDTree<CoordT> *tree,
  *
  * \note the order of calls isn't sorted based on distance.
  */
-template<typename CoordT>
+template<typename CoordT, typename Fn>
 inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
                                    const CoordT &co,
                                    typename KDTree<CoordT>::ValueType range,
-                                   bool (*search_cb)(void *user_data,
-                                                     int index,
-                                                     const CoordT &co,
-                                                     typename KDTree<CoordT>::ValueType dist_sq),
-                                   void *user_data)
+                                   Fn &&search_cb)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
 
@@ -765,7 +761,7 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
     else {
       dist_sq = math::distance_squared(node->co, co);
       if (dist_sq <= range_sq) {
-        if (search_cb(user_data, node->index, node->co, dist_sq) == false) {
+        if (search_cb(node->index, node->co, dist_sq) == false) {
           break;
         }
       }
@@ -927,26 +923,6 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
 
 /** \} */
 
-template<typename CoordT, typename Fn>
-inline void kdtree_range_search_cb_cpp(const KDTree<CoordT> *tree,
-                                       const CoordT &co,
-                                       const typename KDTree<CoordT>::ValueType distance,
-                                       const Fn &fn)
-{
-  kdtree_range_search_cb<CoordT>(
-      tree,
-      co,
-      distance,
-      [](void *user_data,
-         const int index,
-         const CoordT &co,
-         const typename KDTree<CoordT>::ValueType dist_sq) {
-        const Fn &fn = *static_cast<const Fn *>(user_data);
-        return fn(index, co, dist_sq);
-      },
-      const_cast<Fn *>(&fn));
-}
-
 /* -------------------------------------------------------------------- */
 /** \name kdtree_3d_calc_duplicates_cb
  * \{ */
@@ -1026,7 +1002,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
         return true;
       };
 
-      kdtree_range_search_cb_cpp<CoordT>(tree, search_co, range, accumulate_neighbors_fn);
+      kdtree_range_search_cb<CoordT>(tree, search_co, range, accumulate_neighbors_fn);
     }
   }
 
@@ -1052,7 +1028,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
       return true;
     };
 
-    kdtree_range_search_cb_cpp<CoordT>(tree, search_co, range, accumulate_neighbors_fn);
+    kdtree_range_search_cb<CoordT>(tree, search_co, range, accumulate_neighbors_fn);
     if (cluster.is_empty()) {
       continue;
     }
@@ -1192,10 +1168,14 @@ constexpr inline auto kdtree_3d_find_nearest_cb = kdtree_find_nearest_cb<float3,
 template<typename Filter>
 constexpr inline auto kdtree_4d_find_nearest_cb = kdtree_find_nearest_cb<float4, Filter>;
 
-constexpr inline auto kdtree_1d_range_search_cb = kdtree_range_search_cb<float1>;
-constexpr inline auto kdtree_2d_range_search_cb = kdtree_range_search_cb<float2>;
-constexpr inline auto kdtree_3d_range_search_cb = kdtree_range_search_cb<float3>;
-constexpr inline auto kdtree_4d_range_search_cb = kdtree_range_search_cb<float4>;
+template<typename Fn>
+constexpr inline auto kdtree_1d_range_search_cb = kdtree_range_search_cb<float1, Fn>;
+template<typename Fn>
+constexpr inline auto kdtree_2d_range_search_cb = kdtree_range_search_cb<float2, Fn>;
+template<typename Fn>
+constexpr inline auto kdtree_3d_range_search_cb = kdtree_range_search_cb<float3, Fn>;
+template<typename Fn>
+constexpr inline auto kdtree_4d_range_search_cb = kdtree_range_search_cb<float4, Fn>;
 
 constexpr inline auto kdtree_1d_calc_duplicates_fast = kdtree_calc_duplicates_fast<float1>;
 constexpr inline auto kdtree_2d_calc_duplicates_fast = kdtree_calc_duplicates_fast<float2>;
