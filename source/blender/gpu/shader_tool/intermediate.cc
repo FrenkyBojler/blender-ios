@@ -174,6 +174,20 @@ static always_inline TokenType to_type(const char c)
   }
 }
 
+/* Table lookup variant. Much faster than switch statement.  */
+static always_inline TokenType to_type_table(const unsigned char c)
+{
+  static std::array<TokenType, 256> token_table = [] {
+    std::array<TokenType, 256> t;
+    for (int i = 0; i < 256; ++i) {
+      t[i] = to_type(i);
+    }
+    return t;
+  }();
+
+  return token_table[c];
+}
+
 void TokenStream::token_offsets_populate()
 {
   std::vector<TokenType> token_types;
@@ -187,7 +201,7 @@ void TokenStream::token_offsets_populate()
   token_offsets.offsets.reserve(predicted_token_count);
 
   char curr_c = str[0];
-  TokenType curr_type = to_type(curr_c);
+  TokenType curr_type = to_type_table(curr_c);
   token_types.emplace_back(curr_type);
   token_offsets.offsets.emplace_back(0);
 
@@ -204,7 +218,7 @@ void TokenStream::token_offsets_populate()
     const char prev_c = curr_c;
     curr_c = c;
     const TokenType prev = curr_type;
-    const TokenType type = to_type(c);
+    const TokenType type = to_type_table(c);
 
     const bool prev_is_whitespace = curr_is_whitespace;
 
