@@ -200,9 +200,8 @@ void TokenStream::token_offsets_populate()
   token_types.reserve(str.size());
   token_offsets.offsets.reserve(str.size() + 1);
 
-  char curr_c = str[0];
-  TokenType curr_type = to_type_table(curr_c);
-  token_types.emplace_back(curr_type);
+  TokenType type = to_type_table(str[0]);
+  token_types.emplace_back(type);
   token_offsets.offsets.emplace_back(0);
 
   /* When doing white-space merging, keep knowledge about whether previous char was white-space.
@@ -212,13 +211,14 @@ void TokenStream::token_offsets_populate()
   bool next_character_is_escape = false;
   bool inside_string = false;
 
+  const char *str_raw = str.data();
+
   int offset = 0, type_cursor = 0, offset_cursor = 0;
-  for (const char c : std::string_view{str.data() + 1, str.size() - 1}) {
+  for (const char c : std::string_view{str_raw + 1, str.size() - 1}) {
     offset++;
-    const char prev_c = curr_c;
-    curr_c = c;
-    const TokenType prev = curr_type;
-    const TokenType type = to_type_table(c);
+
+    const TokenType prev = type;
+    type = to_type_table(c);
 
     const bool prev_is_whitespace = curr_is_whitespace;
 
@@ -353,12 +353,11 @@ void TokenStream::token_offsets_populate()
         continue; /* Merge. */
       }
       /* If sign is part of float literal after exponent. */
-      if ((c == '+' || c == '-') && prev_c == 'e') {
+      if ((c == '+' || c == '-') && str_raw[offset - 1] == 'e') {
         continue; /* Merge. */
       }
     }
 
-    curr_type = type;
     token_types[type_cursor++] = type;
     token_offsets.offsets[offset_cursor++] = offset;
   }
