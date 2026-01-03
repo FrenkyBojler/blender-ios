@@ -1000,7 +1000,7 @@ wmOperatorStatus WM_generic_select_modal(bContext &C, wmOperator &op, const wmEv
     if (event->val == KM_PRESS) {
       RNA_property_boolean_set(op.ptr, wait_to_deselect_prop, true);
 
-      wmOperatorStatus retval = op.type->exec(&C, &op);
+      wmOperatorStatus retval = op.type->exec(C, op);
       OPERATOR_RETVAL_CHECK(retval);
 
       if (retval & OPERATOR_RUNNING_MODAL) {
@@ -1013,7 +1013,7 @@ wmOperatorStatus WM_generic_select_modal(bContext &C, wmOperator &op, const wmEv
      */
     RNA_property_boolean_set(op.ptr, wait_to_deselect_prop, false);
 
-    wmOperatorStatus retval = op.type->exec(&C, &op);
+    wmOperatorStatus retval = op.type->exec(C, op);
     OPERATOR_RETVAL_CHECK(retval);
 
     return retval | OPERATOR_PASS_THROUGH;
@@ -1021,7 +1021,7 @@ wmOperatorStatus WM_generic_select_modal(bContext &C, wmOperator &op, const wmEv
   if (event->type == init_event_type && event->val == KM_RELEASE) {
     RNA_property_boolean_set(op.ptr, wait_to_deselect_prop, false);
 
-    wmOperatorStatus retval = op.type->exec(&C, &op);
+    wmOperatorStatus retval = op.type->exec(C, op);
     OPERATOR_RETVAL_CHECK(retval);
 
     return retval | OPERATOR_PASS_THROUGH;
@@ -1057,7 +1057,7 @@ wmOperatorStatus WM_generic_select_invoke(bContext &C, wmOperator &op, const wmE
 
   op.customdata = POINTER_FROM_INT(0);
 
-  wmOperatorStatus retval = op.type->modal(&C, &op, event);
+  wmOperatorStatus retval = op.type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
   return retval;
 }
@@ -1112,7 +1112,7 @@ wmOperatorStatus WM_menu_invoke_ex(bContext *C,
                RNA_property_identifier(prop));
   }
   else if (RNA_property_is_set(op->ptr, prop)) {
-    const wmOperatorStatus retval = op->type->exec(C, op);
+    const wmOperatorStatus retval = op->type->exec(*C, *op);
     OPERATOR_RETVAL_CHECK(retval);
     return retval;
   }
@@ -1254,7 +1254,7 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C,
     return WM_operator_confirm_ex(
         C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
   }
-  return op->type->exec(C, op);
+  return op->type->exec(*C, *op);
 }
 
 wmOperatorStatus WM_operator_filesel(bContext *C, wmOperator *op, const wmEvent * /*event*/)
@@ -1743,7 +1743,7 @@ static void wm_operator_ui_popup_cancel(bContext *C, void *user_data)
 
   if (op) {
     if (op->type->cancel) {
-      op->type->cancel(C, op);
+      op->type->cancel(*C, *op);
     }
 
     if (data->free_op) {
@@ -1929,7 +1929,7 @@ wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
                 op->type->idname);
     return OPERATOR_CANCELLED;
   }
-  if (op->type->poll && op->type->poll(C) == 0) {
+  if (op->type->poll && op->type->poll(*C) == 0) {
     BKE_reportf(
         CTX_wm_reports(*C), RPT_ERROR, "Operator redo '%s': wrong context", op->type->idname);
     return OPERATOR_CANCELLED;
@@ -2505,7 +2505,7 @@ static void WM_OT_console_toggle(wmOperatorType *ot)
 
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
-                                        bool (*poll)(bContext *C),
+                                        bool (*poll)(bContext &C),
                                         wmPaintCursorDraw draw,
                                         void *customdata)
 {

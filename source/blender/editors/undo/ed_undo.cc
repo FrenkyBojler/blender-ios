@@ -669,7 +669,7 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
       ED_undo_pop_op(C, op);
 
       if (op->type->check) {
-        if (op->type->check(C, op)) {
+        if (op->type->check(*C, *op)) {
           /* check for popup and re-layout buttons */
           ARegion *region_popup = CTX_wm_region_popup(*C);
           if (region_popup) {

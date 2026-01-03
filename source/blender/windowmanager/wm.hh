@@ -26,7 +26,7 @@ struct wmPaintCursor {
 
   void *customdata;
 
-  bool (*poll)(bContext *C);
+  bool (*poll)(bContext &C);
   void (*draw)(bContext *C,
                const blender::int2 &xy,
                const blender::float2 &tilt,

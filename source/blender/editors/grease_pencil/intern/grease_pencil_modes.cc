@@ -34,9 +34,9 @@ namespace blender::ed::greasepencil {
 /** \name Toggle Stroke Paint Mode Operator
  * \{ */
 
-static bool brush_cursor_poll(bContext *C)
+static bool brush_cursor_poll(bContext &C)
 {
-  if (WM_toolsystem_active_tool_is_brush(C) && !WM_toolsystem_active_tool_has_custom_cursor(C)) {
+  if (WM_toolsystem_active_tool_is_brush(&C) && !WM_toolsystem_active_tool_has_custom_cursor(&C)) {
     return true;
   }
   return false;
@@ -151,13 +151,13 @@ static bool sculptmode_toggle_poll(bContext &C)
   return false;
 }
 
-static bool sculpt_poll_view3d(bContext *C)
+static bool sculpt_poll_view3d(bContext &C)
 {
-  const Object *ob = CTX_data_active_object(*C);
+  const Object *ob = CTX_data_active_object(C);
   if (ob == nullptr || (ob->mode & OB_MODE_SCULPT_GREASE_PENCIL) == 0) {
     return false;
   }
-  if (CTX_wm_region_view3d(*C) == nullptr) {
+  if (CTX_wm_region_view3d(C) == nullptr) {
     return false;
   }
   return true;
@@ -237,11 +237,11 @@ static void GREASE_PENCIL_OT_sculptmode_toggle(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static bool grease_pencil_poll_weight_cursor(bContext *C)
+static bool grease_pencil_poll_weight_cursor(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   return ob && (ob->mode & OB_MODE_WEIGHT_GREASE_PENCIL) && (ob->type == OB_GREASE_PENCIL) &&
-         CTX_wm_region_view3d(*C) && WM_toolsystem_active_tool_is_brush(C);
+         CTX_wm_region_view3d(C) && WM_toolsystem_active_tool_is_brush(&C);
 }
 
 static bool weightmode_toggle_poll(bContext &C)
@@ -332,11 +332,11 @@ static void GREASE_PENCIL_OT_weightmode_toggle(wmOperatorType *ot)
 /** \name Toggle Vertex Paint Mode Operator
  * \{ */
 
-static bool grease_pencil_poll_vertex_cursor(bContext *C)
+static bool grease_pencil_poll_vertex_cursor(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   return ob && (ob->mode & OB_MODE_VERTEX_GREASE_PENCIL) && (ob->type == OB_GREASE_PENCIL) &&
-         CTX_wm_region_view3d(*C) && WM_toolsystem_active_tool_is_brush(C);
+         CTX_wm_region_view3d(C) && WM_toolsystem_active_tool_is_brush(&C);
 }
 
 static bool vertexmode_toggle_poll(bContext &C)

@@ -277,7 +277,7 @@ static wmOperatorStatus object_add_drop_xy_generic_invoke(bContext &C,
     RNA_int_set(op.ptr, "drop_x", event->xy[0]);
     RNA_int_set(op.ptr, "drop_y", event->xy[1]);
   }
-  return op.type->exec(&C, &op);
+  return op.type->exec(C, op);
 }
 
 /** \} */
@@ -2013,7 +2013,7 @@ static wmOperatorStatus object_instance_add_invoke(bContext &C,
   if (!WM_operator_properties_id_lookup_is_set(op.ptr)) {
     return WM_enum_search_invoke(C, op, event);
   }
-  return op.type->exec(&C, &op);
+  return op.type->exec(C, op);
 }
 
 void OBJECT_OT_collection_instance_add(wmOperatorType *ot)

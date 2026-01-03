@@ -1111,10 +1111,10 @@ bool WM_operator_poll(bContext *C, wmOperatorType *ot)
 
   /* Python needs operator type, so we added exception for it. */
   if (ot->pyop_poll) {
-    return ot->pyop_poll(C, ot);
+    return ot->pyop_poll(*C, *ot);
   }
   if (ot->poll) {
-    return ot->poll(C);
+    return ot->poll(*C);
   }
 
   return true;
@@ -1161,7 +1161,7 @@ bool WM_operator_ui_poll(wmOperatorType *ot, PointerRNA *ptr)
 
   if (ot->ui) {
     if (ot->ui_poll) {
-      return ot->ui_poll(ot, ptr);
+      return ot->ui_poll(*ot, ptr);
     }
     return true;
   }
@@ -1385,7 +1385,7 @@ static wmOperatorStatus wm_operator_exec(bContext *C,
       wm->op_undo_depth++;
     }
 
-    retval = op->type->exec(C, op);
+    retval = op->type->exec(*C, *op);
     OPERATOR_RETVAL_CHECK(retval);
 
     if (op->type->flag & OPTYPE_UNDO && CTX_wm_manager(*C) == wm) {
@@ -1428,7 +1428,7 @@ static wmOperatorStatus wm_operator_exec_notest(bContext *C, wmOperator *op)
     return retval;
   }
 
-  retval = op->type->exec(C, op);
+  retval = op->type->exec(*C, *op);
   OPERATOR_RETVAL_CHECK(retval);
 
   return retval;
@@ -1686,7 +1686,7 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
         wm->op_undo_depth++;
       }
 
-      retval = op->type->invoke(C, op, &event_temp);
+      retval = op->type->invoke(*C, *op, &event_temp);
       OPERATOR_RETVAL_CHECK(retval);
 
       if (op->type->flag & OPTYPE_UNDO && CTX_wm_manager(*C) == wm) {
@@ -1698,7 +1698,7 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
         wm->op_undo_depth++;
       }
 
-      retval = op->type->exec(C, op);
+      retval = op->type->exec(*C, *op);
       OPERATOR_RETVAL_CHECK(retval);
 
       if (op->type->flag & OPTYPE_UNDO && CTX_wm_manager(*C) == wm) {
@@ -2312,7 +2312,7 @@ void WM_event_remove_handlers(bContext *C, ListBaseT<wmEventHandler> *handlers)
             wm->op_undo_depth++;
           }
 
-          handler->op->type->cancel(C, handler->op);
+          handler->op->type->cancel(*C, *handler->op);
 
           if (handler->op->type->flag & OPTYPE_UNDO) {
             wm->op_undo_depth--;
@@ -2480,7 +2480,7 @@ static wmKeyMapItem *wm_eventmatch_modal_keymap_items(const wmKeyMap *keymap,
     /* Should already be handled by #wm_user_modal_keymap_set_items. */
     BLI_assert(kmi.propvalue_str[0] == '\0');
     if (wm_eventmatch(event, &kmi)) {
-      if ((keymap->poll_modal_item == nullptr) || keymap->poll_modal_item(op, kmi.propvalue)) {
+      if ((keymap->poll_modal_item == nullptr) || keymap->poll_modal_item(*op, kmi.propvalue)) {
         return &kmi;
       }
     }
@@ -2659,7 +2659,7 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
       }
 
       /* Warning, after this call all context data and 'event' may be freed. see check below. */
-      retval = ot->modal(C, op, event);
+      retval = ot->modal(*C, *op, event);
       OPERATOR_RETVAL_CHECK(retval);
 
       if (ot->flag & OPTYPE_UNDO && CTX_wm_manager(*C) == wm) {
@@ -2959,7 +2959,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
           wm->op_undo_depth++;
         }
 
-        const wmOperatorStatus retval = handler->op->type->exec(C, handler->op);
+        const wmOperatorStatus retval = handler->op->type->exec(*C, *handler->op);
         OPERATOR_RETVAL_CHECK(retval);
 
         /* XXX check this carefully, `CTX_wm_manager(C) == wm` is a bit hackish. */
@@ -3019,7 +3019,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
             wm->op_undo_depth++;
           }
 
-          handler->op->type->cancel(C, handler->op);
+          handler->op->type->cancel(*C, *handler->op);
 
           if (handler->op->type->flag & OPTYPE_UNDO) {
             wm->op_undo_depth--;
@@ -3864,7 +3864,7 @@ static void wm_paintcursor_tag(bContext *C, wmWindowManager *wm, ARegion *region
 {
   if (region) {
     for (wmPaintCursor &pc : wm->runtime->paintcursors.items_mutable()) {
-      if (pc.poll == nullptr || pc.poll(C)) {
+      if (pc.poll == nullptr || pc.poll(*C)) {
         wmWindow *win = CTX_wm_window(*C);
         WM_paint_cursor_tag_redraw(win, region);
       }
@@ -4596,7 +4596,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   /* Check props once before invoking if check is available
    * ensures initial properties are valid. */
   if (op->type->check) {
-    op->type->check(C, op); /* Ignore return value. */
+    op->type->check(*C, *op); /* Ignore return value. */
   }
 
   WM_event_fileselect_event(wm, op, EVT_FILESELECT_FULL_OPEN);
@@ -6898,7 +6898,7 @@ bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui:
       continue;
     }
     if ((keymap->poll_modal_item != nullptr) &&
-        (keymap->poll_modal_item(op, items[i].value) == false))
+        (keymap->poll_modal_item(*op, items[i].value) == false))
     {
       continue;
     }

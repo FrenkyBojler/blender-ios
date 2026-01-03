@@ -1513,7 +1513,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   if (event->type == EVT_MODAL_MAP && event->val == PAINT_STROKE_MODAL_CANCEL) {
     if (op->type->cancel) {
       if (this->test_cancel()) {
-        op->type->cancel(C, op);
+        op->type->cancel(*C, *op);
         return OPERATOR_CANCELLED;
       }
     }
@@ -1733,12 +1733,12 @@ bool paint_brush_tool_poll(const ScrArea *area,
   return brush_tool_get(area, region, paint, ob) != nullptr;
 }
 
-bool paint_brush_cursor_poll(bContext *C)
+bool paint_brush_cursor_poll(bContext &C)
 {
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  const Object *ob = CTX_data_active_object(*C);
-  const ScrArea *area = CTX_wm_area(*C);
-  const ARegion *region = CTX_wm_region(*C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
+  const Object *ob = CTX_data_active_object(C);
+  const ScrArea *area = CTX_wm_area(C);
+  const ARegion *region = CTX_wm_region(C);
 
   const bToolRef *tref = brush_tool_get(area, region, paint, ob);
   if (!tref) {

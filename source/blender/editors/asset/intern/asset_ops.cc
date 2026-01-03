@@ -172,13 +172,13 @@ void AssetMarkHelper::reportResults(ReportList &reports) const
   }
 }
 
-static wmOperatorStatus asset_mark_exec(const bContext *C,
-                                        const wmOperator *op,
+static wmOperatorStatus asset_mark_exec(const bContext &C,
+                                        const wmOperator &op,
                                         const Span<PointerRNA> ids)
 {
   AssetMarkHelper mark_helper;
-  mark_helper(*C, ids);
-  mark_helper.reportResults(*op->reports);
+  mark_helper(C, ids);
+  mark_helper.reportResults(*op.reports);
 
   if (!mark_helper.wasSuccessful()) {
     return OPERATOR_CANCELLED;
@@ -190,12 +190,12 @@ static wmOperatorStatus asset_mark_exec(const bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static bool asset_mark_poll(bContext *C, const Span<PointerRNA> ids)
+static bool asset_mark_poll(bContext &C, const Span<PointerRNA> ids)
 {
   IDVecStats ctx_stats = asset_operation_get_id_vec_stats_from_ids(ids);
 
   if (!ctx_stats.has_supported_type) {
-    CTX_wm_operator_poll_msg_set(C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
+    CTX_wm_operator_poll_msg_set(&C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
     return false;
   }
 
@@ -210,11 +210,11 @@ static void ASSET_OT_mark(wmOperatorType *ot)
       "customizable metadata (like previews, descriptions and tags)";
   ot->idname = "ASSET_OT_mark";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
-    return asset_mark_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
+  ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
+    return asset_mark_exec(C, op, ED_operator_get_ids_from_context_as_vec(&C));
   };
-  ot->poll = [](bContext *C) -> bool {
-    return asset_mark_poll(C, ED_operator_get_ids_from_context_as_vec(C));
+  ot->poll = [](bContext &C) -> bool {
+    return asset_mark_poll(C, ED_operator_get_ids_from_context_as_vec(&C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -231,11 +231,11 @@ static void ASSET_OT_mark_single(wmOperatorType *ot)
       "customizable metadata (like previews, descriptions and tags)";
   ot->idname = "ASSET_OT_mark_single";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
-    return asset_mark_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
+  ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
+    return asset_mark_exec(C, op, ED_operator_single_id_from_context_as_vec(&C));
   };
-  ot->poll = [](bContext *C) -> bool {
-    return asset_mark_poll(C, ED_operator_single_id_from_context_as_vec(C));
+  ot->poll = [](bContext &C) -> bool {
+    return asset_mark_poll(C, ED_operator_single_id_from_context_as_vec(&C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -318,14 +318,14 @@ bool AssetClearHelper::wasSuccessful() const
   return stats.tot_cleared > 0;
 }
 
-static wmOperatorStatus asset_clear_exec(const bContext *C,
-                                         const wmOperator *op,
+static wmOperatorStatus asset_clear_exec(const bContext &C,
+                                         const wmOperator &op,
                                          const Span<PointerRNA> ids)
 {
-  const bool set_fake_user = RNA_boolean_get(op->ptr, "set_fake_user");
+  const bool set_fake_user = RNA_boolean_get(op.ptr, "set_fake_user");
   AssetClearHelper clear_helper(set_fake_user);
   clear_helper(ids);
-  clear_helper.reportResults(C, *op->reports);
+  clear_helper.reportResults(&C, *op.reports);
 
   if (!clear_helper.wasSuccessful()) {
     return OPERATOR_CANCELLED;
@@ -337,18 +337,18 @@ static wmOperatorStatus asset_clear_exec(const bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static bool asset_clear_poll(bContext *C, const Span<PointerRNA> ids)
+static bool asset_clear_poll(bContext &C, const Span<PointerRNA> ids)
 {
   IDVecStats ctx_stats = asset_operation_get_id_vec_stats_from_ids(ids);
 
   if (!ctx_stats.has_asset) {
     const char *msg_single = N_("Data-block is not marked as asset");
     const char *msg_multiple = N_("No data-block selected that is marked as asset");
-    CTX_wm_operator_poll_msg_set(C, ctx_stats.is_single ? msg_single : msg_multiple);
+    CTX_wm_operator_poll_msg_set(&C, ctx_stats.is_single ? msg_single : msg_multiple);
     return false;
   }
   if (!ctx_stats.has_supported_type) {
-    CTX_wm_operator_poll_msg_set(C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
+    CTX_wm_operator_poll_msg_set(&C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
     return false;
   }
 
@@ -380,11 +380,11 @@ static void ASSET_OT_clear(wmOperatorType *ot)
   ot->get_description = asset_clear_get_description;
   ot->idname = "ASSET_OT_clear";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
-    return asset_clear_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
+  ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
+    return asset_clear_exec(C, op, ED_operator_get_ids_from_context_as_vec(&C));
   };
-  ot->poll = [](bContext *C) -> bool {
-    return asset_clear_poll(C, ED_operator_get_ids_from_context_as_vec(C));
+  ot->poll = [](bContext &C) -> bool {
+    return asset_clear_poll(C, ED_operator_get_ids_from_context_as_vec(&C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -404,11 +404,11 @@ static void ASSET_OT_clear_single(wmOperatorType *ot)
   ot->get_description = asset_clear_get_description;
   ot->idname = "ASSET_OT_clear_single";
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
-    return asset_clear_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
+  ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
+    return asset_clear_exec(C, op, ED_operator_single_id_from_context_as_vec(&C));
   };
-  ot->poll = [](bContext *C) -> bool {
-    return asset_clear_poll(C, ED_operator_single_id_from_context_as_vec(C));
+  ot->poll = [](bContext &C) -> bool {
+    return asset_clear_poll(C, ED_operator_single_id_from_context_as_vec(&C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

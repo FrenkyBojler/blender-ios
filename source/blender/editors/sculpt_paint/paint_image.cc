@@ -310,9 +310,9 @@ static bool image_paint_poll_ex(bContext *C, bool check_tool)
   return false;
 }
 
-bool ED_image_tools_paint_poll(bContext *C)
+bool ED_image_tools_paint_poll(bContext &C)
 {
-  return image_paint_poll_ex(C, true);
+  return image_paint_poll_ex(&C, true);
 }
 
 bool image_paint_poll_ignore_tool(bContext *C)
@@ -327,7 +327,7 @@ static bool image_paint_2d_clone_poll(bContext &C)
   const ImagePaintSettings &image_paint_settings = settings->imapaint;
   Brush *brush = image_paint_brush(&C);
 
-  if (!CTX_wm_region_view3d(C) && ED_image_tools_paint_poll(&C)) {
+  if (!CTX_wm_region_view3d(C) && ED_image_tools_paint_poll(C)) {
     if (brush && (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE)) {
       if (image_paint_settings.clone) {
         return true;
@@ -885,7 +885,7 @@ static wmOperatorStatus brush_colors_flip_exec(bContext &C, wmOperator & /*op*/)
 
 static bool brush_colors_flip_poll(bContext &C)
 {
-  if (ED_image_tools_paint_poll(&C)) {
+  if (ED_image_tools_paint_poll(C)) {
     Brush *br = image_paint_brush(&C);
     if (ELEM(br->image_brush_type, IMAGE_PAINT_BRUSH_TYPE_DRAW, IMAGE_PAINT_BRUSH_TYPE_FILL)) {
       return true;
@@ -965,7 +965,7 @@ blender::float3 seed_hsv_jitter()
 
 bool image_texture_paint_poll(bContext &C)
 {
-  return (texture_paint_poll(&C) || ED_image_tools_paint_poll(&C));
+  return (texture_paint_poll(&C) || ED_image_tools_paint_poll(C));
 }
 
 bool facemask_paint_poll(bContext &C)

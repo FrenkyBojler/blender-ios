@@ -108,7 +108,7 @@ int template_status_bar_modal_item(Layout *layout,
       layout->separator(event_icon_offset(icon));
 
       if ((keymap->poll_modal_item == nullptr) ||
-          (keymap->poll_modal_item(op, item_z->value) != false))
+          (keymap->poll_modal_item(*op, item_z->value) != false))
       {
         /* Z item is included. */
 #ifndef WITH_HEADLESS

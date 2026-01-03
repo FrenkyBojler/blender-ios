@@ -1760,7 +1760,7 @@ void file_draw_check_ex(bContext *C, ScrArea *area)
       file_sfile_to_operator(C, bmain, op, sfile);
 
       /* redraw */
-      if (op->type->check(C, op)) {
+      if (op->type->check(*C, *op)) {
         file_operator_to_sfile(bmain, sfile, op);
 
         /* redraw, else the changed settings won't get updated */

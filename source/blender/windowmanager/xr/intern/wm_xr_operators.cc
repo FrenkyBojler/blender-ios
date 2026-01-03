@@ -1572,7 +1572,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext &C,
 
   wm_xr_navigation_teleport_init(&op);
 
-  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
+  const wmOperatorStatus retval = op.type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval & OPERATOR_RUNNING_MODAL) {

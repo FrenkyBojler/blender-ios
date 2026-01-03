@@ -525,7 +525,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext &C,
   if ((scene->active_keyingset != 0) && !RNA_boolean_get(op.ptr, "always_prompt")) {
     /* Just call the exec() on the active keying-set. */
     RNA_enum_set(op.ptr, "type", 0);
-    return op.type->exec(&C, &op);
+    return op.type->exec(C, op);
   }
 
   /* Show a menu listing all keying-sets, the enum is expanded here to make use of the

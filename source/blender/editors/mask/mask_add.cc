@@ -831,7 +831,7 @@ static wmOperatorStatus primitive_add_invoke(bContext &C,
 
   RNA_float_set_array(op.ptr, "location", cursor);
 
-  return op.type->exec(&C, &op);
+  return op.type->exec(C, op);
 }
 
 static void define_primitive_add_properties(wmOperatorType *ot)

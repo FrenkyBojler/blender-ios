@@ -2260,7 +2260,7 @@ static void paint_draw_cursor(bContext *C,
 
 /* Public API */
 
-void ED_paint_cursor_start(Paint *paint, bool (*poll)(bContext *C))
+void ED_paint_cursor_start(Paint *paint, bool (*poll)(bContext &C))
 {
   if (paint && paint->runtime && !paint->runtime->paint_cursor) {
     paint->runtime->paint_cursor = WM_paint_cursor_activate(

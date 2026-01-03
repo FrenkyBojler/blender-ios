@@ -80,9 +80,9 @@ inline void update_after_node_change(bContext *C, const PointerRNA node_ptr)
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
-template<typename Accessor> inline bool editable_node_active_poll(bContext *C)
+template<typename Accessor> inline bool editable_node_active_poll(bContext &C)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   if (!snode) {
     return false;
   }
@@ -120,14 +120,14 @@ inline void remove_active_item(wmOperatorType *ot,
   ot->poll = editable_node_active_poll<Accessor>;
   ot->flag = OPTYPE_UNDO;
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
-    PointerRNA node_ptr = get_active_node_to_operate_on(C, op, Accessor::node_idname);
+  ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
+    PointerRNA node_ptr = get_active_node_to_operate_on(&C, &op, Accessor::node_idname);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
     SocketItemsRef ref = Accessor::get_items_from_node(node);
     if (*ref.items_num > 0) {
       dna::array::remove_index(
           ref.items, ref.items_num, ref.active_index, *ref.active_index, Accessor::destruct_item);
-      update_after_node_change(C, node_ptr);
+      update_after_node_change(&C, node_ptr);
     }
     return OPERATOR_FINISHED;
   };
@@ -147,15 +147,15 @@ inline void remove_item_by_index(wmOperatorType *ot,
   ot->poll = editable_node_active_poll<Accessor>;
   ot->flag = OPTYPE_UNDO;
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
-    PointerRNA node_ptr = get_active_node_to_operate_on(C, op, Accessor::node_idname);
+  ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
+    PointerRNA node_ptr = get_active_node_to_operate_on(&C, &op, Accessor::node_idname);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
-    const int index_to_remove = RNA_int_get(op->ptr, "index");
+    const int index_to_remove = RNA_int_get(op.ptr, "index");
     SocketItemsRef ref = Accessor::get_items_from_node(node);
     dna::array::remove_index(
         ref.items, ref.items_num, ref.active_index, index_to_remove, Accessor::destruct_item);
 
-    update_after_node_change(C, node_ptr);
+    update_after_node_change(&C, node_ptr);
     return OPERATOR_FINISHED;
   };
 
@@ -174,8 +174,8 @@ inline void add_item(wmOperatorType *ot,
   ot->poll = editable_node_active_poll<Accessor>;
   ot->flag = OPTYPE_UNDO;
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
-    PointerRNA node_ptr = get_active_node_to_operate_on(C, op, Accessor::node_idname);
+  ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
+    PointerRNA node_ptr = get_active_node_to_operate_on(&C, &op, Accessor::node_idname);
     if (node_ptr.data == nullptr) {
       return OPERATOR_CANCELLED;
     }
@@ -222,7 +222,7 @@ inline void add_item(wmOperatorType *ot,
       *ref.active_index = dst_index;
     }
 
-    update_after_node_change(C, node_ptr);
+    update_after_node_change(&C, node_ptr);
     return OPERATOR_FINISHED;
   };
 
@@ -246,10 +246,10 @@ inline void move_active_item(wmOperatorType *ot,
   ot->poll = editable_node_active_poll<Accessor>;
   ot->flag = OPTYPE_UNDO;
 
-  ot->exec = [](bContext *C, wmOperator *op) -> wmOperatorStatus {
-    PointerRNA node_ptr = get_active_node_to_operate_on(C, op, Accessor::node_idname);
+  ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
+    PointerRNA node_ptr = get_active_node_to_operate_on(&C, &op, Accessor::node_idname);
     bNode &node = *static_cast<bNode *>(node_ptr.data);
-    const MoveDirection direction = MoveDirection(RNA_enum_get(op->ptr, "direction"));
+    const MoveDirection direction = MoveDirection(RNA_enum_get(op.ptr, "direction"));
 
     SocketItemsRef ref = Accessor::get_items_from_node(node);
     const int old_active_index = *ref.active_index;
@@ -262,7 +262,7 @@ inline void move_active_item(wmOperatorType *ot,
       *ref.active_index += 1;
     }
 
-    update_after_node_change(C, node_ptr);
+    update_after_node_change(&C, node_ptr);
     return OPERATOR_FINISHED;
   };
 

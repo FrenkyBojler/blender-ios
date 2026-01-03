@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -291,7 +292,7 @@ static void SOUND_OT_update_animation_flags(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-static wmOperatorStatus sound_bake_animation_exec(bContext &C, wmOperator & /*op*/)
+static wmOperatorStatus sound_bake_animation_exec(bContext &C, wmOperator &op)
 {
   Scene *scene = CTX_data_scene(C);
   /* NOTE: We will be forcefully evaluating dependency graph at every frame, so no need to ensure
@@ -300,7 +301,7 @@ static wmOperatorStatus sound_bake_animation_exec(bContext &C, wmOperator & /*op
   int oldfra = scene->r.cfra;
   int cfra;
 
-  sound_update_animation_flags_exec(C, *nullptr);
+  sound_update_animation_flags_exec(C, op);
 
   for (cfra = (scene->r.sfra > 0) ? (scene->r.sfra - 1) : 0; cfra <= scene->r.efra + 1; cfra++) {
     scene->r.cfra = cfra;

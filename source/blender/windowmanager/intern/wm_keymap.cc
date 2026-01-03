@@ -498,7 +498,7 @@ bool WM_keymap_poll(bContext *C, wmKeyMap *keymap)
   }
 
   if (keymap->poll != nullptr) {
-    return keymap->poll(C);
+    return keymap->poll(*C);
   }
   return true;
 }

@@ -20,7 +20,7 @@ namespace blender::ed::transform {
  * Poll callback for cursor drawing:
  * #WM_paint_cursor_activate
  */
-bool transform_draw_cursor_poll(bContext *C);
+bool transform_draw_cursor_poll(bContext &C);
 /**
  * Cursor and help-line drawing, callback for:
  * #WM_paint_cursor_activate

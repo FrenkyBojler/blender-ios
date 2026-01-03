@@ -342,7 +342,7 @@ static wmOperatorStatus wm_macro_exec(bContext &C, wmOperator &op)
     }
 
     opm.flag |= op_inherited_flag;
-    retval = opm.type->exec(&C, &opm);
+    retval = opm.type->exec(C, opm);
     opm.flag &= ~op_inherited_flag;
 
     OPERATOR_RETVAL_CHECK(retval);
@@ -372,10 +372,10 @@ static wmOperatorStatus wm_macro_invoke_internal(bContext *C,
 
     opm->flag |= op_inherited_flag;
     if (opm->type->invoke) {
-      retval = opm->type->invoke(C, opm, event);
+      retval = opm->type->invoke(*C, *opm, event);
     }
     else if (opm->type->exec) {
-      retval = opm->type->exec(C, opm);
+      retval = opm->type->exec(*C, *opm);
     }
     opm->flag &= ~op_inherited_flag;
 
@@ -410,7 +410,7 @@ static wmOperatorStatus wm_macro_modal(bContext &C, wmOperator &op, const wmEven
     CLOG_ERROR(WM_LOG_OPERATORS, "macro error, calling nullptr modal()");
   }
   else {
-    retval = opm->type->modal(&C, opm, event);
+    retval = opm->type->modal(C, *opm, event);
     OPERATOR_RETVAL_CHECK(retval);
 
     /* If we're halfway through using a tool and cancel it, clear the options, see: #37149. */
@@ -476,7 +476,7 @@ static void wm_macro_cancel(bContext &C, wmOperator &op)
 {
   /* Call cancel on the current modal operator, if any. */
   if (op.opm && op.opm->type->cancel) {
-    op.opm->type->cancel(&C, op.opm);
+    op.opm->type->cancel(C, *op.opm);
   }
 
   wm_macro_end(&op, OPERATOR_CANCELLED);
@@ -593,7 +593,7 @@ std::string WM_operatortype_name(wmOperatorType *ot, PointerRNA *properties)
 {
   std::string name;
   if (ot->get_name && properties) {
-    name = ot->get_name(ot, properties);
+    name = ot->get_name(*ot, properties);
   }
 
   return name.empty() ? std::string(RNA_struct_ui_name(ot->srna)) : name;
@@ -602,7 +602,7 @@ std::string WM_operatortype_name(wmOperatorType *ot, PointerRNA *properties)
 std::string WM_operatortype_description(bContext *C, wmOperatorType *ot, PointerRNA *properties)
 {
   if (ot->get_description && properties) {
-    std::string description = ot->get_description(C, ot, properties);
+    std::string description = ot->get_description(*C, *ot, properties);
     if (!description.empty()) {
       return description;
     }

@@ -491,7 +491,7 @@ static wmOperatorStatus paint_invoke(bContext &C, wmOperator &op, const wmEvent 
   ImagePaintStroke *stroke = MEM_new<ImagePaintStroke>(__func__, &C, &op, event->type);
   op.customdata = stroke;
 
-  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
+  const wmOperatorStatus retval = op.type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {

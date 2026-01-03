@@ -1153,7 +1153,7 @@ bool ED_view3d_navigation_do(bContext *C,
       }
 
       const ViewOpsType *nav_type = view3d_navigation_type_from_idname(kmi.idname);
-      if (nav_type->poll_fn && !nav_type->poll_fn(C)) {
+      if (nav_type->poll_fn && !nav_type->poll_fn(*C)) {
         break;
       }
 

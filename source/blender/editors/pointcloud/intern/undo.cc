@@ -158,7 +158,7 @@ static void foreach_ID_ref(UndoStep *us_p,
 void undosys_type_register(UndoType *ut)
 {
   ut->name = "Edit Point Cloud";
-  ut->poll = editable_pointcloud_in_edit_mode_poll;
+  ut->poll = [](bContext *C) { return editable_pointcloud_in_edit_mode_poll(*C); };
   ut->step_encode = undo::step_encode;
   ut->step_decode = undo::step_decode;
   ut->step_free = undo::step_free;

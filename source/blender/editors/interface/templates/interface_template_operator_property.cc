@@ -58,7 +58,7 @@ static bool ui_layout_operator_buts_poll_property(PointerRNA * /*ptr*/,
   {
     return false;
   }
-  return params->op->type->poll_property(params->C, params->op, prop);
+  return params->op->type->poll_property(*params->C, *params->op, prop);
 }
 
 static AutoPropButsReturn template_operator_property_buts_draw_single(
@@ -111,7 +111,7 @@ static AutoPropButsReturn template_operator_property_buts_draw_single(
 
   if (op->type->ui) {
     op->layout = &layout;
-    op->type->ui((bContext *)C, op);
+    op->type->ui(*(bContext *)C, *op);
     op->layout = nullptr;
 
     /* #UI_LAYOUT_OP_SHOW_EMPTY ignored. retun_info is ignored too.

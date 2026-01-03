@@ -889,7 +889,7 @@ void handle_afterfunc_add_operator(wmOperatorType *ot, wm::OpCallContext opconte
 static void popup_check(bContext *C, wmOperator *op)
 {
   if (op && op->type->check) {
-    op->type->check(C, op);
+    op->type->check(*C, *op);
   }
 }
 

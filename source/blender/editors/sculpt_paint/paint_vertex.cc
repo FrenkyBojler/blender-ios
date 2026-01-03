@@ -641,9 +641,9 @@ static bool vertex_paint_poll_ex(bContext *C, bool check_tool)
   return false;
 }
 
-bool vertex_paint_poll(bContext *C)
+bool vertex_paint_poll(bContext &C)
 {
-  return vertex_paint_poll_ex(C, true);
+  return vertex_paint_poll_ex(&C, true);
 }
 
 bool vertex_paint_poll_ignore_tool(bContext *C)
@@ -2139,7 +2139,7 @@ static wmOperatorStatus vpaint_invoke(bContext &C, wmOperator &op, const wmEvent
   VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, &C, &op, event->type);
   op.customdata = stroke;
 
-  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
+  const wmOperatorStatus retval = op.type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {

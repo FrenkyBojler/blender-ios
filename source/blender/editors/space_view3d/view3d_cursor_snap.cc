@@ -833,24 +833,24 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
 /** \name Callbacks
  * \{ */
 
-static bool v3d_cursor_snap_poll_fn(bContext *C)
+static bool v3d_cursor_snap_poll_fn(bContext &C)
 {
   if (G.moving) {
     return false;
   }
 
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   if (area->spacetype != SPACE_VIEW3D) {
     return false;
   }
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   if (region->regiontype != RGN_TYPE_WINDOW) {
     if (!region->overlap) {
       return false;
     }
     /* Sometimes the cursor may be on an invisible part of an overlapping region. */
-    wmWindow *win = CTX_wm_window(*C);
+    wmWindow *win = CTX_wm_window(C);
     const wmEvent *event = win->runtime->eventstate;
     if (ED_region_overlap_isect_xy(region, event->xy)) {
       return false;

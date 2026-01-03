@@ -10,6 +10,7 @@
 #include <cstring>
 #include <fmt/format.h>
 
+#include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_build_config.h"
@@ -5296,14 +5297,14 @@ static wmOperatorStatus repeat_history_exec(bContext &C, wmOperator &op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  &op = static_cast<wmOperator *>(
+  wmOperator *repeat_op = static_cast<wmOperator *>(
       BLI_findlink(&wm->runtime->operators, RNA_int_get(op.ptr, "index")));
-  if (&op) {
+  if (repeat_op) {
     /* let's put it as last operator in list */
-    BLI_remlink(&wm->runtime->operators, &op);
-    BLI_addtail(&wm->runtime->operators, &op);
+    BLI_remlink(&wm->runtime->operators, repeat_op);
+    BLI_addtail(&wm->runtime->operators, repeat_op);
 
-    WM_operator_repeat(&C, &op);
+    WM_operator_repeat(&C, repeat_op);
   }
 
   return OPERATOR_FINISHED;

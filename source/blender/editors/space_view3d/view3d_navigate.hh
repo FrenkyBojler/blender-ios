@@ -94,7 +94,7 @@ ENUM_OPERATORS(eViewOpsFlag);
 struct ViewOpsType {
   eViewOpsFlag flag;
   const char *idname;
-  bool (*poll_fn)(bContext *C);
+  bool (*poll_fn)(bContext &C);
   wmOperatorStatus (*init_fn)(bContext *C,
                               ViewOpsData *vod,
                               const wmEvent *event,

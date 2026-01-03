@@ -577,7 +577,7 @@ void WM_cursor_progress(wmWindow *win, float progress_factor);
 
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
-                                        bool (*poll)(bContext *C),
+                                        bool (*poll)(bContext &C),
                                         wmPaintCursorDraw draw,
                                         void *customdata);
 

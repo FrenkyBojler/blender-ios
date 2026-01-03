@@ -429,7 +429,7 @@ bool SCULPT_poll(bContext &C);
 /**
  * Determines whether or not the brush cursor should be shown in the viewport
  */
-bool SCULPT_brush_cursor_poll(bContext *C);
+bool SCULPT_brush_cursor_poll(bContext &C);
 
 namespace blender::ed::sculpt_paint {
 /**

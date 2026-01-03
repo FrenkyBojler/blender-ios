@@ -72,12 +72,12 @@ bool curves_sculpt_poll(bContext &C)
   return ob && ob->mode & OB_MODE_SCULPT_CURVES;
 }
 
-bool curves_sculpt_poll_view3d(bContext *C)
+bool curves_sculpt_poll_view3d(bContext &C)
 {
-  if (!curves_sculpt_poll(*C)) {
+  if (!curves_sculpt_poll(C)) {
     return false;
   }
-  if (CTX_wm_region_view3d(*C) == nullptr) {
+  if (CTX_wm_region_view3d(C) == nullptr) {
     return false;
   }
   return true;
@@ -246,7 +246,7 @@ static wmOperatorStatus sculpt_curves_stroke_invoke(bContext &C,
       __func__, &C, &op, event->type);
   op.customdata = op_data;
 
-  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
+  const wmOperatorStatus retval = op.type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {

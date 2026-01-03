@@ -324,7 +324,7 @@ bool paint_brush_tool_poll(const ScrArea *area,
                            const Paint *paint,
                            const Object *ob);
 /** Returns true if the brush cursor should be activated. */
-bool paint_brush_cursor_poll(bContext *C);
+bool paint_brush_cursor_poll(bContext &C);
 
 void BRUSH_OT_asset_activate(wmOperatorType *ot);
 void BRUSH_OT_asset_save_as(wmOperatorType *ot);
@@ -347,7 +347,7 @@ bool weight_paint_poll(bContext &C);
 bool weight_paint_poll_ignore_tool(bContext &C);
 bool weight_paint_mode_poll(bContext &C);
 bool weight_paint_mode_region_view3d_poll(bContext &C);
-bool vertex_paint_poll(bContext *C);
+bool vertex_paint_poll(bContext &C);
 bool vertex_paint_poll_ignore_tool(bContext *C);
 /**
  * Returns true if vertex paint mode is active.

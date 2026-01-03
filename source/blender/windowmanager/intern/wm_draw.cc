@@ -131,7 +131,7 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
       continue;
     }
 
-    if (pc.poll == nullptr || pc.poll(C)) {
+    if (pc.poll == nullptr || pc.poll(*C)) {
       blender::ui::theme::theme_set(area->spacetype, region->regiontype);
 
       /* Prevent drawing outside region. */

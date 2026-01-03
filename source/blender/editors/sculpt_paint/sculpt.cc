@@ -3754,10 +3754,10 @@ static bool is_brush_related_tool(bContext *C)
   return false;
 }
 
-bool SCULPT_brush_cursor_poll(bContext *C)
+bool SCULPT_brush_cursor_poll(bContext &C)
 {
   using namespace blender::ed::sculpt_paint;
-  return SCULPT_mode_poll(*C) && (paint_brush_cursor_poll(C) || is_brush_related_tool(C));
+  return SCULPT_mode_poll(C) && (paint_brush_cursor_poll(C) || is_brush_related_tool(&C));
 }
 
 static const char *sculpt_brush_type_name(const Sculpt &sd)
@@ -5864,7 +5864,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext &C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
+  const wmOperatorStatus retval = op.type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
