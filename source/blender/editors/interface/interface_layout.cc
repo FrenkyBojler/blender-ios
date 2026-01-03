@@ -17,7 +17,6 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_dynstr.h"
 #include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
@@ -1141,7 +1140,17 @@ static Button *ui_item_with_label(Layout *layout,
   Button *but;
   if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
     block_layout_set_current(block, &sub->row(true));
-    but = uiDefAutoButR(block, ptr, prop, index, "", icon, x, y, prop_but_width - UI_UNIT_X, h);
+    but = uiDefAutoButR(block,
+                        ptr,
+                        prop,
+                        index,
+                        "",
+                        icon,
+                        x,
+                        y,
+                        prop_but_width - UI_UNIT_X,
+                        h,
+                        button_type_override);
 
     if (but != nullptr) {
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
@@ -1263,8 +1272,8 @@ void context_active_but_prop_get_filebrowser(const bContext *C,
     return;
   }
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but && but->rnapoin.data) {
         if (RNA_property_type(but->rnaprop) == PROP_STRING) {
           prevbut = but.get();
@@ -3044,13 +3053,13 @@ void Layout::popover_group(
     return;
   }
 
-  LISTBASE_FOREACH (PanelType *, pt, &art->paneltypes) {
+  for (PanelType &pt : art->paneltypes) {
     /* Causes too many panels, check context. */
-    if (pt->parent_id[0] == '\0') {
-      if (/* (*context == '\0') || */ STREQ(pt->context, context)) {
-        if ((*category == '\0') || STREQ(pt->category, category)) {
-          if (pt->poll == nullptr || pt->poll(C, pt)) {
-            this->popover(C, pt, std::nullopt, ICON_NONE);
+    if (pt.parent_id[0] == '\0') {
+      if (/* (*context == '\0') || */ STREQ(pt.context, context)) {
+        if ((*category == '\0') || STREQ(pt.category, category)) {
+          if (pt.poll == nullptr || pt.poll(C, &pt)) {
+            this->popover(C, &pt, std::nullopt, ICON_NONE);
           }
         }
       }
@@ -5568,9 +5577,9 @@ void block_layout_set_current(Block *block, Layout *layout)
 
 void block_layout_free(Block *block)
 {
-  LISTBASE_FOREACH_MUTABLE (LayoutRoot *, root, &block->layouts) {
-    ui_layout_free(root->layout);
-    MEM_freeN(root);
+  for (LayoutRoot &root : block->layouts.items_mutable()) {
+    ui_layout_free(root.layout);
+    MEM_freeN(&root);
   }
 }
 
@@ -5581,13 +5590,13 @@ int2 block_layout_resolve(Block *block)
 
   block->curlayout = nullptr;
 
-  LISTBASE_FOREACH_MUTABLE (LayoutRoot *, root, &block->layouts) {
-    ui_layout_add_padding_button(root);
+  for (LayoutRoot &root : block->layouts.items_mutable()) {
+    ui_layout_add_padding_button(&root);
 
     /* nullptr in advance so we don't interfere when adding button */
-    block_size = ui_layout_end(block, root->layout);
-    ui_layout_free(root->layout);
-    MEM_freeN(root);
+    block_size = ui_layout_end(block, root.layout);
+    ui_layout_free(root.layout);
+    MEM_freeN(&root);
   }
 
   BLI_listbase_clear(&block->layouts);
@@ -5863,8 +5872,8 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, b
   BKE_panel_free(panel);
 
   /* Draw child panels. */
-  LISTBASE_FOREACH (LinkData *, link, &pt->children) {
-    PanelType *child_pt = static_cast<PanelType *>(link->data);
+  for (LinkData &link : pt->children) {
+    PanelType *child_pt = static_cast<PanelType *>(link.data);
 
     if (child_pt->poll == nullptr || child_pt->poll(C, child_pt)) {
       /* Add space if something was added to the layout. */
@@ -5905,13 +5914,13 @@ void UI_paneltype_draw(bContext *C, PanelType *pt, Layout *layout)
  * As we don't use triple quotes in the UI it's good-enough in practice.
  * \{ */
 
-static void ui_layout_introspect_button(DynStr *ds, const ButtonItem *bitem)
+static void ui_layout_introspect_button(fmt::appender ds, const ButtonItem *bitem)
 {
   Button *but = bitem->but;
-  BLI_dynstr_appendf(ds, "'type':%d, ", int(but->type));
-  BLI_dynstr_appendf(ds, "'draw_string':'''%s''', ", but->drawstr.c_str());
+  fmt::format_to(ds, "'type':{}, ", int(but->type));
+  fmt::format_to(ds, "'draw_string':'''{}''', ", but->drawstr);
   /* Not exactly needed, rna has this. */
-  BLI_dynstr_appendf(ds, "'tip':'''%s''', ", std::string(but->tip).c_str());
+  fmt::format_to(ds, "'tip':'''{}''', ", but->tip);
 
   if (but->optype) {
     std::string opstr = WM_operator_pystring_ex(static_cast<bContext *>(but->block->evil_C),
@@ -5920,7 +5929,7 @@ static void ui_layout_introspect_button(DynStr *ds, const ButtonItem *bitem)
                                                 true,
                                                 but->optype,
                                                 but->opptr);
-    BLI_dynstr_appendf(ds, "'operator':'''%s''', ", opstr.c_str());
+    fmt::format_to(ds, "'operator':'''{}''', ", opstr);
   }
 
   {
@@ -5929,33 +5938,31 @@ static void ui_layout_introspect_button(DynStr *ds, const ButtonItem *bitem)
     if (ot) {
       std::string opstr = WM_operator_pystring_ex(
           static_cast<bContext *>(but->block->evil_C), nullptr, false, true, ot, nullptr);
-      BLI_dynstr_appendf(ds, "'operator':'''%s''', ", opstr.c_str());
-      BLI_dynstr_appendf(ds, "'property':'''%s''', ", prop ? RNA_property_identifier(prop) : "");
+      fmt::format_to(ds, "'operator':'''{}''', ", opstr);
+      fmt::format_to(ds, "'property':'''{}''', ", prop ? RNA_property_identifier(prop) : "");
     }
   }
 
   if (but->rnaprop) {
-    BLI_dynstr_appendf(ds,
-                       "'rna':'%s.%s[%d]', ",
-                       RNA_struct_identifier(but->rnapoin.type),
-                       RNA_property_identifier(but->rnaprop),
-                       but->rnaindex);
+    fmt::format_to(ds,
+                   "'rna':'{}.{}[{}]', ",
+                   RNA_struct_identifier(but->rnapoin.type),
+                   RNA_property_identifier(but->rnaprop),
+                   but->rnaindex);
   }
 }
 
-static void ui_layout_introspect_items(DynStr *ds, Span<const Item *> items)
+static void ui_layout_introspect_items(fmt::appender ds, Span<const Item *> items)
 {
-  BLI_dynstr_append(ds, "[");
+  fmt::format_to(ds, "[");
 
   for (const Item *item : items) {
 
-    BLI_dynstr_append(ds, "{");
+    fmt::format_to(ds, "{{");
 
 #define CASE_ITEM(type, name) \
   case type: { \
-    BLI_dynstr_append(ds, "'type': '"); \
-    BLI_dynstr_append(ds, name); \
-    BLI_dynstr_append(ds, "', "); \
+    fmt::format_to(ds, "'type': '{}', ", name); \
     break; \
   } \
     ((void)0)
@@ -5984,30 +5991,28 @@ static void ui_layout_introspect_items(DynStr *ds, Span<const Item *> items)
         ui_layout_introspect_button(ds, static_cast<const ButtonItem *>(item));
         break;
       default:
-        BLI_dynstr_append(ds, "'items':");
+        fmt::format_to(ds, "'items':");
         ui_layout_introspect_items(ds, (static_cast<const Layout *>(item))->items());
         break;
     }
 
-    BLI_dynstr_append(ds, "}");
+    fmt::format_to(ds, "}}");
 
     if (item != items.last()) {
-      BLI_dynstr_append(ds, ", ");
+      fmt::format_to(ds, ", ");
     }
   }
   /* Don't use a comma here as it's not needed and
    * causes the result to evaluate to a tuple of 1. */
-  BLI_dynstr_append(ds, "]");
+  fmt::format_to(ds, "]");
 }
 
-const char *UI_layout_introspect(Layout *layout)
+std::string layout_introspect(Layout *layout)
 {
-  DynStr *ds = BLI_dynstr_new();
+  fmt::memory_buffer buffer;
   Vector<Item *> layout_dummy_list(1, layout);
-  ui_layout_introspect_items(ds, layout_dummy_list);
-  const char *result = BLI_dynstr_get_cstring(ds);
-  BLI_dynstr_free(ds);
-  return result;
+  ui_layout_introspect_items(fmt::appender(buffer), layout_dummy_list);
+  return fmt::to_string(buffer);
 }
 
 /** \} */

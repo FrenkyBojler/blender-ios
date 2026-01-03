@@ -44,7 +44,6 @@
 
 #include "GPU_batch_presets.hh"
 #include "GPU_matrix.hh"
-#include "GPU_xr_defines.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -96,13 +95,13 @@ static void wm_xr_session_update_screen(Main *bmain, const wmXrData *xr_data)
   for (bScreen *screen = static_cast<bScreen *>(bmain->screens.first); screen;
        screen = static_cast<bScreen *>(screen->id.next))
   {
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (SpaceLink *, slink, &area->spacedata) {
-        if (slink->spacetype == SPACE_VIEW3D) {
-          View3D *v3d = (View3D *)slink;
+    for (ScrArea &area : screen->areabase) {
+      for (SpaceLink &slink : area.spacedata) {
+        if (slink.spacetype == SPACE_VIEW3D) {
+          View3D *v3d = (View3D *)&slink;
 
           if (v3d->flag & V3D_XR_SESSION_MIRROR) {
-            ED_view3d_xr_mirror_update(area, v3d, session_exists);
+            ED_view3d_xr_mirror_update(&area, v3d, session_exists);
           }
 
           if (session_exists) {
@@ -1159,6 +1158,8 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
  * Casts a ray from an XR controller's pose and teleports to any hit geometry.
  * \{ */
 
+static constexpr int g_xr_teleportation_arc_num_control_points = 24;
+
 enum XrTeleportRayResult : uint8_t {
   XR_TELEPORT_RAY_MISS,
   XR_TELEPORT_RAY_HIT,
@@ -1334,8 +1335,8 @@ static void wm_xr_navigation_teleport_data_update(wmOperator *op,
 {
   using namespace blender;
 
-  data->arc_points = blender::Array<blender::float3>(XR_TELEPORTATION_ARC_CONTROL_POINTS);
-  data->endpoint_idx = XR_TELEPORTATION_ARC_CONTROL_POINTS - 1;
+  data->arc_points = blender::Array<blender::float3>(g_xr_teleportation_arc_num_control_points);
+  data->endpoint_idx = g_xr_teleportation_arc_num_control_points - 1;
 
   const math::Quaternion controller_quat(actiondata->controller_rot);
   data->init_direction = transform_point(controller_quat, {0.0f, 0.0f, -1.0f});
@@ -1395,7 +1396,7 @@ static void wm_xr_navigation_teleport_generate_arc(wmOperator *op, XrTeleportDat
   data->arc_points[0] = data->init_location;
   const float3 direction = data->init_direction;
 
-  for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
+  for (int i = 1; i < g_xr_teleportation_arc_num_control_points; ++i) {
     const float t = i * time_step;
 
     const float3 velocity_offset = direction * (velocity * t);
@@ -1428,7 +1429,7 @@ static bool wm_xr_navigation_teleport_arc_clip_to_ground(blender::Array<blender:
   /* Truncate the arc to the ground plane (Z=0). */
   using namespace blender;
 
-  for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
+  for (int i = 1; i < g_xr_teleportation_arc_num_control_points; ++i) {
     const float3 &startpoint = points[i - 1];
     const float3 &endpoint = points[i];
 
@@ -1459,7 +1460,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
   const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
 
   /* Ray-cast along the pre-computed arc to find the first collision point with a scene object. */
-  for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
+  for (int i = 1; i < g_xr_teleportation_arc_num_control_points; ++i) {
     const float3 segment_start = data->arc_points[i - 1];
     const float3 segment_end = data->arc_points[i];
 
@@ -1516,7 +1517,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
   }
 
   /* Complete miss. */
-  data->endpoint_idx = XR_TELEPORTATION_ARC_CONTROL_POINTS - 1;
+  data->endpoint_idx = g_xr_teleportation_arc_num_control_points - 1;
   return XR_TELEPORT_RAY_MISS;
 }
 
