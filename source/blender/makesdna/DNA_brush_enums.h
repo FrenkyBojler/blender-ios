@@ -419,7 +419,7 @@ enum eBrushFlags2 {
   BRUSH_JITTER_COLOR = (1 << 10),
 };
 
-enum {
+enum BrushMaskPressureFlags {
   BRUSH_MASK_PRESSURE_RAMP = (1 << 1),
   BRUSH_MASK_PRESSURE_CUTOFF = (1 << 2),
 };
@@ -573,7 +573,7 @@ enum {
   SCULPT_DISP_DIR_Z = 4,
 };
 
-enum {
+enum BrushMaskTool {
   BRUSH_MASK_DRAW = 0,
   BRUSH_MASK_SMOOTH = 1,
 };
