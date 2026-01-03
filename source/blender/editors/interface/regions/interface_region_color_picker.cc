@@ -11,6 +11,8 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <utility>
 
 #include "MEM_guardedalloc.h"
 
