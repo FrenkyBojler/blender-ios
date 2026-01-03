@@ -86,6 +86,11 @@ Scope Token::attribute_after() const
   return Scope::invalid();
 }
 
+struct TokenData {
+  std::vector<TokenType> types;
+  OffsetIndices offsets;
+};
+
 void TokenStream::tokenize()
 {
   if (str.empty()) {
@@ -93,9 +98,14 @@ void TokenStream::tokenize()
     return;
   }
 
-  token_parse();
-  token_offsets_populate();
+  TokenData data;
+
+  token_parse(data);
+  // token_offsets_populate();
   // token_types_populate();
+
+  /* Convert vector of char to string for faster lookups. */
+  this->token_types = std::string(reinterpret_cast<char *>(data.types.data()), data.types.size());
 }
 
 static always_inline TokenType to_type(const char c)
@@ -189,44 +199,33 @@ static always_inline TokenType to_type_table(const unsigned char c)
   return token_table[c];
 }
 
-void TokenStream::token_parse()
+void TokenStream::token_parse(TokenData &tokens)
 {
-  std::vector<TokenType> token_types;
-  /* Tokenization. */
-  token_types.clear();
-  token_offsets.clear();
-
   /* Reserve space inside the data structures. Allocate 1 token per char as we do not want to
    * resize or check for size inside the hot loop. */
-  token_types.reserve(str.size());
-  token_offsets.offsets.reserve(str.size() + 1);
+  tokens.types.resize(str.size());
+  tokens.offsets.offsets.resize(str.size() + 1);
 
-  TokenType type = to_type_table(str[0]);
-  token_types.emplace_back(type);
-  token_offsets.offsets.emplace_back(0);
+  TokenType type = TokenType::Invalid;
 
-  const char *str_raw = str.data();
+  TokenType *types_raw = tokens.types.data();
+  uint32_t *offsets_raw = tokens.offsets.offsets.data();
 
-  int offset = 0, type_cursor = 0, offset_cursor = 0;
-  for (const char c : std::string_view{str_raw + 1, str.size() - 1}) {
-    offset++;
-
+  int offset = 0, cursor = 0;
+  for (const char c : str) {
     const TokenType prev = type;
     type = to_type_table(c);
-
-    token_types[type_cursor] = type;
-    token_offsets.offsets[offset_cursor] = offset;
-
-    const bool split = (type != prev);
-    type_cursor += split;
-    offset_cursor += split;
+    /* Its faster to overwrite the previous value with the same value
+     * than having a condition. */
+    types_raw[cursor] = type;
+    offsets_raw[cursor] = offset++;
+    /* Split if type mismatch. */
+    cursor += (type != prev);
   }
-  offset++;
-  token_offsets.offsets.emplace_back(offset);
+  tokens.types.resize(cursor);
 
-  /* Convert vector of char to string for faster lookups. */
-  this->token_types = std::string(reinterpret_cast<char *>(token_types.data()),
-                                  token_types.size());
+  tokens.offsets.offsets[cursor + 1] = offset++;
+  tokens.offsets.offsets.resize(cursor + 1);
 }
 
 static const std::array<bool, 256> num_literal_table = [] {
@@ -266,47 +265,36 @@ static always_inline bool is_char_part_of_number_literal(const unsigned char c)
   return num_literal_table[c];
 }
 
-void TokenStream::token_offsets_populate()
+void TokenStream::token_offsets_populate(TokenData &tokens)
 {
-  std::vector<TokenType> token_types;
-  /* Tokenization. */
-  token_types.clear();
-  token_offsets.clear();
+  std::vector<TokenType> test_types;
+  OffsetIndices test_offsets;
 
   /* Reserve space inside the data structures. Allocate 1 token per char as we do not want to
    * resize or check for size inside the hot loop. */
-  token_types.reserve(str.size());
-  token_offsets.offsets.reserve(str.size() + 1);
-
-  TokenType type = to_type_table(str[0]);
-  token_types.emplace_back(type);
-  token_offsets.offsets.emplace_back(0);
+  test_types.reserve(str.size());
+  test_offsets.offsets.reserve(str.size() + 1);
 
   /* When doing white-space merging, keep knowledge about whether previous char was white-space.
    * This allows to still split words on spaces. */
   bool curr_is_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
   bool inside_preprocessor_directive = token_types[0] == Hash;
-  bool next_character_is_escape = false;
+  bool is_escaped_char = false;
   bool inside_string = false;
   bool inside_number = token_types[0] == Number;
 
   const char *str_raw = str.data();
 
   int offset = 0, type_cursor = 0, offset_cursor = 0;
-  for (const char c : std::string_view{str_raw + 1, str.size() - 1}) {
-    offset++;
-
-    const TokenType prev = type;
-    type = to_type_table(c);
-
-    const bool prev_is_whitespace = curr_is_whitespace;
+  for (const char c : token_types) {
+    const TokenType type = TokenType(c);
 
     /* Merge string literal. */
     if (inside_string) {
-      if (!next_character_is_escape && c == '\"') {
+      if (!is_escaped_char && c == '\"') {
         inside_string = false;
       }
-      next_character_is_escape = c == '\\';
+      is_escaped_char = c == '\\';
       continue;
     }
 
