@@ -302,11 +302,11 @@ inline int kdtree_find_nearest(const KDTree<CoordT> *tree,
  * \param filter_cb: Filter find results,
  * Return codes: (1: accept, 0: skip, -1: immediate exit).
  */
-template<typename CoordT, typename Func>
+template<typename CoordT, typename Filter>
 inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
                                   const CoordT &co,
                                   KDTreeNearest<CoordT> *r_nearest,
-                                  Func filter_cb)
+                                  Filter &&filter_cb)
 {
   const KDTreeNode<CoordT> *nodes = tree->nodes;
   const KDTreeNode<CoordT> *min_node = nullptr;
@@ -1183,14 +1183,14 @@ constexpr inline auto kdtree_2d_range_search = kdtree_range_search<float2>;
 constexpr inline auto kdtree_3d_range_search = kdtree_range_search<float3>;
 constexpr inline auto kdtree_4d_range_search = kdtree_range_search<float4>;
 
-template<typename Func>
-constexpr inline auto kdtree_1d_find_nearest_cb = kdtree_find_nearest_cb<float1, Func>;
-template<typename Func>
-constexpr inline auto kdtree_2d_find_nearest_cb = kdtree_find_nearest_cb<float2, Func>;
-template<typename Func>
-constexpr inline auto kdtree_3d_find_nearest_cb = kdtree_find_nearest_cb<float3, Func>;
-template<typename Func>
-constexpr inline auto kdtree_4d_find_nearest_cb = kdtree_find_nearest_cb<float4, Func>;
+template<typename Filter>
+constexpr inline auto kdtree_1d_find_nearest_cb = kdtree_find_nearest_cb<float1, Filter>;
+template<typename Filter>
+constexpr inline auto kdtree_2d_find_nearest_cb = kdtree_find_nearest_cb<float2, Filter>;
+template<typename Filter>
+constexpr inline auto kdtree_3d_find_nearest_cb = kdtree_find_nearest_cb<float3, Filter>;
+template<typename Filter>
+constexpr inline auto kdtree_4d_find_nearest_cb = kdtree_find_nearest_cb<float4, Filter>;
 
 constexpr inline auto kdtree_1d_range_search_cb = kdtree_range_search_cb<float1>;
 constexpr inline auto kdtree_2d_range_search_cb = kdtree_range_search_cb<float2>;
