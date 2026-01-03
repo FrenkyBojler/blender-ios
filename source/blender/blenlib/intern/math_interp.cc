@@ -586,24 +586,22 @@ BLI_INLINE int make_samples(int width,
 }
 
 template <Sampler sampler>
-BLI_INLINE float4 _sample_rect(InterpWrapMode wrap_x, InterpWrapMode wrap_y,
-                               const float* buffer, int width, int height, int components,
-                               float2 uv, float2 wh)
+static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
   int positions_y[MAX_SAMPLES];
   float weights_y[MAX_SAMPLES];
-  const int ny = make_samples<sampler>(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
+  const int ny = make_samples<sampler>(source.height, source.wrap_y, uv.y, wh.y, positions_y, weights_y);
 
   int positions_x[MAX_SAMPLES];
   float weights_x[MAX_SAMPLES];
-  const int nx = make_samples<sampler>(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
+  const int nx = make_samples<sampler>(source.width, source.wrap_x, uv.x, wh.x, positions_x, weights_x);
 
-  switch (components) {
+  switch (source.components) {
     default: { /* case 1: */
       float sum{0.0f};
       for (int i = 0; i < ny; i++) {
         float sumx{0.0f};
-        const float *p = buffer + positions_y[i] * width * 4;
+        const float *p = source.buffer + positions_y[i] * source.width;
         for (int j = 0; j < nx; j++) {
           sumx += *(p + positions_x[j]) * weights_x[j];
         }
@@ -615,7 +613,7 @@ BLI_INLINE float4 _sample_rect(InterpWrapMode wrap_x, InterpWrapMode wrap_y,
       float2 sum{0.0f};
       for (int i = 0; i < ny; i++) {
         float2 sumx{0.0f};
-        const float *p = buffer + positions_y[i] * width * 4;
+        const float *p = source.buffer + positions_y[i] * source.width * 2;
         for (int j = 0; j < nx; j++) {
           sumx += *(float2 *)(p + positions_x[j] * 2) * weights_x[j];
         }
@@ -627,7 +625,7 @@ BLI_INLINE float4 _sample_rect(InterpWrapMode wrap_x, InterpWrapMode wrap_y,
       float3 sum{0.0f};
       for (int i = 0; i < ny; i++) {
         float3 sumx{0.0f};
-        const float *p = buffer + positions_y[i] * width * 4;
+        const float *p = source.buffer + positions_y[i] * source.width * 3;
         for (int j = 0; j < nx; j++) {
           sumx += *(float3 *)(p + positions_x[j] * 3) * weights_x[j];
         }
@@ -640,7 +638,7 @@ BLI_INLINE float4 _sample_rect(InterpWrapMode wrap_x, InterpWrapMode wrap_y,
       __m128 sum = _mm_set1_ps(0.0f);
       for (int i = 0; i < ny; i++) {
         __m128 sumx = _mm_set1_ps(0.0f);
-        const float *p = buffer + positions_y[i] * width * 4;
+        const float *p = source.buffer + positions_y[i] * source.width * 4;
         for (int j = 0; j < nx; j++) {
           sumx = _mm_add_ps(
               sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * 4), _mm_set1_ps(weights_x[j])));
@@ -652,7 +650,7 @@ BLI_INLINE float4 _sample_rect(InterpWrapMode wrap_x, InterpWrapMode wrap_y,
       float4 sum{0.0f};
       for (int i = 0; i < ny; i++) {
         float4 sumx{0.0f};
-        const float *p = buffer + positions_y[i] * width * 4;
+        const float *p = source.buffer + positions_y[i] * source.width * 4;
         for (int j = 0; j < nx; j++) {
           sumx += *(float4 *)(p + positions_x[j] * 4) * weights_x[j];
         }
@@ -664,8 +662,8 @@ BLI_INLINE float4 _sample_rect(InterpWrapMode wrap_x, InterpWrapMode wrap_y,
   }
 }
 
-/** Optimized versions of sample_rect */
-static float4 sample_nearest(const SamplerSource &source, const float2 &uv, const float2 &)
+template<>
+float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source, const float2 &uv, const float2 &)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   interpolate_nearest_wrapmode_fl(source.buffer, pixel_value,
@@ -675,7 +673,8 @@ static float4 sample_nearest(const SamplerSource &source, const float2 &uv, cons
   return pixel_value;
 }
 
-static float4 sample_bilinear(const SamplerSource &source, const float2 &uv, const float2 &)
+template<>
+float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source, const float2 &uv, const float2 &)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   interpolate_bilinear_wrapmode_fl(source.buffer, pixel_value,
@@ -685,36 +684,34 @@ static float4 sample_bilinear(const SamplerSource &source, const float2 &uv, con
   return pixel_value;
 }
 
-static float4 sample_box(const SamplerSource &source, const float2 &uv, const float2 &wh)
-{
-  return _sample_rect<Sampler::Box>(source.wrap_x, source.wrap_y,
-                      source.buffer, source.width, source.height, source.components,
-                      uv, wh);
-}
-
-static float4 sample_bspline(const SamplerSource &source, const float2 &uv, const float2 &wh)
-{
-  return _sample_rect<Sampler::Bspline>(source.wrap_x, source.wrap_y,
-                      source.buffer, source.width, source.height, source.components,
-                      uv, wh);
-}
-
 SampleRect sample_rect(const SamplerSource &source)
 {
   switch (source.sampler) {
     case Sampler::Nearest:
-      return sample_nearest;
+      return _sample_rect<Sampler::Nearest>;
     case Sampler::Bilinear:
-      return sample_bilinear;
+      return _sample_rect<Sampler::Bilinear>;
     default: /* case Sampler::Box */
-      return sample_box;
+      return _sample_rect<Sampler::Box>;
     case Sampler::Bspline:
-      return sample_bspline;
+      return _sample_rect<Sampler::Bspline>;
   }
 }
 
-/** Optimized versions of sample_area */
-static float4 sample_nearest_a(const SamplerSource &source, const float2 &uv, const float2 &, const float2 &)
+BLI_INLINE float2 hypot(const float2 &a, const float2 &b)
+{
+  return float2{hypotf(a.x, b.x), hypotf(a.y, b.y)};
+}
+
+template <Sampler sampler>
+static float4 _sample_area(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
+{
+  return _sample_rect<sampler>(source, uv, hypot(dPdx, dPdy));
+}
+
+// specializations that skip unused computation of hypot
+template<>
+float4 _sample_area<Sampler::Nearest>(const SamplerSource &source, const float2 &uv, const float2 &, const float2 &)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   interpolate_nearest_wrapmode_fl(source.buffer,
@@ -729,7 +726,8 @@ static float4 sample_nearest_a(const SamplerSource &source, const float2 &uv, co
   return pixel_value;
 }
 
-static float4 sample_bilinear_a(const SamplerSource &source, const float2 &uv, const float2 &, const float2 &)
+template<>
+float4 _sample_area<Sampler::Bilinear>(const SamplerSource &source, const float2 &uv, const float2 &, const float2 &)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   interpolate_bilinear_wrapmode_fl(source.buffer,
@@ -742,32 +740,6 @@ static float4 sample_bilinear_a(const SamplerSource &source, const float2 &uv, c
                                    source.wrap_x,
                                    source.wrap_y);
   return pixel_value;
-}
-
-static inline float2 hypot(const float2 &a, const float2 &b)
-{
-  return float2{hypotf(a.x, b.x), hypotf(a.y, b.y)};
-}
-
-static float4 sample_box_a(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
-{
-  return _sample_rect<Sampler::Box>(source.wrap_x, source.wrap_y,
-                      source.buffer, source.width, source.height, source.components,
-                      uv, hypot(dPdx, dPdy));
-}
-
-static float4 sample_box4_a(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
-{
-  return _sample_rect<Sampler::Box>(source.wrap_x, source.wrap_y,
-                      source.buffer, source.width, source.height, 4,
-                      uv, hypot(dPdx, dPdy));
-}
-
-static float4 sample_bspline_a(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
-{
-  return _sample_rect<Sampler::Bspline>(source.wrap_x, source.wrap_y,
-                      source.buffer, source.width, source.height, source.components,
-                      uv, hypot(dPdx, dPdy));
 }
 
 BLI_INLINE int32_t wrap_coord_i(int32_t u, int32_t size, InterpWrapMode wrap)
@@ -860,13 +832,13 @@ SampleArea sample_area(const SamplerSource &source)
 {
   switch (source.sampler) {
     case Sampler::Nearest:
-      return sample_nearest_a;
+      return _sample_area<Sampler::Nearest>;
     case Sampler::Bilinear:
-      return sample_bilinear_a;
+      return _sample_area<Sampler::Bilinear>;
     default: /* case Sampler::Box */
-      return source.components == 4 ? sample_box4_a : sample_box_a;
+      return _sample_area<Sampler::Box>;
     case Sampler::Bspline:
-      return sample_bspline_a;
+      return _sample_area<Sampler::Bspline>;
     case Sampler::Anisotropic:
       return source.wrap_x == InterpWrapMode::Border && source.wrap_y == InterpWrapMode::Border ?
         sample_anisotropic_clip : sample_anisotropic;

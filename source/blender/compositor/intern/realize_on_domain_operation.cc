@@ -256,7 +256,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
       BLI_assert_unreachable();
   }
 
-  math::SamplerSource source{input.samplerSource(options)};
+  const math::SamplerSource source{input.samplerSource(options)};
 
   const float2 dPdx(inverse_transformation[0].xy());
   const float2 dPdy(inverse_transformation[1].xy());
