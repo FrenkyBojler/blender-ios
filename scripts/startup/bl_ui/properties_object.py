@@ -626,14 +626,12 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
     _property_type = bpy.types.Object
 
 
+# TODO(Tri): Force remove filtering options of this specific UIList
 class OBJECT_UL_lod_items(UIList):
     def draw_item(self, context, layout, data, item, icon,
                   active_data, active_propname, index):
-
         layout.use_property_decorate = False
-
         lod = item
-
         row = layout.row(align=True)
 
         # Left: compact label
@@ -641,32 +639,45 @@ class OBJECT_UL_lod_items(UIList):
         label_col.scale_x = 2/3
         label_col.label(text=f"LOD {index + 1}")
 
-        label_col.label(text="Distance") # TODO(Tri): Change to f"Dist {index + 1}" ?
+        label_col.label(text="Distance")
         label_col.scale_x = 2/3
-
 
         # Right: properties packed tightly
         prop_col = row.column(align=True)
         prop_col.prop(lod, "target", text="")
-        prop_col.prop(lod, "distance", text="")
-                
+        prop_col.prop(lod, "distance", text="")                
 
 
 class OBJECT_PT_distance_lod(ObjectButtonsPanel, Panel):
-    bl_label = "Distance LOD" # TODO(Tri): Change the name to LOD?
+    bl_label = "Distance LOD"
     bl_idname = "OBJECT_PT_distance_lod"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
     bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
 
         ob = context.object
+
         row = layout.row()
-        row.template_list(
+        split = row.split(factor=3/4)
+
+        # Left side: empty, expands
+        split.column()
+
+        # Right side: buttons, fixed width
+        button_row = split.row(align=True)
+        button_row.operator("object.lod_add", icon='ADD', text="")
+        button_row.operator("object.lod_remove", icon='REMOVE', text="")
+
+        layout.template_list(
             "OBJECT_UL_lod_items",
             "",
             ob,
@@ -674,10 +685,6 @@ class OBJECT_PT_distance_lod(ObjectButtonsPanel, Panel):
             ob,
             "act_lod",
         )
-
-        col = row.column(align=True)
-        col.operator("object.lod_add", icon='ADD', text="")
-        col.operator("object.lod_remove", icon='REMOVE', text="")
 
 
 classes = (
