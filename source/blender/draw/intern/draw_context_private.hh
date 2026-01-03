@@ -98,7 +98,8 @@ void DRW_mesh_get_attributes(const Object &object,
 
 
 Object *DRW_object_lod_select(const ObjectRef &ref,
-                              const DRWContext &draw_ctx);          
+                              const DRWContext &draw_ctx,
+                              const DupliObject *dupli);
 
 }  // namespace blender::draw
 

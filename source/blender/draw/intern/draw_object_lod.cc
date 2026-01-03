@@ -6,6 +6,7 @@
 #include "DNA_layer_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 
 #include "BLI_math_vector.hh"
 #include "BLI_math_matrix.hh"
@@ -13,6 +14,7 @@
 #include "CLG_log.h"
 
 #include "draw_handle.hh"
+#include "DRW_render.hh"
 #include "DEG_depsgraph_query.hh"
 
 
@@ -27,20 +29,16 @@ namespace blender::draw {
 /** \name LOD Selection (Draw-only)
  * \{ */
 
+// TODO(Tri): clear the `lod_state_map`
 Object *DRW_object_lod_select(const ObjectRef &ref,
-                              const DRWContext &draw_ctx)
+                              const DRWContext &draw_ctx,
+                              const DupliObject *dupli /* nullable */)
 {
   Object *eval_ob = ref.object;
   Object *base_ob = DEG_get_original(eval_ob);
 
-  CLOG_INFO(&LOG_DRAW_LOD,
-            "LOD select: base=%s eval=%d",
-            base_ob->id.name + 2,
-            DEG_is_evaluated(&eval_ob->id));
-
   /* No LODs → draw base */
   if (BLI_listbase_is_empty(&base_ob->lod_items)) {
-    CLOG_INFO(&LOG_DRAW_LOD, "  no lod_items → draw base");
     return nullptr;
   }
 
@@ -51,40 +49,38 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
   if (draw_ctx.rv3d) {
     view_pos = float3(draw_ctx.rv3d->viewinv[3]);
     have_view_pos = true;
-    CLOG_INFO(&LOG_DRAW_LOD,
-              "  view source: RV3D (%.2f %.2f %.2f)",
-              view_pos.x,
-              view_pos.y,
-              view_pos.z);
   }
   else if (draw_ctx.scene && draw_ctx.scene->camera) {
     view_pos = draw_ctx.scene->camera->object_to_world().location();
     have_view_pos = true;
-    CLOG_INFO(&LOG_DRAW_LOD,
-              "  view source: scene camera %s",
-              draw_ctx.scene->camera->id.name + 2);
   }
 
   if (!have_view_pos) {
-    CLOG_WARN(&LOG_DRAW_LOD, "  no view position → draw base");
     return nullptr;
   }
 
-  /* Distance (evaluated transform, instance-safe) */
-  const float3 ob_pos = eval_ob->object_to_world().location();
+  /* Object position + instance-safe key */
+  float3 ob_pos;
+  uint64_t lod_key;
+
+  if (dupli) {
+    ob_pos = float3(dupli->mat[3]);
+    lod_key = BLI_hash_int_2d(
+        dupli->persistent_id[0],
+        dupli->persistent_id[1]);
+  }
+  else {
+    ob_pos = eval_ob->object_to_world().location();
+    lod_key = eval_ob->id.session_uid;
+  }
+
   const float dist = math::distance(view_pos, ob_pos);
 
-  CLOG_INFO(&LOG_DRAW_LOD,
-            "  object pos=(%.2f %.2f %.2f) dist=%.3f",
-            ob_pos.x,
-            ob_pos.y,
-            ob_pos.z,
-            dist);
+  /* Per-instance draw-state */
+  DRWLodState &state =
+      draw_ctx.lod_state_map.lookup_or_add(lod_key, {0, FLT_MAX});
 
-  /* Runtime hysteresis state */
-  bke::ObjectRuntime *runtime = eval_ob->runtime;
-  const int last_lod = runtime->last_lod_index;
-  const float last_dist = runtime->last_lod_distance;
+  const int last_lod = state.last_lod_index;
 
   Object *selected_eval = nullptr;
   int selected_lod_index = -1;
@@ -92,50 +88,30 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
   int lod_index = 0;
   LISTBASE_FOREACH (Lod *, lod, &base_ob->lod_items) {
     if (!lod->target) {
-      CLOG_WARN(&LOG_DRAW_LOD, "  LOD entry with null target");
       lod_index++;
       continue;
     }
 
-    const ID *lod_eval_id = DEG_get_evaluated_id(draw_ctx.depsgraph,
-                                                &lod->target->id);
+    const ID *lod_eval_id =
+        DEG_get_evaluated_id(draw_ctx.depsgraph, &lod->target->id);
     if (!lod_eval_id) {
-      CLOG_WARN(&LOG_DRAW_LOD,
-                "  LOD target %s has no evaluated ID",
-                lod->target->id.name + 2);
       lod_index++;
       continue;
     }
 
     Object *lod_eval = (Object *)lod_eval_id;
 
-    // TODO(Tri): Make the band adjustable
+    // TODO(Tri): Make the band adjustable (Adjustable hysteresis)
     const float hysteresis = lod->distance * 0.1f;
     const float switch_down_dist = lod->distance - hysteresis;
 
-    CLOG_INFO(&LOG_DRAW_LOD,
-              "  test LOD[%d]: target=%s dist=%.3f threshold=%.3f hysteresis=%.3f",
-              lod_index,
-              lod_eval->id.name + 2,
-              dist,
-              lod->distance,
-              hysteresis);
-
-    /* Switching up (higher index LOD) */
     if (dist >= lod->distance) {
       selected_eval = lod_eval;
       selected_lod_index = lod_index;
-      CLOG_INFO(&LOG_DRAW_LOD,
-                "    → selecting %s (up)",
-                lod_eval->id.name + 2);
     }
-    /* Switching down with hysteresis */
     else if (lod_index == last_lod && dist >= switch_down_dist) {
       selected_eval = lod_eval;
       selected_lod_index = lod_index;
-      CLOG_INFO(&LOG_DRAW_LOD,
-                "    → keeping %s (hysteresis)",
-                lod_eval->id.name + 2);
     }
     else {
       break;
@@ -144,19 +120,9 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
     lod_index++;
   }
 
-  /* Update runtime state */
-  runtime->last_lod_index = max_ii(selected_lod_index, 0);
-  runtime->last_lod_distance = dist;
-
-  if (selected_eval) {
-    CLOG_INFO(&LOG_DRAW_LOD,
-              "LOD RESULT: %s → %s",
-              base_ob->id.name + 2,
-              selected_eval->id.name + 2);
-  }
-  else {
-    CLOG_INFO(&LOG_DRAW_LOD, "LOD RESULT: base object");
-  }
+  /* Update draw-state */
+  state.last_lod_index = max_ii(selected_lod_index, 0);
+  state.last_distance = dist;
 
   return selected_eval; /* nullptr == draw base */
 }
