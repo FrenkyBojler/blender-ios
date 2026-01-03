@@ -110,7 +110,7 @@
 #include "BLI_time.h"
 
 #include "DRW_select_buffer.hh"
-// #include "BKE_object_types.hh"
+#include "RE_engine.h"
 
 thread_local DRWContext *DRWContext::g_context = nullptr;
 
@@ -816,9 +816,19 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     const bool is_viewport_draw = (draw_ctx.v3d != nullptr);
     const bool is_render_draw = !is_viewport_draw;
 
+    const bool is_v3d_shading_rendered = is_viewport_draw && (v3d->shading.type == OB_RENDER);
+
+    const RenderEngineType *engine_type = RE_engines_find(draw_ctx.scene->r.engine);
+
+    /* LOD is disabled only when viewport-shading is in Rendered mode
+    * AND the active render engine is external. */
+    const bool engine_supports_lod =
+      !is_v3d_shading_rendered || ((engine_type != nullptr) && (engine_type->flag & RE_INTERNAL));
+
     const bool allow_lod_swap =
-      (is_viewport_draw && draw_ctx.scene->lod.use_viewport) ||
-      (is_render_draw && draw_ctx.scene->lod.use_render);
+      engine_supports_lod &&
+      ((is_viewport_draw && draw_ctx.scene->lod.use_viewport) ||
+      (is_render_draw && draw_ctx.scene->lod.use_render));
 
     Object *lod_target = nullptr;
     if (allow_lod_swap) {
