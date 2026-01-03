@@ -630,316 +630,331 @@ void TokenStream::parse_scopes(report_callback &report_error)
   scope_token_populate();
 }
 
-void TokenStream::scope_parse(report_callback &report_error)
-{
+struct ScopeStack {
+  struct Item {
+    ScopeType type;
+    size_t start;
+    int index;
+  };
+
+  int scope_index = 0;
+  std::vector<ScopeStack::Item> scopes;
+  /* Output. */
+  std::vector<IndexRange> ranges;
+  std::vector<ScopeType> types;
+
+  ScopeStack(size_t predicted_scope_count)
   {
-    /* Scope detection. */
-    scope_ranges.clear();
-    scope_types.clear();
-
-    size_t predicted_scope_count = token_types.size() / 2;
-    scope_ranges.reserve(predicted_scope_count);
-    scope_types.reserve(predicted_scope_count);
-
-    struct ScopeItem {
-      ScopeType type;
-      size_t start;
-      int index;
-    };
-
-    int scope_index = 0;
-    std::vector<ScopeItem> scopes;
     /* Predicted max nesting depth. */
     scopes.reserve(128);
 
-    auto enter_scope = [&](ScopeType type, size_t start_tok_id) {
-      scopes.emplace_back(ScopeItem{type, start_tok_id, scope_index++});
-      scope_ranges.emplace_back(start_tok_id, 1);
-      scope_types += char(type);
-    };
+    ranges.reserve(predicted_scope_count);
+    types.reserve(predicted_scope_count);
+  }
 
-    auto exit_scope = [&](int end_tok_id) {
-      if (scopes.empty()) {
-        return;
+  void always_inline enter_scope(ScopeType type, size_t start_tok_id)
+  {
+    scopes.emplace_back(Item{type, start_tok_id, scope_index++});
+    ranges.emplace_back(start_tok_id, 1);
+    types.emplace_back(type);
+  };
+
+  void always_inline exit_scope(int end_tok_id)
+  {
+    if (scopes.empty()) {
+      return;
+    }
+    Item scope = scopes.back();
+    ranges[scope.index].size = end_tok_id - scope.start + 1;
+    scopes.pop_back();
+  };
+
+  Item always_inline back() const
+  {
+    return scopes.back();
+  }
+
+  bool always_inline empty() const
+  {
+    return scopes.empty();
+  }
+};
+
+void TokenStream::scope_parse(report_callback &report_error)
+{
+  size_t predicted_scope_count = token_types.size() / 2;
+
+  ScopeStack stack(predicted_scope_count);
+
+  stack.enter_scope(ScopeType::Global, 0);
+
+  int in_template = 0;
+
+  int tok_id = -1;
+  for (const char &c : token_types) {
+    tok_id++;
+
+    if (stack.back().type == ScopeType::Preprocessor) {
+      if (TokenType(c) == NewLine) {
+        stack.exit_scope(tok_id);
       }
-      ScopeItem scope = scopes.back();
-      scope_ranges[scope.index].size = end_tok_id - scope.start + 1;
-      scopes.pop_back();
-    };
+      else {
+        /* Do nothing. Enclose all preprocessor lines together. */
+        continue;
+      }
+    }
 
-    enter_scope(ScopeType::Global, 0);
+    switch (TokenType(c)) {
+      case Hash:
+        stack.enter_scope(ScopeType::Preprocessor, tok_id);
+        break;
+      case Assign:
+        if (stack.back().type == ScopeType::Assignment) {
+          /* Chained assignments. */
+          stack.exit_scope(tok_id - 1);
+        }
+        stack.enter_scope(ScopeType::Assignment, tok_id);
+        break;
+      case BracketOpen: {
+        /* Scan back identifier that could contain namespaces. */
+        TokenType keyword;
+        int pos = 2;
+        do {
+          keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) : TokenType::Invalid;
+          pos += 3;
+        } while (keyword != Invalid && keyword == Colon);
 
-    int in_template = 0;
+        /* Skip host_shared attribute for structures if any. */
+        if (keyword == ']') {
+          keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) : TokenType::Invalid;
+          if (keyword == '[') {
+            pos += 2;
+            keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) : TokenType::Invalid;
+          }
+        }
 
-    int tok_id = -1;
-    for (const char &c : token_types) {
-      tok_id++;
-
-      if (scopes.back().type == ScopeType::Preprocessor) {
-        if (TokenType(c) == NewLine) {
-          exit_scope(tok_id);
+        if (keyword == Struct || keyword == Class) {
+          stack.enter_scope(ScopeType::Struct, tok_id);
+        }
+        else if (keyword == Enum) {
+          stack.enter_scope(ScopeType::Local, tok_id);
+        }
+        else if (keyword == Namespace) {
+          stack.enter_scope(ScopeType::Namespace, tok_id);
+        }
+        else if (stack.back().type == ScopeType::Global) {
+          stack.enter_scope(ScopeType::Function, tok_id);
+        }
+        else if (stack.back().type == ScopeType::Struct) {
+          stack.enter_scope(ScopeType::Function, tok_id);
+        }
+        else if (stack.back().type == ScopeType::Namespace) {
+          stack.enter_scope(ScopeType::Function, tok_id);
         }
         else {
-          /* Do nothing. Enclose all preprocessor lines together. */
-          continue;
+          stack.enter_scope(ScopeType::Local, tok_id);
         }
+        break;
       }
-
-      switch (TokenType(c)) {
-        case Hash:
-          enter_scope(ScopeType::Preprocessor, tok_id);
-          break;
-        case Assign:
-          if (scopes.back().type == ScopeType::Assignment) {
-            /* Chained assignments. */
-            exit_scope(tok_id - 1);
-          }
-          enter_scope(ScopeType::Assignment, tok_id);
-          break;
-        case BracketOpen: {
-          /* Scan back identifier that could contain namespaces. */
-          TokenType keyword;
-          int pos = 2;
-          do {
-            keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) : TokenType::Invalid;
-            pos += 3;
-          } while (keyword != Invalid && keyword == Colon);
-
-          /* Skip host_shared attribute for structures if any. */
-          if (keyword == ']') {
-            keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) : TokenType::Invalid;
-            if (keyword == '[') {
-              pos += 2;
-              keyword = (tok_id >= pos) ? TokenType(token_types[tok_id - pos]) :
-                                          TokenType::Invalid;
-            }
-          }
-
-          if (keyword == Struct || keyword == Class) {
-            enter_scope(ScopeType::Struct, tok_id);
-          }
-          else if (keyword == Enum) {
-            enter_scope(ScopeType::Local, tok_id);
-          }
-          else if (keyword == Namespace) {
-            enter_scope(ScopeType::Namespace, tok_id);
-          }
-          else if (scopes.back().type == ScopeType::Global) {
-            enter_scope(ScopeType::Function, tok_id);
-          }
-          else if (scopes.back().type == ScopeType::Struct) {
-            enter_scope(ScopeType::Function, tok_id);
-          }
-          else if (scopes.back().type == ScopeType::Namespace) {
-            enter_scope(ScopeType::Function, tok_id);
-          }
-          else {
-            enter_scope(ScopeType::Local, tok_id);
-          }
-          break;
+      case ParOpen:
+        if ((tok_id >= 1 && token_types[tok_id - 1] == For) ||
+            (tok_id >= 1 && token_types[tok_id - 1] == While))
+        {
+          stack.enter_scope(ScopeType::LoopArgs, tok_id);
         }
-        case ParOpen:
-          if ((tok_id >= 1 && token_types[tok_id - 1] == For) ||
-              (tok_id >= 1 && token_types[tok_id - 1] == While))
+        else if (tok_id >= 1 && token_types[tok_id - 1] == Switch) {
+          stack.enter_scope(ScopeType::SwitchArg, tok_id);
+        }
+        else if (stack.back().type == ScopeType::Global) {
+          stack.enter_scope(ScopeType::FunctionArgs, tok_id);
+        }
+        else if (stack.back().type == ScopeType::Struct) {
+          stack.enter_scope(ScopeType::FunctionArgs, tok_id);
+        }
+        else if ((stack.back().type == ScopeType::Function ||
+                  stack.back().type == ScopeType::Local ||
+                  stack.back().type == ScopeType::Attribute) &&
+                 (tok_id >= 1 && token_types[tok_id - 1] == Word))
+        {
+          stack.enter_scope(ScopeType::FunctionCall, tok_id);
+        }
+        else {
+          stack.enter_scope(ScopeType::Local, tok_id);
+        }
+        break;
+      case SquareOpen:
+        if (tok_id >= 1 && token_types[tok_id - 1] == SquareOpen) {
+          stack.enter_scope(ScopeType::Attributes, tok_id);
+        }
+        else {
+          stack.enter_scope(ScopeType::Subscript, tok_id);
+        }
+        break;
+      case AngleOpen:
+        if (tok_id >= 1) {
+          char prev_char = str[token_offsets[tok_id - 1].last()];
+          /* Rely on the fact that template are formatted without spaces but comparison isn't. */
+          if ((prev_char != ' ' && prev_char != '\n' && prev_char != '<') ||
+              token_types[tok_id - 1] == Template)
           {
-            enter_scope(ScopeType::LoopArgs, tok_id);
+            stack.enter_scope(ScopeType::Template, tok_id);
+            in_template++;
           }
-          else if (tok_id >= 1 && token_types[tok_id - 1] == Switch) {
-            enter_scope(ScopeType::SwitchArg, tok_id);
-          }
-          else if (scopes.back().type == ScopeType::Global) {
-            enter_scope(ScopeType::FunctionArgs, tok_id);
-          }
-          else if (scopes.back().type == ScopeType::Struct) {
-            enter_scope(ScopeType::FunctionArgs, tok_id);
-          }
-          else if ((scopes.back().type == ScopeType::Function ||
-                    scopes.back().type == ScopeType::Local ||
-                    scopes.back().type == ScopeType::Attribute) &&
-                   (tok_id >= 1 && token_types[tok_id - 1] == Word))
-          {
-            enter_scope(ScopeType::FunctionCall, tok_id);
-          }
-          else {
-            enter_scope(ScopeType::Local, tok_id);
-          }
-          break;
-        case SquareOpen:
-          if (tok_id >= 1 && token_types[tok_id - 1] == SquareOpen) {
-            enter_scope(ScopeType::Attributes, tok_id);
-          }
-          else {
-            enter_scope(ScopeType::Subscript, tok_id);
-          }
-          break;
-        case AngleOpen:
-          if (tok_id >= 1) {
-            char prev_char = str[token_offsets[tok_id - 1].last()];
-            /* Rely on the fact that template are formatted without spaces but comparison isn't. */
-            if ((prev_char != ' ' && prev_char != '\n' && prev_char != '<') ||
-                token_types[tok_id - 1] == Template)
-            {
-              enter_scope(ScopeType::Template, tok_id);
-              in_template++;
-            }
-          }
-          break;
-        case AngleClose:
-          if (scopes.back().type == ScopeType::Assignment && in_template > 0) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::TemplateArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::Template) {
-            exit_scope(tok_id);
-            in_template--;
-          }
-          break;
-        case BracketClose:
-          if (scopes.back().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::Struct || scopes.back().type == ScopeType::Local ||
-              scopes.back().type == ScopeType::Namespace ||
-              scopes.back().type == ScopeType::LoopBody ||
-              scopes.back().type == ScopeType::SwitchBody ||
-              scopes.back().type == ScopeType::Function ||
-              scopes.back().type == ScopeType::Function)
-          {
-            exit_scope(tok_id);
-          }
-          else {
-            Token token = Token::from_position(this, tok_id);
-            report_error(token.line_number(),
-                         token.char_number(),
-                         token.line_str(),
-                         "Unexpected '}' token");
-            /* Avoid out of bound access for the rest of the processing. Empty everything. */
-            *this = {};
-            return;
-          }
-          break;
-        case ParClose:
-          if (scopes.back().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::FunctionArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::FunctionParam) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::LoopArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::LoopArgs ||
-              scopes.back().type == ScopeType::SwitchArg ||
-              scopes.back().type == ScopeType::FunctionArgs ||
-              scopes.back().type == ScopeType::FunctionCall ||
-              scopes.back().type == ScopeType::Local)
-          {
-            exit_scope(tok_id);
-          }
-          else {
-            Token token = Token::from_position(this, tok_id);
-            report_error(token.line_number(),
-                         token.char_number(),
-                         token.line_str(),
-                         "Unexpected ')' token");
-            /* Avoid out of bound access for the rest of the processing. Empty everything. */
-            *this = {};
-            return;
-          }
-          break;
-        case SquareClose:
-          if (scopes.back().type == ScopeType::Attribute) {
-            exit_scope(tok_id - 1);
-          }
-          exit_scope(tok_id);
-          break;
-        case SemiColon:
-          if (scopes.back().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::FunctionArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::TemplateArg) {
-            exit_scope(tok_id - 1);
-          }
-          if (scopes.back().type == ScopeType::LoopArg) {
-            exit_scope(tok_id - 1);
-          }
-          break;
-        case Comma:
-          if (scopes.back().type == ScopeType::Assignment) {
-            exit_scope(tok_id - 1);
-          }
-          switch (scopes.back().type) {
-            case ScopeType::FunctionArg:
-            case ScopeType::FunctionParam:
-            case ScopeType::TemplateArg:
-            case ScopeType::Attribute:
-              exit_scope(tok_id - 1);
-              break;
-            default:
-              break;
-          }
-          break;
-        default:
-          switch (scopes.back().type) {
-            case ScopeType::Attributes:
-              enter_scope(ScopeType::Attribute, tok_id);
-              break;
-            case ScopeType::FunctionArgs:
-              enter_scope(ScopeType::FunctionArg, tok_id);
-              break;
-            case ScopeType::FunctionCall:
-              enter_scope(ScopeType::FunctionParam, tok_id);
-              break;
-            case ScopeType::LoopArgs:
-              enter_scope(ScopeType::LoopArg, tok_id);
-              break;
-            case ScopeType::Template:
-              enter_scope(ScopeType::TemplateArg, tok_id);
-              break;
-            default:
-              break;
-          }
-          break;
-      }
+        }
+        break;
+      case AngleClose:
+        if (stack.back().type == ScopeType::Assignment && in_template > 0) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::TemplateArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::Template) {
+          stack.exit_scope(tok_id);
+          in_template--;
+        }
+        break;
+      case BracketClose:
+        if (stack.back().type == ScopeType::Assignment) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::Struct || stack.back().type == ScopeType::Local ||
+            stack.back().type == ScopeType::Namespace ||
+            stack.back().type == ScopeType::LoopBody ||
+            stack.back().type == ScopeType::SwitchBody ||
+            stack.back().type == ScopeType::Function || stack.back().type == ScopeType::Function)
+        {
+          stack.exit_scope(tok_id);
+        }
+        else {
+          Token token = Token::from_position(this, tok_id);
+          report_error(
+              token.line_number(), token.char_number(), token.line_str(), "Unexpected '}' token");
+          /* Avoid out of bound access for the rest of the processing. Empty everything. */
+          *this = {};
+          return;
+        }
+        break;
+      case ParClose:
+        if (stack.back().type == ScopeType::Assignment) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::FunctionArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::FunctionParam) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::LoopArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::LoopArgs ||
+            stack.back().type == ScopeType::SwitchArg ||
+            stack.back().type == ScopeType::FunctionArgs ||
+            stack.back().type == ScopeType::FunctionCall || stack.back().type == ScopeType::Local)
+        {
+          stack.exit_scope(tok_id);
+        }
+        else {
+          Token token = Token::from_position(this, tok_id);
+          report_error(
+              token.line_number(), token.char_number(), token.line_str(), "Unexpected ')' token");
+          /* Avoid out of bound access for the rest of the processing. Empty everything. */
+          *this = {};
+          return;
+        }
+        break;
+      case SquareClose:
+        if (stack.back().type == ScopeType::Attribute) {
+          stack.exit_scope(tok_id - 1);
+        }
+        stack.exit_scope(tok_id);
+        break;
+      case SemiColon:
+        if (stack.back().type == ScopeType::Assignment) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::FunctionArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::TemplateArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        if (stack.back().type == ScopeType::LoopArg) {
+          stack.exit_scope(tok_id - 1);
+        }
+        break;
+      case Comma:
+        if (stack.back().type == ScopeType::Assignment) {
+          stack.exit_scope(tok_id - 1);
+        }
+        switch (stack.back().type) {
+          case ScopeType::FunctionArg:
+          case ScopeType::FunctionParam:
+          case ScopeType::TemplateArg:
+          case ScopeType::Attribute:
+            stack.exit_scope(tok_id - 1);
+            break;
+          default:
+            break;
+        }
+        break;
+      default:
+        switch (stack.back().type) {
+          case ScopeType::Attributes:
+            stack.enter_scope(ScopeType::Attribute, tok_id);
+            break;
+          case ScopeType::FunctionArgs:
+            stack.enter_scope(ScopeType::FunctionArg, tok_id);
+            break;
+          case ScopeType::FunctionCall:
+            stack.enter_scope(ScopeType::FunctionParam, tok_id);
+            break;
+          case ScopeType::LoopArgs:
+            stack.enter_scope(ScopeType::LoopArg, tok_id);
+            break;
+          case ScopeType::Template:
+            stack.enter_scope(ScopeType::TemplateArg, tok_id);
+            break;
+          default:
+            break;
+        }
+        break;
     }
-
-    if (scopes.empty()) {
-      Token token = Token::from_position(this, tok_id);
-      report_error(token.line_number(),
-                   token.char_number(),
-                   token.line_str(),
-                   "Extraneous end of scope somewhere in that file");
-
-      /* Avoid out of bound access for the rest of the processing. Empty everything. */
-      *this = {};
-      return;
-    }
-
-    if (scopes.back().type == ScopeType::Preprocessor) {
-      exit_scope(tok_id - 1);
-    }
-
-    if (scopes.back().type != ScopeType::Global) {
-      ScopeItem scope_item = scopes.back();
-      Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
-      report_error(
-          token.line_number(), token.char_number(), token.line_str(), "Unterminated scope");
-
-      /* Avoid out of bound access for the rest of the processing. Empty everything. */
-      *this = {};
-      return;
-    }
-
-    exit_scope(tok_id);
   }
+
+  if (stack.empty()) {
+    Token token = Token::from_position(this, tok_id);
+    report_error(token.line_number(),
+                 token.char_number(),
+                 token.line_str(),
+                 "Extraneous end of scope somewhere in that file");
+
+    /* Avoid out of bound access for the rest of the processing. Empty everything. */
+    *this = {};
+    return;
+  }
+
+  if (stack.back().type == ScopeType::Preprocessor) {
+    stack.exit_scope(tok_id - 1);
+  }
+
+  if (stack.back().type != ScopeType::Global) {
+    ScopeStack::Item scope_item = stack.back();
+    Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
+    report_error(token.line_number(), token.char_number(), token.line_str(), "Unterminated scope");
+
+    /* Avoid out of bound access for the rest of the processing. Empty everything. */
+    *this = {};
+    return;
+  }
+
+  stack.exit_scope(tok_id);
+
+  /* Convert vector of char to string for faster lookups. */
+  this->scope_types = std::string(reinterpret_cast<char *>(stack.types.data()),
+                                  stack.types.size());
+  this->scope_ranges = std::move(stack.ranges);
 }
 
 void TokenStream::scope_token_populate()
