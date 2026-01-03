@@ -132,13 +132,6 @@ struct ObjectRuntime {
   uint64_t last_update_transform = 0;
   uint64_t last_update_geometry = 0;
   uint64_t last_update_shading = 0;
-
-  /** 
-   * Store LOD indices to support stable 
-   * distance-based LOD selection. 
-   */
-  int last_lod_index = 0;
-  float last_lod_distance = 0;
 };
 
 }  // namespace blender::bke

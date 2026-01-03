@@ -17,6 +17,7 @@
 #include "BLI_math_vector_types.hh"
 #include "DNA_object_enums.h"
 #include "DNA_object_types.h"
+#include "BLI_map.hh"
 
 #include "GPU_material.hh"
 
@@ -26,6 +27,7 @@ class Shader;
 class Texture;
 class UniformBuf;
 class FrameBuffer;
+class Map;
 }  // namespace blender::gpu
 struct ARegion;
 struct bContext;
@@ -48,6 +50,7 @@ struct TaskGraph;
 struct View3D;
 struct ViewLayer;
 struct DRWContext;
+struct DRWLodState;
 struct World;
 struct DRWData;
 struct DRWViewData;
@@ -215,6 +218,17 @@ template<> inline Mesh &DRW_object_get_data_for_drawing(const Object &object)
  */
 const Mesh *DRW_object_get_editmesh_cage_for_drawing(const Object &object);
 
+/* -------------------------------------------------------------------- */
+/** \name Draw level LOD state
+ * \{ */
+
+struct DRWLodState {
+  int last_lod_index;
+  float last_distance;
+};
+
+/** \} */
+
 /* Draw State. */
 
 /* -------------------------------------------------------------------- */
@@ -239,6 +253,9 @@ struct DRWContext {
   /** Size of the viewport or the final render frame. */
   blender::float2 size = {0, 0};
   blender::float2 inv_size = {0, 0};
+
+  /* Per-draw transient LOD state (mutable by design). */
+  mutable blender::Map<uint64_t, DRWLodState> lod_state_map;
 
   /** Returns the viewport's default frame-buffer. */
   blender::gpu::FrameBuffer *default_framebuffer();
