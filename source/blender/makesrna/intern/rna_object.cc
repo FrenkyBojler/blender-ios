@@ -2295,6 +2295,23 @@ static void rna_LightLinking_collection_update(Main *bmain, Scene * /*scene*/, P
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
 }
 
+static std::optional<std::string> rna_Lod_path(const PointerRNA *ptr)
+{
+  const Lod *lod = static_cast<const Lod *>(ptr->data);
+  const Object *ob = (const Object *)ptr->owner_id;
+
+  if (ob == nullptr || lod == nullptr) {
+    return std::nullopt;
+  }
+
+  const int index = BLI_findindex(&ob->lod_items, lod);
+  if (index == -1) {
+    return std::nullopt;
+  }
+
+  return fmt::format("lod_items[{}]", index);
+}
+
 static void rna_Object_lod_items_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->data;
@@ -2446,14 +2463,14 @@ static void rna_def_lod(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem up_items[] = {
+  static const EnumPropertyItem up_items[] = { /* FIXME: Rises warning as unused; crashes when removed */
       {OB_POSX, "X", 0, "X", ""},
       {OB_POSY, "Y", 0, "Y", ""},
       {OB_POSZ, "Z", 0, "Z", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem drawtype_items[] = {
+  static const EnumPropertyItem drawtype_items[] = { /* FIXME: Rises warning as unused; crashes when removed */
       {OB_BOUNDBOX, "BOUNDS", 0, "Bounds", "Display the bounds of the object"},
       {OB_WIRE, "WIRE", 0, "Wire", "Display the object as a wireframe"},
       {OB_SOLID,
@@ -2474,18 +2491,21 @@ static void rna_def_lod(BlenderRNA *brna)
   RNA_def_struct_sdna(srna_lod, "Lod");
   RNA_def_struct_ui_text(srna_lod, "LOD", "Level of detail entry");
 
+  // RNA_def_struct_nested(brna, srna_lod, "Object");
+  RNA_def_struct_path_func(srna_lod, "rna_Lod_path");
+
   /* LOD target prop */
   prop = RNA_def_property(srna_lod, "target", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "target");
   RNA_def_property_struct_type(prop, "Object");
-  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT); // TODO(Tri): Make Animatable
   RNA_def_property_ui_text(prop, "Target", "Object to swap to at this LOD level");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr); // TODO(Tri): Later, when LOD actually affects evaluation, `ND_DRAW` should become `ND_DATA` (draw/depsgraph stage)
 
   /* LOD Distance */
   prop = RNA_def_property(srna_lod, "distance", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, nullptr, "distance");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ANIMATABLE);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_text(prop, "Distance", "Camera distance to trigger swap");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Lod_distance_update");

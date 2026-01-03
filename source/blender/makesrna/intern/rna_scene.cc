@@ -4711,12 +4711,14 @@ static void rna_def_scene_lod(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Viewport LOD", "Enable distance based LOD selection in the viewport");
   RNA_def_property_update(prop, NC_SCENE | ND_DRAW, nullptr);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "use_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_render", 0);
   RNA_def_property_ui_text(
       prop, "Render LOD", "Enable distance based LOD selection during rendering");
   RNA_def_property_update(prop, NC_SCENE | ND_DRAW, nullptr);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
 }
 
 static void rna_def_unit_settings(BlenderRNA *brna)
