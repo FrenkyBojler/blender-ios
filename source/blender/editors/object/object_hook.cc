@@ -118,7 +118,7 @@ static bool return_editmesh_vgroup(Object *obedit, BMEditMesh *em, char *r_name,
       }
     }
     if (indexar_num) {
-      const ListBase *defbase = BKE_object_defgroup_list(obedit);
+      const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(obedit);
       bDeformGroup *dg = static_cast<bDeformGroup *>(BLI_findlink(defbase, defgrp_index));
       BLI_strncpy_utf8(r_name, dg->name, sizeof(dg->name));
       mul_v3_fl(r_cent, 1.0f / float(indexar_num));
@@ -230,15 +230,15 @@ static int return_editcurve_indexar(Object *obedit,
                                     int *r_indexar_num,
                                     float r_cent[3])
 {
-  ListBase *editnurb = object_editcurve_get(obedit);
+  ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
   BPoint *bp;
   BezTriple *bezt;
   int *index, a, nr, indexar_num = 0;
 
-  LISTBASE_FOREACH (Nurb *, nu, editnurb) {
-    if (nu->type == CU_BEZIER) {
-      bezt = nu->bezt;
-      a = nu->pntsu;
+  for (Nurb &nu : *editnurb) {
+    if (nu.type == CU_BEZIER) {
+      bezt = nu.bezt;
+      a = nu.pntsu;
       while (a--) {
         if (bezt->f1 & SELECT) {
           indexar_num++;
@@ -253,8 +253,8 @@ static int return_editcurve_indexar(Object *obedit,
       }
     }
     else {
-      bp = nu->bp;
-      a = nu->pntsu * nu->pntsv;
+      bp = nu.bp;
+      a = nu.pntsu * nu.pntsv;
       while (a--) {
         if (bp->f1 & SELECT) {
           indexar_num++;
@@ -272,10 +272,10 @@ static int return_editcurve_indexar(Object *obedit,
   nr = 0;
   zero_v3(r_cent);
 
-  LISTBASE_FOREACH (Nurb *, nu, editnurb) {
-    if (nu->type == CU_BEZIER) {
-      bezt = nu->bezt;
-      a = nu->pntsu;
+  for (Nurb &nu : *editnurb) {
+    if (nu.type == CU_BEZIER) {
+      bezt = nu.bezt;
+      a = nu.pntsu;
       while (a--) {
         if (bezt->f1 & SELECT) {
           *index = nr;
@@ -299,8 +299,8 @@ static int return_editcurve_indexar(Object *obedit,
       }
     }
     else {
-      bp = nu->bp;
-      a = nu->pntsu * nu->pntsv;
+      bp = nu.bp;
+      a = nu.pntsu * nu.pntsv;
       while (a--) {
         if (bp->f1 & SELECT) {
           *index = nr;
@@ -365,15 +365,15 @@ static bool object_hook_index_array(Main *bmain,
 
 static void select_editcurve_hook(Object *obedit, HookModifierData *hmd)
 {
-  ListBase *editnurb = object_editcurve_get(obedit);
+  ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
   BPoint *bp;
   BezTriple *bezt;
   int index = 0, a, nr = 0;
 
-  LISTBASE_FOREACH (Nurb *, nu, editnurb) {
-    if (nu->type == CU_BEZIER) {
-      bezt = nu->bezt;
-      a = nu->pntsu;
+  for (Nurb &nu : *editnurb) {
+    if (nu.type == CU_BEZIER) {
+      bezt = nu.bezt;
+      a = nu.pntsu;
       while (a--) {
         if (nr == hmd->indexar[index]) {
           bezt->f1 |= SELECT;
@@ -401,8 +401,8 @@ static void select_editcurve_hook(Object *obedit, HookModifierData *hmd)
       }
     }
     else {
-      bp = nu->bp;
-      a = nu->pntsu * nu->pntsv;
+      bp = nu.bp;
+      a = nu.pntsu * nu.pntsv;
       while (a--) {
         if (nr == hmd->indexar[index]) {
           bp->f1 |= SELECT;
@@ -516,7 +516,6 @@ static int add_hook_object(const bContext *C,
                            ReportList *reports)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ModifierData *md = nullptr;
   HookModifierData *hmd = nullptr;
   float cent[3];
   float pose_mat[4][4];
@@ -538,14 +537,8 @@ static int add_hook_object(const bContext *C,
     mul_v3_m4v3(ob->loc, obedit->object_to_world().ptr(), cent);
   }
 
-  md = static_cast<ModifierData *>(obedit->modifiers.first);
-  while (md && BKE_modifier_get_info(ModifierType(md->type))->type == ModifierTypeType::OnlyDeform)
-  {
-    md = md->next;
-  }
-
   hmd = (HookModifierData *)BKE_modifier_new(eModifierType_Hook);
-  BLI_insertlinkbefore(&obedit->modifiers, md, hmd);
+  BKE_modifiers_add_at_end_if_possible(obedit, &hmd->modifier);
   SNPRINTF_UTF8(hmd->modifier.name, "Hook-%s", ob->id.name + 2);
   BKE_modifier_unique_name(&obedit->modifiers, (ModifierData *)hmd);
   BKE_modifiers_persistent_uid_init(*obedit, hmd->modifier);

@@ -28,6 +28,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -151,7 +152,7 @@ static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *
 static void stats_object(Object *ob,
                          const View3D *v3d_local,
                          SceneStats *stats,
-                         GSet *objects_gset)
+                         blender::Set<const Mesh *> &objects_gset)
 {
   if ((ob->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
     return;
@@ -172,7 +173,7 @@ static void stats_object(Object *ob,
     case OB_MESH: {
       /* we assume evaluated mesh is already built, this strictly does stats now. */
       const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob);
-      if (!BLI_gset_add(objects_gset, (void *)mesh_eval)) {
+      if (!objects_gset.add(mesh_eval)) {
         break;
       }
       stats_mesheval(mesh_eval, is_selected, stats);
@@ -241,27 +242,27 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     /* Armature Edit */
     bArmature *arm = static_cast<bArmature *>(obedit->data);
 
-    LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
+    for (EditBone &ebo : *arm->edbo) {
       stats->totbone++;
 
-      if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
+      if ((ebo.flag & BONE_CONNECTED) && ebo.parent) {
         stats->totvert--;
       }
 
-      if (ebo->flag & BONE_TIPSEL) {
+      if (ebo.flag & BONE_TIPSEL) {
         stats->totvertsel++;
       }
-      if (ebo->flag & BONE_ROOTSEL) {
+      if (ebo.flag & BONE_ROOTSEL) {
         stats->totvertsel++;
       }
 
-      if (ebo->flag & BONE_SELECTED) {
+      if (ebo.flag & BONE_SELECTED) {
         stats->totbonesel++;
       }
 
       /* if this is a connected child and its parent is being moved, remove our root */
-      if ((ebo->flag & BONE_CONNECTED) && (ebo->flag & BONE_ROOTSEL) && ebo->parent &&
-          (ebo->parent->flag & BONE_TIPSEL))
+      if ((ebo.flag & BONE_CONNECTED) && (ebo.flag & BONE_ROOTSEL) && ebo.parent &&
+          (ebo.parent->flag & BONE_TIPSEL))
       {
         stats->totvertsel--;
       }
@@ -275,12 +276,12 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     BezTriple *bezt;
     BPoint *bp;
     int a;
-    ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+    ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
 
-    LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-      if (nu->type == CU_BEZIER) {
-        bezt = nu->bezt;
-        a = nu->pntsu;
+    for (Nurb &nu : *nurbs) {
+      if (nu.type == CU_BEZIER) {
+        bezt = nu.bezt;
+        a = nu.pntsu;
         while (a--) {
           stats->totvert += 3;
           if (bezt->f1 & SELECT) {
@@ -296,8 +297,8 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
         }
       }
       else {
-        bp = nu->bp;
-        a = nu->pntsu * nu->pntsv;
+        bp = nu.bp;
+        a = nu.pntsu * nu.pntsv;
         while (a--) {
           stats->totvert++;
           if (bp->f1 & SELECT) {
@@ -312,9 +313,9 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     /* MetaBall Edit */
     MetaBall *mball = static_cast<MetaBall *>(obedit->data);
 
-    LISTBASE_FOREACH (MetaElem *, ml, mball->editelems) {
+    for (MetaElem &ml : *mball->editelems) {
       stats->totvert++;
-      if (ml->flag & SELECT) {
+      if (ml.flag & SELECT) {
         stats->totvertsel++;
       }
     }
@@ -361,10 +362,10 @@ static void stats_object_pose(const Object *ob, SceneStats *stats)
   if (ob->pose) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
 
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
+    for (bPoseChannel &pchan : ob->pose->chanbase) {
       stats->totbone++;
-      if ((pchan->flag & POSE_SELECTED)) {
-        if (BKE_pose_is_bonecoll_visible(arm, pchan)) {
+      if ((pchan.flag & POSE_SELECTED)) {
+        if (BKE_pose_is_bonecoll_visible(arm, &pchan)) {
           stats->totbonesel++;
         }
       }
@@ -400,8 +401,8 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
           stats->tottri = ob->sculpt->bm->totface;
           break;
         case blender::bke::pbvh::Type::Grids:
-          stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
-          stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
+          stats->totvertsculpt = BKE_sculpt_get_grid_num_verts(*ob);
+          stats->totfacesculpt = BKE_sculpt_get_grid_num_faces(*ob);
           break;
       }
       break;
@@ -475,7 +476,7 @@ static void stats_update(Depsgraph *depsgraph,
   }
   else {
     /* Objects. */
-    GSet *objects_gset = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+    blender::Set<const Mesh *> objects_gset;
     DEGObjectIterSettings deg_iter_settings{};
     deg_iter_settings.depsgraph = depsgraph;
     deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
@@ -483,7 +484,6 @@ static void stats_update(Depsgraph *depsgraph,
       stats_object(ob_iter, v3d_local, stats, objects_gset);
     }
     DEG_OBJECT_ITER_END;
-    BLI_gset_free(objects_gset, nullptr);
   }
 }
 
@@ -491,15 +491,15 @@ void ED_info_stats_clear(wmWindowManager *wm, ViewLayer *view_layer)
 {
   MEM_SAFE_FREE(view_layer->stats);
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    ViewLayer *view_layer_test = WM_window_get_active_view_layer(win);
+  for (wmWindow &win : wm->windows) {
+    ViewLayer *view_layer_test = WM_window_get_active_view_layer(&win);
     if (view_layer != view_layer_test) {
       continue;
     }
-    const bScreen *screen = WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      if (area->spacetype == SPACE_VIEW3D) {
-        View3D *v3d = (View3D *)area->spacedata.first;
+    const bScreen *screen = WM_window_get_active_screen(&win);
+    for (ScrArea &area : screen->areabase) {
+      if (area.spacetype == SPACE_VIEW3D) {
+        View3D *v3d = (View3D *)area.spacedata.first;
         if (v3d->localvd) {
           ED_view3d_local_stats_free(v3d);
         }
@@ -706,7 +706,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
 {
   char formatted_mem[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];
   size_t ofs = 0;
-  static char info[256];
+  static char info[384];
   int len = sizeof(info);
 
   info[0] = '\0';
@@ -749,7 +749,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     }
     uintptr_t mem_in_use = MEM_get_memory_in_use();
     BLI_str_format_byte_unit(formatted_mem, mem_in_use, false);
-    ofs += BLI_snprintf_utf8_rlen(info + ofs, len, IFACE_("Memory: %s"), formatted_mem);
+    ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, IFACE_("Memory: %s"), formatted_mem);
   }
 
   /* GPU VRAM status. */

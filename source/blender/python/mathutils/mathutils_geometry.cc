@@ -1365,7 +1365,7 @@ static PyObject *M_Geometry_tessellate_polygon(PyObject * /*self*/, PyObject *po
   bool is_2d = true;
 
   /* Display #ListBase. */
-  ListBase dispbase = {nullptr, nullptr};
+  ListBaseT<DispList> dispbase = {nullptr, nullptr};
   DispList *dl;
   float *fp; /* Pointer to the array of malloced dl->verts to set the points from the vectors. */
   int totpoints = 0;
@@ -1823,6 +1823,16 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
 
 #endif /* MATH_STANDALONE */
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 static PyMethodDef M_Geometry_methods[] = {
     {"intersect_ray_tri",
      (PyCFunction)M_Geometry_intersect_ray_tri,
@@ -1924,6 +1934,14 @@ static PyMethodDef M_Geometry_methods[] = {
 #endif
     {nullptr, nullptr, 0, nullptr},
 };
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
 
 PyDoc_STRVAR(
     /* Wrap. */

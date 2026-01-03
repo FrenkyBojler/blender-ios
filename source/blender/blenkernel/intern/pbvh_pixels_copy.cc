@@ -103,7 +103,7 @@ class NonManifoldUVEdges : public Vector<Edge<CoordSpace::UV>> {
     reserve(num_non_manifold_edges);
     for (const int primitive_id : mesh_data.corner_tris.index_range()) {
       for (const int edge_id : mesh_data.primitive_to_edge_map[primitive_id]) {
-        if (is_manifold(mesh_data, edge_id)) {
+        if (mesh_data.is_edge_manifold(edge_id)) {
           continue;
         }
         const int3 &tri = mesh_data.corner_tris[primitive_id];
@@ -137,18 +137,13 @@ class NonManifoldUVEdges : public Vector<Edge<CoordSpace::UV>> {
     int64_t result = 0;
     for (const int primitive_id : mesh_data.corner_tris.index_range()) {
       for (const int edge_id : mesh_data.primitive_to_edge_map[primitive_id]) {
-        if (is_manifold(mesh_data, edge_id)) {
+        if (mesh_data.is_edge_manifold(edge_id)) {
           continue;
         }
         result += 1;
       }
     }
     return result;
-  }
-
-  static bool is_manifold(const uv_islands::MeshData &mesh_data, const int edge_id)
-  {
-    return mesh_data.edge_to_primitive_map[edge_id].size() == 2;
   }
 
   static float2 find_uv(const uv_islands::MeshData &mesh_data, const int3 &tri, int vertex_i)
@@ -521,8 +516,8 @@ void copy_update(blender::bke::pbvh::Tree &pbvh,
   }
 
   ImageUser tile_user = image_user;
-  LISTBASE_FOREACH (ImageTile *, tile, &image.tiles) {
-    const image::ImageTileWrapper image_tile = image::ImageTileWrapper(tile);
+  for (ImageTile &tile : image.tiles) {
+    const image::ImageTileWrapper image_tile = image::ImageTileWrapper(&tile);
     tile_user.tile = image_tile.get_tile_number();
 
     ImBuf *tile_buffer = BKE_image_acquire_ibuf(&image, &tile_user, nullptr);

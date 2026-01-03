@@ -25,8 +25,6 @@ using ShadowTileDataBuf = draw::StorageArrayBuffer<ShadowTileDataPacked, SHADOW_
 
 static void test_eevee_shadow_shift_clear()
 {
-  BLOCK_GPU_TEST_ON(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_ANY)
-
   GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
@@ -98,8 +96,6 @@ DRAW_TEST(eevee_shadow_shift_clear)
 
 static void test_eevee_shadow_shift()
 {
-  BLOCK_GPU_TEST_ON(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_ANY)
-
   GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
@@ -199,8 +195,6 @@ DRAW_TEST(eevee_shadow_shift)
 
 static void test_eevee_shadow_tag_update()
 {
-  BLOCK_GPU_TEST_ON(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL);
-
   GPU_render_begin();
   using namespace blender::math;
   StorageVectorBuffer<uint, 128> past_casters_updated = {"PastCastersUpdated"};
@@ -373,8 +367,6 @@ DRAW_TEST(eevee_shadow_tag_update)
 
 static void test_eevee_shadow_free()
 {
-  BLOCK_GPU_TEST_ON(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_ANY)
-
   GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
@@ -749,8 +741,6 @@ class TestAlloc {
 
 static void test_eevee_shadow_alloc()
 {
-  BLOCK_GPU_TEST_ON(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_ANY)
-
   TestAlloc(SHADOW_MAX_PAGE);
   TestAlloc(1);
   TestAlloc(0);
@@ -879,6 +869,7 @@ static void test_eevee_shadow_finalize()
   StorageArrayBuffer<uint, SHADOW_VIEW_MAX> viewport_index_buf = {"viewport_index_buf"};
 
   render_map_buf.clear_to_zero();
+  clear_dispatch_buf.clear_to_zero();
 
   gpu::Shader *sh = GPU_shader_create_from_info_name("eevee_shadow_tilemap_finalize");
   PassSimple pass("Test");
@@ -1235,8 +1226,7 @@ static void test_eevee_shadow_tilemap_amend()
 {
   GPU_render_begin();
 
-  blender::Vector<uint32_t> tilemap_data(SHADOW_TILEMAP_RES * SHADOW_TILEMAP_RES *
-                                         SHADOW_TILEMAP_PER_ROW);
+  Vector<uint32_t> tilemap_data(SHADOW_TILEMAP_RES * SHADOW_TILEMAP_RES * SHADOW_TILEMAP_PER_ROW);
   tilemap_data.fill(0);
 
   auto pixel_get = [&](int x, int y, int tilemap_index) -> uint32_t & {
@@ -1268,12 +1258,12 @@ static void test_eevee_shadow_tilemap_amend()
   /* Setup one directional light with 3 tilemaps. Fill only the needed data. */
   LightData light;
   light.type = LIGHT_SUN;
-  light.sun.clipmap_lod_min = 0;
-  light.sun.clipmap_lod_max = 2;
+  light.sun().clipmap_lod_min = 0;
+  light.sun().clipmap_lod_max = 2;
   /* Shift LOD0 by 1 tile towards bottom. */
-  light.sun.clipmap_base_offset_neg = int2(0, 1 << 0);
+  light.sun().clipmap_base_offset_neg = int2(0, 1 << 0);
   /* Shift LOD1 by 1 tile towards right. */
-  light.sun.clipmap_base_offset_pos = int2(1 << 1, 0);
+  light.sun().clipmap_base_offset_pos = int2(1 << 1, 0);
   light.tilemap_index = 0;
 
   LightDataBuf culling_light_buf = {"Lights_culled"};
@@ -1575,8 +1565,6 @@ DRAW_TEST(eevee_shadow_tilemap_amend)
 
 static void test_eevee_shadow_page_mask_ex(int max_view_per_tilemap)
 {
-  BLOCK_GPU_TEST_ON(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_ANY)
-
   GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};

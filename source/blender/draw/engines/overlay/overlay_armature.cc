@@ -677,7 +677,9 @@ static void set_ctx_bcolor(Armatures::DrawContext *ctx, const UnifiedBonePtr bon
   ctx->bcolor = bone_color.effective_color();
 }
 
-/* This function is for brightening/darkening a given color (like UI_GetThemeColorShade3ubv()) */
+/* This function is for brightening/darkening a given color (like
+ * ui::theme::get_color_shade_3ubv())
+ */
 static void cp_shade_color3ub(uchar cp[3], const int offset)
 {
   int r, g, b;
@@ -1011,13 +1013,13 @@ static void draw_bone_update_disp_matrix_custom_shape(UnifiedBonePtr bone)
 /* compute connected child pointer for B-Bone drawing */
 static void edbo_compute_bbone_child(bArmature *arm)
 {
-  LISTBASE_FOREACH (EditBone *, eBone, arm->edbo) {
-    eBone->bbone_child = nullptr;
+  for (EditBone &eBone : *arm->edbo) {
+    eBone.bbone_child = nullptr;
   }
 
-  LISTBASE_FOREACH (EditBone *, eBone, arm->edbo) {
-    if (eBone->parent && (eBone->flag & BONE_CONNECTED)) {
-      eBone->parent->bbone_child = eBone;
+  for (EditBone &eBone : *arm->edbo) {
+    if (eBone.parent && (eBone.flag & BONE_CONNECTED)) {
+      eBone.parent->bbone_child = &eBone;
     }
   }
 }
@@ -1709,14 +1711,14 @@ static void pchan_draw_ik_lines(const Armatures::DrawContext *ctx,
   const float *line_start = nullptr, *line_end = nullptr;
   const ePchan_ConstFlag constflag = ePchan_ConstFlag(pchan->constflag);
 
-  LISTBASE_FOREACH (bConstraint *, con, &pchan->constraints) {
-    if (con->enforce == 0.0f) {
+  for (bConstraint &con : pchan->constraints) {
+    if (con.enforce == 0.0f) {
       continue;
     }
 
-    switch (con->type) {
+    switch (con.type) {
       case CONSTRAINT_TYPE_KINEMATIC: {
-        bKinematicConstraint *data = (bKinematicConstraint *)con->data;
+        bKinematicConstraint *data = (bKinematicConstraint *)con.data;
         int segcount = 0;
 
         /* if only_temp, only draw if it is a temporary ik-chain */
@@ -1750,7 +1752,7 @@ static void pchan_draw_ik_lines(const Armatures::DrawContext *ctx,
         break;
       }
       case CONSTRAINT_TYPE_SPLINEIK: {
-        bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
+        bSplineIKConstraint *data = (bSplineIKConstraint *)con.data;
         int segcount = 0;
 
         /* don't draw if only_temp, as Spline IK chains cannot be temporary */
@@ -1843,7 +1845,7 @@ static void draw_bone_name(const Armatures::DrawContext *ctx, const UnifiedBoneP
                    (!is_pose && (eBone->flag & BONE_SELECTED));
 
   /* Color Management: Exception here as texts are drawn in sRGB space directly. */
-  UI_GetThemeColor4ubv(highlight ? TH_TEXT_HI : TH_TEXT, color);
+  ui::theme::get_color_4ubv(highlight ? TH_TEXT_HI : TH_TEXT, color);
 
   const float *head = is_pose ? pchan->pose_head : eBone->head;
   const float *tail = is_pose ? pchan->pose_tail : eBone->tail;
@@ -2012,7 +2014,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
 
     const Object *obact_orig = DEG_get_original(draw_ctx->obact);
 
-    const ListBase *defbase = BKE_object_defgroup_list(obact_orig);
+    const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(obact_orig);
     for (const bDeformGroup *dg : ConstListBaseWrapper<bDeformGroup>(defbase)) {
       if ((dg->flag & DG_LOCK_WEIGHT) == 0) {
         continue;

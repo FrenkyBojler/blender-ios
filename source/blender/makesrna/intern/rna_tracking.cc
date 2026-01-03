@@ -11,34 +11,33 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_tracking.hh"
+
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
 
+#include "DNA_movieclip_types.h"
 #include "DNA_object_types.h" /* SELECT */
 #include "DNA_scene_types.h"
+#include "DNA_tracking_types.h"
 
 #include "WM_types.hh"
 
 #ifdef RNA_RUNTIME
 
 #  include "DNA_anim_types.h"
-#  include "DNA_defaults.h"
 #  include "DNA_movieclip_types.h"
 
 #  include "BLI_math_vector.h"
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_animsys.h"
-#  include "BKE_movieclip.h"
-#  include "BKE_node.hh"
+#  include "BKE_movieclip.hh"
 #  include "BKE_node_tree_update.hh"
 #  include "BKE_report.hh"
-#  include "BKE_tracking.h"
 
 #  include "DEG_depsgraph.hh"
-
-#  include "IMB_imbuf.hh"
 
 #  include "WM_api.hh"
 
@@ -312,12 +311,12 @@ static void rna_trackingPlaneMarker_frame_set(PointerRNA *ptr, int value)
   MovieTrackingPlaneMarker *plane_marker = (MovieTrackingPlaneMarker *)ptr->data;
   MovieTrackingPlaneTrack *plane_track_of_marker = nullptr;
 
-  LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {
-    LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, &tracking_object->plane_tracks) {
-      if (plane_marker >= plane_track->markers &&
-          plane_marker < plane_track->markers + plane_track->markersnr)
+  for (MovieTrackingObject &tracking_object : tracking->objects) {
+    for (MovieTrackingPlaneTrack &plane_track : tracking_object.plane_tracks) {
+      if (plane_marker >= plane_track.markers &&
+          plane_marker < plane_track.markers + plane_track.markersnr)
       {
-        plane_track_of_marker = plane_track;
+        plane_track_of_marker = &plane_track;
         break;
       }
     }
@@ -594,10 +593,10 @@ static void rna_trackingMarker_frame_set(PointerRNA *ptr, int value)
   MovieTrackingMarker *marker = (MovieTrackingMarker *)ptr->data;
   MovieTrackingTrack *track_of_marker = nullptr;
 
-  LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {
-    LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-      if (marker >= track->markers && marker < track->markers + track->markersnr) {
-        track_of_marker = track;
+  for (MovieTrackingObject &tracking_object : tracking->objects) {
+    for (MovieTrackingTrack &track : tracking_object.tracks) {
+      if (marker >= track.markers && marker < track.markers + track.markersnr) {
+        track_of_marker = &track;
         break;
       }
     }
@@ -656,11 +655,14 @@ static void rna_trackingDopesheet_tagUpdate(Main * /*bmain*/, Scene * /*scene*/,
 
 /* API */
 
-static MovieTrackingTrack *add_track_to_base(
-    MovieClip *clip, MovieTracking *tracking, ListBase *tracksbase, const char *name, int frame)
+static MovieTrackingTrack *add_track_to_base(MovieClip *clip,
+                                             MovieTracking *tracking,
+                                             ListBaseT<MovieTrackingTrack> *tracksbase,
+                                             const char *name,
+                                             int frame)
 {
   int width, height;
-  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser user = {};
   MovieTrackingTrack *track;
 
   user.framenr = 1;
@@ -823,9 +825,9 @@ static void rna_trackingPlaneMarkers_delete_frame(MovieTrackingPlaneTrack *plane
 static MovieTrackingObject *find_object_for_reconstruction(
     MovieTracking *tracking, MovieTrackingReconstruction *reconstruction)
 {
-  LISTBASE_FOREACH (MovieTrackingObject *, tracking_object, &tracking->objects) {
-    if (&tracking_object->reconstruction == reconstruction) {
-      return tracking_object;
+  for (MovieTrackingObject &tracking_object : tracking->objects) {
+    if (&tracking_object.reconstruction == reconstruction) {
+      return &tracking_object;
     }
   }
 
@@ -917,9 +919,13 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem cleanup_items[] = {
-      {TRACKING_CLEAN_SELECT, "SELECT", 0, "Select", "Select unclean tracks"},
-      {TRACKING_CLEAN_DELETE_TRACK, "DELETE_TRACK", 0, "Delete Track", "Delete unclean tracks"},
-      {TRACKING_CLEAN_DELETE_SEGMENT,
+      {int(TrackingCleanAction::Select), "SELECT", 0, "Select", "Select unclean tracks"},
+      {int(TrackingCleanAction::DeleteTrack),
+       "DELETE_TRACK",
+       0,
+       "Delete Track",
+       "Delete unclean tracks"},
+      {int(TrackingCleanAction::DeleteSegment),
        "DELETE_SEGMENTS",
        0,
        "Delete Segments",
@@ -1291,6 +1297,18 @@ static void rna_def_trackingCamera(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_range(prop, -10, 10, 0.1, 3);
   RNA_def_property_ui_text(prop, "K2", "Second coefficient of second order Nuke distortion");
+  RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
+
+  prop = RNA_def_property(srna, "nuke_p1", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_range(prop, -10, 10, 0.1, 3);
+  RNA_def_property_ui_text(prop, "P1", "First coefficient of tangential Nuke distortion");
+  RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
+
+  prop = RNA_def_property(srna, "nuke_p2", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_range(prop, -10, 10, 0.1, 3);
+  RNA_def_property_ui_text(prop, "P2", "Second coefficient of tangential Nuke distortion");
   RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
 
   /* Brown-Conrady distortion parameters */

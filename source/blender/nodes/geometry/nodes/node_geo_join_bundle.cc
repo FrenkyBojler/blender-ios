@@ -43,13 +43,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!output_bundle) {
     output_bundle = Bundle::create();
   }
-  else if (!output_bundle->is_mutable()) {
-    output_bundle = output_bundle->copy();
-  }
-  else {
-    output_bundle->tag_ensured_mutable();
-  }
-  Bundle &mutable_output_bundle = const_cast<Bundle &>(*output_bundle);
+  Bundle &mutable_output_bundle = output_bundle.ensure_mutable_inplace();
 
   VectorSet<StringRef> overridden_keys;
   for (; bundle_i < bundles.values.size(); bundle_i++) {
@@ -57,7 +51,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!bundle) {
       continue;
     }
-    for (const Bundle::StoredItem &item : bundle->items()) {
+    for (const auto &item : bundle->items()) {
       if (!mutable_output_bundle.add(item.key, item.value)) {
         overridden_keys.add(item.key);
       }

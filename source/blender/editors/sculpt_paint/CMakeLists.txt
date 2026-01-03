@@ -7,6 +7,7 @@ set(INC
 
   ../asset
   ../include
+  ../mesh
   ../uvedit
   ../../blenlib
   ../../makesrna
@@ -98,6 +99,7 @@ set(SRC
   sculpt_geodesic.cc
   sculpt_gesture.cc
   sculpt_hide.cc
+  sculpt_mask_extract.cc
   sculpt_mask_init.cc
   sculpt_ops.cc
   sculpt_paint_color.cc
@@ -210,6 +212,7 @@ if(WITH_GTESTS)
   set(TEST_SRC
     mesh_brush_common_tests.cc
     paint_test.cc
+    sculpt_boundary_tests.cc
     sculpt_detail_test.cc
     sculpt_undo_test.cc
   )

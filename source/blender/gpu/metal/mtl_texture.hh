@@ -181,6 +181,10 @@ class MTLTexture : public Texture {
   friend class MTLFrameBuffer;
   friend class MTLStorageBuf;
 
+  /* Special case: The XR blitting function needs access to the Metal blit encoder and handles
+   * for directly blitting from an UNORM to an SRGB texture without color space conversion. */
+  friend void xr_blit(id<MTLTexture> metal_xr_texture, int ofsx, int ofsy, int width, int height);
+
  private:
   /* Where the textures data comes from. */
   enum {
@@ -264,7 +268,6 @@ class MTLTexture : public Texture {
   /* Whether the texture's properties or state has changed (e.g. mipmap range), and re-baking of
    * GPU resource is required. */
   bool is_dirty_;
-  bool is_bound_;
 
  public:
   MTLTexture(const char *name);
@@ -274,8 +277,12 @@ class MTLTexture : public Texture {
              id<MTLTexture> metal_texture);
   ~MTLTexture() override;
 
-  void update_sub(
-      int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data) override;
+  void update_sub(int mip,
+                  int offset[3],
+                  int extent[3],
+                  eGPUDataFormat type,
+                  const void *data,
+                  const uint unpack_row_length) override;
   void update_sub(int offset[3],
                   int extent[3],
                   eGPUDataFormat format,
@@ -318,6 +325,11 @@ class MTLTexture : public Texture {
     return tex_buffer_metadata_;
   }
 
+  id<MTLTexture> get_metal_handle();
+  id<MTLTexture> get_metal_handle_base();
+  id<MTLTexture> get_non_srgb_handle();
+  MTLSamplerState get_sampler_state();
+
  protected:
   bool init_internal() override;
   bool init_internal(VertBuf *vbo) override;
@@ -357,10 +369,6 @@ class MTLTexture : public Texture {
                      void *r_data);
   void bake_mip_swizzle_view();
 
-  id<MTLTexture> get_metal_handle();
-  id<MTLTexture> get_metal_handle_base();
-  id<MTLTexture> get_non_srgb_handle();
-  MTLSamplerState get_sampler_state();
   void blit(id<MTLBlitCommandEncoder> blit_encoder,
             uint src_x_offset,
             uint src_y_offset,
@@ -418,9 +426,9 @@ class MTLTexture : public Texture {
    */
   struct TextureUpdateParams {
     int mip_index;
-    int extent[3];          /* Width, Height, Slice on 2D Array tex. */
-    int offset[3];          /* Width, Height, Slice on 2D Array tex. */
-    uint unpack_row_length; /* Number of pixels between bytes in input data. */
+    int extent[3];         /* Width, Height, Slice on 2D Array tex. */
+    int offset[3];         /* Width, Height, Slice on 2D Array tex. */
+    int unpack_row_length; /* Number of pixels between bytes in input data. */
   };
 
   id<MTLComputePipelineState> texture_update_1d_get_kernel(
@@ -436,8 +444,7 @@ class MTLTexture : public Texture {
 
   id<MTLComputePipelineState> mtl_texture_update_impl(
       TextureUpdateRoutineSpecialisation specialization_params,
-      blender::Map<TextureUpdateRoutineSpecialisation, id<MTLComputePipelineState>>
-          &specialization_cache,
+      Map<TextureUpdateRoutineSpecialisation, id<MTLComputePipelineState>> &specialization_cache,
       GPUTextureType texture_type);
 
   /* Depth Update Utilities */
@@ -470,8 +477,7 @@ class MTLTexture : public Texture {
 
   id<MTLComputePipelineState> mtl_texture_read_impl(
       TextureReadRoutineSpecialisation specialization_params,
-      blender::Map<TextureReadRoutineSpecialisation, id<MTLComputePipelineState>>
-          &specialization_cache,
+      Map<TextureReadRoutineSpecialisation, id<MTLComputePipelineState>> &specialization_cache,
       GPUTextureType texture_type);
 
   /* fullscreen blit utilities. */

@@ -473,6 +473,7 @@ static void rna_Object_active_shape_update(Main *bmain, Scene * /*scene*/, Point
     }
   }
 
+  WM_main_add_notifier(NC_OBJECT | ND_TRANSFORM, ob);
   rna_Object_internal_update_data_impl(ptr);
 }
 
@@ -845,7 +846,7 @@ static void rna_Object_vertex_groups_begin(CollectionPropertyIterator *iter, Poi
     return;
   }
 
-  ListBase *defbase = BKE_object_defgroup_list_mutable(ob);
+  ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list_mutable(ob);
   iter->valid = defbase != nullptr;
 
   rna_iterator_listbase_begin(iter, ptr, defbase, nullptr);
@@ -869,7 +870,7 @@ static int rna_VertexGroup_index_get(PointerRNA *ptr)
     return -1;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   return BLI_findindex(defbase, ptr->data);
 }
 
@@ -880,7 +881,7 @@ static PointerRNA rna_Object_active_vertex_group_get(PointerRNA *ptr)
     return PointerRNA_NULL;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
 
   return RNA_pointer_create_with_parent(
       *ptr, &RNA_VertexGroup, BLI_findlink(defbase, BKE_object_defgroup_active_index_get(ob) - 1));
@@ -895,7 +896,7 @@ static void rna_Object_active_vertex_group_set(PointerRNA *ptr,
     return;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
 
   int index = BLI_findindex(defbase, value.data);
   if (index == -1) {
@@ -940,7 +941,7 @@ static void rna_Object_active_vertex_group_index_range(
     *max = 0;
     return;
   }
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   *max = max_ii(0, BLI_listbase_count(defbase) - 1);
 }
 
@@ -952,7 +953,7 @@ void rna_object_vgroup_name_index_get(PointerRNA *ptr, char *value, int index)
     return;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   const bDeformGroup *dg = static_cast<bDeformGroup *>(BLI_findlink(defbase, index - 1));
 
   if (dg) {
@@ -970,7 +971,7 @@ int rna_object_vgroup_name_index_length(PointerRNA *ptr, int index)
     return 0;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   bDeformGroup *dg = static_cast<bDeformGroup *>(BLI_findlink(defbase, index - 1));
   return (dg) ? strlen(dg->name) : 0;
 }
@@ -1928,7 +1929,7 @@ static void rna_Object_vgroup_remove(Object *ob,
   }
 
   bDeformGroup *defgroup = static_cast<bDeformGroup *>(defgroup_ptr->data);
-  ListBase *defbase = BKE_object_defgroup_list_mutable(ob);
+  ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list_mutable(ob);
 
   if (BLI_findindex(defbase, defgroup) == -1) {
     BKE_reportf(reports,
@@ -2188,7 +2189,7 @@ bool rna_Object_light_linking_override_apply(Main *bmain,
   UNUSED_VARS_NDEBUG(ptr_storage, len_dst, len_src, len_storage, opop);
 
   /* LightLinking is a special case, since you cannot edit/replace it, it's either existent or not.
-   * Further more, when a lightlinking is added to the linked reference later on, the one created
+   * Further more, when a light-linking is added to the linked reference later on, the one created
    * for the liboverride needs to be 'merged', such that its overridable data is kept. */
   Object *ob_dst = blender::id_cast<Object *>(ptr_dst->owner_id);
   Object *ob_src = blender::id_cast<Object *>(ptr_src->owner_id);

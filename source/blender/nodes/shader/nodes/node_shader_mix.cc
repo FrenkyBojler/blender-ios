@@ -107,26 +107,26 @@ static void sh_node_mix_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Rotation>("Result", "Result_Rotation");
 };
 
-static void sh_node_mix_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void sh_node_mix_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   const NodeShaderMix &data = node_storage(*static_cast<const bNode *>(ptr->data));
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
   switch (data.data_type) {
     case SOCK_FLOAT:
       break;
     case SOCK_VECTOR:
-      layout->prop(ptr, "factor_mode", UI_ITEM_NONE, "", ICON_NONE);
+      layout.prop(ptr, "factor_mode", UI_ITEM_NONE, "", ICON_NONE);
       break;
     case SOCK_RGBA:
-      layout->prop(ptr, "blend_type", UI_ITEM_NONE, "", ICON_NONE);
-      layout->prop(ptr, "clamp_result", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "blend_type", UI_ITEM_NONE, "", ICON_NONE);
+      layout.prop(ptr, "clamp_result", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SOCK_ROTATION:
       break;
     default:
       BLI_assert_unreachable();
   }
-  layout->prop(ptr, "clamp_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "clamp_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void sh_node_mix_label(const bNodeTree * /*ntree*/,
@@ -181,8 +181,8 @@ static void sh_node_mix_update(bNodeTree *ntree, bNode *node)
     bke::node_set_socket_availability(*ntree, *socket, socket->type == data_type);
   }
 
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-    bke::node_set_socket_availability(*ntree, *socket, socket->type == data_type);
+  for (bNodeSocket &socket : node->outputs) {
+    bke::node_set_socket_availability(*ntree, socket, socket.type == data_type);
   }
 }
 
@@ -292,7 +292,7 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_mix_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
+  NodeShaderMix *data = MEM_new_for_free<NodeShaderMix>(__func__);
   data->data_type = SOCK_FLOAT;
   data->factor_mode = NODE_MIX_MODE_UNIFORM;
   data->clamp_factor = 1;

@@ -34,6 +34,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_pointcloud_types.h"
@@ -812,12 +813,12 @@ static Object *find_family_object(
   ch_utf8[ch_utf8_len] = '\0';
   ch_utf8_len += 1; /* Compare with null terminator. */
 
-  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-    if (STREQLEN(ob->id.name + 2 + family_len, ch_utf8, ch_utf8_len)) {
-      if (STREQLEN(ob->id.name + 2, family, family_len)) {
+  for (Object &ob : bmain->objects) {
+    if (STREQLEN(ob.id.name + 2 + family_len, ch_utf8, ch_utf8_len)) {
+      if (STREQLEN(ob.id.name + 2, family, family_len)) {
         /* Inserted value can be nullptr, just to save searches in future. */
-        BLI_ghash_insert(family_gh, ch_key, ob);
-        return ob;
+        BLI_ghash_insert(family_gh, ch_key, &ob);
+        return &ob;
       }
     }
   }
@@ -1349,15 +1350,15 @@ static void make_duplis_faces(const DupliContext *ctx)
   FaceDupliData_Params fdd_params = {ctx, (parent->transflag & OB_DUPLIFACES_SCALE) != 0};
 
   if (em != nullptr) {
-    const int uv_offset = CustomData_get_offset_named(
-        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->default_uv_map_name());
+    const int cd_loop_uv_offset = CustomData_get_offset_named(
+        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->active_uv_map_name());
     FaceDupliData_EditMesh fdd{};
     fdd.params = fdd_params;
     fdd.em = em;
     fdd.vert_positions_deform = vert_positions_deform;
     fdd.has_orco = !vert_positions_deform.is_empty();
-    fdd.has_uvs = (uv_offset != -1);
-    fdd.cd_loop_uv_offset = uv_offset;
+    fdd.has_uvs = (cd_loop_uv_offset != -1);
+    fdd.cd_loop_uv_offset = cd_loop_uv_offset;
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_editmesh);
   }
   else {
@@ -1457,7 +1458,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         return;
       }
 
-      const ListBase dup_collection_objects = BKE_collection_object_cache_get(
+      const ListBaseT<Base> dup_collection_objects = BKE_collection_object_cache_get(
           part->instance_collection);
       if (BLI_listbase_is_empty(&dup_collection_objects)) {
         return;
@@ -1494,12 +1495,12 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
     if (part->ren_as == PART_DRAW_GR) {
       if (use_collection_count) {
         psys_find_group_weights(part);
-        LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
+        for (ParticleDupliWeight &dw : part->instance_weights) {
           FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
               part->instance_collection, object, mode)
           {
-            if (dw->ob == object) {
-              totcollection += dw->count;
+            if (dw.ob == object) {
+              totcollection += dw.count;
               break;
             }
           }
@@ -1519,13 +1520,13 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
       if (use_collection_count) {
         a = 0;
-        LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
+        for (ParticleDupliWeight &dw : part->instance_weights) {
           FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
               part->instance_collection, object, mode)
           {
-            if (dw->ob == object) {
-              for (b = 0; b < dw->count; b++, a++) {
-                oblist[a] = dw->ob;
+            if (dw.ob == object) {
+              for (b = 0; b < dw.count; b++, a++) {
+                oblist[a] = dw.ob;
               }
               break;
             }
@@ -1720,12 +1721,12 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 static void make_duplis_particles(const DupliContext *ctx)
 {
   /* Particle system take up one level in id, the particles another. */
-  int psysid;
-  LISTBASE_FOREACH_INDEX (ParticleSystem *, psys, &ctx->object->particlesystem, psysid) {
+
+  for (const auto [psysid, psys] : ctx->object->particlesystem.enumerate()) {
     /* Particles create one more level for persistent `psys` index. */
     DupliContext pctx;
     if (copy_dupli_context(&pctx, ctx, ctx->object, nullptr, psysid)) {
-      make_duplis_particle_system(&pctx, psys);
+      make_duplis_particle_system(&pctx, &psys);
     }
   }
 }
@@ -1850,11 +1851,11 @@ void object_duplilist_preview(Depsgraph *depsgraph,
 
   Object *ob_orig = DEG_get_original(ob_eval);
 
-  LISTBASE_FOREACH (ModifierData *, md_orig, &ob_orig->modifiers) {
-    if (md_orig->type != eModifierType_Nodes) {
+  for (ModifierData &md_orig : ob_orig->modifiers) {
+    if (md_orig.type != eModifierType_Nodes) {
       continue;
     }
-    NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(md_orig);
+    NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(&md_orig);
     if (!nmd_orig->runtime->eval_log) {
       continue;
     }

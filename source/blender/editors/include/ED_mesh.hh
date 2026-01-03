@@ -246,6 +246,7 @@ void ED_mesh_undosys_type(UndoType *ut);
 void EDBM_select_mirrored(
     BMEditMesh *em, const Mesh *mesh, int axis, bool extend, int *r_totmirr, int *r_totfail);
 
+#if 0 /* Unused but seems useful to keep. */
 /**
  * Select mirrored elements on all enabled axis.
  * Does nothing if selection symmetry isn't enabled.
@@ -253,6 +254,7 @@ void EDBM_select_mirrored(
  * \return true if the selection changed.
  */
 bool EDBM_select_mirrored_extend_all(Object *obedit, BMEditMesh *em);
+#endif
 
 /**
  * Nearest vertex under the cursor.
@@ -427,6 +429,12 @@ void EDBM_preselect_elem_update_preview(
     EditMesh_PreSelElem *psel, ViewContext *vc, BMesh *bm, BMElem *ele, const int mval[2]);
 void EDBM_preselect_action_set(EditMesh_PreSelElem *psel, eEditMesh_PreSelPreviewAction action);
 eEditMesh_PreSelPreviewAction EDBM_preselect_action_get(EditMesh_PreSelElem *psel);
+
+/**
+ * Extrudes individual edges.
+ */
+bool EDBM_extrude_edges_indiv(BMEditMesh *em, wmOperator *op, char hflag, bool use_normal_flip);
+bool EDBM_smooth_vert(BMEditMesh *em, wmOperator *op);
 
 /* `mesh_ops.cc` */
 

@@ -91,9 +91,9 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 #ifdef WITH_OPENVDB
@@ -114,7 +114,7 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
    * it here. This reduces a significant amount of overhead. */
   AccessorT accessor = grid.getConstUnsafeAccessor();
 
-  mask.foreach_index([&](const int64_t i) {
+  mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
     GridValueT value = accessor.getValue(openvdb::Coord(x[i], y[i], z[i]));
     dst[i] = TraitsT::to_blender(value);
   });
