@@ -32,7 +32,6 @@ struct Depsgraph;
 struct HookGpencilModifierData;
 struct HookModifierData;
 struct ID;
-struct KDTree_3d;
 struct KeyBlock;
 struct Lattice;
 struct LinkNode;
@@ -49,6 +48,10 @@ struct Scene;
 struct SubsurfModifierData;
 struct View3D;
 struct ViewLayer;
+
+namespace blender {
+template<typename CoordT> struct KDTree;
+}  // namespace blender
 
 void BKE_object_workob_clear(Object *workob);
 /**
@@ -653,7 +656,7 @@ LinkNode *BKE_object_groups(Main *bmain, Scene *scene, Object *ob);
 void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *object);
 
 /**
- * Return a KDTree_3d from the deformed object (in world-space).
+ * Return a KDTree<float3> from the deformed object (in world-space).
  *
  * \note Only mesh objects currently support deforming, others are TODO.
  *
@@ -661,7 +664,7 @@ void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *object);
  * \param r_tot:
  * \return The KD-tree or nullptr if it can't be created.
  */
-KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot);
+blender::KDTree<blender::float3> *BKE_object_as_kdtree(Object *ob, int *r_tot);
 
 /**
  * The number of times to recurse parents for evaluation.

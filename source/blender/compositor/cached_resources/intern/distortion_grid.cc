@@ -8,12 +8,11 @@
 #include "BLI_hash.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "COM_context.hh"
 #include "COM_distortion_grid.hh"
@@ -138,7 +137,7 @@ void DistortionGridContainer::reset()
 
 static int2 get_movie_clip_size(MovieClip *movie_clip, int frame_number)
 {
-  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser user = {};
   BKE_movieclip_user_set_frame(&user, frame_number);
 
   int2 size;

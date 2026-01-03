@@ -43,6 +43,7 @@ namespace blender::eevee {
 
 CLG_LogRef Instance::log = {"eevee"};
 
+void *Instance::debug_scope_render_frame = nullptr;
 void *Instance::debug_scope_render_sample = nullptr;
 void *Instance::debug_scope_irradiance_setup = nullptr;
 void *Instance::debug_scope_irradiance_sample = nullptr;
@@ -153,7 +154,6 @@ void Instance::init(const int2 &output_res,
   if (is_viewport()) {
     is_image_render = draw_ctx->is_image_render();
     is_viewport_image_render = draw_ctx->is_viewport_image_render();
-    is_viewport_compositor_enabled = draw_ctx->is_viewport_compositor_enabled();
     is_playback = draw_ctx->is_playback();
     is_navigating = draw_ctx->is_navigating();
     is_painting = draw_ctx->is_painting();
@@ -162,6 +162,11 @@ void Instance::init(const int2 &output_res,
 
     /* Note: Do not update the value here as we use it during sync for checking ID updates. */
     if (depsgraph_last_update_ != DEG_get_update_count(depsgraph)) {
+      sampling.reset();
+    }
+    if (assign_if_different(is_viewport_compositor_enabled,
+                            draw_ctx->is_viewport_compositor_enabled()))
+    {
       sampling.reset();
     }
     if (assign_if_different(debug_mode, (eDebugMode)G.debug_value)) {
@@ -593,15 +598,15 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
   }
 
   /* AOVs. */
-  LISTBASE_FOREACH (ViewLayerAOV *, aov, &view_layer->aovs) {
-    if ((aov->flag & AOV_CONFLICT) != 0) {
+  for (ViewLayerAOV &aov : view_layer->aovs) {
+    if ((aov.flag & AOV_CONFLICT) != 0) {
       continue;
     }
-    RenderPass *rp = RE_pass_find_by_name(render_layer, aov->name, view_name);
+    RenderPass *rp = RE_pass_find_by_name(render_layer, aov.name, view_name);
     if (!rp) {
       continue;
     }
-    float *result = film.read_aov(aov);
+    float *result = film.read_aov(&aov);
 
     if (result) {
       BLI_mutex_lock(&render->update_render_passes_mutex);
@@ -647,6 +652,9 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
     }
     return;
   }
+
+  DebugScope debug_scope(debug_scope_render_frame, "EEVEE.render_frame");
+
   /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
     this->render_sample();
@@ -824,16 +832,16 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   CHECK_PASS_LEGACY(AO, SOCK_RGBA, 3, "RGB");
   CHECK_PASS_EEVEE(TRANSPARENT, SOCK_RGBA, 4, "RGBA");
 
-  LISTBASE_FOREACH (ViewLayerAOV *, aov, &view_layer->aovs) {
-    if ((aov->flag & AOV_CONFLICT) != 0) {
+  for (ViewLayerAOV &aov : view_layer->aovs) {
+    if ((aov.flag & AOV_CONFLICT) != 0) {
       continue;
     }
-    switch (aov->type) {
+    switch (aov.type) {
       case AOV_TYPE_COLOR:
-        RE_engine_register_pass(engine, scene, view_layer, aov->name, 4, "RGBA", SOCK_RGBA);
+        RE_engine_register_pass(engine, scene, view_layer, aov.name, 4, "RGBA", SOCK_RGBA);
         break;
       case AOV_TYPE_VALUE:
-        RE_engine_register_pass(engine, scene, view_layer, aov->name, 1, "X", SOCK_FLOAT);
+        RE_engine_register_pass(engine, scene, view_layer, aov.name, 1, "X", SOCK_FLOAT);
         break;
       default:
         break;

@@ -190,7 +190,7 @@ struct BPyPropStore {
  * Maintain a list of Python defined properties, so the GC can visit them,
  * and so they can be cleared on exit.
  */
-static ListBase g_bpy_prop_store_list = {nullptr, nullptr};
+static ListBaseT<BPyPropStore> g_bpy_prop_store_list = {nullptr, nullptr};
 
 static BPyPropStore *bpy_prop_py_data_ensure(PropertyRNA *prop)
 {
@@ -1636,7 +1636,7 @@ static void bpy_prop_float_array_from_callback_or_error(PropertyRNA *prop,
     }
     else {
       /* Only for float types. */
-      /* TODO: Clear and comnplete explanations about this matrix swap? */
+      /* TODO: Clear and complete explanations about this matrix swap? */
       if (do_matrix_row_col_swap && bpy_prop_array_is_matrix_compatible(prop, &array_len_info)) {
         bpy_prop_array_matrix_swap_row_column_vn(r_values, &array_len_info);
       }
@@ -5680,8 +5680,8 @@ static PyMethodDef props_methods[] = {
 
 static int props_visit(PyObject * /*self*/, visitproc visit, void *arg)
 {
-  LISTBASE_FOREACH (BPyPropStore *, prop_store, &g_bpy_prop_store_list) {
-    PyObject **py_data = (PyObject **)&prop_store->py_data;
+  for (BPyPropStore &prop_store : g_bpy_prop_store_list) {
+    PyObject **py_data = (PyObject **)&prop_store.py_data;
     for (int i = 0; i < BPY_PROP_STORE_PY_DATA_SIZE; i++) {
       Py_VISIT(py_data[i]);
     }
@@ -5691,8 +5691,8 @@ static int props_visit(PyObject * /*self*/, visitproc visit, void *arg)
 
 static int props_clear(PyObject * /*self*/)
 {
-  LISTBASE_FOREACH (BPyPropStore *, prop_store, &g_bpy_prop_store_list) {
-    PyObject **py_data = (PyObject **)&prop_store->py_data;
+  for (BPyPropStore &prop_store : g_bpy_prop_store_list) {
+    PyObject **py_data = (PyObject **)&prop_store.py_data;
     for (int i = 0; i < BPY_PROP_STORE_PY_DATA_SIZE; i++) {
       Py_CLEAR(py_data[i]);
     }

@@ -244,9 +244,10 @@ class ObjectRef {
   float random() const
   {
     if (duplis_) {
-      /* NOTE: The random property is only used by EEVEE, which currently doesn't support
-      instancing optimizations. However, ObjectInfos always call this function so the code is still
-      reachable even if its result won't be used. */
+      /* NOTE: The random property is only used by EEVEE,
+       * which currently doesn't support instancing optimizations.
+       * However, ObjectInfos always call this function so the code
+       * is still reachable even if its result won't be used. */
       // BLI_assert_unreachable();
       /* TODO: This should fill a span instead. */
       return 0.0;
@@ -286,7 +287,7 @@ class ObjectRef {
   int recalc_flags(uint64_t last_update) const
   {
     /* TODO: There should also be a way to get the min last_update for all objects in the range. */
-    auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
+    auto get_flags = [&](const blender::bke::ObjectRuntime &runtime) {
       int flags = 0;
       SET_FLAG_FROM_TEST(flags, runtime.last_update_transform > last_update, ID_RECALC_TRANSFORM);
       SET_FLAG_FROM_TEST(flags, runtime.last_update_geometry > last_update, ID_RECALC_GEOMETRY);
@@ -446,6 +447,15 @@ class ObjectKey {
       sub_key_ = sub_key;
       hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
     }
+  }
+
+  /* Special handles that will have nullptr object.
+   * Used for inserting helper items inside the hash-maps without creating a dummy #Object. */
+  explicit ObjectKey(int key)
+  {
+    sub_key_ = key;
+    hash_value_ = get_default_hash(ob_);
+    hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
   }
 
   uint64_t hash() const

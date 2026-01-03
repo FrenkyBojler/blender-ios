@@ -13,6 +13,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
 
+#include "DNA_listBase.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
@@ -21,7 +22,6 @@
 struct AnimData;
 struct Depsgraph;
 struct ID;
-struct ListBase;
 
 struct ARegion;
 struct ARegionType;
@@ -48,7 +48,9 @@ struct FCurve;
 struct FModifier;
 struct bAction;
 
-struct uiBlock;
+namespace blender::ui {
+struct Block;
+}
 
 struct PointerRNA;
 struct PropertyRNA;
@@ -109,9 +111,10 @@ struct bAnimContext {
   eGraphEdit_Mode grapheditor_mode;
 
   /**
-   * Filters from the dopesheet/graph editor settings. These may reflect the corresponding bits in
-   * ads->filterflag and ads->filterflag2, but can also be overriden by the dopesheet mode to force
-   * certain filters (without having to write to ads->filterflag/flag2).
+   * Filters from the dope-sheet/graph editor settings.
+   * These may reflect the corresponding bits in `ads->filterflag` and `ads->filterflag2`,
+   * but can also be overridden by the dope-sheet mode to force certain filters
+   * (without having to write to `ads->filterflag/flag2`).
    */
   struct {
     eDopeSheet_FilterFlag flag;
@@ -153,7 +156,7 @@ struct bAnimContext {
   ID *active_action_user;
 
   /** active set of markers */
-  ListBase *markers;
+  ListBaseT<TimeMarker> *markers;
 
   /** pointer to current reports list */
   ReportList *reports;
@@ -486,35 +489,34 @@ ENUM_OPERATORS(eAnimFilter_Flags);
 #define SEL_FCU(fcu) ((fcu)->flag & FCURVE_SELECTED)
 
 /* ShapeKey mode only */
-#define EDITABLE_SHAPEKEY(kb) ((kb->flag & KEYBLOCK_LOCKED) == 0)
-#define SEL_SHAPEKEY(kb) (kb->flag & KEYBLOCK_SEL)
+#define EDITABLE_SHAPEKEY(kb) (((kb)->flag & KEYBLOCK_LOCKED) == 0)
+#define SEL_SHAPEKEY(kb) ((kb)->flag & KEYBLOCK_SEL)
 
 /* Grease Pencil only */
 /** Grease Pencil data-block settings. */
-#define EXPANDED_GPD(gpd) (gpd->flag & GP_DATA_EXPAND)
+#define EXPANDED_GPD(gpd) ((gpd)->flag & GP_DATA_EXPAND)
 /** Grease Pencil Layer settings. */
-#define EDITABLE_GPL(gpl) ((gpl->flag & GP_LAYER_LOCKED) == 0)
-#define SEL_GPL(gpl) (gpl->flag & GP_LAYER_SELECT)
+#define EDITABLE_GPL(gpl) (((gpl)->flag & GP_LAYER_LOCKED) == 0)
+#define SEL_GPL(gpl) ((gpl)->flag & GP_LAYER_SELECT)
 
 /* Mask Only */
-/** Grease Pencil data-block settings. */
-#define EXPANDED_MASK(mask) (mask->flag & MASK_ANIMF_EXPAND)
+#define EXPANDED_MASK(mask) ((mask)->flag & MASK_ANIMF_EXPAND)
 /** Grease Pencil Layer settings. */
-#define EDITABLE_MASK(masklay) ((masklay->flag & MASK_LAYERFLAG_LOCKED) == 0)
-#define SEL_MASKLAY(masklay) (masklay->flag & SELECT)
+#define EDITABLE_MASK(masklay) (((masklay)->flag & MASK_LAYERFLAG_LOCKED) == 0)
+#define SEL_MASKLAY(masklay) ((masklay)->flag & SELECT)
 
 /* NLA only */
-#define SEL_NLT(nlt) (nlt->flag & NLATRACK_SELECTED)
-#define EDITABLE_NLT(nlt) ((nlt->flag & NLATRACK_PROTECTED) == 0)
+#define SEL_NLT(nlt) ((nlt)->flag & NLATRACK_SELECTED)
+#define EDITABLE_NLT(nlt) (((nlt)->flag & NLATRACK_PROTECTED) == 0)
 
 /* Movie clip only */
-#define EXPANDED_MCLIP(clip) (clip->flag & MCLIP_DATA_EXPAND)
+#define EXPANDED_MCLIP(clip) ((clip)->flag & MCLIP_DATA_EXPAND)
 
 /* Palette only */
-#define EXPANDED_PALETTE(palette) (palette->flag & PALETTE_DATA_EXPAND)
+#define EXPANDED_PALETTE(palette) ((palette)->flag & PALETTE_DATA_EXPAND)
 
 /* AnimData - NLA mostly... */
-#define SEL_ANIMDATA(adt) (adt->flag & ADT_UI_SELECTED)
+#define SEL_ANIMDATA(adt) ((adt)->flag & ADT_UI_SELECTED)
 
 /** \} */
 
@@ -524,7 +526,7 @@ ENUM_OPERATORS(eAnimFilter_Flags);
 
 /** NLA track heights */
 #define NLATRACK_FIRST_TOP(ac) \
-  (UI_view2d_scale_get_y(&(ac)->region->v2d) * -UI_TIME_SCRUB_MARGIN_Y - NLATRACK_SKIP)
+  (blender::ui::view2d_scale_get_y(&(ac)->region->v2d) * -UI_TIME_SCRUB_MARGIN_Y - NLATRACK_SKIP)
 #define NLATRACK_HEIGHT(snla) \
   (((snla) && ((snla)->flag & SNLA_NOSTRIPCURVES)) ? (0.8f * U.widget_unit) : \
                                                      (1.2f * U.widget_unit))
@@ -564,7 +566,7 @@ ENUM_OPERATORS(eAnimFilter_Flags);
  * \return The number of items added to `anim_data`.
  */
 size_t ANIM_animfilter_action_slot(bAnimContext *ac,
-                                   ListBase * /* bAnimListElem */ anim_data,
+                                   ListBaseT<bAnimListElem> *anim_data,
                                    blender::animrig::Action &action,
                                    blender::animrig::Slot &slot,
                                    eAnimFilter_Flags filter_mode,
@@ -579,7 +581,7 @@ size_t ANIM_animfilter_action_slot(bAnimContext *ac,
  * \param filter_mode: how should the data be filtered - bit-mapping accessed flags.
  */
 size_t ANIM_animdata_filter(bAnimContext *ac,
-                            ListBase *anim_data,
+                            ListBaseT<bAnimListElem> *anim_data,
                             eAnimFilter_Flags filter_mode,
                             void *data,
                             eAnimCont_Types datatype);
@@ -608,9 +610,9 @@ bool ANIM_animdata_context_getdata(bAnimContext *ac);
 /**
  * Acts on bAnimListElem eAnim_Update_Flags.
  */
-void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data);
+void ANIM_animdata_update(bAnimContext *ac, ListBaseT<bAnimListElem> *anim_data);
 
-void ANIM_animdata_freelist(ListBase *anim_data);
+void ANIM_animdata_freelist(ListBaseT<bAnimListElem> *anim_data);
 
 /**
  * Check if the given animation container can contain grease pencil layer keyframes.
@@ -776,7 +778,7 @@ void ANIM_channel_draw(
 void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
-                               uiBlock *block,
+                               blender::ui::Block *block,
                                const rctf *rect,
                                size_t channel_index);
 
@@ -813,7 +815,7 @@ void ANIM_channel_setting_set(bAnimContext *ac,
  * - on: whether the visibility setting has been enabled or disabled
  */
 void ANIM_flush_setting_anim_channels(bAnimContext *ac,
-                                      ListBase *anim_data,
+                                      ListBaseT<bAnimListElem> *anim_data,
                                       bAnimListElem *ale_setting,
                                       eAnimChannel_Settings setting,
                                       eAnimChannels_SetFlag mode);
@@ -942,7 +944,7 @@ using uiListPanelIDFromDataFunc = void (*)(void *data_link, char *r_idname);
  */
 void ANIM_fmodifier_panels(const bContext *C,
                            ID *owner_id,
-                           ListBase *fmodifiers,
+                           ListBaseT<FModifier> *fmodifiers,
                            uiListPanelIDFromDataFunc panel_id_fn);
 
 void ANIM_modifier_panels_register_graph_and_NLA(ARegionType *region_type,
@@ -968,13 +970,13 @@ void ANIM_fmodifiers_copybuf_free();
  * assuming that the buffer has been cleared already with #ANIM_fmodifiers_copybuf_free()
  * \param active: Only copy the active modifier.
  */
-bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active);
+bool ANIM_fmodifiers_copy_to_buf(ListBaseT<FModifier> *modifiers, bool active);
 
 /**
  * 'Paste' the F-Modifier(s) from the buffer to the specified list
  * \param replace: Free all the existing modifiers to leave only the pasted ones.
  */
-bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *curve);
+bool ANIM_fmodifiers_paste_from_buf(ListBaseT<FModifier> *modifiers, bool replace, FCurve *curve);
 
 /* ************************************************* */
 /* ASSORTED TOOLS */

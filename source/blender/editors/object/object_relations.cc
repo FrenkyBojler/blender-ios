@@ -27,7 +27,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -167,7 +167,7 @@ static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
     }
   }
   else if (ELEM(obedit->type, OB_SURF, OB_CURVES_LEGACY)) {
-    ListBase *editnurb = object_editcurve_get(obedit);
+    ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     int curr_index = 0;
     for (Nurb *nu = static_cast<Nurb *>(editnurb->first); nu != nullptr; nu = nu->next) {
       if (nu->type == CU_BEZIER) {
@@ -552,8 +552,7 @@ static bool parent_set_with_depsgraph(ReportList *reports,
         /* get or create F-Curve */
         bAction *act = animrig::id_action_ensure(bmain, &cu->id);
         PointerRNA id_ptr = RNA_id_pointer_create(&cu->id);
-        FCurve *fcu = animrig::action_fcurve_ensure_ex(
-            bmain, act, nullptr, &id_ptr, {"eval_time", 0});
+        FCurve *fcu = animrig::action_fcurve_ensure_ex(bmain, act, &id_ptr, {"eval_time", 0});
 
         /* setup dummy 'generator' modifier here to get 1-1 correspondence still working */
         if (!fcu->bezt && !fcu->fpt && !fcu->modifiers.first) {
@@ -814,7 +813,7 @@ static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3]
     KDTreeNearest_3d nearest[3];
     int tot;
 
-    tot = BLI_kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
+    tot = kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
     BLI_assert(tot == 3);
     UNUSED_VARS(tot);
 
@@ -825,7 +824,7 @@ static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3]
     BLI_assert(min_iii(UNPACK3(vert_par)) >= 0);
   }
   else {
-    vert_par[0] = BLI_kdtree_3d_find_nearest(tree, co_find, nullptr);
+    vert_par[0] = kdtree_3d_find_nearest(tree, co_find, nullptr);
     BLI_assert(vert_par[0] >= 0);
     vert_par[1] = 0;
     vert_par[2] = 0;
@@ -918,12 +917,12 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
 
   if (tree_tot < (parenting_context->is_vertex_tri ? 3 : 1)) {
     BKE_report(parenting_context->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
-    BLI_kdtree_3d_free(tree);
+    kdtree_3d_free(tree);
     return false;
   }
 
   const bool ok = parent_set_vertex_parent_with_kdtree(C, parenting_context, tree);
-  BLI_kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
   return ok;
 }
 
@@ -961,29 +960,29 @@ static wmOperatorStatus parent_set_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 {
   Object *parent = context_active_object(C);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
-  PointerRNA opptr = layout->op(
+  PointerRNA opptr = layout.op(
       ot, IFACE_("Object"), ICON_NONE, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
   RNA_boolean_set(&opptr, "keep_transform", false);
 
-  opptr = layout->op(ot,
-                     IFACE_("Object (Keep Transform)"),
-                     ICON_NONE,
-                     wm::OpCallContext::ExecDefault,
-                     UI_ITEM_NONE);
+  opptr = layout.op(ot,
+                    IFACE_("Object (Keep Transform)"),
+                    ICON_NONE,
+                    wm::OpCallContext::ExecDefault,
+                    UI_ITEM_NONE);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
   RNA_boolean_set(&opptr, "keep_transform", true);
 
-  PointerRNA op_ptr = layout->op(
+  PointerRNA op_ptr = layout.op(
       "OBJECT_OT_parent_no_inverse_set", IFACE_("Object (Without Inverse)"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "keep_transform", false);
 
-  op_ptr = layout->op("OBJECT_OT_parent_no_inverse_set",
-                      IFACE_("Object (Keep Transform Without Inverse)"),
-                      ICON_NONE);
+  op_ptr = layout.op("OBJECT_OT_parent_no_inverse_set",
+                     IFACE_("Object (Keep Transform Without Inverse)"),
+                     ICON_NONE);
   RNA_boolean_set(&op_ptr, "keep_transform", true);
 
   struct {
@@ -1020,53 +1019,53 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   if (parent->type == OB_ARMATURE) {
 
     if (can_support.armature_deform) {
-      op_ptr = layout->op(ot, IFACE_("Armature Deform"), ICON_NONE);
+      op_ptr = layout.op(ot, IFACE_("Armature Deform"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE);
     }
     if (can_support.empty_groups) {
-      op_ptr = layout->op(ot, IFACE_("   With Empty Groups"), ICON_NONE);
+      op_ptr = layout.op(ot, IFACE_("   With Empty Groups"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_NAME);
     }
     if (can_support.envelope_weights) {
-      op_ptr = layout->op(ot, IFACE_("   With Envelope Weights"), ICON_NONE);
+      op_ptr = layout.op(ot, IFACE_("   With Envelope Weights"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_ENVELOPE);
     }
     if (can_support.automatic_weights) {
-      op_ptr = layout->op(ot, IFACE_("   With Automatic Weights"), ICON_NONE);
+      op_ptr = layout.op(ot, IFACE_("   With Automatic Weights"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_AUTO);
     }
-    op_ptr = layout->op(ot, IFACE_("Bone"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Bone"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_BONE);
-    op_ptr = layout->op(ot, IFACE_("Bone Relative"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Bone Relative"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_BONE_RELATIVE);
   }
   else if (parent->type == OB_CURVES_LEGACY) {
-    op_ptr = layout->op(ot, IFACE_("Curve Deform"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Curve Deform"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_CURVE);
-    op_ptr = layout->op(ot, IFACE_("Follow Path"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Follow Path"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_FOLLOW);
-    op_ptr = layout->op(ot, IFACE_("Path Constraint"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Path Constraint"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_PATH_CONST);
   }
   else if (parent->type == OB_LATTICE) {
-    op_ptr = layout->op(ot, IFACE_("Lattice Deform"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Lattice Deform"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_LATTICE);
   }
   else if (parent->type == OB_MESH) {
     if (can_support.attach_surface) {
-      layout->op("CURVES_OT_surface_set", IFACE_("Object (Attach Curves to Surface)"), ICON_NONE);
+      layout.op("CURVES_OT_surface_set", IFACE_("Object (Attach Curves to Surface)"), ICON_NONE);
     }
   }
 
   /* vertex parenting */
   if (OB_TYPE_SUPPORT_PARVERT(parent->type)) {
-    op_ptr = layout->op(ot, IFACE_("Vertex"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Vertex"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_VERTEX);
-    op_ptr = layout->op(ot, IFACE_("Vertex (Triangle)"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Vertex (Triangle)"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_VERTEX_TRI);
   }
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1786,8 +1785,8 @@ static void libblock_relink_collection(Main *bmain,
     BKE_libblock_relink_to_newid(bmain, &cob->ob->id, 0);
   }
 
-  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
-    libblock_relink_collection(bmain, child->collection, true);
+  for (CollectionChild &child : collection->children) {
+    libblock_relink_collection(bmain, child.collection, true);
   }
 }
 
@@ -1808,8 +1807,8 @@ static Collection *single_object_users_collection(Main *bmain,
   }
 
   /* We do not remap to new objects here, this is done in separate step. */
-  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
-    Object *ob = cob->ob;
+  for (CollectionObject &cob : collection->gobject) {
+    Object *ob = cob.ob;
     /* an object may be in more than one collection */
     if ((ob->id.newid == nullptr) && ((ob->flag & flag) == flag)) {
       if (!ID_IS_LINKED(ob) && BKE_object_scenes_users_get(bmain, ob) > 1) {
@@ -2213,14 +2212,14 @@ static bool make_local_all__instance_indirect_unused(Main *bmain,
   return changed;
 }
 
-static void make_local_animdata_tag_strips(ListBase *strips)
+static void make_local_animdata_tag_strips(ListBaseT<NlaStrip> *strips)
 {
-  LISTBASE_FOREACH (NlaStrip *, strip, strips) {
-    if (strip->act) {
-      strip->act->id.tag &= ~ID_TAG_PRE_EXISTING;
+  for (NlaStrip &strip : *strips) {
+    if (strip.act) {
+      strip.act->id.tag &= ~ID_TAG_PRE_EXISTING;
     }
 
-    make_local_animdata_tag_strips(&strip->strips);
+    make_local_animdata_tag_strips(&strip.strips);
   }
 }
 
@@ -2240,8 +2239,8 @@ static void make_local_animdata_tag(AnimData *adt)
     /* TODO: need to handle the ID-targets too? */
 
     /* NLA Data */
-    LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
-      make_local_animdata_tag_strips(&nlt->strips);
+    for (NlaTrack &nlt : adt->nla_tracks) {
+      make_local_animdata_tag_strips(&nlt.strips);
     }
   }
 }
@@ -2292,8 +2291,8 @@ static wmOperatorStatus make_local_exec(bContext *C, wmOperator *op)
 
       ob->id.tag &= ~ID_TAG_PRE_EXISTING;
       make_local_animdata_tag(BKE_animdata_from_id(&ob->id));
-      LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-        psys->part->id.tag &= ~ID_TAG_PRE_EXISTING;
+      for (ParticleSystem &psys : ob->particlesystem) {
+        psys.part->id.tag &= ~ID_TAG_PRE_EXISTING;
       }
 
       if (mode == MAKE_LOCAL_SELECT_OBDATA_MATERIAL) {
@@ -2374,13 +2373,13 @@ static bool make_override_library_object_overridable_check(Main *bmain, Object *
 {
   /* An object is actually overridable only if it is in at least one local collection.
    * Unfortunately 'direct link' flag is not enough here. */
-  LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-    if (!ID_IS_LINKED(collection) && BKE_collection_has_object(collection, object)) {
+  for (Collection &collection : bmain->collections) {
+    if (!ID_IS_LINKED(&collection) && BKE_collection_has_object(&collection, object)) {
       return true;
     }
   }
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    if (!ID_IS_LINKED(scene) && BKE_collection_has_object(scene->master_collection, object)) {
+  for (Scene &scene : bmain->scenes) {
+    if (!ID_IS_LINKED(&scene) && BKE_collection_has_object(scene.master_collection, object)) {
       return true;
     }
   }
@@ -2461,10 +2460,8 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
   /** Currently there is no 'all editable' option from the 3DView. */
   const bool do_fully_editable = false;
 
-  GSet *user_overrides_objects_uids = do_fully_editable ? nullptr :
-                                                          BLI_gset_new(BLI_ghashutil_inthash_p,
-                                                                       BLI_ghashutil_intcmp,
-                                                                       __func__);
+  std::unique_ptr<Set<uint32_t>> user_overrides_objects_uids =
+      do_fully_editable ? nullptr : std::make_unique<Set<uint32_t>>();
 
   if (do_fully_editable) {
     /* Pass. */
@@ -2472,7 +2469,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
   else if (user_overrides_from_selected_objects) {
     /* Only selected objects can be 'user overrides'. */
     FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
-      BLI_gset_add(user_overrides_objects_uids, POINTER_FROM_UINT(ob_iter->id.session_uid));
+      user_overrides_objects_uids->add(ob_iter->id.session_uid);
     }
     FOREACH_SELECTED_OBJECT_END;
   }
@@ -2480,7 +2477,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
     /* Only armatures inside the root collection (and their children) can be 'user overrides'. */
     FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN ((Collection *)id_root, ob_iter) {
       if (ob_iter->type == OB_ARMATURE) {
-        BLI_gset_add(user_overrides_objects_uids, POINTER_FROM_UINT(ob_iter->id.session_uid));
+        user_overrides_objects_uids->add(ob_iter->id.session_uid);
       }
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
@@ -2492,16 +2489,14 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
    * While this may not be the absolute best behavior in all cases, in most common one this
    * should match the expected result. */
   if (user_overrides_objects_uids != nullptr) {
-    LISTBASE_FOREACH (Collection *, coll_iter, &bmain->collections) {
-      if (ID_IS_LINKED(coll_iter)) {
+    for (Collection &coll_iter : bmain->collections) {
+      if (ID_IS_LINKED(&coll_iter)) {
         continue;
       }
-      LISTBASE_FOREACH (CollectionObject *, coll_ob_iter, &coll_iter->gobject) {
-        if (BLI_gset_haskey(user_overrides_objects_uids,
-                            POINTER_FROM_UINT(coll_ob_iter->ob->id.session_uid)))
-        {
+      for (CollectionObject &coll_ob_iter : coll_iter.gobject) {
+        if (user_overrides_objects_uids->contains(coll_ob_iter.ob->id.session_uid)) {
           /* Tag for remapping when creating overrides. */
-          coll_iter->id.tag |= ID_TAG_DOIT;
+          coll_iter.id.tag |= ID_TAG_DOIT;
           break;
         }
       }
@@ -2532,15 +2527,12 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
       {
         continue;
       }
-      if (BLI_gset_haskey(user_overrides_objects_uids,
-                          POINTER_FROM_UINT(id_iter->override_library->reference->session_uid)))
+      if (user_overrides_objects_uids->contains(id_iter->override_library->reference->session_uid))
       {
         id_iter->override_library->flag &= ~LIBOVERRIDE_FLAG_SYSTEM_DEFINED;
       }
     }
     FOREACH_MAIN_ID_END;
-
-    BLI_gset_free(user_overrides_objects_uids, nullptr);
   }
 
   if (success) {
@@ -2554,15 +2546,15 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
       switch (GS(id_root->name)) {
         case ID_GR: {
           Collection *collection_root = (Collection *)id_root;
-          LISTBASE_FOREACH_MUTABLE (
-              CollectionParent *, collection_parent, &collection_root->runtime->parents)
+          for (CollectionParent &collection_parent :
+               collection_root->runtime->parents.items_mutable())
           {
-            if (ID_IS_LINKED(collection_parent->collection) ||
-                !BKE_view_layer_has_collection(view_layer, collection_parent->collection))
+            if (ID_IS_LINKED(collection_parent.collection) ||
+                !BKE_view_layer_has_collection(view_layer, collection_parent.collection))
             {
               continue;
             }
-            BKE_collection_child_remove(bmain, collection_parent->collection, collection_root);
+            BKE_collection_child_remove(bmain, collection_parent.collection, collection_root);
           }
           break;
         }
@@ -2616,32 +2608,32 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
   }
 
   VectorSet<Collection *> potential_root_collections;
-  LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+  for (Collection &collection : bmain->collections) {
     /* Only check for linked collections from the same library, in the current view-layer. */
-    if (!ID_IS_LINKED(&collection->id) || collection->id.lib != obact->id.lib ||
-        !BKE_view_layer_has_collection(view_layer, collection))
+    if (!ID_IS_LINKED(&collection.id) || collection.id.lib != obact->id.lib ||
+        !BKE_view_layer_has_collection(view_layer, &collection))
     {
       continue;
     }
-    if (!BKE_collection_has_object_recursive(collection, obact)) {
+    if (!BKE_collection_has_object_recursive(&collection, obact)) {
       continue;
     }
     if (potential_root_collections.is_empty()) {
-      potential_root_collections.add_new(collection);
+      potential_root_collections.add_new(&collection);
     }
     else {
       bool has_parents_in_potential_roots = false;
       bool is_potential_root = false;
       for (auto *collection_root_iter : potential_root_collections) {
-        if (BKE_collection_has_collection(collection_root_iter, collection)) {
-          BLI_assert_msg(!BKE_collection_has_collection(collection, collection_root_iter),
+        if (BKE_collection_has_collection(collection_root_iter, &collection)) {
+          BLI_assert_msg(!BKE_collection_has_collection(&collection, collection_root_iter),
                          "Invalid loop in collection hierarchy");
           /* Current potential root is already 'better' (higher up in the collection hierarchy)
            * than current collection, nothing else to do. */
           has_parents_in_potential_roots = true;
         }
-        else if (BKE_collection_has_collection(collection, collection_root_iter)) {
-          BLI_assert_msg(!BKE_collection_has_collection(collection_root_iter, collection),
+        else if (BKE_collection_has_collection(&collection, collection_root_iter)) {
+          BLI_assert_msg(!BKE_collection_has_collection(collection_root_iter, &collection),
                          "Invalid loop in collection hierarchy");
           /* Current potential root is in the current collection's hierarchy, so the later is a
            * better candidate as root collection. */
@@ -2657,7 +2649,7 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
       /* Only add the current collection as potential root if it is not a descendant of any
        * already known potential root collections. */
       if (is_potential_root && !has_parents_in_potential_roots) {
-        potential_root_collections.add_new(collection);
+        potential_root_collections.add_new(&collection);
       }
     }
   }
@@ -3189,7 +3181,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
   ID *id;
   PropertyPointerRNA pprop;
 
-  UI_context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Incorrect context for running object data unlink");

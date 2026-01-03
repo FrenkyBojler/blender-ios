@@ -8,11 +8,13 @@
  * \ingroup sequencer
  */
 
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
+#include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 #include "DNA_scene_types.h"
-
-#include "BLI_enum_flags.hh"
+#include "DNA_sequence_types.h"
+#include "DNA_session_uid_types.h"
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -20,6 +22,7 @@ struct Depsgraph;
 struct Editing;
 struct Main;
 struct MetaStack;
+struct MovieReader;
 struct Scene;
 struct SeqTimelineChannel;
 struct Strip;
@@ -52,6 +55,32 @@ enum class StripDuplicate : uint8_t {
 };
 ENUM_OPERATORS(StripDuplicate);
 
+enum class StripRuntimeFlag {
+  None = 0,
+  ClampedLH = (1 << 0),
+  ClampedRH = (1 << 1),
+  Overlap = (1 << 2),
+  MarkForDelete = (1 << 4),
+  IgnoreChannelLock = (1 << 5), /* For #SEQUENCER_OT_duplicate_move macro. */
+  ShowOffsets = (1 << 6),       /* Set during #SEQUENCER_OT_slip. */
+};
+ENUM_OPERATORS(StripRuntimeFlag);
+
+struct StripRuntime {
+  SessionUID session_uid = {};
+  StripRuntimeFlag flag = StripRuntimeFlag::None;
+  void *scene_sound = nullptr; /* AUD_SequenceEntry */
+  Vector<MovieReader *, 1> movie_readers;
+
+  [[nodiscard]] MovieReader *movie_reader_get(int64_t index = 0) const
+  {
+    if (index < 0 || index >= movie_readers.size()) {
+      return nullptr;
+    }
+    return movie_readers[index];
+  }
+};
+
 SequencerToolSettings *tool_settings_init();
 SequencerToolSettings *tool_settings_ensure(Scene *scene);
 void tool_settings_free(SequencerToolSettings *tool_settings);
@@ -72,8 +101,8 @@ void editing_free(Scene *scene, bool do_id_user);
  * \param ed: sequence editor data
  * \return pointer to active seqbase. returns NULL if ed is NULL
  */
-ListBase *active_seqbase_get(const Editing *ed);
-Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type);
+ListBaseT<Strip> *active_seqbase_get(const Editing *ed);
+Strip *strip_alloc(ListBaseT<Strip> *lb, int timeline_frame, int channel, StripType type);
 void strip_free(Scene *scene, Strip *strip);
 /**
  * Get #MetaStack that corresponds to current level that is being viewed
@@ -97,23 +126,23 @@ Strip *meta_stack_pop(Editing *ed);
 Strip *strip_duplicate_recursive(Main *bmain,
                                  const Scene *scene_src,
                                  Scene *scene_dst,
-                                 ListBase *new_seq_list,
+                                 ListBaseT<Strip> *seqbase_dst,
                                  Strip *strip,
                                  StripDuplicate dupe_flag);
 void seqbase_duplicate_recursive(Main *bmain,
                                  const Scene *scene_src,
                                  Scene *scene_dst,
-                                 ListBase *nseqbase,
-                                 const ListBase *seqbase,
+                                 ListBaseT<Strip> *seqbase_dst,
+                                 const ListBaseT<Strip> *seqbase_src,
                                  StripDuplicate dupe_flag,
-                                 int flag);
+                                 int copy_flag);
 bool is_valid_strip_channel(const Strip *strip);
 
 /**
  * Read and Write functions for `.blend` file data.
  */
-void blend_write(BlendWriter *writer, ListBase *seqbase);
-void blend_read(BlendDataReader *reader, ListBase *seqbase);
+void blend_write(BlendWriter *writer, ListBaseT<Strip> *seqbase);
+void blend_read(BlendDataReader *reader, ListBaseT<Strip> *seqbase);
 
 void doversion_250_sound_proxy_update(Main *bmain, Editing *ed);
 
@@ -124,7 +153,7 @@ void doversion_250_sound_proxy_update(Main *bmain, Editing *ed);
  * This does NOT include actual rendering of the strips, but rather makes them up-to-date for
  * animation playback and makes them ready for the sequencer's rendering pipeline to render them.
  */
-void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase);
+void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBaseT<Strip> *seqbase);
 
 /**
  * Find a strip with a given name.

@@ -316,7 +316,7 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
       pos3d, cd->preview_plane[1], cd->preview_plane[2], cd->preview_plane[0], cd->voxel_size);
 
   /* Draw text */
-  const uiStyle *style = UI_style_get();
+  const uiStyle *style = ui::style_get();
   const uiFontStyle *fstyle = &style->widget;
   const int fontid = fstyle->uifont_id;
   float strwidth, strheight;
@@ -781,7 +781,7 @@ static void quadriflow_update_job(void *customdata, float progress, int *cancel)
 
 static Mesh *remesh_symmetry_bisect(Mesh *mesh, eSymmetryAxes symmetry_axes)
 {
-  MirrorModifierData mmd = {{nullptr}};
+  MirrorModifierData mmd = {};
   mmd.tolerance = QUADRIFLOW_MIRROR_BISECT_TOLERANCE;
 
   Mesh *mesh_bisect, *mesh_bisect_temp;
@@ -815,7 +815,7 @@ static Mesh *remesh_symmetry_bisect(Mesh *mesh, eSymmetryAxes symmetry_axes)
 
 static Mesh *remesh_symmetry_mirror(Object *ob, Mesh *mesh, eSymmetryAxes symmetry_axes)
 {
-  MirrorModifierData mmd = {{nullptr}};
+  MirrorModifierData mmd = {};
   mmd.tolerance = QUADRIFLOW_MIRROR_BISECT_TOLERANCE;
   Mesh *mesh_mirror, *mesh_mirror_temp;
 

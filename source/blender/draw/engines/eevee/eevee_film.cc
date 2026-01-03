@@ -60,22 +60,22 @@ void Film::init_aovs(const Set<std::string> &passes_used_by_viewport_compositor)
     }
 
     if (inst_.is_viewport_compositor_enabled) {
-      LISTBASE_FOREACH (ViewLayerAOV *, aov, &inst_.view_layer->aovs) {
+      for (ViewLayerAOV &aov : inst_.view_layer->aovs) {
         /* Already added as a display pass. No need to add again. */
-        if (!aovs.is_empty() && aovs.last() == aov) {
+        if (!aovs.is_empty() && aovs.last() == &aov) {
           continue;
         }
 
-        if (passes_used_by_viewport_compositor.contains(aov->name)) {
-          aovs.append(aov);
+        if (passes_used_by_viewport_compositor.contains(aov.name)) {
+          aovs.append(&aov);
         }
       }
     }
   }
   else {
     /* Render case. */
-    LISTBASE_FOREACH (ViewLayerAOV *, aov, &inst_.view_layer->aovs) {
-      aovs.append(aov);
+    for (ViewLayerAOV &aov : inst_.view_layer->aovs) {
+      aovs.append(&aov);
     }
   }
 
@@ -87,8 +87,11 @@ void Film::init_aovs(const Set<std::string> &passes_used_by_viewport_compositor)
   for (ViewLayerAOV *aov : aovs) {
     bool is_value = (aov->type == AOV_TYPE_VALUE);
     int &index = is_value ? aovs_info.value_len : aovs_info.color_len;
-    uint &hash = is_value ? aovs_info.hash_value[index].x : aovs_info.hash_color[index].x;
-    hash = BLI_hash_string(aov->name);
+
+    /* Pack hash in `AOVsInfoData` uint4 array. We place value AOVs after color AOVs. */
+    int combined_index = is_value ? aovs_info.color_len + index : index;
+    aovs_info.hash[combined_index / 4][combined_index % 4] = BLI_hash_string(aov->name);
+
     index++;
   }
 
@@ -115,18 +118,20 @@ gpu::Texture *Film::get_aov_texture(ViewLayerAOV *aov)
   bool is_value = (aov->type == AOV_TYPE_VALUE);
   Texture &accum_tx = is_value ? value_accum_tx_ : color_accum_tx_;
 
-  Span<uint4> aovs_hash(is_value ? aovs_info.hash_value : aovs_info.hash_color,
-                        is_value ? aovs_info.value_len : aovs_info.color_len);
-  /* Find AOV index. */
+  /* Find AOV index next, by searching for the matching hash. */
   uint hash = BLI_hash_string(aov->name);
   int aov_index = -1;
-  int i = 0;
-  for (uint4 candidate_hash : aovs_hash) {
-    if (candidate_hash.x == hash) {
-      aov_index = i;
+
+  /* Hashes are packed in tuples of 4, and value hashes are placed after color hashes,
+   * so we iterate only the relevant range. */
+  IndexRange color_range(0, aovs_info.color_len);
+  IndexRange value_range(aovs_info.color_len, aovs_info.value_len);
+  for (int i : (is_value ? value_range : color_range)) {
+    uint candidate_hash = aovs_info.hash[i / 4][i % 4];
+    if (candidate_hash == hash) {
+      aov_index = i - (is_value ? aovs_info.color_len : 0);
       break;
     }
-    i++;
   }
 
   if (aov_index == -1) {
@@ -1023,21 +1028,21 @@ void Film::write_viewport_compositor_passes()
   }
 
   /* Write AOV passes. */
-  LISTBASE_FOREACH (ViewLayerAOV *, aov, &inst_.view_layer->aovs) {
-    if ((aov->flag & AOV_CONFLICT) != 0) {
+  for (ViewLayerAOV &aov : inst_.view_layer->aovs) {
+    if ((aov.flag & AOV_CONFLICT) != 0) {
       continue;
     }
-    gpu::Texture *pass_texture = this->get_aov_texture(aov);
+    gpu::Texture *pass_texture = this->get_aov_texture(&aov);
     if (!pass_texture) {
       continue;
     }
 
     /* See above comment regarding the allocation extent. */
-    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get(aov->name);
+    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get(aov.name);
     output_pass_texture.acquire(this->display_extent, GPU_texture_format(pass_texture));
 
     PassSimple write_pass_ps = {"Film.WriteViewportCompositorPass"};
-    const eShaderType write_shader_type = get_aov_write_pass_shader_type(aov);
+    const eShaderType write_shader_type = get_aov_write_pass_shader_type(&aov);
     write_pass_ps.shader_set(inst_.shaders.static_shader_get(write_shader_type));
     write_pass_ps.push_constant("offset", data_.offset);
     write_pass_ps.bind_texture("input_tx", pass_texture);

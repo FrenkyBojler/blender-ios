@@ -86,17 +86,15 @@ namespace blender::deg {
 namespace {
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
-union NestedIDHackTempStorage {
-  Curve curve;
-  FreestyleLineStyle linestyle;
-  Light lamp;
-  Lattice lattice;
-  Material material;
-  Mesh mesh;
-  Scene scene;
-  Tex tex;
-  World world;
-};
+constexpr size_t NestedIDHackTempStorage = std::max({sizeof(Curve),
+                                                     sizeof(FreestyleLineStyle),
+                                                     sizeof(Light),
+                                                     sizeof(Lattice),
+                                                     sizeof(Material),
+                                                     sizeof(Mesh),
+                                                     sizeof(Scene),
+                                                     sizeof(Tex),
+                                                     sizeof(World)});
 
 /* Set nested owned ID pointers to nullptr. */
 void nested_id_hack_discard_pointers(ID *id_cow)
@@ -128,8 +126,8 @@ void nested_id_hack_discard_pointers(ID *id_cow)
     case ID_OB: {
       /* Clear the ParticleSettings pointer to prevent doubly-freeing it. */
       Object *ob = (Object *)id_cow;
-      LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-        psys->part = nullptr;
+      for (ParticleSystem &psys : ob->particlesystem) {
+        psys.part = nullptr;
       }
       break;
     }
@@ -143,14 +141,15 @@ void nested_id_hack_discard_pointers(ID *id_cow)
 /* Set ID pointer of nested owned IDs (nodetree, key) to nullptr.
  *
  * Return pointer to a new ID to be used. */
-const ID *nested_id_hack_get_discarded_pointers(NestedIDHackTempStorage *storage, const ID *id)
+const ID *nested_id_hack_get_discarded_pointers(void *storage, const ID *id)
 {
   switch (GS(id->name)) {
 #  define SPECIAL_CASE(id_type, dna_type, field, variable) \
     case id_type: { \
-      storage->variable = dna::shallow_copy(*(dna_type *)id); \
-      storage->variable.field = nullptr; \
-      return &storage->variable.id; \
+      dna_type *data = static_cast<dna_type *>(storage); \
+      *data = dna::shallow_copy(*(dna_type *)id); \
+      data->field = nullptr; \
+      return &data->id; \
     }
 
     SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree, linestyle)
@@ -164,9 +163,11 @@ const ID *nested_id_hack_get_discarded_pointers(NestedIDHackTempStorage *storage
     SPECIAL_CASE(ID_ME, Mesh, key, mesh)
 
     case ID_SCE: {
-      storage->scene = *(Scene *)id;
-      storage->scene.toolsettings = nullptr;
-      return &storage->scene.id;
+      Scene *scene = static_cast<Scene *>(storage);
+      *scene = blender::dna::shallow_copy(*(Scene *)id);
+      scene->toolsettings = nullptr;
+      scene->nodetree = nullptr;
+      return &scene->id;
     }
 
 #  undef SPECIAL_CASE
@@ -262,7 +263,7 @@ bool id_copy_inplace_no_main(const ID *id, ID *newid)
   }
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
-  NestedIDHackTempStorage id_hack_storage;
+  uint8_t id_hack_storage[NestedIDHackTempStorage];
   id_for_copy = nested_id_hack_get_discarded_pointers(&id_hack_storage, id);
 #endif
 
@@ -291,7 +292,7 @@ bool scene_copy_inplace_no_main(const Scene *scene, Scene *new_scene)
   }
 
 #ifdef NESTED_ID_NASTY_WORKAROUND
-  NestedIDHackTempStorage id_hack_storage;
+  uint8_t id_hack_storage[NestedIDHackTempStorage];
   const ID *id_for_copy = nested_id_hack_get_discarded_pointers(&id_hack_storage, &scene->id);
 #else
   const ID *id_for_copy = &scene->id;
@@ -347,8 +348,8 @@ void scene_minimize_unused_view_layers(const Depsgraph *depsgraph,
      *
      * NOTE: Need to keep view layers for all scenes, even indirect ones. This is because of
      * render layer node possibly pointing to another scene. */
-    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene_cow->view_layers) {
-      BKE_view_layer_free_object_content(view_layer);
+    for (ViewLayer &view_layer : scene_cow->view_layers) {
+      BKE_view_layer_free_object_content(&view_layer);
     }
     return;
   }
@@ -381,8 +382,8 @@ void scene_minimize_unused_view_layers(const Depsgraph *depsgraph,
 
 void scene_remove_all_bases(Scene *scene_cow)
 {
-  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene_cow->view_layers) {
-    BLI_freelistN(&view_layer->object_bases);
+  for (ViewLayer &view_layer : scene_cow->view_layers) {
+    BLI_freelistN(&view_layer.object_bases);
   }
 }
 
@@ -395,9 +396,9 @@ void view_layer_remove_disabled_bases(const Depsgraph *depsgraph,
   if (view_layer == nullptr) {
     return;
   }
-  ListBase enabled_bases = {nullptr, nullptr};
+  ListBaseT<Base> enabled_bases = {nullptr, nullptr};
   BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH_MUTABLE (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+  for (Base &base : BKE_view_layer_object_bases_get(view_layer)->items_mutable()) {
     /* TODO(sergey): Would be cool to optimize this somehow, or make it so
      * builder tags bases.
      *
@@ -409,15 +410,15 @@ void view_layer_remove_disabled_bases(const Depsgraph *depsgraph,
      * points to is not yet copied. This is dangerous access from evaluated
      * domain to original one, but this is how the entire copy-on-evaluation works:
      * it does need to access original for an initial copy. */
-    const bool is_object_enabled = deg_check_base_in_depsgraph(depsgraph, base);
+    const bool is_object_enabled = deg_check_base_in_depsgraph(depsgraph, &base);
     if (is_object_enabled) {
-      BLI_addtail(&enabled_bases, base);
+      BLI_addtail(&enabled_bases, &base);
     }
     else {
-      if (base == view_layer->basact) {
+      if (&base == view_layer->basact) {
         view_layer->basact = nullptr;
       }
-      MEM_freeN(base);
+      MEM_freeN(&base);
     }
   }
   view_layer->object_bases = enabled_bases;
@@ -431,8 +432,8 @@ void view_layer_update_orig_base_pointers(const ViewLayer *view_layer_orig,
     return;
   }
   Base *base_orig = reinterpret_cast<Base *>(view_layer_orig->object_bases.first);
-  LISTBASE_FOREACH (Base *, base_eval, &view_layer_eval->object_bases) {
-    base_eval->base_orig = base_orig;
+  for (Base &base_eval : view_layer_eval->object_bases) {
+    base_eval.base_orig = base_orig;
     base_orig = base_orig->next;
   }
 }
@@ -571,8 +572,8 @@ void update_edit_mode_pointers(const Depsgraph *depsgraph, const ID *id_orig, ID
 }
 
 template<typename T>
-void update_list_orig_pointers(const ListBase *listbase_orig,
-                               ListBase *listbase,
+void update_list_orig_pointers(const ListBaseT<T> *listbase_orig,
+                               ListBaseT<T> *listbase,
                                T *T::*orig_field)
 {
   T *element_orig = reinterpret_cast<T *>(listbase_orig->first);
@@ -598,11 +599,11 @@ void update_particle_system_orig_pointers(const Object *object_orig, Object *obj
 
 void set_particle_system_modifiers_loaded(Object *object_cow)
 {
-  LISTBASE_FOREACH (ModifierData *, md, &object_cow->modifiers) {
-    if (md->type != eModifierType_ParticleSystem) {
+  for (ModifierData &md : object_cow->modifiers) {
+    if (md.type != eModifierType_ParticleSystem) {
       continue;
     }
-    ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
+    ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(&md);
     psmd->flag |= eParticleSystemFlag_file_loaded;
   }
 }
@@ -614,8 +615,8 @@ void reset_particle_system_edit_eval(const Depsgraph *depsgraph, Object *object_
   if (!DEG_is_active(reinterpret_cast<const ::Depsgraph *>(depsgraph))) {
     return;
   }
-  LISTBASE_FOREACH (ParticleSystem *, psys, &object_cow->particlesystem) {
-    ParticleSystem *orig_psys = psys->orig_psys;
+  for (ParticleSystem &psys : object_cow->particlesystem) {
+    ParticleSystem *orig_psys = psys.orig_psys;
     if (orig_psys->edit != nullptr) {
       orig_psys->edit->psys_eval = nullptr;
       orig_psys->edit->psmd_eval = nullptr;
@@ -637,7 +638,8 @@ void update_pose_orig_pointers(const bPose *pose_orig, bPose *pose_cow)
   update_list_orig_pointers(&pose_orig->chanbase, &pose_cow->chanbase, &bPoseChannel::orig_pchan);
 }
 
-void update_nla_strips_orig_pointers(const ListBase *strips_orig, ListBase *strips_cow)
+void update_nla_strips_orig_pointers(const ListBaseT<NlaStrip> *strips_orig,
+                                     ListBaseT<NlaStrip> *strips_cow)
 {
   NlaStrip *strip_orig = reinterpret_cast<NlaStrip *>(strips_orig->first);
   NlaStrip *strip_cow = reinterpret_cast<NlaStrip *>(strips_cow->first);
@@ -649,7 +651,8 @@ void update_nla_strips_orig_pointers(const ListBase *strips_orig, ListBase *stri
   }
 }
 
-void update_nla_tracks_orig_pointers(const ListBase *tracks_orig, ListBase *tracks_cow)
+void update_nla_tracks_orig_pointers(const ListBaseT<NlaTrack> *tracks_orig,
+                                     ListBaseT<NlaTrack> *tracks_cow)
 {
   NlaTrack *track_orig = reinterpret_cast<NlaTrack *>(tracks_orig->first);
   NlaTrack *track_cow = reinterpret_cast<NlaTrack *>(tracks_cow->first);
@@ -763,8 +766,6 @@ ID *deg_expand_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
   BLI_assert(id_cow->runtime == nullptr);
 
   /* Copy data from original ID to a copied version. */
-  /* TODO(sergey): Avoid doing full ID copy somehow, make Mesh to reference
-   * original geometry arrays for until those are modified. */
   /* TODO(sergey): We do some trickery with temp bmain and extra ID pointer
    * just to be able to use existing API. Ideally we need to replace this with
    * in-place copy from existing datablock to a prepared memory.

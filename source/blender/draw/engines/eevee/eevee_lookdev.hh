@@ -29,6 +29,7 @@
 
 struct bNode;
 struct bNodeSocketValueFloat;
+struct bNodeSocketValueVector;
 struct View3D;
 
 namespace blender::eevee {
@@ -50,10 +51,12 @@ using blender::draw::View;
  * \{ */
 struct LookdevParameters {
   std::string hdri;
+  float rot_z = 0.0f;
   float background_opacity = 0.0f;
   float intensity = 1.0f;
   float blur = 0.0f;
   bool show_scene_world = true;
+  bool camera_space = true;
 
   LookdevParameters();
   LookdevParameters(const ::View3D *v3d);
@@ -73,6 +76,13 @@ class LookdevWorld {
  private:
   bNode *environment_node_ = nullptr;
   bNodeSocketValueFloat *intensity_socket_ = nullptr;
+  bNodeSocketValueFloat *angle_socket_ = nullptr;
+  /* Vector multiply socket for flipping Y axes when transforming to camera space. */
+  bNodeSocketValueVector *flip_y_socket_ = nullptr;
+  /* Vector transform socket `convert_to`. */
+  int *xform_socket_ = nullptr;
+  /* Set to M_PI/2 for rotating the HDRI horizon line in camera space mode. */
+  float *rotation_x_socket_ = nullptr;
   ::Image *image = nullptr;
   ::World *world = nullptr;
 
@@ -168,7 +178,7 @@ class LookdevModule {
    */
   Texture world_sphere_probe_ = {"world_sphere_probe_"};
   StorageBuffer<SphereProbeHarmonic, true> world_volume_probe_ = {"world_volume_probe_"};
-  UniformBuffer<LightData> world_sunlight_ = {"world_sunlight_"};
+  UniformArrayBuffer<LightData, 2> world_sunlight_ = {"world_sunlight_"};
 
  public:
   LookdevModule(Instance &inst);
@@ -186,12 +196,12 @@ class LookdevModule {
   void store_world_probe_data(Texture &in_sphere_probe,
                               const SphereProbeAtlasCoord &atlas_coord,
                               StorageBuffer<SphereProbeHarmonic, true> &in_volume_probe,
-                              UniformBuffer<LightData> &in_sunlight);
+                              UniformArrayBuffer<LightData, 2> &in_sunlight);
 
   void rotate_world_probe_data(Texture &dst_sphere_probe,
                                const SphereProbeAtlasCoord &atlas_coord,
                                StorageBuffer<SphereProbeHarmonic, true> &dst_volume_probe,
-                               UniformBuffer<LightData> &dst_sunlight,
+                               UniformArrayBuffer<LightData, 2> &dst_sunlight,
                                float4x4 &rotation);
 
  private:

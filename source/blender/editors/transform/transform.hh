@@ -553,7 +553,7 @@ struct TransSnap {
   /** To this point (in global-space). */
   float snap_target[3];
   float snapNormal[3];
-  ListBase points;
+  ListBaseT<TransSnapPoint> points;
   TransSnapPoint *selectedPoint;
   double last;
   void (*snap_target_fn)(TransInfo *, float *);
@@ -1142,6 +1142,9 @@ void freeCustomNormalArray(TransInfo *t, TransDataContainer *tc, TransCustomData
 
 /* TODO: move to: `transform_query.c`. */
 bool checkUseAxisMatrix(TransInfo *t);
+
+/** Converts 2D mouse movement to a normalized 3D direction in world space. */
+std::optional<float3> mouse_delta_to_world_dir(const TransInfo *t, const float2 &delta);
 
 /** \} */
 

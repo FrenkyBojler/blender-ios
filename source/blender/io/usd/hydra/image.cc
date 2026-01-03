@@ -31,9 +31,8 @@ static std::string cache_image_file(
     const char *file_ext[BKE_IMAGE_PATH_EXT_MAX];
     file_ext[0] = BLI_path_extension_or_end(image->id.name);
     if (!pxr::HioImageRegistry::GetInstance().IsSupportedImageFile(image->id.name)) {
-      BKE_image_path_ext_from_imformat(&scene->r.im_format, file_ext);
-      BKE_image_format_free(&opts.im_format);
-      BKE_image_format_copy(&opts.im_format, &scene->r.im_format);
+      BKE_image_format_set(&opts.im_format, nullptr, R_IMF_IMTYPE_PNG);
+      BKE_image_path_ext_from_imformat(&opts.im_format, file_ext);
     }
 
     char file_name[FILE_MAX];
@@ -73,15 +72,15 @@ std::string cache_or_get_image_file(Main *bmain, Scene *scene, Image *image, Ima
     char *cached_path;
     char subfolder[FILE_MAXDIR];
     SNPRINTF(subfolder, "unpack_%p", image);
-    LISTBASE_FOREACH (ImagePackedFile *, ipf, &image->packedfiles) {
+    for (ImagePackedFile &ipf : image->packedfiles) {
       char path[FILE_MAX];
       BLI_path_join(
-          path, sizeof(path), dir_path.c_str(), subfolder, BLI_path_basename(ipf->filepath));
+          path, sizeof(path), dir_path.c_str(), subfolder, BLI_path_basename(ipf.filepath));
       cached_path = BKE_packedfile_unpack_to_file(nullptr,
                                                   BKE_main_blendfile_path(bmain),
                                                   dir_path.c_str(),
                                                   path,
-                                                  ipf->packedfile,
+                                                  ipf.packedfile,
                                                   PF_WRITE_LOCAL);
 
       /* Take first successfully unpacked image. */

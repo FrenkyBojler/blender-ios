@@ -31,6 +31,7 @@
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_sound.hh"
 
 #include "RNA_access.hh"
@@ -69,7 +70,7 @@ static void sound_open_init(bContext *C, wmOperator *op)
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>(__func__);
-  UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 #ifdef WITH_AUDASPACE
@@ -365,7 +366,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
   const int end_frame = scene_eval->r.efra;
 
   if (split) {
-    result = AUD_mixdown_per_channel(scene_eval->sound_scene,
+    result = AUD_mixdown_per_channel(scene_eval->runtime->audio.sound_scene,
                                      start_frame * specs.rate / fps,
                                      (end_frame - start_frame + 1) * specs.rate / fps,
                                      accuracy,
@@ -381,7 +382,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
                                      sizeof(error_message));
   }
   else {
-    result = AUD_mixdown(scene_eval->sound_scene,
+    result = AUD_mixdown(scene_eval->runtime->audio.sound_scene,
                          start_frame * specs.rate / fps,
                          (end_frame - start_frame + 1) * specs.rate / fps,
                          accuracy,
@@ -556,14 +557,14 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
   PropertyRNA *prop_format;
   PropertyRNA *prop_codec;
   PropertyRNA *prop_bitrate;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   AUD_Container container = AUD_Container(RNA_enum_get(op->ptr, "container"));
   AUD_Codec codec = AUD_Codec(RNA_enum_get(op->ptr, "codec"));
@@ -663,12 +664,12 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
   /* main draw call */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    &ptr,
                    sound_mixdown_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
 }
 #endif /* WITH_AUDASPACE */
@@ -779,7 +780,7 @@ static bool sound_poll(bContext *C)
 {
   Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
 
-  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND) {
     return false;
   }
 
@@ -793,7 +794,7 @@ static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
   Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
   bSound *sound;
 
-  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND) {
     return OPERATOR_CANCELLED;
   }
 
@@ -870,7 +871,7 @@ static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const w
     return sound_unpack_exec(C, op);
   }
 
-  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND) {
     return OPERATOR_CANCELLED;
   }
 

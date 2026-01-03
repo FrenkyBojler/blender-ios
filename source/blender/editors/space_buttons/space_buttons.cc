@@ -28,7 +28,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
 #include "BLT_translation.hh"
 
@@ -64,7 +64,7 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
   ARegion *region;
   SpaceProperties *sbuts;
 
-  sbuts = MEM_callocN<SpaceProperties>("initbuts");
+  sbuts = MEM_new_for_free<SpaceProperties>("initbuts");
 
   sbuts->runtime = MEM_new<SpaceProperties_Runtime>(__func__);
   sbuts->runtime->search_string[0] = '\0';
@@ -116,8 +116,8 @@ static void buttons_free(SpaceLink *sl)
 
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-    LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
-      MEM_delete(user);
+    for (ButsTextureUser &user : ct->users.items_mutable()) {
+      MEM_delete(&user);
     }
     BLI_listbase_clear(&ct->users);
     MEM_freeN(ct);
@@ -165,7 +165,7 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 /** \name Property Editor Layout
  * \{ */
 
-void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_buttons_visible_tabs_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   PointerRNA ptr = RNA_pointer_create_discrete(
       reinterpret_cast<ID *>(CTX_wm_screen(C)), &RNA_SpaceProperties, CTX_wm_space_properties(C));
@@ -185,11 +185,11 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
   };
 
   for (blender::StringRefNull item : filter_items) {
-    layout->prop(&ptr, item, UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
+    layout->prop(&ptr, item, blender::ui::ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
   }
 }
 
-void ED_buttons_navbar_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_buttons_navbar_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   ED_screens_region_flip_menu_create(C, layout, nullptr);
   layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
@@ -440,7 +440,7 @@ static void property_search_all_tabs(const bContext *C,
                    i,
                    property_search_for_context(C, region_copy, &sbuts_copy));
 
-    UI_blocklist_free(C, region_copy);
+    blender::ui::blocklist_free(C, region_copy);
   }
 
   BKE_area_region_free(area_copy.type, region_copy);
@@ -466,8 +466,8 @@ static void buttons_main_region_property_search(const bContext *C,
 
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
-  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    if (UI_panel_is_active(panel) && UI_panel_matches_search_filter(panel)) {
+  for (Panel &panel : region->panels) {
+    if (blender::ui::panel_is_active(&panel) && blender::ui::panel_matches_search_filter(&panel)) {
       current_tab_has_search_match = true;
     }
   }
@@ -560,7 +560,7 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
   buttons_context_compute(C, sbuts);
 
   if (ED_buttons_tabs_list(sbuts).is_empty()) {
-    View2D *v2d = UI_view2d_fromcontext(C);
+    View2D *v2d = blender::ui::view2d_fromcontext(C);
     v2d->scroll &= ~V2D_SCROLL_VERTICAL;
     return;
   }
@@ -677,8 +677,8 @@ static void buttons_navigation_bar_region_draw(const bContext *C, ARegion *regio
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   buttons_context_compute(C, sbuts);
 
-  LISTBASE_FOREACH (PanelType *, pt, &region->runtime->type->paneltypes) {
-    pt->flag |= PANEL_TYPE_LAYOUT_VERT_BAR;
+  for (PanelType &pt : region->runtime->type->paneltypes) {
+    pt.flag |= PANEL_TYPE_LAYOUT_VERT_BAR;
   }
 
   ED_region_panels_layout(C, region);
@@ -998,8 +998,8 @@ static void buttons_id_remap(ScrArea * /*area*/,
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
     mappings.apply(reinterpret_cast<ID **>(&ct->texture), ID_REMAP_APPLY_DEFAULT);
-    LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
-      MEM_delete(user);
+    for (ButsTextureUser &user : ct->users.items_mutable()) {
+      MEM_delete(&user);
     }
     BLI_listbase_clear(&ct->users);
     ct->user = nullptr;
@@ -1030,8 +1030,8 @@ static void buttons_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ct->texture, IDWALK_CB_DIRECT_WEAK_LINK);
 
     if (!is_readonly) {
-      LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
-        MEM_delete(user);
+      for (ButsTextureUser &user : ct->users.items_mutable()) {
+        MEM_delete(&user);
       }
       BLI_listbase_clear(&ct->users);
       ct->user = nullptr;
@@ -1065,7 +1065,7 @@ static void buttons_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
 
 static void buttons_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceProperties, sl);
+  writer->write_struct_cast<SpaceProperties>(sl);
 }
 
 /** \} */

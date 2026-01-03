@@ -118,7 +118,7 @@ class LevelsOperation : public NodeOperation {
   float compute_mean()
   {
     const Result &input = get_input("Image");
-    return compute_sum() / (input.domain().size.x * input.domain().size.y);
+    return compute_sum() / (input.domain().data_size.x * input.domain().data_size.y);
   }
 
   float compute_sum()
@@ -147,7 +147,7 @@ class LevelsOperation : public NodeOperation {
   {
     const Result &input = get_input("Image");
     const float sum = compute_sum_squared_difference(mean);
-    return std::sqrt(sum / (input.domain().size.x * input.domain().size.y));
+    return std::sqrt(sum / (input.domain().data_size.x * input.domain().data_size.y));
   }
 
   float compute_sum_squared_difference(float subtrahend)
@@ -176,10 +176,8 @@ class LevelsOperation : public NodeOperation {
 
   CMPNodeLevelsChannel get_channel()
   {
-    const Result &input = this->get_input("Channel");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_LEVLES_LUMINANCE);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeLevelsChannel>(menu_value.value);
+    return CMPNodeLevelsChannel(
+        this->get_input("Channel").get_single_value_default<MenuValue>().value);
   }
 };
 

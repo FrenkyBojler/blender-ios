@@ -116,7 +116,7 @@ class CropOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     output_image.unbind_as_image();
@@ -133,7 +133,7 @@ class CropOperation : public NodeOperation {
     Result &output = this->get_result("Image");
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* The lower bound is inclusive and upper bound is exclusive. */
       bool is_inside = texel.x >= bounds.min.x && texel.y >= bounds.min.y &&
                        texel.x < bounds.max.x && texel.y < bounds.max.y;
@@ -204,7 +204,7 @@ class CropOperation : public NodeOperation {
     }
 
     const Bounds<int2> bounds = this->compute_cropping_bounds();
-    const int2 input_size = input.domain().size;
+    const int2 input_size = input.domain().data_size;
     /* The cropping bounds cover the whole image, so no cropping happens. */
     if (bounds.min == int2(0) && bounds.max == input_size) {
       return true;
@@ -215,14 +215,14 @@ class CropOperation : public NodeOperation {
 
   Bounds<int2> compute_cropping_bounds()
   {
-    const int2 input_size = this->get_input("Image").domain().size;
+    const int2 input_size = this->get_input("Image").domain().data_size;
 
     const int x = math::clamp(
-        this->get_input("X").get_single_value_default(0), 0, input_size.x - 1);
+        this->get_input("X").get_single_value_default<int>(), 0, input_size.x - 1);
     const int y = math::clamp(
-        this->get_input("Y").get_single_value_default(0), 0, input_size.y - 1);
-    const int width = math::max(1, this->get_input("Width").get_single_value_default(100));
-    const int height = math::max(1, this->get_input("Height").get_single_value_default(100));
+        this->get_input("Y").get_single_value_default<int>(), 0, input_size.y - 1);
+    const int width = math::max(1, this->get_input("Width").get_single_value_default<int>());
+    const int height = math::max(1, this->get_input("Height").get_single_value_default<int>());
 
     const Bounds<int2> input_bounds = Bounds<int2>(int2(0), input_size);
 
@@ -234,7 +234,7 @@ class CropOperation : public NodeOperation {
    * of actually cropping the size of the image. */
   bool is_alpha_crop()
   {
-    return this->get_input("Alpha Crop").get_single_value_default(false);
+    return this->get_input("Alpha Crop").get_single_value_default<bool>();
   }
 };
 
