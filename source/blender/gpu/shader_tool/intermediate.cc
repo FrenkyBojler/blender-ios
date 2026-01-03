@@ -309,6 +309,7 @@ void TokenStream::token_merge(TokenData &tokens)
 
   /* Never merge the first token. We don't want to loose it. */
   TokenType prev = types_raw[0];
+  sizes_raw[0] = tokens.offsets[0].size;
 
   /* State. */
   bool after_whitespace = is_whitespace(prev);
@@ -377,7 +378,7 @@ void TokenStream::token_merge(TokenData &tokens)
       case Word:
         /* Merge words that contain numbers that were split by the tokenizer. */
         if (prev == Word && !after_whitespace) {
-          sizes_raw[cursor] += tok_size;
+          sizes_raw[cursor - 1] += tok_size;
           continue;
         }
         sizes_raw[cursor] = tok_size;
@@ -386,7 +387,7 @@ void TokenStream::token_merge(TokenData &tokens)
       case Number:
         /* If digit is part of word. */
         if (prev == Word && !after_whitespace) {
-          sizes_raw[cursor] += tok_size;
+          sizes_raw[cursor - 1] += tok_size;
           continue;
         }
         if (prev == Number) {
