@@ -810,17 +810,10 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     int visibility = BKE_object_visibility(ob, eval_mode);
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
-
-    // const bool allow_lod_swap = (DEG_get_mode(draw_ctx.depsgraph) == DAG_EVAL_VIEWPORT); // Works perfectly fine
-
-    // const bool allow_lod_swap = // Broken
-    //   (eval_mode == DAG_EVAL_VIEWPORT && draw_ctx.scene->lod.use_viewport) ||
-    //   (eval_mode == DAG_EVAL_RENDER && draw_ctx.scene->lod.use_render);
-
     const bool is_viewport_draw = (draw_ctx.v3d != nullptr);
     const bool is_render_draw = !is_viewport_draw;
 
-    const bool allow_lod_swap = // Correct?
+    const bool allow_lod_swap =
       (is_viewport_draw && draw_ctx.scene->lod.use_viewport) ||
       (is_render_draw && draw_ctx.scene->lod.use_render);
 
@@ -828,7 +821,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     if (allow_lod_swap) {
       /* Base-object LOD selection probe */
       ObjectRef ob_ref_probe(ob, data_.dupli_parent, data_.dupli_object_current);
-      lod_target = DRW_object_lod_select(ob_ref_probe, draw_ctx);
+      lod_target = DRW_object_lod_select(ob_ref_probe, draw_ctx, data_.dupli_object_current);
     }
 
     /* Draw base object only if NO LOD is active */
@@ -899,7 +892,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       Object *dupli_lod_target = nullptr;
       if (allow_lod_swap) {
         ObjectRef dupli_ref_probe(dupli.ob, ob, &dupli);
-        dupli_lod_target = DRW_object_lod_select(dupli_ref_probe, draw_ctx);
+        dupli_lod_target = DRW_object_lod_select(dupli_ref_probe, draw_ctx, &dupli);
       }
 
       if (dupli_lod_target) {
