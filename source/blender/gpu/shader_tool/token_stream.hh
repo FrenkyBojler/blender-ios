@@ -37,6 +37,7 @@ struct TokenStream {
   void parse_scopes(report_callback &report_error);
 
  private:
+  void token_parse();
   void token_offsets_populate();
   void token_types_populate();
 };

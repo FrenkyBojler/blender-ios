@@ -93,6 +93,7 @@ void TokenStream::tokenize()
     return;
   }
 
+  token_parse();
   token_offsets_populate();
   // token_types_populate();
 }
@@ -186,6 +187,46 @@ static const std::array<TokenType, 256> token_table = [] {
 static always_inline TokenType to_type_table(const unsigned char c)
 {
   return token_table[c];
+}
+
+void TokenStream::token_parse()
+{
+  std::vector<TokenType> token_types;
+  /* Tokenization. */
+  token_types.clear();
+  token_offsets.clear();
+
+  /* Reserve space inside the data structures. Allocate 1 token per char as we do not want to
+   * resize or check for size inside the hot loop. */
+  token_types.reserve(str.size());
+  token_offsets.offsets.reserve(str.size() + 1);
+
+  TokenType type = to_type_table(str[0]);
+  token_types.emplace_back(type);
+  token_offsets.offsets.emplace_back(0);
+
+  const char *str_raw = str.data();
+
+  int offset = 0, type_cursor = 0, offset_cursor = 0;
+  for (const char c : std::string_view{str_raw + 1, str.size() - 1}) {
+    offset++;
+
+    const TokenType prev = type;
+    type = to_type_table(c);
+
+    token_types[type_cursor] = type;
+    token_offsets.offsets[offset_cursor] = offset;
+
+    const bool split = (type != prev);
+    type_cursor += split;
+    offset_cursor += split;
+  }
+  offset++;
+  token_offsets.offsets.emplace_back(offset);
+
+  /* Convert vector of char to string for faster lookups. */
+  this->token_types = std::string(reinterpret_cast<char *>(token_types.data()),
+                                  token_types.size());
 }
 
 static const std::array<bool, 256> num_literal_table = [] {
