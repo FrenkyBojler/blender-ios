@@ -58,7 +58,7 @@ static void fontstyle_set_ex(const uiFontStyle *fs, const float dpi_fac);
 
 /* ********************************************** */
 
-static uiStyle *ui_style_new(ListBase *styles, const char *name, short uifont_id)
+static uiStyle *ui_style_new(ListBaseT<uiStyle> *styles, const char *name, short uifont_id)
 {
   uiStyle *style = MEM_callocN<uiStyle>(__func__);
 
@@ -499,22 +499,22 @@ void style_init()
     font_first->uifont_id = UIFONT_DEFAULT;
   }
 
-  LISTBASE_FOREACH (uiFont *, font, &U.uifonts) {
+  for (uiFont &font : U.uifonts) {
     const bool unique = false;
 
-    if (font->uifont_id == UIFONT_DEFAULT) {
-      font->blf_id = BLF_load_default(unique);
+    if (font.uifont_id == UIFONT_DEFAULT) {
+      font.blf_id = BLF_load_default(unique);
     }
     else {
-      font->blf_id = BLF_load(font->filepath);
-      if (font->blf_id == -1) {
-        font->blf_id = BLF_load_default(unique);
+      font.blf_id = BLF_load(font.filepath);
+      if (font.blf_id == -1) {
+        font.blf_id = BLF_load_default(unique);
       }
     }
 
-    BLF_default_set(font->blf_id);
+    BLF_default_set(font.blf_id);
 
-    if (font->blf_id == -1) {
+    if (font.blf_id == -1) {
       if (G.debug & G_DEBUG) {
         CLOG_WARN(&LOG, "%s: error, no fonts available", __func__);
       }
@@ -567,19 +567,19 @@ void style_init()
       }
     }
 
-    LISTBASE_FOREACH (uiFont *, font, &U.uifonts) {
-      if (font->blf_id != -1) {
-        BLF_disable(font->blf_id, flag_disable);
-        BLF_enable(font->blf_id, flag_enable);
-        BLF_feature(font->blf_id, "kern", U.text_render & USER_TEXT_KERNING ? 1 : 0);
-        BLF_feature(font->blf_id, "tnum", U.text_render & USER_TEXT_TABULAR_NUMBERS_UI ? 1 : 0);
+    for (uiFont &font : U.uifonts) {
+      if (font.blf_id != -1) {
+        BLF_disable(font.blf_id, flag_disable);
+        BLF_enable(font.blf_id, flag_enable);
+        BLF_feature(font.blf_id, "kern", U.text_render & USER_TEXT_KERNING ? 1 : 0);
+        BLF_feature(font.blf_id, "tnum", U.text_render & USER_TEXT_TABULAR_NUMBERS_UI ? 1 : 0);
         BLF_feature(
-            font->blf_id, "dlig", U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
-        BLF_feature(font->blf_id, "zero", U.text_render & USER_TEXT_SLASHED_ZERO_UI ? 1 : 0);
+            font.blf_id, "dlig", U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
+        BLF_feature(font.blf_id, "zero", U.text_render & USER_TEXT_SLASHED_ZERO_UI ? 1 : 0);
         BLF_feature(
-            font->blf_id, "calt", U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI ? 1 : 0);
-        BLF_feature(font->blf_id, "ss01", U.text_render & USER_TEXT_OPEN_DIGITS_INTER ? 1 : 0);
-        BLF_feature(font->blf_id, "ss04", U.text_render & USER_TEXT_DISAMBIGUATION_INTER ? 1 : 0);
+            font.blf_id, "calt", U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES_UI ? 1 : 0);
+        BLF_feature(font.blf_id, "ss01", U.text_render & USER_TEXT_OPEN_DIGITS_INTER ? 1 : 0);
+        BLF_feature(font.blf_id, "ss04", U.text_render & USER_TEXT_DISAMBIGUATION_INTER ? 1 : 0);
       }
     }
     if (blf_mono_font != -1) {
