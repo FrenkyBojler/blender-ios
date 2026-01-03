@@ -196,14 +196,6 @@ void SEQUENCER_OT_retiming_reset(wmOperatorType *ot)
 
 /** \} */
 
-static SeqRetimingKey *ensure_left_and_right_keys(const bContext *C, Strip *strip)
-{
-  Scene *scene = CTX_data_sequencer_scene(C);
-  seq::retiming_data_ensure(strip);
-  seq::retiming_add_key(scene, strip, left_fake_key_frame_get(C, strip));
-  return seq::retiming_add_key(scene, strip, right_fake_key_frame_get(C, strip));
-}
-
 /* -------------------------------------------------------------------- */
 /** \name Retiming Add Key
  * \{ */
@@ -229,7 +221,7 @@ static bool retiming_key_add_new_for_strip(bContext *C,
     return false;
   }
 
-  ensure_left_and_right_keys(C, strip);
+  seq::ensure_left_and_right_keys(scene, strip);
   seq::retiming_add_key(scene, strip, timeline_frame);
   return true;
 }
@@ -334,7 +326,7 @@ static bool freeze_frame_add_new_for_strip(const bContext *C,
                                            const int duration)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  ensure_left_and_right_keys(C, strip);
+  seq::ensure_left_and_right_keys(scene, strip);
 
   // ensure L+R key
   SeqRetimingKey *key = seq::retiming_add_key(scene, strip, timeline_frame);
@@ -464,7 +456,7 @@ static bool transition_add_new_for_strip(const bContext *C,
   Scene *scene = CTX_data_sequencer_scene(C);
 
   // ensure L+R key
-  ensure_left_and_right_keys(C, strip);
+  seq::ensure_left_and_right_keys(scene, strip);
   SeqRetimingKey *key = seq::retiming_add_key(scene, strip, timeline_frame);
 
   if (key == nullptr) {
@@ -646,17 +638,18 @@ void SEQUENCER_OT_retiming_key_delete(wmOperatorType *ot)
 /* Return speed of existing segment or strip. Assume 1 element is selected. */
 static float strip_speed_get(bContext *C, const wmOperator * /*op*/)
 {
+  Scene *scene = CTX_data_sequencer_scene(C);
+
   /* Strip mode. */
   if (!sequencer_retiming_mode_is_active(C)) {
     VectorSet<Strip *> strips = selected_strips_from_context(C);
     if (strips.size() == 1) {
       Strip *strip = strips[0];
-      SeqRetimingKey *key = ensure_left_and_right_keys(C, strip);
+      SeqRetimingKey *key = seq::ensure_left_and_right_keys(scene, strip);
       return seq::retiming_key_speed_get(strip, key);
     }
   }
 
-  Scene *scene = CTX_data_sequencer_scene(C);
   Map selection = seq::retiming_selection_get(seq::editing_get(scene));
   /* Retiming mode. */
   if (selection.size() == 1) {
@@ -675,7 +668,7 @@ static wmOperatorStatus strip_speed_set_exec(bContext *C, const wmOperator *op)
   strips.remove_if([&](Strip *strip) { return !seq::retiming_is_allowed(strip); });
 
   for (Strip *strip : strips) {
-    SeqRetimingKey *key = ensure_left_and_right_keys(C, strip);
+    SeqRetimingKey *key = seq::ensure_left_and_right_keys(scene, strip);
 
     if (key == nullptr) {
       continue;

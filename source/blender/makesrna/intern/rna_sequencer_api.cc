@@ -665,6 +665,7 @@ static SeqRetimingKey *rna_Strip_retiming_keys_add(ID *id, Strip *strip, int tim
 {
   Scene *scene = (Scene *)id;
 
+  blender::seq::ensure_left_and_right_keys(scene, strip);
   SeqRetimingKey *key = blender::seq::retiming_add_key(scene, strip, timeline_frame);
 
   blender::seq::relations_invalidate_cache_raw(scene, strip);

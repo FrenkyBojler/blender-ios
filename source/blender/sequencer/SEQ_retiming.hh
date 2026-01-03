@@ -24,6 +24,9 @@ int retiming_keys_count(const Strip *strip);
 bool retiming_is_active(const Strip *strip);
 void retiming_data_ensure(Strip *strip);
 void retiming_data_clear(Strip *strip);
+int left_fake_key_frame_get(const Scene *scene, const Strip *strip);
+int right_fake_key_frame_get(const Scene *scene, const Strip *strip);
+SeqRetimingKey *ensure_left_and_right_keys(const Scene *scene, Strip *strip);
 void retiming_reset(Scene *scene, Strip *strip);
 bool retiming_is_allowed(const Strip *strip);
 /**
