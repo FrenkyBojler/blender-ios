@@ -37,9 +37,12 @@ struct TokenStream {
   void parse_scopes(report_callback &report_error);
 
  private:
+  /* TODO(fclem): Find better naming convention for these functions. */
   void token_parse(struct TokenData &tokens);
   void token_merge(struct TokenData &tokens);
   void token_types_populate();
+  void scope_parse(report_callback &report_error);
+  void scope_token_populate();
 };
 
 }  // namespace blender::gpu::shader::parser

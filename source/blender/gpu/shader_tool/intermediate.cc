@@ -576,6 +576,12 @@ void TokenStream::token_types_populate()
 
 void TokenStream::parse_scopes(report_callback &report_error)
 {
+  scope_parse(report_error);
+  scope_token_populate();
+}
+
+void TokenStream::scope_parse(report_callback &report_error)
+{
   {
     /* Scope detection. */
     scope_ranges.clear();
@@ -881,17 +887,21 @@ void TokenStream::parse_scopes(report_callback &report_error)
 
     exit_scope(tok_id);
   }
-  {
-    token_scope.clear();
-    token_scope.resize(scope_ranges[0].size);
+}
 
-    int scope_id = 0;
-    for (const IndexRange &range : scope_ranges) {
-      std::fill(token_scope.begin() + range.start,
-                token_scope.begin() + range.start + range.size,
-                scope_id);
-      scope_id++;
-    }
+void TokenStream::scope_token_populate()
+{
+  token_scope.clear();
+  token_scope.resize(scope_ranges[0].size);
+
+  std::stack<uint32_t> stack;
+
+  int scope_id = 0;
+  for (const IndexRange &range : scope_ranges) {
+    std::fill(token_scope.begin() + range.start,
+              token_scope.begin() + range.start + range.size,
+              scope_id);
+    scope_id++;
   }
 }
 
