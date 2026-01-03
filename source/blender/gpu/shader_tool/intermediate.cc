@@ -195,10 +195,10 @@ void TokenStream::token_offsets_populate()
   token_types.clear();
   token_offsets.clear();
 
-  /* Reserve space inside the data structures. */
-  size_t predicted_token_count = str.size() / 4;
-  token_types.reserve(predicted_token_count);
-  token_offsets.offsets.reserve(predicted_token_count);
+  /* Reserve space inside the data structures. Allocate 1 token per char as we do not want to
+   * resize or check for size inside the hot loop. */
+  token_types.reserve(str.size());
+  token_offsets.offsets.reserve(str.size() + 1);
 
   char curr_c = str[0];
   TokenType curr_type = to_type_table(curr_c);
@@ -212,7 +212,7 @@ void TokenStream::token_offsets_populate()
   bool next_character_is_escape = false;
   bool inside_string = false;
 
-  int offset = 0;
+  int offset = 0, type_cursor = 0, offset_cursor = 0;
   for (const char c : std::string_view{str.data() + 1, str.size() - 1}) {
     offset++;
     const char prev_c = curr_c;
@@ -243,7 +243,7 @@ void TokenStream::token_offsets_populate()
         if (inside_preprocessor_directive) {
           /* Detect preprocessor directive newlines `\\\n`. */
           if (prev == Backslash) {
-            token_types.back() = PreprocessorNewline;
+            token_types[type_cursor] = PreprocessorNewline;
             continue; /* Merge. */
           }
           inside_preprocessor_directive = false;
@@ -271,22 +271,22 @@ void TokenStream::token_offsets_populate()
       case '=':
         /* Merge '=='. */
         if (prev == '=') {
-          token_types.back() = Equal;
+          token_types[type_cursor] = Equal;
           continue; /* Merge. */
         }
         /* Merge '!='. */
         if (prev == '!') {
-          token_types.back() = NotEqual;
+          token_types[type_cursor] = NotEqual;
           continue; /* Merge. */
         }
         /* Merge '>='. */
         if (prev == '>') {
-          token_types.back() = GEqual;
+          token_types[type_cursor] = GEqual;
           continue; /* Merge. */
         }
         /* Merge '<='. */
         if (prev == '<') {
-          token_types.back() = LEqual;
+          token_types[type_cursor] = LEqual;
           continue; /* Merge. */
         }
         break;
@@ -294,7 +294,7 @@ void TokenStream::token_offsets_populate()
       case '>':
         /* Merge '->'. */
         if (prev == '-') {
-          token_types.back() = Deref;
+          token_types[type_cursor] = Deref;
           continue; /* Merge. */
         }
         break;
@@ -312,7 +312,7 @@ void TokenStream::token_offsets_populate()
       case '+':
         /* Detect increment. */
         if (prev == '+') {
-          token_types.back() = Increment;
+          token_types[type_cursor] = Increment;
           continue; /* Merge. */
         }
         break;
@@ -320,7 +320,7 @@ void TokenStream::token_offsets_populate()
       case '-':
         /* Detect decrement. */
         if (prev == '-') {
-          token_types.back() = Decrement;
+          token_types[type_cursor] = Decrement;
           continue; /* Merge. */
         }
         break;
@@ -359,8 +359,8 @@ void TokenStream::token_offsets_populate()
     }
 
     curr_type = type;
-    token_types.emplace_back(type);
-    token_offsets.offsets.emplace_back(offset);
+    token_types[type_cursor++] = type;
+    token_offsets.offsets[offset_cursor++] = offset;
   }
   offset++;
   token_offsets.offsets.emplace_back(offset);
