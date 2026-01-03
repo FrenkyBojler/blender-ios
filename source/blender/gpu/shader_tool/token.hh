@@ -85,8 +85,10 @@ enum TokenType : char {
 };
 
 struct Token {
+#ifdef NDEBUG
   /* String view for nicer debugging experience. Isn't actually used. */
   std::string_view str_view;
+#endif
 
   const TokenStream *data = nullptr;
   int64_t index = 0;
@@ -101,8 +103,12 @@ struct Token {
     if (data == nullptr || index < 0 || index > (data->token_offsets.offsets.size() - 2)) {
       return invalid();
     }
+#ifdef NDEBUG
     IndexRange index_range = data->token_offsets[index];
     return {std::string_view(data->str).substr(index_range.start, index_range.size), data, index};
+#else
+    return {data, index};
+#endif
   }
 
   bool is_valid() const
